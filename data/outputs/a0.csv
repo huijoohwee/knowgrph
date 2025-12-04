@@ -1,0 +1,26 @@
+graph_id,domain,category,stage,entity_type,subject,predicate,object,attribute,value,role,action,outcome,challenge,solution,context,source_location,source_type,component_name,operation_name,operation_description,temporal_marker,impact_description,source_reference,metadata_json
+sys:kg_001,Technology,Core Stack,Planning,Component,KnowGrph,uses,GitHub Pages,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_002,Technology,Core Stack,Planning,Component,KnowGrph,uses,GitHub Actions,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_003,Technology,Core Stack,Planning,Component,KnowGrph,uses,Cloudflare Pages,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_004,Technology,Core Stack,Planning,Component,KnowGrph,uses,RDF/Turtle for knowledge graph A,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_005,Technology,Core Stack,Planning,Component,KnowGrph,uses,CSV/JSON for datasets B & C,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_006,Technology,FOSS Tools,Planning,Component,KnowGrph,uses,rdflib (Python),,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_007,Technology,FOSS Tools,Planning,Component,KnowGrph,uses,D3.js,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_008,Technology,FOSS Tools,Planning,Component,KnowGrph,uses,Papa Parse,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_009,Technology,FOSS Tools,Planning,Component,KnowGrph,uses,React + Recharts,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_010,Technology,Flow,Planning,Process,Markdown,transforms_to,CSV (A0 schema),,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_011,Technology,Flow,Planning,Process,CSV (A0 schema),transforms_to,JSON-LD,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_012,Technology,Flow,Planning,Process,JSON-LD,transforms_to,RDF (rdflib),,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_013,Technology,Flow,Planning,Process,SPARQL queries (rdflib),transforms_to,extract modules & datasets,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_014,Technology,Flow,Planning,Process,EDA (pandas/NumPy),transforms_to,"distributions, correlations",,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_015,Technology,Flow,Planning,Process,MLP (scikit-learn/PyTorch),transforms_to,train/evaluate models,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_016,Technology,Flow,Planning,Process,Curriculum Engine (Python),transforms_to,"customized exercises, feedback",,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_017,Technology,Flow,Planning,Process,D3.js,transforms_to,"charts (progress dashboards, skill mastery)",,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_018,Technology,Flow,Planning,Process,Cytoscape.js,transforms_to,"KG view (relationships, curriculum pathways)",,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_019,Technology,Flow,Planning,Process,User edits graph,transforms_to,sync back,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_020,Technology,Flow,Planning,Process,sync back,transforms_to,RDF store updates,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_021,Technology,Flow,Planning,Process,RDF store updates,transforms_to,loop continues,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_022,Technology,MVP Principles,Planning,Process,KnowGrph,emphasizes,Minimal,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_023,Technology,MVP Principles,Planning,Process,KnowGrph,emphasizes,Free,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_024,Technology,MVP Principles,Planning,Process,KnowGrph,emphasizes,Lightweight,,,,,,,,,README.md,Documentation,,,,,,,{}
+sys:kg_025,Technology,MVP Principles,Planning,Process,KnowGrph,emphasizes,Iterative,,,,,,,,,README.md,Documentation,,,,,,,{}

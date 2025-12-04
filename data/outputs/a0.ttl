@@ -1,0 +1,277 @@
+@prefix ns1: <https://huijoohwee.github.io/schema/> .
+
+<sys:kg_001> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "Core Stack" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "GitHub Pages" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_002> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "Core Stack" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "GitHub Actions" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_003> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "Core Stack" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "Cloudflare Pages" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_004> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "Core Stack" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "RDF/Turtle for knowledge graph A" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_005> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "Core Stack" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "CSV/JSON for datasets B & C" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_006> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "FOSS Tools" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "rdflib (Python)" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_007> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "FOSS Tools" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "D3.js" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_008> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "FOSS Tools" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "Papa Parse" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_009> a ns1:vocab.jsonldComponent ;
+    ns1:vocab.jsonldcategory "FOSS Tools" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "React + Recharts" ;
+    ns1:vocab.jsonldpredicate "uses" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_010> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "CSV (A0 schema)" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "Markdown" .
+
+<sys:kg_011> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "JSON-LD" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "CSV (A0 schema)" .
+
+<sys:kg_012> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "RDF (rdflib)" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "JSON-LD" .
+
+<sys:kg_013> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "extract modules & datasets" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "SPARQL queries (rdflib)" .
+
+<sys:kg_014> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "distributions, correlations" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "EDA (pandas/NumPy)" .
+
+<sys:kg_015> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "train/evaluate models" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "MLP (scikit-learn/PyTorch)" .
+
+<sys:kg_016> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "customized exercises, feedback" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "Curriculum Engine (Python)" .
+
+<sys:kg_017> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "charts (progress dashboards, skill mastery)" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "D3.js" .
+
+<sys:kg_018> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "KG view (relationships, curriculum pathways)" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "Cytoscape.js" .
+
+<sys:kg_019> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "sync back" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "User edits graph" .
+
+<sys:kg_020> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "RDF store updates" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "sync back" .
+
+<sys:kg_021> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "Flow" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "loop continues" ;
+    ns1:vocab.jsonldpredicate "transforms_to" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "RDF store updates" .
+
+<sys:kg_022> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "MVP Principles" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "Minimal" ;
+    ns1:vocab.jsonldpredicate "emphasizes" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_023> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "MVP Principles" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "Free" ;
+    ns1:vocab.jsonldpredicate "emphasizes" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_024> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "MVP Principles" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "Lightweight" ;
+    ns1:vocab.jsonldpredicate "emphasizes" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
+<sys:kg_025> a ns1:vocab.jsonldProcess ;
+    ns1:vocab.jsonldcategory "MVP Principles" ;
+    ns1:vocab.jsonlddomain "Technology" ;
+    ns1:vocab.jsonldmetadata_json "{}" ;
+    ns1:vocab.jsonldobject "Iterative" ;
+    ns1:vocab.jsonldpredicate "emphasizes" ;
+    ns1:vocab.jsonldsource_location "README.md" ;
+    ns1:vocab.jsonldsource_type "Documentation" ;
+    ns1:vocab.jsonldstage "Planning" ;
+    ns1:vocab.jsonldsubject "KnowGrph" .
+
