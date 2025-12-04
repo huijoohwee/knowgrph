@@ -7,7 +7,7 @@ import { FlowDiagramData } from '../types/flow';
 export async function loadFlowData(): Promise<FlowDiagramData | null> {
   try {
     // Try to load from local data/outputs directory
-    const response = await fetch('/data/outputs/a0.jsonld');
+    const response = await fetch('data/outputs/a0.jsonld');
     
     if (!response.ok) {
       console.warn('Could not load a0.jsonld, falling back to sample data');
