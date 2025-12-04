@@ -56,6 +56,9 @@ jobs:
         run: pnpm build
         working-directory: dashboard
 
+      - name: Add SPA fallback (404.html)
+        run: cp dashboard/dist/index.html dashboard/dist/404.html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -71,4 +74,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
