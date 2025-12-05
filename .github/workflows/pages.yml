@@ -37,16 +37,14 @@ jobs:
           mkdir -p dashboard/public/data/outputs
           cp data/outputs/a0.jsonld dashboard/public/data/outputs/a0.jsonld
 
-      - name: Set up PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           check-latest: true
+
+      - name: Install pnpm
+        run: npm i -g pnpm
 
       - name: Install dependencies
         run: pnpm install
