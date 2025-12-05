@@ -28,6 +28,16 @@ This project implements a **Complete Knowledge Graph Pipeline** for transforming
   - Alternative hosting with faster global CDN.  
   - Sync repo → auto‑deploy pipeline outputs.  
 
+### Live Dashboard Access
+- URL: `https://huijoohwee.github.io/knowgrph/`
+- Features: interactive flow visualization, node editing, CSV upload to regenerate pipeline.
+- Editing: click a node to select, toggle `Enable Editing`, drag to reposition, edit label, then `Save JSON-LD` to write `data/outputs/a0.jsonld` (or download if browser permissions are limited).
+
+### Local Development
+- Start dev server: `cd dashboard && pnpm install && pnpm dev` then open `http://localhost:3000/knowgrph/`.
+- Regenerate pipeline: `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && python scripts/pipeline.py`.
+- Update RDF from JSON‑LD: `python scripts/jsonld_to_rdf.py`.
+
 ---
 
 ## Core Stack
