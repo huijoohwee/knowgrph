@@ -1,0 +1,303 @@
+# Knowledge Graph Context Boundary Configuration
+# Agentic GraphRAG for bounded LLM responses with graph-structured context
+version: "1.0.0"
+
+llm_server:
+  provider: "lm_studio"
+  endpoint: "http://localhost:1234/v1/chat/completions"
+  models: ["lmstudio-community/DeepSeek-R1-0528-Qwen3-8B-MLX-8bit"]
+  parameters:
+    temperature: 0.7
+    max_tokens: 2048
+
+graph_architecture:
+  storage: "in_memory"  # or neo4j, memgraph
+  schema_type: "property_graph"
+  traversal_engine: "cypher_compatible"
+  
+  node_types:
+    - entity: "{{ entity_type }}"
+      properties: ["{{ property_name }}: {{ property_type }}"]
+      
+  edge_types:
+    - relationship: "{{ relationship_type }}"
+      direction: "{{ directed_or_undirected }}"
+      properties: ["{{ edge_property }}: {{ property_type }}"]
+
+agentic_graphrag:
+  phases:
+    - phase: "retrieval"
+      strategy: "graph_traversal"
+      methods: ["entity_extraction", "relationship_expansion", "subgraph_extraction"]
+      
+    - phase: "reasoning"
+      strategy: "multi_hop"
+      methods: ["path_finding", "community_detection", "centrality_analysis"]
+      
+    - phase: "generation"
+      strategy: "context_bounded"
+      methods: ["subgraph_serialization", "prompt_injection", "validation"]
+
+prompt_templates:
+  system_graph_context: |
+    You operate on BOUNDED GRAPH CONTEXT.
+    
+    Graph Structure:
+    Nodes: {{ node_count }} entities
+    Edges: {{ edge_count }} relationships
+    Schema: {{ graph_schema }}
+    
+    Available Entities:
+    {{ entity_list }}
+    
+    Available Relationships:
+    {{ relationship_list }}
+    
+    RULES:
+    - Reference ONLY entities and relationships in graph
+    - State graph paths for multi-hop answers
+    - Express uncertainty if path doesn't exist
+    - Format: "[Entity A] --[Relationship]--> [Entity B]"
+    
+    Subgraph Context:
+    {{ serialized_subgraph }}
+  
+  user_query_graph: |
+    Query: {{ user_message }}
+    
+    Extracted Entities: {{ query_entities }}
+    Intent: {{ query_intent }}
+    Expected Hops: {{ max_hops }}
+    
+    Retrieve and reason over graph context only.
+
+graph_schema_template:
+  nodes:
+    - type: "{{ node_type }}"
+      label: "{{ node_label }}"
+      properties:
+        id: "{{ entity_id }}"
+        name: "{{ entity_name }}"
+        type: "{{ entity_type }}"
+        attributes: "{{ attribute_map }}"
+      
+  edges:
+    - type: "{{ edge_type }}"
+      label: "{{ relationship_label }}"
+      source: "{{ source_node_id }}"
+      target: "{{ target_node_id }}"
+      properties:
+        weight: "{{ edge_weight }}"
+        confidence: "{{ confidence_score }}"
+        provenance: "{{ source_reference }}"
+
+retrieval_strategies:
+  entity_extraction:
+    method: "llm_based"
+    prompt: "Extract entities from: {{ query }}. Return JSON: {entities: [{name, type}]}"
+    fallback: "keyword_matching"
+    
+  subgraph_extraction:
+    strategies:
+      - k_hop_neighborhood:
+          k: "{{ max_hops }}"
+          from_nodes: "{{ anchor_entities }}"
+          direction: "both"
+          
+      - community_based:
+          algorithm: "louvain"
+          min_community_size: 3
+          
+      - path_based:
+          source: "{{ query_entity }}"
+          target: "{{ related_entities }}"
+          max_path_length: "{{ max_hops }}"
+          algorithm: "shortest_path"
+  
+  ranking:
+    methods:
+      - pagerank:
+          damping_factor: 0.85
+          iterations: 100
+          
+      - semantic_similarity:
+          embedding_model: "{{ embedding_model }}"
+          similarity_metric: "cosine"
+          
+      - hybrid:
+          weights:
+            structural: 0.4
+            semantic: 0.6
+
+reasoning_patterns:
+  single_hop:
+    query: "{{ entity }} --[{{ relationship }}]--> ?"
+    cypher: "MATCH (a {{ entity_filter }}) -[r:{{ relationship_type }}]-> (b) RETURN a, r, b"
+    
+  multi_hop:
+    query: "{{ entity_a }} --> ... --> {{ entity_b }}"
+    cypher: "MATCH path = (a {{ filter_a }})-[*1..{{ max_hops }}]-(b {{ filter_b }}) RETURN path"
+    reasoning: "trace_intermediate_nodes"
+    
+  community:
+    query: "entities related to {{ anchor_entity }}"
+    cypher: "MATCH (a {{ anchor_filter }})-[*1..2]-(b) RETURN DISTINCT b"
+    reasoning: "cluster_by_relationship_type"
+    
+  aggregation:
+    query: "{{ aggregate_function }}({{ property }}) for {{ entity_type }}"
+    cypher: "MATCH (n:{{ entity_type }}) RETURN {{ agg_fn }}(n.{{ property }})"
+
+context_construction:
+  subgraph_to_prompt:
+    serialization_format: "cypher_like"
+    template: |
+      Nodes:
+      {% for node in subgraph.nodes %}
+      - ({{ node.id }}:{{ node.type }} {{ node.properties }})
+      {% endfor %}
+      
+      Relationships:
+      {% for edge in subgraph.edges %}
+      - ({{ edge.source }}) -[{{ edge.type }} {{ edge.properties }}]-> ({{ edge.target }})
+      {% endfor %}
+    
+    max_nodes: 50
+    max_edges: 100
+    prioritization: "centrality_score"
+
+  graph_statistics:
+    include: true
+    metrics:
+      - "node_count"
+      - "edge_count"
+      - "avg_degree"
+      - "connected_components"
+      - "graph_density"
+
+anti_hallucination_graph:
+  validation:
+    - rule: "entity_exists"
+      check: "All mentioned entities exist in graph"
+      action: "reject"
+      
+    - rule: "relationship_exists"
+      check: "All stated relationships exist between entities"
+      action: "reject"
+      
+    - rule: "path_exists"
+      check: "Multi-hop reasoning follows actual graph paths"
+      action: "flag_and_revise"
+      
+    - rule: "attribute_accurate"
+      check: "Entity attributes match graph properties"
+      action: "reject"
+  
+  response_format:
+    require_graph_citation: true
+    citation_format: "[{{ source_entity }}] --[{{ relationship }}]--> [{{ target_entity }}]"
+    uncertain_path: "No path exists in graph between {{ entity_a }} and {{ entity_b }}"
+
+backend_pipeline:
+  steps:
+    - parse_query:
+        extract: ["entities", "intent", "expected_relationships"]
+        
+    - retrieve_subgraph:
+        method: "{{ retrieval_strategies[detected_strategy] }}"
+        parameters:
+          max_hops: "{{ inferred_from_query }}"
+          anchor_entities: "{{ extracted_entities }}"
+          
+    - rank_nodes:
+        algorithm: "{{ ranking.methods[selected_method] }}"
+        top_k: 50
+        
+    - serialize_context:
+        format: "{{ context_construction.serialization_format }}"
+        include_statistics: true
+        
+    - construct_prompt:
+        system_template: "system_graph_context"
+        user_template: "user_query_graph"
+        
+    - send_to_llm:
+        endpoint: "{{ llm_server.endpoint }}"
+        
+    - validate_response:
+        rules: "{{ anti_hallucination_graph.validation }}"
+        
+    - return_or_retry:
+        max_retries: 2
+        fallback: "no_valid_path_response"
+
+domain_graph_template:
+  domain_id: "{{ domain_identifier }}"
+  
+  node_schema:
+    - type: "{{ primary_entity }}"
+      properties: ["id", "name", "{{ domain_attribute }}"]
+      
+    - type: "{{ secondary_entity }}"
+      properties: ["id", "name", "{{ domain_attribute }}"]
+  
+  edge_schema:
+    - type: "{{ relationship_type }}"
+      source_type: "{{ source_entity_type }}"
+      target_type: "{{ target_entity_type }}"
+      properties: ["weight", "provenance"]
+  
+  reasoning_patterns:
+    - pattern: "{{ pattern_name }}"
+      cypher_template: "{{ cypher_query }}"
+      use_case: "{{ when_to_apply }}"
+
+example_graph:
+  domain: "api_documentation"
+  
+  nodes:
+    - {id: "auth_endpoint", type: "Endpoint", name: "/api/v1/auth/login", method: "POST"}
+    - {id: "user_param", type: "Parameter", name: "username", required: true}
+    - {id: "pass_param", type: "Parameter", name: "password", required: true}
+    - {id: "token_return", type: "ReturnValue", name: "token", type: "string"}
+    - {id: "auth_service", type: "Service", name: "AuthService"}
+  
+  edges:
+    - {source: "auth_endpoint", type: "REQUIRES", target: "user_param", weight: 1.0}
+    - {source: "auth_endpoint", type: "REQUIRES", target: "pass_param", weight: 1.0}
+    - {source: "auth_endpoint", type: "RETURNS", target: "token_return", weight: 1.0}
+    - {source: "auth_endpoint", type: "HANDLED_BY", target: "auth_service", weight: 1.0}
+  
+  sample_queries:
+    - query: "What parameters does login require?"
+      expected_subgraph:
+        nodes: ["auth_endpoint", "user_param", "pass_param"]
+        path: "(auth_endpoint)-[REQUIRES]->(user_param), (auth_endpoint)-[REQUIRES]->(pass_param)"
+        
+    - query: "What service handles authentication?"
+      expected_subgraph:
+        nodes: ["auth_endpoint", "auth_service"]
+        path: "(auth_endpoint)-[HANDLED_BY]->(auth_service)"
+
+provenance:
+  track_graph_operations: true
+  
+  metadata:
+    query_id: "{{ unique_id }}"
+    extracted_entities: "{{ entity_list }}"
+    subgraph_stats:
+      nodes: "{{ subgraph_node_count }}"
+      edges: "{{ subgraph_edge_count }}"
+      retrieval_time_ms: "{{ duration }}"
+    reasoning_trace:
+      - step: "{{ step_name }}"
+        operation: "{{ graph_operation }}"
+        result: "{{ result_summary }}"
+
+monitoring:
+  metrics:
+    - "avg_subgraph_size"
+    - "retrieval_latency_ms"
+    - "multi_hop_query_ratio"
+    - "hallucination_rate"
+    - "graph_coverage_per_query"

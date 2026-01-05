@@ -4,7 +4,8 @@
 
 ## Documentation Guide
 
-- Authoring standards live in `docs/documentation-guide.md`.
+- Authoring standards live in `docs/guidelines/documentation-guidelines.md`.
+- Use `docs/guidelines/documentation-template.md` as the baseline template when drafting new system specs.
 - Use intent-first phrasing (`From X to Y: Component → actions → outcome`) and atomic subject-verb-object directives.
 - Prefer domain-blind descriptions (algorithms and schemas) over dataset-specific walkthroughs.
 - When documentation mirrors runtime behavior (tooltips, presets, localStorage keys), treat code registries and copy helpers as the source of truth.
@@ -14,7 +15,8 @@
 - Architecture overview
   - `docs/knowgrph-technical-architecture.md`
   - `docs/knowgrph-design-document.md`
-  - `docs/knowgrph-pipeline-principles.md`
+  - `docs/knowgrph-codebase-indexing-traversal-tracing-pipeline-document.md`
+  - `docs/guidelines/knowgrph-pipeline-guidelines.md`
 - Component specifications
   - `docs/knowgrph-api-document.md`
   - `docs/knowgrph-orchestrator-document.md`

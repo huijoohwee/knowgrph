@@ -1,6 +1,6 @@
 # Knowgrph Parser Catalog
 
-See also: [Visualization Catalog](knowgrph-viz-catalog.md), [Workflow Catalog](knowgrph-workflow-catalog.md), [User Journey Catalog](knowgrph-userjrny-catalog.md).
+See also: [Visualization Catalog](knowgrph-visualization-document.md), [Workflow Catalog](knowgrph-workflow-document.md), [User Journey Catalog](knowgrph-user-journey-document.md).
 
 This catalog focuses on in-canvas parsers in `canvas/src/features/parsers/*` and how they consume datasets from `test-data/` and feed graph data into the canvas workflow described in the Workflow and User Journey catalogs. It also documents Python CLI parsers used for offline analysis, D3/POC HTML demos, and regression tests.
 
@@ -449,7 +449,7 @@ Updated `canvas/README.md` from a generic Vite template to a project-specific ov
   - Explains that canvas uses a single JSON-LD parser:
     - `parseJsonLd` in `canvas/src/lib/graph/jsonld.ts:1-118`.
     - Built-ins in `canvas/src/features/parsers/default.ts`.
-  - Notes workflow presets binding parser/dataset/schema and points to `knowgrph-workflow-catalog.md`.
+  - Notes workflow presets binding parser/dataset/schema and points to `knowgrph-workflow-document.md`.
 - Notes that offline CLI utilities live under `knowgrph_parser/` and run via `python -m knowgrph_parser`.
 - Python CLI parsers section:
   - Documents:

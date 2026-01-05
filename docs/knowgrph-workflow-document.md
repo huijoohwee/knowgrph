@@ -1,24 +1,32 @@
-# Interactive Product Tour & Onboarding Flow
+# Interactive Product Tour & Onboarding Flow: AgenticRAG Workflow
 
-*Aligned with Generic KG/RAG Pipeline Principles and the INGEST → PRODUCE → REUSE architecture defined in `docs/knowgrph-raci-document.md`.*
+*Aligned with Generic GraphRAG Pipeline: Token Linking to Corpus Reasoning*
+
+## Architecture Integration
+
+**From UI to pipeline**: Workflow tab -> maps 8 UI steps to semantic orchestration layers (Detection -> Schema Inference -> Ingestion -> Parsing -> Orchestration -> Rendering -> Agentic RAG) -> exposes configuration controls per layer -> maintains domain-agnostic processing -> delivers queryable knowledge graphs from heterogeneous sources.
+
+**Phase Mapping**:
+- Steps 1-2 (Load/Validate) -> TOKEN_LINKING + EDGE_ELEVATION: Loader validates syntax -> Parser extracts entities -> Validator checks structure
+- Step 3 (Configure) -> THRESHOLD_TUNING + SCHEMA: Adaptive boundaries -> Field definitions -> Visual encoding rules
+- Step 4 (Visualize) -> DOCUMENT_UNIFICATION + RENDERING: Cross-document merging -> Layout execution -> Interaction handling
+- Step 5 (Export) -> CORPUS_REASONING + AGENTIC_RAG: Format transformation -> Workflow artifacts -> Traversal configurations
+
+**Step Labels** (Single-sourced from `canvas/src/features/panels/config.ts`):
+1. Schema (decide meaning once)
+2. UI curation layer
+3. Ingest
+4. Enrich
+5. Index and store
+6. Agentic reasoning
+7. Produce
+8. Reuse and render
 
 ---
 
-**Phase Mapping**
+## Workflow Presets (Configuration-Driven Templates)
 
-- The Main Panel **Workflow** tab follows the 8‑step AgenticRAG pipeline from `docs/knowgrph-raci-document.md`. Step labels and short/long descriptions are single‑sourced from `WORKFLOW_STEP_COPY` in `canvas/src/features/panels/config.ts`:
-  1. Schema (decide meaning once)
-  2. UI curation layer
-  3. Ingest
-  4. Enrich
-  5. Index and store
-  6. Agentic reasoning
-  7. Produce
-  8. Reuse and render
-
----
-
-## Workflow Presets
+**From manual to preset**: System -> loads dataset + schema + orchestrator combinations -> demonstrates pipeline capabilities without hardcoded logic -> maintains configuration/data separation -> delivers reproducible workflows across domains.
 
 <!-- WORKFLOW_PRESETS_TABLE_START -->
 
@@ -33,345 +41,238 @@
 
 <!-- WORKFLOW_PRESETS_TABLE_END -->
 
----
-
-## Tooltip Semantics (Workflow tab)
-
-- `WORKFLOW_STEP3_PARSER_TOOLTIP` – Parser tab → load parser specs, apply presets, and run ingest flows → keep CSV/JSON inputs mapped predictably into AgenticRAG `GraphData`.
-- `WORKFLOW_STEP6_ORCHESTRATOR_TOOLTIP` – Orchestrator presets → run Agentic GraphRAG traversal helpers from the Orchestrator tab → keep traversal docs and behavior aligned with the Graph Traversal floating panel.
-- `WORKFLOW_STEP8_BOTTOM_TABS_TOOLTIP` – Bottom panel tabs → combine Data, Table, and Render views on `GraphData` → validate, visualize, and export layouts with consistent AgenticRAG semantics.
-
-### JSON‑LD fixtures for workflow tooltips
-
-The Workflow tab tooltip helpers are also represented as AgenticRAG `rag:RoleActionOutcome` JSON‑LD fixtures that keep UI copy, RACI roles, and AgenticRAG semantics aligned. The fixtures live under `schema-config/` and are exercised by schema‑driven copy tests in `canvas/src/__tests__/orchestratorCopy.test.ts`:
-
-- Parser (Step 3) – `WORKFLOW_STEP3_PARSER_TOOLTIP` ↔ `schema-config/workflow-step3-parser-role-action-outcome.jsonld`.
-- Orchestrator (Step 6) – `WORKFLOW_STEP6_ORCHESTRATOR_TOOLTIP` ↔ `schema-config/workflow-step6-orchestrator-role-action-outcome.jsonld`.
-- Bottom panel tabs (Step 8) – `WORKFLOW_STEP8_BOTTOM_TABS_TOOLTIP` ↔ `schema-config/workflow-step8-bottom-tabs-role-action-outcome.jsonld`.
-
-Together with the Orchestrator, Graph Fields, Graph Data Table, Workflow links, Agentic reasoning labels, `graphRAGPath` metadata, traversal preset UI, Canvas cheatsheet, and codebase index entry-point fixtures described in `knowgrph-semantics-document.md`, these JSON‑LD objects provide a machine‑readable contract for the Role → Actions → Outcome semantics used across the Workflow, Help, and Orchestrator surfaces.
+**Principle Compliance**: ✅ Presets bind parser+dataset+schema (not domain logic) | ✅ Same pipeline runs across 3+ domains without code changes
 
 ---
 
-## Step 1 – Load Data (Ingest: Loader → Parser → Validator)
+## Tooltip Semantics (Intent-Directive Documentation)
 
-**Action**: Load graph data from any source so Loader and Parser can transform it into canonical `GraphData` without domain assumptions.
+**Parser Tooltip** (`WORKFLOW_STEP3_PARSER_TOOLTIP` -> `schema-config/workflow-step3-parser-role-action-outcome.jsonld`):
+- From raw input to GraphData: Parser tab -> loads specifications from generic templates -> applies transformations (CSV mapping, JSON-LD context) -> validates structure without domain assumptions -> delivers canonical GraphData for orchestration.
 
-**Supported Sources**:
-- File upload (JSON, CSV, JSON-LD)
-- API endpoint URL
-- Database connection string
-- Paste raw JSON
-- Markdown document import (Local Device or URL ending in `.md`) via Toolbar → Workspace Actions → Markdown → Import, which parses the document into an AgenticRAG-aligned JSON-LD graph and opens the bottom panel Markdown editor/viewer for inspection, selection-driven provenance, and export.
+**Orchestrator Tooltip** (`WORKFLOW_STEP6_ORCHESTRATOR_TOOLTIP` -> `schema-config/workflow-step6-orchestrator-role-action-outcome.jsonld`):
+- From static to dynamic: Orchestrator tab -> exposes AgenticRAG presets (max hops, relation filters, context window) -> executes queries via configurable strategies -> maintains Graph Traversal panel alignment -> delivers provenance-linked subgraphs.
 
-**Markdown Import Flow (UI → Parser → GraphData → Viewer)**:
-- Floating panel Workspace Actions triggers `ToolbarToolMenuAreas` → `ToolbarMenuLauncher` to pick local/URL markdown text.
-- Loader runs `loadGraphDataFromTextViaParser()` which auto-selects the built-in `markdown` parser (`features/parsers/default.ts`).
-- Parser builds JSON-LD blocks with `metadata.documentPath`, `metadata.timestamp`, `metadata.lineStart/lineEnd` and converts to `GraphData` via `parseJsonLd()` (`lib/graph/jsonld.ts`).
-- Bottom panel Markdown section renders source + preview, highlights selected node/edge line ranges, and suppresses resize-driven auto-scroll so drag-resizing the split pane does not jump the editor or preview (`BottomPanelMarkdownSection` + `MarkdownPreview`).
-- Markdown preview is tokenized GFM-first (CommonMark-style fallback) and supports Slidev-style slide separators: standalone `---` lines split slides in Presentation Mode (`MarkdownPreview` + `markdownPreviewLex`).
-- Presentation Mode renders a 16:9 slide stage, supports Prev/Next + keyboard navigation, and (when present) renders MDX slides with JSX components while still enabling GFM tables/task lists (`MarkdownPreview`).
-- Mermaid code blocks render inline SVG in the bottom panel; a single-click on a diagram opens the MainPanel Preview tab with that Mermaid code focused in a 16:9 gallery stage, and a subsequent single-click inside the PreviewPanel diagram promotes it into a fullscreen, zoomable viewer with Fit, zoom-in/out, wheel zoom, and drag-to-pan for detailed inspection (`MarkdownPreview` + `MermaidDiagram` + `PreviewPanelView`).
-- Markdown preview supports safe rich media rendering (images, common iframe embeds, and mp4/webm links) and routes single-clicks on these rich media blocks to the MainPanel Preview tab, where a 3x3, 16:9 media gallery shows lightweight mini-previews in tiles and an enlarged 16:9 stage for the currently selected item (`MarkdownTokenRenderer` + `PreviewPanelView`).
-
-**Process**:
-1. Click **Load Data** button
-2. Select source type
-3. Loader validates JSON syntax
-4. Parser validates against schema
-5. Graph structure loaded: `{nodes[], edges[], metadata{}}`
-
-**Principle Compliance**:
-- ✅ Loader accepts any valid source (no hardcoded paths)
-- ✅ Parser validates structure only (no domain assumptions)
-- ✅ Zero references to specific files or datasets
+**Bottom Panel Tooltip** (`WORKFLOW_STEP8_BOTTOM_TABS_TOOLTIP` -> `schema-config/workflow-step8-bottom-tabs-role-action-outcome.jsonld`):
+- From graph to views: Bottom tabs -> combine Data/Table/Render on shared GraphData -> validate constraints, visualize distributions, export layouts -> preserve AgenticRAG semantics across transitions.
 
 ---
 
-## Step 2 – Validate & Inspect (Ingest: structural checks)
+## Step 1: Data Ingestion (Loader Layer)
 
-**Action**: Review parsed graph structure and quality metrics before moving into schema tuning or enrichment.
+### From sources to syntax validation
 
-**Validation Checks**:
-- Node ID uniqueness verified
-- Edge references validated (source/target exist)
-- Schema conformance confirmed
-- Quality metrics calculated
+**Intent**: Loader -> accepts data from any source (file, API, markdown, clipboard) -> validates JSON syntax without semantic interpretation -> preserves provenance (source path, timestamp, line ranges) -> delivers raw structure to Parser layer.
 
-**Inspection Tools**:
-- Node count, edge count, metadata summary
-- Validation report (errors/warnings)
-- Sample preview (first 10 nodes/edges)
-- Bottom panel **Parser** tab → Parser UI Editor for configuring parsers in JSON/YAML/Python while keeping transforms generic and domain-agnostic
-- JSON-LD graph mapping summary in the bottom panel **Parser** tab showing node/edge counts, edge properties discovered from `@context` that are treated as `@id` relationships, and a small toggle surface for selecting which context edge properties participate in graph traversal. Selected keys are stored on the in-memory `GraphData.metadata.jsonLdMapping.contextEdgeProperties` contract so Loader, Schema, Orchestrator, Render, and Main panel Graph Fields can reuse the same mapping when exporting JSON-LD or wiring AgenticRAG workflows (`canvas/src/features/panels/views/ParserSections.tsx:205-247`, `canvas/src/lib/graph/jsonld.ts:38-107`, `canvas/src/lib/graph/types.ts:24-34`). When this contract is present on `GraphData.metadata` (for example from a codebase index JSON-LD generated by `python -m knowgrph_parser parse-codebase-index`), the GraphRAG workflow export builder reads `contextEdgeProperties` and seeds the first `rag:TraversalRule` with `allowedRelations` equal to the selected edge labels, falling back to all observed edge labels when no explicit selection is present (`canvas/src/features/panels/utils/graphragConfig.ts:139-193`). The Orchestrator text editor surfaces the active selection as a non-editable pill list so users can see which JSON-LD context relations the downstream AgenticRAG pipeline will treat as traversable (`canvas/src/features/panels/views/RenderSettingsSection.tsx:1568-1790`). The bottom panel Parser toolbar’s `Collapse All` / `Expand All` behavior is kept in sync with the underlying parser workflow state via `useParserBottomPanelState`, allowing `BottomPanelBody` to treat Parser, Orchestrator, and Render tabs uniformly when wiring toolbar controls and future analytics events (`canvas/src/features/panels/hooks/useParserBottomPanelState.ts:1-56`, `canvas/src/components/BottomPanel/BottomPanelBody.tsx:84-116`).
-
-**Principle Compliance**:
-- ✅ Parser ignores domain-specific property names
-- ✅ Validation is structural only (no semantic checks)
-- ✅ Works with any domain (finance, biology, AI)
-
----
-
-## Step 3 – Configure Visualization (Schema and Graph Fields)
-
-**Action**: Apply styling and layout rules
-
-**Configuration Options**:
-- **Node styling**: Size by property, color by type, shape selection
-- **Edge styling**: Width by weight, color by relationship type
-- **Layout algorithm**: Force-directed, hierarchical, radial, grid
-- **Interaction**: Enable/disable click, drag, hover, expansion
-- Main panel **Graph Fields** tab opens as a centered overlay (~80% viewport) sharing the same header/footer/container as Help, using a scrollable split layout for defining derived fields and toggling visibility from generic node/edge properties only
-- Bottom panel **Curation** toolbar `Graph Fields` button no longer opens a separate fields editor; it routes to the Main panel Graph Fields tab so field configuration, Graph Data Table columns, and text editors stay in sync via shared `graphFieldSettingsById` and column visibility/order state
-
-**Schema Templates**:
-- Load pre-configured templates (not tied to specific datasets)
-- Customize rules in Schema UI Editor
-- Import `schema-config/*.json` via Schema tab to replace the active schema (clean-slate)
-- Export configuration for reuse
-
-**Principle Compliance**:
-- ✅ Renderer uses generic node/edge structures
-- ✅ Styling based on properties (not hardcoded domain logic)
-- ✅ Templates are domain-agnostic
-
----
-
-## Step 4 – Visualize & Explore (Reuse: renderer focus)
-
-**Action**: Interact with graph visualization
-
-**Visualization Features**:
-- Dynamic layout rendering
-- Multi-dimensional views (2D/3D toggle)
-- Minimap navigation
-- Zoom/pan controls
-- Search and filter nodes/edges
-- Bottom panel Graph Data Table aggregates numeric fields by group and renders a toggleable aggregate chart per group row using `GraphDataTableAggregateNumericSummary` and a D3-backed layout (`canvas/src/features/graph-data-table/graphDataTable.ts:33–54`, `canvas/src/features/graph-data-table/ui/GraphDataTableTable.tsx:25–190,565–696`). Users can cycle a single “Chart” toggle through `Off → Radial hull → Bars → Sparkline`, and a small Graph Data Table setting (exposed in both the Settings panel and the bottom panel **Table view** dropdown as “Start with charts off / Start with radial charts”) controls whether the initial mode is `radial` or `none`, keeping behavior user-configurable while reusing the same underlying aggregate data and avoiding dataset-specific presets.
- - Canvas **Group Polygons** toolbar button toggles phase/step-style convex hull outlines around related nodes in both 2D and 3D views. Group membership comes from JSON-LD array properties (for example, arrays of node ids or compact IRIs on phase/section nodes), and styling is driven by `schema.metadata["canvas:polygons"]` so fill, opacity, stroke, dash patterns, and grouping metadata (for example, `groupingLogic`, `layer`, `label`, `tooltip`, and `schemaDrivenStylingEntrypoint`) stay schema- and metadata-driven instead of hardcoded. The Main Panel **Graph Fields** tab exposes a polygon presets editor under Field Settings → Schema extras so teams can tune these defaults without changing renderer code.
-
-**Exploration Tools**:
-- Click node → highlight connections
-- Double-click → expand neighbors
-- Hover → show tooltip (properties)
-- Run graph traversal queries
-- Export subgraph selections
-- Inspect grouped aggregates in the bottom panel Graph Data Table: when a node or edge is selected in the 2D/3D canvas, the corresponding group’s aggregate chart (radial hull, bars, or sparkline) is highlighted via a shared selection map (`selectedNodeId`/`selectedEdgeId` and neighbor sets) while non-selected groups keep the neutral stroke, keeping table aggregates, renderer selection, and AgenticRAG semantics aligned without relying on dataset-specific labels or IDs.
-- Use canvas group polygons together with selection and traversal: selecting a node highlights its neighbors, dims unrelated nodes, and keeps its group polygon visible so users can see which phase or section owns the selected node while still treating all groups as generic JSON-LD-derived clusters (no dataset-specific stage names or labels).
-
-**Principle Compliance**:
-- ✅ Renderer visualizes generic structures
-- ✅ No hardcoded domain-specific UI elements (polygon grouping is JSON-LD- and schema-driven)
-- ✅ Works with any validated graph input
-
----
-
-## Step 5 – Export & Share (Produce → Reuse)
-
-**Action**: Export graph and configuration
-
-**Export Formats**:
-- **Graph data**: JSON, JSON-LD, CSV, GraphML, Cypher
-- **Markdown documents**: `.md` files exported from the bottom panel Markdown editor via the Toolbar → Workspace Actions → Markdown area. These remain plain-text, dataset-agnostic sources that AgenticRAG pipelines treat as `rag:Markdown` inputs for the `python -m knowgrph_parser markdown` flow and downstream GraphRAG JSON-LD generation.
-- **Visualization**: PNG, SVG, PDF
-- **Configuration**: Schema JSON (reusable)
-- **Report**: Validation summary, quality metrics
-- **Workflow state**: History JSON-LD where each `kg:HistoryEntry` can optionally include a snapshot of `graphFieldSettingsById` (`kg:graphFieldSettings`) so field configuration versions track graph snapshots
-- **Field configuration**: Graph Fields JSON-LD export containing one `kg:GraphFieldSetting` per field, with optional `kg:fieldType` and `kg:description` hints aligned to the AgenticRAG-friendly `kg:` schema prefix for downstream tooling; a minimal reference snippet for AgenticRAG pipelines is documented in `knowgrph-schema-catalog.md` under “Graph Fields Settings JSON‑LD”.
-- **GraphRAG workflow**: JSON-LD export whose root `@type` is `rag:GraphRAGWorkflow`, aligned with UI anchors `rag:Embedding` and `rag:GraphRAGWorkflow` so downstream AgenticRAG pipelines can consume a stable, schema-driven workflow document independent of the raw graph data or schema files. The underlying shape matches the `GraphRagWorkflowJsonLd` type: it includes `graphId`, `retrievalMethod: 'graph-traversal'`, `maxHops`, a `traversalRules[]` array of `rag:TraversalRule` objects (`ruleType: 'relation-constraint'`, `allowedRelations[]`, optional `rulePriority`), and a `contextWindow` block (`@type: 'rag:ContextWindow'`, `contextSize`, `contextStrategy`), plus optional `dataset`, `chunking`, and `embeddingModel` sections used by CLI and offline pipelines. When `GraphData.metadata.jsonLdMapping.contextEdgeProperties` is present (toggled in the Parser UI), `buildGraphRagWorkflowFromGraphData` seeds the first `traversalRules[].allowedRelations` array from those keys so the AgenticRAG orchestrator respects the JSON-LD context edge choices (`canvas/src/features/panels/utils/graphragConfig.ts:139-193`, `canvas/src/features/panels/views/ParserSections.tsx:116-170`). The Main Panel **Workflow** tab exposes this as an inline JSON editor inside the Agentic Reasoning step that can be reset to a template, expanded for more vertical space, populated by importing an existing GraphRAG config JSON/JSON-LD file, or generated from the current `GraphData` (seeding traversal rules from edge labels). The import flow also accepts the CLI-style `config.yaml` format (for example `canvas/public/examples/graphrag-demo/config.yaml` or `configs/graphrag/aiap22-codebase-config.yaml`) and transforms it into the `rag:GraphRAGWorkflow` JSON-LD template automatically; when that YAML includes a `duckdb_queries` block, the importer maps it onto a `duckdbQueries[]` array on the workflow JSON-LD (`canvas/src/features/panels/utils/graphragConfig.ts:35-50,52-137`), and the Orchestrator tab reads those entries to populate the DuckDB query presets dropdown in the **Traversal presets and helpers** section so dataset-specific call-graph and diagnostics queries stay configuration-driven rather than hardcoded, with the presets dropdown and SQL editor automatically resetting to reflect the active workflow whenever you switch datasets or import a new GraphRAG YAML (`canvas/src/features/panels/views/OrchestratorSettingsSection.tsx:119-165,525-571`, `canvas/src/features/panels/views/OrchestratorTraversalPanels.tsx:16-29,258-304`).
-  - Agentic traversal performance is influenced primarily by GraphRAG traversal helpers (`canvas/src/lib/graph/graphragTraversal.ts:1-158`) and selection/renderer subscribers (GraphCanvas, ThreeGraph, NodeEditor). Neighbor map caching and bounded BFS traversal keep path computation fast even on large graphs; see `knowgrph-system-performance-catalog.md` for budgets and module references.
-  - Local Chat reasoning is an optional, metadata-driven surface powered by a user-configured OpenAI-compatible `/v1/chat/completions` endpoint. The Canvas Chat panel sends the selected node’s id/type, an ordered sample of its properties (prioritizing title/name/description/chunk_text/tags/url), and—when available—a markdown line-range excerpt derived from `metadata.lineStart/lineEnd` plus the imported markdown document, alongside the live conversation history. This keeps export and AgenticRAG workflow semantics unchanged while enabling local DeepSeek-R1-0528-Qwen3-8B or similar models to answer questions about the active graph without any dataset-specific logic in Loader, Parser, Schema, or Renderer (`canvas/src/pages/Canvas.tsx`, `canvas/src/hooks/store/uiSlice.ts`, `canvas/src/features/settings/registry-ui.ui.ts`).
-
-### History JSON‑LD export example
-
-```jsonld
-{
-  "@context": { "kg": "http://example.org/kg#" },
-  "@type": "kg:HistoryExport",
-  "kg:exportedAt": 1766229000000,
-  "kg:historyIndex": 1,
-  "kg:history": [
-    {
-      "@type": "kg:HistoryEntry",
-      "@id": "history-1",
-      "kg:label": "Initial import",
-      "kg:timestamp": 1766228800000,
-      "kg:data": {
-        "context": "demo",
-        "type": "Graph",
-        "nodes": [],
-        "edges": []
-      },
-      "kg:graphFieldSettings": {
-        "node:chunk_text": {
-          "displayName": "Chunk text",
-          "isHidden": false,
-          "fieldType": "Long text"
-        },
-        "edge:weight": {
-          "displayName": "Weight",
-          "isHidden": false,
-          "fieldType": "Number"
-        }
-      }
-    }
-  ]
-}
+**Subject-Verb-Object Directives**:
+```
+loader accepts file_upload_via_drag_drop_or_picker
+loader fetches data_from_url_via_http_request
+loader receives markdown_via_local_device_or_url
+loader validates json_syntax_via_built-in_parser
+loader preserves source_metadata (path, timestamp, line_ranges)
+loader logs ingestion_statistics_for_audit
 ```
 
-**CLI / Offline Pipelines**:
-- Use the unified Python CLI parser under `python -m knowgrph_parser` for offline / batch workflows:
-  - `jsonld-universal` for structural JSON/JSON-LD to `GraphData` conversion (optionally delegating to a loaded parser module).
-  - `markdown` (default) for Markdown → AgenticRAG-aligned JSON-LD with Canvas provenance deep-links (`metadata.codebasePath#Lx-y`).
-  - `parse-codebase-index` for converting `test-data/knowgrph-workflow.json` into a JSON-LD codebase index graph (`data/outputs/codebase-index-viz.jsonld`) enriched with traversal metadata plus runtime tracing events.
-  - `embed-codebase-index` and `test-embedding-sanity` for deterministic embeddings and validation.
-  - `workflow-artifacts` for emitting workflow CSV/summary artifacts used by the Orchestrator tab.
-    - Each node in the exported codebase index includes:
-      - Structural fields: `@id`, `@type`, `name`, `path`, and codebase edges (`imports`, `renders`, `usesWorker`, etc.).
-      - AgenticRAG path metadata: an optional `graphRAGPath` object (`query`, `traverse[]`, `multiHop[]`/`hops[]`, `context`) that drives orchestrated traversal in the Canvas Orchestrator tab.
-        - Examples include:
-          - Canvas entry path for end-to-end rendering: `canvas/src/pages/Canvas.tsx` → `canvas/src/components/GraphCanvas.tsx` → `canvas/src/workers/graphParser.worker.ts`.
-          - Pipeline entry path: `npm run pipeline` → `python -m knowgrph_parser parse-codebase-index` → `embed-codebase-index` → `test-embedding-sanity` → `data/outputs/codebase-index-viz.jsonld`.
-          - Store-to-index paths tying UI state to the pipeline: `canvas/src/hooks/store/schemaSlice.ts` and `canvas/src/hooks/store/historySlice.ts` → `canvas/src/features/panels/views/WorkflowSection.tsx` → `canvas/src/features/panels/hooks/useWorkflowExportActions.ts` → `python -m knowgrph_parser parse-codebase-index`.
-      - RAG grounding text: a synthesized `chunk_text` string derived from `graphRAGPath` for direct use as `AgenticRagNodeView.chunkText` (see `canvas/src/lib/graph/jsonld.ts:132-181`).
-      - Orchestrator and Settings panels use a shared two-column Key/Value row primitive (`KeyValueRow` in `canvas/src/features/panels/ui/KeyValueRow.tsx`) so traversal controls (start node id, max depth, label filters) and non-traversal settings (3D formulas, workflow indexing summaries, traversal delay sliders) present consistent “label on the left, control on the right” layouts across the workflow.
-      - Per-node provenance: a `metadata` object compatible with `AgenticRagNodeProvenance` (`canvas/src/lib/graph/types.ts:60-76`), including `source`, `timestamp`, `codebasePath`, `codebaseArea`, optional `curator` (from `owner`), a normalized `confidence` score derived from `testCoverage` when available, and `codebaseId` for multi-codebase scenarios.
-        - The `codebasePath` can point at JSON-LD exports such as `data/outputs/codebase-index-viz.jsonld`; Canvas treats this value as provenance metadata surfaced in the Orchestrator and Graph Data Table views rather than as a clickable file opener. Dev tooling and downstream viewers can still map repository-relative `codebasePath` values to Vite `/@fs` URLs (resolved relative to `VITE_CODEBASE_ROOT` for non-absolute paths) and interpret `#L<number>` fragments when opening files outside the core canvas UI.
-    - Optional embedding stage: run `embed-codebase-index` to compute deterministic embeddings from each node's `chunk_text` and populate `embedding` arrays plus an `embeddingConfiguration` block in the top-level `metadata`. The script defaults to a 64-dimensional vector space and records the model identity using the patterns from `knowgrph-metadata-lint-patterns.md` (for example `example:embedding-config-codebase` with `modelName: "text-embedding-3-large"` and `provider: "OpenAI"`). This keeps the codebase index JSON-LD ready for vector search while remaining schema- and provider-agnostic. For local pipelines and CI, `knowgrph_parser/pipeline_cmd.py` wires `parse-codebase-index`, `embed-codebase-index`, and `test-embedding-sanity` into a single `npm run pipeline` command that validates structural, embedding, traversal, tracing, and AgenticRAG metadata performance end-to-end.
-    - Canvas workflow: run `parse-codebase-index` (and optionally `embed-codebase-index`), then in the Panel Parser tab load `data/outputs/codebase-index-viz.jsonld` with the JSON-LD parser and import `schema-config/codebase-index-schema.json` in the Schema tab before switching to Render. The Orchestrator tab can then expose the selected node as an `AgenticRagNodeView` and operate over the embedded `graphRAGPath`, `chunkText`, `embedding`, provenance, and runtime events.
-- To drive the full Agentic GraphRAG codebase pipeline (parse → optional file-backed embeddings → embedding sanity check) from the repo root alongside `npm run lint` and `npm run check`, run:
-  - `npm run pipeline` – calls `python -m knowgrph_parser pipeline` to:
-    - Execute `python -m knowgrph_parser parse-codebase-index` using `orchestrator-config/knowgrph-universal-orchestrator-config.yaml`.
-    - Run `python -m knowgrph_parser embed-codebase-index` with the `file` backend and `knowgrph_parser/codebase-index-embeddings-example.json` for quick end-to-end checks (currently using a 4-dimensional vector space).
-    - Invoke `python -m knowgrph_parser test-embedding-sanity` with matching dimensions so the step fails fast if any node with `chunk_text` is missing, has malformed embeddings, or falls out of alignment with the traversal/tracing metadata.
-- In Canvas development builds, the **Run pipeline** control in the toolbar and Workflow tab triggers the same markdown → graph pipeline that is exposed in the Help tab command copy:
-  - Start the dev server from `knowgrph/canvas/`: `pnpm install` (once) and `pnpm run dev`.
-  - Open the Canvas app in the browser and ensure `VITE_CODEBASE_ROOT` points at the repo root so the `/@fs` loader can resolve pipeline outputs (for example `data/knowgrph-workflow-preview/knowgrph-workflow-document-*.jsonld`).
-  - Click **Run pipeline** from the toolbar floating menu or the Render → Markdown pipeline helper section; Canvas calls a dev-only `window.knowgrphRunMarkdownPipeline()` hook.
-  - The dev server uses a small local middleware to execute the canonical markdown pipeline command (`python -m knowgrph_parser markdown ...`) and write fresh graph, schema, and workflow artifacts before the UI reloads them via `/@fs` URLs.
-- These tools keep canvas loaders and parsers generic while enabling schema-aware batch workflows and database connectors outside the browser. The browser pipeline still ingests generic `GraphData` artifacts only, independent of source format or domain.
+**Supported Sources**: File upload (JSON, CSV, JSON-LD, Markdown), API endpoint (HTTP/HTTPS), Database connection (SQL/NoSQL via external tools), Clipboard paste, Markdown (Toolbar -> Workspace Actions -> Import)
 
-**Sharing Options**:
-- Save to file
-- Copy to clipboard
-- Generate shareable link (if backend available)
-- Export for production use
+**Markdown Import Flow**:
+- From markdown to graph: Workspace Actions -> triggers picker -> Loader invokes `loadGraphDataFromTextViaParser()` with markdown parser -> Parser builds JSON-LD blocks with provenance (`metadata.documentPath`, `metadata.lineStart/lineEnd`, `metadata.structure_types: [Paragraph, List, CodeBlock, Section, Table]`) -> converts to GraphData via `parseJsonLd()` -> Bottom panel Markdown section renders source + GFM preview with selection-driven highlighting -> maintains bidirectional navigation without coupling parser to formatting.
 
-**Principle Compliance**:
-- ✅ Export format independent of source format
-- ✅ Configuration portable across datasets
-- ✅ No coupling to specific file names or paths
+**Rich Media Rendering**: Mermaid diagrams inline SVG -> single-click opens MainPanel Preview tab 16:9 gallery -> subsequent click promotes to fullscreen zoomable viewer (Fit, zoom, pan) -> supports images, iframe embeds, mp4/webm with same flow.
+
+**Configuration Schema**:
+
+**max_upload_size_mb**: From small to large | Loader -> sets maximum file size -> prevents memory exhaustion -> balances convenience versus performance | Default: 50; Min: 10; Max: 200; Interval: 10
+
+**auto_detect_format**: From explicit to implicit | Loader -> infers format from extension/content -> reduces manual configuration -> maintains user override | Default: true; Values: true | false
+
+**Principle Compliance**: ✅ Accepts any valid source | ✅ Syntax validation only | ✅ Provenance preserved | ✅ Works identically across domains
 
 ---
 
-## Complete Workflow Example
+## Step 2: Structural Validation (Parser + Validator Layers)
 
-### Finance Dataset
-```
-1. Load: Upload "investments.json"
-2. Validate: 50 nodes (Person, Company), 75 edges (INVESTED_IN)
-3. Configure: Color by node type, size by investment amount
-4. Visualize: Force-directed layout, expand investor networks
-5. Export: GraphML for Neo4j import
-```
+### From syntax to structure integrity
 
-### Biology Dataset
+**Intent**: Parser -> receives raw JSON from Loader -> validates against schema (ID uniqueness, edge references) -> computes quality metrics (node count, edge density, property completeness) -> delivers validated GraphData or detailed error report.
+
+**Subject-Verb-Object Directives**:
 ```
-1. Load: Fetch from API "https://bio-kg.example.com/proteins"
-2. Validate: 200 nodes (Protein, Gene), 350 edges (INTERACTS_WITH)
-3. Configure: Hierarchical layout, color by pathway
-4. Visualize: 3D view, filter by confidence score
-5. Export: JSON-LD for semantic web integration
+parser validates node_id_uniqueness_via_hash_set
+parser checks edge_references_against_node_registry
+parser computes structural_metrics (count, density)
+parser detects property_completeness_patterns
+parser identifies json-ld_context_edge_properties
+parser generates validation_report_with_errors_warnings
+parser preserves structure_types_in_provenance
+parser ignores property_semantic_content
 ```
 
-### AI Concepts Dataset
-```
-1. Load: Paste JSON with embeddings and chunk_text
-2. Validate: 40 nodes (Concept, Technique), 60 edges (enables, requires)
-3. Configure: Size by importance, layer-based layout
-4. Visualize: 2D with graph traversal simulation
-5. Export: Schema + data for RAG pipeline
-```
+**Validation Checks**: Node ID uniqueness via hash collision detection | Edge references validated (source/target exist) | Schema conformance (required fields: @id, labels for nodes; source, target, label for edges) | Quality metrics (node count, edge count, avg degree, connected components)
 
-### Customer Voice Dataset
-```
-1. Load: Open bottom panel Parser tab → Workflows → "Demo: AI Customer Voice Management"
-2. Validate: Nodes (CustomerFeedback, Customer, Topic, PointOfContact, Reviewer, Priority, Status, Group) and edges (submittedBy, hasTopic, assignedTo, reviewedBy, handledBy, hasPriority, hasStatus, belongsToGroup)
-3. Configure: Priority-based sizing via CustomerFeedback.visual:importance and schema-config/ai-customer-voice-management-schema.json
-4. Visualize: 3D view with priority colors (P1/P2/P3) and tuned charge/collision
-5. Export: JSON/JSON-LD/CSV/GraphML/Cypher for downstream RAG pipelines
-```
+**JSON-LD Context Edge Mapping**: From context to traversal | Parser -> detects edge properties in @context treated as @id relationships -> exposes toggle UI for traversal selection -> stores in `GraphData.metadata.jsonLdMapping.contextEdgeProperties` -> Orchestrator/Schema/Render layers reuse mapping -> first `rag:TraversalRule` seeds `allowedRelations` from selected keys.
+
+**Inspection Tools**: Validation report (structural errors, warnings) | Sample preview (first 10 nodes/edges) | Bottom panel Parser tab (JSON/YAML/Python editor for transformations) | JSON-LD mapping summary (node/edge counts, context properties, traversal toggles)
+
+**Configuration Schema**:
+
+**validation_strictness**: From permissive to strict | Validator -> controls whether warnings block processing -> balances quality versus flexibility | Default: warn; Values: ignore | warn | error
+
+**sample_preview_size**: From minimal to comprehensive | Validator -> sets preview node/edge count -> balances inspection versus performance | Default: 10; Min: 5; Max: 50; Interval: 5
+
+**Principle Compliance**: ✅ Parser ignores domain-specific properties | ✅ Structural validation only | ✅ Works across finance/biology/AI domains | ✅ Provenance preserved (structure_types annotated, not validated)
 
 ---
 
-## Onboarding Tips
+## Step 3: Schema Configuration (Schema Inference + Field Definition)
 
-**First Time Users**:
-1. Start with sample data (provided in any format)
-2. Use default visualization template
-3. Explore with tooltips and minimap
-4. Export results to understand output format
+### From implicit to explicit semantics
 
-**Advanced Users**:
-1. Load from API or database directly
-2. Create custom schema configurations
-3. Build reusable visualization templates
-4. Integrate exports into production pipelines
+**Intent**: Schema Advisor -> analyzes graph structure (type distributions, property schemas) -> suggests visualization rules (sizing, coloring, layout) -> exposes field configuration for derived properties -> maintains domain-agnostic templates -> delivers reusable styling configurations.
 
-**Best Practices**:
-- Always validate before visualizing
-- Use quality metrics to assess data completeness
-- Save schema configurations for consistent styling
-- Export configurations along with data for reproducibility
+**Subject-Verb-Object Directives**:
+```
+advisor analyzes node_type_distribution_via_label_frequency
+advisor detects property_schemas_via_value_type_inference
+advisor suggests layout_algorithms_from_graph_topology
+advisor proposes visual_encodings_for_numeric_properties
+advisor enables field_definition_via_graph_fields_editor
+advisor validates field_formulas_against_available_properties
+advisor exports schema_configurations_as_json
+```
 
----
+**Configuration Options**: Node styling (size by any numeric property, color by label, shape selection) | Edge styling (width by weight, color by type, dash by confidence) | Layout algorithm (force-directed, hierarchical, radial, grid, 3D) | Interaction (click, drag, hover, expansion controls)
 
-## Keyboard Shortcuts
+**Graph Fields Editor**: From raw to derived | Main panel -> opens centered overlay (~80% viewport) -> exposes derived field definitions (formulas from existing properties) -> toggles visibility -> synchronizes with Graph Data Table columns -> recalculates on property updates without refresh.
 
-| Action | Shortcut |
-|--------|----------|
-| Load Data | `Ctrl/Cmd + O` |
-| Export Graph | `Ctrl/Cmd + E` |
-| Toggle 2D/3D | `Space` |
-| Reset View | `R` |
-| Search Nodes | `Ctrl/Cmd + F` |
-| Help | `?` |
+**Polygon Presets Editor**: From hardcoded to schema-driven | Graph Fields tab -> Field Settings -> Schema extras -> configures convex hull styling (fill, opacity, stroke, dash) -> defines grouping via JSON-LD array properties -> stores in `schema.metadata["canvas:polygons"]` -> Canvas reads presets without renderer code changes.
 
----
+**Configuration Schema**:
 
-## Troubleshooting
+**default_node_size**: From uniform to differentiated | Schema -> sets baseline radius before property scaling -> controls visual density | Default: 5; Min: 2; Max: 20; Interval: 1
 
-**Issue**: "Validation failed: duplicate node IDs"
-- **Solution**: Ensure all `nodes[].id` values are unique
+**property_scaling_method**: From linear to perceptual | Schema -> selects transform for value-to-visual mapping -> affects difference perception | Default: sqrt; Values: linear | sqrt | log | rank
 
-**Issue**: "Broken reference: edge source not found"
-- **Solution**: Verify all `edges[].source` and `edges[].target` match existing `nodes[].id`
+**layout_convergence_threshold**: From iterative to settled | Schema -> sets force-directed stopping criterion -> balances quality versus computation | Default: 0.01; Min: 0.001; Max: 0.1; Interval: 0.001
 
-**Issue**: "No visualization rendered"
-- **Solution**: Check that graph has at least 1 node; apply default schema if custom schema fails
-
-**Issue**: "Export format not supported"
-- **Solution**: Use JSON/JSON-LD for maximum compatibility; convert via external tools if needed
+**Principle Compliance**: ✅ Generic node/edge structures | ✅ Property-based styling (no "Company is blue" rules) | ✅ Domain-agnostic templates | ✅ Arbitrary property formulas without semantic assumptions
 
 ---
 
-## Technical Requirements
+## Step 4: Visualization & Exploration (Renderer + Orchestrator Layers)
 
-**Browser Support**:
-- Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+### From graphs to insights
 
-**Data Limits**:
-- Max nodes: 10,000 (recommended for smooth visualization)
-- Max edges: 50,000 (recommended for smooth visualization)
-- Use clustering/LOD for larger graphs
+**Intent**: Renderer -> applies schema-driven styling -> executes topology-aware layout -> exposes interaction controls -> synchronizes with Orchestrator traversal -> delivers explorable visual representation supporting pattern discovery.
 
-**File Size Limits**:
-- Upload: 50 MB max
-- Export: No limit (browser-dependent)
+**Subject-Verb-Object Directives**:
+```
+renderer applies schema_styling_rules_to_nodes_edges
+renderer executes layout_algorithm_from_topology_detection
+renderer handles user_interactions (click, drag, hover, zoom)
+renderer synchronizes selection_state_with_orchestrator
+renderer highlights neighbors_via_traversal_rules
+renderer renders group_polygons_from_schema_metadata
+renderer exports visualization_snapshots (png, svg, pdf)
+```
 
-**Security**:
-- All processing client-side (no data sent to servers)
-- API/DB credentials stored locally (browser storage)
-- Clear data option available in settings
+**Visualization Features**: Dynamic layout (force-directed default, hierarchical for DAGs, radial for trees, 3D toggle via Space) | Minimap navigation | Zoom/pan controls (mouse wheel, drag, reset via R) | Search/filter by property values | Selection-driven highlighting (click node -> highlight neighbors, dim unrelated)
+
+**Graph Data Table Aggregation**: From flat to grouped | Bottom panel -> aggregates numeric fields by group membership (JSON-LD arrays) -> renders toggleable charts per group (Off -> Radial hull -> Bars -> Sparkline) -> start mode configurable in Settings -> keeps behavior user-configurable without dataset presets.
+
+**Group Polygons**: From points to regions | Toolbar button -> toggles convex hulls around related nodes (2D/3D) -> membership from JSON-LD array properties -> styling from `schema.metadata["canvas:polygons"]` -> configuration in Graph Fields tab -> remains schema-driven without hardcoded names.
+
+**Configuration Schema**:
+
+**highlight_neighbor_depth**: From immediate to extended | Renderer -> sets hop distance for neighbor highlighting -> controls visual context radius | Default: 1; Min: 1; Max: 5; Interval: 1
+
+**dim_unselected_opacity**: From hidden to visible | Renderer -> sets opacity for non-highlighted nodes -> balances focus versus context | Default: 0.2; Min: 0.0; Max: 0.7; Interval: 0.1
+
+**3d_formula_mode**: From flat to spatial | Renderer -> controls Z-axis positioning (property-driven, cluster-based, temporal) -> affects spatial reasoning | Default: cluster; Values: flat | cluster | property | temporal
+
+**Principle Compliance**: ✅ Generic structures | ✅ JSON-LD/schema-driven polygons | ✅ Generic group membership (no "Phase 1" literals) | ✅ Works with any validated graph
 
 ---
+
+## Step 5: Export & Production (Format Transformers + Workflow Artifacts)
+
+### From graphs to reusable artifacts
+
+**Intent**: Exporter -> transforms GraphData to target formats (JSON-LD, CSV, GraphML, Cypher, Markdown) -> generates workflow configurations (GraphRAG JSON-LD, schema templates, field definitions, history snapshots) -> preserves provenance across conversions -> delivers portable artifacts for downstream pipelines.
+
+**Subject-Verb-Object Directives**:
+```
+exporter transforms graphdata_to_json-ld_via_context_injection
+exporter flattens nodes_edges_to_csv_tables
+exporter generates cypher_statements_for_neo4j
+exporter serializes schema_configuration_as_json
+exporter captures workflow_state_as_history_json-ld
+exporter exports field_definitions_as_graph_fields_json-ld
+exporter builds graphrag_workflow_from_traversal_rules
+exporter preserves provenance_metadata_across_conversions
+```
+
+**Export Formats**: Graph data (JSON, JSON-LD, CSV, GraphML, Neo4j Cypher) | Markdown (plain-text .md from bottom panel editor) | Visualization (PNG, SVG, PDF) | Configuration (Schema JSON, Field Definitions JSON-LD, History JSON-LD) | GraphRAG Workflow JSON-LD
+
+**GraphRAG Workflow Export**: From graph to orchestration | System -> builds `rag:GraphRAGWorkflow` JSON-LD from GraphData -> includes `graphId`, `retrievalMethod: 'graph-traversal'`, `maxHops`, `traversalRules[]` (`ruleType`, `allowedRelations[]`, `rulePriority`), `contextWindow` (`rag:ContextWindow`, `contextSize`, `contextStrategy`) -> seeds first rule from `GraphData.metadata.jsonLdMapping.contextEdgeProperties` -> enables downstream AgenticRAG consumption.
+
+**YAML Config Import**: From CLI to UI | Workflow tab -> imports `config.yaml` (e.g., `configs/graphrag/aiap22-codebase-config.yaml`) -> transforms to `rag:GraphRAGWorkflow` JSON-LD -> maps `duckdb_queries` to `duckdbQueries[]` array -> populates Orchestrator DuckDB presets dropdown -> keeps queries configuration-driven.
+
+**CLI Offline Pipelines**: `python -m knowgrph_parser` subcommands -> `jsonld-universal` (structural conversion) | `markdown` (Markdown -> JSON-LD with provenance) | `parse-codebase-index` (workflow trace -> codebase graph + traversal metadata) | `embed-codebase-index` (deterministic embeddings from chunk_text) | `test-embedding-sanity` (validate dimensions/coverage) | `pipeline` (orchestrates parse -> embed -> validate via `npm run pipeline`)
+
+**Configuration Schema**:
+
+**export_embedding_precision**: From compact to precise | Exporter -> controls decimal places for embedding vectors -> balances file size versus accuracy | Default: 6; Min: 3; Max: 15; Interval: 1
+
+**cypher_batch_size**: From sequential to batch | Exporter -> groups CREATE statements for Neo4j -> affects transaction size and speed | Default: 1000; Min: 100; Max: 10000; Interval: 100
+
+**provenance_export_mode**: From minimal to comprehensive | Exporter -> controls metadata inclusion -> balances auditability versus size | Default: standard; Values: minimal | standard | comprehensive
+
+**Principle Compliance**: ✅ Format-independent exports | ✅ Portable configurations | ✅ No file path coupling | ✅ Schema-driven workflows
+
+---
+
+## Domain-Agnostic Workflow Examples
+
+**Financial Network**: Load investments.json (50 nodes: entities, 75 edges: investments) -> Validate structure -> Configure (size by amount, force-directed layout) -> Visualize (expand clusters, 2-hop paths) -> Export (GraphML for Neo4j, preserve provenance)
+
+**Biological Interactions**: Fetch from API (200 nodes: proteins/genes, 350 edges: interactions with confidence) -> Validate (filter edges <0.7) -> Configure (hierarchical layout, color by pathway, 3D by confidence) -> Visualize (filter pathways) -> Export (JSON-LD with embeddings for similarity search)
+
+**AI Concepts**: Paste JSON (40 nodes with embeddings/chunk_text, 60 dependency edges) -> Validate (embedding dimensions consistent) -> Configure (derived field: importance = confidence × mention_count, layer layout) -> Visualize (Orchestrator "Find prerequisites" query, 3-hop BFS) -> Export (Schema + data + GraphRAG workflow JSON-LD)
+
+**Customer Feedback**: Load preset "AI Customer Voice Management" -> Validate (node types: CustomerFeedback, Customer, Topic; edge types: submittedBy, hasTopic, assignedTo) -> Configure (priority-based sizing, group polygons for status, 3D spatial) -> Visualize (toggle hulls, select high-priority node, Graph Data Table highlights group chart) -> Export (JSON-LD + GraphRAG workflow, CSV for spreadsheet)
+
+---
+
+## Troubleshooting (Structural Validation Focus)
+
+**Duplicate node IDs**: Cause: Multiple nodes share @id | Solution: Parser ensures uniqueness -> auto-generates UUIDs if needed | Prevention: Loader preserves source IDs when unique, hashes duplicates
+
+**Broken edge references**: Cause: Edge references non-existent node | Solution: Validator cross-references edges against node registry -> flags missing in report | Prevention: Parser validates referential integrity before Renderer
+
+**No visualization**: Cause: Empty graph or invalid schema | Solution: Validator checks node count >0 -> Schema tab applies default if custom fails -> Renderer logs topology detection | Prevention: Loader logs statistics -> Parser surfaces warnings before Renderer
+
+**Export format unsupported**: Cause: Target format not implemented | Solution: Use JSON/JSON-LD for compatibility -> convert via external tools | Prevention: Format compatibility matrix in Export dialog
+
+---
+
+## Technical Requirements & Validation
+
+**Browser Support**: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+ | WebGL for 3D | Web Workers for parser offloading
+
+**Data Limits**: Recommended max (smooth): 10K nodes 2D, 5K nodes 3D | 50K edges 2D, 25K edges 3D | Use clustering/LOD for larger graphs
+
+**Security**: Client-side processing (no server upload) | Credentials in encrypted localStorage | Clear data option in Settings | Markdown import sanitizes HTML/JS injection
+
+**Validation Checklist**:
+- [ ] Loader references specific paths? -> FORBIDDEN
+- [ ] Parser assumes entity types? -> FORBIDDEN
+- [ ] Schema validates property values? -> FORBIDDEN
+- [ ] Thresholds configurable? -> REQUIRED
+- [ ] Renderer handles any topology? -> REQUIRED
+- [ ] Provenance links bidirectional? -> REQUIRED
+- [ ] Orchestrator supports arbitrary rules? -> REQUIRED
+- [ ] Exports preserve metadata? -> REQUIRED
+
+**Status**: Production Ready ✅ | **Architecture**: Generic GraphRAG Pipeline Principles | **Version**: 1.0.0

@@ -1,10 +1,10 @@
 # Knowgrph Utilities Catalog
 
 ## GraphCanvas Utilities
-- `canvas/src/components/GraphCanvas/utils/zoom.ts`: create and update zoom transform.
-- `canvas/src/components/GraphCanvas/utils/fit.ts`: fit node/edge into viewport transform.
-- `canvas/src/components/GraphCanvas/utils/drag.ts`: node drag behavior with guards.
-- `canvas/src/components/GraphCanvas/utils/simulation.ts`: D3 force setup and normalization helpers.
+- `canvas/src/components/GraphCanvas/zoom.ts`: create and update zoom transform.
+- `canvas/src/components/GraphCanvas/fit.ts`: fit node/edge into viewport transform.
+- `canvas/src/components/GraphCanvas/drag.ts`: node drag behavior with guards.
+- `canvas/src/components/GraphCanvas/simulation.ts`: D3 force setup and normalization helpers.
 - `canvas/src/features/canvas/utils.ts`: `PROPS_PANEL_OPEN_EVENT` + `emitPropsPanelOpen` used by canvas/node/edge right-click to open the floating tool menu in PropsPanel view at the pointer position (handled in `canvas/src/features/toolbar/ToolbarMenuLauncher.tsx`). Pinned state persists via `LS_KEYS.propsPanelPinned` (shared with the FloatingPanel pin toggle).
 - Barrel: `canvas/src/components/GraphCanvas/utils.ts` re-exports helpers for discoverability.
 - `canvas/src/components/GraphCanvas/helpers.ts`: node media helpers (`getNodeMediaSpec`, URL kind inference, safe iframe allowlist) including YouTube watch/share URL normalization to embed URLs for iframes.

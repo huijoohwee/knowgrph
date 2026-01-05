@@ -8,17 +8,6 @@ function getRepoRoot(): string {
   return path.resolve(currentDir, '../../..')
 }
 
-function normalizeGlobals(markdown: string): string {
-  const rules: Array<{ from: RegExp; to: string }> = [
-    { from: /`(?<!window\.)document`/g, to: '`window.document`' },
-    { from: /`(?<!window\.)navigator`/g, to: '`window.navigator`' },
-    { from: /`(?<!window\.)location`/g, to: '`window.location`' },
-    { from: /`(?<!window\.)localStorage`/g, to: '`window.localStorage`' },
-    { from: /`(?<!window\.)BroadcastChannel`/g, to: '`window.BroadcastChannel`' },
-  ]
-  return rules.reduce((text, rule) => text.replace(rule.from, rule.to), markdown)
-}
-
 function runCliTable(canvasRoot: string, cliRelPath: string, missingMessage: string): string | null {
   const repoRoot = path.dirname(canvasRoot)
   const cliPath = path.join(repoRoot, cliRelPath)
@@ -61,27 +50,9 @@ function replaceBetweenMarkers(docPath: string, startMarker: string, endMarker: 
   }
 }
 
-function normalizeResponsibilityDoc(repoRoot: string): void {
-  const docPath = path.join(repoRoot, 'knowgrph-codebase-responsibility-flow.md')
-  if (!existsSync(docPath)) {
-    process.stdout.write('Doc lint: source doc missing, skipping\n')
-    return
-  }
-  const src = readFileSync(docPath, 'utf8')
-  const out = normalizeGlobals(src)
-  if (out !== src) {
-    writeFileSync(docPath, out, 'utf8')
-    process.stdout.write('Doc lint applied: window.* prefixes normalized\n')
-  } else {
-    process.stdout.write('Doc lint: no changes needed\n')
-  }
-}
-
 function main(): void {
   const repoRoot = getRepoRoot()
   const canvasRoot = path.join(repoRoot, 'canvas')
-
-  normalizeResponsibilityDoc(repoRoot)
 
   const designDocPath = path.join(repoRoot, 'docs', 'knowgrph-design-document.md')
   const workflowDocPath = path.join(repoRoot, 'docs', 'knowgrph-workflow-document.md')

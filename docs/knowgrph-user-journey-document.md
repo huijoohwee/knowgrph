@@ -1,18 +1,18 @@
 # User Flow Catalog
 
-See also: [Parser Catalog](knowgrph-parsers-catalog.md), [Visualization Catalog](knowgrph-viz-catalog.md), [Workflow Catalog](knowgrph-workflow-catalog.md).
+See also: [Parser Catalog](knowgrph-parsers-catalog.md), [Visualization Catalog](knowgrph-visualization-document.md), [Workflow Catalog](knowgrph-workflow-document.md).
 
 This catalog walks concrete user journeys that sit on top of the same parser/dataset/schema workflow described in the Workflow catalog, using datasets under `test-data/` and schema configs under `schema-config/` rendered through the `canvas/` app.
 
 ## AI Engineering Knowledge Graph Traversal
 
-- Scenario: a user wants to explore how an AI Engineering “concept” connects to techniques, components, and challenges using the curated AI‑KG JSON‑LD dataset (`test-data/ai-kg-viz.json`).
-- Click path: `Canvas → Panel → Parser tab → Data section → Workflows → "Demo: AI KG Visualization" → Load Data → choose "test-data/ai-kg-viz.json" → Schema tab → import "schema-config/ai-kg-viz-schema.json" → Render tab → "AI KG Traversal" → Data section → Export JSON-LD`
+- Scenario: a user wants to explore how an AI Engineering “concept” connects to techniques, components, and challenges using the curated AI‑KG JSON‑LD dataset (`data/test-data/ai-kg-viz_1500.json`).
+- Click path: `Canvas → Panel → Parser tab → Data section → Workflows → "Demo: AI KG Visualization" → Load Data → choose "data/test-data/ai-kg-viz_1500.json" → Schema tab → import "schema-config/knowgrph-universal-schema-config.jsonld" → Render tab → "AI KG Traversal" → Data section → Export JSON-LD`
 - Flow:
 -  1. User opens the canvas (`Canvas` route) and the unified Panel bottom bar.
 -  2. User opens the Panel view and clicks the `Demo: AI KG Visualization` workflow button to apply the JSON‑LD parser and record the `(parserSpecId, datasetFileName, schemaFileName)` triple to workflow preset storage (`canvas/src/features/panels/views/ParserSections.tsx:337–350`, `canvas/src/features/parsers/useParserWorkflowState.ts:285–318`).
--  3. User clicks `Load Data` and chooses `test-data/ai-kg-viz.json`; the parser normalizes the JSON‑LD into `{nodes,edges}` with predicates such as `enables`, `requires`, `addresses`, `optimizes`, `extends`, `implements` (`canvas/src/features/parsers/registry.ts:29–47`, `canvas/src/lib/graph/jsonld.ts:25–68`).
--  4. In **Step 3.1. Apply presets from schema-config/** and nested **Step 3.1.1. Apply and manage schema-config presets** inside the Schema tab, the user follows the zero‑to‑one schema flow intro from `SCHEMA_FLOW_INTRO` (“Zero-to-one schema flow for applying presets, tuning rules, and customizing UI.”) and imports the AI‑KG schema config from `schema-config/ai-kg-viz-schema.json`, applying type‑based colors and edge styles tuned to the D3 prototype (`schema-config/ai-kg-viz-schema.json`). The Schema header and Parser tab Schema section reuse the same directive Subject‑Verb‑Object Workflow copy for **Step 3. Apply schema-config** via `SchemaStepCopyAndStatus`, so the user sees identical wording when moving between Workflow and Schema views. The `span` badges for **Step 3**, **Step 3.1**, and **Step 3.1.1.** in the Parser Schema tab, together with the Advanced **Types**/**Properties**/**Styles** subsections, follow the three phases in the Step 3.* S‑V‑O table (presets → rules → UI) from the Workflow catalog.
+-  3. User clicks `Load Data` and chooses `data/test-data/ai-kg-viz_1500.json`; the parser normalizes the JSON‑LD into `{nodes,edges}` with predicates such as `enables`, `requires`, `addresses`, `optimizes`, `extends`, `implements` (`canvas/src/features/parsers/registry.ts:29–47`, `canvas/src/lib/graph/jsonld.ts:25–68`).
+-  4. In **Step 3.1. Apply presets from schema-config/** and nested **Step 3.1.1. Apply and manage schema-config presets** inside the Schema tab, the user follows the zero‑to‑one schema flow intro from `SCHEMA_FLOW_INTRO` (“Zero-to-one schema flow for applying presets, tuning rules, and customizing UI.”) and imports the universal schema config from `schema-config/knowgrph-universal-schema-config.jsonld`, applying type‑based colors and edge styles. The Schema header and Parser tab Schema section reuse the same directive Subject‑Verb‑Object Workflow copy for **Step 3. Apply schema-config** via `SchemaStepCopyAndStatus`, so the user sees identical wording when moving between Workflow and Schema views. The `span` badges for **Step 3**, **Step 3.1**, and **Step 3.1.1.** in the Parser Schema tab, together with the Advanced **Types**/**Properties**/**Styles** subsections, follow the three phases in the Step 3.* S‑V‑O table (presets → rules → UI) from the Workflow catalog.
 -  5. User switches to the bottom panel **Render** tab and uses the `AI KG Layers & Traversal` block to:
 -   - nudge `Layer 1/2/3 Opacity` so that the inner concept/technique layer is most prominent, mid‑field components slightly softened, and outer challenges faint but still visible (driven by `schema.three.layerOpacityByLayer`);
 -   - increase `Force Separation` so address/challenge nodes sit further from the core concept cluster without changing per‑label link distances;
@@ -28,18 +28,18 @@ This catalog walks concrete user journeys that sit on top of the same parser/dat
 
 ## Universal Lean Startup Decision Graph
 
-- Scenario: a user wants to explore Lean Startup concepts, decision points, and RAG/GraphRAG workflows using the Universal Lean Startup JSON‑LD dataset (`test-data/universal-lean-startup-kg.json`) and its schema (`schema-config/universal-lean-startup-schema.json`).
-- Click path: `Canvas → Panel → Parser tab → Data section → Workflows → "Demo: Universal Lean Startup Knowledge Graph" → Load Data → choose "test-data/universal-lean-startup-kg.json" → Schema tab → import "schema-config/universal-lean-startup-schema.json" → Render tab → explore 2D/3D → Data section → Validate Graph → Export JSON-LD`
+- Scenario: a user wants to explore Lean Startup concepts, decision points, and RAG/GraphRAG workflows using the Universal Lean Startup JSON‑LD dataset (`data/test-data/universal-lean-startup-kg.json`) and the universal schema config (`schema-config/knowgrph-universal-schema-config.jsonld`).
+- Click path: `Canvas → Panel → Parser tab → Data section → Workflows → "Demo: Universal Lean Startup Knowledge Graph" → Load Data → choose "data/test-data/universal-lean-startup-kg.json" → Schema tab → import "schema-config/knowgrph-universal-schema-config.jsonld" → Render tab → explore 2D/3D → Data section → Validate Graph → Export JSON-LD`
 - Flow:
 -  1. User opens the canvas (`Canvas` route) and the unified Panel bottom bar.
 -  2. In the Panel → Data section, the user clicks the `Demo: Universal Lean Startup Knowledge Graph` workflow button (`universal-lean-startup-kg` preset) to:
    - apply the JSON‑LD parser via `parserId: toParserId('jsonld')`;
 -   - record the `(parserSpecId, datasetFileName, schemaFileName)` triple for this preset in workflow preset storage (`canvas/src/features/panels/views/ParserSections.tsx:337–350`, `canvas/src/features/parsers/useParserWorkflowState.ts:285–318`);
    - update Parser UI state with a “Preset: Universal Lean Startup Knowledge Graph” status.
--  3. User clicks `Load Data` and chooses `test-data/universal-lean-startup-kg.json`; the loader calls `loadDataViaParser`, which:
+-  3. User clicks `Load Data` and chooses `data/test-data/universal-lean-startup-kg.json`; the loader calls `loadDataViaParser`, which:
    - uses `bestMatch` to select the JSON‑LD parser;
    - hands the filename/text into `parseGraph`/`parseJsonLd` to normalize the JSON‑LD into `{nodes,edges}` where nodes represent Lean Startup entities (Hypothesis, Experiment, MVP, PivotDecision, InnovationAccounting) and decision‑tree nodes (DecisionNode, ConditionNode, ActionNode) (`canvas/src/lib/graph/jsonld.ts`, `schema-config/universal-lean-startup-schema.json`).
--  4. User opens the Schema tab and imports `schema-config/universal-lean-startup-schema.json` as a schema‑config preset:
+-  4. User opens the Schema tab and imports `schema-config/knowgrph-universal-schema-config.jsonld` as a schema‑config preset:
    - `validateSchema` parses and validates the schema JSON;
    - the schema attaches type/label‑based styles plus validation rules for Lean Startup node/edge types, while remaining data‑driven (no hardcoded Lean‑specific logic in the validator).
 -  5. User switches to the Render tab and tunes any Lean‑specific visualization presets encoded in the schema (for example, emphasizing Build‑Measure‑Learn phases, decision nodes, and RAG workflow subgraphs via `schema.three`), using the same generic Render controls as other demos.
@@ -47,7 +47,7 @@ This catalog walks concrete user journeys that sit on top of the same parser/dat
    - clicks `Validate Graph`;
    - `validateGraphDataWithSchema` walks the Lean Startup graph, computing metrics (node/edge counts, duplicate IDs, dangling edges, nodes without type, edges without label) and applying schema‑driven rules for Lean node/edge types; results surface as generic errors/warnings in the Data panel.
 -  7. User exports the Lean Startup graph via the Data export actions:
-   - JSON‑LD: `saveGraphFile` uses the last applied preset’s dataset filename (`test-data/universal-lean-startup-kg.json`) as a branded suggestion while still allowing the user to override it;
+-   - JSON‑LD: `saveGraphFile` uses the last applied preset’s dataset filename (`data/test-data/universal-lean-startup-kg.json`) as a branded suggestion while still allowing the user to override it;
    - JSON: `exportGraphAsJSON` uses the same suggested base name;
    - combined CSV: `exportGraphAsCombinedCSV` produces nodes/edges CSV for analysis, again defaulting to the preset‑derived name.
 -  8. The user reuses the same schema and presets in future sessions by re‑applying the `universal-lean-startup-kg` workflow button; the core Loader/Parser/Validator/Exporter modules remain unchanged.
@@ -56,18 +56,18 @@ This catalog walks concrete user journeys that sit on top of the same parser/dat
 
 ## Venture Capital Portfolio Exploration
 
-- Scenario: a user wants to explore a venture capital portfolio slice with companies and investors using a raw nodes/edges JSON dataset (`test-data/graph_202512091600.json`) and a shared investors schema (`schema-config/a0-schema.json`).
-- Click path: `Canvas → Panel → Parser tab → Data section → Workflows → "Demo: Venture Capital Portfolio" → Load Data → choose "test-data/graph_202512091600.json" → Schema tab → import "schema-config/a0-schema.json" → Data section → Validate Graph → Export JSON / CSV Combined`
+- Scenario: a user wants to explore a venture capital portfolio slice with companies and investors using a raw nodes/edges JSON dataset (`data/test-data/graph_202512091600.json`) and the universal schema config (`schema-config/knowgrph-universal-schema-config.jsonld`).
+- Click path: `Canvas → Panel → Parser tab → Data section → Workflows → "Demo: Venture Capital Portfolio" → Load Data → choose "data/test-data/graph_202512091600.json" → Schema tab → import "schema-config/knowgrph-universal-schema-config.jsonld" → Data section → Validate Graph → Export JSON / CSV Combined`
 - Flow:
 -  1. User opens the canvas and Panel bottom bar.
 -  2. In the Panel → Data section, the user clicks the `Demo: Venture Capital Portfolio` workflow button (`venture-capital-portfolio` preset), which:
    - selects the JSON parser via `parserId: toParserId('json')`;
 -   - stores the `(parserSpecId, datasetFileName, schemaFileName)` triple for this preset (`canvas/src/features/panels/views/ParserSections.tsx:337–350`, `canvas/src/features/parsers/useParserWorkflowState.ts:285–318`);
    - updates Parser UI state with a “Preset: Venture Capital Portfolio” status message.
--  3. User clicks `Load Data` and chooses `test-data/graph_202512091600.json`; the loader:
+-  3. User clicks `Load Data` and chooses `data/test-data/graph_202512091600.json`; the loader:
    - calls `loadDataViaParser` and `applyParserAsync` with the JSON parser;
    - normalizes the raw nodes/edges into `GraphData` where nodes are companies and investors, and edges capture investment relationships; layout‑specific fields (x, y, vx, vy, degree) remain generic properties (`test-data/graph_202512091600.json`, `canvas/src/lib/graph/rawToGraph.ts`).
--  4. User opens the Schema tab and imports `schema-config/a0-schema.json`, the same schema used for the A0 investors JSON‑LD graph:
+-  4. User opens the Schema tab and imports `schema-config/knowgrph-universal-schema-config.jsonld`, the same schema used for the A0 investors JSON‑LD graph:
    - `validateSchema` parses and validates the schema;
    - node and edge styles/validation rules apply uniformly across both A0 and portfolio datasets, confirming that the schema stays domain‑generic and data‑driven.
 -  5. User inspects the portfolio structure in the Bottom panel:
@@ -77,7 +77,7 @@ This catalog walks concrete user journeys that sit on top of the same parser/dat
    - `validateGraphDataWithSchema` computes metrics for the portfolio graph (node/edge counts, duplicate IDs, dangling edges, degree histogram);
    - schema‑driven rules enforce structural constraints (required properties, types) without encoding portfolio‑specific semantics in validation code.
 -  7. User exports the portfolio graph:
-   - JSON‑LD: `saveGraphFile` suggests `test-data/graph_202512091600.json` (via the last applied preset) as the base name and writes JSON‑LD suitable for GraphRAG/semantic tooling;
+-   - JSON‑LD: `saveGraphFile` suggests `data/test-data/graph_202512091600.json` (via the last applied preset) as the base name and writes JSON‑LD suitable for GraphRAG/semantic tooling;
    - JSON: `exportGraphAsJSON` provides a raw JSON export with the same suggested base;
    - combined CSV: `exportGraphAsCombinedCSV` generates a unified CSV for downstream BI tooling; all functions accept the branded `DatasetPath` derived from the preset (`canvas/src/__tests__/workflowPresetPipeline.test.ts:94–126`).
 -  8. The user can toggle between A0 and portfolio demos by switching presets; both reuse the same schema and pipeline, demonstrating that the Loader/Parser/Validator/Exporter/Renderer roles stay domain‑agnostic even as new portfolio datasets are added.

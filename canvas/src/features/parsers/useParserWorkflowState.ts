@@ -37,6 +37,15 @@ import {
   writeWorkflowPresetLastAppliedToStorage,
 } from '@/features/parsers/workflowPresets'
 
+const PRESET_ID_BY_EXAMPLE_ID: Record<ExampleId, string> = {
+  sampleInvestorsTop3: 'sample-investors-top3-3d',
+  aiKgViz: 'ai-kg-viz',
+  aiCustomerVoiceManagement: 'ai-customer-voice-management',
+  universalLeanStartup: 'universal-lean-startup-kg',
+  a0Investors: 'a0-investors-kg',
+  ventureCapitalPortfolio: 'venture-capital-portfolio',
+}
+
 const ensureExt = (name: string, allowed: string[], fallback: string): string => {
   const s = String(name || '').toLowerCase()
   const ok = allowed.some(ext => s.endsWith(ext))
@@ -561,11 +570,10 @@ export function useParserWorkflowState() {
 
   const applyExampleById = useCallback(
     (exampleId: ExampleId) => {
-      const example = EXAMPLES_BY_ID[exampleId]
-      if (!example) return
-      const preset = WORKFLOW_PRESETS.find(p => String(p.datasetFileName) === String(example.datasetPath))
-      if (!preset) return
-      onApplyWorkflowPresetWithLoad(String(preset.id))
+      const presetId = PRESET_ID_BY_EXAMPLE_ID[exampleId]
+      if (!presetId) return
+      if (!EXAMPLES_BY_ID[exampleId]) return
+      onApplyWorkflowPresetWithLoad(presetId)
     },
     [onApplyWorkflowPresetWithLoad],
   )

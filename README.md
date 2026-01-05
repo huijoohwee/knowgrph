@@ -13,7 +13,7 @@ This project implements a complete knowledge graph pipeline for transforming str
 ### Directory Layout
 
 **docs/** - Documentation and catalogs
-- Documentation philosophy and required standards: `docs/documentation-guide.md`
+- Documentation philosophy and required standards: `docs/guidelines/documentation-guidelines.md`
 - Architecture and design: `docs/knowgrph-technical-architecture.md`, `docs/knowgrph-design-document.md`
 - Configuration references: `docs/knowgrph-settings-document.md`, `docs/knowgrph-schema-document.md`, `docs/knowgrph-graph-traversal-settings-document.md`
 - Automation index: `docs/knowgrph-documentation-document.md`

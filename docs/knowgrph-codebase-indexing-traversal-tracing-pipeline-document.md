@@ -2,7 +2,7 @@
 
 Aligned with:
 - AgenticRAG schema (`huijoohwee.github.io/schema/AgenticRAG`)
-- Generic KG/RAG Pipeline Principles (`docs/knowgrph-pipeline-principles.md`)
+- Generic GraphRAG pipeline guidelines (`docs/guidelines/knowgrph-pipeline-guidelines.md`)
 - RACI matrix for AgenticRAG pipeline (`docs/knowgrph-raci-document.md`)
 
 This catalog describes how the knowgrph codebase is traversed, indexed, and exported as a JSON-LD graph suitable for AgenticRAG pipelines, including per-node provenance compatible with `AgenticRagNodeProvenance`.

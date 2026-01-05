@@ -2,7 +2,7 @@
 
 Aligned with:
 - AgenticRAG schema (`huijoohwee.github.io/schema/AgenticRAG`)
-- Generic KG/RAG Pipeline Principles (`docs/knowgrph-pipeline-principles.md`)
+- Generic GraphRAG pipeline guidelines (`docs/guidelines/knowgrph-pipeline-guidelines.md`)
 - Knowgrph Workflow Document (`docs/knowgrph-workflow-document.md`)
 - Codebase Indexing, Traversal, and Tracing Pipeline Document (`docs/knowgrph-codebase-indexing-traversal-tracing-pipeline-document.md`)
 - RACI matrix for Agentic GraphRAG (`docs/knowgrph-raci-document.md`)
@@ -13,7 +13,7 @@ This document describes how the external AIAP22 competition repository (`aiap22-
 |--------|---------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Local  | From `knowgrph/`: run `npm run graphrag:aiap22-workflow` and `python -m knowgrph_parser python-codebase-index -c orchestrator-config/aiap22-codebase-index-orchestrator-config.yaml -b aiap22-hui-joo-hwee-045B`. | Regenerates `data/outputs/aiap22-codebase-index-viz.jsonld`, schema, and orchestrator config for local Canvas sessions and offline Agentic GraphRAG runs. |
 | CI     | In `aiap22-hui-joo-hwee-045B`: GitHub Actions workflow `.github/workflows/github-actions.yml` runs the AIAP22 pipeline, checks out `knowgrph`, generates the GraphRAG workflow, builds the index, and uploads an `aiap22-codebase-index` artifact. | Keeps a fresh bundle of index, schema, orchestrator config, and GraphRAG workflow attached to each CI run; see Section 6.2 for details.                   |
-| Canvas | In Canvas: load `data/outputs/aiap22-codebase-index-viz.jsonld`, import `data/graphrag/aiap22-graphrag-workflow.jsonld` or `configs/graphrag/aiap22-codebase-config.yaml` in the Workflow tab, and use the Orchestrator tab to replay `graphRAGPath` chains and AIAP22 DuckDB presets. | Provides an interactive Agentic GraphRAG view where you can inspect `chunk_text`, `graphRAGPath`, `provenance`, and click `codebasePath` to open real AIAP22 files. |
+| Canvas | In Canvas: load `data/outputs/aiap22-codebase-index-viz.jsonld`, import `data/graphrag/aiap22-graphrag-workflow.jsonld` or `configs/graphrag/aiap22-codebase-config.yaml` in the Workflow tab, and use the Orchestrator tab to replay `graphRAGPath` chains and AIAP22 DuckDB presets. | Provides an interactive Agentic GraphRAG view where you can inspect `chunk_text`, `graphRAGPath`, `provenance`, and repository-relative `codebasePath` provenance strings. |
 
 
 - **`@context`** → Defines namespaces (`schema.org` for general metadata, custom vocab for code/tracing). 

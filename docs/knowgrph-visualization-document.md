@@ -1,6 +1,6 @@
 # Knowgrph Visualization Documentation
 
-See also: [Parser Catalog](knowgrph-parsers-catalog.md), [Workflow Catalog](knowgrph-workflow-catalog.md), [User Journey Catalog](knowgrph-userjrny-catalog.md).
+See also: [Parser Catalog](knowgrph-parsers-catalog.md), [Workflow Catalog](knowgrph-workflow-document.md), [User Journey Catalog](knowgrph-user-journey-document.md).
 
 This catalog focuses on 2D/3D rendering in `canvas/` and how visualization settings flow from the active in-app schema into renderer behavior.
 
