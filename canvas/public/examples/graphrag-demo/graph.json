@@ -1,0 +1,14 @@
+{
+  "context": "graphrag",
+  "type": "Graph",
+  "nodes": [
+    { "id": "e1", "label": "Acme Corp", "type": "Entity", "properties": { "category": "Company" } },
+    { "id": "e2", "label": "Alice", "type": "Entity", "properties": { "category": "Person" } },
+    { "id": "c1", "label": "Chunk 1", "type": "Chunk", "properties": { "docId": "doc-1", "text": "Alice works at Acme Corp." } }
+  ],
+  "edges": [
+    { "id": "r1", "source": "e2", "target": "e1", "label": "worksAt", "properties": {} },
+    { "id": "r2", "source": "c1", "target": "e2", "label": "mentions", "properties": {} },
+    { "id": "r3", "source": "c1", "target": "e1", "label": "mentions", "properties": {} }
+  ]
+}

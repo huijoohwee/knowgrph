@@ -1,0 +1,48 @@
+{
+  "nodes": [
+    {
+      "id": "company-1",
+      "data": {
+        "type": "Company",
+        "name": "Swiggy",
+        "properties": {}
+      }
+    },
+    {
+      "id": "company-2",
+      "data": {
+        "type": "Company",
+        "name": "Lime",
+        "properties": {}
+      }
+    },
+    {
+      "id": "investor-1",
+      "data": {
+        "type": "Investor",
+        "name": "Some VC",
+        "properties": {}
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "investor-1",
+      "target": "company-1",
+      "data": {
+        "type": "investsIn",
+        "weight": 1
+      }
+    },
+    {
+      "id": "e2",
+      "source": "investor-1",
+      "target": "company-2",
+      "data": {
+        "type": "investsIn",
+        "weight": 1
+      }
+    }
+  ]
+}

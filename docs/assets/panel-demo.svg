@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
+  <rect x="0" y="0" width="1200" height="300" fill="#ffffff"/>
+  <g id="tabs" font-family="Inter, system-ui, sans-serif" font-size="14" text-anchor="middle">
+    <rect id="t1" x="60" y="40" width="140" height="40" rx="8" fill="#2563eb">
+      <animate attributeName="fill" values="#2563eb;#f3f4f6;#f3f4f6;#f3f4f6;#2563eb" dur="8s" repeatCount="indefinite"/>
+    </rect>
+    <text x="130" y="66" fill="#ffffff">Settings</text>
+    <rect id="t2" x="220" y="40" width="140" height="40" rx="8" fill="#f3f4f6" stroke="#e5e7eb">
+      <animate attributeName="fill" values="#f3f4f6;#2563eb;#f3f4f6;#f3f4f6;#f3f4f6" dur="8s" repeatCount="indefinite"/>
+    </rect>
+    <text x="290" y="66" fill="#374151">Schema</text>
+    <rect id="t3" x="380" y="40" width="140" height="40" rx="8" fill="#f3f4f6" stroke="#e5e7eb">
+      <animate attributeName="fill" values="#f3f4f6;#f3f4f6;#2563eb;#f3f4f6;#f3f4f6" dur="8s" repeatCount="indefinite"/>
+    </rect>
+    <text x="450" y="66" fill="#374151">History</text>
+    <rect id="t4" x="540" y="40" width="140" height="40" rx="8" fill="#f3f4f6" stroke="#e5e7eb">
+      <animate attributeName="fill" values="#f3f4f6;#f3f4f6;#f3f4f6;#2563eb;#f3f4f6" dur="8s" repeatCount="indefinite"/>
+    </rect>
+    <text x="610" y="66" fill="#374151">Help</text>
+  </g>
+  <g id="icons">
+    <circle cx="900" cy="60" r="18" fill="#10b981"/>
+    <text x="900" y="95" font-family="Inter, system-ui, sans-serif" font-size="12" text-anchor="middle" fill="#6b7280">Apply</text>
+    <circle cx="960" cy="60" r="18" fill="#f59e0b"/>
+    <text x="960" y="95" font-family="Inter, system-ui, sans-serif" font-size="12" text-anchor="middle" fill="#6b7280">Reset</text>
+    <circle cx="1020" cy="60" r="18" fill="#2563eb"/>
+    <text x="1020" y="95" font-family="Inter, system-ui, sans-serif" font-size="12" text-anchor="middle" fill="#6b7280">Search</text>
+    <circle cx="1080" cy="60" r="18" fill="#ef4444"/>
+    <text x="1080" y="95" font-family="Inter, system-ui, sans-serif" font-size="12" text-anchor="middle" fill="#6b7280">Close</text>
+    <animate xlink:href="#icons" attributeName="opacity" values="1;1;1;1" dur="8s" repeatCount="indefinite"/>
+  </g>
+  <g>
+    <rect x="60" y="120" width="1080" height="140" rx="10" fill="#f9fafb" stroke="#e5e7eb"/>
+    <text x="600" y="150" font-family="Inter, system-ui, sans-serif" font-size="14" text-anchor="middle" fill="#374151">Demo: Tabs highlight in sequence and header actions available</text>
+    <text x="600" y="175" font-family="Inter, system-ui, sans-serif" font-size="12" text-anchor="middle" fill="#6b7280">This animated SVG illustrates the unified Panel interactions</text>
+  </g>
+</svg>
+

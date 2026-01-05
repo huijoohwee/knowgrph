@@ -1,0 +1,10 @@
+{
+  "model": "codebase-index-example",
+  "dimensions": 4,
+  "vectors": [
+    {
+      "id": "kg:canvas/src/pages/Canvas.tsx",
+      "vector": [0.1, 0.2, 0.3, 0.4]
+    }
+  ]
+}

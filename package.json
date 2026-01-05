@@ -1,0 +1,14 @@
+{
+  "name": "knowgrph",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix canvas run dev --",
+    "build": "npm --prefix canvas run build",
+    "preview": "npm --prefix canvas run preview --",
+    "lint": "npm --prefix canvas run lint",
+    "check": "npm --prefix canvas run check",
+    "test": "npm --prefix canvas run test:ci",
+    "pipeline": "python -m knowgrph_parser pipeline",
+    "graphrag:aiap22-workflow": "python -m knowgrph_parser graphrag-workflow"
+  }
+}

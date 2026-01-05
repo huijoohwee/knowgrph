@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --gap: 0.5rem;
+  --padding: 0.5rem;
+  --toolbar-gap: 0.5rem;
+  --toolbar-padding: 0.5rem 0.75rem;
+  --divider-height: 24px;
+  --divider-color: #d1d5db;
+  --island-radius: 0.5rem;
+  --island-border-color: #e5e7eb;
+  --island-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  --overlay-opacity: 0.95;
+  --panel-opacity: 0.95;
+  --toolbar-opacity: 0.95;
+  --app-bg: #f3f4f6;
+  --island-bg: #ffffff;
+  --panel-bg: #ffffff;
+  --island-bg-rgb: 255, 255, 255;
+  --panel-bg-rgb: 255, 255, 255;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --divider-color: #4b5563;
+  --island-border-color: #4b5563;
+  --island-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  --overlay-opacity: 0.95;
+  --panel-opacity: 0.95;
+  --toolbar-opacity: 0.95;
+  --app-bg: #020617;
+  --panel-bg: #020b2a;
+  --island-bg: #0b1220;
+  --panel-bg-rgb: 2, 11, 42;
+  --island-bg-rgb: 11, 18, 32;
+}
+
+body {
+  background-color: var(--app-bg);
+}
+
+@keyframes launch-rocket {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  70% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-2px) rotate(-6deg);
+  }
+  80% {
+    transform: translateY(-4px) rotate(6deg);
+  }
+  85% {
+    transform: translateY(-2px) rotate(-3deg);
+  }
+  90% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@layer utilities {
+}
+
+@layer components {
+  .App-toolbar__divider {
+    width: 1px;
+    height: 80%;
+    background-color: var(--divider-color);
+    opacity: 0.7;
+    margin-left: var(--toolbar-gap);
+    margin-right: var(--toolbar-gap);
+  }
+  .Island {
+    background-color: var(--island-bg);
+    border: 1px solid var(--island-border-color);
+    border-radius: var(--island-radius);
+    box-shadow: var(--island-shadow);
+  }
+  .App-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--toolbar-gap);
+    padding: var(--toolbar-padding);
+    background-color: rgba(255,255,255,var(--toolbar-opacity));
+    border: 1px solid var(--island-border-color);
+    border-radius: var(--island-radius);
+    box-shadow: var(--island-shadow);
+    min-height: 36px;
+  }
+  .App-toolbar--compact {
+    --toolbar-gap: 0.25rem;
+    --toolbar-padding: 0.25rem 0.5rem;
+  }
+  .App-toolbar--full {
+    --toolbar-gap: 0.75rem;
+    --toolbar-padding: 0.75rem 1rem;
+  }
+  .App-toolbar__btn {
+    height: 28px;
+    min-width: 28px;
+    padding: 8px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .LaunchButton__icon {
+    animation: launch-rocket 3s ease-in-out infinite;
+    transform-origin: center;
+  }
+  .kg-spotlight-halo {
+    box-shadow:
+      0 0 0 1px rgba(37, 99, 235, 0.6),
+      0 0 0 4px rgba(191, 219, 254, 0.7);
+    border-radius: 9999px;
+    outline: 2px solid rgba(37, 99, 235, 0.9);
+    outline-offset: 2px;
+  }
+  .HeaderBar {
+    --toolbar-padding: 0.25rem 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--toolbar-padding);
+    min-height: 36px;
+  }
+  .FooterBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--toolbar-padding);
+    min-height: 36px;
+  }
+  .Stack {
+    display: flex;
+    gap: var(--gap);
+    flex-direction: column;
+  }
+  .Stack_horizontal {
+    flex-direction: row;
+  }
+  .ModalOverlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0,0,0,var(--overlay-opacity));
+  }
+  .ModalContainer {
+    position: relative;
+    background-color: rgba(var(--panel-bg-rgb), var(--panel-opacity));
+    border: 1px solid var(--island-border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    padding: 1rem;
+    overflow: auto;
+  }
+
+  .MainPanelContainer {
+    position: relative;
+    background-color: rgba(var(--panel-bg-rgb), var(--panel-opacity));
+    border: 1px solid var(--island-border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .MainPanelContainer .HeaderBar {
+    --toolbar-padding: 0.25rem 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: rgba(var(--panel-bg-rgb), var(--panel-opacity));
+    border-bottom: 1px solid #e5e7eb;
+    min-height: 36px;
+  }
+  .MainPanelContainer .FooterBar {
+    --toolbar-padding: 0.25rem 0.5rem;
+    min-height: 36px;
+  }
+  .StatusBar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    color: #4b5563;
+    background-color: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+  }
+  .MenuPopover {
+    position: absolute;
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    font-size: 0.875rem;
+    z-index: 20;
+  }
+
+  .kg-editorjs .codex-editor,
+  .kg-editorjs .codex-editor__redactor,
+  .kg-editorjs .ce-editor,
+  .kg-editorjs .ce-editor__content,
+  .kg-editorjs .ce-toolbar__content,
+  .kg-editorjs .ce-block__content {
+    max-width: none;
+  }
+
+  .kg-editorjs .ce-block__content,
+  .kg-editorjs .ce-toolbar__content {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}

@@ -1,0 +1,74 @@
+version: "0.1"
+dataset:
+  input_dir: "./data/outputs"
+  output_dir: "./data/graphrag/aiap22"
+  file_glob: "aiap22-codebase-index-viz.jsonld"
+chunking:
+  method: "recursive_character"
+  chunk_size: 1000
+  chunk_overlap: 150
+embeddings:
+  provider: "cohere"
+  model: "embed-english-v3.0"
+  dimensions: 1024
+graph:
+  strategy: "entity_relationship"
+  entity_extraction_prompt: "./configs/graphrag/prompts.yaml"
+  relationship_extraction_prompt: "./configs/graphrag/prompts.yaml"
+costs:
+  warn: true
+  max_docs: 50
+  dry_run: false
+duckdb_queries:
+  - id: "aiap22-compliance-call-graph"
+    label: "AIAP22 compliance call graph"
+    description: "Functions in src/compliance_check.py and their calls."
+    suggested_start_node_id: "src/compliance_check.py::function:main"
+    sql: |-
+      select
+        caller.id as caller_id,
+        caller.name as caller_name,
+        callee.id as callee_id,
+        callee.name as callee_name
+      from edges e
+      join nodes caller on caller.id = e.subject_id
+      join nodes callee on callee.id = e.object_id
+      where e.predicate = 'calls'
+        and caller.id like 'kg:src/compliance_check.py::function:%'
+      order by caller_name, callee_name;
+  - id: "aiap22-model-selection-chain"
+    label: "AIAP22 model selection chain"
+    description: "Calls around src/model_selector.py::function:select_best."
+    suggested_start_node_id: "src/model_selector.py::function:select_best"
+    sql: |-
+      select
+        caller.id as caller_id,
+        caller.name as caller_name,
+        callee.id as callee_id,
+        callee.name as callee_name
+      from edges e
+      join nodes caller on caller.id = e.subject_id
+      join nodes callee on callee.id = e.object_id
+      where e.predicate = 'calls'
+        and (caller.id like 'kg:src/model_selector.py::function:%'
+             or callee.id like 'kg:src/model_selector.py::function:%')
+      order by caller_name, callee_name;
+  - id: "aiap22-training-end-to-end"
+    label: "AIAP22 training pipeline (data → features → opt → eval)"
+    description: "End-to-end call graph across data_loader, feature_engineering, optimization, and evaluation."
+    suggested_start_node_id: "src/main.py"
+    sql: |-
+      select
+        caller.id as caller_id,
+        caller.name as caller_name,
+        callee.id as callee_id,
+        callee.name as callee_name
+      from edges e
+      join nodes caller on caller.id = e.subject_id
+      join nodes callee on callee.id = e.object_id
+      where e.predicate = 'calls'
+        and (caller.id like 'kg:src/data_loader.py::%'
+             or caller.id like 'kg:src/feature_engineering.py::%'
+             or caller.id like 'kg:src/optimization.py::%'
+             or caller.id like 'kg:src/evaluation.py::%')
+      order by caller_name, callee_name;

@@ -1,0 +1,53 @@
+graph:
+  id: codebase-index
+  codebase_root: ""
+  index_jsonld: ""
+  index_schema: ""
+  workflow_json: ""
+  graphrag_workflow: ""
+
+orchestrator:
+  parser_script: python -m knowgrph_parser
+  pipeline_artifacts:
+    nodes_csv: ""
+    edges_csv: ""
+    summary_json: ""
+
+agentic_rag:
+  schema: https://huijoohwee.github.io/schema/AgenticRAG
+  context_url: https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld
+  node_view_type: AgenticRagNodeView
+  primary_fields:
+    - chunk_text
+    - metadata
+  traversal_edges:
+    - imports
+    - contains
+    - calls
+    - renders
+    - providesPanel
+    - readsStore
+    - updatesStore
+    - usesWorker
+    - invokes
+    - hasSection
+    - hasBlock
+    - hasItem
+    - linksTo
+    - next
+    - hasRuntimeEvent
+    - runtimeOf
+  ignore_codebase_paths:
+    - dir:.git
+    - dir:node_modules
+    - dir:.trae
+    - dir:.deprecated
+    - dir:dist
+    - dir:build
+    - dir:.venv
+    - dir:__pycache__
+    - path:data/outputs
+    - dir:canvas/src/__tests__
+    - dir:canvas/public/examples
+  graph_rag_paths: []
+  runtime_events: []

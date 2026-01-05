@@ -1,0 +1,298 @@
+import React from 'react'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { createTabSync, buildEnvelope } from '@/lib/tabSync'
+import '@/tests/run'
+import { useParserUIState } from '@/features/parsers/uiState'
+import { clearCustomParsers } from '@/features/parsers/persistence'
+import type { GraphSchema } from '@/lib/graph/schema'
+import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
+import { LS_KEYS, LS_LEGACY_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/config'
+import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
+import TabHeader from '@/features/panels/ui/TabHeader'
+import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
+import { FileCode, MessageCircle } from 'lucide-react'
+
+const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
+const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
+const BottomPanelLazy = React.lazy(() => import('@/components/BottomPanel'))
+const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
+const NodeEditorLazy = React.lazy(() => import('@/components/NodeEditor'))
+const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
+const SidebarTriggerLazy = React.lazy(() => import('@/components/SidebarTrigger'))
+const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
+
+export default function CanvasPage() {
+  const {
+    isSidebarOpen,
+    setSidebarOpen,
+    sidebarWidthRatio,
+    uiOverlayOpacity,
+    uiPanelOpacity,
+    uiToolbarOpacity,
+    graphId,
+    tabId,
+    enableTabSync,
+    selectedNodeId,
+    selectedEdgeId,
+    selectNode,
+    selectEdge,
+    schema,
+    setSchema,
+    setEnableLaunchSpotlight,
+  } = useGraphStore()
+  const { setLifecycleStage } = useGraphStore()
+  const [, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false, [
+    LS_LEGACY_KEYS.launchSpotlightDismissed,
+  ])
+  const asideRef = React.useRef<HTMLDivElement | null>(null)
+  const sidebarToggleRef = React.useRef<HTMLButtonElement | null>(null)
+  const syncRef = React.useRef<ReturnType<typeof createTabSync> | null>(null)
+  const applyingRemoteRef = React.useRef(false)
+  const lastSelectionRef = React.useRef<{ n: string | null; e: string | null } | null>(null)
+  const lastSchemaHashRef = React.useRef<string | null>(null)
+  const lastSchemaRemoteTimestampRef = React.useRef<number>(0)
+  const [sidebarTopOffsetPx, setSidebarTopOffsetPx] = React.useState(0)
+
+  React.useEffect(() => {
+    const root = document.documentElement
+    root.style.setProperty('--overlay-opacity', String(uiOverlayOpacity))
+    root.style.setProperty('--panel-opacity', String(uiPanelOpacity))
+    root.style.setProperty('--toolbar-opacity', String(uiToolbarOpacity))
+  }, [uiOverlayOpacity, uiPanelOpacity, uiToolbarOpacity])
+
+  React.useEffect(() => {
+    setLifecycleStage('hydrated')
+  }, [setLifecycleStage])
+
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isCmd = e.metaKey || e.ctrlKey
+      if (!isCmd || !e.shiftKey) return
+      const k = e.key.toLowerCase()
+      if (k === 'g') {
+        e.preventDefault()
+        try {
+          setEnableLaunchSpotlight(true)
+          setSpotlightDismissed(false)
+        } catch {
+          void 0
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [setEnableLaunchSpotlight, setSpotlightDismissed])
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const measure = () => {
+      const toolbar = typeof document === 'undefined' ? null : document.querySelector('.App-toolbar')
+      const toolbarOffsetPx = UI_LAYOUT.toolbarOffsetPx
+      const toolbarBottomPx = toolbar instanceof HTMLElement ? toolbar.getBoundingClientRect().bottom : toolbarOffsetPx
+      const topOffset = toolbarBottomPx + toolbarOffsetPx
+      setSidebarTopOffsetPx(topOffset)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  React.useEffect(() => {
+    try {
+      useGraphStore.getState().clearGraphData?.()
+    } catch {
+      void 0
+    }
+    try {
+      useParserUIState.getState().reset?.()
+    } catch {
+      void 0
+    }
+    try {
+      clearCustomParsers()
+    } catch {
+      void 0
+    }
+  }, [])
+
+  void setSidebarOpen
+
+  React.useEffect(() => {
+    if (!enableTabSync) return
+    const sync = createTabSync(STORAGE_CHANNELS.tabSync)
+    syncRef.current = sync
+    const unsub = sync.subscribe(msg => {
+      if (msg.graphId !== graphId || msg.sourceTabId === tabId) return
+      applyingRemoteRef.current = true
+      try {
+        if (msg.kind === 'SelectionChanged') {
+          const payload = msg.payload as unknown as { selectedNodeId: string | null; selectedEdgeId: string | null }
+          const { selectedNodeId: nid, selectedEdgeId: eid } = payload
+          selectNode(nid ?? null)
+          selectEdge(eid ?? null)
+        }
+        if (msg.kind === 'SchemaChanged') {
+          const ts = typeof msg.timestamp === 'number' ? msg.timestamp : 0
+          if (ts <= lastSchemaRemoteTimestampRef.current) return
+          lastSchemaRemoteTimestampRef.current = ts
+          const payload = msg.payload as unknown as { schema?: unknown }
+          if (!payload || typeof payload !== 'object' || !('schema' in payload)) return
+          setSchema(payload.schema as GraphSchema)
+        }
+      } finally {
+        applyingRemoteRef.current = false
+      }
+    })
+    return () => {
+      try {
+        unsub()
+      } finally {
+        try {
+          sync.destroy()
+        } catch {
+          void 0
+        }
+        if (syncRef.current === sync) syncRef.current = null
+      }
+    }
+  }, [enableTabSync, graphId, tabId, selectNode, selectEdge, setSchema])
+
+  React.useEffect(() => {
+    if (!enableTabSync || !syncRef.current) return
+    if (applyingRemoteRef.current) return
+    const payload = { selectedNodeId, selectedEdgeId }
+    const last = lastSelectionRef.current
+    if (!last || last.n !== selectedNodeId || last.e !== selectedEdgeId) {
+      lastSelectionRef.current = { n: selectedNodeId || null, e: selectedEdgeId || null }
+      syncRef.current.publish(buildEnvelope('SelectionChanged', graphId, tabId, payload))
+    }
+  }, [enableTabSync, graphId, tabId, selectedNodeId, selectedEdgeId])
+
+  React.useEffect(() => {
+    if (!enableTabSync || !syncRef.current) return
+    if (applyingRemoteRef.current) return
+    let hash = ''
+    try {
+      hash = JSON.stringify(schema)
+    } catch {
+      hash = ''
+    }
+    const last = lastSchemaHashRef.current
+    if (last === hash) return
+    lastSchemaHashRef.current = hash
+    try {
+      syncRef.current.publish(buildEnvelope('SchemaChanged', graphId, tabId, { schema }))
+    } catch {
+      void 0
+    }
+  }, [enableTabSync, graphId, tabId, schema])
+
+  const { requestZoom, canvasRenderMode, requestThreeCamera } = useGraphStore()
+  const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat'>('node')
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = (ev: Event) => {
+      const e = ev as CustomEvent<{ tab?: 'node' | 'chat'; open?: boolean } | undefined>
+      const detail = e.detail
+      const tab = detail?.tab === 'chat' ? 'chat' : detail?.tab === 'node' ? 'node' : null
+      if (tab) setSidePanelTab(tab)
+      if (detail?.open) setSidebarOpen(true)
+    }
+    window.addEventListener(SIDE_PANEL_OPEN_EVENT, handler as EventListener)
+    return () => {
+      window.removeEventListener(SIDE_PANEL_OPEN_EVENT, handler as EventListener)
+    }
+  }, [setSidebarOpen])
+  const makeZoomHandler = (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => () => {
+    if (canvasRenderMode === '2d') {
+      requestZoom(type)
+    } else {
+      requestThreeCamera(type)
+    }
+  }
+
+  const handleZoomIn = makeZoomHandler('in')
+  const handleZoomOut = makeZoomHandler('out')
+  const handleFit = makeZoomHandler('fit')
+  const handleReset = makeZoomHandler('reset')
+  const handleZoomSelection = makeZoomHandler('selection')
+
+  return (
+    <div className="h-screen overflow-hidden bg-transparent flex flex-col">
+      <main className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 relative overflow-hidden">
+            <>
+              <div className="absolute top-2 inset-x-0 z-50 flex items-center justify-center">
+                <React.Suspense fallback={null}>
+                  <ToolbarLazy
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onFit={handleFit}
+                    onReset={handleReset}
+                    onZoomSelection={handleZoomSelection}
+                  />
+                  <SidebarTriggerLazy ref={sidebarToggleRef} className="absolute right-3" />
+                </React.Suspense>
+              </div>
+              <>
+                <React.Suspense fallback={null}>
+                  {canvasRenderMode === '2d' ? <GraphCanvasLazy /> : <ThreeGraphLazy />}
+                  <LaunchSpotlight />
+                  <div
+                    className="absolute left-3 z-20 pointer-events-auto"
+                    style={{ bottom: 'calc(var(--bottom-panel-height-px, 40px) + 12px)' }}
+                  >
+                    <MinimapLazy />
+                  </div>
+                  <BottomPanelLazy />
+                </React.Suspense>
+                <aside
+                  className={`absolute right-0 z-30 transition-all duration-200 flex flex-col ${
+                    isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                  style={{
+                    width: isSidebarOpen ? `${Math.round(((sidebarWidthRatio || 0.25) * 100))}vw` : 0,
+                    top: `${Math.max(0, Math.round(sidebarTopOffsetPx))}px`,
+                    bottom: 'var(--bottom-panel-height-px, 40px)',
+                  }}
+                  aria-hidden={!isSidebarOpen}
+                  ref={asideRef}
+                >
+                  <div className="ModalContainer h-full flex flex-col rounded-none shadow-none p-0 border-l border-gray-200 border-t-0 border-b-0 border-r-0">
+                    <TabHeader
+                      collapsed={false}
+                      tabs={[
+                        { key: 'node', label: 'Node' },
+                        { key: 'chat', label: 'Chat' },
+                      ]}
+                      tabVariant="icon"
+                      tabIconByKey={{
+                        node: FileCode,
+                        chat: MessageCircle,
+                      }}
+                      activeTab={sidePanelTab}
+                      onTabChange={key => {
+                        setSidePanelTab(key === 'chat' ? 'chat' : 'node')
+                      }}
+                    />
+                    <div className="flex-1 overflow-y-auto">
+                      <React.Suspense fallback={null}>
+                        <div className={sidePanelTab === 'chat' ? 'h-full' : 'hidden'}>
+                          <SidePanelChatLazy />
+                        </div>
+                        <div className={sidePanelTab === 'node' ? 'h-full' : 'hidden'}>
+                          <NodeEditorLazy />
+                        </div>
+                      </React.Suspense>
+                    </div>
+                  </div>
+                </aside>
+              </>
+            </>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}

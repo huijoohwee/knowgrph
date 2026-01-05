@@ -1,0 +1,14 @@
+entity_extraction:
+  system: "Extract entities with types and key properties."
+  user_template: |
+    Text:
+    {{text}}
+    Return JSON with fields: id, name, type, properties.
+relationship_extraction:
+  system: "Extract relationships between entities."
+  user_template: |
+    Entities:
+    {{entities}}
+    Return JSON edges: id, source, target, type, properties.
+chunking_guidance:
+  system: "Chunk for semantic coherence and downstream graph construction."

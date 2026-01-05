@@ -1,0 +1,7 @@
+{
+  "model": "embed-english-v3.0",
+  "dimensions": 4,
+  "vectors": [
+    { "id": "c1", "vector": [0.12, 0.44, -0.02, 0.81] }
+  ]
+}

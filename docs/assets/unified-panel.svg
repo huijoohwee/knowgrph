@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect x="0" y="0" width="1200" height="800" fill="#f7fafc"/>
+  <rect x="80" y="80" width="1040" height="640" rx="12" ry="12" fill="#ffffff" stroke="#e5e7eb"/>
+  <rect x="80" y="80" width="1040" height="56" rx="12" ry="12" fill="#ffffff"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" text-anchor="middle">
+    <rect x="108" y="92" width="88" height="32" rx="6" fill="#2563eb"/>
+    <text x="152" y="113" fill="#ffffff">Settings</text>
+    <rect x="206" y="92" width="88" height="32" rx="6" fill="#f3f4f6" stroke="#e5e7eb"/>
+    <text x="250" y="113" fill="#374151">Schema</text>
+    <rect x="304" y="92" width="88" height="32" rx="6" fill="#f3f4f6" stroke="#e5e7eb"/>
+    <text x="348" y="113" fill="#374151">History</text>
+    <rect x="402" y="92" width="88" height="32" rx="6" fill="#f3f4f6" stroke="#e5e7eb"/>
+    <text x="446" y="113" fill="#374151">Help</text>
+  </g>
+  <g>
+    <circle cx="980" cy="108" r="14" fill="#2563eb"/>
+    <path d="M980 100 a8 8 0 1 1 0 16 a8 8 0 1 1 0 -16" fill="none" stroke="#ffffff" stroke-width="2"/>
+    <path d="M993 121 l10 10" stroke="#6b7280" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="1020" cy="108" r="14" fill="#10b981"/>
+    <path d="M1012 108 h16" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="1060" cy="108" r="14" fill="#f59e0b"/>
+    <path d="M1053 115 l14 -14" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="1100" cy="108" r="14" fill="#ef4444"/>
+    <path d="M1094 104 h12 M1094 112 h12" stroke="#ffffff" stroke-width="2"/>
+  </g>
+  <g font-family="Inter, system-ui, sans-serif" font-size="12" fill="#6b7280">
+    <text x="100" y="160">Area</text>
+    <text x="360" y="160">Key</text>
+    <text x="620" y="160">Type</text>
+    <text x="880" y="160">Value</text>
+  </g>
+  <g>
+    <rect x="100" y="178" width="920" height="40" rx="6" fill="#f9fafb" stroke="#e5e7eb"/>
+    <text x="120" y="203" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#374151">Global Translucency</text>
+    <text x="380" y="203" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#111827">uiPanelOpacity</text>
+    <text x="640" y="203" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#374151">number</text>
+    <rect x="840" y="188" width="160" height="22" rx="4" fill="#ffffff" stroke="#d1d5db"/>
+  </g>
+  <g>
+    <rect x="100" y="228" width="920" height="40" rx="6" fill="#ffffff" stroke="#e5e7eb"/>
+    <text x="120" y="253" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#374151">Editor Behavior & Timing</text>
+    <text x="380" y="253" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#111827">historyDebounceMs</text>
+    <text x="640" y="253" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#374151">number</text>
+    <rect x="840" y="238" width="160" height="22" rx="4" fill="#ffffff" stroke="#d1d5db"/>
+  </g>
+  <text x="600" y="740" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#6b7280">Unified Panel — Settings | Schema | History | Help • Header: Apply • Reset • Search • Close</text>
+</svg>
+

@@ -1,0 +1,9 @@
+dataset:
+  input_dir: "../../data/raw"
+  output_dir: "../../data/graphrag"
+chunking:
+  method: "recursive_character"
+  chunk_size: 1000
+embeddings:
+  provider: "cohere"
+  model: "embed-english-v3.0"

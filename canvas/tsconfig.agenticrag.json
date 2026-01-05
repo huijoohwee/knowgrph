@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true
+  },
+  "include": [
+    "src/lib/agenticrag.ts",
+    "src/lib/config.ts",
+    "src/lib/graph/jsonld.ts",
+    "src/lib/graph/graphragTraversal.ts",
+    "src/lib/graph/graphrag.ts",
+    "src/components/Toolbar.tsx",
+    "src/features/panels/config.ts",
+    "src/features/spotlight/config.ts",
+    "src/features/panels/views/WorkflowSection.tsx",
+    "src/features/panels/views/RenderSettingsSection.tsx",
+    "src/features/panels/views/ParserView.tsx",
+    "src/features/panels/utils/workflowJsonLd.ts",
+    "src/features/panels/utils/graphragConfig.ts",
+    "src/features/minimap/**/*.ts",
+    "src/features/three/**/*.ts",
+    "src/__tests__/**/*.ts",
+    "src/cli/**/*.ts",
+    "src/types/**/*.d.ts"
+  ]
+}

@@ -1,0 +1,78 @@
+import React from 'react';
+import { cn } from '@/lib/utils';
+import Tooltip from '@/features/panels/ui/Tooltip';
+import { useGraphStore } from '@/hooks/useGraphStore';
+
+type BaseButtonProps = Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  'title' | 'aria-label' | 'children' | 'type'
+>;
+
+interface IconButtonProps extends BaseButtonProps {
+  title: string;
+  children: React.ReactNode;
+  showTooltip?: boolean;
+  hoverRingClass?: string;
+  tooltipContent?: string;
+}
+
+const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
+  (
+    { title, onClick, disabled, className = '', children, showTooltip = false, hoverRingClass, tooltipContent, ...buttonProps },
+    ref,
+  ) => {
+    const hasMultipleChildren = React.Children.count(children) > 1;
+    const content = tooltipContent ?? title;
+    const uiIconColorClass = useGraphStore(state => state.uiIconColorClass);
+    const uiIconHoverBgClass = useGraphStore(state => state.uiIconHoverBgClass);
+    const uiIconButtonPaddingClass = useGraphStore(state => state.uiIconButtonPaddingClass);
+    const uiIconFormat = useGraphStore(state => state.uiIconFormat);
+    const isDisabled = !!disabled;
+    const isMinimal = uiIconFormat === 'minimal';
+    const paddingClass =
+      uiIconButtonPaddingClass && uiIconButtonPaddingClass.trim().length > 0
+        ? uiIconButtonPaddingClass
+        : 'p-2';
+    const enabledClasses = cn(
+      uiIconColorClass && uiIconColorClass.trim().length > 0 ? uiIconColorClass : 'text-gray-600',
+      isMinimal
+        ? ''
+        : uiIconHoverBgClass && uiIconHoverBgClass.trim().length > 0
+          ? uiIconHoverBgClass
+          : 'hover:bg-gray-100',
+      isMinimal || !hoverRingClass ? '' : cn('hover:ring-2 ring-offset-1', hoverRingClass),
+    );
+
+    const button = (
+      <button
+        ref={ref}
+        {...buttonProps}
+        type="button"
+        disabled={isDisabled}
+        onClick={onClick}
+        className={cn(
+          'group relative select-none rounded',
+          paddingClass,
+          isDisabled
+            ? 'text-gray-400 cursor-not-allowed pointer-events-none'
+            : enabledClasses,
+          hasMultipleChildren ? 'flex items-center gap-2' : '',
+          className,
+        )}
+        title={showTooltip ? undefined : title}
+        aria-label={title}
+      >
+        {children}
+      </button>
+    )
+
+    if (!showTooltip) return button
+    return (
+      <Tooltip content={content} contentClassName="bg-gray-800/80">
+        {button}
+      </Tooltip>
+    )
+  }
+);
+
+export default React.memo(IconButton);
