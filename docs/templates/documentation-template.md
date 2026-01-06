@@ -2,9 +2,9 @@
 
 ## System Architecture
 
-**Processing Flow**: [Stage1] → [Stage2] → [Stage3] → [Stage4] → [StageN]
+**Processing Flow**: [Stage1] -> [Stage2] -> [Stage3] -> [Stage4] -> [StageN]
 
-**Data Transformations**: [input_format] → [intermediate_format] → [output_format]
+**Data Transformations**: [input_format] -> [intermediate_format] -> [output_format]
 
 **Design Principles**: Configuration-driven orchestration | single-responsibility components | structure-semantics separation | provenance tracking
 
@@ -14,7 +14,7 @@
 
 ### Stage: [StageName]
 
-**From [input_state] to [output_state]**: Stage → [processes/transforms/aggregates] [data_type] via [method] → delivers [artifacts] for [downstream_stage].
+**From [input_state] to [output_state]**: Stage -> [processes/transforms/aggregates] [data_type] via [method] -> delivers [artifacts] for [downstream_stage].
 
 **Configuration Schema**:
 ```yaml
@@ -31,7 +31,7 @@ parameter_name:
   impact: [15-word description]
 ```
 
-**Processing Pattern**: [Universal operation] → input [features] → output [structure] → O(complexity)
+**Processing Pattern**: [Universal operation] -> input [features] -> output [structure] -> O(complexity)
 
 ---
 
@@ -82,7 +82,7 @@ parameter_name:
 
 **Efficiency Metrics**: processing_time, resource_utilization, traversal_efficiency
 
-**Triggers**: [metric < threshold] → [reprocess | review | retrain]
+**Triggers**: [metric < threshold] -> [reprocess | review | retrain]
 
 ---
 

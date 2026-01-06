@@ -1,17 +1,12 @@
 import React from 'react'
-import { runMarkdownPipelineAndLoadArtifacts } from '@/features/panels/hooks/workflowJsonLdActions'
+import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/workflowJsonLdActions'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphBehavior, GraphSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
-import {
-  PIPELINE_COMMAND_RUNNING_STATUS_TEXT,
-  PIPELINE_COMMAND_LOADED_STATUS_TEXT,
-  PIPELINE_COMMAND_FALLBACK_STATUS_TEXT,
-  RUN_CODEBASE_INDEX_PIPELINE_LABEL,
-} from '@/lib/config'
+import { RUN_CODEBASE_INDEX_PIPELINE_LABEL } from '@/lib/config'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
 import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSection'
@@ -203,13 +198,7 @@ export default function RenderSettingsSection({
   }, [setCanvasRenderMode, setThreeConfig])
 
   const handleRunCodebaseIndexPipeline = React.useCallback(async () => {
-    try {
-      setPipelineStatus(PIPELINE_COMMAND_RUNNING_STATUS_TEXT)
-      const ok = await runMarkdownPipelineAndLoadArtifacts()
-      setPipelineStatus(ok ? PIPELINE_COMMAND_LOADED_STATUS_TEXT : PIPELINE_COMMAND_FALLBACK_STATUS_TEXT)
-    } catch {
-      setPipelineStatus(PIPELINE_COMMAND_FALLBACK_STATUS_TEXT)
-    }
+    await runMarkdownPipelineWithStatus(setPipelineStatus)
   }, [])
 
   const schemaBadges = React.useMemo(() => {

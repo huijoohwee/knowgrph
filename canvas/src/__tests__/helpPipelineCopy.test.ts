@@ -5,7 +5,7 @@ export async function testHelpPipelineCopyMatchesCommandConstant() {
   if (!CODEBASE_INDEX_PIPELINE_COMMAND.includes('python -m knowgrph_parser markdown')) {
     throw new Error('pipeline command missing markdown CLI invocation')
   }
-  if (!CODEBASE_INDEX_PIPELINE_COMMAND.includes('docs/knowgrph-workflow-document.md')) {
+  if (!CODEBASE_INDEX_PIPELINE_COMMAND.includes('docs/knowgrph-pipeline-document.md')) {
     throw new Error('pipeline command missing default markdown input path')
   }
   if (HELP_PIPELINE_COMMAND_TEXT !== CODEBASE_INDEX_PIPELINE_COMMAND) {

@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from .common import (
@@ -35,6 +36,206 @@ def _parse_frontmatter(lines: List[str]) -> Tuple[Dict[str, str], int]:
     return meta, 0
 
 
+_WORD_RE = re.compile(r"[A-Za-z0-9_]+")
+_INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def _clamp01(x: float) -> float:
+    if x < 0.0:
+        return 0.0
+    if x > 1.0:
+        return 1.0
+    return x
+
+
+def _env_float(key: str, fallback: float) -> float:
+    raw = os.getenv(key, "").strip()
+    if not raw:
+        return float(fallback)
+    try:
+        val = float(raw)
+        if val != val:
+            return float(fallback)
+        return float(val)
+    except Exception:
+        return float(fallback)
+
+
+def _env_int(key: str, fallback: int) -> int:
+    raw = os.getenv(key, "").strip()
+    if not raw:
+        return int(fallback)
+    try:
+        val = int(float(raw))
+        return int(val)
+    except Exception:
+        return int(fallback)
+
+
+def _env_bool(key: str, fallback: bool) -> bool:
+    raw = os.getenv(key, "").strip().lower()
+    if not raw:
+        return bool(fallback)
+    if raw in {"1", "true", "yes", "y", "on"}:
+        return True
+    if raw in {"0", "false", "no", "n", "off"}:
+        return False
+    return bool(fallback)
+
+
+def _parse_bool(value: Any) -> Optional[bool]:
+    if isinstance(value, bool):
+        return value
+    text = str(value or "").strip().lower()
+    if not text:
+        return None
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off"}:
+        return False
+    return None
+
+
+def _parse_float(value: Any) -> Optional[float]:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        val = float(value)
+        return val if val == val else None
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        val = float(text)
+        return val if val == val else None
+    except Exception:
+        return None
+
+
+def _parse_int(value: Any) -> Optional[int]:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return int(value)
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return int(float(text))
+    except Exception:
+        return None
+
+
+def _tokenize_with_offsets(text: str) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for m in _WORD_RE.finditer(text or ""):
+        tok = m.group(0) or ""
+        if not tok:
+            continue
+        start = int(m.start())
+        end = int(m.end())
+        is_word = any(c.isalpha() for c in tok)
+        kind = "word" if is_word else "num"
+        out.append({"text": tok, "start": start, "end": end, "kind": kind})
+    return out
+
+
+def _token_kind_score(token: str) -> Tuple[str, float]:
+    if not token:
+        return "other", 0.5
+    if token.isupper() and any(c.isalpha() for c in token):
+        return "upper", 0.85
+    if token[:1].isupper() and any(c.isalpha() for c in token):
+        return "capitalized", 0.8
+    if "_" in token or "." in token:
+        return "identifier", 0.8
+    if any(c.isalpha() for c in token) and any(c.isupper() for c in token[1:]):
+        return "identifier", 0.75
+    return "word", 0.55
+
+
+def _merge_tokens_to_spans(
+    tokens: List[Dict[str, Any]],
+    *,
+    phrase_boundary_threshold: float,
+    max_entity_span_tokens: int,
+) -> List[Dict[str, Any]]:
+    spans: List[Dict[str, Any]] = []
+    i = 0
+    while i < len(tokens):
+        t0 = tokens[i]
+        tok = str(t0.get("text") or "")
+        kind0, base0 = _token_kind_score(tok)
+        if kind0 not in {"capitalized", "upper", "identifier"}:
+            i += 1
+            continue
+        start_i = i
+        end_i = i + 1
+        best_score = base0
+        while end_i < len(tokens) and (end_i - start_i) < max_entity_span_tokens:
+            prev = str(tokens[end_i - 1].get("text") or "")
+            cur = str(tokens[end_i].get("text") or "")
+            pk, ps = _token_kind_score(prev)
+            ck, cs = _token_kind_score(cur)
+            coherence = 0.9 if pk == ck and pk in {"capitalized", "upper", "identifier"} else 0.6
+            if coherence < phrase_boundary_threshold:
+                break
+            end_i += 1
+            best_score = max(best_score, (ps + cs + coherence) / 3.0)
+        span_tokens = tokens[start_i:end_i]
+        text = " ".join([str(t.get("text") or "") for t in span_tokens]).strip()
+        if text:
+            spans.append(
+                {
+                    "text": text,
+                    "start": int(span_tokens[0].get("start") or 0),
+                    "end": int(span_tokens[-1].get("end") or 0),
+                    "tokenStart": start_i,
+                    "tokenEnd": end_i - 1,
+                    "confidence": _clamp01(float(best_score)),
+                }
+            )
+        i = end_i
+    return spans
+
+
+def _detect_inline_code_spans(text: str) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for m in _INLINE_CODE_RE.finditer(text or ""):
+        inner = (m.group(1) or "").strip()
+        if not inner:
+            continue
+        out.append(
+            {
+                "text": inner,
+                "start": int(m.start(1)),
+                "end": int(m.end(1)),
+                "tokenStart": None,
+                "tokenEnd": None,
+                "confidence": 0.9,
+            }
+        )
+    return out
+
+
+def _extract_sentence_features(sentence: str) -> Dict[str, Any]:
+    s = (sentence or "").strip()
+    lowered = s.lower()
+    temporal = ""
+    for w in ["before", "after", "during", "then", "next", "previously", "later"]:
+        if re.search(rf"\b{re.escape(w)}\b", lowered):
+            temporal = w
+            break
+    modality = ""
+    for w in ["may", "might", "can", "could", "should", "must", "will"]:
+        if re.search(rf"\b{re.escape(w)}\b", lowered):
+            modality = w
+            break
+    negation = False
+    for w in ["not", "never", "no"]:
+        if re.search(rf"\b{re.escape(w)}\b", lowered):
+            negation = True
+            break
+    return {"temporalMarker": temporal, "modality": modality, "negation": bool(negation)}
+
+
 def parse_markdown_text_to_graph_jsonld(
     markdown_text: str,
     *,
@@ -47,6 +248,8 @@ def parse_markdown_text_to_graph_jsonld(
     source_uri: Optional[str] = None,
     provenance_source: Optional[str] = None,
     layout_suggest: Optional[Dict[str, Any]] = None,
+    semantic_enabled: Optional[bool] = None,
+    semantic_config: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     raw = markdown_text or ""
     lines = split_lines(raw)
@@ -162,6 +365,7 @@ def parse_markdown_text_to_graph_jsonld(
             add_edge(prev_id, "next", next_id, meta=meta)
 
     block_index_by_parent: Dict[str, int] = {}
+    semantic_sources: List[Dict[str, Any]] = []
 
     for b in blocks:
         start_line = b.start_line + content_start
@@ -196,6 +400,14 @@ def parse_markdown_text_to_graph_jsonld(
             last_block_id = sec_id
             section_stack.append((b.level, sec_id))
             current_section_id = sec_id
+            semantic_sources.append(
+                {
+                    "blockId": sec_id,
+                    "blockType": "Section",
+                    "text": b.text,
+                    "meta": mk_meta(start_line, end_line),
+                }
+            )
             continue
 
         parent_id = current_section_id or doc_node_id
@@ -223,6 +435,14 @@ def parse_markdown_text_to_graph_jsonld(
             add_edge(parent_id, "hasBlock", p_id, props={"order": order}, meta=meta_block)
             add_sequence(last_block_id, p_id, meta=meta_block)
             last_block_id = p_id
+            semantic_sources.append(
+                {
+                    "blockId": p_id,
+                    "blockType": "Paragraph",
+                    "text": b.text,
+                    "meta": meta_block,
+                }
+            )
 
             for label, url in extract_links(b.text):
                 link_id = f"link:{slugify(url)}"
@@ -260,6 +480,14 @@ def parse_markdown_text_to_graph_jsonld(
             add_edge(parent_id, "hasBlock", c_id, props={"order": order}, meta=meta_block)
             add_sequence(last_block_id, c_id, meta=meta_block)
             last_block_id = c_id
+            semantic_sources.append(
+                {
+                    "blockId": c_id,
+                    "blockType": "CodeBlock",
+                    "text": b.text,
+                    "meta": meta_block,
+                }
+            )
             continue
 
         if b.kind == "table":
@@ -278,6 +506,14 @@ def parse_markdown_text_to_graph_jsonld(
             add_edge(parent_id, "hasBlock", t_id, props={"order": order}, meta=meta_block)
             add_sequence(last_block_id, t_id, meta=meta_block)
             last_block_id = t_id
+            semantic_sources.append(
+                {
+                    "blockId": t_id,
+                    "blockType": "Table",
+                    "text": b.text,
+                    "meta": meta_block,
+                }
+            )
             continue
 
         if b.kind == "list":
@@ -318,7 +554,304 @@ def parse_markdown_text_to_graph_jsonld(
                     }
                 )
                 add_edge(l_id, "hasItem", it_id, props={"order": idx + 1}, meta=meta_block)
+                if isinstance(txt, str) and txt.strip():
+                    semantic_sources.append(
+                        {
+                            "blockId": it_id,
+                            "blockType": "ListItem",
+                            "text": txt,
+                            "meta": meta_block,
+                        }
+                    )
             continue
+
+    semantic_enabled_value = semantic_enabled if isinstance(semantic_enabled, bool) else _parse_bool(fm.get("semanticEnabled"))
+    sem_enabled = True if semantic_enabled_value is None else bool(semantic_enabled_value)
+
+    sem_defaults: Dict[str, Any] = {
+        "phrase_boundary_threshold": _env_float("KG_PHRASE_BOUNDARY_THRESHOLD", 0.75),
+        "max_entity_span_tokens": _env_int("KG_MAX_ENTITY_SPAN_TOKENS", 8),
+        "edge_confidence_threshold": _env_float("KG_EDGE_CONFIDENCE_THRESHOLD", 0.65),
+        "max_syntactic_path_length": _env_int("KG_MAX_SYNTACTIC_PATH_LENGTH", 4),
+        "auto_tune_enabled": _env_bool("KG_AUTO_TUNE_ENABLED", True),
+        "tuning_sensitivity": _env_float("KG_TUNING_SENSITIVITY", 0.1),
+        "min_pattern_support": _env_float("KG_MIN_PATTERN_SUPPORT", 0.05),
+        "emergent_relationship_threshold": _env_float("KG_EMERGENT_RELATIONSHIP_THRESHOLD", 0.7),
+        "corpus_centrality_algorithm": os.getenv("KG_CORPUS_CENTRALITY_ALGORITHM", "pagerank").strip() or "pagerank",
+    }
+
+    for k, v in {
+        "phrase_boundary_threshold": fm.get("phraseBoundaryThreshold"),
+        "max_entity_span_tokens": fm.get("maxEntitySpanTokens"),
+        "edge_confidence_threshold": fm.get("edgeConfidenceThreshold"),
+        "max_syntactic_path_length": fm.get("maxSyntacticPathLength"),
+        "auto_tune_enabled": fm.get("autoTuneEnabled"),
+        "tuning_sensitivity": fm.get("tuningSensitivity"),
+        "min_pattern_support": fm.get("minPatternSupport"),
+        "emergent_relationship_threshold": fm.get("emergentRelationshipThreshold"),
+        "corpus_centrality_algorithm": fm.get("corpusCentralityAlgorithm"),
+    }.items():
+        if v is None:
+            continue
+        if k in {"corpus_centrality_algorithm"}:
+            val = str(v or "").strip()
+            if val:
+                sem_defaults[k] = val
+            continue
+        if k in {"auto_tune_enabled"}:
+            b = _parse_bool(v)
+            if b is not None:
+                sem_defaults[k] = bool(b)
+            continue
+        if k in {"max_entity_span_tokens", "max_syntactic_path_length"}:
+            iv = _parse_int(v)
+            if iv is not None:
+                sem_defaults[k] = int(iv)
+            continue
+        fv = _parse_float(v)
+        if fv is not None:
+            sem_defaults[k] = float(fv)
+
+    if isinstance(semantic_config, dict) and semantic_config:
+        sem_defaults.update(semantic_config)
+
+    semantic_doc_profile: Dict[str, Any] = {}
+    if sem_enabled and semantic_sources:
+        joined_text = "\n".join([str(s.get("text") or "") for s in semantic_sources])
+        toks = _tokenize_with_offsets(joined_text)
+        token_count = len(toks)
+        sentence_count = len([s for s in _SENTENCE_SPLIT_RE.split(joined_text) if s.strip()])
+        avg_sentence_tokens = (token_count / sentence_count) if sentence_count else 0.0
+        semantic_doc_profile = {
+            "tokenCount": token_count,
+            "sentenceCount": sentence_count,
+            "avgSentenceTokens": avg_sentence_tokens,
+        }
+
+        if bool(sem_defaults.get("auto_tune_enabled")):
+            sensitivity = float(sem_defaults.get("tuning_sensitivity") or 0.1)
+            if avg_sentence_tokens > 20:
+                sem_defaults["max_syntactic_path_length"] = max(2, int(sem_defaults.get("max_syntactic_path_length") or 4) - 1)
+            if avg_sentence_tokens < 8:
+                sem_defaults["max_syntactic_path_length"] = min(8, int(sem_defaults.get("max_syntactic_path_length") or 4) + 1)
+            sem_defaults["phrase_boundary_threshold"] = _clamp01(float(sem_defaults.get("phrase_boundary_threshold") or 0.75) + (sensitivity * 0.0))
+
+    entity_by_key: Dict[str, str] = {}
+    entity_props_by_id: Dict[str, Dict[str, Any]] = {}
+    mentions: List[Dict[str, Any]] = []
+
+    if sem_enabled:
+        phrase_boundary_threshold = float(sem_defaults.get("phrase_boundary_threshold") or 0.75)
+        max_entity_span_tokens = int(sem_defaults.get("max_entity_span_tokens") or 8)
+        for src in semantic_sources:
+            block_id = str(src.get("blockId") or "")
+            block_type = str(src.get("blockType") or "Block")
+            text = str(src.get("text") or "")
+            meta = src.get("meta")
+            meta_block = meta if isinstance(meta, dict) else {}
+
+            tokens = _tokenize_with_offsets(text)
+            token_spans = _merge_tokens_to_spans(
+                tokens,
+                phrase_boundary_threshold=phrase_boundary_threshold,
+                max_entity_span_tokens=max_entity_span_tokens,
+            )
+            code_spans = _detect_inline_code_spans(text)
+            all_spans = token_spans + code_spans
+
+            for span in all_spans:
+                span_text = str(span.get("text") or "").strip()
+                if not span_text:
+                    continue
+                start_char = int(span.get("start") or 0)
+                end_char = int(span.get("end") or 0)
+                mention_key = f"{block_id}:{start_char}:{end_char}:{span_text}"
+                mention_id = f"men:{gid}:{sha256_text(mention_key)[:12]}"
+                conf = float(span.get("confidence") or 0.6)
+                entity_type = "Entity"
+                if span in code_spans:
+                    entity_type = "CodeSpan"
+                ek = f"{entity_type}:{span_text.strip().lower()}"
+                ent_id = entity_by_key.get(ek)
+                if not ent_id:
+                    ent_id = f"ent:{gid}:{sha256_text(ek)[:12]}"
+                    entity_by_key[ek] = ent_id
+                    entity_props_by_id[ent_id] = {
+                        "@id": ent_id,
+                        "@type": "Entity",
+                        "labels": ["Entity"],
+                        "name": span_text[:120],
+                        "chunk_text": span_text[:800],
+                        "properties": {
+                            "text": span_text,
+                            "normalizedText": span_text.strip().lower(),
+                            "entityType": entity_type,
+                        },
+                        "metadata": dict(meta_block, **{"structureType": "Entity", "extractionMethod": "document_unification"}),
+                    }
+                mention_node: Dict[str, Any] = {
+                    "@id": mention_id,
+                    "@type": "Mention",
+                    "labels": ["Mention"],
+                    "name": span_text[:120],
+                    "chunk_text": span_text[:800],
+                    "properties": {
+                        "text": span_text,
+                        "blockId": block_id,
+                        "blockType": block_type,
+                        "charStart": start_char,
+                        "charEnd": end_char,
+                        "tokenStart": span.get("tokenStart"),
+                        "tokenEnd": span.get("tokenEnd"),
+                        "confidence": _clamp01(conf),
+                    },
+                    "metadata": dict(meta_block, **{"structureType": "Mention", "extractionMethod": "token_linking"}),
+                }
+                nodes.append(mention_node)
+                mentions.append({"mentionId": mention_id, "entityId": ent_id, "blockId": block_id, "charStart": start_char, "charEnd": end_char})
+                add_edge(block_id, "hasMention", mention_id, props={"confidence": _clamp01(conf)}, meta=meta_block)
+                add_edge(mention_id, "mentionOf", block_id, props={"blockType": block_type}, meta=meta_block)
+                add_edge(mention_id, "refersTo", ent_id, props={"confidence": _clamp01(conf)}, meta=meta_block)
+                add_edge(ent_id, "hasMention", mention_id, props={"confidence": _clamp01(conf)}, meta=meta_block)
+
+        for ent in entity_props_by_id.values():
+            nodes.append(ent)
+
+        max_path_len = int(sem_defaults.get("max_syntactic_path_length") or 4)
+        edge_threshold = float(sem_defaults.get("edge_confidence_threshold") or 0.65)
+        mentions_by_block: Dict[str, List[Dict[str, Any]]] = {}
+        for m in mentions:
+            mentions_by_block.setdefault(str(m.get("blockId") or ""), []).append(m)
+
+        seen_semantic_edges: set = set()
+        for src in semantic_sources:
+            block_id = str(src.get("blockId") or "")
+            block_text = str(src.get("text") or "")
+            meta = src.get("meta")
+            meta_block = meta if isinstance(meta, dict) else {}
+            block_mentions = mentions_by_block.get(block_id) or []
+            if len(block_mentions) < 2:
+                continue
+            sentences = [s for s in _SENTENCE_SPLIT_RE.split(block_text) if s.strip()]
+            for sent in sentences:
+                s0 = sent.strip()
+                if not s0:
+                    continue
+                span_start = block_text.find(s0)
+                if span_start < 0:
+                    span_start = 0
+                span_end = span_start + len(s0)
+                local = [
+                    m for m in block_mentions if int(m.get("charStart") or 0) >= span_start and int(m.get("charEnd") or 0) <= span_end
+                ]
+                ent_ids = []
+                for m in sorted(local, key=lambda x: int(x.get("charStart") or 0)):
+                    eid = str(m.get("entityId") or "")
+                    if eid and eid not in ent_ids:
+                        ent_ids.append(eid)
+                if len(ent_ids) < 2:
+                    continue
+                features = _extract_sentence_features(s0)
+                for a in range(len(ent_ids)):
+                    for b in range(a + 1, len(ent_ids)):
+                        src_e = ent_ids[a]
+                        tgt_e = ent_ids[b]
+                        rel_text = s0[:240]
+                        between_conf = 0.5
+                        if "->" in s0 or "→" in s0:
+                            between_conf += 0.2
+                        if features.get("temporalMarker"):
+                            between_conf += 0.1
+                        if features.get("modality"):
+                            between_conf -= 0.05
+                        if features.get("negation"):
+                            between_conf -= 0.05
+                        conf = _clamp01(between_conf)
+                        if conf < edge_threshold:
+                            continue
+                        if max_path_len and len(ent_ids) > max_path_len:
+                            continue
+                        key = f"{src_e}:{tgt_e}:{block_id}:{rel_text}"
+                        if key in seen_semantic_edges:
+                            continue
+                        seen_semantic_edges.add(key)
+                        add_edge(
+                            src_e,
+                            "semanticRelation",
+                            tgt_e,
+                            props={
+                                "confidence": conf,
+                                "sourceSentence": s0,
+                                "temporalMarker": features.get("temporalMarker") or "",
+                                "modality": features.get("modality") or "",
+                                "negation": bool(features.get("negation")),
+                            },
+                            meta=dict(meta_block, **{"structureType": "Edge", "extractionMethod": "edge_elevation", "sourceBlockId": block_id}),
+                        )
+
+        blocks_with_entities = []
+        for src in semantic_sources:
+            block_id = str(src.get("blockId") or "")
+            ent_set = {str(m.get("entityId") or "") for m in (mentions_by_block.get(block_id) or []) if str(m.get("entityId") or "")}
+            if ent_set:
+                blocks_with_entities.append(ent_set)
+        block_count = len(blocks_with_entities)
+        pair_counts: Dict[Tuple[str, str], int] = {}
+        if block_count > 0:
+            for ent_set in blocks_with_entities:
+                ids = sorted(ent_set)
+                for i in range(len(ids)):
+                    for j in range(i + 1, len(ids)):
+                        k = (ids[i], ids[j])
+                        pair_counts[k] = pair_counts.get(k, 0) + 1
+            min_support = float(sem_defaults.get("min_pattern_support") or 0.05)
+            for (a, b), cnt in pair_counts.items():
+                support = float(cnt) / float(block_count)
+                if support < min_support:
+                    continue
+                add_edge(
+                    a,
+                    "coOccursWith",
+                    b,
+                    props={"support": support, "confidence": support},
+                    meta={"structureType": "Edge", "extractionMethod": "pattern_mining", "blockCount": block_count},
+                )
+
+        if sem_defaults.get("corpus_centrality_algorithm") == "pagerank":
+            entity_ids = list(entity_props_by_id.keys())
+            neighbors: Dict[str, List[str]] = {eid: [] for eid in entity_ids}
+            for e in edges:
+                if not isinstance(e, dict):
+                    continue
+                if e.get("relation") not in {"semanticRelation", "coOccursWith"}:
+                    continue
+                s = str(e.get("source_node") or "")
+                t = str(e.get("target_node") or "")
+                if s in neighbors and t in neighbors and s != t:
+                    neighbors[s].append(t)
+                    neighbors[t].append(s)
+            n = len(entity_ids)
+            if n > 0:
+                pr = {eid: 1.0 / n for eid in entity_ids}
+                damping = 0.85
+                for _ in range(20):
+                    nxt = {eid: (1.0 - damping) / n for eid in entity_ids}
+                    for eid in entity_ids:
+                        outs = neighbors.get(eid) or []
+                        if not outs:
+                            continue
+                        share = pr[eid] / len(outs)
+                        for nb in outs:
+                            nxt[nb] = nxt.get(nb, 0.0) + damping * share
+                    pr = nxt
+                for eid in entity_ids:
+                    ent_obj = entity_props_by_id.get(eid)
+                    if not ent_obj:
+                        continue
+                    props = ent_obj.get("properties")
+                    props_dict = props if isinstance(props, dict) else {}
+                    props_dict["centrality"] = float(pr.get(eid) or 0.0)
+                    ent_obj["properties"] = props_dict
 
     vocab = str(term_iri_base or "").strip()
     if not vocab:
@@ -340,8 +873,24 @@ def parse_markdown_text_to_graph_jsonld(
         "agenticRagContext": agentic_rag_context_url,
         "layoutMode": "tidy-tree",
         "tidyTree": {"edgeLabels": ["hasSection", "hasBlock", "hasItem"]},
-        "suggestedTraversalEdges": ["hasSection", "hasBlock", "hasItem", "linksTo", "next"],
+        "suggestedTraversalEdges": [
+            "hasSection",
+            "hasBlock",
+            "hasItem",
+            "linksTo",
+            "next",
+            "hasMention",
+            "mentionOf",
+            "refersTo",
+            "semanticRelation",
+            "coOccursWith",
+        ],
     }
+    if sem_enabled:
+        doc_metadata["semanticConfig"] = sem_defaults
+        if semantic_doc_profile:
+            doc_metadata["documentProfile"] = semantic_doc_profile
+        doc_metadata["semanticEnabled"] = True
     if isinstance(layout_suggest, dict) and layout_suggest:
         doc_metadata.update(layout_suggest)
 

@@ -9,21 +9,14 @@ import { openBottomPanel } from '@/features/bottom-panel/open';
 import { EXAMPLE_DATASETS } from '@/features/parsers/examplesCatalog';
 import { buildGraphRagWorkflowJsonLdDocument } from '@/features/panels/utils/workflowJsonLd';
 import { buildGraphRagWorkflowFromGraphData } from '@/features/panels/utils/graphragConfig';
-import {
-  SHARE_BACKEND_URL,
-  PIPELINE_COMMAND_RUNNING_STATUS_TEXT,
-  PIPELINE_COMMAND_LOADED_STATUS_TEXT,
-  PIPELINE_COMMAND_FALLBACK_STATUS_TEXT,
-  WORKFLOW_TAB_HEADER_TOOLTIP,
-  UI_COPY,
-} from '@/lib/config';
+import { SHARE_BACKEND_URL, WORKFLOW_TAB_HEADER_TOOLTIP, UI_COPY } from '@/lib/config';
 import MainPanelBody from '@/features/panels/ui/MainPanelBody';
 import { getJsonLdGraphMappingSummary, getAgenticRagContextComparison } from '@/lib/graph/jsonld';
 import { WorkflowSteps } from '@/features/panels/views/WorkflowSteps';
 import { getIconSizeClass } from '@/lib/ui';
 import type { JsonLdMappingSummary, AgenticContextSummary } from '@/features/panels/views/WorkflowStepsModel';
 import type { GraphData } from '@/lib/graph/types';
-import { runMarkdownPipelineAndLoadArtifacts } from '@/features/panels/hooks/workflowJsonLdActions';
+import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/workflowJsonLdActions';
 
 export default function WorkflowSection() {
   const graphData = useGraphStore(s => s.graphData);
@@ -220,13 +213,7 @@ export default function WorkflowSection() {
   }, [hasShareBackend]);
 
   const handleRunCodebaseIndexPipeline = React.useCallback(async () => {
-    try {
-      setPipelineStatus(PIPELINE_COMMAND_RUNNING_STATUS_TEXT);
-      const ok = await runMarkdownPipelineAndLoadArtifacts();
-      setPipelineStatus(ok ? PIPELINE_COMMAND_LOADED_STATUS_TEXT : PIPELINE_COMMAND_FALLBACK_STATUS_TEXT);
-    } catch {
-      setPipelineStatus(PIPELINE_COMMAND_FALLBACK_STATUS_TEXT);
-    }
+    await runMarkdownPipelineWithStatus(setPipelineStatus);
   }, []);
 
   const handleGenerateGraphRagWorkflowFromGraph = React.useCallback(() => {

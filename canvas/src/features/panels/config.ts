@@ -215,9 +215,9 @@ export const ORCHESTRATOR_AGENTIC_COPY: OrchestratorAgenticCopy = {
   nodeInspectorEmptyIntro:
     'Select a node to inspect AgenticRAG fields (chunk_text, embedding, geo, media_url, provenance).',
   nodeInspectorEmptyExample:
-    'For AIAP22, start with nodes such as src/main.py or src/optimization.py::class:Optimizer and use Orchestrator traversal presets to play their graphRAGPath chains.',
+    'Start with nodes such as src/main.py or src/optimization.py::class:Optimizer and use Orchestrator traversal presets to play their graphRAGPath chains.',
   nodeInspectorEmptyProvenance:
-    'When provenance includes a codebasePath value, click it to open the real AIAP22 file in the Bottom Panel code editor and keep AgenticRAG inspection grounded in the source.',
+    'When provenance includes a codebasePath value, click it to open the referenced file in the Bottom Panel code editor and keep AgenticRAG inspection grounded in the source.',
   contextSectionTooltip:
     'AgenticRAG context and ignore filters → compare dataset @context and ignore patterns against canonical AgenticRAG context IRI → keep Bottom Panel Orchestrator runs aligned with RACI catalog, schema, and markdown pipeline filters.',
   schemaLabel: AGENTIC_RAG_SCHEMA_LABEL,

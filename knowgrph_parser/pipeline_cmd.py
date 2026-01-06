@@ -16,11 +16,10 @@ try:
 except Exception:
     yaml = None
 
+from .common import DEFAULT_TERM_IRI_BASE
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_INPUT_PATH = os.getenv(
-    "KG_INPUT_PATH",
-    os.path.join(BASE_DIR, "canvas", "public", "unicorn-investors-test.json"),
-)
+DEFAULT_INPUT_PATH = os.getenv("KG_INPUT_PATH", "").strip()
 DEFAULT_OUTPUT_DIR = os.getenv(
     "KG_OUTPUT_DIR",
     os.path.join(BASE_DIR, "data", "outputs"),
@@ -78,7 +77,13 @@ def append_runtime_event(
         return
 
 
-def write_a0_csv(output_dir: str, nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> str:
+def write_a0_csv(
+    output_dir: str,
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
+    *,
+    predicate_default: str = "relatedTo",
+) -> str:
     csv_path = os.path.join(output_dir, "a0.csv")
     fields = [
         "subject_id",
@@ -124,7 +129,10 @@ def write_a0_csv(output_dir: str, nodes: List[Dict[str, Any]], edges: List[Dict[
             )
         for edge in edges:
             edge_data = edge.get("data", {}) or {}
-            predicate = "investsIn" if edge_data.get("type") == "Investor" else (edge_data.get("type") or "relatedTo")
+            raw_predicate = edge_data.get("predicate") or edge_data.get("label") or edge_data.get("type")
+            predicate = str(raw_predicate).strip() if isinstance(raw_predicate, str) else ""
+            if not predicate:
+                predicate = predicate_default.strip() or "relatedTo"
             writer.writerow(
                 {
                     "subject_id": edge.get("source"),
@@ -140,12 +148,20 @@ def write_a0_csv(output_dir: str, nodes: List[Dict[str, Any]], edges: List[Dict[
     return csv_path
 
 
-def write_jsonld(output_dir: str, nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> str:
-    context = {
-        "@vocab": "https://huijoohwee.github.io/knowgrph#",
-        "name": "https://huijoohwee.github.io/knowgrph#name",
-        "investsIn": {"@id": "https://huijoohwee.github.io/knowgrph#investsIn", "@type": "@id"},
-        "weight": "https://huijoohwee.github.io/knowgrph#weight",
+def write_jsonld(
+    output_dir: str,
+    nodes: List[Dict[str, Any]],
+    edges: List[Dict[str, Any]],
+    *,
+    term_iri_base: str = DEFAULT_TERM_IRI_BASE,
+    predicate_default: str = "relatedTo",
+) -> str:
+    vocab = str(term_iri_base or DEFAULT_TERM_IRI_BASE).strip() or DEFAULT_TERM_IRI_BASE
+    context: Dict[str, Any] = {
+        "@vocab": vocab,
+        "kg": vocab,
+        "name": f"{vocab}name",
+        "weight": f"{vocab}weight",
     }
     id_to_node: Dict[str, Dict[str, Any]] = {}
     for node in nodes:
@@ -153,13 +169,20 @@ def write_jsonld(output_dir: str, nodes: List[Dict[str, Any]], edges: List[Dict[
         if isinstance(node_id, str) and node_id:
             id_to_node[node_id] = node
     out_nodes: List[Dict[str, Any]] = []
-    outgoing: Dict[str, List[str]] = {}
+    outgoing: Dict[str, Dict[str, List[str]]] = {}
     for edge in edges:
         edge_data = edge.get("data", {}) or {}
+        raw_predicate = edge_data.get("predicate") or edge_data.get("label") or edge_data.get("type")
+        predicate = str(raw_predicate).strip() if isinstance(raw_predicate, str) else ""
+        if not predicate:
+            predicate = predicate_default.strip() or "relatedTo"
+        if predicate not in context:
+            context[predicate] = {"@type": "@id"}
         source = edge.get("source")
         target = edge.get("target")
-        if edge_data.get("type") == "Investor" and isinstance(source, str) and isinstance(target, str):
-            bucket = outgoing.setdefault(source, [])
+        if isinstance(source, str) and isinstance(target, str) and source and target:
+            by_predicate = outgoing.setdefault(source, {})
+            bucket = by_predicate.setdefault(predicate, [])
             bucket.append(target)
     for node_id, node in id_to_node.items():
         data = node.get("data", {}) or {}
@@ -170,8 +193,14 @@ def write_jsonld(output_dir: str, nodes: List[Dict[str, Any]], edges: List[Dict[
             "@type": node_type,
             "name": node_name,
         }
-        if node_id in outgoing:
-            obj["investsIn"] = [f"kg:{target}" for target in outgoing[node_id]]
+        by_predicate = outgoing.get(node_id)
+        if isinstance(by_predicate, dict) and by_predicate:
+            for predicate, targets in by_predicate.items():
+                if not isinstance(predicate, str) or not predicate:
+                    continue
+                if not isinstance(targets, list) or not targets:
+                    continue
+                obj[predicate] = [f"kg:{target}" for target in targets if isinstance(target, str) and target]
         out_nodes.append(obj)
     document = {"@context": context, "@graph": out_nodes}
     jsonld_path = os.path.join(output_dir, "a0.jsonld")
@@ -358,7 +387,7 @@ def get_aiap22_duckdb_query_by_id(preset_id: str, config_path: str) -> Dict[str,
             return entry
     available_ids = [str(entry.get("id")) for entry in queries if isinstance(entry.get("id"), str)]
     raise KeyError(
-        f"Unknown AIAP22 DuckDB query preset id '{preset_id}'. Available ids: {', '.join(available_ids) or '(none)'}"
+        f"Unknown DuckDB query preset id '{preset_id}'. Available ids: {', '.join(available_ids) or '(none)'}"
     )
 
 
@@ -421,13 +450,28 @@ def main(argv: List[str] | None = None) -> int:
         choices=["pipeline", "aiap22-query"],
         default="pipeline",
     )
+    parser.add_argument("--input", "-i", dest="input_path", default=None)
+    parser.add_argument("--output-dir", "-o", dest="output_dir", default=None)
     parser.add_argument("--preset-id")
     parser.add_argument("--config", dest="config_path")
     parser.add_argument("--db", dest="db_path")
     arguments = parser.parse_args(list(argv) if argv is not None else None)
 
-    input_path = os.getenv("KG_INPUT_PATH", DEFAULT_INPUT_PATH)
-    output_dir = os.getenv("KG_OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
+    input_path = (
+        os.path.abspath(str(arguments.input_path))
+        if arguments.input_path is not None and str(arguments.input_path).strip()
+        else os.getenv("KG_INPUT_PATH", DEFAULT_INPUT_PATH).strip()
+    )
+    if not input_path:
+        raise SystemExit("Missing input graph. Provide --input or set KG_INPUT_PATH.")
+
+    output_dir = (
+        os.path.abspath(str(arguments.output_dir))
+        if arguments.output_dir is not None and str(arguments.output_dir).strip()
+        else os.getenv("KG_OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
+    )
+    predicate_default = os.getenv("KG_EDGE_PREDICATE_DEFAULT", "relatedTo").strip() or "relatedTo"
+    term_iri_base = os.getenv("KG_TERM_IRI_BASE", DEFAULT_TERM_IRI_BASE).strip() or DEFAULT_TERM_IRI_BASE
     runtime_events_log_path = os.path.join(output_dir, "runtime-events.jsonl")
 
     if arguments.mode == "pipeline":
@@ -435,8 +479,14 @@ def main(argv: List[str] | None = None) -> int:
         data = load_graph(input_path)
         nodes = data.get("nodes", []) or []
         edges = data.get("edges", []) or []
-        write_a0_csv(output_dir, nodes, edges)
-        write_jsonld(output_dir, nodes, edges)
+        write_a0_csv(output_dir, nodes, edges, predicate_default=predicate_default)
+        write_jsonld(
+            output_dir,
+            nodes,
+            edges,
+            term_iri_base=term_iri_base,
+            predicate_default=predicate_default,
+        )
         run_codebase_index_pipeline(output_dir, runtime_events_log_path)
         return 0
 

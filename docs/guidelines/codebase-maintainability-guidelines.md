@@ -1,4 +1,4 @@
-# Codebase Maintenance Guidelines
+# Codebase Maintainability Guidelines
 
 ## Design Principles
 
@@ -17,7 +17,7 @@
 - Settings keys/registry, state fields, store selectors
 
 **Copy Centralization**:
-- Identify repeated UI phrases → create copy helper constants (`COPY_*`)
+- Identify repeated UI phrases -> create copy helper constants (`COPY_*`)
 - Anchor LocalStorage keys to shared constants (`LS_KEY_*`)
 - Single source of truth for wording (e.g., `getOrchestratorSectionListLabel`)
 - Expand to error/empty states, user-facing messages
@@ -28,11 +28,11 @@
 
 ### Pattern: ComponentFactory
 
-**From configuration to instances**: ComponentFactory → parses schema definitions via metadata validation → instantiates components using registered builders → injects dependencies through configuration mapping → delivers initialized instances for application runtime.
+**From configuration to instances**: ComponentFactory -> parses schema definitions via metadata validation -> instantiates components using registered builders -> injects dependencies through configuration mapping -> delivers initialized instances for application runtime.
 
 ### Pattern: CacheManager
 
-**From requests to optimized responses**: CacheManager → computes cache keys via content hashing → retrieves data using LRU eviction policy → validates freshness through TTL checking → serves cached results with performance metrics.
+**From requests to optimized responses**: CacheManager -> computes cache keys via content hashing -> retrieves data using LRU eviction policy -> validates freshness through TTL checking -> serves cached results with performance metrics.
 
 ---
 

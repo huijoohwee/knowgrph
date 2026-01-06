@@ -1,6 +1,6 @@
-# Universal Project Rules
+# Project Rules
 
-## Core Principles (MECE Foundation)
+## Core Principles
 
 **Domain Agnosticism**: Code remains neutral, project-agnostic, dataset-agnostic, metadata-driven | zero hardcoded domain entities | adaptation via configuration only
 
@@ -14,24 +14,24 @@
 
 ### Lean Startup Cycle
 
-**Build → Measure → Learn**: MVP → metrics collection → hypothesis validation → iterate
+**Build -> Measure -> Learn**: MVP -> metrics collection -> hypothesis validation -> iterate
 
-**From hypothesis to production**: Team → defines minimal feature set via user stories → implements configuration-driven core → deploys instrumented version with telemetry → collects metrics through analytics pipeline → validates hypotheses via statistical analysis → pivots or perseveres based on thresholds.
+**From hypothesis to production**: Team -> defines minimal feature set via user stories -> implements configuration-driven core -> deploys instrumented version with telemetry -> collects metrics through analytics pipeline -> validates hypotheses via statistical analysis -> pivots or perseveres based on thresholds.
 
 ### MVP Standards
 
 **Minimum Viable Product**: Smallest feature set validating core hypothesis | delivers user value | enables learning
 
 **Required**:
-- ✅ Single critical user journey functional
-- ✅ Configuration-driven (no hardcoding)
-- ✅ Schema-compliant outputs
-- ✅ Provenance tracking enabled
-- ✅ Metrics instrumentation active
+- [X] Single critical user journey functional
+- [X] Configuration-driven (no hardcoding)
+- [X] Schema-compliant outputs
+- [X] Provenance tracking enabled
+- [X] Metrics instrumentation active
 
 ### OKR Framework
 
-**Objective Pattern**: Strategic goal → 3-5 measurable key results → quarterly tracking → retrospective analysis
+**Objective Pattern**: Strategic goal -> 3-5 measurable key results -> quarterly tracking -> retrospective analysis
 
 **Key Result Structure**:
 ```yaml
@@ -49,17 +49,17 @@ threshold: 0.8
 
 ### Model Context Protocol (MCP)
 
-**From isolated tools to integrated ecosystem**: MCP → standardizes interfaces via protocol spec → enables context sharing through structured messaging → orchestrates workflows using declarative pipelines → maintains state with provenance.
+**From isolated tools to integrated ecosystem**: MCP -> standardizes interfaces via protocol spec -> enables context sharing through structured messaging -> orchestrates workflows using declarative pipelines -> maintains state with provenance.
 
 **Required**:
-- ✅ Tools expose MCP-compliant interfaces
-- ✅ Context propagates with metadata
-- ✅ Errors cascade with traceability
-- ✅ Versioning follows semantic rules
+- [X] Tools expose MCP-compliant interfaces
+- [X] Context propagates with metadata
+- [X] Errors cascade with traceability
+- [X] Versioning follows semantic rules
 
 ### Agentic GraphRAG Pattern
 
-**From queries to knowledge synthesis**: AgenticGraphRAG → decomposes query via intent parsing → retrieves subgraphs using traversal algorithms → reasons over connections through multi-hop inference → synthesizes response with citation chains → delivers grounded output with provenance links.
+**From queries to knowledge synthesis**: AgenticGraphRAG -> decomposes query via intent parsing -> retrieves subgraphs using traversal algorithms -> reasons over connections through multi-hop inference -> synthesizes response with citation chains -> delivers grounded output with provenance links.
 
 **Components**:
 - Query decomposer: parses intent into subqueries
@@ -67,16 +67,16 @@ threshold: 0.8
 - Reasoning engine: performs multi-hop inference with confidence decay
 - Response synthesizer: generates output with provenance
 
-### EDA → LLM Ops Pipeline
+### EDA -> LLM Ops Pipeline
 
 **Feedback Loop Architecture**:
 ```
-[Ingestion] → [EDA] → [Feature Engineering] → [Training]
+[Ingestion] -> [EDA] -> [Feature Engineering] -> [Training]
      ↑                                            ↓
-[Monitor] ← [Deploy] ← [Evaluate] ← [Validate]
+[Monitor] <- [Deploy] <- [Evaluate] <- [Validate]
 ```
 
-**From exploration to production**: Pipeline → ingests data via schema validators → profiles statistics through EDA → engineers features using transformation DAGs → trains models with hyperparameter tuning → validates against quality gates → deploys versioned artifacts → monitors real-time performance → feeds insights back to EDA.
+**From exploration to production**: Pipeline -> ingests data via schema validators -> profiles statistics through EDA -> engineers features using transformation DAGs -> trains models with hyperparameter tuning -> validates against quality gates -> deploys versioned artifacts -> monitors real-time performance -> feeds insights back to EDA.
 
 **Quality Gates**:
 - Data drift: KL divergence < 0.15
@@ -96,7 +96,7 @@ threshold: 0.8
 
 **Pattern Template**:
 
-**From [input_state] to [output_state]**: Module → [processes/transforms/aggregates] [data_type] via [method] → delivers [artifacts] for [downstream_component].
+**From [input_state] to [output_state]**: Module -> [processes/transforms/aggregates] [data_type] via [method] -> delivers [artifacts] for [downstream_component].
 
 ### Responsibility Flow (S-V-O)
 
@@ -110,7 +110,7 @@ threshold: 0.8
 
 **Schema Alignment**: Maintain consistency with `/schema/AgenticRAG` across API identifiers, catalogs, components, file names, handlers, hooks, LocalStorage keys (`LS_KEY_*`), settings, state fields, store selectors
 
-**Copy Centralization**: Repeated phrases → copy helpers (`COPY_*`) → single source of truth → error/empty states
+**Copy Centralization**: Repeated phrases -> copy helpers (`COPY_*`) -> single source of truth -> error/empty states
 
 ---
 
@@ -120,16 +120,16 @@ threshold: 0.8
 
 **Metrics**: precision, recall, coverage, processing_time, resource_utilization
 
-**Triggers**: [metric < threshold] → [reprocess | review | retrain]
+**Triggers**: [metric < threshold] -> [reprocess | review | retrain]
 
 ---
 
 ## Anti-Patterns (Forbidden)
 
-❌ Hardcoded domain assumptions, project-specific presets, dataset paths  
-❌ Duplicate/stale/unreferenced code, memory leaks, race conditions  
-❌ Multiple responsibilities per component, unidirectional provenance  
-❌ Files >600 lines, chunks >500kB, non-configurable thresholds
+- Hardcoded domain assumptions, project-specific presets, dataset paths  
+- Duplicate/stale/unreferenced code, memory leaks, race conditions  
+- Multiple responsibilities per component, unidirectional provenance  
+- Files >600 lines, chunks >500kB, non-configurable thresholds
 
 ---
 

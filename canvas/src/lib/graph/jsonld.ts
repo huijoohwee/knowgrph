@@ -15,12 +15,12 @@ import {
   ParsedAgenticGraphRagExamplePath,
   ParsedAgenticGraphRagTraversePath,
 } from './types';
-import { AGENTIC_RAG_CONTEXT_URL } from '@/lib/agenticrag';
 import {
   isGraphRagPathValue,
   toParsedExamplePath,
   toParsedTraversePath,
 } from '@/lib/graph/graphragTraversal';
+import { AGENTIC_RAG_CONTEXT_URL, AGENTIC_RAG_EDGE_TYPE_IRI, AGENTIC_RAG_NODE_TYPE_IRI } from '@/lib/agenticrag';
 
 function stripKg(x: unknown): string {
   const s = String(x ?? '');
@@ -28,6 +28,14 @@ function stripKg(x: unknown): string {
 }
 
 const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object';
+
+const AGENTIC_RAG_MINIMAL_CONTEXT: Record<string, unknown> = {
+  source: { '@type': '@id' },
+  target: { '@type': '@id' },
+  media_url: { '@type': '@id' },
+  provenance: { '@type': '@id' },
+  documentUrl: { '@type': '@id' },
+};
 
 function isIdPropertyKey(ctx: Record<string, unknown>, key: string): boolean {
   const entry = ctx[key];
@@ -227,7 +235,28 @@ export function parseJsonLd(jsonld: unknown): GraphData {
   const root = jsonld as Record<string, unknown> | unknown[];
   const graph = Array.isArray(root) ? root : ((isRecord(root) && Array.isArray((root as Record<string, unknown>)['@graph'])) ? ((root as Record<string, unknown>)['@graph'] as unknown[]) : []);
   const rawCtx = isRecord(root) ? (root['@context'] as unknown) : undefined;
-  const ctx = typeof rawCtx === 'string' ? (() => { try { return JSON.parse(rawCtx) } catch { return {} } })() : (isRecord(rawCtx) ? rawCtx : {});
+  const ctx = (() => {
+    if (typeof rawCtx === 'string') {
+      const trimmed = rawCtx.trim();
+      if (trimmed === AGENTIC_RAG_CONTEXT_URL) return AGENTIC_RAG_MINIMAL_CONTEXT;
+      try { return JSON.parse(rawCtx) } catch { return {} }
+    }
+    if (Array.isArray(rawCtx)) {
+      const merged: Record<string, unknown> = {};
+      rawCtx.forEach((entry) => {
+        if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+          Object.assign(merged, entry as Record<string, unknown>);
+        }
+      });
+      return merged;
+    }
+    if (isRecord(rawCtx)) {
+      const vocab = rawCtx['@vocab'];
+      if (typeof vocab === 'string' && vocab.trim() === AGENTIC_RAG_CONTEXT_URL) return AGENTIC_RAG_MINIMAL_CONTEXT;
+      return rawCtx;
+    }
+    return {};
+  })();
   const ctxRecord: Record<string, unknown> = isRecord(ctx) ? ctx : {};
   let graphMetadata: Record<string, JSONValue> | undefined;
   if (isRecord(root)) {
@@ -241,6 +270,11 @@ export function parseJsonLd(jsonld: unknown): GraphData {
   const nodeMap = new Map<string, Record<string, unknown>>();
   const edgeNodes: Array<Record<string, unknown>> = [];
   const edgeNodesKnowgrph: Array<Record<string, unknown>> = [];
+  const edgeNodesAgentic: Array<Record<string, unknown>> = [];
+  const isNodeType = (typeList: string[]): boolean =>
+    typeList.includes(AGENTIC_RAG_NODE_TYPE_IRI) || typeList.includes('Node') || typeList.includes('knowgrph:Node');
+  const isEdgeType = (typeList: string[]): boolean =>
+    typeList.includes(AGENTIC_RAG_EDGE_TYPE_IRI) || typeList.includes('Edge');
   for (const itemAny of graph) {
     const item = isRecord(itemAny) ? itemAny : {};
     const hasReified = item['kg:subject'] && item['kg:object'] && item['kg:predicate'];
@@ -259,16 +293,38 @@ export function parseJsonLd(jsonld: unknown): GraphData {
       edgeNodesKnowgrph.push(item);
       continue;
     }
+    if (isEdgeType(typeList)) {
+      edgeNodesAgentic.push(item);
+      continue;
+    }
     const id = stripKg((item['@id'] as unknown) ?? (item['id'] as unknown));
     if (!id) continue;
-    const type = typeList.length > 0 ? typeList[0] : 'Thing';
-    const name = (item['name'] as unknown) ?? (item['label'] as unknown) ?? id;
+    let type = typeList.length > 0 ? typeList[0] : 'Thing';
+    if (isNodeType(typeList)) {
+      const labelsRaw = item['labels'] as unknown;
+      if (Array.isArray(labelsRaw)) {
+        const first = labelsRaw.find(v => typeof v === 'string' && v.trim().length > 0);
+        if (typeof first === 'string') type = first;
+      } else {
+        type = stripKg(type);
+      }
+    } else {
+      type = stripKg(type);
+    }
+    const name =
+      (item['name'] as unknown) ??
+      (item['title'] as unknown) ??
+      (item['label'] as unknown) ??
+      id;
     nodeMap.set(id, item);
     const props: Record<string, JSONValue> = {};
     let metadata: Record<string, JSONValue> | undefined;
     Object.keys(item).forEach((k) => {
+      const shouldSkipLabelsKey = isNodeType(typeList);
       if (k === '@id' || k === '@type' || k === 'name' || k === 'label') return;
+      if (k === 'labels' && shouldSkipLabelsKey) return;
       if (k === 'kg:x' || k === 'kg:y' || k === 'kg:fx' || k === 'kg:fy') return;
+      if (k === 'x' || k === 'y' || k === 'fx' || k === 'fy') return;
       if (k === 'metadata') {
         const vMeta = item[k] as unknown;
         if (isRecord(vMeta)) metadata = vMeta as Record<string, JSONValue>;
@@ -287,11 +343,13 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     if (typeof item['kg:y'] === 'number') node.y = item['kg:y'] as number;
     if (typeof item['kg:fx'] === 'number') node.fx = item['kg:fx'] as number;
     if (typeof item['kg:fy'] === 'number') node.fy = item['kg:fy'] as number;
+    if (typeof item['x'] === 'number') node.x = item['x'] as number;
+    if (typeof item['y'] === 'number') node.y = item['y'] as number;
+    if (typeof item['fx'] === 'number') node.fx = item['fx'] as number;
+    if (typeof item['fy'] === 'number') node.fy = item['fy'] as number;
     nodes.push(node);
   }
-  for (const itemAny of graph) {
-    const item = isRecord(itemAny) ? itemAny : {};
-    const id = stripKg((item['@id'] as unknown) ?? (item['id'] as unknown));
+  for (const [id, item] of nodeMap.entries()) {
     const keys = Object.keys(item);
     for (const k of keys) {
       if (k === '@id' || k === '@type' || k === 'name' || k === 'label') continue;
@@ -375,6 +433,41 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     });
     edges.push({ id: `${src}-${String(label)}-${tgt}-${edges.length}`, source: src, target: tgt, label: String(label), properties: props, metadata });
   }
+  for (const e of edgeNodesAgentic) {
+    const rawSrc = (e['source'] as unknown) ?? (e['source_node'] as unknown);
+    const rawTgt = (e['target'] as unknown) ?? (e['target_node'] as unknown);
+    const src = stripKg(rawSrc);
+    const tgt = stripKg(rawTgt);
+    let label = (e['label'] as unknown) ?? (e['relation'] as unknown);
+    if (!src || !tgt || !label) continue;
+    if (typeof label === 'string') label = stripKg(label);
+    const props: Record<string, JSONValue> = {};
+    let metadata: Record<string, JSONValue> | undefined;
+    Object.keys(e).forEach((k) => {
+      if (
+        k === '@id' ||
+        k === '@type' ||
+        k === 'source' ||
+        k === 'target' ||
+        k === 'label' ||
+        k === 'source_node' ||
+        k === 'target_node' ||
+        k === 'relation'
+      ) return;
+      if (k === 'metadata') {
+        const vMeta = e[k] as unknown;
+        if (isRecord(vMeta)) metadata = vMeta as Record<string, JSONValue>;
+        return;
+      }
+      props[k] = e[k] as JSONValue;
+    });
+    const edgeIdRaw = e['@id'] as unknown;
+    const edgeId =
+      typeof edgeIdRaw === 'string' && edgeIdRaw.trim().length > 0
+        ? stripKg(edgeIdRaw)
+        : `${src}-${String(label)}-${tgt}-${edges.length}`;
+    edges.push({ id: edgeId, source: src, target: tgt, label: String(label), properties: props, metadata });
+  }
   return { context: JSON.stringify(ctx), metadata: graphMetadata, type: 'Graph', nodes, edges };
 }
 
@@ -447,45 +540,76 @@ export function agenticRagNodeFromGraphNode(node: GraphNode): AgenticRagNodeView
   };
 }
 
-export function toJsonLd(data: GraphData): { '@context': Record<string, unknown>; '@graph': Array<Record<string, unknown>>; metadata?: Record<string, JSONValue> } {
-  const ctx = typeof data.context === 'string' ? (() => { try { return JSON.parse(data.context) } catch { return {} } })() : ((isRecord(data.context) ? (data.context as Record<string, unknown>) : {}));
-  const context: Record<string, unknown> = { kg: 'http://example.org/kg#', 'kg:subject': { '@id': 'kg:subject' }, 'kg:predicate': { '@id': 'kg:predicate' }, 'kg:object': { '@id': 'kg:object' }, 'kg:x': { '@id': 'kg:x' }, 'kg:y': { '@id': 'kg:y' }, 'kg:fx': { '@id': 'kg:fx' }, 'kg:fy': { '@id': 'kg:fy' } };
-  const labels = new Set<string>();
-  for (const e of data.edges) labels.add(e.label);
-  labels.forEach((l) => { (context as Record<string, unknown>)[l] = { '@id': `kg:${l}`, '@type': '@id' } });
-  Object.assign(context, ctx || {});
+export function toJsonLd(
+  data: GraphData,
+): { '@context': Record<string, unknown> | string; '@graph': Array<Record<string, unknown>>; metadata?: Record<string, JSONValue> } {
+  const toKgId = (raw: string): string => {
+    const text = String(raw || '').trim();
+    if (!text) return '';
+    if (text.startsWith('http://') || text.startsWith('https://')) return text;
+    if (text.includes(':')) return text;
+    return `kg:${text}`;
+  };
+  const toSafeIdSegment = (raw: string): string =>
+    String(raw || '')
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+/, '')
+      .replace(/_+$/, '') || 'edge';
+  const toEdgeId = (raw: string): string => {
+    const text = String(raw || '').trim();
+    if (!text) return '';
+    if (text.startsWith('http://') || text.startsWith('https://')) return text;
+    if (text.includes(':')) return text;
+    return `kg:edge_${toSafeIdSegment(text)}`;
+  };
   const graph: Array<Record<string, unknown>> = [];
-  const bySource = new Map<string, GraphEdge[]>();
-  data.edges.forEach(e => { const arr = bySource.get(e.source) || []; arr.push(e); bySource.set(e.source, arr) });
   for (const n of data.nodes) {
-    const item: Record<string, unknown> = { '@id': `kg:${n.id}`, '@type': n.type, name: n.label };
-    if (typeof n.x === 'number') item['kg:x'] = n.x;
-    if (typeof n.y === 'number') item['kg:y'] = n.y;
-    if (typeof n.fx === 'number') item['kg:fx'] = n.fx;
-    if (typeof n.fy === 'number') item['kg:fy'] = n.fy;
-    Object.keys(n.properties || {}).forEach((k) => { item[k] = n.properties[k] as JSONValue });
+    const id = toKgId(String(n.id));
+    if (!id) continue;
+    const item: Record<string, unknown> = {
+      '@id': id,
+      '@type': AGENTIC_RAG_NODE_TYPE_IRI,
+      labels: [String(n.type || 'Node')],
+      name: String(n.label || n.id),
+    };
+    if (typeof n.x === 'number') item.x = n.x;
+    if (typeof n.y === 'number') item.y = n.y;
+    if (typeof n.fx === 'number') item.fx = n.fx;
+    if (typeof n.fy === 'number') item.fy = n.fy;
+    Object.keys(n.properties || {}).forEach((k) => {
+      if (!k || k === '@id' || k === '@type' || k === 'labels' || k === 'name' || k === 'metadata') return;
+      item[k] = (n.properties || {})[k] as JSONValue;
+    });
     if (n.metadata && Object.keys(n.metadata).length > 0) {
       item.metadata = n.metadata;
     }
-    const outgoing = bySource.get(n.id) || [];
-    const simple: Record<string, string[]> = {};
-    const reified: GraphEdge[] = [];
-    for (const e of outgoing) {
-      if (e.properties && Object.keys(e.properties).length > 0) reified.push(e); else { const arr = simple[e.label] || []; arr.push(`kg:${e.target}`); simple[e.label] = arr }
-    }
-    Object.keys(simple).forEach(k => { item[k] = simple[k] });
     graph.push(item);
-    for (const e of reified) {
-      const edgeItem: Record<string, unknown> = { '@id': `kg:e:${e.id}`, 'kg:subject': `kg:${e.source}`, 'kg:predicate': e.label, 'kg:object': `kg:${e.target}` };
-      Object.keys(e.properties || {}).forEach((k) => { edgeItem[k] = e.properties[k] as JSONValue });
-      if (e.metadata && Object.keys(e.metadata).length > 0) {
-        edgeItem.metadata = e.metadata;
-      }
-      graph.push(edgeItem);
-    }
   }
-  const doc: { '@context': Record<string, unknown>; '@graph': Array<Record<string, unknown>>; metadata?: Record<string, JSONValue> } = {
-    '@context': context,
+  for (const e of data.edges) {
+    const src = toKgId(String(e.source));
+    const tgt = toKgId(String(e.target));
+    if (!src || !tgt) continue;
+    const baseId = `${String(e.source)}-${String(e.label)}-${String(e.target)}`;
+    const rawEdgeId = String(e.id || '').trim() ? `${baseId}-${String(e.id)}` : baseId;
+    const item: Record<string, unknown> = {
+      '@id': toEdgeId(rawEdgeId),
+      '@type': AGENTIC_RAG_EDGE_TYPE_IRI,
+      source: src,
+      target: tgt,
+      label: String(e.label),
+    };
+    Object.keys(e.properties || {}).forEach((k) => {
+      if (!k || k === '@id' || k === '@type' || k === 'source' || k === 'target' || k === 'label' || k === 'metadata') return;
+      item[k] = (e.properties || {})[k] as JSONValue;
+    });
+    if (e.metadata && Object.keys(e.metadata).length > 0) {
+      item.metadata = e.metadata;
+    }
+    graph.push(item);
+  }
+  const doc: { '@context': Record<string, unknown> | string; '@graph': Array<Record<string, unknown>>; metadata?: Record<string, JSONValue> } = {
+    '@context': AGENTIC_RAG_CONTEXT_URL,
     '@graph': graph,
   };
   if (data.metadata && Object.keys(data.metadata).length > 0) {

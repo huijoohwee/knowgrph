@@ -476,8 +476,10 @@ export const GRAPH_FIELDS_DESCRIPTION_TOOLTIP_TEXT =
 export const AGENTIC_GRAPHRAG_PIPELINE_DESCRIPTION =
   'Agentic GraphRAG pipeline \u2192 align Workflow, Orchestrator, Renderer, and codebase index traversals with a shared rag:GraphRAGWorkflow JSON-LD document \u2192 keep graphRAGPath metadata, context IRIs, and traversal rules consistent across UI and offline pipelines.';
 
-const MARKDOWN_PIPELINE_INPUT_REL_PATH =
-  readEnvString('VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH', 'docs/knowgrph-workflow-document.md');
+const MARKDOWN_PIPELINE_INPUT_REL_PATH = readEnvString(
+  'VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH',
+  'docs/knowgrph-pipeline-document.md',
+);
 
 export const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR = readEnvString(
   'VITE_MARKDOWN_PIPELINE_OUTPUT_DIR',
@@ -486,7 +488,7 @@ export const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR = readEnvString(
 
 const MARKDOWN_PIPELINE_BASENAME = readEnvString(
   'VITE_MARKDOWN_PIPELINE_BASENAME',
-  'knowgrph-workflow-document',
+  'knowgrph-pipeline-document',
 );
 
 function buildMarkdownPipelineCommand(inputRelPath: string, outputDirRelPath: string): string {

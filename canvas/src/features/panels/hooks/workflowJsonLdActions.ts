@@ -23,6 +23,9 @@ import {
   CODEBASE_INDEX_PIPELINE_GRAPH_REL_PATH,
   CODEBASE_INDEX_PIPELINE_SCHEMA_REL_PATH,
   CODEBASE_INDEX_PIPELINE_ORCHESTRATOR_REL_PATH,
+  PIPELINE_COMMAND_FALLBACK_STATUS_TEXT,
+  PIPELINE_COMMAND_LOADED_STATUS_TEXT,
+  PIPELINE_COMMAND_RUNNING_STATUS_TEXT,
   UI_COPY,
 } from '@/lib/config';
 
@@ -506,6 +509,27 @@ export async function runMarkdownPipelineAndLoadArtifacts(): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function runMarkdownPipelineWithStatus(
+  setStatus: (status: string | null) => void,
+): Promise<void> {
+  try {
+    setStatus(PIPELINE_COMMAND_RUNNING_STATUS_TEXT);
+  } catch {
+    void 0;
+  }
+  let ok = false;
+  try {
+    ok = await runMarkdownPipelineAndLoadArtifacts();
+  } catch {
+    ok = false;
+  }
+  try {
+    setStatus(ok ? PIPELINE_COMMAND_LOADED_STATUS_TEXT : PIPELINE_COMMAND_FALLBACK_STATUS_TEXT);
+  } catch {
+    void 0;
   }
 }
 

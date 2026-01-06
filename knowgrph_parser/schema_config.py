@@ -80,7 +80,7 @@ def build_schema_config_jsonld(
                     "@id": f"kg:prop:{slugify(owner)}:{slugify(key)}",
                     "@type": "kg:Property",
                     "name": key,
-                    "domain": owner,
+                    "owner": owner,
                     "range": rng,
                 }
             )
@@ -92,7 +92,7 @@ def build_schema_config_jsonld(
                     "@id": f"kg:prop:{slugify(owner)}:{slugify(key)}",
                     "@type": "kg:Property",
                     "name": key,
-                    "domain": owner,
+                    "owner": owner,
                     "range": rng,
                 }
             )
@@ -103,7 +103,7 @@ def build_schema_config_jsonld(
             "kg": "http://example.org/kg#",
             "schema": "https://schema.org/",
             "name": "schema:name",
-            "domain": "schema:domainIncludes",
+            "owner": "schema:domainIncludes",
             "range": "schema:rangeIncludes",
         },
         "@graph": graph_out,

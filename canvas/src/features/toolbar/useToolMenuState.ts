@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import {
-  PIPELINE_COMMAND_RUNNING_STATUS_TEXT,
-  PIPELINE_COMMAND_LOADED_STATUS_TEXT,
-  PIPELINE_COMMAND_FALLBACK_STATUS_TEXT,
-  LS_KEYS,
-  UI_LAYOUT,
-} from '@/lib/config'
+import { LS_KEYS, UI_LAYOUT } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
-import { runMarkdownPipelineAndLoadArtifacts } from '@/features/panels/hooks/workflowJsonLdActions'
+import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/workflowJsonLdActions'
 
 type ToolMenuDragPosition = {
   top: number
@@ -57,13 +51,7 @@ export function useToolMenuState() {
   }, [])
 
   const handleRunCodebaseIndexPipeline = useCallback(async () => {
-    try {
-      setPipelineStatus(PIPELINE_COMMAND_RUNNING_STATUS_TEXT)
-      const ok = await runMarkdownPipelineAndLoadArtifacts()
-      setPipelineStatus(ok ? PIPELINE_COMMAND_LOADED_STATUS_TEXT : PIPELINE_COMMAND_FALLBACK_STATUS_TEXT)
-    } catch {
-      setPipelineStatus(PIPELINE_COMMAND_FALLBACK_STATUS_TEXT)
-    }
+    await runMarkdownPipelineWithStatus(setPipelineStatus)
   }, [])
 
   const handleToolMenuCardPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {

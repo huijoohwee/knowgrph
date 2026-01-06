@@ -28,8 +28,8 @@
 
 ### Example: PatternDetector
 
-**From raw input to structured semantics**: PatternDetector → extracts features via configurable heuristics → matches patterns against schema definitions → assigns confidence scores using metadata thresholds → delivers typed entities for downstream stages.
+**From raw input to structured semantics**: PatternDetector -> extracts features via configurable heuristics -> matches patterns against schema definitions -> assigns confidence scores using metadata thresholds -> delivers typed entities for downstream stages.
 
 ### Example: RelationshipBuilder
 
-**From isolated entities to connected graph**: RelationshipBuilder → computes similarity via embedding distance → filters candidates using provenance metadata → validates connections through schema constraints → outputs relationship triples with confidence metrics.
+**From isolated entities to connected graph**: RelationshipBuilder -> computes similarity via embedding distance -> filters candidates using provenance metadata -> validates connections through schema constraints -> outputs relationship triples with confidence metrics.

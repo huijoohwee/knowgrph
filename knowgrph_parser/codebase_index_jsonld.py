@@ -30,22 +30,23 @@ def build_jsonld(
     if not isinstance(edges_value, list):
         edges_value = []
     id_to_node: Dict[str, Dict[str, Any]] = {}
+    id_aliases: Dict[str, str] = {}
     timestamp = utc_timestamp()
     for raw_node in nodes_value:
         if not isinstance(raw_node, dict):
             continue
         raw_id = raw_node.get("id")
-        node_id = str(raw_id) if raw_id is not None else ""
-        if not node_id:
+        original_node_id = str(raw_id) if raw_id is not None else ""
+        if not original_node_id:
             continue
         raw_data = raw_node.get("data") or {}
         if not isinstance(raw_data, dict):
             raw_data = {}
         node_type = str(raw_data.get("type") or "Entity")
-        raw_name = raw_data.get("name") or node_id
+        raw_name = raw_data.get("name") or original_node_id
         name = str(raw_name)
         node_obj: Dict[str, Any] = {
-            "@id": f"kg:{node_id}",
+            "@id": f"kg:{original_node_id}",
             "@type": node_type,
             "name": name,
         }
@@ -54,6 +55,12 @@ def build_jsonld(
             if should_ignore_path(raw_path, ignored_paths):
                 continue
             node_obj["path"] = normalize_rel_path(raw_path).lstrip("./")
+        node_id = original_node_id
+        if node_type == "File" and isinstance(node_obj.get("path"), str) and node_obj["path"]:
+            node_id = node_obj["path"]
+        if node_id != original_node_id:
+            id_aliases[original_node_id] = node_id
+            node_obj["@id"] = f"kg:{node_id}"
         owner_value = raw_data.get("owner")
         if isinstance(owner_value, str) and owner_value:
             node_obj["owner"] = owner_value
@@ -126,7 +133,58 @@ def build_jsonld(
             provenance["confidence"] = max(0.0, min(1.0, coverage_number / 100.0))
         if provenance:
             node_obj["metadata"] = provenance
-        id_to_node[node_id] = node_obj
+        existing = id_to_node.get(node_id)
+        if existing:
+            existing_name = existing.get("name")
+            if (
+                isinstance(existing_name, str)
+                and existing_name.strip() == node_id
+                and name
+                and name.strip() != node_id
+            ):
+                existing["name"] = name
+            if "path" in node_obj and "path" not in existing:
+                existing["path"] = node_obj["path"]
+            if "owner" in node_obj and "owner" not in existing:
+                existing["owner"] = node_obj["owner"]
+            existing_coverage = existing.get("testCoverage")
+            if isinstance(coverage_number, (int, float)):
+                if not isinstance(existing_coverage, (int, float)) or float(coverage_number) > float(existing_coverage):
+                    existing["testCoverage"] = float(coverage_number)
+            existing_graphrag = existing.get("graphRAGPath")
+            incoming_graphrag = node_obj.get("graphRAGPath")
+            if isinstance(incoming_graphrag, dict):
+                if not isinstance(existing_graphrag, dict) or len(incoming_graphrag) > len(existing_graphrag):
+                    existing["graphRAGPath"] = incoming_graphrag
+                    if "chunk_text" in node_obj:
+                        existing["chunk_text"] = node_obj["chunk_text"]
+            existing_meta = existing.get("metadata")
+            incoming_meta = node_obj.get("metadata")
+            if isinstance(existing_meta, dict) and isinstance(incoming_meta, dict):
+                existing_cov = existing_meta.get("coverage")
+                incoming_cov = incoming_meta.get("coverage")
+                if isinstance(incoming_cov, (int, float)):
+                    if not isinstance(existing_cov, (int, float)) or float(incoming_cov) > float(existing_cov):
+                        existing_meta["coverage"] = float(incoming_cov)
+                existing_conf = existing_meta.get("confidence")
+                incoming_conf = incoming_meta.get("confidence")
+                if isinstance(incoming_conf, (int, float)):
+                    if not isinstance(existing_conf, (int, float)) or float(incoming_conf) > float(existing_conf):
+                        existing_meta["confidence"] = float(incoming_conf)
+                for key, value in incoming_meta.items():
+                    if key in {"coverage", "confidence"}:
+                        continue
+                    if key not in existing_meta and value is not None:
+                        existing_meta[key] = value
+                aliases = existing_meta.get("aliases")
+                if not isinstance(aliases, list):
+                    aliases = []
+                if original_node_id not in aliases and original_node_id != node_id:
+                    aliases.append(original_node_id)
+                if aliases:
+                    existing_meta["aliases"] = aliases
+        else:
+            id_to_node[node_id] = node_obj
     outgoing: Dict[str, Dict[str, List[str]]] = {}
     edge_labels: List[str] = []
     for raw_edge in edges_value:
@@ -138,6 +196,8 @@ def build_jsonld(
         target_id = str(target_value) if target_value is not None else ""
         if not source_id or not target_id:
             continue
+        source_id = id_aliases.get(source_id, source_id)
+        target_id = id_aliases.get(target_id, target_id)
         if source_id not in id_to_node or target_id not in id_to_node:
             continue
         raw_data = raw_edge.get("data") or {}
@@ -149,7 +209,8 @@ def build_jsonld(
             edge_labels.append(label)
         source_map = outgoing.setdefault(source_id, {})
         targets = source_map.setdefault(label, [])
-        targets.append(target_id)
+        if target_id not in targets:
+            targets.append(target_id)
     for node_id, predicates in outgoing.items():
         node_obj = id_to_node.get(node_id)
         if not node_obj:
@@ -208,4 +269,3 @@ def build_jsonld(
         },
     }
     return {"@context": context, "@graph": list(id_to_node.values()), "metadata": metadata}
-
