@@ -2,114 +2,119 @@
 
 ## Core Principles
 
-**Metadata-First**: Include schema, domain, provenance in every prompt | auto-detect context | enable traceability
+**Metadata-First**: Auto-detect schema/domain/context -> embed in YAML frontmatter or header -> enable traceability
 
-**GFM-Enhanced, CommonMark-Safe**: Design for visual richness (tables, task lists) | ensure graceful degradation | test without extensions
+**GFM-Enhanced, CommonMark-Safe**: Design for visual richness (tables, task lists, collapsibles) -> ensure graceful degradation -> test without extensions
 
-**Domain-Agnostic Templates**: Use `{{ placeholders }}` | avoid hardcoded entities | semantic-aware patterns | universal algorithms
+**Domain-Agnostic Templates**: Use `{{ semantic_placeholders }}` -> zero hardcoding -> universal algorithms -> schema-driven detection
 
 ---
 
-## Structural Standards
+## Quick Reference
 
 ### Hierarchy (Max 4 Levels)
-````markdown
-# Component (1 per doc)
-## Section (3-7 per doc)
-### Subsection (grouping)
-#### Detail (sparingly)
-````
+```markdown
+# Component (1/doc)
+## Section (3-7/doc)  
+### Subsection (group related)
+#### Detail (minimize)
+```
 
-### Information Architecture
+### Element Matrix
 
-| Element | GFM-First | CommonMark Fallback |
-|:--------|:----------|:--------------------|
-| **Structured data** | Tables with alignment | Nested lists |
-| **Progress** | Task lists `- [ ]` | Status indicators âœ"/â§— |
-| **Callouts** | `> â„¹ï¸ **Note**:` | `**Note**:` |
-| **Deep-dive** | `<details><summary>` | Appendix sections |
+| Content Type | GFM-First | CommonMark Fallback | When to Use |
+|:-------------|:----------|:--------------------|:------------|
+| **Structured data** | Aligned tables | Nested lists | Schemas, comparisons |
+| **Progress/status** | `- [ ]` / `- [x]` | ✓/○ indicators | Checklists, validation |
+| **Callouts** | `> ℹ️ **Note**:` | `**Note**:` | Warnings, tips |
+| **Deep content** | `<details>` | Appendix sections | Optional depth |
+| **Separation** | `---` (HR) | `---` | Major sections |
 
-### Code Patterns
+### Code Pattern
 ````markdown
 ```pseudocode
-FUNCTION {{ operation }}({{ input_type }}) â†' {{ output_type }}
+FUNCTION {{ operation }}({{ input_schema }}) -> {{ output_schema }}
   FOR EACH {{ entity }} WHERE {{ condition }}:
     {{ transformation }}
-  RETURN {{ result }}
+  RETURN {{ result_set }}
 END
 ```
 ````
 
 ---
 
-## Semantic Guidelines
-
-### Detection â†' Template Flow
+## Detection -> Template Flow
 
 **Pattern**:
-````markdown
-## Detected: {{ entity_type }}
+```markdown
+## {{ Auto_Detected_Type }}
 
-**Schema**:
-- `{{ field }}`: {{ type }} ({{ role }})
+**Schema** (Inferred):
+- `{{ field_name }}`: {{ type }} | {{ role }} | {{ constraint }}
 
 **Suggested Operations**:
-- [ ] {{ operation_1 }} via {{ algorithm }}
-- [ ] {{ operation_2 }} with complexity O({{ complexity }})
-````
+- [ ] {{ op_1 }} via {{ algorithm }} [O({{ complexity }})]
+- [ ] {{ op_2 }} with {{ approach }}
+```
 
-### S-V-O Responsibility Pattern
+### Transformation Patterns
 
-**From [input] to [output]**: Component -> [verbs] [object] via [method] -> delivers [artifact] for [consumer]
-
-### Transformation Templates
-
-| Pattern | Template | Example |
-|:--------|:---------|:--------|
-| **Aggregation** | `{{ agg_fn }}({{ measure }}) GROUP BY {{ dimension }}` | `SUM(revenue) GROUP BY region` |
-| **Filter** | `WHERE {{ attribute }} {{ op }} {{ threshold }}` | `WHERE confidence > 0.8` |
-| **Join** | `{{ entity_a }} â‹ˆ {{ entity_b }} ON {{ key }}` | `orders â‹ˆ customers ON id` |
+| Type | Template | Example |
+|:-----|:---------|:--------|
+| **Aggregate** | `{{ fn }}({{ measure }}) GROUP BY {{ dim }}` | `AVG(score) GROUP BY category` |
+| **Filter** | `WHERE {{ attr }} {{ op }} {{ val }}` | `WHERE confidence > 0.85` |
+| **Join** | `{{ entity_a }} ⋈ {{ entity_b }} ON {{ key }}` | `orders ⋈ users ON user_id` |
+| **Transform** | `{{ out }} = {{ fn }}({{ in_1 }}, {{ in_2 }})` | `profit = revenue - cost` |
 
 ---
 
-## Provenance & Validation
+## Provenance Tracking
 
-### Lineage Tracking
-````markdown
-| Stage | Operation | Input | Output | Validation |
-|:------|:----------|:------|:-------|:-----------|
-| 1 | {{ op_1 }} | {{ src }} | {{ int }} | âœ"/âŒ |
-````
+```markdown
+| Stage | Operation | Input | Output | Status |
+|:------|:----------|:------|:-------|:-------|
+| 1 | {{ transform_1 }} | {{ src }} | {{ mid }} | ✓ |
+| 2 | {{ transform_2 }} | {{ mid }} | {{ out }} | ✓ |
+```
 
-### Quality Gates
+**Quality Gates**:
 - Schema compliance: 100%
-- Confidence: {{ metric }} > {{ baseline }} + 5%
+- Confidence: {{ metric }} ≥ {{ baseline }} + 5%
 - Latency: p99 < {{ threshold }}ms
 
 ---
 
 ## Anti-Patterns (Forbidden)
 
-âŒ Hardcoded paths, names, thresholds  
-âŒ Project-specific terminology  
-âŒ Deep nesting (5+ levels)  
-âŒ Tables with embedded components  
-âŒ Missing CommonMark fallbacks
+- Hardcoded: paths, names, thresholds, field values  
+- Project-specific: company names, internal jargon  
+- Structure: >4 nesting levels, tables with components  
+- Brittleness: missing fallbacks, dataset dependencies
 
 ---
 
 ## Validation Checklist
 
-**Pre-Generation**:
-- [ ] All entities use `{{ placeholders }}`
-- [ ] Algorithms are domain-agnostic
+**Structure**:
+- [ ] Hierarchy ≤4 levels with clear headers
 - [ ] GFM features have CommonMark alternatives
-- [ ] Hierarchy ≤4 levels
-- [ ] Schema-driven, not dataset-driven
+- [ ] Horizontal rules separate major sections
 
-**Post-Generation**:
-- [ ] Renders correctly in GFM
-- [ ] Degrades gracefully in CommonMark
+**Content**:
+- [ ] All entities use `{{ template_syntax }}`
+- [ ] Algorithms are domain-agnostic
+- [ ] Schema-driven (not dataset-driven)
 - [ ] Zero hardcoded assumptions
-- [ ] Provenance links present
-- [ ] Metrics instrumentation defined
+
+**Quality**:
+- [ ] Provenance chain documented
+- [ ] Metrics/validation defined
+- [ ] Renders in GFM ✓ CommonMark ✓
+
+---
+
+## S-V-O Responsibility Pattern
+
+**Component** -> [action verbs] [objects] via [method] -> delivers [artifacts] for [consumer role]
+
+**Example**: `DataProcessor -> transforms raw_events via streaming_pipeline -> delivers normalized_records for AnalyticsEngine`

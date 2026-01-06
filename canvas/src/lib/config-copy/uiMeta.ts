@@ -109,8 +109,20 @@ export const UI_LABELS = {
   ragGraphRAGWorkflow: 'GraphRAG Workflow (AgenticRAG)',
   createNode: 'Create Node',
   addToChat: 'Add to chat',
+  localSchemaProperties: 'Local schema · Properties',
+  localSchemaTemplate: 'Local schema · Template',
+  localSchemaValidation: 'Local schema · Validation',
+  localSchemaLocalRules: 'Local schema · Local rules',
 } as const;
 
 export type UiLabelId = (typeof UI_LABELS)[keyof typeof UI_LABELS];
+
+export const SCHEMA_KEYS = {
+  globalSchema: 'global:schema',
+  localSchemaProperties: 'local:schema:properties',
+  localSchemaTemplate: 'local:schema:template',
+  localSchemaValidation: 'local:schema:validation',
+  localSchemaLocalRules: 'local:schema:localRules',
+} as const;
 
 export const ZERO_TO_ONE_GRAPH_TRAVERSAL_LABEL = 'Zero-to-one graph traversal';

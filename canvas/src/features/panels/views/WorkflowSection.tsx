@@ -11,12 +11,12 @@ import { buildGraphRagWorkflowJsonLdDocument } from '@/features/panels/utils/wor
 import { buildGraphRagWorkflowFromGraphData } from '@/features/panels/utils/graphragConfig';
 import { SHARE_BACKEND_URL, WORKFLOW_TAB_HEADER_TOOLTIP, UI_COPY } from '@/lib/config';
 import MainPanelBody from '@/features/panels/ui/MainPanelBody';
-import { getJsonLdGraphMappingSummary, getAgenticRagContextComparison } from '@/lib/graph/jsonld';
+import { getJsonLdGraphMappingSummary, getAgenticRagContextComparison } from '@/lib/graph/jsonld/index';
 import { WorkflowSteps } from '@/features/panels/views/WorkflowSteps';
 import { getIconSizeClass } from '@/lib/ui';
 import type { JsonLdMappingSummary, AgenticContextSummary } from '@/features/panels/views/WorkflowStepsModel';
 import type { GraphData } from '@/lib/graph/types';
-import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/workflowJsonLdActions';
+import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions';
 
 export default function WorkflowSection() {
   const graphData = useGraphStore(s => s.graphData);

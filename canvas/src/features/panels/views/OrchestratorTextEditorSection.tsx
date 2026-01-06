@@ -4,7 +4,8 @@ import {
   getJsonLdGraphMappingSummary,
   getAgenticRagContextComparison,
   getAgenticRagIgnoreFiltersSummary,
-} from '@/lib/graph/jsonld'
+  buildAgenticRagIgnoreFiltersFromRawPatterns,
+} from '@/lib/graph/jsonld/index'
 import type {
   GraphData,
 } from '@/lib/graph/types'

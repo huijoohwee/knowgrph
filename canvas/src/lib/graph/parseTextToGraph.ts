@@ -1,7 +1,7 @@
 import type { GraphData } from './types'
 import { parseCsvToGraph } from './csv'
 import { rawToGraphData } from './rawToGraph'
-import { parseJsonLd } from './jsonld'
+import { parseJsonLd } from './jsonld/index'
 import { isN8nWorkflow, parseN8nWorkflow } from './n8n'
 import { isGraphRagBundle, parseGraphRagBundle } from './graphrag'
 

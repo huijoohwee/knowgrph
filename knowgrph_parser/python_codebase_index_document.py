@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from .common import DEFAULT_AGENTIC_RAG_SCHEMA_URL, DEFAULT_TERM_IRI_BASE, utc_now_iso
+from .common import DEFAULT_AGENTIC_RAG_SCHEMA_URL, DEFAULT_TERM_IRI_BASE, KG_PREFIX, utc_now_iso
 from .codebase_index_artifacts import normalize_rel_path
 from .runtime_events import add_runtime_events
 from .python_codebase_index_graph import GraphNodeRecord
@@ -52,8 +52,8 @@ def apply_graphrag_paths(nodes_by_id: Dict[str, GraphNodeRecord], graphrag_paths
         owner_key = owner_id.strip()
         if not owner_key:
             continue
-        if owner_key.startswith("kg:"):
-            owner_key = owner_key[3:]
+        if owner_key.startswith(KG_PREFIX):
+            owner_key = owner_key[len(KG_PREFIX) :]
         node = nodes_by_id.get(owner_key)
         if not node:
             continue
@@ -153,7 +153,7 @@ def build_jsonld_document(
     id_to_node: Dict[str, Dict[str, Any]] = {}
     edge_labels: List[str] = []
     for record in nodes_by_id.values():
-        node_obj: Dict[str, Any] = {"@id": f"kg:{record.id}", "@type": record.type, "name": record.name}
+        node_obj: Dict[str, Any] = {"@id": f"{KG_PREFIX}{record.id}", "@type": record.type, "name": record.name}
         if record.path:
             node_obj["path"] = normalize_rel_path(record.path)
         if record.labels:
@@ -187,7 +187,7 @@ def build_jsonld_document(
             if not targets:
                 continue
             edge_labels.append(label)
-            node_obj[label] = [f"kg:{target}" for target in sorted(targets)]
+            node_obj[label] = [f"{KG_PREFIX}{target}" for target in sorted(targets)]
         id_to_node[record.id] = node_obj
 
     if runtime_event_specs:

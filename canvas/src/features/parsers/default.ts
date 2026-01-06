@@ -1,6 +1,6 @@
 import { parseCsvToGraph } from '@/lib/graph/csv'
 import { rawToGraphData } from '@/lib/graph/rawToGraph'
-import { parseJsonLd } from '@/lib/graph/jsonld'
+import { parseJsonLd } from '@/lib/graph/jsonld/index'
 import { isN8nWorkflow, parseN8nWorkflow } from '@/lib/graph/n8n'
 import {
   parseMarkdownBlocks,
@@ -37,7 +37,7 @@ const extractLinks = (text: string): Array<{ label: string; url: string }> => {
   return out
 }
 
-const buildMarkdownJsonLd = (name: string, markdownText: string): Record<string, unknown> => {
+export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<string, unknown> => {
   const rawLines = splitMarkdownLines(markdownText)
   const { meta, startIndex } = parseMarkdownFrontmatter(rawLines)
   const blocks = parseMarkdownBlocks(rawLines, startIndex)

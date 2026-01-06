@@ -1,18 +1,17 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
-import { GRAPH_FIELD_TYPES, type GraphField, type GraphFieldId, type GraphFieldSettingsById, type GraphFieldSettingsResolved, type GraphFieldType } from '@/features/graph-fields/graphFields'
+import { type GraphField, type GraphFieldId, type GraphFieldSettingsById, type GraphFieldSettingsResolved, type GraphFieldType } from '@/features/graph-fields/graphFields'
 import type { GraphDataTableColumnKey } from '@/features/graph-data-table/graphDataTable'
 import {
   isGraphDataTablePropertyColumnKey,
   parseGraphDataTablePropertyColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
 import {
-  FieldKeyIcon,
   GraphFieldsIcon,
   SearchIcon,
 } from '@/features/graph-fields/ui/graphFieldIcons'
-import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_COPY, UI_LABELS, SCHEMA_KEYS } from '@/lib/config'
 import IconButton from '@/components/IconButton'
 import { Plus } from 'lucide-react'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
@@ -22,6 +21,9 @@ import {
   resolveLocalSchemaTarget,
   type LocalSchemaFacet,
 } from '@/features/panels/views/graph-fields/graphFieldsListUtils'
+import { GraphFieldsSearch } from './GraphFieldsSearch'
+import { NewFieldForm } from './NewFieldForm'
+import { useGraphFieldsFiltering } from '@/features/panels/views/graph-fields/hooks/useGraphFieldsFiltering'
 
 export type GraphFieldsListPanelBodyProps = {
   uiPanelKeyValueTextSizeClass: string
@@ -141,6 +143,29 @@ export function GraphFieldsListPanelBody({
     if (id) setSelectedGlobalView(null)
   }, [setSelectedFieldId, setSelectedGlobalView])
 
+  const {
+    globalSchemaVisible,
+    localSchemaPropsVisible,
+    localSchemaTemplateVisible,
+    localSchemaValidationVisible,
+    localSchemaLocalRulesVisible,
+    baseColumnKeys,
+    basePropertyColumnKeys,
+    customPropertyColumnKeys,
+    derivedPropertyColumnKeys,
+    globalSchemaLabel,
+    localSchemaPropsLabel,
+    localSchemaTemplateLabel,
+    localSchemaValidationLabel,
+    localSchemaLocalRulesLabel,
+  } = useGraphFieldsFiltering({
+    search,
+    filteredGraphFieldColumnKeys,
+    fieldById,
+    schemaDefinedFieldIds,
+    settingsById,
+  })
+
   return (
     <div className="row-span-2 rounded border border-gray-200 bg-white overflow-hidden flex flex-col min-h-0 min-w-0">
       <div className="h-9 border-b border-gray-200 bg-gray-50 px-2 text-gray-700 flex items-center justify-between gap-2">
@@ -199,142 +224,24 @@ export function GraphFieldsListPanelBody({
       ) : null}
 
       {newFieldOpen ? (
-        <div className="border-b border-gray-200 bg-white p-2">
-          <form
-            onSubmit={e => {
-              e.preventDefault()
-              createNewField()
-            }}
-            className="space-y-2"
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>{UI_LABELS.name}</div>
-                <div className="mt-1 flex items-center gap-2 rounded border border-gray-300 bg-white px-2">
-                  <FieldKeyIcon
-                    className={`${iconSizeClass} text-gray-500`}
-                    strokeWidth={uiIconStrokeWidth}
-                  />
-                  <input
-                    value={newFieldKey}
-                    onChange={e => setNewFieldKey(e.target.value)}
-                    placeholder={UI_COPY.fieldNamePlaceholder}
-                    className="h-8 w-full bg-transparent text-xs outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>{UI_LABELS.scope}</div>
-                <div className="mt-1">
-                  <select
-                    value={newFieldScope}
-                    onChange={e =>
-                      setNewFieldScope(e.target.value === 'edge' ? 'edge' : 'node')
-                    }
-                    className="h-8 w-full rounded border border-gray-300 bg-white px-2 text-xs"
-                  >
-                    <option value="node">Node</option>
-                    <option value="edge">Edge</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>{UI_LABELS.type}</div>
-                <div className="mt-1">
-                  <select
-                    value={newFieldType}
-                    onChange={e => setNewFieldType(e.target.value as GraphFieldType)}
-                    className="h-8 w-full rounded border border-gray-300 bg-white px-2 text-xs"
-                  >
-                    {GRAPH_FIELD_TYPES.map(t => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                className={`${uiPanelKeyValueTextSizeClass} rounded border border-gray-200 bg-white px-2 py-1 text-gray-700`}
-                onClick={() => setNewFieldOpen(false)}
-              >
-                {UI_LABELS.cancel}
-              </button>
-              <button
-                type="submit"
-                className={`${uiPanelKeyValueTextSizeClass} rounded border border-gray-200 bg-gray-50 px-2 py-1 text-gray-700 disabled:opacity-50`}
-                disabled={!graphDataPresent}
-              >
-                {UI_LABELS.create}
-              </button>
-            </div>
-          </form>
-        </div>
+        <NewFieldForm
+          newFieldKey={newFieldKey}
+          setNewFieldKey={setNewFieldKey}
+          newFieldScope={newFieldScope}
+          setNewFieldScope={setNewFieldScope}
+          newFieldType={newFieldType}
+          setNewFieldType={setNewFieldType}
+          createNewField={createNewField}
+          setNewFieldOpen={setNewFieldOpen}
+          graphDataPresent={graphDataPresent}
+          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+          iconSizeClass={iconSizeClass}
+          uiIconStrokeWidth={uiIconStrokeWidth}
+        />
       ) : null}
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {(() => {
-          const q = normalizeText(search).trim()
-          const globalSchemaLabel = UI_LABELS.globalSchema
-          const globalSchemaVisible =
-            !q ||
-            normalizeText(globalSchemaLabel).includes(q) ||
-            normalizeText('global:schema').includes(q)
-
-          const localSchemaPropsLabel = 'Local schema · Properties'
-          const localSchemaTemplateLabel = 'Local schema · Template'
-          const localSchemaValidationLabel = 'Local schema · Validation'
-          const localSchemaLocalRulesLabel = 'Local schema · Local rules'
-
-          const localSchemaPropsVisible =
-            !q ||
-            normalizeText(localSchemaPropsLabel).includes(q) ||
-            normalizeText('local:schema:properties').includes(q)
-          const localSchemaTemplateVisible =
-            !q ||
-            normalizeText(localSchemaTemplateLabel).includes(q) ||
-            normalizeText('local:schema:template').includes(q)
-          const localSchemaValidationVisible =
-            !q ||
-            normalizeText(localSchemaValidationLabel).includes(q) ||
-            normalizeText('local:schema:validation').includes(q)
-          const localSchemaLocalRulesVisible =
-            !q ||
-            normalizeText(localSchemaLocalRulesLabel).includes(q) ||
-            normalizeText('local:schema:localRules').includes(q)
-
-          const baseColumnKeys = filteredGraphFieldColumnKeys.filter(
-            k => !isGraphDataTablePropertyColumnKey(k),
-          )
-
-          const propertyColumnKeys = filteredGraphFieldColumnKeys.filter(
-            isGraphDataTablePropertyColumnKey,
-          )
-
-          const basePropertyColumnKeys: GraphDataTableColumnKey[] = []
-          const customPropertyColumnKeys: GraphDataTableColumnKey[] = []
-          const derivedPropertyColumnKeys: GraphDataTableColumnKey[] = []
-
-          for (const key of propertyColumnKeys) {
-            const parsed = parseGraphDataTablePropertyColumnKey(key)
-            if (!parsed) continue
-            const graphFieldId = `${parsed.scope}:${parsed.propertyKey}` as GraphFieldId
-            const field = fieldById.get(graphFieldId)
-            const isSchemaDefined = field ? schemaDefinedFieldIds.has(field.id) : false
-            const rawSettings = settingsById[graphFieldId]
-            const isCustom = rawSettings?.isCustom === true
-            if (isSchemaDefined) basePropertyColumnKeys.push(key)
-            else if (isCustom) customPropertyColumnKeys.push(key)
-            else derivedPropertyColumnKeys.push(key)
-          }
-
           const isOnlyVisibleColumn = visibleGraphFieldColumnCount <= 1
 
           const formatLocalSubtitle = (facet: LocalSchemaFacet): string =>
@@ -475,7 +382,7 @@ export function GraphFieldsListPanelBody({
                         <span className="truncate">{globalSchemaLabel}</span>
                       </div>
                       <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 truncate`}>
-                        global:schema
+                        {SCHEMA_KEYS.globalSchema}
                       </div>
                     </div>
                   </button>

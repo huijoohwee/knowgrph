@@ -16,7 +16,7 @@ import {
   getAgenticRagContextComparison,
   getAgenticRagIgnoreFiltersSummary,
   buildAgenticRagIgnoreFiltersFromRawPatterns,
-} from '@/lib/graph/jsonld'
+} from '@/lib/graph/jsonld/index'
 import {
   findGraphRagTraversalEdgeIds,
   findTraversalEdgeIds,

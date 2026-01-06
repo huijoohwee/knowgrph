@@ -5,25 +5,21 @@ import { useShallow } from 'zustand/react/shallow';
 import { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types';
 import { type GraphSchema } from '@/lib/graph/schema';
 import { useContainerDims } from '@/hooks/useContainerDims';
-import { normalizeEdgesForSim, type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
-import { applyZoomRequest } from '@/components/GraphCanvas/zoomController';
-import { startEdgeFromNode, startUpdateEdgeEndpoint } from '@/features/edge-creation';
+import { normalizeEdgesForSim } from '@/components/GraphCanvas/utils';
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation';
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip';
 import {
-  getRenderNodeRadius2d,
-  getEdgeBaseStroke,
-  getEdgeStrokeWidth,
-  computeFlowState,
-  computePanelAwareCanvasDims,
   create2dSvgSnapshotFns,
+  computeFlowState,
 } from '@/components/GraphCanvas/helpers';
-import { selectionPerfStart, selectionPerfEnd } from '@/lib/selectionPerf';
 import { setupGraphScene } from '@/components/GraphCanvas/scene';
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight';
-import { applyZoomOnSelection } from '@/components/GraphCanvas/selectionZoom';
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
 import { deriveGraphDataForLayers } from '@/lib/graph/layerDerivation';
+import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasStyles';
+import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects';
+import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect';
+import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight';
 
 export default function GraphCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -156,7 +152,6 @@ export default function GraphCanvas() {
   const tempLinkSelRef = useRef<TempLinkSelection>(null);
   const linkDragRef = useRef<PendingLink | null>(null);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
-  const lastFitDepsRef = useRef<{ nodesCount: number; width: number; height: number } | null>(null);
 
   useEffect(() => {
     const el = svgRef.current;
@@ -186,24 +181,36 @@ export default function GraphCanvas() {
     setCanvasPos({ x: left, y: top });
   }, [width, height, left, top, setCanvasDims, setCanvasPos]);
 
-  useEffect(() => {
-    if (!fitToScreenMode) {
-      lastFitDepsRef.current = null;
-      return;
-    }
-    if (!renderGraphData || !Array.isArray(renderGraphData.nodes) || renderGraphData.nodes.length === 0) return;
-    const next = {
-      nodesCount: renderGraphData.nodes.length,
-      width: Math.max(1, Math.floor(width)),
-      height: Math.max(1, Math.floor(height)),
-    };
-    const prev = lastFitDepsRef.current;
-    if (prev && prev.nodesCount === next.nodesCount && prev.width === next.width && prev.height === next.height) {
-      return;
-    }
-    lastFitDepsRef.current = next;
-    requestZoom('fit');
-  }, [fitToScreenMode, renderGraphData, width, height, requestZoom]);
+  useZoomEffects({
+    svgRef,
+    zoomRef,
+    width,
+    height,
+    isSidebarOpen,
+    sidebarWidthRatio,
+    graphData: graphData as GraphData | null,
+    renderGraphData: renderGraphData as GraphData | null,
+    schema: schema as GraphSchema,
+    zoomRequest,
+    fitToScreenMode,
+    zoomToSelectionMode,
+    selectedNodeId,
+    selectedEdgeId,
+    selectedNodeIds,
+    selectedEdgeIds,
+    requestZoom,
+  });
+
+  useEdgeCreationEffect({
+    edgeCreationRequest,
+    graphData: graphData as GraphData | null,
+    selectedEdgeId,
+    tempLinkSelRef,
+    linkDragRef,
+    clearEdgeCreationRequest,
+    selectEdge,
+    setSelectionSource,
+  });
 
   useEffect(() => {
     registerCanvasSnapshotFns('2d', svgRef.current ? create2dSvgSnapshotFns(svgRef) : null);
@@ -364,76 +371,20 @@ export default function GraphCanvas() {
   ]);
 
 
-  useEffect(() => {
-    if (!edgeCreationRequest || !graphData) return;
-    const n = graphData.nodes.find(x => x.id === edgeCreationRequest.fromId);
-    if (!n) { clearEdgeCreationRequestRef.current(); return; }
-    if (edgeCreationRequest.type === 'create') {
-      startEdgeFromNode(n, tempLinkSelRef, linkDragRef);
-    } else {
-      const sel = selectedEdgeId ? graphData.edges.find(e => e.id === selectedEdgeId) : null;
-      if (sel) {
-        const selectEdgeNonNull: (id: string) => void = id => selectEdgeRef.current(id);
-        const setSelectionSourceStrict: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void = src => setSelectionSourceRef.current(src);
-        startUpdateEdgeEndpoint(sel, n, edgeCreationRequest.type, tempLinkSelRef, linkDragRef, selectEdgeNonNull, setSelectionSourceStrict);
-      } else {
-        startEdgeFromNode(n, tempLinkSelRef, linkDragRef);
-      }
-    }
-    clearEdgeCreationRequestRef.current();
-  }, [edgeCreationRequest, graphData, selectedEdgeId]);
-
-  useEffect(() => {
-    if (!zoomRequest || !svgRef.current || !zoomRef.current) return;
-    const svg = d3.select(svgRef.current);
-    const panelDims = computePanelAwareCanvasDims(
-      Math.max(1, Math.floor(width)),
-      Math.max(1, Math.floor(height)),
-      !!isSidebarOpen,
-      sidebarWidthRatio,
-    );
-    applyZoomRequest(zoomRequest, {
-      svg,
-      zoom: zoomRef.current,
-      graphData,
-      width: panelDims.width,
-      height: panelDims.height,
-      selectedNodeId,
-      selectedEdgeId,
-      selectedNodeIds,
-      selectedEdgeIds,
-    });
-  }, [
-    zoomRequest,
-    graphData,
-    width,
-    height,
+  useSelectionHighlight({
+    renderGraphData: renderGraphData as GraphData | null,
+    graphData: graphData as GraphData | null,
+    schema: schema as GraphSchema,
     selectedNodeId,
     selectedEdgeId,
     selectedNodeIds,
     selectedEdgeIds,
-    isSidebarOpen,
-    sidebarWidthRatio,
-  ]);
-
-  useEffect(() => {
-    if (!renderGraphData) return;
-    const t0 = selectionPerfStart();
-    setLifecycleStageRef.current('selectionUpdate');
-    applySelectionHighlight(
-      nodesSelRef.current,
-      mediaSelRef.current,
-      labelsSelRef.current,
-      linksSelRef.current,
-      graphData as GraphData,
-      schema as GraphSchema,
-      selectedNodeId,
-      selectedEdgeId,
-      selectedNodeIds,
-      selectedEdgeIds,
-    );
-    selectionPerfEnd('canvas', t0);
-  }, [selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds, renderGraphData, graphData, schema]);
+    setLifecycleStage,
+    nodesSelRef,
+    mediaSelRef,
+    labelsSelRef,
+    linksSelRef,
+  });
 
   useEffect(() => {
     if (!labelsSelRef.current || !graphData) return;
@@ -449,127 +400,14 @@ export default function GraphCanvas() {
       });
   }, [flowState, graphData]);
 
-  useEffect(() => {
-    const isTidyTree = schema.layout?.mode === 'tidy-tree'
-    const tidyCfg = schema.layout?.tidyTree || {}
-    const tidyColorMode = tidyCfg.colorMode === 'schema' ? 'schema' : 'observable'
-    if (nodesSelRef.current) {
-      nodesSelRef.current
-        .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
-      if (isTidyTree && tidyColorMode === 'observable') {
-        nodesSelRef.current.attr('stroke', 'none').attr('stroke-width', 0)
-      } else {
-        nodesSelRef.current
-          .attr('stroke', (d: GraphNode) => (schema.nodeStroke?.[d.type]?.color ?? (isTidyTree ? 'none' : '#ffffff')))
-          .attr('stroke-width', (d: GraphNode) => (schema.nodeStroke?.[d.type]?.width ?? (isTidyTree ? 0 : 1.5)))
-      }
-    }
-    if (linksSelRef.current) {
-      linksSelRef.current.attr('stroke', (d: GraphEdge) => {
-        if (isTidyTree) {
-          const override = typeof tidyCfg.linkStroke === 'string' ? tidyCfg.linkStroke.trim() : ''
-          if (override) return override
-          return getEdgeBaseStroke(d, schema)
-        }
-        return getEdgeBaseStroke(d, schema)
-      })
-      linksSelRef.current.attr('stroke-opacity', () => {
-        if (!isTidyTree) return 0.6
-        const raw = tidyCfg.linkOpacity
-        if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.min(1, raw))
-        return 0.4
-      })
-      linksSelRef.current.attr('stroke-width', (d: GraphEdge) => {
-        if (isTidyTree) {
-          const raw = tidyCfg.linkWidth
-          if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
-        }
-        return getEdgeStrokeWidth(d as EdgeWithRuntime, schema)
-      })
-      if (schema.layout?.mode === 'tidy-tree') {
-        linksSelRef.current.attr('marker-end', null);
-      } else {
-        linksSelRef.current.attr(
-          'marker-end',
-          (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow ? 'url(#arrowhead)' : null),
-        );
-      }
-    }
-    if (labelsSelRef.current) {
-      const labelFontSize = (() => {
-        if (!isTidyTree) return schema.labelStyles?.fontSize ?? 12
-        const raw = tidyCfg.labelFontSize
-        if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
-        const fromLabelStyles = schema.labelStyles?.fontSize
-        if (typeof fromLabelStyles === 'number' && Number.isFinite(fromLabelStyles) && fromLabelStyles > 0) return fromLabelStyles
-        return 10
-      })()
-      const haloColor = schema.labelStyles?.halo?.color ?? '#ffffff'
-      const haloWidthRaw = schema.labelStyles?.halo?.width
-      const haloWidth =
-        typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3
-      const labelFill = (() => {
-        if (!isTidyTree || tidyColorMode === 'schema') return schema.labelStyles?.color ?? '#111'
-        const override = typeof tidyCfg.linkStroke === 'string' ? tidyCfg.linkStroke.trim() : ''
-        return override || '#555'
-      })()
-      labelsSelRef.current.attr('font-size', labelFontSize).attr('fill', labelFill)
-      if (isTidyTree && tidyColorMode === 'observable') {
-        labelsSelRef.current
-          .attr('paint-order', 'stroke')
-          .attr('stroke', haloColor)
-          .attr('stroke-width', haloWidth)
-          .attr('stroke-linejoin', 'round')
-      } else {
-        labelsSelRef.current.attr('paint-order', null).attr('stroke', null).attr('stroke-width', null).attr('stroke-linejoin', null)
-      }
-      if (!isTidyTree) {
-        labelsSelRef.current
-          .attr('dx', (schema.labelStyles?.offset?.dx ?? 12))
-          .attr('dy', (schema.labelStyles?.offset?.dy ?? 4))
-      }
-    }
-  }, [schema, selectedNodeId]);
+  useGraphCanvasStyles({
+    nodesSelRef,
+    linksSelRef,
+    labelsSelRef,
+    schema,
+  });
 
-  useEffect(() => {
-    if (!zoomToSelectionMode) return;
-    if (!graphData || !svgRef.current || !zoomRef.current) return;
-    const expansionCfg = schema.behavior?.expansion || {};
-    const expansionEnabled = expansionCfg.enabled !== false;
-    const zoomOnSelection = expansionEnabled && expansionCfg.zoomOnSelection !== false;
-    if (!zoomOnSelection) return;
-    const svg = d3.select(svgRef.current);
-    const panelDims = computePanelAwareCanvasDims(
-      Math.max(1, Math.floor(width)),
-      Math.max(1, Math.floor(height)),
-      !!isSidebarOpen,
-      sidebarWidthRatio,
-    );
-    applyZoomOnSelection({
-      graphData: renderGraphData as GraphData,
-      svg,
-      zoom: zoomRef.current,
-      width: panelDims.width,
-      height: panelDims.height,
-      selectedNodeId,
-      selectedEdgeId,
-      selectedNodeIds,
-      selectedEdgeIds,
-    });
-  }, [
-    zoomToSelectionMode,
-    selectedNodeId,
-    selectedEdgeId,
-    selectedNodeIds,
-    selectedEdgeIds,
-    renderGraphData,
-    graphData,
-    width,
-    height,
-    schema.behavior?.expansion,
-    isSidebarOpen,
-    sidebarWidthRatio,
-  ]);
+
 
   return (
     <div

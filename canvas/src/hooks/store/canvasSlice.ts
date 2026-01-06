@@ -1,9 +1,9 @@
-import type { GraphState } from '@/hooks/useGraphStore'
+import type { GraphState, CanvasSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
-export const createCanvasSlice = (set: SetGraph) => ({
+export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   canvasDims: { w: 800, h: 600 } as { w: number; h: number },
   canvasPos: { x: 0, y: 0 } as { x: number; y: number },
   setCanvasDims: (d: { w: number; h: number }) => set({ canvasDims: { w: Math.max(1, d.w), h: Math.max(1, d.h) } }),
@@ -28,4 +28,31 @@ export const createCanvasSlice = (set: SetGraph) => ({
   edgeCreationRequest: null as null | { type: 'create' | 'update-source' | 'update-target'; fromId: string; at: number },
   requestEdgeCreation: (req: { type: 'create' | 'update-source' | 'update-target'; fromId: string }) => set({ edgeCreationRequest: { ...req, at: Date.now() } }),
   clearEdgeCreationRequest: () => set({ edgeCreationRequest: null }),
+  canvasRenderMode: '2d' as '2d' | '3d',
+  setCanvasRenderMode: (m: '2d' | '3d') => set({ canvasRenderMode: m }),
+  canvasSnapshotFns: {} as { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns },
+  registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) =>
+    set(state => ({
+      canvasSnapshotFns: {
+        ...state.canvasSnapshotFns,
+        [mode]: fns || undefined,
+      },
+    })),
+  captureCanvasPngSnapshot: async (mode?: '2d' | '3d') => {
+    const state = get();
+    const m = mode || state.canvasRenderMode;
+    const fns = state.canvasSnapshotFns?.[m];
+    if (fns?.capturePng) {
+      return fns.capturePng();
+    }
+    return null;
+  },
+  captureCanvasSvgSnapshot: async () => {
+    const state = get();
+    const fns = state.canvasSnapshotFns?.['2d'];
+    if (fns?.captureSvg) {
+      return fns.captureSvg();
+    }
+    return null;
+  },
 });

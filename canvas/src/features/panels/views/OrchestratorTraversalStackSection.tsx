@@ -24,7 +24,7 @@ import type { OrchestratorTraversalSectionViewModel } from '@/features/panels/vi
 import type {
   AgenticRagContextComparison,
   AgenticRagIgnoreFiltersSummary,
-} from '@/lib/graph/jsonld'
+} from '@/lib/graph/jsonld/index'
 
 interface OrchestratorTraversalWorkflowProps {
   workflowDoc: GraphRagWorkflowJsonLd

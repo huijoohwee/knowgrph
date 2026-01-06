@@ -43,12 +43,10 @@ import {
 } from './BottomPanelCuratorModels'
 import { createUniqueId } from '@/lib/ids'
 import { emitPropsPanelOpen } from '@/features/canvas/utils'
-import {
-  useBottomPanelCuratorVisibleRows,
-  useBottomPanelCuratorFieldAggregates,
-  useBottomPanelCuratorColumns,
-  useBottomPanelCuratorListItems,
-} from './BottomPanelCuratorTabState'
+import { useBottomPanelCuratorVisibleRows } from './hooks/useBottomPanelCuratorVisibleRows'
+import { useBottomPanelCuratorFieldAggregates } from './hooks/useBottomPanelCuratorFieldAggregates'
+import { useBottomPanelCuratorColumns } from './hooks/useBottomPanelCuratorColumns'
+import { useBottomPanelCuratorListItems } from './hooks/useBottomPanelCuratorListItems'
 
 interface BottomPanelCuratorTabProps {
   nodes: GraphNode[]

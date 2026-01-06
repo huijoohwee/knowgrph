@@ -27,6 +27,26 @@ def split_lines(text: str) -> List[str]:
     return lines
 
 
+def parse_frontmatter(lines: List[str]) -> Tuple[Dict[str, str], int]:
+    if not lines or lines[0].strip() != "---":
+        return {}, 0
+    meta: Dict[str, str] = {}
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return meta, i + 1
+        raw = lines[i].strip()
+        if not raw or raw.startswith("#"):
+            continue
+        if ":" not in raw:
+            continue
+        k, v = raw.split(":", 1)
+        key = k.strip()
+        val = v.strip()
+        if key:
+            meta[key] = val
+    return meta, 0
+
+
 def is_table_sep(line: str) -> bool:
     s = line.strip()
     if not s:

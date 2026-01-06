@@ -1,5 +1,5 @@
 import React from 'react'
-import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/workflowJsonLdActions'
+import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'

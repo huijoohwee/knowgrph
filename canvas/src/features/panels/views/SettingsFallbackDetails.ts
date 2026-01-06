@@ -1,0 +1,215 @@
+export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: string; notes?: string }> = {
+  uiPanelOpacity: { area: 'Global Translucency', responsibility: 'Main Panel opacity' },
+  uiToolbarOpacity: { area: 'Global Translucency', responsibility: 'Toolbar opacity' },
+  historyDebounceMs: { area: 'Editor Behavior & Timing', responsibility: 'Debounce history' },
+  codeHighlightDurationMs: { area: 'Editor Behavior & Timing', responsibility: 'Code highlight duration' },
+  codeSelectThrottleMs: { area: 'Editor Behavior & Timing', responsibility: 'Code→Canvas selection throttle' },
+  codeHighlightUntilClick: { area: 'Editor Behavior & Timing', responsibility: 'Highlight until click' },
+  uiIconScale: {
+    area: 'UI Density: Icons',
+    responsibility: 'Global icon scale (toolbar, panels, bottom panel)',
+    notes: 'Options: compact (smaller icons, denser UI) or default (larger icons, more spacious). Applied via getIconSizeClass across HeaderActions, Toolbar, SearchPanel, History panels, Launch Spotlight status, Help/Workflow headers, Graph Fields icon legend, and bottom panel toolbars.',
+  },
+  uiIconFormat: {
+    area: 'UI Density: Icons',
+    responsibility: 'Global icon format (default vs minimal styling)',
+  },
+  uiIconStrokeWidth: {
+    area: 'UI Density: Icons',
+    responsibility: 'Global Lucide icon stroke width',
+  },
+  uiIconColorClass: {
+    area: 'UI Density: Icons',
+    responsibility: 'Base Tailwind class for icon color',
+  },
+  uiIconHoverBgClass: {
+    area: 'UI Density: Icons',
+    responsibility: 'Base Tailwind class for icon hover background',
+  },
+  uiIconButtonPaddingClass: {
+    area: 'UI Density: Icons',
+    responsibility: 'Base Tailwind class for icon button padding',
+  },
+  uiIconPillClass: {
+    area: 'UI Density: Icons',
+    responsibility: 'Base Tailwind class for icon legend pills (scope, origin, visibility, field types)',
+  },
+  uiIconPillLegendTextSizeClass: {
+    area: 'UI Density: Icons',
+    responsibility: 'Tailwind class for legend pill text size',
+  },
+  uiIconPillBadgeTextSizeClass: {
+    area: 'UI Density: Icons',
+    responsibility: 'Tailwind class for badge and inline pill text size',
+  },
+  uiIconBadgeChipClass: {
+    area: 'UI Density: Icons',
+    responsibility: 'Base Tailwind class for small schema/property badge chips',
+  },
+  uiIconBadgeChipTextSizeClass: {
+    area: 'UI Density: Icons',
+    responsibility: 'Tailwind class for badge chip text size',
+  },
+  uiPanelKeyValueTextSizeClass: {
+    area: 'UI Density: Panels',
+    responsibility: 'Tailwind class for panel key/value text size',
+  },
+  uiPanelMicroLabelTextSizeClass: {
+    area: 'UI Density: Panels',
+    responsibility: 'Tailwind class for panel micro-label helper text size',
+  },
+  uiPanelTextFontClass: {
+    area: 'UI Density: Panels',
+    responsibility: 'Tailwind class for panel key/value text font',
+  },
+  uiPanelKeyValueInputClass: {
+    area: 'UI Density: Panels',
+    responsibility: 'Tailwind class for panel key/value numeric input shell',
+  },
+  uiPanelRowDensityDefaultClass: {
+    area: 'UI Density: Panels',
+    responsibility: 'Tailwind class for default panel row padding (density="default")',
+  },
+  uiPanelMonospaceTextClass: {
+    area: 'UI Density: Panels',
+    responsibility: 'Tailwind class for panel monospace text in Graph JSON, Parser, Schema, and Markdown editors',
+  },
+  uiHeaderRowHeightClass: {
+    area: 'UI Density: Headers',
+    responsibility: 'Tailwind class for primary header row min-height',
+  },
+  uiHeaderRowPaddingClass: {
+    area: 'UI Density: Headers',
+    responsibility: 'Tailwind class for primary header row padding',
+  },
+  uiSectionHeaderRowHeightClass: {
+    area: 'UI Density: Headers',
+    responsibility: 'Tailwind class for section header row min-height',
+  },
+  uiSectionHeaderRowPaddingClass: {
+    area: 'UI Density: Headers',
+    responsibility: 'Tailwind class for section header row padding',
+  },
+  uiIconAnimationEnabled: {
+    area: 'UI Density: Icons',
+    responsibility: 'Enable toolbar launch/3D icon animation',
+  },
+  bottomPanelHeightRatio: { area: 'Bottom Panel Layout', responsibility: 'Bottom panel height ratio' },
+  floatingPanelWidthRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel width ratio (viewport)' },
+  floatingPanelHeightRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel height ratio (viewport)' },
+  floatingPanelZIndex: { area: 'Floating Panel Layout', responsibility: 'Floating panel z-index' },
+  sidebarWidthRatio: { area: 'Side Panel Layout', responsibility: 'Side panel width ratio (viewport)' },
+  enableTabSync: { area: 'Tab Sync', responsibility: 'Enable cross‑tab sync' },
+  enableVirtualTables: { area: 'Graph Data Table Virtualization', responsibility: 'Virtualized tables' },
+  'graphDataTable.overscanMultiplier': {
+    area: 'Graph Data Table Virtualization',
+    responsibility: 'Overscan multiplier for virtual tables',
+    notes:
+      'To make the table more stable with fewer re-renders while scrolling, increase this toward 1.0–2.0. To reduce DOM size for very large tables, lower this toward 0.1–0.3 and optionally reduce graphDataTable.virtualOverscanRows for a more aggressive window.',
+  },
+  'graphDataTable.virtualOverscanRows': {
+    area: 'Graph Data Table Virtualization',
+    responsibility: 'Virtual overscan rows (window padding)',
+    notes:
+      'Acts as a hard floor for overscan rows. Lower values reduce DOM size but may cause more frequent row window updates while scrolling, especially when graphDataTable.overscanMultiplier is also low.',
+  },
+  'graphDataTable.minRows': {
+    area: 'Graph Data Table Virtualization',
+    responsibility: 'Min rows before virtualizing tables',
+  },
+  'graphDataTable.debugLogRanges': {
+    area: 'Graph Data Table Virtualization',
+    responsibility: 'Log virtual window ranges in dev',
+  },
+  schemaDeriveCacheCapacity: { area: 'Graph Performance (Schema Derive Cache)', responsibility: 'LRU capacity for schema derive lists' },
+  'graphDataTable.frozenDragStepNoneLabelPx': {
+    area: 'Graph Data Table',
+    responsibility: 'Drag distance (px) from none to label boundary',
+  },
+  'graphDataTable.frozenDragStepLabelIdPx': {
+    area: 'Graph Data Table',
+    responsibility: 'Drag distance (px) from label to id boundary',
+  },
+  'graphDataTable.numericSampleLimit': {
+    area: 'Graph Data Table',
+    responsibility: 'Maximum samples per field when inferring numeric behavior',
+  },
+  'graphDataTable.numericSampleMinCount': {
+    area: 'Graph Data Table',
+    responsibility: 'Minimum numeric samples required for aggregate eligibility',
+  },
+  'graphDataTable.numericSampleMinRatio': {
+    area: 'Graph Data Table',
+    responsibility: 'Minimum numeric ratio required for aggregate eligibility',
+  },
+  'spotlight.margin': { area: 'Launch Spotlight Layout', responsibility: 'Viewport margin for spotlight card clamp' },
+  'spotlight.nearTopThreshold': {
+    area: 'Launch Spotlight Layout',
+    responsibility: 'Top threshold before anchored card flips below target',
+  },
+  chatEndpointUrl: { area: 'Chat', responsibility: 'Chat endpoint URL (OpenAI-compatible)' },
+  chatModel: { area: 'Chat', responsibility: 'Chat model name (OpenAI-compatible)' },
+  chatTemperature: { area: 'Chat', responsibility: 'Chat completion temperature' },
+  chatSystemPrompt: { area: 'Chat', responsibility: 'Optional system prompt for Chat' },
+  CLICK_URL: { area: 'Config Constants', responsibility: 'Toolbar badge click URL' },
+  PUBLIC_FALLBACK_JSON: { area: 'Dataset Loading', responsibility: 'Fallback dataset path' },
+  KG_INPUT_PATH: { area: 'Pipeline Env', responsibility: 'Pipeline input path' },
+  KG_OUTPUT_DIR: { area: 'Pipeline Env', responsibility: 'Pipeline output directory' },
+  'max-lines': { area: 'ESLint Guard', responsibility: 'Max lines per file' },
+  canvasRenderMode: { area: 'Canvas Rendering', responsibility: 'Render mode (2d or 3d)' },
+  orchestratorTraversalDelayMs: {
+    area: 'Orchestrator Traversal',
+    responsibility: 'Delay between traversal steps in Orchestrator (ms)',
+  },
+  orchestratorView: {
+    area: 'Orchestrator UI',
+    responsibility: 'Default Orchestrator bottom panel view (UI or Text)',
+  },
+  'graph.behavior.selectMode': {
+    area: 'Canvas Interaction',
+    responsibility: 'Node selection mode (single, multi, lasso)',
+    notes:
+      'Selector → pick single, multi, or lasso selection behavior → shape how canvas clicks, Graph Data Table row selection, and Embed/Overlay / Dataset Inspector visualizations respond to the active selection neighborhood.',
+  },
+  'graph.behavior.createMode': {
+    area: 'Canvas Interaction',
+    responsibility: 'Edge creation mode (shift-drag, click, panel-only)',
+    notes:
+      'Edge creator → choose shift-drag, click-source-target, or panel-only edge creation → align edge gestures with selection-aware overlays so you can inspect distributions, hierarchies, polygons, and paths without losing predictable zoom and node-drag behavior.',
+  },
+  'three.selection.selectedNodeGlowIntensity': { area: '3D Selection', responsibility: 'Selected node emissive glow intensity' },
+  'three.selection.dimmedNodeOpacity': { area: '3D Selection', responsibility: 'Dimmed unselected node opacity' },
+  'three.selection.dimmedEdgeOpacity': { area: '3D Selection', responsibility: 'Dimmed non‑selected edge opacity' },
+  'three.selection.selectedEdgeWidth': { area: '3D Selection', responsibility: 'Selected edge stroke width in 3D' },
+  'three.graph.linkDirectionalArrowLength': { area: '3D Edges & Arrows', responsibility: 'Default 3D edge arrow length' },
+  'three.graph.linkOpacity': { area: '3D Edges & Arrows', responsibility: 'Default 3D edge opacity' },
+  'three.graph.linkCurvature': { area: '3D Edges & Arrows', responsibility: 'Default 3D edge curvature' },
+  'three.graph.linkCurveRotation': { area: '3D Edges & Arrows', responsibility: 'Default 3D curve rotation' },
+  'three.graph.linkDirectionalParticles': { area: '3D Particles', responsibility: 'Default edge particle count' },
+  'three.graph.linkDirectionalParticleSpeed': { area: '3D Particles', responsibility: 'Default edge particle speed' },
+  'three.graph.nodeSizingFormula': { area: '3D Formulas', responsibility: 'Node sizing formula (schema or importance)' },
+  'three.graph.edgeWidthFormula': { area: '3D Formulas', responsibility: 'Edge width formula (schema or weight)' },
+  'three.graph.layerOpacityByLayer.1': { area: '3D Layers', responsibility: 'Layer 1 base opacity' },
+  'three.graph.layerOpacityByLayer.2': { area: '3D Layers', responsibility: 'Layer 2 base opacity' },
+  'three.graph.layerOpacityByLayer.3': { area: '3D Layers', responsibility: 'Layer 3 base opacity' },
+  'three.graph.nodeMotionIntensity': { area: '3D Motion', responsibility: 'Idle node motion intensity' },
+  'three.graph.minimapOpacity': { area: '3D Minimap', responsibility: '3D minimap background opacity' },
+  'three.graph.starfieldEnabled': { area: '3D Background', responsibility: 'Enable 3D starfield particle background' },
+  'three.graph.starfieldCount': { area: '3D Background', responsibility: 'Starfield particle count (0 disables)' },
+  'three.graph.starfieldRadius': { area: '3D Background', responsibility: 'Starfield radius around camera' },
+  'three.graph.starfieldOpacity': { area: '3D Background', responsibility: 'Starfield particle brightness/opacity' },
+  'three.graph.starfieldColor': { area: '3D Background', responsibility: 'Starfield particle tint color' },
+  'three.layout.sphereRadius': { area: '3D Layout & Physics', responsibility: 'Base sphere radius for node layout' },
+  'three.layout.seed': { area: '3D Layout & Physics', responsibility: 'Random seed for 3D layout' },
+  'three.layout.minSpacing': { area: '3D Layout & Physics', responsibility: 'Minimum spacing between nodes' },
+  'three.preset.presentation3d': { area: '3D Presets', responsibility: 'Apply low-motion presentation 3D preset' },
+  'three.camera.backgroundColor': { area: 'Canvas Rendering', responsibility: '3D canvas background color' },
+  'three.graph.polygons.elevationOffset': {
+    area: '3D Group Surfaces',
+    responsibility: 'Vertical offset for 3D group polygons relative to nodes',
+  },
+  'three.graph.polygons.opacityMultiplier': {
+    area: '3D Group Surfaces',
+    responsibility: 'Global multiplier for 3D group polygon fill opacity',
+  },
+}

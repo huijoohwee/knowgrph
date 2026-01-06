@@ -14,7 +14,7 @@ from .common import (
     write_text,
 )
 from .doc_markdown import build_knowgrph_doc_markdown
-from .markdown_graph import parse_markdown_to_graph_jsonld
+from .graph_builder import parse_markdown_to_graph_jsonld
 from .orchestrator_yaml import build_orchestrator_config_yaml
 from .schema_config import build_schema_config_jsonld
 
@@ -99,7 +99,13 @@ def _merge_entity(existing: Dict[str, Any], incoming: Dict[str, Any], *, alias_i
     existing["metadata"] = existing_meta
 
 
-def _unify_entities_across_docs(docs: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _unify_entities_across_docs(
+    docs: List[Dict[str, Any]],
+    *,
+    entity_merge_threshold: float = 0.85,
+    conflict_resolution_strategy: str = "majority_vote",
+    cross_document_inference_depth: int = 2,
+) -> Dict[str, Any]:
     if not docs:
         return {}
     base = docs[0]
@@ -108,6 +114,14 @@ def _unify_entities_across_docs(docs: List[Dict[str, Any]]) -> Dict[str, Any]:
     entity_by_id: Dict[str, Dict[str, Any]] = {}
     id_aliases: Dict[str, str] = {}
     merged_metadata: Dict[str, Any] = {}
+    
+    # Record unification configuration in metadata
+    merged_metadata["unificationConfig"] = {
+        "entityMergeThreshold": entity_merge_threshold,
+        "conflictResolutionStrategy": conflict_resolution_strategy,
+        "crossDocumentInferenceDepth": cross_document_inference_depth,
+    }
+
     for d in docs:
         meta = d.get("metadata")
         if isinstance(meta, dict):
@@ -194,6 +208,23 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
         default=DEFAULT_TERM_IRI_BASE,
         help="Base IRI for Knowgrph relationship terms (e.g. hasSection, next)",
     )
+    parser.add_argument(
+        "--entity-merge-threshold",
+        type=float,
+        default=0.85,
+        help="Minimum similarity for entity consolidation (0.7-0.95)",
+    )
+    parser.add_argument(
+        "--conflict-resolution",
+        default="majority_vote",
+        help="Strategy for property conflicts (majority_vote|most_recent|retain_all)",
+    )
+    parser.add_argument(
+        "--inference-depth",
+        type=int,
+        default=2,
+        help="Hop distance for cross-document inference (1-5)",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     input_path = os.path.abspath(args.input)
@@ -229,7 +260,12 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
                     term_iri_base=str(args.term_iri_base or DEFAULT_TERM_IRI_BASE),
                 )
             )
-        graph_doc = _unify_entities_across_docs(docs)
+        graph_doc = _unify_entities_across_docs(
+            docs,
+            entity_merge_threshold=float(args.entity_merge_threshold),
+            conflict_resolution_strategy=str(args.conflict_resolution),
+            cross_document_inference_depth=int(args.inference_depth),
+        )
     schema_doc = build_schema_config_jsonld(
         graph_doc,
         agentic_rag_schema_url=str(args.agenticrag_schema or DEFAULT_AGENTIC_RAG_SCHEMA_URL),

@@ -1,5 +1,12 @@
 import { GraphSchema, PropertySpec, defaultSchema } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
+import {
+  KG_CLASS_PREFIX,
+  KG_PROP_PREFIX,
+  KG_NODE_TYPE_CLASS,
+  KG_EDGE_LABEL_CLASS,
+  KG_PROPERTY_CLASS,
+} from '@/lib/agenticrag'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -20,17 +27,17 @@ export function schemaToJsonLd(schema: GraphSchema): {
   const nodeTypes = Array.isArray(schema.catalog?.nodeTypes) ? schema.catalog?.nodeTypes : []
   const edgeLabels = Array.isArray(schema.catalog?.edgeLabels) ? schema.catalog?.edgeLabels : []
   nodeTypes.forEach((nt) => {
-    graph.push({ '@id': `kg:class:${nt}`, '@type': 'kg:NodeType', name: nt })
+    graph.push({ '@id': `${KG_CLASS_PREFIX}${nt}`, '@type': KG_NODE_TYPE_CLASS, name: nt })
   })
   edgeLabels.forEach((el) => {
-    graph.push({ '@id': `kg:prop:${el}`, '@type': 'kg:EdgeLabel', name: el })
+    graph.push({ '@id': `${KG_PROP_PREFIX}${el}`, '@type': KG_EDGE_LABEL_CLASS, name: el })
   })
   const nodeProps = schema.propertySchemas?.node || {}
   Object.keys(nodeProps).forEach((owner) => {
     const propsForOwner = nodeProps[owner] || {}
     Object.keys(propsForOwner).forEach((p) => {
       const spec = propsForOwner[p]
-      graph.push({ '@id': `kg:prop:${p}`, '@type': 'kg:Property', name: p, owner, range: spec.type })
+      graph.push({ '@id': `${KG_PROP_PREFIX}${p}`, '@type': KG_PROPERTY_CLASS, name: p, owner, range: spec.type })
     })
   })
   const edgeProps = schema.propertySchemas?.edge || {}
@@ -38,7 +45,7 @@ export function schemaToJsonLd(schema: GraphSchema): {
     const propsForOwner = edgeProps[owner] || {}
     Object.keys(propsForOwner).forEach((p) => {
       const spec = propsForOwner[p]
-      graph.push({ '@id': `kg:prop:${p}`, '@type': 'kg:Property', name: p, owner, range: spec.type })
+      graph.push({ '@id': `${KG_PROP_PREFIX}${p}`, '@type': KG_PROPERTY_CLASS, name: p, owner, range: spec.type })
     })
   })
   const metadata = schema.metadata

@@ -18,7 +18,7 @@ import {
 } from '@/lib/config'
 import type { GraphRagWorkflowJsonLd } from '@/features/panels/utils/graphragConfig'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
-import { type AgenticRagContextComparison, type AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld'
+import { type AgenticRagContextComparison, type AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld/index'
 import { applyIgnoreCodebasePathsUpdate, computeInvalidIgnorePrefixes } from '@/features/panels/utils/agenticRagIgnoreFilters'
 import { GraphRagWorkflowIndexingSection } from '@/features/panels/views/GraphRagWorkflowIndexingSection'
 import { openBottomPanel } from '@/features/bottom-panel/open'

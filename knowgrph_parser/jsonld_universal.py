@@ -2,13 +2,15 @@ import json
 from importlib import import_module
 from typing import Any, Callable, Dict, List, Tuple
 
+from .common import KG_PREFIX, KG_SUBJECT, KG_PREDICATE, KG_OBJECT
+
 
 def strip_kg(value: Any) -> str:
     if value is None:
         return ""
     text = str(value)
-    if text.startswith("kg:"):
-        return text[len("kg:") :]
+    if text.startswith(KG_PREFIX):
+        return text[len(KG_PREFIX) :]
     return text
 
 
@@ -74,7 +76,7 @@ def build_nodes(items: List[Dict[str, Any]], context: Dict[str, Any]) -> Tuple[L
             item_type = item_type[0]
         node_type = strip_kg(item_type) or "Entity"
 
-        if "kg:subject" in item and "kg:predicate" in item and "kg:object" in item:
+        if KG_SUBJECT in item and KG_PREDICATE in item and KG_OBJECT in item:
             edge_items.append(item)
             continue
 

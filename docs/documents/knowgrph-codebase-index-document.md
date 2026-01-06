@@ -1,10 +1,10 @@
-﻿# Knowgrph Codebase Index: Universal Repository Specification
+# Knowgrph Codebase Index: Universal Repository Specification
 
 ## Repository Architecture
 
-**Module Hierarchy**: `knowgrph_parser` → `codebase_index_*` / `python_codebase_index_*` → JSON‑LD builders → Canvas loaders  
+**Module Hierarchy**: `knowgrph_parser` -> `codebase_index_*` / `python_codebase_index_*` -> JSON‑LD builders -> Canvas loaders  
 
-**Dependency Flow**: parser_core → index_builders → workflow_config → canvas_integration
+**Dependency Flow**: parser_core -> index_builders -> workflow_config -> canvas_integration
 
 **Design Principles**: Modularity‑first design | explicit JSON‑LD contracts | AgenticRAG‑aligned schemas | configuration‑driven traversal
 
@@ -18,6 +18,7 @@
   - `knowgrph_parser/python_codebase_index_cmd.py` + `python_codebase_index_document.py` + `python_codebase_index_graph.py` build a graph from Python files and emit AgenticRAG‑aligned JSON‑LD.
 - Canvas integration:
   - Canvas CLI and UI load `codebase-index-viz.jsonld`, universal schema config, and orchestrator config as GraphData and configuration presets.
+  - `canvas/src/lib/graph/jsonld` handles JSON-LD parsing and normalization, ensuring consistent interpretation of the index.
 
 ---
 
@@ -25,7 +26,7 @@
 
 ### Module: `knowgrph_parser.codebase_index_cmd`
 
-**From GraphRAG workflow JSON to index JSON‑LD**: Module → loads workflow graph and orchestrator YAML → synthesizes codebase index JSON‑LD with traversal metadata and runtime events → exposes a CLI entrypoint for integration with build and visualization tools.
+**From GraphRAG workflow JSON to index JSON‑LD**: Module -> loads workflow graph and orchestrator YAML -> synthesizes codebase index JSON‑LD with traversal metadata and runtime events -> exposes a CLI entrypoint for integration with build and visualization tools.
 
 **Configuration Schema (core arguments)**:
 
@@ -50,11 +51,11 @@ config:
 ```
 
 **Interface Pattern**:  
-`main(argv, base_dir, parser_script_path)` → reads workflow graph and orchestrator config → calls `build_jsonld` → writes JSON‑LD document → O(nodes + edges + runtime_events).
+`main(argv, base_dir, parser_script_path)` -> reads workflow graph and orchestrator config -> calls `build_jsonld` -> writes JSON‑LD document -> O(nodes + edges + runtime_events).
 
 ### Module: `knowgrph_parser.codebase_index_jsonld`
 
-**From workflow nodes/edges to AgenticRAG codebase index JSON‑LD**: Module → converts generic node/edge records into AgenticRAG‑aligned JSON‑LD nodes with provenance and layers → attaches runtime events and traversal edge mappings.
+**From workflow nodes/edges to AgenticRAG codebase index JSON‑LD**: Module -> converts generic node/edge records into AgenticRAG‑aligned JSON‑LD nodes with provenance and layers -> attaches runtime events and traversal edge mappings.
 
 Key behaviors:
 
@@ -65,11 +66,11 @@ Key behaviors:
 - Advertises traversal labels in `metadata.jsonLdMapping.contextEdgeProperties`.
 
 **Interface Pattern**:  
-`build_jsonld(graph, codebase_id, traversal_edges, ignored_paths, raw_ignored_patterns, runtime_event_specs)` → returns `{ "@context", "@graph", "metadata" }` → O(nodes + edges + runtime_events).
+`build_jsonld(graph, codebase_id, traversal_edges, ignored_paths, raw_ignored_patterns, runtime_event_specs)` -> returns `{ "@context", "@graph", "metadata" }` -> O(nodes + edges + runtime_events).
 
 ### Module: `knowgrph_parser.python_codebase_index_cmd`
 
-**From Python codebase root to index JSON‑LD + configs**: Module → walks Python files, builds a code graph, enriches it with GraphRAG paths and runtime events, and writes JSON‑LD index, schema config, and orchestrator config.
+**From Python codebase root to index JSON‑LD + configs**: Module -> walks Python files, builds a code graph, enriches it with GraphRAG paths and runtime events, and writes JSON‑LD index, schema config, and orchestrator config.
 
 **Configuration Schema (core arguments)**:
 
@@ -94,11 +95,11 @@ config:
 ```
 
 **Interface Pattern**:  
-`main(argv, base_dir, parser_script_path)` → resolves codebase root and paths from orchestrator config → builds in‑memory graph via `build_code_graph` → calls `build_jsonld_document` → ensures schema and orchestrator config files → O(files + relations + runtime_events).
+`main(argv, base_dir, parser_script_path)` -> resolves codebase root and paths from orchestrator config -> builds in‑memory graph via `build_code_graph` -> calls `build_jsonld_document` -> ensures schema and orchestrator config files -> O(files + relations + runtime_events).
 
 ### Module: `knowgrph_parser.python_codebase_index_document`
 
-**From code graph records to AgenticRAG JSON‑LD**: Module → rewrites `GraphNodeRecord` objects into JSON‑LD nodes with `@id`, `@type`, `labels`, `path`, `properties`, and `metadata` → encodes GraphRAG paths and runtime events.
+**From code graph records to AgenticRAG JSON‑LD**: Module -> rewrites `GraphNodeRecord` objects into JSON‑LD nodes with `@id`, `@type`, `labels`, `path`, `properties`, and `metadata` -> encodes GraphRAG paths and runtime events.
 
 Key behaviors:
 
@@ -109,16 +110,58 @@ Key behaviors:
   - `source` (graph ID), `timestamp`, `codebaseId`, `codebasePath`, and `codebaseArea`.
 - Propagates traversal edges and runtime event relationships into JSON‑LD context and `metadata.layers`.
 
+### Module: `knowgrph_parser.markdown_cmd`
+
+**From Markdown files to Knowledge Graph JSON‑LD + configs**: Module -> scans directory for markdown files -> parses each into a graph -> unifies entities across documents -> generates schema and orchestrator configs.
+
+**Configuration Schema (core arguments)**:
+
+```yaml
+input:
+  scope: command_line
+  type: path (file or directory)
+  mutability: runtime_configurable
+  default: required
+  validation: must exist
+  impact: source content for the knowledge graph
+
+output_dir:
+  scope: command_line
+  type: path
+  mutability: runtime_configurable
+  default: data/<stem>_<timestamp>
+  impact: destination for JSON-LD and YAML artifacts
+```
+
+**Interface Pattern**:
+`main` -> `_list_markdown_files` -> `parse_markdown_to_graph_jsonld` (loop) -> `_unify_entities_across_docs` (DocumentUnifier) -> `build_schema_config_jsonld` -> writes artifacts -> O(docs * tokens).
+
+### Module: `knowgrph_parser.markdown_graph`
+
+**From single Markdown file to Graph JSON‑LD document**: Module -> parses blocks -> tokenizes text -> extracts entities and edges -> builds connected graph.
+
+**Key behaviors**:
+
+- **TokenLinker Layer**: `_tokenize_with_offsets` + `_merge_tokens_to_spans` (L154–196) identify entities based on phrase boundaries and capitalization.
+- **EdgeElevator Layer**: `_extract_sentence_features` + `_token_kind_score` lift co-occurrence into semantic edges with temporal/modal attributes.
+- **Auto-tuning**: Dynamically adjusts `phrase_boundary_threshold` based on sentence statistics.
+
+**Interface Pattern**:
+`parse_markdown_to_graph_jsonld(file_path, ...)` -> `_parse_frontmatter` -> `parse_blocks` -> `_merge_tokens_to_spans` -> `_extract_sentence_features` -> returns dict with `@graph` and `metadata`.
+
 ---
 
 ## Component Responsibility Matrix
 
 | Layer      | Path                                             | Component                | Interface/Method                 | Responsibility (S‑V‑O)                                                          | Dependencies                         | Contracts                                      | LOC    |
 |-----------|--------------------------------------------------|--------------------------|----------------------------------|-------------------------------------------------------------------------------|--------------------------------------|-----------------------------------------------|--------|
-| Indexing  | `knowgrph_parser/codebase_index_cmd.py`          | —                        | `main`                          | CodebaseIndexCli loads workflow graph and config → emits index JSON‑LD file | `argparse`, `json`, `.codebase_index_jsonld` | JSON‑LD index, orchestrator config linkage    | ~31–105 |
+| Indexing  | `knowgrph_parser/codebase_index_cmd.py`          | —                        | `main`                          | CodebaseIndexCli loads workflow graph and config -> emits index JSON‑LD file | `argparse`, `json`, `.codebase_index_jsonld` | JSON‑LD index, orchestrator config linkage    | ~31–105 |
 | Indexing  | `knowgrph_parser/codebase_index_jsonld.py`       | —                        | `build_jsonld`                  | JsonLdBuilder converts workflow nodes/edges into AgenticRAG index JSON‑LD    | `.codebase_index_artifacts`, `.runtime_events` | JSON‑LD `@context`, `@graph`, `metadata`      | ~17–271 |
 | Indexing  | `knowgrph_parser/python_codebase_index_cmd.py`   | —                        | `main`                          | PythonIndexCli walks codebase and writes JSON‑LD, schema, orchestrator files | `.python_codebase_index_document`, `.python_codebase_index_graph` | Codebase index JSON‑LD + configs | ~22–112 |
 | Indexing  | `knowgrph_parser/python_codebase_index_document.py` | —                     | `build_jsonld_document`         | PythonJsonLdBuilder maps GraphNodeRecord objects into AgenticRAG JSON‑LD     | `.runtime_events`, `.codebase_index_artifacts` | JSON‑LD `@context`, `@graph`, `metadata.layers` | ~118–227 |
+| Semantic  | `knowgrph_parser/markdown_cmd.py`                | DocumentUnifier          | `_unify_entities_across_docs`   | Unifier merges entities across docs -> resolves canonical IDs (L102–165)      | `.markdown_graph`, `.schema_config`  | JSON‑LD `@graph`, canonical entity IDs         | ~200+  |
+| Semantic  | `knowgrph_parser/markdown_graph.py`              | TokenLinker              | `_merge_tokens_to_spans`        | TokenLinker merges tokens to spans -> identifies entities (L154–196)          | `re`, `.markdown_blocks`             | Token spans, confidence scores                 | ~900+  |
+| Semantic  | `knowgrph_parser/markdown_graph.py`              | EdgeElevator             | `_extract_sentence_features`    | EdgeElevator extracts sentence features -> enriches edges (L218–236)          | `re`                                 | Edge attributes (temporal, modal)              | ~900+  |
 
 ---
 
@@ -136,7 +179,7 @@ Key behaviors:
 
 - JSON‑LD graph:
   - Must expose `@context`, `@graph`, and `metadata` fields.
-  - Node IDs are `kg:<localId>` or `kg:<normalizedPath>`.
+  - Node IDs use the `KG_PREFIX` (e.g., `kg:<localId>` or `kg:<normalizedPath>`) defined in `knowgrph_parser/common.py`.
 - Orchestrator config:
   - Must include `graph.codebase_root`, `graph.index_jsonld`, `graph.index_schema`.
   - AgenticRAG section defines `runtime_events` and `graph_rag_paths` for `python_codebase_index_document`.
@@ -158,6 +201,8 @@ knowgrph/
 ├── knowgrph_parser/
 │   ├── codebase_index_cmd.py
 │   ├── codebase_index_jsonld.py
+│   ├── markdown_cmd.py
+│   ├── markdown_graph.py
 │   ├── python_codebase_index_cmd.py
 │   ├── python_codebase_index_document.py
 │   ├── python_codebase_index_graph.py
@@ -198,7 +243,7 @@ knowgrph/
 - Unit‑like:
   - Functions such as `build_jsonld` and `build_jsonld_document` can be exercised via small synthetic graphs.
 - Integration:
-  - Full pipeline from orchestrator config → codebase index JSON‑LD → canvas traversal.
+  - Full pipeline from orchestrator config -> codebase index JSON‑LD -> canvas traversal.
 
 **Quality Gates**
 

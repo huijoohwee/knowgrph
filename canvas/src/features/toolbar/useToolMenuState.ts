@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
-import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/workflowJsonLdActions'
+import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions'
 
 type ToolMenuDragPosition = {
   top: number

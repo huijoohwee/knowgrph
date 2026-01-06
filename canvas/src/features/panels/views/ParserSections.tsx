@@ -5,7 +5,7 @@ import { ORCHESTRATOR_AGENTIC_COPY, PARSER_STEP_COPY, PIPELINE_STAGE_COPY } from
 import { noParserMatchMessage, firstWarningText } from '@/features/parsers/uiUtils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { validateGraphDataWithSchema } from '@/lib/graph/validation'
-import { getJsonLdGraphMappingSummary, getAgenticRagContextComparison } from '@/lib/graph/jsonld'
+import { getJsonLdGraphMappingSummary, getAgenticRagContextComparison } from '@/lib/graph/jsonld/index'
 import type { GraphData, JSONValue, JsonLdGraphMappingConfig } from '@/lib/graph/types'
 import type { ParserSelectionSectionProps, ParserDataSectionProps } from '@/features/panels/views/ParserSectionsModel'
 import {

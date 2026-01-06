@@ -12,6 +12,16 @@ DEFAULT_AGENTIC_RAG_CONTEXT_URL = os.getenv(
 )
 DEFAULT_TERM_IRI_BASE = os.getenv("KG_TERM_IRI_BASE", "https://huijoohwee.github.io/knowgrph#")
 
+KG_PREFIX = "kg:"
+KG_CLASS_PREFIX = "kg:class:"
+KG_PROP_PREFIX = "kg:prop:"
+KG_NODE_TYPE_CLASS = "kg:NodeType"
+KG_EDGE_LABEL_CLASS = "kg:EdgeLabel"
+KG_PROPERTY_CLASS = "kg:Property"
+KG_SUBJECT = "kg:subject"
+KG_PREDICATE = "kg:predicate"
+KG_OBJECT = "kg:object"
+
 
 def read_text(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:

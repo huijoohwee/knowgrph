@@ -1,7 +1,7 @@
 import {
   buildAgenticRagIgnoreFiltersFromRawPatterns,
   type AgenticRagIgnoreFiltersSummary,
-} from '@/lib/graph/jsonld'
+} from '@/lib/graph/jsonld/index'
 import type { GraphRagWorkflowJsonLd } from '@/features/panels/utils/graphragConfig'
 
 export const computeInvalidIgnorePrefixes = (ignoreFilters: AgenticRagIgnoreFiltersSummary | null): string[] => {

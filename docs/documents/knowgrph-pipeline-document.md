@@ -1,10 +1,10 @@
-﻿# Knowgrph Markdown → Graph → Canvas Pipeline
+# Knowgrph Markdown -> Graph -> Canvas Pipeline
 
 ## Architecture Overview
 
-**Layer Flow**: Detection → Schema Inference → Ingestion → Parsing → Orchestration → Rendering → Agentic RAG  
+**Layer Flow**: Detection -> Schema Inference -> Ingestion -> Parsing -> Orchestration -> Rendering -> Agentic RAG  
 
-**Data Structures**: Markdown documents → JSON‑LD graph (nodes + edges) → Schema JSON‑LD → Orchestrator YAML → Canvas GraphData and GraphRAG workflow JSON‑LD.
+**Data Structures**: Markdown documents -> JSON‑LD graph (nodes + edges) -> Schema JSON‑LD -> Orchestrator YAML -> Canvas GraphData and GraphRAG workflow JSON‑LD.
 
 ### End‑to‑End Path (Concrete)
 
@@ -12,27 +12,29 @@
   - CLI: `python -m knowgrph_parser markdown` (see `knowgrph_parser/markdown_cmd.py`).
   - Dev server: Vite plugin calling the same CLI via `CODEBASE_INDEX_PIPELINE_COMMAND` (see `canvas/vite.config.ts` and `canvas/src/lib/config-copy/tooltips.ts`).
 - Parsing:
-  - Structural and semantic parsing in `knowgrph_parser/markdown_graph.py` → JSON‑LD graph with `Document`, `Section`, `Paragraph`, `CodeBlock`, `List`, `ListItem`, `Table`, `Entity`, `Mention`, and `Edge` nodes.
+  - Structural and semantic parsing in `knowgrph_parser/markdown_graph.py` -> JSON‑LD graph with `Document`, `Section`, `Paragraph`, `CodeBlock`, `List`, `ListItem`, `Table`, `Entity`, `Mention`, and `Edge` nodes.
 - Schema Inference:
   - `knowgrph_parser/schema_config.py` infers node/edge types and properties from the graph and emits schema JSON‑LD.
 - Orchestration:
   - `knowgrph_parser/orchestrator_yaml.py` builds an orchestrator YAML file embedding AgenticRAG schema metadata and a starter `graph_rag_paths` entry.
 - Rendering:
   - `canvas/src/features/panels/hooks/workflowJsonLdActions.ts` loads graph, schema, and orchestrator artifacts into the canvas via `runMarkdownPipelineAndLoadArtifacts`.
+  - `canvas/src/lib/graph/jsonld` provides centralized JSON-LD processing utilities, including context comparison and ignore filter management, ensuring alignment with the backend parser.
 - Agentic RAG:
   - Canvas Orchestrator tab treats the orchestrator YAML/GraphRAG workflow JSON‑LD as the Agentic GraphRAG workflow, aligned with `AGENTIC_RAG_SCHEMA_URL` and `AGENTIC_RAG_CONTEXT_URL` from `canvas/src/lib/agenticrag.ts`.
 
 The pipeline adheres to `/schema/AgenticRAG` by:
 
 - Using `DEFAULT_AGENTIC_RAG_SCHEMA_URL` and `DEFAULT_AGENTIC_RAG_CONTEXT_URL` in `knowgrph_parser/common.py`.
+- Using centralized constants (`KG_PREFIX`, `KG_NODE_TYPE_CLASS`, `KG_EDGE_LABEL_CLASS`, etc.) from `knowgrph_parser/common.py` and `canvas/src/lib/agenticrag.ts` to ensure strict ID and Type consistency.
 - Emitting JSON‑LD graphs whose `@context` starts with the AgenticRAG context URL.
-- Treating edges as first‑class nodes with `@type: "Edge"`, `source_node`, `target_node`, and `relation` fields plus rich `properties` and `metadata`.
+- Treating edges as first‑class nodes with `@type: "Edge"`, `source`, `target`, and `relation` fields plus rich `properties` and `metadata`.
 
 ## Pipeline Specification
 
 ### Stage: Detection & Ingestion
 
-**From repository markdown to CLI inputs**: Detection → resolves markdown input path and repository root → delivers a list of markdown files to the parser.
+**From repository markdown to CLI inputs**: Detection -> resolves markdown input path and repository root -> delivers a list of markdown files to the parser.
 
 - Implementation:
   - `_list_markdown_files` in `knowgrph_parser/markdown_cmd.py`.
@@ -57,28 +59,54 @@ VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH:
   interval: n/a
 ```
 
-### Stage: Parsing (Structural + Semantic)
+### Stage: Semantic Parsing Layers
 
-**From markdown text to AgenticRAG‑aligned JSON‑LD graph**: Parser → tokenizes, segments, and annotates markdown into structural blocks and semantic entities → delivers JSON‑LD graph with rich provenance for downstream schema and rendering stages.
+The semantic parsing stage is composed of three distinct layers that progressively lift raw text into a connected knowledge graph.
 
-- Structural parsing:
-  - `parse_markdown_text_to_graph_jsonld` and `parse_markdown_to_graph_jsonld` in `knowgrph_parser/markdown_graph.py`.
-  - Nodes:
-    - `Document`, `Section`, `Paragraph`, `CodeBlock`, `List`, `ListItem`, `Table`, `Link`.
-  - Edges:
-    - `hasSection`, `hasBlock`, `hasItem`, `hasMention`, `mentionOf`, `refersTo`, `linksTo`, `next`, `semanticRelation`, `coOccursWith`.
-- Semantic parsing (TokenLinker / EdgeElevator / ThresholdTuner):
-  - Token linking:
-    - `_tokenize_with_offsets`, `_merge_tokens_to_spans`, `_detect_inline_code_spans`.
-    - Produces `Mention` nodes with `properties.confidence` and provenance `metadata.structureType: "Mention"`, `metadata.extractionMethod: "token_linking"`.
-    - Produces `Entity` nodes with `properties.normalizedText` and `properties.entityType`.
-  - Edge elevation:
-    - `_extract_sentence_features` plus inner loop building `semanticRelation` edges with properties:
-      - `confidence`, `sourceSentence`, `temporalMarker`, `modality`, `negation`.
-    - Metadata for semantic edges uses `structureType: "Edge"` and `extractionMethod: "edge_elevation"`.
-  - Threshold tuning:
-    - Computes document profile: `semantic_doc_profile.tokenCount`, `sentenceCount`, `avgSentenceTokens`.
-    - Adapts `max_syntactic_path_length` based on sentence length, controlled by:
+#### Layer 1: TokenLinker (Entity Extraction)
+**From text to Mention/Entity nodes**: TokenLinker scans text blocks to identify potential entities and link them to `Mention` nodes.
+
+- **Code Path**: `knowgrph_parser/token_linker.py`
+  - `_tokenize_with_offsets` (L126–137): Splits text into tokens with character offsets.
+  - `_merge_tokens_to_spans` (L154–196): Merges tokens into entity spans using `phrase_boundary_threshold`.
+  - `_detect_inline_code_spans` (L199–215): Extracts inline code as high-confidence entities.
+- **Behavior**:
+  - Dynamically tunes `phrase_boundary_threshold` if `auto_tune_enabled` is true (L631–637).
+  - Creates `Mention` nodes (L692) and `Entity` nodes (L679) with `metadata.extractionMethod: "token_linking"`.
+
+#### Layer 2: EdgeElevator (Relationship Extraction)
+**From sentences to Semantic Edges**: EdgeElevator analyzes sentence structure to infer relationships between co-occurring entities.
+
+- **Code Path**: `knowgrph_parser/edge_elevator.py`
+  - `_extract_sentence_features` (L218–236): Detects temporal markers ("before", "after"), modality ("should", "must"), and negation.
+  - **Semantic Loop** (L727–790):
+    - Splits blocks into sentences.
+    - Identifies entities co-occurring within `max_syntactic_path_length`.
+    - Calculates confidence score based on sentence features and proximity.
+    - Emits `semanticRelation` edges with `properties.temporalMarker`, `properties.modality`, etc.
+- **Pattern Mining**:
+  - **Co-occurrence Loop** (L793–818): Identifies global co-occurrence patterns across the document set to emit `coOccursWith` edges.
+
+#### Layer 3: DocumentUnifier (Cross-Document Merging)
+**From isolated graphs to Unified Knowledge Graph**: DocumentUnifier merges entity nodes across file boundaries using canonical IDs.
+
+- **Code Path**: `knowgrph_parser/markdown_cmd.py`
+  - `_canonical_entity_id` (L43–46): Generates deterministic IDs `ent:global:<hash>` from `entityType` and `normalizedText`.
+  - `_unify_entities_across_docs` (L102–165):
+    - Iterates over all document graphs.
+    - Remaps local entity IDs to canonical global IDs using `id_aliases`.
+    - Merges properties and appends `metadata.aliases`.
+    - Calls `_remap_edge_endpoints` (L57–69) to rewire edges to the unified entities.
+
+### Stage: Threshold Tuning
+
+**From document profile to dynamic parameters**: ThresholdTuner adapts extraction sensitivity based on document characteristics.
+
+- **Implementation**:
+  - Computes document profile: `semantic_doc_profile.tokenCount`, `sentenceCount`, `avgSentenceTokens` (L618–629).
+  - Adapts `max_syntactic_path_length` based on sentence length (L631–637).
+- **Configuration**:
+  - Controlled by environment variables or frontmatter:
 
 ```yaml
 KG_PHRASE_BOUNDARY_THRESHOLD:
@@ -91,6 +119,17 @@ KG_PHRASE_BOUNDARY_THRESHOLD:
   min: 0.5
   max: 0.95
   interval: 0.05
+
+KG_COREFERENCE_DISTANCE_LIMIT:
+  from: 1
+  to: 10
+  action: sets max sentence distance for pronoun resolution
+  controls: coreference reach
+  affects: entity merging recall
+  default: 5
+  min: 1
+  max: 10
+  interval: 1
 
 KG_MAX_ENTITY_SPAN_TOKENS:
   from: 3
@@ -113,14 +152,36 @@ KG_EDGE_CONFIDENCE_THRESHOLD:
   min: 0.4
   max: 0.9
   interval: 0.05
+
+KG_TEMPORAL_MARKER_BOOST:
+  from: 0.0
+  to: 0.5
+  action: boosts edge confidence for temporal cues
+  controls: temporal sensitivity
+  affects: temporal edge recall
+  default: 0.15
+  min: 0.0
+  max: 0.5
+  interval: 0.05
+
+KG_FEEDBACK_WINDOW_SIZE:
+  from: 1
+  to: 50
+  action: sets document window for adaptive feedback
+  controls: adaptation latency
+  affects: threshold stability
+  default: 10
+  min: 1
+  max: 50
+  interval: 1
 ```
 
 ### Stage: Cross‑Document Unification
 
-**From per‑file graphs to unified entity graph**: DocumentUnifier → merges entities across markdown files via canonical IDs → delivers a merged JSON‑LD graph with cross‑document entity aliases and consistent edge endpoints.
+**From per‑file graphs to unified entity graph**: DocumentUnifier -> merges entities across markdown files via canonical IDs (configurable via `entity_merge_threshold` and `conflict_resolution_strategy`) -> delivers a merged JSON‑LD graph with cross‑document entity aliases and consistent edge endpoints.
 
 - Implementation:
-  - `_unify_entities_across_docs` in `knowgrph_parser/markdown_cmd.py`.
+  - `_unify_entities_across_docs` in `knowgrph_parser/markdown_cmd.py` (supports `entity_merge_threshold`, `conflict_resolution_strategy`, `cross_document_inference_depth`).
   - `_canonical_entity_id` ensures stable `ent:global:*` IDs per `(entityType, normalizedText)`.
   - `_remap_edge_endpoints` updates `source_node`/`target_node` and `source`/`target` to the canonical IDs.
 - Provenance:
@@ -129,7 +190,7 @@ KG_EDGE_CONFIDENCE_THRESHOLD:
 
 ### Stage: Schema Inference
 
-**From graph instances to schema JSON‑LD**: SchemaConfig → inspects nodes and edges → delivers a minimal AgenticRAG‑style node/edge/property schema.
+**From graph instances to schema JSON‑LD**: SchemaConfig -> inspects nodes and edges -> delivers a minimal AgenticRAG‑style node/edge/property schema.
 
 - Implementation:
   - `build_schema_config_jsonld` in `knowgrph_parser/schema_config.py`.
@@ -142,7 +203,7 @@ KG_EDGE_CONFIDENCE_THRESHOLD:
 
 ### Stage: Orchestration
 
-**From graph + schema to orchestrator YAML**: OrchestratorConfig → records parser entrypoint, graph paths, and starter traversal paths → delivers YAML suitable for GraphRAG workflows and canvas import.
+**From graph + schema to orchestrator YAML**: OrchestratorConfig -> records parser entrypoint, graph paths, and starter traversal paths -> delivers YAML suitable for GraphRAG workflows and canvas import.
 
 - Implementation:
   - `build_orchestrator_config_yaml` in `knowgrph_parser/orchestrator_yaml.py`.
@@ -158,7 +219,7 @@ KG_EDGE_CONFIDENCE_THRESHOLD:
 
 ### Stage: Rendering & Agentic RAG (Canvas)
 
-**From markdown artifacts to interactive GraphData + workflow JSON‑LD**: Canvas → triggers the markdown pipeline, loads artifacts into GraphData, schema, and Orchestrator tabs → delivers an AgenticRAG‑aligned canvas session.
+**From markdown artifacts to interactive GraphData + workflow JSON‑LD**: Canvas -> triggers the markdown pipeline, loads artifacts into GraphData, schema, and Orchestrator tabs -> delivers an AgenticRAG‑aligned canvas session.
 
 - Implementation:
   - Pipeline hook:
@@ -183,8 +244,10 @@ KG_EDGE_CONFIDENCE_THRESHOLD:
 | Pipeline Stage      | Modules                                           | Classes/Objects | Functions/Methods                        | Responsibility (S‑V‑O)                                                                                 | Dependencies / Imports                    | Data Artifacts / Outputs                                  | Line Range |
 |---------------------|---------------------------------------------------|-----------------|------------------------------------------|--------------------------------------------------------------------------------------------------------|-------------------------------------------|-----------------------------------------------------------|-----------|
 | Detection/Ingestion | `knowgrph_parser/markdown_cmd.py`                | —               | `_list_markdown_files`                  | MarkdownIngestion enumerates markdown files under input path                                          | `os`                                      | List of markdown file paths                               | 22–33     |
-| Parsing             | `knowgrph_parser/markdown_graph.py`              | —               | `parse_markdown_text_to_graph_jsonld`   | MarkdownParser converts markdown text into AgenticRAG‑aligned JSON‑LD nodes and edges                 | `.markdown_blocks`, `.common`             | JSON‑LD graph with `@context`, `@graph`, `metadata`       | 239–902   |
-| Cross‑Doc Unify     | `knowgrph_parser/markdown_cmd.py`                | —               | `_unify_entities_across_docs`           | EntityUnifier merges entities and remaps edge endpoints across multiple markdown documents            | `.common`                                 | Unified JSON‑LD graph document                            | 102–165   |
+| Structural Parsing  | `knowgrph_parser/markdown_graph.py`              | —               | `parse_markdown_text_to_graph_jsonld`   | MarkdownParser converts markdown text into AgenticRAG‑aligned JSON‑LD nodes and edges                 | `.markdown_blocks`, `.common`             | JSON‑LD graph with `@context`, `@graph`, `metadata`       | 239–902   |
+| TokenLinker Layer   | `knowgrph_parser/markdown_graph.py`              | —               | `_merge_tokens_to_spans`                | TokenLinker groups tokens into entity spans based on coherence thresholds                             | `_tokenize_with_offsets`                  | Mention/Entity nodes                                      | 154–196   |
+| EdgeElevator Layer  | `knowgrph_parser/markdown_graph.py`              | —               | `_extract_sentence_features`            | EdgeElevator infers semantic relationships from sentence structure and co-occurrence                  | `re`                                      | Semantic Edges (semanticRelation)                         | 218–236   |
+| DocumentUnifier     | `knowgrph_parser/markdown_cmd.py`                | —               | `_unify_entities_across_docs`           | DocumentUnifier merges entities and rewires edges across multiple source documents                    | `.common`                                 | Unified JSON‑LD graph document                            | 102–165   |
 | Schema Inference    | `knowgrph_parser/schema_config.py`               | —               | `build_schema_config_jsonld`            | SchemaInferer derives node, edge, and property schema from instance graph                             | `.common`                                 | Schema JSON‑LD document                                   | 12–114    |
 | Orchestration       | `knowgrph_parser/orchestrator_yaml.py`           | —               | `build_orchestrator_config_yaml`        | OrchestratorBuilder writes AgenticRAG‑aware orchestrator YAML referencing graph and schema artifacts  | `.common`                                 | Orchestrator YAML                                         | 7–50      |
 | Rendering           | `canvas/src/features/panels/hooks/workflowJsonLdActions.ts` | —     | `runMarkdownPipelineAndLoadArtifacts`   | CanvasLoader runs markdown pipeline and loads graph, schema, and orchestrator into GraphData and UI   | `useGraphStore`, `loadGraphDataFromTextViaParser` | In‑memory GraphData, schema, GraphRAG workflow JSON‑LD    | 430–507   |

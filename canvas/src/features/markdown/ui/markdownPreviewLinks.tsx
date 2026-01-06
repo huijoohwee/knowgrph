@@ -1,5 +1,5 @@
 import React from 'react'
-import { buildFsUrlForRelPath } from '@/features/panels/hooks/workflowJsonLdActions'
+import { buildFsUrlForRelPath } from '@/features/panels/hooks/markdownPipelineActions'
 
 const normalizeRelPath = (raw: string): string => {
   const input = String(raw || '').replace(/\\/g, '/')

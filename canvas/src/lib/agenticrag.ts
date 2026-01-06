@@ -27,3 +27,13 @@ export const AGENTIC_RAG_GRAPH_RAG_PATH_IRI = 'https://huijoohwee.github.io/sche
 export const AGENTIC_RAG_NODE_TYPE_IRI = 'kg:Node'
 
 export const AGENTIC_RAG_EDGE_TYPE_IRI = 'kg:Edge'
+
+export const KG_PREFIX = 'kg:'
+export const KG_CLASS_PREFIX = 'kg:class:'
+export const KG_PROP_PREFIX = 'kg:prop:'
+export const KG_NODE_TYPE_CLASS = 'kg:NodeType'
+export const KG_EDGE_LABEL_CLASS = 'kg:EdgeLabel'
+export const KG_PROPERTY_CLASS = 'kg:Property'
+export const KG_SUBJECT = 'kg:subject'
+export const KG_PREDICATE = 'kg:predicate'
+export const KG_OBJECT = 'kg:object'

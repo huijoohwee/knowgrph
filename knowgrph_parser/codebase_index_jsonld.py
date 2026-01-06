@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from .common import (
     DEFAULT_AGENTIC_RAG_SCHEMA_URL,
     DEFAULT_TERM_IRI_BASE,
+    KG_PREFIX,
 )
 from .codebase_index_artifacts import normalize_rel_path
 from .codebase_index_config import should_ignore_path
@@ -46,7 +47,7 @@ def build_jsonld(
         raw_name = raw_data.get("name") or original_node_id
         name = str(raw_name)
         node_obj: Dict[str, Any] = {
-            "@id": f"kg:{original_node_id}",
+            "@id": f"{KG_PREFIX}{original_node_id}",
             "@type": node_type,
             "name": name,
         }
@@ -60,7 +61,7 @@ def build_jsonld(
             node_id = node_obj["path"]
         if node_id != original_node_id:
             id_aliases[original_node_id] = node_id
-            node_obj["@id"] = f"kg:{node_id}"
+            node_obj["@id"] = f"{KG_PREFIX}{node_id}"
         owner_value = raw_data.get("owner")
         if isinstance(owner_value, str) and owner_value:
             node_obj["owner"] = owner_value

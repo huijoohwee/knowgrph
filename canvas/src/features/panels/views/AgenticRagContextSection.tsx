@@ -12,7 +12,7 @@ import {
   getAgenticRagContextComparison,
   getAgenticRagIgnoreFiltersSummary,
   type AgenticRagIgnoreFiltersSummary,
-} from '@/lib/graph/jsonld'
+} from '@/lib/graph/jsonld/index'
 import type { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getPillClass } from '@/lib/ui'

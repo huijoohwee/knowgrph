@@ -4,7 +4,7 @@ import type { GraphData, JsonLdGraphMappingConfig } from '@/lib/graph/types'
 import {
   buildAgenticRagIgnoreFiltersFromRawPatterns,
   getAgenticRagIgnoreFiltersSummary,
-} from '@/lib/graph/jsonld'
+} from '@/lib/graph/jsonld/index'
 
 type RagTraversalRuleRelationConstraint = {
   '@type': 'rag:TraversalRule'

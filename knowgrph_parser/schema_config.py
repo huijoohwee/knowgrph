@@ -3,6 +3,11 @@ from typing import Any, Dict, List
 from .common import (
     DEFAULT_AGENTIC_RAG_SCHEMA_URL,
     DEFAULT_TERM_IRI_BASE,
+    KG_CLASS_PREFIX,
+    KG_EDGE_LABEL_CLASS,
+    KG_NODE_TYPE_CLASS,
+    KG_PROP_PREFIX,
+    KG_PROPERTY_CLASS,
     infer_json_type,
     merge_prop_types,
     slugify,
@@ -30,7 +35,7 @@ def build_schema_config_jsonld(
         if not isinstance(item, dict):
             continue
         if str(item.get("@type") or "") == "knowgrph:Edge" or (
-            "source_node" in item and "target_node" in item and "relation" in item
+            (("source" in item and "target" in item) or ("source_node" in item and "target_node" in item)) and "relation" in item
         ):
             lbl = str(item.get("relation") or "").strip()
             if lbl and lbl not in seen_edge_labels:
@@ -69,16 +74,16 @@ def build_schema_config_jsonld(
 
     graph_out: List[Dict[str, Any]] = []
     for nt in node_types:
-        graph_out.append({"@id": f"kg:class:{slugify(nt)}", "@type": "kg:NodeType", "name": nt})
+        graph_out.append({"@id": f"{KG_CLASS_PREFIX}{slugify(nt)}", "@type": KG_NODE_TYPE_CLASS, "name": nt})
     for el in edge_labels:
-        graph_out.append({"@id": f"kg:prop:{slugify(el)}", "@type": "kg:EdgeLabel", "name": el})
+        graph_out.append({"@id": f"{KG_PROP_PREFIX}{slugify(el)}", "@type": KG_EDGE_LABEL_CLASS, "name": el})
 
     for owner, props in prop_types_by_owner.items():
         for key, rng in sorted(props.items(), key=lambda kv: kv[0]):
             graph_out.append(
                 {
-                    "@id": f"kg:prop:{slugify(owner)}:{slugify(key)}",
-                    "@type": "kg:Property",
+                    "@id": f"{KG_PROP_PREFIX}{slugify(owner)}:{slugify(key)}",
+                    "@type": KG_PROPERTY_CLASS,
                     "name": key,
                     "owner": owner,
                     "range": rng,
@@ -89,8 +94,8 @@ def build_schema_config_jsonld(
         for key, rng in sorted(props.items(), key=lambda kv: kv[0]):
             graph_out.append(
                 {
-                    "@id": f"kg:prop:{slugify(owner)}:{slugify(key)}",
-                    "@type": "kg:Property",
+                    "@id": f"{KG_PROP_PREFIX}{slugify(owner)}:{slugify(key)}",
+                    "@type": KG_PROPERTY_CLASS,
                     "name": key,
                     "owner": owner,
                     "range": rng,

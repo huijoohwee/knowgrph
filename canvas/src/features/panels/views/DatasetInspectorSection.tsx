@@ -1,5 +1,5 @@
 import React from 'react'
-import type { AgenticRagContextComparison, AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld'
+import type { AgenticRagContextComparison, AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld/index'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'

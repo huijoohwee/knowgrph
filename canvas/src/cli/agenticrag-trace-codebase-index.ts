@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { parseJsonLd, agenticRagNodeFromGraphNode } from '@/lib/graph/jsonld'
+import { parseJsonLd, agenticRagNodeFromGraphNode } from '@/lib/graph/jsonld/index'
 import { findGraphRagTraversalEdgeIds, toParsedTraversePath, isGraphRagPathValue } from '@/lib/graph/graphragTraversal'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 
