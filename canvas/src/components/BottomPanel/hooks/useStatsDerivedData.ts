@@ -34,7 +34,6 @@ export function useStatsDerivedData({
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
-  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
 
   const maxListItems = effectiveLod === 'low' ? 10 : effectiveLod === 'medium' ? 20 : 50
 

@@ -3,6 +3,7 @@ import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 import { ToolbarCuratorArea } from '@/features/toolbar/ToolbarCuratorArea'
 import { ToolbarParserArea } from '@/features/toolbar/ToolbarParserArea'
 import { ToolbarMarkdownArea } from '@/features/toolbar/ToolbarMarkdownArea'
+import { ToolbarHtmlArea } from '@/features/toolbar/ToolbarHtmlArea'
 import { ToolbarSchemaConfigArea } from '@/features/toolbar/ToolbarSchemaConfigArea'
 import { ToolbarGraphFieldsArea } from '@/features/toolbar/ToolbarGraphFieldsArea'
 import { ToolbarOrchestratorArea } from '@/features/toolbar/ToolbarOrchestratorArea'
@@ -31,6 +32,8 @@ export interface ToolbarToolMenuAreasProps {
   setIsParserExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isMarkdownImportMenuOpen: boolean
   setIsMarkdownImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isHtmlImportMenuOpen: boolean
+  setIsHtmlImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isSchemaExportMenuOpen: boolean
   setIsSchemaExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isGraphFieldsExportMenuOpen: boolean
@@ -74,6 +77,7 @@ export interface ToolbarToolMenuAreasProps {
   onOpenWorkflowTab: () => void
   onOpenData: () => void
   onRunPipeline: () => void
+  onRunDemo?: () => void
   searchQuery?: string
 }
 
@@ -110,6 +114,7 @@ export const TOOLBAR_AREA_RENDERERS: Partial<Record<ToolMenuArea, ToolbarAreaRen
     />
   ),
   markdown: (props) => <ToolbarMarkdownArea {...props} />,
+  html: (props) => <ToolbarHtmlArea {...props} />,
   schemaConfig: (props) => (
     <ToolbarSchemaConfigArea
       schemaOpOk={props.schemaOpOk}

@@ -16,7 +16,6 @@ import {
   validateGraphRagWorkflowJsonLdObject,
 } from '@/features/panels/utils/workflowJsonLd';
 import { parseGraphragCliConfigYamlToJsonLd } from '@/features/panels/utils/graphragConfig';
-import { UI_COPY } from '@/lib/config';
 
 export type WorkflowJsonLdDeps = {
   markExported: () => void;

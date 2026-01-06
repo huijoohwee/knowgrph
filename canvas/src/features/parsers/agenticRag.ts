@@ -1,5 +1,5 @@
 import { toParserId, type ParserSpec } from './types'
-import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
+import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { runAgenticPipeline } from '@/features/agentic-rag'
 
 export const AGENTIC_RAG_PARSER_ID = toParserId('agentic-rag-pipeline')
@@ -9,12 +9,15 @@ export const agenticRagParser: ParserSpec = {
   name: 'Agentic RAG Pipeline',
   
   match: (name: string, text: string) => {
+    void name
+    void text
     // Match any markdown file or text that looks like prose
     // We can be more specific if needed, e.g. check for frontmatter
     return true
   },
 
   parse: (name: string, text: string) => {
+    void name
     // Synchronous wrapper (if pipeline was sync, but it is)
     const pipelineResult = runAgenticPipeline(text)
     
@@ -24,7 +27,7 @@ export const agenticRagParser: ParserSpec = {
       type: e.type,
       properties: {
         confidence: e.confidence,
-        provenance: e.provenance as any
+        provenance: e.provenance
       },
       metadata: {
         agenticRag: true
@@ -42,13 +45,17 @@ export const agenticRagParser: ParserSpec = {
       }
     }))
 
+    const pipelineMetrics = Object.fromEntries(
+      Object.entries(pipelineResult.metrics).filter(([, v]) => v !== undefined),
+    ) as Record<string, JSONValue>
+
     const graphData: GraphData = {
       type: 'Graph',
       context: 'https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld',
       nodes,
       edges,
       metadata: {
-        pipelineMetrics: pipelineResult.metrics as any
+        pipelineMetrics
       }
     }
 

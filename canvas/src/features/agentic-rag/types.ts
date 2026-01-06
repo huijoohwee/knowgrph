@@ -25,6 +25,8 @@ export const DEFAULT_AGENTIC_RAG_CONFIG: AgenticRagConfig = {
 export interface Token {
   text: string
   index: number
+  line?: number
+  col?: number
   pos?: string // Part of speech
   dep?: string // Dependency label
   head?: number // Dependency head index
@@ -42,6 +44,7 @@ export interface EntitySpan {
     lineEnd: number
     sourceText: string
   }
+  properties?: Record<string, unknown>
 }
 
 export interface ExtractedEdge {

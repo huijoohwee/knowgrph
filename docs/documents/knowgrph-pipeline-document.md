@@ -20,8 +20,10 @@
 - Rendering:
   - `canvas/src/features/panels/hooks/workflowJsonLdActions.ts` loads graph, schema, and orchestrator artifacts into the canvas via `runMarkdownPipelineAndLoadArtifacts`.
   - `canvas/src/lib/graph/jsonld` provides centralized JSON-LD processing utilities, including context comparison and ignore filter management, ensuring alignment with the backend parser.
-- Agentic RAG:
-  - Canvas Orchestrator tab treats the orchestrator YAML/GraphRAG workflow JSON‑LD as the Agentic GraphRAG workflow, aligned with `AGENTIC_RAG_SCHEMA_URL` and `AGENTIC_RAG_CONTEXT_URL` from `canvas/src/lib/agenticrag.ts`.
+- Agentic RAG (Client-Side & Server-Side):
+  - **Server-Side**: `knowgrph_parser` generates static graph/schema artifacts.
+  - **Client-Side**: `canvas/src/features/agentic-rag` implements a full dynamic pipeline (TokenLinker, EdgeElevator, ThresholdTuner, FeedbackOrchestrator, CorpusReasoner) to process text/markdown on-the-fly within the browser, mirroring and extending the backend logic with real-time feedback loops.
+  - Canvas Orchestrator tab integrates both static artifacts and dynamic pipeline results.
 
 The pipeline adheres to `/schema/AgenticRAG` by:
 
@@ -43,6 +45,35 @@ The pipeline adheres to `/schema/AgenticRAG` by:
   - Accept `--input` as either a single markdown file or a directory tree.
   - Resolve repository root via `find_repo_root` so `metadata.codebaseRoot` and `metadata.documentPath` stay stable across machines.
   - Drive the CLI from the canvas via `CODEBASE_INDEX_PIPELINE_COMMAND`.
+
+### Stage: Client-Side HTML Ingestion
+
+**From HTML content to Markdown & Graph**: The HTML ingestion pipeline allows users to import HTML (local file or URL) directly into the canvas.
+
+- **Entry Point**: `ToolbarHtmlArea.tsx` triggers actions handled by `htmlImportAction.ts` (via `useToolbarMenuAction.ts`).
+- **Process**:
+  1.  **Fetch**: Retrieves HTML content from URL or local file via `htmlImportAction.ts`.
+      -   For remote URLs, HTML is fetched via a same-origin proxy endpoint (`/__fetch_remote?url=...`) provided by the Vite server (`canvas/vite.config.ts`).
+      -   **Proxy Robustness**: The proxy middleware uses global request interception (ignoring path stripping issues) and injects browser-like headers (`User-Agent`, `Sec-Fetch-*`, `Upgrade-Insecure-Requests`) to mimic real browser navigation, ensuring compatibility with stubborn sites (e.g., World Bank, Google Skills).
+  2.  **Parse**: `parseHtmlToMarkdown` in `src/features/parsers/html-parser.ts` converts HTML to Markdown.
+      -   Handles block elements (headers, lists, `main`, `article`, `section`, `nav`, `aside`, etc.).
+      - **Advanced Structures**: Supports `table` (basic text conversion), `pre`/`code` (code blocks), `img` (image links), and `blockquote`.
+      - **Media**: Preserves `<video>`/`<iframe>` blocks as safe HTML so the Markdown Viewer can render rich media.
+      - **Feeds**: Detects RSS/Atom/XML responses and converts feed items/entries into Markdown sections with links.
+      - **Test Site Compatibility**: optimized for complex documentation sites (e.g., AIAP Field Guide, CommonMark Spec) via robust parsing of nested structures and enhanced fetch headers (anti-bot bypass).
+      - **Collapsed Sections**: Preserves `<details>`/`<summary>` tags in Markdown to allow the Markdown Viewer to render interactive collapsible sections.
+      -   **SPA Limitations & Guards**: If the site is a JavaScript-only Single Page Application (SPA) where the initial HTML is empty, the parser will return an empty result.
+      -   **Fallback Guard**: explicitly detects and rejects local Vite SPA fallback (serving `index.html` for 404s) to prevent importing the local application shell instead of the target content.
+      -   **Viewer Guard**: the BottomPanel Markdown loader rejects Vite dev app-shell HTML so it never renders as imported “webpage content”.
+  3.  **Extract**: `extractJsonLd` extracts embedded JSON-LD structured data.
+  4.  **Ingest**:
+      -   Markdown content is loaded via `loadGraphDataFromTextViaParser`.
+      -   Extracted JSON-LD is appended as a code block (or processed) to preserve structured data.
+      -   The resulting graph is rendered immediately (opens Curation with the imported graph).
+- **Responsibility**:
+  -   Provides a "no-code" entry point for web content (e.g., AIAP Field Guide).
+  -   Bypasses the backend CLI for ad-hoc exploration.
+  -   Ensures link rendering is reliable in the Markdown Viewer (standard Markdown links and plain `http(s)` URLs are clickable).
 
 **Configuration Schema (subset)**:
 
@@ -239,6 +270,28 @@ KG_FEEDBACK_WINDOW_SIZE:
     - Orchestrator YAML / GraphRAG workflow via `importGraphRagWorkflowFromText`.
   - Opens Data, Schema, and Orchestrator bottom panel tabs to complete the end‑to‑end journey.
 
+### Stage: Client-Side Agentic RAG
+
+**From raw text to Interactive Knowledge Graph (In-Browser)**: The TypeScript implementation in `canvas/src/features/agentic-rag` provides a mirror of the backend pipeline with enhanced interactivity.
+
+- **TokenLinker (`TokenLinker.ts`)**:
+  - Implements SVO-aware tokenization and phrase boundary detection.
+  - Tracks full provenance (line, column) for bidirectional source linking.
+- **EdgeElevator (`EdgeElevator.ts`)**:
+  - Extracts temporal, modality, and negation properties.
+  - Infers semantic edges with confidence scoring.
+- **ThresholdTuner (`ThresholdTuner.ts`)**:
+  - Dynamically adjusts thresholds based on syntactic complexity (avg sentence length).
+- **DocumentUnifier (`DocumentUnifier.ts`)**:
+  - Merges entities across results using highest-confidence resolution and provenance aggregation.
+- **FeedbackOrchestrator (`FeedbackOrchestrator.ts`)**:
+  - **New**: Implements real-time feedback loops.
+  - Aggregates metrics (density, confidence) and adjusts `AgenticRagConfig` for subsequent passes (Adaptive Thresholds).
+- **CorpusReasoner (`CorpusReasoner.ts`)**:
+  - **New**: Computes PageRank centrality and mines frequent patterns/emergent edges across the unified graph.
+- **AgenticQueryEngine (`AgenticQueryEngine.ts`)**:
+  - **New**: Provides intent classification and entity-focused graph traversal for natural language querying.
+
 ## Responsibility Flow Table (Key Entries)
 
 | Pipeline Stage      | Modules                                           | Classes/Objects | Functions/Methods                        | Responsibility (S‑V‑O)                                                                                 | Dependencies / Imports                    | Data Artifacts / Outputs                                  | Line Range |
@@ -251,6 +304,9 @@ KG_FEEDBACK_WINDOW_SIZE:
 | Schema Inference    | `knowgrph_parser/schema_config.py`               | —               | `build_schema_config_jsonld`            | SchemaInferer derives node, edge, and property schema from instance graph                             | `.common`                                 | Schema JSON‑LD document                                   | 12–114    |
 | Orchestration       | `knowgrph_parser/orchestrator_yaml.py`           | —               | `build_orchestrator_config_yaml`        | OrchestratorBuilder writes AgenticRAG‑aware orchestrator YAML referencing graph and schema artifacts  | `.common`                                 | Orchestrator YAML                                         | 7–50      |
 | Rendering           | `canvas/src/features/panels/hooks/workflowJsonLdActions.ts` | —     | `runMarkdownPipelineAndLoadArtifacts`   | CanvasLoader runs markdown pipeline and loads graph, schema, and orchestrator into GraphData and UI   | `useGraphStore`, `loadGraphDataFromTextViaParser` | In‑memory GraphData, schema, GraphRAG workflow JSON‑LD    | 430–507   |
+| Client Pipeline     | `canvas/src/features/agentic-rag/index.ts`       | AgenticRagPipeline | `run`                                    | PipelineOrchestrator executes full client-side RAG pipeline (Link->Elevate->Unify->Reason)           | All `agentic-rag/*` components            | `PipelineResult` (Entities, Edges, Metrics)               | ~50-100   |
+| Client Feedback     | `canvas/src/features/agentic-rag/FeedbackOrchestrator.ts` | FeedbackOrchestrator | `process`                 | FeedbackLoop adjusts configuration based on extraction metrics                                        | `AgenticRagConfig`                        | Updated `AgenticRagConfig`                                | ~30-60    |
+| Client Query        | `canvas/src/features/agentic-rag/AgenticQueryEngine.ts` | AgenticQueryEngine | `query`                       | QueryEngine answers NL queries by traversing the client-side graph                                    | `PipelineResult`                          | String Answer                                             | ~50-100   |
 | Dev Integration     | `canvas/vite.config.ts`                          | —               | `runMarkdownPipelineOnce`               | DevServerRunner spawns markdown CLI once per request to refresh pipeline artifacts during development | `child_process.spawn`, `CODEBASE_INDEX_PIPELINE_COMMAND` | Updated files under `data/knowgrph-workflow-preview`      | 13–33     |
 
 ## Provenance Standards
@@ -303,3 +359,11 @@ KG_FEEDBACK_WINDOW_SIZE:
   - Canvas can point to any markdown workflow document via `VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH`.
 - Multi‑domain robustness:
   - Parser is document‑ and codebase‑agnostic and has been structured to support multiple repositories and markdown styles through configuration.
+
+## Frontend Maintainability Standards
+
+To ensure long-term codebase health and prevent regression:
+
+- **Centralized UI Copy**: All user-facing strings are centralized in `canvas/src/lib/config-copy/uiCopy.ts` to prevent hardcoding and facilitate consistent terminology (e.g., "Enter HTML URL", table aggregation labels).
+- **Component Stability**: Strict key uniqueness enforcement (e.g., in `GraphDataTable`) prevents React rendering warnings and ensures DOM stability during updates.
+- **Codebase Neutrality**: Domain-specific logic is configuration-driven; components remain agnostic to specific datasets.

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Database, Download, Eraser, PlayCircle, Plus, Upload } from 'lucide-react'
+import { Database, Download, Eraser, MonitorPlay, PlayCircle, Plus, Upload } from 'lucide-react'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { TOOL_MENU_ACTION_LABELS, TOOL_MENU_AREAS } from '@/features/toolbar/toolMenu'
 import { TOOLBAR_AREA_RENDERERS, type ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
@@ -12,6 +12,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
     setIsCuratorExportMenuOpen,
     setIsParserExportMenuOpen,
     setIsMarkdownImportMenuOpen,
+    setIsHtmlImportMenuOpen,
     setIsSchemaExportMenuOpen,
     setIsGraphFieldsExportMenuOpen,
     setIsSettingsExportMenuOpen,
@@ -20,6 +21,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
     onToolMenuAction,
     onOpenData,
     onRunPipeline,
+    onRunDemo,
     searchQuery,
   } = props
   const uiIconScale = useGraphStore(s => s.uiIconScale)
@@ -57,6 +59,16 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
           <PlayCircle className={iconSizeClass} aria-hidden="true" />
           <span>Run pipeline</span>
         </button>
+        {onRunDemo && (
+          <button
+            type="button"
+            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 inline-flex items-center gap-1`}
+            onClick={onRunDemo}
+          >
+            <MonitorPlay className={iconSizeClass} aria-hidden="true" />
+            <span>Demo</span>
+          </button>
+        )}
       </div>
       {visibleAreas.map(area => (
         <div
@@ -84,41 +96,56 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                 const handleClick =
                   area.key === 'curator' && action === 'export'
                     ? () => {
-                      setIsMarkdownImportMenuOpen(false)
-                      setIsCuratorExportMenuOpen(v => !v)
-                    }
+                        setIsMarkdownImportMenuOpen(false)
+                        setIsHtmlImportMenuOpen(false)
+                        setIsCuratorExportMenuOpen(v => !v)
+                      }
                     : area.key === 'parser' && action === 'export'
                       ? () => {
                         setIsMarkdownImportMenuOpen(false)
+                        setIsHtmlImportMenuOpen(false)
                         setIsParserExportMenuOpen(v => !v)
                       }
-                      : area.key === 'markdown' && action === 'import'
-                        ? () => setIsMarkdownImportMenuOpen(v => !v)
-                      : area.key === 'schemaConfig' && action === 'export'
-                        ? () => {
-                          setIsMarkdownImportMenuOpen(false)
-                          setIsSchemaExportMenuOpen(v => !v)
-                        }
-                        : area.key === 'graphFields' && action === 'export'
-                          ? () => {
-                            setIsMarkdownImportMenuOpen(false)
-                            setIsGraphFieldsExportMenuOpen(v => !v)
-                          }
-                          : area.key === 'settings' && action === 'export'
-                            ? () => {
-                              setIsMarkdownImportMenuOpen(false)
-                              setIsSettingsExportMenuOpen(v => !v)
-                            }
-                            : area.key === 'history' && action === 'export'
-                              ? () => {
-                                setIsMarkdownImportMenuOpen(false)
-                                setIsHistoryExportMenuOpen(v => !v)
-                              }
-                              : area.key === 'validation' && action === 'export'
-                                ? () => {
-                                  setIsMarkdownImportMenuOpen(false)
-                                  setIsValidationExportMenuOpen(v => !v)
-                                }
+                    : area.key === 'markdown' && action === 'import'
+                      ? () => {
+                        setIsHtmlImportMenuOpen(false)
+                        setIsMarkdownImportMenuOpen(v => !v)
+                      }
+                    : area.key === 'html' && action === 'import'
+                      ? () => {
+                        setIsMarkdownImportMenuOpen(false)
+                        setIsHtmlImportMenuOpen(v => !v)
+                      }
+                    : area.key === 'schemaConfig' && action === 'export'
+                      ? () => {
+                        setIsMarkdownImportMenuOpen(false)
+                        setIsHtmlImportMenuOpen(false)
+                        setIsSchemaExportMenuOpen(v => !v)
+                      }
+                    : area.key === 'graphFields' && action === 'export'
+                      ? () => {
+                        setIsMarkdownImportMenuOpen(false)
+                        setIsHtmlImportMenuOpen(false)
+                        setIsGraphFieldsExportMenuOpen(v => !v)
+                      }
+                    : area.key === 'settings' && action === 'export'
+                      ? () => {
+                        setIsMarkdownImportMenuOpen(false)
+                        setIsHtmlImportMenuOpen(false)
+                        setIsSettingsExportMenuOpen(v => !v)
+                      }
+                    : area.key === 'history' && action === 'export'
+                      ? () => {
+                        setIsMarkdownImportMenuOpen(false)
+                        setIsHtmlImportMenuOpen(false)
+                        setIsHistoryExportMenuOpen(v => !v)
+                      }
+                    : area.key === 'validation' && action === 'export'
+                      ? () => {
+                        setIsMarkdownImportMenuOpen(false)
+                        setIsHtmlImportMenuOpen(false)
+                        setIsValidationExportMenuOpen(v => !v)
+                      }
                                 : () => onToolMenuAction(area.key, action)
                 const icon = (() => {
                   if (action === 'new') {

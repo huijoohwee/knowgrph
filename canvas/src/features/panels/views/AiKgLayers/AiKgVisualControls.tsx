@@ -45,7 +45,7 @@ export default function AiKgVisualControls({
               className="w-full h-full"
             >
               <select
-                className="w-full max-w-[180px] px-1 py-0.5 border border-gray-300 rounded text-right"
+                className={['w-full max-w-[180px] text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
                 value={nodeSizingFormula}
                 onChange={e => {
                   const v: 'schema' | 'importance' =
@@ -84,7 +84,7 @@ export default function AiKgVisualControls({
               className="w-full h-full"
             >
               <select
-                className="w-full max-w-[180px] px-1 py-0.5 border border-gray-300 rounded text-right"
+                className={['w-full max-w-[180px] text-right', uiPanelKeyValueInputClass].filter(Boolean).join(' ')}
                 value={edgeWidthFormula}
                 onChange={e => {
                   const v: 'schema' | 'weight' =

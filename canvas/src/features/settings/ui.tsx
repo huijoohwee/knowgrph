@@ -340,7 +340,7 @@ export const renderSettingInput = (
   return (
     <input
       type={type === 'number' ? 'number' : 'text'}
-      value={type === 'number' ? Number(v) : String(v)}
+      value={type === 'number' ? (isNaN(Number(v)) ? '' : Number(v)) : String(v ?? '')}
       onChange={e => {
         const val = type === 'number' ? Number(e.target.value || '0') : e.target.value
         dirtyRef.current.add(key)

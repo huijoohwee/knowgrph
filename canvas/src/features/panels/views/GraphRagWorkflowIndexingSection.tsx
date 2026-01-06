@@ -3,7 +3,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow, RightAlignedTooltipInput, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import type { GraphRagWorkflowJsonLd } from '@/features/panels/utils/graphragConfig'
-import type { AgenticRagContextComparison, AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld/index'
+import type { AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld/index'
 import { AgenticRagIgnoreFiltersSummaryView } from '@/features/panels/views/AgenticRagContextSection'
 import {
   IGNORE_CODEBASE_PATHS_LABEL,

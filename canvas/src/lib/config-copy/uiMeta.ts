@@ -126,3 +126,26 @@ export const SCHEMA_KEYS = {
 } as const;
 
 export const ZERO_TO_ONE_GRAPH_TRAVERSAL_LABEL = 'Zero-to-one graph traversal';
+
+export const HTML_IMPORT_GUARDS = {
+  viteDevIndexMarkers: [
+    '<div id="root"></div>',
+    'src="/src/main.tsx"',
+    'src="/@vite/client"',
+    '"/@react-refresh"',
+  ],
+  viteDevIndexMinMarkerMatches: 2,
+} as const;
+
+export function looksLikeViteDevIndexHtml(htmlText: string): boolean {
+  const text = String(htmlText || '')
+  const markers = HTML_IMPORT_GUARDS.viteDevIndexMarkers || []
+  const threshold = HTML_IMPORT_GUARDS.viteDevIndexMinMarkerMatches || 0
+  if (!text.trim() || markers.length === 0 || threshold <= 0) return false
+  let matches = 0
+  for (const m of markers) {
+    if (m && text.includes(m)) matches += 1
+    if (matches >= threshold) return true
+  }
+  return false
+}

@@ -40,6 +40,8 @@ interface ToolbarToolMenuProps {
   setIsParserExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isMarkdownImportMenuOpen: boolean
   setIsMarkdownImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isHtmlImportMenuOpen: boolean
+  setIsHtmlImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isSchemaExportMenuOpen: boolean
   setIsSchemaExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isGraphFieldsExportMenuOpen: boolean
@@ -82,6 +84,7 @@ interface ToolbarToolMenuProps {
   requestedFloatingPanelViewSeq?: number
   onOpenData: () => void
   onRunPipeline: () => void
+  onRunDemo?: () => void
   onClose: () => void
   onToolMenuAction: (
     area: ToolMenuArea,
@@ -114,6 +117,8 @@ export function ToolbarToolMenu({
   setIsParserExportMenuOpen,
   isMarkdownImportMenuOpen,
   setIsMarkdownImportMenuOpen,
+  isHtmlImportMenuOpen,
+  setIsHtmlImportMenuOpen,
   isSchemaExportMenuOpen,
   setIsSchemaExportMenuOpen,
   isGraphFieldsExportMenuOpen,
@@ -156,6 +161,7 @@ export function ToolbarToolMenu({
   requestedFloatingPanelViewSeq,
   onOpenData,
   onRunPipeline,
+  onRunDemo,
   onClose,
   onToolMenuAction,
   onOpenWorkflowTab,
@@ -414,6 +420,8 @@ export function ToolbarToolMenu({
                 setIsParserExportMenuOpen={setIsParserExportMenuOpen}
                 isMarkdownImportMenuOpen={isMarkdownImportMenuOpen}
                 setIsMarkdownImportMenuOpen={setIsMarkdownImportMenuOpen}
+                isHtmlImportMenuOpen={isHtmlImportMenuOpen}
+                setIsHtmlImportMenuOpen={setIsHtmlImportMenuOpen}
                 isSchemaExportMenuOpen={isSchemaExportMenuOpen}
                 setIsSchemaExportMenuOpen={setIsSchemaExportMenuOpen}
                 isGraphFieldsExportMenuOpen={isGraphFieldsExportMenuOpen}
@@ -453,6 +461,7 @@ export function ToolbarToolMenu({
                 onOpenWorkflowTab={onOpenWorkflowTab}
                 onOpenData={onOpenData}
                 onRunPipeline={onRunPipeline}
+                onRunDemo={onRunDemo}
                 searchQuery={searchOpen ? searchQuery : ''}
               />
             )}

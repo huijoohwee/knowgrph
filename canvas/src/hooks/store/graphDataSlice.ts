@@ -1,4 +1,4 @@
-import { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types';
+import { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types';
 import { validateNodeProperties, validateEdgeProperties, canAddEdge } from '@/features/schema/validation';
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { StoreApi } from 'zustand';
@@ -6,6 +6,8 @@ import type { GraphState } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config'
 import { lsSetJson, lsRemove } from '@/lib/persistence'
 import { computeDerivedFields, parseGraphFieldId } from '@/features/graph-fields/graphFields'
+import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
+import { isJsonValue } from '@/lib/graph/jsonValue'
 import {
   buildDefaultVisibleColumns,
   isGraphDataTablePropertyColumnKey,
@@ -292,6 +294,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   markdownPreviewMermaidFocusCode: null as string | null,
   markdownPreviewMermaidFocusConfig: null as Record<string, unknown> | null,
   markdownPreviewActiveMediaKey: null as string | null,
+  graphRagWorkflowJsonText: null as string | null,
+  lastTraversalSummary: null as TraversalSummary | null,
 
   resyncGraphFieldsFromGraphData: () => {
     const current = get().graphData
@@ -339,6 +343,57 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
 
   setMarkdownDocumentSourceUrl: (url: string | null) => {
     set({ markdownDocumentSourceUrl: url })
+  },
+
+  setGraphRagWorkflowJsonText: (text: string | null) => {
+    const nextText = typeof text === 'string' ? text : null
+    set({ graphRagWorkflowJsonText: nextText })
+    const graphData = get().graphData
+    if (!graphData) return
+
+    const nextMetadata = { ...(graphData.metadata || {}) } as Record<string, JSONValue>
+    const trimmed = typeof nextText === 'string' ? nextText.trim() : ''
+    if (!trimmed) {
+      if ('graphRagWorkflowJsonText' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonText
+      if ('graphRagWorkflowJsonLd' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonLd
+    } else {
+      nextMetadata.graphRagWorkflowJsonText = nextText as unknown as JSONValue
+      try {
+        const parsed = JSON.parse(trimmed) as unknown
+        if (isJsonValue(parsed) && parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const t = (parsed as Record<string, unknown>)['@type']
+          if (t === 'rag:GraphRAGWorkflow' || t === 'GraphRAGWorkflow') {
+            nextMetadata.graphRagWorkflowJsonLd = parsed as JSONValue
+          } else if ('graphRagWorkflowJsonLd' in nextMetadata) {
+            delete nextMetadata.graphRagWorkflowJsonLd
+          }
+        } else if ('graphRagWorkflowJsonLd' in nextMetadata) {
+          delete nextMetadata.graphRagWorkflowJsonLd
+        }
+      } catch {
+        if ('graphRagWorkflowJsonLd' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonLd
+      }
+    }
+
+    const nextGraphData: GraphData = {
+      ...graphData,
+      metadata: nextMetadata,
+    }
+    set({ graphData: nextGraphData })
+    try {
+      lsSetJson(LS_KEYS.graphData, nextGraphData)
+    } catch {
+      void 0
+    }
+    try {
+      get().scheduleHistory('Update GraphRAG workflow')
+    } catch {
+      void 0
+    }
+  },
+
+  setLastTraversalSummary: (summary: TraversalSummary | null) => {
+    set({ lastTraversalSummary: summary })
   },
 
   setGraphData: (graphData: GraphData) => {

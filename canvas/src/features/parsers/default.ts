@@ -289,6 +289,7 @@ const markdownSpec: ParserSpec = {
   name: 'Markdown',
   match: (name) => {
     const lower = (name || '').toLowerCase()
+    if (/^https?:\/\//i.test(lower)) return true
     return lower.endsWith('.md') || lower.endsWith('.markdown')
   },
   parse: (name, text) => ({ graphData: parseJsonLd(buildMarkdownJsonLd(name, text)), warnings: [] }),

@@ -1,6 +1,6 @@
 import React from 'react'
 import { buildFsUrlForRelPath } from '@/features/panels/hooks/markdownPipelineActions'
-import { UI_COPY } from '@/lib/config'
+import { UI_COPY, looksLikeViteDevIndexHtml } from '@/lib/config'
 
 export function useMarkdownLoader(
   activeDocumentPath: string,
@@ -51,6 +51,9 @@ export function useMarkdownLoader(
           throw new Error(UI_COPY.requestFailedStatus(res.status))
         }
         const text = await res.text()
+        if (looksLikeViteDevIndexHtml(text)) {
+          throw new Error(UI_COPY.bottomPanelMarkdownLoadFailedError)
+        }
         if (cancelled) return
         const baseName = (() => {
           const raw = basePath.split(/[/\\]/).pop() || ''

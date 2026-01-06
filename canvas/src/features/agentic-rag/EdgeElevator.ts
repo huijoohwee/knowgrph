@@ -1,4 +1,4 @@
-import { AgenticRagConfig, EntitySpan, ExtractedEdge, Token } from './types'
+import { AgenticRagConfig, EntitySpan, ExtractedEdge } from './types'
 
 export class EdgeElevator {
   private config: AgenticRagConfig
@@ -8,6 +8,7 @@ export class EdgeElevator {
   }
 
   process(entities: EntitySpan[], text: string): ExtractedEdge[] {
+    void text
     const edges: ExtractedEdge[] = []
     
     // Simple heuristic: Connect adjacent entities if they are separated by a "verb-like" word
@@ -26,9 +27,11 @@ export class EdgeElevator {
         
         // Extract text between entities to find relation
         // This requires access to original text indices which we approximated
-        const relation = this.inferRelation(source, target)
+        const relationContext = this.extractContext()
+        const relation = this.inferRelation(relationContext)
         
-        const confidence = this.calculateConfidence(distance, relation)
+        const properties = this.extractProperties(relationContext)
+        const confidence = this.calculateConfidence(distance, relation, properties)
         
         if (confidence >= this.config.edge_confidence_threshold) {
           edges.push({
@@ -37,7 +40,8 @@ export class EdgeElevator {
             relation,
             confidence,
             properties: {
-              sourceSentence: `${source.text} ${relation} ${target.text}`
+              ...properties,
+              sourceSentence: `${source.text} ${relationContext} ${target.text}`
             }
           })
         }
@@ -47,19 +51,70 @@ export class EdgeElevator {
     return edges
   }
 
-  private inferRelation(source: EntitySpan, target: EntitySpan): string {
+  private extractContext(): string {
+    return 'related to'
+  }
+
+  private inferRelation(context: string): string {
     // Placeholder: In reality, extract the verb phrase between source and target
+    if (context.includes('leads to')) return 'leads_to'
+    if (context.includes('caused by')) return 'caused_by'
     return 'related_to'
   }
 
-  private calculateConfidence(distance: number, relation: string): number {
+  private extractProperties(context: string): Partial<{
+    temporal: string
+    modality: string
+    negation: boolean
+    causality: 'high'
+  }> {
+    const props: Partial<{
+      temporal: string
+      modality: string
+      negation: boolean
+      causality: 'high'
+    }> = {}
+    
+    // Temporal
+    if (/\b(before|after|during|while|then)\b/i.test(context)) {
+      props.temporal = context.match(/\b(before|after|during|while|then)\b/i)![0]
+    }
+    
+    // Modality
+    if (/\b(may|must|should|could|might)\b/i.test(context)) {
+      props.modality = context.match(/\b(may|must|should|could|might)\b/i)![0]
+    }
+    
+    // Negation
+    if (/\b(not|never|no)\b/i.test(context)) {
+      props.negation = true
+    }
+    
+    // Causality
+    if (/\b(causes|leads to|results in|because)\b/i.test(context)) {
+      props.causality = 'high'
+    }
+
+    return props
+  }
+
+  private calculateConfidence(
+    distance: number,
+    _relation: string,
+    properties: Partial<{ temporal: string; modality: string; negation: boolean; causality: 'high' }>,
+  ): number {
     let score = 1.0 - (distance * 0.01) // Decay with distance
     
     // Apply temporal_marker_boost
-    if (['before', 'after', 'during'].includes(relation)) {
+    if (properties.temporal) {
       score += this.config.temporal_marker_boost
     }
     
+    // Boost for explicit causality
+    if (properties.causality) {
+      score += 0.1
+    }
+
     return Math.max(0, Math.min(1, score))
   }
 }

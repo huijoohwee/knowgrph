@@ -14,14 +14,12 @@ import {
 import { UI_COPY, UI_LABELS, SCHEMA_KEYS } from '@/lib/config'
 import IconButton from '@/components/IconButton'
 import { Plus } from 'lucide-react'
-import { normalized as normalizeText } from '@/features/panels/utils/json'
 import { GraphFieldsListRow } from '@/features/panels/views/graph-fields/GraphFieldsListRow'
 import {
   formatLocalSchemaSubtitle,
   resolveLocalSchemaTarget,
   type LocalSchemaFacet,
 } from '@/features/panels/views/graph-fields/graphFieldsListUtils'
-import { GraphFieldsSearch } from './GraphFieldsSearch'
 import { NewFieldForm } from './NewFieldForm'
 import { useGraphFieldsFiltering } from '@/features/panels/views/graph-fields/hooks/useGraphFieldsFiltering'
 

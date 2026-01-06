@@ -1,7 +1,26 @@
 import React from 'react'
 import type { Tokens, Token } from 'marked'
-import { isSafeHref, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
+import { isAbsoluteWebUrl, isSafeHref, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
 import type { InlineRenderOpts } from './MarkdownRendererTypes'
+
+const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: string }> => {
+  const raw = String(text || '')
+  if (!raw) return [{ kind: 'text', value: '' }]
+  const re = /https?:\/\/[^\s<>()]+/g
+  const out: Array<{ kind: 'text' | 'url'; value: string }> = []
+  let last = 0
+  for (;;) {
+    const m = re.exec(raw)
+    if (!m) break
+    const start = m.index
+    const end = start + m[0].length
+    if (start > last) out.push({ kind: 'text', value: raw.slice(last, start) })
+    out.push({ kind: 'url', value: m[0] })
+    last = end
+  }
+  if (last < raw.length) out.push({ kind: 'text', value: raw.slice(last) })
+  return out.length ? out : [{ kind: 'text', value: raw }]
+}
 
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
   const list = Array.isArray(tokens) ? tokens : []
@@ -10,7 +29,33 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
   const renderOne = (t: Token, i: number): React.ReactNode => {
     const key = `${t.type}:${i}`
     const tt = t as unknown as Tokens.Generic
-    if (tt.type === 'text') return <span key={key}>{(t as unknown as Tokens.Text).text}</span>
+    if (tt.type === 'text') {
+      const text = String((t as unknown as Tokens.Text).text || '')
+      const parts = splitPlainUrls(text)
+      return (
+        <span key={key}>
+          {parts.map((p, j) => {
+            const k = `${key}:${j}`
+            if (p.kind !== 'url') return <React.Fragment key={k}>{p.value}</React.Fragment>
+            const hrefRaw = p.value.trim()
+            if (!hrefRaw || !isAbsoluteWebUrl(hrefRaw) || !isSafeHref(hrefRaw)) {
+              return <React.Fragment key={k}>{p.value}</React.Fragment>
+            }
+            return (
+              <a
+                key={k}
+                href={hrefRaw}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 hover:underline break-words"
+              >
+                {hrefRaw}
+              </a>
+            )
+          })}
+        </span>
+      )
+    }
     if (tt.type === 'strong') {
       return <strong key={key}>{renderInlineTokens((t as unknown as Tokens.Strong).tokens, opts)}</strong>
     }

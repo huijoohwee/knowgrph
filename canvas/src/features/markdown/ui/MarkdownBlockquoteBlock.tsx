@@ -27,6 +27,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
         'mt-3 mb-3 pl-3 border-l-4 border-gray-200 text-gray-700',
         baseTextClass,
         commonBlockClass,
+        highlightClass,
       ].filter(Boolean).join(' ')}
     >
       <MarkdownTokenRenderer

@@ -140,7 +140,10 @@ export function GraphDataTableRows({
               >
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span>
-                    {item.count.toLocaleString()} {item.count === 1 ? 'row' : 'rows'}
+                    {item.count.toLocaleString()}{' '}
+                    {item.count === 1
+                      ? UI_COPY.graphDataTableRowsCountOne
+                      : UI_COPY.graphDataTableRowsCountMany}
                   </span>
                   {item.numericSummaries.map((summary, summaryIndex) => (
                     <span
@@ -151,8 +154,10 @@ export function GraphDataTableRows({
                       <span className={uiPanelMonospaceTextClass}>
                         {columnLabelByKey.get(summary.key) ?? summary.key}
                         {': '}
-                        sum {summary.sum.toLocaleString()}, avg {summary.avg.toLocaleString()}, min{' '}
-                        {summary.min.toLocaleString()}, max {summary.max.toLocaleString()}
+                        {UI_COPY.graphDataTableSum} {summary.sum.toLocaleString()},{' '}
+                        {UI_COPY.graphDataTableAvg} {summary.avg.toLocaleString()},{' '}
+                        {UI_COPY.graphDataTableMin} {summary.min.toLocaleString()},{' '}
+                        {UI_COPY.graphDataTableMax} {summary.max.toLocaleString()}
                       </span>
                     </span>
                   ))}

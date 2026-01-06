@@ -21,6 +21,7 @@ import { IMPORT_EXPORT_STATUS_COPY, LS_KEYS, UI_LABELS } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
 import { useToolbarMenuAction } from '@/features/toolbar/useToolbarMenuAction'
+import { runAgenticRagDemo } from '@/__tests__/demo/runner'
 
 type ToolbarMenuLauncherProps = {
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
@@ -67,6 +68,8 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     setIsParserExportMenuOpen,
     isMarkdownImportMenuOpen,
     setIsMarkdownImportMenuOpen,
+    isHtmlImportMenuOpen,
+    setIsHtmlImportMenuOpen,
     isSchemaExportMenuOpen,
     setIsSchemaExportMenuOpen,
     isGraphFieldsExportMenuOpen,
@@ -78,6 +81,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     isValidationExportMenuOpen,
     setIsValidationExportMenuOpen,
     pipelineStatus,
+    setPipelineStatus,
     toolMenuButtonRef,
     toolMenuCardRef,
     toolMenuCardStyle,
@@ -87,6 +91,10 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     closeToolMenu,
     toggleToolMenu,
   } = useToolMenuState()
+
+  const handleRunDemo = useCallback(async () => {
+    await runAgenticRagDemo(setPipelineStatus)
+  }, [setPipelineStatus])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -241,6 +249,8 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     onOpenMainPanel,
     orchestratorImportInputRef,
     setIsMarkdownImportMenuOpen,
+    setIsHtmlImportMenuOpen,
+    setIsSchemaExportMenuOpen,
     exportGraphFieldSettingsJsonLd,
     exportGraphRagWorkflowJsonLd,
     exportHistoryJsonLd,
@@ -311,6 +321,8 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
           setIsParserExportMenuOpen={setIsParserExportMenuOpen}
           isMarkdownImportMenuOpen={isMarkdownImportMenuOpen}
           setIsMarkdownImportMenuOpen={setIsMarkdownImportMenuOpen}
+          isHtmlImportMenuOpen={isHtmlImportMenuOpen}
+          setIsHtmlImportMenuOpen={setIsHtmlImportMenuOpen}
           isSchemaExportMenuOpen={isSchemaExportMenuOpen}
           setIsSchemaExportMenuOpen={setIsSchemaExportMenuOpen}
           isGraphFieldsExportMenuOpen={isGraphFieldsExportMenuOpen}
@@ -358,6 +370,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
             closeToolMenu()
           }}
           onRunPipeline={handleRunCodebaseIndexPipeline}
+          onRunDemo={handleRunDemo}
           onClose={closeToolMenu}
           onToolMenuAction={handleToolMenuAction}
           onOpenWorkflowTab={openWorkflowTab}

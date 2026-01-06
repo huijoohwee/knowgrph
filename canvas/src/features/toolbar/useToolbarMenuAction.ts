@@ -10,7 +10,8 @@ import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { UI_COPY } from '@/lib/config'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { downloadBlob } from '@/lib/graph/save'
-import { coerceHttpUrl, fetchRemoteMarkdownText, isMarkdownUrlPath } from './markdownImport'
+import { fetchRemoteMarkdownText } from './markdownImport'
+import { performHtmlImport } from './htmlImportAction'
 
 export function useToolbarMenuAction({
   closeToolMenu,
@@ -18,6 +19,8 @@ export function useToolbarMenuAction({
   onOpenMainPanel,
   orchestratorImportInputRef,
   setIsMarkdownImportMenuOpen,
+  setIsHtmlImportMenuOpen,
+  setIsSchemaExportMenuOpen,
   exportGraphFieldSettingsJsonLd,
   exportGraphRagWorkflowJsonLd,
   exportHistoryJsonLd,
@@ -33,6 +36,8 @@ export function useToolbarMenuAction({
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
   orchestratorImportInputRef: RefObject<HTMLInputElement | null>
   setIsMarkdownImportMenuOpen: (open: boolean) => void
+  setIsHtmlImportMenuOpen: (open: boolean) => void
+  setIsSchemaExportMenuOpen: (open: boolean) => void
   exportGraphFieldSettingsJsonLd: () => void
   exportGraphRagWorkflowJsonLd: () => void
   exportHistoryJsonLd: () => void
@@ -198,25 +203,13 @@ export function useToolbarMenuAction({
               try {
                 const state = useGraphStore.getState()
                 if (res.input && res.input.text.trim()) {
-                  const documentName =
-                    typeof picked.displayName === 'string' && picked.displayName.trim()
-                      ? picked.displayName.trim()
-                      : res.input.name || null
-                  state.setMarkdownDocument(documentName, res.input.text)
-                  const sourceUrl = (() => {
-                    const url = coerceHttpUrl(res.input?.name || '')
-                    return url && isMarkdownUrlPath(url) ? url : null
-                  })()
-                  state.setMarkdownDocumentSourceUrl(sourceUrl)
-                } else {
-                  state.setMarkdownDocument(null, null)
-                  state.setMarkdownDocumentSourceUrl(null)
+                  state.setMarkdownDocument(res.input.name, res.input.text)
+                  // await runMarkdownPipelineWithStatus(null)
                 }
-                state.setBottomPanelCurationView('markdown')
               } catch {
                 void 0
               }
-              openBottomPanel('curation')
+              openBottomPanel('data')
             } catch {
               try {
                 const ui = useParserUIState.getState()
@@ -257,6 +250,51 @@ export function useToolbarMenuAction({
             void 0
           }
           openBottomPanel('curation')
+          return
+        }
+      }
+      if (area === 'schemaConfig') {
+        if (action === 'import') {
+          importSchemaJsonOrJsonLd()
+          return
+        }
+        if (action === 'export') {
+          setIsSchemaExportMenuOpen(true)
+          return
+        }
+      }
+      if (area === 'html') {
+        if (action === 'export') {
+          try {
+            const state = useGraphStore.getState()
+            const name = state.markdownDocumentName
+            const text = state.markdownDocumentText
+            const content = typeof text === 'string' ? text : ''
+            if (!content.trim()) {
+              return
+            }
+            const rawName = typeof name === 'string' && name.trim() ? name.trim() : 'document.md'
+            const base = rawName.replace(/\.(html|htm|jsonld|json|yaml|yml|md|markdown)$/i, '') || 'document'
+            const filename = `${base}.md`
+            const blob = new Blob([content], {
+              type: 'text/markdown;charset=utf-8',
+            })
+            downloadBlob(blob, filename)
+          } catch {
+            void 0
+          }
+          return
+        }
+        if (action === 'import' || action === 'importLocal' || action === 'importUrl') {
+          void (async () => {
+            setIsHtmlImportMenuOpen(false)
+            if (action === 'importLocal') {
+              await performHtmlImport('local')
+            } else {
+              const url = typeof payload?.url === 'string' ? payload.url : undefined
+              await performHtmlImport('url', url)
+            }
+          })()
           return
         }
         try {
@@ -439,6 +477,8 @@ export function useToolbarMenuAction({
       openWorkflowTab,
       orchestratorImportInputRef,
       setIsMarkdownImportMenuOpen,
+      setIsHtmlImportMenuOpen,
+      setIsSchemaExportMenuOpen,
     ],
   )
 }

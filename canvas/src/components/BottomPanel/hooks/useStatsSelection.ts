@@ -151,5 +151,9 @@ export function useStatsSelection() {
     restoreSelectionSnapshot,
     selectNodeIds,
     selectEdgeIds,
+    selectedNodeIds,
+    selectedEdgeIds,
+    selectedNodeIdSet: React.useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]),
+    selectedEdgeIdSet: React.useMemo(() => new Set(selectedEdgeIds), [selectedEdgeIds]),
   }
 }

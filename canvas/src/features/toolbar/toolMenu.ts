@@ -16,6 +16,7 @@ export type ToolMenuArea =
   | 'curator'
   | 'validation'
   | 'markdown'
+  | 'html'
   | 'parser'
   | 'schemaConfig'
   | 'graphFields'
@@ -60,6 +61,12 @@ export const TOOL_MENU_AREAS: ToolMenuAreaConfig[] = [
     key: 'markdown',
     label: 'Markdown',
     description: TOOL_MENU_MARKDOWN_DESCRIPTION,
+    actions: ['import', 'export'],
+  },
+  {
+    key: 'html',
+    label: 'HTML',
+    description: 'Import or export HTML documents for AgenticRAG-aligned document graphs.',
     actions: ['import', 'export'],
   },
   {

@@ -1,5 +1,3 @@
-import { computeVisibleLineRange } from './markdownUtils'
-
 export function getTextMeasureContext(font: string): CanvasRenderingContext2D | null {
   try {
     if (typeof document === 'undefined') return null

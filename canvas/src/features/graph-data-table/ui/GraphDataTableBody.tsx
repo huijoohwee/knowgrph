@@ -376,9 +376,9 @@ export const BodyCell = React.memo(function BodyCell({
             ''
           ) : (
             <div className="flex flex-wrap gap-1">
-              {filteredValues.map(value => (
+              {filteredValues.map((value, i) => (
                 <span
-                  key={value}
+                  key={`${value}-${i}`}
                   className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] leading-tight text-gray-800 max-w-full"
                 >
                   {value}

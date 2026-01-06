@@ -5,17 +5,26 @@ export class DocumentUnifier {
     const mergedEntities: Map<string, EntitySpan> = new Map()
     const mergedEdges: ExtractedEdge[] = []
     
-    // 1. Merge Entities
+    // 1. Merge Entities & Resolve Conflicts
     for (const res of results) {
       for (const entity of res.entities) {
         const key = entity.text.toLowerCase()
         if (mergedEntities.has(key)) {
-          // Merge logic: Average confidence, extend provenance
           const existing = mergedEntities.get(key)!
-          // Simple keep-highest-confidence for now
-          if (entity.confidence > existing.confidence) {
-             mergedEntities.set(key, entity)
-          }
+          
+          // Conflict Resolution: Highest Confidence + Provenance Merging
+          // Strategy: 'retain_all' (simulated by extending provenance)
+          // In a real system, we might vote on 'type' or other properties
+          
+          const newConfidence = Math.max(existing.confidence, entity.confidence)
+          // For MVP, just update confidence and maybe merge provenance (not implemented in type yet)
+          
+          mergedEntities.set(key, {
+            ...existing,
+            confidence: newConfidence,
+            // Assume we'd append provenance list here
+          })
+          
         } else {
           mergedEntities.set(key, entity)
         }
@@ -23,17 +32,11 @@ export class DocumentUnifier {
     }
     
     // 2. Remap Edges
-    const entityIdMap = new Map<string, string>() // Old ID -> New ID (based on text)
-    // Actually, in the loop above we didn't track old IDs.
-    // Let's refine: We need to map the original ephemeral IDs to the unified ID.
-    
-    // Re-run for mapping
-    const finalEntities = Array.from(mergedEntities.values())
     const textToFinalId = new Map<string, string>()
+    const finalEntities = Array.from(mergedEntities.values())
     finalEntities.forEach(e => textToFinalId.set(e.text.toLowerCase(), e.id))
     
     for (const res of results) {
-      // Create a local map for this result's entities
       const localIdToText = new Map<string, string>()
       res.entities.forEach(e => localIdToText.set(e.id, e.text.toLowerCase()))
       
@@ -56,10 +59,17 @@ export class DocumentUnifier {
       }
     }
     
+    // 3. Cross-Document Inference (Simple)
+    // Identify entities mentioned in multiple docs (implicitly handled by merging)
+    // If we tracked doc IDs, we could create edges between docs.
+    // For now, the merged graph represents the unified view.
+
     return {
       entities: finalEntities,
       edges: mergedEdges,
-      metrics: {}
+      metrics: {
+        entityDensity: finalEntities.length / 100, // Placeholder
+      }
     }
   }
 }

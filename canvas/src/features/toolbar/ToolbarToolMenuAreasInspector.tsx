@@ -28,6 +28,8 @@ export function ToolbarToolMenuAreasInspector() {
     setIsParserExportMenuOpen: () => {},
     isMarkdownImportMenuOpen: false,
     setIsMarkdownImportMenuOpen: () => {},
+    isHtmlImportMenuOpen: false,
+    setIsHtmlImportMenuOpen: () => {},
     isSchemaExportMenuOpen: false,
     setIsSchemaExportMenuOpen: () => {},
     isGraphFieldsExportMenuOpen: false,

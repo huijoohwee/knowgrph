@@ -36,6 +36,8 @@ export default function BottomPanelStatsTab() {
     restoreSelectionSnapshot,
     selectNodeIds,
     selectEdgeIds,
+    selectedNodeIdSet,
+    selectedEdgeIdSet,
   } = useStatsSelection()
 
   const {
@@ -173,25 +175,20 @@ export default function BottomPanelStatsTab() {
       </CollapsibleSection>
 
       <DatasetInspectorSection
-        isCollapsed={datasetInspectorCollapsed}
+        collapsed={datasetInspectorCollapsed}
         onToggle={() => setDatasetInspectorCollapsed(!datasetInspectorCollapsed)}
         datasetStats={datasetStats}
-        agenticContext={agenticContext}
+        contextComparison={agenticContext}
         ignoreFilters={datasetIgnoreFilters}
-        ui={ui}
       />
 
       <NodeWordFrequenciesSection
         tokensForSelectedNode={tokensForSelectedNode}
         tokensForSelectedNodes={tokensForSelectedNodes}
-        getStatsChartWidthPx={getStatsChartWidthPx}
         statsFilterMode={statsFilterMode}
-        setStatsFilterMode={setStatsFilterMode}
         statsExcludeTokens={statsExcludeTokens}
-        setStatsExcludeTokens={setStatsExcludeTokens}
         statsIncludeTokens={statsIncludeTokens}
-        setStatsIncludeTokens={setStatsIncludeTokens}
-        toggleStatsStopword={toggleStatsStopword}
+        toggleStatsToken={toggleStatsStopword}
         ui={ui}
       />
 
@@ -200,17 +197,28 @@ export default function BottomPanelStatsTab() {
         pinnedPolygonId={pinnedPolygonId}
         setPinnedPolygonId={setPinnedPolygonId}
         polygonSelectionSnapshotRef={polygonSelectionSnapshotRef}
+        edgeSelectionSnapshotRef={edgeSelectionSnapshotRef}
+        communitySelectionSnapshotRef={communitySelectionSnapshotRef}
         captureSelectionSnapshot={captureSelectionSnapshot}
         restoreSelectionSnapshot={restoreSelectionSnapshot}
-        clearPinnedPolygonState={clearPinnedPolygonState}
+        clearPinnedEdgeState={clearPinnedEdgeState}
+        clearPinnedCommunityState={clearPinnedCommunityState}
         selectNodeIds={selectNodeIds}
+        selectedNodeIdSet={selectedNodeIdSet}
         getStatsChartWidthPx={getStatsChartWidthPx}
         polygonTokensForDropdown={polygonTokensForDropdown}
         polygonTokenFilter={polygonTokenFilter}
         setPolygonTokenFilter={setPolygonTokenFilter}
         polygonTokenSort={polygonTokenSort}
         setPolygonTokenSort={setPolygonTokenSort}
-        toggleStatsStopword={toggleStatsStopword}
+        toggleStatsToken={toggleStatsStopword}
+        statsExcludeTokens={statsExcludeTokens}
+        setStatsExcludeTokens={setStatsExcludeTokens}
+        statsIncludeTokens={statsIncludeTokens}
+        setStatsIncludeTokens={setStatsIncludeTokens}
+        statsFilterMode={statsFilterMode}
+        setStatsFilterMode={setStatsFilterMode}
+        neutralBarColor={neutralBarColor}
         ui={ui}
       />
 
@@ -219,17 +227,28 @@ export default function BottomPanelStatsTab() {
         pinnedCommunityId={pinnedCommunityId}
         setPinnedCommunityId={setPinnedCommunityId}
         communitySelectionSnapshotRef={communitySelectionSnapshotRef}
+        polygonSelectionSnapshotRef={polygonSelectionSnapshotRef}
+        edgeSelectionSnapshotRef={edgeSelectionSnapshotRef}
         captureSelectionSnapshot={captureSelectionSnapshot}
         restoreSelectionSnapshot={restoreSelectionSnapshot}
-        clearPinnedCommunityState={clearPinnedCommunityState}
+        clearPinnedPolygonState={clearPinnedPolygonState}
+        clearPinnedEdgeState={clearPinnedEdgeState}
         selectNodeIds={selectNodeIds}
+        selectedNodeIdSet={selectedNodeIdSet}
         getStatsChartWidthPx={getStatsChartWidthPx}
         communityTokensForDropdown={communityTokensForDropdown}
         communityTokenFilter={communityTokenFilter}
         setCommunityTokenFilter={setCommunityTokenFilter}
         communityTokenSort={communityTokenSort}
         setCommunityTokenSort={setCommunityTokenSort}
-        toggleStatsStopword={toggleStatsStopword}
+        toggleStatsToken={toggleStatsStopword}
+        statsExcludeTokens={statsExcludeTokens}
+        setStatsExcludeTokens={setStatsExcludeTokens}
+        statsIncludeTokens={statsIncludeTokens}
+        setStatsIncludeTokens={setStatsIncludeTokens}
+        statsFilterMode={statsFilterMode}
+        setStatsFilterMode={setStatsFilterMode}
+        neutralBarColor={neutralBarColor}
         ui={ui}
       />
 
@@ -243,12 +262,15 @@ export default function BottomPanelStatsTab() {
         pinnedEdgeId={pinnedEdgeId}
         setPinnedEdgeId={setPinnedEdgeId}
         edgeSelectionSnapshotRef={edgeSelectionSnapshotRef}
+        polygonSelectionSnapshotRef={polygonSelectionSnapshotRef}
+        communitySelectionSnapshotRef={communitySelectionSnapshotRef}
         captureSelectionSnapshot={captureSelectionSnapshot}
         restoreSelectionSnapshot={restoreSelectionSnapshot}
-        clearPinnedEdgeState={clearPinnedEdgeState}
+        clearPinnedPolygonState={clearPinnedPolygonState}
+        clearPinnedCommunityState={clearPinnedCommunityState}
         selectEdgeIds={selectEdgeIds}
+        selectedEdgeIdSet={selectedEdgeIdSet}
         getStatsChartWidthPx={getStatsChartWidthPx}
-        toggleStatsStopword={toggleStatsStopword}
         ui={ui}
       />
     </div>

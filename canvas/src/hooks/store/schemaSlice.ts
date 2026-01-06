@@ -99,19 +99,8 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     set({ schemaLintCount: count, schemaLintExamplePath: examplePath, schemaLintExamplePaths: examplePaths || null })
   },
   setSchemaLintActivePath: (examplePath: string | null) => {
-    // No-op or implementation if needed for UI state tracking not in store? 
-    // Wait, GraphState has it. I should implement it.
-    // But where is the state for active path? 
-    // It's not in GraphState definition I saw earlier? 
-    // Let me check types.ts again. 
-    // Ah, I missed where schemaLintActivePath is stored. 
-    // Re-checking types.ts:
-    // 342: setSchemaLintActivePath: (examplePath: string | null) => void;
-    // But I don't see schemaLintActivePath property in GraphState interface.
-    // I see schemaLintExamplePath. 
-    // Maybe setSchemaLintActivePath updates schemaLintExamplePath?
-    // Or maybe I missed the property in types.ts.
-    // Let's assume for now I should just implement the setter.
+    const next = typeof examplePath === 'string' ? examplePath.trim() : ''
+    set({ schemaLintExamplePath: next ? next : null })
   },
   clearSchemaLintSummary: () => {
     set({ schemaLintCount: null, schemaLintExamplePath: null, schemaLintExamplePaths: null })

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types';
+import { GraphData } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
 import { computePanelAwareCanvasDims } from '@/components/GraphCanvas/helpers';
-import { applyZoomRequest } from '@/components/GraphCanvas/zoomController';
+import { applyZoomRequest, type ZoomRequest } from '@/components/GraphCanvas/zoomController';
 import { applyZoomOnSelection } from '@/components/GraphCanvas/selectionZoom';
 
 interface UseZoomEffectsProps {
@@ -16,17 +16,15 @@ interface UseZoomEffectsProps {
   graphData: GraphData | null;
   renderGraphData: GraphData | null;
   schema: GraphSchema;
-  
-  // State from store
-  zoomRequest: any; // Type needs to be precise if possible, or inferred
+
+  zoomRequest: ZoomRequest | null;
   fitToScreenMode: boolean;
   zoomToSelectionMode: boolean;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   selectedNodeIds: string[] | undefined;
   selectedEdgeIds: string[] | undefined;
-  
-  // Actions
+
   requestZoom: (type: 'fit' | 'in' | 'out' | 'selection' | 'reset') => void;
 }
 

@@ -2,9 +2,6 @@ import React from 'react'
 import type { Tokens } from 'marked'
 import type { MermaidInitConfig } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
-import {
-  addLineRangesToTokens,
-} from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownHeadingBlock } from './MarkdownHeadingBlock'
 import { MarkdownTableBlock } from './MarkdownTableBlock'
 import { MarkdownCodeBlock } from './MarkdownCodeBlock'
