@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Tokens, Token } from 'marked'
+import type { TokensBlockquote, Token } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { addLineRangesToTokens } from '@/features/markdown/ui/markdownPreviewLex'
 import MarkdownTokenRenderer from './MarkdownTokenRenderer'
@@ -20,7 +20,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
   baseTextClass,
   commonBlockClass,
 }: MarkdownBlockquoteBlockProps) {
-  const bq = t as unknown as Tokens.Blockquote
+  const bq = t as unknown as TokensBlockquote
   return (
     <blockquote
       className={[

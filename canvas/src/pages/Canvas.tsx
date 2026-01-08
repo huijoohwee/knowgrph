@@ -213,7 +213,6 @@ export default function CanvasPage() {
 
   const handleZoomIn = makeZoomHandler('in')
   const handleZoomOut = makeZoomHandler('out')
-  const handleFit = makeZoomHandler('fit')
   const handleReset = makeZoomHandler('reset')
   const handleZoomSelection = makeZoomHandler('selection')
 
@@ -228,7 +227,6 @@ export default function CanvasPage() {
                   <ToolbarLazy
                     onZoomIn={handleZoomIn}
                     onZoomOut={handleZoomOut}
-                    onFit={handleFit}
                     onReset={handleReset}
                     onZoomSelection={handleZoomSelection}
                   />

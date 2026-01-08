@@ -1,7 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { GitBranch, MonitorPlay, PanelsTopLeft, SlidersHorizontal } from 'lucide-react'
-import { type ToolMenuAction, type ToolMenuArea } from '@/features/toolbar/toolMenu'
+import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
 import { useOrchestratorBottomPanelState } from '@/features/panels/hooks/useOrchestratorBottomPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -34,6 +34,11 @@ interface ToolbarToolMenuProps {
   renderOpOk: boolean | null
   renderOpMsg: string | null
   pipelineStatus: string | null
+  exportStatus: string | null
+  isSourceFilesImportMenuOpen: boolean
+  setIsSourceFilesImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isSourceFilesExportMenuOpen: boolean
+  setIsSourceFilesExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isCuratorExportMenuOpen: boolean
   setIsCuratorExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isParserExportMenuOpen: boolean
@@ -42,6 +47,12 @@ interface ToolbarToolMenuProps {
   setIsMarkdownImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isHtmlImportMenuOpen: boolean
   setIsHtmlImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isPdfImportMenuOpen: boolean
+  setIsPdfImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isJsonImportMenuOpen: boolean
+  setIsJsonImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isJsonLdImportMenuOpen: boolean
+  setIsJsonLdImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isSchemaExportMenuOpen: boolean
   setIsSchemaExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isGraphFieldsExportMenuOpen: boolean
@@ -89,7 +100,7 @@ interface ToolbarToolMenuProps {
   onToolMenuAction: (
     area: ToolMenuArea,
     action: ToolMenuAction,
-    payload?: { url?: string },
+    payload?: ToolMenuPayload,
   ) => void
   onOpenWorkflowTab: () => void
 }
@@ -111,6 +122,11 @@ export function ToolbarToolMenu({
   renderOpOk,
   renderOpMsg,
   pipelineStatus,
+  exportStatus,
+  isSourceFilesImportMenuOpen,
+  setIsSourceFilesImportMenuOpen,
+  isSourceFilesExportMenuOpen,
+  setIsSourceFilesExportMenuOpen,
   isCuratorExportMenuOpen,
   setIsCuratorExportMenuOpen,
   isParserExportMenuOpen,
@@ -119,6 +135,12 @@ export function ToolbarToolMenu({
   setIsMarkdownImportMenuOpen,
   isHtmlImportMenuOpen,
   setIsHtmlImportMenuOpen,
+  isPdfImportMenuOpen,
+  setIsPdfImportMenuOpen,
+  isJsonImportMenuOpen,
+  setIsJsonImportMenuOpen,
+  isJsonLdImportMenuOpen,
+  setIsJsonLdImportMenuOpen,
   isSchemaExportMenuOpen,
   setIsSchemaExportMenuOpen,
   isGraphFieldsExportMenuOpen,
@@ -370,6 +392,11 @@ export function ToolbarToolMenu({
                   {pipelineStatus}
                 </span>
               )}
+              {exportStatus && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} text-gray-500 truncate max-w-[160px]`}>
+                  {exportStatus}
+                </span>
+              )}
             </div>
             <HeaderActions
               onSearchToggle={
@@ -414,6 +441,10 @@ export function ToolbarToolMenu({
                 orchestratorOpMsg={orchestratorOpMsg}
                 renderOpOk={renderOpOk}
                 renderOpMsg={renderOpMsg}
+                isSourceFilesImportMenuOpen={isSourceFilesImportMenuOpen}
+                setIsSourceFilesImportMenuOpen={setIsSourceFilesImportMenuOpen}
+                isSourceFilesExportMenuOpen={isSourceFilesExportMenuOpen}
+                setIsSourceFilesExportMenuOpen={setIsSourceFilesExportMenuOpen}
                 isCuratorExportMenuOpen={isCuratorExportMenuOpen}
                 setIsCuratorExportMenuOpen={setIsCuratorExportMenuOpen}
                 isParserExportMenuOpen={isParserExportMenuOpen}
@@ -422,6 +453,12 @@ export function ToolbarToolMenu({
                 setIsMarkdownImportMenuOpen={setIsMarkdownImportMenuOpen}
                 isHtmlImportMenuOpen={isHtmlImportMenuOpen}
                 setIsHtmlImportMenuOpen={setIsHtmlImportMenuOpen}
+                isPdfImportMenuOpen={isPdfImportMenuOpen}
+                setIsPdfImportMenuOpen={setIsPdfImportMenuOpen}
+                isJsonImportMenuOpen={isJsonImportMenuOpen}
+                setIsJsonImportMenuOpen={setIsJsonImportMenuOpen}
+                isJsonLdImportMenuOpen={isJsonLdImportMenuOpen}
+                setIsJsonLdImportMenuOpen={setIsJsonLdImportMenuOpen}
                 isSchemaExportMenuOpen={isSchemaExportMenuOpen}
                 setIsSchemaExportMenuOpen={setIsSchemaExportMenuOpen}
                 isGraphFieldsExportMenuOpen={isGraphFieldsExportMenuOpen}

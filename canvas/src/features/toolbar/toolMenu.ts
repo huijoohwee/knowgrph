@@ -1,6 +1,7 @@
 import {
   ORCHESTRATOR_TRAVERSAL_TOOLTIP,
   GRAPH_DATA_TABLE_CURATION_TOOLTIP,
+  TOOL_MENU_SOURCE_FILES_DESCRIPTION,
   TOOL_MENU_PARSER_DESCRIPTION,
   TOOL_MENU_SCHEMA_CONFIG_DESCRIPTION,
   TOOL_MENU_GRAPH_FIELDS_DESCRIPTION,
@@ -12,11 +13,18 @@ import {
 
 export type ToolMenuAction = 'new' | 'import' | 'importLocal' | 'importUrl' | 'export' | 'clear'
 
+export type ToolMenuPayload = {
+  url?: string
+  format?: 'markdown' | 'html' | 'pdf' | 'jsonld' | 'json'
+}
+
 export type ToolMenuArea =
+  | 'sourceFiles'
   | 'curator'
   | 'validation'
   | 'markdown'
   | 'html'
+  | 'pdf'
   | 'parser'
   | 'schemaConfig'
   | 'graphFields'
@@ -32,9 +40,6 @@ export interface ToolMenuAreaConfig {
   actions: ToolMenuAction[]
 }
 
-const TOOL_MENU_MARKDOWN_DESCRIPTION =
-  'Import or export Markdown (.md) documents for AgenticRAG-aligned document graphs.'
-
 export const TOOL_MENU_ACTION_LABELS: Record<ToolMenuAction, string> = {
   new: 'New',
   import: 'Import',
@@ -46,28 +51,22 @@ export const TOOL_MENU_ACTION_LABELS: Record<ToolMenuAction, string> = {
 
 export const TOOL_MENU_AREAS: ToolMenuAreaConfig[] = [
   {
-    key: 'curator',
-    label: 'Graph Data Table',
-    description: GRAPH_DATA_TABLE_CURATION_TOOLTIP,
+    key: 'sourceFiles',
+    label: 'Source Files',
+    description: TOOL_MENU_SOURCE_FILES_DESCRIPTION,
     actions: ['new', 'import', 'export', 'clear'],
+  },
+  {
+    key: 'curator',
+    label: 'Curator',
+    description: GRAPH_DATA_TABLE_CURATION_TOOLTIP,
+    actions: ['new', 'import', 'clear'],
   },
   {
     key: 'validation',
     label: 'Validation',
     description: TOOL_MENU_VALIDATION_DESCRIPTION,
     actions: ['export'],
-  },
-  {
-    key: 'markdown',
-    label: 'Markdown',
-    description: TOOL_MENU_MARKDOWN_DESCRIPTION,
-    actions: ['import', 'export'],
-  },
-  {
-    key: 'html',
-    label: 'HTML',
-    description: 'Import or export HTML documents for AgenticRAG-aligned document graphs.',
-    actions: ['import', 'export'],
   },
   {
     key: 'parser',

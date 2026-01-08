@@ -7,11 +7,11 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { parserSpecTextFromList } from '@/features/parsers/specFormat'
 import {
   loadGraphDataViaParser,
-  loadGraphDataFromUrlViaParser,
   loadGraphDataFromBackendViaParser,
   loadGraphDataFromTextViaParser,
   type LoaderResult,
 } from '@/features/parsers/loader'
+import { fetchRemoteText, promptForUrl } from '@/features/toolbar/ingestUtils'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { GraphSchema, defaultSchema } from '@/lib/graph/schema'
@@ -44,6 +44,7 @@ const PRESET_ID_BY_EXAMPLE_ID: Record<ExampleId, string> = {
   universalLeanStartup: 'universal-lean-startup-kg',
   a0Investors: 'a0-investors-kg',
   ventureCapitalPortfolio: 'venture-capital-portfolio',
+  interviewerWorkflow: 'aiap22-interviewer-workflow',
 }
 
 const ensureExt = (name: string, allowed: string[], fallback: string): string => {
@@ -437,7 +438,28 @@ export function useParserWorkflowState() {
   }, [loadWithStatus])
 
   const onLoadUrlWithStatus = React.useCallback(async () => {
-    await loadWithStatus(loadGraphDataFromUrlViaParser)
+    const rawUrl = promptForUrl(UI_COPY.jsonImportUrlPrompt)
+    if (!rawUrl) return
+    const text = await fetchRemoteText(rawUrl)
+    if (!text) {
+      try {
+        useParserUIState.getState().setDataLoadStatus(false, UI_COPY.jsonImportFetchFailedStatus(rawUrl))
+      } catch {
+        void 0
+      }
+      return
+    }
+    const name = (() => {
+      try {
+        const url = new URL(rawUrl)
+        const parts = url.pathname.split('/').filter(Boolean)
+        const last = parts[parts.length - 1] || ''
+        return last || 'remote.json'
+      } catch {
+        return 'remote.json'
+      }
+    })()
+    await loadWithStatus(() => loadGraphDataFromTextViaParser(name, text))
   }, [loadWithStatus])
 
   const onLoadBackendWithStatus = React.useCallback(async () => {

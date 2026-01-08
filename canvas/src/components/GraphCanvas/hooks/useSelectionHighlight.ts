@@ -14,9 +14,11 @@ interface UseSelectionHighlightProps {
   selectedNodeIds: string[] | undefined;
   selectedEdgeIds: string[] | undefined;
   setLifecycleStage: (stage: string) => void;
+  renderMediaAsNodes: boolean;
+  mediaNodeOpacity: number;
   
   // Refs to d3 selections
-  nodesSelRef: React.MutableRefObject<d3.Selection<SVGCircleElement, GraphNode, SVGGElement, unknown> | null>;
+  nodesSelRef: React.MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>;
   mediaSelRef: React.MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>;
   labelsSelRef: React.MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   linksSelRef: React.MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>;
@@ -31,6 +33,8 @@ export function useSelectionHighlight({
   selectedNodeIds,
   selectedEdgeIds,
   setLifecycleStage,
+  renderMediaAsNodes,
+  mediaNodeOpacity,
   nodesSelRef,
   mediaSelRef,
   labelsSelRef,
@@ -57,6 +61,8 @@ export function useSelectionHighlight({
       selectedEdgeId,
       selectedNodeIds,
       selectedEdgeIds,
+      renderMediaAsNodes,
+      { mediaNodeOpacity },
     );
     selectionPerfEnd('canvas', t0);
   }, [
@@ -66,6 +72,12 @@ export function useSelectionHighlight({
     selectedEdgeIds, 
     renderGraphData, 
     graphData, 
-    schema
+    schema,
+    nodesSelRef,
+    mediaSelRef,
+    labelsSelRef,
+    linksSelRef,
+    renderMediaAsNodes,
+    mediaNodeOpacity,
   ]);
 }

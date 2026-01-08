@@ -62,21 +62,45 @@ export const MediaIframe = ({
   src: string
   title: string
   presentationMode: boolean
-}) => (
-  <div className={presentationMode ? 'aspect-video w-full' : 'aspect-video w-full max-w-xl'}>
-    <iframe
-      src={src}
-      title={title}
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowFullScreen
-      sandbox="allow-scripts allow-same-origin allow-presentation"
-      className="w-full h-full rounded border border-gray-200"
-    />
-  </div>
-)
+}) => {
+  const [error, setError] = React.useState(false)
+  if (!src || error) {
+    return <MediaErrorPlaceholder alt={title} />
+  }
+  return (
+    <div className={presentationMode ? 'aspect-video w-full' : 'aspect-video w-full max-w-xl'}>
+      <iframe
+        src={src}
+        title={title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        sandbox="allow-scripts allow-same-origin allow-presentation"
+        className="w-full h-full rounded border border-gray-200"
+        onError={() => setError(true)}
+      />
+    </div>
+  )
+}
 
-export const MediaVideo = ({ src }: { src: string }) => (
-  <video controls className="w-full max-w-2xl rounded border border-gray-200" src={src} />
+export const MediaVideo = ({ src }: { src: string }) => {
+  const [error, setError] = React.useState(false)
+  if (!src || error) {
+    return <MediaErrorPlaceholder alt="Video" />
+  }
+  return (
+    <video
+      controls
+      className="w-full max-w-2xl rounded border border-gray-200"
+      src={src}
+      onError={() => setError(true)}
+    />
+  )
+}
+
+const MediaErrorPlaceholder = ({ alt }: { alt?: string }) => (
+  <div className="flex items-center justify-center w-full max-w-xl h-32 rounded border border-dashed border-red-300 bg-red-50 text-[11px] text-red-700 px-3 text-center">
+    <span>{alt ? `Media failed to load: ${alt}` : 'Media failed to load'}</span>
+  </div>
 )
 
 export const MediaImage = ({
@@ -90,20 +114,24 @@ export const MediaImage = ({
   width?: number | null
   height?: number | null
 }) => {
+  const [error, setError] = React.useState(false)
   const style: React.CSSProperties = {}
   if (width) {
     style.width = `${Math.round(width)}px`
     style.maxWidth = '100%'
   }
   if (height) style.height = `${Math.round(height)}px`
-  
+  if (!src || error) {
+    return <MediaErrorPlaceholder alt={alt} />
+  }
   return (
     <img
-      src={src || undefined}
+      src={src}
       alt={alt}
       loading="lazy"
       style={Object.keys(style).length ? style : undefined}
       className="max-w-full h-auto rounded border border-gray-200"
+      onError={() => setError(true)}
     />
   )
 }

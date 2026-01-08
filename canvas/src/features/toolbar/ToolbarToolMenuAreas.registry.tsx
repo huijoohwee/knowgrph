@@ -1,9 +1,11 @@
 import React from 'react'
-import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
-import { ToolbarCuratorArea } from '@/features/toolbar/ToolbarCuratorArea'
+import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
+import StatusBadge from '@/features/panels/ui/StatusBadge'
+import { ToolbarSourceFilesArea } from '@/features/toolbar/ToolbarSourceFilesArea'
 import { ToolbarParserArea } from '@/features/toolbar/ToolbarParserArea'
 import { ToolbarMarkdownArea } from '@/features/toolbar/ToolbarMarkdownArea'
 import { ToolbarHtmlArea } from '@/features/toolbar/ToolbarHtmlArea'
+import { ToolbarPdfArea } from '@/features/toolbar/ToolbarPdfArea'
 import { ToolbarSchemaConfigArea } from '@/features/toolbar/ToolbarSchemaConfigArea'
 import { ToolbarGraphFieldsArea } from '@/features/toolbar/ToolbarGraphFieldsArea'
 import { ToolbarOrchestratorArea } from '@/features/toolbar/ToolbarOrchestratorArea'
@@ -11,6 +13,7 @@ import { ToolbarRenderArea } from '@/features/toolbar/ToolbarRenderArea'
 import { ToolbarSettingsArea } from '@/features/toolbar/ToolbarSettingsArea'
 import { ToolbarHistoryArea } from '@/features/toolbar/ToolbarHistoryArea'
 import { ToolbarValidationArea } from '@/features/toolbar/ToolbarValidationArea'
+import { UI_LABELS } from '@/lib/config'
 
 export interface ToolbarToolMenuAreasProps {
   dataLoadOk: boolean | null
@@ -26,6 +29,10 @@ export interface ToolbarToolMenuAreasProps {
   orchestratorOpMsg: string | null
   renderOpOk: boolean | null
   renderOpMsg: string | null
+  isSourceFilesImportMenuOpen: boolean
+  setIsSourceFilesImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isSourceFilesExportMenuOpen: boolean
+  setIsSourceFilesExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isCuratorExportMenuOpen: boolean
   setIsCuratorExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isParserExportMenuOpen: boolean
@@ -34,6 +41,12 @@ export interface ToolbarToolMenuAreasProps {
   setIsMarkdownImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isHtmlImportMenuOpen: boolean
   setIsHtmlImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isPdfImportMenuOpen: boolean
+  setIsPdfImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isJsonImportMenuOpen: boolean
+  setIsJsonImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isJsonLdImportMenuOpen: boolean
+  setIsJsonLdImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isSchemaExportMenuOpen: boolean
   setIsSchemaExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isGraphFieldsExportMenuOpen: boolean
@@ -72,7 +85,7 @@ export interface ToolbarToolMenuAreasProps {
   onToolMenuAction: (
     area: ToolMenuArea,
     action: ToolMenuAction,
-    payload?: { url?: string },
+    payload?: ToolMenuPayload,
   ) => void
   onOpenWorkflowTab: () => void
   onOpenData: () => void
@@ -84,26 +97,11 @@ export interface ToolbarToolMenuAreasProps {
 export type ToolbarAreaRenderer = (props: ToolbarToolMenuAreasProps) => React.ReactNode
 
 export const TOOLBAR_AREA_RENDERERS: Partial<Record<ToolMenuArea, ToolbarAreaRenderer>> = {
+  sourceFiles: (props) => <ToolbarSourceFilesArea {...props} />,
   curator: (props) => (
-    <ToolbarCuratorArea
-      dataLoadOk={props.dataLoadOk}
-      dataLoadMsg={props.dataLoadMsg}
-      isExportMenuOpen={props.isCuratorExportMenuOpen}
-      setIsExportMenuOpen={props.setIsCuratorExportMenuOpen}
-      onExportGraphJsonLd={props.onExportGraphJsonLd}
-      onExportGraphJson={props.onExportGraphJson}
-      onExportGraphCsvCombined={props.onExportGraphCsvCombined}
-      onExportGraphMl={props.onExportGraphMl}
-      onExportGraphCypher={props.onExportGraphCypher}
-      onCopyGraphJsonLd={props.onCopyGraphJsonLd}
-      onCopyGraphJson={props.onCopyGraphJson}
-      hasSelection={props.hasSelection}
-      onExportSelectionJsonLd={props.onExportSelectionJsonLd}
-      onExportSelectionJson={props.onExportSelectionJson}
-      onExportSelectionCsvCombined={props.onExportSelectionCsvCombined}
-      onExportSelectionGraphMl={props.onExportSelectionGraphMl}
-      onExportSelectionCypher={props.onExportSelectionCypher}
-    />
+    <div className="flex items-center justify-end gap-2">
+      <StatusBadge label={UI_LABELS.loadStatus} ok={props.dataLoadOk} msg={props.dataLoadMsg} />
+    </div>
   ),
   parser: (props) => (
     <ToolbarParserArea
@@ -115,6 +113,7 @@ export const TOOLBAR_AREA_RENDERERS: Partial<Record<ToolMenuArea, ToolbarAreaRen
   ),
   markdown: (props) => <ToolbarMarkdownArea {...props} />,
   html: (props) => <ToolbarHtmlArea {...props} />,
+  pdf: (props) => <ToolbarPdfArea {...props} />,
   schemaConfig: (props) => (
     <ToolbarSchemaConfigArea
       schemaOpOk={props.schemaOpOk}

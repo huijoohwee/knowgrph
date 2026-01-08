@@ -189,6 +189,7 @@ export function Scene({
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
   const selectEdge = useGraphStore(s => s.selectEdge)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
+  const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const selectionSets = React.useMemo(() => {
     const nodeIds =
       Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
@@ -226,8 +227,9 @@ export function Scene({
         selectedEdgeId,
         selectedNodeIds,
         selectedEdgeIds,
+        renderMediaAsNodes,
       }),
-    [data, schema, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds],
+    [data, schema, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds, renderMediaAsNodes],
   )
   const selectionMode: NodeSelectionMode =
     selectionSets.selectedEdgeIdSet.size > 0 ? 'edge' : selectionSets.selectedNodeIdSet.size > 0 ? 'node' : 'none'

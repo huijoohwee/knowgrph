@@ -13,7 +13,7 @@ type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 export const attachSimulationTick = (args: {
   svgEl: SVGSVGElement
   simulation: d3.Simulation<GraphNode, GraphEdge>
-  nodeSel: d3.Selection<SVGCircleElement, GraphNode, SVGGElement, unknown>
+  nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>
   mediaSel?: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null
   linkSel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
   labelsSel: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>
@@ -116,20 +116,29 @@ export const attachSimulationTick = (args: {
         .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.y ?? 0)
     }
 
-    nodeSel.attr('cx', (d: GraphNode) => d.x!).attr('cy', (d: GraphNode) => d.y!)
+    nodeSel
+      .attr('cx', (d: GraphNode) => d.x!)
+      .attr('cy', (d: GraphNode) => d.y!)
+      .attr('x', (d: GraphNode) => {
+        const r = getRenderNodeRadius2d(d, schema)
+        return (d.x ?? 0) - r
+      })
+      .attr('y', (d: GraphNode) => {
+        const r = getRenderNodeRadius2d(d, schema)
+        return (d.y ?? 0) - r
+      })
+      .attr('width', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 2)
+      .attr('height', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 2)
+      .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
+      .attr('rx', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
+      .attr('ry', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
 
     if (mediaSel) {
-      mediaSel
-        .attr('x', (d: GraphNode) => {
-          const r = getRenderNodeRadius2d(d, schema)
-          return (d.x ?? 0) - r
-        })
-        .attr('y', (d: GraphNode) => {
-          const r = getRenderNodeRadius2d(d, schema)
-          return (d.y ?? 0) - r
-        })
-        .attr('width', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 2)
-        .attr('height', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 2)
+      mediaSel.attr('transform', (d: GraphNode) => {
+        const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
+        const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
+        return `translate(${x},${y})`
+      })
     }
 
     labelsSel.attr('x', (d: GraphNode) => d.x!).attr('y', (d: GraphNode) => d.y!)

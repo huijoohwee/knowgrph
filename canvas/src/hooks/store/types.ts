@@ -48,6 +48,7 @@ export interface GraphState {
   historyTimer: ReturnType<typeof setTimeout> | null;
   schema: GraphSchema;
   layoutPositionCacheByMode: Partial<Record<LayoutPositionCacheKey, Record<string, NodePosition2d>>>;
+  setLayoutPositionsForMode: (key: LayoutPositionCacheKey, positions: Record<string, NodePosition2d> | null) => void;
   schemaImportLabel: string | null;
   schemaOpOk: boolean | null;
   schemaOpMsg: string;
@@ -98,6 +99,10 @@ export interface GraphState {
   uiPanelRowDensityCompactClass: string;
   uiPanelMonospaceTextClass: string;
   uiPanelMicroLabelTextSizeClass: string;
+  renderMediaAsNodes: boolean;
+  setRenderMediaAsNodes: (v: boolean) => void;
+  setMediaPanelDensity: (v: 'default' | 'compact') => void;
+  mediaPanelDensity: 'default' | 'compact';
   uiHeaderRowHeightClass: string;
   uiHeaderRowPaddingClass: string;
   uiSectionHeaderRowHeightClass: string;
@@ -117,6 +122,7 @@ export interface GraphState {
   uiOverlayOpacity: number;
   uiPanelOpacity: number;
   uiToolbarOpacity: number;
+  mediaNodeOpacity: number;
   chatEndpointUrl: string | null;
   chatModel: string | null;
   chatTemperature: number;
@@ -175,6 +181,7 @@ export interface GraphState {
   setUiOverlayOpacity: (v: number) => void;
   setUiPanelOpacity: (v: number) => void;
   setUiToolbarOpacity: (v: number) => void;
+  setMediaNodeOpacity: (v: number) => void;
   setChatEndpointUrl: (url: string | null) => void;
   setChatModel: (model: string | null) => void;
   setChatTemperature: (v: number) => void;

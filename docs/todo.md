@@ -2,15 +2,29 @@
 
 ## P0-Critical
 
-### 2025-01-06 
-- showcase public demo repo; keep real implementation private; 
-  - evaluate Git subtree split/CI/CD automation; 
-  - demo repo: user can try & run a simplified interactive version instantly without installation on FOSS hosted demo;
-
-- unify multi-doc: at orchestration stage, unify multiple documents (current markdown import only supports single documents);
-
-
-## P1-High
+### 2025-01-07
+- Add semantic parsing mode as default; provide document‑structure parsing mode as fallback.
 
 ### 2025-01-06
-- support HTML import;
+- Showcase public demo repo; keep implementation private.  
+  - Evaluate Git subtree split/CI/CD automation.  
+  - Provide demo repo with simplified interactive version; enable instant run on FOSS hosting without installation.  
+
+- Unify multiple documents at orchestration stage; current markdown import supports single document only.
+
+## P1‑High
+
+### 2025-01-06
+- Support HTML import for extended format coverage.  
+
+- Render images as panel‑like rectangular nodes (default if available); link images as fallback.
+
+---
+
+- Maintain functionality with neutral, config‑driven approach.  
+- Implement generic heuristic for normalization.  
+- Make patterns configurable for adaptability.  
+
+---
+
+- Refactor remote URL rewriting logic for media from nodes.ts into helper function in helpers.ts.

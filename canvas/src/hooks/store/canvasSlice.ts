@@ -11,7 +11,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   polygonGroupsVisible: true as boolean,
   setPolygonGroupsVisible: (v: boolean) => set({ polygonGroupsVisible: !!v }),
   togglePolygonGroupsVisible: () => set(state => ({ polygonGroupsVisible: !(state.polygonGroupsVisible || false) })),
-  fitToScreenMode: false as boolean,
+  fitToScreenMode: true as boolean,
   setFitToScreenMode: (v: boolean) => set({ fitToScreenMode: !!v }),
   toggleFitToScreenMode: () => set(state => ({ fitToScreenMode: !state.fitToScreenMode })),
   zoomToSelectionMode: false as boolean,

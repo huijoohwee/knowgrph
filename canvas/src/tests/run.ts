@@ -70,6 +70,8 @@ import {
   testSchemaJsonLdRoundTripPreservesLayers,
   testJsonLdGraphsParseAndValidateWithUniversalSchema,
   testMiniVizComputesOnSelectionSubgraph,
+  testInterviewerSchemaSnippetParsesHiddenNodeTypes,
+  testInterviewerJsonLdSemanticVsDocumentStructureLayers,
 } from '@/__tests__/schemaFixtures.test'
 import {
   testWorkflowJsonLdHistoryGraphShape,
@@ -112,6 +114,9 @@ import {
   testSpreadsheetSortsAddRuleSkipsExistingKeys,
 } from '@/__tests__/spreadsheetFiltersSorts.test'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
+import { testInterviewerMarkdownIngestionProducesGraph } from '@/__tests__/interviewerMarkdownIngestion.test'
+import { testInterviewerSliceTidyTreeDerivationUsesWorkflowEdges } from '@/__tests__/interviewerTidyTree.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -297,10 +302,22 @@ export const runAllTests = async () => {
   await exec('schemaFixtures.schemaJsonLdRoundTripLayers', testSchemaJsonLdRoundTripPreservesLayers);
   await exec('schemaFixtures.jsonldRoundTrip', testJsonLdGraphsParseAndValidateWithUniversalSchema);
   await exec('schemaFixtures.miniVizComputes', testMiniVizComputesOnSelectionSubgraph);
+  await exec('schemaFixtures.interviewerSchemaSnippetParsesHiddenNodeTypes', testInterviewerSchemaSnippetParsesHiddenNodeTypes);
+  await exec(
+    'schemaFixtures.interviewerJsonLdSemanticVsDocumentStructureLayers',
+    testInterviewerJsonLdSemanticVsDocumentStructureLayers,
+  );
   await exec('workflowPreset.selfConsistent', testWorkflowPresetPipelinesAreSelfConsistent);
   await exec('workflowPreset.exportBrandedPaths', testExportFunctionsAcceptBrandedPaths);
   await exec('ui.help.pipelineCopyMatchesCommand', testHelpPipelineCopyMatchesCommandConstant);
   await exec('ui.markdown.parserMetadataAnchors', testMarkdownParserMetadataAnchorsAreAgenticRagCompatible);
+  await exec('ui.media.mediaInteractiveDefaults', testMediaInteractiveDefaults);
+  await exec('ui.markdown.interviewerMarkdownIngestionProducesGraph', testInterviewerMarkdownIngestionProducesGraph);
+  await exec('ui.markdown.interviewerSliceTidyTreeDerivationUsesWorkflowEdges', testInterviewerSliceTidyTreeDerivationUsesWorkflowEdges);
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    const mod = await import('@/__tests__/markdownMediaToggleE2e.test')
+    await exec('ui.markdown.mediaToggleEndToEnd', mod.testMarkdownMediaToggleEndToEnd)
+  }
   await exec('ui.orchestrator.tooltipRoleActionOutcomeShape', testOrchestratorTooltipRoleActionOutcomeShape);
   await exec('ui.orchestrator.toolMenuUsesTooltipCopyHelper', testOrchestratorToolMenuUsesTooltipCopyHelper);
   await exec('ui.orchestrator.sectionListLabelIncludesExpectedSections', testOrchestratorSectionListLabelIncludesExpectedSections);

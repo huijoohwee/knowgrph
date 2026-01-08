@@ -16,7 +16,6 @@ import {
   stripKg,
   isRecord,
   isIdPropertyKey,
-  isCompactIriLike,
   AGENTIC_RAG_MINIMAL_CONTEXT,
 } from './utils';
 
@@ -155,13 +154,20 @@ export function parseJsonLd(jsonld: unknown): GraphData {
         return typeof idVal === 'string' && idVal.length > 0;
       });
       if (!allStringOrIdObject) continue;
-      const allCompactIri = arr.every((x) => typeof x === 'string' && isCompactIriLike(String(x)));
       const anyTargetExists = arr.some((x) => {
-        if (typeof x !== 'string') return false;
-        const tgtId = stripKg(x as unknown);
-        return !!tgtId && nodeMap.has(tgtId);
+        if (typeof x === 'string') {
+          const tgtId = stripKg(x as unknown);
+          return !!tgtId && nodeMap.has(tgtId);
+        }
+        if (isRecord(x)) {
+          const rawId = (x['@id'] as unknown) ?? (x['id'] as unknown);
+          if (typeof rawId !== 'string') return false;
+          const tgtId = stripKg(rawId as unknown);
+          return !!tgtId && nodeMap.has(tgtId);
+        }
+        return false;
       });
-      const treatAsEdges = arr.length > 0 && (isIdKey || (allCompactIri && anyTargetExists));
+      const treatAsEdges = arr.length > 0 && (isIdKey || anyTargetExists);
       if (!treatAsEdges) continue;
       for (let i = 0; i < arr.length; i++) {
         const raw = arr[i];

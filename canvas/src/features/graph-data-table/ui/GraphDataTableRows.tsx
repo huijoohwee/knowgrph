@@ -15,6 +15,7 @@ import {
   AggregateRowVisualization,
 } from '@/features/graph-data-table/ui/GraphDataTableAggregateViz'
 import { BodyCell } from './GraphDataTableBody'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 type SelectionSets = {
   selectedNodeIdSet: Set<string>
@@ -106,6 +107,7 @@ export function GraphDataTableRows({
   onRowClick,
   onRowDoubleClick,
 }: GraphDataTableRowsProps) {
+  const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   return (
     <>
       {topSpacerHeight > 0 && (
@@ -255,6 +257,7 @@ export function GraphDataTableRows({
           <tr
             key={`row:${itemIndex}:${row.id}`}
             className={`cursor-default border-b border-gray-100 hover:bg-blue-50/40 ${selectionClassName}`}
+            style={mediaNodeOpacity < 1 ? { opacity: mediaNodeOpacity } : undefined}
             onClick={() => onRowClick(row)}
             onDoubleClick={() => onRowDoubleClick(row)}
           >
@@ -336,4 +339,3 @@ export function GraphDataTableRows({
     </>
   )
 }
-

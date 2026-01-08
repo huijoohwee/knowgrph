@@ -60,7 +60,8 @@ export function useEdgeCreationEffect({
     edgeCreationRequest, 
     graphData, 
     selectedEdgeId, 
-    // Dependencies that are functions/refs should be stable
+    tempLinkSelRef,
+    linkDragRef,
     clearEdgeCreationRequest,
     selectEdge,
     setSelectionSource

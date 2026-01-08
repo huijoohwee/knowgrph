@@ -39,7 +39,7 @@ export function ToolbarMarkdownArea(props: ToolbarToolMenuAreasProps) {
               className={buttonClassName}
               onClick={() => {
                 props.setIsMarkdownImportMenuOpen(false)
-                props.onToolMenuAction('markdown', 'importLocal')
+                props.onToolMenuAction('sourceFiles', 'importLocal', { format: 'markdown' })
               }}
             >
               {UI_COPY.toolbarMarkdownImportLocalDeviceButtonLabel}
@@ -64,7 +64,7 @@ export function ToolbarMarkdownArea(props: ToolbarToolMenuAreasProps) {
                 props.setIsMarkdownImportMenuOpen(false)
                 setIsUrlInputOpen(false)
                 setUrlInputValue('')
-                props.onToolMenuAction('markdown', 'importUrl', { url })
+                props.onToolMenuAction('sourceFiles', 'importUrl', { format: 'markdown', url })
               }}
             >
               <input

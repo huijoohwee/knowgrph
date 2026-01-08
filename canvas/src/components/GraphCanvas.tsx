@@ -27,7 +27,7 @@ export default function GraphCanvas() {
   const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'tidy-tree'>(null);
   const lastLayerModeRef = useRef<null | string>(null);
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
-  const nodesSelRef = useRef<d3.Selection<SVGCircleElement, GraphNode, SVGGElement, unknown> | null>(null);
+  const nodesSelRef = useRef<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>(null);
   const mediaSelRef = useRef<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>(null);
   const linksSelRef = useRef<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>(null);
   const labelsSelRef = useRef<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>(null);
@@ -59,7 +59,10 @@ export default function GraphCanvas() {
     polygonGroupsVisible,
     isSidebarOpen,
     sidebarWidthRatio,
-    layoutPositionCacheByMode,
+    renderMediaAsNodes,
+    mediaNodeOpacity,
+    mediaPanelDensity,
+    setLayoutPositionsForMode,
   } = useGraphStore(
     useShallow((s) => ({
       graphData: s.graphData,
@@ -88,7 +91,10 @@ export default function GraphCanvas() {
       polygonGroupsVisible: s.polygonGroupsVisible,
       isSidebarOpen: s.isSidebarOpen,
       sidebarWidthRatio: s.sidebarWidthRatio,
-      layoutPositionCacheByMode: s.layoutPositionCacheByMode,
+      renderMediaAsNodes: s.renderMediaAsNodes,
+      mediaNodeOpacity: s.mediaNodeOpacity,
+      mediaPanelDensity: s.mediaPanelDensity,
+      setLayoutPositionsForMode: s.setLayoutPositionsForMode,
     })),
   );
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
@@ -246,6 +252,7 @@ export default function GraphCanvas() {
     rafId = requestAnimationFrame(() => {
       if (!svgRef.current) return;
       const z = useGraphStore.getState().zoomState;
+      const layoutPositionCacheByMode = useGraphStore.getState().layoutPositionCacheByMode;
       const initialZoomTransform =
         z && (z.graphDataRevision == null || z.graphDataRevision === graphDataRevisionRef.current)
           ? { k: z.k, x: z.x, y: z.y }
@@ -272,9 +279,10 @@ export default function GraphCanvas() {
         }
         return matches / Math.max(1, nodes.length)
       })()
+      const cacheKey = `${layerMode}:${mode}`
       const cachedPositions =
         isStructuredMode && layoutPositionCacheByMode
-          ? (layoutPositionCacheByMode[`${layerMode}:${mode}`] ?? null)
+          ? (layoutPositionCacheByMode[cacheKey] ?? null)
           : null
       const coverageFromCache = (() => {
         if (!isStructuredMode) return 0
@@ -314,6 +322,8 @@ export default function GraphCanvas() {
         hoverEnabled,
         zoomOnDoubleClick,
         polygonsVisible: polygonGroupsVisible,
+        renderMediaAsNodes,
+        mediaPanelDensity,
         initialZoomTransform,
         layoutPositionsForMode,
         skipInitialLayout,
@@ -340,6 +350,8 @@ export default function GraphCanvas() {
         requestZoomSelection: () => requestZoomRef.current('selection'),
         onZoomTransform: t =>
           setZoomStateRef.current({ ...t, graphDataRevision: graphDataRevisionRef.current }),
+        layoutCacheKey: cacheKey,
+        setLayoutPositionsForMode,
       });
       applySelectionHighlight(
         nodesSelRef.current,
@@ -352,6 +364,8 @@ export default function GraphCanvas() {
         selectedEdgeIdRef.current,
         selectedNodeIdsRef.current,
         selectedEdgeIdsRef.current,
+        renderMediaAsNodes,
+        { mediaNodeOpacity },
       );
     });
     return () => {
@@ -367,7 +381,10 @@ export default function GraphCanvas() {
     schema,
     edgesForSim,
     polygonGroupsVisible,
-    layoutPositionCacheByMode,
+    renderMediaAsNodes,
+    mediaNodeOpacity,
+    mediaPanelDensity,
+    setLayoutPositionsForMode,
   ]);
 
 
@@ -384,6 +401,8 @@ export default function GraphCanvas() {
     mediaSelRef,
     labelsSelRef,
     linksSelRef,
+    renderMediaAsNodes,
+    mediaNodeOpacity,
   });
 
   useEffect(() => {

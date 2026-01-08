@@ -30,10 +30,12 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
   const scrollDelayRef = React.useRef<number | null>(null)
   const scrollAllowedRef = React.useRef<boolean>(false)
   const delayElapsedRef = React.useRef<boolean>(false)
+  const constrainedRef = React.useRef<boolean>(false)
 
   const updatePosition = React.useCallback(() => {
     const el = anchorRef.current
     if (!el) return
+    constrainedRef.current = false
     setPos(computeTooltipPositionFromAnchor(el, 4))
     setMaxW(computeTooltipMaxWidthPx(el, { maxWidthFromPrevSibling, maxWidthPx, defaultMaxWidthPx: 250 }))
   }, [maxWidthFromPrevSibling, maxWidthPx])
@@ -103,6 +105,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
   React.useLayoutEffect(() => {
     if (!open) return
     if (!pos) return
+    if (constrainedRef.current) return
     const tip = scrollRef.current
     const anchor = anchorRef.current
     if (!tip || !anchor) return
@@ -123,6 +126,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
     if (next.left !== pos.left || next.top !== pos.top) {
       setPos(next)
     }
+    constrainedRef.current = true
   }, [open, pos])
 
   React.useEffect(() => {

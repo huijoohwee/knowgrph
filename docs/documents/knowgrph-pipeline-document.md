@@ -50,7 +50,9 @@ The pipeline adheres to `/schema/AgenticRAG` by:
 
 **From HTML content to Markdown & Graph**: The HTML ingestion pipeline allows users to import HTML (local file or URL) directly into the canvas.
 
-- **Entry Point**: `ToolbarHtmlArea.tsx` triggers actions handled by `htmlImportAction.ts` (via `useToolbarMenuAction.ts`).
+- **Entry Points**:
+  - Unified: Toolbar "Source Files" -> Import -> HTML (handled by `useToolbarMenuAction.ts` with `area: "sourceFiles"`).
+  - Direct: `ToolbarHtmlArea.tsx` -> `htmlImportAction.ts` (via `useToolbarMenuAction.ts`).
 - **Process**:
   1.  **Fetch**: Retrieves HTML content from URL or local file via `htmlImportAction.ts`.
       -   For remote URLs, HTML is fetched via a same-origin proxy endpoint (`/__fetch_remote?url=...`) provided by the Vite server (`canvas/vite.config.ts`).
@@ -58,7 +60,7 @@ The pipeline adheres to `/schema/AgenticRAG` by:
   2.  **Parse**: `parseHtmlToMarkdown` in `src/features/parsers/html-parser.ts` converts HTML to Markdown.
       -   Handles block elements (headers, lists, `main`, `article`, `section`, `nav`, `aside`, etc.).
       - **Advanced Structures**: Supports `table` (basic text conversion), `pre`/`code` (code blocks), `img` (image links), and `blockquote`.
-      - **Media**: Preserves `<video>`/`<iframe>` blocks as safe HTML so the Markdown Viewer can render rich media.
+      - **Media**: Converts `<img>`, `<video>`, and `<iframe>` into Markdown inline refs (e.g., `![Video](url)`, `![IFrame](url)`) with URLs resolved against the page URL so downstream parsing can render media nodes reliably.
       - **Feeds**: Detects RSS/Atom/XML responses and converts feed items/entries into Markdown sections with links.
       - **Test Site Compatibility**: optimized for complex documentation sites (e.g., AIAP Field Guide, CommonMark Spec) via robust parsing of nested structures and enhanced fetch headers (anti-bot bypass).
       - **Collapsed Sections**: Preserves `<details>`/`<summary>` tags in Markdown to allow the Markdown Viewer to render interactive collapsible sections.
@@ -74,6 +76,44 @@ The pipeline adheres to `/schema/AgenticRAG` by:
   -   Provides a "no-code" entry point for web content (e.g., AIAP Field Guide).
   -   Bypasses the backend CLI for ad-hoc exploration.
   -   Ensures link rendering is reliable in the Markdown Viewer (standard Markdown links and plain `http(s)` URLs are clickable).
+
+### Stage: Client-Side Markdown URL Ingestion
+
+**From URL content to Markdown & Graph**: The Markdown ingestion pipeline allows users to import Markdown (local file or URL) directly into the canvas.
+
+- **Entry Points**:
+  - Unified: Toolbar "Source Files" -> Import -> Markdown (handled by `useToolbarMenuAction.ts` with `area: "sourceFiles"`).
+  - Direct: `ToolbarMarkdownArea.tsx` -> `markdownImportAction.ts` (via `useToolbarMenuAction.ts`).
+- **Behavior**:
+  - URL ingestion accepts any `http(s)` URL; if the fetched content looks like HTML (e.g., GitHub “blob” pages), it is converted to Markdown via `parseHtmlToMarkdown` before parsing.
+  - Inline `![...](...)` and `[...] (...)` refs are resolved against the document URL so relative media/links remain usable downstream.
+  - Media refs tagged as `Video` or `IFrame` are materialized as dedicated rectangular media nodes (`Video`, `IFrame`, `Image`) when “Render Media as Nodes” is enabled.
+  - IFrame embedding is gated by `VITE_IFRAME_ALLOWED_HOSTS` (comma/space-separated host allowlist); if not allowed, the node remains but won’t embed an iframe.
+  - Local dev/test: when running `npm run dev` or `npm test`, set `VITE_IFRAME_ALLOWED_HOSTS=www.youtube.com,youtu.be,vimeo.com` (or your own hosts) so iframe media nodes resolve to interactive panels instead of being dropped by the allowlist.
+
+### Stage: Client-Side PDF Ingestion
+
+**From PDF content to Markdown & Graph**: The PDF ingestion pipeline allows users to import PDF (local file or URL) directly into the canvas, converting it to Markdown via a native parser (using pypdf).
+
+- **Entry Points**:
+  - Unified: Toolbar "Source Files" -> Import -> PDF (handled by `useToolbarMenuAction.ts` with `area: "sourceFiles"`).
+  - Direct: `ToolbarPdfArea.tsx` -> `pdfImportAction.ts` (via `useToolbarMenuAction.ts`).
+- **Process**:
+  1. **Convert**: Converts PDF to Markdown via a same-origin Vite endpoint (`/__convert_pdf`) implemented in `canvas/vite.config.ts`.
+      - URL import: `POST /__convert_pdf?url=https://.../file.pdf`
+      - Local import: `POST /__convert_pdf` with `Content-Type: application/pdf` and raw PDF bytes.
+      - Conversion engine: shells out to the Python parser entrypoint: `python -m knowgrph_parser pdf --input <file.pdf>`, which uses `pypdf` for native text extraction.
+      - Assets: extracted images are served during dev via `GET /__pdf_assets/<token>/...` and referenced from the converted Markdown.
+  2. **Ingest**: Loads the converted Markdown via `loadGraphDataFromTextViaParser`, producing GraphData nodes/edges using the same parsing path as Markdown and HTML imports.
+  3. **Render**: Stores the imported Markdown in the graph store and opens Curation to render the resulting graph immediately.
+- **Image Rendering**:
+  - Markdown image references become `Image` nodes connected by `embedsImage` edges.
+  - The default schema renders `Image` nodes as rectangular nodes and clips their media to a rectangle.
+- **Requirements**:
+  - The Python environment used by the parser must have pypdf installed: `pip install pypdf` (already encoded in `requirements.txt`).
+  - If conversion fails, the conversion endpoint returns a structured error and the UI reports a failed load status.
+- **Test Data**:
+  - `http://www.cad.zju.edu.cn/home/ybtao/papers/PaciVis16_Semantic%20Word%20Cloud.pdf`
 
 **Configuration Schema (subset)**:
 
@@ -269,6 +309,32 @@ KG_FEEDBACK_WINDOW_SIZE:
     - Schema JSON‑LD via `parseSchemaText` and `useGraphStore.setSchema`.
     - Orchestrator YAML / GraphRAG workflow via `importGraphRagWorkflowFromText`.
   - Opens Data, Schema, and Orchestrator bottom panel tabs to complete the end‑to‑end journey.
+- Preset workflows:
+  - Examples and presets are defined in:
+    - `canvas/src/features/parsers/examplesCatalog.ts`
+    - `canvas/src/features/parsers/workflowPresets.ts`
+  - Interviewer assessment workflow:
+    - Dataset JSON‑LD: `docs/assets/interviewer.jsonld`
+    - Markdown source: `docs/assets/interviewer.md`
+    - Schema‑config JSON‑LD: `schema-config/knowgrph-interviewer-schema-config.jsonld`
+    - Canvas preset id: `interviewer-assessment-kg`
+    - Behavior: selecting the interviewer example or preset loads the interviewer graph, applies the interviewer schema‑config (including `layers.semantic.hiddenNodeTypes`), and keeps layer and mode switching metadata‑driven and domain‑agnostic.
+    - Click path to exercise layout and layer caches:
+      - Open the **Examples** menu and choose the **Interviewer assessment** preset (or the corresponding examples entry) so the canvas loads `docs/assets/interviewer.jsonld` with the interviewer schema-config applied.
+      - In the toolbar, toggle **Layer mode** between **Property**, **Document structure**, and **Semantic**:
+        - Property and document-structure layers render the full interviewer graph; semantic layer hides `geo:Polygon` nodes and any edges incident on them, as configured in the schema.
+        - The underlying JSON‑LD graph stays unchanged; only visibility is controlled by `layers.mode` and `layers.semantic.hiddenNodeTypes`.
+      - In the same session, toggle **Layout mode** between **Force**, **Radial**, and **Tidy tree**:
+        - Radial and tidy-tree layouts compute deterministic node positions once per `(layer, layout)` combination, then cache them in `layoutPositionCacheByMode`.
+        - Switching from `force` → `radial` → `tidy-tree` and back reuses cached coordinates whenever coverage is high enough, so interviewer workflow nodes do not jitter across toggles.
+        - Tidy-tree uses the interviewer workflow edges (for example `pplan:isPrecededBy`) to derive a single parent→child tree and renders only those tree edges, matching the behavior validated by `ui.markdown.interviewerSliceTidyTreeDerivationUsesWorkflowEdges`.
+      - While switching layers and layouts, use:
+        - The **Fit to Screen** toggle to keep the full interviewer workflow in view.
+        - The **Polygon groups** toggle to show or hide convex hulls around semantic clusters; cached radial/tidy-tree layouts remain stable across polygon visibility changes.
+      - This click path exercises:
+        - JSON‑LD ingestion of `docs/assets/interviewer.jsonld` and `docs/assets/interviewer.md`.
+        - Schema-driven layer visibility for `geo:Polygon` vs. non-polygon nodes.
+        - Per-layer, per-layout 2D position caching with `layoutPositionCacheByMode`.
 
 ### Stage: Client-Side Agentic RAG
 

@@ -283,6 +283,9 @@ export const GRAPH_DATA_TABLE_CURATION_TOOLTIP = buildRoleActionOutcomeTooltip({
     'produce JSON (default), AgenticRAG JSON-LD, or CSV snapshots aligned with schema and codebase index.',
 });
 
+export const TOOL_MENU_SOURCE_FILES_DESCRIPTION =
+  'Source Files \u2192 import or export supported formats \u2192 keep Markdown, HTML, PDF, JSON-LD, and JSON ingest paths consistent without hardcoding dataset-specific rules.';
+
 export const TOOL_MENU_VALIDATION_DESCRIPTION =
   'Validation \u2192 export graph-wide and selection-only validation reports \u2192 keep JSON and Markdown summaries aligned with AgenticRAG schema and Graph Data Table curation.';
 

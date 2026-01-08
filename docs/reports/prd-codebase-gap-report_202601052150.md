@@ -2,7 +2,7 @@
 
 - Report ID: `prd-codebase-gap-report_202601052150`
 - Repo: `/Users/huijoohwee/Documents/GitHub/knowgrph`
-- PRD / Guidelines Baseline: [knowgrph-pipeline-guidelines.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/guidelines/knowgrph-pipeline-guidelines.md)
+- PRD / Guidelines Baseline: [knowgrph-pipeline-guidelines.md](https://huijoohwee.github.io/guidelines/knowgrph-pipeline-guidelines.md)
 - Scope: End-to-end automated, integrated markdown-to-rendering pipeline (excluding code under `/docs` for “current module” mapping)
 
 ---

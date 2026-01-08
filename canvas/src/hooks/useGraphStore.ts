@@ -9,7 +9,7 @@ import { createCanvasSlice } from '@/hooks/store/canvasSlice';
 import { createSchemaSlice, readSchemaFromStorage } from '@/hooks/store/schemaSlice';
 import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
 import { getLocalStorage } from '@/lib/persistence';
-import type { GraphState } from '@/hooks/store/types';
+import type { GraphState, LayoutPositionCacheKey, NodePosition2d } from '@/hooks/store/types';
 
 export type { GraphState } from '@/hooks/store/types';
 
@@ -37,6 +37,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       graphValidationTimestamp: timestamp,
     })
   },
+  setLayoutPositionsForMode: (key: LayoutPositionCacheKey, positions: Record<string, NodePosition2d> | null) => {
+    set(s => {
+      const prev = s.layoutPositionCacheByMode || {}
+      if (!positions || Object.keys(positions).length === 0) {
+        if (!prev || !prev[key]) return { layoutPositionCacheByMode: prev }
+        const next: typeof prev = { ...prev }
+        delete next[key]
+        return { layoutPositionCacheByMode: next }
+      }
+      const next: typeof prev = { ...prev, [key]: positions }
+      return { layoutPositionCacheByMode: next }
+    })
+  },
   setGraphFieldsOpStatus: (ok, msg) => {
     set({ graphFieldsOpOk: ok, graphFieldsOpMsg: String(msg || '') })
   },
@@ -52,6 +65,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({
       graphData: { nodes: [], edges: [], type: 'application/json' },
       schema: defaultSchema,
+      layoutPositionCacheByMode: {},
       history: [],
       historyIndex: -1,
       selectedNodeId: null,
@@ -67,7 +81,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       lifecycleStage: 'idle',
     });
   },
-  ...createUiSettingsSlice(set, get),
+  ...createUiSettingsSlice(set),
   ...createGraphDataSlice(set, get),
   ...createMinimapSlice(set, get),
   ...createSelectionSlice(set, get),

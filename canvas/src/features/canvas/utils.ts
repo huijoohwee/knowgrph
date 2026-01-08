@@ -67,9 +67,10 @@ export function calcMouseGraphPosition(svgRef: React.RefObject<SVGSVGElement>, e
 export function isNodePointerTarget(target: EventTarget | null): boolean {
   if (!target) return false
   if (target instanceof SVGCircleElement) return true
+  if (target instanceof SVGRectElement) return true
   if (target instanceof Element) {
     const tag = String(target.tagName || '').toLowerCase()
-    return tag === 'circle'
+    return tag === 'circle' || tag === 'rect'
   }
   return false
 }

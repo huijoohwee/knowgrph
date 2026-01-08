@@ -11,6 +11,7 @@ import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
 import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSection'
 import RenderTidyTreeSettingsRows, { type TidyTreeLod } from '@/features/panels/views/RenderTidyTreeSettingsRows'
+import MediaNodesSection from '@/features/panels/views/MediaNodesSection'
 
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>
 type GraphCreateMode = NonNullable<GraphBehavior['createMode']>
@@ -500,6 +501,7 @@ export default function RenderSettingsSection({
           onToggleThreeGroup={onToggleThreeGroup}
         />
       </CollapsibleSection>
+      <MediaNodesSection toolbarAligned />
       <CollapsibleSection
         title={renderSectionTitle('codebaseIndexPipeline')}
         toolbarAligned

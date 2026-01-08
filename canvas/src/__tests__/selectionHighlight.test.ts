@@ -38,6 +38,7 @@ export function testSelectionHighlightNeighborsFromNodeSelection() {
     schema,
     selectedNodeId: 'b',
     selectedEdgeId: null,
+    renderMediaAsNodes: true,
   }
   const neighborIds = computeNeighborIds(params)
   if (!neighborIds.has('a') || !neighborIds.has('c') || neighborIds.size !== 2) {
@@ -77,6 +78,7 @@ export function testSelectionHighlightEdgeSelectionEndpointsAndEdges() {
     schema,
     selectedNodeId: null,
     selectedEdgeId: 'e1',
+    renderMediaAsNodes: true,
   }
   const neighborIds = computeNeighborIds(params)
   if (neighborIds.size !== 0) {

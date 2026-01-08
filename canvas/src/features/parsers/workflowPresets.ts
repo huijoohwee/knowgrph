@@ -57,7 +57,7 @@ export const WORKFLOW_PRESETS: WorkflowPresetCatalogEntry[] = [
     },
   },
   {
-    id: 'ai-customer-voice-management' as WorkflowPresetId,
+    id: 'aiCustomerVoiceManagement' as WorkflowPresetId,
     label: 'Demo: AI Customer Voice Management',
     parserId: toParserId('json') as WorkflowPresetParserId,
     datasetFileName: EXAMPLES_BY_ID.aiCustomerVoiceManagement.datasetPath as WorkflowDatasetPath,
@@ -65,6 +65,13 @@ export const WORKFLOW_PRESETS: WorkflowPresetCatalogEntry[] = [
     threeOverrides: {
       backgroundColor: '',
     },
+  },
+  {
+    id: 'aiap22-interviewer-workflow' as WorkflowPresetId,
+    label: 'Demo: AIAP22 Interviewer Workflow (semantic clusters hidden)',
+    parserId: toParserId('jsonld') as WorkflowPresetParserId,
+    datasetFileName: EXAMPLES_BY_ID.interviewerWorkflow.datasetPath as WorkflowDatasetPath,
+    schemaFileName: EXAMPLES_BY_ID.interviewerWorkflow.schemaPath as WorkflowSchemaPath,
   },
   {
     id: 'universal-lean-startup-kg' as WorkflowPresetId,

@@ -1,6 +1,12 @@
 export const EXPORT_UI_LABELS = {
   copyGraphJsonLd: 'Copy Graph JSON-LD (AgenticRAG)',
   copyGraphJson: 'Copy Graph JSON',
+  exportDocumentMarkdown: 'Export Document Markdown',
+  exportDocumentHtml: 'Export Document HTML',
+  exportDocumentPdf: 'Export Document PDF',
+  exportGraphJsonLd: 'Export Graph JSON-LD (AgenticRAG)',
+  exportGraphJson: 'Export Graph JSON',
+  exportGraphCsvCombined: 'Export Graph CSV Combined',
   exportGraphFieldSettingsJsonLd: 'Export Graph Field Settings JSON-LD (AgenticRAG)',
   exportSettingsJsonLd: 'Export Settings JSON-LD (AgenticRAG)',
   exportHistoryJsonLd: 'Export History JSON-LD (AgenticRAG)',

@@ -1,7 +1,8 @@
 import React from 'react'
-import type { Tokens, Token } from 'marked'
+import type { Token, TokensParagraph, TokensGeneric, TokensLink } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import {
+  applyMediaProxySrc,
   getVimeoId,
   getYouTubeId,
   isAbsoluteWebUrl,
@@ -22,12 +23,12 @@ type MarkdownParagraphBlockProps = {
 }
 
 const isStandaloneLinkParagraph = (token: Token): string | null => {
-  const p = token as unknown as Tokens.Paragraph
+  const p = token as unknown as TokensParagraph
   const inner = Array.isArray(p.tokens) ? p.tokens : []
   if (inner.length !== 1) return null
-  const only = inner[0] as unknown as Tokens.Generic
+  const only = inner[0] as unknown as TokensGeneric
   if (only.type !== 'link') return null
-  const link = only as unknown as Tokens.Link
+  const link = only as unknown as TokensLink
   const href = String(link.href || '').trim()
   return href || null
 }
@@ -85,7 +86,8 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
 
     // Direct Video
     if (isVideoUrl(standaloneHref)) {
-      const src = resolveHref(standaloneHref, opts.activeDocumentPath)
+      const resolved = resolveHref(standaloneHref, opts.activeDocumentPath)
+      const src = applyMediaProxySrc(resolved)
       return (
         <MediaWrapper
           type="video"
@@ -101,7 +103,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   }
 
   // Regular Paragraph
-  const p = t as unknown as Tokens.Paragraph
+  const p = t as unknown as TokensParagraph
   return (
     <p
       className={[

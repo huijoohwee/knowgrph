@@ -1,5 +1,12 @@
 import React from 'react'
-import type { Tokens } from 'marked'
+import type {
+  TokensParagraph,
+  TokensGeneric,
+  TokensLink,
+  TokensCode,
+  TokensHTML,
+  TokensImage,
+} from '@/features/markdown/ui/MarkdownTokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import {
@@ -26,6 +33,8 @@ import {
   parseMermaidConfigFromFrontmatter,
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -38,6 +47,7 @@ export default function PreviewPanelView() {
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
+  const graphData = useGraphStore(s => s.graphData as GraphData | null)
   const rootThemeMode = useRootThemeMode()
 
   const hasMarkdown = !!(markdownText && markdownText.trim())
@@ -60,21 +70,24 @@ export default function PreviewPanelView() {
   )
 
   const isStandaloneLinkParagraph = (token: TokenWithLines): string | null => {
-    const p = token as unknown as Tokens.Paragraph
+    const p = token as unknown as TokensParagraph
     const inner = Array.isArray(p.tokens) ? p.tokens : []
     if (inner.length !== 1) return null
-    const only = inner[0] as unknown as Tokens.Generic
+    const only = inner[0] as unknown as TokensGeneric
     if (only.type !== 'link') return null
-    const link = only as unknown as Tokens.Link
+    const link = only as unknown as TokensLink
     const href = String(link.href || '').trim()
     return href || null
   }
 
   type MediaKind = 'mermaid' | 'image' | 'video' | 'iframe' | 'youtube' | 'vimeo'
 
+  type MediaSource = 'markdown' | 'graph'
+
   type MediaItem = {
     key: string
     kind: MediaKind
+    source: MediaSource
     startLine: number
     label: string
     code?: string
@@ -84,15 +97,14 @@ export default function PreviewPanelView() {
   }
 
   const mediaItems: MediaItem[] = React.useMemo(() => {
-    if (!hasMarkdown) return []
     const list: MediaItem[] = []
     const docPath = markdownDocumentName || ''
     for (let i = 0; i < tokens.length; i += 1) {
       const t = tokens[i]
-      const tt = t as unknown as Tokens.Generic
+      const tt = t as unknown as TokensGeneric
 
       if (tt.type === 'code') {
-        const c = t as unknown as Tokens.Code
+        const c = t as unknown as TokensCode
         const lang = String((c as unknown as { lang?: unknown }).lang || '').trim().toLowerCase()
         if (lang === 'mermaid' || lang === 'mmd') {
           const code = String(c.text || '')
@@ -100,6 +112,7 @@ export default function PreviewPanelView() {
           list.push({
             key,
             kind: 'mermaid',
+            source: 'markdown',
             startLine: t.startLine,
             label: `Mermaid diagram ${list.length + 1}`,
             code,
@@ -110,54 +123,57 @@ export default function PreviewPanelView() {
       }
 
       if (tt.type === 'html') {
-        const html = String((t as unknown as Tokens.HTML).text || '').trim()
+        const html = String((t as unknown as TokensHTML).text || '').trim()
 
         if (looksLikeSingleTagBlock(html, 'iframe')) {
-          const srcRaw = extractAttr(html, 'src')
-          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-            const src = resolveHref(srcRaw, docPath)
-            const key = buildMarkdownPreviewMediaKey('iframe', t.startLine, srcRaw)
-            list.push({
-              key,
-              kind: 'iframe',
-              startLine: t.startLine,
-              label: `Embedded content ${list.length + 1}`,
-              src,
-            })
+            const srcRaw = extractAttr(html, 'src')
+            if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
+              const src = resolveHref(srcRaw, docPath)
+              const key = buildMarkdownPreviewMediaKey('iframe', t.startLine, srcRaw)
+              list.push({
+                key,
+                kind: 'iframe',
+                source: 'markdown',
+                startLine: t.startLine,
+                label: `Embedded content ${list.length + 1}`,
+                src,
+              })
             continue
           }
         }
 
         if (looksLikeSingleTagBlock(html, 'video')) {
-          const srcRaw = extractAttr(html, 'src')
-          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-            const src = resolveHref(srcRaw, docPath)
-            const key = buildMarkdownPreviewMediaKey('video', t.startLine, srcRaw)
-            list.push({
-              key,
-              kind: 'video',
-              startLine: t.startLine,
-              label: `Video ${list.length + 1}`,
-              src,
-            })
+            const srcRaw = extractAttr(html, 'src')
+            if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
+              const src = resolveHref(srcRaw, docPath)
+              const key = buildMarkdownPreviewMediaKey('video', t.startLine, srcRaw)
+              list.push({
+                key,
+                kind: 'video',
+                source: 'markdown',
+                startLine: t.startLine,
+                label: `Video ${list.length + 1}`,
+                src,
+              })
             continue
           }
         }
 
         if (looksLikeSingleTagBlock(html, 'img')) {
-          const srcRaw = extractAttr(html, 'src')
-          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-            const src = resolveHref(srcRaw, docPath)
-            const alt = extractAttr(html, 'alt')
-            const key = buildMarkdownPreviewMediaKey('image', t.startLine, srcRaw)
-            list.push({
-              key,
-              kind: 'image',
-              startLine: t.startLine,
-              label: alt || `Image ${list.length + 1}`,
-              src,
-              alt,
-            })
+            const srcRaw = extractAttr(html, 'src')
+            if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
+              const src = resolveHref(srcRaw, docPath)
+              const alt = extractAttr(html, 'alt')
+              const key = buildMarkdownPreviewMediaKey('image', t.startLine, srcRaw)
+              list.push({
+                key,
+                kind: 'image',
+                source: 'markdown',
+                startLine: t.startLine,
+                label: alt || `Image ${list.length + 1}`,
+                src,
+                alt,
+              })
             continue
           }
         }
@@ -175,6 +191,7 @@ export default function PreviewPanelView() {
             list.push({
               key,
               kind: 'youtube',
+              source: 'markdown',
               startLine: t.startLine,
               label: `YouTube ${list.length + 1}`,
               src,
@@ -188,6 +205,7 @@ export default function PreviewPanelView() {
             list.push({
               key,
               kind: 'vimeo',
+              source: 'markdown',
               startLine: t.startLine,
               label: `Vimeo ${list.length + 1}`,
               src,
@@ -200,6 +218,7 @@ export default function PreviewPanelView() {
             list.push({
               key,
               kind: 'video',
+              source: 'markdown',
               startLine: t.startLine,
               label: `Video ${list.length + 1}`,
               src,
@@ -207,10 +226,58 @@ export default function PreviewPanelView() {
             continue
           }
         }
+
+        const p = t as unknown as TokensParagraph
+        const inner = Array.isArray(p.tokens) ? p.tokens : []
+        for (let j = 0; j < inner.length; j += 1) {
+          const it = inner[j] as unknown as TokensGeneric
+          if (it.type !== 'image') continue
+          const img = it as unknown as TokensImage
+          const hrefRaw = String(img.href || '').trim()
+          if (!hrefRaw) continue
+          if (!isSafeHref(hrefRaw) || !isSafeMediaSrc(hrefRaw)) continue
+          const src = resolveHref(hrefRaw, docPath)
+          const alt = img.text
+          const idHint = `${hrefRaw}#${j}`
+          const key = buildMarkdownPreviewMediaKey('image', t.startLine, idHint)
+          list.push({
+            key,
+            kind: 'image',
+            source: 'markdown',
+            startLine: t.startLine,
+            label: alt || `Image ${list.length + 1}`,
+            src,
+            alt,
+          })
+        }
       }
     }
+
+    if (graphData && Array.isArray(graphData.nodes)) {
+      for (let i = 0; i < graphData.nodes.length; i += 1) {
+        const n = graphData.nodes[i] as GraphNode
+        const spec = getNodeMediaSpec(n)
+        if (!spec) continue
+        const src = spec.url
+        if (!src) continue
+        const baseLabel = String(n.label || n.id || '')
+        const label = baseLabel ? `Node media: ${baseLabel}` : 'Node media'
+        const kind: MediaKind = spec.kind === 'svg' ? 'image' : spec.kind === 'video' ? 'video' : spec.kind === 'iframe' ? 'iframe' : 'image'
+        const key = `graph-node-media:${String(n.id)}:${kind}:${src}`
+        list.push({
+          key,
+          kind,
+          source: 'graph',
+          startLine: 0,
+          label,
+          src,
+          alt: baseLabel || undefined,
+        })
+      }
+    }
+
     return list
-  }, [hasMarkdown, markdownDocumentName, mermaidFrontmatterConfig, tokens])
+  }, [graphData, markdownDocumentName, mermaidFrontmatterConfig, tokens])
 
   const hasMermaidFocus = !!mermaidFocusCode
 
@@ -346,7 +413,7 @@ export default function PreviewPanelView() {
   return (
     <MainPanelBody header={<div />} scrollable={false}>
       <div ref={setOverlayPortalRef} className="h-full min-h-0 flex flex-col overflow-hidden relative">
-        {!hasMarkdown ? (
+        {!hasMarkdown && mediaItems.length === 0 ? (
           <div className={['px-2 py-2 text-sm text-gray-600', uiPanelTextFontClass].join(' ')}>
             No markdown loaded.
           </div>
@@ -388,6 +455,9 @@ export default function PreviewPanelView() {
                         >
                           <div className="absolute left-1 top-1 rounded bg-black/60 text-white px-1 py-0.5 text-[10px]">
                             {item.kind}
+                          </div>
+                          <div className="absolute right-1 top-1 rounded bg-white/80 text-gray-800 px-1 py-0.5 text-[9px] border border-gray-200">
+                            {item.source === 'markdown' ? 'Markdown' : 'Graph'}
                           </div>
                           <div className="flex-1 w-full mb-1">
                             {renderMiniPreview(item)}

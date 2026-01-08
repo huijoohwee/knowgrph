@@ -11,6 +11,8 @@ export type SelectionHighlightParams = {
   selectedEdgeId: string | null
   selectedNodeIds?: string[]
   selectedEdgeIds?: string[]
+  renderMediaAsNodes: boolean
+  mediaNodeOpacity?: number
 }
 
 export type SelectionIdParams = Pick<
@@ -113,29 +115,59 @@ export const computeNodeVisual = (
     selectionSets ?? deriveSelectionSets(params)
   const baseStroke = schema.nodeStroke?.[node.type]?.color ?? '#ffffff'
   const baseStrokeWidth = schema.nodeStroke?.[node.type]?.width ?? 1.5
-  const mediaFill = hasNodeMedia(node) ? 'transparent' : null
+  const isMediaNode = hasNodeMedia(node)
+  const mediaOpacity = (() => {
+    const raw = params.mediaNodeOpacity
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      if (raw < 0) return 0
+      if (raw > 1) return 1
+      return raw
+    }
+    return 0.9
+  })()
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
-      return { fill: mediaFill ?? '#3B82F6', opacity: 1, stroke: '#3B82F6', strokeWidth: baseStrokeWidth * 1.5 }
+      return {
+        fill: '#3B82F6',
+        opacity: isMediaNode ? mediaOpacity : 1,
+        stroke: '#3B82F6',
+        strokeWidth: baseStrokeWidth * 1.5,
+      }
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
-    const fill = mediaFill ?? (isEndpoint ? getNodeBaseFill(node, schema) : '#9CA3AF')
-    const opacity = isEndpoint ? 1 : 0.2
+    const fill = isEndpoint ? getNodeBaseFill(node, schema) : '#9CA3AF'
+    const opacity = isMediaNode ? mediaOpacity : isEndpoint ? 1 : 0.2
     const stroke = isEndpoint ? baseStroke : '#9CA3AF'
     const strokeWidth = isEndpoint ? baseStrokeWidth : baseStrokeWidth
     return { fill, opacity, stroke, strokeWidth }
   }
   if (selectedNodeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
-      return { fill: mediaFill ?? '#3B82F6', opacity: 1, stroke: '#3B82F6', strokeWidth: baseStrokeWidth * 1.5 }
+      return {
+        fill: '#3B82F6',
+        opacity: isMediaNode ? mediaOpacity : 1,
+        stroke: '#3B82F6',
+        strokeWidth: baseStrokeWidth * 1.5,
+      }
     }
     if (neighborIds.has(node.id)) {
-      return { fill: mediaFill ?? getNodeBaseFill(node, schema), opacity: 1, stroke: baseStroke, strokeWidth: baseStrokeWidth }
+      return {
+        fill: getNodeBaseFill(node, schema),
+        opacity: isMediaNode ? mediaOpacity : 1,
+        stroke: baseStroke,
+        strokeWidth: baseStrokeWidth,
+      }
     }
-    return { fill: mediaFill ?? '#9CA3AF', opacity: 0.2, stroke: '#9CA3AF', strokeWidth: baseStrokeWidth }
+    return {
+      fill: '#9CA3AF',
+      opacity: isMediaNode ? mediaOpacity : 0.2,
+      stroke: '#9CA3AF',
+      strokeWidth: baseStrokeWidth,
+    }
   }
   const baseOpacity = getLayerOpacity(node, schema)
-  return { fill: mediaFill ?? getNodeBaseFill(node, schema), opacity: baseOpacity, stroke: baseStroke, strokeWidth: baseStrokeWidth }
+  const opacity = isMediaNode ? mediaOpacity : baseOpacity
+  return { fill: getNodeBaseFill(node, schema), opacity, stroke: baseStroke, strokeWidth: baseStrokeWidth }
 }
 
 export const computeLabelVisual = (
@@ -188,7 +220,7 @@ export const computeEdgeVisual = (
 }
 
 export const applySelectionHighlight = (
-  nodesSel: Selection<SVGCircleElement, GraphNode, SVGGElement, unknown> | null,
+  nodesSel: Selection<SVGElement, GraphNode, SVGGElement, unknown> | null,
   mediaSel: Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null,
   labelsSel: Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null,
   linksSel: Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null,
@@ -198,8 +230,19 @@ export const applySelectionHighlight = (
   selectedEdgeId: string | null,
   selectedNodeIds?: string[],
   selectedEdgeIds?: string[],
+  renderMediaAsNodes: boolean = true,
+  extra?: { mediaNodeOpacity?: number },
 ) => {
-  const params: SelectionHighlightParams = { data, schema, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds }
+  const params: SelectionHighlightParams = {
+    data,
+    schema,
+    selectedNodeId,
+    selectedEdgeId,
+    selectedNodeIds,
+    selectedEdgeIds,
+    renderMediaAsNodes,
+    mediaNodeOpacity: extra?.mediaNodeOpacity,
+  }
   const neighborIds = computeNeighborIds(params)
   const selectionSets = deriveSelectionSets(params)
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } = selectionSets

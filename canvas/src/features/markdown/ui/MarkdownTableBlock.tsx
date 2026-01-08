@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Tokens, Token } from 'marked'
+import type { TokensTable, Token } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { renderInlineTokens } from './MarkdownInlineRenderer'
 import type { RenderOpts } from './MarkdownRendererTypes'
@@ -15,7 +15,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
   highlightClass,
   opts,
 }: MarkdownTableBlockProps) {
-  const tbl = t as unknown as Tokens.Table
+  const tbl = t as unknown as TokensTable
   return (
     <div
       className={[

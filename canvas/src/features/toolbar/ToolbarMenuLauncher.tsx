@@ -62,6 +62,10 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
   const {
     isToolMenuOpen,
     setIsToolMenuOpen,
+    isSourceFilesImportMenuOpen,
+    setIsSourceFilesImportMenuOpen,
+    isSourceFilesExportMenuOpen,
+    setIsSourceFilesExportMenuOpen,
     isCuratorExportMenuOpen,
     setIsCuratorExportMenuOpen,
     isParserExportMenuOpen,
@@ -70,6 +74,12 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     setIsMarkdownImportMenuOpen,
     isHtmlImportMenuOpen,
     setIsHtmlImportMenuOpen,
+    isPdfImportMenuOpen,
+    setIsPdfImportMenuOpen,
+    isJsonImportMenuOpen,
+    setIsJsonImportMenuOpen,
+    isJsonLdImportMenuOpen,
+    setIsJsonLdImportMenuOpen,
     isSchemaExportMenuOpen,
     setIsSchemaExportMenuOpen,
     isGraphFieldsExportMenuOpen,
@@ -147,6 +157,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
   const orchestratorImportInputRef = useRef<HTMLInputElement | null>(null)
 
   const {
+    exportStatus,
     hasSelection,
     exportGraphJsonLd,
     exportGraphJson,
@@ -250,7 +261,10 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     orchestratorImportInputRef,
     setIsMarkdownImportMenuOpen,
     setIsHtmlImportMenuOpen,
+    setIsPdfImportMenuOpen,
     setIsSchemaExportMenuOpen,
+    exportGraphJsonLd,
+    exportGraphJson,
     exportGraphFieldSettingsJsonLd,
     exportGraphRagWorkflowJsonLd,
     exportHistoryJsonLd,
@@ -315,6 +329,11 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
           renderOpOk={renderOpOk}
           renderOpMsg={renderOpMsg}
           pipelineStatus={pipelineStatus}
+          exportStatus={exportStatus}
+          isSourceFilesImportMenuOpen={isSourceFilesImportMenuOpen}
+          setIsSourceFilesImportMenuOpen={setIsSourceFilesImportMenuOpen}
+          isSourceFilesExportMenuOpen={isSourceFilesExportMenuOpen}
+          setIsSourceFilesExportMenuOpen={setIsSourceFilesExportMenuOpen}
           isCuratorExportMenuOpen={isCuratorExportMenuOpen}
           setIsCuratorExportMenuOpen={setIsCuratorExportMenuOpen}
           isParserExportMenuOpen={isParserExportMenuOpen}
@@ -323,6 +342,12 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
           setIsMarkdownImportMenuOpen={setIsMarkdownImportMenuOpen}
           isHtmlImportMenuOpen={isHtmlImportMenuOpen}
           setIsHtmlImportMenuOpen={setIsHtmlImportMenuOpen}
+          isPdfImportMenuOpen={isPdfImportMenuOpen}
+          setIsPdfImportMenuOpen={setIsPdfImportMenuOpen}
+          isJsonImportMenuOpen={isJsonImportMenuOpen}
+          setIsJsonImportMenuOpen={setIsJsonImportMenuOpen}
+          isJsonLdImportMenuOpen={isJsonLdImportMenuOpen}
+          setIsJsonLdImportMenuOpen={setIsJsonLdImportMenuOpen}
           isSchemaExportMenuOpen={isSchemaExportMenuOpen}
           setIsSchemaExportMenuOpen={setIsSchemaExportMenuOpen}
           isGraphFieldsExportMenuOpen={isGraphFieldsExportMenuOpen}

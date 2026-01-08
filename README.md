@@ -13,10 +13,17 @@ This project implements a complete knowledge graph pipeline for transforming str
 ### Directory Layout
 
 **docs/** - Documentation and catalogs
-- Documentation philosophy and required standards: `docs/guidelines/documentation-guidelines.md`
+- Documentation philosophy and required standards: [documentation-guidelines.md](https://huijoohwee.github.io/guidelines/documentation-guidelines.md)
 - Architecture and design: `docs/knowgrph-technical-architecture.md`, `docs/knowgrph-design-document.md`
 - Configuration references: `docs/knowgrph-settings-document.md`, `docs/knowgrph-schema-document.md`, `docs/knowgrph-graph-traversal-settings-document.md`
 - Automation index: `docs/knowgrph-documentation-document.md`
+
+### Guidelines sources
+
+- Documentation: https://huijoohwee.github.io/guidelines/documentation-guidelines.md
+- Codebase maintainability: https://huijoohwee.github.io/guidelines/codebase-maintainability-guidelines.md
+- Codebase neutrality: https://huijoohwee.github.io/guidelines/codebase-neutrality-guidelines.md
+- Pipeline (Knowgrph): https://huijoohwee.github.io/guidelines/knowgrph-pipeline-guidelines.md
 
 **canvas/** - Interactive graph visualization application
 - 2D (SVG) and 3D (Three.js) rendering modes

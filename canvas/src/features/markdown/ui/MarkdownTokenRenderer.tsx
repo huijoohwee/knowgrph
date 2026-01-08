@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Tokens } from 'marked'
+import type { TokensGeneric } from './MarkdownTokens'
 import type { MermaidInitConfig } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownHeadingBlock } from './MarkdownHeadingBlock'
@@ -58,7 +58,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
 
   const renderBlockTokens = (list: TokenWithLines[]) => {
     return list.map((t, i) => {
-      const tt = t as unknown as Tokens.Generic
+      const tt = t as unknown as TokensGeneric
       const key = `${tt.type}:${i}`
 
       // Highlighting logic

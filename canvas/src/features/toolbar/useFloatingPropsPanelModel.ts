@@ -43,9 +43,26 @@ type FloatingPanelModel = {
   doAddNode: () => void
   doAddNodePlusEdgeFromSelected: () => void
   doStartEdgeFromSelected: () => void
+  doAddMediaNode: () => void
 }
 
 const createId = (prefix: 'n' | 'e') => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+
+const getCanvasCenterGraphPoint = () => {
+  const state = useGraphStore.getState()
+  const dims = state.canvasDims || { w: 800, h: 600 }
+  const w = Math.max(1, Math.floor(dims.w))
+  const h = Math.max(1, Math.floor(dims.h))
+  const z = state.zoomState
+  const k = z && typeof z.k === 'number' && Number.isFinite(z.k) && z.k !== 0 ? z.k : 1
+  const tx = z && typeof z.x === 'number' && Number.isFinite(z.x) ? z.x : 0
+  const ty = z && typeof z.y === 'number' && Number.isFinite(z.y) ? z.y : 0
+  const cx = w / 2
+  const cy = h / 2
+  const x = (cx - tx) / k
+  const y = (cy - ty) / k
+  return { x, y }
+}
 
 export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const graphData = useGraphStore(s => s.graphData)
@@ -61,7 +78,6 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const addEdge = useGraphStore(s => s.addEdge)
   const removeNode = useGraphStore(s => s.removeNode)
   const updateNode = useGraphStore(s => s.updateNode)
-  const requestZoom = useGraphStore(s => s.requestZoom)
   const requestEdgeCreation = useGraphStore(s => s.requestEdgeCreation)
 
   const nodeTypes = React.useMemo(
@@ -275,10 +291,15 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!start) return
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
+    const center = getCanvasCenterGraphPoint()
     const node: GraphNode = {
       id: newNodeId,
       label: String((newLabel ?? (tpl as { label?: unknown }).label) || 'Node'),
       type: newType || 'entity',
+      x: center.x,
+      y: center.y,
+      fx: center.x,
+      fy: center.y,
       properties: { ...(tpl || {}) },
     }
     addNode(node)
@@ -293,8 +314,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     addEdge(edge)
     setSelectionSource('toolbar')
     selectEdge(edge.id)
-    requestZoom('selection')
-  }, [addEdge, addNode, defaultEdgeLabel, graphData, newLabel, newType, nodeContextId, requestZoom, schema, selectEdge, setSelectionSource])
+  }, [addEdge, addNode, defaultEdgeLabel, graphData, newLabel, newType, nodeContextId, schema, selectEdge, setSelectionSource])
 
   const doDeleteNode = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
@@ -360,17 +380,21 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doAddNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
+    const center = getCanvasCenterGraphPoint()
     const node: GraphNode = {
       id: newNodeId,
       label: String((newLabel ?? (tpl as { label?: unknown }).label) || 'Node'),
       type: newType || 'entity',
+      x: center.x,
+      y: center.y,
+      fx: center.x,
+      fy: center.y,
       properties: { ...(tpl || {}) },
     }
     addNode(node)
     setSelectionSource('toolbar')
     selectNode(newNodeId)
-    requestZoom('selection')
-  }, [addNode, newLabel, newType, requestZoom, schema, selectNode, setSelectionSource])
+  }, [addNode, newLabel, newType, schema, selectNode, setSelectionSource])
 
   const doAddNodePlusEdgeFromSelected = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
@@ -378,10 +402,15 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!start) return
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
+    const center = getCanvasCenterGraphPoint()
     const node: GraphNode = {
       id: newNodeId,
       label: String((newLabel ?? (tpl as { label?: unknown }).label) || 'Node'),
       type: newType || 'entity',
+      x: center.x,
+      y: center.y,
+      fx: center.x,
+      fy: center.y,
       properties: { ...(tpl || {}) },
     }
     addNode(node)
@@ -399,16 +428,14 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
       addEdge(edge)
       setSelectionSource('toolbar')
       selectEdge(newEdgeId)
-      requestZoom('selection')
     } else {
       const dup = graphData.edges.find(e => e.source === start.id && e.target === newNodeId && e.label === resolvedEdgeLabel)
       if (dup) {
         setSelectionSource('toolbar')
         selectEdge(dup.id)
-        requestZoom('selection')
       }
     }
-  }, [addEdge, addNode, defaultEdgeLabel, graphData, newEdgeLabel, newLabel, newType, nodeContextId, requestZoom, schema, selectEdge, setSelectionSource])
+  }, [addEdge, addNode, defaultEdgeLabel, graphData, newEdgeLabel, newLabel, newType, nodeContextId, schema, selectEdge, setSelectionSource])
 
   const doStartEdgeFromSelected = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
@@ -418,6 +445,32 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     selectNode(nodeContextId)
     requestEdgeCreation({ type: 'create', fromId: src.id })
   }, [graphData, nodeContextId, requestEdgeCreation, selectNode, setSelectionSource])
+
+  const doAddMediaNode = React.useCallback(() => {
+    const tpl = (schema?.templates?.node || {})[newType] || {}
+    const newNodeId = createId('n')
+    const trimmedUrl = (mediaUrl || '').trim()
+    const props: GraphNode['properties'] = { ...(tpl || {}) }
+    if (trimmedUrl) {
+      props.media_url = trimmedUrl
+      props.media_kind = mediaKind
+      if (mediaInteractive) props.media_interactive = true
+    }
+    const center = getCanvasCenterGraphPoint()
+    const node: GraphNode = {
+      id: newNodeId,
+      label: String((newLabel ?? (tpl as { label?: unknown }).label) || 'Node'),
+      type: newType || 'entity',
+      x: center.x,
+      y: center.y,
+      fx: center.x,
+      fy: center.y,
+      properties: props,
+    }
+    addNode(node)
+    setSelectionSource('toolbar')
+    selectNode(newNodeId)
+  }, [addNode, mediaInteractive, mediaKind, mediaUrl, newLabel, newType, schema, selectNode, setSelectionSource])
 
   return {
     graphData,
@@ -456,5 +509,6 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     doAddNode,
     doAddNodePlusEdgeFromSelected,
     doStartEdgeFromSelected,
+    doAddMediaNode,
   }
 }

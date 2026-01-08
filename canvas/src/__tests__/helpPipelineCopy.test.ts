@@ -22,6 +22,8 @@ export function testMarkdownParserMetadataAnchorsAreAgenticRagCompatible() {
     '',
     'Paragraph with a [link](https://example.com).',
     '',
+    '![Alt text](https://example.com/image.png)',
+    '',
     '## Section',
     '',
     '- a',
@@ -39,6 +41,15 @@ export function testMarkdownParserMetadataAnchorsAreAgenticRagCompatible() {
   if (nodes.length < 2) throw new Error(`expected markdown nodes, got ${nodes.length}`)
   const doc = nodes.find(n => n.type === 'Document')
   if (!doc) throw new Error('missing Document node')
+  const img = nodes.find(n => n.type === 'Image')
+  if (!img) throw new Error('missing Image node')
+  const imgProps = (img.properties || {}) as Record<string, unknown>
+  const imgInnerProps = (imgProps.properties || {}) as Record<string, unknown>
+  const imgUrl = String(imgInnerProps.url || '')
+  if (imgUrl !== 'https://example.com/image.png') throw new Error(`Image url mismatch: ${imgUrl}`)
+  const edges = res.graphData.edges || []
+  const embeds = edges.find(e => e.label === 'embedsImage' && e.target === img.id)
+  if (!embeds) throw new Error('missing embedsImage edge to Image node')
   const meta = (doc.metadata || {}) as Record<string, unknown>
   if (meta.parsedAt) throw new Error('metadata.parsedAt should not be emitted')
   const documentPath = String(meta.documentPath || '')

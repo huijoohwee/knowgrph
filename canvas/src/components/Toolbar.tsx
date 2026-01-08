@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, Maximize, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, Shapes, CircleDot, TreePine, Plus, MessageCircle } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, Shapes, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -22,12 +22,11 @@ import { deriveTidyTreeDerivation, normalizeEdgesForSim } from '@/components/Gra
 interface ToolbarProps {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
-  onFit?: () => void;
   onReset?: () => void;
   onZoomSelection?: () => void;
 }
 
-export default function Toolbar({ onZoomIn, onZoomOut, onFit, onReset, onZoomSelection }: ToolbarProps) {
+export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection }: ToolbarProps) {
   const {
     canvasRenderMode,
     setCanvasRenderMode,
@@ -78,6 +77,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onFit, onReset, onZoomSel
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return getInitialThemeMode(getLocalStorage());
   });
+  const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
+  const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
   const launchSpotlight = useLaunchSpotlight();
   const iconSizeClass = getIconSizeClass(uiIconScale);
   const iconStrokeWidth = uiIconStrokeWidth;
@@ -400,9 +401,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onFit, onReset, onZoomSel
           toggleFitToScreenMode();
           if (next) {
             setZoomToSelectionMode(false);
-            if (onFit) {
-              onFit();
-            }
           }
         }}
         showTooltip
@@ -426,6 +424,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onFit, onReset, onZoomSel
         showTooltip
       >
         <Focus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${renderMediaAsNodes ? 'text-blue-600' : 'text-gray-600'}`}
+        title={renderMediaAsNodes ? 'Render Media as Nodes (On)' : 'Render Media as Nodes (Off)'}
+        tooltipContent="View-only: shows or hides media overlays on media-capable nodes without reloading."
+        onClick={() => setRenderMediaAsNodes(!renderMediaAsNodes)}
+        showTooltip
+      >
+        <ImageIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${canvasRenderMode === '3d' ? 'text-blue-600' : 'text-gray-600'}`}

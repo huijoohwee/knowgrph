@@ -3,7 +3,7 @@ import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
 
 export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>, schema: GraphSchema) =>
-  d3.drag<SVGCircleElement, GraphNode>()
+  d3.drag<SVGElement, GraphNode>()
     .on('start', (event, d) => {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;

@@ -9,10 +9,15 @@ import { getIconSizeClass } from '@/lib/ui'
 export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
   const {
     dataLoadOk,
+    setIsSourceFilesImportMenuOpen,
+    setIsSourceFilesExportMenuOpen,
     setIsCuratorExportMenuOpen,
     setIsParserExportMenuOpen,
     setIsMarkdownImportMenuOpen,
     setIsHtmlImportMenuOpen,
+    setIsPdfImportMenuOpen,
+    setIsJsonImportMenuOpen,
+    setIsJsonLdImportMenuOpen,
     setIsSchemaExportMenuOpen,
     setIsGraphFieldsExportMenuOpen,
     setIsSettingsExportMenuOpen,
@@ -94,56 +99,133 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
             <div className="flex items-center gap-1">
               {area.actions.map(action => {
                 const handleClick =
-                  area.key === 'curator' && action === 'export'
+                  area.key === 'sourceFiles' && action === 'import'
                     ? () => {
+                        setIsCuratorExportMenuOpen(false)
+                        setIsParserExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
-                        setIsCuratorExportMenuOpen(v => !v)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
+                        setIsSchemaExportMenuOpen(false)
+                        setIsGraphFieldsExportMenuOpen(false)
+                        setIsSettingsExportMenuOpen(false)
+                        setIsHistoryExportMenuOpen(false)
+                        setIsValidationExportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
+                        setIsSourceFilesImportMenuOpen(v => !v)
+                      }
+                    : area.key === 'sourceFiles' && action === 'export'
+                    ? () => {
+                        setIsParserExportMenuOpen(false)
+                          setIsMarkdownImportMenuOpen(false)
+                          setIsHtmlImportMenuOpen(false)
+                          setIsPdfImportMenuOpen(false)
+                          setIsJsonImportMenuOpen(false)
+                          setIsJsonLdImportMenuOpen(false)
+                          setIsSchemaExportMenuOpen(false)
+                          setIsGraphFieldsExportMenuOpen(false)
+                          setIsSettingsExportMenuOpen(false)
+                          setIsHistoryExportMenuOpen(false)
+                          setIsValidationExportMenuOpen(false)
+                          setIsSourceFilesImportMenuOpen(false)
+                          setIsSourceFilesExportMenuOpen(v => !v)
                       }
                     : area.key === 'parser' && action === 'export'
                       ? () => {
+                        setIsSourceFilesImportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
                         setIsParserExportMenuOpen(v => !v)
                       }
                     : area.key === 'markdown' && action === 'import'
                       ? () => {
+                        setIsSourceFilesImportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(v => !v)
                       }
                     : area.key === 'html' && action === 'import'
                       ? () => {
+                        setIsSourceFilesImportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(v => !v)
                       }
+                    : area.key === 'pdf' && action === 'import'
+                      ? () => {
+                          setIsSourceFilesImportMenuOpen(false)
+                          setIsSourceFilesExportMenuOpen(false)
+                          setIsMarkdownImportMenuOpen(false)
+                          setIsHtmlImportMenuOpen(false)
+                          setIsJsonImportMenuOpen(false)
+                          setIsJsonLdImportMenuOpen(false)
+                          setIsPdfImportMenuOpen(v => !v)
+                        }
                     : area.key === 'schemaConfig' && action === 'export'
                       ? () => {
+                        setIsSourceFilesImportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
                         setIsSchemaExportMenuOpen(v => !v)
                       }
                     : area.key === 'graphFields' && action === 'export'
                       ? () => {
+                        setIsSourceFilesImportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
                         setIsGraphFieldsExportMenuOpen(v => !v)
                       }
                     : area.key === 'settings' && action === 'export'
                       ? () => {
+                        setIsSourceFilesImportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
                         setIsSettingsExportMenuOpen(v => !v)
                       }
                     : area.key === 'history' && action === 'export'
                       ? () => {
+                        setIsSourceFilesImportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
                         setIsHistoryExportMenuOpen(v => !v)
                       }
                     : area.key === 'validation' && action === 'export'
                       ? () => {
+                        setIsSourceFilesImportMenuOpen(false)
+                        setIsSourceFilesExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
+                        setIsPdfImportMenuOpen(false)
+                        setIsJsonImportMenuOpen(false)
+                        setIsJsonLdImportMenuOpen(false)
                         setIsValidationExportMenuOpen(v => !v)
                       }
                                 : () => onToolMenuAction(area.key, action)

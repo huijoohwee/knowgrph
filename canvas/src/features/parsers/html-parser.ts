@@ -1,7 +1,7 @@
 import type { JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 
-export function parseHtmlToMarkdown(html: string): string {
+export function parseHtmlToMarkdown(html: string, baseUrl?: string): string {
   const raw = String(html || '')
   if (looksLikeRssOrAtom(raw)) {
     const rssMarkdown = parseRssOrAtomToMarkdown(raw)
@@ -12,7 +12,7 @@ export function parseHtmlToMarkdown(html: string): string {
   const parser = new DOMParser()
   const doc = parser.parseFromString(raw, 'text/html')
   const root = pickPrimaryContentRoot(doc)
-  return traverseNode(root).trim()
+  return traverseNode(root, { baseUrl }).trim()
 }
 
 export function extractJsonLd(html: string): JSONValue[] {
@@ -31,7 +31,22 @@ export function extractJsonLd(html: string): JSONValue[] {
     .filter(Boolean)
 }
 
-function traverseNode(node: Node, options: { isPre?: boolean; isTable?: boolean } = {}): string {
+function resolveUrl(baseUrl: string | undefined, value: string): string {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^(data:|mailto:|tel:|javascript:)/i.test(raw)) return raw
+  if (!baseUrl) return raw
+  try {
+    return new URL(raw, baseUrl).toString()
+  } catch {
+    return raw
+  }
+}
+
+function traverseNode(
+  node: Node,
+  options: { isPre?: boolean; isTable?: boolean; baseUrl?: string } = {},
+): string {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent || ''
     return options.isPre ? text : text.replace(/\s+/g, ' ')
@@ -50,10 +65,11 @@ function traverseNode(node: Node, options: { isPre?: boolean; isTable?: boolean 
 
   const isPre = options.isPre || tagName === 'pre'
   const isTable = options.isTable || tagName === 'table'
+  const baseUrl = options.baseUrl
 
   let content = ''
   el.childNodes.forEach(child => {
-    content += traverseNode(child, { isPre, isTable })
+    content += traverseNode(child, { isPre, isTable, baseUrl })
   })
 
   switch (tagName) {
@@ -77,7 +93,7 @@ function traverseNode(node: Node, options: { isPre?: boolean; isTable?: boolean 
     case 'li':
       return `* ${content.trim()}\n`
     case 'a': {
-      const href = el.getAttribute('href')
+      const href = resolveUrl(baseUrl, el.getAttribute('href') || '')
       return href ? `[${content.trim()}](${href})` : content
     }
     case 'strong':
@@ -111,13 +127,27 @@ function traverseNode(node: Node, options: { isPre?: boolean; isTable?: boolean 
     case 'blockquote':
       return `> ${content.trim()}\n\n`
     case 'img': {
-      const src = pickImageSrc(el)
+      const src = resolveUrl(baseUrl, pickImageSrc(el))
       const alt = el.getAttribute('alt') || ''
       return src ? `![${alt}](${src})` : ''
     }
-    case 'iframe':
-    case 'video':
-      return `\n${el.outerHTML}\n\n`
+    case 'video': {
+      const src = resolveUrl(baseUrl, pickImageSrc(el))
+      const sources = el.querySelectorAll('source')
+      const realSrc = src || (() => {
+         for (let i=0; i<sources.length; i++) {
+            const s = sources[i].getAttribute('src')
+            if(s) return s
+         }
+         return ''
+      })()
+      const resolved = resolveUrl(baseUrl, realSrc)
+      return resolved ? `![Video](${resolved})` : ''
+    }
+    case 'iframe': {
+      const src = resolveUrl(baseUrl, el.getAttribute('src') || '')
+      return src ? `![IFrame](${src})` : ''
+    }
     case 'table':
       return `\n${content}\n`
     case 'tr':

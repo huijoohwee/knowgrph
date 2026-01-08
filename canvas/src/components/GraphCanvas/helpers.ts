@@ -3,6 +3,8 @@ import type { RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import { type GraphSchema, getNodeRadiusFromSchema, getThreeConfig, getRendererPalette, getAgenticRagTagColor } from '@/lib/graph/schema'
 import { getAdjacencyMap } from '@/components/GraphCanvas/utils'
+import { coerceMediaUrl } from '@/lib/url'
+import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 
 function getBottomPanelHeightPx(): number {
   if (typeof window === 'undefined') return 0
@@ -242,14 +244,6 @@ export type NodeMediaSpec = {
   interactive: boolean
 }
 
-function coerceHttpUrl(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const raw = value.trim()
-  if (!raw) return null
-  if (!/^https?:\/\//i.test(raw)) return null
-  return raw
-}
-
 function inferMediaKindFromUrl(url: string): NodeMediaKind {
   const lower = url.toLowerCase()
   if (/\.(mp4|webm|ogg)(\?|#|$)/.test(lower)) return 'video'
@@ -263,15 +257,11 @@ function isSafeIframeUrl(value: string): boolean {
     const u = new URL(value)
     if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
     const host = u.hostname.toLowerCase()
-    const allowed = [
-      'youtube.com',
-      'www.youtube.com',
-      'youtu.be',
-      'player.vimeo.com',
-      'vimeo.com',
-      'codesandbox.io',
-      'stackblitz.com',
-    ]
+    const allowed = String(IFRAME_ALLOWED_HOSTS || '')
+      .split(/[,\s]+/)
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+    if (allowed.length === 0) return true
     return allowed.some(h => host === h || host.endsWith(`.${h}`))
   } catch {
     return false
@@ -333,19 +323,17 @@ function normalizeIframeUrl(value: string): string {
 
 export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const props = node.properties || {}
-  const interactive = props.media_interactive === true
-
   const kindRaw = typeof props.media_kind === 'string' ? props.media_kind.trim().toLowerCase() : ''
   const kindForced: NodeMediaKind | null =
     kindRaw === 'iframe' || kindRaw === 'video' || kindRaw === 'image' || kindRaw === 'svg'
       ? (kindRaw as NodeMediaKind)
       : null
 
-  const iframeUrl = coerceHttpUrl((props as Record<string, unknown>).iframe_url)
-  const mediaUrl = coerceHttpUrl((props as Record<string, unknown>).media_url)
-  const imageUrl = coerceHttpUrl((props as Record<string, unknown>).image)
-  const videoUrl = coerceHttpUrl((props as Record<string, unknown>).video)
-  const generic = coerceHttpUrl((props as Record<string, unknown>).media)
+  const iframeUrl = coerceMediaUrl((props as Record<string, unknown>).iframe_url)
+  const mediaUrl = coerceMediaUrl((props as Record<string, unknown>).media_url)
+  const imageUrl = coerceMediaUrl((props as Record<string, unknown>).image)
+  const videoUrl = coerceMediaUrl((props as Record<string, unknown>).video)
+  const generic = coerceMediaUrl((props as Record<string, unknown>).media)
 
   const url =
     iframeUrl ||
@@ -363,6 +351,12 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       : videoUrl
         ? 'video'
         : inferMediaKindFromUrl(url)
+
+  const rawInteractive = (props as Record<string, unknown>).media_interactive
+  const explicitInteractive =
+    rawInteractive === true ? true : rawInteractive === false ? false : null
+  const interactive =
+    explicitInteractive != null ? explicitInteractive : kind === 'video' || kind === 'iframe'
 
   if (kind === 'iframe') {
     const normalized = normalizeIframeUrl(url)

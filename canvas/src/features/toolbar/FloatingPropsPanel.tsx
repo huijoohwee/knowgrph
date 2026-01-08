@@ -17,6 +17,13 @@ export function FloatingPropsPanel() {
       || 'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right',
   )
 
+  const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
+  const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
+  const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
+  const setMediaNodeOpacity = useGraphStore(s => s.setMediaNodeOpacity)
+  const mediaPanelDensity = useGraphStore(s => s.mediaPanelDensity)
+  const setMediaPanelDensity = useGraphStore(s => s.setMediaPanelDensity)
+
   const {
     nodeTypes,
     catalogTypes,
@@ -52,6 +59,7 @@ export function FloatingPropsPanel() {
     doAddNode,
     doAddNodePlusEdgeFromSelected,
     doStartEdgeFromSelected,
+    doAddMediaNode,
   } = useFloatingPropsPanelModel()
 
   const MenuButton = ({
@@ -201,6 +209,73 @@ export function FloatingPropsPanel() {
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
         <div className="px-3 py-2">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500">
+                Media view
+              </span>
+              <div className="inline-flex rounded border border-gray-300 overflow-hidden bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => setRenderMediaAsNodes(false)}
+                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${renderMediaAsNodes ? 'bg-gray-50 text-gray-600' : 'bg-blue-600 text-white'}`}
+                >
+                  Circle-only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRenderMediaAsNodes(true)}
+                  className={`px-2 py-1 text-[11px] border-l border-gray-300 ${uiPanelTextFontClass} ${renderMediaAsNodes ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-600'}`}
+                >
+                  Panel-only
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500">
+                Panel layout
+              </span>
+              <div className="inline-flex rounded border border-gray-300 overflow-hidden bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => setMediaPanelDensity('default')}
+                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${mediaPanelDensity === 'default' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-600'}`}
+                >
+                  Standard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMediaPanelDensity('compact')}
+                  className={`px-2 py-1 text-[11px] border-l border-gray-300 ${uiPanelTextFontClass} ${mediaPanelDensity === 'compact' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-600'}`}
+                >
+                  Compact
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="mb-2 flex items-center gap-2">
+            <label
+              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
+            >
+              Opacity
+            </label>
+            <div className="w-[70%] flex items-center gap-2">
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={mediaNodeOpacity}
+                onChange={e => setMediaNodeOpacity(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span
+                className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 w-10 text-right`}
+              >
+                {Math.round(mediaNodeOpacity * 100)}%
+              </span>
+            </div>
+          </div>
           <div className="mb-2 flex items-center gap-2">
             <label
               className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
@@ -214,7 +289,6 @@ export function FloatingPropsPanel() {
                 if (v === 'image' || v === 'svg' || v === 'video' || v === 'iframe') setMediaKind(v)
               }}
               className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
-              disabled={!canUseNodeContext}
             >
               <option value="image">image</option>
               <option value="svg">svg</option>
@@ -232,7 +306,6 @@ export function FloatingPropsPanel() {
               value={mediaUrl}
               onChange={e => setMediaUrl(e.target.value)}
               className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
-              disabled={!canUseNodeContext}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -246,7 +319,6 @@ export function FloatingPropsPanel() {
                 type="button"
                 className={`App-toolbar__btn text-xs border border-gray-300 ${!mediaInteractive ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}
                 onClick={() => setMediaInteractive(false)}
-                disabled={!canUseNodeContext}
               >
                 Off
               </button>
@@ -254,7 +326,6 @@ export function FloatingPropsPanel() {
                 type="button"
                 className={`App-toolbar__btn text-xs border border-gray-300 ${mediaInteractive ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}
                 onClick={() => setMediaInteractive(true)}
-                disabled={!canUseNodeContext}
               >
                 On
               </button>
@@ -263,6 +334,12 @@ export function FloatingPropsPanel() {
         </div>
         <MenuButton onClick={doUpdateMedia} disabled={!canUseNodeContext}>
           Update Media
+        </MenuButton>
+        <MenuButton
+          onClick={doAddMediaNode}
+          disabled={!mediaUrl.trim()}
+        >
+          Add Media Node
         </MenuButton>
       </CollapsibleSection>
 

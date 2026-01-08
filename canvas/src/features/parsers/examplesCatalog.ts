@@ -8,6 +8,7 @@ export type ExampleId =
   | 'a0Investors'
   | 'ventureCapitalPortfolio'
   | 'aiCustomerVoiceManagement'
+  | 'interviewerWorkflow'
 
 export type ExampleConfig = {
   id: ExampleId
@@ -52,6 +53,12 @@ export const EXAMPLE_DATASETS: ExampleConfig[] = [
     label: 'AI Customer Voice Management graph',
     datasetPath: toDatasetPath('data/test-data/ai-customer-voice-management.graph.json'),
     schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
+  },
+  {
+    id: 'interviewerWorkflow',
+    label: 'AIAP22 Interviewer Workflow graph',
+    datasetPath: toDatasetPath('docs/assets/interviewer.jsonld'),
+    schemaPath: toSchemaConfigPath('schema-config/knowgrph-interviewer-schema-config.jsonld'),
   },
 ]
 

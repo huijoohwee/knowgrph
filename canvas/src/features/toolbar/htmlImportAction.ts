@@ -1,47 +1,14 @@
-import { coerceHttpUrl } from './markdownImport'
+import { coerceHttpUrl } from '@/lib/url'
 import { parseHtmlToMarkdown, extractJsonLd } from '@/features/parsers/html-parser'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { useParserUIState } from '@/features/parsers/uiState'
-import { UI_COPY, looksLikeViteDevIndexHtml } from '@/lib/config'
+import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
+import { fetchRemoteHtmlText as fetchRemoteHtmlTextUtil, promptForUrl } from './ingestUtils'
 
-export async function fetchRemoteHtmlText(rawUrl: string): Promise<string | null> {
-  const proxyUrl = `/__fetch_remote?url=${encodeURIComponent(rawUrl)}`
-  const shouldPreferProxy = (() => {
-    try {
-      const u = new URL(rawUrl)
-      if (!/^https?:$/.test(u.protocol)) return false
-      if (typeof window === 'undefined') return true
-      return u.origin !== window.location.origin
-    } catch {
-      return true
-    }
-  })()
-
-  const attempt = async (url: string): Promise<string | null> => {
-    try {
-      const res = await fetch(url)
-      if (!res.ok) return null
-      const text = await res.text()
-      if (looksLikeViteDevIndexHtml(text)) return null
-      return text
-    } catch {
-      return null
-    }
-  }
-
-  if (shouldPreferProxy) {
-    const viaProxy = await attempt(proxyUrl)
-    if (viaProxy !== null) return viaProxy
-    return attempt(rawUrl)
-  }
-
-  const direct = await attempt(rawUrl)
-  if (direct !== null) return direct
-  return attempt(proxyUrl)
-}
+export const fetchRemoteHtmlText = fetchRemoteHtmlTextUtil
 
 export type HtmlImportType = 'url' | 'local'
 
@@ -52,9 +19,7 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
         const rawUrl = (() => {
           const v = typeof providedUrl === 'string' ? providedUrl.trim() : ''
           if (v) return v
-          return typeof window !== 'undefined'
-            ? String(window.prompt(UI_COPY.htmlImportUrlPrompt, '') || '').trim()
-            : ''
+          return promptForUrl(UI_COPY.htmlImportUrlPrompt) || ''
         })()
         const url = coerceHttpUrl(rawUrl)
         if (!url) return null
@@ -78,7 +43,13 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
     
     if (!picked) return
 
-    const markdown = parseHtmlToMarkdown(picked.text)
+    const baseUrl = (() => {
+      const fromName = coerceHttpUrl(picked.name)
+      if (fromName) return fromName
+      const fromDisplay = picked.displayName ? coerceHttpUrl(picked.displayName) : null
+      return fromDisplay || undefined
+    })()
+    const markdown = parseHtmlToMarkdown(picked.text, baseUrl)
     const jsonLd = extractJsonLd(picked.text)
     
     let finalContent = markdown

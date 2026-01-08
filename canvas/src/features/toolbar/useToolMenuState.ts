@@ -11,10 +11,15 @@ type ToolMenuDragPosition = {
 
 export function useToolMenuState() {
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false)
+  const [isSourceFilesImportMenuOpen, setIsSourceFilesImportMenuOpen] = useState(false)
+  const [isSourceFilesExportMenuOpen, setIsSourceFilesExportMenuOpen] = useState(false)
   const [isCuratorExportMenuOpen, setIsCuratorExportMenuOpen] = useState(false)
   const [isParserExportMenuOpen, setIsParserExportMenuOpen] = useState(false)
   const [isMarkdownImportMenuOpen, setIsMarkdownImportMenuOpen] = useState(false)
   const [isHtmlImportMenuOpen, setIsHtmlImportMenuOpen] = useState(false)
+  const [isPdfImportMenuOpen, setIsPdfImportMenuOpen] = useState(false)
+  const [isJsonImportMenuOpen, setIsJsonImportMenuOpen] = useState(false)
+  const [isJsonLdImportMenuOpen, setIsJsonLdImportMenuOpen] = useState(false)
   const [isSchemaExportMenuOpen, setIsSchemaExportMenuOpen] = useState(false)
   const [isGraphFieldsExportMenuOpen, setIsGraphFieldsExportMenuOpen] = useState(false)
   const [isSettingsExportMenuOpen, setIsSettingsExportMenuOpen] = useState(false)
@@ -149,10 +154,15 @@ export function useToolMenuState() {
 
   const closeToolMenu = useCallback(() => {
     setIsToolMenuOpen(false)
+    setIsSourceFilesImportMenuOpen(false)
+    setIsSourceFilesExportMenuOpen(false)
     setIsCuratorExportMenuOpen(false)
     setIsParserExportMenuOpen(false)
     setIsMarkdownImportMenuOpen(false)
     setIsHtmlImportMenuOpen(false)
+    setIsPdfImportMenuOpen(false)
+    setIsJsonImportMenuOpen(false)
+    setIsJsonLdImportMenuOpen(false)
     setIsSchemaExportMenuOpen(false)
     setIsGraphFieldsExportMenuOpen(false)
     setIsSettingsExportMenuOpen(false)
@@ -166,10 +176,15 @@ export function useToolMenuState() {
     setIsToolMenuOpen(prev => {
       const next = !prev
       if (!next) {
+        setIsSourceFilesImportMenuOpen(false)
+        setIsSourceFilesExportMenuOpen(false)
         setIsCuratorExportMenuOpen(false)
         setIsParserExportMenuOpen(false)
         setIsMarkdownImportMenuOpen(false)
         setIsHtmlImportMenuOpen(false)
+        setIsPdfImportMenuOpen(false)
+        setIsJsonImportMenuOpen(false)
+        setIsJsonLdImportMenuOpen(false)
         setIsSchemaExportMenuOpen(false)
         setIsGraphFieldsExportMenuOpen(false)
         setIsSettingsExportMenuOpen(false)
@@ -185,6 +200,10 @@ export function useToolMenuState() {
   return {
     isToolMenuOpen,
     setIsToolMenuOpen,
+    isSourceFilesImportMenuOpen,
+    setIsSourceFilesImportMenuOpen,
+    isSourceFilesExportMenuOpen,
+    setIsSourceFilesExportMenuOpen,
     isCuratorExportMenuOpen,
     setIsCuratorExportMenuOpen,
     isParserExportMenuOpen,
@@ -193,6 +212,12 @@ export function useToolMenuState() {
     setIsMarkdownImportMenuOpen,
     isHtmlImportMenuOpen,
     setIsHtmlImportMenuOpen,
+    isPdfImportMenuOpen,
+    setIsPdfImportMenuOpen,
+    isJsonImportMenuOpen,
+    setIsJsonImportMenuOpen,
+    isJsonLdImportMenuOpen,
+    setIsJsonLdImportMenuOpen,
     isSchemaExportMenuOpen,
     setIsSchemaExportMenuOpen,
     isGraphFieldsExportMenuOpen,

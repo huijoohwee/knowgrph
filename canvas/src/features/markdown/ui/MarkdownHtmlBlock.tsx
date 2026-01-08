@@ -1,7 +1,8 @@
 import React from 'react'
-import type { Tokens } from 'marked'
+import type { TokensHTML } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import {
+  applyMediaProxySrc,
   extractAttr,
   isSafeHref,
   isSafeMediaSrc,
@@ -24,7 +25,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
   highlightClass,
   opts,
 }: MarkdownHtmlBlockProps) {
-  const html = String((t as unknown as Tokens.HTML).text || '').trim()
+  const html = String((t as unknown as TokensHTML).text || '').trim()
   
   // iframe
   if (looksLikeSingleTagBlock(html, 'iframe')) {
@@ -49,7 +50,8 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
   if (looksLikeSingleTagBlock(html, 'video')) {
     const srcRaw = extractAttr(html, 'src')
     if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-      const src = resolveHref(srcRaw, opts.activeDocumentPath)
+      const resolved = resolveHref(srcRaw, opts.activeDocumentPath)
+      const src = applyMediaProxySrc(resolved)
       return (
         <MediaWrapper
           type="video"
@@ -65,14 +67,15 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
   }
 
   // img
-  if (looksLikeSingleTagBlock(html, 'img')) {
+  {
     const srcRaw = extractAttr(html, 'src')
     if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-      const src = resolveHref(srcRaw, opts.activeDocumentPath)
+      const resolved = resolveHref(srcRaw, opts.activeDocumentPath)
+      const src = applyMediaProxySrc(resolved)
       const alt = extractAttr(html, 'alt')
       const width = parseHtmlNumberAttr(extractAttr(html, 'width'))
       const height = parseHtmlNumberAttr(extractAttr(html, 'height'))
-      
+
       return (
         <MediaWrapper
           type="image"

@@ -275,6 +275,7 @@ export const testSchemaJsonLdRoundTripPreservesLayers = async () => {
     layers: {
       mode: 'semantic',
       semantic: {
+        hiddenNodeTypes: ['geo:Polygon'],
         similarityMetric: 'cosine',
         similarityEdgeLabel: 'semanticSimilarity',
         minSimilarity: 0.33,
@@ -295,10 +296,125 @@ export const testSchemaJsonLdRoundTripPreservesLayers = async () => {
   if (roundTripped.layers?.semantic?.minSimilarity !== 0.33) {
     throw new Error('schema jsonld roundtrip did not preserve layers.semantic.minSimilarity')
   }
+  const rtHidden = roundTripped.layers?.semantic?.hiddenNodeTypes
+  if (!rtHidden || !Array.isArray(rtHidden) || !rtHidden.includes('geo:Polygon')) {
+    throw new Error('schema jsonld roundtrip did not preserve layers.semantic.hiddenNodeTypes')
+  }
   if (roundTripped.layers?.documentStructure?.minGroupSize !== 5) {
     throw new Error('schema jsonld roundtrip did not preserve layers.documentStructure.minGroupSize')
   }
   if (roundTripped.layers?.semantic?.communityDetection?.resolution !== 2.5) {
     throw new Error('schema jsonld roundtrip did not preserve layers.semantic.communityDetection.resolution')
+  }
+}
+
+export const testInterviewerSchemaSnippetParsesHiddenNodeTypes = async () => {
+  const rawJsonLd: unknown = {
+    '@context': { kg: 'http://example.org/kg#' },
+    layers: {
+      mode: 'semantic',
+      semantic: { hiddenNodeTypes: ['geo:Polygon'] },
+    },
+    '@graph': [
+      { '@id': 'kg:class:entity', '@type': 'kg:NodeType', name: 'Entity' },
+      { '@id': 'kg:prop:relatedTo', '@type': 'kg:EdgeLabel', name: 'relatedTo' },
+    ],
+  }
+  await Promise.resolve()
+  const schema = validateSchema(schemaFromJsonLd(rawJsonLd))
+  if (schema.layers?.mode !== 'semantic') {
+    throw new Error('interviewer schema snippet did not set layers.mode to semantic')
+  }
+  const hidden = schema.layers?.semantic?.hiddenNodeTypes
+  if (!hidden || !Array.isArray(hidden) || hidden.length === 0) {
+    throw new Error('interviewer schema snippet missing hiddenNodeTypes')
+  }
+  if (!hidden.includes('geo:Polygon')) {
+    throw new Error('interviewer schema snippet hiddenNodeTypes does not include geo:Polygon')
+  }
+}
+
+export const testInterviewerJsonLdSemanticVsDocumentStructureLayers = async () => {
+  const url = new URL('../../../docs/assets/interviewer.jsonld', import.meta.url)
+  const text = await readTextFromUrl(url)
+  const raw = parseJsonUnknown(text)
+  const graph = parseJsonLd(raw) as GraphData
+  if (!graph || !Array.isArray(graph.nodes) || graph.nodes.length === 0) {
+    throw new Error('interviewer graph has no nodes')
+  }
+  if (!Array.isArray(graph.edges) || graph.edges.length === 0) {
+    throw new Error('interviewer graph has no edges')
+  }
+  const polygonType = 'geo:Polygon'
+  const hasPolygonNodes = graph.nodes.some(n => String(n.type || '') === polygonType)
+  if (!hasPolygonNodes) {
+    throw new Error('interviewer graph has no geo:Polygon nodes to validate layer behavior')
+  }
+  const baseSchema = validateSchema({
+    layers: {
+      mode: 'document-structure',
+      semantic: { hiddenNodeTypes: [polygonType] },
+      documentStructure: { minGroupSize: 1 },
+    },
+  } as Partial<GraphSchema>)
+  const visibleNodesForSchema = (schema: GraphSchema) => {
+    const layersCfg = schema.layers || {}
+    const mode = layersCfg.mode || 'property'
+    const semanticCfg = layersCfg.semantic || {}
+    const semanticHiddenTypes = Array.isArray(semanticCfg.hiddenNodeTypes)
+      ? semanticCfg.hiddenNodeTypes.map(t => String(t || '').trim()).filter(Boolean)
+      : []
+    if (mode !== 'semantic' || semanticHiddenTypes.length === 0) {
+      return graph.nodes
+    }
+    const hiddenTypeSet = new Set(semanticHiddenTypes)
+    const filtered = graph.nodes.filter(n => !hiddenTypeSet.has(String(n.type || '')))
+    return filtered.length > 0 ? filtered : graph.nodes
+  }
+  const visibleEdgesForSchema = (schema: GraphSchema) => {
+    const layersCfg = schema.layers || {}
+    const mode = layersCfg.mode || 'property'
+    const semanticCfg = layersCfg.semantic || {}
+    const semanticHiddenTypes = Array.isArray(semanticCfg.hiddenNodeTypes)
+      ? semanticCfg.hiddenNodeTypes.map(t => String(t || '').trim()).filter(Boolean)
+      : []
+    if (mode !== 'semantic' || semanticHiddenTypes.length === 0) {
+      return graph.edges
+    }
+    const hiddenTypeSet = new Set(semanticHiddenTypes)
+    const hiddenNodeIds = new Set<string>()
+    graph.nodes.forEach(n => {
+      const t = String(n.type || '')
+      if (t && hiddenTypeSet.has(t)) {
+        hiddenNodeIds.add(String(n.id))
+      }
+    })
+    if (!hiddenNodeIds.size) return graph.edges
+    const filtered = graph.edges.filter(e => {
+      const src = String(e.source ?? '')
+      const tgt = String(e.target ?? '')
+      if (!src || !tgt) return false
+      if (hiddenNodeIds.has(src) || hiddenNodeIds.has(tgt)) return false
+      return true
+    })
+    return filtered.length > 0 ? filtered : graph.edges
+  }
+  const docSchema = validateSchema({ ...baseSchema, layers: { ...baseSchema.layers, mode: 'document-structure' } })
+  const semSchema = validateSchema({ ...baseSchema, layers: { ...baseSchema.layers, mode: 'semantic' } })
+  const docNodes = visibleNodesForSchema(docSchema)
+  const semNodes = visibleNodesForSchema(semSchema)
+  const docEdges = visibleEdgesForSchema(docSchema)
+  const semEdges = visibleEdgesForSchema(semSchema)
+  if (docNodes.length !== graph.nodes.length) {
+    throw new Error('document-structure layer should not hide nodes for interviewer graph')
+  }
+  if (docEdges.length !== graph.edges.length) {
+    throw new Error('document-structure layer should not hide edges for interviewer graph')
+  }
+  if (semNodes.length >= docNodes.length) {
+    throw new Error('semantic layer did not hide any nodes for interviewer graph')
+  }
+  if (semEdges.length >= docEdges.length) {
+    throw new Error('semantic layer did not hide any edges for interviewer graph')
   }
 }

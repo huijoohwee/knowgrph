@@ -1,5 +1,15 @@
 import React from 'react'
-import type { Tokens, Token } from 'marked'
+import type {
+  Token,
+  TokensGeneric,
+  TokensText,
+  TokensStrong,
+  TokensEm,
+  TokensDel,
+  TokensLink,
+  TokensImage,
+  TokensCode,
+} from './MarkdownTokens'
 import { isAbsoluteWebUrl, isSafeHref, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
 import type { InlineRenderOpts } from './MarkdownRendererTypes'
 
@@ -28,9 +38,9 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
 
   const renderOne = (t: Token, i: number): React.ReactNode => {
     const key = `${t.type}:${i}`
-    const tt = t as unknown as Tokens.Generic
+    const tt = t as unknown as TokensGeneric
     if (tt.type === 'text') {
-      const text = String((t as unknown as Tokens.Text).text || '')
+      const text = String((t as unknown as TokensText).text || '')
       const parts = splitPlainUrls(text)
       return (
         <span key={key}>
@@ -57,17 +67,17 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       )
     }
     if (tt.type === 'strong') {
-      return <strong key={key}>{renderInlineTokens((t as unknown as Tokens.Strong).tokens, opts)}</strong>
+      return <strong key={key}>{renderInlineTokens((t as unknown as TokensStrong).tokens, opts)}</strong>
     }
     if (tt.type === 'em') {
-      return <em key={key}>{renderInlineTokens((t as unknown as Tokens.Em).tokens, opts)}</em>
+      return <em key={key}>{renderInlineTokens((t as unknown as TokensEm).tokens, opts)}</em>
     }
     if (tt.type === 'del') {
-      return <del key={key}>{renderInlineTokens((t as unknown as Tokens.Del).tokens, opts)}</del>
+      return <del key={key}>{renderInlineTokens((t as unknown as TokensDel).tokens, opts)}</del>
     }
     if (tt.type === 'br') return <br key={key} />
     if (tt.type === 'link') {
-      const link = t as unknown as Tokens.Link
+      const link = t as unknown as TokensLink
       const href = isSafeHref(link.href) ? resolveHref(link.href, activeDocumentPath) : ''
       return (
         <a
@@ -82,7 +92,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       )
     }
     if (tt.type === 'image') {
-      const img = t as unknown as Tokens.Image
+      const img = t as unknown as TokensImage
       const src = isSafeHref(img.href) ? resolveHref(img.href, activeDocumentPath) : ''
       const alt = String(img.text || '')
       return (
@@ -98,7 +108,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     if (tt.type === 'code') {
       return (
         <code key={key} className={uiPanelMonospaceTextClass}>
-          {(t as unknown as Tokens.Code).text}
+          {(t as unknown as TokensCode).text}
         </code>
       )
     }

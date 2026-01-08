@@ -306,6 +306,14 @@ export const UI_COPY = {
   htmlImportFetchFailedStatus: (url: string) => `Data load failed: Failed to fetch content from ${url}`,
   htmlImportEmptyMarkdown:
     '# Imported Content\n\n(No readable content found. The site might be a JavaScript-only application.)',
+  pdfImportUrlPrompt: 'Enter PDF URL (.pdf)',
+  toolbarPdfImportUrlButtonLabel: 'URL (.pdf)',
+  pdfImportFetchFailedStatus: (url: string) => `Data load failed: Failed to fetch PDF from ${url}`,
+  pdfImportConvertFailedStatus: 'Data load failed: Failed to convert PDF to Markdown',
+  pdfImportConvertFailedStatusWithError: (error: string) =>
+    `Data load failed: Failed to convert PDF to Markdown (${error})`,
+  jsonImportUrlPrompt: 'Enter JSON/JSON-LD URL',
+  jsonImportFetchFailedStatus: (url: string) => `Data load failed: Failed to fetch JSON from ${url}`,
   parserDataLoadSuccess: 'Success',
   parserDataLoadSyntaxErrorStatus: (warning: string) => `Syntax/format error — ${warning}`,
   parserPresetSchemaNotFoundStatus: (path: string) => `Preset schema not found: ${path}`,
@@ -372,6 +380,7 @@ export const UI_COPY = {
   toolbarMarkdownImportLocalDeviceButtonLabel: 'Local Device',
   toolbarMarkdownImportUrlButtonLabel: 'URL (.md)',
   markdownImportUrlPrompt: 'Enter Markdown URL (.md)',
+  toolbarJsonImportUrlButtonLabel: 'URL',
   toolbarParserExportJsonButtonLabel: 'JSON',
   toolbarParserExportYamlButtonLabel: 'YAML',
   toolbarParserExportPythonButtonLabel: 'Python',

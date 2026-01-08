@@ -24,4 +24,15 @@ export const createDefs = (svg: SvgSelection) => {
     .attr('cx', 0.5)
     .attr('cy', 0.5)
     .attr('r', 0.5);
+  defs
+    .append('clipPath')
+    .attr('id', 'node-media-rect-clip')
+    .attr('clipPathUnits', 'objectBoundingBox')
+    .append('rect')
+    .attr('x', 0.05)
+    .attr('y', 0.05)
+    .attr('width', 0.9)
+    .attr('height', 0.9)
+    .attr('rx', 0.08)
+    .attr('ry', 0.08);
 };

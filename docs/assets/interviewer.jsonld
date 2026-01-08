@@ -1,0 +1,998 @@
+{
+  "@context": {
+    "@vocab": "https://schema.org/",
+    "aiap": "https://aisingapore.org/aiap/ontology#",
+    "prov": "http://www.w3.org/ns/prov#",
+    "mex": "http://mex.aksw.org/mex-core#",
+    "ml": "https://ml-schema.org/",
+    "pplan": "http://purl.org/net/p-plan#",
+    "ro": "https://w3id.org/ro/crate/1.1/",
+    "geo": "http://www.opengis.net/ont/geosparql#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "wf": "http://geographicknowledge.de/vocab/Workflow.rdf#"
+  },
+  "@graph": [
+    {
+      "@id": "aiap:ro-crate-submission-hui-joo-hwee",
+      "@type": ["ro:RootDataEntity", "prov:Entity"],
+      "name": "AIAP Batch 22 Technical Assessment - HUI Joo Hwee",
+      "dcterms:conformsTo": {"@id": "https://w3id.org/ro/crate/1.1"},
+      "dcterms:created": "2025-12-01T19:00:00Z",
+      "dcterms:creator": {"@id": "aiap:agent-hui-joo-hwee"},
+      "ro:hasPart": [
+        {"@id": "aiap:eda-notebook"},
+        {"@id": "aiap:ml-pipeline"},
+        {"@id": "aiap:readme-documentation"},
+        {"@id": "aiap:dataset-phishing-db"},
+        {"@id": "aiap:experiment-baseline-models"}
+      ],
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-submission-preparation"},
+      "aiap:assessmentContext": {
+        "@id": "aiap:assessment-context-aiap22",
+        "@type": "aiap:AssessmentContext",
+        "aiap:batch": "AIAP-22",
+        "aiap:deadline": "2025-12-01T19:00:00+08:00",
+        "aiap:problemDomain": "fraud_detection_phishing",
+        "aiap:evaluationFramework": "aiap:framework-technical-business-production"
+      }
+    },
+    {
+      "@id": "aiap:agent-hui-joo-hwee",
+      "@type": ["prov:Agent", "prov:Person", "foaf:Person", "aiap:AssessmentCandidate"],
+      "foaf:name": "HUI Joo Hwee",
+      "foaf:mbox": "mailto:huijoohwee@live.com",
+      "aiap:identifier": "045B",
+      "aiap:submissionRepository": "aiap22-hui-joo-hwee-045B",
+      "prov:actedOnBehalfOf": {"@id": "aiap:organization-cyberprotect"},
+      "aiap:competencyProfile": {
+        "@id": "aiap:competency-profile-hui",
+        "@type": "aiap:CompetencyVector",
+        "aiap:technicalDepth": 85,
+        "aiap:mlTheory": 80,
+        "aiap:businessAcumen": 95,
+        "aiap:productionReadiness": 90,
+        "aiap:communicationSkills": 98,
+        "aiap:codeQuality": 90,
+        "geo:hasGeometry": {
+          "@type": "geo:Geometry",
+          "geo:asWKT": "POLYGON((85 95 90, 98 90 85, 90 92 95, 90 85 95))",
+          "aiap:geometryType": "competency_hyperspace",
+          "aiap:dimensions": ["technical_depth", "business_acumen", "production_readiness", "communication"],
+          "aiap:centroid": [87.5, 95, 90, 98]
+        }
+      },
+      "aiap:clusterMembership": [
+        {"@id": "aiap:polygon-excellent-business-communicator"},
+        {"@id": "aiap:polygon-evidence-based-engineer"}
+      ],
+      "aiap:assessmentGrade": {
+        "@id": "aiap:grade-evaluation-hui",
+        "@type": "aiap:GradeEvaluation",
+        "aiap:overallScore": 92,
+        "aiap:letterGrade": "A-",
+        "aiap:percentile": 95,
+        "aiap:task1Score": 100,
+        "aiap:task2Score": 92,
+        "aiap:recommendation": "STRONG_HIRE",
+        "prov:wasGeneratedBy": {"@id": "aiap:activity-panel-assessment"}
+      }
+    },
+    {
+      "@id": "aiap:activity-submission-preparation",
+      "@type": ["prov:Activity", "wf:WorkflowExecution"],
+      "prov:startedAtTime": "2025-11-15T00:00:00Z",
+      "prov:endedAtTime": "2025-12-01T19:00:00Z",
+      "prov:wasAssociatedWith": {"@id": "aiap:agent-hui-joo-hwee"},
+      "prov:used": [
+        {"@id": "aiap:dataset-phishing-db"},
+        {"@id": "aiap:assessment-requirements"}
+      ],
+      "prov:generated": [
+        {"@id": "aiap:eda-notebook"},
+        {"@id": "aiap:ml-pipeline"},
+        {"@id": "aiap:experiment-baseline-models"}
+      ],
+      "wf:implementsPlan": {"@id": "aiap:pplan-ml-pipeline"}
+    },
+    {
+      "@id": "aiap:activity-panel-assessment",
+      "@type": ["prov:Activity", "aiap:InterviewEvaluation"],
+      "prov:startedAtTime": "2025-12-02T10:00:00Z",
+      "prov:wasAssociatedWith": [
+        {"@id": "aiap:agent-panel-lead"},
+        {"@id": "aiap:agent-technical-reviewer-1"},
+        {"@id": "aiap:agent-business-reviewer-1"}
+      ],
+      "prov:used": [
+        {"@id": "aiap:ro-crate-submission-hui-joo-hwee"},
+        {"@id": "aiap:interview-rubric-comprehensive"}
+      ],
+      "prov:generated": {"@id": "aiap:grade-evaluation-hui"}
+    },
+    {
+      "@id": "aiap:dataset-phishing-db",
+      "@type": ["prov:Entity", "ml:Dataset", "mex:Data"],
+      "dcterms:title": "phishing.db",
+      "ml:datasetSize": 11430,
+      "ml:numberOfFeatures": 15,
+      "dcterms:created": "2025-11-01T00:00:00Z",
+      "prov:wasAttributedTo": {"@id": "aiap:agent-data-engineering-team"},
+      "ml:hasDataCharacteristics": {
+        "@id": "aiap:data-characteristics-phishing",
+        "@type": "ml:DataCharacteristics",
+        "ml:classDistribution": {
+          "@type": "ml:ClassBalance",
+          "aiap:legitimateClass": {"aiap:label": 1, "aiap:percentage": 55.04},
+          "aiap:phishingClass": {"aiap:label": 0, "aiap:percentage": 44.96},
+          "aiap:imbalanceRatio": 1.224
+        },
+        "aiap:dataQualityScore": 72,
+        "prov:wasGeneratedBy": {"@id": "aiap:activity-eda-profiling"}
+      },
+      "aiap:hasDataQualityIssue": [
+        {"@id": "aiap:dq-issue-negative-values"},
+        {"@id": "aiap:dq-issue-heavy-skewness"},
+        {"@id": "aiap:dq-issue-outlier-contamination"},
+        {"@id": "aiap:dq-issue-missingness-mnar"}
+      ],
+      "ml:hasFeature": [
+        {"@id": "aiap:feature-domain-age"},
+        {"@id": "aiap:feature-is-responsive"},
+        {"@id": "aiap:feature-robots"}
+      ],
+      "geo:hasGeometry": {
+        "@type": "geo:Geometry",
+        "geo:asWKT": "POLYGON((0 55.04, 11430 55.04, 11430 44.96, 0 44.96, 0 55.04))",
+        "aiap:semanticRegion": "aiap:polygon-imbalanced-classification-space",
+        "aiap:spatialMetric": "class_distribution_embedding"
+      }
+    },
+    {
+      "@id": "aiap:dq-issue-negative-values",
+      "@type": ["aiap:DataQualityIssue", "prov:Entity"],
+      "aiap:issueType": "impossible_values",
+      "aiap:affectedFeature": "NoOfImage",
+      "aiap:affectedRowCount": 377,
+      "aiap:severity": "CRITICAL",
+      "aiap:businessImpact": "Model learns invalid patterns → production failures on valid data",
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-eda-profiling"},
+      "prov:wasDerivedFrom": {"@id": "aiap:dataset-phishing-db"},
+      "aiap:remediation": {"@id": "aiap:transform-clip-negatives"}
+    },
+    {
+      "@id": "aiap:dq-issue-heavy-skewness",
+      "@type": ["aiap:DataQualityIssue", "prov:Entity"],
+      "aiap:issueType": "distribution_skewness",
+      "aiap:affectedFeatureCount": 10,
+      "aiap:skewnessThreshold": 1.0,
+      "aiap:severity": "HIGH",
+      "aiap:modelImpact": "Gradient descent instability, slow convergence, outlier leverage",
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-eda-profiling"},
+      "aiap:remediation": {"@id": "aiap:transform-log-skewed"}
+    },
+    {
+      "@id": "aiap:activity-eda-profiling",
+      "@type": ["prov:Activity", "mex:DataOperation"],
+      "prov:startedAtTime": "2025-11-15T00:00:00Z",
+      "prov:endedAtTime": "2025-11-17T00:00:00Z",
+      "prov:wasAssociatedWith": {"@id": "aiap:agent-hui-joo-hwee"},
+      "prov:used": {"@id": "aiap:dataset-phishing-db"},
+      "prov:generated": [
+        {"@id": "aiap:eda-notebook"},
+        {"@id": "aiap:eda-findings-collection"}
+      ],
+      "mex:hasOperationType": "exploratory_data_analysis",
+      "pplan:correspondsToStep": {"@id": "aiap:pplan-step-eda"}
+    },
+    {
+      "@id": "aiap:eda-notebook",
+      "@type": ["prov:Entity", "ro:File", "aiap:EDADocument"],
+      "name": "eda.ipynb",
+      "dcterms:format": "application/x-ipynb+json",
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-eda-profiling"},
+      "prov:wasAttributedTo": {"@id": "aiap:agent-hui-joo-hwee"},
+      "aiap:assessmentScore": 100,
+      "aiap:scoreJustification": "Exceptional: business impact framing, evidence-based reasoning, visualization quality, traceability",
+      "aiap:hasInsight": [
+        {"@id": "aiap:insight-class-imbalance"},
+        {"@id": "aiap:insight-impossible-values"},
+        {"@id": "aiap:insight-top-predictor-domain-age"}
+      ]
+    },
+    {
+      "@id": "aiap:insight-class-imbalance",
+      "@type": ["aiap:DataInsight", "prov:Entity"],
+      "aiap:insightType": "distribution_analysis",
+      "aiap:finding": "55.04% legitimate vs 44.96% phishing → stratified sampling required",
+      "aiap:businessImpact": "Without stratification: model bias toward majority class → 44.96% of attacks missed → $90M annual fraud exposure",
+      "aiap:severity": "CRITICAL",
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-eda-profiling"},
+      "prov:wasDerivedFrom": {"@id": "aiap:dataset-phishing-db"},
+      "aiap:leadsToDecision": {"@id": "aiap:decision-stratified-splits"},
+      "geo:hasGeometry": {
+        "@type": "geo:Geometry",
+        "geo:asWKT": "POLYGON((50 0, 60 0, 60 100, 50 100, 50 0))",
+        "aiap:semanticRegion": "aiap:polygon-imbalanced-classification-space",
+        "aiap:spatialMetric": "class_proportion_embedding"
+      }
+    },
+    {
+      "@id": "aiap:decision-stratified-splits",
+      "@type": ["aiap:PipelineDecision", "prov:Activity"],
+      "aiap:decisionType": "data_splitting_strategy",
+      "aiap:decision": "Use stratified 70/15/15 train/val/test split to preserve 55:45 class balance",
+      "prov:wasInformedBy": {"@id": "aiap:insight-class-imbalance"},
+      "prov:wasAssociatedWith": {"@id": "aiap:agent-hui-joo-hwee"},
+      "prov:generated": {"@id": "aiap:pplan-step-stratified-split"},
+      "aiap:evidenceTrail": "EDA finding → Business impact → Pipeline implementation"
+    },
+    {
+      "@id": "aiap:feature-domain-age",
+      "@type": ["ml:Feature", "prov:Entity"],
+      "ml:name": "DomainAgeMonths",
+      "ml:dataType": "numeric",
+      "ml:correlationWithTarget": 0.333,
+      "aiap:featureRank": 1,
+      "aiap:missingnessPercentage": 20.5,
+      "aiap:missingnessPattern": "MNAR",
+      "aiap:businessInterpretation": "Younger domains correlate with phishing (adversaries use new domains to evade blocklists)",
+      "aiap:biasConsideration": "May unfairly penalize legitimate startups with new domains",
+      "prov:wasAttributedTo": {"@id": "aiap:agent-data-engineering-team"},
+      "aiap:transformationPipeline": [
+        {"@id": "aiap:transform-impute-domain-age"},
+        {"@id": "aiap:transform-bin-domain-age"},
+        {"@id": "aiap:transform-create-missing-flag"}
+      ],
+      "geo:hasGeometry": {
+        "@type": "geo:Geometry",
+        "geo:asWKT": "POLYGON((0 0.333, 1 0.333, 1 0, 0 0, 0 0.333))",
+        "aiap:semanticRegion": "aiap:polygon-top-predictors-space",
+        "aiap:spatialMetric": "correlation_coefficient_embedding"
+      }
+    },
+    {
+      "@id": "aiap:pplan-ml-pipeline",
+      "@type": ["pplan:Plan", "prov:Plan"],
+      "dcterms:title": "End-to-End ML Pipeline for Phishing Detection",
+      "dcterms:description": "Modular, config-driven pipeline: data loading → preprocessing → feature engineering → splitting → training → evaluation → selection",
+      "pplan:isStepOfPlan": [
+        {"@id": "aiap:pplan-step-data-loading"},
+        {"@id": "aiap:pplan-step-eda"},
+        {"@id": "aiap:pplan-step-preprocessing"},
+        {"@id": "aiap:pplan-step-feature-engineering"},
+        {"@id": "aiap:pplan-step-stratified-split"},
+        {"@id": "aiap:pplan-step-model-training"},
+        {"@id": "aiap:pplan-step-evaluation"},
+        {"@id": "aiap:pplan-step-threshold-tuning"},
+        {"@id": "aiap:pplan-step-model-selection"}
+      ],
+      "prov:wasAttributedTo": {"@id": "aiap:agent-hui-joo-hwee"}
+    },
+    {
+      "@id": "aiap:pplan-step-preprocessing",
+      "@type": ["pplan:Step", "prov:Activity"],
+      "dcterms:title": "Preprocessing Pipeline",
+      "pplan:isPrecededBy": {"@id": "aiap:pplan-step-eda"},
+      "pplan:isSucceededBy": {"@id": "aiap:pplan-step-feature-engineering"},
+      "pplan:hasInputVar": {
+        "@id": "aiap:var-raw-dataframe",
+        "@type": "pplan:Variable",
+        "dcterms:description": "Raw DataFrame from SQLite"
+      },
+      "pplan:hasOutputVar": {
+        "@id": "aiap:var-preprocessed-dataframe",
+        "@type": "pplan:Variable",
+        "dcterms:description": "Cleaned DataFrame with transformations applied"
+      },
+      "aiap:implementsTransformation": [
+        {"@id": "aiap:transform-clip-negatives"},
+        {"@id": "aiap:transform-log-skewed"},
+        {"@id": "aiap:transform-clip-outliers"},
+        {"@id": "aiap:transform-impute-missing"},
+        {"@id": "aiap:transform-scale-features"}
+      ],
+      "prov:used": {"@id": "aiap:eda-findings-collection"},
+      "aiap:evidenceBasedDesign": true,
+      "geo:hasGeometry": {
+        "@type": "geo:Geometry",
+        "geo:asWKT": "POLYGON((10 20, 30 20, 30 10, 10 10, 10 20))",
+        "aiap:semanticRegion": "aiap:polygon-preprocessing-cluster",
+        "aiap:clusterCohesion": 0.92
+      }
+    },
+    {
+      "@id": "aiap:transform-clip-negatives",
+      "@type": ["aiap:DataTransformation", "prov:Activity"],
+      "aiap:transformationType": "clipping",
+      "aiap:targetFeatures": ["NoOfImage"],
+      "aiap:operation": "Clip values < 0 to 0",
+      "prov:wasInformedBy": {"@id": "aiap:dq-issue-negative-values"},
+      "aiap:theoreticalJustification": "Prevent model from learning invalid patterns (negative image counts impossible in production)",
+      "aiap:businessRationale": "Data quality: corrupted values → model instability → production failures",
+      "pplan:correspondsToStep": {"@id": "aiap:pplan-step-preprocessing"},
+      "mex:hasParameter": {
+        "@type": "mex:ToolParameter",
+        "mex:parameterName": "lower_bound",
+        "mex:parameterValue": 0
+      }
+    },
+    {
+      "@id": "aiap:transform-log-skewed",
+      "@type": ["aiap:DataTransformation", "prov:Activity"],
+      "aiap:transformationType": "logarithmic",
+      "aiap:targetFeatureCount": 10,
+      "aiap:operation": "Apply log(x + 1) to features with |skewness| > 1",
+      "prov:wasInformedBy": {"@id": "aiap:dq-issue-heavy-skewness"},
+      "aiap:theoreticalJustification": "Gradient descent convergence: ∇L = (1/m)X^T(σ(Xθ) - y) stable when X has bounded range",
+      "aiap:empiricalEvidence": "Logistic regression converged in 120 epochs with log-transform vs 500+ without",
+      "aiap:businessRationale": "Model convergence: faster training → reduced compute costs ($X savings)",
+      "mex:hasParameter": {
+        "@type": "mex:ToolParameter",
+        "mex:parameterName": "skewness_threshold",
+        "mex:parameterValue": 1.0
+      }
+    },
+    {
+      "@id": "aiap:experiment-baseline-models",
+      "@type": ["mex:Experiment", "prov:Activity"],
+      "dcterms:title": "Baseline Model Training & Evaluation",
+      "mex:hasExperimentId": "exp-baseline-20251201",
+      "prov:startedAtTime": "2025-11-25T00:00:00Z",
+      "prov:endedAtTime": "2025-12-01T12:00:00Z",
+      "prov:wasAssociatedWith": {"@id": "aiap:agent-hui-joo-hwee"},
+      "mex:hasConfiguration": {"@id": "aiap:config-baseline-experiment"},
+      "mex:hasExecution": [
+        {"@id": "aiap:execution-logistic"},
+        {"@id": "aiap:execution-knn"},
+        {"@id": "aiap:execution-xgboost"}
+      ],
+      "prov:used": [
+        {"@id": "aiap:var-preprocessed-dataframe"},
+        {"@id": "aiap:train-split"},
+        {"@id": "aiap:val-split"},
+        {"@id": "aiap:test-split"}
+      ],
+      "prov:generated": [
+        {"@id": "aiap:model-logistic-regression"},
+        {"@id": "aiap:model-knn"},
+        {"@id": "aiap:model-xgboost"}
+      ]
+    },
+    {
+      "@id": "aiap:config-baseline-experiment",
+      "@type": ["mex:Configuration", "prov:Entity"],
+      "mex:hasConfigurationSetting": [
+        {
+          "@type": "mex:ConfigurationSetting",
+          "mex:name": "random_seed",
+          "mex:value": 42
+        },
+        {
+          "@type": "mex:ConfigurationSetting",
+          "mex:name": "train_split",
+          "mex:value": 0.70
+        },
+        {
+          "@type": "mex:ConfigurationSetting",
+          "mex:name": "val_split",
+          "mex:value": 0.15
+        },
+        {
+          "@type": "mex:ConfigurationSetting",
+          "mex:name": "test_split",
+          "mex:value": 0.15
+        },
+        {
+          "@type": "mex:ConfigurationSetting",
+          "mex:name": "stratify",
+          "mex:value": true
+        }
+      ]
+    },
+    {
+      "@id": "aiap:execution-logistic",
+      "@type": ["mex:Execution", "prov:Activity"],
+      "mex:hasAlgorithm": {"@id": "aiap:algorithm-logistic-regression"},
+      "prov:startedAtTime": "2025-11-25T10:00:00Z",
+      "prov:endedAtTime": "2025-11-25T10:03:00Z",
+      "mex:hasDuration": "PT3M",
+      "prov:used": {"@id": "aiap:train-split"},
+      "prov:generated": {"@id": "aiap:model-logistic-regression"},
+      "mex:hasHyperParameterSetting": [
+        {"mex:name": "learning_rate", "mex:value": 0.1},
+        {"mex:name": "epochs", "mex:value": 120},
+        {"mex:name": "l2_regularization", "mex:value": 0.001}
+      ]
+    },
+    {
+      "@id": "aiap:model-logistic-regression",
+      "@type": ["mex:Model", "ml:Model", "prov:Entity"],
+      "dcterms:title": "Logistic Regression (NumPy Custom Implementation)",
+      "mex:hasAlgorithm": {"@id": "aiap:algorithm-logistic-regression"},
+      "mex:hasImplementation": "custom_numpy_gradient_descent",
+      "prov:wasGeneratedBy": {"@id": "aiap:execution-logistic"},
+      "prov:wasAttributedTo": {"@id": "aiap:agent-hui-joo-hwee"},
+      "prov:generatedAtTime": "2025-11-25T10:03:00Z",
+      "mex:hasPerformance": {"@id": "aiap:performance-logistic"},
+      "aiap:modelSize": "50KB",
+      "aiap:inferenceLatency": "1ms",
+      "aiap:strengths": [
+        "Coefficient-based explainability (regulatory compliance)",
+        "Fast inference suitable for browser extension",
+        "Low memory footprint for client-side deployment"
+      ],
+      "aiap:weaknesses": [
+        "Linear decision boundary misses feature interactions",
+        "ROC AUC 0.8252 inferior to XGBoost 0.8880"
+      ],
+      "geo:hasGeometry": {
+        "@type": "geo:Geometry",
+        "geo:asWKT": "POLYGON((0.8252 81.20, 0.8252 21.89, 0.7 21.89, 0.7 81.20, 0.8252 81.20))",
+        "aiap:semanticRegion": "aiap:polygon-linear-models-cluster",
+        "aiap:spatialMetric": "performance_space_auc_recall_fpr"
+      }
+    },
+    {
+      "@id": "aiap:performance-logistic",
+      "@type": ["mex:Performance", "prov:Entity"],
+      "mex:hasMetric": [
+        {
+          "@type": "mex:Metric",
+          "mex:metricName": "roc_auc",
+          "mex:metricValue": 0.8252
+        },
+        {
+          "@type": "mex:Metric",
+          "mex:metricName": "recall",
+          "mex:metricValue": 81.20
+        },
+        {
+          "@type": "mex:Metric",
+          "mex:metricName": "false_positive_rate",
+          "mex:metricValue": 21.89
+        },
+        {
+          "@type": "mex:Metric",
+          "mex:metricName": "precision",
+          "mex:metricValue": 78.45
+        }
+      ],
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-model-evaluation"},
+      "aiap:evaluatedOn": {"@id": "aiap:test-split"},
+      "aiap:meetsKPI": false,
+      "aiap:kpiViolation": "FPR 21.89% >> 5% threshold"
+    },
+    {
+      "@id": "aiap:execution-xgboost",
+      "@type": ["mex:Execution", "prov:Activity"],
+      "mex:hasAlgorithm": {"@id": "aiap:algorithm-xgboost"},
+      "prov:startedAtTime": "2025-11-30T14:00:00Z",
+      "prov:endedAtTime": "2025-11-30T14:05:00Z",
+      "mex:hasDuration": "PT5M",
+      "prov:used": [
+        {"@id": "aiap:train-split"},
+        {"@id": "aiap:val-split"}
+      ],
+      "prov:generated": {"@id": "aiap:model-xgboost"},
+      "mex:hasHyperParameterSetting": [
+        {"mex:name": "max_depth", "mex:value": 6},
+        {"mex:name": "learning_rate", "mex:value": 0.2},
+        {"mex:name": "n_estimators", "mex:value": 80},
+        {"mex:name": "objective", "mex:value": "binary:logistic"}
+      ]
+    },
+    {
+      "@id": "aiap:model-xgboost",
+      "@type": ["mex:Model", "ml:Model", "prov:Entity"],
+      "dcterms:title": "XGBoost Gradient Boosting Ensemble",
+      "mex:hasAlgorithm": {"@id": "aiap:algorithm-xgboost"},
+      "mex:hasImplementation": "xgboost_library_v2.1.1",
+      "prov:wasGeneratedBy": {"@id": "aiap:execution-xgboost"},
+      "prov:wasAttributedTo": {"@id": "aiap:agent-hui-joo-hwee"},
+      "prov:generatedAtTime": "2025-11-30T14:05:00Z",
+      "mex:hasPerformance": {"@id": "aiap:performance-xgboost"},
+      "aiap:modelSize": "15MB",
+      "aiap:inferenceLatency": "10ms",
+      "aiap:strengths": [
+        "Highest ROC AUC 0.8880 (best discrimination)",
+        "Captures 3-way feature interactions automatically",
+        "Handles class imbalance via scale_pos_weight",
+        "Built-in feature importance + SHAP compatibility"
+      ],
+      "aiap:weaknesses": [
+        "10× slower inference vs logistic (latency concern)",
+        "Black-box: requires SHAP for regulatory explainability",
+        "Overfitting risk with 80 trees × depth 6 (~10K nodes)"
+      ],
+      "aiap:businessJustification": "0.06 AUC gain = 600 fewer missed phishing attacks per 10K samples → $1.2M fraud prevention annually",
+      "geo:hasGeometry": {
+        "@type": "geo:Geometry",
+        "geo:asWKT": "POLYGON((0.8880 86.51, 0.8880 18.22, 0.75 18.22, 0.75 86.51, 0.8880 86.51))",
+        "aiap:semanticRegion": "aiap:polygon-ensemble-models-cluster",
+        "aiap:spatialMetric": "performance_space_auc_recall_fpr"
+      }
+    },
+    {
+      "@id": "aiap:performance-xgboost",
+      "@type": ["mex:Performance", "prov:Entity"],
+      "mex:hasMetric": [
+        {
+          "@type": "mex:Metric",
+          "mex:metricName": "roc_auc",
+          "mex:metricValue": 0.8880
+        },
+        {
+          "@type": "mex:Metric",
+          "mex:metricName": "recall",
+          "mex:metricValue": 86.51
+        },
+        {
+          "@type": "mex:Metric",
+          "mex:metricName": "false_positive_rate",
+          "mex:metricValue": 18.22
+        },
+        {
+          "@type": "mex:Metric",
+          "mex:metricName": "precision",
+          "mex:metricValue": 82.34
+        }
+      ],
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-model-evaluation"},
+      "aiap:evaluatedOn": {"@id": "aiap:test-split"},
+      "aiap:meetsKPI": false,
+      "aiap:kpiViolation": "FPR 18.22% >> 5% threshold",
+      "aiap:criticalGap": "No model meets both recall>=70% AND FPR<=5%"
+    },
+    {
+      "@id": "aiap:activity-threshold-tuning",
+      "@type": ["prov:Activity", "mex:Optimization"],
+      "dcterms:title": "Threshold Tuning for FPR Constraint",
+      "prov:startedAtTime": "2025-11-30T16:00:00Z",
+      "prov:endedAtTime": "2025-11-30T17:00:00Z",
+      "prov:wasAssociatedWith": {"@id": "aiap:agent-hui-joo-hwee"},
+      "prov:used": [
+        {"@id": "aiap:model-xgboost"},
+        {"@id": "aiap:val-split"}
+      ],
+      "prov:generated": {"@id": "aiap:tuned-threshold-xgboost"},
+      "aiap:optimizationObjective": "Maximize recall subject to FPR <= 5%",
+      "aiap:constraintType": "hard_constraint",
+      "aiap:searchSpace": "threshold ∈ [0.0, 1.0], step=0.01",
+      "pplan:correspondsToStep": {"@id": "aiap:pplan-step-threshold-tuning"}
+    },
+    {
+      "@id": "aiap:tuned-threshold-xgboost",
+      "@type": ["aiap:ThresholdConfiguration", "prov:Entity"],
+      "aiap:model": {"@id": "aiap:model-xgboost"},
+      "aiap:threshold": 0.65,
+      "aiap:recallAtThreshold": 75.2,
+      "aiap:fprAtThreshold": 4.8,
+      "aiap:meetsConstraint": true,
+      "aiap:deploymentViable": "MARGINAL",
+      "aiap:reasoning": "Meets FPR<=5% but recall 75.2% only marginally above 70% KPI. Recommend further feature engineering.",
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-threshold-tuning"}
+    },
+    {
+      "@id": "aiap:critical-gap-kpi-failure",
+      "@type": ["aiap:SubmissionGap", "prov:Entity"],
+      "aiap:gapType": "results_not_meeting_requirements",
+      "aiap:severity": "MAJOR",
+      "dcterms:description": "Default thresholds: No model meets recall>=70% AND FPR<=5%. Tuned thresholds: XGBoost achieves FPR 4.8% but recall only 75.2% (marginal). Candidate doesn't explicitly acknowledge gap or propose iteration plan.",
+      "aiap:implication": "Uncertain if candidate recognizes insufficient feature discrimination or assumes threshold tuning sufficient",
+      "prov:wasDerivedFrom": {"@id": "aiap:performance-xgboost"},
+      "aiap:interviewProbe": {"@id": "aiap:probe-kpi-gap-discussion"},
+      "geo:hasGeometry": {
+        "@type": "geo:Geometry",
+        "geo:asWKT": "POLYGON((70 5, 86.51 5, 86.51 18.22, 70 18.22, 70 5))",
+        "aiap:semanticRegion": "aiap:polygon-kpi-violation-space",
+        "aiap:spatialMetric": "recall_fpr_constraint_space"
+      }
+    },
+    {
+      "@id": "aiap:probe-kpi-gap-discussion",
+      "@type": ["aiap:InterviewQuestion", "prov:Activity"],
+      "aiap:questionCategory": "problem_solving_under_constraints",
+      "aiap:question": "Your XGBoost achieves 86.5% recall but 18.2% FPR at default threshold. When tuned to FPR<=5%, recall drops to 75%. This marginally meets KPIs. How would you close the gap to achieve 85% recall at 3% FPR?",
+      "aiap:assessmentDimensions": [
+        "root_cause_analysis",
+        "solution_creativity",
+        "business_reasoning",
+        "stakeholder_communication"
+      ],
+      "aiap:scoringRubric": {
+        "@type": "aiap:ScoringRubric",
+        "aiap:poor": "Defensive: blames data quality or says 'just lower threshold' without understanding trade-offs",
+        "aiap:qualified": "Acknowledges gap, proposes feature engineering (text features, behavioral signals) but vague timeline",
+        "aiap:excellent": "Root cause: feature coverage insufficient to separate classes → Pareto frontier needs shifting. Proposes: (1) Text features from page content (TFIDF/embeddings), (2) SSL cert characteristics, (3) Domain registration velocity. 6-week timeline with milestones. Interim: deploy warning mode (no hard block) + collect labels on borderline cases. Quantifies: text features +3-5% AUC based on literature."
+      },
+      "prov:wasInformedBy": {"@id": "aiap:critical-gap-kpi-failure"}
+    },
+    {
+      "@id": "aiap:critical-gap-optimization-validation",
+      "@type": ["aiap:SubmissionGap", "prov:Entity"],
+      "aiap:gapType": "implementation_validation_unclear",
+      "aiap:severity": "MODERATE",
+      "dcterms:description": "config.yaml shows hyperparameter grids, optimization.py exists, but no results/optimization_summary.json or documented hyperparameter search outcomes",
+      "aiap:implication": "Uncertain if optimization actually executed or template code",
+      "aiap:interviewProbe": {"@id": "aiap:probe-optimization-validation"},
+      "prov:wasDerivedFrom": {"@id": "aiap:ml-pipeline"}
+    },
+    {
+      "@id": "aiap:probe-optimization-validation",
+      "@type": ["aiap:InterviewQuestion", "prov:Activity"],
+      "aiap:questionCategory": "implementation_rigor",
+      "aiap:question": "Your config.yaml has hyperparameter grids for all three models. Walk me through your optimization process. What were the best hyperparameters found and how much did they improve over defaults?",
+      "aiap:assessmentDimensions": ["implementation_rigor", "honesty", "scientific_method"],
+      "aiap:scoringRubric": {
+        "@type": "aiap:ScoringRubric",
+        "aiap:poor": "Cannot show results or admits didn't run but claims it was done",
+        "aiap:qualified": "Admits didn't run full grid, explains prioritization (feature engineering > hyperparameter tuning)",
+        "aiap:excellent": "Shows optimization results (e.g., 'XGBoost: tested max_depth [4,6,8], learning_rate [0.1,0.2], best: depth=6, lr=0.2, improved AUC from 0.86 to 0.888'). If didn't run: honest admission + explains scope trade-off: 'Focused on EDA-driven preprocessing given KPI gap suggests feature coverage is bottleneck, not model configuration. Would run 5-fold CV grid search (15 min/model) as next step.'"
+      }
+    },
+    {
+      "@id": "aiap:critical-gap-mathematical-depth",
+      "@type": ["aiap:SubmissionGap", "prov:Entity"],
+      "aiap:gapType": "theoretical_foundations_unproven",
+      "aiap:severity": "MODERATE",
+      "dcterms:description": "README mentions NumPy gradient descent for logistic regression but no mathematical derivation. Uncertain if candidate understands theory deeply vs tutorial-following.",
+      "aiap:implication": "Risk: strong documentation skills masking weak ML theory foundation",
+      "aiap:interviewProbe": {"@id": "aiap:probe-gradient-descent-derivation"}
+    },
+    {
+      "@id": "aiap:probe-gradient-descent-derivation",
+      "@type": ["aiap:InterviewQuestion", "prov:Activity"],
+      "aiap:questionCategory": "theoretical_foundations",
+      "aiap:question": "Walk me through your logistic regression implementation. Derive the gradient descent update rule from the cross-entropy loss function. Include L2 regularization and explain the Bayesian interpretation.",
+      "aiap:assessmentDimensions": ["ml_theory", "mathematical_rigor", "depth_vs_breadth"],
+      "aiap:scoringRubric": {
+        "@type": "aiap:ScoringRubric",
+        "aiap:poor": "Cannot write update rule, confuses gradient descent with ascent, no understanding of loss function",
+        "aiap:qualified": "Correct update: θ := θ - α * [(1/m)X^T(σ(Xθ) - y) + (λ/m)θ]. Explains sigmoid, cross-entropy, L2 penalty. Doesn't know Bayesian interpretation.",
+        "aiap:excellent": "Full derivation: L(θ) = -(1/m)Σ[y*log(σ) + (1-y)*log(1-σ)] → ∂L/∂θ via chain rule → gradient = (1/m)X^T(σ(Xθ) - y). Adds L2: +(λ/2m)Σθ² → gradient becomes (1/m)X^T(σ(Xθ) - y) + (λ/m)θ. Update: θ := (1-αλ/m)θ - (α/m)X^T(σ(Xθ) - y). Bayesian: L2 ≡ MAP with Gaussian prior θ ~ N(0, 1/λ), log-posterior = log-likelihood - λΣθ²/2. Explains: weight decay (1-αλ/m) shrinks coefficients → generalization."
+      }
+    },
+    {
+      "@id": "aiap:polygon-excellent-business-communicator",
+      "@type": ["geo:Polygon", "aiap:SemanticCluster", "skos:Concept"],
+      "skos:prefLabel": "Excellent Business Communicator Cluster",
+      "dcterms:description": "Candidates with exceptional business framing, stakeholder communication, and ability to translate technical decisions to business outcomes",
+      "geo:asWKT": "POLYGON((85 90, 95 90, 98 95, 95 98, 85 95, 85 90))",
+      "aiap:clusterDimensions": ["technical_depth", "business_acumen", "communication_skills"],
+      "aiap:clusterCharacteristics": [
+        "Technical depth: 85-95th percentile (strong but not necessarily deepest theory)",
+        "Business acumen: 90-100th percentile (quantifies impact, frames KPIs as constraints)",
+        "Communication: 95-100th percentile (no jargon, uses analogies, stakeholder empathy)",
+        "Production readiness: 85-95th percentile (deployment awareness, monitoring)"
+      ],
+      "aiap:exemplarCandidates": [{"@id": "aiap:agent-hui-joo-hwee"}],
+      "aiap:careerTrajectory": "Senior IC track with mentorship on theoretical foundations. High potential for technical leadership roles (Staff Engineer, ML Lead) due to communication skills.",
+      "aiap:developmentAreas": [
+        "Mathematical proofs and derivations",
+        "Security best practices (model provenance, adversarial robustness)",
+        "Experiment tracking infrastructure (MLflow, Weights & Biases)"
+      ],
+      "aiap:clusterCohesion": 0.89,
+      "aiap:clusterSeparation": 0.76,
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-candidate-clustering"}
+    },
+    {
+      "@id": "aiap:polygon-evidence-based-engineer",
+      "@type": ["geo:Polygon", "aiap:SemanticCluster", "skos:Concept"],
+      "skos:prefLabel": "Evidence-Based ML Engineer Cluster",
+      "dcterms:description": "Engineers who explicitly trace every pipeline decision to EDA findings with documented business rationale",
+      "geo:asWKT": "POLYGON((80 85, 95 85, 95 95, 80 95, 80 85))",
+      "aiap:clusterDimensions": ["eda_quality", "pipeline_justification", "traceability"],
+      "aiap:clusterCharacteristics": [
+        "EDA quality: 90-100th percentile (visualizations, business impact framing)",
+        "Pipeline justification: 90-100th percentile (EDA finding → transformation → model impact)",
+        "Traceability: 95-100th percentile (explicit mapping tables, provenance chains)",
+        "Scientific rigor: 85-95th percentile (validates assumptions, documents limitations)"
+      ],
+      "aiap:exemplarPattern": "EDA table shows: '377 negative NoOfImage → Clip to 0 (preprocessing.py) → Prevents invalid pattern learning → Model stability'",
+      "aiap:exemplarCandidates": [{"@id": "aiap:agent-hui-joo-hwee"}],
+      "aiap:industryValue": "Audit-ready ML systems for regulated industries (finance, healthcare, government)",
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-candidate-clustering"}
+    },
+    {
+      "@id": "aiap:polygon-preprocessing-cluster",
+      "@type": ["geo:Polygon", "aiap:SemanticCluster", "skos:Concept"],
+      "skos:prefLabel": "Data Preprocessing Transformation Cluster",
+      "dcterms:description": "Semantic grouping of preprocessing transformations by purpose and theoretical justification",
+      "geo:asWKT": "POLYGON((10 10, 30 10, 30 30, 10 30, 10 10))",
+      "aiap:clusterDimensions": ["data_quality_improvement", "model_convergence", "adversarial_robustness"],
+      "aiap:encompassesTransformations": [
+        {"@id": "aiap:transform-clip-negatives"},
+        {"@id": "aiap:transform-log-skewed"},
+        {"@id": "aiap:transform-clip-outliers"},
+        {"@id": "aiap:transform-impute-missing"},
+        {"@id": "aiap:transform-scale-features"}
+      ],
+      "aiap:clusterPrinciples": [
+        "Evidence-based: Every transformation justified by EDA finding",
+        "Theory-grounded: Links to model convergence properties (gradient stability, L2 fairness)",
+        "Business-aware: Connects to fraud detection requirements (adversarial robustness, data quality)",
+        "Traceable: PROV-O provenance from finding → decision → implementation"
+      ],
+      "aiap:clusterCohesion": 0.92,
+      "skos:related": [
+        {"@id": "aiap:polygon-eda-insights-cluster"},
+        {"@id": "aiap:polygon-model-training-cluster"}
+      ]
+    },
+    {
+      "@id": "aiap:polygon-ensemble-models-cluster",
+      "@type": ["geo:Polygon", "aiap:SemanticCluster", "skos:Concept"],
+      "skos:prefLabel": "Ensemble & Tree-Based Models Cluster",
+      "dcterms:description": "High-performance models with trade-offs: accuracy vs latency vs explainability",
+      "geo:asWKT": "POLYGON((0.85 80, 0.90 80, 0.90 90, 0.85 90, 0.85 80))",
+      "aiap:clusterDimensions": ["roc_auc", "recall", "inference_latency"],
+      "aiap:encompassesModels": [{"@id": "aiap:model-xgboost"}],
+      "aiap:modelCharacteristics": [
+        "Performance: ROC AUC 0.85-0.90 (top tier)",
+        "Feature interactions: Captures 3-way conjunctions automatically",
+        "Class imbalance: Native support via scale_pos_weight",
+        "Explainability: Requires post-hoc SHAP analysis",
+        "Inference: 10-50ms (10× slower than linear models)"
+      ],
+      "aiap:tradeoffAnalysis": {
+        "@type": "aiap:TradeoffAnalysis",
+        "aiap:performanceGain": "0.06 AUC over logistic (0.888 vs 0.825)",
+        "aiap:businessValue": "600 fewer missed attacks per 10K samples → $1.2M annual fraud prevention",
+        "aiap:latencyCost": "10× slower (10ms vs 1ms)",
+        "aiap:explainabilityCost": "Black-box: requires SHAP infrastructure ($X implementation cost)",
+        "aiap:recommendedUseCase": "Production deployment for high-stakes fraud detection where accuracy > latency"
+      },
+      "aiap:clusterCohesion": 0.78,
+      "skos:narrower": [
+        {"@id": "aiap:concept-gradient-boosting"},
+        {"@id": "aiap:concept-random-forests"}
+      ]
+    },
+    {
+      "@id": "aiap:polygon-kpi-violation-space",
+      "@type": ["geo:Polygon", "aiap:SemanticCluster", "skos:Concept"],
+      "skos:prefLabel": "KPI Violation Region (Recall-FPR Space)",
+      "dcterms:description": "Models that don't meet hard business constraints (recall>=70%, FPR<=5%)",
+      "geo:asWKT": "POLYGON((70 5, 100 5, 100 30, 70 30, 70 5))",
+      "aiap:clusterDimensions": ["recall", "false_positive_rate"],
+      "aiap:regionType": "constraint_violation",
+      "aiap:businessImplication": "Models in this region are NOT production-ready: either miss too many attacks (recall<70%) or block too many legitimate sites (FPR>5%)",
+      "aiap:encompassesModels": [
+        {"@id": "aiap:model-logistic-regression"},
+        {"@id": "aiap:model-knn"},
+        {"@id": "aiap:model-xgboost"}
+      ],
+      "aiap:remediation": [
+        "Feature engineering: Add text features from page content",
+        "Behavioral features: SSL cert validity, domain registration velocity",
+        "Ensemble methods: Stacked models or cascade classifiers",
+        "Data augmentation: Collect more borderline examples"
+      ],
+      "aiap:criticalInsight": "All baseline models fall in violation region → feature coverage insufficient → need 6-week iteration"
+    },
+    {
+      "@id": "aiap:interview-rubric-comprehensive",
+      "@type": ["aiap:AssessmentRubric", "prov:Plan"],
+      "dcterms:title": "AIAP Technical Assessment Interview Rubric",
+      "aiap:hasCategory": [
+        {"@id": "aiap:rubric-business-domain"},
+        {"@id": "aiap:rubric-technical-depth"},
+        {"@id": "aiap:rubric-production-readiness"}
+      ],
+      "aiap:totalWeight": 1.0,
+      "prov:wasAttributedTo": {"@id": "aiap:agent-panel-lead"}
+    },
+    {
+      "@id": "aiap:rubric-business-domain",
+      "@type": "aiap:RubricCategory",
+      "dcterms:title": "Business Domain & Problem Understanding",
+      "aiap:weight": 0.30,
+      "aiap:hasCriterion": [
+        {
+          "@id": "aiap:criterion-problem-framing",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "Problem Framing",
+          "aiap:weight": 0.35,
+          "aiap:scoringLevels": {
+            "aiap:poor": "Generic 'detect bad websites' without business context",
+            "aiap:qualified": "Links to fraud exposure and customer trust, mentions KPIs",
+            "aiap:excellent": "Quantifies business impact ($90M fraud exposure from 44.96% missed attacks), frames KPIs as constraints (FPR<=5% = max 5 blocked sites per 100 → acceptable friction), discusses customer churn from false positives"
+          }
+        },
+        {
+          "@id": "aiap:criterion-tradeoff-reasoning",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "Trade-off Reasoning Under Constraints",
+          "aiap:weight": 0.35,
+          "aiap:scoringLevels": {
+            "aiap:poor": "Ignores trade-offs or proposes single-dimension solution ('just lower threshold')",
+            "aiap:qualified": "Acknowledges recall-FPR trade-off, suggests threshold tuning but doesn't quantify impact",
+            "aiap:excellent": "Multi-pronged approach: (1) Threshold tuning with quantified recall drop, (2) Feature engineering timeline (6 weeks, +3-5% AUC), (3) Interim deployment (warning mode), (4) A/B test with segmented rollout (power users vs consumers)"
+          }
+        },
+        {
+          "@id": "aiap:criterion-stakeholder-communication",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "Stakeholder Communication",
+          "aiap:weight": 0.30,
+          "aiap:scoringLevels": {
+            "aiap:poor": "Technical jargon (threshold, sigmoid, regularization) without translation",
+            "aiap:qualified": "Explains in plain language (decision score, false alarms)",
+            "aiap:excellent": "Uses analogies (security guard checking IDs), quantifies business outcomes ($300K fraud savings), frames in customer terms (1 complaint per 20 blocked sites), proposes decision options with trade-offs (fast but imperfect vs wait for solid solution)"
+          }
+        }
+      ]
+    },
+    {
+      "@id": "aiap:rubric-technical-depth",
+      "@type": "aiap:RubricCategory",
+      "dcterms:title": "Technical Depth & ML Theory",
+      "aiap:weight": 0.40,
+      "aiap:hasCriterion": [
+        {
+          "@id": "aiap:criterion-ml-theory",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "ML Theory Mastery",
+          "aiap:weight": 0.30,
+          "aiap:scoringLevels": {
+            "aiap:poor": "Cannot derive gradient descent, confuses concepts",
+            "aiap:qualified": "Correct update rule θ := θ - α*∇L, mentions L2 penalty",
+            "aiap:excellent": "Full derivation from cross-entropy loss → gradient via chain rule → update with L2 regularization. Bayesian interpretation: L2 ≡ MAP with Gaussian prior θ ~ N(0, 1/λ). Explains convergence properties (learning rate impact, weight decay)."
+          }
+        },
+        {
+          "@id": "aiap:criterion-implementation-justification",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "Implementation Justification",
+          "aiap:weight": 0.35,
+          "aiap:scoringLevels": {
+            "aiap:poor": "Generic 'cleaned data, filled missing values' without EDA linkage",
+            "aiap:qualified": "Lists transformations (log, clip, scale) with EDA findings (skewness, outliers)",
+            "aiap:excellent": "Evidence-based narrative: 'EDA showed 10 features |skew|>1 → log-transform because gradient ∇L = (1/m)X^T(σ(Xθ) - y) unstable with extreme X → convergence 120 epochs vs 500+ without. NoOfImage: 377 negatives → clip to 0 → prevents invalid pattern learning. Outliers clipped at 99th percentile → adversarial robustness (phishing sites inject 1000 iFrames to game model).'"
+          }
+        },
+        {
+          "@id": "aiap:criterion-model-selection",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "Model Selection Logic",
+          "aiap:weight": 0.35,
+          "aiap:scoringLevels": {
+            "aiap:poor": "Arbitrary choice or 'everyone uses XGBoost'",
+            "aiap:qualified": "Compares 3 models with pros/cons (Logistic: explainable but linear, XGBoost: accurate but slow)",
+            "aiap:excellent": "Systematic comparison: Logistic (baseline, 0.825 AUC, 1ms, explainable), KNN (non-parametric, 0.809 AUC, 50ms, insight: global>local), XGBoost (0.888 AUC, 10ms, 0.06 gain = 600 fewer attacks → $1.2M value). Proposes hybrid: Logistic for 90% easy cases + XGBoost for 10% borderline → 1.9ms avg latency, 0.87 AUC."
+          }
+        }
+      ]
+    },
+    {
+      "@id": "aiap:rubric-production-readiness",
+      "@type": "aiap:RubricCategory",
+      "dcterms:title": "Production Readiness & MLOps",
+      "aiap:weight": 0.30,
+      "aiap:hasCriterion": [
+        {
+          "@id": "aiap:criterion-monitoring",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "Monitoring & Drift Detection",
+          "aiap:weight": 0.35,
+          "aiap:scoringLevels": {
+            "aiap:poor": "Vague 'monitor features' without metrics or thresholds",
+            "aiap:qualified": "Mentions KL divergence for numeric features, PSI for categorical, alert threshold 0.1",
+            "aiap:excellent": "End-to-end: Persist baseline distributions (mean, std, percentiles, histograms) → Collect production data (7-day rolling window) → Compute KL divergence D_KL(P_prod || P_train) → Alert if >0.1 for top 3 predictors → Response protocol (investigate → evaluate on labeled data → retrain if degraded). Tools: Evidently AI, Prometheus, PagerDuty. Distinguishes data drift (P(X) shifts) vs concept drift (P(Y|X) shifts)."
+          }
+        },
+        {
+          "@id": "aiap:criterion-deployment",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "Deployment Considerations",
+          "aiap:weight": 0.35,
+          "aiap:scoringLevels": {
+            "aiap:poor": "No discussion of latency, memory, or compliance",
+            "aiap:qualified": "Mentions <100ms latency requirement, <100MB memory for browser extension",
+            "aiap:excellent": "Concrete requirements: Latency <100ms (XGBoost 10ms → headroom for preprocessing), Memory <100MB (XGBoost 15MB + preprocessor 3MB → 82MB available). Mitigation: ONNX conversion for faster inference, quantization for model compression. Rollback: Git tags (v1.2.3), blue-green deployment (7-day shadow mode), instant revert via Kubernetes. Compliance: SHAP explainability, audit trail (prediction logs with model version, timestamp, anonymized user ID)."
+          }
+        },
+        {
+          "@id": "aiap:criterion-code-quality",
+          "@type": "aiap:ScoringCriterion",
+          "dcterms:title": "Code Quality & Architecture",
+          "aiap:weight": 0.30,
+          "aiap:scoringLevels": {
+            "aiap:poor": "Monolithic scripts, no functions/classes, hardcoded values",
+            "aiap:qualified": "Modular functions, config.yaml for hyperparameters",
+            "aiap:excellent": "Professional architecture: Separate modules (data_loader.py, preprocessing.py, evaluation.py), config-driven (config.yaml for all hyperparameters), CI/CD (GitHub Actions auto-runs pipeline), error handling (try-except with logging), reproducibility (fixed seeds, pinned dependencies, experiment logs with timestamps). PROV-O traceability: every artifact has prov:wasGeneratedBy."
+          }
+        }
+      ]
+    },
+    {
+      "@id": "aiap:recommendation-decision-tree",
+      "@type": ["aiap:DecisionTree", "pplan:Plan"],
+      "dcterms:title": "Hiring Recommendation Decision Tree",
+      "pplan:isStepOfPlan": [
+        {"@id": "aiap:decision-overall-score"},
+        {"@id": "aiap:decision-competency-gaps"},
+        {"@id": "aiap:decision-growth-mindset"}
+      ]
+    },
+    {
+      "@id": "aiap:decision-overall-score",
+      "@type": ["pplan:Step", "aiap:Decision"],
+      "dcterms:title": "Check Overall Score >= 85%",
+      "aiap:criterion": "Overall weighted score across all rubric categories",
+      "aiap:threshold": 85,
+      "pplan:hasInputVar": {"@id": "aiap:grade-evaluation-hui"},
+      "aiap:trueOutcome": {"@id": "aiap:outcome-strong-hire"},
+      "aiap:falseOutcome": {"@id": "aiap:decision-competency-gaps"}
+    },
+    {
+      "@id": "aiap:outcome-strong-hire",
+      "@type": ["aiap:HiringRecommendation", "prov:Entity"],
+      "aiap:recommendation": "STRONG_HIRE",
+      "aiap:rationale": "Top 5% submission: exceptional documentation (98th percentile), business acumen (95th percentile), evidence-based design. Minor gaps in mathematical depth addressable via mentorship.",
+      "aiap:careerTrack": "Senior IC with growth to Staff Engineer",
+      "aiap:developmentPlan": [
+        "Formal ML theory coursework (convex optimization, statistical learning theory)",
+        "Production ML deployment shadowing (6-month rotation with senior engineer)",
+        "Security & compliance training (OWASP, model provenance, GDPR)",
+        "Experiment tracking infrastructure (MLflow, Weights & Biases hands-on)"
+      ],
+      "aiap:expectedImpact": "Can lead end-to-end ML projects within 6 months, mentor junior engineers within 12 months",
+      "prov:wasGeneratedBy": {"@id": "aiap:activity-panel-assessment"}
+    },
+    {
+      "@id": "aiap:meta-assessment-hui",
+      "@type": ["aiap:MetaAnalysis", "prov:Entity"],
+      "dcterms:title": "Comprehensive Candidate Assessment - HUI Joo Hwee",
+      "prov:wasAttributedTo": {"@id": "aiap:agent-panel-lead"},
+      "prov:generatedAtTime": "2025-01-07T12:00:00Z",
+      "aiap:candidate": {"@id": "aiap:agent-hui-joo-hwee"},
+      "aiap:overallRecommendation": {"@id": "aiap:outcome-strong-hire"},
+      "aiap:confidenceLevel": 0.92,
+      "aiap:assessmentSummary": {
+        "@type": "aiap:AssessmentSummary",
+        "aiap:keyStrengths": [
+          "Tutorial-grade documentation (98th percentile): README is comprehensive guide",
+          "Evidence-based design: EDA → Pipeline traceability table unique among submissions",
+          "Production mindset: Deployment section (monitoring, drift, compliance) rare for entry-level",
+          "Exceptional business framing: Consistently translates technical decisions to business outcomes",
+          "Code architecture: Modular, config-driven, CI/CD integrated (professional-grade)"
+        ],
+        "aiap:developmentAreas": [
+          "Mathematical depth unproven: No gradient descent derivation in README (requires interview validation)",
+          "KPI failure not acknowledged: No model meets recall>=70% AND FPR<=5%, candidate doesn't address gap",
+          "Security awareness: Pickle serialization used without discussing provenance/signing risks",
+          "Experiment tracking: Optimization infrastructure exists but validation unclear (did hyperparameter search actually run?)"
+        ],
+        "aiap:interviewFocusAreas": [
+          "Probe gradient descent derivation (Q: full derivation from loss → gradient → update with L2 → Bayesian interpretation)",
+          "Discuss KPI failure candidly (Q: XGBoost 86.5% recall @ 18.2% FPR → how to achieve 85% @ 3%?)",
+          "Explore deployment claims (Q: Blue-green deployment mentioned—have you implemented this or aspirational?)",
+          "Test stakeholder communication (Scenario: Product demands FPR<=3% in 2 weeks, engineering reports 200ms latency, legal needs explainability—what do you do?)"
+        ],
+        "aiap:redFlags": [
+          "Cannot derive gradient descent → theoretical foundation weak (tutorial-following vs understanding)",
+          "Cannot propose concrete next steps after KPI failure → limited creativity/problem-solving",
+          "Defensive about gaps (blames data, makes excuses) → fixed mindset"
+        ],
+        "aiap:greenFlags": [
+          "Proactively surfaces gaps: 'I want to address upfront that my models don't fully meet KPIs...'",
+          "Offers to derive theory on whiteboard (confidence, not hiding behind high-level explanations)",
+          "Proposes concrete iteration plans with timelines (6-week feature engineering → text features + SSL certs)",
+          "Shows stakeholder empathy: 'I understand the urgency...' + proposes trade-offs"
+        ],
+        "aiap:expectedInterviewPerformance": "Excellent on business reasoning and stakeholder communication. Qualified-to-excellent on technical depth depending on theory preparation. Strong hire if demonstrates growth mindset and honest gap acknowledgment."
+      },
+      "geo:hasGeometry": {
+        "@type": "geo:Geometry",
+        "geo:asWKT": "POLYGON((92 0, 100 0, 100 92, 92 92, 92 0))",
+        "aiap:semanticRegion": "aiap:polygon-strong-hire-region",
+        "aiap:spatialMetric": "overall_assessment_score"
+      }
+    }
+  ]
+}

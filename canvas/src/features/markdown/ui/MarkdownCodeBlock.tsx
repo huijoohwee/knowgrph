@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Tokens } from 'marked'
+import type { TokensCode } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
 import type { RenderOpts } from './MarkdownRendererTypes'
@@ -17,7 +17,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   opts,
   wrapClass,
 }: MarkdownCodeBlockProps) {
-  const c = t as unknown as Tokens.Code
+  const c = t as unknown as TokensCode
   const lang = String((c as unknown as { lang?: unknown }).lang || '').trim().toLowerCase()
   
   if (lang === 'mermaid' || lang === 'mmd') {

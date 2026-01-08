@@ -41,34 +41,6 @@ function deriveNameFromUrl(rawUrl: string): string {
   }
 }
 
-async function fetchTextForParser(): Promise<{ name: string; text: string } | null> {
-  try {
-    if (typeof window === 'undefined') return null
-    const raw = window.prompt('Enter data URL (JSON, JSON-LD, or CSV)', '') || ''
-    const url = raw.trim()
-    if (!url) return null
-    const res = await fetch(url)
-    if (!res.ok) {
-      const text = `Request failed with status ${res.status}`
-      const name = deriveNameFromUrl(url)
-      return { name, text }
-    }
-    const text = await res.text()
-    const name = deriveNameFromUrl(url)
-    return { name, text }
-  } catch {
-    return null
-  }
-}
-
-export async function loadGraphDataFromUrlViaParser(): Promise<LoaderResult | null> {
-  const fetched = await fetchTextForParser()
-  if (!fetched) return null
-  const name = fetched.name || ''
-  const text = fetched.text || ''
-  return loadGraphDataFromTextViaParser(name, text)
-}
-
 function ensureGraphData(input: unknown): GraphData | null {
   if (!input || typeof input !== 'object') return null
   const obj = input as Record<string, unknown>

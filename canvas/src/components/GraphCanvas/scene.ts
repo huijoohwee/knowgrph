@@ -24,11 +24,13 @@ type SetupGraphSceneArgs = {
   hoverEnabled: boolean
   zoomOnDoubleClick: boolean
   polygonsVisible: boolean
+  renderMediaAsNodes: boolean
+  mediaPanelDensity: 'default' | 'compact'
   initialZoomTransform?: { k: number; x: number; y: number } | null
   layoutPositionsForMode?: Record<string, { x: number; y: number }> | null
   skipInitialLayout?: boolean
   gRef: MutableRefObject<GSelection | null>
-  nodesSelRef: MutableRefObject<d3.Selection<SVGCircleElement, GraphNode, SVGGElement, unknown> | null>
+  nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
   linksSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
@@ -49,6 +51,8 @@ type SetupGraphSceneArgs = {
   setLifecycleStageRendering: () => void
   requestZoomSelection: () => void
   onZoomTransform: (t: { k: number; x: number; y: number }) => void
+  layoutCacheKey: string | null
+  setLayoutPositionsForMode: ((key: string, positions: Record<string, { x: number; y: number }> | null) => void) | null
 }
 
 export const setupGraphScene = (args: SetupGraphSceneArgs) => {
@@ -63,6 +67,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     hoverEnabled,
     zoomOnDoubleClick,
     polygonsVisible,
+    renderMediaAsNodes,
+    mediaPanelDensity,
     initialZoomTransform,
     layoutPositionsForMode,
     skipInitialLayout,
@@ -88,6 +94,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     setLifecycleStageRendering,
     requestZoomSelection,
     onZoomTransform,
+    layoutCacheKey,
+    setLayoutPositionsForMode,
   } = args
 
   const svg = d3.select(svgEl)
@@ -105,13 +113,14 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       mediaSelRef.current,
       labelsSelRef.current,
       linksSelRef.current,
-      graphData,
-      schema,
-      selectedNodeIdRef.current,
-      selectedEdgeIdRef.current,
-      selectedNodeIdsRef.current,
-      selectedEdgeIdsRef.current,
-    )
+          graphData,
+          schema,
+          selectedNodeIdRef.current,
+          selectedEdgeIdRef.current,
+          selectedNodeIdsRef.current,
+          selectedEdgeIdsRef.current,
+          args.renderMediaAsNodes,
+        )
   })
   zoomRef.current = zoom
   if (initialZoomTransform) {
@@ -154,6 +163,31 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const simulation = buildSimulation(graphData.nodes, edgesForSim, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
     skipInitialLayout: !!skipInitialLayout,
   })
+
+  if (layoutCacheKey && typeof setLayoutPositionsForMode === 'function') {
+    simulation.on('end', () => {
+      if (!graphData.nodes || !graphData.nodes.length) {
+        setLayoutPositionsForMode(layoutCacheKey, null)
+        return
+      }
+      const positions: Record<string, { x: number; y: number }> = {}
+      for (let i = 0; i < graphData.nodes.length; i += 1) {
+        const node = graphData.nodes[i]
+        const id = String(node.id)
+        if (!id) continue
+        const x = typeof node.x === 'number' ? node.x : null
+        const y = typeof node.y === 'number' ? node.y : null
+        if (x == null || y == null) continue
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        positions[id] = { x, y }
+      }
+      if (Object.keys(positions).length === 0) {
+        setLayoutPositionsForMode(layoutCacheKey, null)
+      } else {
+        setLayoutPositionsForMode(layoutCacheKey, positions)
+      }
+    })
+  }
 
   if (!skipInitialLayout) {
     applyCachedPositions()
@@ -205,9 +239,14 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })()
 
   const edgesForDisplay = (() => {
-    const mode = schema.layers?.mode || 'property'
-    if (mode !== 'semantic') return edgesForDisplayBase
-    const hiddenTypeSet = new Set(['Document', 'Section', 'Paragraph', 'CodeBlock', 'Table', 'List', 'ListItem'])
+    const layersCfg = schema.layers || {}
+    const mode = layersCfg.mode || 'property'
+    const semanticCfg = layersCfg.semantic || {}
+    const semanticHiddenTypes = Array.isArray(semanticCfg.hiddenNodeTypes)
+      ? semanticCfg.hiddenNodeTypes.map(t => String(t || '').trim()).filter(Boolean)
+      : []
+    if (mode !== 'semantic' || !semanticHiddenTypes.length) return edgesForDisplayBase
+    const hiddenTypeSet = new Set(semanticHiddenTypes)
     const hiddenNodeIds = new Set<string>()
     for (let i = 0; i < graphData.nodes.length; i += 1) {
       const n = graphData.nodes[i]
@@ -244,6 +283,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     schema,
     tidyTreeDerivation,
     hoverEnabled,
+    renderMediaAsNodes,
+    mediaPanelDensity,
     zoomOnDoubleClick,
     isEditModeRef,
     selectedEdgeIdRef,
@@ -270,6 +311,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     edgesForDisplay,
     tidyTreeDerivation,
     labelsSelRef,
+    renderMediaAsNodes,
   })
 
   if (labelsSelRef.current) {

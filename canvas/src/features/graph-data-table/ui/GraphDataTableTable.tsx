@@ -60,6 +60,7 @@ function createSelectionHighlightParams(
   selectedEdgeId: string | null,
   selectedNodeIds: string[],
   selectedEdgeIds: string[],
+  renderMediaAsNodes: boolean,
 ): SelectionHighlightParams | null {
   if (!graphData || !schema) return null
   return {
@@ -69,6 +70,7 @@ function createSelectionHighlightParams(
     selectedEdgeId,
     selectedNodeIds,
     selectedEdgeIds,
+    renderMediaAsNodes,
   }
 }
 
@@ -147,6 +149,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const selectionSource = useGraphStore(s => s.selectionSource)
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
   const schema = useGraphStore(s => s.schema) as GraphSchema | null
+  const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const columnWidths = useGraphStore(s => s.graphDataTableColumnWidths)
   const setColumnWidth = useGraphStore(s => s.setGraphDataTableColumnWidth)
   const aggregateDefaultVizMode = useGraphStore(s => s.graphDataTableAggregateDefaultVizMode)
@@ -194,8 +197,17 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   })
 
   const selectionHighlightParams = React.useMemo<SelectionHighlightParams | null>(
-    () => createSelectionHighlightParams(graphData, schema, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds),
-    [graphData, schema, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds],
+    () =>
+      createSelectionHighlightParams(
+        graphData,
+        schema,
+        selectedNodeId,
+        selectedEdgeId,
+        selectedNodeIds,
+        selectedEdgeIds,
+        renderMediaAsNodes,
+      ),
+    [graphData, schema, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds, renderMediaAsNodes],
   )
 
   const selectionSets = React.useMemo(

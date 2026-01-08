@@ -4,7 +4,7 @@ import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import type { TidyTreeDerivation } from '@/components/GraphCanvas/utils';
 import { computeTidyTreeLabelVisibility } from '@/components/GraphCanvas/tidyTreeLabelLod';
-import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers';
+import { getRenderNodeRadius2d, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -15,20 +15,32 @@ export const createLabelsLayer = (args: {
   edgesForDisplay: GraphEdge[];
   tidyTreeDerivation: TidyTreeDerivation | null;
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
+  renderMediaAsNodes: boolean;
 }) => {
-  const { g, graphData, schema, edgesForDisplay, tidyTreeDerivation, labelsSelRef } = args;
+  const { g, graphData, schema, edgesForDisplay, tidyTreeDerivation, labelsSelRef, renderMediaAsNodes } = args;
   const isTidyTree = schema.layout?.mode === 'tidy-tree';
   const tidyCfg = schema.layout?.tidyTree || {};
   const tidyColorMode = tidyCfg.colorMode === 'schema' ? 'schema' : 'observable';
   const direction = tidyTreeDerivation?.direction ?? 'source-target';
   const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
-  const layerMode = schema.layers?.mode || 'property';
+  const layersCfg = schema.layers || {};
+  const layerMode = layersCfg.mode || 'property';
+  const semanticCfg = layersCfg.semantic || {};
+  const semanticHiddenTypes = Array.isArray(semanticCfg.hiddenNodeTypes)
+    ? semanticCfg.hiddenNodeTypes.map(t => String(t || '').trim()).filter(Boolean)
+    : [];
   const hiddenTypeSet =
-    layerMode === 'semantic' ? new Set(['Document', 'Section', 'Paragraph', 'CodeBlock', 'Table', 'List', 'ListItem']) : null;
+    layerMode === 'semantic' && semanticHiddenTypes.length
+      ? new Set(semanticHiddenTypes)
+      : null;
   const nodes = (() => {
-    if (!hiddenTypeSet) return rawNodes;
-    const filtered = rawNodes.filter(n => !hiddenTypeSet.has(String(n.type || '')));
-    return filtered.length > 0 ? filtered : rawNodes;
+    const base = (() => {
+      if (!hiddenTypeSet) return rawNodes;
+      const filtered = rawNodes.filter(n => !hiddenTypeSet.has(String(n.type || '')));
+      return filtered.length > 0 ? filtered : rawNodes;
+    })();
+    if (!renderMediaAsNodes) return base;
+    return base.filter(n => !hasNodeMedia(n));
   })();
   const tidyTreeLabelVisibility = isTidyTree
     ? computeTidyTreeLabelVisibility({ nodes, edgesForDisplay, direction, lod: schema.performance?.lod?.tidyTree })

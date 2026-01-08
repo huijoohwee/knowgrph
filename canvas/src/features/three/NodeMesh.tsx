@@ -6,6 +6,7 @@ import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
 import { getNodeRadiusFromSchema, getThreeConfig, getRendererPalette, getAgenticRagTagColor } from '@/lib/graph/schema'
 import type { Vec3 } from './layout'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import type { NodeSelectionState, SelectionVisuals } from './selection'
 
 function normalizePriorityLabel(value: unknown): 'P1' | 'P2' | 'P3' | 'Backlog' | null {
@@ -64,6 +65,7 @@ export function NodeMesh({
   const hoveredRef = useRef(false)
   const sphereRef = useRef<THREE.Mesh>(null!)
   const draggingRef = useRef(false)
+  const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   const baseColor = getNodeBaseColor(node, schema)
   const props = node.properties || {}
   const baseRadius = getNodeRadiusFromSchema(node, schema)
@@ -93,24 +95,25 @@ export function NodeMesh({
   const radius = baseRadius * scale
   let displayColor = baseColor
   let displayOpacity = baseLayerOpacity
+  const mediaOpacity = mediaNodeOpacity
   if (selection.mode === 'edge') {
     if (selection.isEdgeEndpoint) {
       displayColor = baseColor
-      displayOpacity = baseLayerOpacity
+      displayOpacity = mediaOpacity
     } else {
       displayColor = '#9CA3AF'
-      displayOpacity = baseLayerOpacity * visuals.dimmedNodeOpacity
+      displayOpacity = mediaOpacity * visuals.dimmedNodeOpacity
     }
   } else if (selection.mode === 'node') {
     if (selection.isSelected) {
       displayColor = visuals.selectedEdgeColor
-      displayOpacity = baseLayerOpacity
+      displayOpacity = mediaOpacity
     } else if (selection.isNeighbor) {
       displayColor = baseColor
-      displayOpacity = baseLayerOpacity
+      displayOpacity = mediaOpacity
     } else {
       displayColor = '#9CA3AF'
-      displayOpacity = baseLayerOpacity * visuals.dimmedNodeOpacity
+      displayOpacity = mediaOpacity * visuals.dimmedNodeOpacity
     }
   }
   const isSelectedNode = selection.isSelected

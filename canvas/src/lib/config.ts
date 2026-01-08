@@ -1,3 +1,5 @@
+import { readEnvString } from './config.env';
+
 export const CLICK_URL =
   (typeof process !== 'undefined' && process.env && process.env.VITE_TRAE_BADGE_URL) ||
   'https://www.trae.ai/solo?showJoin=1';
@@ -19,6 +21,8 @@ export const SHARE_BACKEND_URL = (() => {
   const val = env && env.VITE_SHARE_BACKEND_URL;
   return typeof val === 'string' ? val : '';
 })();
+
+export const IFRAME_ALLOWED_HOSTS = readEnvString('VITE_IFRAME_ALLOWED_HOSTS', '');
 
 export * from './config.ls';
 export * from './config.copy';

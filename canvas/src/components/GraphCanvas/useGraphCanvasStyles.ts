@@ -6,7 +6,7 @@ import { getRenderNodeRadius2d, getEdgeBaseStroke, getEdgeStrokeWidth } from '@/
 import { type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
 
 type UseGraphCanvasStylesProps = {
-  nodesSelRef: MutableRefObject<d3.Selection<SVGCircleElement, GraphNode, SVGGElement, unknown> | null>;
+  nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>;
   linksSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>;
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   schema: GraphSchema;
@@ -24,8 +24,20 @@ export function useGraphCanvasStyles({
     const tidyColorMode = tidyCfg.colorMode === 'schema' ? 'schema' : 'observable';
 
     if (nodesSelRef.current) {
-      nodesSelRef.current
-        .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema));
+      nodesSelRef.current.each(function (d: GraphNode) {
+        const radius = getRenderNodeRadius2d(d, schema);
+        const el = d3.select(this);
+        if (this.tagName === 'circle') {
+          el.attr('r', radius);
+        } else if (this.tagName === 'rect') {
+          const x = typeof d.x === 'number' ? d.x : 0;
+          const y = typeof d.y === 'number' ? d.y : 0;
+          el.attr('x', x - radius)
+            .attr('y', y - radius)
+            .attr('width', radius * 2)
+            .attr('height', radius * 2);
+        }
+      });
       if (isTidyTree && tidyColorMode === 'observable') {
         nodesSelRef.current.attr('stroke', 'none').attr('stroke-width', 0);
       } else {

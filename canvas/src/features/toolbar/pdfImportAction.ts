@@ -1,0 +1,184 @@
+import { coerceHttpUrl } from '@/lib/url'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
+import { useParserUIState } from '@/features/parsers/uiState'
+import { UI_COPY } from '@/lib/config'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { openBottomPanel } from '@/features/bottom-panel/open'
+import { pickFileWithExtensions } from '@/lib/graph/filePicker'
+import { deriveMarkdownNameFromPdfFilename, promptForUrl } from './ingestUtils'
+
+type PdfMarkdownConversionOk = { markdown: string; displayName: string }
+type PdfMarkdownConversionResult = PdfMarkdownConversionOk | { error: string }
+
+async function convertPdfUrlToMarkdown(rawUrl: string): Promise<PdfMarkdownConversionResult | null> {
+  const url = coerceHttpUrl(rawUrl)
+  if (!url) return null
+  try {
+    const res = await fetch(`/__convert_pdf?url=${encodeURIComponent(url)}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown }
+    if (json && json.ok === true && typeof json.markdown === 'string') {
+      const fallbackName = (() => {
+        try {
+          const u = new URL(url)
+          const parts = u.pathname.split('/').filter(Boolean)
+          const last = parts[parts.length - 1] || ''
+          return deriveMarkdownNameFromPdfFilename(last)
+        } catch {
+          return 'document.md'
+        }
+      })()
+      const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : fallbackName
+      return { markdown: json.markdown, displayName: name }
+    }
+    const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
+    if (err) return { error: err }
+    if (!res.ok) return { error: `HTTP ${res.status}` }
+    return { error: 'PDF conversion failed' }
+  } catch {
+    return null
+  }
+}
+
+async function convertPdfFileToMarkdown(file: File): Promise<PdfMarkdownConversionResult | null> {
+  try {
+    const buf = await file.arrayBuffer()
+    const res = await fetch('/__convert_pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/pdf',
+        Accept: 'application/json',
+        'X-Import-Filename': file.name || '',
+      },
+      body: buf,
+    })
+    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown }
+    if (json && json.ok === true && typeof json.markdown === 'string') {
+      const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : deriveMarkdownNameFromPdfFilename(file.name)
+      return { markdown: json.markdown, displayName: name }
+    }
+    const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
+    if (err) return { error: err }
+    if (!res.ok) return { error: `HTTP ${res.status}` }
+    return { error: 'PDF conversion failed' }
+  } catch {
+    return null
+  }
+}
+
+export type PdfImportType = 'url' | 'local'
+
+export async function performPdfImport(type: PdfImportType, providedUrl?: string) {
+  try {
+    const picked = await (async (): Promise<{ name: string; markdown: string } | null> => {
+      if (type === 'url') {
+        const rawUrl = (() => {
+          const v = typeof providedUrl === 'string' ? providedUrl.trim() : ''
+          if (v) return v
+          return promptForUrl(UI_COPY.pdfImportUrlPrompt) || ''
+        })()
+        const url = coerceHttpUrl(rawUrl)
+        if (!url) return null
+        const converted = await convertPdfUrlToMarkdown(url)
+        if (!converted) {
+          try {
+            const ui = useParserUIState.getState()
+            ui.setDataLoadStatus(false, UI_COPY.pdfImportFetchFailedStatus(url))
+          } catch {
+            void 0
+          }
+          return null
+        }
+        if ('error' in converted) {
+          try {
+            const ui = useParserUIState.getState()
+            ui.setDataLoadStatus(false, UI_COPY.pdfImportConvertFailedStatusWithError(converted.error))
+          } catch {
+            void 0
+          }
+          return null
+        }
+        return { name: converted.displayName, markdown: converted.markdown }
+      }
+      if (type === 'local') {
+        const file = await pickFileWithExtensions(['.pdf'])
+        if (!file) return null
+        const converted = await convertPdfFileToMarkdown(file)
+        if (!converted) {
+          try {
+            const ui = useParserUIState.getState()
+            ui.setDataLoadStatus(false, UI_COPY.pdfImportConvertFailedStatus)
+          } catch {
+            void 0
+          }
+          return null
+        }
+        if ('error' in converted) {
+          try {
+            const ui = useParserUIState.getState()
+            ui.setDataLoadStatus(false, UI_COPY.pdfImportConvertFailedStatusWithError(converted.error))
+          } catch {
+            void 0
+          }
+          return null
+        }
+        return { name: converted.displayName, markdown: converted.markdown }
+      }
+      return null
+    })()
+
+    if (!picked) return
+
+    const res = await loadGraphDataFromTextViaParser(picked.name, picked.markdown)
+    if (!res) {
+      try {
+        const ui = useParserUIState.getState()
+        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
+      } catch {
+        void 0
+      }
+      return
+    }
+
+    try {
+      const ui = useParserUIState.getState()
+      if (res.input) {
+        ui.setLastInput(res.input.name, res.input.text)
+      }
+      if (res.warnings && res.warnings.length > 0) {
+        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
+        ui.setWarnings(res.warnings)
+      } else {
+        ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
+        ui.setWarnings([])
+      }
+      if (res.counts) {
+        ui.setCounts(res.counts)
+      }
+    } catch {
+      void 0
+    }
+
+    try {
+      const state = useGraphStore.getState()
+      if (res.input && res.input.text.trim()) {
+        state.setMarkdownDocument(res.input.name, res.input.text)
+        state.setBottomPanelCurationView('grid')
+      }
+    } catch {
+      void 0
+    }
+    openBottomPanel('curation')
+  } catch {
+    try {
+      const ui = useParserUIState.getState()
+      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
+    } catch {
+      void 0
+    }
+  }
+}

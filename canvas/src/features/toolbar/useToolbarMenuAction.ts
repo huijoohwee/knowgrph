@@ -1,43 +1,33 @@
-import { useCallback, type RefObject } from 'react'
+import { useCallback, useMemo, type RefObject } from 'react'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useParserUIState } from '@/features/parsers/uiState'
-import { importParser, resetParserUiState } from '@/features/parsers/uiUtils'
-import { loadGraphDataViaParser, loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
-import { buildGraphRagWorkflowJsonLdDocument } from '@/features/panels/utils/workflowJsonLd'
-import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
+import {
+  loadGraphDataViaParser,
+  loadGraphDataFromTextViaParser,
+  type LoaderResult,
+} from '@/features/parsers/loader'
+import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { UI_COPY } from '@/lib/config'
-import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { downloadBlob } from '@/lib/graph/save'
-import { fetchRemoteMarkdownText } from './markdownImport'
+import MarkdownIt from 'markdown-it'
 import { performHtmlImport } from './htmlImportAction'
+import { performPdfImport } from './pdfImportAction'
+import { performMarkdownImport } from './markdownImportAction'
+import { performJsonImport } from './jsonImportAction'
+import { promptForUrl } from './ingestUtils'
 
-export function useToolbarMenuAction({
-  closeToolMenu,
-  openWorkflowTab,
-  onOpenMainPanel,
-  orchestratorImportInputRef,
-  setIsMarkdownImportMenuOpen,
-  setIsHtmlImportMenuOpen,
-  setIsSchemaExportMenuOpen,
-  exportGraphFieldSettingsJsonLd,
-  exportGraphRagWorkflowJsonLd,
-  exportHistoryJsonLd,
-  exportSettingsJsonLd,
-  importGraphFieldSettingsJsonLd,
-  importGraphRagWorkflowJsonLd,
-  importHistoryJsonLd,
-  importSchemaJsonOrJsonLd,
-  importSettingsJsonLd,
-}: {
+export function useToolbarMenuAction(args: {
   closeToolMenu: () => void
   openWorkflowTab: () => void
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
   orchestratorImportInputRef: RefObject<HTMLInputElement | null>
   setIsMarkdownImportMenuOpen: (open: boolean) => void
   setIsHtmlImportMenuOpen: (open: boolean) => void
+  setIsPdfImportMenuOpen: (open: boolean) => void
   setIsSchemaExportMenuOpen: (open: boolean) => void
+  exportGraphJsonLd: () => void
+  exportGraphJson: () => void
   exportGraphFieldSettingsJsonLd: () => void
   exportGraphRagWorkflowJsonLd: () => void
   exportHistoryJsonLd: () => void
@@ -48,9 +38,352 @@ export function useToolbarMenuAction({
   importSchemaJsonOrJsonLd: () => void
   importSettingsJsonLd: () => void
 }) {
+  const {
+    closeToolMenu,
+    exportGraphJsonLd,
+    exportGraphJson,
+    importSchemaJsonOrJsonLd,
+    importGraphFieldSettingsJsonLd,
+    importSettingsJsonLd,
+    importHistoryJsonLd,
+  } = args
+  const markdownToHtml = useMemo(() => {
+    return new MarkdownIt({
+      html: true,
+      linkify: false,
+      typographer: false,
+      breaks: false,
+    })
+  }, [])
   return useCallback(
-    (area: ToolMenuArea, action: ToolMenuAction, payload?: { url?: string }) => {
+    (area: ToolMenuArea, action: ToolMenuAction, payload?: ToolMenuPayload) => {
       closeToolMenu()
+      const applyLoaderResultToUi = (res: LoaderResult) => {
+        try {
+          const ui = useParserUIState.getState()
+          if (res.input) {
+            ui.setLastInput(res.input.name, res.input.text)
+          }
+          if (res.warnings && res.warnings.length > 0) {
+            ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
+            ui.setWarnings(res.warnings)
+          } else {
+            ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
+            ui.setWarnings([])
+          }
+          if (res.counts) {
+            ui.setCounts(res.counts)
+          }
+        } catch {
+          void 0
+        }
+      }
+      const clearLoaderStatusIfNoInput = () => {
+        try {
+          const ui = useParserUIState.getState()
+          ui.setDataLoadStatus(null, '')
+        } catch {
+          void 0
+        }
+      }
+      const setLoaderFailedStatus = () => {
+        try {
+          const ui = useParserUIState.getState()
+          ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
+        } catch {
+          void 0
+        }
+      }
+      const rebuildMarkdownGraph = () => {
+        try {
+          const state = useGraphStore.getState()
+          const name = state.markdownDocumentName
+          const text = state.markdownDocumentText
+          const hasContent = typeof text === 'string' && text.trim().length > 0
+          const hasName = typeof name === 'string' && name.trim().length > 0
+          if (!hasContent || !hasName) {
+            return
+          }
+          void (async () => {
+            try {
+              const res = await loadGraphDataFromTextViaParser(name as string, text as string)
+              if (!res) {
+                setLoaderFailedStatus()
+                return
+              }
+              applyLoaderResultToUi(res)
+            } catch {
+              setLoaderFailedStatus()
+            }
+          })()
+        } catch {
+          void 0
+        }
+      }
+      const exportMarkdownDocument = () => {
+        try {
+          const state = useGraphStore.getState()
+          const name = state.markdownDocumentName
+          const text = state.markdownDocumentText
+          const content = typeof text === 'string' ? text : ''
+          if (!content.trim()) {
+            return
+          }
+          const rawName = typeof name === 'string' && name.trim() ? name.trim() : 'document.md'
+          const base =
+            rawName.replace(/\.(pdf|html|htm|jsonld|json|yaml|yml|md|markdown)$/i, '') || 'document'
+          const filename =
+            rawName.toLowerCase().endsWith('.md') || rawName.toLowerCase().endsWith('.markdown')
+              ? rawName
+              : `${base}.md`
+          const blob = new Blob([content], {
+            type: 'text/markdown;charset=utf-8',
+          })
+          downloadBlob(blob, filename)
+        } catch {
+          void 0
+        }
+      }
+
+      const exportHtmlDocument = () => {
+        try {
+          const state = useGraphStore.getState()
+          const name = state.markdownDocumentName
+          const text = state.markdownDocumentText
+          const markdown = typeof text === 'string' ? text : ''
+          if (!markdown.trim()) return
+          const rawName = typeof name === 'string' && name.trim() ? name.trim() : 'document.md'
+          const base =
+            rawName.replace(/\.(pdf|html|htm|jsonld|json|yaml|yml|md|markdown)$/i, '') || 'document'
+          const filename = rawName.toLowerCase().endsWith('.html') || rawName.toLowerCase().endsWith('.htm')
+            ? rawName
+            : `${base}.html`
+          const htmlBody = markdownToHtml.render(markdown)
+          const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${base}</title></head><body>${htmlBody}</body></html>`
+          const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+          downloadBlob(blob, filename)
+        } catch {
+          void 0
+        }
+      }
+
+      const exportPdfDocument = () => {
+        try {
+          if (typeof window === 'undefined') return
+          const state = useGraphStore.getState()
+          const name = state.markdownDocumentName
+          const text = state.markdownDocumentText
+          const markdown = typeof text === 'string' ? text : ''
+          if (!markdown.trim()) return
+          const rawName = typeof name === 'string' && name.trim() ? name.trim() : 'document.md'
+          const base =
+            rawName.replace(/\.(pdf|html|htm|jsonld|json|yaml|yml|md|markdown)$/i, '') || 'document'
+          const htmlBody = markdownToHtml.render(markdown)
+          const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${base}</title></head><body>${htmlBody}</body></html>`
+          const w = window.open('', '_blank', 'noopener,noreferrer')
+          if (!w) return
+          w.document.open()
+          w.document.write(html)
+          w.document.close()
+          w.focus()
+          setTimeout(() => {
+            try {
+              w.print()
+            } catch {
+              void 0
+            }
+          }, 0)
+        } catch {
+          void 0
+        }
+      }
+
+      if (area === 'sourceFiles') {
+        const format = typeof payload?.format === 'string' ? payload.format : ''
+        if (action === 'import') {
+          if (format === 'markdown') {
+            void (async () => {
+              try {
+                const providedUrl = typeof payload?.url === 'string' ? payload.url.trim() : ''
+                if (providedUrl) {
+                  await performMarkdownImport('url', providedUrl)
+                  return
+                }
+                const rawUrl = promptForUrl(UI_COPY.markdownImportUrlPrompt)
+                if (rawUrl) {
+                  await performMarkdownImport('url', rawUrl)
+                } else {
+                  await performMarkdownImport('local')
+                }
+              } catch {
+                void 0
+              }
+            })()
+            return
+          }
+          if (format === 'html') {
+            void (async () => {
+              try {
+                const rawUrl = promptForUrl(UI_COPY.htmlImportUrlPrompt)
+                if (rawUrl) {
+                  await performHtmlImport('url', rawUrl)
+                } else {
+                  await performHtmlImport('local')
+                }
+              } catch {
+                void 0
+              }
+            })()
+            return
+          }
+          if (format === 'pdf') {
+            void (async () => {
+              try {
+                const rawUrl = promptForUrl(UI_COPY.pdfImportUrlPrompt)
+                if (rawUrl) {
+                  await performPdfImport('url', rawUrl)
+                } else {
+                  await performPdfImport('local')
+                }
+              } catch {
+                void 0
+              }
+            })()
+            return
+          }
+          if (format === 'jsonld' || format === 'json') {
+            void (async () => {
+              try {
+                const rawUrl = promptForUrl(UI_COPY.jsonImportUrlPrompt)
+                if (rawUrl) {
+                  await performJsonImport('url', format, rawUrl)
+                } else {
+                  await performJsonImport('local', format)
+                }
+              } catch {
+                setLoaderFailedStatus()
+              }
+            })()
+            return
+          }
+          return
+        }
+        if (action === 'export' && format === 'markdown') {
+          rebuildMarkdownGraph()
+          return
+        }
+        if (action === 'importLocal') {
+          if (format === 'markdown') {
+            void performMarkdownImport('local')
+            return
+          }
+          if (format === 'html') {
+            void performHtmlImport('local')
+            return
+          }
+          if (format === 'pdf') {
+            void performPdfImport('local')
+            return
+          }
+          if (format === 'jsonld' || format === 'json') {
+            void performJsonImport('local', format)
+            return
+          }
+          return
+        }
+        if (action === 'importUrl') {
+          const url = typeof payload?.url === 'string' ? payload.url.trim() : ''
+          if (!url) return
+          if (format === 'markdown') {
+            void performMarkdownImport('url', url)
+            return
+          }
+          if (format === 'html') {
+            void performHtmlImport('url', url)
+            return
+          }
+          if (format === 'pdf') {
+            void performPdfImport('url', url)
+            return
+          }
+          if (format === 'jsonld' || format === 'json') {
+            void performJsonImport('url', format, url)
+            return
+          }
+          return
+        }
+        if (action === 'export') {
+          if (format === 'markdown') {
+            exportMarkdownDocument()
+            return
+          }
+          if (format === 'html') {
+            exportHtmlDocument()
+            return
+          }
+          if (format === 'pdf') {
+            exportPdfDocument()
+            return
+          }
+          if (format === 'jsonld') {
+            try {
+              exportGraphJsonLd()
+            } catch {
+              void 0
+            }
+            return
+          }
+          if (format === 'json') {
+            try {
+              exportGraphJson()
+            } catch {
+              void 0
+            }
+            return
+          }
+          return
+        }
+      }
+      if (area === 'schemaConfig') {
+        if (action === 'import') {
+          try {
+            importSchemaJsonOrJsonLd()
+          } catch {
+            void 0
+          }
+          return
+        }
+      }
+      if (area === 'graphFields') {
+        if (action === 'import') {
+          try {
+            importGraphFieldSettingsJsonLd()
+          } catch {
+            void 0
+          }
+          return
+        }
+      }
+      if (area === 'settings') {
+        if (action === 'import') {
+          try {
+            importSettingsJsonLd()
+          } catch {
+            void 0
+          }
+          return
+        }
+      }
+      if (area === 'history') {
+        if (action === 'import') {
+          try {
+            importHistoryJsonLd()
+          } catch {
+            void 0
+          }
+          return
+        }
+      }
       if (area === 'curator') {
         if (action === 'new') {
           try {
@@ -82,403 +415,27 @@ export function useToolbarMenuAction({
             try {
               const res = await loadGraphDataViaParser()
               if (!res) {
-                try {
-                  const ui = useParserUIState.getState()
-                  ui.setDataLoadStatus(null, '')
-                } catch {
-                  void 0
-                }
+                clearLoaderStatusIfNoInput()
                 return
               }
-              try {
-                const ui = useParserUIState.getState()
-                if (res.input) {
-                  ui.setLastInput(res.input.name, res.input.text)
-                }
-                if (res.warnings && res.warnings.length > 0) {
-                  ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
-                  ui.setWarnings(res.warnings)
-                } else {
-                  ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
-                  ui.setWarnings([])
-                }
-                if (res.counts) {
-                  ui.setCounts(res.counts)
-                }
-              } catch {
-                void 0
-              }
+              applyLoaderResultToUi(res)
             } catch {
-              try {
-                const ui = useParserUIState.getState()
-                ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-              } catch {
-                void 0
-              }
-            }
-            openBottomPanel('data')
-          })()
-          return
-        }
-        if (action === 'export') {
-          openWorkflowTab()
-          return
-        }
-        openBottomPanel('curation')
-        return
-      }
-      if (area === 'parser') {
-        if (action === 'new' || action === 'clear') {
-          resetParserUiState()
-          openBottomPanel('parser')
-          return
-        }
-        if (action === 'import') {
-          void importParser().then(() => {
-            openBottomPanel('parser')
-          })
-          return
-        }
-        openBottomPanel('parser')
-        return
-      }
-      if (area === 'markdown') {
-        if (action === 'import' || action === 'importLocal' || action === 'importUrl') {
-          void (async () => {
-            try {
-              setIsMarkdownImportMenuOpen(false)
-              const picked = await (async (): Promise<{ name: string; text: string; displayName?: string } | null> => {
-                if (action === 'importUrl') {
-                  const rawUrl = (() => {
-                    const v = typeof payload?.url === 'string' ? payload.url.trim() : ''
-                    if (v) return v
-                    return typeof window !== 'undefined'
-                      ? String(window.prompt(UI_COPY.markdownImportUrlPrompt, '') || '').trim()
-                      : ''
-                  })()
-                  if (!rawUrl) return null
-                  return fetchRemoteMarkdownText(rawUrl)
-                }
-                if (action === 'importLocal') {
-                  return pickTextFileWithExtensions(['.md', '.markdown'])
-                }
-                const rawUrl =
-                  typeof window !== 'undefined'
-                    ? String(window.prompt(UI_COPY.markdownImportUrlPrompt, '') || '').trim()
-                    : ''
-                return rawUrl
-                  ? fetchRemoteMarkdownText(rawUrl)
-                  : pickTextFileWithExtensions(['.md', '.markdown'])
-              })()
-              if (!picked) return
-
-              const res = await loadGraphDataFromTextViaParser(picked.name, picked.text)
-              if (!res) {
-                try {
-                  const ui = useParserUIState.getState()
-                  ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-                } catch {
-                  void 0
-                }
-                return
-              }
-              try {
-                const ui = useParserUIState.getState()
-                if (res.input) {
-                  ui.setLastInput(res.input.name, res.input.text)
-                }
-                if (res.warnings && res.warnings.length > 0) {
-                  ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
-                  ui.setWarnings(res.warnings)
-                } else {
-                  ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
-                  ui.setWarnings([])
-                }
-                if (res.counts) {
-                  ui.setCounts(res.counts)
-                }
-              } catch {
-                void 0
-              }
-              try {
-                const state = useGraphStore.getState()
-                if (res.input && res.input.text.trim()) {
-                  state.setMarkdownDocument(res.input.name, res.input.text)
-                  // await runMarkdownPipelineWithStatus(null)
-                }
-              } catch {
-                void 0
-              }
-              openBottomPanel('data')
-            } catch {
-              try {
-                const ui = useParserUIState.getState()
-                ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-              } catch {
-                void 0
-              }
+              setLoaderFailedStatus()
             }
           })()
           return
         }
-        if (action === 'export') {
-          try {
-            const state = useGraphStore.getState()
-            const name = state.markdownDocumentName
-            const text = state.markdownDocumentText
-            const content = typeof text === 'string' ? text : ''
-            if (!content.trim()) {
-              return
-            }
-            const rawName = typeof name === 'string' && name.trim() ? name.trim() : 'document.md'
-            const base = rawName.replace(/\.(jsonld|json|yaml|yml)$/i, '') || 'document'
-            const filename =
-              rawName.toLowerCase().endsWith('.md') || rawName.toLowerCase().endsWith('.markdown')
-                ? rawName
-                : `${base}.md`
-            const blob = new Blob([content], {
-              type: 'text/markdown;charset=utf-8',
-            })
-            downloadBlob(blob, filename)
-          } catch {
-            void 0
-          }
-          try {
-            const state = useGraphStore.getState()
-            state.setBottomPanelCurationView('markdown')
-          } catch {
-            void 0
-          }
-          openBottomPanel('curation')
-          return
-        }
-      }
-      if (area === 'schemaConfig') {
-        if (action === 'import') {
-          importSchemaJsonOrJsonLd()
-          return
-        }
-        if (action === 'export') {
-          setIsSchemaExportMenuOpen(true)
-          return
-        }
-      }
-      if (area === 'html') {
-        if (action === 'export') {
-          try {
-            const state = useGraphStore.getState()
-            const name = state.markdownDocumentName
-            const text = state.markdownDocumentText
-            const content = typeof text === 'string' ? text : ''
-            if (!content.trim()) {
-              return
-            }
-            const rawName = typeof name === 'string' && name.trim() ? name.trim() : 'document.md'
-            const base = rawName.replace(/\.(html|htm|jsonld|json|yaml|yml|md|markdown)$/i, '') || 'document'
-            const filename = `${base}.md`
-            const blob = new Blob([content], {
-              type: 'text/markdown;charset=utf-8',
-            })
-            downloadBlob(blob, filename)
-          } catch {
-            void 0
-          }
-          return
-        }
-        if (action === 'import' || action === 'importLocal' || action === 'importUrl') {
-          void (async () => {
-            setIsHtmlImportMenuOpen(false)
-            if (action === 'importLocal') {
-              await performHtmlImport('local')
-            } else {
-              const url = typeof payload?.url === 'string' ? payload.url : undefined
-              await performHtmlImport('url', url)
-            }
-          })()
-          return
-        }
-        try {
-          const state = useGraphStore.getState()
-          state.setBottomPanelCurationView('markdown')
-        } catch {
-          void 0
-        }
-        openBottomPanel('curation')
-        return
-      }
-      if (area === 'schemaConfig') {
-        if (action === 'import') {
-          try {
-            importSchemaJsonOrJsonLd()
-          } catch {
-            void 0
-          }
-          openBottomPanel('schema')
-          return
-        }
-        if (action === 'export') {
-          openBottomPanel('schema')
-          return
-        }
-        openBottomPanel('schema')
-        return
-      }
-      if (area === 'graphFields') {
-        try {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'graphFields' } }))
-          }
-        } catch {
-          void 0
-        }
-        if (action === 'export') {
-          try {
-            exportGraphFieldSettingsJsonLd()
-          } catch {
-            void 0
-          }
-          openWorkflowTab()
-          return
-        }
-        if (action === 'import') {
-          try {
-            importGraphFieldSettingsJsonLd()
-          } catch {
-            void 0
-          }
-          return
-        }
-        return
-      }
-      if (area === 'orchestrator') {
-        if (action === 'new') {
-          try {
-            const state = useGraphStore.getState()
-            const doc = buildGraphRagWorkflowJsonLdDocument(state.graphId)
-            const text = JSON.stringify(doc, null, 2)
-            state.setGraphRagWorkflowJsonText(text)
-          } catch {
-            try {
-              useGraphStore.getState().setGraphRagWorkflowJsonText(null)
-            } catch {
-              void 0
-            }
-          }
-          openBottomPanel('orchestrator')
-          return
-        }
-        if (action === 'clear') {
-          try {
-            useGraphStore.getState().setGraphRagWorkflowJsonText(null)
-          } catch {
-            void 0
-          }
-          openBottomPanel('orchestrator')
-          return
-        }
-        if (action === 'import') {
-          if (orchestratorImportInputRef.current) {
-            try {
-              orchestratorImportInputRef.current.click()
-            } catch {
-              void 0
-            }
-          } else {
-            openBottomPanel('orchestrator')
-          }
-          return
-        }
-        if (action === 'export') {
-          try {
-            exportGraphRagWorkflowJsonLd()
-          } catch {
-            void 0
-          }
-          openWorkflowTab()
-          return
-        }
-        openBottomPanel('orchestrator')
-        return
-      }
-      if (area === 'render') {
-        if (action === 'import') {
-          try {
-            importGraphRagWorkflowJsonLd()
-          } catch {
-            void 0
-          }
-          openWorkflowTab()
-          return
-        }
-        if (action === 'export') {
-          openWorkflowTab()
-          return
-        }
-        openBottomPanel('render')
-        return
-      }
-      if (area === 'settings') {
-        if (action === 'import') {
-          try {
-            importSettingsJsonLd()
-          } catch {
-            void 0
-          }
-          onOpenMainPanel('settings')
-          return
-        }
-        if (action === 'export') {
-          try {
-            exportSettingsJsonLd()
-          } catch {
-            void 0
-          }
-          openWorkflowTab()
-          return
-        }
-        onOpenMainPanel('settings')
-        return
-      }
-      if (area === 'history') {
-        if (action === 'import') {
-          try {
-            importHistoryJsonLd()
-          } catch {
-            void 0
-          }
-          openBottomPanel('history')
-          return
-        }
-        if (action === 'export') {
-          try {
-            exportHistoryJsonLd()
-          } catch {
-            void 0
-          }
-          openWorkflowTab()
-          return
-        }
-        openBottomPanel('history')
-        return
       }
     },
     [
       closeToolMenu,
-      exportGraphFieldSettingsJsonLd,
-      exportGraphRagWorkflowJsonLd,
-      exportHistoryJsonLd,
-      exportSettingsJsonLd,
-      importGraphFieldSettingsJsonLd,
-      importGraphRagWorkflowJsonLd,
-      importHistoryJsonLd,
+      exportGraphJsonLd,
+      exportGraphJson,
       importSchemaJsonOrJsonLd,
+      importGraphFieldSettingsJsonLd,
       importSettingsJsonLd,
-      onOpenMainPanel,
-      openWorkflowTab,
-      orchestratorImportInputRef,
-      setIsMarkdownImportMenuOpen,
-      setIsHtmlImportMenuOpen,
-      setIsSchemaExportMenuOpen,
-    ],
+      importHistoryJsonLd,
+      markdownToHtml,
+    ]
   )
 }

@@ -9,6 +9,7 @@ from . import graphrag_workflow_cmd
 from . import jsonld_universal_cmd
 from . import markdown_cmd
 from . import pipeline_cmd
+from . import pdf_cmd
 from . import python_codebase_index_cmd
 from . import test_embedding_sanity_cmd
 from . import workflow_artifacts_cmd
@@ -24,6 +25,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         rest = args[1:]
         if cmd in {"markdown"}:
             return markdown_cmd.main(rest, parser_script_path=entrypoint)
+        if cmd in {"pdf"}:
+            return pdf_cmd.main(rest, parser_script_path=entrypoint)
         if cmd in {"codebase-index", "parse-codebase-index"}:
             return codebase_index_cmd.main(rest, base_dir=base_dir, parser_script_path=entrypoint)
         if cmd in {"embed-codebase-index"}:

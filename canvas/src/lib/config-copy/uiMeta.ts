@@ -34,6 +34,7 @@ export const UI_SELECTORS = {
 } as const;
 
 export const UI_LABELS = {
+  sourceFiles: 'Source Files',
   graphFields: 'Graph Fields',
   previewPanel: 'Preview Panel',
   search: 'Graph Search',
@@ -41,6 +42,10 @@ export const UI_LABELS = {
   schema: 'Schema',
   settings: 'Settings',
   markdown: 'Markdown',
+  html: 'HTML',
+  pdf: 'PDF',
+  jsonLd: 'JSON-LD',
+  json: 'JSON',
   openData: 'Open Data',
   loadStatus: 'Load Status',
   globalFields: 'Global Fields',

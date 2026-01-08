@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Tokens } from 'marked'
+import type { TokensHeading } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { renderInlineTokens } from './MarkdownInlineRenderer'
 import type { RenderOpts } from './MarkdownRendererTypes'
@@ -15,7 +15,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   highlightClass,
   opts,
 }: MarkdownHeadingBlockProps) {
-  const h = t as unknown as Tokens.Heading
+  const h = t as unknown as TokensHeading
   const depth = Math.min(6, Math.max(1, h.depth || 1))
   const size =
     depth === 1

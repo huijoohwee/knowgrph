@@ -34,6 +34,9 @@ export const computeGraphBounds = (nodes: Array<{ x?: number; y?: number }>, pad
   return { minX: minX - pad, maxX: maxX + pad, minY: minY - pad, maxY: maxY + pad, width: width + pad * 2, height: height + pad * 2 }
 }
 
+export const MINIMAP_HEIGHT = 120
+export const MINIMAP_WIDTH = Math.round((MINIMAP_HEIGHT * 16) / 9)
+
 export const computeTransformFromViewTopLeft = (
   vw: number,
   vh: number,

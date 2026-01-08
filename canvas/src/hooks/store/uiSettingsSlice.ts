@@ -11,16 +11,12 @@ import type {
   GraphDataTableSortRule,
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
-import { isJsonValue } from '@/lib/graph/jsonValue';
-import { GraphData, JSONValue } from '@/lib/graph/types';
-import { GraphSchema } from '@/lib/graph/schema';
-import { LS_KEYS, SESSION_KEYS } from '@/lib/config';
-import { lsSetJson, ssSetString, ssString } from '@/lib/persistence';
+import { SESSION_KEYS } from '@/lib/config';
+import { ssSetString, ssString } from '@/lib/persistence';
 
 type SetGraph = StoreApi<GraphState>['setState'];
-type GetGraph = StoreApi<GraphState>['getState'];
 
-export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => ({
+export const createUiSettingsSlice = (set: SetGraph) => ({
   uiPanelKeyValueTextSizeClass: 'text-xs',
   uiPanelTextFontClass: 'font-sans',
   uiPanelKeyValueInputClass: 'h-6 text-xs px-1 py-0',
@@ -28,6 +24,16 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => ({
   uiPanelRowDensityCompactClass: 'py-1',
   uiPanelMonospaceTextClass: 'font-mono text-[10px]',
   uiPanelMicroLabelTextSizeClass: 'text-[10px]',
+  renderMediaAsNodes: true,
+  setRenderMediaAsNodes: (v: boolean) => set({ renderMediaAsNodes: v }),
+  mediaNodeOpacity: 0.9,
+  setMediaNodeOpacity: (v: number) => {
+    const n = Number.isFinite(v) ? Number(v) : 0.9;
+    const clamped = n < 0 ? 0 : n > 1 ? 1 : n;
+    set({ mediaNodeOpacity: clamped });
+  },
+  mediaPanelDensity: 'default' as const,
+  setMediaPanelDensity: (v: 'default' | 'compact') => set({ mediaPanelDensity: v }),
   uiHeaderRowHeightClass: 'h-8',
   uiHeaderRowPaddingClass: 'px-2',
   uiSectionHeaderRowHeightClass: 'h-6',
@@ -99,12 +105,6 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => ({
   graphDataTableOverscanMultiplier: 1.5,
   graphDataTableVirtualMinRows: 10,
   graphDataTableVirtualDebugLogRanges: false,
-  markdownDocumentName: null as string | null,
-  markdownDocumentText: null as string | null,
-  markdownDocumentSourceUrl: null as string | null,
-  markdownPreviewMermaidFocusCode: null as string | null,
-  markdownPreviewMermaidFocusConfig: null as Record<string, unknown> | null,
-  markdownPreviewActiveMediaKey: null as string | null,
   graphId: 'default',
   tabId: (() => {
     try {
@@ -191,15 +191,6 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => ({
   setGraphDataTableOverscanMultiplier: (v: number) => set({ graphDataTableOverscanMultiplier: v }),
   setGraphDataTableVirtualMinRows: (v: number) => set({ graphDataTableVirtualMinRows: v }),
   setGraphDataTableVirtualDebugLogRanges: (v: boolean) => set({ graphDataTableVirtualDebugLogRanges: v }),
-  setMarkdownDocument: (name: string | null, text: string | null) =>
-    set({ markdownDocumentName: name, markdownDocumentText: text }),
-  setMarkdownDocumentSourceUrl: (url: string | null) => set({ markdownDocumentSourceUrl: url }),
-  setMarkdownPreviewMermaidFocus: (focus: { code: string; frontmatterConfig: Record<string, unknown> | null } | null) =>
-    set({
-      markdownPreviewMermaidFocusCode: focus ? focus.code : null,
-      markdownPreviewMermaidFocusConfig: focus ? focus.frontmatterConfig : null,
-    }),
-  setMarkdownPreviewActiveMediaKey: (key: string | null) => set({ markdownPreviewActiveMediaKey: key }),
   setUiPanelKeyValueTextSizeClass: (className: string) => set({ uiPanelKeyValueTextSizeClass: className }),
   setUiPanelTextFontClass: (className: string) => set({ uiPanelTextFontClass: className }),
   setUiPanelKeyValueInputClass: (className: string) => set({ uiPanelKeyValueInputClass: className }),
@@ -231,52 +222,6 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => ({
     const n = Number.isFinite(v) ? Number(v) : 96;
     set({ spotlightNearTopThreshold: n >= 0 ? n : 0 });
   },
-  setGraphRagWorkflowJsonText: (text: string | null) => {
-    const nextText = typeof text === 'string' ? text : null;
-    set({ graphRagWorkflowJsonText: nextText });
-    const graphData = get().graphData;
-    if (!graphData) return;
-
-    const nextMetadata = { ...(graphData.metadata || {}) } as Record<string, JSONValue>;
-    const trimmed = typeof nextText === 'string' ? nextText.trim() : '';
-    if (!trimmed) {
-      if ('graphRagWorkflowJsonText' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonText;
-      if ('graphRagWorkflowJsonLd' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonLd;
-    } else {
-      nextMetadata.graphRagWorkflowJsonText = nextText as unknown as JSONValue;
-      try {
-        const parsed = JSON.parse(trimmed) as unknown;
-        if (isJsonValue(parsed) && parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          const t = (parsed as Record<string, unknown>)['@type'];
-          if (t === 'rag:GraphRAGWorkflow' || t === 'GraphRAGWorkflow') {
-            nextMetadata.graphRagWorkflowJsonLd = parsed as unknown as JSONValue;
-          } else if ('graphRagWorkflowJsonLd' in nextMetadata) {
-            delete nextMetadata.graphRagWorkflowJsonLd;
-          }
-        } else if ('graphRagWorkflowJsonLd' in nextMetadata) {
-          delete nextMetadata.graphRagWorkflowJsonLd;
-        }
-      } catch {
-        if ('graphRagWorkflowJsonLd' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonLd;
-      }
-    }
-
-    const nextGraphData: GraphData = {
-      ...graphData,
-      metadata: nextMetadata,
-    };
-    set({ graphData: nextGraphData });
-    try {
-      lsSetJson(LS_KEYS.graphData, nextGraphData);
-    } catch {
-      void 0;
-    }
-    try {
-      get().scheduleHistory('Update GraphRAG workflow');
-    } catch {
-      void 0;
-    }
-  },
   setGraphId: (id: string) => set({ graphId: id }),
   setEnableTabSync: (v: boolean) => set({ enableTabSync: v }),
   setEnableVirtualTables: (v: boolean) => set({ enableVirtualTables: v }),
@@ -285,41 +230,5 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => ({
   setLastTraversalSummary: (summary: TraversalSummary | null) => {
     const next = summary || null;
     set({ lastTraversalSummary: next });
-  },
-  setSchemaLastExportSnapshot: (schema: GraphSchema | null) => {
-    if (!schema) {
-      set({ schemaLastExportHash: null });
-      return;
-    }
-    try {
-      const hash = JSON.stringify(schema);
-      set({ schemaLastExportHash: hash });
-    } catch {
-      set({ schemaLastExportHash: null });
-    }
-  },
-  setSchemaLintSummary: (count: number, examplePath: string | null, examplePaths?: string[] | null) => {
-    const active = (() => {
-      const v = typeof examplePath === 'string' ? examplePath.trim() : '';
-      return v ? v : null;
-    })();
-    const cleaned = (() => {
-      if (!examplePaths) return null;
-      if (!Array.isArray(examplePaths)) return null;
-      const vals = examplePaths.map(p => String(p || '').trim()).filter(p => p.length > 0);
-      return vals.length > 0 ? vals : null;
-    })();
-    set({
-      schemaLintCount: count,
-      schemaLintExamplePath: active,
-      schemaLintExamplePaths: cleaned,
-    });
-  },
-  setSchemaLintActivePath: (examplePath: string | null) => {
-    const v = typeof examplePath === 'string' ? examplePath.trim() : '';
-    set({ schemaLintExamplePath: v ? v : null });
-  },
-  clearSchemaLintSummary: () => {
-    set({ schemaLintCount: null, schemaLintExamplePath: null, schemaLintExamplePaths: null });
   },
 });

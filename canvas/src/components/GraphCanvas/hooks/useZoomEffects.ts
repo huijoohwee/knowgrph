@@ -92,6 +92,8 @@ export function useZoomEffects({
     });
   }, [
     zoomRequest,
+    svgRef,
+    zoomRef,
     graphData,
     width,
     height,
@@ -101,7 +103,6 @@ export function useZoomEffects({
     selectedEdgeIds,
     isSidebarOpen,
     sidebarWidthRatio,
-    // Refs are stable
   ]);
 
   // Effect 3: Handle zoomToSelectionMode
@@ -132,6 +133,8 @@ export function useZoomEffects({
     });
   }, [
     zoomToSelectionMode,
+    svgRef,
+    zoomRef,
     selectedNodeId,
     selectedEdgeId,
     selectedNodeIds,

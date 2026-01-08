@@ -203,12 +203,32 @@ export type TidyTreeDerivation = {
   labelSet: Set<string>;
 };
 
+type TidyTreeCacheKey = string;
+
+const tidyTreeDerivationCache = new WeakMap<GraphEdge[], Map<TidyTreeCacheKey, TidyTreeDerivation | null>>();
+
+const getTidyTreeCacheKey = (
+  cfg: NonNullable<NonNullable<GraphSchema['layout']>['tidyTree']> | undefined,
+): TidyTreeCacheKey => {
+  const labels = normalizeEdgeLabels(cfg?.edgeLabels);
+  const dir = cfg?.direction === 'source-target' || cfg?.direction === 'target-source' ? cfg.direction : 'auto';
+  const joined = labels.join('|');
+  return `${joined}::${dir}`;
+};
+
 export const deriveTidyTreeDerivation = (
   edgesForSim: GraphEdge[],
   schema: GraphSchema,
   nodeIds: Set<string>,
 ): TidyTreeDerivation | null => {
   const tidyCfg = schema.layout?.tidyTree;
+  const cacheKey = getTidyTreeCacheKey(tidyCfg);
+  const cachedByCfg = tidyTreeDerivationCache.get(edgesForSim);
+  if (cachedByCfg && cachedByCfg.has(cacheKey)) {
+    const cached = cachedByCfg.get(cacheKey) || null;
+    return cached;
+  }
+
   const configuredLabels = normalizeEdgeLabels(tidyCfg?.edgeLabels);
   const labelToUse = configuredLabels.length > 0 ? null : pickMostCommonEdgeLabel(edgesForSim);
   const labelSet =
@@ -223,10 +243,29 @@ export const deriveTidyTreeDerivation = (
       ? edgesForSim.filter(e => labelSet.has(String(e.label ?? '').trim()))
       : edgesForSim.slice();
 
-  if (!candidateEdges.length) return null;
+  if (!candidateEdges.length) {
+    if (cachedByCfg) {
+      cachedByCfg.set(cacheKey, null);
+    } else {
+      const m = new Map<TidyTreeCacheKey, TidyTreeDerivation | null>();
+      m.set(cacheKey, null);
+      tidyTreeDerivationCache.set(edgesForSim, m);
+    }
+    return null;
+  }
 
   const direction = resolveTidyTreeDirection(tidyCfg, candidateEdges, nodeIds);
-  return { candidateEdges, direction, labelSet };
+  const result: TidyTreeDerivation = { candidateEdges, direction, labelSet };
+
+  if (cachedByCfg) {
+    cachedByCfg.set(cacheKey, result);
+  } else {
+    const m = new Map<TidyTreeCacheKey, TidyTreeDerivation | null>();
+    m.set(cacheKey, result);
+    tidyTreeDerivationCache.set(edgesForSim, m);
+  }
+
+  return result;
 };
 
 const applyTidyTreeLayout = (

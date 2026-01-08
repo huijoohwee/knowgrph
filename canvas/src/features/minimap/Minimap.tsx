@@ -3,7 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore';
 import type { GraphNode, GraphEdge } from '@/lib/graph/types';
 import type { GraphState } from '@/hooks/useGraphStore';
 import { getRendererPalette } from '@/lib/graph/schema';
-import { computeViewRect, computeGraphBounds, computeTransformFromViewTopLeft, computeTransformFromCenter, ZOOM_MIN, ZOOM_MAX } from '@/features/minimap/math';
+import { computeViewRect, computeGraphBounds, computeTransformFromViewTopLeft, computeTransformFromCenter, ZOOM_MIN, ZOOM_MAX, MINIMAP_WIDTH, MINIMAP_HEIGHT } from '@/features/minimap/math';
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer';
 
 type ZoomT = { k: number; x: number; y: number };
@@ -32,8 +32,8 @@ function Minimap() {
   const graphData = useGraphStore(s => s.graphData);
   const graphId = useGraphStore(s => s.graphId);
   const canvasDims = useGraphStore(s => s.canvasDims);
-  const miniW = 160;
-  const miniH = 120;
+  const miniW = MINIMAP_WIDTH;
+  const miniH = MINIMAP_HEIGHT;
   const zoomState = useGraphStore(s => s.zoomState);
   const preview = useGraphStore(s => s.minimapPreview);
   const selectedNodeId = useGraphStore(s => s.selectedNodeId);

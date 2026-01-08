@@ -1,7 +1,7 @@
 import React from 'react'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import type { ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
-import { UI_COPY } from '@/lib/config'
+import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function ToolbarHtmlArea(props: ToolbarToolMenuAreasProps) {
@@ -39,7 +39,7 @@ export function ToolbarHtmlArea(props: ToolbarToolMenuAreasProps) {
               className={buttonClassName}
               onClick={() => {
                 props.setIsHtmlImportMenuOpen(false)
-                props.onToolMenuAction('html', 'importLocal')
+                props.onToolMenuAction('sourceFiles', 'importLocal', { format: 'html' })
               }}
             >
               {UI_COPY.toolbarMarkdownImportLocalDeviceButtonLabel}
@@ -64,14 +64,14 @@ export function ToolbarHtmlArea(props: ToolbarToolMenuAreasProps) {
                 props.setIsHtmlImportMenuOpen(false)
                 setIsUrlInputOpen(false)
                 setUrlInputValue('')
-                props.onToolMenuAction('html', 'importUrl', { url })
+                props.onToolMenuAction('sourceFiles', 'importUrl', { format: 'html', url })
               }}
             >
               <input
                 ref={urlInputRef}
                 value={urlInputValue}
                 onChange={e => setUrlInputValue(e.target.value)}
-                placeholder={UI_COPY.htmlImportUrlPlaceholder}
+                placeholder={UI_COPY.htmlImportUrlPrompt}
                 className={`w-full h-7 px-2 border border-gray-300 rounded bg-white text-gray-700 text-left ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}
               />
             </form>
@@ -80,7 +80,7 @@ export function ToolbarHtmlArea(props: ToolbarToolMenuAreasProps) {
       )}
       <div className="flex items-center justify-end gap-2">
         <StatusBadge
-          label="HTML"
+          label={UI_LABELS.html}
           ok={props.dataLoadOk}
           msg={props.dataLoadMsg}
         />

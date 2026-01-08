@@ -296,6 +296,7 @@ export interface GraphSchema {
       minTokenLength?: number;
       maxTokensPerNode?: number;
       stopwords?: string[];
+      hiddenNodeTypes?: string[];
       similarityMetric?: 'cosine' | 'pmi';
       similarityEdgeLabel?: string;
       topKEdgesPerNode?: number;
@@ -446,7 +447,7 @@ export const defaultSchema: GraphSchema = {
   nodeSizes: {},
   nodeStroke: {},
   labelStyles: { fontSize: 12, color: '#111111', offset: { dx: 12, dy: 4 }, halo: { color: '#ffffff', width: 3 } },
-  nodeShapes: {},
+  nodeShapes: { Image: 'rect' },
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {
     mode: 'force',

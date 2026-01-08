@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Tokens, Token } from 'marked'
+import type { TokensList, Token } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { addLineRangesToTokens } from '@/features/markdown/ui/markdownPreviewLex'
 import MarkdownTokenRenderer from './MarkdownTokenRenderer'
@@ -20,7 +20,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   baseTextClass,
   wrapClass,
 }: MarkdownListBlockProps) {
-  const list = t as unknown as Tokens.List
+  const list = t as unknown as TokensList
   const ListTag = (list.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
   const listClass = list.ordered ? 'list-decimal' : 'list-disc'
   

@@ -1,5 +1,6 @@
 import React from 'react'
 import { buildFsUrlForRelPath } from '@/features/panels/hooks/markdownPipelineActions'
+import { normalizeGitHubBlobLikeUrl, applyMediaProxySrc as applyMediaProxySrcCore } from '@/lib/url'
 
 const normalizeRelPath = (raw: string): string => {
   const input = String(raw || '').replace(/\\/g, '/')
@@ -23,6 +24,8 @@ const joinRelPaths = (baseDir: string, rel: string): string => {
   return normalizeRelPath(combined)
 }
 
+const SAFE_RELATIVE_PATH_RE = /^[a-zA-Z0-9._-]+(\/[a-zA-Z0-9._-]+)*(\.[a-zA-Z0-9]+)?([?#].*)?$/
+
 export const isAbsoluteWebUrl = (href: string): boolean =>
   /^https?:\/\//i.test(href) || /^mailto:/i.test(href)
 
@@ -33,25 +36,37 @@ export const isSafeHref = (href: string): boolean => {
   if (trimmed.startsWith('/')) return true
   if (trimmed.startsWith('./') || trimmed.startsWith('../')) return true
   if (isAbsoluteWebUrl(trimmed)) return true
-  return /^[a-zA-Z0-9._-]+(\/[a-zA-Z0-9._-]+)*(\.[a-zA-Z0-9]+)?([?#].*)?$/.test(trimmed)
+  return SAFE_RELATIVE_PATH_RE.test(trimmed)
 }
 
 export const isSafeMediaSrc = (href: string): boolean => {
   const trimmed = String(href || '').trim()
   if (!trimmed) return false
+  if (/^(javascript|data):/i.test(trimmed)) return false
+  if (trimmed.startsWith('#')) return false
+  if (/^mailto:/i.test(trimmed)) return false
   if (trimmed.startsWith('/')) return true
   if (trimmed.startsWith('./') || trimmed.startsWith('../')) return true
-  return /^https?:\/\//i.test(trimmed)
+  if (isAbsoluteWebUrl(trimmed)) return true
+  return SAFE_RELATIVE_PATH_RE.test(trimmed)
 }
+
+export const applyMediaProxySrc = (src: string): string => applyMediaProxySrcCore(src)
 
 export const resolveHref = (href: string, activeDocumentPath: string): string => {
   const raw = String(href || '').trim()
   if (!raw) return ''
-  if (raw.startsWith('#') || isAbsoluteWebUrl(raw)) return raw
+  if (raw.startsWith('#')) return raw
+  if (isAbsoluteWebUrl(raw)) {
+    const normalizedAbs = normalizeGitHubBlobLikeUrl(raw) ?? raw
+    return normalizedAbs
+  }
   const basePath = String(activeDocumentPath || '').split('#')[0].trim()
   if (basePath && isAbsoluteWebUrl(basePath)) {
     try {
-      return new URL(raw, basePath).toString()
+      const resolved = new URL(raw, basePath).toString()
+      const normalized = normalizeGitHubBlobLikeUrl(resolved) ?? resolved
+      return normalized
     } catch {
       return raw
     }
@@ -166,7 +181,8 @@ export const renderSafeHtmlBlock = (
       if (tag === 'img') {
         const srcRaw = el.getAttribute('src') || ''
         if (!srcRaw || !isSafeHref(srcRaw) || !isSafeMediaSrc(srcRaw)) return <React.Fragment key={key}>{''}</React.Fragment>
-        const src = resolveHref(srcRaw, opts.activeDocumentPath)
+        const resolved = resolveHref(srcRaw, opts.activeDocumentPath)
+        const src = applyMediaProxySrc(resolved)
         const alt = el.getAttribute('alt') || ''
         const width = parseHtmlNumberAttr(el.getAttribute('width') || '')
         const height = parseHtmlNumberAttr(el.getAttribute('height') || '')
@@ -192,7 +208,8 @@ export const renderSafeHtmlBlock = (
         const srcRaw = el.getAttribute('src') || ''
         const srcCandidate = srcRaw || (el.querySelector('source')?.getAttribute('src') || '')
         if (!srcCandidate || !isSafeHref(srcCandidate) || !isSafeMediaSrc(srcCandidate)) return <React.Fragment key={key}>{''}</React.Fragment>
-        const src = resolveHref(srcCandidate, opts.activeDocumentPath)
+        const resolved = resolveHref(srcCandidate, opts.activeDocumentPath)
+        const src = applyMediaProxySrc(resolved)
         return (
           <video key={key} controls className="w-full max-w-2xl rounded border border-gray-200" src={src} />
         )
@@ -221,6 +238,14 @@ export const renderSafeHtmlBlock = (
           <p key={key} className="mt-2 mb-2">
             {children}
           </p>
+        )
+      }
+
+      if (tag === 'center') {
+        return (
+          <div key={key} className="text-center">
+            {children}
+          </div>
         )
       }
 

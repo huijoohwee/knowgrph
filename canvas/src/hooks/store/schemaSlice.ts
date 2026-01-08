@@ -95,6 +95,7 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
   schemaLintCount: null,
   schemaLintExamplePath: null,
   schemaLintExamplePaths: null,
+  schemaLastExportHash: null,
   setSchemaLintSummary: (count: number, examplePath: string | null, examplePaths?: string[] | null) => {
     set({ schemaLintCount: count, schemaLintExamplePath: examplePath, schemaLintExamplePaths: examplePaths || null })
   },
@@ -104,6 +105,24 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
   },
   clearSchemaLintSummary: () => {
     set({ schemaLintCount: null, schemaLintExamplePath: null, schemaLintExamplePaths: null })
+  },
+  setSchemaLastExportSnapshot: (schema: GraphSchema | null) => {
+    if (!schema) {
+      set({ schemaLastExportHash: null })
+      return
+    }
+    try {
+      const json = JSON.stringify(schema)
+      let hash = 0
+      for (let i = 0; i < json.length; i += 1) {
+        const chr = json.charCodeAt(i)
+        hash = (hash << 5) - hash + chr
+        hash |= 0
+      }
+      set({ schemaLastExportHash: String(hash) })
+    } catch {
+      set({ schemaLastExportHash: null })
+    }
   },
   setSchemaImportLabel: (label: string | null) => {
     const next = typeof label === 'string' && label.trim() ? label.trim() : null

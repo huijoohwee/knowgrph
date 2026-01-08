@@ -514,7 +514,11 @@ export const PIPELINE_STAGE_COPY: Record<PipelineStageKey, PipelineStageCopy> = 
   },
 }
 
-export type RenderPanelSectionKey = 'presetsAndTuning' | 'datasetInspector' | 'codebaseIndexPipeline'
+export type RenderPanelSectionKey =
+  | 'presetsAndTuning'
+  | 'datasetInspector'
+  | 'codebaseIndexPipeline'
+  | 'mediaNodes'
 
 export interface RenderPanelSectionCopy {
   id: RenderPanelSectionKey
@@ -523,6 +527,7 @@ export interface RenderPanelSectionCopy {
   descriptionShort?: string
   descriptionLong?: string
   tooltip?: string
+  viewToggleHelper?: string
 }
 
 export const RENDER_PANEL_SECTION_COPY: Record<RenderPanelSectionKey, RenderPanelSectionCopy> = {
@@ -558,5 +563,18 @@ export const RENDER_PANEL_SECTION_COPY: Record<RenderPanelSectionKey, RenderPane
       'Use the Markdown pipeline section to copy the end-to-end markdown→JSON-LD graph and schema command so documentation GraphData, AgenticRAG schema bindings, and orchestrator configs stay in sync between offline runs and the canvas Renderer tab.',
     tooltip:
       'Markdown pipeline → copy the markdown→graph pipeline → keep documentation GraphData, schema configs, and Renderer/Orchestrator views synchronized between offline runs and the canvas.',
+  },
+  mediaNodes: {
+    id: 'mediaNodes',
+    badge: 'Media',
+    title: 'Media nodes',
+    descriptionShort:
+      'Summarize media-capable nodes and control Render Media as Nodes and opacity.',
+    descriptionLong:
+      'Media nodes are created during ingest based on media_url, media_kind, iframe_url, video, image, and related properties. This section summarizes media-capable nodes and exposes Render Media as Nodes and opacity controls so renderer decisions stay view-only while media metadata remains attached to GraphData.',
+    tooltip:
+      'Media nodes → list nodes with media_url and media_kind inferred from ingestion → treat Render Media as Nodes and opacity as view-level toggles without mutating GraphData so media overlays remain a replaceable renderer choice.',
+    viewToggleHelper:
+      'Circle-only: highlight media-capable nodes. Panel-only: render media panels without mutating GraphData.',
   },
 }
