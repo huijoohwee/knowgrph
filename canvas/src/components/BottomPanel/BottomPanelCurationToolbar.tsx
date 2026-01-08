@@ -5,7 +5,7 @@ import type { BottomTab } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 
-type BottomPanelCurationView = 'grid' | 'json' | 'block' | 'markdown'
+type BottomPanelCurationView = 'grid' | 'json' | 'markdown'
 
 type BottomPanelCurationToolbarProps = {
   tab: BottomTab
@@ -35,7 +35,6 @@ export default function BottomPanelCurationToolbar({
     })),
   )
   const isTextEditorActive = isGraphJsonView
-  const isBlockEditorActive = tab === 'curation' && bottomPanelCurationView === 'block'
   const isMarkdownActive = tab === 'curation' && bottomPanelCurationView === 'markdown'
 
   return (
@@ -61,16 +60,6 @@ export default function BottomPanelCurationToolbar({
             }}
           >
             Markdown Section
-          </button>
-          <button
-            type="button"
-            className={toggleButtonClassName(isBlockEditorActive)}
-            onClick={() => {
-              setBottomPanelCurationView('block')
-              openPanelTab('curation')
-            }}
-          >
-            Block-style Editor
           </button>
           <button
             type="button"

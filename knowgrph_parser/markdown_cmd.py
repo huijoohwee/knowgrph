@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -179,6 +180,43 @@ def _unify_entities_across_docs(
     return {"@context": base_ctx, "@graph": merged_items, "metadata": merged_metadata}
 
 
+def _iter_strings(value: Any) -> List[str]:
+    out: List[str] = []
+    if isinstance(value, str):
+        out.append(value)
+        return out
+    if isinstance(value, dict):
+        for k, v in value.items():
+            out.extend(_iter_strings(k))
+            out.extend(_iter_strings(v))
+        return out
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            out.extend(_iter_strings(item))
+        return out
+    return out
+
+
+def _load_forbidden_tokens_from_env() -> List[str]:
+    raw = os.getenv("KG_NEUTRALITY_FORBIDDEN_TOKENS", "") or ""
+    parts = [p.strip() for p in raw.split(",")]
+    return [p for p in parts if p]
+
+
+def _scan_forbidden_tokens(payload: Dict[str, Any], tokens: List[str]) -> List[Dict[str, str]]:
+    matches: List[Dict[str, str]] = []
+    if not tokens:
+        return matches
+    token_lower = [t.lower() for t in tokens]
+    for s in _iter_strings(payload):
+        text = s.lower()
+        for idx, t in enumerate(token_lower):
+            if t and t in text:
+                matches.append({"token": tokens[idx], "value": s})
+                break
+    return matches
+
+
 def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[str] = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True, help="Path to input markdown file")
@@ -271,6 +309,18 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
             conflict_resolution_strategy=str(args.conflict_resolution),
             cross_document_inference_depth=int(args.inference_depth),
         )
+    forbidden_tokens = _load_forbidden_tokens_from_env()
+    if forbidden_tokens:
+        matches = _scan_forbidden_tokens(graph_doc, forbidden_tokens)
+        if matches:
+            strict_raw = os.getenv("KG_NEUTRALITY_STRICT", "") or ""
+            strict = strict_raw.strip().lower() in ("1", "true", "yes", "on")
+            summary = {m["token"] for m in matches}
+            message = f"Neutrality validation detected forbidden tokens: {', '.join(sorted(summary))}"
+            if strict:
+                print(message, file=sys.stderr)
+                raise SystemExit(1)
+            print(message, file=sys.stderr)
     schema_doc = build_schema_config_jsonld(
         graph_doc,
         agentic_rag_schema_url=str(args.agenticrag_schema or DEFAULT_AGENTIC_RAG_SCHEMA_URL),

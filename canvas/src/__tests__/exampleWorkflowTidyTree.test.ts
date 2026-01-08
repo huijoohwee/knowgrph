@@ -2,25 +2,25 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { deriveTidyTreeDerivation } from '@/components/GraphCanvas/simulation'
 
-export function testInterviewerSliceTidyTreeDerivationUsesWorkflowEdges() {
+export function testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges() {
   const nodes: GraphNode[] = [
-    { id: 'aiap:pplan-step-eda', label: 'EDA', type: 'pplan:Step', properties: {} },
-    { id: 'aiap:pplan-step-preprocessing', label: 'Preprocessing', type: 'pplan:Step', properties: {} },
-    { id: 'aiap:pplan-step-feature-engineering', label: 'Feature Engineering', type: 'pplan:Step', properties: {} },
+    { id: 'ex:pplan-step-eda', label: 'EDA', type: 'pplan:Step', properties: {} },
+    { id: 'ex:pplan-step-preprocessing', label: 'Preprocessing', type: 'pplan:Step', properties: {} },
+    { id: 'ex:pplan-step-feature-engineering', label: 'Feature Engineering', type: 'pplan:Step', properties: {} },
   ]
 
   const edges: GraphEdge[] = [
     {
       id: 'e1',
-      source: 'aiap:pplan-step-eda',
-      target: 'aiap:pplan-step-preprocessing',
+      source: 'ex:pplan-step-eda',
+      target: 'ex:pplan-step-preprocessing',
       label: 'pplan:isPrecededBy',
       properties: {},
     },
     {
       id: 'e2',
-      source: 'aiap:pplan-step-preprocessing',
-      target: 'aiap:pplan-step-feature-engineering',
+      source: 'ex:pplan-step-preprocessing',
+      target: 'ex:pplan-step-feature-engineering',
       label: 'pplan:isPrecededBy',
       properties: {},
     },
@@ -58,7 +58,7 @@ export function testInterviewerSliceTidyTreeDerivationUsesWorkflowEdges() {
 
   const nodeIds = new Set<string>(nodes.map(n => String(n.id)))
   const derivation = deriveTidyTreeDerivation(edges, schema, nodeIds)
-  if (!derivation) throw new Error('interviewer tidy-tree derivation is null')
+  if (!derivation) throw new Error('example workflow tidy-tree derivation is null')
 
   if (derivation.direction !== 'target-source') {
     throw new Error(`expected tidy-tree direction target-source, got ${derivation.direction}`)
@@ -71,7 +71,8 @@ export function testInterviewerSliceTidyTreeDerivationUsesWorkflowEdges() {
 
   const ids = new Set(derivation.candidateEdges.map(e => String(e.id)))
   if (!ids.has('e1') || !ids.has('e2') || ids.size !== 2) {
-    throw new Error(`expected tidy-tree candidateEdges to include e1 and e2, got ids=[${Array.from(ids).join(', ')}]`)
+    throw new Error(
+      `expected tidy-tree candidateEdges to include e1 and e2, got ids=[${Array.from(ids).join(', ')}]`,
+    )
   }
 }
-

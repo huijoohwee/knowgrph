@@ -59,6 +59,8 @@ import {
 } from '@/__tests__/graphRagTraversal.test'
 import { testGraphTraversalFloatingPanelGenericDepthClamp } from '@/__tests__/graphTraversalFloatingPanel.test'
 import { testThemeModePersistence } from '@/__tests__/theme.test'
+import { testMarkdownLayoutModePersistence } from '@/__tests__/markdownLayoutModePersistence.test'
+import { testMarkdownSyncScrollPersistence } from '@/__tests__/markdownSyncScrollPersistence.test'
 import { testLaunchSpotlightStorageHelpers } from '@/__tests__/launchSpotlight.test'
 import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.test'
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
@@ -70,8 +72,8 @@ import {
   testSchemaJsonLdRoundTripPreservesLayers,
   testJsonLdGraphsParseAndValidateWithUniversalSchema,
   testMiniVizComputesOnSelectionSubgraph,
-  testInterviewerSchemaSnippetParsesHiddenNodeTypes,
-  testInterviewerJsonLdSemanticVsDocumentStructureLayers,
+  testExampleWorkflowSchemaSnippetParsesHiddenNodeTypes,
+  testExampleWorkflowJsonLdSemanticVsDocumentStructureLayers,
 } from '@/__tests__/schemaFixtures.test'
 import {
   testWorkflowJsonLdHistoryGraphShape,
@@ -115,8 +117,11 @@ import {
 } from '@/__tests__/spreadsheetFiltersSorts.test'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
-import { testInterviewerMarkdownIngestionProducesGraph } from '@/__tests__/interviewerMarkdownIngestion.test'
-import { testInterviewerSliceTidyTreeDerivationUsesWorkflowEdges } from '@/__tests__/interviewerTidyTree.test'
+import {
+  testExampleWorkflowMarkdownIngestionProducesGraph,
+  testMarkdownFrontmatterOntologiesAndPolygonLayersRoundTrip,
+} from '@/__tests__/exampleWorkflowMarkdownIngestion.test'
+import { testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges } from '@/__tests__/exampleWorkflowTidyTree.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -261,6 +266,8 @@ export const runAllTests = async () => {
   await exec('ui.graphFieldsSyncOnEdgePropertiesEditViaTableUi', testGraphFieldsSyncOnEdgePropertiesEditViaTableUi);
   await exec('ui.graphFieldsSyncOnHistoryUndoRedo', testGraphFieldsSyncOnHistoryUndoRedo);
   await exec('ui.themeModePersistence', testThemeModePersistence);
+  await exec('ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence);
+  await exec('ui.markdown.syncScrollPersistence', testMarkdownSyncScrollPersistence);
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers);
   await exec('persistence.storagePrimitives', testPersistencePrimitives);
   await exec('search.cacheVersionKey', testSearchCacheKeysRespectVersion);
@@ -302,21 +309,36 @@ export const runAllTests = async () => {
   await exec('schemaFixtures.schemaJsonLdRoundTripLayers', testSchemaJsonLdRoundTripPreservesLayers);
   await exec('schemaFixtures.jsonldRoundTrip', testJsonLdGraphsParseAndValidateWithUniversalSchema);
   await exec('schemaFixtures.miniVizComputes', testMiniVizComputesOnSelectionSubgraph);
-  await exec('schemaFixtures.interviewerSchemaSnippetParsesHiddenNodeTypes', testInterviewerSchemaSnippetParsesHiddenNodeTypes);
   await exec(
-    'schemaFixtures.interviewerJsonLdSemanticVsDocumentStructureLayers',
-    testInterviewerJsonLdSemanticVsDocumentStructureLayers,
+    'schemaFixtures.exampleWorkflowSchemaSnippetParsesHiddenNodeTypes',
+    testExampleWorkflowSchemaSnippetParsesHiddenNodeTypes,
+  );
+  await exec(
+    'schemaFixtures.exampleWorkflowJsonLdSemanticVsDocumentStructureLayers',
+    testExampleWorkflowJsonLdSemanticVsDocumentStructureLayers,
   );
   await exec('workflowPreset.selfConsistent', testWorkflowPresetPipelinesAreSelfConsistent);
   await exec('workflowPreset.exportBrandedPaths', testExportFunctionsAcceptBrandedPaths);
   await exec('ui.help.pipelineCopyMatchesCommand', testHelpPipelineCopyMatchesCommandConstant);
   await exec('ui.markdown.parserMetadataAnchors', testMarkdownParserMetadataAnchorsAreAgenticRagCompatible);
   await exec('ui.media.mediaInteractiveDefaults', testMediaInteractiveDefaults);
-  await exec('ui.markdown.interviewerMarkdownIngestionProducesGraph', testInterviewerMarkdownIngestionProducesGraph);
-  await exec('ui.markdown.interviewerSliceTidyTreeDerivationUsesWorkflowEdges', testInterviewerSliceTidyTreeDerivationUsesWorkflowEdges);
+  await exec(
+    'ui.markdown.exampleWorkflowMarkdownIngestionProducesGraph',
+    testExampleWorkflowMarkdownIngestionProducesGraph,
+  );
+  await exec(
+    'ui.markdown.frontmatterOntologiesAndPolygonLayersRoundTrip',
+    testMarkdownFrontmatterOntologiesAndPolygonLayersRoundTrip,
+  );
+  await exec(
+    'ui.markdown.exampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges',
+    testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges,
+  );
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     const mod = await import('@/__tests__/markdownMediaToggleE2e.test')
     await exec('ui.markdown.mediaToggleEndToEnd', mod.testMarkdownMediaToggleEndToEnd)
+    await exec('ui.markdown.headMetaFrontmatterArrays', mod.testMarkdownHeadMetaFrontmatterArrays)
+    await exec('ui.markdown.scrollSync.viewerToEditor', mod.testMarkdownScrollSyncViewerToEditor)
   }
   await exec('ui.orchestrator.tooltipRoleActionOutcomeShape', testOrchestratorTooltipRoleActionOutcomeShape);
   await exec('ui.orchestrator.toolMenuUsesTooltipCopyHelper', testOrchestratorToolMenuUsesTooltipCopyHelper);

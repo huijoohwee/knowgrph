@@ -264,7 +264,7 @@
 # Graph layer modes and polygons
 
 - Layer modes:
-  - The toolbar **Layer mode** button cycles through **Semantic → Document structure → Property** using the same `schema.layers.mode` field that the Renderer and FloatingPanel use.
+  - The **Graph Layer** tab controls the **Semantic → Document structure → Property** cycle using the same `schema.layers.mode` field that the Renderer and FloatingPanel use.
   - **Semantic**:
     - Semantic is the default when `schema.layers.mode` is missing or invalid.
     - The underlying JSON-LD graph is unchanged; the semantic layer derives weighted similarity edges from tokenized node text using cosine similarity or PMI.
@@ -277,7 +277,7 @@
     - Does not add semantic similarity edges or derived communities; this layer reflects the raw graph schema.
 
 - Polygon groups:
-  - When **Polygon groups** are enabled, the renderer draws convex hull polygons around node groups instead of rendering every node as an isolated shape.
+  - When **Polygon groups** are enabled from the Graph Layer view, the renderer draws convex hull polygons around node groups instead of rendering every node as an isolated shape.
   - **Semantic mode**:
     - Groups nodes by `visual:community` and uses `visual:fill` as the base polygon color so each hull approximates a semantic neighborhood derived from PMI/cosine similarity edges.
     - Edge sparsity and quality are controlled by `schema.layers.semantic.topKEdgesPerNode` and `schema.layers.semantic.minSimilarity`, which act as schema-driven presets rather than dataset-specific magic numbers.

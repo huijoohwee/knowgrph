@@ -15,7 +15,7 @@
 - **Offline/CLI** (`knowgrph_parser`): parses a single markdown file into JSON-LD graph + schema config + orchestrator YAML + generated summary markdown, with provenance line ranges and “next/hasSection/hasBlock” structure edges.
 - **Interactive/UI** (`canvas`): renders markdown using `marked`, supports MDX in presentation mode, resolves relative links to local files via Vite `/@fs`, and can (dev-only) trigger the markdown pipeline then load its generated artifacts into the app.
 
-**Gap headline**: The codebase delivers an end-to-end *markdown→graph→UI load→render* workflow, but it does **not** implement the guideline’s semantic layers (TokenLinker/EdgeElevator/ThresholdTuner/DocumentUnifier/FeedbackOrchestrator/CorpusReasoner/AgenticQueryEngine). Those capabilities are currently **missing** (or only indirectly represented via UI traversal and schema/config scaffolding).
+**Gap headline**: The codebase delivers an end-to-end *markdown→graph→UI load→render* workflow and now includes a first-pass semantic layer in `knowgrph_parser.semantic_processor` (TokenLinker-style entity/mention extraction, EdgeElevator-style relation extraction with thresholds and pattern mining), but it still lacks the full guideline stack (adaptive feedback-tuned thresholds, cross-document unification, feedback loops, corpus-scale reasoning, and agentic query planning).
 
 ---
 
@@ -50,7 +50,7 @@
 - Generated markdown doc summary: `build_knowgrph_doc_markdown(...)` (called from `markdown_cmd.py`)
 
 3) Structural markdown parsing and provenance:
-- `parse_markdown_text_to_graph_jsonld(...)` in [markdown_graph.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/markdown_graph.py#L38-L353)
+- `parse_markdown_text_to_graph_jsonld(...)` in [graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L283-L511)
   - Creates `Document`, `Section`, `Paragraph`, `CodeBlock`, `Table`, `List`, `ListItem`, `Link` nodes.
   - Adds edges: `hasSection`, `hasBlock`, `hasItem`, `linksTo`, `next`.
   - Adds provenance metadata: `lineStart`, `lineEnd`, `sourcePath`, `sourceUri`, `codebaseRelPath`, `codebasePath` fragment ranges.
@@ -75,14 +75,14 @@
 
 | Feature | PRD Section | Current Module (non-`/docs`) | Gap Type | Severity | Impact Dimension | Effort | Dependencies | Priority |
 |---------|-------------|------------------------------|----------|----------|------------------|--------|--------------|----------|
-| Token linking (phrase/entity spans) | Guidelines: Layer 1 | `knowgrph_parser/markdown_graph.py` | missing | high | accuracy | 13 SP | none | P0 |
-| Edge elevation w/ confidence + properties | Guidelines: Layer 2 | `knowgrph_parser/markdown_graph.py` | missing | high | accuracy | 13 SP | gap-001 | P0 |
+| Token linking (phrase/entity spans) | Guidelines: Layer 1 | `knowgrph_parser/semantic_processor.py` | partial | medium | accuracy | 8 SP | none | P1 |
+| Edge elevation w/ confidence + properties | Guidelines: Layer 2 | `knowgrph_parser/semantic_processor.py` | partial | medium | accuracy | 8 SP | gap-001 | P1 |
 | Adaptive threshold tuning per document | Guidelines: Layer 3 | `knowgrph_parser/*` | missing | medium | maintainability | 8 SP | gap-001, gap-002 | P1 |
 | Cross-document unification | Guidelines: Layer 4 | `knowgrph_parser/*` | missing | high | accuracy | 13 SP | gap-001, gap-002 | P0 |
 | Feedback loops + quality metrics → recalibration | Guidelines: Layer 5 | `knowgrph_parser/*`, `canvas/*` | missing | medium | maintainability | 8 SP | gap-003, gap-004 | P1 |
 | Corpus reasoning (pattern mining, centrality) | Guidelines: Layer 6 | `canvas/src/lib/graph/*` | partial | medium | user_experience | 8 SP | gap-004 | P1 |
 | Agentic query engine (intent→traversal→synthesis) | Guidelines: Layer 7 | `canvas/src/features/panels/*` | partial | high | user_experience | 13 SP | gap-004, gap-005 | P0 |
-| Provenance duality (structure types + line ranges) | Guidelines: Axiom | `knowgrph_parser/markdown_graph.py`, `canvas/src/features/markdown/*` | partial | medium | maintainability | 3 SP | none | P1 |
+| Provenance duality (structure types + line ranges) | Guidelines: Axiom | `knowgrph_parser/graph_builder.py`, `canvas/src/features/markdown/*` | partial | medium | maintainability | 3 SP | none | P1 |
 | Zero hardcoding across pipeline components | Guidelines: Axiom | `knowgrph_parser/pipeline_cmd.py` | misaligned | high | maintainability | 5 SP | none | P0 |
 
 ---
@@ -94,17 +94,17 @@
 ```yaml
 gap-001:
   requirement: TokenLinker performs phrase boundary detection, entity span identification, and token-level provenance.
-  current_state: markdown parsing emits structural nodes (Document/Section/Paragraph/etc) with line ranges, but does not build entity spans from token sequences.
-  gap_type: missing
-  severity: high
+  current_state: semantic_processor tokenizes semantic_sources, merges tokens into spans, emits Mention and Entity nodes with char/token offsets, and attaches hasMention/mentionOf/refersTo edges, but uses heuristic scoring rather than configurable embedding-based phrase coherence.
+  gap_type: partial
+  severity: medium
   impact: user_experience
-  effort: 13 SP
+  effort: 8 SP
   dependencies: []
-  risk: Without entity spans, downstream retrieval and reasoning collapse to structural traversal and keywords only.
+  risk: Without embedding-aware phrase modeling and corpus-level calibration, some entity spans may underperform compared to the PRD’s ML-style TokenLinker.
 ```
 
 Evidence:
-- Structural parsing exists in [markdown_graph.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/markdown_graph.py#L38-L353).
+- Structural parsing exists in [graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L283-L511).
 - UI tokenization exists (for rendering/highlighting) in [markdownPreviewLex.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLex.ts#L44-L63), but it does not emit entity nodes/edges into GraphData.
 
 ### Feature: Edge Elevation (Relationships + Confidence + Properties)
@@ -112,25 +112,25 @@ Evidence:
 ```yaml
 gap-002:
   requirement: EdgeElevator extracts relationships, assigns confidence, and attaches properties (temporal/modality/negation/etc).
-  current_state: edges are structural (hasSection/hasBlock/next/linksTo) without confidence scoring or linguistic relation extraction.
-  gap_type: missing
-  severity: high
+  current_state: semantic_processor groups mentions by sentence, computes features via extract_sentence_features, emits semanticRelation and coOccursWith edges with confidence, temporalMarker, modality, negation, support, and pmi, but does not yet integrate external parsers or feedback-calibrated scoring.
+  gap_type: partial
+  severity: medium
   impact: accuracy
-  effort: 13 SP
+  effort: 8 SP
   dependencies: [gap-001]
-  risk: Graph edges cannot support semantic queries; traversal behaves like document outline navigation rather than knowledge extraction.
+  risk: Semantic queries are supported, but relationship quality and calibration may lag behind a fully ML-calibrated EdgeElevator with explicit evaluation loops.
 ```
 
 Evidence:
-- Edge creation in [markdown_graph.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/markdown_graph.py#L138-L321) is limited to structural relations.
+- Edge creation in [graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L91-L281) is limited to structural relations.
 
 ### Feature: Threshold Tuning (Adaptive Boundary Calibration)
 
 ```yaml
 gap-003:
   requirement: ThresholdTuner adapts extraction thresholds per document profile and feedback metrics.
-  current_state: No extraction thresholds exist for semantic entities/edges because those components are absent.
-  gap_type: missing
+  current_state: semantic_processor and graph_builder define phrase_boundary_threshold, edge_confidence_threshold, min_pattern_support, and auto_tune_enabled, and process_semantics adjusts max_syntactic_path_length based on document sentence profile, but thresholds are not yet tuned using explicit feedback metrics or persisted calibration history.
+  gap_type: partial
   severity: medium
   impact: maintainability
   effort: 8 SP
@@ -199,7 +199,7 @@ gap-007:
 ```yaml
 gap-008:
   requirement: Maintain bidirectional links between semantic primitives and source structure types with line ranges.
-  current_state: Structural nodes include lineStart/lineEnd and codebasePath fragments; UI token renderer computes line ranges and highlights selections. However, semantic primitives (entities/relations) are not present, so duality is limited to structure blocks.
+  current_state: Structural nodes include lineStart/lineEnd and codebasePath fragments; UI token renderer computes line ranges and highlights selections. Semantic primitives emitted by semantic_processor (Mention, Entity, semanticRelation, coOccursWith) carry character and token offsets plus extraction metadata in JSON-LD graphs, but the canvas GraphData path does not yet expose them as first-class selectable nodes and edges, so duality is only fully realized in parser outputs.
   gap_type: partial
   severity: medium
   impact: maintainability
@@ -209,7 +209,7 @@ gap-008:
 ```
 
 Evidence:
-- Python provenance fields in [markdown_graph.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/markdown_graph.py#L91-L111).
+- Python provenance fields in [graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L27-L56).
 - UI line-range derivation in [markdownPreviewLex.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLex.ts#L18-L63).
 
 ### Feature: Zero Hardcoding (Domain Blindness)
@@ -286,7 +286,7 @@ phase-4-agentic:
 ## Acceptance Criteria Validation (This Repo, Current Baseline)
 
 - [x] User workflow completes end-to-end: dev server can run pipeline and load artifacts into UI ([vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts#L35-L62), [workflowJsonLdActions.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/panels/hooks/workflowJsonLdActions.ts#L430-L509)).
-- [x] Provenance line ranges exist for structural markdown nodes ([markdown_graph.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/markdown_graph.py#L91-L111)).
+- [x] Provenance line ranges exist for structural markdown nodes ([graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L27-L56)).
 - [x] Rendering supports markdown and safe local link resolution for repo browsing ([markdownPreviewLinks.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx#L47-L63)).
 - [ ] Semantic extraction layers (TokenLinker/EdgeElevator/ThresholdTuner/DocumentUnifier/Feedback/Reasoning/Agentic engine) are implemented per guidelines.
 - [ ] Zero-hardcoding audit passes across pipeline utilities (see gap-009).

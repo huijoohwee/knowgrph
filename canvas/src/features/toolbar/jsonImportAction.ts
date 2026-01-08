@@ -3,6 +3,7 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { fetchRemoteText, promptForUrl } from './ingestUtils'
 
 export type JsonImportFormat = 'jsonld' | 'json'
@@ -80,6 +81,24 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
       void 0
     }
 
+    try {
+      const state = useGraphStore.getState()
+      if (res.input && res.input.text.trim()) {
+        const rawName = String(res.input.name || '')
+        const baseName = rawName.trim() || (format === 'jsonld' ? 'graph.jsonld' : 'graph.json')
+        const rawText = String(res.input.text || '')
+        const trimmed = rawText.trim()
+        const fenceLang = 'json'
+        const markdown = trimmed
+          ? ['```' + fenceLang, trimmed, '```', ''].join('\n')
+          : rawText
+        state.setMarkdownDocument(baseName, markdown)
+        state.setMarkdownDocumentSourceUrl(null)
+      }
+    } catch {
+      void 0
+    }
+
     openBottomPanel('data')
   } catch {
     try {
@@ -91,3 +110,65 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
   }
 }
 
+export async function performCsvImport() {
+  try {
+    const picked = await pickTextFileWithExtensions(['.csv'])
+    if (!picked) return
+
+    const res = await loadGraphDataFromTextViaParser(picked.name, picked.text)
+    if (!res) {
+      try {
+        const ui = useParserUIState.getState()
+        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
+      } catch {
+        void 0
+      }
+      return
+    }
+
+    try {
+      const ui = useParserUIState.getState()
+      if (res.input) {
+        ui.setLastInput(res.input.name, res.input.text)
+      }
+      if (res.warnings && res.warnings.length > 0) {
+        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
+        ui.setWarnings(res.warnings)
+      } else {
+        ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
+        ui.setWarnings([])
+      }
+      if (res.counts) {
+        ui.setCounts(res.counts)
+      }
+    } catch {
+      void 0
+    }
+
+    try {
+      const state = useGraphStore.getState()
+      if (res.input && res.input.text.trim()) {
+        const rawName = String(res.input.name || '')
+        const baseName = rawName.trim() || 'graph.csv'
+        const rawText = String(res.input.text || '')
+        const trimmed = rawText.trim()
+        const markdown = trimmed
+          ? ['```csv', trimmed, '```', ''].join('\n')
+          : rawText
+        state.setMarkdownDocument(baseName, markdown)
+        state.setMarkdownDocumentSourceUrl(null)
+      }
+    } catch {
+      void 0
+    }
+
+    openBottomPanel('data')
+  } catch {
+    try {
+      const ui = useParserUIState.getState()
+      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
+    } catch {
+      void 0
+    }
+  }
+}

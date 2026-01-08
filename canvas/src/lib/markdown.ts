@@ -1,4 +1,4 @@
-export type MarkdownFrontmatter = Record<string, string>
+export type MarkdownFrontmatter = Record<string, unknown>
 
 export type MarkdownBlock =
   | { kind: 'heading'; level: number; text: string; startLine: number; endLine: number }
@@ -24,16 +24,106 @@ export const parseMarkdownFrontmatter = (
   if (!lines.length) return { meta: {}, startIndex: 0 }
   if ((lines[0] || '').trim() !== '---') return { meta: {}, startIndex: 0 }
   const meta: MarkdownFrontmatter = {}
-  for (let i = 1; i < lines.length; i += 1) {
-    const raw = (lines[i] || '').trim()
-    if (raw === '---') return { meta, startIndex: i + 1 }
-    if (!raw || raw.startsWith('#')) continue
-    const idx = raw.indexOf(':')
-    if (idx <= 0) continue
-    const key = raw.slice(0, idx).trim()
-    const val = raw.slice(idx + 1).trim()
-    if (key) meta[key] = val
+  const structuredKeys = new Set(['ontologies', 'polygonLayers'])
+  let currentKey: string | null = null
+  let currentList: unknown[] = []
+  let currentIndent = 0
+
+  const finalizeList = () => {
+    if (currentKey && currentList.length) {
+      meta[currentKey] = currentList
+    }
+    currentKey = null
+    currentList = []
+    currentIndent = 0
   }
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const rawLine = lines[i] ?? ''
+    const trimmed = rawLine.trim()
+    if (trimmed === '---') {
+      finalizeList()
+      return { meta, startIndex: i + 1 }
+    }
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const indent = rawLine.length - trimmed.length
+    const isDashItem = trimmed.startsWith('- ')
+    const colonIndex = trimmed.indexOf(':')
+
+    if (currentKey && structuredKeys.has(currentKey)) {
+      if (isDashItem && indent > currentIndent) {
+        const afterDash = trimmed.slice(2).trim()
+        if (!afterDash) continue
+        if (currentKey === 'ontologies') {
+          const innerIdx = afterDash.indexOf(':')
+          if (innerIdx > 0) {
+            const field = afterDash.slice(0, innerIdx).trim()
+            const value = afterDash.slice(innerIdx + 1).trim()
+            if (field) {
+              const obj: Record<string, unknown> = {}
+              obj[field] = value
+              currentList.push(obj)
+            }
+          }
+        } else if (currentKey === 'polygonLayers') {
+          currentList.push(afterDash)
+        }
+        continue
+      }
+
+      if (!isDashItem && colonIndex > 0 && indent > currentIndent) {
+        const fieldKey = trimmed.slice(0, colonIndex).trim()
+        const fieldVal = trimmed.slice(colonIndex + 1).trim()
+        if (!fieldKey) continue
+        if (currentKey === 'ontologies') {
+          const last = currentList[currentList.length - 1]
+          if (last && typeof last === 'object' && !Array.isArray(last)) {
+            ;(last as Record<string, unknown>)[fieldKey] = fieldVal
+          } else {
+            const obj: Record<string, unknown> = {}
+            obj[fieldKey] = fieldVal
+            currentList.push(obj)
+          }
+        } else if (currentKey === 'polygonLayers') {
+          currentList.push(fieldVal || fieldKey)
+        }
+        continue
+      }
+    }
+
+    if (colonIndex > 0 && !isDashItem) {
+      finalizeList()
+      const key = trimmed.slice(0, colonIndex).trim()
+      const val = trimmed.slice(colonIndex + 1).trim()
+      if (!key) continue
+      if (structuredKeys.has(key)) {
+        currentKey = key
+        currentIndent = indent
+        currentList = []
+        if (val) {
+          if (key === 'ontologies') {
+            const innerIdx = val.indexOf(':')
+            if (innerIdx > 0) {
+              const field = val.slice(0, innerIdx).trim()
+              const value = val.slice(innerIdx + 1).trim()
+              if (field) {
+                const obj: Record<string, unknown> = {}
+                obj[field] = value
+                currentList.push(obj)
+              }
+            }
+          } else if (key === 'polygonLayers') {
+            currentList.push(val)
+          }
+        }
+      } else {
+        meta[key] = val
+      }
+      continue
+    }
+  }
+
+  finalizeList()
   return { meta: {}, startIndex: 0 }
 }
 
@@ -160,4 +250,3 @@ export const parseMarkdownBlocks = (lines: string[], startIndex: number): Markdo
   }
   return blocks
 }
-

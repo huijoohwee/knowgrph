@@ -1,31 +1,11 @@
-import React from 'react'
-import { useShallow } from 'zustand/react/shallow'
 import { useRenderBottomPanelState } from '@/features/panels/hooks/useRenderBottomPanelState'
 import RenderSettingsSection from '@/features/panels/views/RenderSettingsSection'
-import AiKgLayersSection from '@/features/panels/views/AiKgLayersSection'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { lsInt, lsSetInt } from '@/lib/persistence'
-import {
-  ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS,
-  ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS,
-  ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
-} from '@/features/panels/utils/orchestratorTraversal'
-import { LS_KEYS, UI_LABELS } from '@/lib/config'
+import { UI_LABELS } from '@/lib/config'
 import { RendererPaletteSettings } from '@/features/toolbar/ui/RendererPaletteSettings'
 import { RendererTidyTreeSettings } from '@/features/toolbar/ui/RendererTidyTreeSettings'
 import { RendererLayoutModeSettings } from '@/features/toolbar/ui/RendererLayoutModeSettings'
 
 export function ToolbarToolMenuRendererView() {
-  const { schema, setSchema, setThreeConfig, setCharge, setCollisionByType } = useGraphStore(
-    useShallow(s => ({
-      schema: s.schema,
-      setSchema: s.setSchema,
-      setThreeConfig: s.setThreeConfig,
-      setCharge: s.setCharge,
-      setCollisionByType: s.setCollisionByType,
-    })),
-  )
-
   const {
     sections: renderSections,
     allSectionsCollapsed: allRenderSectionsCollapsed,
@@ -53,34 +33,10 @@ export function ToolbarToolMenuRendererView() {
   const setRenderPresetsCollapsed = renderSectionSetters.presets
   const setRenderCodebaseIndexCollapsed = renderSectionSetters.codebaseIndex
 
-  const [traversalDelayMs, setTraversalDelayMs] = React.useState(() =>
-    lsInt(LS_KEYS.orchestratorTraversalDelayMs, ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS),
-  )
-
-  const handleSetTraversalDelayMs = React.useCallback(
-    (value: number) => {
-      const clamped = lsSetInt(LS_KEYS.orchestratorTraversalDelayMs, value, {
-        min: ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
-        max: ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS,
-      })
-      setTraversalDelayMs(clamped)
-    },
-    [],
-  )
-
   return (
     <div className="flex flex-col gap-2">
       <RendererLayoutModeSettings />
       <RendererPaletteSettings />
-      <AiKgLayersSection
-        schema={schema}
-        setSchema={setSchema}
-        setThreeConfig={setThreeConfig}
-        setCharge={setCharge}
-        setCollisionByType={setCollisionByType}
-        traversalDelayMs={traversalDelayMs}
-        setTraversalDelayMs={handleSetTraversalDelayMs}
-      />
       <RendererTidyTreeSettings />
       <div className="flex items-center gap-2">
         <button

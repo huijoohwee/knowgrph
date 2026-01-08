@@ -1,10 +1,17 @@
 {
   "nodeStyles": {
-    "aiap:AssessmentCandidate": { "color": "#2563EB" },
-    "aiap:Dataset": { "color": "#22C55E" },
-    "aiap:Model": { "color": "#A855F7" },
-    "aiap:RubricCategory": { "color": "#F97316" },
-    "aiap:InterviewQuestion": { "color": "#EF4444" }
+    "prov:Agent": { "color": "#2563EB" },
+    "prov:Entity": { "color": "#22C55E" },
+    "prov:Activity": { "color": "#0EA5E9" },
+    "mex:Experiment": { "color": "#A855F7" },
+    "mex:Execution": { "color": "#6366F1" },
+    "mex:Performance": { "color": "#EC4899" },
+    "mls:Dataset": { "color": "#22C55E" },
+    "mls:Model": { "color": "#F97316" },
+    "pplan:Step": { "color": "#10B981" },
+    "geo:Polygon": { "color": "#FBBF24" },
+    "geo:Geometry": { "color": "#E11D48" },
+    "CreativeWork": { "color": "#0F766E" }
   },
   "edgeStyles": {},
   "nodeSizes": {},
@@ -51,8 +58,8 @@
   "metadata": {
     "agenticRagSchema": "https://huijoohwee.github.io/schema/AgenticRAG",
     "generatedBy": "schema-config/knowgrph-interviewer-schema-config.jsonld",
-    "description": "Schema config for docs/assets/interviewer.jsonld focusing on interview entities and hiding geo:Polygon clusters in semantic layer.",
-    "dataset": "docs/assets/interviewer.jsonld"
+    "description": "Schema config for docs/assets/multi-ontology-kg.jsonld highlighting multi-ontology entities and hiding geo:Polygon clusters in semantic layer.",
+    "dataset": "docs/assets/multi-ontology-kg.jsonld"
   },
   "layers": {
     "mode": "semantic",
@@ -68,4 +75,3 @@
     }
   }
 }
-

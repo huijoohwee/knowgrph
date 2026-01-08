@@ -1,0 +1,143 @@
+{
+  "@context": {
+    "prov": "http://www.w3.org/ns/prov#",
+    "mex": "http://mex.aksw.org/mex-core#",
+    "pplan": "http://purl.org/net/p-plan#",
+    "mls": "http://www.w3.org/ns/mls#",
+    "geo": "http://www.opengis.net/ont/geosparql#",
+    "ro": "https://w3id.org/ro/crate/1.1/",
+    "schema": "https://schema.org/",
+    "ex": "http://example.org/neutral#",
+    "name": "schema:name",
+    "description": "schema:description",
+    "geo:asWKT": {
+      "@id": "geo:asWKT"
+    }
+  },
+  "metadata": {
+    "graphId": "example:multi-ontology-neutral-graph",
+    "generatedAt": "2025-12-19T10:30:00Z",
+    "agenticRagSchema": "https://huijoohwee.github.io/schema/AgenticRAG",
+    "agenticRagContext": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+    "layoutMode": "force",
+    "defaultLayer": "semantic",
+    "semanticConfig": {
+      "similarityMetric": "cosine",
+      "similarityEdgeLabel": "relatedTo",
+      "topKEdgesPerNode": 4,
+      "minSimilarity": 0.2
+    },
+    "suggestedTraversalEdges": [
+      "prov:wasGeneratedBy",
+      "prov:used",
+      "pplan:isPrecededBy"
+    ],
+    "ontologies": [
+      { "prefix": "prov", "iri": "http://www.w3.org/ns/prov#" },
+      { "prefix": "mex", "iri": "http://mex.aksw.org/mex-core#" },
+      { "prefix": "pplan", "iri": "http://purl.org/net/p-plan#" },
+      { "prefix": "mls", "iri": "http://www.w3.org/ns/mls#" },
+      { "prefix": "geo", "iri": "http://www.opengis.net/ont/geosparql#" },
+      { "prefix": "ro", "iri": "https://w3id.org/ro/crate/1.1/" }
+    ],
+    "polygonLayers": [
+      "competencyHyperspace",
+      "performanceSpace",
+      "classDistributionSpace",
+      "assessmentRegion"
+    ],
+    "layers": {
+      "semantic": {
+        "nodeTypes": [
+          "prov:Agent",
+          "prov:Entity",
+          "prov:Activity",
+          "mls:Dataset",
+          "mls:Model"
+        ],
+        "nodeMetrics": [
+          "centrality",
+          "degree",
+          "mentionCount"
+        ],
+        "edgeLabel": "relatedTo",
+        "edgeMetric": "weight",
+        "communityProperty": "communityId"
+      },
+      "documentStructure": {
+        "nodeTypes": [],
+        "edgeLabels": []
+      },
+      "property": {
+        "nodePropertyContainer": "properties",
+        "edgePropertyContainer": "properties"
+      }
+    },
+    "graphStatistics": {
+      "nodeCount": 7,
+      "edgeCount": 7,
+      "labelDistribution": {
+        "prov:Agent": 1,
+        "prov:Entity": 2,
+        "prov:Activity": 2,
+        "mls:Dataset": 1,
+        "mls:Model": 1,
+        "geo:Polygon": 1
+      }
+    }
+  },
+  "@graph": [
+    {
+      "@id": "ex:agent-1",
+      "@type": "prov:Agent",
+      "name": "Neutral Agent"
+    },
+    {
+      "@id": "ex:dataset-1",
+      "@type": [
+        "prov:Entity",
+        "mls:Dataset"
+      ],
+      "name": "Neutral Dataset",
+      "description": "Domain-agnostic dataset for demonstrating multi-ontology JSON-LD."
+    },
+    {
+      "@id": "ex:activity-prepare",
+      "@type": [
+        "prov:Activity",
+        "pplan:Step"
+      ],
+      "name": "Prepare Data",
+      "prov:used": "ex:dataset-1"
+    },
+    {
+      "@id": "ex:activity-train",
+      "@type": [
+        "prov:Activity",
+        "pplan:Step"
+      ],
+      "name": "Train Model",
+      "pplan:isPrecededBy": "ex:activity-prepare",
+      "prov:used": "ex:dataset-1"
+    },
+    {
+      "@id": "ex:model-1",
+      "@type": "mls:Model",
+      "name": "Neutral Model",
+      "prov:wasGeneratedBy": "ex:activity-train"
+    },
+    {
+      "@id": "ex:evaluation-region",
+      "@type": "geo:Polygon",
+      "name": "Evaluation Region",
+      "geo:asWKT": "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"
+    },
+    {
+      "@id": "ex:assessment-entity",
+      "@type": "prov:Entity",
+      "name": "Assessment Summary",
+      "prov:wasAttributedTo": "ex:agent-1"
+    }
+  ]
+}
+

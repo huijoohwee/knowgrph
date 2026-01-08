@@ -21,10 +21,6 @@ export default function SettingsView({
   const {
     expanded,
     setExpanded,
-    schema,
-    setSchema,
-    uiPanelKeyValueInputClass,
-    uiPanelMonospaceTextClass,
     chatHealthStatus,
     isCheckingHealth,
     checkChatHealth,
@@ -44,43 +40,6 @@ export default function SettingsView({
   return (
     <div className="h-full min-h-0 flex flex-col space-y-0">
       <div className="flex-1 min-h-0 overflow-auto space-y-0">
-        <div className="px-0 py-2 border-b border-gray-200">
-          <div className="text-xs font-semibold text-gray-700 mb-1">
-            Graph
-          </div>
-          <KeyTypeValueRow
-            layout="keyValue"
-            density="compact"
-            keyNode={<span className={uiPanelMonospaceTextClass}>schema.layers.mode</span>}
-            valueNode={(
-              <div className="flex w-full justify-end">
-                <select
-                  className={uiPanelKeyValueInputClass}
-                  value={(schema?.layers?.mode ?? 'property') as 'property' | 'document-structure' | 'semantic'}
-                  disabled={!schema}
-                  onChange={e => {
-                    if (!schema) return
-                    const raw = e.target.value
-                    const nextMode: 'property' | 'document-structure' | 'semantic' =
-                      raw === 'document-structure' || raw === 'semantic' ? raw : 'property'
-                    const baseLayers = schema.layers || {}
-                    setSchema({
-                      ...schema,
-                      layers: {
-                        ...baseLayers,
-                        mode: nextMode,
-                      },
-                    })
-                  }}
-                >
-                  <option value="property">property</option>
-                  <option value="document-structure">document-structure</option>
-                  <option value="semantic">semantic</option>
-                </select>
-              </div>
-            )}
-          />
-        </div>
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
           <KeyTypeValueRow
             keyNode={<span className="font-semibold text-gray-600">Key</span>}

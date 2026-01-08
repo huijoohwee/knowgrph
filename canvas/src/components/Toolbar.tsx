@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, Maximize, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, Shapes, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
-import { useMainPanelDrag } from '@/features/toolbar/hooks/useMainPanelDrag';
+import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
 import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
 import { openBottomPanel } from '@/features/bottom-panel/open';
@@ -32,8 +32,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setCanvasRenderMode,
     schema,
     setSchema,
-    polygonGroupsVisible,
-    togglePolygonGroupsVisible,
     fitToScreenMode,
     toggleFitToScreenMode,
     zoomToSelectionMode,
@@ -119,10 +117,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ tab?: 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings' } | undefined>;
+      const e = ev as CustomEvent<{ tab?: MainPanelTabKey } | undefined>;
       const detailTab = e.detail && e.detail.tab;
-      const tab: 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings' =
+      const tab: MainPanelTabKey =
         detailTab === 'graphFields'
+          || detailTab === 'graphLayer'
           || detailTab === 'workflow'
           || detailTab === 'help'
           || detailTab === 'preview'
@@ -189,17 +188,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <LayerModeIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${polygonGroupsVisible ? 'text-blue-600' : 'text-gray-600'}`}
-        title={UI_LABELS.polygonGroupsMode}
-        tooltipContent={UI_LABELS.polygonGroupsMode}
-        onClick={() => {
-          togglePolygonGroupsVisible()
-        }}
-        showTooltip
-      >
-        <Shapes className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${canvasRenderMode === '2d' && layoutMode === 'tidy-tree' ? 'text-blue-600' : 'text-gray-600'}`}

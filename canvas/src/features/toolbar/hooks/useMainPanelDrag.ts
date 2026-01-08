@@ -2,9 +2,11 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config';
 import { lsBool, lsNum, lsSetBool, lsSetNum } from '@/lib/persistence';
 
+export type MainPanelTabKey = 'workflow' | 'help' | 'graphFields' | 'graphLayer' | 'preview' | 'settings';
+
 export function useMainPanelDrag() {
   const [isMainPanelOpen, setIsMainPanelOpen] = useState(false);
-  const [mainPanelRequestedTab, setMainPanelRequestedTab] = useState<'workflow' | 'help' | 'graphFields' | 'preview' | 'settings'>('help');
+  const [mainPanelRequestedTab, setMainPanelRequestedTab] = useState<MainPanelTabKey>('help');
   const mainPanelCardRef = useRef<HTMLDivElement>(null);
   const mainPanelDragStateRef = useRef<{
     startX: number;
@@ -37,7 +39,7 @@ export function useMainPanelDrag() {
   });
 
   const openMainPanel = useCallback(
-    (tab: 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings') => {
+    (tab: MainPanelTabKey) => {
       setIsMainPanelOpen(true);
       setMainPanelRequestedTab(tab);
       if (typeof window !== 'undefined') {

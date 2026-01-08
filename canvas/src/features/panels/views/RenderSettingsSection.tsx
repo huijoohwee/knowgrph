@@ -78,9 +78,6 @@ export default function RenderSettingsSection({
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
     schema.layout?.mode === 'radial' || schema.layout?.mode === 'tidy-tree' ? schema.layout.mode : 'force'
-  const layers = schema.layers || {}
-  const layerMode: 'property' | 'document-structure' | 'semantic' =
-    layers.mode === 'document-structure' || layers.mode === 'semantic' ? layers.mode : 'property'
   const tidyTreeCfg = schema.layout?.tidyTree || {}
   const tidyTreeLod = (schema.performance?.lod?.tidyTree || {}) as TidyTreeLod
   const tidyEdgeLabelsText = React.useMemo(() => (tidyTreeCfg.edgeLabels || []).join(', '), [tidyTreeCfg.edgeLabels])
@@ -374,38 +371,6 @@ export default function RenderSettingsSection({
               2D layout
             </div>
             <div className="mt-1 grid grid-cols-1 gap-1">
-              <KeyTypeValueRow
-                layout="keyValue"
-                density="compact"
-                keyNode={<span className={uiPanelMonospaceTextClass}>schema.layers.mode</span>}
-                valueNode={(
-                  <RightAlignedValueCell>
-                    <select
-                      className={uiPanelKeyValueInputClass}
-                      value={layerMode}
-                      onChange={e => {
-                        const raw = e.target.value
-                        const nextMode: typeof layerMode =
-                          raw === 'document-structure' || raw === 'semantic' ? (raw as typeof layerMode) : 'property'
-                        const current = schema
-                        const baseLayers = current.layers || {}
-                        const next: GraphSchema = {
-                          ...current,
-                          layers: {
-                            ...baseLayers,
-                            mode: nextMode,
-                          },
-                        }
-                        setSchema(next)
-                      }}
-                    >
-                      <option value="property">property (array properties)</option>
-                      <option value="document-structure">document-structure (node type)</option>
-                      <option value="semantic">semantic (similarity graph)</option>
-                    </select>
-                  </RightAlignedValueCell>
-                )}
-              />
               <KeyTypeValueRow
                 layout="keyValue"
                 density="compact"

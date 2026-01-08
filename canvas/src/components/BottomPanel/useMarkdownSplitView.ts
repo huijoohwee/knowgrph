@@ -12,8 +12,15 @@ export function useBottomPanelMarkdownSplitView(args: {
   markdownWordWrap: boolean
   selectionInfo: MarkdownSelectionInfo | null
   uiPanelMonospaceTextClass: string
+  syncScroll: boolean
 }) {
-  const { markdownText, markdownWordWrap, selectionInfo, uiPanelMonospaceTextClass } = args
+  const {
+    markdownText,
+    markdownWordWrap,
+    selectionInfo,
+    uiPanelMonospaceTextClass,
+    syncScroll,
+  } = args
 
   const editorTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const viewerRef = React.useRef<HTMLDivElement | null>(null)
@@ -37,22 +44,46 @@ export function useBottomPanelMarkdownSplitView(args: {
 
   const syncingFromEditorRef = React.useRef(false)
   const syncingFromViewerRef = React.useRef(false)
+  const viewerSyncRafRef = React.useRef(0)
   const lastEditorUserScrollAtRef = React.useRef(0)
   const lastViewerUserScrollAtRef = React.useRef(0)
   const lastEditorResizeAtRef = React.useRef(0)
   const editorLineCountRef = React.useRef(1)
-  const editorScrollTopRef = React.useRef(0)
   const wrapModelRef = React.useRef<{
     prefixRows: number[]
     rowStartByLine: number[]
     totalRows: number
   } | null>(null)
 
+  const syncScrollRef = React.useRef(syncScroll)
+
+  const getRaf = () => {
+    if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+      return window.requestAnimationFrame.bind(window)
+    }
+    const g = globalThis as unknown as { requestAnimationFrame?: (cb: FrameRequestCallback) => number }
+    if (g.requestAnimationFrame) return g.requestAnimationFrame
+    return (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+  }
+
+  const getCancelRaf = () => {
+    if (typeof window !== 'undefined' && window.cancelAnimationFrame) {
+      return window.cancelAnimationFrame.bind(window)
+    }
+    const g = globalThis as unknown as { cancelAnimationFrame?: (id: number) => void }
+    if (g.cancelAnimationFrame) return g.cancelAnimationFrame
+    return (id: number) => clearTimeout(id as unknown as NodeJS.Timeout)
+  }
+
   const editorLineCount = React.useMemo(() => {
     const text = markdownText || ''
     if (!text) return 1
     return text.split('\n').length || 1
   }, [markdownText])
+
+  React.useEffect(() => {
+    syncScrollRef.current = syncScroll
+  }, [syncScroll])
 
   const highlightedLineRange = React.useMemo(
     () => computeHighlightedLineRange(editorLineCount, selectionInfo),
@@ -178,19 +209,20 @@ export function useBottomPanelMarkdownSplitView(args: {
   React.useEffect(() => {
     const ta = editorTextAreaRef.current
     if (!ta) return
+    const rafFn = getRaf()
+    const cancelRafFn = getCancelRaf()
     let raf = 0
     let clearSyncRaf = 0
     let pending: 'scroll' | 'resize' | null = null
     const schedule = (reason: 'scroll' | 'resize') => {
       pending = pending === 'scroll' ? pending : reason
       if (raf) return
-      raf = requestAnimationFrame(() => {
+      raf = rafFn(() => {
         raf = 0
         const reasonToUse = pending || 'resize'
         pending = null
 
         const nextScrollTop = Math.max(0, Math.floor(ta.scrollTop))
-        editorScrollTopRef.current = nextScrollTop
         const lh = Math.max(1, lineHeightPx || 16)
         const viewportSansPadding = Math.max(0, ta.clientHeight - editorPaddingTopPx - editorPaddingBottomPx)
         const model = wrapModelRef.current
@@ -223,16 +255,18 @@ export function useBottomPanelMarkdownSplitView(args: {
         }
         const viewer = viewerRef.current
         if (!viewer) return
+        if (!syncScrollRef.current) return
         if (syncingFromViewerRef.current) return
         if (reasonToUse === 'scroll') {
+          lastEditorUserScrollAtRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now())
           if (dragStateRef.current?.active) return
-          if (clearSyncRaf) cancelAnimationFrame(clearSyncRaf)
+          if (clearSyncRaf) cancelRafFn(clearSyncRaf)
           syncingFromEditorRef.current = true
-          const editorScrollable = ta.scrollHeight - ta.clientHeight
-          const ratio = editorScrollable > 0 ? ta.scrollTop / editorScrollable : 0
-          const viewerScrollable = viewer.scrollHeight - viewer.clientHeight
+          const editorScrollable = Math.max(0, ta.scrollHeight - ta.clientHeight)
+          const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
+          const ratio = editorScrollable > 0 ? nextScrollTop / editorScrollable : 0
           viewer.scrollTop = viewerScrollable > 0 ? ratio * viewerScrollable : 0
-          clearSyncRaf = requestAnimationFrame(() => {
+          clearSyncRaf = rafFn(() => {
             syncingFromEditorRef.current = false
             clearSyncRaf = 0
           })
@@ -242,51 +276,67 @@ export function useBottomPanelMarkdownSplitView(args: {
 
     schedule('resize')
     const onScroll = () => {
-      if (!syncingFromViewerRef.current) {
-        lastEditorUserScrollAtRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now())
-      }
       schedule('scroll')
     }
     ta.addEventListener('scroll', onScroll, { passive: true })
-    const ro = new ResizeObserver(() => {
-      lastEditorResizeAtRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now())
-      schedule('resize')
-    })
-    ro.observe(ta)
+    const ResizeObserverCtor =
+      typeof window !== 'undefined'
+        ? (window as unknown as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
+        : undefined
+    let ro: ResizeObserver | null = null
+    if (ResizeObserverCtor) {
+      ro = new ResizeObserverCtor(() => {
+        lastEditorResizeAtRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+        schedule('resize')
+      })
+      ro.observe(ta)
+    } else {
+      const onFallbackResize = () => {
+        lastEditorResizeAtRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+        schedule('resize')
+      }
+      window.addEventListener('resize', onFallbackResize)
+    }
     const onWindowResize = () => schedule('resize')
     window.addEventListener('resize', onWindowResize)
     return () => {
-      if (raf) cancelAnimationFrame(raf)
-      if (clearSyncRaf) cancelAnimationFrame(clearSyncRaf)
+      if (raf) cancelRafFn(raf)
+      if (clearSyncRaf) cancelRafFn(clearSyncRaf)
       ta.removeEventListener('scroll', onScroll)
-      ro.disconnect()
+      if (ro) ro.disconnect()
       window.removeEventListener('resize', onWindowResize)
     }
-  }, [editorPaddingBottomPx, editorPaddingTopPx, lineHeightPx, markdownWordWrap])
+  })
+
+  const handleViewerScroll = React.useCallback((e?: React.UIEvent<HTMLDivElement>) => {
+    const rafFn = getRaf()
+    const cancelRafFn = getCancelRaf()
+    const viewerFromEvent = e?.currentTarget ?? null
+    const viewer = viewerFromEvent || viewerRef.current
+    const ta = editorTextAreaRef.current
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    if (syncingFromEditorRef.current) return
+    lastViewerUserScrollAtRef.current = now
+    if (!viewer || !ta) return
+    if (!syncScrollRef.current) return
+    const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
+    const ratio = viewerScrollable > 0 ? viewer.scrollTop / Math.max(1, viewerScrollable) : 0
+    const editorScrollable = Math.max(0, ta.scrollHeight - ta.clientHeight)
+    const prevRaf = viewerSyncRafRef.current
+    if (prevRaf) cancelRafFn(prevRaf)
+    syncingFromViewerRef.current = true
+    ta.scrollTop = editorScrollable > 0 ? ratio * editorScrollable : 0
+    viewerSyncRafRef.current = rafFn(() => {
+      syncingFromViewerRef.current = false
+      viewerSyncRafRef.current = 0
+    })
+  }, [])
 
   React.useEffect(() => {
-    const viewer = viewerRef.current
-    const ta = editorTextAreaRef.current
-    if (!viewer || !ta) return
-    let clearSyncRaf = 0
-    const handleScroll = () => {
-      if (syncingFromEditorRef.current) return
-      lastViewerUserScrollAtRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now())
-      const viewerScrollable = viewer.scrollHeight - viewer.clientHeight
-      const ratio = viewerScrollable > 0 ? viewer.scrollTop / viewerScrollable : 0
-      const editorScrollable = ta.scrollHeight - ta.clientHeight
-      if (clearSyncRaf) cancelAnimationFrame(clearSyncRaf)
-      syncingFromViewerRef.current = true
-      ta.scrollTop = editorScrollable > 0 ? ratio * editorScrollable : 0
-      clearSyncRaf = requestAnimationFrame(() => {
-        syncingFromViewerRef.current = false
-        clearSyncRaf = 0
-      })
-    }
-    viewer.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
-      viewer.removeEventListener('scroll', handleScroll)
-      if (clearSyncRaf) cancelAnimationFrame(clearSyncRaf)
+      const cancelRafFn = getCancelRaf()
+      const raf = viewerSyncRafRef.current
+      if (raf) cancelRafFn(raf)
     }
   }, [])
 
@@ -319,8 +369,10 @@ export function useBottomPanelMarkdownSplitView(args: {
     const ta = editorTextAreaRef.current
     const layer = gutterLayerRef.current
     if (!ta || !layer) return
+    const rafFn = getRaf()
+    const cancelRafFn = getCancelRaf()
     let raf = 0
-    raf = requestAnimationFrame(() => {
+    raf = rafFn(() => {
       raf = 0
       const maxScrollable = Math.max(0, ta.scrollHeight - ta.clientHeight)
       const nextScrollTop = Math.max(0, Math.min(Math.floor(ta.scrollTop), Math.floor(maxScrollable)))
@@ -355,7 +407,7 @@ export function useBottomPanelMarkdownSplitView(args: {
       ))
     })
     return () => {
-      if (raf) cancelAnimationFrame(raf)
+      if (raf) cancelRafFn(raf)
     }
   }, [editorPaddingBottomPx, editorPaddingTopPx, lineHeightPx, markdownText, markdownWordWrap])
 
@@ -364,6 +416,7 @@ export function useBottomPanelMarkdownSplitView(args: {
     const viewer = viewerRef.current
     if (!ta || !viewer) return
     if (!selectionInfo || selectionInfo.lineStart == null) return
+    if (!syncScrollRef.current) return
     const now = (typeof performance !== 'undefined' ? performance.now() : Date.now())
     if (dragStateRef.current?.active) return
     if (now - lastEditorResizeAtRef.current < 350) return
@@ -392,6 +445,8 @@ export function useBottomPanelMarkdownSplitView(args: {
       startRatio: splitRatio,
       containerWidth: width,
     }
+    const rafFn = getRaf()
+    const cancelRafFn = getCancelRaf()
     let raf = 0
     let pendingRatio = splitRatio
     const handleMove = (ev: PointerEvent) => {
@@ -401,7 +456,7 @@ export function useBottomPanelMarkdownSplitView(args: {
       const delta = st.containerWidth > 0 ? dx / st.containerWidth : 0
       pendingRatio = Math.max(0.2, Math.min(0.8, st.startRatio + delta))
       if (raf) return
-      raf = window.requestAnimationFrame(() => {
+      raf = rafFn(() => {
         raf = 0
         setSplitRatio(prev => (prev === pendingRatio ? prev : pendingRatio))
       })
@@ -409,7 +464,7 @@ export function useBottomPanelMarkdownSplitView(args: {
     const handleUp = () => {
       dragStateRef.current = null
       if (raf) {
-        window.cancelAnimationFrame(raf)
+        cancelRafFn(raf)
         raf = 0
       }
       window.removeEventListener('pointermove', handleMove)
@@ -425,6 +480,7 @@ export function useBottomPanelMarkdownSplitView(args: {
     gutterLayerRef,
     splitRatio,
     handleDividerPointerDown,
+    handleViewerScroll,
     markdownFullscreen,
     lineHeightPx,
     editorPaddingTopPx,

@@ -9,6 +9,6 @@
     "check": "npm --prefix canvas run check",
     "test": "npm --prefix canvas run test:ci",
     "pipeline": "python -m knowgrph_parser pipeline",
-    "graphrag:aiap22-workflow": "python -m knowgrph_parser graphrag-workflow"
+    "graphrag:example-workflow": "python -m knowgrph_parser graphrag-workflow"
   }
 }

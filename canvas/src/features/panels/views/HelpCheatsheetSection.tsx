@@ -2,7 +2,7 @@ import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { HELP_STEP_COPY } from '@/features/panels/config'
-import { HELP_CHEATSHEET_ALIGNMENT_TOOLTIP, UI_COPY, UI_LABELS } from '@/lib/config'
+import { HELP_CHEATSHEET_ALIGNMENT_TOOLTIP, UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 interface BehaviorRow {
@@ -130,14 +130,22 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
             </tr>
           </thead>
           <tbody>
-            {behaviorRows.map(row => (
-              <tr key={row.mode} className="border-t border-gray-200">
-                <td className="px-2 py-1 align-top whitespace-nowrap">{row.mode}</td>
-                <td className="px-2 py-1 align-top">{row.gesture}</td>
-                <td className="px-2 py-1 align-top">{row.zoomDrag}</td>
-                <td className="px-2 py-1 align-top">{row.tools}</td>
-              </tr>
-            ))}
+            {behaviorRows.map(row => {
+              const isPolygonRow =
+                row.mode === `${UI_COPY.toolbarPrefix} ${UI_LABELS.polygonGroupsMode}`
+              return (
+                <tr
+                  key={row.mode}
+                  className="border-t border-gray-200"
+                  data-kg-anchor={isPolygonRow ? UI_ANCHORS.helpLayerPolygons : undefined}
+                >
+                  <td className="px-2 py-1 align-top whitespace-nowrap">{row.mode}</td>
+                  <td className="px-2 py-1 align-top">{row.gesture}</td>
+                  <td className="px-2 py-1 align-top">{row.zoomDrag}</td>
+                  <td className="px-2 py-1 align-top">{row.tools}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

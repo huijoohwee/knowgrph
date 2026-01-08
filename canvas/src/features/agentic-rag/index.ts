@@ -7,6 +7,54 @@ import { CorpusReasoner } from './CorpusReasoner'
 import { AgenticQueryEngine } from './AgenticQueryEngine'
 import { AgenticRagConfig, DEFAULT_AGENTIC_RAG_CONFIG, PipelineResult } from './types'
 
+const readAgenticRagConfigFromEnv = (): Partial<AgenticRagConfig> => {
+  if (typeof import.meta === 'undefined') return {}
+  const meta = import.meta as unknown as { env?: Record<string, unknown> }
+  const env = meta.env
+  const raw = env && env.VITE_AGENTIC_RAG_CONFIG_JSON
+  if (typeof raw !== 'string') return {}
+  const trimmed = raw.trim()
+  if (!trimmed) return {}
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>
+    const result: Partial<AgenticRagConfig> = {}
+    const resultAny = result as Record<string, unknown>
+    const keys: Array<keyof AgenticRagConfig> = [
+      'phrase_boundary_threshold',
+      'max_entity_span_tokens',
+      'coreference_distance_limit',
+      'edge_confidence_threshold',
+      'max_syntactic_path_length',
+      'temporal_marker_boost',
+      'auto_tune_enabled',
+      'tuning_sensitivity',
+      'feedback_window_size',
+    ]
+    for (const key of keys) {
+      const value = parsed[key as string]
+      const defaultValue = DEFAULT_AGENTIC_RAG_CONFIG[key]
+      if (typeof defaultValue === 'number') {
+        if (typeof value === 'number') {
+          resultAny[key as string] = value
+        }
+      } else if (typeof defaultValue === 'boolean') {
+        if (typeof value === 'boolean') {
+          resultAny[key as string] = value
+        }
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+const buildAgenticRagConfig = (overrides?: Partial<AgenticRagConfig>): AgenticRagConfig => ({
+  ...DEFAULT_AGENTIC_RAG_CONFIG,
+  ...readAgenticRagConfigFromEnv(),
+  ...(overrides || {}),
+})
+
 export * from './types'
 export * from './TokenLinker'
 export * from './EdgeElevator'
@@ -86,7 +134,7 @@ export class AgenticRagPipeline {
 }
 
 export const runAgenticPipeline = (text: string, config?: Partial<AgenticRagConfig>): PipelineResult => {
-  const finalConfig = { ...DEFAULT_AGENTIC_RAG_CONFIG, ...config }
+  const finalConfig = buildAgenticRagConfig(config)
   const pipeline = new AgenticRagPipeline(finalConfig)
   return pipeline.run([text])
 }

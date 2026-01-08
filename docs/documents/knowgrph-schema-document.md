@@ -1,14 +1,14 @@
 # KnowGrph schema configuration
 
-## Interviewer workflow schema-config
+## Example workflow schema-config
 
-- Dataset: `docs/assets/interviewer.jsonld` (JSON-LD graph describing the AIAP Batch 22 technical assessment, interview probes, rubric, and workflow entities).
-- Schema config: `schema-config/knowgrph-interviewer-schema-config.jsonld`.
+- Dataset: `docs/assets/example-workflow.jsonld` (JSON-LD graph describing a neutral workflow with regions and questions).
+- Schema config: `schema-config/knowgrph-example-workflow-schema-config.jsonld`.
   - Uses `layers.mode: "semantic"` (which is also the canvas default) so the graph initially opens in semantic layer mode.
   - Configures `layers.semantic.hiddenNodeTypes` to `["geo:Polygon"]` so polygon cluster nodes used for spatial annotations are hidden only when the semantic layer is active.
-  - Leaves property and document-structure layers neutral so they render the full interviewer graph without hiding nodes or edges.
+  - Leaves property and document-structure layers neutral so they render the full example workflow graph without hiding nodes or edges.
 - Examples catalog entry:
-  - Uses the interviewer dataset and the interviewer schema-config together so layer behavior is always schema-driven and domain-agnostic.
+  - Uses the example workflow dataset and schema-config together so layer behavior is always schema-driven and domain-agnostic.
   - Switching between semantic, document-structure, and property layers reuses the same underlying graph data while the active schema layer controls what nodes and edges are visible.
 
 ## Layer and mode interaction
@@ -23,9 +23,9 @@
   - Thresholds for `layers.semantic.topKEdgesPerNode` and `layers.semantic.minSimilarity` act as schema-driven sparsity and quality controls: smaller `topK` and larger `minSimilarity` produce sparser, higher-confidence neighborhoods, while larger `topK` values and lower `minSimilarity` values increase coverage at the cost of density.
   - When `schema.layers.mode !== "semantic"` or `layers.semantic.hiddenNodeTypes` is empty, all nodes and edges remain visible.
   - When `schema.layers.mode === "semantic"` and `layers.semantic.hiddenNodeTypes` is configured, nodes with matching `type` values are hidden along with any edges incident on those nodes.
-  - This behavior is validated by tests that load `docs/assets/interviewer.jsonld` and compare node and edge counts between document-structure and semantic layers.
+-  - This behavior is validated by tests that load `docs/assets/example-workflow.jsonld` and compare node and edge counts between document-structure and semantic layers.
   - JSON-LD parsing infers edges generically from array-valued properties whose targets exist as nodes (including `{"@id": ...}` references), so property and document-structure layers receive the full edge set without dataset-specific logic.
-  - Markdown ingestion uses `buildMarkdownJsonLd` to convert large documents such as `docs/assets/interviewer.md` into graphs; tests validate that ingestion produces non-empty node sets with no parser warnings.
+  - Markdown ingestion uses `buildMarkdownJsonLd` to convert large documents such as `docs/assets/example-workflow.md` into graphs; tests validate that ingestion produces non-empty node sets with no parser warnings.
   - Markdown graphs produced by `parse_markdown_to_graph_jsonld` expose neutral layer hints in `metadata.layers` so canvas and downstream tools can treat:
     - `layers.semantic` as the semantic similarity layer over `Entity` nodes and co-occurrence edges.
     - `layers.documentStructure` as the structural layer over `Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, and `Table` nodes plus `hasSection`, `hasBlock`, `hasItem`, `next`, and `linksTo` edges.

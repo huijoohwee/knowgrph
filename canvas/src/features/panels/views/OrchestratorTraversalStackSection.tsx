@@ -269,13 +269,13 @@ export function OrchestratorTraversalSection({
         </CollapsibleSection>
       )}
       {showPresetsAndEditor && (
-      <CollapsibleSection
-        title={(
-          <Tooltip
-            content={TRAVERSAL_EDITOR_AND_LAYERS_SECTION_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-          >
+        <CollapsibleSection
+          title={(
+            <Tooltip
+              content={TRAVERSAL_EDITOR_AND_LAYERS_SECTION_TOOLTIP}
+              maxWidthPx={260}
+              contentClassName="bg-gray-800/90"
+            >
               <span className="inline-flex items-center gap-1">
                 <span>{UI_COPY.orchestratorTraversalEditorSectionTitle}</span>
               </span>
@@ -286,13 +286,6 @@ export function OrchestratorTraversalSection({
         >
           <OrchestratorTraversalAndLayersSection
             traversalViewModel={editorProps.traversalViewModel}
-            schema={editorProps.schema}
-            setSchema={editorProps.setSchema}
-            setThreeConfig={editorProps.setThreeConfig}
-            setCharge={editorProps.setCharge}
-            setCollisionByType={editorProps.setCollisionByType}
-            traversalDelayMs={editorProps.traversalDelayMs}
-            onChangeTraversalDelayMs={editorProps.onChangeTraversalDelayMs}
           />
         </CollapsibleSection>
       )}

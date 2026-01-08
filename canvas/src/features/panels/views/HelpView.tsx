@@ -130,6 +130,35 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
 
   const allSectionsCollapsed = Object.values(collapsedBySection).every(Boolean);
 
+  const scrollToAnchor = React.useCallback((anchorId: string) => {
+    try {
+      const container = scrollRef.current;
+      if (!container) return;
+      const target = container.querySelector<HTMLElement>(`[data-kg-anchor="${anchorId}"]`);
+      if (!target) return;
+      target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } catch {
+      void 0;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      const handler = (ev: Event) => {
+        const e = ev as CustomEvent<{ anchor?: string } | undefined>;
+        const anchor = e.detail && e.detail.anchor;
+        if (!anchor) return;
+        scrollToAnchor(anchor);
+      };
+      window.addEventListener('kg:helpScrollToAnchor', handler as EventListener);
+      return () => {
+        window.removeEventListener('kg:helpScrollToAnchor', handler as EventListener);
+      };
+    } catch {
+      void 0;
+    }
+  }, [scrollToAnchor]);
+
   const header = (
     <MainPanelHelpHeader
       allSectionsCollapsed={allSectionsCollapsed}
@@ -230,13 +259,13 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
               </div>
               <div className="text-[11px] text-gray-600 leading-snug space-y-1">
                 <p>
-                  The layer mode toggle in the main toolbar cycles in the order semantic → document‑structure → property and drives how the same GraphData snapshot is filtered and decorated for rendering. Semantic is the default and adds similarity edges, Louvain communities, and importance‑based node sizing on top of the imported graph without mutating the source JSON‑LD.
+                  The Graph Layer tab controls the same schema.layers.mode cycle (semantic → document‑structure → property) and drives how a single GraphData snapshot is filtered and decorated for rendering. Semantic is the default and adds similarity edges, Louvain communities, and importance‑based node sizing on top of the imported graph without mutating the source JSON‑LD.
                 </p>
                 <p>
                   Document‑structure mode keeps all nodes and edges visible but assigns a `visual:layer` to structural block types such as Document, Section, Paragraph, List, ListItem, CodeBlock, and Table so 2D/3D renderers can apply per‑layer opacity while preserving the original layout. Property mode leaves nodes and edges unchanged and derives groups only from array‑valued properties (for example owner→items lists) without semantic overlays.
                 </p>
                 <p>
-                  When Polygon groups are enabled, semantic mode uses `visual:community` and `visual:fill` from the similarity graph to draw convex hull polygons around community clusters so regions approximate semantic neighborhoods rather than raw layout. Document‑structure and property modes continue to respect the same underlying node positions but polygon groups fall back to array‑based membership, keeping community hulls tightly aligned with the active layer semantics.
+                  When Polygon groups are enabled from the Graph Layer view, semantic mode uses `visual:community` and `visual:fill` from the similarity graph to draw convex hull polygons around community clusters so regions approximate semantic neighborhoods rather than raw layout. Document‑structure and property modes continue to respect the same underlying node positions but polygon groups fall back to array‑based membership, keeping community hulls tightly aligned with the active layer semantics.
                 </p>
               </div>
             </div>

@@ -107,10 +107,9 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
         bottomPanelTab: tab === 'code' ? 'code' : tab,
         bottomPanelCurationView: tab === 'data' ? 'json' as const : s.bottomPanelCurationView,
       })),
-    setBottomPanelCurationView: (view: 'grid' | 'json' | 'block' | 'markdown') =>
+    setBottomPanelCurationView: (view: 'grid' | 'json' | 'markdown') =>
       set({
-        bottomPanelCurationView:
-          view === 'json' || view === 'block' || view === 'markdown' ? view : 'grid',
+        bottomPanelCurationView: view === 'json' || view === 'markdown' ? view : 'grid',
       }),
     setBottomPanelCodeSource: () =>
       set({ bottomPanelCodeSource: 'graph-json' as const }),

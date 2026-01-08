@@ -8,7 +8,6 @@ import { useParserBottomPanelState } from '@/features/panels/hooks/useParserBott
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
 import OrchestratorTextEditorSection from '@/features/panels/views/OrchestratorTextEditorSection'
 import BottomPanelCuratorTab from '@/components/BottomPanel/BottomPanelCuratorTab'
-import BottomPanelGraphDataBlockEditor from '@/components/BottomPanel/BottomPanelGraphDataBlockEditor'
 import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
 import SchemaUiEditorPane from '@/features/schema/ui/SchemaUiEditorPane'
 import HistoryView from '@/features/panels/views/HistoryView'
@@ -247,13 +246,7 @@ export default function BottomPanelBody({
         />
       )}
 
-      <div
-        className={
-          tab === 'curation' && bottomPanelCurationView === 'block'
-            ? 'flex-1 min-h-0 overflow-hidden'
-            : 'flex-1 min-h-0 overflow-hidden px-3 pb-1'
-        }
-      >
+      <div className="flex-1 min-h-0 overflow-hidden px-3 pb-1">
         {tab === 'code' ? (
           <BottomPanelCodeTab
             codeText={codeText}
@@ -264,9 +257,7 @@ export default function BottomPanelBody({
             header={<div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>{UI_COPY.bottomPanelViewingGraphJsonLabel}</div>}
           />
         ) : tab === 'curation' || tab === 'nodes' || tab === 'edges' ? (
-          tab === 'curation' && bottomPanelCurationView === 'block' ? (
-            <BottomPanelGraphDataBlockEditor />
-          ) : bottomPanelCurationView === 'json' ? (
+          bottomPanelCurationView === 'json' ? (
             <BottomPanelCodeTab
               codeText={codeText}
               codeError={codeError}

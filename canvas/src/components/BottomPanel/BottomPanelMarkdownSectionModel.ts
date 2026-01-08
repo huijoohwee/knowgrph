@@ -60,7 +60,7 @@ export function useBottomPanelMarkdownModel(args: {
     setMarkdownDocument,
     setMarkdownDocumentSourceUrl,
   )
-  
+
   return {
     selectionInfo,
     selectionDocumentPath,

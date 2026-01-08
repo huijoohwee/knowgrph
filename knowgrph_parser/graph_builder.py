@@ -495,6 +495,45 @@ def parse_markdown_text_to_graph_jsonld(
             "coOccursWith",
         ],
     }
+    traversal_default_depth = env_int("KG_TRAVERSAL_DEFAULT_DEPTH", 3)
+    traversal_max_depth = env_int("KG_TRAVERSAL_MAX_DEPTH", 7)
+    semantic_top_k = env_int("KG_SEMANTIC_SEARCH_TOP_K", 20)
+    pattern_max_length = env_int("KG_PATTERN_MAX_LENGTH", 5)
+    doc_metadata["retrievalStrategies"] = {
+        "graphTraversal": {
+            "enabled": True,
+            "edgeLabels": list(doc_metadata.get("suggestedTraversalEdges", [])),
+            "defaultDepth": traversal_default_depth,
+            "maxDepth": traversal_max_depth,
+        },
+        "semanticSearch": {
+            "enabled": True,
+            "topK": semantic_top_k,
+            "similarityThreshold": sem_defaults.get("edge_confidence_threshold"),
+        },
+        "patternMatching": {
+            "enabled": True,
+            "minSupport": sem_defaults.get("min_pattern_support"),
+            "maxPatternLength": pattern_max_length,
+        },
+    }
+    neutrality_tokens_env = os.getenv("KG_NEUTRALITY_FORBIDDEN_TOKENS", "").strip()
+    neutrality_strict_env = os.getenv("KG_NEUTRALITY_STRICT", "").strip()
+    if neutrality_tokens_env:
+        doc_metadata["neutrality"] = {
+            "forbiddenTokensEnvVar": "KG_NEUTRALITY_FORBIDDEN_TOKENS",
+            "strictEnvVar": "KG_NEUTRALITY_STRICT",
+            "strict": bool(neutrality_strict_env.lower() in ("1", "true", "yes", "on")),
+        }
+    for key in ("ontologies", "polygonLayers"):
+        if key in fm:
+            value = fm.get(key)
+            if isinstance(value, list):
+                arr = value
+            else:
+                text = str(value).strip() if value is not None else ""
+                arr = [text] if text else []
+            doc_metadata[key] = arr
     if sem_enabled:
         doc_metadata["semanticConfig"] = sem_defaults
         if semantic_doc_profile:

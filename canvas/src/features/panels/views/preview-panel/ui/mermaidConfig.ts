@@ -38,10 +38,12 @@ export const useRootThemeMode = (): 'light' | 'dark' => {
     const el = document.documentElement
     const apply = () => setMode(el.getAttribute('data-theme') === 'dark' ? 'dark' : 'light')
     apply()
-    const obs = new MutationObserver(apply)
+    const Global = globalThis as unknown as { MutationObserver?: typeof MutationObserver }
+    const ObserverCtor = Global.MutationObserver
+    if (!ObserverCtor) return
+    const obs = new ObserverCtor(apply)
     obs.observe(el, { attributes: true, attributeFilter: ['data-theme'] })
     return () => obs.disconnect()
   }, [])
   return mode
 }
-

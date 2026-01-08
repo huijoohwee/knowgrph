@@ -234,8 +234,11 @@ export const renderSafeHtmlBlock = (
       }
 
       if (tag === 'p') {
+        const align = (el.getAttribute('align') || '').toLowerCase()
+        const cls = ['mt-2 mb-2']
+        if (align === 'center') cls.push('text-center')
         return (
-          <p key={key} className="mt-2 mb-2">
+          <p key={key} className={cls.join(' ')}>
             {children}
           </p>
         )
@@ -249,7 +252,12 @@ export const renderSafeHtmlBlock = (
         )
       }
 
-      if (tag === 'div') return <div key={key}>{children}</div>
+      if (tag === 'div') {
+        const align = (el.getAttribute('align') || '').toLowerCase()
+        const cls = []
+        if (align === 'center') cls.push('text-center')
+        return <div key={key} className={cls.length ? cls.join(' ') : undefined}>{children}</div>
+      }
       if (tag === 'span') return <span key={key}>{children}</span>
 
       return <React.Fragment key={key}>{el.textContent || ''}</React.Fragment>

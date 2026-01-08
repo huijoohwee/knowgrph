@@ -6,29 +6,29 @@ export const DEMO_HTML_CONTENT = `
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AIAP Field Guide</title>
+    <title>AI Engineering Field Guide</title>
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Course",
-      "name": "AIAP Field Guide",
+      "name": "AI Engineering Field Guide",
       "description": "A 12 months self-directed AI/ML learning journey to become an AI Engineer.",
       "provider": {
         "@type": "Organization",
-        "name": "AI Singapore",
-        "sameAs": "https://aisingapore.org"
+        "name": "Example AI Lab",
+        "sameAs": "https://example.org"
       }
     }
     </script>
 </head>
 <body>
     <article>
-        <h1>AIAP Field Guide (Version 4.0)</h1>
+        <h1>AI Engineering Field Guide (Version 4.0)</h1>
         <p>A 12 months self-directed AI/ML learning journey to become an AI Engineer.</p>
 
         <details open>
             <summary>Section 1: Fundamentals</summary>
-            <p>These topics are the basics we expect all candidates applying for AIAP to have.</p>
+            <p>These topics are the basics we expect all candidates applying for this programme to have.</p>
             <ul>
                 <li><strong>Programming</strong>: Python is the primary language. You should be comfortable with scripting, virtual environments (venv, conda), and data structures.</li>
                 <li><strong>Data Manipulation</strong>: Proficiency in Pandas and NumPy for data cleaning and analysis is essential.</li>

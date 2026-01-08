@@ -85,10 +85,10 @@ export const TRAVERSAL_PRESETS_SECTION_TOOLTIP = buildRoleActionOutcomeTooltip({
 });
 
 export const TRAVERSAL_EDITOR_AND_LAYERS_SECTION_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Traversal editor and layers',
+  role: 'Traversal editor and Graph Layer',
   actions: [
-    'edit traversal delay, layers, and physics over AgenticRAG GraphData',
-    'coordinate Orchestrator playback, tracing overlays, and 2D/3D Renderer appearance',
+    'edit traversal delay and traversal helpers over AgenticRAG GraphData while keeping layer mode and polygon groups centralized in the Graph Layer tab',
+    'coordinate Orchestrator playback, tracing overlays, and 2D/3D Renderer appearance with schema.layers and polygon defaults configured from the Graph Layer view',
   ],
   outcome:
     'produce readable, repeatable graph navigation tuned to current AgenticRAG graph state.',

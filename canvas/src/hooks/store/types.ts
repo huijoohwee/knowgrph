@@ -133,7 +133,7 @@ export interface GraphState {
   floatingPanelZIndex: number;
   sidebarWidthRatio: number;
   bottomPanelTab: BottomTab;
-  bottomPanelCurationView: 'grid' | 'json' | 'block' | 'markdown';
+  bottomPanelCurationView: 'grid' | 'json' | 'markdown';
   bottomPanelCodeSource: 'graph-json';
   launchSpotlightMode: 'tour' | 'stats';
   enableLaunchSpotlight: boolean;
@@ -192,7 +192,7 @@ export interface GraphState {
   setFloatingPanelZIndex: (v: number) => void;
   setSidebarWidthRatio: (v: number) => void;
   setBottomPanelTab: (tab: BottomTab) => void;
-  setBottomPanelCurationView: (view: 'grid' | 'json' | 'block' | 'markdown') => void;
+  setBottomPanelCurationView: (view: 'grid' | 'json' | 'markdown') => void;
   setLaunchSpotlightMode: (mode: 'tour' | 'stats') => void;
   setEnableLaunchSpotlight: (v: boolean) => void;
   setStatusPanelPinned: (v: boolean) => void;

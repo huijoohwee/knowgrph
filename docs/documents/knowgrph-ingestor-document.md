@@ -1,14 +1,15 @@
-# Knowgrph Source File Ingestor (Markdown, HTML, PDF, JSON, JSON‑LD)
+# Knowgrph Source File Ingestor (Markdown, HTML, PDF, JSON, JSON‑LD, CSV)
 
 ## End‑to‑End Flow (Source Files → Graph → Canvas)
 
 - Entry: Canvas toolbar **Source Files** area (tool menu `area: "sourceFiles"`).
-- Action: User chooses **Import** / **Import (Local)** / **Import (URL)** plus a format:
-  - `markdown`
-  - `html`
-  - `pdf`
-  - `jsonld`
-  - `json`
+6→- Action: User chooses **Import** / **Import (Local)** / **Import (URL)** plus a format:
+7→  - `markdown`
+8→  - `html`
+9→  - `pdf`
+10→  - `jsonld`
+11→  - `json`
+12→  - `csv`
 - Orchestration: `useToolbarMenuAction` routes the action to the appropriate import function:
   - Markdown: `performMarkdownImport`
   - HTML: `performHtmlImport`
@@ -34,7 +35,7 @@ This section describes how each format enters the system, how it is converted, a
   - `importUrl` uses a provided URL payload (bypassing the prompt).
   - `export` writes the current document/graph back out as Markdown/HTML/PDF/JSON/JSON‑LD.
 - Integration:
-  - All import actions end by calling `loadGraphDataFromTextViaParser` (for text formats) or `loadGraphDataViaParser` (for generic CSV/JSON/JSON‑LD).
+37→  - All import actions end by calling `loadGraphDataFromTextViaParser` (for text formats, CSV/JSON/JSON‑LD) or `loadGraphDataViaParser` (for generic parser loads).
   - Import status is tracked in `useParserUIState` (last input, warnings, counts, status message).
 
 ## Markdown Ingestion (Local Files and URLs)
@@ -73,7 +74,7 @@ This section describes how each format enters the system, how it is converted, a
       - Remote Markdown: `https://github.com/chiphuyen/aie-book/blob/main/chapter-summaries.md` (GitHub blob URL).
     - The test asserts that:
       - Media‑capable nodes are present in the graph regardless of the canvas media toggle.
-      - The Bottom Panel Markdown viewer (`BottomPanelMarkdownSection`) renders the same Markdown with `<img>` tags in the preview.
+      - The Bottom Panel Markdown viewer (`BottomPanelMarkdownSection`) renders the same Docusaurus-compatible Markdown with `<img>` tags in the preview, using the canvas markdown‑it pipeline for structure while the Docusaurus site provides the production theme.
   - The global **Render Media as Nodes** canvas toggle:
     - Is available in the main toolbar (image icon, left of the 3D Mode button).
     - Is mirrored in the floating properties panel Media section and the toolbar settings export menu.
@@ -141,11 +142,12 @@ This section describes how each format enters the system, how it is converted, a
   - Extracted images are exposed as image URLs in the converted Markdown.
   - The Markdown parser turns them into `Image` nodes connected via `embedsImage` edges, honoring the global “Render Media as Nodes” setting.
 
-## JSON‑LD and JSON Ingestion
+## JSON‑LD, JSON, and CSV Ingestion
 
 - Entry points:
-  - `Source Files` → `Import` / `Import (Local)` / `Import (URL)` with `format: "jsonld"` or `format: "json"`.
-  - Implementation: `canvas/src/features/toolbar/jsonImportAction.ts` plus the parser registry in `default.ts`.
+-  - `Source Files` → `Import` / `Import (Local)` / `Import (URL)` with `format: "jsonld"` or `format: "json"`.
+-  - `Source Files` → `Import` / `Import (Local)` with `format: "csv"`.
+-  - Implementation: `canvas/src/features/toolbar/jsonImportAction.ts` plus the parser registry in `default.ts`.
 - JSON‑LD:
   - If the top‑level object has `@context`, JSON‑LD import is used.
   - `parseJsonLd`:
@@ -156,10 +158,14 @@ This section describes how each format enters the system, how it is converted, a
     - Remain as node properties.
     - Are interpreted by the renderer via `getNodeMediaSpec`, which normalizes GitHub `blob` URLs to their `raw.githubusercontent.com` equivalents and uses the same `/__fetch_remote?url=…` proxy endpoint that the ingestor uses when rendering media inside the canvas.
 - JSON:
-  - If the JSON has `nodes` and `edges` arrays, they are used as‑is.
-  - Otherwise, `rawToGraphData` wraps the data into a `GraphData` object:
-    - `RawNode.data` becomes `GraphNode.properties`.
-    - Any media‑related fields present (`media_url`, `media_kind`, etc.) will be available to the renderer.
+-  - If the JSON has `nodes` and `edges` arrays, they are used as‑is.
+-  - Otherwise, `rawToGraphData` wraps the data into a `GraphData` object:
+-    - `RawNode.data` becomes `GraphNode.properties`.
+-    - Any media‑related fields present (`media_url`, `media_kind`, etc.) will be available to the renderer.
+- CSV:
+-  - Ingestion uses the CSV parser spec in `default.ts` (`csvSpec`).
+-  - Tabular rows are mapped into nodes and edges based on column semantics.
+-  - The imported CSV is also wrapped in a fenced Markdown block and stored as the active Markdown document so it appears in the Markdown preview bottom panel.
 
 ## Media Rendering Across Formats
 

@@ -38,13 +38,14 @@ import {
 } from '@/features/parsers/workflowPresets'
 
 const PRESET_ID_BY_EXAMPLE_ID: Record<ExampleId, string> = {
-  sampleInvestorsTop3: 'sample-investors-top3-3d',
-  aiKgViz: 'ai-kg-viz',
-  aiCustomerVoiceManagement: 'ai-customer-voice-management',
+  sampleTop3Portfolio: 'sample-investors-top3-3d',
+  genericKgVisualization: 'ai-kg-viz',
+  customerVoiceManagement: 'customerVoiceManagement',
   universalLeanStartup: 'universal-lean-startup-kg',
-  a0Investors: 'a0-investors-kg',
+  investorsJsonLd: 'a0-investors-kg',
   ventureCapitalPortfolio: 'venture-capital-portfolio',
-  interviewerWorkflow: 'aiap22-interviewer-workflow',
+  exampleWorkflow: 'example-workflow',
+  multiOntologyWorkflow: 'multi-ontology-kg',
 }
 
 const ensureExt = (name: string, allowed: string[], fallback: string): string => {

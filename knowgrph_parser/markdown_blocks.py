@@ -27,24 +27,95 @@ def split_lines(text: str) -> List[str]:
     return lines
 
 
-def parse_frontmatter(lines: List[str]) -> Tuple[Dict[str, str], int]:
+def parse_frontmatter(lines: List[str]) -> Tuple[Dict[str, Any], int]:
     if not lines or lines[0].strip() != "---":
         return {}, 0
-    meta: Dict[str, str] = {}
-    for i in range(1, len(lines)):
-        if lines[i].strip() == "---":
-            return meta, i + 1
-        raw = lines[i].strip()
+    meta: Dict[str, Any] = {}
+    current_list_key: Optional[str] = None
+    current_item: Optional[Dict[str, Any]] = None
+    items: List[Any] = []
+    end_index = 0
+    i = 1
+    while i < len(lines):
+        raw = (lines[i] or "").strip()
+        if raw == "---":
+            end_index = i + 1
+            break
+        if current_list_key == "ontologies":
+            if not raw:
+                i += 1
+                continue
+            if raw.startswith("- "):
+                if current_item:
+                    items.append(current_item)
+                payload = raw[2:].strip()
+                if payload and ":" in payload:
+                    k, v = payload.split(":", 1)
+                    current_item = {k.strip(): v.strip()}
+                elif payload:
+                    current_item = {"value": payload}
+                else:
+                    current_item = {}
+                i += 1
+                continue
+            if raw.startswith("prefix:") or raw.startswith("iri:"):
+                if current_item is None:
+                    current_item = {}
+                k, v = raw.split(":", 1)
+                current_item[k.strip()] = v.strip()
+                i += 1
+                continue
+            if current_item:
+                items.append(current_item)
+            meta["ontologies"] = items
+            current_list_key = None
+            current_item = None
+            items = []
+            continue
+        if current_list_key == "polygonLayers":
+            if raw.startswith("- "):
+                payload = raw[2:].strip()
+                if payload:
+                    items.append(payload)
+                i += 1
+                continue
+            meta["polygonLayers"] = items
+            current_list_key = None
+            items = []
+            continue
         if not raw or raw.startswith("#"):
+            i += 1
+            continue
+        if raw == "ontologies:":
+            current_list_key = "ontologies"
+            current_item = None
+            items = []
+            i += 1
+            continue
+        if raw == "polygonLayers:":
+            current_list_key = "polygonLayers"
+            current_item = None
+            items = []
+            i += 1
             continue
         if ":" not in raw:
+            i += 1
             continue
         k, v = raw.split(":", 1)
         key = k.strip()
         val = v.strip()
         if key:
             meta[key] = val
-    return meta, 0
+        i += 1
+    if current_list_key == "ontologies":
+        if current_item:
+            items.append(current_item)
+        if "ontologies" not in meta:
+            meta["ontologies"] = items
+    elif current_list_key == "polygonLayers":
+        if "polygonLayers" not in meta:
+            meta["polygonLayers"] = items
+    return meta, end_index
 
 
 def is_table_sep(line: str) -> bool:
@@ -194,4 +265,3 @@ def extract_links(text: str) -> List[Tuple[str, str]]:
         if label and url:
             out.append((label, url))
     return out
-

@@ -1,5 +1,4 @@
 import React from 'react'
-import type { GraphSchema } from '@/lib/graph/schema'
 import {
   DUCKDB_SQL_FIELD_TOOLTIP,
   DUCKDB_QUERY_PRESETS_TOOLTIP,
@@ -11,7 +10,6 @@ import type { DuckDbQueryConfig } from '@/features/panels/utils/graphragConfig'
 import { TraversalPresetSection } from '@/features/panels/views/RenderPresetSection'
 import { OrchestratorTraversalSectionContent } from '@/features/panels/views/OrchestratorTraversalSection'
 import { buildOrchestratorTraversalSectionViewModel } from '@/features/panels/views/OrchestratorTraversalSectionModel'
-import AiKgLayersSection from '@/features/panels/views/AiKgLayersSection'
 import type { GraphRagPathHelper } from '@/features/panels/views/OrchestratorTraversalPanelsModel'
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
@@ -539,37 +537,14 @@ export function OrchestratorTraversalPresetsSection({
 
 interface OrchestratorTraversalAndLayersSectionProps {
   traversalViewModel: ReturnType<typeof buildOrchestratorTraversalSectionViewModel>
-  schema: GraphSchema
-  setSchema: (schema: GraphSchema) => void
-  setThreeConfig: (config: Partial<GraphSchema['three']>) => void
-  setCharge: (value: number) => void
-  setCollisionByType: (type: string, radius: number) => void
-  traversalDelayMs: number
-  onChangeTraversalDelayMs: (value: number) => void
 }
 
 export function OrchestratorTraversalAndLayersSection({
   traversalViewModel,
-  schema,
-  setSchema,
-  setThreeConfig,
-  setCharge,
-  setCollisionByType,
-  traversalDelayMs,
-  onChangeTraversalDelayMs,
 }: OrchestratorTraversalAndLayersSectionProps) {
   return (
     <>
       <OrchestratorTraversalSectionContent viewModel={traversalViewModel} />
-      <AiKgLayersSection
-        schema={schema}
-        setSchema={setSchema}
-        setThreeConfig={setThreeConfig}
-        setCharge={setCharge}
-        setCollisionByType={setCollisionByType}
-        traversalDelayMs={traversalDelayMs}
-        setTraversalDelayMs={onChangeTraversalDelayMs}
-      />
     </>
   )
 }

@@ -330,27 +330,12 @@ export function WorkflowSteps({
               <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500`}>
                 GraphRAG config layers:
                 {' '}
-                GraphRAG CLI YAML under
-                {' '}
-                <span className={`${uiPanelMonospaceTextClass} break-all`}>configs/graphrag/...</span>
-                {' '}
-                is converted into the workflow JSON-LD shown here and can be wired into orchestrator configs via
+                GraphRAG CLI YAML under a configs/graphrag directory is converted into the workflow JSON-LD shown here and can be wired into orchestrator configs via
                 {' '}
                 <span className={`${uiPanelMonospaceTextClass} break-all`}>graph.workflow_json</span>
-                ; for AIAP22 this typically comes from
-                {' '}
-                <span className={`${uiPanelMonospaceTextClass} break-all`}>configs/graphrag/aiap22-codebase-config.yaml</span>
-                {' '}
-                and is materialized as
-                {' '}
-                <span className={`${uiPanelMonospaceTextClass} break-all`}>data/graphrag/aiap22-graphrag-workflow.jsonld</span>
                 .
                 {' '}
-                In this Workflow tab, use Import to load that JSON-LD document or, via the Orchestrator Tool Menu, import the
-                {' '}
-                <span className={`${uiPanelMonospaceTextClass} break-all`}>configs/graphrag/aiap22-codebase-config.yaml</span>
-                {' '}
-                file so the editor reflects the same GraphRAG workflow used by the offline AIAP22 pipeline.
+                In this Workflow tab, use Import to load that JSON-LD document or, via the Orchestrator Tool Menu, import the corresponding GraphRAG CLI YAML so the editor reflects the same GraphRAG workflow used by offline pipelines.
               </div>
             </div>
             <div className="flex items-center gap-1">

@@ -13,6 +13,7 @@ export const UI_ANCHORS = {
   ragGraphRAGWorkflow: 'rag:GraphRAGWorkflow',
   searchNode: 'search:node',
   searchEdge: 'search:edge',
+  helpLayerPolygons: 'help:layerPolygons',
 } as const;
 
 export type UiAnchorId = (typeof UI_ANCHORS)[keyof typeof UI_ANCHORS];
@@ -35,6 +36,7 @@ export const UI_SELECTORS = {
 
 export const UI_LABELS = {
   sourceFiles: 'Source Files',
+  csv: 'CSV',
   graphFields: 'Graph Fields',
   previewPanel: 'Preview Panel',
   search: 'Graph Search',

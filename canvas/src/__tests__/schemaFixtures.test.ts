@@ -163,24 +163,24 @@ export const testMiniVizComputesOnSelectionSubgraph = async () => {
     selectionEdgeIds: selectedEdgeId ? [selectedEdgeId] : [],
   }
   const sub = buildSelectionSubgraphForAnchorIds(dataGraph, selectionAnchorIds)
-  if (!sub) throw new Error('aiap22 selection subgraph is null')
+  if (!sub) throw new Error('example selection subgraph is null')
   const legacySub = buildSelectionSubgraphForIds(
     dataGraph,
     selectionAnchorIds.selectionNodeIds,
     selectionAnchorIds.selectionEdgeIds,
   )
-  if (!legacySub) throw new Error('aiap22 legacy selection subgraph is null')
+  if (!legacySub) throw new Error('example legacy selection subgraph is null')
   if (legacySub.nodes.length !== sub.nodes.length || legacySub.edges.length !== sub.edges.length) {
-    throw new Error('aiap22 selection subgraph mismatch between anchor and ids helpers')
+    throw new Error('example selection subgraph mismatch between anchor and ids helpers')
   }
-  if (sub.nodes.length === 0) throw new Error('aiap22 selection subgraph has no nodes')
+  if (sub.nodes.length === 0) throw new Error('example selection subgraph has no nodes')
 
   const nodeTypes = new Map<string, number>()
   for (const node of sub.nodes) {
     const key = node && typeof node.type === 'string' && node.type.trim() ? node.type.trim() : 'node'
     nodeTypes.set(key, (nodeTypes.get(key) || 0) + 1)
   }
-  if (nodeTypes.size === 0) throw new Error('aiap22 node type distribution empty')
+  if (nodeTypes.size === 0) throw new Error('example node type distribution empty')
 
   const edgeLabels = new Map<string, number>()
   for (const edge of sub.edges) {
@@ -207,7 +207,7 @@ export const testMiniVizComputesOnSelectionSubgraph = async () => {
   const root = d3.hierarchy(rootData)
   const cluster = d3.cluster<typeof rootData>().size([2 * Math.PI, 32])
   cluster(root)
-  if (root.links().length === 0) throw new Error('aiap22 cluster links empty')
+  if (root.links().length === 0) throw new Error('example cluster links empty')
 
   const degreeById = new Map<string, number>()
   for (const edge of sub.edges) {
@@ -220,7 +220,7 @@ export const testMiniVizComputesOnSelectionSubgraph = async () => {
   degreeById.forEach(v => {
     if (v > 0 && Number.isFinite(v)) degrees.push(v)
   })
-  if (degrees.length === 0) throw new Error('aiap22 degrees empty')
+  if (degrees.length === 0) throw new Error('example degrees empty')
   degrees.sort((a, b) => a - b)
   const minDegree = degrees[0]
   const maxDegree = degrees[degrees.length - 1]
@@ -239,13 +239,13 @@ export const testMiniVizComputesOnSelectionSubgraph = async () => {
     points.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)])
   }
   const hull = d3.polygonHull(points) ?? points
-  if (hull.length < 3) throw new Error('aiap22 hull too small')
+  if (hull.length < 3) throw new Error('example hull too small')
   const hullPath = d3.path()
   hullPath.moveTo(hull[0][0], hull[0][1])
   for (let i = 1; i < hull.length; i += 1) hullPath.lineTo(hull[i][0], hull[i][1])
   hullPath.closePath()
   const hullD = hullPath.toString()
-  if (!hullD) throw new Error('aiap22 hull path empty')
+  if (!hullD) throw new Error('example hull path empty')
 
   const countsByLength = new Map<number, number>()
   for (const edge of sub.edges) {
@@ -255,9 +255,9 @@ export const testMiniVizComputesOnSelectionSubgraph = async () => {
     countsByLength.set(length, (countsByLength.get(length) || 0) + 1)
   }
   const entries = Array.from(countsByLength.entries()).sort((a, b) => a[0] - b[0])
-  if (entries.length === 0) throw new Error('aiap22 path entries empty')
+  if (entries.length === 0) throw new Error('example path entries empty')
   const maxCount = entries.reduce((acc, [, v]) => (v > acc ? v : acc), 0)
-  if (!Number.isFinite(maxCount) || maxCount <= 0) throw new Error('aiap22 path maxCount invalid')
+  if (!Number.isFinite(maxCount) || maxCount <= 0) throw new Error('example path maxCount invalid')
   const path = d3.path()
   for (let i = 0; i < entries.length; i += 1) {
     const [, count] = entries[i]
@@ -267,7 +267,7 @@ export const testMiniVizComputesOnSelectionSubgraph = async () => {
     else path.lineTo(x, y)
   }
   const sparkD = path.toString()
-  if (!sparkD) throw new Error('aiap22 spark path empty')
+  if (!sparkD) throw new Error('example spark path empty')
 }
 
 export const testSchemaJsonLdRoundTripPreservesLayers = async () => {
@@ -308,7 +308,7 @@ export const testSchemaJsonLdRoundTripPreservesLayers = async () => {
   }
 }
 
-export const testInterviewerSchemaSnippetParsesHiddenNodeTypes = async () => {
+export const testExampleWorkflowSchemaSnippetParsesHiddenNodeTypes = async () => {
   const rawJsonLd: unknown = {
     '@context': { kg: 'http://example.org/kg#' },
     layers: {
@@ -323,32 +323,32 @@ export const testInterviewerSchemaSnippetParsesHiddenNodeTypes = async () => {
   await Promise.resolve()
   const schema = validateSchema(schemaFromJsonLd(rawJsonLd))
   if (schema.layers?.mode !== 'semantic') {
-    throw new Error('interviewer schema snippet did not set layers.mode to semantic')
+    throw new Error('example workflow schema snippet did not set layers.mode to semantic')
   }
   const hidden = schema.layers?.semantic?.hiddenNodeTypes
   if (!hidden || !Array.isArray(hidden) || hidden.length === 0) {
-    throw new Error('interviewer schema snippet missing hiddenNodeTypes')
+    throw new Error('example workflow schema snippet missing hiddenNodeTypes')
   }
   if (!hidden.includes('geo:Polygon')) {
-    throw new Error('interviewer schema snippet hiddenNodeTypes does not include geo:Polygon')
+    throw new Error('example workflow schema snippet hiddenNodeTypes does not include geo:Polygon')
   }
 }
 
-export const testInterviewerJsonLdSemanticVsDocumentStructureLayers = async () => {
-  const url = new URL('../../../docs/assets/interviewer.jsonld', import.meta.url)
+export const testExampleWorkflowJsonLdSemanticVsDocumentStructureLayers = async () => {
+  const url = new URL('../../../docs/assets/example-workflow.jsonld', import.meta.url)
   const text = await readTextFromUrl(url)
   const raw = parseJsonUnknown(text)
   const graph = parseJsonLd(raw) as GraphData
   if (!graph || !Array.isArray(graph.nodes) || graph.nodes.length === 0) {
-    throw new Error('interviewer graph has no nodes')
+    throw new Error('example workflow graph has no nodes')
   }
   if (!Array.isArray(graph.edges) || graph.edges.length === 0) {
-    throw new Error('interviewer graph has no edges')
+    throw new Error('example workflow graph has no edges')
   }
   const polygonType = 'geo:Polygon'
   const hasPolygonNodes = graph.nodes.some(n => String(n.type || '') === polygonType)
   if (!hasPolygonNodes) {
-    throw new Error('interviewer graph has no geo:Polygon nodes to validate layer behavior')
+    throw new Error('example workflow graph has no geo:Polygon nodes to validate layer behavior')
   }
   const baseSchema = validateSchema({
     layers: {
@@ -406,15 +406,15 @@ export const testInterviewerJsonLdSemanticVsDocumentStructureLayers = async () =
   const docEdges = visibleEdgesForSchema(docSchema)
   const semEdges = visibleEdgesForSchema(semSchema)
   if (docNodes.length !== graph.nodes.length) {
-    throw new Error('document-structure layer should not hide nodes for interviewer graph')
+    throw new Error('document-structure layer should not hide nodes for example workflow graph')
   }
   if (docEdges.length !== graph.edges.length) {
-    throw new Error('document-structure layer should not hide edges for interviewer graph')
+    throw new Error('document-structure layer should not hide edges for example workflow graph')
   }
   if (semNodes.length >= docNodes.length) {
-    throw new Error('semantic layer did not hide any nodes for interviewer graph')
+    throw new Error('semantic layer did not hide any nodes for example workflow graph')
   }
   if (semEdges.length >= docEdges.length) {
-    throw new Error('semantic layer did not hide any edges for interviewer graph')
+    throw new Error('semantic layer did not hide any edges for example workflow graph')
   }
 }

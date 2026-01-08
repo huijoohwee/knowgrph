@@ -134,18 +134,18 @@ output_dir:
 **Interface Pattern**:
 `main` -> `_list_markdown_files` -> `parse_markdown_to_graph_jsonld` (loop) -> `_unify_entities_across_docs` (DocumentUnifier) -> `build_schema_config_jsonld` -> writes artifacts -> O(docs * tokens).
 
-### Module: `knowgrph_parser.markdown_graph`
+### Module: `knowgrph_parser.graph_builder`
 
-**From single Markdown file to Graph JSON‑LD document**: Module -> parses blocks -> tokenizes text -> extracts entities and edges -> builds connected graph.
+**From single Markdown file to Graph JSON‑LD document**: graph_builder parses blocks into structural nodes and edges, then optionally runs semantic processing to emit entities, mentions, and semantic relations before returning a connected JSON‑LD graph.
 
 **Key behaviors**:
 
-- **TokenLinker Layer**: `_tokenize_with_offsets` + `_merge_tokens_to_spans` (L154–196) identify entities based on phrase boundaries and capitalization.
-- **EdgeElevator Layer**: `_extract_sentence_features` + `_token_kind_score` lift co-occurrence into semantic edges with temporal/modal attributes.
-- **Auto-tuning**: Dynamically adjusts `phrase_boundary_threshold` based on sentence statistics.
+- Structural layer: `_process_blocks` builds `Document`, `Section`, `Paragraph`, `CodeBlock`, `Table`, `List`, and `ListItem` nodes plus `hasSection`, `hasBlock`, `hasItem`, `linksTo`, and `next` edges with provenance metadata.
+- Semantic hook: `process_semantics` (from `semantic_processor`) consumes `semantic_sources` and attaches `Entity` / `Mention` nodes and semantic edges such as `semanticRelation` and `coOccursWith`.
+- Auto-tuning: Semantic defaults (phrase boundaries, edge thresholds, pattern support, centrality) are configurable via environment, frontmatter, or explicit `semantic_config` overrides.
 
 **Interface Pattern**:
-`parse_markdown_to_graph_jsonld(file_path, ...)` -> `_parse_frontmatter` -> `parse_blocks` -> `_merge_tokens_to_spans` -> `_extract_sentence_features` -> returns dict with `@graph` and `metadata`.
+`parse_markdown_to_graph_jsonld(file_path, ...)` -> `parse_frontmatter` -> `parse_blocks` + `_process_blocks` -> `process_semantics` (optional) -> returns dict with `@graph` and `metadata`.
 ## Component Responsibility Matrix
 
 | Layer      | Path                                             | Component                | Interface/Method                 | Responsibility (S‑V‑O)                                                          | Dependencies                         | Contracts                                      | LOC    |
@@ -154,9 +154,9 @@ output_dir:
 | Indexing  | `knowgrph_parser/codebase_index_jsonld.py`       | —                        | `build_jsonld`                  | JsonLdBuilder converts workflow nodes/edges into AgenticRAG index JSON‑LD    | `.codebase_index_artifacts`, `.runtime_events` | JSON‑LD `@context`, `@graph`, `metadata`      | ~17–271 |
 | Indexing  | `knowgrph_parser/python_codebase_index_cmd.py`   | —                        | `main`                          | PythonIndexCli walks codebase and writes JSON‑LD, schema, orchestrator files | `.python_codebase_index_document`, `.python_codebase_index_graph` | Codebase index JSON‑LD + configs | ~22–112 |
 | Indexing  | `knowgrph_parser/python_codebase_index_document.py` | —                     | `build_jsonld_document`         | PythonJsonLdBuilder maps GraphNodeRecord objects into AgenticRAG JSON‑LD     | `.runtime_events`, `.codebase_index_artifacts` | JSON‑LD `@context`, `@graph`, `metadata.layers` | ~118–227 |
-| Semantic  | `knowgrph_parser/markdown_cmd.py`                | DocumentUnifier          | `_unify_entities_across_docs`   | Unifier merges entities across docs -> resolves canonical IDs (L102–165)      | `.markdown_graph`, `.schema_config`  | JSON‑LD `@graph`, canonical entity IDs         | ~200+  |
-| Semantic  | `knowgrph_parser/markdown_graph.py`              | TokenLinker              | `_merge_tokens_to_spans`        | TokenLinker merges tokens to spans -> identifies entities (L154–196)          | `re`, `.markdown_blocks`             | Token spans, confidence scores                 | ~900+  |
-| Semantic  | `knowgrph_parser/markdown_graph.py`              | EdgeElevator             | `_extract_sentence_features`    | EdgeElevator extracts sentence features -> enriches edges (L218–236)          | `re`                                 | Edge attributes (temporal, modal)              | ~900+  |
+| Semantic  | `knowgrph_parser/markdown_cmd.py`                | DocumentUnifier          | `_unify_entities_across_docs`   | Unifier merges entities across docs -> resolves canonical IDs (L102–165)      | `.graph_builder`, `.schema_config`   | JSON‑LD `@graph`, canonical entity IDs         | ~200+  |
+| Semantic  | `knowgrph_parser/semantic_processor.py`          | TokenLinker              | `merge_tokens_to_spans`         | TokenLinker merges tokens to spans -> identifies entities based on phrase boundaries | `.token_linker`, `.markdown_blocks`  | Token spans, confidence scores                 | ~200+  |
+| Semantic  | `knowgrph_parser/semantic_processor.py`          | EdgeElevator             | `extract_sentence_features`     | EdgeElevator extracts sentence features -> enriches edges with temporal/modal attributes | `.edge_elevator`                     | Edge attributes (temporal, modal)              | ~200+  |
 
 ---
 
@@ -194,7 +194,8 @@ knowgrph/
 │   ├── codebase_index_cmd.py
 │   ├── codebase_index_jsonld.py
 │   ├── markdown_cmd.py
-│   ├── markdown_graph.py
+│   ├── graph_builder.py
+│   ├── semantic_processor.py
 │   ├── python_codebase_index_cmd.py
 │   ├── python_codebase_index_document.py
 │   ├── python_codebase_index_graph.py

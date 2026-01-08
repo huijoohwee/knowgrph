@@ -174,7 +174,6 @@ export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   'Canvas: Tidy tree layout renders an uncluttered parent→child tree using configured edge labels; non-tree edges are omitted so curved links and label LOD stay readable on large graphs.',
   'Markdown: Toolbar → Floating Panel → Markdown → Import loads a Markdown document into the Bottom Panel Markdown editor/viewer.',
   'Markdown: Presentation Mode renders slides split by standalone --- separators (blank line padded) and scales to 16:9; Arrow keys / PageUp / PageDown navigate.',
-  'Markdown: MDX slides allow JSX components in the markdown body (e.g., Alert, Chart, LiveCode, Mermaid).',
   'Mermaid: Double-click a rendered diagram to open a full-screen viewer with Fit and zoom controls (wheel zoom, drag pan).',
 ] as const
 

@@ -8,7 +8,7 @@ The "Demo" button allows users to quickly experience the Agentic RAG pipeline wi
 
 ### Workflow
 
-1.  **Load Sample Data**: The system loads the **AIAP Field Guide (Version 4.0)** content into the workspace.
+1.  **Load Sample Data**: The system loads the **AI Engineering Field Guide (Version 4.0)** content into the workspace.
     *   Content covers Fundamentals (Python, SQL), Machine Learning (Scikit-learn), Deep Learning (TensorFlow, PyTorch), Ethics, and Practice.
 2.  **Client-Side Pipeline Execution**: The `AgenticRagPipeline` runs entirely in the browser.
     *   **Token Linking**: Identifies entities and tracks provenance (line numbers).
@@ -31,6 +31,6 @@ The "Demo" button allows users to quickly experience the Agentic RAG pipeline wi
 *   **Entry Point**: `handleRunDemo` in `ToolbarMenuLauncher.tsx`.
 *   **Implementation**: `runAgenticRagDemo` in `src/__tests__/demo/runner.ts`.
 *   **Data Ingestion**: `src/features/parsers/html-parser.ts` converts HTML to Markdown, handling collapsed sections (`<details>`) and extracting JSON-LD.
-*   **Data Source**: `src/__tests__/demo/data.ts` (HTML content mirroring AIAP Field Guide).
+*   **Data Source**: `src/__tests__/demo/data.ts` (HTML content mirroring the neutral AI Engineering Field Guide).
 *   **Pipeline**: Uses `AgenticRagPipeline` from `@/features/agentic-rag`.
 *   **Configuration**: Uses `DEFAULT_AGENTIC_RAG_CONFIG`.

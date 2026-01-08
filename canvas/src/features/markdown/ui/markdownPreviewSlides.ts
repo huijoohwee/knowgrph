@@ -9,19 +9,6 @@ export type Slide = {
   notes: string | null
 }
 
-export const isTruthyString = (raw: unknown): boolean => {
-  const s = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
-  if (!s) return false
-  return s === 'true' || s === '1' || s === 'yes' || s === 'y' || s === 'on'
-}
-
-export const looksLikeMdx = (raw: string): boolean => {
-  const text = String(raw || '')
-  if (/^\s*(import|export)\s/m.test(text)) return true
-  if (/<[A-Z][A-Za-z0-9_.-]*[\s>]/.test(text)) return true
-  return false
-}
-
 const stripSlideNotes = (lines: string[]): { lines: string[]; notes: string | null } => {
   let end = lines.length
   while (end > 0 && !(lines[end - 1] || '').trim()) end -= 1
@@ -85,4 +72,3 @@ export const splitSlides = (markdownText: string): { headMeta: MarkdownFrontmatt
 
   return { headMeta, slides: slides.length ? slides : [{ index: 0, startLine: 1, endLine: lines.length || 1, meta: {}, text: markdownText || '', notes: null }] }
 }
-

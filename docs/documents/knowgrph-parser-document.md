@@ -43,6 +43,7 @@
   - Single-tag `<img>`, `<video>`, and `<iframe>` blocks are rendered via [MarkdownHtmlBlock.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/MarkdownHtmlBlock.tsx) using `isSafeHref`, `isSafeMediaSrc`, and `resolveHref` from [markdownPreviewLinks.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx).
   - More complex HTML wrappers (for example `<center><img src="assets/rlhf.png" width="800"><br>…</center>`) are parsed with `DOMParser` via `renderSafeHtmlBlock`, which walks the DOM tree, applies the same safety checks, and resolves relative `src` attributes against the active markdown document path, so Canvas can render media from HTML blocks with relative assets as long as they satisfy the generic relative-path safety regex.
 - The previous `Marked` dependency has been fully removed; all markdown parsing in the canvas now flows through the `markdown-it` parser and internal token adapters.
+- Authoring for architecture and workflow docs uses Docusaurus-compatible Markdown in `docs/documents/`; Canvas previews those same files via the markdown-it pipeline for structural debugging and media verification, while the Docusaurus static site remains the source of truth for production theming and navigation.
 
 ## HTML → Markdown Conversion
 

@@ -1,55 +1,17 @@
 import React from 'react'
 import { lexMarkdown, lexMarkdownContent } from '@/features/markdown/ui/markdownPreviewLex'
-import { UI_COPY } from '@/lib/config'
 import { LS_KEYS } from '@/lib/config'
 import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
 import {
   parseMermaidConfigFromFrontmatter,
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
-import { isTruthyString, looksLikeMdx, splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
-import { Alert, Chart, LiveCode, Mermaid } from '@/features/markdown/ui/mdxComponents'
+import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
-import * as jsxRuntime from 'react/jsx-runtime'
 
 type HighlightedLineRange = { start: number; end: number } | null
-
-const MDX_COMPONENTS = {
-  Alert,
-  Chart,
-  LiveCode,
-  Mermaid,
-  h1: (props: React.ComponentPropsWithoutRef<'h1'>) => (
-    <h1 {...props} className="text-3xl font-semibold mt-5 mb-2" />
-  ),
-  h2: (props: React.ComponentPropsWithoutRef<'h2'>) => (
-    <h2 {...props} className="text-2xl font-semibold mt-5 mb-2" />
-  ),
-  h3: (props: React.ComponentPropsWithoutRef<'h3'>) => (
-    <h3 {...props} className="text-xl font-semibold mt-5 mb-2" />
-  ),
-  p: (props: React.ComponentPropsWithoutRef<'p'>) => (
-    <p {...props} className="text-base leading-relaxed mt-2 mb-2" />
-  ),
-  ul: (props: React.ComponentPropsWithoutRef<'ul'>) => (
-    <ul {...props} className="list-disc pl-5 text-base leading-relaxed my-3" />
-  ),
-  ol: (props: React.ComponentPropsWithoutRef<'ol'>) => (
-    <ol {...props} className="list-decimal pl-5 text-base leading-relaxed my-3" />
-  ),
-  li: (props: React.ComponentPropsWithoutRef<'li'>) => <li {...props} className="my-1" />,
-  hr: (props: React.ComponentPropsWithoutRef<'hr'>) => (
-    <hr {...props} className="my-4 border-gray-200" />
-  ),
-  pre: (props: React.ComponentPropsWithoutRef<'pre'>) => (
-    <pre {...props} className="mt-3 mb-3 p-3 rounded border border-gray-200 bg-gray-50 overflow-auto" />
-  ),
-  code: (props: React.ComponentPropsWithoutRef<'code'>) => (
-    <code {...props} className="font-mono text-xs" />
-  ),
-}
 
 export type MarkdownPreviewPresentationApi = {
   prev: () => void
@@ -73,6 +35,8 @@ type MarkdownPreviewProps = {
   uiPanelMonospaceTextClass: string
   previewOverlayScope?: 'viewport' | 'container'
   previewOverlayPortalTarget?: HTMLElement | null
+  previewScrollable?: boolean
+  onScroll?: (event: React.UIEvent<HTMLDivElement>) => void
 }
 
 const normalizeSlideOrder = (prev: number[], slideCount: number): number[] => {
@@ -105,6 +69,8 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     uiPanelMonospaceTextClass,
     previewOverlayScope = 'viewport',
     previewOverlayPortalTarget,
+    previewScrollable = true,
+    onScroll,
   },
   ref,
   ) {
@@ -119,11 +85,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
 
   const { headMeta, slides } = React.useMemo(() => splitSlides(markdownText || ''), [markdownText])
   const mermaidFrontmatterConfig = React.useMemo(() => parseMermaidConfigFromFrontmatter(headMeta), [headMeta])
-
-  const mdxEnabled = React.useMemo(
-    () => isTruthyString(headMeta.mdx) || isTruthyString(headMeta.slidevMdx) || looksLikeMdx(markdownText || ''),
-    [headMeta, markdownText],
-  )
 
   const [activeSlideIndex, setActiveSlideIndex] = React.useState(0)
   const [isSlidesFullscreenOpen, setIsSlidesFullscreenOpen] = React.useState(false)
@@ -212,66 +173,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     const availableH = Math.max(1, presentationViewport.h)
     return Math.max(0.05, Math.min(availableW / baseSlideSize.w, availableH / baseSlideSize.h))
   }, [baseSlideSize.h, baseSlideSize.w, presentationViewport.h, presentationViewport.w])
-
-  type MdxContentComponent = React.ComponentType<Record<string, unknown>>
-  const mdxCacheRef = React.useRef<Map<string, MdxContentComponent>>(new Map())
-  const [mdxContent, setMdxContent] = React.useState<MdxContentComponent | null>(null)
-  const [mdxError, setMdxError] = React.useState<string | null>(null)
-
-  React.useEffect(() => {
-    if (!markdownPresentationMode || !mdxEnabled) {
-      setMdxContent(null)
-      setMdxError(null)
-      return
-    }
-    const slide = activeSlide
-    const key = `${slide.startLine}:${slide.text}`
-    const cached = mdxCacheRef.current.get(key)
-    if (cached) {
-      setMdxContent(() => cached)
-      setMdxError(null)
-      return
-    }
-    let cancelled = false
-    setMdxContent(null)
-    setMdxError(null)
-    void (async () => {
-      try {
-        const mod = await import('@mdx-js/mdx')
-        const gfm = await import('remark-gfm')
-        if (cancelled) return
-        const remarkGfm: unknown = (gfm as { default?: unknown }).default
-        const evaluate: ((value: string, options: Record<string, unknown>) => Promise<unknown>) | undefined = (
-          mod as { evaluate?: unknown }
-        ).evaluate as ((value: string, options: Record<string, unknown>) => Promise<unknown>) | undefined
-        if (!evaluate) throw new Error('MDX evaluate() is not available')
-        const evaluated = await evaluate(slide.text || '', {
-          ...jsxRuntime,
-          useDynamicImport: true,
-          remarkPlugins: typeof remarkGfm === 'function' ? [remarkGfm] : [],
-          development: false,
-        })
-        if (cancelled) return
-        const Content =
-          typeof evaluated === 'object' && evaluated != null && 'default' in evaluated
-            ? ((evaluated as { default?: unknown }).default as unknown)
-            : undefined
-        const Component = typeof Content === 'function' ? (Content as MdxContentComponent) : undefined
-        if (!Component) throw new Error('MDX did not produce a component')
-        mdxCacheRef.current.set(key, Component)
-        setMdxContent(() => Component)
-        setMdxError(null)
-      } catch (e) {
-        if (cancelled) return
-        const msg = e instanceof Error ? e.message : String(e)
-        setMdxError(msg || 'MDX render failed')
-        setMdxContent(null)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [activeSlide, markdownPresentationMode, mdxEnabled])
 
   const { tokens } = React.useMemo(() => lexMarkdown(markdownText || ''), [markdownText])
 
@@ -385,21 +286,12 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     const slideOuterClass =
       layout === 'center'
         ? 'w-full h-full flex items-center justify-center'
-        : 'w-full h-full'
-    const SlideMdx = mdxContent
-    const slideContent = mdxEnabled ? (
-      mdxError ? (
-        <pre className="p-3 rounded border border-gray-200 bg-gray-50 overflow-auto text-xs font-mono whitespace-pre-wrap">
-          {mdxError}
-        </pre>
-      ) : SlideMdx ? (
-        <SlideMdx components={MDX_COMPONENTS} />
-      ) : (
-        <div className="text-xs text-gray-500">{UI_COPY.markdownPreviewSlideLoadingLabel}</div>
-      )
-    ) : (
-      <>{slideBody}</>
-    )
+        : 'w-full h-full flex'
+    const slideContentClass =
+      layout === 'center'
+        ? 'max-w-4xl max-h-full px-12 py-10 overflow-auto mx-auto flex items-center justify-center'
+        : 'w-full h-full px-12 py-10 overflow-auto'
+    const slideContent = slideBody
     return (
       <>
         <div
@@ -435,7 +327,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
                   onDoubleClick={() => setIsSlidesFullscreenOpen(true)}
                 >
                   <div className={slideOuterClass}>
-                    <div className="w-full h-full px-12 py-10 overflow-auto">
+                    <div className={slideContentClass}>
                       {slideContent}
                     </div>
                   </div>
@@ -485,9 +377,9 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
                       slideClass,
                     ].filter(Boolean).join(' ')}
                     style={slideStyle}
-                  >
-                    <div className={slideOuterClass}>
-                      <div className="w-full h-full px-12 py-10 overflow-auto">
+                >
+                  <div className={slideOuterClass}>
+                      <div className={slideContentClass}>
                         {slideContent}
                       </div>
                     </div>
@@ -501,18 +393,20 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     )
   }
 
+  const scrollClass = previewScrollable ? 'overflow-auto' : 'overflow-hidden'
+
   return (
     <div
       ref={setRootRef}
+      onScroll={onScroll}
       className={[
-        'flex-1 min-h-0 overflow-auto px-2 py-2',
-        markdownPresentationMode ? 'bg-white' : '',
+        'flex-1 min-h-0 px-2 py-2',
+        scrollClass,
         uiPanelTextFontClass,
       ].join(' ')}
+      data-testid="markdown-preview-root"
     >
-      <div className={markdownPresentationMode ? 'mx-auto max-w-3xl px-2 py-4' : ''}>
-        {body}
-      </div>
+      <div>{body}</div>
     </div>
   )
 })

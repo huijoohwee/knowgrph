@@ -214,19 +214,4 @@ body {
     font-size: 0.875rem;
     z-index: 20;
   }
-
-  .kg-editorjs .codex-editor,
-  .kg-editorjs .codex-editor__redactor,
-  .kg-editorjs .ce-editor,
-  .kg-editorjs .ce-editor__content,
-  .kg-editorjs .ce-toolbar__content,
-  .kg-editorjs .ce-block__content {
-    max-width: none;
-  }
-
-  .kg-editorjs .ce-block__content,
-  .kg-editorjs .ce-toolbar__content {
-    margin-left: 0;
-    margin-right: 0;
-  }
 }

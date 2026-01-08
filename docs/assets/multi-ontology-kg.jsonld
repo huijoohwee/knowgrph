@@ -1,0 +1,196 @@
+{
+  "@context": {
+    "prov": "http://www.w3.org/ns/prov#",
+    "mex": "http://mex.aksw.org/mex-core#",
+    "pplan": "http://purl.org/net/p-plan#",
+    "mls": "http://www.w3.org/ns/mls#",
+    "geo": "http://www.opengis.net/ont/geosparql#",
+    "ro": "https://w3id.org/ro/crate/1.1/",
+    "schema": "https://schema.org/",
+    "ex": "http://example.org/assessment#",
+    "name": "schema:name",
+    "description": "schema:description",
+    "geo:asWKT": {
+      "@id": "geo:asWKT"
+    }
+  },
+  "@graph": [
+    {
+      "@id": "ex:candidate-1",
+      "@type": "prov:Agent",
+      "name": "Assessment Candidate"
+    },
+    {
+      "@id": "ex:submission-1",
+      "@type": "prov:Entity",
+      "name": "Assessment Submission",
+      "prov:wasAttributedTo": "ex:candidate-1"
+    },
+    {
+      "@id": "ex:dataset-phishing",
+      "@type": [
+        "prov:Entity",
+        "mls:Dataset"
+      ],
+      "name": "Phishing Classification Dataset",
+      "description": "Tabular classification dataset for phishing URL detection."
+    },
+    {
+      "@id": "ex:activity-eda",
+      "@type": [
+        "prov:Activity",
+        "pplan:Step"
+      ],
+      "name": "EDA Profiling",
+      "prov:used": "ex:dataset-phishing"
+    },
+    {
+      "@id": "ex:activity-preprocessing",
+      "@type": [
+        "prov:Activity",
+        "pplan:Step"
+      ],
+      "name": "Preprocessing",
+      "pplan:isPrecededBy": "ex:activity-eda"
+    },
+    {
+      "@id": "ex:activity-training",
+      "@type": [
+        "prov:Activity",
+        "pplan:Step"
+      ],
+      "name": "Model Training",
+      "pplan:isPrecededBy": "ex:activity-preprocessing"
+    },
+    {
+      "@id": "ex:activity-evaluation",
+      "@type": [
+        "prov:Activity",
+        "pplan:Step"
+      ],
+      "name": "Model Evaluation",
+      "pplan:isPrecededBy": "ex:activity-training"
+    },
+    {
+      "@id": "ex:experiment-baseline-models",
+      "@type": "mex:Experiment",
+      "name": "Baseline Model Comparison",
+      "mex:hasExecution": [
+        "ex:execution-logistic",
+        "ex:execution-xgboost",
+        "ex:execution-knn"
+      ]
+    },
+    {
+      "@id": "ex:execution-logistic",
+      "@type": "mex:Execution",
+      "name": "Logistic Regression Execution",
+      "prov:used": "ex:dataset-phishing",
+      "mex:hasPerformance": "ex:performance-logistic"
+    },
+    {
+      "@id": "ex:execution-xgboost",
+      "@type": "mex:Execution",
+      "name": "XGBoost Execution",
+      "prov:used": "ex:dataset-phishing",
+      "mex:hasPerformance": "ex:performance-xgboost"
+    },
+    {
+      "@id": "ex:execution-knn",
+      "@type": "mex:Execution",
+      "name": "KNN Execution",
+      "prov:used": "ex:dataset-phishing",
+      "mex:hasPerformance": "ex:performance-knn"
+    },
+    {
+      "@id": "ex:model-logistic",
+      "@type": "mls:Model",
+      "name": "Logistic Regression Model",
+      "prov:wasGeneratedBy": "ex:activity-training",
+      "mls:hasOutput": "ex:performance-logistic"
+    },
+    {
+      "@id": "ex:model-xgboost",
+      "@type": "mls:Model",
+      "name": "XGBoost Model",
+      "prov:wasGeneratedBy": "ex:activity-training",
+      "mls:hasOutput": "ex:performance-xgboost"
+    },
+    {
+      "@id": "ex:model-knn",
+      "@type": "mls:Model",
+      "name": "KNN Model",
+      "prov:wasGeneratedBy": "ex:activity-training",
+      "mls:hasOutput": "ex:performance-knn"
+    },
+    {
+      "@id": "ex:performance-logistic",
+      "@type": "mex:Performance",
+      "name": "Logistic Performance",
+      "ex:rocAuc": 0.8252,
+      "ex:recall": 81.2,
+      "ex:falsePositiveRate": 21.89
+    },
+    {
+      "@id": "ex:performance-xgboost",
+      "@type": "mex:Performance",
+      "name": "XGBoost Performance",
+      "ex:rocAuc": 0.888,
+      "ex:recall": 86.51,
+      "ex:falsePositiveRate": 18.22
+    },
+    {
+      "@id": "ex:performance-knn",
+      "@type": "mex:Performance",
+      "name": "KNN Performance",
+      "ex:rocAuc": 0.8094,
+      "ex:recall": 80.0,
+      "ex:falsePositiveRate": 23.0
+    },
+    {
+      "@id": "ex:competency-polygon",
+      "@type": "geo:Polygon",
+      "name": "Competency Hyperspace Region",
+      "geo:asWKT": "POLYGON((0 87.5, 1 87.5, 1 98.0, 0 98.0, 0 87.5))"
+    },
+    {
+      "@id": "ex:performance-polygon",
+      "@type": "geo:Polygon",
+      "name": "High-Recall Low-FPR Region",
+      "geo:asWKT": "POLYGON((0.82 80.0, 0.82 90.0, 0.90 90.0, 0.90 80.0, 0.82 80.0))"
+    },
+    {
+      "@id": "ex:assessment-region-strong-hire",
+      "@type": "geo:Polygon",
+      "name": "Strong Hire Assessment Region",
+      "geo:asWKT": "POLYGON((0 92.0, 1 92.0, 1 100.0, 0 100.0, 0 92.0))"
+    },
+    {
+      "@id": "ex:candidate-competency-geometry",
+      "@type": "geo:Geometry",
+      "name": "Candidate Competency Profile",
+      "geo:asWKT": "POINT(0.5 92.0)"
+    },
+    {
+      "@id": "ex:candidate-1-competency-link",
+      "@type": "prov:Entity",
+      "name": "Candidate Competency Annotation",
+      "prov:wasAttributedTo": "ex:candidate-1",
+      "geo:hasGeometry": "ex:candidate-competency-geometry"
+    },
+    {
+      "@id": "ex:ro-crate-root",
+      "@type": "CreativeWork",
+      "name": "Multi-ontology Assessment Research Object",
+      "ro:conformsTo": "https://w3id.org/ro/crate/1.1",
+      "hasPart": [
+        "ex:dataset-phishing",
+        "ex:experiment-baseline-models",
+        "ex:performance-logistic",
+        "ex:performance-xgboost",
+        "ex:performance-knn"
+      ]
+    }
+  ]
+}
+

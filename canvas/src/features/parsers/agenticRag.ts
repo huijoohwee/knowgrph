@@ -1,6 +1,7 @@
 import { toParserId, type ParserSpec } from './types'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { runAgenticPipeline } from '@/features/agentic-rag'
+import { AGENTIC_RAG_CONTEXT_URL } from '@/lib/agenticrag'
 
 export const AGENTIC_RAG_PARSER_ID = toParserId('agentic-rag-pipeline')
 
@@ -51,7 +52,7 @@ export const agenticRagParser: ParserSpec = {
 
     const graphData: GraphData = {
       type: 'Graph',
-      context: 'https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld',
+      context: AGENTIC_RAG_CONTEXT_URL,
       nodes,
       edges,
       metadata: {

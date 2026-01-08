@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { GitBranch, MonitorPlay, PanelsTopLeft, SlidersHorizontal } from 'lucide-react'
+import { GitBranch, MonitorPlay, PanelsTopLeft, SlidersHorizontal, Shapes } from 'lucide-react'
 import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
 import { useOrchestratorBottomPanelState } from '@/features/panels/hooks/useOrchestratorBottomPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
@@ -18,6 +18,7 @@ import {
 import { lsBool, lsSetBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
+import GraphLayerView from '@/features/panels/views/GraphLayerView'
 
 interface ToolbarToolMenuProps {
   dataLoadOk: boolean | null
@@ -91,7 +92,7 @@ interface ToolbarToolMenuProps {
   toolMenuCardRef: React.RefObject<HTMLDivElement>
   toolMenuCardStyle: React.CSSProperties
   onHeaderPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
-  requestedFloatingPanelView?: 'workspaceActions' | 'propsPanel' | 'renderer' | 'graphTraversal'
+  requestedFloatingPanelView?: 'workspaceActions' | 'propsPanel' | 'graphLayer' | 'renderer' | 'graphTraversal'
   requestedFloatingPanelViewSeq?: number
   onOpenData: () => void
   onRunPipeline: () => void
@@ -105,7 +106,7 @@ interface ToolbarToolMenuProps {
   onOpenWorkflowTab: () => void
 }
 
-type FloatingPanelView = 'workspaceActions' | 'propsPanel' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'workspaceActions' | 'propsPanel' | 'graphLayer' | 'renderer' | 'graphTraversal'
 
 export function ToolbarToolMenu({
   dataLoadOk,
@@ -295,6 +296,14 @@ export function ToolbarToolMenu({
         showTooltip
       >
         <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+      <IconButton
+        title={UI_LABELS.polygonGroupsMode}
+        onClick={() => handleSelectView('graphLayer')}
+        className={`App-toolbar__btn ${floatingPanelView === 'graphLayer' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+        showTooltip
+      >
+        <Shapes className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
       <IconButton
         title={UI_LABELS.renderer}
@@ -504,6 +513,9 @@ export function ToolbarToolMenu({
             )}
             {floatingPanelView === 'propsPanel' && (
               <FloatingPropsPanel />
+            )}
+            {floatingPanelView === 'graphLayer' && (
+              <GraphLayerView />
             )}
             {floatingPanelView === 'renderer' && (
               <ToolbarToolMenuRendererView />

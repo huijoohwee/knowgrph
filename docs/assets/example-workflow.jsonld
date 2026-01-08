@@ -1,0 +1,25 @@
+{
+  "@context": {
+    "kg": "http://example.org/kg#",
+    "geo": "http://www.opengis.net/ont/geosparql#"
+  },
+  "@graph": [
+    {
+      "@id": "kg:doc-1",
+      "@type": "Document",
+      "name": "Example Document",
+      "hasRegion": ["kg:poly-1"],
+      "hasQuestion": ["kg:q-1"]
+    },
+    {
+      "@id": "kg:poly-1",
+      "@type": "geo:Polygon",
+      "name": "Example Area"
+    },
+    {
+      "@id": "kg:q-1",
+      "@type": "ExampleTask",
+      "name": "Example Question"
+    }
+  ]
+}

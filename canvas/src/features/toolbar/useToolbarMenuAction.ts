@@ -11,10 +11,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { downloadBlob } from '@/lib/graph/save'
 import MarkdownIt from 'markdown-it'
+import { performMarkdownImport } from './markdownImportAction'
 import { performHtmlImport } from './htmlImportAction'
 import { performPdfImport } from './pdfImportAction'
-import { performMarkdownImport } from './markdownImportAction'
-import { performJsonImport } from './jsonImportAction'
+import { performJsonImport, performCsvImport } from './jsonImportAction'
 import { promptForUrl } from './ingestUtils'
 
 export function useToolbarMenuAction(args: {
@@ -266,6 +266,16 @@ export function useToolbarMenuAction(args: {
             })()
             return
           }
+          if (format === 'csv') {
+            void (async () => {
+              try {
+                await performCsvImport()
+              } catch {
+                setLoaderFailedStatus()
+              }
+            })()
+            return
+          }
           return
         }
         if (action === 'export' && format === 'markdown') {
@@ -287,6 +297,10 @@ export function useToolbarMenuAction(args: {
           }
           if (format === 'jsonld' || format === 'json') {
             void performJsonImport('local', format)
+            return
+          }
+          if (format === 'csv') {
+            void performCsvImport()
             return
           }
           return

@@ -2,6 +2,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { getBottomTabLabel } from '@/features/panels/config'
 import { toSchemaImportFileName } from '@/features/schema-editor/utils'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { UI_ANCHORS } from '@/lib/config'
 
 interface SchemaSummaryProps {
   className?: string
@@ -57,6 +59,20 @@ export default function SchemaSummary({
   const edgeLabels = catalogEdgeLabels > 0 ? catalogEdgeLabels : fallbackEdgeLabels
   const nodesCount = data && Array.isArray(data.nodes) ? data.nodes.length : 0
   const edgesCount = data && Array.isArray(data.edges) ? data.edges.length : 0
+  const metadata =
+    data && typeof data.metadata === 'object' && data.metadata !== null
+      ? (data.metadata as Record<string, unknown>)
+      : null
+  const ontologiesRaw =
+    metadata && Object.prototype.hasOwnProperty.call(metadata, 'ontologies')
+      ? (metadata.ontologies as unknown)
+      : null
+  const polygonLayersRaw =
+    metadata && Object.prototype.hasOwnProperty.call(metadata, 'polygonLayers')
+      ? (metadata.polygonLayers as unknown)
+      : null
+  const ontologiesCount = Array.isArray(ontologiesRaw) ? ontologiesRaw.length : 0
+  const polygonLayersCount = Array.isArray(polygonLayersRaw) ? polygonLayersRaw.length : 0
 
   const hasSchema = nodeTypes > 0 || edgeLabels > 0
   const hasData = nodesCount > 0 || edgesCount > 0
@@ -184,6 +200,46 @@ export default function SchemaSummary({
             'Data: none loaded'
           )}
         </span>
+      </Tooltip>,
+    )
+  }
+  if (ontologiesCount > 0 || polygonLayersCount > 0) {
+    const parts: string[] = []
+    if (ontologiesCount > 0) {
+      parts.push(`Ontologies: ${ontologiesCount}`)
+    }
+    if (polygonLayersCount > 0) {
+      parts.push(`Polygon layers: ${polygonLayersCount}`)
+    }
+    sections.push(
+      <Tooltip
+        key="ontologies"
+        content="Counts come from markdown frontmatter ontologies/polygonLayers or GraphData metadata. Click to open Help on multi-ontology graphs and polygon groups."
+        maxWidthPx={260}
+        contentClassName="bg-gray-800/90"
+      >
+        <button
+          type="button"
+          className="inline-flex items-center px-1.5 py-0.5 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 cursor-pointer"
+          onClick={() => {
+            try {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'help' as const } }),
+                )
+                window.dispatchEvent(
+                  new CustomEvent('kg:helpScrollToAnchor', {
+                    detail: { anchor: UI_ANCHORS.helpLayerPolygons },
+                  }),
+                )
+              }
+            } catch {
+              void 0
+            }
+          }}
+        >
+          {parts.join(' · ')}
+        </button>
       </Tooltip>,
     )
   }

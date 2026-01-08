@@ -21,6 +21,104 @@ const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const SidebarTriggerLazy = React.lazy(() => import('@/components/SidebarTrigger'))
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
 
+type MarkdownMetricSample = {
+  ts: number
+  event: string
+  payload: Record<string, unknown>
+}
+
+function MarkdownMetricsDevOverlay() {
+  const [samples, setSamples] = React.useState<MarkdownMetricSample[]>([])
+  const [open, setOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
+    if (!anyImportMeta.env?.DEV) return
+    if (typeof window === 'undefined') return
+    const handler = (ev: Event) => {
+      const e = ev as CustomEvent<{ event?: string } & Record<string, unknown>>
+      const detail = e.detail || {}
+      const name = typeof detail.event === 'string' ? detail.event : null
+      if (!name) return
+      const payloadEntries = Object.entries(detail).filter(([k]) => k !== 'event')
+      const payload: Record<string, unknown> = {}
+      for (const [k, v] of payloadEntries) {
+        payload[k] = v
+      }
+      const sample: MarkdownMetricSample = {
+        ts: Date.now(),
+        event: name,
+        payload,
+      }
+      setSamples(prev => {
+        const next = [sample, ...prev]
+        if (next.length > 50) next.length = 50
+        return next
+      })
+    }
+    window.addEventListener('kg:markdownPanelMetric', handler as EventListener)
+    return () => {
+      window.removeEventListener('kg:markdownPanelMetric', handler as EventListener)
+    }
+  }, [])
+
+  const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
+  if (!anyImportMeta.env?.DEV) return null
+
+  let slideLabel = 'n/a'
+  const latestSlide = samples.find(s => s.event === 'markdownPresentationSlideStateChanged')
+  if (latestSlide) {
+    const idxRaw = latestSlide.payload.activeIndex
+    const countRaw = latestSlide.payload.slideCount
+    const idx = typeof idxRaw === 'number' && Number.isFinite(idxRaw) ? idxRaw : null
+    const count = typeof countRaw === 'number' && Number.isFinite(countRaw) ? countRaw : null
+    if (idx != null && count != null && count > 0) {
+      slideLabel = `${idx + 1}/${count}`
+    }
+  }
+
+  return (
+    <div className="fixed bottom-2 right-2 z-50 text-xs text-gray-800">
+      <button
+        type="button"
+        className={[
+          'px-2 py-1 rounded border border-gray-300 bg-white shadow-sm',
+          open ? 'bg-blue-50 border-blue-300' : '',
+        ].join(' ')}
+        onClick={() => setOpen(v => !v)}
+      >
+        Markdown metrics
+      </button>
+      {open && (
+        <div className="mt-1 w-80 max-h-64 overflow-auto rounded bg-white border border-gray-300 shadow-lg p-2 space-y-1">
+          <div className="flex items-center justify-between mb-1">
+            <div className="font-semibold">Markdown usage</div>
+            <div className="text-[10px] text-gray-500">slides: {slideLabel}</div>
+          </div>
+          <div className="space-y-1">
+            {samples.map(s => (
+              <div key={s.ts.toString() + s.event} className="border-b last:border-b-0 border-gray-100 pb-1">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-[11px] text-gray-700">{s.event}</div>
+                  <div className="text-[10px] text-gray-400">
+                    {new Date(s.ts).toLocaleTimeString(undefined, { hour12: false })}
+                  </div>
+                </div>
+                <div className="text-[10px] text-gray-600 break-words">
+                  {JSON.stringify(s.payload)}
+                </div>
+              </div>
+            ))}
+            {samples.length === 0 && (
+              <div className="text-[10px] text-gray-500">No markdown metrics yet.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CanvasPage() {
   const {
     isSidebarOpen,
@@ -244,6 +342,7 @@ export default function CanvasPage() {
                     <MinimapLazy />
                   </div>
                   <BottomPanelLazy />
+                  <MarkdownMetricsDevOverlay />
                 </React.Suspense>
                 <aside
                   className={`absolute right-0 z-30 transition-all duration-200 flex flex-col ${

@@ -37,7 +37,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return workflow_artifacts_cmd.main(rest, base_dir=base_dir)
         if cmd in {"jsonld-universal", "parse-jsonld-universal"}:
             return jsonld_universal_cmd.main(rest)
-        if cmd in {"python-codebase-index", "aiap22-codebase-index"}:
+        if cmd in {"python-codebase-index", "example-codebase-index"}:
             return python_codebase_index_cmd.main(rest, base_dir=base_dir, parser_script_path=entrypoint)
         if cmd in {"pipeline"}:
             return pipeline_cmd.main(list(rest))

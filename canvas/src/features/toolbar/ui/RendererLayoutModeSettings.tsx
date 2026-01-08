@@ -68,33 +68,6 @@ export function RendererLayoutModeSettings() {
           </RightAlignedValueCell>
         }
       />
-      <KeyTypeValueRow
-        layout="keyIconValue"
-        density="compact"
-        keyNode={
-          <span className="text-gray-700 break-words">schema.layers.mode</span>
-        }
-        typeNode={null}
-        valueNode={
-          <RightAlignedValueCell>
-            <select
-              className={uiPanelKeyValueInputClass}
-              value={schema.layers?.mode || 'property'}
-              onChange={(e) => {
-                const raw = String(e.target.value || '');
-                const nextMode =
-                  raw === 'semantic' || raw === 'document-structure' ? raw : 'property';
-                const layers = schema.layers || {};
-                setSchema({ ...schema, layers: { ...layers, mode: nextMode } });
-              }}
-            >
-              <option value="property">property</option>
-              <option value="document-structure">document-structure</option>
-              <option value="semantic">semantic</option>
-            </select>
-          </RightAlignedValueCell>
-        }
-      />
     </div>
   );
 }

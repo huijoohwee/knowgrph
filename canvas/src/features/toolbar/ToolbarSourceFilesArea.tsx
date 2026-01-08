@@ -187,7 +187,17 @@ export function ToolbarSourceFilesArea(props: ToolbarToolMenuAreasProps) {
                 if (!wasOpen) setIsJsonImportMenuOpen(true)
               }}
             >
-              {EXPORT_UI_LABELS.exportGraphJson}
+              {UI_LABELS.json}
+            </button>
+            <button
+              type="button"
+              className={buttonClassName}
+              onClick={() => {
+                closeAllImportMenus()
+                onToolMenuAction('sourceFiles', 'import', { format: 'csv' })
+              }}
+            >
+              {UI_LABELS.csv}
             </button>
           </div>
 

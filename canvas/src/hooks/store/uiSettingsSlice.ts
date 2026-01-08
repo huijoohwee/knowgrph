@@ -141,7 +141,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   setFloatingPanelZIndex: (v: number) => set({ floatingPanelZIndex: v }),
   setSidebarWidthRatio: (v: number) => set({ sidebarWidthRatio: v }),
   setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
-  setBottomPanelCurationView: (view: 'grid' | 'json' | 'block' | 'markdown') => set({ bottomPanelCurationView: view }),
+  setBottomPanelCurationView: (view: 'grid' | 'json' | 'markdown') => set({ bottomPanelCurationView: view }),
   setLaunchSpotlightMode: (mode: 'tour' | 'stats') => set({ launchSpotlightMode: mode }),
   setEnableLaunchSpotlight: (v: boolean) => set({ enableLaunchSpotlight: v }),
   setStatusPanelPinned: (v: boolean) => set({ statusPanelPinned: v }),
