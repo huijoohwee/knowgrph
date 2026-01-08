@@ -113,129 +113,6 @@ const buildNodeGroupsByCommunity = (graphData: GraphData, minGroupSize: number):
   return groups
 }
 
-const buildSemanticCommunityNodeGroups = (graphData: GraphData, schema: GraphSchema, minGroupSize: number): NodeGroup[] => {
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-  const edges = Array.isArray(graphData.edges) ? graphData.edges : []
-  if (!nodes.length || !edges.length) return []
-
-  const semanticCfg = schema.layers?.semantic || {}
-  const similarityLabel = String(semanticCfg.similarityEdgeLabel || 'semanticSimilarity')
-  if (!similarityLabel) return []
-
-  const nodeIds: string[] = []
-  const indexById = new Map<string, number>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const id = String(nodes[i].id)
-    nodeIds.push(id)
-    indexById.set(id, i)
-  }
-
-  const neighbors = new Map<number, Map<number, number>>()
-
-  const getWeight = (rawProps: unknown): number => {
-    const props = (rawProps || {}) as Record<string, unknown>
-    const candidates = ['weight', 'similarity', 'score', 'w']
-    for (let i = 0; i < candidates.length; i += 1) {
-      const key = candidates[i]
-      const v = props[key]
-      if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v
-    }
-    return 1
-  }
-
-  for (let i = 0; i < edges.length; i += 1) {
-    const e = edges[i]
-    const label = String(e.label ?? '')
-    if (label !== similarityLabel) continue
-    const srcId = String(e.source ?? '')
-    const tgtId = String(e.target ?? '')
-    if (!srcId || !tgtId || srcId === tgtId) continue
-    const srcIndex = indexById.get(srcId)
-    const tgtIndex = indexById.get(tgtId)
-    if (srcIndex == null || tgtIndex == null) continue
-    const w = getWeight(e.properties)
-    if (!(w > 0)) continue
-
-    let srcNeighbors = neighbors.get(srcIndex)
-    if (!srcNeighbors) {
-      srcNeighbors = new Map<number, number>()
-      neighbors.set(srcIndex, srcNeighbors)
-    }
-    srcNeighbors.set(tgtIndex, (srcNeighbors.get(tgtIndex) || 0) + w)
-
-    let tgtNeighbors = neighbors.get(tgtIndex)
-    if (!tgtNeighbors) {
-      tgtNeighbors = new Map<number, number>()
-      neighbors.set(tgtIndex, tgtNeighbors)
-    }
-    tgtNeighbors.set(srcIndex, (tgtNeighbors.get(srcIndex) || 0) + w)
-  }
-
-  const nodeCount = nodes.length
-  if (!neighbors.size || nodeCount === 0) return []
-
-  const labels: string[] = []
-  for (let i = 0; i < nodeCount; i += 1) {
-    labels[i] = nodeIds[i]
-  }
-
-  const maxPasses = typeof semanticCfg.communityDetection?.maxPasses === 'number'
-    ? Math.max(1, Math.min(semanticCfg.communityDetection.maxPasses, 20))
-    : 10
-
-  for (let pass = 0; pass < maxPasses; pass += 1) {
-    let changed = false
-    for (let i = 0; i < nodeCount; i += 1) {
-      const nbrs = neighbors.get(i)
-      if (!nbrs || !nbrs.size) continue
-      const labelWeights = new Map<string, number>()
-      nbrs.forEach((w, j) => {
-        const lab = labels[j]
-        if (!lab) return
-        labelWeights.set(lab, (labelWeights.get(lab) || 0) + w)
-      })
-      if (!labelWeights.size) continue
-      let bestLabel: string | null = null
-      let bestWeight = -1
-      labelWeights.forEach((w, lab) => {
-        if (w > bestWeight) {
-          bestWeight = w
-          bestLabel = lab
-        } else if (w === bestWeight && bestLabel && lab < bestLabel) {
-          bestLabel = lab
-        }
-      })
-      const current = labels[i]
-      if (bestLabel && current && bestLabel !== current) {
-        labels[i] = bestLabel
-        changed = true
-      }
-    }
-    if (!changed) break
-  }
-
-  const groupsByLabel = new Map<string, string[]>()
-  neighbors.forEach((nbrs, i) => {
-    if (!nbrs || !nbrs.size) return
-    const label = labels[i]
-    if (!label) return
-    const id = nodeIds[i]
-    const arr = groupsByLabel.get(label) || []
-    arr.push(id)
-    groupsByLabel.set(label, arr)
-  })
-
-  const groups: NodeGroup[] = []
-  const minSize = Math.max(2, minGroupSize)
-  groupsByLabel.forEach((memberIds, label) => {
-    const deduped = Array.from(new Set(memberIds))
-    if (deduped.length < minSize) return
-    groups.push({ id: `community::${label}`, memberIds: deduped, meta: { groupBy: 'community', groupValue: label } })
-  })
-
-  return groups
-}
-
 export const buildNodeGroupsFromSchema = (graphData: GraphData, schema: GraphSchema): NodeGroup[] => {
   const mode = schema.layers?.mode || 'property'
   if (mode === 'document-structure') {
@@ -253,11 +130,7 @@ export const buildNodeGroupsFromSchema = (graphData: GraphData, schema: GraphSch
     const minGroupSizeRaw = schema.layers?.documentStructure?.minGroupSize
     const minGroupSize =
       typeof minGroupSizeRaw === 'number' && Number.isFinite(minGroupSizeRaw) ? Math.max(2, Math.floor(minGroupSizeRaw)) : 2
-    const byCommunity = buildNodeGroupsByCommunity(graphData, minGroupSize)
-    if (byCommunity.length > 0) return byCommunity
-    const bySemanticCommunity = buildSemanticCommunityNodeGroups(graphData, schema, minGroupSize)
-    if (bySemanticCommunity.length > 0) return bySemanticCommunity
-    return []
+    return buildNodeGroupsByCommunity(graphData, minGroupSize)
   }
   return buildNodeGroups(graphData)
 }

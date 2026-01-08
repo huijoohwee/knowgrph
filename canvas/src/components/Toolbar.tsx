@@ -86,7 +86,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const layoutMode = schema.layout?.mode || 'force';
   const rawLayerMode = schema.layers?.mode;
   const layerMode: 'property' | 'document-structure' | 'semantic' =
-    rawLayerMode === 'document-structure' || rawLayerMode === 'semantic' ? rawLayerMode : 'property';
+    rawLayerMode === 'property' || rawLayerMode === 'document-structure' || rawLayerMode === 'semantic'
+      ? rawLayerMode
+      : 'semantic';
   const layerModeDescriptor =
     layerMode === 'property'
       ? 'property (array properties)'
@@ -168,13 +170,13 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         tooltipContent={layerModeTitle}
         onClick={() => {
           const currentLayers = schema.layers || {};
-          const currentMode = currentLayers.mode || 'property';
+          const currentMode = currentLayers.mode || 'semantic';
           const nextMode: 'property' | 'document-structure' | 'semantic' =
-            currentMode === 'property'
+            currentMode === 'semantic'
               ? 'document-structure'
               : currentMode === 'document-structure'
-                ? 'semantic'
-                : 'property';
+                ? 'property'
+                : 'semantic';
           const next = {
             ...schema,
             layers: {

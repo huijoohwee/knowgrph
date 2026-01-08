@@ -224,6 +224,22 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                 </p>
               </div>
             </div>
+            <div>
+              <div className="text-xs font-semibold text-gray-500 mb-1">
+                Layer order and polygons (semantic → document‑structure → property)
+              </div>
+              <div className="text-[11px] text-gray-600 leading-snug space-y-1">
+                <p>
+                  The layer mode toggle in the main toolbar cycles in the order semantic → document‑structure → property and drives how the same GraphData snapshot is filtered and decorated for rendering. Semantic is the default and adds similarity edges, Louvain communities, and importance‑based node sizing on top of the imported graph without mutating the source JSON‑LD.
+                </p>
+                <p>
+                  Document‑structure mode keeps all nodes and edges visible but assigns a `visual:layer` to structural block types such as Document, Section, Paragraph, List, ListItem, CodeBlock, and Table so 2D/3D renderers can apply per‑layer opacity while preserving the original layout. Property mode leaves nodes and edges unchanged and derives groups only from array‑valued properties (for example owner→items lists) without semantic overlays.
+                </p>
+                <p>
+                  When Polygon groups are enabled, semantic mode uses `visual:community` and `visual:fill` from the similarity graph to draw convex hull polygons around community clusters so regions approximate semantic neighborhoods rather than raw layout. Document‑structure and property modes continue to respect the same underlying node positions but polygon groups fall back to array‑based membership, keeping community hulls tightly aligned with the active layer semantics.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

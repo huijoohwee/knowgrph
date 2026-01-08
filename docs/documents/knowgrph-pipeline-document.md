@@ -271,6 +271,18 @@ KG_FEEDBACK_WINDOW_SIZE:
   - Infers property ranges from sample values and emits `kg:Property` entries.
 - Metadata:
   - Includes `metadata.agenticRagSchema` pointing back to the AgenticRAG schema URL.
+  - When the source graph JSON‑LD exposes `metadata.layers` and `metadata.defaultLayer` (for example, markdown graphs produced by `parse_markdown_to_graph_jsonld`), schema-config captures:
+    - `metadata.layersFromGraph`: a copy of the parser-emitted layer hints (semantic, documentStructure, property) for downstream inspection.
+    - `metadata.defaultLayerFromGraph`: the parser-suggested default layer name (typically `"semantic"`).
+  - Uses these hints to seed `metadata.layers` in the schema-config JSON‑LD so canvas and tools can auto-derive neutral defaults without extra wiring:
+    - `layers.mode`: `"semantic"` by default.
+    - `layers.semantic.similarityMetric`: `"pmi"` to align with co-occurrence edges weighted by PMI.
+    - `layers.semantic.similarityEdgeLabel`: derived from `metadata.layers.semantic.edgeLabel` when present (for example, `"coOccursWith"`).
+    - `layers.semantic.hiddenNodeTypes`: seeded from `metadata.layers.semantic.nodeTypes` so semantic mode can hide structural or non-entity types when desired.
+    - `layers.documentStructure.structuralNodeTypes` and `layers.documentStructure.structuralEdgeLabels`: derived from `metadata.layers.documentStructure` to drive document-structure layer behavior and polygon grouping in a schema-driven way.
+  - The markdown CLI exposes a neutral inspection mode:
+    - `python -m knowgrph_parser markdown --input docs/documents/knowgrph-parser-document.md --print-schema-layers`
+    - This runs markdown parsing and schema inference in memory, then prints `schema-config.metadata.layers` as JSON and exits without writing artifacts; it is useful for verifying how `metadata.layers.*` hints are propagated into schema-config defaults.
 
 ### Stage: Orchestration
 
@@ -317,6 +329,8 @@ KG_FEEDBACK_WINDOW_SIZE:
     - Dataset JSON‑LD: `docs/assets/interviewer.jsonld`
     - Markdown source: `docs/assets/interviewer.md`
     - Schema‑config JSON‑LD: `schema-config/knowgrph-interviewer-schema-config.jsonld`
+      - Derived from the same schema-config JSON‑LD shape as `data/schema-config-template.jsonld`, so LLMs and tools can generate interview‑style configs by filling in node/edge types and adjusting semantic presets.
+      - Semantic thresholds (`layers.semantic.topKEdgesPerNode`, `layers.semantic.minSimilarity`) are driven by schema-config, not hardcoded in the canvas; `metadata.corpusSizePreset` and `metadata.corpusSizePresets` in the template provide a neutral starting point for small/medium/large corpora.
     - Canvas preset id: `interviewer-assessment-kg`
     - Behavior: selecting the interviewer example or preset loads the interviewer graph, applies the interviewer schema‑config (including `layers.semantic.hiddenNodeTypes`), and keeps layer and mode switching metadata‑driven and domain‑agnostic.
     - Click path to exercise layout and layer caches:

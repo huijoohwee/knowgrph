@@ -9,6 +9,19 @@
 
 - Entry: [default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts)
 - Output: JSON‑LD graph materialized into `GraphData` via `parseJsonLd`.
+- Layer metadata:
+  - When JSON‑LD originates from the markdown CLI (`knowgrph_parser.markdown_cmd` / `graph_builder.parse_markdown_to_graph_jsonld`), `metadata.layers` declares three neutral layer modes for downstream rendering:
+    - `semantic`: treats `Entity` nodes with co-occurrence edges (for example, `coOccursWith`) as a semantic similarity graph using PMI-derived weights and community identifiers.
+    - `documentStructure`: surfaces structural node types (`Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, `Table`) and structural edge labels (`hasSection`, `hasBlock`, `hasItem`, `next`, `linksTo`) for layout-aware views.
+    - `property`: keeps nodes and edges as emitted by the parser, using `properties` as the container for node and edge attributes without additional semantic derivations.
+  - `metadata.defaultLayer` is set to `"semantic"` for markdown graphs so canvas layer toggles can treat semantic mode as the default without hardcoding per dataset.
+  - Schema-config generation (`build_schema_config_jsonld`) reads these hints and copies them into `schema-config.metadata.layersFromGraph` and `schema-config.metadata.defaultLayerFromGraph`, then uses them to seed `schema-config.metadata.layers`:
+    - `layers.semantic.similarityMetric` defaults to `"pmi"` and `layers.semantic.similarityEdgeLabel` adopts the parser’s `semantic.edgeLabel` (for example, `"coOccursWith"`).
+    - `layers.semantic.hiddenNodeTypes` can be initialized from `metadata.layers.semantic.nodeTypes` so semantic mode can downweight or hide structural types while leaving document-structure and property layers neutral.
+    - `layers.documentStructure.structuralNodeTypes` and `layers.documentStructure.structuralEdgeLabels` are initialized from `metadata.layers.documentStructure` node/edge lists, keeping document-structure mode aligned with parser-emitted structure.
+  - For quick inspection without writing artifacts, the markdown CLI exposes:
+    - `python -m knowgrph_parser markdown --input docs/documents/knowgrph-parser-document.md --print-schema-layers`
+    - This command prints only `schema-config.metadata.layers` derived from the parser-emitted graph metadata and exits.
 - Inline refs:
   - Extracts `![alt](url)` images and `[label](url)` links from paragraph blocks.
   - Resolves relative `url` values against the document URL when `name` is `http(s)`.

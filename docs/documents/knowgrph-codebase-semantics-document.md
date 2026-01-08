@@ -120,6 +120,21 @@ All semantics are aligned with `/schema/AgenticRAG`:
     - **Traversal edges** (GraphRAG / AgenticRAG pipeline steps)
   - Ensure relations are **schema‑driven** and **configuration‑driven**, not hardcoded per dataset.
 
+### Layer metadata from parsers
+
+- Markdown parsers that emit JSON‑LD graphs (for example, `knowgrph_parser.graph_builder.parse_markdown_to_graph_jsonld`) populate `metadata.layers` with neutral hints:
+  - Semantic layer:
+    - `layers.semantic.nodeTypes`: entity-like nodes that participate in similarity and centrality computations.
+    - `layers.semantic.nodeMetrics`: numeric metrics such as mention counts, block frequencies, and centrality scores.
+    - `layers.semantic.edgeLabel`: co-occurrence or similarity edge label (for example, `coOccursWith`) used for semantic edges.
+    - `layers.semantic.edgeMetric`: primary numeric weight (for example, PMI-derived similarity) for semantic edges.
+  - Document-structure layer:
+    - `layers.documentStructure.nodeTypes`: structural node types such as `Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, and `Table`.
+    - `layers.documentStructure.edgeLabels`: structural edge labels such as `hasSection`, `hasBlock`, `hasItem`, `next`, and `linksTo`.
+  - Property layer:
+    - `layers.property.nodePropertyContainer`: name of the node attribute container used for properties (for example, `properties`).
+    - `layers.property.edgePropertyContainer`: name of the edge attribute container used for properties (for example, `properties`).
+
 ---
 
 ## Maintainability Semantics

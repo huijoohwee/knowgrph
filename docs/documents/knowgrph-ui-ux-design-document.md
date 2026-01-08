@@ -1,5 +1,4 @@
-Media node panels
-------------------
+# Media node panels
 - Panel-only mode hides base circle/rect glyphs for media-capable nodes and
   renders standalone media panels.
 - Each Media Node panel has a header strip that shows the node label and type
@@ -27,9 +26,7 @@ Media node panels
   - Image and video URLs are passed through `applyMediaProxySrc` so that
     cross-origin HTTP(S) media is fetched via `/__fetch_remote`.
 
-Media panel visual QA checklist
-- Media panel visual QA checklist
--------------------------------
+# Media panel visual QA checklist
 - Zoom behavior:
   - On initial load, confirm the canvas opens with Fit to Screen enabled:
     - The graph is centered in the viewport.

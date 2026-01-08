@@ -225,6 +225,11 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
         default=2,
         help="Hop distance for cross-document inference (1-5)",
     )
+    parser.add_argument(
+        "--print-schema-layers",
+        action="store_true",
+        help="Print derived schema-config.metadata.layers for inspection and exit without writing files",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     input_path = os.path.abspath(args.input)
@@ -271,6 +276,18 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
         agentic_rag_schema_url=str(args.agenticrag_schema or DEFAULT_AGENTIC_RAG_SCHEMA_URL),
         term_iri_base=str(args.term_iri_base or DEFAULT_TERM_IRI_BASE),
     )
+
+    if bool(args.print_schema_layers):
+        meta = schema_doc.get("metadata") or {}
+        layers = meta.get("layers") or {}
+        print("schema-config.metadata.layers:")
+        try:
+            import json as _json
+
+            print(_json.dumps(layers, indent=2, ensure_ascii=False))
+        except Exception:
+            print(layers)
+        return 0
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
     default_dir = os.path.join(root, "data", f"{stem}_{ts}")

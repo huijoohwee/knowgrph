@@ -19,9 +19,7 @@
 - Canvas integration:
   - Canvas CLI and UI load `codebase-index-viz.jsonld`, universal schema config, and orchestrator config as GraphData and configuration presets.
   - `canvas/src/lib/graph/jsonld` handles JSON-LD parsing and normalization, ensuring consistent interpretation of the index.
-
----
-
+  - LLM-facing schema-config guidance is documented in `docs/documents/knowgrph-llm-prompt-contract.md`, which explains how to safely modify `schema-config/knowgrph-schema-config-template.jsonld` for new datasets.
 ## Module Specification
 
 ### Module: `knowgrph_parser.codebase_index_cmd`
@@ -148,9 +146,6 @@ output_dir:
 
 **Interface Pattern**:
 `parse_markdown_to_graph_jsonld(file_path, ...)` -> `_parse_frontmatter` -> `parse_blocks` -> `_merge_tokens_to_spans` -> `_extract_sentence_features` -> returns dict with `@graph` and `metadata`.
-
----
-
 ## Component Responsibility Matrix
 
 | Layer      | Path                                             | Component                | Interface/Method                 | Responsibility (S‑V‑O)                                                          | Dependencies                         | Contracts                                      | LOC    |
@@ -189,9 +184,6 @@ output_dir:
 - Codebase index builders are decoupled from the canvas:
   - Canvas only depends on the JSON‑LD schema, not internal Python representations.
   - Runtime events and GraphRAG paths are attached via configuration, not hardcoded imports.
-
----
-
 ## Code Organization Framework
 
 **Directory Structure (relevant subset)**:
@@ -226,9 +218,6 @@ knowgrph/
 
 - Index builder files are kept well under 600 LOC and focus on a single responsibility:
   - Workflow‑driven index building vs. Python‑graph index building.
-
----
-
 ## Testing & Quality Standards
 
 **Test Coverage Metrics**
@@ -251,9 +240,6 @@ knowgrph/
   - Validate as JSON.
   - Respect AgenticRAG schema URLs in `metadata.schema`.
   - Maintain referential integrity (all referenced node IDs defined in `@graph`).
-
----
-
 ## Anti‑Patterns (Forbidden)
 
 - Circular dependencies between index builders and canvas rendering code.

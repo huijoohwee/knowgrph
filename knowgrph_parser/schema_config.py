@@ -102,6 +102,76 @@ def build_schema_config_jsonld(
                 }
             )
 
+    base_metadata: Dict[str, Any] = {
+        "agenticRagSchema": agentic_rag_schema_url,
+        "generatedBy": "knowgrph_parser.schema_config",
+    }
+    src_meta = graph_jsonld.get("metadata")
+    if isinstance(src_meta, dict):
+        layers_hint = src_meta.get("layers")
+        default_layer = src_meta.get("defaultLayer")
+        if isinstance(layers_hint, dict) and layers_hint:
+            base_metadata.setdefault("layersFromGraph", layers_hint)
+        if isinstance(default_layer, str) and default_layer:
+            base_metadata.setdefault("defaultLayerFromGraph", default_layer)
+
+    semantic_layer_hint = base_metadata.get("layersFromGraph", {}).get("semantic") if isinstance(base_metadata.get("layersFromGraph"), dict) else None
+    document_layer_hint = base_metadata.get("layersFromGraph", {}).get("documentStructure") if isinstance(base_metadata.get("layersFromGraph"), dict) else None
+
+    layers_cfg: Dict[str, Any] = {
+        "mode": "semantic",
+        "semantic": {
+            "similarityMetric": "pmi",
+            "similarityEdgeLabel": (
+                str(getattr(semantic_layer_hint, "get", lambda _: "coOccursWith")("edgeLabel"))
+                if semantic_layer_hint
+                else "coOccursWith"
+            ),
+            "topKEdgesPerNode": 4,
+            "minSimilarity": 0.2,
+            "hiddenNodeTypes": [],
+            "communityDetection": {
+                "enabled": True,
+                "resolution": 1.0,
+                "maxPasses": 10,
+                "maxMovesPerPass": 20000,
+            },
+        },
+        "documentStructure": {
+            "minGroupSize": 2,
+        },
+    }
+
+    if isinstance(semantic_layer_hint, dict):
+        edge_label = semantic_layer_hint.get("edgeLabel")
+        if isinstance(edge_label, str) and edge_label.strip():
+            layers_cfg["semantic"]["similarityEdgeLabel"] = edge_label.strip()
+        node_types = semantic_layer_hint.get("nodeTypes")
+        if isinstance(node_types, list) and node_types:
+            hidden: List[str] = []
+            for t in node_types:
+                text = str(t or "").strip()
+                if text:
+                    hidden.append(text)
+            if hidden:
+                layers_cfg["semantic"]["hiddenNodeTypes"] = hidden
+
+    if isinstance(document_layer_hint, dict):
+        dt_node_types = document_layer_hint.get("nodeTypes")
+        if isinstance(dt_node_types, list) and dt_node_types:
+            layers_cfg["documentStructure"]["structuralNodeTypes"] = [
+                str(t or "").strip()
+                for t in dt_node_types
+                if str(t or "").strip()
+            ]
+        dt_edge_labels = document_layer_hint.get("edgeLabels")
+        if isinstance(dt_edge_labels, list) and dt_edge_labels:
+            layers_cfg["documentStructure"]["structuralEdgeLabels"] = [
+                str(e or "").strip()
+                for e in dt_edge_labels
+                if str(e or "").strip()
+            ]
+
     return {
         "@context": {
             "@vocab": term_iri_base,
@@ -112,8 +182,5 @@ def build_schema_config_jsonld(
             "range": "schema:rangeIncludes",
         },
         "@graph": graph_out,
-        "metadata": {
-            "agenticRagSchema": agentic_rag_schema_url,
-            "generatedBy": "knowgrph_parser.schema_config",
-        },
+        "metadata": {**base_metadata, "layers": layers_cfg},
     }

@@ -1,5 +1,7 @@
 import { CODEBASE_INDEX_PIPELINE_COMMAND, HELP_PIPELINE_COMMAND_TEXT } from '@/lib/config'
 import { applyParser, builtInParsers, registerParser, resetParsers, toParserId } from '@/features/parsers'
+import { deriveGraphDataForLayers } from '@/lib/graph/layerDerivation'
+import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 
 export async function testHelpPipelineCopyMatchesCommandConstant() {
   if (!CODEBASE_INDEX_PIPELINE_COMMAND.includes('python -m knowgrph_parser markdown')) {
@@ -64,5 +66,74 @@ export function testMarkdownParserMetadataAnchorsAreAgenticRagCompatible() {
   const docLabels = props.labels
   if (!Array.isArray(docLabels) || !docLabels.map(v => String(v)).includes('Document')) {
     throw new Error('Document node should include labels[] with Document')
+  }
+}
+
+export function testMarkdownGraphSupportsDocumentStructureLayerMode() {
+  resetParsers()
+  builtInParsers.forEach(p => registerParser(p))
+  const markdown = ['# Title', '', 'Paragraph one.', '', 'Paragraph two.'].join('\n')
+  const res = applyParser(toParserId('markdown'), { name: 'doc.md', text: markdown })
+  if (!res) throw new Error('markdown parse returned null')
+  if (res.warnings && res.warnings.length > 0) throw new Error(`markdown parse warnings: ${res.warnings.join('; ')}`)
+  const baseGraph = res.graphData
+  const schema: GraphSchema = {
+    ...defaultSchema,
+    layers: {
+      ...(defaultSchema.layers || {}),
+      mode: 'document-structure',
+    },
+  }
+  const derived = deriveGraphDataForLayers(baseGraph, schema)
+  if (!derived) throw new Error('deriveGraphDataForLayers returned null for markdown graph')
+  const nodes = Array.isArray(derived.nodes) ? derived.nodes : []
+  if (nodes.length === 0) throw new Error('document-structure layer produced no nodes')
+  const docOrSection = nodes.find(n => n.type === 'Document' || n.type === 'Section')
+  if (!docOrSection) throw new Error('expected Document or Section node in markdown graph')
+  const props = (docOrSection.properties || {}) as Record<string, unknown>
+  const layer = props['visual:layer']
+  if (typeof layer !== 'number' || layer <= 0) {
+    throw new Error('document-structure layer should assign numeric visual:layer to structural nodes')
+  }
+}
+
+export function testMarkdownGraphSupportsSemanticLayerMode() {
+  resetParsers()
+  builtInParsers.forEach(p => registerParser(p))
+  const markdown = [
+    '# Title',
+    '',
+    'First paragraph about graphs and layers.',
+    '',
+    'Second paragraph about graphs, tokens, and similarity edges.',
+  ].join('\n')
+  const res = applyParser(toParserId('markdown'), { name: 'doc.md', text: markdown })
+  if (!res) throw new Error('markdown parse returned null')
+  if (res.warnings && res.warnings.length > 0) throw new Error(`markdown parse warnings: ${res.warnings.join('; ')}`)
+  const baseGraph = res.graphData
+  const schema: GraphSchema = {
+    ...defaultSchema,
+    layers: {
+      ...(defaultSchema.layers || {}),
+      mode: 'semantic',
+      semantic: {
+        ...(defaultSchema.layers?.semantic || {}),
+        similarityEdgeLabel: 'relatedTo',
+        textKeys: ['chunk_text'],
+        topKEdgesPerNode: 2,
+        minSimilarity: 0,
+      },
+    },
+  }
+  const derived = deriveGraphDataForLayers(baseGraph, schema)
+  if (!derived) throw new Error('deriveGraphDataForLayers returned null for markdown graph in semantic mode')
+  const edges = Array.isArray(derived.edges) ? derived.edges : []
+  if (!edges.length) throw new Error('semantic layer produced no edges for markdown graph')
+  const semanticEdges = edges.filter(e => {
+    const meta = (e.metadata || {}) as Record<string, unknown>
+    return meta.kind === 'semantic'
+  })
+  if (semanticEdges.length === 0) {
+    throw new Error('semantic layer did not produce any derived semantic edges for markdown graph')
   }
 }

@@ -1,3 +1,4 @@
+import math
 import re
 from typing import Any, Dict, List, Optional, Tuple, Set
 
@@ -8,19 +9,69 @@ from .common import sha256_text
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 
-def _add_edge_ref(
-    edges: List[Dict[str, Any]],
-    src: str,
-    label: str,
-    tgt: str,
-    *,
-    props: Optional[Dict[str, Any]] = None,
-    meta: Optional[Dict[str, Any]] = None,
-) -> None:
-    # Helper to add edge to the list - duplicative but decoupled
-    edge_id = f"edge:{sha256_text(src + label + tgt)[:12]}:{len(edges)}" # simplified ID generation for now or pass in slugify
-    # Actually, let's just return the edge object and let caller append
-    pass
+def _compute_ppmi(
+    pair_counts: Dict[Tuple[str, str], int],
+    entity_block_counts: Dict[str, int],
+    block_count: int,
+) -> Dict[Tuple[str, str], float]:
+    scores: Dict[Tuple[str, str], float] = {}
+    if block_count <= 0:
+        return scores
+    total_blocks = float(block_count)
+    for pair, cnt in pair_counts.items():
+        a, b = pair
+        ca = float(entity_block_counts.get(a) or 0)
+        cb = float(entity_block_counts.get(b) or 0)
+        if ca <= 0 or cb <= 0:
+            continue
+        p_ab = float(cnt) / total_blocks
+        p_a = ca / total_blocks
+        p_b = cb / total_blocks
+        denom = p_a * p_b
+        if denom <= 0 or p_ab <= 0:
+            continue
+        pmi = math.log(p_ab / denom)
+        if pmi <= 0.0:
+            continue
+        scores[pair] = pmi
+    return scores
+
+def _run_label_propagation(
+    neighbors: Dict[str, List[str]],
+    max_iter: int = 20,
+) -> Dict[str, int]:
+    labels: Dict[str, int] = {}
+    nodes = list(neighbors.keys())
+    for idx, nid in enumerate(nodes):
+        labels[nid] = idx
+    if not nodes:
+        return labels
+    for _ in range(max_iter):
+        changed = False
+        for nid in nodes:
+            nbs = neighbors.get(nid) or []
+            if not nbs:
+                continue
+            counts: Dict[int, int] = {}
+            for nb in nbs:
+                lid = labels.get(nb)
+                if lid is None:
+                    continue
+                counts[lid] = counts.get(lid, 0) + 1
+            if not counts:
+                continue
+            best_label = max(counts.items(), key=lambda x: x[1])[0]
+            if labels.get(nid) != best_label:
+                labels[nid] = best_label
+                changed = True
+        if not changed:
+            break
+    label_ids = sorted(set(labels.values()))
+    remap: Dict[int, int] = {lid: i for i, lid in enumerate(label_ids)}
+    out: Dict[str, int] = {}
+    for nid, lid in labels.items():
+        out[nid] = remap.get(lid, 0)
+    return out
 
 def process_semantics(
     semantic_sources: List[Dict[str, Any]],
@@ -210,13 +261,15 @@ def process_semantics(
                         meta=dict(meta_block, **{"structureType": "Edge", "extractionMethod": "edge_elevation", "sourceBlockId": block_id}),
                     )
 
-    # 4. Co-occurrence
     blocks_with_entities = []
+    entity_block_counts: Dict[str, int] = {}
     for src in semantic_sources:
         block_id = str(src.get("blockId") or "")
         ent_set = {str(m.get("entityId") or "") for m in (mentions_by_block.get(block_id) or []) if str(m.get("entityId") or "")}
         if ent_set:
             blocks_with_entities.append(ent_set)
+            for eid in ent_set:
+                entity_block_counts[eid] = entity_block_counts.get(eid, 0) + 1
     block_count = len(blocks_with_entities)
     pair_counts: Dict[Tuple[str, str], int] = {}
     if block_count > 0:
@@ -226,21 +279,41 @@ def process_semantics(
                 for j in range(i + 1, len(ids)):
                     k = (ids[i], ids[j])
                     pair_counts[k] = pair_counts.get(k, 0) + 1
+        ppmi_scores = _compute_ppmi(pair_counts, entity_block_counts, block_count)
         min_support = float(sem_defaults.get("min_pattern_support") or 0.05)
         for (a, b), cnt in pair_counts.items():
             support = float(cnt) / float(block_count)
             if support < min_support:
                 continue
+            pmi = ppmi_scores.get((a, b), 0.0)
+            if pmi <= 0.0:
+                continue
+            conf = 1.0 / (1.0 + math.exp(-pmi))
             add_edge_callback(
                 edges,
                 a,
                 "coOccursWith",
                 b,
-                props={"support": support, "confidence": support},
+                props={
+                    "support": support,
+                    "pmi": pmi,
+                    "similarity": conf,
+                    "confidence": clamp01(conf),
+                },
                 meta={"structureType": "Edge", "extractionMethod": "pattern_mining", "blockCount": block_count},
             )
 
-    # 5. Centrality
+    for eid, ent_obj in entity_props_by_id.items():
+        props = ent_obj.get("properties")
+        props_dict = props if isinstance(props, dict) else {}
+        mention_total = 0
+        for m in mentions:
+            if str(m.get("entityId") or "") == eid:
+                mention_total += 1
+        props_dict["mentionCount"] = mention_total
+        props_dict["blockFrequency"] = int(entity_block_counts.get(eid) or 0)
+        ent_obj["properties"] = props_dict
+
     if sem_defaults.get("corpus_centrality_algorithm") == "pagerank":
         entity_ids = list(entity_props_by_id.keys())
         neighbors: Dict[str, List[str]] = {eid: [] for eid in entity_ids}
@@ -276,5 +349,43 @@ def process_semantics(
                 props_dict = props if isinstance(props, dict) else {}
                 props_dict["centrality"] = float(pr.get(eid) or 0.0)
                 ent_obj["properties"] = props_dict
-    
+
+    entity_ids = list(entity_props_by_id.keys())
+    if entity_ids:
+        neighbors: Dict[str, List[str]] = {eid: [] for eid in entity_ids}
+        for e in edges:
+            if not isinstance(e, dict):
+                continue
+            if e.get("relation") != "coOccursWith":
+                continue
+            s = str(e.get("source") or e.get("source_node") or "")
+            t = str(e.get("target") or e.get("target_node") or "")
+            if s in neighbors and t in neighbors and s != t:
+                neighbors[s].append(t)
+                neighbors[t].append(s)
+        community_labels = _run_label_propagation(neighbors, max_iter=20)
+        for eid, ent_obj in entity_props_by_id.items():
+            cid = int(community_labels.get(eid, 0))
+            props = ent_obj.get("properties")
+            props_dict = props if isinstance(props, dict) else {}
+            props_dict["communityId"] = cid
+            ent_obj["properties"] = props_dict
+
+    if entity_props_by_id:
+        max_mentions = max(int(ent.get("properties", {}).get("mentionCount") or 0) for ent in entity_props_by_id.values())
+        max_pmi = 0.0
+        for e in edges:
+            if not isinstance(e, dict):
+                continue
+            if e.get("relation") != "coOccursWith":
+                continue
+            props = e.get("properties") or {}
+            val = props.get("pmi")
+            if isinstance(val, (int, float)) and float(val) > max_pmi:
+                max_pmi = float(val)
+        semantic_doc_profile["semanticLayer"] = {
+            "maxMentionCount": int(max_mentions),
+            "maxPmi": float(max_pmi),
+        }
+
     return semantic_doc_profile

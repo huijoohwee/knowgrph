@@ -1,15 +1,12 @@
-Renderer media behavior and opacity
-===================================
+# Renderer media behavior and opacity
 
-Scope
------
+## Scope
 - 2D canvas (GraphCanvas) media overlays
 - 3D scene (ThreeGraph/Scene/NodeMesh) nodes
 - Graph data table rows
 - Markdown preview media proxying
 
-2D layout caching and layer interaction
----------------------------------------
+## 2D layout caching and layer interaction
 - Structured 2D layouts (`radial`, `tidy-tree`) cache node positions per `(schema.layers.mode, graph.layout.mode)` key in the graph store.
 - Cache keys and storage:
   - `GraphCanvas` computes a cache key such as `"semantic:tidy-tree"` or `"property:radial"` from the active schema layer and layout mode ([GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx#L260-L283)).
@@ -41,8 +38,7 @@ Scope
   - `resetAll` in the store clears `layoutPositionCacheByMode` when users reset the canvas or load a new dataset so per-dataset layout caches do not leak across imports.
   - Empty or invalid position sets are stored as `null` and are removed on the next write so the cache stays small and bounded per dataset.
 
-Developer notes: adding new 2D layout modes
------------------------------------------
+## Developer notes: adding new 2D layout modes
 - When introducing a new structured 2D layout mode (for example `"grid"` or `"sankey"`), keep layout caching behavior aligned with existing modes:
   - Treat the layout as cacheable if it deterministically assigns node positions from `(graphData, schema)` without relying on simulation randomness.
   - Extend the `isStructuredMode` check in `GraphCanvas` so the new mode participates in `(schema.layers.mode, graph.layout.mode)` cache keys and `skipInitialLayout` decisions.
@@ -56,8 +52,7 @@ Developer notes: adding new 2D layout modes
   - Do not add them to `isStructuredMode`; allow the force simulation to drive positions without layout caching.
   - This avoids storing partial or unstable layouts and keeps cache semantics predictable across modes.
 
-- Viewport and zoom behavior
----------------------------
+## Viewport and zoom behavior
 - The canvas viewport is driven by:
   - `fitToScreenMode: boolean` in the canvas slice.
   - `zoomToSelectionMode: boolean` in the canvas slice.
@@ -102,8 +97,7 @@ Developer notes: adding new 2D layout modes
     placement only affects the new node’s coordinates, not the zoom mode
     itself.
 
-- Media nodes and view modes
----------------------------
+# Media nodes and view modes
 - Markdown and JSON-LD ingestion attach media metadata to nodes via:
   - `media_url`, `image`, `video`, `iframe_url`, `media`
   - `media_kind` (`image` | `svg` | `video` | `iframe`)
@@ -123,8 +117,7 @@ Developer notes: adding new 2D layout modes
     - `image` and `svg` media are non-interactive by default.
     - `video` and `iframe` media are interactive by default, regardless of iframe host allowlist.
 
-2D canvas media rendering
--------------------------
+# 2D canvas media rendering
 - 2D rendering uses `applySelectionHighlight`, `computeNodeVisual` and the
   2D scene helpers:
   - `canvas/src/components/GraphCanvas/highlight.ts`
@@ -181,8 +174,7 @@ Developer notes: adding new 2D layout modes
     panels are rendered; node visuals still follow the standard
     selection/highlight rules.
 
-3D scene media rendering
-------------------------
+# 3D scene media rendering
 - 3D rendering uses `Scene` and `NodeMesh`:
   - `canvas/src/features/three/Scene.tsx`
   - `canvas/src/features/three/NodeMesh.tsx`
@@ -208,8 +200,7 @@ Developer notes: adding new 2D layout modes
 - This keeps 3D node visibility consistent with the configured media opacity
   without mutating graph node properties.
 
-Graph data table media behavior
--------------------------------
+# Graph data table media behavior
 - Table rendering is handled by:
   - `canvas/src/features/graph-data-table/ui/GraphDataTableRows.tsx`
 - Each row now reads the global media opacity:
@@ -223,8 +214,7 @@ Graph data table media behavior
 - This gives the table a consistent visual cue for the configured media
   opacity without changing table semantics or data.
 
-Floating props panel configuration
-----------------------------------
+# Floating props panel configuration
 - The floating props panel exposes media configuration:
   - `canvas/src/features/toolbar/FloatingPropsPanel.tsx`
 - “Media” section controls:
@@ -240,8 +230,7 @@ Floating props panel configuration
   - 3D nodes via `NodeMesh`.
   - Table rows via `GraphDataTableRows`.
 
-Markdown preview, media proxy, and gallery
-------------------------------------------
+# Markdown preview, media proxy, and gallery
 - Markdown HTML media rendering is handled by:
   - `canvas/src/features/markdown/ui/markdownPreviewLinks.tsx`
   - `canvas/src/features/markdown/ui/MarkdownPreview.tsx`
@@ -272,8 +261,36 @@ Markdown preview, media proxy, and gallery
     - `Markdown` for media discovered in the active markdown document.
     - `Graph` for media discovered from GraphData nodes.
 
-Validation and tests
---------------------
+# Graph layer modes and polygons
+
+- Layer modes:
+  - The toolbar **Layer mode** button cycles through **Semantic → Document structure → Property** using the same `schema.layers.mode` field that the Renderer and FloatingPanel use.
+  - **Semantic**:
+    - Semantic is the default when `schema.layers.mode` is missing or invalid.
+    - The underlying JSON-LD graph is unchanged; the semantic layer derives weighted similarity edges from tokenized node text using cosine similarity or PMI.
+    - Louvain-style community detection assigns `visual:community` and `visual:fill` per node; these become inputs to polygons and traversal overlays.
+  - **Document structure**:
+    - Keeps all nodes and edges visible but treats structural node types such as `Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, and `Table` as blocks.
+    - Assigns a `visual:layer` value so 2D and 3D renderers can apply per-layer opacity and emphasis without hiding nodes or changing layout.
+  - **Property**:
+    - Shows nodes and edges as imported from JSON-LD, driven by array-valued properties and reference edges.
+    - Does not add semantic similarity edges or derived communities; this layer reflects the raw graph schema.
+
+- Polygon groups:
+  - When **Polygon groups** are enabled, the renderer draws convex hull polygons around node groups instead of rendering every node as an isolated shape.
+  - **Semantic mode**:
+    - Groups nodes by `visual:community` and uses `visual:fill` as the base polygon color so each hull approximates a semantic neighborhood derived from PMI/cosine similarity edges.
+    - Edge sparsity and quality are controlled by `schema.layers.semantic.topKEdgesPerNode` and `schema.layers.semantic.minSimilarity`, which act as schema-driven presets rather than dataset-specific magic numbers.
+  - **Document structure mode**:
+    - Uses array-valued properties and structural ownership relationships but filters owners whose types are purely structural blocks when building groups, so polygons emphasize meaningful content groups instead of every heading or paragraph.
+  - **Property mode**:
+    - Derives groups directly from array-valued properties (for example, owners with lists of items) without applying semantic overlays or structural filters.
+  - Polygon styling is schema-driven:
+    - Default fill, stroke, dash, and opacity come from `schema.metadata["canvas:polygons"].defaultStyle` when present.
+    - Styles can be specialized by owner node type via `schema.metadata["canvas:polygons"].byOwnerType`.
+    - Styles can be specialized by property key via `schema.metadata["canvas:polygons"].byPropertyKey`.
+
+# Validation and tests
 - Lint and typecheck:
   - `npm run lint`
   - `npm run typecheck`

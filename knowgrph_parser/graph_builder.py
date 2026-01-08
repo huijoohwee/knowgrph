@@ -456,6 +456,32 @@ def parse_markdown_text_to_graph_jsonld(
         "agenticRagContext": agentic_rag_context_url,
         "layoutMode": "tidy-tree",
         "tidyTree": {"edgeLabels": ["hasSection", "hasBlock", "hasItem"]},
+        "defaultLayer": "semantic",
+        "layers": {
+            "semantic": {
+                "nodeTypes": ["Entity"],
+                "nodeMetrics": ["mentionCount", "blockFrequency", "centrality"],
+                "edgeLabel": "coOccursWith",
+                "edgeMetric": "pmi",
+                "communityProperty": "communityId",
+            },
+            "documentStructure": {
+                "nodeTypes": [
+                    "Document",
+                    "Section",
+                    "Paragraph",
+                    "CodeBlock",
+                    "Table",
+                    "List",
+                    "ListItem",
+                ],
+                "edgeLabels": ["hasSection", "hasBlock", "hasItem", "next", "linksTo"],
+            },
+            "property": {
+                "nodePropertyContainer": "properties",
+                "edgePropertyContainer": "properties",
+            },
+        },
         "suggestedTraversalEdges": [
             "hasSection",
             "hasBlock",

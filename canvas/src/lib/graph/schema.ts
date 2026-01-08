@@ -521,7 +521,7 @@ export const defaultSchema: GraphSchema = {
     },
   },
   layers: {
-    mode: 'property',
+    mode: 'semantic',
     documentStructure: {
       minGroupSize: 2,
     },
