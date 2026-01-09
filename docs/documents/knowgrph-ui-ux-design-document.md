@@ -54,3 +54,15 @@
   - Image/video content should not touch the panel border.
   - There should be a small uniform margin between the media frame and
     the outer panel edges.
+
+# Canvas ↔ Markdown panel UX
+- Bottom Panel auto-open:
+  - When users select a media card sourced from the graph in the Preview gallery, the Bottom Panel automatically opens the Curation tab in Markdown mode, keeping the media selection, canvas selection, and source text aligned without additional clicks.
+- Markdown panel highlight:
+  - Auto-opening the markdown curation view applies a brief, subtle highlight to the panel chrome so users can see where the source text came from without introducing long-lived visual noise.
+- Selection alignment:
+  - Canvas node/edge selections with markdown provenance scroll the Bottom Panel markdown editor and viewer so the associated text range snaps to the top of the viewport, avoiding “lost in the middle” placements.
+  - The highlighted range is visually distinct but deliberately lightweight, preserving the primary reading experience while still making the canvas↔markdown relationship obvious.
+- Markdown Preview context action:
+  - Right-clicking a non-empty selection in the Markdown Preview exposes a “Show on Canvas” action when the selection maps to a known node or edge.
+  - Triggering this action updates the graph selection using the same selection pathways as other tools, so viewport zoom, highlight, and related panels behave consistently.

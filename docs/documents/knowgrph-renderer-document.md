@@ -260,6 +260,20 @@
   - Each gallery card includes a tiny badge indicating source:
     - `Markdown` for media discovered in the active markdown document.
     - `Graph` for media discovered from GraphData nodes.
+  - Selecting a `Graph` media card also updates Canvas selection to the
+    corresponding node and, when provenance metadata is available, opens
+    the Bottom Panel to the Curation → Markdown view and scrolls
+    the markdown editor/viewer to that node’s
+    `metadata.lineStart`–`metadata.lineEnd` range.
+
+## Canvas ↔ Markdown selection sync
+- Canvas-driven sync:
+  - When a node or edge with `metadata.lineStart`/`metadata.lineEnd` is selected on the canvas, the Bottom Panel markdown editor and viewer compute the corresponding wrapped-row range and scroll so the first line of that range sits under the top edge of the editor viewport.
+  - Scroll positioning is line-based and uses the current wrap model for the textarea, so the highlighted range remains stable even when the Bottom Panel is resized vertically.
+  - The active line range is highlighted in the markdown pane to make the relationship between the canvas selection and the source text immediately visible.
+- Markdown-driven sync:
+  - The Markdown Preview exposes a contextual “Show on Canvas” action when right-clicking a non-empty text selection whose token carries a valid line range.
+  - Invoking “Show on Canvas” resolves the selection to the underlying node or edge (when provenance is available) and updates canvas selection using the same store actions as other selection sources, so canvas highlighting, viewport behavior, and downstream panels stay consistent.
 
 # Graph layer modes and polygons
 

@@ -39,6 +39,10 @@
 - The UI maps markdown blocks (headings, paragraphs, lists, tables, code, blockquotes, HTML) into a neutral token AST for:
   - Line-aware preview and media extraction (for Mermaid, images, video, iframes).
   - HTML/PDF export of markdown documents via `markdown-it.render`.
+- Line mapping:
+  - The markdown tokenizer preserves 1-based `lineStart`/`lineEnd` ranges for block-level tokens so downstream components can relate rendered text back to the original source.
+  - When graphs carry `metadata.lineStart`/`metadata.lineEnd` on nodes and edges, the Bottom Panel markdown editor/viewer can scroll directly to the corresponding text range and keep it pinned under the editor viewport’s top edge when selections change on the canvas.
+  - The same line metadata powers the Markdown Preview context menu so right-clicking a selection in the preview can locate and select the associated node or edge on the canvas when provenance is available.
 - HTML blocks:
   - Single-tag `<img>`, `<video>`, and `<iframe>` blocks are rendered via [MarkdownHtmlBlock.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/MarkdownHtmlBlock.tsx) using `isSafeHref`, `isSafeMediaSrc`, and `resolveHref` from [markdownPreviewLinks.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx).
   - More complex HTML wrappers (for example `<center><img src="assets/rlhf.png" width="800"><br>…</center>`) are parsed with `DOMParser` via `renderSafeHtmlBlock`, which walks the DOM tree, applies the same safety checks, and resolves relative `src` attributes against the active markdown document path, so Canvas can render media from HTML blocks with relative assets as long as they satisfy the generic relative-path safety regex.

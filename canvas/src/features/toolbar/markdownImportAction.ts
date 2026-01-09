@@ -84,10 +84,13 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
         const isHttp = /^https?:\/\//i.test(rawName)
         if (isHttp && isMarkdownUrlPath(rawName)) {
           const baseName = deriveMarkdownNameFromUrl(rawName)
+          state.setJsonSourceDocument(baseName, null)
           state.setMarkdownDocument(baseName, res.input.text)
           state.setMarkdownDocumentSourceUrl(rawName)
         } else {
-          state.setMarkdownDocument(res.input.name, res.input.text)
+          const name = res.input.name
+          state.setJsonSourceDocument(name, null)
+          state.setMarkdownDocument(name, res.input.text)
           state.setMarkdownDocumentSourceUrl(null)
         }
         state.setBottomPanelCurationView('grid')

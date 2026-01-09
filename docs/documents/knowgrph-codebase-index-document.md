@@ -20,6 +20,10 @@
   - Canvas CLI and UI load `codebase-index-viz.jsonld`, universal schema config, and orchestrator config as GraphData and configuration presets.
   - `canvas/src/lib/graph/jsonld` handles JSON-LD parsing and normalization, ensuring consistent interpretation of the index.
   - LLM-facing schema-config guidance is documented in `docs/documents/knowgrph-llm-prompt-contract.md`, which explains how to safely modify `schema-config/knowgrph-schema-config-template.jsonld` for new datasets.
+  - For how markdown-derived graphs surface in Canvas and how Canvas↔Markdown panel sync works, see:
+    - `docs/documents/knowgrph-parser-document.md` (Markdown Rendering, Canvas UI)
+    - `docs/documents/knowgrph-renderer-document.md` (Canvas ↔ Markdown selection sync)
+    - `docs/documents/knowgrph-ui-ux-design-document.md` (Canvas ↔ Markdown panel UX)
 ## Module Specification
 
 ### Module: `knowgrph_parser.codebase_index_cmd`
@@ -154,6 +158,7 @@ output_dir:
 | Indexing  | `knowgrph_parser/codebase_index_jsonld.py`       | —                        | `build_jsonld`                  | JsonLdBuilder converts workflow nodes/edges into AgenticRAG index JSON‑LD    | `.codebase_index_artifacts`, `.runtime_events` | JSON‑LD `@context`, `@graph`, `metadata`      | ~17–271 |
 | Indexing  | `knowgrph_parser/python_codebase_index_cmd.py`   | —                        | `main`                          | PythonIndexCli walks codebase and writes JSON‑LD, schema, orchestrator files | `.python_codebase_index_document`, `.python_codebase_index_graph` | Codebase index JSON‑LD + configs | ~22–112 |
 | Indexing  | `knowgrph_parser/python_codebase_index_document.py` | —                     | `build_jsonld_document`         | PythonJsonLdBuilder maps GraphNodeRecord objects into AgenticRAG JSON‑LD     | `.runtime_events`, `.codebase_index_artifacts` | JSON‑LD `@context`, `@graph`, `metadata.layers` | ~118–227 |
+| Docs      | `knowgrph/package.json`                         | docs:update script        | `npm run docs:update`           | DocsUpdateJob runs markdown pipeline for docs/documents -> refreshes graph/schema/orchestrator previews | `python -m knowgrph_parser markdown`, `.knowgrph-workflow-preview` | Preview artifacts synced with authored docs     | —      |
 | Semantic  | `knowgrph_parser/markdown_cmd.py`                | DocumentUnifier          | `_unify_entities_across_docs`   | Unifier merges entities across docs -> resolves canonical IDs (L102–165)      | `.graph_builder`, `.schema_config`   | JSON‑LD `@graph`, canonical entity IDs         | ~200+  |
 | Semantic  | `knowgrph_parser/semantic_processor.py`          | TokenLinker              | `merge_tokens_to_spans`         | TokenLinker merges tokens to spans -> identifies entities based on phrase boundaries | `.token_linker`, `.markdown_blocks`  | Token spans, confidence scores                 | ~200+  |
 | Semantic  | `knowgrph_parser/semantic_processor.py`          | EdgeElevator             | `extract_sentence_features`     | EdgeElevator extracts sentence features -> enriches edges with temporal/modal attributes | `.edge_elevator`                     | Edge attributes (temporal, modal)              | ~200+  |

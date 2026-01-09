@@ -13,6 +13,7 @@ interface StatusBadgeProps {
 
 const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }: StatusBadgeProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiIconPillClass = useGraphStore(s => s.uiIconPillClass)
   const uiPanelMicroLabelTextSizeClass = useGraphStore(
     s => s.uiPanelMicroLabelTextSizeClass || 'text-xs',
@@ -29,9 +30,9 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
         className={`${uiIconPillClass} inline-flex items-center justify-center gap-1 text-xs min-w-[120px] ${classes}`}
       >
         {ok === true ? (
-          <CheckCircle className={iconSizeClass} aria-hidden="true" />
+          <CheckCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         ) : ok === false ? (
-          <XCircle className={iconSizeClass} aria-hidden="true" />
+          <XCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         ) : null}
         <span className="max-w-40 truncate">{ok == null ? (msg || 'Idle') : (msg || '')}</span>
         {!below && details ? <span className="text-gray-500">· {details}</span> : null}

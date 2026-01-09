@@ -5,6 +5,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { edgeExists } from '@/lib/graph/edges'
 import { getNodeMediaSpec, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { emitChatInputAppend, emitSidePanelOpen } from '@/features/canvas/utils'
+import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
 
 type FloatingPanelModel = {
   graphData: GraphData | null
@@ -30,6 +31,7 @@ type FloatingPanelModel = {
   doOpenNodeSide: () => void
   doOpenNodeNodesTab: () => void
   doOpenNodeCodeTab: () => void
+  doShowNodeInMarkdown: () => void
   doAddToChat: () => void
   doStartEdgeFromNode: () => void
   doCreateNodeAndEdge: () => void
@@ -40,6 +42,7 @@ type FloatingPanelModel = {
   doUpdateTarget: () => void
   doOpenEdgeEdgesTab: () => void
   doOpenEdgeCodeTab: () => void
+  doShowEdgeInMarkdown: () => void
   doAddNode: () => void
   doAddNodePlusEdgeFromSelected: () => void
   doStartEdgeFromSelected: () => void
@@ -74,6 +77,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const setSidebarOpen = useGraphStore(s => s.setSidebarOpen)
   const setBottomPanelTab = useGraphStore(s => s.setBottomPanelTab)
+  const setBottomPanelCurationView = useGraphStore(s => s.setBottomPanelCurationView)
   const addNode = useGraphStore(s => s.addNode)
   const addEdge = useGraphStore(s => s.addEdge)
   const removeNode = useGraphStore(s => s.removeNode)
@@ -199,6 +203,50 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     setBottomPanelTab('data')
     selectNode(nodeContextId)
   }, [graphData, nodeContextId, setSelectionSource, setBottomPanelTab, selectNode])
+
+  const resolveMarkdownProvenance = React.useCallback(
+    (meta: unknown) => {
+      const record = meta && typeof meta === 'object' && !Array.isArray(meta) ? (meta as Record<string, unknown>) : {}
+      const pathRaw = record.documentPath || record.sourcePath || record.sourceUri || record.codebasePath
+      const documentPath = typeof pathRaw === 'string' ? pathRaw.trim() : ''
+      const lineStartRaw = record.lineStart
+      const lineEndRaw = record.lineEnd
+      const parseLine = (v: unknown): number | null => {
+        if (typeof v === 'number') return Number.isFinite(v) ? Math.floor(v) : null
+        if (typeof v === 'string') {
+          const parsed = Number.parseInt(v, 10)
+          return Number.isFinite(parsed) ? parsed : null
+        }
+        return null
+      }
+      const start = parseLine(lineStartRaw)
+      const endParsed = parseLine(lineEndRaw)
+      if (!documentPath || start == null) return null
+      const end = endParsed != null ? endParsed : start
+      const safeStart = Math.max(1, Math.min(start, end))
+      const safeEnd = Math.max(safeStart, Math.max(start, end))
+      return { documentPath, startLine: safeStart, endLine: safeEnd }
+    },
+    [],
+  )
+
+  const doShowNodeInMarkdown = React.useCallback(() => {
+    if (!graphData || !nodeContextId) return
+    const node = graphData.nodes.find(n => n.id === nodeContextId)
+    if (!node) return
+    const prov = resolveMarkdownProvenance(node.metadata)
+    if (!prov) return
+    setSelectionSource('toolbar')
+    try {
+      setBottomPanelTab('curation')
+      setBottomPanelCurationView('markdown')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT))
+      }
+    } catch {
+      void 0
+    }
+  }, [graphData, nodeContextId, resolveMarkdownProvenance, setBottomPanelTab, setBottomPanelCurationView, setSelectionSource])
 
   const doAddToChat = React.useCallback(() => {
     if (!graphData) return
@@ -377,6 +425,24 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     selectEdge(edgeContextId)
   }, [edgeContextId, graphData, selectEdge, setBottomPanelTab, setSelectionSource])
 
+  const doShowEdgeInMarkdown = React.useCallback(() => {
+    if (!graphData || !edgeContextId) return
+    const edge = graphData.edges.find(e => e.id === edgeContextId)
+    if (!edge) return
+    const prov = resolveMarkdownProvenance(edge.metadata)
+    if (!prov) return
+    setSelectionSource('toolbar')
+    try {
+      setBottomPanelTab('curation')
+      setBottomPanelCurationView('markdown')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT))
+      }
+    } catch {
+      void 0
+    }
+  }, [edgeContextId, graphData, resolveMarkdownProvenance, setBottomPanelTab, setBottomPanelCurationView, setSelectionSource])
+
   const doAddNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
@@ -496,6 +562,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     doOpenNodeSide,
     doOpenNodeNodesTab,
     doOpenNodeCodeTab,
+    doShowNodeInMarkdown,
     doAddToChat,
     doStartEdgeFromNode,
     doCreateNodeAndEdge,
@@ -506,6 +573,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     doUpdateTarget,
     doOpenEdgeEdgesTab,
     doOpenEdgeCodeTab,
+    doShowEdgeInMarkdown,
     doAddNode,
     doAddNodePlusEdgeFromSelected,
     doStartEdgeFromSelected,

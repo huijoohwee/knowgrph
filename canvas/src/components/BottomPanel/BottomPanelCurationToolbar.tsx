@@ -2,6 +2,7 @@ import React from 'react'
 import ActionsRow from '@/features/panels/ui/ActionsRow'
 import type { CodeAction } from '@/features/code-editor/actions'
 import type { BottomTab } from '@/features/bottom-panel/open'
+import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -34,6 +35,11 @@ export default function BottomPanelCurationToolbar({
       setSchema: s.setSchema,
     })),
   )
+  const layers = (schema as GraphSchema).layers || {}
+  const layerMode: 'property' | 'document-structure' | 'semantic' =
+    layers.mode === 'document-structure' || layers.mode === 'semantic'
+      ? layers.mode
+      : 'property'
   const isTextEditorActive = isGraphJsonView
   const isMarkdownActive = tab === 'curation' && bottomPanelCurationView === 'markdown'
 
@@ -81,15 +87,23 @@ export default function BottomPanelCurationToolbar({
         <div className="flex flex-wrap items-center justify-end gap-2 mb-0">
           <select
             className="h-6 px-2 text-xs border border-gray-300 rounded bg-white text-gray-700"
-            value={schema.layers?.mode || 'property'}
-            onChange={(e) => {
+            value={layerMode}
+            onChange={e => {
               const raw = String(e.target.value || '')
-              const nextMode =
-                raw === 'semantic' || raw === 'document-structure'
-                  ? raw
+              const nextMode: 'property' | 'document-structure' | 'semantic' =
+                raw === 'document-structure' || raw === 'semantic'
+                  ? (raw as 'document-structure' | 'semantic')
                   : 'property'
-              const layers = schema.layers || {}
-              setSchema({ ...schema, layers: { ...layers, mode: nextMode } })
+              const current = schema as GraphSchema
+              const nextLayers = current.layers || {}
+              const next: GraphSchema = {
+                ...current,
+                layers: {
+                  ...nextLayers,
+                  mode: nextMode,
+                },
+              }
+              setSchema(next)
             }}
           >
             <option value="property">property</option>

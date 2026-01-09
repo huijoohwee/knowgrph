@@ -34,7 +34,9 @@ import {
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { openBottomPanel } from '@/features/bottom-panel/open'
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -44,6 +46,9 @@ export default function PreviewPanelView() {
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const activeMediaKey = useGraphStore(s => s.markdownPreviewActiveMediaKey || null)
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
+  const selectNode = useGraphStore(s => s.selectNode)
+  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
+  const setBottomPanelCurationView = useGraphStore(s => s.setBottomPanelCurationView)
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
@@ -90,6 +95,7 @@ export default function PreviewPanelView() {
     source: MediaSource
     startLine: number
     label: string
+    nodeId?: string
     code?: string
     mermaidConfig?: MermaidInitConfig | null
     src?: string
@@ -258,12 +264,14 @@ export default function PreviewPanelView() {
         const n = graphData.nodes[i] as GraphNode
         const spec = getNodeMediaSpec(n)
         if (!spec) continue
+        const nodeId = String(n.id || '')
+        if (!nodeId) continue
         const src = spec.url
         if (!src) continue
-        const baseLabel = String(n.label || n.id || '')
+        const baseLabel = String(n.label || nodeId)
         const label = baseLabel ? `Node media: ${baseLabel}` : 'Node media'
         const kind: MediaKind = spec.kind === 'svg' ? 'image' : spec.kind === 'video' ? 'video' : spec.kind === 'iframe' ? 'iframe' : 'image'
-        const key = `graph-node-media:${String(n.id)}:${kind}:${src}`
+        const key = `graph-node-media:${nodeId}:${kind}:${src}`
         list.push({
           key,
           kind,
@@ -272,6 +280,7 @@ export default function PreviewPanelView() {
           label,
           src,
           alt: baseLabel || undefined,
+          nodeId,
         })
       }
     }
@@ -295,10 +304,27 @@ export default function PreviewPanelView() {
         code: item.code || '',
         frontmatterConfig: item.mermaidConfig || mermaidFrontmatterConfig,
       })
-      return
+    } else {
+      setMermaidFocus(null)
+      setActiveMediaKey(item.key)
     }
-    setMermaidFocus(null)
-    setActiveMediaKey(item.key)
+    if (item.source === 'graph' && item.nodeId) {
+      try {
+        setSelectionSource('toolbar')
+        selectNode(item.nodeId)
+        openBottomPanel('curation')
+        setBottomPanelCurationView('markdown')
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(new CustomEvent(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT))
+          } catch {
+            void 0
+          }
+        }
+      } catch {
+        void 0
+      }
+    }
   }
 
   const renderMiniPreview = (item: MediaItem) => {

@@ -490,8 +490,6 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       aiKgTraversalRan: false,
       layoutPositionCacheByMode: {},
       minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } },
-      markdownDocumentName: null,
-      markdownDocumentText: null,
     }));
     set({ graphRagWorkflowJsonText: null })
     set({ lifecycleStage: 'reset' });

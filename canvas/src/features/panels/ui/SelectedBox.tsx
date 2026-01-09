@@ -15,6 +15,7 @@ interface SelectedBoxProps {
 
 function SelectedBoxImpl({ name, idText, lines = [], statusOk, statusMsg, countsText, className }: SelectedBoxProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const displayName = (name || '').trim() ? name : 'None'
   const failText = `Fail${(statusMsg || '').trim() ? ` — ${statusMsg}` : ''}`
@@ -28,10 +29,10 @@ function SelectedBoxImpl({ name, idText, lines = [], statusOk, statusMsg, counts
         <div key={idx}>{ln}</div>
       ))}
       {statusOk === true && (
-        <div className="mt-1 inline-flex items-center text-green-600"><CheckCircle className={`${iconSizeClass} mr-1`} aria-hidden="true" />{statusMsg || 'Success'}</div>
+        <div className="mt-1 inline-flex items-center text-green-600"><CheckCircle className={`${iconSizeClass} mr-1`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />{statusMsg || 'Success'}</div>
       )}
       {statusOk === false && (
-        <div className="mt-1 inline-flex items-center text-red-600"><XCircle className={`${iconSizeClass} mr-1`} aria-hidden="true" />{failText}</div>
+        <div className="mt-1 inline-flex items-center text-red-600"><XCircle className={`${iconSizeClass} mr-1`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />{failText}</div>
       )}
     </div>
   )

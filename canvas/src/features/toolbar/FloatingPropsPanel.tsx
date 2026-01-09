@@ -46,6 +46,7 @@ export function FloatingPropsPanel() {
     doOpenNodeSide,
     doOpenNodeNodesTab,
     doOpenNodeCodeTab,
+    doShowNodeInMarkdown,
     doAddToChat,
     doStartEdgeFromNode,
     doCreateNodeAndEdge,
@@ -56,6 +57,7 @@ export function FloatingPropsPanel() {
     doUpdateTarget,
     doOpenEdgeEdgesTab,
     doOpenEdgeCodeTab,
+    doShowEdgeInMarkdown,
     doAddNode,
     doAddNodePlusEdgeFromSelected,
     doStartEdgeFromSelected,
@@ -187,6 +189,9 @@ export function FloatingPropsPanel() {
         </MenuButton>
         <MenuButton onClick={doOpenNodeCodeTab} disabled={!canUseNodeContext}>
           {UI_COPY.propsPanelOpenInEditor}
+        </MenuButton>
+        <MenuButton onClick={doShowNodeInMarkdown} disabled={!canUseNodeContext}>
+          {UI_COPY.propsPanelShowInMarkdown}
         </MenuButton>
         <MenuButton onClick={doAddToChat} disabled={!canUseNodeContext}>
           {UI_COPY.propsPanelAddToChat}
@@ -369,6 +374,9 @@ export function FloatingPropsPanel() {
         </MenuButton>
         <MenuButton onClick={doOpenEdgeCodeTab} disabled={!canUseEdgeContext}>
           {UI_COPY.propsPanelOpenInEditor}
+        </MenuButton>
+        <MenuButton onClick={doShowEdgeInMarkdown} disabled={!canUseEdgeContext}>
+          {UI_COPY.propsPanelShowInMarkdown}
         </MenuButton>
       </CollapsibleSection>
     </div>

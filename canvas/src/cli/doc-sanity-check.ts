@@ -21,9 +21,18 @@ function formatCountRow(label: string, registryCount: number, tableCount: number
   return `${label}: registry=${registryCount}, table=${tableCount}, status=${status}`
 }
 
-function readDesignDoc(): string {
+function readDesignDoc(): string | null {
   const docPath = path.resolve(process.cwd(), '..', 'docs', 'knowgrph-design-document.md')
-  return fs.readFileSync(docPath, 'utf8')
+  try {
+    return fs.readFileSync(docPath, 'utf8')
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException
+    if (err && err.code === 'ENOENT') {
+      process.stdout.write(`Optional design doc not found, skipping checks: ${docPath}\n`)
+      return null
+    }
+    throw err
+  }
 }
 
 function extractTableBetweenMarkers(content: string, startMarker: string, endMarker: string): string {
@@ -49,6 +58,9 @@ function checkRenderSectionsDocTable(): string {
   const registryCount = diagnostics.length
   const expectedTable = getRenderSectionMarkdownTable().trim()
   const content = readDesignDoc()
+  if (!content) {
+    return 'Render sections: skipped (optional design doc missing)'
+  }
   const actualTable = extractTableBetweenMarkers(
     content,
     '<!-- RENDER_SECTIONS_TABLE_START -->',
@@ -59,6 +71,38 @@ function checkRenderSectionsDocTable(): string {
   }
   const tableCount = countTableRows(actualTable)
   return formatCountRow('Render sections', registryCount, tableCount)
+}
+
+function checkDocsMaintainability(): string {
+  const docsDir = path.resolve(process.cwd(), '..', 'docs', 'documents')
+  const entries = fs.readdirSync(docsDir, { withFileTypes: true })
+  const violations: string[] = []
+  for (const entry of entries) {
+    if (!entry.isFile()) continue
+    if (!entry.name.endsWith('.md')) continue
+    const fullPath = path.join(docsDir, entry.name)
+    const content = fs.readFileSync(fullPath, 'utf8')
+    const lineCount = content.split('\n').length
+    if (lineCount > 600) {
+      violations.push(`${entry.name} (${lineCount} lines)`)
+    }
+  }
+  if (violations.length > 0) {
+    const guidelinesPath = path.resolve(
+      process.cwd(),
+      '..',
+      '..',
+      'huijoohwee.github.io',
+      'guidelines',
+      'codebase-maintainability-guidelines.md',
+    )
+    throw new Error(
+      `Documentation maintainability violation: docs/documents files exceed 600 lines per guidelines at ${guidelinesPath}: ${violations.join(
+        ', ',
+      )}`,
+    )
+  }
+  return 'Docs maintainability: OK (all docs/documents/*.md ≤ 600 lines)'
 }
 
 function checkWorkflowPresets(): string {
@@ -87,6 +131,7 @@ function main() {
   lines.push(checkRenderSectionsDocTable())
   lines.push(checkWorkflowPresets())
   lines.push(checkSettingsRegistry())
+  lines.push(checkDocsMaintainability())
   process.stdout.write(`${lines.join('\n')}\n`)
 }
 

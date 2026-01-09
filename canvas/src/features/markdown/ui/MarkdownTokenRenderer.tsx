@@ -153,6 +153,8 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
             <div
               key={key}
               className={['mt-2 mb-2', baseTextClass, commonBlockClass, highlightClass].filter(Boolean).join(' ')}
+              data-start-line={t.startLine}
+              data-end-line={t.endLine || t.startLine}
             >
               {String((t as unknown as { raw?: unknown }).raw || '')}
             </div>

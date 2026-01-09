@@ -1,0 +1,112 @@
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import type { GraphData } from '@/lib/graph/types'
+
+export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const anyWindow = dom.window as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+    }
+    if (!anyWindow.requestAnimationFrame) {
+      anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+        setTimeout(() => cb(Date.now()), 0) as unknown as number
+    }
+    const anyGlobal = globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    if (!anyGlobal.requestAnimationFrame) {
+      anyGlobal.requestAnimationFrame = anyWindow.requestAnimationFrame
+    }
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const lines: string[] = []
+    for (let i = 1; i <= 200; i += 1) {
+      lines.push(`line ${i}`)
+    }
+    const markdownText = lines.join('\n')
+
+    const graphData: GraphData = {
+      type: 'Graph',
+      nodes: [
+        {
+          id: 'node-100',
+          type: 'Paragraph',
+          label: 'Target',
+          properties: {},
+          metadata: {
+            documentPath: '',
+            lineStart: 100,
+            lineEnd: 102,
+          },
+        },
+      ],
+      edges: [],
+      metadata: {},
+    }
+
+    const state = useGraphStore.getState()
+    state.setGraphData(graphData as never)
+    state.setMarkdownDocument('test.md', markdownText)
+    state.selectNode('node-100')
+
+    root.render(React.createElement(BottomPanelMarkdownSection))
+
+    const tick = () =>
+      new Promise<void>(resolve =>
+        anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
+      )
+    await tick()
+    await tick()
+
+    const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
+    if (!textarea) {
+      throw new Error('editor textarea not found')
+    }
+
+    Object.defineProperty(textarea, 'scrollHeight', {
+      value: 4000,
+      configurable: true,
+    })
+    Object.defineProperty(textarea, 'clientHeight', {
+      value: 400,
+      configurable: true,
+    })
+
+    textarea.dispatchEvent(new dom.window.Event('scroll', { bubbles: true }))
+    await tick()
+    await tick()
+
+    const scrollTopAfter = textarea.scrollTop
+    if (scrollTopAfter <= 0) {
+      throw new Error('expected textarea to scroll for selected node line range')
+    }
+
+    const gutter = doc.querySelector(
+      '.shrink-0.border-r.border-gray-200.bg-gray-50.text-gray-500.relative.overflow-hidden',
+    ) as HTMLDivElement | null
+    if (!gutter) {
+      throw new Error('editor gutter not found')
+    }
+    const highlighted = gutter.querySelectorAll('.bg-yellow-100')
+    if (!highlighted || highlighted.length === 0) {
+      throw new Error('expected at least one highlighted line number in gutter')
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+    restoreWindow()
+  }
+}
+

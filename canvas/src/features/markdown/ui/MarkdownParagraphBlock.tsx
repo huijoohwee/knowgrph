@@ -52,6 +52,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           type="youtube"
           srcRaw={standaloneHref}
           startLine={t.startLine}
+          endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
           opts={opts}
         >
@@ -72,6 +73,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           type="vimeo"
           srcRaw={standaloneHref}
           startLine={t.startLine}
+          endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
           opts={opts}
         >
@@ -93,6 +95,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           type="video"
           srcRaw={standaloneHref}
           startLine={t.startLine}
+          endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
           opts={opts}
         >
@@ -112,6 +115,8 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         commonBlockClass,
         highlightClass,
       ].filter(Boolean).join(' ')}
+      data-start-line={t.startLine}
+      data-end-line={t.endLine || t.startLine}
     >
       {renderInlineTokens(p.tokens, { activeDocumentPath: opts.activeDocumentPath, uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass })}
     </p>

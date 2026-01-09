@@ -156,7 +156,6 @@ export async function loadGraphDataFromBackendViaParser(): Promise<LoaderResult 
 }
 
 export async function loadGraphDataFromTextViaParser(name: string, text: string): Promise<LoaderResult | null> {
-  try { useGraphStore.getState().clearGraphData() } catch { void 0 }
   const bm = bestMatch({ name, text })
   if (!bm) {
     try {

@@ -46,6 +46,7 @@ export function LaunchSpotlightStatusCard({
   const dataLoadMsg = useParserUIState(s => s.dataLoadMsg)
 
   const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
@@ -96,8 +97,8 @@ export function LaunchSpotlightStatusCard({
   const hasValidationRun = !!graphValidationTimestamp && !!graphData
   const validationIcon = hasValidationRun
     ? graphValidationStatus === 'invalid'
-      ? <AlertTriangle className={`${iconSizeClass} text-red-500`} aria-hidden="true" />
-      : <CheckCircle className={`${iconSizeClass} text-green-500`} aria-hidden="true" />
+      ? <AlertTriangle className={`${iconSizeClass} text-red-500`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+      : <CheckCircle className={`${iconSizeClass} text-green-500`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
     : null
   const validationTextClass =
     !hasValidationRun ? 'text-gray-700' : graphValidationStatus === 'invalid' ? 'text-red-700' : 'text-green-700'

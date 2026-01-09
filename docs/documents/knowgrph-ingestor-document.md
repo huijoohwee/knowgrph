@@ -183,23 +183,74 @@ This section describes how each format enters the system, how it is converted, a
 - Typical usage:
   - Inspecting JSON/JSON‑LD fixtures during parser development.
   - Producing Markdown snippets for architecture documents in `docs/documents/` from existing JSON graph exports without adding dataset‑specific formatting logic.
-  - Backed by a structurally equivalent client‑side helper in the canvas (`jsonToMarkdown`), which feeds the Markdown Section when JSON or JSON‑LD files are imported so the textarea shows converted Markdown rather than raw JSON.
+  - Kept deliberately separate from the canvas pipeline so it remains a pure command‑line helper; the canvas uses a client‑side `jsonToMarkdown` helper with the same structural behavior but wires it into JSON import and the Markdown bottom panel instead of relying on pre‑generated Markdown files.
 
 ### Canvas JSON / JSON‑LD → Markdown Mode Selector
 
 - Location:
-  - The Markdown bottom panel header shows a **JSON → Markdown mode** selector next to the Markdown status badge.
+  - The Markdown bottom panel header shows:
+    - A **JSON-backed preview** badge whenever the active Markdown is derived from a JSON/JSON‑LD import. Hovering the badge reveals a tooltip: the panel is a preview of the last JSON/JSON‑LD import, graph structure should be edited via the JSON Editor or UI Editor, and Apply from Markdown is disabled for this mode. The Markdown **Apply** button is hard-disabled (greyed out with a tooltip) whenever the view is JSON-backed so users cannot accidentally mutate `graphData` from this preview.
+    - A **JSON → Markdown mode** selector next to the Markdown status badge.
 - Modes:
   - `Auto`: lets the converter choose a mode from structure (table, key‑value, or hierarchical).
   - `Table`: prefers Markdown tables when the JSON is an array of uniform objects without nested structures.
   - `Key‑value`: emits bullet lists of key‑value pairs for flat objects, with nested structures delegated to a hierarchical view.
   - `Hierarchical`: always renders nested bullet lists with indentation, regardless of the input shape.
-- Behavior:
-  - When JSON or JSON‑LD is imported through the toolbar and parses successfully, the client‑side `jsonToMarkdown` helper:
-    - Stores the raw JSON text alongside the Markdown document in the canvas store.
-    - Uses the last chosen mode (persisted in `LS_KEYS.jsonMarkdownMode`) to render the initial Markdown in the bottom panel instead of showing raw JSON.
-  - Changing the selector re‑runs the JSON → Markdown conversion against the stored JSON source while the graph and Graph Data Table remain unchanged, so users can flip between table/key‑value/hierarchical views without re‑ingesting.
+- Behavior on JSON import:
+  - When JSON or JSON‑LD is imported through the toolbar and parses successfully:
+    - The raw JSON text is stored as the current JSON source document in the graph store under the derived base name (for example, `graph.json` or `graph.jsonld`).
+    - The client‑side `jsonToMarkdown` helper renders Markdown from that JSON using the last chosen mode (persisted in `LS_KEYS.jsonMarkdownMode`) so the Markdown Section shows a human‑readable view instead of raw JSON.
+    - The imported graph is stored as `graphData` and drives the Canvas, Graph Data Table, and JSON Editor views; changing the JSON → Markdown mode never mutates `graphData` or re‑runs the parser.
+- Behavior on mode changes:
+  - Changing the selector re‑runs JSON → Markdown conversion against the stored JSON source while the graph and Graph Data Table remain unchanged, so users can flip between table/key‑value/hierarchical views without re‑ingesting.
   - The selector also shows a **Suggested:** hint derived from the combination of the current Markdown content and the JSON structure so users can see which mode best matches the existing view while retaining full control over future conversions.
+
+### JSON Import → Graph Data Table → JSON Editor → Markdown Workflow
+
+1. JSON import:
+   - Use **Source Files → Import** (URL or Local) with `format: "json"` or `format: "jsonld"` to load a JSON or JSON‑LD file into the canvas.
+   - The parser normalizes the payload into `GraphData` and, when parsing succeeds, stores the raw text as the current JSON source document for the Markdown Section (or clears it when the payload is not valid JSON).
+   - The initial Markdown in the bottom panel is derived from the stored JSON using the last chosen JSON → Markdown mode; when parsing fails, the raw JSON is shown inside a fenced code block instead of a rendered table or hierarchy.
+2. Graph Data Table:
+   - Open the **Curation** tab and switch to the Graph Data Table view to inspect nodes and edges derived from the imported JSON.
+   - Changing the JSON → Markdown mode does not mutate `GraphData` or re‑run the parser, so table contents remain stable while the Markdown view changes.
+3. JSON Editor:
+   - In the Curation toolbar, click **JSON Editor** to view and edit the JSON representation that backs the current `GraphData` state.
+   - Edits that apply back to `GraphData` update the graph store and keep the Graph Data Table and canvas views aligned with the same underlying dataset.
+   - The JSON Editor apply path also updates the stored JSON source document when the active Markdown document represents a JSON or JSON‑LD file, keeping the JSON source, Markdown view, and graph in sync.
+4. Markdown view with live modes:
+   - Switch to the **Markdown Section** and use the JSON → Markdown mode selector to flip between Auto/Table/Key‑value/Hierarchical views.
+   - The Markdown bottom panel re‑renders from the stored JSON source whenever the mode changes or the JSON source is updated (for example, after applying changes in the JSON Editor), while leaving `GraphData` unchanged so users can iterate on Markdown presentations independently of ingestion.
+   - When the active Markdown document is associated with a `documentPath` in the graph (for example, repo documentation opened from Workspace Actions), clicking **Apply** re‑parses only that document and merges the result back into the existing `graphData`: nodes and edges whose metadata `documentPath` matches the active document are replaced, all other nodes, edges, and graph‑level metadata are preserved so Canvas structure for unrelated content is not disturbed.
+
+#### Example: Workspace Actions → Markdown → Apply
+
+1. In Canvas, open the **Workflow** tab and the **Workspace Actions** floating panel, then run the codebase indexing pipeline so markdown files under `docs/documents/` are ingested into `graphData` with `metadata.documentPath` pointing at their repo paths.
+2. On the Canvas, click a node that came from one of those markdown files (for example, `docs/documents/knowgrph-ingestor-document.md`); the Bottom Panel opens the **Curation → Markdown Section** view for the selected document.
+3. In the Markdown editor, update the text for that document and click **Apply**:
+   - The markdown parser runs only on the active document.
+   - The resulting nodes and edges are tagged with the same `documentPath` as the original document.
+   - The graph store replaces nodes and edges whose `metadata.documentPath` matches that path and leaves all other nodes, edges, and graph‑level metadata unchanged.
+   - The Canvas and Graph Data Table update to reflect the new structure for that document while the rest of the workspace graph remains intact.
+
+- Gotchas:
+  - When there is no `documentPath` for the active Markdown (for example, ad‑hoc Markdown that is not associated with a repo file), **Apply** falls back to treating the Markdown as a standalone dataset: the parser replaces the entire `graphData` with the parsed result instead of doing a per‑document merge, so use Workspace Actions and repo‑backed docs when you need scoped updates.
+
+### Store Keys for JSON ↔ Markdown Sync
+
+- `graphData`:
+  - Canonical graph payload produced by the parser or JSON Editor.
+  - Drives the Canvas, Graph Data Table, and JSON Editor views.
+- `markdownDocumentName`:
+  - Logical name of the active Markdown document (for example, `graph.json`, `graph.jsonld`, `document.md`).
+  - Used by the Markdown Section to decide when JSON → Markdown conversion should run (only when the name ends in `.json` or `.jsonld`).
+- `markdownDocumentText`:
+  - Current Markdown content shown in the bottom panel editor/viewer.
+  - Initialized from imports (Markdown/HTML/PDF/CSV/JSON/JSON‑LD) and overwritten when JSON → Markdown conversion runs.
+- `jsonSourceDocumentText`:
+  - Raw JSON text associated with the current JSON/JSON‑LD document.
+  - Set on JSON/JSON‑LD import and updated when JSON Editor apply commits graph changes.
+  - When non‑empty, the Markdown Section re‑renders `markdownDocumentText` from this JSON using the active JSON → Markdown mode; when empty or when the active document is not a JSON/JSON‑LD file, the Markdown Section leaves the existing Markdown unchanged.
 
 ## Media Rendering Across Formats
 

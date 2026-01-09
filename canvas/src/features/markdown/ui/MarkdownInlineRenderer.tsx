@@ -33,14 +33,21 @@ const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: stri
 }
 
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
-  const list = Array.isArray(tokens) ? tokens : []
   const { activeDocumentPath, uiPanelMonospaceTextClass } = opts
 
-  const renderOne = (t: Token, i: number): React.ReactNode => {
+  const renderTokens = (subTokens: Token[] | undefined, insideLink: boolean): React.ReactNode => {
+    const list = Array.isArray(subTokens) ? subTokens : []
+    return list.map((t, i) => renderOne(t, i, insideLink))
+  }
+
+  const renderOne = (t: Token, i: number, insideLink: boolean): React.ReactNode => {
     const key = `${t.type}:${i}`
     const tt = t as unknown as TokensGeneric
     if (tt.type === 'text') {
       const text = String((t as unknown as TokensText).text || '')
+      if (insideLink) {
+        return <span key={key}>{text}</span>
+      }
       const parts = splitPlainUrls(text)
       return (
         <span key={key}>
@@ -67,13 +74,13 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       )
     }
     if (tt.type === 'strong') {
-      return <strong key={key}>{renderInlineTokens((t as unknown as TokensStrong).tokens, opts)}</strong>
+      return <strong key={key}>{renderTokens((t as unknown as TokensStrong).tokens, insideLink)}</strong>
     }
     if (tt.type === 'em') {
-      return <em key={key}>{renderInlineTokens((t as unknown as TokensEm).tokens, opts)}</em>
+      return <em key={key}>{renderTokens((t as unknown as TokensEm).tokens, insideLink)}</em>
     }
     if (tt.type === 'del') {
-      return <del key={key}>{renderInlineTokens((t as unknown as TokensDel).tokens, opts)}</del>
+      return <del key={key}>{renderTokens((t as unknown as TokensDel).tokens, insideLink)}</del>
     }
     if (tt.type === 'br') return <br key={key} />
     if (tt.type === 'link') {
@@ -87,7 +94,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           rel={href && href.startsWith('#') ? undefined : 'noreferrer'}
           className="text-blue-600 hover:underline break-words"
         >
-          {renderInlineTokens(link.tokens, opts)}
+          {renderTokens(link.tokens, true)}
         </a>
       )
     }
@@ -115,12 +122,12 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     if ((t as unknown as { tokens?: unknown }).tokens) {
       return (
         <React.Fragment key={key}>
-          {renderInlineTokens((t as unknown as { tokens?: Token[] }).tokens, opts)}
+          {renderTokens((t as unknown as { tokens?: Token[] }).tokens, insideLink)}
         </React.Fragment>
       )
     }
     return <React.Fragment key={key}>{(t as unknown as { raw?: string }).raw || ''}</React.Fragment>
   }
 
-  return <>{list.map((t, i) => renderOne(t, i))}</>
+  return <>{renderTokens(tokens, false)}</>
 }

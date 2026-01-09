@@ -92,7 +92,9 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
     try {
       const state = useGraphStore.getState()
       if (res.input && res.input.text.trim()) {
-        state.setMarkdownDocument(res.input.name, res.input.text)
+        const name = res.input.name
+        state.setJsonSourceDocument(name, null)
+        state.setMarkdownDocument(name, res.input.text)
         state.setBottomPanelCurationView('grid')
       }
     } catch {

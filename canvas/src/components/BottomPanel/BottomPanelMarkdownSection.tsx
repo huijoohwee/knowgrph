@@ -1,5 +1,14 @@
 import React from 'react'
-import { Maximize2, MonitorPlay, WrapText } from 'lucide-react'
+import {
+  ArrowUpDown,
+  Check,
+  LayoutPanelLeft,
+  LayoutPanelTop,
+  Maximize2,
+  MonitorPlay,
+  Split,
+  WrapText,
+} from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
@@ -8,16 +17,20 @@ import { lsJson, lsSetJson } from '@/lib/persistence'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { jsonToMarkdown } from '@/features/markdown/jsonToMarkdown'
 import { getIconSizeClass } from '@/lib/ui'
+import Tooltip from '@/features/panels/ui/Tooltip'
 import MarkdownPreview, {
   type MarkdownPreviewPresentationApi,
   type MarkdownPreviewPresentationSlideState,
 } from '@/features/markdown/ui/MarkdownPreview'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
+import { getDocumentPathFromMetadata } from '@/features/graph-data-table/graphDataTable'
 import {
   useBottomPanelMarkdownModel,
   useBottomPanelMarkdownSplitView,
 } from './BottomPanelMarkdownSectionModel'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
+import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
 
 type MarkdownLayoutMode = 'split' | 'editor' | 'viewer'
 
@@ -30,11 +43,18 @@ type MarkdownLayoutControlsRowProps = {
   setSyncScroll: (next: boolean) => void
   iconSizeClass: string
   textSizeClass: string
+  uiIconStrokeWidth: number
 }
 
 function MarkdownLayoutControlsRow(props: MarkdownLayoutControlsRowProps) {
-  const { layoutMode, setLayoutMode, syncScroll, setSyncScroll, iconSizeClass, textSizeClass } =
-    props
+  const {
+    layoutMode,
+    setLayoutMode,
+    syncScroll,
+    setSyncScroll,
+    iconSizeClass,
+    uiIconStrokeWidth,
+  } = props
 
   return (
     <>
@@ -51,15 +71,7 @@ function MarkdownLayoutControlsRow(props: MarkdownLayoutControlsRowProps) {
         }}
         showTooltip
       >
-        <span
-          className={[
-            'flex items-center justify-center',
-            iconSizeClass,
-            textSizeClass,
-          ].join(' ')}
-        >
-          E
-        </span>
+        <LayoutPanelLeft className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn flex items-center justify-center ${layoutMode === 'viewer' ? 'text-blue-600' : ''}`}
@@ -74,15 +86,7 @@ function MarkdownLayoutControlsRow(props: MarkdownLayoutControlsRowProps) {
         }}
         showTooltip
       >
-        <span
-          className={[
-            'flex items-center justify-center',
-            iconSizeClass,
-            textSizeClass,
-          ].join(' ')}
-        >
-          V
-        </span>
+        <LayoutPanelTop className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn flex items-center justify-center ${layoutMode === 'split' ? 'text-blue-600' : ''}`}
@@ -97,15 +101,7 @@ function MarkdownLayoutControlsRow(props: MarkdownLayoutControlsRowProps) {
         }}
         showTooltip
       >
-        <span
-          className={[
-            'flex items-center justify-center',
-            iconSizeClass,
-            textSizeClass,
-          ].join(' ')}
-        >
-          S
-        </span>
+        <Split className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
       </IconButton>
       {layoutMode === 'split' && (
         <IconButton
@@ -122,15 +118,7 @@ function MarkdownLayoutControlsRow(props: MarkdownLayoutControlsRowProps) {
           }}
           showTooltip
         >
-          <span
-            className={[
-              'flex items-center justify-center',
-              iconSizeClass,
-              textSizeClass,
-            ].join(' ')}
-          >
-            ⇳
-          </span>
+          <ArrowUpDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
       )}
     </>
@@ -200,6 +188,7 @@ export function BottomPanelMarkdownSection() {
   const {
     selectionInfo,
     selectionDocumentPath,
+    activeDocumentPath,
     markdownText,
     setMarkdownText,
     isLoading,
@@ -271,10 +260,149 @@ export function BottomPanelMarkdownSection() {
 
   const hasSelection = !!selectionInfo
   const hasMarkdown = !!(markdownText && markdownText.trim())
+  const isJsonBacked = React.useMemo(
+    () => !!(jsonSourceDocumentText && jsonSourceDocumentText.trim()),
+    [jsonSourceDocumentText],
+  )
+
+  const [applyStatus, setApplyStatus] = React.useState<{
+    ok: boolean | null
+    msg: string
+  } | null>(null)
+
+  React.useEffect(() => {
+    if (!applyStatus) return
+    const timer = window.setTimeout(() => {
+      setApplyStatus(null)
+    }, 4000)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [applyStatus])
 
   const presentationApiRef = React.useRef<MarkdownPreviewPresentationApi | null>(null)
   const [presentationSlideState, setPresentationSlideState] =
     React.useState<MarkdownPreviewPresentationSlideState | null>(null)
+
+  const handleApplyMarkdown = React.useCallback(async () => {
+    if (!markdownText || !markdownText.trim()) return
+    if (isJsonBacked) {
+      setApplyStatus({
+        ok: false,
+        msg: UI_COPY.bottomPanelMarkdownApplyJsonBackedUnsupportedStatus,
+      })
+      return
+    }
+    const rawName = (selectionDocumentPath || markdownDocumentName || '').trim()
+    const targetDocumentPath = (() => {
+      const fromSelection = selectionDocumentPath && selectionDocumentPath.trim()
+      if (fromSelection) return fromSelection
+      const fromActive = activeDocumentPath && activeDocumentPath.trim()
+      if (fromActive) return fromActive
+      return ''
+    })()
+    const baseName = (() => {
+      if (!rawName) return 'graph.md'
+      if (rawName.endsWith('.md') || rawName.endsWith('.markdown')) return rawName
+      return `${rawName}.md`
+    })()
+    emitMarkdownPanelMetric('markdownApplyRequested', {
+      hasSelection,
+      name: baseName,
+    })
+    try {
+      const beforeStore = useGraphStore.getState()
+      const beforeGraph = beforeStore.graphData || null
+      const res = await loadGraphDataFromTextViaParser(baseName, markdownText)
+      if (!res) {
+        setApplyStatus({ ok: false, msg: UI_COPY.parserDataLoadFailed })
+        return
+      }
+      if (res.warnings && res.warnings.length > 0) {
+        if (beforeGraph) {
+          try {
+            const store = useGraphStore.getState()
+            store.setGraphData(beforeGraph)
+          } catch {
+            void 0
+          }
+        }
+        setApplyStatus({
+          ok: false,
+          msg: UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''),
+        })
+        return
+      }
+      const afterStore = useGraphStore.getState()
+      const parsedGraph = afterStore.graphData || null
+      if (beforeGraph && parsedGraph && targetDocumentPath.trim()) {
+        const trimmedPath = targetDocumentPath.trim()
+        const normalizeNode = (node: typeof parsedGraph.nodes[number]) => {
+          const metaRaw = node.metadata as unknown
+          const record =
+            metaRaw && typeof metaRaw === 'object' && !Array.isArray(metaRaw)
+              ? (metaRaw as Record<string, unknown>)
+              : {}
+          const nextMeta = { ...record, documentPath: trimmedPath }
+          return { ...node, metadata: nextMeta }
+        }
+        const normalizeEdge = (edge: typeof parsedGraph.edges[number]) => {
+          const metaRaw = edge.metadata as unknown
+          const record =
+            metaRaw && typeof metaRaw === 'object' && !Array.isArray(metaRaw)
+              ? (metaRaw as Record<string, unknown>)
+              : {}
+          const nextMeta = { ...record, documentPath: trimmedPath }
+          return { ...edge, metadata: nextMeta }
+        }
+        const prevNodes = beforeGraph.nodes || []
+        const prevEdges = beforeGraph.edges || []
+        const newNodesRaw = parsedGraph.nodes || []
+        const newEdgesRaw = parsedGraph.edges || []
+        const newNodes = newNodesRaw.map(normalizeNode)
+        const newEdges = newEdgesRaw.map(normalizeEdge)
+        const shouldRemoveByPath = (meta: unknown) => {
+          return getDocumentPathFromMetadata(meta) === trimmedPath
+        }
+        const remainingNodes = prevNodes.filter(n => !shouldRemoveByPath(n.metadata))
+        const remainingNodeIds = new Set(remainingNodes.map(n => String(n.id)))
+        const newNodeIds = new Set(newNodes.map(n => String(n.id)))
+        const keepNodeId = (id: string) => remainingNodeIds.has(id) || newNodeIds.has(id)
+        const remainingEdges = prevEdges.filter(e => {
+          if (shouldRemoveByPath(e.metadata)) return false
+          const src = String(e.source || '')
+          const tgt = String(e.target || '')
+          if (!keepNodeId(src) || !keepNodeId(tgt)) return false
+          return true
+        })
+        const mergedGraph = {
+          context: beforeGraph.context,
+          metadata: beforeGraph.metadata,
+          type: beforeGraph.type || parsedGraph.type || 'Graph',
+          nodes: [...remainingNodes, ...newNodes],
+          edges: [...remainingEdges, ...newEdges],
+        }
+        try {
+          afterStore.setGraphData(mergedGraph)
+        } catch {
+          void 0
+        }
+      }
+      setApplyStatus({
+        ok: true,
+        msg: res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
+      })
+    } catch {
+      setApplyStatus({ ok: false, msg: UI_COPY.parserDataLoadFailed })
+    }
+  }, [
+    markdownText,
+    selectionDocumentPath,
+    markdownDocumentName,
+    hasSelection,
+    isJsonBacked,
+    activeDocumentPath,
+  ])
 
   React.useEffect(() => {
     lsSetJson<MarkdownLayoutMode>(LS_KEYS.markdownLayoutMode, markdownLayoutMode)
@@ -352,29 +480,68 @@ export function BottomPanelMarkdownSection() {
     }
   }, [deferredJsonSourceText, deferredMarkdownText])
 
-  React.useEffect(() => {
+  const parsedJsonSource = React.useMemo(() => {
     try {
       const rawJson = (jsonSourceDocumentText || '').trim()
-      if (!rawJson) return
-      const name = markdownDocumentName || ''
-      if (!name.endsWith('.json') && !name.endsWith('.jsonld')) return
-      const parsed = JSON.parse(rawJson)
+      if (!rawJson) return null
+      return JSON.parse(rawJson)
+    } catch {
+      return null
+    }
+  }, [jsonSourceDocumentText])
+
+  const jsonModeEnabled = !!parsedJsonSource
+
+  React.useEffect(() => {
+    if (!parsedJsonSource) return
+    try {
       const mode = jsonMarkdownMode
-      const markdown = jsonToMarkdown(parsed, { defaultMode: mode }, mode)
+      const markdown = jsonToMarkdown(parsedJsonSource, { defaultMode: mode }, mode)
       setMarkdownDocument(markdownDocumentName, markdown)
       setMarkdownText(markdown)
     } catch {
       void 0
     }
-  }, [jsonMarkdownMode, jsonSourceDocumentText, markdownDocumentName, setMarkdownDocument, setMarkdownText])
+  }, [jsonMarkdownMode, parsedJsonSource, markdownDocumentName, setMarkdownDocument, setMarkdownText])
 
   React.useEffect(() => {
     lsSetJson<JsonMarkdownMode>(LS_KEYS.jsonMarkdownMode, jsonMarkdownMode)
   }, [jsonMarkdownMode])
 
+  const [autoOpenHighlight, setAutoOpenHighlight] = React.useState(false)
+
+  React.useEffect(() => {
+    const handler = () => {
+      setAutoOpenHighlight(true)
+      const timer = window.setTimeout(() => {
+        setAutoOpenHighlight(false)
+      }, 1200)
+      return () => {
+        window.clearTimeout(timer)
+      }
+    }
+    try {
+      window.addEventListener(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT, handler)
+    } catch {
+      void 0
+    }
+    return () => {
+      try {
+        window.removeEventListener(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT, handler)
+      } catch {
+        void 0
+      }
+    }
+  }, [])
+
   return (
     <div className="h-full min-h-0 flex flex-col">
-      <div className="flex-1 min-h-0 flex flex-col border border-gray-200 rounded bg-white overflow-hidden">
+      <div
+        className={[
+          'flex-1 min-h-0 flex flex-col border rounded bg-white overflow-hidden transition-colors duration-300',
+          autoOpenHighlight ? 'border-blue-400 ring-1 ring-blue-200' : 'border-gray-200',
+        ].join(' ')}
+      >
         <div
           className={[
             'px-2 py-1 border-b border-gray-200 flex items-center justify-between gap-2 text-gray-600',
@@ -383,7 +550,20 @@ export function BottomPanelMarkdownSection() {
           ].join(' ')}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0 truncate">{headerText}</div>
+            <div className="min-w-0 truncate flex items-center gap-2">
+              <span>{headerText}</span>
+              {isJsonBacked && (
+                <Tooltip
+                  content={UI_COPY.bottomPanelMarkdownJsonBackedPreviewBadgeTooltip}
+                  maxWidthPx={260}
+                  contentClassName="bg-gray-800/90"
+                >
+                  <span className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1 py-px text-[10px] text-gray-500">
+                    {UI_COPY.bottomPanelMarkdownJsonBackedPreviewBadgeLabel}
+                  </span>
+                </Tooltip>
+              )}
+            </div>
             <div className="flex items-center gap-1">
               <span className="text-xs text-gray-400">
                 {UI_COPY.bottomPanelJsonMarkdownModeLabel}
@@ -392,7 +572,9 @@ export function BottomPanelMarkdownSection() {
                 className={[
                   'border border-gray-200 rounded px-1 py-0.5 text-xs bg-white text-gray-700',
                   'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500',
+                  jsonModeEnabled ? '' : 'opacity-50 cursor-not-allowed',
                 ].join(' ')}
+                disabled={!jsonModeEnabled}
                 value={jsonMarkdownMode}
                 onChange={e => {
                   const next = e.target.value as JsonMarkdownMode
@@ -425,12 +607,14 @@ export function BottomPanelMarkdownSection() {
               )}
             </div>
           </div>
-          <StatusBadge
-            label={UI_LABELS.markdown}
-            ok={status.ok}
-            msg={status.msg}
-            details={status.details}
-          />
+          <div className="flex items-center gap-2">
+            <StatusBadge
+              label={UI_LABELS.markdown}
+              ok={status.ok}
+              msg={status.msg}
+              details={applyStatus && applyStatus.msg ? applyStatus.msg : status.details}
+            />
+          </div>
         </div>
 
         <div className="flex-1 min-h-0 flex">
@@ -455,8 +639,8 @@ export function BottomPanelMarkdownSection() {
                 ].join(' ')}
               >
                 <span>{UI_COPY.bottomPanelMarkdownEditorTitle}</span>
-                {markdownLayoutMode === 'editor' && !markdownPresentationMode && (
-                  <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1">
+                  {markdownLayoutMode === 'editor' && !markdownPresentationMode && (
                     <MarkdownLayoutControlsRow
                       layoutMode={markdownLayoutMode}
                       setLayoutMode={setMarkdownLayoutMode}
@@ -464,28 +648,49 @@ export function BottomPanelMarkdownSection() {
                       setSyncScroll={setMarkdownSyncScroll}
                       iconSizeClass={iconSizeClass}
                       textSizeClass={uiPanelKeyValueTextSizeClass}
+                      uiIconStrokeWidth={uiIconStrokeWidth}
                     />
-                  </div>
-                )}
-                <IconButton
-                  className={`App-toolbar__btn flex items-center justify-center ${markdownWordWrap ? 'text-blue-600' : ''}`}
-                  title={UI_COPY.bottomPanelMarkdownWordWrapToggleTitle}
-                  tooltipContent={
-                    markdownWordWrap
-                      ? UI_COPY.bottomPanelMarkdownWordWrapOnTooltip
-                      : UI_COPY.bottomPanelMarkdownWordWrapOffTooltip
-                  }
-                  onClick={() => {
-                    const next = !markdownWordWrap
-                    setMarkdownWordWrap(next)
-                    emitMarkdownPanelMetric('markdownWordWrapToggled', {
-                      enabled: next,
-                    })
-                  }}
-                  showTooltip
-                >
-                  <WrapText className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-                </IconButton>
+                  )}
+                  <IconButton
+                    className={`group relative select-none rounded p-2 App-toolbar__btn flex items-center justify-center ${
+                      !hasMarkdown || isLoading || !!loadError || isJsonBacked
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-blue-600'
+                    }`}
+                    title="Apply"
+                    tooltipContent={
+                      isJsonBacked
+                        ? UI_COPY.bottomPanelMarkdownApplyJsonBackedUnsupportedStatus
+                        : undefined
+                    }
+                    onClick={() => {
+                      if (isJsonBacked) return
+                      void handleApplyMarkdown()
+                    }}
+                    disabled={!hasMarkdown || isLoading || !!loadError || isJsonBacked}
+                  >
+                    <Check className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+                  </IconButton>
+                  <IconButton
+                    className={`App-toolbar__btn flex items-center justify-center ${markdownWordWrap ? 'text-blue-600' : ''}`}
+                    title={UI_COPY.bottomPanelMarkdownWordWrapToggleTitle}
+                    tooltipContent={
+                      markdownWordWrap
+                        ? UI_COPY.bottomPanelMarkdownWordWrapOnTooltip
+                        : UI_COPY.bottomPanelMarkdownWordWrapOffTooltip
+                    }
+                    onClick={() => {
+                      const next = !markdownWordWrap
+                      setMarkdownWordWrap(next)
+                      emitMarkdownPanelMetric('markdownWordWrapToggled', {
+                        enabled: next,
+                      })
+                    }}
+                    showTooltip
+                  >
+                    <WrapText className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+                  </IconButton>
+                </div>
               </div>
               <div className="flex-1 min-h-0 flex">
                 <div
@@ -586,6 +791,7 @@ export function BottomPanelMarkdownSection() {
                     setSyncScroll={setMarkdownSyncScroll}
                     iconSizeClass={iconSizeClass}
                     textSizeClass={uiPanelKeyValueTextSizeClass}
+                    uiIconStrokeWidth={uiIconStrokeWidth}
                   />
                 )}
                 {markdownPresentationMode && (

@@ -1,6 +1,7 @@
 import React from 'react'
 import { buildFsUrlForRelPath } from '@/features/panels/hooks/markdownPipelineActions'
 import { UI_COPY, looksLikeViteDevIndexHtml } from '@/lib/config'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function useMarkdownLoader(
   activeDocumentPath: string,
@@ -62,6 +63,12 @@ export function useMarkdownLoader(
         })()
         setMarkdownText(text)
         setMarkdownDocument(baseName, text)
+        try {
+          const state = useGraphStore.getState()
+          state.setJsonSourceDocument(baseName, null)
+        } catch {
+          void 0
+        }
         setMarkdownDocumentSourceUrl(null)
       } catch (err: unknown) {
         if (cancelled) return

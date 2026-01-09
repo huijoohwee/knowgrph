@@ -347,6 +347,10 @@ export const runAllTests = async () => {
     await exec('ui.markdown.mediaToggleEndToEnd', mod.testMarkdownMediaToggleEndToEnd)
     await exec('ui.markdown.headMetaFrontmatterArrays', mod.testMarkdownHeadMetaFrontmatterArrays)
     await exec('ui.markdown.scrollSync.viewerToEditor', mod.testMarkdownScrollSyncViewerToEditor)
+    const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')
+    await exec('ui.markdown.preview.showOnCanvas', modShowOnCanvas.testMarkdownPreviewShowOnCanvasSelectsExpectedNode)
+    const modSelectionScroll = await import('@/__tests__/markdownSelectionScrollHighlight.test')
+    await exec('ui.markdown.selection.scrollAndHighlight', modSelectionScroll.testCanvasSelectionScrollsAndHighlightsMarkdown)
   }
   await exec('ui.orchestrator.tooltipRoleActionOutcomeShape', testOrchestratorTooltipRoleActionOutcomeShape);
   await exec('ui.orchestrator.toolMenuUsesTooltipCopyHelper', testOrchestratorToolMenuUsesTooltipCopyHelper);

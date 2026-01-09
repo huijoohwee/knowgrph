@@ -3,6 +3,7 @@ import { tryFormatJson } from '@/features/code-editor/format'
 import { detectIdAroundSelection } from '@/features/code-editor/selection'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { UI_COPY } from '@/lib/config'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 type UseCodeJsonEditorArgs = {
   codeText: string
@@ -80,6 +81,24 @@ export function useCodeJsonEditor({
       setGraphData(graph)
       setCodeText(JSON.stringify(graph, null, 2))
       setCodeError('')
+      try {
+        const store = useGraphStore.getState()
+        const name = store.markdownDocumentName
+        const jsonSource = store.jsonSourceDocumentText
+        const shouldUpdateJsonSource =
+          typeof jsonSource === 'string' && jsonSource.trim()
+            ? true
+            : typeof name === 'string' && (name.endsWith('.json') || name.endsWith('.jsonld'))
+        if (shouldUpdateJsonSource && typeof store.setJsonSourceDocument === 'function') {
+          const baseName =
+            typeof name === 'string' && name.trim()
+              ? name
+              : 'graph.json'
+          store.setJsonSourceDocument(baseName, codeText)
+        }
+      } catch {
+        void 0
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : ''
       setCodeError(`${UI_COPY.invalidJsonPrefix}${message}`)

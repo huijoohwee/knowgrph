@@ -29,6 +29,8 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
         commonBlockClass,
         highlightClass,
       ].filter(Boolean).join(' ')}
+      data-start-line={t.startLine}
+      data-end-line={t.endLine || t.startLine}
     >
       <MarkdownTokenRenderer
         tokens={addLineRangesToTokens(bq.tokens as unknown as Token[], 0)}

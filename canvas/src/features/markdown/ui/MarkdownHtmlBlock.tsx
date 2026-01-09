@@ -37,6 +37,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           type="iframe"
           srcRaw={srcRaw}
           startLine={t.startLine}
+          endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
           opts={opts}
         >
@@ -57,6 +58,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           type="video"
           srcRaw={srcRaw}
           startLine={t.startLine}
+          endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
           opts={opts}
         >
@@ -81,6 +83,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           type="image"
           srcRaw={srcRaw}
           startLine={t.startLine}
+          endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
           opts={opts}
         >
@@ -100,7 +103,11 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
 
   if (safeHtml) {
     return (
-      <div className={['mt-3 mb-3', highlightClass].filter(Boolean).join(' ')}>
+      <div
+        className={['mt-3 mb-3', highlightClass].filter(Boolean).join(' ')}
+        data-start-line={t.startLine}
+        data-end-line={t.endLine || t.startLine}
+      >
         {safeHtml}
       </div>
     )
@@ -112,6 +119,8 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
         'mt-3 mb-3 p-3 rounded border border-gray-200 bg-gray-50 overflow-auto',
         highlightClass,
       ].filter(Boolean).join(' ')}
+      data-start-line={t.startLine}
+      data-end-line={t.endLine || t.startLine}
     >
       <code className={opts.uiPanelMonospaceTextClass}>{html}</code>
     </pre>

@@ -40,6 +40,7 @@ export const UI_COPY = {
   propsPanelAddNode: 'Add Node',
   propsPanelAddNodeAndEdgeFromSelected: 'Add Node + Edge from selected',
   propsPanelStartEdgeFromSelected: 'Start Edge from selected',
+  propsPanelShowInMarkdown: 'Show in Markdown',
   searchFieldsPlaceholder: 'Search fields…',
   fieldNamePlaceholder: 'Field name…',
   searchSettingsPlaceholder: 'Search settings…',
@@ -388,6 +389,11 @@ export const UI_COPY = {
   bottomPanelMarkdownStatusLoading: 'Loading',
   bottomPanelMarkdownStatusReady: 'Ready',
   bottomPanelMarkdownStatusError: 'Error',
+  bottomPanelMarkdownApplyJsonBackedUnsupportedStatus:
+    'Apply is not supported for JSON → Markdown preview. Edit graph via JSON or UI Editor instead.',
+  bottomPanelMarkdownJsonBackedPreviewBadgeLabel: 'JSON-backed preview',
+  bottomPanelMarkdownJsonBackedPreviewBadgeTooltip:
+    'Preview of the last JSON/JSON-LD import. Edit graph structure via JSON Editor or UI Editor; Apply from Markdown is disabled.',
   bottomPanelJsonMarkdownModeLabel: 'JSON → Markdown mode',
   bottomPanelJsonMarkdownModeAutoLabel: 'Auto',
   bottomPanelJsonMarkdownModeTableLabel: 'Table',

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Settings as SettingsIcon, Tag as TagIcon } from 'lucide-react'
 import { ScopeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
-import { getPillClass } from '@/lib/ui/icons'
+import { getIconSizeClass, getPillClass } from '@/lib/ui/icons'
 
 export const renderSettingInput = (
   key: string,
@@ -33,6 +33,11 @@ export const renderSettingInput = (
     typeof rawPanelInputClass === 'string' && rawPanelInputClass.trim().length > 0
       ? rawPanelInputClass
       : 'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right'
+  const iconSizeClass = getIconSizeClass(values.uiIconScale === 'compact' ? 'compact' : 'default')
+  const iconStrokeWidth =
+    typeof values.uiIconStrokeWidth === 'number' && Number.isFinite(values.uiIconStrokeWidth)
+      ? values.uiIconStrokeWidth
+      : 1.5
   if (!writable) return <span className="text-gray-700">{String(v)}</span>
   if (type === 'boolean') {
     return (
@@ -87,7 +92,7 @@ export const renderSettingInput = (
     return (
       <div className="flex items-center gap-2">
         <div className={previewClass}>
-          <SettingsIcon className="w-3 h-3" aria-hidden="true" />
+          <SettingsIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
         </div>
         <input
           type="text"
@@ -116,7 +121,7 @@ export const renderSettingInput = (
     return (
       <div className="flex items-center gap-2">
         <div className={previewClass}>
-          <TagIcon className="w-3 h-3" aria-hidden="true" />
+          <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Scope</span>
         </div>
         <input
@@ -158,17 +163,17 @@ export const renderSettingInput = (
         {key === 'uiIconPillLegendTextSizeClass' ? (
           <div className="flex flex-wrap items-center gap-1">
             <span className={legendPreviewClass}>
-              <ScopeIcon scope="node" className="w-3 h-3 text-gray-500" strokeWidth={1.5} aria-hidden="true" />
+              <ScopeIcon scope="node" className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
               <span>Base</span>
             </span>
             <span className={legendPreviewClass}>
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
-                className="w-3 h-3"
+                className={iconSizeClass}
                 fill="none"
                 stroke="currentColor"
-                strokeWidth={2}
+                strokeWidth={iconStrokeWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
@@ -181,10 +186,10 @@ export const renderSettingInput = (
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
-                className="w-3 h-3"
+                className={iconSizeClass}
                 fill="none"
                 stroke="currentColor"
-                strokeWidth={2}
+                strokeWidth={iconStrokeWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
@@ -228,7 +233,7 @@ export const renderSettingInput = (
     return (
       <div className="flex items-center gap-2">
         <div className={previewClass}>
-          <TagIcon className="w-3 h-3" aria-hidden="true" />
+          <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Badge</span>
         </div>
         <input

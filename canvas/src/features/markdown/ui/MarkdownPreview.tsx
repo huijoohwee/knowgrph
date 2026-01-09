@@ -1,6 +1,9 @@
 import React from 'react'
 import { lexMarkdown, lexMarkdownContent } from '@/features/markdown/ui/markdownPreviewLex'
 import { LS_KEYS } from '@/lib/config'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { getDocumentPathFromMetadata } from '@/features/graph-data-table/graphDataTable'
+import type { GraphData } from '@/lib/graph/types'
 import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
 import {
   parseMermaidConfigFromFrontmatter,
@@ -10,8 +13,7 @@ import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
-
-type HighlightedLineRange = { start: number; end: number } | null
+import type { HighlightedLineRange } from './MarkdownRendererTypes'
 
 export type MarkdownPreviewPresentationApi = {
   prev: () => void
@@ -176,6 +178,114 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
 
   const { tokens } = React.useMemo(() => lexMarkdown(markdownText || ''), [markdownText])
 
+  const graphData = useGraphStore(s => s.graphData)
+  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
+  const selectNode = useGraphStore(s => s.selectNode)
+  const selectEdge = useGraphStore(s => s.selectEdge)
+
+  const [contextMenu, setContextMenu] = React.useState<{
+    x: number
+    y: number
+    startLine: number
+    endLine: number
+  } | null>(null)
+
+  const closeContextMenu = React.useCallback(() => {
+    setContextMenu(null)
+  }, [])
+
+  React.useEffect(() => {
+    if (!contextMenu) return
+    const handler = () => {
+      closeContextMenu()
+    }
+    window.addEventListener('mousedown', handler)
+    window.addEventListener('scroll', handler, true)
+    return () => {
+      window.removeEventListener('mousedown', handler)
+      window.removeEventListener('scroll', handler, true)
+    }
+  }, [contextMenu, closeContextMenu])
+
+  const findSelectionTarget = React.useCallback(
+    (data: GraphData | null, documentPath: string, startLine: number, endLine: number) => {
+      if (!data) return null
+      const trimmedPath = documentPath.trim()
+      if (!trimmedPath) return null
+      const safeStart = Math.max(1, Math.min(startLine, endLine))
+      const safeEnd = Math.max(safeStart, Math.max(startLine, endLine))
+      let bestKind: 'node' | 'edge' | null = null
+      let bestId: string | null = null
+      let bestOverlap = 0
+      let bestSpan = Number.POSITIVE_INFINITY
+      const consider = (kind: 'node' | 'edge', id: string, meta: unknown) => {
+        const record = meta && typeof meta === 'object' && !Array.isArray(meta) ? (meta as Record<string, unknown>) : {}
+        const docPath = getDocumentPathFromMetadata(record)
+        if (!docPath || docPath.trim() !== trimmedPath) return
+        const rawStart = record.lineStart
+        const rawEnd = record.lineEnd
+        const start =
+          typeof rawStart === 'number'
+            ? (Number.isFinite(rawStart) ? Math.floor(rawStart) : null)
+            : typeof rawStart === 'string'
+            ? (() => {
+                const parsed = Number.parseInt(rawStart, 10)
+                return Number.isFinite(parsed) ? parsed : null
+              })()
+            : null
+        const endRaw =
+          typeof rawEnd === 'number'
+            ? (Number.isFinite(rawEnd) ? Math.floor(rawEnd) : null)
+            : typeof rawEnd === 'string'
+            ? (() => {
+                const parsed = Number.parseInt(rawEnd, 10)
+                return Number.isFinite(parsed) ? parsed : null
+              })()
+            : null
+        if (start == null) return
+        const end = endRaw != null ? endRaw : start
+        const candStart = Math.max(1, Math.min(start, end))
+        const candEnd = Math.max(candStart, Math.max(start, end))
+        const overlapStart = Math.max(safeStart, candStart)
+        const overlapEnd = Math.min(safeEnd, candEnd)
+        const overlap = overlapEnd >= overlapStart ? overlapEnd - overlapStart + 1 : 0
+        if (overlap <= 0) return
+        const span = candEnd - candStart + 1
+        if (overlap > bestOverlap || (overlap === bestOverlap && span < bestSpan)) {
+          bestOverlap = overlap
+          bestSpan = span
+          bestKind = kind
+          bestId = id
+        }
+      }
+      const nodes = data.nodes || []
+      const edges = data.edges || []
+      for (const n of nodes) {
+        consider('node', String(n.id || ''), n.metadata)
+      }
+      for (const e of edges) {
+        consider('edge', String(e.id || ''), e.metadata)
+      }
+      if (!bestKind || !bestId) return null
+      return { kind: bestKind, id: bestId }
+    },
+    [],
+  )
+
+  const handleShowOnCanvas = React.useCallback(
+    (startLine: number, endLine: number) => {
+      const target = findSelectionTarget(graphData as GraphData | null, activeDocumentPath, startLine, endLine)
+      if (!target) return
+      setSelectionSource('editor')
+      if (target.kind === 'node') {
+        selectNode(target.id)
+      } else {
+        selectEdge(target.id)
+      }
+    },
+    [activeDocumentPath, findSelectionTarget, graphData, selectEdge, selectNode, setSelectionSource],
+  )
+
   const body = React.useMemo(
     () =>
       (
@@ -278,6 +388,42 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [goNext, goPrev, markdownPresentationMode, slides.length])
 
+  const scrollClass = previewScrollable ? 'overflow-auto' : 'overflow-hidden'
+
+  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!rootElRef.current) return
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    if (!sel || sel.isCollapsed) return
+    let el = e.target as HTMLElement | null
+    let startLine: number | null = null
+    let endLine: number | null = null
+    const root = rootElRef.current
+    while (el && el !== root) {
+      const ds = (el as HTMLElement).dataset
+      if (ds && ds.startLine) {
+        const s = Number.parseInt(ds.startLine, 10)
+        const eLine = ds.endLine ? Number.parseInt(ds.endLine, 10) : s
+        if (Number.isFinite(s) && Number.isFinite(eLine)) {
+          startLine = s
+          endLine = eLine
+          break
+        }
+      }
+      el = el.parentElement
+    }
+    if (startLine == null || endLine == null) return
+    e.preventDefault()
+    const rect = root.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    setContextMenu({
+      x,
+      y,
+      startLine,
+      endLine,
+    })
+  }
+
   if (markdownPresentationMode) {
     const slideClass = String(activeSlide?.meta?.class || '').trim()
     const layout = String(activeSlide?.meta?.layout || '').trim()
@@ -297,8 +443,9 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
         <div
           ref={setRootRef}
           tabIndex={0}
+          onContextMenu={handleContextMenu}
           className={[
-            'flex-1 min-h-0 w-full overflow-hidden bg-gray-100 outline-none flex flex-col',
+            'relative flex-1 min-h-0 w-full overflow-hidden bg-gray-100 outline-none flex flex-col',
             uiPanelTextFontClass,
           ].join(' ')}
         >
@@ -335,6 +482,23 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
               </div>
             </div>
           </div>
+          {contextMenu && (
+            <div
+              className="absolute z-10 bg-white border border-gray-200 rounded shadow-md text-xs text-gray-700"
+              style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
+            >
+              <button
+                type="button"
+                className="block w-full px-3 py-1 text-left hover:bg-gray-100"
+                onClick={() => {
+                  handleShowOnCanvas(contextMenu.startLine, contextMenu.endLine)
+                  closeContextMenu()
+                }}
+              >
+                Show on Canvas
+              </button>
+            </div>
+          )}
         </div>
         <PreviewOverlay
           open={isSlidesFullscreenOpen}
@@ -393,20 +557,36 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     )
   }
 
-  const scrollClass = previewScrollable ? 'overflow-auto' : 'overflow-hidden'
-
   return (
     <div
       ref={setRootRef}
       onScroll={onScroll}
+      onContextMenu={handleContextMenu}
       className={[
-        'flex-1 min-h-0 px-2 py-2',
+        'relative flex-1 min-h-0 px-2 py-2',
         scrollClass,
         uiPanelTextFontClass,
       ].join(' ')}
       data-testid="markdown-preview-root"
     >
       <div>{body}</div>
+      {contextMenu && (
+        <div
+          className="absolute z-10 bg-white border border-gray-200 rounded shadow-md text-xs text-gray-700"
+          style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
+        >
+          <button
+            type="button"
+            className="block w-full px-3 py-1 text-left hover:bg-gray-100"
+            onClick={() => {
+              handleShowOnCanvas(contextMenu.startLine, contextMenu.endLine)
+              closeContextMenu()
+            }}
+          >
+            Show on Canvas
+          </button>
+        </div>
+      )}
     </div>
   )
 })

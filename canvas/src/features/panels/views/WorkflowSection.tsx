@@ -31,6 +31,7 @@ export default function WorkflowSection() {
   const graphRagWorkflowJsonText = useGraphStore(s => s.graphRagWorkflowJsonText);
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText);
   const uiIconScale = useGraphStore(s => s.uiIconScale);
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth);
   const uiSectionHeaderRowHeightClass = useGraphStore(
     s => s.uiSectionHeaderRowHeightClass || 'min-h-[36px]',
   );
@@ -267,6 +268,7 @@ export default function WorkflowSection() {
       >
         <ChevronDown
           className={`${iconSizeClass} text-gray-700 transition-transform ${allStepsCollapsed ? '' : 'rotate-180'}`}
+          strokeWidth={uiIconStrokeWidth}
           aria-hidden="true"
         />
       </IconButton>

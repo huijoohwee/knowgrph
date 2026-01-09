@@ -414,25 +414,29 @@ export function useBottomPanelMarkdownSplitView(args: {
   React.useEffect(() => {
     const ta = editorTextAreaRef.current
     const viewer = viewerRef.current
-    if (!ta || !viewer) return
+    if (!ta) return
     if (!selectionInfo || selectionInfo.lineStart == null) return
-    if (!syncScrollRef.current) return
-    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now())
     if (dragStateRef.current?.active) return
-    if (now - lastEditorResizeAtRef.current < 350) return
-    if (now - lastEditorUserScrollAtRef.current < 350) return
-    if (now - lastViewerUserScrollAtRef.current < 350) return
     const totalLines = editorLineCount || 1
     const line = Math.max(1, Math.min(selectionInfo.lineStart, totalLines))
-    const denom = Math.max(1, totalLines - 1)
-    const ratio = (line - 1) / denom
-    const editorScrollable = ta.scrollHeight - ta.clientHeight
-    const viewerScrollable = viewer.scrollHeight - viewer.clientHeight
-    const editorTarget = editorScrollable > 0 ? ratio * editorScrollable : 0
-    const viewerTarget = viewerScrollable > 0 ? ratio * viewerScrollable : 0
-    ta.scrollTop = editorTarget
-    viewer.scrollTop = viewerTarget
-  }, [editorLineCount, selectionInfo])
+    const lh = Math.max(1, lineHeightPx || 16)
+    const model = wrapModelRef.current
+    const totalRows = markdownWordWrap && model ? model.totalRows : totalLines
+    const rowStartByLine =
+      markdownWordWrap && model?.rowStartByLine && model.rowStartByLine.length === totalLines + 1
+        ? model.rowStartByLine
+        : null
+    const rowIndex = rowStartByLine ? Math.max(0, (rowStartByLine[line] || 1) - 1) : Math.max(0, line - 1)
+    const desiredEditorTop = rowIndex * lh
+    ta.scrollTop = desiredEditorTop
+    if (viewer) {
+      const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
+      const denomRows = Math.max(1, totalRows - 1)
+      const viewerRatio = denomRows > 0 ? rowIndex / denomRows : 0
+      const viewerTarget = viewerScrollable > 0 ? viewerRatio * viewerScrollable : 0
+      viewer.scrollTop = viewerTarget
+    }
+  }, [editorLineCount, selectionInfo, lineHeightPx, markdownWordWrap])
 
   const handleDividerPointerDown = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return

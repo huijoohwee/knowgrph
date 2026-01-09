@@ -22,6 +22,8 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
         'mt-3 mb-3 overflow-auto rounded border border-gray-200',
         highlightClass,
       ].filter(Boolean).join(' ')}
+      data-start-line={t.startLine}
+      data-end-line={t.endLine || t.startLine}
     >
       <table className={['min-w-full', opts.markdownPresentationMode ? 'text-sm' : 'text-xs'].join(' ')}>
         <thead className="bg-gray-50 text-gray-700">

@@ -39,6 +39,8 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
         'mt-3 mb-3 p-3 rounded border border-gray-200 bg-gray-50 overflow-auto',
         highlightClass,
       ].filter(Boolean).join(' ')}
+      data-start-line={t.startLine}
+      data-end-line={t.endLine || t.startLine}
     >
       <code className={[opts.uiPanelMonospaceTextClass, wrapClass].filter(Boolean).join(' ')}>
         {c.text}
