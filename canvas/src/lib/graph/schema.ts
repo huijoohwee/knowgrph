@@ -246,6 +246,7 @@ export interface GraphSchema {
     linkOpacity?: number;
     edgeOpacityByLabel?: Record<string, number>;
     layerOpacityByLayer?: Record<string, number>;
+    markdownAlwaysOnAlpha?: number;
     linkCurvature?: number;
     linkCurveRotation?: number;
     linkDirectionalArrowRelPos?: number;
@@ -490,6 +491,7 @@ export const defaultSchema: GraphSchema = {
     linkOpacity: 0.55,
     edgeOpacityByLabel: {},
     layerOpacityByLayer: { '1': 1.0, '2': 0.9, '3': 0.8 },
+    markdownAlwaysOnAlpha: 0.08,
     linkCurvature: 0.0,
     linkCurveRotation: 0.0,
     linkDirectionalArrowRelPos: 0.85,

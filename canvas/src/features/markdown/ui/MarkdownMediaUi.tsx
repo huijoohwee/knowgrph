@@ -10,6 +10,7 @@ type MediaWrapperProps = {
   startLine: number
   endLine?: number
   highlightClass: string
+  highlightStyle?: React.CSSProperties
   opts: RenderOpts
   children: React.ReactNode
   className?: string
@@ -21,6 +22,7 @@ export const MediaWrapper = ({
   startLine,
   endLine,
   highlightClass,
+  highlightStyle,
   opts,
   children,
   className,
@@ -52,6 +54,7 @@ export const MediaWrapper = ({
       data-start-line={startLine}
       data-end-line={endLine || startLine}
       onClick={handleClick}
+      style={highlightStyle}
     >
       {children}
     </div>

@@ -23,6 +23,16 @@ type MarkdownTokenRendererProps = {
   rootThemeMode: 'light' | 'dark'
   previewOverlayScope: 'viewport' | 'container'
   previewOverlayPortalTarget?: HTMLElement | null
+  markdownTextHighlight?: boolean
+  selectionKind?: 'node' | 'edge' | null
+  highlightBackgroundColor?: string | null
+  highlightUnderlineColor?: string | null
+  alwaysOnHighlightMode?: boolean
+  alwaysOnTokenHighlights?: {
+    textColor: string | null
+    underlineColor: string | null
+    backgroundColor: string | null
+  }[] | null
 }
 
 const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: MarkdownTokenRendererProps) {
@@ -38,6 +48,12 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     rootThemeMode,
     previewOverlayScope,
     previewOverlayPortalTarget,
+    markdownTextHighlight,
+    selectionKind,
+    highlightBackgroundColor,
+    highlightUnderlineColor,
+    alwaysOnHighlightMode,
+    alwaysOnTokenHighlights,
   } = props
 
   const opts: RenderOpts = {
@@ -61,17 +77,55 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       const tt = t as unknown as TokensGeneric
       const key = `${tt.type}:${i}`
 
-      // Highlighting logic
       let highlightClass = ''
-      if (highlightedLineRange) {
-        // Simple overlap check
+      let highlightStyle: React.CSSProperties | undefined
+
+      const alwaysOnSpec =
+        alwaysOnHighlightMode &&
+        Array.isArray(alwaysOnTokenHighlights) &&
+        alwaysOnTokenHighlights[i]
+          ? alwaysOnTokenHighlights[i] || null
+          : null
+
+      if (alwaysOnSpec && (alwaysOnSpec.textColor || alwaysOnSpec.underlineColor || alwaysOnSpec.backgroundColor)) {
+        highlightClass = '-mx-1 px-1 rounded transition-colors duration-300'
+        const bg = alwaysOnSpec.backgroundColor || null
+        const textColor = alwaysOnSpec.textColor || null
+        const underlineColor = alwaysOnSpec.underlineColor || null
+        highlightStyle = {
+          backgroundColor: bg || undefined,
+          color: textColor || undefined,
+          textDecorationLine: underlineColor ? 'underline' : undefined,
+          textDecorationColor: underlineColor || undefined,
+          textDecorationThickness: underlineColor ? '1px' : undefined,
+          textUnderlineOffset: underlineColor ? '1px' : undefined,
+        }
+      }
+
+      if (markdownTextHighlight && highlightedLineRange) {
         const tStart = t.startLine
         const tEnd = t.endLine || t.startLine
         const hStart = highlightedLineRange.start
         const hEnd = highlightedLineRange.end
         const overlap = Math.max(tStart, hStart) <= Math.min(tEnd, hEnd)
         if (overlap) {
-          highlightClass = 'bg-yellow-100/50 -mx-1 px-1 rounded transition-colors duration-300'
+          highlightClass = '-mx-1 px-1 rounded transition-colors duration-300'
+          const bg = highlightBackgroundColor || null
+          const baseColor = highlightUnderlineColor || null
+          if (selectionKind === 'edge') {
+            highlightStyle = {
+              backgroundColor: bg || undefined,
+              textDecorationLine: 'underline',
+              textDecorationColor: baseColor || undefined,
+              textDecorationThickness: baseColor ? '2px' : undefined,
+              textUnderlineOffset: baseColor ? '2px' : undefined,
+            }
+          } else {
+            highlightStyle = {
+              backgroundColor: bg || undefined,
+              color: baseColor || undefined,
+            }
+          }
         }
       }
 
@@ -82,6 +136,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               key={key}
               token={t}
               highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
               opts={opts}
             />
           )
@@ -93,6 +148,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               key={key}
               token={t}
               highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
               opts={opts}
               baseTextClass={baseTextClass}
               commonBlockClass={commonBlockClass}
@@ -104,6 +160,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               key={key}
               token={t}
               highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
               opts={opts}
               wrapClass={markdownWordWrap ? 'whitespace-pre-wrap break-words' : ''}
             />
@@ -114,6 +171,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               key={key}
               token={t}
               highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
               opts={opts}
             />
           )
@@ -123,6 +181,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               key={key}
               token={t}
               highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
               opts={opts}
               baseTextClass={baseTextClass}
               wrapClass={markdownWordWrap ? 'whitespace-pre-wrap' : ''}
@@ -134,6 +193,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               key={key}
               token={t}
               highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
               opts={opts}
             />
           )
@@ -143,6 +203,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               key={key}
               token={t}
               highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
               opts={opts}
               baseTextClass={baseTextClass}
               commonBlockClass={commonBlockClass}
@@ -153,6 +214,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
             <div
               key={key}
               className={['mt-2 mb-2', baseTextClass, commonBlockClass, highlightClass].filter(Boolean).join(' ')}
+              style={highlightStyle}
               data-start-line={t.startLine}
               data-end-line={t.endLine || t.startLine}
             >

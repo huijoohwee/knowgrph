@@ -20,6 +20,7 @@ type MarkdownParagraphBlockProps = {
   opts: RenderOpts
   baseTextClass: string
   commonBlockClass: string
+  highlightStyle?: React.CSSProperties
 }
 
 const isStandaloneLinkParagraph = (token: Token): string | null => {
@@ -39,6 +40,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   opts,
   baseTextClass,
   commonBlockClass,
+  highlightStyle,
 }: MarkdownParagraphBlockProps) {
   // Check for standalone media links
   const standaloneHref = isStandaloneLinkParagraph(t as unknown as Token)
@@ -54,6 +56,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           startLine={t.startLine}
           endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
+          highlightStyle={highlightStyle}
           opts={opts}
         >
           <MediaIframe
@@ -75,6 +78,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           startLine={t.startLine}
           endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
+          highlightStyle={highlightStyle}
           opts={opts}
         >
           <MediaIframe
@@ -97,6 +101,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           startLine={t.startLine}
           endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
+          highlightStyle={highlightStyle}
           opts={opts}
         >
           <MediaVideo src={src} />
@@ -115,6 +120,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         commonBlockClass,
         highlightClass,
       ].filter(Boolean).join(' ')}
+      style={highlightStyle}
       data-start-line={t.startLine}
       data-end-line={t.endLine || t.startLine}
     >

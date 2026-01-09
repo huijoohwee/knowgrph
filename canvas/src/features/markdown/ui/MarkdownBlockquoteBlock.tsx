@@ -8,6 +8,7 @@ import type { RenderOpts } from './MarkdownRendererTypes'
 type MarkdownBlockquoteBlockProps = {
   token: TokenWithLines
   highlightClass: string
+  highlightStyle?: React.CSSProperties
   opts: RenderOpts
   baseTextClass: string
   commonBlockClass: string
@@ -16,6 +17,7 @@ type MarkdownBlockquoteBlockProps = {
 export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlock({
   token: t,
   highlightClass,
+  highlightStyle,
   opts,
   baseTextClass,
   commonBlockClass,
@@ -29,6 +31,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
         commonBlockClass,
         highlightClass,
       ].filter(Boolean).join(' ')}
+      style={highlightStyle}
       data-start-line={t.startLine}
       data-end-line={t.endLine || t.startLine}
     >

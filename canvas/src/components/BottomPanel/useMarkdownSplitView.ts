@@ -55,6 +55,8 @@ export function useBottomPanelMarkdownSplitView(args: {
     totalRows: number
   } | null>(null)
 
+  const selectionRowIndexRef = React.useRef<number | null>(null)
+
   const syncScrollRef = React.useRef(syncScroll)
 
   const getRaf = () => {
@@ -413,28 +415,87 @@ export function useBottomPanelMarkdownSplitView(args: {
 
   React.useEffect(() => {
     const ta = editorTextAreaRef.current
-    const viewer = viewerRef.current
     if (!ta) return
     if (!selectionInfo || selectionInfo.lineStart == null) return
     if (dragStateRef.current?.active) return
-    const totalLines = editorLineCount || 1
-    const line = Math.max(1, Math.min(selectionInfo.lineStart, totalLines))
-    const lh = Math.max(1, lineHeightPx || 16)
-    const model = wrapModelRef.current
-    const totalRows = markdownWordWrap && model ? model.totalRows : totalLines
-    const rowStartByLine =
-      markdownWordWrap && model?.rowStartByLine && model.rowStartByLine.length === totalLines + 1
-        ? model.rowStartByLine
-        : null
-    const rowIndex = rowStartByLine ? Math.max(0, (rowStartByLine[line] || 1) - 1) : Math.max(0, line - 1)
-    const desiredEditorTop = rowIndex * lh
-    ta.scrollTop = desiredEditorTop
-    if (viewer) {
-      const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
-      const denomRows = Math.max(1, totalRows - 1)
-      const viewerRatio = denomRows > 0 ? rowIndex / denomRows : 0
-      const viewerTarget = viewerScrollable > 0 ? viewerRatio * viewerScrollable : 0
-      viewer.scrollTop = viewerTarget
+    const rafFn = getRaf()
+    const cancelRafFn = getCancelRaf()
+    let raf = 0
+    let attempts = 0
+    const align = () => {
+      attempts += 1
+      const totalLines = editorLineCount || 1
+      const line = Math.max(1, Math.min(selectionInfo.lineStart || 1, totalLines))
+      const lh = Math.max(1, lineHeightPx || 16)
+      const model = wrapModelRef.current
+      const rowStartByLine =
+        markdownWordWrap && model?.rowStartByLine && model.rowStartByLine.length === totalLines + 1
+          ? model.rowStartByLine
+          : null
+      const rowIndex = rowStartByLine ? Math.max(0, (rowStartByLine[line] || 1) - 1) : Math.max(0, line - 1)
+      const desiredTop = rowIndex * lh
+      selectionRowIndexRef.current = rowIndex
+      const editorScrollable = Math.max(0, ta.scrollHeight - ta.clientHeight)
+      if (editorScrollable <= 0 && attempts < 8) {
+        raf = rafFn(align)
+        return
+      }
+      const targetTop = editorScrollable > 0 ? Math.min(desiredTop, editorScrollable) : desiredTop
+      ta.scrollTop = targetTop
+      const viewer = viewerRef.current
+      if (viewer) {
+        const container = viewer
+        const targetLine = line
+        let viewerTargetTop: number | null = null
+        try {
+          const nodes = container.querySelectorAll<HTMLElement>('[data-start-line]')
+          let best: HTMLElement | null = null
+          let bestStart = Number.POSITIVE_INFINITY
+          let fallback: HTMLElement | null = null
+          let fallbackStart = 0
+          nodes.forEach(el => {
+            const raw = el.getAttribute('data-start-line')
+            if (!raw) return
+            const n = Number.parseInt(raw, 10)
+            if (!Number.isFinite(n)) return
+            if (n >= targetLine && n < bestStart) {
+              bestStart = n
+              best = el
+            }
+            if (n <= targetLine && n >= fallbackStart) {
+              fallbackStart = n
+              fallback = el
+            }
+          })
+          const el = best || fallback
+          if (el) {
+            const containerRect =
+              typeof container.getBoundingClientRect === 'function'
+                ? container.getBoundingClientRect()
+                : null
+            const elRect = typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
+            if (containerRect && elRect) {
+              const offset = elRect.top - containerRect.top + container.scrollTop
+              const viewerScrollable = Math.max(0, container.scrollHeight - container.clientHeight)
+              viewerTargetTop =
+                viewerScrollable > 0 ? Math.min(Math.max(0, offset), viewerScrollable) : Math.max(0, offset)
+            }
+          }
+        } catch {
+          viewerTargetTop = null
+        }
+        if (viewerTargetTop == null && attempts < 8) {
+          raf = rafFn(align)
+          return
+        }
+        if (viewerTargetTop != null) {
+          container.scrollTop = viewerTargetTop
+        }
+      }
+    }
+    raf = rafFn(align)
+    return () => {
+      if (raf) cancelRafFn(raf)
     }
   }, [editorLineCount, selectionInfo, lineHeightPx, markdownWordWrap])
 

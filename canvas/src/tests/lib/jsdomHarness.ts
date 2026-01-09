@@ -19,12 +19,27 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   const originalNode = (g as { Node?: typeof Node }).Node
   const originalElement = (g as { Element?: typeof Element }).Element
   const originalDomParser = (g as { DOMParser?: typeof DOMParser }).DOMParser
+  const originalHtmlIFrameElement = (g as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement
 
   ;(g as { window: Window }).window = dom.window as unknown as Window
   ;(g as { document: Document }).document = dom.window.document as unknown as Document
   ;(g as { Node: typeof Node }).Node = dom.window.Node as unknown as typeof Node
   ;(g as { Element: typeof Element }).Element = dom.window.Element as unknown as typeof Element
   ;(g as { DOMParser: typeof DOMParser }).DOMParser = dom.window.DOMParser as unknown as typeof DOMParser
+
+  try {
+    const anyWindow = dom.window as unknown as { HTMLIFrameElement?: typeof HTMLIFrameElement }
+    const anyGlobal = g as unknown as { HTMLIFrameElement?: typeof HTMLIFrameElement }
+    if (anyWindow.HTMLIFrameElement) {
+      anyGlobal.HTMLIFrameElement = anyWindow.HTMLIFrameElement
+    } else if (typeof HTMLIFrameElement !== 'undefined') {
+      anyGlobal.HTMLIFrameElement = HTMLIFrameElement
+    } else {
+      anyGlobal.HTMLIFrameElement = class {} as typeof HTMLIFrameElement
+    }
+  } catch {
+    void 0
+  }
 
   const restore = () => {
     if (typeof originalWindow === 'undefined') {
@@ -55,6 +70,13 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       delete (g as { DOMParser?: typeof DOMParser }).DOMParser
     } else {
       ;(g as { DOMParser: typeof DOMParser }).DOMParser = originalDomParser as typeof DOMParser
+    }
+
+    if (typeof originalHtmlIFrameElement === 'undefined') {
+      delete (g as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement
+    } else {
+      ;(g as { HTMLIFrameElement: typeof HTMLIFrameElement }).HTMLIFrameElement =
+        originalHtmlIFrameElement as typeof HTMLIFrameElement
     }
 
     dom.window.close()

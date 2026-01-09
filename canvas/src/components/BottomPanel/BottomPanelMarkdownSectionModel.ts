@@ -4,12 +4,14 @@ import { getSelectionInfo, getDefaultDocumentPath } from './markdownUtils'
 import { useMarkdownLoader } from './useMarkdownLoader'
 import { useBottomPanelMarkdownSplitView } from './useMarkdownSplitView'
 import type { MarkdownSelectionInfo } from './markdownUtils'
+import type { GraphSchema } from '@/lib/graph/schema'
 
 export type { MarkdownSelectionInfo }
 export { useBottomPanelMarkdownSplitView }
 
 export function useBottomPanelMarkdownModel(args: {
   graphData: GraphData | null
+  schema: GraphSchema | null
   selectedNodeId: string | null
   selectedEdgeId: string | null
   importedMarkdownText: string | null
@@ -20,6 +22,7 @@ export function useBottomPanelMarkdownModel(args: {
 }) {
   const {
     graphData,
+    schema,
     selectedNodeId,
     selectedEdgeId,
     importedMarkdownText,
@@ -30,8 +33,8 @@ export function useBottomPanelMarkdownModel(args: {
   } = args
 
   const selectionInfo = React.useMemo(
-    () => getSelectionInfo(graphData, selectedNodeId, selectedEdgeId),
-    [graphData, selectedNodeId, selectedEdgeId],
+    () => getSelectionInfo(graphData, schema, selectedNodeId, selectedEdgeId),
+    [graphData, schema, selectedNodeId, selectedEdgeId],
   )
 
   const selectionDocumentPath = selectionInfo?.documentPath || ''

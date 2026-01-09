@@ -119,6 +119,8 @@ export interface GraphState {
   uiIconBadgeChipClass: string;
   uiIconBadgeChipTextSizeClass: string;
   uiIconAnimationEnabled: boolean;
+  selectionFlashDurationMs: number;
+  selectionFlashOpacity: number;
   uiOverlayOpacity: number;
   uiPanelOpacity: number;
   uiToolbarOpacity: number;
@@ -262,6 +264,8 @@ export interface GraphState {
   setUiIconBadgeChipClass: (className: string) => void;
   setUiIconBadgeChipTextSizeClass: (className: string) => void;
   setUiIconAnimationEnabled: (v: boolean) => void;
+  setSelectionFlashDurationMs: (v: number) => void;
+  setSelectionFlashOpacity: (v: number) => void;
   canvasDims: { w: number; h: number };
   canvasPos: { x: number; y: number };
   setCanvasDims: (d: { w: number; h: number }) => void;

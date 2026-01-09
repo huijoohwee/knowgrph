@@ -147,6 +147,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const graphDataTableVirtualMinRows = useGraphStore(s => s.graphDataTableVirtualMinRows)
   const graphDataTableVirtualDebugLogRanges = useGraphStore(s => s.graphDataTableVirtualDebugLogRanges)
   const selectionSource = useGraphStore(s => s.selectionSource)
+  const selectionFlashDurationMs = useGraphStore(s => s.selectionFlashDurationMs || 500)
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
   const schema = useGraphStore(s => s.schema) as GraphSchema | null
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
@@ -267,6 +268,35 @@ export const GraphDataTable = React.memo(function GraphDataTable({
     }
     return ids
   }, [graphData, selectionSets.selectedEdgeIdSet])
+
+  const [flashSelectionId, setFlashSelectionId] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (selectionSource !== 'canvas') return
+    const id = selectedNodeId || selectedEdgeId || null
+    if (!id) {
+      setFlashSelectionId(null)
+      return
+    }
+    setFlashSelectionId(id)
+    let timer: number | null = null
+    try {
+      timer = window.setTimeout(() => {
+        setFlashSelectionId(current => (current === id ? null : current))
+      }, selectionFlashDurationMs)
+    } catch {
+      timer = null
+    }
+    return () => {
+      if (timer != null) {
+        try {
+          window.clearTimeout(timer)
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [selectionSource, selectedNodeId, selectedEdgeId, selectionFlashDurationMs])
 
   const groupSelectionById = React.useMemo(() => {
     const map = new Map<string, boolean>()
@@ -513,6 +543,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
             textareaClassName={textareaClassName}
             uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
             uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+            flashSelectionId={flashSelectionId}
             aggregateVizMode={aggregateVizMode}
             setAggregateVizMode={setAggregateVizMode}
             groupSelectionById={groupSelectionById}

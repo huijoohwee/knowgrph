@@ -94,6 +94,14 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'UI Density: Icons',
     responsibility: 'Enable toolbar launch/3D icon animation',
   },
+  selectionFlashDurationMs: {
+    area: 'Selection Flash',
+    responsibility: 'Duration of canvas-driven selection flash highlights (ms)',
+  },
+  selectionFlashOpacity: {
+    area: 'Selection Flash',
+    responsibility: 'Opacity of canvas-driven selection flash highlights',
+  },
   bottomPanelHeightRatio: { area: 'Bottom Panel Layout', responsibility: 'Bottom panel height ratio' },
   floatingPanelWidthRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel width ratio (viewport)' },
   floatingPanelHeightRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel height ratio (viewport)' },

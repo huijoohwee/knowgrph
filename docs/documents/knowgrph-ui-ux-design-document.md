@@ -62,7 +62,12 @@
   - Auto-opening the markdown curation view applies a brief, subtle highlight to the panel chrome so users can see where the source text came from without introducing long-lived visual noise.
 - Selection alignment:
   - Canvas node/edge selections with markdown provenance scroll the Bottom Panel markdown editor and viewer so the associated text range snaps to the top of the viewport, avoiding “lost in the middle” placements.
-  - The highlighted range is visually distinct but deliberately lightweight, preserving the primary reading experience while still making the canvas↔markdown relationship obvious.
+  - The markdown editor uses the textarea’s wrap model to align the first wrapped row of the selected range directly under the top border, and the viewer uses block-level `data-start-line` markers to anchor the corresponding rendered block to the top of its scroll container.
+  - When the Markdown “Text Highlight” toggle is on, the highlighted range uses the same semantic colors as the active selection on the canvas:
+    - Node-backed ranges inherit the node’s fill color and appear as a tinted background band in the viewer and editor gutter.
+    - Edge-backed ranges are rendered with an underline treatment that mirrors the edge color in the canvas.
+    - Graph layer highlights reuse the layer’s background color so document-structure vs semantic vs property layers stay visually aligned.
+  - When the toggle is off, markdown remains unadorned while scrolling and auto-alignment still work.
 - Markdown Preview context action:
   - Right-clicking a non-empty selection in the Markdown Preview exposes a “Show on Canvas” action when the selection maps to a known node or edge.
   - Triggering this action updates the graph selection using the same selection pathways as other tools, so viewport zoom, highlight, and related panels behave consistently.

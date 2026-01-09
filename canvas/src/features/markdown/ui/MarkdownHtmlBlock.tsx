@@ -18,12 +18,14 @@ type MarkdownHtmlBlockProps = {
   token: TokenWithLines
   highlightClass: string
   opts: RenderOpts
+  highlightStyle?: React.CSSProperties
 }
 
 export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
   token: t,
   highlightClass,
   opts,
+  highlightStyle,
 }: MarkdownHtmlBlockProps) {
   const html = String((t as unknown as TokensHTML).text || '').trim()
   
@@ -39,6 +41,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           startLine={t.startLine}
           endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
+          highlightStyle={highlightStyle}
           opts={opts}
         >
           <MediaIframe src={src} title="Embedded content" presentationMode={opts.markdownPresentationMode} />
@@ -60,6 +63,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           startLine={t.startLine}
           endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
+          highlightStyle={highlightStyle}
           opts={opts}
         >
           <MediaVideo src={src} />
@@ -85,6 +89,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           startLine={t.startLine}
           endLine={t.endLine || t.startLine}
           highlightClass={highlightClass}
+          highlightStyle={highlightStyle}
           opts={opts}
         >
           <MediaImage src={src} alt={alt} width={width} height={height} />
@@ -105,6 +110,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
     return (
       <div
         className={['mt-3 mb-3', highlightClass].filter(Boolean).join(' ')}
+        style={highlightStyle}
         data-start-line={t.startLine}
         data-end-line={t.endLine || t.startLine}
       >
@@ -119,6 +125,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
         'mt-3 mb-3 p-3 rounded border border-gray-200 bg-gray-50 overflow-auto',
         highlightClass,
       ].filter(Boolean).join(' ')}
+      style={highlightStyle}
       data-start-line={t.startLine}
       data-end-line={t.endLine || t.startLine}
     >

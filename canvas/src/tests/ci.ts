@@ -2,6 +2,41 @@ import { runAllTests } from '@/tests/run'
 import fs from 'node:fs'
 import path from 'node:path'
 
+type WindowStub = Pick<
+  Window,
+  'addEventListener' | 'removeEventListener' | 'dispatchEvent' | 'setTimeout' | 'clearTimeout'
+> & {
+  HTMLIFrameElement?: typeof HTMLIFrameElement
+}
+
+type GlobalWithWindowStub = typeof globalThis & { window?: WindowStub }
+
+const g = globalThis as GlobalWithWindowStub
+
+if (!g.window) {
+  const stub = {} as WindowStub
+  stub.addEventListener = () => {}
+  stub.removeEventListener = () => {}
+  stub.dispatchEvent = () => false
+  stub.setTimeout = (handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
+    setTimeout(handler as (...inner: unknown[]) => void, timeout, ...args) as unknown as number
+  stub.clearTimeout = (handle: number) => clearTimeout(handle)
+  try {
+    const ctor = typeof HTMLIFrameElement !== 'undefined' ? HTMLIFrameElement : class {}
+    stub.HTMLIFrameElement = ctor as typeof HTMLIFrameElement
+  } catch {
+    stub.HTMLIFrameElement = class {} as typeof HTMLIFrameElement
+  }
+  g.window = stub as Window & typeof globalThis & WindowStub
+} else if (!g.window.HTMLIFrameElement) {
+  try {
+    const ctor = typeof HTMLIFrameElement !== 'undefined' ? HTMLIFrameElement : class {}
+    g.window.HTMLIFrameElement = ctor as typeof HTMLIFrameElement
+  } catch {
+    g.window.HTMLIFrameElement = class {} as typeof HTMLIFrameElement
+  }
+}
+
 async function main() {
   const startedAt = Date.now()
   const results = await runAllTests()

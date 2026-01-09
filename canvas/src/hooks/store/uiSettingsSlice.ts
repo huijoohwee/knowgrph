@@ -50,6 +50,8 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   uiIconBadgeChipClass: 'rounded px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800',
   uiIconBadgeChipTextSizeClass: 'text-[10px] font-mono',
   uiIconAnimationEnabled: true,
+  selectionFlashDurationMs: 500,
+  selectionFlashOpacity: 0.18,
   uiOverlayOpacity: 0.9,
   uiPanelOpacity: 0.95,
   uiToolbarOpacity: 0.95,
@@ -213,6 +215,16 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   setUiIconBadgeChipClass: (className: string) => set({ uiIconBadgeChipClass: className }),
   setUiIconBadgeChipTextSizeClass: (className: string) => set({ uiIconBadgeChipTextSizeClass: className }),
   setUiIconAnimationEnabled: (v: boolean) => set({ uiIconAnimationEnabled: v }),
+  setSelectionFlashDurationMs: (v: number) => {
+    const n = Number.isFinite(v) ? Number(v) : 500;
+    const clamped = n < 100 ? 100 : n > 2000 ? 2000 : n;
+    set({ selectionFlashDurationMs: clamped });
+  },
+  setSelectionFlashOpacity: (v: number) => {
+    const n = Number.isFinite(v) ? Number(v) : 0.18;
+    const clamped = n < 0 ? 0 : n > 1 ? 1 : n;
+    set({ selectionFlashOpacity: clamped });
+  },
 
   setSpotlightMargin: (v: number) => {
     const n = Number.isFinite(v) ? Number(v) : 8;

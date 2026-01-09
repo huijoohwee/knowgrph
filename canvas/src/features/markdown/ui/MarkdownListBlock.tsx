@@ -11,6 +11,7 @@ type MarkdownListBlockProps = {
   opts: RenderOpts
   baseTextClass: string
   wrapClass: string
+  highlightStyle?: React.CSSProperties
 }
 
 export const MarkdownListBlock = React.memo(function MarkdownListBlock({
@@ -19,6 +20,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   opts,
   baseTextClass,
   wrapClass,
+  highlightStyle,
 }: MarkdownListBlockProps) {
   const list = t as unknown as TokensList
   const ListTag = (list.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
@@ -27,6 +29,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   return (
     <div
       className={['mt-3 mb-3', highlightClass].filter(Boolean).join(' ')}
+      style={highlightStyle}
       data-start-line={t.startLine}
       data-end-line={t.endLine || t.startLine}
     >

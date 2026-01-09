@@ -63,6 +63,7 @@ export type GraphDataTableRowsProps = {
   updateEdge: (id: string, patch: Partial<GraphEdge>) => void
   onRowClick: (row: UnifiedRow) => void
   onRowDoubleClick: (row: UnifiedRow) => void
+  flashSelectionId?: string | null
 }
 
 export function GraphDataTableRows({
@@ -106,8 +107,13 @@ export function GraphDataTableRows({
   updateEdge,
   onRowClick,
   onRowDoubleClick,
+  flashSelectionId,
 }: GraphDataTableRowsProps) {
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
+  const selectionFlashOpacity = useGraphStore(s => s.selectionFlashOpacity || 0.18)
+  const flashAlpha = Math.max(0, Math.min(1, selectionFlashOpacity * 1.7))
+  const outlineThicknessClass =
+    selectionFlashOpacity >= 0.8 ? 'ring-2' : selectionFlashOpacity >= 0.25 ? 'ring-1' : ''
   return (
     <>
       {topSpacerHeight > 0 && (
@@ -220,6 +226,9 @@ export function GraphDataTableRows({
         const isActive =
           (isNodeRow && selectionSets.selectedNodeIdSet.has(row.id)) ||
           (isEdgeRow && selectionSets.selectedEdgeIdSet.has(row.id))
+        const useFlash =
+          !!flashSelectionId &&
+          ((isNodeRow && row.id === flashSelectionId) || (isEdgeRow && row.id === flashSelectionId))
         const isRelated =
           isNodeRow
             ? selectionSets.selectedNodeIdSet.size > 0
@@ -245,19 +254,30 @@ export function GraphDataTableRows({
               ? edgeScopeBorderColor
               : null
 
-        const selectionClassName =
-          isActive
-            ? 'bg-blue-100'
-            : isRelated
-              ? 'bg-blue-50'
-              : rowIndex % 2 === 0
-                ? 'bg-white'
-                : 'bg-gray-50/50'
+        const selectionClassName = isActive
+          ? 'bg-blue-100'
+          : isRelated
+            ? 'bg-blue-50'
+            : rowIndex % 2 === 0
+              ? 'bg-white'
+              : 'bg-gray-50/50'
+        const outlineClassName =
+          useFlash && outlineThicknessClass
+            ? `${outlineThicknessClass} ring-orange-600 dark:ring-orange-300`
+            : ''
+        const flashStyle = useFlash
+          ? {
+              backgroundColor: `rgba(249,115,22,${flashAlpha})`,
+            }
+          : undefined
         return (
           <tr
             key={`row:${itemIndex}:${row.id}`}
-            className={`cursor-default border-b border-gray-100 hover:bg-blue-50/40 ${selectionClassName}`}
-            style={mediaNodeOpacity < 1 ? { opacity: mediaNodeOpacity } : undefined}
+            className={`cursor-default border-b border-gray-100 hover:bg-blue-50/40 ${selectionClassName} ${outlineClassName}`}
+            style={{
+              ...(mediaNodeOpacity < 1 ? { opacity: mediaNodeOpacity } : undefined),
+              ...(flashStyle || {}),
+            }}
             onClick={() => onRowClick(row)}
             onDoubleClick={() => onRowDoubleClick(row)}
           >

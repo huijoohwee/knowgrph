@@ -266,6 +266,20 @@
     the markdown editor/viewer to that node’s
     `metadata.lineStart`–`metadata.lineEnd` range.
 
+## Markdown text highlight and canvas‑aware colors
+- The Bottom Panel Markdown section exposes a “Text Highlight” toggle alongside Presentation mode:
+  - Backed by `LS_KEYS.markdownTextHighlight` so preferences persist per browser.
+  - Emits `markdownTextHighlightToggled` metrics whenever users flip the toggle.
+- When the toggle is enabled:
+  - Canvas selections with markdown provenance drive a `highlightedLineRange` in the markdown editor and viewer.
+  - `MarkdownTokenRenderer` applies a tinted background band to blocks that overlap the highlighted range.
+  - The editor gutter mirrors this range using a matching background band behind line numbers.
+  - Node‑backed ranges pick up their base color from the same node style palette used by `getNodeBaseFill`, so markdown text and canvas nodes stay visually consistent across layer modes.
+  - Edge‑backed ranges render with an underline aligned to the edge stroke color from `getEdgeBaseStroke`.
+  - When `schema.layers.mode === 'semantic'`, always‑on token highlights reuse the semantic layer’s background color (via the renderer’s `three.backgroundColor` and `markdownAlwaysOnAlpha`) so document‑structure vs property vs semantic modes stay visually aligned.
+- When the toggle is disabled:
+  - Markdown still scrolls and auto-aligns to the selected node/edge, but no extra background or underline treatments are applied.
+
 ## Canvas ↔ Markdown selection sync
 - Canvas-driven sync:
   - When a node or edge with `metadata.lineStart`/`metadata.lineEnd` is selected on the canvas, the Bottom Panel markdown editor and viewer compute the corresponding wrapped-row range and scroll so the first line of that range sits under the top edge of the editor viewport.

@@ -12,6 +12,14 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
+    const doc = dom.window.document
+    if (!doc.defaultView) {
+      Object.defineProperty(doc, 'defaultView', {
+        value: dom.window,
+        configurable: true,
+      })
+    }
+
     const anyWindow = dom.window as unknown as {
       requestAnimationFrame?: (cb: (ts: number) => void) => number
     }
@@ -24,7 +32,6 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
       anyGlobal.requestAnimationFrame = anyWindow.requestAnimationFrame
     }
 
-    const doc = dom.window.document
     const container = doc.createElement('div')
     container.id = 'root'
     doc.body.appendChild(container)
@@ -69,6 +76,16 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
     await tick()
     await tick()
 
+    const toggleButton = doc.querySelector(
+      'button[aria-label="Toggle text highlight"]',
+    ) as HTMLButtonElement | null
+    if (!toggleButton) {
+      throw new Error('markdown text highlight toggle button not found')
+    }
+    toggleButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await tick()
+    await tick()
+
     const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
     if (!textarea) {
       throw new Error('editor textarea not found')
@@ -98,7 +115,7 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
     if (!gutter) {
       throw new Error('editor gutter not found')
     }
-    const highlighted = gutter.querySelectorAll('.bg-yellow-100')
+    const highlighted = gutter.querySelectorAll('[style*="background-color"]')
     if (!highlighted || highlighted.length === 0) {
       throw new Error('expected at least one highlighted line number in gutter')
     }
@@ -109,4 +126,3 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
     restoreWindow()
   }
 }
-

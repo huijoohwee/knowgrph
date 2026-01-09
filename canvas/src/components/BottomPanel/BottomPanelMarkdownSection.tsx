@@ -146,6 +146,15 @@ export function BottomPanelMarkdownSection() {
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
+  const schema = useGraphStore(s => s.schema)
+  const selectionFlashDurationMs = useGraphStore(s => s.selectionFlashDurationMs || 500)
+
+  const [markdownTextHighlight, setMarkdownTextHighlight] = usePersistedBoolean(
+    LS_KEYS.markdownTextHighlight,
+    true,
+  )
+
+  const selectionHighlightEnabled = !markdownTextHighlight
 
   const [markdownWordWrap, setMarkdownWordWrap] = usePersistedBoolean(
     LS_KEYS.markdownWordWrap,
@@ -196,6 +205,7 @@ export function BottomPanelMarkdownSection() {
     previewBasePath,
   } = useBottomPanelMarkdownModel({
     graphData,
+    schema,
     selectedNodeId,
     selectedEdgeId,
     importedMarkdownText,
@@ -283,6 +293,34 @@ export function BottomPanelMarkdownSection() {
   const presentationApiRef = React.useRef<MarkdownPreviewPresentationApi | null>(null)
   const [presentationSlideState, setPresentationSlideState] =
     React.useState<MarkdownPreviewPresentationSlideState | null>(null)
+
+  const [flashSelectionId, setFlashSelectionId] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    const id = selectionInfo?.id || null
+    if (!id) {
+      setFlashSelectionId(null)
+      return
+    }
+    setFlashSelectionId(id)
+    let timer: number | null = null
+    try {
+      timer = window.setTimeout(() => {
+        setFlashSelectionId(current => (current === id ? null : current))
+      }, selectionFlashDurationMs)
+    } catch {
+      timer = null
+    }
+    return () => {
+      if (timer != null) {
+        try {
+          window.clearTimeout(timer)
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [selectionInfo?.id, selectionFlashDurationMs])
 
   const handleApplyMarkdown = React.useCallback(async () => {
     if (!markdownText || !markdownText.trim()) return
@@ -703,37 +741,51 @@ export function BottomPanelMarkdownSection() {
                     e.preventDefault()
                     ta.scrollTop = ta.scrollTop + e.deltaY
                   }}
-                >
-                  <div
-                    ref={gutterLayerRef}
-                    className="absolute left-0 right-0 top-0"
+                  >
+                    <div
+                      ref={gutterLayerRef}
+                      className="absolute left-0 right-0 top-0"
                     style={{
                       height: `${editorContentHeightPx}px`,
                       transform: 'translateY(0px)',
                       willChange: 'transform',
                     }}
-                  >
-                    {visibleLineNumbers.map(line => {
-                      const isHighlighted =
-                        highlightedLineRange != null && line >= highlightedLineRange.start && line <= highlightedLineRange.end
-                      const startRow =
-                        editorRowStartByLine[visibleLineRange.startLine] ?? visibleLineRange.startLine
-                      const row = editorRowStartByLine[line] ?? line
-                      return (
-                        <div
-                          key={line}
-                          className={[
-                            'absolute left-0 right-0 pr-2 text-right select-none',
-                            uiPanelMonospaceTextClass,
-                            isHighlighted ? 'bg-yellow-100' : '',
-                          ].join(' ')}
-                          style={{
-                            top: `${editorPaddingTopPx + (row - startRow) * lineHeightPx}px`,
-                            height: `${lineHeightPx}px`,
-                            lineHeight: `${lineHeightPx}px`,
-                          }}
-                        >
-                          {line}
+                    >
+                      {visibleLineNumbers.map(line => {
+                        const isHighlighted =
+                          selectionHighlightEnabled &&
+                          highlightedLineRange != null &&
+                          line >= highlightedLineRange.start &&
+                          line <= highlightedLineRange.end
+                        const startRow =
+                          editorRowStartByLine[visibleLineRange.startLine] ??
+                          visibleLineRange.startLine
+                        const row = editorRowStartByLine[line] ?? line
+                        const useFlash =
+                          !!flashSelectionId &&
+                          !!selectionInfo &&
+                          flashSelectionId === selectionInfo.id &&
+                          isHighlighted
+                        const baseBg =
+                          isHighlighted && selectionInfo?.highlightBackgroundColor
+                            ? selectionInfo.highlightBackgroundColor
+                            : null
+                        const bgColor = useFlash ? 'rgba(249,115,22,0.35)' : baseBg
+                        return (
+                          <div
+                            key={line}
+                            className={[
+                              'absolute left-0 right-0 pr-2 text-right select-none',
+                              uiPanelMonospaceTextClass,
+                            ].join(' ')}
+                            style={{
+                              top: `${editorPaddingTopPx + (row - startRow) * lineHeightPx}px`,
+                              height: `${lineHeightPx}px`,
+                              lineHeight: `${lineHeightPx}px`,
+                              backgroundColor: bgColor || undefined,
+                            }}
+                          >
+                            {line}
                         </div>
                       )
                     })}
@@ -839,6 +891,25 @@ export function BottomPanelMarkdownSection() {
               </div>
               <div className="flex items-center gap-1">
                 <IconButton
+                  className={`App-toolbar__btn flex items-center justify-center ${markdownTextHighlight ? 'text-blue-600' : ''}`}
+                  title={UI_COPY.bottomPanelMarkdownTextHighlightToggleTitle}
+                  tooltipContent={
+                    markdownTextHighlight
+                      ? UI_COPY.bottomPanelMarkdownTextHighlightOnTooltip
+                      : UI_COPY.bottomPanelMarkdownTextHighlightOffTooltip
+                  }
+                  onClick={() => {
+                    const next = !markdownTextHighlight
+                    setMarkdownTextHighlight(next)
+                    emitMarkdownPanelMetric('markdownTextHighlightToggled', {
+                      enabled: next,
+                    })
+                  }}
+                  showTooltip
+                >
+                  <LayoutPanelTop className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+                </IconButton>
+                <IconButton
                   className={`App-toolbar__btn flex items-center justify-center ${markdownPresentationMode ? 'text-blue-600' : ''}`}
                   title={UI_COPY.bottomPanelMarkdownPresentationModeToggleTitle}
                   tooltipContent={
@@ -872,20 +943,25 @@ export function BottomPanelMarkdownSection() {
                   <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
                 </IconButton>
               </div>
-            </div>
-            {markdownLayoutMode !== 'editor' && (
-              <MarkdownPreview
-                ref={viewerRef}
-                markdownText={deferredMarkdownText}
-                activeDocumentPath={previewBasePath}
-                highlightedLineRange={highlightedLineRange}
-                markdownWordWrap={markdownWordWrap}
-                markdownPresentationMode={markdownPresentationMode}
-                presentationApiRef={presentationApiRef}
-                onPresentationSlideStateChange={setPresentationSlideState}
-                uiPanelTextFontClass={uiPanelTextFontClass}
-                uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-                previewScrollable
+          </div>
+          {markdownLayoutMode !== 'editor' && (
+            <MarkdownPreview
+              ref={viewerRef}
+              markdownText={deferredMarkdownText}
+              activeDocumentPath={previewBasePath}
+              highlightedLineRange={highlightedLineRange}
+              markdownWordWrap={markdownWordWrap}
+              markdownPresentationMode={markdownPresentationMode}
+              markdownTextHighlight={selectionHighlightEnabled}
+              alwaysOnHighlightMode={markdownTextHighlight}
+              selectionKind={selectionInfo?.kind ?? null}
+              highlightBackgroundColor={selectionInfo?.highlightBackgroundColor ?? null}
+              highlightUnderlineColor={selectionInfo?.highlightUnderlineColor ?? null}
+              presentationApiRef={presentationApiRef}
+              onPresentationSlideStateChange={setPresentationSlideState}
+              uiPanelTextFontClass={uiPanelTextFontClass}
+              uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+              previewScrollable
                 onScroll={markdownPresentationMode ? undefined : handleViewerScroll}
               />
             )}

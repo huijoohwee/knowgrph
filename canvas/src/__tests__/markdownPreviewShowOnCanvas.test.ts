@@ -91,6 +91,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
         highlightedLineRange: null,
         markdownWordWrap: true,
         markdownPresentationMode: false,
+        markdownTextHighlight: false,
         uiPanelTextFontClass: 'font-sans text-xs',
         uiPanelMonospaceTextClass: 'font-mono text-xs',
         previewOverlayScope: 'viewport',

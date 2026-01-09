@@ -8,12 +8,14 @@ type MarkdownTableBlockProps = {
   token: TokenWithLines
   highlightClass: string
   opts: RenderOpts
+  highlightStyle?: React.CSSProperties
 }
 
 export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
   token: t,
   highlightClass,
   opts,
+  highlightStyle,
 }: MarkdownTableBlockProps) {
   const tbl = t as unknown as TokensTable
   return (
@@ -22,6 +24,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
         'mt-3 mb-3 overflow-auto rounded border border-gray-200',
         highlightClass,
       ].filter(Boolean).join(' ')}
+      style={highlightStyle}
       data-start-line={t.startLine}
       data-end-line={t.endLine || t.startLine}
     >

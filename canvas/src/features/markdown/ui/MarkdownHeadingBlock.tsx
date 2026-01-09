@@ -7,12 +7,14 @@ import type { RenderOpts } from './MarkdownRendererTypes'
 type MarkdownHeadingBlockProps = {
   token: TokenWithLines
   highlightClass: string
+  highlightStyle?: React.CSSProperties
   opts: RenderOpts
 }
 
 export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   token: t,
   highlightClass,
+  highlightStyle,
   opts,
 }: MarkdownHeadingBlockProps) {
   const h = t as unknown as TokensHeading
@@ -37,41 +39,41 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   
   if (depth === 1) {
     return (
-      <h1 className={cls} data-start-line={startLine} data-end-line={endLine}>
+      <h1 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
         {content}
       </h1>
     )
   }
   if (depth === 2) {
     return (
-      <h2 className={cls} data-start-line={startLine} data-end-line={endLine}>
+      <h2 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
         {content}
       </h2>
     )
   }
   if (depth === 3) {
     return (
-      <h3 className={cls} data-start-line={startLine} data-end-line={endLine}>
+      <h3 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
         {content}
       </h3>
     )
   }
   if (depth === 4) {
     return (
-      <h4 className={cls} data-start-line={startLine} data-end-line={endLine}>
+      <h4 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
         {content}
       </h4>
     )
   }
   if (depth === 5) {
     return (
-      <h5 className={cls} data-start-line={startLine} data-end-line={endLine}>
+      <h5 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
         {content}
       </h5>
     )
   }
   return (
-    <h6 className={cls} data-start-line={startLine} data-end-line={endLine}>
+    <h6 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
       {content}
     </h6>
   )

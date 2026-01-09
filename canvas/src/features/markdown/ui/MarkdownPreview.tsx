@@ -1,9 +1,9 @@
 import React from 'react'
-import { lexMarkdown, lexMarkdownContent } from '@/features/markdown/ui/markdownPreviewLex'
+import { lexMarkdown, lexMarkdownContent, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { LS_KEYS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getDocumentPathFromMetadata } from '@/features/graph-data-table/graphDataTable'
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
 import {
   parseMermaidConfigFromFrontmatter,
@@ -14,6 +14,9 @@ import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOver
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
+import type { GraphSchema } from '@/lib/graph/schema'
+import { getThreeConfig } from '@/lib/graph/schema'
+import { getNodeBaseFill, getEdgeBaseStroke } from '@/components/GraphCanvas/helpers'
 
 export type MarkdownPreviewPresentationApi = {
   prev: () => void
@@ -31,6 +34,12 @@ type MarkdownPreviewProps = {
   highlightedLineRange: HighlightedLineRange
   markdownWordWrap: boolean
   markdownPresentationMode: boolean
+  markdownTextHighlight: boolean
+  selectionKind?: 'node' | 'edge' | null
+  highlightBackgroundColor?: string | null
+  highlightUnderlineColor?: string | null
+  selectionId?: string | null
+  alwaysOnHighlightMode?: boolean
   presentationApiRef?: React.MutableRefObject<MarkdownPreviewPresentationApi | null>
   onPresentationSlideStateChange?: (state: MarkdownPreviewPresentationSlideState) => void
   uiPanelTextFontClass: string
@@ -65,6 +74,12 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     highlightedLineRange,
     markdownWordWrap,
     markdownPresentationMode,
+    markdownTextHighlight,
+    selectionKind,
+    highlightBackgroundColor,
+    highlightUnderlineColor,
+    selectionId,
+    alwaysOnHighlightMode = false,
     presentationApiRef,
     onPresentationSlideStateChange,
     uiPanelTextFontClass,
@@ -77,7 +92,34 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
   ref,
   ) {
 
+  const selectionFlashDurationMs = useGraphStore(s => s.selectionFlashDurationMs || 500)
   const rootThemeMode = useRootThemeMode()
+  const [flashSelectionId, setFlashSelectionId] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!selectionId) {
+      setFlashSelectionId(null)
+      return
+    }
+    setFlashSelectionId(selectionId)
+    let timer: number | null = null
+    try {
+      timer = window.setTimeout(() => {
+        setFlashSelectionId(current => (current === selectionId ? null : current))
+      }, selectionFlashDurationMs)
+    } catch {
+      timer = null
+    }
+    return () => {
+      if (timer != null) {
+        try {
+          window.clearTimeout(timer)
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [selectionId, selectionFlashDurationMs])
   const rootElRef = React.useRef<HTMLDivElement | null>(null)
   const setRootRef = React.useCallback((el: HTMLDivElement | null) => {
     rootElRef.current = el
@@ -179,6 +221,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
   const { tokens } = React.useMemo(() => lexMarkdown(markdownText || ''), [markdownText])
 
   const graphData = useGraphStore(s => s.graphData)
+  const schema = useGraphStore(s => s.schema as GraphSchema | null)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
@@ -206,6 +249,176 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       window.removeEventListener('scroll', handler, true)
     }
   }, [contextMenu, closeContextMenu])
+
+  type TokenHighlightSpec = {
+    textColor: string | null
+    underlineColor: string | null
+    backgroundColor: string | null
+  }
+
+  const buildAlwaysOnTokenHighlights = React.useCallback(
+    (sourceTokens: TokenWithLines[] | null): TokenHighlightSpec[] | null => {
+      if (!alwaysOnHighlightMode) return null
+      const data = graphData as GraphData | null
+      if (!data) return null
+      const trimmedPath = (activeDocumentPath || '').trim()
+      if (!trimmedPath) return null
+      if (!sourceTokens || sourceTokens.length === 0) return null
+      const parseLine = (raw: unknown): number | null => {
+        if (typeof raw === 'number') return Number.isFinite(raw) ? Math.floor(raw) : null
+        if (typeof raw === 'string') {
+          const parsed = Number.parseInt(raw, 10)
+          return Number.isFinite(parsed) ? parsed : null
+        }
+        return null
+      }
+      type Range = { start: number; end: number; color: string }
+      const nodeRanges: Range[] = []
+      const edgeRanges: Range[] = []
+      const nodes = data.nodes || []
+      const edges = data.edges || []
+      for (const n of nodes) {
+        const meta = n.metadata as unknown
+        const record =
+          meta && typeof meta === 'object' && !Array.isArray(meta)
+            ? (meta as Record<string, unknown>)
+            : {}
+        const docPath = getDocumentPathFromMetadata(record)
+        if (!docPath || docPath.trim() !== trimmedPath) continue
+        const start = parseLine(record.lineStart)
+        const endRaw = parseLine(record.lineEnd)
+        if (start == null) continue
+        const end = endRaw != null ? endRaw : start
+        const s = Math.max(1, Math.min(start, end))
+        const e = Math.max(s, Math.max(start, end))
+        const baseColor =
+          schema && (n as GraphNode)
+            ? getNodeBaseFill(n as GraphNode, schema)
+            : ''
+        const color = typeof baseColor === 'string' ? baseColor.trim() : ''
+        if (!color) continue
+        nodeRanges.push({ start: s, end: e, color })
+      }
+      for (const e of edges) {
+        const meta = e.metadata as unknown
+        const record =
+          meta && typeof meta === 'object' && !Array.isArray(meta)
+            ? (meta as Record<string, unknown>)
+            : {}
+        const docPath = getDocumentPathFromMetadata(record)
+        if (!docPath || docPath.trim() !== trimmedPath) continue
+        const start = parseLine(record.lineStart)
+        const endRaw = parseLine(record.lineEnd)
+        if (start == null) continue
+        const end = endRaw != null ? endRaw : start
+        const s = Math.max(1, Math.min(start, end))
+        const e2 = Math.max(s, Math.max(start, end))
+        const baseColor =
+          schema && (e as GraphEdge)
+            ? getEdgeBaseStroke(e as GraphEdge, schema)
+            : ''
+        const color = typeof baseColor === 'string' ? baseColor.trim() : ''
+        if (!color) continue
+        edgeRanges.push({ start: s, end: e2, color })
+      }
+      if (!nodeRanges.length && !edgeRanges.length) return null
+
+      const toLayerRgbaWithAlpha = (color: string, alpha: number): string | null => {
+        const raw = String(color || '').trim()
+        if (!raw) return null
+        if (raw.startsWith('#')) {
+          if (raw.length === 4) {
+            const r = raw[1]
+            const g = raw[2]
+            const b = raw[3]
+            const rr = Number.parseInt(r + r, 16)
+            const gg = Number.parseInt(g + g, 16)
+            const bb = Number.parseInt(b + b, 16)
+            if (Number.isFinite(rr) && Number.isFinite(gg) && Number.isFinite(bb)) {
+              return `rgba(${rr}, ${gg}, ${bb}, ${Math.max(0, Math.min(1, alpha))})`
+            }
+          }
+          if (raw.length === 7) {
+            const rr = Number.parseInt(raw.slice(1, 3), 16)
+            const gg = Number.parseInt(raw.slice(3, 5), 16)
+            const bb = Number.parseInt(raw.slice(5, 7), 16)
+            if (Number.isFinite(rr) && Number.isFinite(gg) && Number.isFinite(bb)) {
+              return `rgba(${rr}, ${gg}, ${bb}, ${Math.max(0, Math.min(1, alpha))})`
+            }
+          }
+        }
+        return raw
+      }
+
+      let layerBackground: string | null = null
+      if (schema && schema.layers && schema.layers.mode === 'semantic') {
+        const three = getThreeConfig(schema)
+        const rawBg =
+          typeof three.backgroundColor === 'string' ? three.backgroundColor.trim() : ''
+        if (rawBg) {
+          const rawAlpha = three.markdownAlwaysOnAlpha
+          const alpha =
+            typeof rawAlpha === 'number' && Number.isFinite(rawAlpha)
+              ? Math.max(0, Math.min(1, rawAlpha))
+              : 0.08
+          const softened = toLayerRgbaWithAlpha(rawBg, alpha)
+          layerBackground = softened || rawBg
+        }
+      }
+      const specs: TokenHighlightSpec[] = sourceTokens.map(() => ({
+        textColor: null,
+        underlineColor: null,
+        backgroundColor: null,
+      }))
+      for (let i = 0; i < sourceTokens.length; i += 1) {
+        const t = sourceTokens[i]
+        const tStart = t.startLine
+        const tEnd = t.endLine || t.startLine
+        let bestNodeColor: string | null = null
+        let bestNodeOverlap = 0
+        let bestNodeSpan = Number.POSITIVE_INFINITY
+        for (const r of nodeRanges) {
+          const overlapStart = Math.max(tStart, r.start)
+          const overlapEnd = Math.min(tEnd, r.end)
+          const overlap = overlapEnd >= overlapStart ? overlapEnd - overlapStart + 1 : 0
+          if (overlap <= 0) continue
+          const span = r.end - r.start + 1
+          if (overlap > bestNodeOverlap || (overlap === bestNodeOverlap && span < bestNodeSpan)) {
+            bestNodeOverlap = overlap
+            bestNodeSpan = span
+            bestNodeColor = r.color
+          }
+        }
+        let bestEdgeColor: string | null = null
+        let bestEdgeOverlap = 0
+        let bestEdgeSpan = Number.POSITIVE_INFINITY
+          for (const r of edgeRanges) {
+          const overlapStart = Math.max(tStart, r.start)
+          const overlapEnd = Math.min(tEnd, r.end)
+          const overlap = overlapEnd >= overlapStart ? overlapEnd - overlapStart + 1 : 0
+          if (overlap <= 0) continue
+          const span = r.end - r.start + 1
+          if (overlap > bestEdgeOverlap || (overlap === bestEdgeOverlap && span < bestEdgeSpan)) {
+            bestEdgeOverlap = overlap
+            bestEdgeSpan = span
+            bestEdgeColor = r.color
+          }
+        }
+        specs[i] = {
+          textColor: bestNodeColor,
+          underlineColor: bestEdgeColor,
+          backgroundColor: bestNodeColor || bestEdgeColor ? layerBackground : null,
+        }
+      }
+      return specs
+    },
+    [activeDocumentPath, alwaysOnHighlightMode, graphData, schema],
+  )
+
+  const alwaysOnTokenHighlights = React.useMemo(
+    () => buildAlwaysOnTokenHighlights(tokens),
+    [buildAlwaysOnTokenHighlights, tokens],
+  )
 
   const findSelectionTarget = React.useCallback(
     (data: GraphData | null, documentPath: string, startLine: number, endLine: number) => {
@@ -286,6 +499,43 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     [activeDocumentPath, findSelectionTarget, graphData, selectEdge, selectNode, setSelectionSource],
   )
 
+  const handleCmdClick = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!e.metaKey) return
+      if (!rootElRef.current) return
+      const targetEl = e.target as HTMLElement | null
+      if (!targetEl) return
+      let el: HTMLElement | null = targetEl
+      let startLine: number | null = null
+      let endLine: number | null = null
+      const root = rootElRef.current
+      while (el && el !== root) {
+        const ds = el.dataset
+        if (ds && ds.startLine) {
+          const s = Number.parseInt(ds.startLine, 10)
+          const eLine = ds.endLine ? Number.parseInt(ds.endLine, 10) : s
+          if (Number.isFinite(s) && Number.isFinite(eLine)) {
+            startLine = s
+            endLine = eLine
+            break
+          }
+        }
+        el = el.parentElement
+      }
+      if (startLine == null || endLine == null) return
+      e.preventDefault()
+      e.stopPropagation()
+      handleShowOnCanvas(startLine, endLine)
+    },
+    [handleShowOnCanvas],
+  )
+
+  const flashActive = !!flashSelectionId && !!selectionId && flashSelectionId === selectionId
+  const flashBg = flashActive ? 'rgba(249,115,22,0.28)' : null
+  const flashUnderline = flashActive ? '#fbbf24' : null
+  const effectiveHighlightBackgroundColor = flashBg || highlightBackgroundColor || null
+  const effectiveHighlightUnderlineColor = flashUnderline || highlightUnderlineColor || null
+
   const body = React.useMemo(
     () =>
       (
@@ -301,6 +551,12 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
           rootThemeMode={rootThemeMode}
           previewOverlayScope={previewOverlayScope}
           previewOverlayPortalTarget={previewOverlayPortalTarget}
+          alwaysOnHighlightMode={alwaysOnHighlightMode}
+          alwaysOnTokenHighlights={alwaysOnTokenHighlights}
+          markdownTextHighlight={markdownTextHighlight}
+          selectionKind={selectionKind || null}
+          highlightBackgroundColor={effectiveHighlightBackgroundColor}
+          highlightUnderlineColor={effectiveHighlightUnderlineColor}
         />
       ),
     [
@@ -315,6 +571,12 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       tokens,
       uiPanelMonospaceTextClass,
       uiPanelTextFontClass,
+      alwaysOnHighlightMode,
+      alwaysOnTokenHighlights,
+      markdownTextHighlight,
+      selectionKind,
+      effectiveHighlightBackgroundColor,
+      effectiveHighlightUnderlineColor,
     ],
   )
 
@@ -343,6 +605,12 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
         rootThemeMode={rootThemeMode}
         previewOverlayScope={previewOverlayScope}
         previewOverlayPortalTarget={previewOverlayPortalTarget}
+        alwaysOnHighlightMode={alwaysOnHighlightMode}
+        alwaysOnTokenHighlights={buildAlwaysOnTokenHighlights(slideTokens)}
+        markdownTextHighlight={markdownTextHighlight}
+        selectionKind={selectionKind || null}
+        highlightBackgroundColor={effectiveHighlightBackgroundColor}
+        highlightUnderlineColor={effectiveHighlightUnderlineColor}
       />
     )
   }, [
@@ -358,6 +626,12 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     uiPanelMonospaceTextClass,
     uiPanelTextFontClass,
     markdownPresentationMode,
+    markdownTextHighlight,
+    selectionKind,
+    effectiveHighlightBackgroundColor,
+    effectiveHighlightUnderlineColor,
+    alwaysOnHighlightMode,
+    buildAlwaysOnTokenHighlights,
   ])
 
   React.useEffect(() => {
@@ -444,6 +718,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
           ref={setRootRef}
           tabIndex={0}
           onContextMenu={handleContextMenu}
+          onClick={handleCmdClick}
           className={[
             'relative flex-1 min-h-0 w-full overflow-hidden bg-gray-100 outline-none flex flex-col',
             uiPanelTextFontClass,
@@ -562,6 +837,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       ref={setRootRef}
       onScroll={onScroll}
       onContextMenu={handleContextMenu}
+      onClick={handleCmdClick}
       className={[
         'relative flex-1 min-h-0 px-2 py-2',
         scrollClass,
