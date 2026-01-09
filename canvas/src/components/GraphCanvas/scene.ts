@@ -211,31 +211,13 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     schema.layout?.mode === 'tidy-tree' ? deriveTidyTreeDerivation(edgesForSim, schema, nodeIds) : null
 
   const edgesForDisplayBase = (() => {
+    const layersCfg = schema.layers || {}
+    const layerMode = layersCfg.mode || 'property'
     if (schema.layout?.mode !== 'tidy-tree' || !tidyTreeDerivation || !tidyTreeDerivation.candidateEdges.length) {
       return edgesForSim
     }
-    const direction = tidyTreeDerivation.direction
-    const candidateEdges = tidyTreeDerivation.candidateEdges
-    const parentByChild = new Map<string, string>()
-    const treeEdgeIds = new Set<string>()
-    for (let i = 0; i < candidateEdges.length; i += 1) {
-      const e = candidateEdges[i]
-      const src = String(e.source)
-      const tgt = String(e.target)
-      const parent = direction === 'source-target' ? src : tgt
-      const child = direction === 'source-target' ? tgt : src
-      if (!parent || !child) continue
-      if (parent === child) continue
-      if (!nodeIds.has(parent) || !nodeIds.has(child)) continue
-      const childId = String(child)
-      if (parentByChild.has(childId)) continue
-      parentByChild.set(childId, String(parent))
-      const edgeId = String(e.id)
-      if (edgeId) treeEdgeIds.add(edgeId)
-    }
-    if (!treeEdgeIds.size) return candidateEdges
-    const treeEdges = candidateEdges.filter(e => treeEdgeIds.has(String(e.id)))
-    return treeEdges.length ? treeEdges : candidateEdges
+    if (layerMode === 'property') return edgesForSim
+    return tidyTreeDerivation.candidateEdges
   })()
 
   const edgesForDisplay = (() => {

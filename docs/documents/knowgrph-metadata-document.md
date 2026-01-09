@@ -41,7 +41,7 @@
 - Layer propagation from graphs:
   - `layersFromGraph`:
     - Copy of `graph_jsonld.metadata.layers` emitted by parsers such as `parse_markdown_to_graph_jsonld`.
-    - Provides a single source of truth for semantic/document-structure/property layer hints without duplicating configuration.
+    - Provides a single source of truth for semantic/document-structure/property layer hints (mapped in the UI to “Similarity clusters (semantic)”, “Layered structure (document)”, and “Raw data (schema)”) without duplicating configuration.
   - `defaultLayerFromGraph`:
     - Copy of `graph_jsonld.metadata.defaultLayer`, indicating the parser-suggested default layer mode.
 - Layer configuration for canvas and tools:

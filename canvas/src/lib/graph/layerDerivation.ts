@@ -145,37 +145,6 @@ function clampNumber(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
 }
 
-function computeCommunityColorHex(communityId: number): string {
-  const hue = ((communityId * 137.508) % 360 + 360) % 360
-  const s = 0.62
-  const l = 0.55
-  const c = (1 - Math.abs(2 * l - 1)) * s
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1))
-  const m = l - c / 2
-  let r = 0
-  let g = 0
-  let b = 0
-  if (hue < 60) {
-    r = c; g = x; b = 0
-  } else if (hue < 120) {
-    r = x; g = c; b = 0
-  } else if (hue < 180) {
-    r = 0; g = c; b = x
-  } else if (hue < 240) {
-    r = 0; g = x; b = c
-  } else if (hue < 300) {
-    r = x; g = 0; b = c
-  } else {
-    r = c; g = 0; b = x
-  }
-  const toHex = (n: number) => {
-    const v = Math.round((n + m) * 255)
-    const clamped = Math.max(0, Math.min(255, v))
-    return clamped.toString(16).padStart(2, '0')
-  }
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
 function computeLouvainCommunities(args: {
   nodeIds: string[]
   edges: Array<{ source: string; target: string; weight: number }>
@@ -314,7 +283,18 @@ export function deriveGraphDataForLayers(graphData: GraphData | null | undefined
       }
     }
   }
-  if (mode !== 'semantic') return graphData
+  if (mode !== 'semantic') {
+    const typedNodes = nodes as GraphNode[]
+    const filteredNodes = typedNodes.filter(n => String(n.type || '') !== 'Document')
+    if (filteredNodes.length === nodes.length) return graphData
+    const keepIds = new Set<string>(filteredNodes.map(n => String(n.id)))
+    const filteredEdges = (edges as GraphEdge[]).filter(e => {
+      const s = String(e.source)
+      const t = String(e.target)
+      return keepIds.has(s) && keepIds.has(t)
+    })
+    return { ...graphData, nodes: filteredNodes, edges: filteredEdges }
+  }
 
   const cfg = getSemanticCfg(schema)
   const similarityEdgeLabelRaw = cfg.similarityEdgeLabel
@@ -433,12 +413,18 @@ export function deriveGraphDataForLayers(graphData: GraphData | null | undefined
     nextProps['visual:nodeSize'] = nodeSize
     if (communityId != null) {
       nextProps['visual:community'] = communityId
-      nextProps['visual:fill'] = computeCommunityColorHex(communityId)
     }
     return { ...n, properties: nextProps }
   })
 
   const filteredEdges = edges.filter(e => !(e.metadata && (e.metadata as Record<string, unknown>).derived === true))
   const nextEdges = [...filteredEdges, ...similarityEdges]
-  return { ...graphData, nodes: nextNodes, edges: nextEdges }
+  const finalNodes = nextNodes.filter(n => String(n.type || '') !== 'Document')
+  const keepIds = new Set<string>(finalNodes.map(n => String(n.id)))
+  const finalEdges = nextEdges.filter(e => {
+    const s = String(e.source)
+    const t = String(e.target)
+    return keepIds.has(s) && keepIds.has(t)
+  })
+  return { ...graphData, nodes: finalNodes, edges: finalEdges }
 }

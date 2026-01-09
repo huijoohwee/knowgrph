@@ -96,7 +96,29 @@ export const parseMarkdownFrontmatter = (
       const key = trimmed.slice(0, colonIndex).trim()
       const val = trimmed.slice(colonIndex + 1).trim()
       if (!key) continue
-      if (structuredKeys.has(key)) {
+      if (!structuredKeys.has(key) && (val === '|' || val === '>')) {
+        const blockLines: string[] = []
+        const blockIndent = indent
+        let j = i + 1
+        while (j < lines.length) {
+          const rawNext = lines[j] ?? ''
+          const trimmedNext = rawNext.trim()
+          if (trimmedNext === '---') break
+          if (!trimmedNext) {
+            blockLines.push('')
+            j += 1
+            continue
+          }
+          const nextIndent = rawNext.length - trimmedNext.length
+          if (nextIndent <= blockIndent) break
+          const relIndent = Math.max(0, nextIndent - blockIndent)
+          const text = `${' '.repeat(relIndent)}${trimmedNext}`
+          blockLines.push(text)
+          j += 1
+        }
+        meta[key] = blockLines.join('\n')
+        i = j - 1
+      } else if (structuredKeys.has(key)) {
         currentKey = key
         currentIndent = indent
         currentList = []

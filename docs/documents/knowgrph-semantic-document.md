@@ -86,6 +86,8 @@
 - Outcome:
   - The **entity/mention layer** is a neutral, token‑linked semantic layer that sits on top of markdown structure, with explicit provenance and configurable thresholds.
 
+In addition to TokenLinker‑derived mentions, parsers that surface higher‑level semantic structures may also populate the mention layer. Mermaid frontmatter is intentionally excluded from this path and is treated as visual‑only media; any semantic Entities and Mentions are derived from neutral text‑based layers rather than from diagram syntax. Mermaid‑derived `MermaidNode` and `pointsTo` edges participate in Canvas semantics via schema‑driven layer configuration (for example, `schema.layers.semantic.hiddenNodeTypes`) and layout‑mode‑aware edge selection rather than via any hardcoded template names, file paths, or pipeline labels; see `docs/documents/knowgrph-mermaid-frontmatter-document.md` for the detailed mapping.
+
 ### 1.4 Edge elevation (EdgeElevator layer)
 
 - After mentions and entities are created:
@@ -280,7 +282,7 @@
 
 - The canvas keeps a runtime `schema: GraphSchema` that includes a `layers` object:
   - `layers.mode`:
-    - Current layer mode (`"semantic"`, `"document-structure"`, or `"property"`).
+    - Current layer mode (`"semantic"`, `"document-structure"`, or `"property"`), which map in the UI to “Similarity clusters (semantic)”, “Layered structure (document)”, and “Raw data (schema)” respectively.
   - `layers.semantic`:
     - `similarityMetric`: `"cosine"` or `"pmi"`.
     - `similarityEdgeLabel`: edge label used to construct the semantic similarity graph.

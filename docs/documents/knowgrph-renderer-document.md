@@ -182,8 +182,12 @@
   - `computeNeighborIds` from the 2D highlight helpers, so 2D/3D share
     neighbor semantics.
 - `NodeMesh` uses:
-  - Base color from schema and Agentic RAG tagging (`getNodeBaseColor`).
-  - Base opacity from three layer configuration (`layerOpacityByLayer`).
+  - Base color from the same helper as 2D (`getNodeBaseFill`), so Agentic
+    RAG tagging, node type styles, and palette fallbacks stay aligned across
+    2D and 3D without semantic-specific overrides.
+  - Base opacity from the same layer helper as 2D (`getLayerOpacity`), so
+    `visual:layer` and `three.layerOpacityByLayer` are applied consistently
+    for semantic, document‑structure, and property layer modes.
   - Global media opacity from the store:
     - `mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)`
 - Selection behavior for `NodeMesh`:
@@ -253,6 +257,7 @@
   - Iframe URLs are checked against the allowed host list.
 - The main Preview panel builds a unified gallery of:
   - All Mermaid code blocks in the active markdown document.
+  - The active document’s frontmatter `mermaid:` block (when present), exposed as a dedicated “Mermaid diagram from frontmatter” card.
   - All safe HTML, markdown image, and link-derived media in the markdown document.
   - All media-capable graph nodes discovered via `getNodeMediaSpec`.
   - Media items from markdown and graph nodes share the same selection
@@ -265,6 +270,10 @@
     the Bottom Panel to the Curation → Markdown view and scrolls
     the markdown editor/viewer to that node’s
     `metadata.lineStart`–`metadata.lineEnd` range.
+  - When the markdown parser is used as the source of GraphData (for example, by editing markdown in the Bottom Panel and applying changes into the JSON Editor / Graph Data UI), a frontmatter `mermaid:` block contributes only a `MermaidDiagram` media node linked from the `Document` via `hasMermaid`. Any additional entities, mentions, or `semanticRelation` edges come from neutral semantic layers operating on markdown text and anchors/links rather than from the Mermaid diagram itself.
+  - When the active markdown document contains a frontmatter `mermaid:` block, the Bottom Panel Markdown Preview shows a compact inline hint above the rendered markdown. Clicking this hint:
+    - Opens the main Preview tab (via `MAIN_PANEL_OPEN_EVENT`).
+    - Focuses the frontmatter Mermaid diagram in the Preview panel by setting `markdownPreviewMermaidFocusCode` and `markdownPreviewMermaidFocusConfig` in `useGraphStore`, so the corresponding card and full-size Mermaid diagram become active without additional clicks.
 
 ## Markdown text highlight and canvas‑aware colors
 - The Bottom Panel Markdown section exposes a “Text Highlight” toggle alongside Presentation mode:
@@ -292,7 +301,8 @@
 # Graph layer modes and polygons
 
 - Layer modes:
-  - The **Graph Layer** tab controls the **Semantic → Document structure → Property** cycle using the same `schema.layers.mode` field that the Renderer and FloatingPanel use.
+  - The **Graph Layer** tab controls the **Semantic → Document structure → Property** cycle using the same `schema.layers.mode` field that the Renderer and FloatingPanel use, which correspond in the UI to “Similarity clusters (semantic)”, “Layered structure (document)”, and “Raw data (schema)” respectively.
+  - The top‑bar Graph Layer button (Shapes icon) is a view‑only toggle for polygon hull overlays on the canvas; it flips the same `polygonGroupsVisible` flag without changing `schema.layers.mode` or opening the Graph Layer panel.
   - **Semantic**:
     - Semantic is the default when `schema.layers.mode` is missing or invalid.
     - The underlying JSON-LD graph is unchanged; the semantic layer derives weighted similarity edges from tokenized node text using cosine similarity or PMI.

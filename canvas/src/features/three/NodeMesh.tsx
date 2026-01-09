@@ -4,40 +4,11 @@ import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
-import { getNodeRadiusFromSchema, getThreeConfig, getRendererPalette, getAgenticRagTagColor } from '@/lib/graph/schema'
+import { getNodeRadiusFromSchema, getThreeConfig } from '@/lib/graph/schema'
+import { getLayerOpacity, getNodeBaseFill } from '@/components/GraphCanvas/helpers'
 import type { Vec3 } from './layout'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { NodeSelectionState, SelectionVisuals } from './selection'
-
-function normalizePriorityLabel(value: unknown): 'P1' | 'P2' | 'P3' | 'Backlog' | null {
-  const raw = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : ''
-  const v = raw.trim().toUpperCase()
-  if (v === 'P1' || v === 'P2' || v === 'P3') return v
-  if (v === 'BACKLOG') return 'Backlog'
-  return null
-}
-
-function getPriorityColor(priority: 'P1' | 'P2' | 'P3' | 'Backlog', schema: GraphSchema): string {
-  const palette = getRendererPalette(schema)
-  if (priority === 'P1') return palette.nodes.alert
-  if (priority === 'P2') return palette.nodes.pivot
-  if (priority === 'P3') return palette.nodes.hypothesis
-  return '#6b7280'
-}
-
-function getNodeBaseColor(node: GraphNode, schema: GraphSchema): string {
-  const props = node.properties || {}
-  if (node.type === 'CustomerFeedback' || node.type === 'Priority') {
-    const prio = normalizePriorityLabel(props['priority'])
-    if (prio) return getPriorityColor(prio, schema)
-  }
-  const tagColor = getAgenticRagTagColor(node, schema)
-  if (tagColor) return tagColor
-  const byType = schema.nodeStyles[node.type]?.color
-  if (typeof byType === 'string' && byType.trim()) return byType
-  const palette = getRendererPalette(schema)
-  return palette.nodes.execution
-}
 
 export function NodeMesh({
   node,
@@ -66,30 +37,10 @@ export function NodeMesh({
   const sphereRef = useRef<THREE.Mesh>(null!)
   const draggingRef = useRef(false)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
-  const baseColor = getNodeBaseColor(node, schema)
+  const baseColor = getNodeBaseFill(node, schema)
   const props = node.properties || {}
   const baseRadius = getNodeRadiusFromSchema(node, schema)
-  const layerRaw = props['visual:layer']
-  let baseLayerOpacity = 1
-  let numericLayer: number | null = null
-  if (typeof layerRaw === 'number') {
-    numericLayer = layerRaw
-  } else if (typeof layerRaw === 'string') {
-    const n = Number(layerRaw)
-    if (Number.isFinite(n)) numericLayer = n
-  }
-  const layerKey = numericLayer != null ? String(numericLayer) : null
-  const layerOpacityByLayer = getThreeConfig(schema).layerOpacityByLayer || {}
-  if (layerKey && Object.prototype.hasOwnProperty.call(layerOpacityByLayer, layerKey)) {
-    const v = layerOpacityByLayer[layerKey]
-    if (typeof v === 'number' && Number.isFinite(v)) {
-      baseLayerOpacity = v
-    }
-  } else if (numericLayer != null) {
-    if (numericLayer === 1) baseLayerOpacity = 1
-    else if (numericLayer === 2) baseLayerOpacity = 0.9
-    else if (numericLayer === 3) baseLayerOpacity = 0.8
-  }
+  const baseLayerOpacity = getLayerOpacity(node, schema)
   const deg = typeof props['degree'] === 'number' ? (props['degree'] as number) : undefined
   const scale = deg ? Math.max(0.9, Math.min(1.6, 0.95 + Math.sqrt(Math.max(1, deg)) * 0.15)) : 1
   const radius = baseRadius * scale

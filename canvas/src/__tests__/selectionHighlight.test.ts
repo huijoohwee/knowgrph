@@ -116,3 +116,58 @@ export function testSelectionHighlightEdgeSelectionEndpointsAndEdges() {
     throw new Error('non-selected edges should be gray and dimmed')
   }
 }
+
+const makeMermaidGraph = (): GraphData => ({
+  type: 'Graph',
+  nodes: [
+    { id: 'Input', label: 'Input', type: 'MermaidNode', properties: {} },
+    { id: 'Retrieval', label: 'Retrieval', type: 'MermaidNode', properties: {} },
+    { id: 'Augmentation', label: 'Augmentation', type: 'MermaidNode', properties: {} },
+    { id: 'Generation', label: 'Generation', type: 'MermaidNode', properties: {} },
+    { id: 'Output', label: 'Output', type: 'MermaidNode', properties: {} },
+  ],
+  edges: [
+    { id: 'pe1', source: 'Input', target: 'Retrieval', label: 'pointsTo', properties: {} },
+    { id: 'pe2', source: 'Retrieval', target: 'Augmentation', label: 'pointsTo', properties: {} },
+    { id: 'pe3', source: 'Augmentation', target: 'Generation', label: 'pointsTo', properties: {} },
+    { id: 'pe4', source: 'Generation', target: 'Output', label: 'pointsTo', properties: {} },
+  ],
+})
+
+export function testSelectionHighlightMermaidPointsToPath() {
+  const data = makeMermaidGraph()
+  const schema = makeSchema()
+  const params: SelectionHighlightParams = {
+    data,
+    schema,
+    selectedNodeId: 'Input',
+    selectedEdgeId: null,
+    renderMediaAsNodes: true,
+  }
+  const neighborIds = computeNeighborIds(params)
+  const expected = ['Retrieval', 'Augmentation', 'Generation', 'Output']
+  for (let i = 0; i < expected.length; i += 1) {
+    if (!neighborIds.has(expected[i])) {
+      throw new Error('Mermaid pipeline selection should highlight full pointsTo path nodes')
+    }
+  }
+  if (neighborIds.size !== expected.length) {
+    throw new Error('Mermaid pipeline neighborIds should only contain path nodes')
+  }
+  const pe1: EdgeWithRuntime = data.edges[0]
+  const pe2: EdgeWithRuntime = data.edges[1]
+  const pe3: EdgeWithRuntime = data.edges[2]
+  const pe4: EdgeWithRuntime = data.edges[3]
+  const edgeParams = { ...params, neighborIds }
+  const v1 = computeEdgeVisual(pe1, edgeParams)
+  const v2 = computeEdgeVisual(pe2, edgeParams)
+  const v3 = computeEdgeVisual(pe3, edgeParams)
+  const v4 = computeEdgeVisual(pe4, edgeParams)
+  const all = [v1, v2, v3, v4]
+  for (let i = 0; i < all.length; i += 1) {
+    const v = all[i]
+    if (v.stroke !== '#3B82F6' || v.opacity !== 0.9) {
+      throw new Error('Mermaid pipeline edges should be highlighted along the pointsTo path')
+    }
+  }
+}

@@ -426,9 +426,11 @@ export const defaultSchema: GraphSchema = {
     Entity: { color: MVP_COLOR_PALETTE.nodes.idea },
     Chunk: { color: MVP_COLOR_PALETTE.nodes.execution },
     EmbeddingMeta: { color: '#6B7280' },
+    MermaidNode: { color: '#8B5CF6' },
   },
   edgeStyles: {
     relatedTo: { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.5 },
+    pointsTo: { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.5, arrow: true },
   },
   metadata: {
     'renderer:palette': {

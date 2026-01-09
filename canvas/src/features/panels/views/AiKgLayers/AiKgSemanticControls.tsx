@@ -5,6 +5,7 @@ import {
   AI_KG_SEMANTIC_TOPK_TOOLTIP,
   AI_KG_SEMANTIC_MIN_SIMILARITY_TOOLTIP,
   AI_KG_SEMANTIC_EDGE_LABEL_TOOLTIP,
+  AI_KG_SEMANTIC_MERMAID_FILTER_TOOLTIP,
 } from '@/lib/config'
 import {
   SEMANTIC_MIN_SIMILARITY_TOOLTIP,
@@ -30,6 +31,11 @@ export default function AiKgSemanticControls({
   const semanticCfg = layers.semantic || {}
   const similarityEdgeLabel = String(semanticCfg.similarityEdgeLabel || 'semanticSimilarity')
   const similarityMetric: 'cosine' | 'pmi' = semanticCfg.similarityMetric === 'pmi' ? 'pmi' : 'cosine'
+  const hiddenTypesRaw = semanticCfg.hiddenNodeTypes
+  const hiddenNodeTypes = Array.isArray(hiddenTypesRaw)
+    ? hiddenTypesRaw.map(t => String(t || '').trim()).filter(Boolean)
+    : []
+  const mermaidHidden = hiddenNodeTypes.includes('MermaidNode')
   
   const topKRaw = semanticCfg.topKEdgesPerNode
   const topKEdgesPerNode =
@@ -238,6 +244,68 @@ export default function AiKgSemanticControls({
                 }}
               />
             </Tooltip>
+          </RightAlignedValueCell>
+        )}
+      />
+      <KeyTypeValueRow
+        density="compact"
+        layout="keyIconValue"
+        keyNode={(
+          <Tooltip
+            content={AI_KG_SEMANTIC_MERMAID_FILTER_TOOLTIP}
+            maxWidthPx={260}
+            contentClassName="bg-gray-800/90"
+            className="text-gray-700 break-words"
+          >
+            <span className="text-gray-700 break-words">
+              schema.layers.semantic.hiddenNodeTypes
+            </span>
+          </Tooltip>
+        )}
+        typeNode={null}
+        valueNode={(
+          <RightAlignedValueCell>
+            <div className="flex items-center justify-end gap-2">
+              <span className="inline-flex items-center rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-800">
+                <span className="mr-1 h-2 w-2 rounded-full bg-violet-500" />
+                MermaidNode · pointsTo
+              </span>
+              <label className="flex items-center gap-1 text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  className="h-3 w-3"
+                  checked={mermaidHidden}
+                  onChange={e => {
+                    const checked = e.target.checked
+                    const current = schema
+                    const baseLayers = current.layers || {}
+                    const baseSemantic = baseLayers.semantic || {}
+                    const prevHidden = Array.isArray(baseSemantic.hiddenNodeTypes)
+                      ? baseSemantic.hiddenNodeTypes.map(t => String(t || '').trim()).filter(Boolean)
+                      : []
+                    const nextHidden = (() => {
+                      if (checked) {
+                        if (prevHidden.includes('MermaidNode')) return prevHidden
+                        return [...prevHidden, 'MermaidNode']
+                      }
+                      return prevHidden.filter(t => t !== 'MermaidNode')
+                    })()
+                    const next: GraphSchema = {
+                      ...current,
+                      layers: {
+                        ...baseLayers,
+                        semantic: {
+                          ...baseSemantic,
+                          hiddenNodeTypes: nextHidden.length ? nextHidden : undefined,
+                        },
+                      },
+                    }
+                    setSchema(next)
+                  }}
+                />
+                <span>{mermaidHidden ? 'Hide Mermaid nodes' : 'Show Mermaid nodes'}</span>
+              </label>
+            </div>
           </RightAlignedValueCell>
         )}
       />

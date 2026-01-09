@@ -4,12 +4,12 @@
 
 - Dataset: `docs/assets/example-workflow.jsonld` (JSON-LD graph describing a neutral workflow with regions and questions).
 - Schema config: `schema-config/knowgrph-example-workflow-schema-config.jsonld`.
-  - Uses `layers.mode: "semantic"` (which is also the canvas default) so the graph initially opens in semantic layer mode.
+  - Uses `layers.mode: "semantic"` (which is also the canvas default) so the graph initially opens in the semantic layer, matching the “Similarity clusters (semantic)” mode in the UI.
   - Configures `layers.semantic.hiddenNodeTypes` to `["geo:Polygon"]` so polygon cluster nodes used for spatial annotations are hidden only when the semantic layer is active.
-  - Leaves property and document-structure layers neutral so they render the full example workflow graph without hiding nodes or edges.
+  - Leaves property and document-structure layers neutral so they render the full example workflow graph without hiding nodes or edges, corresponding to “Raw data (schema)” for property and “Layered structure (document)” for document-structure in the UI.
 - Examples catalog entry:
   - Uses the example workflow dataset and schema-config together so layer behavior is always schema-driven and domain-agnostic.
-  - Switching between semantic, document-structure, and property layers reuses the same underlying graph data while the active schema layer controls what nodes and edges are visible.
+  - Switching between semantic (“Similarity clusters (semantic)”), document-structure (“Layered structure (document)”), and property (“Raw data (schema)”) layers reuses the same underlying graph data while the active schema layer controls what nodes and edges are visible.
 
 ## Layer and mode interaction
 

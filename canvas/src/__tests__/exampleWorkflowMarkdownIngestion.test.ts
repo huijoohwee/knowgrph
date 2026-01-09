@@ -52,6 +52,48 @@ export async function testExampleWorkflowMarkdownIngestionProducesGraph() {
   await Promise.resolve()
 }
 
+export async function testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions(markdown: string) {
+  resetParsers()
+  builtInParsers.forEach(p => registerParser(p))
+
+  const text = String(markdown ?? '')
+  if (!text.trim()) {
+    throw new Error('md-mmd-template markdown text is empty')
+  }
+
+  const jsonld = buildMarkdownJsonLd(
+    'file://md-mmd-template.md',
+    text,
+  )
+
+  const res = applyParser(toParserId('jsonld'), {
+    name: 'md-mmd-template.jsonld',
+    text: JSON.stringify(jsonld),
+  })
+
+  if (!res) throw new Error('jsonld parse returned null')
+  if (res.warnings && res.warnings.length > 0) {
+    throw new Error(`jsonld parse warnings: ${res.warnings.join('; ')}`)
+  }
+
+  const nodes = res.graphData.nodes || []
+  const edges = res.graphData.edges || []
+
+  if (nodes.length === 0) {
+    throw new Error('md-mmd-template produced no nodes')
+  }
+  if (edges.length === 0) {
+    throw new Error('md-mmd-template produced no edges')
+  }
+
+  const semanticEdges = edges.filter(e => String((e as { label?: unknown }).label || '') === 'semanticRelation')
+  if (semanticEdges.length > 0) {
+    throw new Error('expected no semanticRelation edges derived from Mermaid frontmatter')
+  }
+
+  await Promise.resolve()
+}
+
 export async function testMarkdownFrontmatterOntologiesAndPolygonLayersRoundTrip() {
   const frontmatterLines = [
     '---',

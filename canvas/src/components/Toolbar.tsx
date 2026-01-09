@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, Maximize, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon, Layers, Shapes } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -32,6 +32,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setCanvasRenderMode,
     schema,
     setSchema,
+    polygonGroupsVisible,
+    togglePolygonGroupsVisible,
     fitToScreenMode,
     toggleFitToScreenMode,
     zoomToSelectionMode,
@@ -89,13 +91,13 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       : 'semantic';
   const layerModeDescriptor =
     layerMode === 'property'
-      ? 'property (array properties)'
+      ? 'Raw data (schema)'
       : layerMode === 'document-structure'
-        ? 'document-structure (node type)'
-        : 'semantic (similarity graph)';
+        ? 'Layered structure (document)'
+        : 'Similarity clusters (semantic)';
   const layerModeTitle = `${UI_LABELS.layerMode}: ${layerModeDescriptor}`;
   const LayerModeIcon =
-    layerMode === 'property' ? PanelsTopLeft : layerMode === 'document-structure' ? TreePine : CircleDot;
+    layerMode === 'property' ? PanelsTopLeft : layerMode === 'document-structure' ? Layers : CircleDot;
 
 
 
@@ -188,6 +190,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <LayerModeIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${polygonGroupsVisible ? 'text-blue-600' : 'text-gray-600'}`}
+        title={UI_LABELS.polygonGroupsMode}
+        tooltipContent={UI_LABELS.polygonGroupsMode}
+        onClick={togglePolygonGroupsVisible}
+        showTooltip
+      >
+        <Shapes className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${canvasRenderMode === '2d' && layoutMode === 'tidy-tree' ? 'text-blue-600' : 'text-gray-600'}`}

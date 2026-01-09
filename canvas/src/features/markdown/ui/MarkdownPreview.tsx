@@ -10,13 +10,14 @@ import {
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
+import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
-import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
 import { getNodeBaseFill, getEdgeBaseStroke } from '@/components/GraphCanvas/helpers'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 
 export type MarkdownPreviewPresentationApi = {
   prev: () => void
@@ -93,6 +94,8 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
   ) {
 
   const selectionFlashDurationMs = useGraphStore(s => s.selectionFlashDurationMs || 500)
+  const setMarkdownPreviewMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
+  const setMarkdownPreviewActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const rootThemeMode = useRootThemeMode()
   const [flashSelectionId, setFlashSelectionId] = React.useState<string | null>(null)
 
@@ -128,7 +131,16 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
   }, [ref])
 
   const { headMeta, slides } = React.useMemo(() => splitSlides(markdownText || ''), [markdownText])
-  const mermaidFrontmatterConfig = React.useMemo(() => parseMermaidConfigFromFrontmatter(headMeta), [headMeta])
+  const mermaidFrontmatterConfig = React.useMemo(
+    () => parseMermaidConfigFromFrontmatter(headMeta),
+    [headMeta],
+  )
+  const frontmatterMermaidCode = React.useMemo(() => {
+    const meta = headMeta as Record<string, unknown>
+    const raw = String(meta.mermaid || '').trim()
+    return raw
+  }, [headMeta])
+  const hasFrontmatterMermaid = !!frontmatterMermaidCode
 
   const [activeSlideIndex, setActiveSlideIndex] = React.useState(0)
   const [isSlidesFullscreenOpen, setIsSlidesFullscreenOpen] = React.useState(false)
@@ -662,6 +674,37 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [goNext, goPrev, markdownPresentationMode, slides.length])
 
+  const handleClickFrontmatterMermaidHint = React.useCallback(() => {
+    if (!frontmatterMermaidCode) return
+    try {
+      setMarkdownPreviewActiveMediaKey(null)
+    } catch {
+      void 0
+    }
+    try {
+      setMarkdownPreviewMermaidFocus({
+        code: frontmatterMermaidCode,
+        frontmatterConfig: (mermaidFrontmatterConfig as unknown as Record<string, unknown> | null) || null,
+      })
+    } catch {
+      void 0
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'preview' as const } }),
+        )
+      }
+    } catch {
+      void 0
+    }
+  }, [
+    frontmatterMermaidCode,
+    mermaidFrontmatterConfig,
+    setMarkdownPreviewActiveMediaKey,
+    setMarkdownPreviewMermaidFocus,
+  ])
+
   const scrollClass = previewScrollable ? 'overflow-auto' : 'overflow-hidden'
 
   const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -845,6 +888,18 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       ].join(' ')}
       data-testid="markdown-preview-root"
     >
+      {hasFrontmatterMermaid && (
+        <div className="mb-1 px-1 py-1 text-[11px] text-gray-600">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded border border-dashed border-blue-300 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 hover:bg-blue-100"
+            onClick={handleClickFrontmatterMermaidHint}
+          >
+            <span>Frontmatter Mermaid diagram is rendered in Preview.</span>
+            <span className="underline">Click to jump</span>
+          </button>
+        </div>
+      )}
       <div>{body}</div>
       {contextMenu && (
         <div

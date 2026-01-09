@@ -102,6 +102,73 @@ export const computeNeighborIds = (params?: SelectionHighlightParams | null): Se
         neighbors.forEach(id => neighborIds.add(id))
       }
     }
+    const nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < data.nodes.length; i += 1) {
+      const n = data.nodes[i]
+      const id = String(n.id || '')
+      if (!id) continue
+      nodeById.set(id, n)
+    }
+    const selectedMermaidIds: string[] = []
+    selectedNodeIdSet.forEach(id => {
+      const node = nodeById.get(id)
+      if (node && node.type === 'MermaidNode') {
+        selectedMermaidIds.push(id)
+      }
+    })
+    if (selectedMermaidIds.length > 0) {
+      const forward = new Map<string, string[]>()
+      const backward = new Map<string, string[]>()
+      for (let i = 0; i < data.edges.length; i += 1) {
+        const e = data.edges[i]
+        const label = String(e.label || '').trim()
+        if (label !== 'pointsTo') continue
+        const src = String(e.source || '')
+        const tgt = String(e.target || '')
+        if (!src || !tgt) continue
+        const srcNode = nodeById.get(src)
+        const tgtNode = nodeById.get(tgt)
+        if (!srcNode || !tgtNode) continue
+        if (srcNode.type !== 'MermaidNode' || tgtNode.type !== 'MermaidNode') continue
+        const fArr = forward.get(src)
+        if (fArr) fArr.push(tgt)
+        else forward.set(src, [tgt])
+        const bArr = backward.get(tgt)
+        if (bArr) bArr.push(src)
+        else backward.set(tgt, [src])
+      }
+      const visited = new Set<string>()
+      const queue: string[] = []
+      for (let i = 0; i < selectedMermaidIds.length; i += 1) {
+        const id = selectedMermaidIds[i]
+        if (!id || visited.has(id)) continue
+        visited.add(id)
+        queue.push(id)
+      }
+      while (queue.length > 0) {
+        const current = queue.shift() as string
+        const nextIds: string[] = []
+        const f = forward.get(current)
+        if (f) {
+          for (let i = 0; i < f.length; i += 1) {
+            nextIds.push(f[i])
+          }
+        }
+        const b = backward.get(current)
+        if (b) {
+          for (let i = 0; i < b.length; i += 1) {
+            nextIds.push(b[i])
+          }
+        }
+        for (let i = 0; i < nextIds.length; i += 1) {
+          const nid = nextIds[i]
+          if (!nid || visited.has(nid)) continue
+          visited.add(nid)
+          queue.push(nid)
+          neighborIds.add(nid)
+        }
+      }
+    }
   }
   return neighborIds
 }
@@ -191,7 +258,10 @@ export const computeLabelVisual = (
 
 export const computeEdgeVisual = (
   edge: EdgeWithRuntime,
-  params: SelectionHighlightParams & { selectionSets?: ReturnType<typeof deriveSelectionSets> },
+  params: SelectionHighlightParams & {
+    selectionSets?: ReturnType<typeof deriveSelectionSets>
+    neighborIds?: Set<string>
+  },
 ): EdgeVisual => {
   const { schema, selectionSets } = params
   const { selectedNodeIdSet, selectedEdgeIdSet } =
@@ -204,9 +274,20 @@ export const computeEdgeVisual = (
     return { stroke, opacity, width }
   }
   const { src, tgt } = getEdgeEndpoints(edge)
-  const isHighlighted =
+  const neighborIds = params.neighborIds
+  const hasNeighborPath = neighborIds && neighborIds.size > 0
+  const isEndpointSelected =
     selectedNodeIdSet.size > 0 &&
-    ((typeof src === 'string' && selectedNodeIdSet.has(src)) || (typeof tgt === 'string' && selectedNodeIdSet.has(tgt)))
+    ((typeof src === 'string' && selectedNodeIdSet.has(src)) ||
+      (typeof tgt === 'string' && selectedNodeIdSet.has(tgt)))
+  const isMermaidPathEdge =
+    !!hasNeighborPath &&
+    String(edge.label || '').trim() === 'pointsTo' &&
+    typeof src === 'string' &&
+    typeof tgt === 'string' &&
+    neighborIds!.has(src) &&
+    neighborIds!.has(tgt)
+  const isHighlighted = isEndpointSelected || isMermaidPathEdge
   const baseStroke = getEdgeBaseStroke(edge, schema)
   const baseWidth = getEdgeStrokeWidth(edge, schema)
   if (selectedNodeIdSet.size === 0) {
@@ -248,7 +329,7 @@ export const applySelectionHighlight = (
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } = selectionSets
   const nodeParams = { ...params, neighborIds, selectionSets }
   const labelParams = { ...params, neighborIds, selectionSets }
-  const edgeParams = { ...params, selectionSets }
+  const edgeParams = { ...params, selectionSets, neighborIds }
 
   if (nodesSel) {
     nodesSel

@@ -14,7 +14,7 @@ const safeJsonParseObject = (raw: string): Record<string, unknown> | null => {
 }
 
 export const parseMermaidConfigFromFrontmatter = (meta: MarkdownFrontmatter): MermaidInitConfig | null => {
-  const raw = String(meta.mermaidConfig || meta.mermaid || '').trim()
+  const raw = String(meta.mermaidConfig || '').trim()
   if (raw) {
     const parsed = safeJsonParseObject(raw)
     if (parsed) return parsed

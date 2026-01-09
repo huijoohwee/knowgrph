@@ -144,6 +144,16 @@ export const AI_KG_SEMANTIC_EDGE_LABEL_TOOLTIP = buildRoleActionOutcomeTooltip({
     'keep semantic layer edges queryable under a single label so AgenticRAG workflows can filter, replay, and export similarity graphs without embedding dataset-specific labels.',
 });
 
+export const AI_KG_SEMANTIC_MERMAID_FILTER_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'Mermaid subgraph filter',
+  actions: [
+    'toggle schema.layers.semantic.hiddenNodeTypes to include or exclude MermaidNode in semantic layer views',
+    'treat MermaidNode and pointsTo as a dedicated canvased subgraph derived from markdown frontmatter mermaid blocks',
+  ],
+  outcome:
+    'let curators quickly show or hide Mermaid-derived nodes and pointsTo edges when inspecting semantic overlays without changing core markdown ingestion behavior.',
+});
+
 export const TRAVERSAL_SEQUENCE_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Traversal sequence',
   actions: [

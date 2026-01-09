@@ -105,6 +105,20 @@ export default function PreviewPanelView() {
   const mediaItems: MediaItem[] = React.useMemo(() => {
     const list: MediaItem[] = []
     const docPath = markdownDocumentName || ''
+    const frontmatterMermaid = String((meta as Record<string, unknown>).mermaid || '').trim()
+
+    if (frontmatterMermaid) {
+      list.push({
+        key: 'frontmatter-mermaid',
+        kind: 'mermaid',
+        source: 'markdown',
+        startLine: 1,
+        label: 'Mermaid diagram from frontmatter',
+        code: frontmatterMermaid,
+        mermaidConfig: mermaidFrontmatterConfig,
+      })
+    }
+
     for (let i = 0; i < tokens.length; i += 1) {
       const t = tokens[i]
       const tt = t as unknown as TokensGeneric
@@ -132,56 +146,56 @@ export default function PreviewPanelView() {
         const html = String((t as unknown as TokensHTML).text || '').trim()
 
         if (looksLikeSingleTagBlock(html, 'iframe')) {
-            const srcRaw = extractAttr(html, 'src')
-            if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-              const src = resolveHref(srcRaw, docPath)
-              const key = buildMarkdownPreviewMediaKey('iframe', t.startLine, srcRaw)
-              list.push({
-                key,
-                kind: 'iframe',
-                source: 'markdown',
-                startLine: t.startLine,
-                label: `Embedded content ${list.length + 1}`,
-                src,
-              })
-            continue
+          const srcRaw = extractAttr(html, 'src')
+          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
+            const src = resolveHref(srcRaw, docPath)
+            const key = buildMarkdownPreviewMediaKey('iframe', t.startLine, srcRaw)
+            list.push({
+              key,
+              kind: 'iframe',
+              source: 'markdown',
+              startLine: t.startLine,
+              label: `Embedded content ${list.length + 1}`,
+              src,
+            })
           }
+          continue
         }
 
         if (looksLikeSingleTagBlock(html, 'video')) {
-            const srcRaw = extractAttr(html, 'src')
-            if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-              const src = resolveHref(srcRaw, docPath)
-              const key = buildMarkdownPreviewMediaKey('video', t.startLine, srcRaw)
-              list.push({
-                key,
-                kind: 'video',
-                source: 'markdown',
-                startLine: t.startLine,
-                label: `Video ${list.length + 1}`,
-                src,
-              })
-            continue
+          const srcRaw = extractAttr(html, 'src')
+          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
+            const src = resolveHref(srcRaw, docPath)
+            const key = buildMarkdownPreviewMediaKey('video', t.startLine, srcRaw)
+            list.push({
+              key,
+              kind: 'video',
+              source: 'markdown',
+              startLine: t.startLine,
+              label: `Video ${list.length + 1}`,
+              src,
+            })
           }
+          continue
         }
 
         if (looksLikeSingleTagBlock(html, 'img')) {
-            const srcRaw = extractAttr(html, 'src')
-            if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-              const src = resolveHref(srcRaw, docPath)
-              const alt = extractAttr(html, 'alt')
-              const key = buildMarkdownPreviewMediaKey('image', t.startLine, srcRaw)
-              list.push({
-                key,
-                kind: 'image',
-                source: 'markdown',
-                startLine: t.startLine,
-                label: alt || `Image ${list.length + 1}`,
-                src,
-                alt,
-              })
-            continue
+          const srcRaw = extractAttr(html, 'src')
+          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
+            const src = resolveHref(srcRaw, docPath)
+            const alt = extractAttr(html, 'alt')
+            const key = buildMarkdownPreviewMediaKey('image', t.startLine, srcRaw)
+            list.push({
+              key,
+              kind: 'image',
+              source: 'markdown',
+              startLine: t.startLine,
+              label: alt || `Image ${list.length + 1}`,
+              src,
+              alt,
+            })
           }
+          continue
         }
 
         continue
@@ -286,7 +300,7 @@ export default function PreviewPanelView() {
     }
 
     return list
-  }, [graphData, markdownDocumentName, mermaidFrontmatterConfig, tokens])
+  }, [graphData, markdownDocumentName, mermaidFrontmatterConfig, meta, tokens])
 
   const hasMermaidFocus = !!mermaidFocusCode
 

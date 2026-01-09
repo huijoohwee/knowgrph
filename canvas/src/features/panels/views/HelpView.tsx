@@ -255,7 +255,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
             </div>
             <div>
               <div className="text-xs font-semibold text-gray-500 mb-1">
-                Layer order and polygons (semantic → document‑structure → property)
+                Layer order and polygons (semantic → document‑structure → property: “Similarity clusters (semantic)” → “Layered structure (document)” → “Raw data (schema)”)
               </div>
               <div className="text-[11px] text-gray-600 leading-snug space-y-1">
                 <p>
@@ -266,6 +266,9 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                 </p>
                 <p>
                   When Polygon groups are enabled from the Graph Layer view, semantic mode uses `visual:community` and `visual:fill` from the similarity graph to draw convex hull polygons around community clusters so regions approximate semantic neighborhoods rather than raw layout. Document‑structure and property modes continue to respect the same underlying node positions but polygon groups fall back to array‑based membership, keeping community hulls tightly aligned with the active layer semantics.
+                </p>
+                <p>
+                  The top‑bar Graph Layer button (Shapes icon) is a view‑only toggle for polygon hull overlays on the canvas; it flips the same polygonGroupsVisible flag without changing schema.layers.mode or opening the Graph Layer panel.
                 </p>
               </div>
             </div>

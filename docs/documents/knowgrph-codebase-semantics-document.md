@@ -131,7 +131,7 @@ All semantics are aligned with `/schema/AgenticRAG`:
   - Document-structure layer:
     - `layers.documentStructure.nodeTypes`: structural node types such as `Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, and `Table`.
     - `layers.documentStructure.edgeLabels`: structural edge labels such as `hasSection`, `hasBlock`, `hasItem`, `next`, and `linksTo`.
-  - Property layer:
+  - Property layer (“Raw data (schema)” in the UI):
     - `layers.property.nodePropertyContainer`: name of the node attribute container used for properties (for example, `properties`).
     - `layers.property.edgePropertyContainer`: name of the edge attribute container used for properties (for example, `properties`).
 
