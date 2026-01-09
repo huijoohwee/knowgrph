@@ -291,6 +291,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   markdownDocumentName: null as string | null,
   markdownDocumentText: null as string | null,
   markdownDocumentSourceUrl: null as string | null,
+  jsonSourceDocumentText: null as string | null,
   markdownPreviewMermaidFocusCode: null as string | null,
   markdownPreviewMermaidFocusConfig: null as Record<string, unknown> | null,
   markdownPreviewActiveMediaKey: null as string | null,
@@ -312,6 +313,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       markdownDocumentName: name,
       markdownDocumentText: text,
     })
+  },
+
+  setJsonSourceDocument: (name: string | null, text: string | null) => {
+    const trimmed = typeof text === 'string' ? text.trim() : ''
+    const nextText = trimmed ? text : null
+    set(state => ({
+      ...state,
+      jsonSourceDocumentText: nextText,
+      markdownDocumentName: name ?? null,
+    }))
   },
 
   setMarkdownPreviewMermaidFocus: (

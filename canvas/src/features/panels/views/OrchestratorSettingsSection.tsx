@@ -3,9 +3,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type {
   AgenticGraphRagPathValue,
-  ParsedAgenticGraphRagTraversePath,
-  ParsedAgenticGraphRagExamplePath,
-  AgenticRagNodeId,
   AgenticRagNodeView,
   GraphData,
   GraphNode,
@@ -22,7 +19,6 @@ import {
   findTraversalEdgeIds,
   isGraphRagPathValue,
   toParsedTraversePath,
-  toParsedExamplePath,
 } from '@/lib/graph/graphragTraversal'
 import {
   ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS,
@@ -30,6 +26,7 @@ import {
   ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
   TRAVERSAL_MAX_DEPTH_DEFAULT,
   buildEdgeIdsForPath,
+  buildGraphRagTraversalSummary,
   findGraphRagOwnerNode,
   persistTraversalSummaryToGraph,
   runEdgeTraversalSequenceGlobal,
@@ -340,37 +337,9 @@ export default function OrchestratorSettingsSection({
     const graph = data as GraphData | null
     if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return
     let edgeIds: string[] = []
-    let summary: GraphRagTraversalSummary | null = null
-    const owner = findGraphRagOwnerNode(graph, selectedNodeId)
-    if (owner) {
-      const props = owner.properties ?? {}
-      const raw = (props as Record<string, JSONValue>).graphRAGPath as AgenticGraphRagPathValue | undefined
-      if (isGraphRagPathValue(raw)) {
-        const traversePath: ParsedAgenticGraphRagTraversePath | null = toParsedTraversePath(raw)
-        const examplePath: ParsedAgenticGraphRagExamplePath | null = toParsedExamplePath(raw)
-        const query = traversePath && typeof traversePath.query === 'string' ? traversePath.query : null
-        const example = examplePath && typeof examplePath.example === 'string' ? examplePath.example : null
-        const traverseNodeIds = Array.isArray(traversePath?.traverse) ? traversePath?.traverse ?? [] : []
-        const multiHop = Array.isArray(traversePath?.multiHop) ? traversePath?.multiHop ?? [] : []
-        const hops = Array.isArray(examplePath?.hops) ? examplePath?.hops ?? [] : []
-        const pathIds = [owner.id as AgenticRagNodeId, ...traverseNodeIds].map(id => String(id))
-        edgeIds = buildEdgeIdsForPath(graph, pathIds)
-        if (!edgeIds.length) return
-        summary = {
-          mode: 'graphRag',
-          ownerNodeId: String(owner.id),
-          ownerNodeLabel:
-            typeof owner.label === 'string' && owner.label.length > 0 ? owner.label : String(owner.id),
-          query,
-          example,
-          traverseNodeIds,
-          multiHop,
-          hops,
-          edgeIds,
-        }
-      }
-    }
-    if (summary && edgeIds.length > 0) {
+    const summary: GraphRagTraversalSummary | null = buildGraphRagTraversalSummary(graph, selectedNodeId)
+    if (summary) {
+      edgeIds = summary.edgeIds.map(id => String(id))
       setLastTraversal(summary)
     } else {
       edgeIds = findGraphRagTraversalEdgeIds(graph)

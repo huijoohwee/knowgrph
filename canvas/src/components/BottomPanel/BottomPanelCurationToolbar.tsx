@@ -69,7 +69,7 @@ export default function BottomPanelCurationToolbar({
               openPanelTab('curation')
             }}
           >
-            Text Editor
+            JSON Editor
           </button>
           {isGraphJsonView && (
             <ActionsRow

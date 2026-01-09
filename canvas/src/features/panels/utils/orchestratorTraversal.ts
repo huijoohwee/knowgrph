@@ -242,6 +242,42 @@ export function persistTraversalSummaryToGraph(
   return { ...graph, nodes }
 }
 
+export function buildGraphRagTraversalSummary(
+  graph: GraphData | null,
+  selectedNodeId: string | null,
+): GraphRagTraversalSummary | null {
+  if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return null
+  const owner = findGraphRagOwnerNode(graph, selectedNodeId)
+  if (!owner) return null
+  const props = owner.properties ?? {}
+  const raw = (props as Record<string, JSONValue>).graphRAGPath as
+    | AgenticGraphRagPathValue
+    | undefined
+  if (!isGraphRagPathValue(raw)) return null
+  const traversePath = toParsedTraversePath(raw)
+  const examplePath = toParsedExamplePath(raw)
+  const query = traversePath && typeof traversePath.query === 'string' ? traversePath.query : null
+  const example = examplePath && typeof examplePath.example === 'string' ? examplePath.example : null
+  const traverseNodeIds = Array.isArray(traversePath?.traverse) ? traversePath?.traverse ?? [] : []
+  const multiHop = Array.isArray(traversePath?.multiHop) ? traversePath?.multiHop ?? [] : []
+  const hops = Array.isArray(examplePath?.hops) ? examplePath?.hops ?? [] : []
+  const pathIds = [owner.id, ...traverseNodeIds].map(id => String(id))
+  const edgeIds = buildEdgeIdsForPath(graph, pathIds)
+  if (!edgeIds.length) return null
+  return {
+    mode: 'graphRag',
+    ownerNodeId: String(owner.id),
+    ownerNodeLabel:
+      typeof owner.label === 'string' && owner.label.length > 0 ? owner.label : String(owner.id),
+    query,
+    example,
+    traverseNodeIds,
+    multiHop,
+    hops,
+    edgeIds,
+  }
+}
+
 export function runEdgeTraversalSequenceGlobal(edgeIds: string[], startNodeId?: string | null): void {
   if (!Array.isArray(edgeIds) || edgeIds.length === 0) return
   const state = useGraphStore.getState()

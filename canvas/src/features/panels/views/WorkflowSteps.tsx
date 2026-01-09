@@ -161,16 +161,36 @@ export function WorkflowSteps({
         <div className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
           <div className="mb-1">Or start with an example dataset:</div>
           <div className="flex flex-wrap gap-1">
-            {parserWorkflow.examples.map(example => (
-              <button
-                key={example.id}
-                type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-                onClick={() => parserWorkflow.onApplyExample(example.id)}
-              >
-                {example.label}
-              </button>
-            ))}
+            {parserWorkflow.examples.map(example => {
+              const button = (
+                <button
+                  type="button"
+                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+                  onClick={() => parserWorkflow.onApplyExample(example.id)}
+                >
+                  {example.label}
+                </button>
+              );
+
+              if (example.id === 'edaMlpPipeline') {
+                return (
+                  <Tooltip
+                    key={example.id}
+                    content="Preset optimized for inspecting a single path via traversal."
+                    maxWidthPx={260}
+                    contentClassName="bg-gray-800/90"
+                  >
+                    {button}
+                  </Tooltip>
+                );
+              }
+
+              return (
+                <span key={example.id}>
+                  {button}
+                </span>
+              );
+            })}
           </div>
         </div>
         {parserWorkflow.presets.length > 0 && (

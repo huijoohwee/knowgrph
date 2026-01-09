@@ -48,6 +48,11 @@ import { testYamlTransformsValidation } from '@/__tests__/yamlTransforms.test'
 import { testParserCacheCfgKey } from '@/__tests__/parserCacheCfgKey.test'
 import { testJsonEditorLineHeightConstant } from '@/__tests__/jsonEditorRendering.test'
 import { testParserWorkflowPresetStorage } from '@/__tests__/parserWorkflowPersistence.test'
+import {
+  testRawJsonNodesArrayIngestion,
+  testRawJsonExtendedNodesIngestion,
+} from '@/__tests__/rawJsonIngestion.test'
+import { testRawJsonWorkflowShapeIngestion } from '@/__tests__/rawJsonWorkflowShapeIngestion.test'
 import { testBuildSelectionSubgraphFromNode, testBuildSelectionSubgraphFromEdge } from '@/__tests__/selectionExport.test'
 import { testGraphValidationEmptyGraphSummary, testGraphValidationDuplicateNodeIdsAndDanglingEdges, testGraphValidationNodeRulesApplied, testGraphValidationMetricsWithSyntheticRawDataset } from '@/__tests__/graphValidation.test'
 import {
@@ -289,6 +294,9 @@ export const runAllTests = async () => {
   await exec('parser.cacheCfgKey', testParserCacheCfgKey);
   await exec('jsonEditor.lineHeightConstant', testJsonEditorLineHeightConstant);
   await exec('parser.workflowPresetStorage', testParserWorkflowPresetStorage);
+  await exec('parser.rawJson.nodesArrayIngestion', testRawJsonNodesArrayIngestion);
+  await exec('parser.rawJson.extendedNodesIngestion', testRawJsonExtendedNodesIngestion);
+  await exec('parser.rawJson.workflowShapeIngestion', testRawJsonWorkflowShapeIngestion);
   await exec('spreadsheet.filtersFallbackOnLastRemoval', testSpreadsheetFiltersFallbackOnLastRemoval);
   await exec('spreadsheet.filtersRemoveChildFromOnlyGroup', testSpreadsheetFiltersRemoveChildFromOnlyGroup);
   await exec('spreadsheet.sortsRemoveLastRuleKeepsFallback', testSpreadsheetSortsRemoveLastRuleKeepsFallback);

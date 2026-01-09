@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "title": "Path Inspector Graph",
+    "version": "1.0"
+  },
+  "workflow_nodes": [
+    {
+      "id": "step-start",
+      "type": "milestone",
+      "label": "Start",
+      "layer": 0
+    },
+    {
+      "id": "step-middle",
+      "type": "milestone",
+      "label": "Intermediate step",
+      "layer": 1
+    },
+    {
+      "id": "step-end",
+      "type": "milestone",
+      "label": "End",
+      "layer": 2
+    }
+  ],
+  "workflow_edges": [
+    {
+      "id": "e-start-middle",
+      "source": "step-start",
+      "target": "step-middle",
+      "label": "precedes",
+      "kind": "sequence"
+    },
+    {
+      "id": "e-middle-end",
+      "source": "step-middle",
+      "target": "step-end",
+      "label": "precedes",
+      "kind": "sequence"
+    }
+  ]
+}
+

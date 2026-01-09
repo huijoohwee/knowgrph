@@ -174,6 +174,7 @@ export interface GraphState {
   markdownDocumentName: string | null;
   markdownDocumentText: string | null;
   markdownDocumentSourceUrl: string | null;
+  jsonSourceDocumentText: string | null;
   markdownPreviewMermaidFocusCode: string | null;
   markdownPreviewMermaidFocusConfig: Record<string, unknown> | null;
   markdownPreviewActiveMediaKey: string | null;
@@ -233,6 +234,7 @@ export interface GraphState {
   setGraphDataTableVirtualMinRows: (v: number) => void;
   setGraphDataTableVirtualDebugLogRanges: (v: boolean) => void;
   setMarkdownDocument: (name: string | null, text: string | null) => void;
+  setJsonSourceDocument: (name: string | null, text: string | null) => void;
   setMarkdownDocumentSourceUrl: (url: string | null) => void;
   setMarkdownPreviewMermaidFocus: (
     focus: { code: string; frontmatterConfig: Record<string, unknown> | null } | null,

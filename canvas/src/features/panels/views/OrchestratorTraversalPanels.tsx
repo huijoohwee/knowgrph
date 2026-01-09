@@ -99,27 +99,33 @@ function GraphRagPathTraverseHelperSection({
               >
                 {UI_COPY.orchestratorPlayPathButtonLabel}
               </button>
-              <button
-                type="button"
-                className={[
-                  'App-toolbar__btn bg-gray-100 text-gray-700',
-                  uiPanelKeyValueTextSizeClass,
-                  uiPanelTextFontClass,
-                ].join(' ')}
-                onClick={() => {
-                  const ownerId = graphRagPathHelper.ownerNodeId
-                  if (!ownerId) return
-                  selectNode(ownerId)
-                  setTraversalStartNodeId(ownerId)
-                  setTraversalLabelFilter(
-                    'imports,contains,calls,hasRuntimeEvent,runtimeOf',
-                  )
-                  setTraversalMaxDepth(4)
-                  runGenericTraversalQuery()
-                }}
+              <Tooltip
+                content="Preset optimized for inspecting a single path via traversal."
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
               >
-                {UI_COPY.orchestratorPlayGraphRagTraversalButtonLabel}
-              </button>
+                <button
+                  type="button"
+                  className={[
+                    'App-toolbar__btn bg-gray-100 text-gray-700',
+                    uiPanelKeyValueTextSizeClass,
+                    uiPanelTextFontClass,
+                  ].join(' ')}
+                  onClick={() => {
+                    const ownerId = graphRagPathHelper.ownerNodeId
+                    if (!ownerId) return
+                    selectNode(ownerId)
+                    setTraversalStartNodeId(ownerId)
+                    setTraversalLabelFilter(
+                      'imports,contains,calls,hasRuntimeEvent,runtimeOf',
+                    )
+                    setTraversalMaxDepth(4)
+                    runGenericTraversalQuery()
+                  }}
+                >
+                  {UI_COPY.orchestratorPlayGraphRagTraversalButtonLabel}
+                </button>
+              </Tooltip>
             </div>
           )}
         />

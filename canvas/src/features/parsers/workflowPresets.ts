@@ -110,6 +110,16 @@ export const WORKFLOW_PRESETS: WorkflowPresetCatalogEntry[] = [
       backgroundColor: '',
     },
   },
+  {
+    id: 'eda-mlp-pipeline-path' as WorkflowPresetId,
+    label: 'Demo: EDA→MLP pipeline path inspector',
+    parserId: toParserId('json') as WorkflowPresetParserId,
+    datasetFileName: EXAMPLES_BY_ID.edaMlpPipeline.datasetPath as WorkflowDatasetPath,
+    schemaFileName: EXAMPLES_BY_ID.edaMlpPipeline.schemaPath as WorkflowSchemaPath,
+    threeOverrides: {
+      backgroundColor: '',
+    },
+  },
 ]
 
 export type WorkflowPresetStorageCatalogEntry = {

@@ -211,7 +211,9 @@ export function useBottomPanelCuratorVisibleRows({
         const dir = rule.dir === 'desc' ? -1 : 1
         const av = getRowFieldText(a, rule.key)
         const bv = getRowFieldText(b, rule.key)
-        const cmp = av.localeCompare(bv) * dir
+        const aText = typeof av === 'string' ? av : av == null ? '' : String(av)
+        const bText = typeof bv === 'string' ? bv : bv == null ? '' : String(bv)
+        const cmp = aText.localeCompare(bText) * dir
         if (cmp !== 0) return cmp
       }
       return 0

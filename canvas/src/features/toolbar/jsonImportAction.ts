@@ -1,10 +1,12 @@
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { useParserUIState } from '@/features/parsers/uiState'
-import { UI_COPY } from '@/lib/config'
+import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { lsJson, lsSetJson } from '@/lib/persistence'
 import { fetchRemoteText, promptForUrl } from './ingestUtils'
+import { jsonToMarkdown, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 
 export type JsonImportFormat = 'jsonld' | 'json'
 export type JsonImportType = 'url' | 'local'
@@ -88,10 +90,32 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
         const baseName = rawName.trim() || (format === 'jsonld' ? 'graph.jsonld' : 'graph.json')
         const rawText = String(res.input.text || '')
         const trimmed = rawText.trim()
-        const fenceLang = 'json'
-        const markdown = trimmed
-          ? ['```' + fenceLang, trimmed, '```', ''].join('\n')
-          : rawText
+        let markdown = rawText
+        if (trimmed) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            const persistedMode = lsJson<JsonToMarkdownMode>(
+              LS_KEYS.jsonMarkdownMode,
+              'auto',
+              value =>
+                value === 'table' ||
+                value === 'key-value' ||
+                value === 'hierarchical' ||
+                value === 'auto'
+                  ? value
+                  : 'auto',
+            )
+            markdown = jsonToMarkdown(parsed, { defaultMode: persistedMode }, persistedMode)
+            lsSetJson<JsonToMarkdownMode>(LS_KEYS.jsonMarkdownMode, persistedMode)
+            state.setJsonSourceDocument(baseName, trimmed)
+          } catch {
+            const fenceLang = 'json'
+            markdown = ['```' + fenceLang, trimmed, '```', ''].join('\n')
+            state.setJsonSourceDocument(baseName, null)
+          }
+        } else {
+          state.setJsonSourceDocument(baseName, null)
+        }
         state.setMarkdownDocument(baseName, markdown)
         state.setMarkdownDocumentSourceUrl(null)
       }

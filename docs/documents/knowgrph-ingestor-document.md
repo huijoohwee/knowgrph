@@ -145,9 +145,9 @@ This section describes how each format enters the system, how it is converted, a
 ## JSON‑LD, JSON, and CSV Ingestion
 
 - Entry points:
--  - `Source Files` → `Import` / `Import (Local)` / `Import (URL)` with `format: "jsonld"` or `format: "json"`.
--  - `Source Files` → `Import` / `Import (Local)` with `format: "csv"`.
--  - Implementation: `canvas/src/features/toolbar/jsonImportAction.ts` plus the parser registry in `default.ts`.
+  - `Source Files` → `Import` / `Import (Local)` / `Import (URL)` with `format: "jsonld"` or `format: "json"`.
+  - `Source Files` → `Import` / `Import (Local)` with `format: "csv"`.
+  - Implementation: `canvas/src/features/toolbar/jsonImportAction.ts` plus the parser registry in `default.ts`.
 - JSON‑LD:
   - If the top‑level object has `@context`, JSON‑LD import is used.
   - `parseJsonLd`:
@@ -158,14 +158,48 @@ This section describes how each format enters the system, how it is converted, a
     - Remain as node properties.
     - Are interpreted by the renderer via `getNodeMediaSpec`, which normalizes GitHub `blob` URLs to their `raw.githubusercontent.com` equivalents and uses the same `/__fetch_remote?url=…` proxy endpoint that the ingestor uses when rendering media inside the canvas.
 - JSON:
--  - If the JSON has `nodes` and `edges` arrays, they are used as‑is.
--  - Otherwise, `rawToGraphData` wraps the data into a `GraphData` object:
--    - `RawNode.data` becomes `GraphNode.properties`.
--    - Any media‑related fields present (`media_url`, `media_kind`, etc.) will be available to the renderer.
+  - If the JSON has `nodes` and `edges` arrays, they are used as‑is.
+  - Otherwise, `rawToGraphData` wraps the data into a `GraphData` object:
+    - Top‑level objects that expose arrays named `nodes`, `edges`, `links`, or suffix‑matched keys such as `extended_nodes` and `extended_nodes_v2` are treated as generic graph containers.
+    - Node entries keep `id`, `name`, `label`, and `type` while merging all other fields into `GraphNode.properties` so workflow‑style shapes remain dataset‑agnostic.
+    - Edge entries accept `source`/`target` or `from`/`to` and preserve additional attributes in `GraphEdge.properties` with a neutral default label when no type is provided.
+    - Any media‑related fields present (`media_url`, `media_kind`, etc.) remain available to the renderer.
 - CSV:
--  - Ingestion uses the CSV parser spec in `default.ts` (`csvSpec`).
--  - Tabular rows are mapped into nodes and edges based on column semantics.
--  - The imported CSV is also wrapped in a fenced Markdown block and stored as the active Markdown document so it appears in the Markdown preview bottom panel.
+  - Ingestion uses the CSV parser spec in `default.ts` (`csvSpec`).
+  - Tabular rows are mapped into nodes and edges based on column semantics.
+  - The imported CSV is also wrapped in a fenced Markdown block and stored as the active Markdown document so it appears in the Markdown preview bottom panel.
+
+### Auxiliary JSON / JSON‑LD → Markdown Utility
+
+- Backend utility:
+  - The Python helper `json_to_markdown_cmd` in `knowgrph_parser` converts JSON and JSON‑LD payloads into Markdown for inspection and documentation.
+  - This utility does not participate in canvas ingestion; it operates on files before or alongside ingestion to produce human‑readable views.
+- Modes:
+  - Defaults to a mode based on structure:
+    - Arrays of uniform scalar objects → Markdown tables.
+    - Flat objects → key‑value bullet lists.
+    - Nested or mixed structures → hierarchical lists with indentation.
+  - Supports explicit mode selection and basic layout configuration (maximum table rows/columns, indentation, and bullet markers).
+- Typical usage:
+  - Inspecting JSON/JSON‑LD fixtures during parser development.
+  - Producing Markdown snippets for architecture documents in `docs/documents/` from existing JSON graph exports without adding dataset‑specific formatting logic.
+  - Backed by a structurally equivalent client‑side helper in the canvas (`jsonToMarkdown`), which feeds the Markdown Section when JSON or JSON‑LD files are imported so the textarea shows converted Markdown rather than raw JSON.
+
+### Canvas JSON / JSON‑LD → Markdown Mode Selector
+
+- Location:
+  - The Markdown bottom panel header shows a **JSON → Markdown mode** selector next to the Markdown status badge.
+- Modes:
+  - `Auto`: lets the converter choose a mode from structure (table, key‑value, or hierarchical).
+  - `Table`: prefers Markdown tables when the JSON is an array of uniform objects without nested structures.
+  - `Key‑value`: emits bullet lists of key‑value pairs for flat objects, with nested structures delegated to a hierarchical view.
+  - `Hierarchical`: always renders nested bullet lists with indentation, regardless of the input shape.
+- Behavior:
+  - When JSON or JSON‑LD is imported through the toolbar and parses successfully, the client‑side `jsonToMarkdown` helper:
+    - Stores the raw JSON text alongside the Markdown document in the canvas store.
+    - Uses the last chosen mode (persisted in `LS_KEYS.jsonMarkdownMode`) to render the initial Markdown in the bottom panel instead of showing raw JSON.
+  - Changing the selector re‑runs the JSON → Markdown conversion against the stored JSON source while the graph and Graph Data Table remain unchanged, so users can flip between table/key‑value/hierarchical views without re‑ingesting.
+  - The selector also shows a **Suggested:** hint derived from the combination of the current Markdown content and the JSON structure so users can see which mode best matches the existing view while retaining full control over future conversions.
 
 ## Media Rendering Across Formats
 

@@ -50,3 +50,49 @@
 - Entry: [html-parser.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/html-parser.ts)
 - Converts HTML into Markdown while resolving `href`/`src` against the page URL.
 - Emits `![Video](...)` and `![IFrame](...)` to allow the Markdown parser to materialize media nodes downstream.
+
+## JSON‑LD and JSON Parsers (Client-Side)
+
+- Entry: [default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts)
+- JSON‑LD parser spec (`jsonldSpec`):
+  - Uses `parseJsonLd` to turn any structurally valid JSON‑LD document into `GraphData`.
+  - Treats `@graph` as the node/edge universe, applies AgenticRAG context handling when `@context` matches the canonical URL, and preserves all node and edge properties without dataset‑specific assumptions.
+  - This single spec covers workflow graphs, ontologies, and assessment datasets (for example, multi‑ontology JSON‑LD, schema graphs, and workflow fixtures) without requiring custom parsers per dataset.
+- JSON parser spec (`rawJsonSpec`):
+  - Matches generic `.json` inputs that are not already claimed by more specific specs.
+  - When the object exposes `nodes` and `edges` arrays with graph‑shaped entries, the data is treated as `GraphData` directly.
+  - For all other shapes, `rawToGraphData` normalizes the input into `GraphData`:
+    - Accepts top‑level arrays named `nodes`, `edges`, or `links` and suffix‑matched variants such as `extended_nodes` and `extended_nodes_v2`.
+    - Merges non‑structural fields from each entry into `GraphNode.properties` or `GraphEdge.properties` while deriving neutral `id`, `label`, and `type` values.
+    - Supports both `source`/`target` and `from`/`to` edge endpoints, assigning a default `"relatedTo"` label when no explicit type is provided.
+  - This keeps the JSON parser neutral and dataset‑agnostic while allowing workflow‑style JSON documents to be ingested without code changes or hardcoded dataset logic.
+
+## JSON / JSON‑LD → Markdown Conversion (Backend Utility)
+
+- Entry: [json_to_markdown_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/json_to_markdown_cmd.py)
+- Purpose:
+  - Converts arbitrary JSON or JSON‑LD into Markdown for inspection, documentation, or downstream authoring without embedding dataset‑specific rules.
+  - Operates purely on structure so the same logic applies across workflows, ontologies, assessment fixtures, and generic JSON exports.
+- Output modes:
+  - Mode `table`:
+    - Used for arrays of uniform objects when all entries share the same keys and cell values are scalars.
+    - Renders a Markdown table with headers inferred from object keys and one row per array element.
+  - Mode `key‑value`:
+    - Used for single objects without nested structures.
+    - Renders a bullet list where keys are bold and values are rendered inline.
+  - Mode `hierarchical`:
+    - Used when nested objects or mixed arrays are detected.
+    - Renders indented lists, preserving the original structure and nesting depth.
+- Mode selection:
+  - Default behavior (`--mode auto`):
+    - Arrays of uniform scalar objects → `table`.
+    - Single objects without nested structures → `key‑value`.
+    - Any structure with nested objects or arrays → `hierarchical`.
+  - Modes can be forced explicitly via `--mode table`, `--mode key-value`, or `--mode hierarchical`.
+- Configuration:
+  - `--table-max-rows` and `--table-max-columns` control table truncation with a neutral summary line for omitted rows.
+  - `--indent` and `--bullet` control hierarchical list formatting.
+  - `--no-sort-keys` preserves original object key order instead of sorting.
+- Example usage:
+  - `python -m knowgrph_parser.json_to_markdown_cmd --input path/to/graph.json --mode auto`
+  - `python -m knowgrph_parser.json_to_markdown_cmd --input path/to/fixture.jsonld --mode table --table-max-rows 50`

@@ -5,6 +5,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
+import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import { jsonToMarkdown } from '@/features/markdown/jsonToMarkdown'
 import { getIconSizeClass } from '@/lib/ui'
 import MarkdownPreview, {
   type MarkdownPreviewPresentationApi,
@@ -18,6 +20,8 @@ import {
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 
 type MarkdownLayoutMode = 'split' | 'editor' | 'viewer'
+
+type JsonMarkdownMode = JsonToMarkdownMode
 
 type MarkdownLayoutControlsRowProps = {
   layoutMode: MarkdownLayoutMode
@@ -140,6 +144,7 @@ export function BottomPanelMarkdownSection() {
   const importedMarkdownText = useGraphStore(s => s.markdownDocumentText)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const markdownDocumentSourceUrl = useGraphStore(s => s.markdownDocumentSourceUrl)
+  const jsonSourceDocumentText = useGraphStore(s => s.jsonSourceDocumentText)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const setMarkdownDocumentSourceUrl = useGraphStore(s => s.setMarkdownDocumentSourceUrl)
   const uiIconScale = useGraphStore(s => s.uiIconScale)
@@ -173,6 +178,20 @@ export function BottomPanelMarkdownSection() {
       LS_KEYS.markdownLayoutMode,
       'split',
       value => (value === 'editor' || value === 'viewer' || value === 'split' ? value : 'split'),
+    ),
+  )
+
+  const [jsonMarkdownMode, setJsonMarkdownMode] = React.useState<JsonMarkdownMode>(() =>
+    lsJson<JsonMarkdownMode>(
+      LS_KEYS.jsonMarkdownMode,
+      'auto',
+      value =>
+        value === 'table' ||
+        value === 'key-value' ||
+        value === 'hierarchical' ||
+        value === 'auto'
+          ? value
+          : 'auto',
     ),
   )
 
@@ -295,6 +314,63 @@ export function BottomPanelMarkdownSection() {
   }, [hasMarkdown, isLoading, loadError, markdownDocumentName])
 
   const deferredMarkdownText = React.useDeferredValue(markdownText)
+  const deferredJsonSourceText = React.useDeferredValue(jsonSourceDocumentText)
+
+  const jsonMarkdownSuggestedMode = React.useMemo((): JsonMarkdownMode => {
+    try {
+      const jsonTrimmed = (deferredJsonSourceText || '').trim()
+      if (!jsonTrimmed) return 'auto'
+      const parsed = JSON.parse(jsonTrimmed)
+      const renderedTable = jsonToMarkdown(parsed, { defaultMode: 'table' }, 'table')
+      const renderedKeyValue = jsonToMarkdown(parsed, { defaultMode: 'key-value' }, 'key-value')
+      const renderedHierarchical = jsonToMarkdown(
+        parsed,
+        { defaultMode: 'hierarchical' },
+        'hierarchical',
+      )
+      const original = deferredMarkdownText || ''
+      const isClose = (candidate: string) => {
+        const a = candidate.trim()
+        const b = original.trim()
+        if (!a || !b) return false
+        const minLen = Math.min(a.length, b.length)
+        if (!minLen) return false
+        let same = 0
+        const limit = Math.min(minLen, 1024)
+        for (let i = 0; i < limit; i += 1) {
+          if (a[i] === b[i]) same += 1
+        }
+        const ratio = same / limit
+        return ratio >= 0.9
+      }
+      if (isClose(renderedTable)) return 'table'
+      if (isClose(renderedKeyValue)) return 'key-value'
+      if (isClose(renderedHierarchical)) return 'hierarchical'
+      return 'auto'
+    } catch {
+      return 'auto'
+    }
+  }, [deferredJsonSourceText, deferredMarkdownText])
+
+  React.useEffect(() => {
+    try {
+      const rawJson = (jsonSourceDocumentText || '').trim()
+      if (!rawJson) return
+      const name = markdownDocumentName || ''
+      if (!name.endsWith('.json') && !name.endsWith('.jsonld')) return
+      const parsed = JSON.parse(rawJson)
+      const mode = jsonMarkdownMode
+      const markdown = jsonToMarkdown(parsed, { defaultMode: mode }, mode)
+      setMarkdownDocument(markdownDocumentName, markdown)
+      setMarkdownText(markdown)
+    } catch {
+      void 0
+    }
+  }, [jsonMarkdownMode, jsonSourceDocumentText, markdownDocumentName, setMarkdownDocument, setMarkdownText])
+
+  React.useEffect(() => {
+    lsSetJson<JsonMarkdownMode>(LS_KEYS.jsonMarkdownMode, jsonMarkdownMode)
+  }, [jsonMarkdownMode])
 
   return (
     <div className="h-full min-h-0 flex flex-col">
@@ -306,8 +382,55 @@ export function BottomPanelMarkdownSection() {
             uiPanelTextFontClass,
           ].join(' ')}
         >
-          <div className="min-w-0 truncate">{headerText}</div>
-          <StatusBadge label={UI_LABELS.markdown} ok={status.ok} msg={status.msg} details={status.details} />
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="min-w-0 truncate">{headerText}</div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-400">
+                {UI_COPY.bottomPanelJsonMarkdownModeLabel}
+              </span>
+              <select
+                className={[
+                  'border border-gray-200 rounded px-1 py-0.5 text-xs bg-white text-gray-700',
+                  'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500',
+                ].join(' ')}
+                value={jsonMarkdownMode}
+                onChange={e => {
+                  const next = e.target.value as JsonMarkdownMode
+                  const valid =
+                    next === 'table' ||
+                    next === 'key-value' ||
+                    next === 'hierarchical' ||
+                    next === 'auto'
+                  setJsonMarkdownMode(valid ? next : 'auto')
+                }}
+              >
+                <option value="auto">{UI_COPY.bottomPanelJsonMarkdownModeAutoLabel}</option>
+                <option value="table">{UI_COPY.bottomPanelJsonMarkdownModeTableLabel}</option>
+                <option value="key-value">
+                  {UI_COPY.bottomPanelJsonMarkdownModeKeyValueLabel}
+                </option>
+                <option value="hierarchical">
+                  {UI_COPY.bottomPanelJsonMarkdownModeHierarchicalLabel}
+                </option>
+              </select>
+              {jsonMarkdownSuggestedMode !== 'auto' && (
+                <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                  {UI_COPY.bottomPanelJsonMarkdownModeSuggestedPrefix}{' '}
+                  {jsonMarkdownSuggestedMode === 'table'
+                    ? UI_COPY.bottomPanelJsonMarkdownModeTableLabel
+                    : jsonMarkdownSuggestedMode === 'key-value'
+                    ? UI_COPY.bottomPanelJsonMarkdownModeKeyValueLabel
+                    : UI_COPY.bottomPanelJsonMarkdownModeHierarchicalLabel}
+                </span>
+              )}
+            </div>
+          </div>
+          <StatusBadge
+            label={UI_LABELS.markdown}
+            ok={status.ok}
+            msg={status.msg}
+            details={status.details}
+          />
         </div>
 
         <div className="flex-1 min-h-0 flex">

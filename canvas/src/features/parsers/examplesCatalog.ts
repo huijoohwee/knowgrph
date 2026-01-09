@@ -10,6 +10,7 @@ export type ExampleId =
   | 'customerVoiceManagement'
   | 'exampleWorkflow'
   | 'multiOntologyWorkflow'
+  | 'edaMlpPipeline'
 
 export type ExampleConfig = {
   id: ExampleId
@@ -66,6 +67,12 @@ export const EXAMPLE_DATASETS: ExampleConfig[] = [
     label: 'Multi-ontology assessment graph',
     datasetPath: toDatasetPath('docs/assets/multi-ontology-kg.jsonld'),
     schemaPath: toSchemaConfigPath('schema-config/knowgrph-interviewer-schema-config.jsonld'),
+  },
+  {
+    id: 'edaMlpPipeline',
+    label: 'EDA→MLP pipeline path graph',
+    datasetPath: toDatasetPath('data/test-data/eda-mlp-path.json'),
+    schemaPath: toSchemaConfigPath('schema-config/knowgrph-universal-schema-config.jsonld'),
   },
 ]
 

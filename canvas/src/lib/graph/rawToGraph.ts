@@ -1,30 +1,120 @@
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from './types';
 
-type RawNode = { id: string; data?: Record<string, JSONValue>; name?: string; type?: string };
-type RawEdge = { id: string; source: string; target: string; data?: Record<string, JSONValue>; type?: string };
+const isRecord = (x: unknown): x is Record<string, unknown> =>
+  !!x && typeof x === 'object' && !Array.isArray(x);
 
-const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object';
+const pickNodesArray = (obj: Record<string, unknown>): unknown[] => {
+  if (Array.isArray(obj.nodes)) return obj.nodes as unknown[];
+  const keys = Object.keys(obj);
+  const key = keys.find(k => /nodes$/i.test(k) && Array.isArray((obj as Record<string, unknown>)[k]));
+  if (key) return (obj as Record<string, unknown>)[key] as unknown[];
+  return [];
+};
+
+const pickEdgesArray = (obj: Record<string, unknown>): unknown[] => {
+  if (Array.isArray(obj.edges)) return obj.edges as unknown[];
+  if (Array.isArray(obj.links)) return obj.links as unknown[];
+  const keys = Object.keys(obj);
+  const key = keys.find(k => /edges$/i.test(k) && Array.isArray((obj as Record<string, unknown>)[k]));
+  if (key) return (obj as Record<string, unknown>)[key] as unknown[];
+  return [];
+};
 
 export function rawToGraphData(raw: unknown): GraphData {
-  const obj = isRecord(raw) ? raw as Record<string, unknown> : {};
-  const nodesSrc = Array.isArray(obj.nodes) ? (obj.nodes as RawNode[]) : []
-  const nodes: GraphNode[] = nodesSrc.map((n) => {
-    const id = String(n.id)
-    const d = (isRecord(n.data) ? n.data as Record<string, JSONValue> : {})
-    const label = typeof n.name === 'string' ? n.name : (typeof d['name'] === 'string' ? d['name'] as string : id)
-    const type = typeof n.type === 'string' ? n.type : (typeof d['type'] === 'string' ? d['type'] as string : 'Entity')
-    return { id, label, type, properties: d };
-  });
+  const obj = isRecord(raw) ? (raw as Record<string, unknown>) : {};
 
-  const edgesSrc = Array.isArray(obj.edges) ? (obj.edges as RawEdge[]) : (Array.isArray((obj as Record<string, unknown>).links) ? ((obj as Record<string, unknown>).links as RawEdge[]) : [])
-  const edges: GraphEdge[] = edgesSrc.map((e) => {
-    const id = String(e.id)
-    const source = String(e.source)
-    const target = String(e.target)
-    const d = (isRecord(e.data) ? e.data as Record<string, JSONValue> : {})
-    const label = typeof e.type === 'string' ? e.type : (typeof d['type'] === 'string' ? d['type'] as string : 'relatedTo')
-    return { id, source, target, label, properties: d };
-  });
+  const nodesSrc = pickNodesArray(obj);
+  const nodes: GraphNode[] = nodesSrc
+    .filter(entry => isRecord(entry))
+    .map((entry, index) => {
+      const rec = entry as Record<string, unknown>;
+
+      const rawId = rec.id;
+      const id = typeof rawId === 'string' && rawId.trim() ? rawId : `n${index}`;
+
+      const dataRaw = rec.data;
+      const dataProps: Record<string, JSONValue> =
+        isRecord(dataRaw) ? (dataRaw as Record<string, JSONValue>) : {};
+
+      const props: Record<string, JSONValue> = { ...dataProps };
+      Object.keys(rec).forEach((key) => {
+        if (key === 'id' || key === 'name' || key === 'label' || key === 'type' || key === 'data') return;
+        const value = rec[key] as JSONValue;
+        if (value === undefined) return;
+        props[key] = value;
+      });
+
+      const nameValue = rec.name;
+      const labelValue = rec.label;
+      const labelFromName =
+        typeof nameValue === 'string' && nameValue.trim()
+          ? nameValue
+          : typeof labelValue === 'string' && labelValue.trim()
+          ? labelValue
+          : null;
+      const labelFromPropsName =
+        typeof props.name === 'string' && (props.name as string).trim()
+          ? (props.name as string)
+          : typeof props.label === 'string' && (props.label as string).trim()
+          ? (props.label as string)
+          : null;
+      const label = labelFromName || labelFromPropsName || id;
+
+      const typeValue = rec.type;
+      const typeFromProps =
+        typeof props.type === 'string' && (props.type as string).trim()
+          ? (props.type as string)
+          : null;
+      const type =
+        (typeof typeValue === 'string' && typeValue.trim()
+          ? typeValue
+          : typeFromProps) || 'Entity';
+
+      return { id, label, type, properties: props };
+    });
+
+  const edgesSrc = pickEdgesArray(obj);
+  const edges: GraphEdge[] = edgesSrc
+    .filter(entry => isRecord(entry))
+    .map((entry, index) => {
+      const rec = entry as Record<string, unknown>;
+
+      const rawId = rec.id;
+      const id = typeof rawId === 'string' && rawId.trim() ? rawId : `e${index}`;
+
+      const sourceValue = rec.source ?? rec.from;
+      const targetValue = rec.target ?? rec.to;
+      const source = String(sourceValue ?? '');
+      const target = String(targetValue ?? '');
+
+      const dataRaw = rec.data;
+      const dataProps: Record<string, JSONValue> =
+        isRecord(dataRaw) ? (dataRaw as Record<string, JSONValue>) : {};
+
+      const props: Record<string, JSONValue> = { ...dataProps };
+      Object.keys(rec).forEach((key) => {
+        if (key === 'id' || key === 'source' || key === 'target' || key === 'from' || key === 'to' || key === 'type' || key === 'label' || key === 'data') {
+          return;
+        }
+        const value = rec[key] as JSONValue;
+        if (value === undefined) return;
+        props[key] = value;
+      });
+
+      const typeValue = rec.type ?? rec.label;
+      const labelFromProps =
+        typeof props.type === 'string' && (props.type as string).trim()
+          ? (props.type as string)
+          : typeof props.label === 'string' && (props.label as string).trim()
+          ? (props.label as string)
+          : null;
+      const label =
+        (typeof typeValue === 'string' && typeValue.trim()
+          ? typeValue
+          : labelFromProps) || 'relatedTo';
+
+      return { id, source, target, label, properties: props };
+    });
 
   return {
     context: 'raw-nodes-edges',

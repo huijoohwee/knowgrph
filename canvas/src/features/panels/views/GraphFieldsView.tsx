@@ -174,6 +174,21 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
         data-kg-anchor={UI_ANCHORS.graphFields}
       >
         <div className="flex-1 min-h-0 overflow-hidden">
+          {graphData && graphData.context === 'raw-nodes-edges' && (
+            <div
+              className={[
+                'mb-2 px-3 py-2 rounded border border-amber-200 bg-amber-50 text-amber-900',
+                'text-[11px]',
+              ].join(' ')}
+            >
+              <div className="font-semibold">
+                {UI_COPY.graphFieldsRawNodesEdgesBannerTitle}
+              </div>
+              <div className="mt-0.5">
+                {UI_COPY.graphFieldsRawNodesEdgesBannerBody}
+              </div>
+            </div>
+          )}
           <div className="h-full min-h-0 min-w-0 overflow-hidden grid grid-cols-2 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
             <GraphFieldsListPanel
               graphData={graphData}
