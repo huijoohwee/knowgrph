@@ -1,15 +1,12 @@
 import React from 'react'
-import { useThree, useFrame } from '@react-three/fiber'
+import { useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
 import { computeNeighborIds } from '@/components/GraphCanvas/highlight'
-import { buildNodeGroups, getPolygonStyleForGroup, type NodeGroup } from '@/components/GraphCanvas/polygons'
 import { getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
-import * as d3 from 'd3'
-import * as THREE from 'three'
 import { Physics3D, type Vec3 } from './layout'
 import type { NodeSelectionMode } from './selection'
 import { getSelectionVisuals } from './selection'
@@ -17,149 +14,6 @@ import { DirectionalParticles, ArrowHead, EdgeMesh, CurvedEdgeMesh } from './vis
 import { NodeMesh } from './NodeMesh'
 import { Starfield } from './Starfield'
 import { getCameraConfig } from './camera'
-
-type GroupPolygons3DProps = {
-  data: GraphData
-  schema: GraphSchema
-  positions: Record<string, Vec3>
-}
-
-type PolygonGroupMesh3DProps = {
-  group: NodeGroup
-  data: GraphData
-  schema: GraphSchema
-  positions: Record<string, Vec3>
-}
-
-function PolygonGroupMesh3D({ group, data, schema, positions }: PolygonGroupMesh3DProps) {
-  const meshRef = React.useRef<THREE.Mesh | null>(null)
-  const geometryRef = React.useRef<THREE.BufferGeometry | null>(null)
-
-  const threeCfg: ThreeConfig = getThreeConfig(schema)
-  const polygonsCfg = threeCfg.polygons || {}
-  const elevationOffsetRaw = typeof polygonsCfg.elevationOffset === 'number' ? polygonsCfg.elevationOffset : -0.1
-  const opacityMultiplierRaw = typeof polygonsCfg.opacityMultiplier === 'number' ? polygonsCfg.opacityMultiplier : 1
-  const elevationOffset = Number.isFinite(elevationOffsetRaw) ? elevationOffsetRaw : -0.1
-  const opacityMultiplier = Number.isFinite(opacityMultiplierRaw) ? Math.max(0, Math.min(4, opacityMultiplierRaw)) : 1
-
-  React.useEffect(() => {
-    geometryRef.current = new THREE.BufferGeometry()
-    if (meshRef.current && geometryRef.current) {
-      meshRef.current.geometry = geometryRef.current
-    }
-    return () => {
-      if (geometryRef.current) {
-        geometryRef.current.dispose()
-      }
-    }
-  }, [])
-
-  useFrame(() => {
-    const mesh = meshRef.current
-    const geometry = geometryRef.current
-    if (!mesh || !geometry) return
-
-    const memberIds = Array.isArray(group.memberIds) ? group.memberIds : []
-    if (memberIds.length < 2) {
-      mesh.visible = false
-      return
-    }
-
-    const points3d: Vec3[] = []
-    for (let i = 0; i < memberIds.length; i += 1) {
-      const id = memberIds[i]
-      const p = positions[id]
-      if (p) points3d.push(p)
-    }
-    if (points3d.length < 2) {
-      mesh.visible = false
-      return
-    }
-
-    const points2d: [number, number][] = []
-    let sumZ = 0
-    for (let i = 0; i < points3d.length; i += 1) {
-      const [x, y, z] = points3d[i]
-      points2d.push([x, y])
-      sumZ += z
-    }
-    const hull = d3.polygonHull(points2d) ?? points2d
-    if (!hull || hull.length < 3) {
-      mesh.visible = false
-      return
-    }
-
-    const meanZ = sumZ / points3d.length
-    const z = meanZ + elevationOffset
-    const triCount = hull.length - 2
-    if (triCount <= 0) {
-      mesh.visible = false
-      return
-    }
-
-    const triPositions = new Float32Array(triCount * 9)
-    let offset = 0
-    const [x0, y0] = hull[0]
-    for (let i = 1; i < hull.length - 1; i += 1) {
-      const [x1, y1] = hull[i]
-      const [x2, y2] = hull[i + 1]
-      triPositions[offset + 0] = x0
-      triPositions[offset + 1] = y0
-      triPositions[offset + 2] = z
-      triPositions[offset + 3] = x1
-      triPositions[offset + 4] = y1
-      triPositions[offset + 5] = z
-      triPositions[offset + 6] = x2
-      triPositions[offset + 7] = y2
-      triPositions[offset + 8] = z
-      offset += 9
-    }
-    geometry.setAttribute('position', new THREE.BufferAttribute(triPositions, 3))
-    geometry.computeVertexNormals()
-
-    const style = getPolygonStyleForGroup({ group, graphData: data, schema })
-    const fillColor = typeof style.fill === 'string' && style.fill.trim() ? style.fill : '#e5e7eb'
-    const baseOpacity = typeof style.fillOpacity === 'number' && Number.isFinite(style.fillOpacity)
-      ? style.fillOpacity
-      : 0.22
-    const opacity = Math.max(0, Math.min(1, baseOpacity * opacityMultiplier))
-
-    mesh.visible = true
-
-    const material = mesh.material as THREE.MeshBasicMaterial
-    material.color = new THREE.Color(fillColor)
-    material.opacity = opacity
-    material.transparent = opacity < 1
-    material.depthWrite = false
-    material.depthTest = true
-  })
-
-  return (
-    <group>
-      <mesh ref={meshRef}>
-        <meshBasicMaterial />
-      </mesh>
-    </group>
-  )
-}
-
-function GroupPolygons3D({ data, schema, positions }: GroupPolygons3DProps) {
-  const groups = React.useMemo<NodeGroup[]>(() => buildNodeGroups(data), [data])
-  if (!groups.length) return null
-  return (
-    <group>
-      {groups.map(group => (
-        <PolygonGroupMesh3D
-          key={group.id}
-          group={group}
-          data={data}
-          schema={schema}
-          positions={positions}
-        />
-      ))}
-    </group>
-  )
-}
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -237,7 +91,6 @@ export function Scene({
   const selectionVisuals = getSelectionVisuals(schema)
   const cameraConfig = getCameraConfig(schema)
   const threeCfg: ThreeConfig = getThreeConfig(schema)
-  const polygonGroupsVisible = useGraphStore(s => s.polygonGroupsVisible)
   const layerMode = schema.layers?.mode || 'property'
   const hiddenNodeIds = React.useMemo(() => {
     if (layerMode !== 'semantic') return new Set<string>()
@@ -336,9 +189,6 @@ export function Scene({
       ) : null}
       <group>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragOverridesRef} />
-        {polygonGroupsVisible ? (
-          <GroupPolygons3D data={data} schema={schema} positions={positions} />
-        ) : null}
         {data.edges.map((e) => {
           const a = positions[e.source]
           const b = positions[e.target]

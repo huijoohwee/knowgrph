@@ -66,7 +66,7 @@ Key ideas:
 - Graph data
   - Nodes and edges with typed properties
   - Layout modes for semantic, document-structure, and property-centric views
-  - Derived layers (e.g. communities, polygons, paths) computed from base graph data
+  - Derived layers (e.g. communities, graph layers, paths) computed from base graph data
 
 - Schema
   - Catalog of node types, edge labels, and property definitions

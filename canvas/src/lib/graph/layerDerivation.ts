@@ -252,9 +252,23 @@ function computeLouvainCommunities(args: {
 
 export function deriveGraphDataForLayers(graphData: GraphData | null | undefined, schema: GraphSchema): GraphData | null {
   if (!graphData) return null
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  const nodesRaw = Array.isArray(graphData.nodes) ? graphData.nodes : []
   const edges = Array.isArray(graphData.edges) ? graphData.edges : []
+  const nodes = nodesRaw.filter(n => String((n as GraphNode).type || '') !== 'MermaidSubgraph')
   const mode = schema.layers?.mode || 'property'
+  if (mode === 'property') {
+    const nextNodes = nodes.filter(n => String((n as GraphNode).type || '') !== 'Document') as GraphNode[]
+    if (nextNodes.length === nodes.length) {
+      return graphData
+    }
+    const keepIds = new Set<string>(nextNodes.map(n => String(n.id)))
+    const nextEdges = edges.filter(e => {
+      const s = String(e.source)
+      const t = String(e.target)
+      return keepIds.has(s) && keepIds.has(t)
+    })
+    return { ...graphData, nodes: nextNodes, edges: nextEdges }
+  }
   if (mode === 'document-structure') {
     const typedNodes = nodes as GraphNode[]
     if (typedNodes.length > 0) {
@@ -281,21 +295,9 @@ export function deriveGraphDataForLayers(graphData: GraphData | null | undefined
           nodes: nextNodes,
         }
       }
+      return graphData
     }
   }
-  if (mode !== 'semantic') {
-    const typedNodes = nodes as GraphNode[]
-    const filteredNodes = typedNodes.filter(n => String(n.type || '') !== 'Document')
-    if (filteredNodes.length === nodes.length) return graphData
-    const keepIds = new Set<string>(filteredNodes.map(n => String(n.id)))
-    const filteredEdges = (edges as GraphEdge[]).filter(e => {
-      const s = String(e.source)
-      const t = String(e.target)
-      return keepIds.has(s) && keepIds.has(t)
-    })
-    return { ...graphData, nodes: filteredNodes, edges: filteredEdges }
-  }
-
   const cfg = getSemanticCfg(schema)
   const similarityEdgeLabelRaw = cfg.similarityEdgeLabel
   const similarityEdgeLabel = typeof similarityEdgeLabelRaw === 'string' ? similarityEdgeLabelRaw.trim() : ''

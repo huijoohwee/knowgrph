@@ -427,6 +427,7 @@ export const defaultSchema: GraphSchema = {
     Chunk: { color: MVP_COLOR_PALETTE.nodes.execution },
     EmbeddingMeta: { color: '#6B7280' },
     MermaidNode: { color: '#8B5CF6' },
+    MermaidSubgraph: { color: '#EC4899' },
   },
   edgeStyles: {
     relatedTo: { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.5 },
@@ -450,7 +451,7 @@ export const defaultSchema: GraphSchema = {
   nodeSizes: {},
   nodeStroke: {},
   labelStyles: { fontSize: 12, color: '#111111', offset: { dx: 12, dy: 4 }, halo: { color: '#ffffff', width: 3 } },
-  nodeShapes: { Image: 'rect' },
+  nodeShapes: { Image: 'rect', MermaidSubgraph: 'hex' },
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {
     mode: 'force',

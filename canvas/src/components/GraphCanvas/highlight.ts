@@ -13,6 +13,7 @@ export type SelectionHighlightParams = {
   selectedEdgeIds?: string[]
   renderMediaAsNodes: boolean
   mediaNodeOpacity?: number
+  activeLayerBandIndex?: number | null
 }
 
 export type SelectionIdParams = Pick<
@@ -177,7 +178,7 @@ export const computeNodeVisual = (
   node: GraphNode,
   params: SelectionHighlightParams & { neighborIds: Set<string>; selectionSets?: ReturnType<typeof deriveSelectionSets> },
 ): NodeVisual => {
-  const { schema, neighborIds, selectionSets } = params
+  const { schema, neighborIds, selectionSets, activeLayerBandIndex } = params
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
   const baseStroke = schema.nodeStroke?.[node.type]?.color ?? '#ffffff'
@@ -192,6 +193,20 @@ export const computeNodeVisual = (
     }
     return 0.9
   })()
+  const layerBandIndex = (() => {
+    if (typeof activeLayerBandIndex !== 'number') return null
+    if (!Number.isFinite(activeLayerBandIndex)) return null
+    if (activeLayerBandIndex <= 0) return null
+    return activeLayerBandIndex
+  })()
+  const nodeLayer = (() => {
+    const props = (node.properties || {}) as Record<string, unknown>
+    const raw = props['visual:layer']
+    if (typeof raw !== 'number') return null
+    if (!Number.isFinite(raw)) return null
+    return raw
+  })()
+  const shouldDimForLayerBand = !!layerBandIndex && nodeLayer != null && nodeLayer !== layerBandIndex
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
       return {
@@ -203,37 +218,55 @@ export const computeNodeVisual = (
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
     const fill = isEndpoint ? getNodeBaseFill(node, schema) : '#9CA3AF'
-    const opacity = isMediaNode ? mediaOpacity : isEndpoint ? 1 : 0.2
+    let opacity = isMediaNode ? mediaOpacity : isEndpoint ? 1 : 0.2
+    if (shouldDimForLayerBand && opacity > 0) {
+      opacity *= 0.2
+    }
     const stroke = isEndpoint ? baseStroke : '#9CA3AF'
     const strokeWidth = isEndpoint ? baseStrokeWidth : baseStrokeWidth
     return { fill, opacity, stroke, strokeWidth }
   }
   if (selectedNodeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
+      let opacity = isMediaNode ? mediaOpacity : 1
+      if (shouldDimForLayerBand && opacity > 0) {
+        opacity *= 0.2
+      }
       return {
         fill: '#3B82F6',
-        opacity: isMediaNode ? mediaOpacity : 1,
+        opacity,
         stroke: '#3B82F6',
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
     if (neighborIds.has(node.id)) {
+      let opacity = isMediaNode ? mediaOpacity : 1
+      if (shouldDimForLayerBand && opacity > 0) {
+        opacity *= 0.2
+      }
       return {
         fill: getNodeBaseFill(node, schema),
-        opacity: isMediaNode ? mediaOpacity : 1,
+        opacity,
         stroke: baseStroke,
         strokeWidth: baseStrokeWidth,
       }
     }
+    let opacity = isMediaNode ? mediaOpacity : 0.2
+    if (shouldDimForLayerBand && opacity > 0) {
+      opacity *= 0.2
+    }
     return {
       fill: '#9CA3AF',
-      opacity: isMediaNode ? mediaOpacity : 0.2,
+      opacity,
       stroke: '#9CA3AF',
       strokeWidth: baseStrokeWidth,
     }
   }
   const baseOpacity = getLayerOpacity(node, schema)
-  const opacity = isMediaNode ? mediaOpacity : baseOpacity
+  let opacity = isMediaNode ? mediaOpacity : baseOpacity
+  if (shouldDimForLayerBand && opacity > 0) {
+    opacity *= 0.2
+  }
   return { fill: getNodeBaseFill(node, schema), opacity, stroke: baseStroke, strokeWidth: baseStrokeWidth }
 }
 
@@ -241,19 +274,42 @@ export const computeLabelVisual = (
   node: GraphNode,
   params: SelectionHighlightParams & { neighborIds: Set<string>; selectionSets?: ReturnType<typeof deriveSelectionSets> },
 ): LabelVisual => {
-  const { schema, neighborIds, selectionSets } = params
+  const { schema, neighborIds, selectionSets, activeLayerBandIndex } = params
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
+  const layerBandIndex = (() => {
+    if (typeof activeLayerBandIndex !== 'number') return null
+    if (!Number.isFinite(activeLayerBandIndex)) return null
+    if (activeLayerBandIndex <= 0) return null
+    return activeLayerBandIndex
+  })()
+  const nodeLayer = (() => {
+    const props = (node.properties || {}) as Record<string, unknown>
+    const raw = props['visual:layer']
+    if (typeof raw !== 'number') return null
+    if (!Number.isFinite(raw)) return null
+    return raw
+  })()
+  const shouldDimForLayerBand = !!layerBandIndex && nodeLayer != null && nodeLayer !== layerBandIndex
   if (selectedEdgeIdSet.size > 0) {
-    if (selectedNodeIdSet.has(node.id)) return { opacity: 1 }
+    if (selectedNodeIdSet.has(node.id)) {
+      const opacity = shouldDimForLayerBand ? 0.2 : 1
+      return { opacity }
+    }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
-    return { opacity: isEndpoint ? 1 : 0.2 }
+    const baseOpacity = isEndpoint ? 1 : 0.2
+    const opacity = shouldDimForLayerBand && baseOpacity > 0 ? baseOpacity * 0.2 : baseOpacity
+    return { opacity }
   }
   if (selectedNodeIdSet.size === 0) {
-    return { opacity: getLayerOpacity(node, schema) }
+    const baseOpacity = getLayerOpacity(node, schema)
+    const opacity = shouldDimForLayerBand && baseOpacity > 0 ? baseOpacity * 0.2 : baseOpacity
+    return { opacity }
   }
   const isHighlighted = selectedNodeIdSet.has(node.id) || neighborIds.has(node.id)
-  return { opacity: isHighlighted ? 1 : 0.2 }
+  const baseOpacity = isHighlighted ? 1 : 0.2
+  const opacity = shouldDimForLayerBand && baseOpacity > 0 ? baseOpacity * 0.2 : baseOpacity
+  return { opacity }
 }
 
 export const computeEdgeVisual = (
@@ -312,8 +368,8 @@ export const applySelectionHighlight = (
   selectedNodeIds?: string[],
   selectedEdgeIds?: string[],
   renderMediaAsNodes: boolean = true,
-  extra?: { mediaNodeOpacity?: number },
-) => {
+  extra?: { mediaNodeOpacity?: number; activeLayerBandIndex?: number | null },
+): void => {
   const params: SelectionHighlightParams = {
     data,
     schema,
@@ -323,6 +379,7 @@ export const applySelectionHighlight = (
     selectedEdgeIds,
     renderMediaAsNodes,
     mediaNodeOpacity: extra?.mediaNodeOpacity,
+    activeLayerBandIndex: extra?.activeLayerBandIndex,
   }
   const neighborIds = computeNeighborIds(params)
   const selectionSets = deriveSelectionSets(params)

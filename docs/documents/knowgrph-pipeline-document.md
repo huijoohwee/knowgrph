@@ -12,7 +12,7 @@ ontologies:
     iri: http://www.opengis.net/ont/geosparql#
   - prefix: ro
     iri: https://w3id.org/ro/crate#
-polygonLayers:
+graphLayers:
   - competencyHyperspace
   - performanceSpace
   - classDistributionSpace
@@ -90,7 +90,7 @@ These variables feed into the Vite canvas configuration (for example, `CODEBASE_
 
 When the markdown pipeline runs against a workflow document such as `docs/documents/knowgrph-pipeline-document.md`, it emits three primary artifacts into `VITE_MARKDOWN_PIPELINE_OUTPUT_DIR` using the `VITE_MARKDOWN_PIPELINE_BASENAME` prefix:
 
-- `*-graph-data.jsonld`: a neutral node/edge graph in JSON-LD form, suitable for multi-ontology overlay and layer configuration in Canvas. The pipeline reads any `ontologies` and `polygonLayers` values from document frontmatter and records them under `graph_jsonld.metadata.ontologies` and `graph_jsonld.metadata.polygonLayers`.
+- `*-graph-data.jsonld`: a neutral node/edge graph in JSON-LD form, suitable for multi-ontology overlay and layer configuration in Canvas. The pipeline reads any `ontologies` and `polygonLayers` values from document frontmatter and records them under `graph_jsonld.metadata.ontologies` and `graph_jsonld.metadata.polygonLayers`; Canvas then exposes these as `metadata.ontologies` and `metadata.graphLayers`, treating `polygonLayers` as a deprecated alias for `graphLayers`.
 - `*-schema-config.jsonld`: an Agentic RAG schema-configuration document consumed by Canvas layers and ontology bundles.
 - `*-orchestrator-config.yaml`: a workflow orchestrator configuration describing pipeline stages, thresholds, and quality targets.
 

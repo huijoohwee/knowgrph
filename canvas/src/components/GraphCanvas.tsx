@@ -56,13 +56,14 @@ export default function GraphCanvas() {
     setLifecycleStage,
     fitToScreenMode,
     zoomToSelectionMode,
-    polygonGroupsVisible,
+    graphLayersVisible,
     isSidebarOpen,
     sidebarWidthRatio,
     renderMediaAsNodes,
     mediaNodeOpacity,
     mediaPanelDensity,
     setLayoutPositionsForMode,
+    activeLayerBandIndex,
   } = useGraphStore(
     useShallow((s) => ({
       graphData: s.graphData,
@@ -88,13 +89,14 @@ export default function GraphCanvas() {
       setLifecycleStage: s.setLifecycleStage,
       fitToScreenMode: s.fitToScreenMode,
       zoomToSelectionMode: s.zoomToSelectionMode,
-      polygonGroupsVisible: s.polygonGroupsVisible,
+      graphLayersVisible: s.graphLayersVisible,
       isSidebarOpen: s.isSidebarOpen,
       sidebarWidthRatio: s.sidebarWidthRatio,
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaNodeOpacity: s.mediaNodeOpacity,
       mediaPanelDensity: s.mediaPanelDensity,
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
+      activeLayerBandIndex: s.activeLayerBandIndex,
     })),
   );
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
@@ -321,7 +323,7 @@ export default function GraphCanvas() {
         height,
         hoverEnabled,
         zoomOnDoubleClick,
-        polygonsVisible: polygonGroupsVisible,
+        graphLayersVisible,
         renderMediaAsNodes,
         mediaPanelDensity,
         initialZoomTransform,
@@ -365,7 +367,7 @@ export default function GraphCanvas() {
         selectedNodeIdsRef.current,
         selectedEdgeIdsRef.current,
         renderMediaAsNodes,
-        { mediaNodeOpacity },
+        { mediaNodeOpacity, activeLayerBandIndex },
       );
     });
     return () => {
@@ -380,11 +382,12 @@ export default function GraphCanvas() {
     renderGraphData,
     schema,
     edgesForSim,
-    polygonGroupsVisible,
+    graphLayersVisible,
     renderMediaAsNodes,
     mediaNodeOpacity,
     mediaPanelDensity,
     setLayoutPositionsForMode,
+    activeLayerBandIndex,
   ]);
 
 
@@ -403,6 +406,7 @@ export default function GraphCanvas() {
     linksSelRef,
     renderMediaAsNodes,
     mediaNodeOpacity,
+    activeLayerBandIndex,
   });
 
   useEffect(() => {

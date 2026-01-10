@@ -298,35 +298,36 @@
   - The Markdown Preview exposes a contextual “Show on Canvas” action when right-clicking a non-empty text selection whose token carries a valid line range.
   - Invoking “Show on Canvas” resolves the selection to the underlying node or edge (when provenance is available) and updates canvas selection using the same store actions as other selection sources, so canvas highlighting, viewport behavior, and downstream panels stay consistent.
 
-# Graph layer modes and polygons
+# Graph layer modes and overlays
 
 - Layer modes:
   - The **Graph Layer** tab controls the **Semantic → Document structure → Property** cycle using the same `schema.layers.mode` field that the Renderer and FloatingPanel use, which correspond in the UI to “Similarity clusters (semantic)”, “Layered structure (document)”, and “Raw data (schema)” respectively.
-  - The top‑bar Graph Layer button (Shapes icon) is a view‑only toggle for polygon hull overlays on the canvas; it flips the same `polygonGroupsVisible` flag without changing `schema.layers.mode` or opening the Graph Layer panel.
+  - The top‑bar Graph Layer button (Shapes icon) is a view‑only toggle for graph layer hull overlays on the canvas; it flips the same `graphLayersVisible` flag without changing `schema.layers.mode` or opening the Graph Layer panel.
   - **Semantic**:
     - Semantic is the default when `schema.layers.mode` is missing or invalid.
     - The underlying JSON-LD graph is unchanged; the semantic layer derives weighted similarity edges from tokenized node text using cosine similarity or PMI.
-    - Louvain-style community detection assigns `visual:community` and `visual:fill` per node; these become inputs to polygons and traversal overlays.
+    - Louvain-style community detection assigns `visual:community` and `visual:fill` per node; these become inputs to graph layer overlays and traversal overlays.
   - **Document structure**:
     - Keeps all nodes and edges visible but treats structural node types such as `Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, and `Table` as blocks.
     - Assigns a `visual:layer` value so 2D and 3D renderers can apply per-layer opacity and emphasis without hiding nodes or changing layout.
+    - Reuses the same `visual:layer` channel for neutral Mermaid subgraph groupings: when Mermaid subgraph names follow an `Lk` convention (`L0`, `L1`, and so on), their member `MermaidNode` instances receive `visual:layer = k + 1` so the Graph Layer panel can expose a layer band control that dims non‑matching Mermaid layers without introducing extra graph nodes or hardcoding file‑specific semantics.
   - **Property**:
     - Shows nodes and edges as imported from JSON-LD, driven by array-valued properties and reference edges.
     - Does not add semantic similarity edges or derived communities; this layer reflects the raw graph schema.
 
-- Polygon groups:
-  - When **Polygon groups** are enabled from the Graph Layer view, the renderer draws convex hull polygons around node groups instead of rendering every node as an isolated shape.
+- Graph layer overlays:
+  - When **Graph Layers** are enabled from the Graph Layer view, the renderer draws convex hull overlays around node groups instead of rendering every node as an isolated shape.
   - **Semantic mode**:
-    - Groups nodes by `visual:community` and uses `visual:fill` as the base polygon color so each hull approximates a semantic neighborhood derived from PMI/cosine similarity edges.
+    - Groups nodes by `visual:community` and uses `visual:fill` as the base overlay color so each hull approximates a semantic neighborhood derived from PMI/cosine similarity edges.
     - Edge sparsity and quality are controlled by `schema.layers.semantic.topKEdgesPerNode` and `schema.layers.semantic.minSimilarity`, which act as schema-driven presets rather than dataset-specific magic numbers.
   - **Document structure mode**:
-    - Uses array-valued properties and structural ownership relationships but filters owners whose types are purely structural blocks when building groups, so polygons emphasize meaningful content groups instead of every heading or paragraph.
+    - Uses array-valued properties and structural ownership relationships but filters owners whose types are purely structural blocks when building groups, so overlays emphasize meaningful content groups instead of every heading or paragraph.
   - **Property mode**:
     - Derives groups directly from array-valued properties (for example, owners with lists of items) without applying semantic overlays or structural filters.
-  - Polygon styling is schema-driven:
-    - Default fill, stroke, dash, and opacity come from `schema.metadata["canvas:polygons"].defaultStyle` when present.
-    - Styles can be specialized by owner node type via `schema.metadata["canvas:polygons"].byOwnerType`.
-    - Styles can be specialized by property key via `schema.metadata["canvas:polygons"].byPropertyKey`.
+  - Overlay styling is schema-driven:
+    - Default fill, stroke, dash, and opacity come from `schema.metadata["canvas:graphLayers"].defaultStyle`.
+    - Styles can be specialized by owner node type via `schema.metadata["canvas:graphLayers"].byOwnerType`.
+    - Styles can be specialized by property key via `schema.metadata["canvas:graphLayers"].byPropertyKey`.
 
 # Validation and tests
 - Lint and typecheck:

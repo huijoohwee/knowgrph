@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
-type PolygonStyleMeta = {
+type GraphLayerStyleMeta = {
   fill?: string
   stroke?: string
   dash?: string
@@ -11,10 +11,10 @@ type PolygonStyleMeta = {
   strokeWidth?: number
 }
 
-type PolygonMetadata = {
-  defaultStyle?: PolygonStyleMeta
-  byOwnerType?: Record<string, PolygonStyleMeta>
-  byPropertyKey?: Record<string, PolygonStyleMeta>
+type GraphLayerMetadata = {
+  defaultStyle?: GraphLayerStyleMeta
+  byOwnerType?: Record<string, GraphLayerStyleMeta>
+  byPropertyKey?: Record<string, GraphLayerStyleMeta>
   groupingLogic?: string
   layer?: number
   label?: string
@@ -25,7 +25,7 @@ type PolygonMetadata = {
 const isRecord = (val: unknown): val is Record<string, unknown> =>
   !!val && typeof val === 'object' && !Array.isArray(val)
 
-type FieldPolygonsSectionProps = {
+type FieldGraphLayersSectionProps = {
   schema: GraphSchema
   scope: 'node' | 'edge'
   ownerKey: string
@@ -33,13 +33,13 @@ type FieldPolygonsSectionProps = {
   uiPanelKeyValueTextSizeClass: string
 }
 
-export function FieldPolygonsSection({
+export function FieldGraphLayersSection({
   schema,
   scope,
   ownerKey,
   fieldKey,
   uiPanelKeyValueTextSizeClass,
-}: FieldPolygonsSectionProps) {
+}: FieldGraphLayersSectionProps) {
   const setSchema = useGraphStore(s => s.setSchema)
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
@@ -50,26 +50,27 @@ export function FieldPolygonsSection({
   const hasOwner = Boolean(String(ownerKey || '').trim())
   const hasFieldKey = Boolean(String(fieldKey || '').trim())
 
-  let effective: PolygonStyleMeta = {}
+  let effective: GraphLayerStyleMeta = {}
   const metadata = schema && schema.metadata && isRecord(schema.metadata) ? schema.metadata : null
-  const polygonsRaw = metadata && Object.prototype.hasOwnProperty.call(metadata, 'canvas:polygons')
-    ? (schema.metadata?.['canvas:polygons'] as JSONValue | undefined)
-    : undefined
+  const graphLayersRaw =
+    metadata && Object.prototype.hasOwnProperty.call(metadata, 'canvas:graphLayers')
+      ? (schema.metadata?.['canvas:graphLayers'] as JSONValue | undefined)
+      : undefined
 
-  if (polygonsRaw && isRecord(polygonsRaw)) {
-    const meta = polygonsRaw as unknown as PolygonMetadata
-    const base = meta.defaultStyle && isRecord(meta.defaultStyle) ? (meta.defaultStyle as PolygonStyleMeta) : {}
+  if (graphLayersRaw && isRecord(graphLayersRaw)) {
+    const meta = graphLayersRaw as unknown as GraphLayerMetadata
+    const base = meta.defaultStyle && isRecord(meta.defaultStyle) ? (meta.defaultStyle as GraphLayerStyleMeta) : {}
     effective = { ...base }
     if (scope === 'node' && hasOwner && meta.byOwnerType && isRecord(meta.byOwnerType)) {
       const ownerStyleRaw = meta.byOwnerType[ownerKey]
       if (ownerStyleRaw && typeof ownerStyleRaw === 'object') {
-        effective = { ...effective, ...(ownerStyleRaw as PolygonStyleMeta) }
+        effective = { ...effective, ...(ownerStyleRaw as GraphLayerStyleMeta) }
       }
     }
     if (hasFieldKey && meta.byPropertyKey && isRecord(meta.byPropertyKey)) {
       const propStyleRaw = meta.byPropertyKey[fieldKey]
       if (propStyleRaw && typeof propStyleRaw === 'object') {
-        effective = { ...effective, ...(propStyleRaw as PolygonStyleMeta) }
+        effective = { ...effective, ...(propStyleRaw as GraphLayerStyleMeta) }
       }
     }
   }
@@ -86,26 +87,29 @@ export function FieldPolygonsSection({
 
   const disabled = !hasOwner || !hasFieldKey || scope !== 'node'
 
-  const updateStyle = (patch: Partial<PolygonStyleMeta>) => {
+  const updateStyle = (patch: Partial<GraphLayerStyleMeta>) => {
     if (!schema) return
     const baseMetaRaw = schema.metadata && isRecord(schema.metadata) ? schema.metadata : {}
     const nextMetadata: Record<string, JSONValue> = { ...baseMetaRaw } as Record<string, JSONValue>
-    const polygonsCurrentRaw = nextMetadata['canvas:polygons']
-    const polygons: PolygonMetadata =
-      polygonsCurrentRaw && isRecord(polygonsCurrentRaw)
-        ? (polygonsCurrentRaw as unknown as PolygonMetadata)
+    const graphLayersCurrentRaw =
+      nextMetadata['canvas:graphLayers'] && isRecord(nextMetadata['canvas:graphLayers'])
+        ? nextMetadata['canvas:graphLayers']
+        : undefined
+    const graphLayersMeta: GraphLayerMetadata =
+      graphLayersCurrentRaw && isRecord(graphLayersCurrentRaw)
+        ? (graphLayersCurrentRaw as unknown as GraphLayerMetadata)
         : {}
-    const byPropertyKey: Record<string, PolygonStyleMeta> = polygons.byPropertyKey
-      ? { ...polygons.byPropertyKey }
+    const byPropertyKey: Record<string, GraphLayerStyleMeta> = graphLayersMeta.byPropertyKey
+      ? { ...graphLayersMeta.byPropertyKey }
       : {}
     const currentForField = byPropertyKey[fieldKey] ? { ...byPropertyKey[fieldKey] } : {}
-    const nextForField: PolygonStyleMeta = { ...currentForField, ...patch }
+    const nextForField: GraphLayerStyleMeta = { ...currentForField, ...patch }
     byPropertyKey[fieldKey] = nextForField
-    const nextPolygons: PolygonMetadata = {
-      ...polygons,
+    const nextGraphLayers: GraphLayerMetadata = {
+      ...graphLayersMeta,
       byPropertyKey,
     }
-    nextMetadata['canvas:polygons'] = nextPolygons as unknown as JSONValue
+    nextMetadata['canvas:graphLayers'] = nextGraphLayers as unknown as JSONValue
     setSchema({
       ...schema,
       metadata: nextMetadata,
@@ -115,11 +119,11 @@ export function FieldPolygonsSection({
   return (
     <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
       <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
-        Group polygons
+        Graph layer styling
       </div>
       {disabled ? (
         <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
-          Select a node property field to configure polygon styling.
+          Select a node property field to configure graph layer styling.
         </div>
       ) : (
         <div className="space-y-2">
@@ -207,15 +211,15 @@ export function FieldPolygonsSection({
   )
 }
 
-type PolygonMetadataPresetsSectionProps = {
+type GraphLayerMetadataPresetsSectionProps = {
   schema: GraphSchema
   uiPanelKeyValueTextSizeClass: string
 }
 
-export function PolygonMetadataPresetsSection({
+export function GraphLayerMetadataPresetsSection({
   schema,
   uiPanelKeyValueTextSizeClass,
-}: PolygonMetadataPresetsSectionProps) {
+}: GraphLayerMetadataPresetsSectionProps) {
   const setSchema = useGraphStore(s => s.setSchema)
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
@@ -224,17 +228,19 @@ export function PolygonMetadataPresetsSection({
   )
 
   const metadata = schema && schema.metadata && isRecord(schema.metadata) ? schema.metadata : null
-  const polygonsRaw = metadata && Object.prototype.hasOwnProperty.call(metadata, 'canvas:polygons')
-    ? (schema.metadata?.['canvas:polygons'] as JSONValue | undefined)
+  const hasGraphLayersMeta =
+    metadata && Object.prototype.hasOwnProperty.call(metadata, 'canvas:graphLayers')
+  const graphLayersRaw = hasGraphLayersMeta
+    ? (schema.metadata?.['canvas:graphLayers'] as JSONValue | undefined)
     : undefined
 
-  let effective: PolygonStyleMeta = {}
-  let meta: PolygonMetadata | null = null
-  if (polygonsRaw && isRecord(polygonsRaw)) {
-    const m = polygonsRaw as unknown as PolygonMetadata
+  let effective: GraphLayerStyleMeta = {}
+  let meta: GraphLayerMetadata | null = null
+  if (graphLayersRaw && isRecord(graphLayersRaw)) {
+    const m = graphLayersRaw as unknown as GraphLayerMetadata
     meta = m
     if (m.defaultStyle && typeof m.defaultStyle === 'object') {
-      effective = { ...(m.defaultStyle as PolygonStyleMeta) }
+      effective = { ...(m.defaultStyle as GraphLayerStyleMeta) }
     }
   }
 
@@ -263,42 +269,45 @@ export function PolygonMetadataPresetsSection({
       ? meta.schemaDrivenStylingEntrypoint
       : ''
 
-  const updateMetadata = (patch: Partial<PolygonMetadata>) => {
+  const updateMetadata = (patch: Partial<GraphLayerMetadata>) => {
     if (!schema) return
     const baseMetaRaw = schema.metadata && isRecord(schema.metadata) ? schema.metadata : {}
     const nextMetadata: Record<string, JSONValue> = { ...baseMetaRaw } as Record<string, JSONValue>
-    const polygonsCurrentRaw = nextMetadata['canvas:polygons']
-    const polygons: PolygonMetadata =
-      polygonsCurrentRaw && isRecord(polygonsCurrentRaw)
-        ? (polygonsCurrentRaw as unknown as PolygonMetadata)
+    const graphLayersCurrentRaw =
+      nextMetadata['canvas:graphLayers'] && isRecord(nextMetadata['canvas:graphLayers'])
+        ? nextMetadata['canvas:graphLayers']
+        : undefined
+    const graphLayersMeta: GraphLayerMetadata =
+      graphLayersCurrentRaw && isRecord(graphLayersCurrentRaw)
+        ? (graphLayersCurrentRaw as unknown as GraphLayerMetadata)
         : {}
-    const nextPolygons: PolygonMetadata = {
-      ...polygons,
+    const nextGraphLayers: GraphLayerMetadata = {
+      ...graphLayersMeta,
       ...patch,
     }
-    nextMetadata['canvas:polygons'] = nextPolygons as unknown as JSONValue
+    nextMetadata['canvas:graphLayers'] = nextGraphLayers as unknown as JSONValue
     setSchema({
       ...schema,
       metadata: nextMetadata,
     })
   }
 
-  const updateDefaultStyle = (patch: Partial<PolygonStyleMeta>) => {
+  const updateDefaultStyle = (patch: Partial<GraphLayerStyleMeta>) => {
     const currentDefault =
       meta && meta.defaultStyle
         ? { ...meta.defaultStyle }
         : {}
-    const nextDefault: PolygonStyleMeta = { ...currentDefault, ...patch }
+    const nextDefault: GraphLayerStyleMeta = { ...currentDefault, ...patch }
     updateMetadata({ defaultStyle: nextDefault })
   }
 
   return (
     <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
       <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
-        Polygon defaults
+        Graph layer defaults
       </div>
       <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
-        Configure default fill, stroke, opacity, and dash used by group polygons in both 2D and 3D views. Field-level overrides live in the schema extras panel.
+        Configure default fill, stroke, opacity, and dash used by graph layers in both 2D and 3D views. Field-level overrides live in the schema extras panel.
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0">

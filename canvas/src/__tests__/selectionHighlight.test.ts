@@ -171,3 +171,31 @@ export function testSelectionHighlightMermaidPointsToPath() {
     }
   }
 }
+
+export function testLayerBandDimmingUsesVisualLayerMetadata() {
+  const data: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'n1', label: 'Layer1', type: 'Entity', properties: { 'visual:layer': 1 } },
+      { id: 'n2', label: 'Layer2', type: 'Entity', properties: { 'visual:layer': 2 } },
+    ],
+    edges: [],
+  }
+  const schema = makeSchema()
+  const params: SelectionHighlightParams = {
+    data,
+    schema,
+    selectedNodeId: null,
+    selectedEdgeId: null,
+    renderMediaAsNodes: true,
+    activeLayerBandIndex: 1,
+  }
+  const neighborIds = computeNeighborIds(params)
+  const n1 = data.nodes[0]
+  const n2 = data.nodes[1]
+  const v1 = computeNodeVisual(n1, { ...params, neighborIds })
+  const v2 = computeNodeVisual(n2, { ...params, neighborIds })
+  if (!(v1.opacity > v2.opacity)) {
+    throw new Error('nodes outside the active layer band should be dimmed')
+  }
+}

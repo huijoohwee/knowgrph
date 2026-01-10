@@ -170,8 +170,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
 import {
   testExampleWorkflowMarkdownIngestionProducesGraph,
-  testMarkdownFrontmatterOntologiesAndPolygonLayersRoundTrip,
+  testMarkdownFrontmatterOntologiesAndGraphLayersRoundTrip,
   testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions,
+  testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
+  testMarkdownFrontmatterPolygonLayersAliasWarning,
 } from '@/__tests__/exampleWorkflowMarkdownIngestion.test'
 import { testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges } from '@/__tests__/exampleWorkflowTidyTree.test'
 import {
@@ -466,8 +468,12 @@ export const runAllTests = async () => {
     testExampleWorkflowMarkdownIngestionProducesGraph,
   )
   await exec(
-    'ui.markdown.frontmatterOntologiesAndPolygonLayersRoundTrip',
-    testMarkdownFrontmatterOntologiesAndPolygonLayersRoundTrip,
+    'ui.markdown.frontmatterOntologiesAndGraphLayersRoundTrip',
+    testMarkdownFrontmatterOntologiesAndGraphLayersRoundTrip,
+  )
+  await exec(
+    'ui.markdown.frontmatterPolygonLayersAliasWarning',
+    testMarkdownFrontmatterPolygonLayersAliasWarning,
   )
   await exec(
     'ui.markdown.exampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges',
@@ -520,6 +526,10 @@ export const runAllTests = async () => {
     await exec(
       'ui.markdown.mermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions',
       () => testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions(mdText),
+    )
+    await exec(
+      'ui.markdown.edaMlpInterviewSessionMarkdownFixtureFromDisk',
+      testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
     )
   }
 

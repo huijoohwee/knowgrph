@@ -55,21 +55,22 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
         gesture: 'Toggle radial cluster layout to arrange nodes in a circular tree',
         zoomDrag: 'Zoom and node drag behave normally; positions remain stable and translate as a group',
         tools:
-          'Radial cluster layout → toggle the toolbar button to switch schema.layout.mode between force and radial so 2D canvas nodes use a hierarchy-derived circular layout (per-mode cached) while preserving node styles, labels, and selection-aware overlays across polygon toggles and other UI re-renders.',
+          'Radial cluster layout → toggle the toolbar button to switch schema.layout.mode between force and radial so 2D canvas nodes use a hierarchy-derived circular layout (per-mode cached) while preserving node styles, labels, and selection-aware overlays across graph layer toggles and other UI re-renders.',
       },
       {
-        mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.polygonGroupsMode}`,
-        gesture: 'Toggle group polygons to show or hide convex hull outlines around related nodes',
-        zoomDrag: 'Zoom and node drag behave normally; polygons follow the same simulation tick as nodes',
+        mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.graphLayersMode}`,
+        gesture: 'Toggle graph layers to show or hide convex hull outlines around related nodes',
+        zoomDrag:
+          'Zoom and node drag behave normally; graph layers follow the same simulation tick as nodes',
         tools:
-          'Canvas group polygons → toggle the toolbar button to render or hide convex hulls around nodes linked by JSON-LD array properties (for example, steps/contains lists) → styling comes from schema.metadata["canvas:polygons"] (defaultStyle, byOwnerType, byPropertyKey) or falls back to the owner node type color for domain-agnostic grouping.',
+          'Canvas graph layers → toggle the toolbar button to render or hide convex hulls around nodes linked by JSON-LD array properties (for example, steps/contains lists) → styling comes from schema.metadata["canvas:graphLayers"] (defaultStyle, byOwnerType, byPropertyKey) or falls back to the owner node type color for domain-agnostic grouping.',
       },
       {
         mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.tidyTreeLayoutMode}`,
         gesture: 'Toggle tidy tree to arrange nodes into a hierarchical tree',
         zoomDrag: 'Zoom and node drag behave normally; positions remain stable and translate as a group',
         tools:
-          'Tidy tree layout → toggle the toolbar button (or use FloatingPanel → Render → Layout mode) to switch schema.layout.mode between force and tidy-tree; tidy-tree derives a single parent→child tree from the configured edge labels (or an auto-picked most-common label) and renders only those tree edges so the view stays uncluttered. Links and labels follow an Observable-style default (curved links, stroke #555 @ 0.4, width 1.5, small node radius, internal fill #555, leaf fill #999, haloed labels) while remaining schema-driven. The tidy-tree layout is preserved across polygon toggles, UI re-renders, and mode switches via per-mode caching. Refine Settings → 2D layout → tidyTree (edgeLabels, direction, orientation left-to-right/top-to-bottom, nodeSize, separation, sortBy, curve, colorMode, linkStroke/linkOpacity/linkWidth, nodeRadius, internalFill/leafFill, labelFontSize/labelFontFamily) so layout and styling stay reproducible and domain-agnostic.',
+          'Tidy tree layout → toggle the toolbar button (or use FloatingPanel → Render → Layout mode) to switch schema.layout.mode between force and tidy-tree; tidy-tree derives a single parent→child tree from the configured edge labels (or an auto-picked most-common label) and renders only those tree edges so the view stays uncluttered. Links and labels follow an Observable-style default (curved links, stroke #555 @ 0.4, width 1.5, small node radius, internal fill #555, leaf fill #999, haloed labels) while remaining schema-driven. The tidy-tree layout is preserved across graph layer toggles, UI re-renders, and mode switches via per-mode caching. Refine Settings → 2D layout → tidyTree (edgeLabels, direction, orientation left-to-right/top-to-bottom, nodeSize, separation, sortBy, curve, colorMode, linkStroke/linkOpacity/linkWidth, nodeRadius, internalFill/leafFill, labelFontSize/labelFontFamily) so layout and styling stay reproducible and domain-agnostic.',
       },
       {
         mode: 'Create: shift-drag',
@@ -131,13 +132,13 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
           </thead>
           <tbody>
             {behaviorRows.map(row => {
-              const isPolygonRow =
-                row.mode === `${UI_COPY.toolbarPrefix} ${UI_LABELS.polygonGroupsMode}`
+              const isGraphLayerRow =
+                row.mode === `${UI_COPY.toolbarPrefix} ${UI_LABELS.graphLayersMode}`
               return (
                 <tr
                   key={row.mode}
                   className="border-t border-gray-200"
-                  data-kg-anchor={isPolygonRow ? UI_ANCHORS.helpLayerPolygons : undefined}
+                  data-kg-anchor={isGraphLayerRow ? UI_ANCHORS.helpGraphLayers : undefined}
                 >
                   <td className="px-2 py-1 align-top whitespace-nowrap">{row.mode}</td>
                   <td className="px-2 py-1 align-top">{row.gesture}</td>

@@ -272,7 +272,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Polygon Elevation</span>}
+          keyNode={<span className="text-gray-700">Graph Layer Elevation</span>}
           valueNode={(
             <>
               <input
@@ -299,7 +299,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Polygon Opacity ×</span>}
+          keyNode={<span className="text-gray-700">Graph Layer Opacity ×</span>}
           valueNode={(
             <>
               <input

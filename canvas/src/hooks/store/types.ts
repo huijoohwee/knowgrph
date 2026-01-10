@@ -270,9 +270,11 @@ export interface GraphState {
   canvasPos: { x: number; y: number };
   setCanvasDims: (d: { w: number; h: number }) => void;
   setCanvasPos: (p: { x: number; y: number }) => void;
-  polygonGroupsVisible: boolean;
-  setPolygonGroupsVisible: (v: boolean) => void;
-  togglePolygonGroupsVisible: () => void;
+  graphLayersVisible: boolean;
+  setGraphLayersVisible: (v: boolean) => void;
+  toggleGraphLayersVisible: () => void;
+  activeLayerBandIndex: number | null;
+  setActiveLayerBandIndex: (v: number | null) => void;
   fitToScreenMode: boolean;
   setFitToScreenMode: (v: boolean) => void;
   toggleFitToScreenMode: () => void;

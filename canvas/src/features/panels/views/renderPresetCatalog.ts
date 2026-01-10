@@ -4,7 +4,7 @@ export type ThreePresetLayoutOverrides = {
   charge?: number
   collisionRadius?: number
   applyNodePalette?: boolean
-  applyPolygonDefaults?: boolean
+  applyGraphLayerDefaults?: boolean
 }
 
 export type ThreePresetCatalogEntry = {
@@ -183,9 +183,9 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
     },
   },
   {
-    id: 'demo-3d-group-polygons',
-    label: 'Demo 3D Group Polygons',
-    layoutOverrides: { charge: -350, collisionRadius: 16, applyPolygonDefaults: true },
+    id: 'demo-3d-group-graph-layers',
+    label: 'Demo 3D Group Graph Layers',
+    layoutOverrides: { charge: -350, collisionRadius: 16, applyGraphLayerDefaults: true },
     threeConfig: {
       linkDirectionalArrowLength: 8,
       linkOpacity: 0.4,

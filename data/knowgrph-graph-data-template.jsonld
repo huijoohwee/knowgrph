@@ -40,7 +40,7 @@
       { "prefix": "geo", "iri": "http://www.opengis.net/ont/geosparql#" },
       { "prefix": "ro", "iri": "https://w3id.org/ro/crate/1.1/" }
     ],
-    "polygonLayers": [
+    "graphLayers": [
       "competencyHyperspace",
       "performanceSpace",
       "classDistributionSpace",
@@ -140,4 +140,3 @@
     }
   ]
 }
-

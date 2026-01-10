@@ -10,16 +10,16 @@ def main() -> int:
     meta = doc.get("metadata") or {}
     if "ontologies" not in meta:
         raise SystemExit("metadata.ontologies missing")
-    if "polygonLayers" not in meta:
-        raise SystemExit("metadata.polygonLayers missing")
+    if "graphLayers" not in meta:
+        raise SystemExit("metadata.graphLayers missing")
 
     ontologies = meta["ontologies"]
-    polygon_layers = meta["polygonLayers"]
+    graph_layers = meta["graphLayers"]
 
     if not isinstance(ontologies, list):
         raise SystemExit("metadata.ontologies is not a list")
-    if not isinstance(polygon_layers, list):
-        raise SystemExit("metadata.polygonLayers is not a list")
+    if not isinstance(graph_layers, list):
+        raise SystemExit("metadata.graphLayers is not a list")
 
     expected_ontologies = [
         {"prefix": "prov", "iri": "http://www.w3.org/ns/prov#"},
@@ -42,7 +42,7 @@ def main() -> int:
                 f"got prefix={actual.get('prefix')} iri={actual.get('iri')}"
             )
 
-    expected_polygon_layers = [
+    expected_graph_layers = [
         "competencyHyperspace",
         "performanceSpace",
         "classDistributionSpace",
@@ -52,8 +52,8 @@ def main() -> int:
         "candidateClusters",
         "assessmentRegion",
     ]
-    if polygon_layers != expected_polygon_layers:
-        raise SystemExit(f"metadata.polygonLayers mismatch: expected {expected_polygon_layers}, got {polygon_layers}")
+    if graph_layers != expected_graph_layers:
+        raise SystemExit(f"metadata.graphLayers mismatch: expected {expected_graph_layers}, got {graph_layers}")
     return 0
 
 

@@ -5,7 +5,7 @@
 - Dataset: `docs/assets/example-workflow.jsonld` (JSON-LD graph describing a neutral workflow with regions and questions).
 - Schema config: `schema-config/knowgrph-example-workflow-schema-config.jsonld`.
   - Uses `layers.mode: "semantic"` (which is also the canvas default) so the graph initially opens in the semantic layer, matching the “Similarity clusters (semantic)” mode in the UI.
-  - Configures `layers.semantic.hiddenNodeTypes` to `["geo:Polygon"]` so polygon cluster nodes used for spatial annotations are hidden only when the semantic layer is active.
+  - Configures `layers.semantic.hiddenNodeTypes` to `["geo:Polygon"]` so graph-layer cluster nodes used for spatial annotations are hidden only when the semantic layer is active.
   - Leaves property and document-structure layers neutral so they render the full example workflow graph without hiding nodes or edges, corresponding to “Raw data (schema)” for property and “Layered structure (document)” for document-structure in the UI.
 - Examples catalog entry:
   - Uses the example workflow dataset and schema-config together so layer behavior is always schema-driven and domain-agnostic.
@@ -19,7 +19,7 @@
   - Layout caches are cleared when graph data is replaced or reset so memory usage stays bounded per dataset and does not leak across imports.
 - Semantic layer behavior:
   - Semantic layer is the default (`layers.mode: "semantic"`) and derives a similarity graph from tokenized node text using cosine similarity or PMI.
-  - Louvain-style community detection assigns `visual:community` and `visual:fill` per node; polygon groups in the canvas wrap these semantic communities by default.
+  - Louvain-style community detection assigns `visual:community` and `visual:fill` per node; graph-layer hulls in the canvas wrap these semantic communities by default.
   - Thresholds for `layers.semantic.topKEdgesPerNode` and `layers.semantic.minSimilarity` act as schema-driven sparsity and quality controls: smaller `topK` and larger `minSimilarity` produce sparser, higher-confidence neighborhoods, while larger `topK` values and lower `minSimilarity` values increase coverage at the cost of density.
   - When `schema.layers.mode !== "semantic"` or `layers.semantic.hiddenNodeTypes` is empty, all nodes and edges remain visible.
   - When `schema.layers.mode === "semantic"` and `layers.semantic.hiddenNodeTypes` is configured, nodes with matching `type` values are hidden along with any edges incident on those nodes.
@@ -34,7 +34,7 @@
     - `layers.semantic.similarityMetric` defaults to `"pmi"` to align with PMI-weighted `coOccursWith` edges.
     - `layers.semantic.similarityEdgeLabel` is populated from the parser’s `semantic.edgeLabel` when present.
     - `layers.semantic.hiddenNodeTypes` can be seeded from parser-emitted `semantic.nodeTypes` when curators want semantic mode to emphasize entities while leaving document-structure and property layers unbiased.
-    - `layers.documentStructure.structuralNodeTypes` and `layers.documentStructure.structuralEdgeLabels` are seeded from `metadata.layers.documentStructure` so canvas can render structural and polygon layers without duplicating configuration.
+    - `layers.documentStructure.structuralNodeTypes` and `layers.documentStructure.structuralEdgeLabels` are seeded from `metadata.layers.documentStructure` so canvas can render structural and graph layers without duplicating configuration.
 
 ## Semantic presets and schema-config template
 

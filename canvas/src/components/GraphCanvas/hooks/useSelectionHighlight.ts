@@ -16,6 +16,7 @@ interface UseSelectionHighlightProps {
   setLifecycleStage: (stage: string) => void;
   renderMediaAsNodes: boolean;
   mediaNodeOpacity: number;
+  activeLayerBandIndex: number | null;
   
   // Refs to d3 selections
   nodesSelRef: React.MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>;
@@ -35,6 +36,7 @@ export function useSelectionHighlight({
   setLifecycleStage,
   renderMediaAsNodes,
   mediaNodeOpacity,
+  activeLayerBandIndex,
   nodesSelRef,
   mediaSelRef,
   labelsSelRef,
@@ -62,7 +64,7 @@ export function useSelectionHighlight({
       selectedNodeIds,
       selectedEdgeIds,
       renderMediaAsNodes,
-      { mediaNodeOpacity },
+      { mediaNodeOpacity, activeLayerBandIndex },
     );
     selectionPerfEnd('canvas', t0);
   }, [
@@ -79,5 +81,6 @@ export function useSelectionHighlight({
     linksSelRef,
     renderMediaAsNodes,
     mediaNodeOpacity,
+    activeLayerBandIndex,
   ]);
 }

@@ -9,9 +9,9 @@ import {
   topTokenList,
   getStatsTokenizationConfig,
 } from '@/components/BottomPanel/BottomPanelStatsUtils'
-import { buildNodeGroupsFromSchema, getPolygonStyleForGroup } from '@/components/GraphCanvas/polygons'
+import { buildNodeGroupsFromSchema, getGraphLayerStyleForGroup } from '@/components/GraphCanvas/graphLayers'
 import { getNodeBaseFill } from '@/components/GraphCanvas/helpers'
-import type { TokensByPolygonRow, StatsCommunity, TokensForSelectedNode, TokensForSelectedNodes } from '@/components/BottomPanel/stats/types'
+import type { TokensByGraphLayerRow, StatsCommunity, TokensForSelectedNode, TokensForSelectedNodes } from '@/components/BottomPanel/stats/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 type UseStatsDerivedDataProps = {
@@ -37,8 +37,8 @@ export function useStatsDerivedData({
 
   const maxListItems = effectiveLod === 'low' ? 10 : effectiveLod === 'medium' ? 20 : 50
 
-  const [polygonTokenFilter, setPolygonTokenFilter] = React.useState<string>('')
-  const [polygonTokenSort, setPolygonTokenSort] = React.useState<'freq' | 'alpha'>('freq')
+  const [graphLayerTokenFilter, setGraphLayerTokenFilter] = React.useState<string>('')
+  const [graphLayerTokenSort, setGraphLayerTokenSort] = React.useState<'freq' | 'alpha'>('freq')
   const [communityTokenFilter, setCommunityTokenFilter] = React.useState<string>('')
   const [communityTokenSort, setCommunityTokenSort] = React.useState<'freq' | 'alpha'>('freq')
 
@@ -86,7 +86,7 @@ export function useStatsDerivedData({
     return topTokenList(freqByToken, freqByToken.size)
   }, [baseTokenCfg, data])
 
-  const tokensByPolygon = React.useMemo<TokensByPolygonRow[]>(() => {
+  const tokensByGraphLayer = React.useMemo<TokensByGraphLayerRow[]>(() => {
     const graphData = effectiveGraph as GraphData | null
     if (!graphData || !Array.isArray(graphData.nodes)) return []
     const nodes = graphData.nodes as GraphNode[]
@@ -97,15 +97,7 @@ export function useStatsDerivedData({
     }
     const groups = buildNodeGroupsFromSchema(graphData, schema)
     if (!groups.length) return []
-    const rows: Array<{
-      polygonId: string
-      label: string
-      fill: string
-      nodeCount: number
-      nodeIds: string[]
-      totalTokens: number
-      topTokens: Array<{ token: string; count: number }>
-    }> = []
+    const rows: TokensByGraphLayerRow[] = []
     for (let i = 0; i < groups.length; i += 1) {
       const group = groups[i]
       const memberNodes: GraphNode[] = []
@@ -130,11 +122,11 @@ export function useStatsDerivedData({
         if (ownerLabel) return ownerLabel
         if (propertyKey) return propertyKey
         if (id) return id
-        return `Polygon ${rows.length + 1}`
+        return `Graph layer ${rows.length + 1}`
       })()
-      const fill = getPolygonStyleForGroup({ group, graphData, schema }).fill
+      const fill = getGraphLayerStyleForGroup({ group, graphData, schema }).fill
       rows.push({
-        polygonId: String(group.id || ''),
+        graphLayerId: String(group.id || ''),
         label,
         fill: fill || getRendererPalette(schema).nodes.neutral,
         nodeCount: memberNodes.length,
@@ -151,19 +143,19 @@ export function useStatsDerivedData({
     return rows
   }, [effectiveGraph, maxListItems, schema, tokenCfg])
 
-  const polygonTokensForDropdown = React.useMemo(() => {
+  const graphLayerTokensForDropdown = React.useMemo(() => {
     let items = allTokensForStats
-    if (polygonTokenFilter) {
-      const needle = polygonTokenFilter.toLowerCase()
+    if (graphLayerTokenFilter) {
+      const needle = graphLayerTokenFilter.toLowerCase()
       items = items.filter(t => t.token.toLowerCase().includes(needle))
     }
-    if (polygonTokenSort === 'alpha') {
+    if (graphLayerTokenSort === 'alpha') {
       const copy = items.slice()
       copy.sort((a, b) => a.token.localeCompare(b.token))
       return copy
     }
     return items
-  }, [allTokensForStats, polygonTokenFilter, polygonTokenSort])
+  }, [allTokensForStats, graphLayerTokenFilter, graphLayerTokenSort])
 
   const communityTokensForDropdown = React.useMemo(() => {
     let items = allTokensForStats
@@ -313,12 +305,12 @@ export function useStatsDerivedData({
     datasetStats,
     agenticContext,
     datasetIgnoreFilters,
-    tokensByPolygon,
-    polygonTokensForDropdown,
-    polygonTokenFilter,
-    setPolygonTokenFilter,
-    polygonTokenSort,
-    setPolygonTokenSort,
+    tokensByGraphLayer,
+    graphLayerTokensForDropdown,
+    graphLayerTokenFilter,
+    setGraphLayerTokenFilter,
+    graphLayerTokenSort,
+    setGraphLayerTokenSort,
     communityTokensForDropdown,
     communityTokenFilter,
     setCommunityTokenFilter,

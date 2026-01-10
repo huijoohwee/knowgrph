@@ -24,14 +24,20 @@ export const parseMarkdownFrontmatter = (
   if (!lines.length) return { meta: {}, startIndex: 0 }
   if ((lines[0] || '').trim() !== '---') return { meta: {}, startIndex: 0 }
   const meta: MarkdownFrontmatter = {}
-  const structuredKeys = new Set(['ontologies', 'polygonLayers'])
+  const structuredKeys = new Set(['ontologies', 'polygonLayers', 'graphLayers'])
   let currentKey: string | null = null
   let currentList: unknown[] = []
   let currentIndent = 0
+  let startIndex = 0
+  let usedPolygonLayers = false
 
   const finalizeList = () => {
     if (currentKey && currentList.length) {
-      meta[currentKey] = currentList
+      if (currentKey === 'polygonLayers' || currentKey === 'graphLayers') {
+        ;(meta as Record<string, unknown>).graphLayers = currentList
+      } else {
+        meta[currentKey] = currentList
+      }
     }
     currentKey = null
     currentList = []
@@ -43,7 +49,8 @@ export const parseMarkdownFrontmatter = (
     const trimmed = rawLine.trim()
     if (trimmed === '---') {
       finalizeList()
-      return { meta, startIndex: i + 1 }
+      startIndex = i + 1
+      break
     }
     if (!trimmed || trimmed.startsWith('#')) continue
     const indent = rawLine.length - trimmed.length
@@ -65,7 +72,10 @@ export const parseMarkdownFrontmatter = (
               currentList.push(obj)
             }
           }
-        } else if (currentKey === 'polygonLayers') {
+        } else if (currentKey === 'polygonLayers' || currentKey === 'graphLayers') {
+          if (currentKey === 'polygonLayers') {
+            usedPolygonLayers = true
+          }
           currentList.push(afterDash)
         }
         continue
@@ -84,7 +94,10 @@ export const parseMarkdownFrontmatter = (
             obj[fieldKey] = fieldVal
             currentList.push(obj)
           }
-        } else if (currentKey === 'polygonLayers') {
+        } else if (currentKey === 'polygonLayers' || currentKey === 'graphLayers') {
+          if (currentKey === 'polygonLayers') {
+            usedPolygonLayers = true
+          }
           currentList.push(fieldVal || fieldKey)
         }
         continue
@@ -121,6 +134,9 @@ export const parseMarkdownFrontmatter = (
       } else if (structuredKeys.has(key)) {
         currentKey = key
         currentIndent = indent
+        if (key === 'polygonLayers') {
+          usedPolygonLayers = true
+        }
         currentList = []
         if (val) {
           if (key === 'ontologies') {
@@ -135,6 +151,7 @@ export const parseMarkdownFrontmatter = (
               }
             }
           } else if (key === 'polygonLayers') {
+            usedPolygonLayers = true
             currentList.push(val)
           }
         }
@@ -146,7 +163,19 @@ export const parseMarkdownFrontmatter = (
   }
 
   finalizeList()
-  return { meta: {}, startIndex: 0 }
+  if (usedPolygonLayers) {
+    const key = '__schemaLintWarnings'
+    const raw = (meta as Record<string, unknown>)[key]
+    const existing: string[] = Array.isArray(raw)
+      ? (raw as unknown[]).map(v => String(v ?? '')).filter(v => v)
+      : []
+    existing.push('Frontmatter key "polygonLayers" is deprecated; use "graphLayers" instead.')
+    ;(meta as Record<string, unknown>)[key] = existing
+  }
+  if (!startIndex) {
+    return { meta: {}, startIndex: 0 }
+  }
+  return { meta, startIndex }
 }
 
 export const parseMarkdownBlocks = (lines: string[], startIndex: number): MarkdownBlock[] => {

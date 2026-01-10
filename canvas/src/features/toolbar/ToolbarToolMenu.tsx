@@ -298,7 +298,7 @@ export function ToolbarToolMenu({
         <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
       <IconButton
-        title={UI_LABELS.polygonGroupsMode}
+        title={UI_LABELS.graphLayersMode}
         onClick={() => handleSelectView('graphLayer')}
         className={`App-toolbar__btn ${floatingPanelView === 'graphLayer' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
         showTooltip

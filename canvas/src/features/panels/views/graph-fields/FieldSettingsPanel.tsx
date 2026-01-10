@@ -35,7 +35,7 @@ import FieldLocalSchemaSection from '@/features/panels/views/graph-fields/FieldL
 import AdvancedSection from '@/features/schema-editor/AdvancedSection'
 import SchemaUiEditor from '@/features/schema/ui/SchemaUiEditor'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
-import { FieldPolygonsSection, PolygonMetadataPresetsSection } from '@/features/panels/views/graph-fields/FieldPolygonsSection'
+import { FieldGraphLayersSection, GraphLayerMetadataPresetsSection } from '@/features/panels/views/graph-fields/FieldGraphLayersSection'
 
 type FieldSettingsPanelProps = {
   graphData: GraphData | null
@@ -277,7 +277,7 @@ export default function FieldSettingsPanel({
               </div>
             ) : null}
             {schema ? (
-              <PolygonMetadataPresetsSection
+              <GraphLayerMetadataPresetsSection
                 schema={schema as GraphSchema}
                 uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
               />
@@ -420,7 +420,7 @@ export default function FieldSettingsPanel({
                   className="mt-0 border-t-0 pt-0"
                 >
                   <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
-                    <FieldPolygonsSection
+                    <FieldGraphLayersSection
                       schema={schema as GraphSchema}
                       scope={selectedField.scope}
                       ownerKey={schemaOwnerKey}

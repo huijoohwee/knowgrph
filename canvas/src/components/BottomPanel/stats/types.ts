@@ -16,8 +16,8 @@ export type SelectionSnapshot = {
 
 export type TokenCount = { token: string; count: number }
 
-export type TokensByPolygonRow = {
-  polygonId: string
+export type TokensByGraphLayerRow = {
+  graphLayerId: string
   label: string
   fill: string
   nodeCount: number

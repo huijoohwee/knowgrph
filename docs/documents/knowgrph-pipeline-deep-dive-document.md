@@ -12,7 +12,7 @@ ontologies:
     iri: http://www.opengis.net/ont/geosparql#
   - prefix: ro
     iri: https://w3id.org/ro/crate#
-polygonLayers:
+graphLayers:
   - competencyHyperspace
   - performanceSpace
   - classDistributionSpace

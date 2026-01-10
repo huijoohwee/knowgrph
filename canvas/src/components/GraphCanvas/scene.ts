@@ -3,7 +3,7 @@ import type { MutableRefObject, RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createZoom, buildSimulation, deriveTidyTreeDerivation } from '@/components/GraphCanvas/utils'
-import { buildNodeGroupsFromSchema, createPolygonsLayer } from '@/components/GraphCanvas/polygons'
+import { buildNodeGroupsFromSchema, createGraphLayersLayer } from '@/components/GraphCanvas/graphLayers'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
@@ -23,7 +23,7 @@ type SetupGraphSceneArgs = {
   height: number
   hoverEnabled: boolean
   zoomOnDoubleClick: boolean
-  polygonsVisible: boolean
+  graphLayersVisible: boolean
   renderMediaAsNodes: boolean
   mediaPanelDensity: 'default' | 'compact'
   initialZoomTransform?: { k: number; x: number; y: number } | null
@@ -66,7 +66,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     height,
     hoverEnabled,
     zoomOnDoubleClick,
-    polygonsVisible,
+    graphLayersVisible,
     renderMediaAsNodes,
     mediaPanelDensity,
     initialZoomTransform,
@@ -195,12 +195,12 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const nodeGroups = buildNodeGroupsFromSchema(graphData, schema)
 
-  const polygonSel = createPolygonsLayer({
+  const graphLayersSel = createGraphLayersLayer({
     g,
     nodeGroups,
     graphData,
     schema,
-    polygonsVisible,
+    graphLayersVisible,
   })
 
   const nodeIds = new Set<string>()
@@ -308,7 +308,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       mediaSel,
       linkSel,
       labelsSel: labelsSelRef.current,
-      polygonSel,
+      graphLayersSel,
       nodeGroups,
       nodes: graphData.nodes,
       schema,

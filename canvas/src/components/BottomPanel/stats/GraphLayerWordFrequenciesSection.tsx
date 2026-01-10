@@ -5,18 +5,18 @@ import IconButton from '@/components/IconButton'
 import { SlidersHorizontal } from 'lucide-react'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { UI_COPY } from '@/lib/config-copy/uiCopy'
-import type { SelectionSnapshot, StatsUiClasses, TokenCount, TokensByPolygonRow } from '@/components/BottomPanel/stats/types'
+import type { SelectionSnapshot, StatsUiClasses, TokenCount, TokensByGraphLayerRow } from '@/components/BottomPanel/stats/types'
 
-export default function PolygonWordFrequenciesSection({
+export default function GraphLayerWordFrequenciesSection({
   ui,
   neutralBarColor,
   selectedNodeIdSet,
-  tokensByPolygon,
-  polygonTokensForDropdown,
-  polygonTokenFilter,
-  setPolygonTokenFilter,
-  polygonTokenSort,
-  setPolygonTokenSort,
+  tokensByGraphLayer,
+  graphLayerTokensForDropdown,
+  graphLayerTokenFilter,
+  setGraphLayerTokenFilter,
+  graphLayerTokenSort,
+  setGraphLayerTokenSort,
   statsFilterMode,
   setStatsFilterMode,
   statsExcludeTokens,
@@ -25,11 +25,11 @@ export default function PolygonWordFrequenciesSection({
   setStatsIncludeTokens,
   toggleStatsToken,
   getStatsChartWidthPx,
-  pinnedPolygonId,
-  setPinnedPolygonId,
+  pinnedGraphLayerId,
+  setPinnedGraphLayerId,
   clearPinnedEdgeState,
   clearPinnedCommunityState,
-  polygonSelectionSnapshotRef,
+  graphLayerSelectionSnapshotRef,
   edgeSelectionSnapshotRef,
   communitySelectionSnapshotRef,
   captureSelectionSnapshot,
@@ -39,12 +39,12 @@ export default function PolygonWordFrequenciesSection({
   ui: StatsUiClasses
   neutralBarColor: string
   selectedNodeIdSet: ReadonlySet<string>
-  tokensByPolygon: TokensByPolygonRow[]
-  polygonTokensForDropdown: TokenCount[]
-  polygonTokenFilter: string
-  setPolygonTokenFilter: (next: string) => void
-  polygonTokenSort: 'freq' | 'alpha'
-  setPolygonTokenSort: (next: 'freq' | 'alpha') => void
+  tokensByGraphLayer: TokensByGraphLayerRow[]
+  graphLayerTokensForDropdown: TokenCount[]
+  graphLayerTokenFilter: string
+  setGraphLayerTokenFilter: (next: string) => void
+  graphLayerTokenSort: 'freq' | 'alpha'
+  setGraphLayerTokenSort: (next: 'freq' | 'alpha') => void
   statsFilterMode: 'exclude' | 'include'
   setStatsFilterMode: (next: 'exclude' | 'include') => void
   statsExcludeTokens: string[]
@@ -53,11 +53,11 @@ export default function PolygonWordFrequenciesSection({
   setStatsIncludeTokens: React.Dispatch<React.SetStateAction<string[]>>
   toggleStatsToken: (token: string) => void
   getStatsChartWidthPx: (barCount: number) => number
-  pinnedPolygonId: string | null
-  setPinnedPolygonId: (next: string | null) => void
+  pinnedGraphLayerId: string | null
+  setPinnedGraphLayerId: (next: string | null) => void
   clearPinnedEdgeState: () => void
   clearPinnedCommunityState: () => void
-  polygonSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
+  graphLayerSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   edgeSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   communitySelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   captureSelectionSnapshot: () => SelectionSnapshot
@@ -72,32 +72,32 @@ export default function PolygonWordFrequenciesSection({
   } = ui
   const [tokensCollapsed, setTokensCollapsed] = React.useState(false)
   const [chartCollapsed, setChartCollapsed] = React.useState(false)
-  const selectedPolygonIdSet = React.useMemo(() => {
+  const selectedGraphLayerIdSet = React.useMemo(() => {
     const next = new Set<string>()
     if (!selectedNodeIdSet || selectedNodeIdSet.size === 0) return next
-    for (let i = 0; i < tokensByPolygon.length; i += 1) {
-      const row = tokensByPolygon[i]
+    for (let i = 0; i < tokensByGraphLayer.length; i += 1) {
+      const row = tokensByGraphLayer[i]
       const ids = row && Array.isArray(row.nodeIds) ? row.nodeIds : []
       for (let j = 0; j < ids.length; j += 1) {
         const id = String(ids[j] || '')
         if (!id) continue
         if (!selectedNodeIdSet.has(id)) continue
-        next.add(row.polygonId)
+        next.add(row.graphLayerId)
         break
       }
     }
     return next
-  }, [selectedNodeIdSet, tokensByPolygon])
-  const scrollToPolygonId = React.useMemo(() => {
-    if (pinnedPolygonId) return pinnedPolygonId
-    if (selectedPolygonIdSet.size === 0) return null
-    const row = tokensByPolygon.find(r => selectedPolygonIdSet.has(r.polygonId)) || null
-    return row ? row.polygonId : null
-  }, [pinnedPolygonId, selectedPolygonIdSet, tokensByPolygon])
+  }, [selectedNodeIdSet, tokensByGraphLayer])
+  const scrollToGraphLayerId = React.useMemo(() => {
+    if (pinnedGraphLayerId) return pinnedGraphLayerId
+    if (selectedGraphLayerIdSet.size === 0) return null
+    const row = tokensByGraphLayer.find(r => selectedGraphLayerIdSet.has(r.graphLayerId)) || null
+    return row ? row.graphLayerId : null
+  }, [pinnedGraphLayerId, selectedGraphLayerIdSet, tokensByGraphLayer])
 
   return (
-    <CollapsibleSection title="Word frequencies by polygon">
-      {tokensByPolygon.length === 0 ? (
+    <CollapsibleSection title="Word frequencies by graph layer">
+      {tokensByGraphLayer.length === 0 ? (
         <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-600'].join(' ')}>
           {UI_COPY.statsNoNodesAvailableLabel}
         </div>
@@ -107,11 +107,11 @@ export default function PolygonWordFrequenciesSection({
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-1">
                 <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
-                  Polygon
+                  Graph layer
                 </div>
                 <IconButton
                   className="App-toolbar__btn"
-                  title={UI_COPY.statsOpenRendererSettingsForPolygonsTitle}
+                  title={UI_COPY.statsOpenRendererSettingsForGraphLayersTitle}
                   onClick={emitRendererPanelOpen}
                   showTooltip
                 >
@@ -127,8 +127,8 @@ export default function PolygonWordFrequenciesSection({
                     'px-2 py-[2px] rounded border border-gray-200',
                   ].join(' ')}
                   placeholder={UI_COPY.statsFilterTokensPlaceholder}
-                  value={polygonTokenFilter}
-                  onChange={e => setPolygonTokenFilter(e.target.value)}
+                  value={graphLayerTokenFilter}
+                  onChange={e => setGraphLayerTokenFilter(e.target.value)}
                 />
                 <select
                   className={[
@@ -136,10 +136,10 @@ export default function PolygonWordFrequenciesSection({
                     uiPanelTextFontClass,
                     'px-2 py-[2px] rounded border border-gray-200 bg-white',
                   ].join(' ')}
-                  value={polygonTokenSort}
+                  value={graphLayerTokenSort}
                   onChange={e => {
                     const raw = e.target.value === 'alpha' ? 'alpha' : 'freq'
-                    setPolygonTokenSort(raw)
+                    setGraphLayerTokenSort(raw)
                   }}
                 >
                   <option value="freq">{UI_COPY.statsSortByCountLabel}</option>
@@ -210,7 +210,7 @@ export default function PolygonWordFrequenciesSection({
               >
                 {(() => {
                   const norm = (v: unknown) => String(v || '').toLowerCase()
-                  const all = polygonTokensForDropdown.map(t => norm(t.token)).filter(Boolean)
+                  const all = graphLayerTokensForDropdown.map(t => norm(t.token)).filter(Boolean)
                   const allSet = new Set(all)
                   const allSelected =
                     all.length > 0 &&
@@ -258,7 +258,7 @@ export default function PolygonWordFrequenciesSection({
                   )
                 })()}
                 <div className="px-2 pb-2">
-                  {polygonTokensForDropdown.map((t) => {
+                  {graphLayerTokensForDropdown.map((t) => {
                     const tok = String(t.token || '').toLowerCase()
                     const checked =
                       statsFilterMode === 'include'
@@ -286,7 +286,9 @@ export default function PolygonWordFrequenciesSection({
                                 if (nextChecked) cur.delete(tok); else cur.add(tok)
                                 return Array.from(cur)
                               })
-                              if (!nextChecked) setStatsIncludeTokens(prev => prev.filter(x => String(x || '').toLowerCase() !== tok))
+                              if (!nextChecked) {
+                                setStatsIncludeTokens(prev => prev.filter(x => String(x || '').toLowerCase() !== tok))
+                              }
                             }}
                           />
                           <span className="truncate">{tok}</span>
@@ -304,38 +306,38 @@ export default function PolygonWordFrequenciesSection({
                 <AutoHeightMiniBarChart
                   containerClassName="overflow-x-auto h-16"
                   minHeight={64}
-                  width={getStatsChartWidthPx(tokensByPolygon.length)}
-                  logicalWidth={getStatsChartWidthPx(tokensByPolygon.length)}
-                  scrollToKey={scrollToPolygonId}
-                  data={tokensByPolygon.map((row) => ({
-                    key: row.polygonId,
+                  width={getStatsChartWidthPx(tokensByGraphLayer.length)}
+                  logicalWidth={getStatsChartWidthPx(tokensByGraphLayer.length)}
+                  scrollToKey={scrollToGraphLayerId}
+                  data={tokensByGraphLayer.map((row) => ({
+                    key: row.graphLayerId,
                     value: row.totalTokens,
                     color: row.fill || undefined,
-                    label: `Polygon ${row.label} • ${row.nodeCount} nodes • ${row.totalTokens} tokens`,
-                    active: pinnedPolygonId === row.polygonId || selectedPolygonIdSet.has(row.polygonId),
+                    label: `Graph layer ${row.label} • ${row.nodeCount} nodes • ${row.totalTokens} tokens`,
+                    active: pinnedGraphLayerId === row.graphLayerId || selectedGraphLayerIdSet.has(row.graphLayerId),
                     onClick: () => {
-                      if (pinnedPolygonId === row.polygonId) {
-                        setPinnedPolygonId(null)
-                        restoreSelectionSnapshot(polygonSelectionSnapshotRef.current)
-                        polygonSelectionSnapshotRef.current = null
+                      if (pinnedGraphLayerId === row.graphLayerId) {
+                        setPinnedGraphLayerId(null)
+                        restoreSelectionSnapshot(graphLayerSelectionSnapshotRef.current)
+                        graphLayerSelectionSnapshotRef.current = null
                         return
                       }
                       clearPinnedEdgeState()
                       clearPinnedCommunityState()
                       edgeSelectionSnapshotRef.current = null
                       communitySelectionSnapshotRef.current = null
-                      if (!polygonSelectionSnapshotRef.current) {
-                        polygonSelectionSnapshotRef.current = captureSelectionSnapshot()
+                      if (!graphLayerSelectionSnapshotRef.current) {
+                        graphLayerSelectionSnapshotRef.current = captureSelectionSnapshot()
                       }
                       selectNodeIds(row.nodeIds)
-                      setPinnedPolygonId(row.polygonId)
+                      setPinnedGraphLayerId(row.graphLayerId)
                     },
                   }))}
                 />
               </div>
             )}
             {(() => {
-              const row = pinnedPolygonId ? tokensByPolygon.find(r => r.polygonId === pinnedPolygonId) || null : null
+              const row = pinnedGraphLayerId ? tokensByGraphLayer.find(r => r.graphLayerId === pinnedGraphLayerId) || null : null
               const has = !!(row && row.topTokens.length > 0)
               const w = row ? Math.max(140, row.topTokens.length * 12) : 140
               return (
@@ -366,11 +368,11 @@ export default function PolygonWordFrequenciesSection({
               {UI_COPY.statsBarHeightTotalTokensHint}
             </div>
           </div>
-          {tokensByPolygon.slice(0, Math.min(tokensByPolygon.length, 6)).map((row) => (
-            <div key={row.polygonId} className="rounded border border-gray-200 bg-white p-3">
-              <div className="flex items-center justify-between gap-2">
+          {tokensByGraphLayer.slice(0, Math.min(tokensByGraphLayer.length, 6)).map((row) => (
+            <div key={row.graphLayerId} className="rounded border border-gray-200 bg-white p-3">
+              <div className="flex items-center justify_between gap-2">
                 <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
-                  Polygon {row.label}
+                  Graph layer {row.label}
                 </div>
                 <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-500'].join(' ')}>
                   {row.nodeCount} nodes, {row.totalTokens} tokens
@@ -378,7 +380,7 @@ export default function PolygonWordFrequenciesSection({
               </div>
               {row.topTokens.length === 0 ? (
                 <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-2 text-gray-500'].join(' ')}>
-                  {UI_COPY.statsNoTokensFoundForPolygonLabel}
+                  {UI_COPY.statsNoTokensFoundForGraphLayerLabel}
                 </div>
               ) : (
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -414,3 +416,4 @@ export default function PolygonWordFrequenciesSection({
     </CollapsibleSection>
   )
 }
+

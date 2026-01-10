@@ -26,10 +26,10 @@ export default function CommunitiesStatsSection({
   toggleStatsToken,
   pinnedCommunityId,
   setPinnedCommunityId,
-  clearPinnedPolygonState,
+  clearPinnedGraphLayerState,
   clearPinnedEdgeState,
   communitySelectionSnapshotRef,
-  polygonSelectionSnapshotRef,
+  graphLayerSelectionSnapshotRef,
   edgeSelectionSnapshotRef,
   captureSelectionSnapshot,
   restoreSelectionSnapshot,
@@ -54,10 +54,10 @@ export default function CommunitiesStatsSection({
   toggleStatsToken: (token: string) => void
   pinnedCommunityId: number | null
   setPinnedCommunityId: (next: number | null) => void
-  clearPinnedPolygonState: () => void
+  clearPinnedGraphLayerState: () => void
   clearPinnedEdgeState: () => void
   communitySelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
-  polygonSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
+  graphLayerSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   edgeSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   captureSelectionSnapshot: () => SelectionSnapshot
   restoreSelectionSnapshot: (snap: SelectionSnapshot | null) => void
@@ -317,9 +317,9 @@ export default function CommunitiesStatsSection({
                       communitySelectionSnapshotRef.current = null
                       return
                     }
-                    clearPinnedPolygonState()
+                    clearPinnedGraphLayerState()
                     clearPinnedEdgeState()
-                    polygonSelectionSnapshotRef.current = null
+                    graphLayerSelectionSnapshotRef.current = null
                     edgeSelectionSnapshotRef.current = null
                     if (!communitySelectionSnapshotRef.current) {
                       communitySelectionSnapshotRef.current = captureSelectionSnapshot()

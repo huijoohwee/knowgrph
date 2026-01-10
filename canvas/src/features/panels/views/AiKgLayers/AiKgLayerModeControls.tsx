@@ -81,7 +81,7 @@ export default function AiKgLayerModeControls({
           layout="keyIconValue"
           keyNode={(
             <Tooltip
-              content="Derived group size → set minimum nodes per document-structure or semantic group → merge smaller groups back into base polygons to keep layers readable."
+              content="Derived group size → set minimum nodes per document-structure or semantic group → merge smaller groups back into base graph layers to keep layers readable."
               maxWidthPx={260}
               contentClassName="bg-gray-800/90"
               className="text-gray-700 break-words"

@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 import type { MutableRefObject, RefObject } from 'react'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import type { NodeGroup } from '@/components/GraphCanvas/polygons'
+import type { NodeGroup } from '@/components/GraphCanvas/graphLayers'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { calcMouseGraphPosition, isNodePointerTarget } from '@/features/canvas/utils'
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
@@ -17,7 +17,7 @@ export const attachSimulationTick = (args: {
   mediaSel?: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null
   linkSel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
   labelsSel: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>
-  polygonSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
+  graphLayersSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
   nodeGroups: NodeGroup[]
   nodes: GraphNode[]
   schema: GraphSchema
@@ -25,8 +25,21 @@ export const attachSimulationTick = (args: {
   width: number
   height: number
 }) => {
-  const { svgEl, simulation, nodeSel, mediaSel, linkSel, labelsSel, polygonSel, nodeGroups, nodes, schema, tidyTreeDerivation, width, height } =
-    args
+  const {
+    svgEl,
+    simulation,
+    nodeSel,
+    mediaSel,
+    linkSel,
+    labelsSel,
+    graphLayersSel,
+    nodeGroups,
+    nodes,
+    schema,
+    tidyTreeDerivation,
+    width,
+    height,
+  } = args
   const nodeById = new Map<string, GraphNode>()
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]
@@ -208,8 +221,8 @@ export const attachSimulationTick = (args: {
       }
     })
 
-    if (polygonSel && nodeGroups.length) {
-      polygonSel.attr('d', group => {
+    if (graphLayersSel && nodeGroups.length) {
+      graphLayersSel.attr('d', group => {
         const ids = group.memberIds
         if (!ids || !ids.length) return ''
         const points: [number, number][] = []

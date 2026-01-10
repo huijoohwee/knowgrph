@@ -25,6 +25,40 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { SCHEMA_SECTION_IDS, UI_COPY, type SchemaSectionId } from '@/lib/config'
 import { useOrchestratorBottomPanelState } from '@/features/panels/hooks/useOrchestratorBottomPanelState'
 
+const INGESTION_METRICS_TIMING_ORDER: string[] = [
+  'totalMs',
+  'buildMarkdownJsonLdMs',
+  'parseJsonLdMs',
+]
+
+const INGESTION_METRIC_TOOLTIP_BY_KEY: Record<string, string> = {
+  totalMs: 'Total time from markdown text to GraphData (ms)',
+  buildMarkdownJsonLdMs: 'Time to build JSON-LD from markdown text (ms)',
+  parseJsonLdMs: 'Time to parse JSON-LD into GraphData (ms)',
+}
+
+const INGESTION_METRIC_LABEL_BY_KEY: Record<string, string> = {
+  totalMs: 'Total',
+  buildMarkdownJsonLdMs: 'JSON-LD build',
+  parseJsonLdMs: 'Graph parse',
+}
+
+const INGESTION_KIND_BADGE_CLASS_BY_KEY: Record<string, string> = {
+  markdown: 'bg-blue-100 text-blue-700 border-blue-200',
+  jsonld: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  rawJson: 'bg-purple-100 text-purple-700 border-purple-200',
+  html: 'bg-orange-100 text-orange-700 border-orange-200',
+  csv: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+}
+
+const INGESTION_KIND_LABEL_BY_KEY: Record<string, string> = {
+  markdown: 'Markdown',
+  jsonld: 'JSON-LD',
+  rawJson: 'JSON',
+  html: 'HTML',
+  csv: 'CSV',
+}
+
 type CodeTextareaHandlers = {
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
   onSelect: (e: React.SyntheticEvent<HTMLTextAreaElement>) => void
@@ -147,6 +181,13 @@ export default function BottomPanelBody({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const ingestionMetrics =
+    graphData &&
+    graphData.metadata &&
+    typeof graphData.metadata === 'object' &&
+    !Array.isArray(graphData.metadata)
+      ? (graphData.metadata as Record<string, unknown>).ingestionMetrics
+      : null
 
   const schemaSectionCollapsedById: Record<SchemaSectionId, boolean> = {
     schemaApplyPresets: schemaUiStep31Collapsed,
@@ -247,6 +288,49 @@ export default function BottomPanelBody({
       )}
 
       <div className="flex-1 min-h-0 overflow-hidden px-3 pb-1">
+        {(tab === 'curation' || tab === 'nodes' || tab === 'edges') &&
+          ingestionMetrics &&
+          typeof ingestionMetrics === 'object' &&
+          !Array.isArray(ingestionMetrics) &&
+          (() => {
+            const record = ingestionMetrics as Record<string, unknown>
+            const kind = typeof record.kind === 'string' ? record.kind : null
+            const kindBadgeClass =
+              kind && INGESTION_KIND_BADGE_CLASS_BY_KEY[kind]
+                ? INGESTION_KIND_BADGE_CLASS_BY_KEY[kind]
+                : 'bg-gray-100 text-gray-600 border-gray-200'
+            const kindLabel = kind && INGESTION_KIND_LABEL_BY_KEY[kind] ? INGESTION_KIND_LABEL_BY_KEY[kind] : kind
+            return (
+              <div className="mb-1 px-2 py-1 border border-gray-200 rounded bg-gray-50">
+                <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 font-medium flex items-center gap-2`}>
+                  {kind && (
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full border text-[0.65rem] uppercase tracking-wide ${kindBadgeClass}`}
+                    >
+                      {kindLabel}
+                    </span>
+                  )}
+                  <span>Ingestion metrics</span>
+                </div>
+                <div className={`${uiPanelKeyValueTextSizeClass} text-gray-600 flex flex-wrap gap-x-3 gap-y-0.5`}>
+                  {INGESTION_METRICS_TIMING_ORDER.map(key => {
+                    const rawValue = record[key]
+                    if (typeof rawValue !== 'number') return null
+                    const label = INGESTION_METRIC_LABEL_BY_KEY[key] || key.replace(/Ms$/, '')
+                    const tooltip = INGESTION_METRIC_TOOLTIP_BY_KEY[key]
+                    return (
+                      <div key={key} className="flex items-baseline gap-1" title={tooltip}>
+                        <span className="uppercase tracking-wide text-[0.65rem] text-gray-400">{label}</span>
+                        <span className="text-gray-800">
+                          {rawValue.toFixed(0)} ms
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
         {tab === 'code' ? (
           <BottomPanelCodeTab
             codeText={codeText}

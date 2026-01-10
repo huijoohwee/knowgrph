@@ -176,7 +176,7 @@ export async function testMarkdownHeadMetaFrontmatterArrays() {
     '    iri: http://www.opengis.net/ont/geosparql#',
     '  - prefix: ro',
     '    iri: https://w3id.org/ro/crate#',
-    'polygonLayers:',
+    'graphLayers:',
     '  - competencyHyperspace',
     '  - performanceSpace',
     '  - classDistributionSpace',
@@ -199,13 +199,13 @@ export async function testMarkdownHeadMetaFrontmatterArrays() {
 
   const meta = headMeta as Record<string, unknown>
   const ontologies = meta.ontologies as unknown
-  const polygonLayers = meta.polygonLayers as unknown
+  const graphLayers = meta.graphLayers as unknown
 
   if (!Array.isArray(ontologies)) {
     throw new Error('headMeta.ontologies is not an array')
   }
-  if (!Array.isArray(polygonLayers)) {
-    throw new Error('headMeta.polygonLayers is not an array')
+  if (!Array.isArray(graphLayers)) {
+    throw new Error('headMeta.graphLayers is not an array')
   }
 
   const expectedOntologies = [
@@ -238,7 +238,7 @@ export async function testMarkdownHeadMetaFrontmatterArrays() {
     }
   }
 
-  const expectedPolygonLayers = [
+  const expectedGraphLayers = [
     'competencyHyperspace',
     'performanceSpace',
     'classDistributionSpace',
@@ -249,17 +249,17 @@ export async function testMarkdownHeadMetaFrontmatterArrays() {
     'assessmentRegion',
   ]
 
-  const polygonLayersStrings = polygonLayers.map(v => String(v || ''))
-  if (polygonLayersStrings.length !== expectedPolygonLayers.length) {
+  const graphLayersStrings = graphLayers.map(v => String(v || ''))
+  if (graphLayersStrings.length !== expectedGraphLayers.length) {
     throw new Error(
-      `headMeta.polygonLayers length ${polygonLayersStrings.length} != ${expectedPolygonLayers.length}`,
+      `headMeta.graphLayers length ${graphLayersStrings.length} != ${expectedGraphLayers.length}`,
     )
   }
 
-  for (let i = 0; i < expectedPolygonLayers.length; i += 1) {
-    if (polygonLayersStrings[i] !== expectedPolygonLayers[i]) {
+  for (let i = 0; i < expectedGraphLayers.length; i += 1) {
+    if (graphLayersStrings[i] !== expectedGraphLayers[i]) {
       throw new Error(
-        `headMeta.polygonLayers[${i}] mismatch: expected ${expectedPolygonLayers[i]}, got ${polygonLayersStrings[i]}`,
+        `headMeta.graphLayers[${i}] mismatch: expected ${expectedGraphLayers[i]}, got ${graphLayersStrings[i]}`,
       )
     }
   }

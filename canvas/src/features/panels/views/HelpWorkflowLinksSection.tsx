@@ -142,7 +142,7 @@ export function HelpWorkflowLinksSection({
               Phases are rendered on the canvas as soft grouped outlines that wrap the steps they own.
             </div>
             <div>
-              Any JSON-LD node with an array property of node ids (or compact IRIs) creates a group polygon around its members; values like
+              Any JSON-LD node with an array property of node ids (or compact IRIs) creates a graph layer surface around its members; values like
               {' '}
               <span className={uiPanelKeyValueTextSizeClass}>
                 steps
@@ -154,7 +154,7 @@ export function HelpWorkflowLinksSection({
                 contains
               </span>
               {' '}
-              work as long as they point at other nodes in the graph. Polygon appearance comes from `schema.metadata["canvas:polygons"]`, which the Main Panel Graph Fields tab exposes as editable polygon presets so teams can tune group colors and opacity without changing renderer code.
+              work as long as they point at other nodes in the graph. Graph layer appearance comes from `schema.metadata["canvas:graphLayers"]`, which the Main Panel Graph Fields tab exposes as editable presets so teams can tune group colors and opacity without changing renderer code.
             </div>
           </div>
           <div className={`mt-0.5 flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>

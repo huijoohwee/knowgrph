@@ -32,8 +32,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setCanvasRenderMode,
     schema,
     setSchema,
-    polygonGroupsVisible,
-    togglePolygonGroupsVisible,
+    graphLayersVisible,
+    toggleGraphLayersVisible,
     fitToScreenMode,
     toggleFitToScreenMode,
     zoomToSelectionMode,
@@ -192,10 +192,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         <LayerModeIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
-        className={`App-toolbar__btn ${polygonGroupsVisible ? 'text-blue-600' : 'text-gray-600'}`}
-        title={UI_LABELS.polygonGroupsMode}
-        tooltipContent={UI_LABELS.polygonGroupsMode}
-        onClick={togglePolygonGroupsVisible}
+        className={`App-toolbar__btn ${graphLayersVisible ? 'text-blue-600' : 'text-gray-600'}`}
+        title={UI_LABELS.graphLayersMode}
+        tooltipContent={UI_LABELS.graphLayersMode}
+        onClick={toggleGraphLayersVisible}
         showTooltip
       >
         <Shapes className={iconSizeClass} strokeWidth={iconStrokeWidth} />

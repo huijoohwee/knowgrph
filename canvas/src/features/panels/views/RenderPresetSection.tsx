@@ -114,20 +114,20 @@ export default function RenderPresetSection({
         })
       }
 
-      if (overrides?.applyPolygonDefaults) {
+      if (overrides?.applyGraphLayerDefaults) {
         const current = schema
         const metadata = current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
           ? current.metadata
           : {}
-        const existingPolygonsRaw = Object.prototype.hasOwnProperty.call(metadata, 'canvas:polygons')
-          ? (metadata['canvas:polygons'] as unknown)
+        const existingGraphLayersRaw = Object.prototype.hasOwnProperty.call(metadata, 'canvas:graphLayers')
+          ? (metadata['canvas:graphLayers'] as unknown)
           : undefined
-        const existingPolygons =
-          existingPolygonsRaw && typeof existingPolygonsRaw === 'object' && !Array.isArray(existingPolygonsRaw)
-            ? (existingPolygonsRaw as Record<string, unknown>)
+        const existingGraphLayersMeta =
+          existingGraphLayersRaw && typeof existingGraphLayersRaw === 'object' && !Array.isArray(existingGraphLayersRaw)
+            ? (existingGraphLayersRaw as Record<string, unknown>)
             : {}
-        const existingDefaultStyleRaw = Object.prototype.hasOwnProperty.call(existingPolygons, 'defaultStyle')
-          ? (existingPolygons.defaultStyle as unknown)
+        const existingDefaultStyleRaw = Object.prototype.hasOwnProperty.call(existingGraphLayersMeta, 'defaultStyle')
+          ? (existingGraphLayersMeta.defaultStyle as unknown)
           : undefined
         const existingDefaultStyle =
           existingDefaultStyleRaw &&
@@ -151,15 +151,15 @@ export default function RenderPresetSection({
         if (typeof nextDefaultStyle.strokeWidth !== 'number' || !Number.isFinite(nextDefaultStyle.strokeWidth as number)) {
           nextDefaultStyle.strokeWidth = 1.0
         }
-        const nextPolygonsMeta: Record<string, unknown> = {
-          ...existingPolygons,
+        const nextGraphLayersMeta: Record<string, unknown> = {
+          ...existingGraphLayersMeta,
           defaultStyle: nextDefaultStyle,
         }
         const nextSchema: GraphSchema = {
           ...current,
           metadata: {
             ...metadata,
-            'canvas:polygons': nextPolygonsMeta as JSONValue,
+            'canvas:graphLayers': nextGraphLayersMeta as JSONValue,
           },
         }
         setSchema(nextSchema)

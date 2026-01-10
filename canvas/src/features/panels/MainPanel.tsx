@@ -10,7 +10,7 @@ import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeader'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { HelpCircle, MonitorPlay, Settings, Workflow, Shapes } from 'lucide-react'
+import { HelpCircle, MonitorPlay, Settings, Workflow } from 'lucide-react'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import GraphLayerView from '@/features/panels/views/GraphLayerView'
 
@@ -116,15 +116,13 @@ export default function MainPanel({
       collapsed={collapsed}
       searchVisible={
         searchOpen &&
-        (tab === 'help' || tab === 'graphFields' || tab === 'graphLayer' || tab === 'settings')
+        (tab === 'help' || tab === 'graphFields' || tab === 'settings')
       }
       searchPlaceholder={
         tab === 'help'
           ? UI_COPY.searchShortcutsPlaceholder
           : tab === 'graphFields'
           ? UI_COPY.searchFieldsPlaceholder
-          : tab === 'graphLayer'
-          ? UI_COPY.searchSettingsPlaceholder
           : tab === 'settings'
           ? UI_COPY.searchSettingsPlaceholder
           : 'Search'
@@ -134,7 +132,7 @@ export default function MainPanel({
       tabs={[
         { key: 'workflow', label: 'Workflow' },
         { key: 'graphFields', label: UI_LABELS.graphFields },
-        { key: 'graphLayer', label: UI_LABELS.polygonGroupsMode },
+        { key: 'graphLayer', label: UI_LABELS.graphLayersMode },
         { key: 'preview', label: UI_LABELS.previewPanel },
         { key: 'settings', label: UI_LABELS.settings },
         { key: 'help', label: UI_LABELS.help },
@@ -157,7 +155,7 @@ export default function MainPanel({
             />
           )
         },
-        graphLayer: Shapes,
+        graphLayer: MonitorPlay,
         preview: MonitorPlay,
         settings: Settings,
         help: HelpCircle,
@@ -175,7 +173,7 @@ export default function MainPanel({
           onPinToggle={onPinToggle}
           pinned={pinned}
           onSearchToggle={
-            tab === 'help' || tab === 'graphFields' || tab === 'graphLayer' || tab === 'settings'
+            tab === 'help' || tab === 'graphFields' || tab === 'settings'
               ? () => setSearchOpen(v => !v)
               : undefined
           }
@@ -201,12 +199,12 @@ export default function MainPanel({
               ? graphFieldsStatus
               : tab === 'workflow'
               ? UI_LABELS.ragGraphRAGWorkflow
+              : tab === 'graphLayer'
+              ? UI_LABELS.graphLayersMode
               : tab === 'preview'
               ? UI_LABELS.previewPanel
               : tab === 'settings'
               ? UI_LABELS.settings
-              : tab === 'graphLayer'
-              ? UI_LABELS.polygonGroupsMode
               : UI_LABELS.help}
           </div>
           {traversalChip && (

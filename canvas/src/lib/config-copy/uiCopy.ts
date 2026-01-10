@@ -345,13 +345,13 @@ export const UI_COPY = {
   statsHideChartLabel: 'Hide chart',
   statsSelectAllLabel: 'Select all',
   statsNoNodesAvailableLabel: 'No nodes available.',
-  statsNoTokensFoundForPolygonLabel: 'No tokens found for this polygon.',
+  statsNoTokensFoundForGraphLayerLabel: 'No tokens found for this graph layer.',
   statsSelectNodesToSeeTokenFrequenciesLabel: 'Select one or more nodes to see token frequencies.',
   statsSelectEdgeToSeeValuesLabel: 'Select an edge to see similarity/co-occurrence values.',
-  statsOpenRendererSettingsForPolygonsTitle: 'Open renderer settings for polygons',
+  statsOpenRendererSettingsForGraphLayersTitle: 'Open renderer settings for graph layers',
   statsOpenRendererSettingsForCommunitiesTitle: 'Open renderer settings for communities',
   statsOpenRendererSettingsForSemanticEdgesTitle: 'Open renderer settings for semantic edges',
-  statsBarHeightTotalTokensHint: 'Bar height: total tokens (hover/click to highlight polygon nodes)',
+  statsBarHeightTotalTokensHint: 'Bar height: total tokens (hover/click to highlight graph layer nodes)',
   statsBarHeightSimilarityWeightHint: (metricLabel: string) =>
     `Bar height: ${metricLabel} weight (click to highlight edges)`,
   bottomPanelExternalPreviewMissingCodebasePathLabel:

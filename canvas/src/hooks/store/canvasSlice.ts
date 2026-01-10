@@ -8,9 +8,14 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   canvasPos: { x: 0, y: 0 } as { x: number; y: number },
   setCanvasDims: (d: { w: number; h: number }) => set({ canvasDims: { w: Math.max(1, d.w), h: Math.max(1, d.h) } }),
   setCanvasPos: (p: { x: number; y: number }) => set({ canvasPos: { x: Math.max(0, p.x), y: Math.max(0, p.y) } }),
-  polygonGroupsVisible: true as boolean,
-  setPolygonGroupsVisible: (v: boolean) => set({ polygonGroupsVisible: !!v }),
-  togglePolygonGroupsVisible: () => set(state => ({ polygonGroupsVisible: !(state.polygonGroupsVisible || false) })),
+  graphLayersVisible: true as boolean,
+  setGraphLayersVisible: (v: boolean) => set({ graphLayersVisible: !!v }),
+  toggleGraphLayersVisible: () => set(state => ({ graphLayersVisible: !(state.graphLayersVisible || false) })),
+  activeLayerBandIndex: null as number | null,
+  setActiveLayerBandIndex: (v: number | null) => {
+    const n = typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null
+    set({ activeLayerBandIndex: n })
+  },
   fitToScreenMode: true as boolean,
   setFitToScreenMode: (v: boolean) => set({ fitToScreenMode: !!v }),
   toggleFitToScreenMode: () => set(state => ({ fitToScreenMode: !state.fitToScreenMode })),

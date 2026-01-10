@@ -13,7 +13,7 @@ export const UI_ANCHORS = {
   ragGraphRAGWorkflow: 'rag:GraphRAGWorkflow',
   searchNode: 'search:node',
   searchEdge: 'search:edge',
-  helpLayerPolygons: 'help:layerPolygons',
+  helpGraphLayers: 'help:graphLayers',
 } as const;
 
 export type UiAnchorId = (typeof UI_ANCHORS)[keyof typeof UI_ANCHORS];
@@ -106,7 +106,7 @@ export const UI_LABELS = {
   zoomToSelection: 'Zoom to Selection',
   multiSelectMode: 'Multi-select Mode',
   layerMode: 'Layer Mode',
-  polygonGroupsMode: 'Group Polygons',
+  graphLayersMode: 'Graph Layers',
   radialLayoutMode: 'Radial Layout',
   tidyTreeLayoutMode: 'Tidy Tree Mode',
   dragToReorder: 'Drag to reorder',

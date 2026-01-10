@@ -16,7 +16,7 @@ export type NodeGroup = {
   }
 }
 
-export type PolygonGroupStyle = {
+export type GraphLayerGroupStyle = {
   fill: string
   fillOpacity: number
   stroke: string
@@ -135,14 +135,14 @@ export const buildNodeGroupsFromSchema = (graphData: GraphData, schema: GraphSch
   return buildNodeGroups(graphData)
 }
 
-export const getPolygonStyleForGroup = (args: {
+export const getGraphLayerStyleForGroup = (args: {
   group: NodeGroup
   graphData: GraphData
   schema: GraphSchema
-}): PolygonGroupStyle => {
+}): GraphLayerGroupStyle => {
   const { group, graphData, schema } = args
 
-  const base: PolygonGroupStyle = {
+  const base: GraphLayerGroupStyle = {
     fill: '#E5E7EB',
     fillOpacity: 0.22,
     stroke: '#9CA3AF',
@@ -164,11 +164,13 @@ export const getPolygonStyleForGroup = (args: {
   const ownerType = group.meta?.ownerType ?? (owner ? String(owner.type || '') : '')
 
   const metadata = schema && schema.metadata && isRecord(schema.metadata) ? schema.metadata : null
-  const polygonMetaRaw = metadata && Object.prototype.hasOwnProperty.call(metadata, 'canvas:polygons')
-    ? (metadata['canvas:polygons'] as JSONValue | undefined)
+  const hasGraphLayersMeta =
+    metadata && Object.prototype.hasOwnProperty.call(metadata, 'canvas:graphLayers')
+  const graphLayersMetaRaw = hasGraphLayersMeta
+    ? (metadata['canvas:graphLayers'] as JSONValue | undefined)
     : undefined
 
-  const style: PolygonGroupStyle = { ...base }
+  const style: GraphLayerGroupStyle = { ...base }
 
   if (group.meta?.groupBy === 'community') {
     const first = group.memberIds.length > 0 ? nodeById.get(String(group.memberIds[0])) : null
@@ -183,8 +185,8 @@ export const getPolygonStyleForGroup = (args: {
     }
   }
 
-  if (polygonMetaRaw && isRecord(polygonMetaRaw)) {
-    const meta = polygonMetaRaw
+  if (graphLayersMetaRaw && isRecord(graphLayersMetaRaw)) {
+    const meta = graphLayersMetaRaw
 
     const defaultStyleRaw = 'defaultStyle' in meta ? meta.defaultStyle : undefined
     if (defaultStyleRaw && isRecord(defaultStyleRaw)) {
@@ -277,7 +279,7 @@ export const getPolygonStyleForGroup = (args: {
     }
   }
 
-  if (!polygonMetaRaw) {
+  if (!graphLayersMetaRaw) {
     if (ownerType && schema.nodeStyles && schema.nodeStyles[ownerType] && schema.nodeStyles[ownerType]?.color) {
       const c = schema.nodeStyles[ownerType]?.color
       if (typeof c === 'string' && c.trim()) {
@@ -292,15 +294,15 @@ export const getPolygonStyleForGroup = (args: {
   return style
 }
 
-export const createPolygonsLayer = (args: {
+export const createGraphLayersLayer = (args: {
   g: GSelection
   nodeGroups: NodeGroup[]
   graphData: GraphData
   schema: GraphSchema
-  polygonsVisible: boolean
+  graphLayersVisible: boolean
 }) => {
-  const { g, nodeGroups, graphData, schema, polygonsVisible } = args
-  if (!nodeGroups.length || !polygonsVisible) {
+  const { g, nodeGroups, graphData, schema, graphLayersVisible } = args
+  if (!nodeGroups.length || !graphLayersVisible) {
     return null
   }
   const layerRoot = g.append('g').attr('data-kg-layer', 'node-groups')
@@ -309,11 +311,12 @@ export const createPolygonsLayer = (args: {
     .data(nodeGroups, d => d.id)
     .enter()
     .append('path')
-    .attr('fill', group => getPolygonStyleForGroup({ group, graphData, schema }).fill)
-    .attr('fill-opacity', group => getPolygonStyleForGroup({ group, graphData, schema }).fillOpacity)
-    .attr('stroke', group => getPolygonStyleForGroup({ group, graphData, schema }).stroke)
-    .attr('stroke-width', group => getPolygonStyleForGroup({ group, graphData, schema }).strokeWidth)
-    .attr('stroke-dasharray', group => getPolygonStyleForGroup({ group, graphData, schema }).dash)
+    .attr('fill', group => getGraphLayerStyleForGroup({ group, graphData, schema }).fill)
+    .attr('fill-opacity', group => getGraphLayerStyleForGroup({ group, graphData, schema }).fillOpacity)
+    .attr('stroke', group => getGraphLayerStyleForGroup({ group, graphData, schema }).stroke)
+    .attr('stroke-width', group => getGraphLayerStyleForGroup({ group, graphData, schema }).strokeWidth)
+    .attr('stroke-dasharray', group => getGraphLayerStyleForGroup({ group, graphData, schema }).dash)
     .style('pointer-events', 'none')
   return layer as d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
 }
+

@@ -87,8 +87,8 @@ export const TRAVERSAL_PRESETS_SECTION_TOOLTIP = buildRoleActionOutcomeTooltip({
 export const TRAVERSAL_EDITOR_AND_LAYERS_SECTION_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Traversal editor and Graph Layer',
   actions: [
-    'edit traversal delay and traversal helpers over AgenticRAG GraphData while keeping layer mode and polygon groups centralized in the Graph Layer tab',
-    'coordinate Orchestrator playback, tracing overlays, and 2D/3D Renderer appearance with schema.layers and polygon defaults configured from the Graph Layer view',
+    'edit traversal delay and traversal helpers over AgenticRAG GraphData while keeping layer mode and graph layers centralized in the Graph Layer tab',
+    'coordinate Orchestrator playback, tracing overlays, and 2D/3D Renderer appearance with schema.layers and graph layer defaults configured from the Graph Layer view',
   ],
   outcome:
     'produce readable, repeatable graph navigation tuned to current AgenticRAG graph state.',
@@ -98,10 +98,10 @@ export const AI_KG_LAYER_MODE_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'AI‑KG layer mode',
   actions: [
     'toggle schema.layers.mode between property, document-structure, and semantic in the Render tab and FloatingPanel Renderer view',
-    'use document-structure and semantic modes to drive convex hull polygons instead of rendering Document, Section, Paragraph, CodeBlock, List, ListItem, and Table as standalone nodes',
+    'use document-structure and semantic modes to drive convex hull graph layers instead of rendering Document, Section, Paragraph, CodeBlock, List, ListItem, and Table as standalone nodes',
   ],
   outcome:
-    'align AI‑KG canvas layering with AgenticRAG-friendly document and semantic group surfaces so exported JSON-LD graphs, polygons, and traversal overlays share the same schema.layers contract.',
+    'align AI‑KG canvas layering with AgenticRAG-friendly document and semantic group surfaces so exported JSON-LD graphs, graph layers, and traversal overlays share the same schema.layers contract.',
 });
 
 export const AI_KG_SEMANTIC_METRIC_TOOLTIP = buildRoleActionOutcomeTooltip({
@@ -118,10 +118,10 @@ export const AI_KG_SEMANTIC_TOPK_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Semantic edge sparsity',
   actions: [
     'tune schema.layers.semantic.topKEdgesPerNode to control how many strongest PMI/cosine neighbors each node keeps in the semantic layer',
-    'balance cluster readability and coverage by limiting edges per node before community detection and polygon generation',
+    'balance cluster readability and coverage by limiting edges per node before community detection and graph layer generation',
   ],
   outcome:
-    'let curators tighten or relax semantic edge density in a dataset-agnostic way so communities, traversal overlays, and group polygons stay legible without hard-coding graph-specific thresholds.',
+    'let curators tighten or relax semantic edge density in a dataset-agnostic way so communities, traversal overlays, and graph layers stay legible without hard-coding graph-specific thresholds.',
 });
 
 export const AI_KG_SEMANTIC_MIN_SIMILARITY_TOOLTIP = buildRoleActionOutcomeTooltip({

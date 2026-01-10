@@ -37,7 +37,7 @@ All identifiers use the neutral `ex:` prefix (`http://example.org/assessment#`) 
   - Purpose: neutral starting point for schema-configs that style and layer graphs aligned with `/schema/AgenticRAG`.
 - Graph-data template:
   - Path: `schema-config/knowgrph-graph-data-template.jsonld`.
-  - Purpose: neutral, multi-ontology JSON-LD graph stub that LLMs and tools can use as a reference when generating Knowgrph-compatible graph data with populated `metadata.ontologies` and `metadata.polygonLayers` arrays.
+  - Purpose: neutral, multi-ontology JSON-LD graph stub that LLMs and tools can use as a reference when generating Knowgrph-compatible graph data with populated `metadata.ontologies` and `metadata.graphLayers` arrays (with `metadata.polygonLayers` treated as a deprecated alias when present).
 - Multi-ontology schema-config:
   - Path: `schema-config/knowgrph-interviewer-schema-config.jsonld`.
   - Purpose: acts as the schema-config for the multi-ontology dataset and remains fully domain-neutral.
@@ -53,7 +53,7 @@ Highlights:
   - `CreativeWork` marks the RO-Crate root entity.
 - Layer behavior:
   - `layers.mode` is set to `"semantic"` so the semantic view is the default.
-  - `layers.semantic.hiddenNodeTypes` includes `["geo:Polygon"]` so polygon clusters are hidden in semantic mode but remain available in other layers.
+  - `layers.semantic.hiddenNodeTypes` includes `["geo:Polygon"]` so graph-layer clusters are hidden in semantic mode but remain available in other layers.
   - Similarity configuration (`similarityMetric`, `similarityEdgeLabel`, `minSimilarity`, `topKEdgesPerNode`) uses the same neutral presets as other schema-config examples.
 
 This schema-config does not encode any brand-specific or programme-specific identifiers; it only styles ontology terms.
@@ -91,20 +91,20 @@ End-to-end flow in canvas:
 
 This preserves the full multi-ontology structure while keeping the implementation neutral and configuration-driven.
 
-## Schema summary UI for ontologies and polygon layers
+## Schema summary UI for ontologies and graph layers
 
-When a loaded `GraphData` instance exposes `metadata.ontologies` and `metadata.polygonLayers` arrays (either populated directly in JSON-LD or derived from markdown frontmatter), the canvas Schema Summary panel surfaces a compact chip:
+When a loaded `GraphData` instance exposes `metadata.ontologies` and `metadata.graphLayers` arrays (either populated directly in JSON-LD or derived from markdown frontmatter), the canvas Schema Summary panel surfaces a compact chip:
 
-- Label: `Ontologies: N · Polygon layers: M` (only the non-zero side is shown).
+- Label: `Ontologies: N · Graph layers: M` (only the non-zero side is shown).
 - Source of truth:
-  - Markdown ingestion: frontmatter keys `ontologies` (array of `{prefix, iri}` objects) and `polygonLayers` (string array) flow into `graph_jsonld.metadata.ontologies` and `graph_jsonld.metadata.polygonLayers`.
-  - JSON-LD ingestion: pre-populated `metadata.ontologies` and `metadata.polygonLayers` arrays are used as-is.
+  - Markdown ingestion: frontmatter keys `ontologies` (array of `{prefix, iri}` objects) and `graphLayers` (string array) flow into `graph_jsonld.metadata.ontologies` and `graph_jsonld.metadata.graphLayers`.
+  - JSON-LD ingestion: pre-populated `metadata.ontologies` and `metadata.graphLayers` arrays are used as-is.
 - Hover behavior:
-  - A tooltip explains that the counts come from markdown frontmatter or JSON-LD `GraphData.metadata` and that the chip links to additional Help copy on multi-ontology graphs and polygon groups.
+  - A tooltip explains that the counts come from markdown frontmatter or JSON-LD `GraphData.metadata` and that the chip links to additional Help copy on multi-ontology graphs and graph layers.
 - Click behavior:
-  - Clicking the chip opens the main panel Help tab so users can jump into the Help sections that describe semantic/document-structure/property layers and polygon group behavior for multi-ontology graphs.
+  - Clicking the chip opens the main panel Help tab so users can jump into the Help sections that describe semantic/document-structure/property layers and graph-layer behavior for multi-ontology graphs.
 
-This keeps ontology and polygon-layer provenance visible at a glance while preserving the configuration-driven contract: counts are derived from `GraphData.metadata` rather than any hardcoded ontology list.
+This keeps ontology and graph-layer provenance visible at a glance while preserving the configuration-driven contract: counts are derived from `GraphData.metadata` rather than any hardcoded ontology list.
 
 ## Markdown architecture documents → multi-ontology graphs
 

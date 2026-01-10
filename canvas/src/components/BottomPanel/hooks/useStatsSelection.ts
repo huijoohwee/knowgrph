@@ -21,18 +21,18 @@ export function useStatsSelection() {
     [data, schema],
   )
 
-  const polygonSelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)
+  const graphLayerSelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)
   const edgeSelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)
   const communitySelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)
 
-  const [pinnedPolygonId, setPinnedPolygonId] = React.useState<string | null>(null)
+  const [pinnedGraphLayerId, setPinnedGraphLayerId] = React.useState<string | null>(null)
   const [pinnedEdgeId, setPinnedEdgeId] = React.useState<string | null>(null)
   const [pinnedCommunityId, setPinnedCommunityId] = React.useState<number | null>(null)
 
   const selectionInputsForStats = React.useMemo(() => {
     const snap =
-      pinnedPolygonId != null
-        ? polygonSelectionSnapshotRef.current
+      pinnedGraphLayerId != null
+        ? graphLayerSelectionSnapshotRef.current
         : pinnedEdgeId != null
           ? edgeSelectionSnapshotRef.current
           : pinnedCommunityId != null
@@ -40,7 +40,7 @@ export function useStatsSelection() {
             : null
     if (snap) return snap
     return { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds }
-  }, [pinnedCommunityId, pinnedEdgeId, pinnedPolygonId, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+  }, [pinnedCommunityId, pinnedEdgeId, pinnedGraphLayerId, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
 
   const selectionSubgraph = React.useMemo<GraphData | null>(() => {
     const graph = derivedGraph as GraphData | null
@@ -138,13 +138,13 @@ export function useStatsSelection() {
     statsLod,
     setStatsLod,
     effectiveLod,
-    pinnedPolygonId,
-    setPinnedPolygonId,
+    pinnedGraphLayerId,
+    setPinnedGraphLayerId,
     pinnedEdgeId,
     setPinnedEdgeId,
     pinnedCommunityId,
     setPinnedCommunityId,
-    polygonSelectionSnapshotRef,
+    graphLayerSelectionSnapshotRef,
     edgeSelectionSnapshotRef,
     communitySelectionSnapshotRef,
     captureSelectionSnapshot,

@@ -67,12 +67,14 @@ export default function SchemaSummary({
     metadata && Object.prototype.hasOwnProperty.call(metadata, 'ontologies')
       ? (metadata.ontologies as unknown)
       : null
-  const polygonLayersRaw =
-    metadata && Object.prototype.hasOwnProperty.call(metadata, 'polygonLayers')
-      ? (metadata.polygonLayers as unknown)
-      : null
+  const graphLayersRaw =
+    metadata && Object.prototype.hasOwnProperty.call(metadata, 'graphLayers')
+      ? (metadata.graphLayers as unknown)
+      : metadata && Object.prototype.hasOwnProperty.call(metadata, 'polygonLayers')
+        ? (metadata.polygonLayers as unknown)
+        : null
   const ontologiesCount = Array.isArray(ontologiesRaw) ? ontologiesRaw.length : 0
-  const polygonLayersCount = Array.isArray(polygonLayersRaw) ? polygonLayersRaw.length : 0
+  const graphLayersCount = Array.isArray(graphLayersRaw) ? graphLayersRaw.length : 0
 
   const hasSchema = nodeTypes > 0 || edgeLabels > 0
   const hasData = nodesCount > 0 || edgesCount > 0
@@ -203,18 +205,18 @@ export default function SchemaSummary({
       </Tooltip>,
     )
   }
-  if (ontologiesCount > 0 || polygonLayersCount > 0) {
+  if (ontologiesCount > 0 || graphLayersCount > 0) {
     const parts: string[] = []
     if (ontologiesCount > 0) {
       parts.push(`Ontologies: ${ontologiesCount}`)
     }
-    if (polygonLayersCount > 0) {
-      parts.push(`Polygon layers: ${polygonLayersCount}`)
+    if (graphLayersCount > 0) {
+      parts.push(`Graph layers: ${graphLayersCount}`)
     }
     sections.push(
       <Tooltip
         key="ontologies"
-        content="Counts come from markdown frontmatter ontologies/polygonLayers or GraphData metadata. Click to open Help on multi-ontology graphs and polygon groups."
+        content="Counts come from markdown frontmatter ontologies/graphLayers (polygonLayers alias) or GraphData metadata. Click to open Help on multi-ontology graphs and graph layers."
         maxWidthPx={260}
         contentClassName="bg-gray-800/90"
       >
@@ -229,7 +231,7 @@ export default function SchemaSummary({
                 )
                 window.dispatchEvent(
                   new CustomEvent('kg:helpScrollToAnchor', {
-                    detail: { anchor: UI_ANCHORS.helpLayerPolygons },
+                    detail: { anchor: UI_ANCHORS.helpGraphLayers },
                   }),
                 )
               }

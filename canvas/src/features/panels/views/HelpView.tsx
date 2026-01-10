@@ -255,7 +255,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
             </div>
             <div>
               <div className="text-xs font-semibold text-gray-500 mb-1">
-                Layer order and polygons (semantic → document‑structure → property: “Similarity clusters (semantic)” → “Layered structure (document)” → “Raw data (schema)”)
+                Layer order and graph layers (semantic → document‑structure → property: “Similarity clusters (semantic)” → “Layered structure (document)” → “Raw data (schema)”)
               </div>
               <div className="text-[11px] text-gray-600 leading-snug space-y-1">
                 <p>
@@ -265,10 +265,10 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                   Document‑structure mode keeps all nodes and edges visible but assigns a `visual:layer` to structural block types such as Document, Section, Paragraph, List, ListItem, CodeBlock, and Table so 2D/3D renderers can apply per‑layer opacity while preserving the original layout. Property mode leaves nodes and edges unchanged and derives groups only from array‑valued properties (for example owner→items lists) without semantic overlays.
                 </p>
                 <p>
-                  When Polygon groups are enabled from the Graph Layer view, semantic mode uses `visual:community` and `visual:fill` from the similarity graph to draw convex hull polygons around community clusters so regions approximate semantic neighborhoods rather than raw layout. Document‑structure and property modes continue to respect the same underlying node positions but polygon groups fall back to array‑based membership, keeping community hulls tightly aligned with the active layer semantics.
+                  When Graph Layers are enabled from the Graph Layer view, semantic mode uses `visual:community` and `visual:fill` from the similarity graph to draw convex hull overlays around community clusters so regions approximate semantic neighborhoods rather than raw layout. Document‑structure and property modes continue to respect the same underlying node positions but graph layer overlays fall back to array‑based membership, keeping hulls tightly aligned with the active layer semantics.
                 </p>
                 <p>
-                  The top‑bar Graph Layer button (Shapes icon) is a view‑only toggle for polygon hull overlays on the canvas; it flips the same polygonGroupsVisible flag without changing schema.layers.mode or opening the Graph Layer panel.
+                  The top‑bar Graph Layer button (Shapes icon) is a view‑only toggle for graph layer hull overlays on the canvas; it flips the same graphLayersVisible flag without changing schema.layers.mode or opening the Graph Layer panel.
                 </p>
               </div>
             </div>

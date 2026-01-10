@@ -56,7 +56,7 @@
   - `layers.documentStructure`:
     - `structuralNodeTypes`: list of structural node types derived from `layersFromGraph.documentStructure.nodeTypes`.
     - `structuralEdgeLabels`: list of structural edge labels derived from `layersFromGraph.documentStructure.edgeLabels`.
-    - `minGroupSize`: minimum group size used by polygon grouping and related aggregations.
+    - `minGroupSize`: minimum group size used by graph-layer grouping and related aggregations.
   - `layers.property`:
     - Uses the schema-config’s node/edge types and `layersFromGraph.property.*` containers to render the raw graph without semantic overlays.
 
@@ -78,4 +78,4 @@
   - Curators and tools remain free to override `schema-config.metadata.layers` and corpus presets without changing parser code.
 - Domain-agnostic contracts:
   - No dataset or project names appear in metadata contracts.
-  - All behavior (hidden node types, similarity thresholds, polygon grouping) is driven by `metadata.layers`, `metadata.corpusSizePresets`, and schema-config fields instead of hardcoded domain logic.
+  - All behavior (hidden node types, similarity thresholds, graph-layer grouping) is driven by `metadata.layers`, `metadata.corpusSizePresets`, and schema-config fields instead of hardcoded domain logic.
