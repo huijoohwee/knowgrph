@@ -268,6 +268,9 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                   When Graph Layers are enabled from the Graph Layer view, semantic mode uses `visual:community` and `visual:fill` from the similarity graph to draw convex hull overlays around community clusters so regions approximate semantic neighborhoods rather than raw layout. Document‑structure and property modes continue to respect the same underlying node positions but graph layer overlays fall back to array‑based membership, keeping hulls tightly aligned with the active layer semantics.
                 </p>
                 <p>
+                  The Graph Layer view also exposes a small “Lifecycle tags for layers” helper that writes lifecycle tags such as idea, hypothesis, execution, pivot, and alert into the selected owner node&apos;s properties.tags so graph layer hull colors and node palette colors stay aligned with the renderer lifecycle legend.
+                </p>
+                <p>
                   The top‑bar Graph Layer button (Shapes icon) is a view‑only toggle for graph layer hull overlays on the canvas; it flips the same graphLayersVisible flag without changing schema.layers.mode or opening the Graph Layer panel.
                 </p>
               </div>

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import duckdb  # type: ignore
@@ -139,8 +139,8 @@ def get_example_duckdb_query_by_id(preset_id: str, config_path: str) -> Dict[str
 
 def run_example_duckdb_query(
     preset_id: str,
-    config_path: str | None = None,
-    db_path: str | None = None,
+    config_path: Optional[str] = None,
+    db_path: Optional[str] = None,
 ) -> Tuple[List[str], List[Tuple[Any, ...]]]:
     if duckdb is None:
         raise RuntimeError("duckdb package is not installed")
@@ -178,8 +178,8 @@ def run_example_duckdb_query(
 
 def run_example_duckdb_query_cli(
     preset_id: str,
-    config_path: str | None = None,
-    db_path: str | None = None,
+    config_path: Optional[str] = None,
+    db_path: Optional[str] = None,
 ) -> None:
     columns, rows = run_example_duckdb_query(preset_id, config_path=config_path, db_path=db_path)
     if columns:
@@ -187,4 +187,3 @@ def run_example_duckdb_query_cli(
     for row in rows:
         values = ["" if value is None else str(value) for value in row]
         print("\t".join(values))
-

@@ -1,8 +1,9 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
+import { defaultSchema, MVP_COLOR_PALETTE, type GraphSchema } from '@/lib/graph/schema'
 import { computeNodeVisual, type SelectionHighlightParams } from '@/components/GraphCanvas/highlight'
 import { getLayerOpacity, getNodeBaseFill } from '@/components/GraphCanvas/helpers'
 import { deriveGraphDataForLayers } from '@/lib/graph/layerDerivation'
+import { getGraphLayerStyleForGroup, type NodeGroup } from '@/components/GraphCanvas/graphLayers'
 
 const makeBaseSchema = (): GraphSchema => ({
   ...defaultSchema,
@@ -195,5 +196,55 @@ export function testLayerModeNodeBaseFillConsistentAcrossModes() {
   }
   if (fillSemantic !== fillProperty) {
     throw new Error(`expected semantic mode base fill to match property mode, got property=${fillProperty} semantic=${fillSemantic}`)
+  }
+}
+
+export function testGraphLayerUsesRendererPaletteTagColors() {
+  const schema: GraphSchema = {
+    ...defaultSchema,
+  }
+
+  const owner: GraphNode = {
+    id: 'owner-1',
+    type: 'Entity',
+    label: 'Owner',
+    properties: {
+      tags: ['alert'],
+    },
+  }
+
+  const member: GraphNode = {
+    id: 'member-1',
+    type: 'Entity',
+    label: 'Member',
+    properties: {},
+  }
+
+  const data: GraphData = {
+    type: 'Graph',
+    nodes: [owner, member],
+    edges: [],
+  }
+
+  const group: NodeGroup = {
+    id: 'owner-1::items',
+    memberIds: ['member-1'],
+    meta: {
+      groupBy: 'property',
+      ownerId: 'owner-1',
+      ownerType: 'Entity',
+      propertyKey: 'items',
+    },
+  }
+
+  const style = getGraphLayerStyleForGroup({
+    group,
+    graphData: data,
+    schema,
+  })
+
+  const expected = MVP_COLOR_PALETTE.nodes.alert
+  if (style.fill !== expected || style.stroke !== expected) {
+    throw new Error(`expected graph layer style to use renderer:palette alert color ${expected}, got fill=${style.fill} stroke=${style.stroke}`)
   }
 }

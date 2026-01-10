@@ -323,6 +323,15 @@ export const RENDERER_LAYOUT_MODE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
 export const RENDERER_LAYOUT_MODE_VALUE_TOOLTIP =
   'Default: force; Options: force, radial, tidy-tree; radial/tidy-tree switch to 2D.';
 
+export const RENDERER_PALETTE_LIFECYCLE_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'Renderer palette lifecycle roles',
+  actions: [
+    'map renderer:palette.nodes.idea/hypothesis/execution/pivot/alert to lifecycle buckets',
+  ],
+  outcome:
+    'keep blue/yellow/green/orange/red colors aligned with core ideas, hypotheses, execution, pivots, and alerts.',
+});
+
 export const RENDERER_TIDY_TREE_CURVE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Renderer tidy-tree curve',
   actions: [

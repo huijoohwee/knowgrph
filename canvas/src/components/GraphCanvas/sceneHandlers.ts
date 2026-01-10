@@ -233,9 +233,17 @@ export const attachSimulationTick = (args: {
           const x = typeof node.x === 'number' ? node.x : null
           const y = typeof node.y === 'number' ? node.y : null
           if (x == null || y == null || !Number.isFinite(x) || !Number.isFinite(y)) continue
-          points.push([x, y])
+          const r = getRenderNodeRadius2d(node, schema)
+          const radius = Number.isFinite(r) && r > 0 ? r : 10
+          const step = Math.PI / 4
+          for (let angle = 0; angle < Math.PI * 2; angle += step) {
+            const px = x + radius * Math.cos(angle)
+            const py = y + radius * Math.sin(angle)
+            if (!Number.isFinite(px) || !Number.isFinite(py)) continue
+            points.push([px, py])
+          }
         }
-        if (points.length < 2) return ''
+        if (points.length < 3) return ''
         const hull = d3.polygonHull(points) ?? points
         if (!hull || hull.length === 0) return ''
         const path = d3.path()

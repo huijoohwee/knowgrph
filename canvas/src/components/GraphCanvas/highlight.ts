@@ -210,9 +210,9 @@ export const computeNodeVisual = (
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
       return {
-        fill: '#3B82F6',
+        fill: '#007BFF',
         opacity: isMediaNode ? mediaOpacity : 1,
-        stroke: '#3B82F6',
+        stroke: '#007BFF',
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
@@ -233,9 +233,9 @@ export const computeNodeVisual = (
         opacity *= 0.2
       }
       return {
-        fill: '#3B82F6',
+        fill: '#007BFF',
         opacity,
-        stroke: '#3B82F6',
+        stroke: '#007BFF',
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
@@ -324,7 +324,7 @@ export const computeEdgeVisual = (
     selectionSets ?? deriveSelectionSets(params)
   if (selectedEdgeIdSet.size > 0) {
     const isSelected = selectedEdgeIdSet.has(edge.id)
-    const stroke = isSelected ? '#3B82F6' : getEdgeBaseStroke(edge, schema)
+    const stroke = isSelected ? '#007BFF' : getEdgeBaseStroke(edge, schema)
     const opacity = isSelected ? 0.9 : 0.2
     const width = isSelected ? getEdgeStrokeWidth(edge, schema) * 1.5 : getEdgeStrokeWidth(edge, schema)
     return { stroke, opacity, width }
@@ -351,7 +351,7 @@ export const computeEdgeVisual = (
     return { stroke: baseStroke, opacity: baseOpacity, width: baseWidth }
   }
   if (isHighlighted) {
-    return { stroke: '#3B82F6', opacity: 0.9, width: baseWidth * 1.5 }
+    return { stroke: '#007BFF', opacity: 0.9, width: baseWidth * 1.5 }
   }
   return { stroke: baseStroke, opacity: 0.2, width: baseWidth }
 }

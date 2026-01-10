@@ -1,8 +1,10 @@
 import React from 'react';
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow';
+import Tooltip from '@/features/panels/ui/Tooltip';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema';
 import { useRendererPalette } from '@/features/toolbar/hooks/useRendererPalette';
+import { RENDERER_PALETTE_LIFECYCLE_TOOLTIP } from '@/lib/config';
 
 export function RendererPaletteSettings() {
   const uiPanelKeyValueInputClass = useGraphStore(
@@ -18,6 +20,18 @@ export function RendererPaletteSettings() {
 
   return (
     <div className="grid grid-cols-1 gap-1">
+      <div className="text-[10px] text-gray-600 leading-snug">
+        <Tooltip
+          content={RENDERER_PALETTE_LIFECYCLE_TOOLTIP}
+          maxWidthPx={260}
+          contentClassName="bg-gray-800/90"
+          className="break-words"
+        >
+          <span>
+            Lifecycle palette: Blue core ideas, Yellow hypotheses, Green execution, Orange pivots, Red alerts.
+          </span>
+        </Tooltip>
+      </div>
       {nodeTypes.map((type) => (
         <KeyTypeValueRow
           key={`node-${type}`}

@@ -13,7 +13,7 @@ const makeSchema = (): GraphSchema => ({
   ...defaultSchema,
   nodeStyles: {
     ...defaultSchema.nodeStyles,
-    Entity: { color: '#2563eb' },
+    Entity: { color: '#007BFF' },
   },
 })
 
@@ -50,7 +50,7 @@ export function testSelectionHighlightNeighborsFromNodeSelection() {
   const centerVisual = computeNodeVisual(center, { ...params, neighborIds })
   const leftVisual = computeNodeVisual(left, { ...params, neighborIds })
   const rightVisual = computeNodeVisual(right, { ...params, neighborIds })
-  if (centerVisual.fill !== '#3B82F6' || centerVisual.opacity !== 1) {
+  if (centerVisual.fill !== '#007BFF' || centerVisual.opacity !== 1) {
     throw new Error('selected node should be blue and fully opaque')
   }
   if (leftVisual.opacity !== 1 || rightVisual.opacity !== 1) {
@@ -109,7 +109,7 @@ export function testSelectionHighlightEdgeSelectionEndpointsAndEdges() {
   const e2: EdgeWithRuntime = data.edges[1]
   const e1Visual = computeEdgeVisual(e1, params)
   const e2Visual = computeEdgeVisual(e2, params)
-  if (e1Visual.stroke !== '#3B82F6' || e1Visual.opacity !== 0.9 || e1Visual.width <= e2Visual.width) {
+  if (e1Visual.stroke !== '#007BFF' || e1Visual.opacity !== 0.9 || e1Visual.width <= e2Visual.width) {
     throw new Error('selected edge should be blue, more opaque, and thicker')
   }
   if (e2Visual.stroke !== '#9CA3AF' || e2Visual.opacity !== 0.2) {
@@ -166,7 +166,7 @@ export function testSelectionHighlightMermaidPointsToPath() {
   const all = [v1, v2, v3, v4]
   for (let i = 0; i < all.length; i += 1) {
     const v = all[i]
-    if (v.stroke !== '#3B82F6' || v.opacity !== 0.9) {
+    if (v.stroke !== '#007BFF' || v.opacity !== 0.9) {
       throw new Error('Mermaid pipeline edges should be highlighted along the pointsTo path')
     }
   }

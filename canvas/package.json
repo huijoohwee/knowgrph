@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build:settings": "tsx src/cli/extract-settings-schema.ts",
-    "predev": "npm run build:settings && npm --prefix .. run docs:update && tsx src/cli/lint-doc.ts",
+    "predev": "npm run build:settings",
     "dev": "vite",
     "prebuild": "npm run build:settings && npm --prefix .. run docs:update && tsx src/cli/lint-doc.ts",
     "doc:lint": "tsx src/cli/lint-doc.ts",

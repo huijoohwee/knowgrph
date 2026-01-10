@@ -45,7 +45,7 @@ export default function FieldStylesSection({
   const hasOwner = Boolean(String(ownerKey || '').trim())
 
   const nodeFillRaw = scope === 'node' ? String(schema.nodeStyles[ownerKey]?.color ?? '') : ''
-  const nodeFillNormalized = nodeFillRaw.trim() || '#22C55E'
+  const nodeFillNormalized = nodeFillRaw.trim() || '#28A745'
   const nodeStrokeRaw = scope === 'node' ? String(schema.nodeStroke?.[ownerKey]?.color ?? '') : ''
   const nodeStrokeNormalized = nodeStrokeRaw.trim() || '#ffffff'
 
@@ -84,7 +84,7 @@ export default function FieldStylesSection({
                   disabled={!hasOwner}
                   value={nodeFillRaw}
                   onChange={e => updateNodeStyle(ownerKey, { color: e.target.value })}
-                  placeholder="#22C55E"
+                  placeholder="#28A745"
                 />
               </RightAlignedValueCell>
             )}

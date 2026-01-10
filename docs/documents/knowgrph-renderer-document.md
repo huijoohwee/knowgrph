@@ -38,6 +38,29 @@
   - `resetAll` in the store clears `layoutPositionCacheByMode` when users reset the canvas or load a new dataset so per-dataset layout caches do not leak across imports.
   - Empty or invalid position sets are stored as `null` and are removed on the next write so the cache stays small and bounded per dataset.
 
+## Renderer palette and default colors
+- The renderer palette is driven by `MVP_COLOR_PALETTE` and `getRendererPalette(schema)`:
+  - Base node tags map to neutral lifecycle roles:
+    - `idea` → Blue `#007BFF` (core ideas / problem‑solution hypotheses).
+    - `hypothesis` → Yellow `#FFC107` (hypotheses / testing).
+    - `execution` → Green `#28A745` (validated actions / success).
+    - `pivot` → Orange `#FD7E14` (pivots / iterations).
+    - `alert` → Red `#DC3545` (alerts / risks / failures).
+  - Base edge tags:
+    - `critical` → `#DC3545`.
+    - `neutral` → `#9CA3AF`.
+- The Canvas toolbar exposes a compact **lifecycle legend** in the Renderer palette settings:
+  - Blue core ideas, Yellow hypotheses, Green execution, Orange pivots, Red alerts.
+  - The legend is backed by a tooltip that describes how `renderer:palette.nodes.idea/hypothesis/execution/pivot/alert` map to these lifecycle buckets so users can adjust colors without losing the shared vocabulary.
+- `defaultSchema.nodeStyles` seeds node type colors from this palette:
+  - `Entity` uses the `idea` blue.
+  - `Chunk` uses the `execution` green.
+  - Additional types (for example `MermaidNode`, `MermaidSubgraph`) remain neutral and can be restyled via schema or `renderer:palette`.
+- Selection highlight colors in both 2D and 3D follow the same palette:
+  - Selected nodes and highlighted edges use `#007BFF`.
+  - Dimmed nodes and non‑selected edges use neutral grays such as `#9CA3AF`.
+- These defaults are aligned with `/guidelines/color-palette.md` in `huijoohwee.github.io` so node, edge, and graph layer visuals share a common, domain‑agnostic color vocabulary.
+
 ## Developer notes: adding new 2D layout modes
 - When introducing a new structured 2D layout mode (for example `"grid"` or `"sankey"`), keep layout caching behavior aligned with existing modes:
   - Treat the layout as cacheable if it deterministically assigns node positions from `(graphData, schema)` without relying on simulation randomness.
@@ -317,6 +340,7 @@
 
 - Graph layer overlays:
   - When **Graph Layers** are enabled from the Graph Layer view, the renderer draws convex hull overlays around node groups instead of rendering every node as an isolated shape.
+  - The Graph Layer view exposes a **Lifecycle tags for layers** helper that writes lifecycle tags (`idea`, `hypothesis`, `execution`, `pivot`, `alert`) into the selected owner node’s `properties.tags` array so layer overlays and node fills share the same palette.
   - **Semantic mode**:
     - Groups nodes by `visual:community` and uses `visual:fill` as the base overlay color so each hull approximates a semantic neighborhood derived from PMI/cosine similarity edges.
     - Edge sparsity and quality are controlled by `schema.layers.semantic.topKEdgesPerNode` and `schema.layers.semantic.minSimilarity`, which act as schema-driven presets rather than dataset-specific magic numbers.
@@ -325,6 +349,7 @@
   - **Property mode**:
     - Derives groups directly from array-valued properties (for example, owners with lists of items) without applying semantic overlays or structural filters.
   - Overlay styling is schema-driven:
+    - When an owner node carries AgenticRAG-style lifecycle tags in `properties.tags` (for example `["idea"]`, `["hypothesis"]`, `["execution"]`, `["pivot"]`, or `["alert"]`), graph layer hull colors reuse the corresponding `renderer:palette.nodes.*` entry so overlays stay aligned with the lifecycle palette.
     - Default fill, stroke, dash, and opacity come from `schema.metadata["canvas:graphLayers"].defaultStyle`.
     - Styles can be specialized by owner node type via `schema.metadata["canvas:graphLayers"].byOwnerType`.
     - Styles can be specialized by property key via `schema.metadata["canvas:graphLayers"].byPropertyKey`.

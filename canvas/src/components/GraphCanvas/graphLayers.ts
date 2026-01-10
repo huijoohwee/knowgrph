@@ -1,6 +1,6 @@
 import * as d3 from 'd3'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
-import type { GraphSchema } from '@/lib/graph/schema'
+import { getAgenticRagTagColor, getRendererPalette, type GraphSchema } from '@/lib/graph/schema'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -142,11 +142,16 @@ export const getGraphLayerStyleForGroup = (args: {
 }): GraphLayerGroupStyle => {
   const { group, graphData, schema } = args
 
+  const palette = getRendererPalette(schema)
+  const baseColor = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
+    ? palette.nodes.idea
+    : '#007BFF'
+
   const base: GraphLayerGroupStyle = {
-    fill: '#E5E7EB',
-    fillOpacity: 0.22,
-    stroke: '#9CA3AF',
-    strokeWidth: 1,
+    fill: baseColor,
+    fillOpacity: 0.16,
+    stroke: baseColor,
+    strokeWidth: 1.25,
     dash: '4,2',
   }
 
@@ -280,13 +285,21 @@ export const getGraphLayerStyleForGroup = (args: {
   }
 
   if (!graphLayersMetaRaw) {
-    if (ownerType && schema.nodeStyles && schema.nodeStyles[ownerType] && schema.nodeStyles[ownerType]?.color) {
-      const c = schema.nodeStyles[ownerType]?.color
-      if (typeof c === 'string' && c.trim()) {
-        style.fill = c
-        style.fillOpacity = 0.12
-        style.stroke = c
+    if (group.meta?.groupBy !== 'community' && owner) {
+      const tagColor = getAgenticRagTagColor(owner, schema)
+      if (typeof tagColor === 'string' && tagColor.trim()) {
+        style.fill = tagColor
+        style.fillOpacity = 0.16
+        style.stroke = tagColor
         style.strokeWidth = 1.5
+      } else if (ownerType && schema.nodeStyles && schema.nodeStyles[ownerType] && schema.nodeStyles[ownerType]?.color) {
+        const c = schema.nodeStyles[ownerType]?.color
+        if (typeof c === 'string' && c.trim()) {
+          style.fill = c
+          style.fillOpacity = 0.12
+          style.stroke = c
+          style.strokeWidth = 1.5
+        }
       }
     }
   }
@@ -305,6 +318,14 @@ export const createGraphLayersLayer = (args: {
   if (!nodeGroups.length || !graphLayersVisible) {
     return null
   }
+
+  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  const nodeById = new Map<string, GraphNode>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    nodeById.set(String(n.id), n)
+  }
+
   const layerRoot = g.append('g').attr('data-kg-layer', 'node-groups')
   const layer = layerRoot
     .selectAll<SVGPathElement, NodeGroup>('path')
@@ -316,7 +337,38 @@ export const createGraphLayersLayer = (args: {
     .attr('stroke', group => getGraphLayerStyleForGroup({ group, graphData, schema }).stroke)
     .attr('stroke-width', group => getGraphLayerStyleForGroup({ group, graphData, schema }).strokeWidth)
     .attr('stroke-dasharray', group => getGraphLayerStyleForGroup({ group, graphData, schema }).dash)
-    .style('pointer-events', 'none')
+    .style('pointer-events', 'visibleFill')
+    .style('cursor', 'move')
+    .call(
+      d3
+        .drag<SVGPathElement, NodeGroup>()
+        .on('start', (event) => {
+          if (event.sourceEvent && typeof event.sourceEvent.stopPropagation === 'function') {
+            event.sourceEvent.stopPropagation()
+          }
+        })
+        .on('drag', (event, group) => {
+          const dx = typeof event.dx === 'number' && Number.isFinite(event.dx) ? event.dx : 0
+          const dy = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
+          if (dx === 0 && dy === 0) return
+          const ids = Array.isArray(group.memberIds) ? group.memberIds : []
+          for (let i = 0; i < ids.length; i += 1) {
+            const id = String(ids[i])
+            if (!id) continue
+            const node = nodeById.get(id)
+            if (!node) continue
+            const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0
+            const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : 0
+            const nx = x + dx
+            const ny = y + dy
+            if (!Number.isFinite(nx) || !Number.isFinite(ny)) continue
+            node.x = nx
+            node.y = ny
+            node.fx = nx
+            node.fy = ny
+          }
+        }),
+    )
+
   return layer as d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
 }
-

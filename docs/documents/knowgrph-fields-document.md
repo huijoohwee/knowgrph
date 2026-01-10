@@ -45,3 +45,7 @@
   - Operators should review fields in Graph Fields, decide which ones are key to their use case, and apply the appropriate field settings.
 - This keeps the ingestion path neutral and schema‑driven while giving the Graph Fields view a clear, explainable UX story for raw JSON graphs.
 
+## Lifecycle tags and graph layers
+
+- Lifecycle roles such as `idea`, `hypothesis`, `execution`, `pivot`, and `alert` are stored as plain tags in `GraphNode.properties.tags` and participate in the same field catalog as other node properties.
+- The Graph Layer view provides a dedicated **Lifecycle tags for layers** helper that updates `properties.tags` on the currently selected owner node using the renderer palette lifecycle keys, so the Graph Fields view reflects these tags alongside other workflow fields without introducing special‑case schema.

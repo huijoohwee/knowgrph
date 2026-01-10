@@ -4,7 +4,7 @@ import json
 import os
 import subprocess
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .common import DEFAULT_TERM_IRI_BASE
 from .example_duckdb_queries import run_example_duckdb_query_cli
@@ -269,7 +269,7 @@ def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str) -
     return orchestrator_config, index_path
 
 
-def main(argv: List[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="pipeline", add_help=True)
     parser.add_argument(
         "--mode",

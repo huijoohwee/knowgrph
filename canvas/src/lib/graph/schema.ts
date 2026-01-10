@@ -345,7 +345,7 @@ export function getThreeSelectionConfig(schema: GraphSchema | null | undefined):
   const selectedEdgeColor =
     typeof raw.selectedEdgeColor === 'string' && raw.selectedEdgeColor.trim().length > 0
       ? raw.selectedEdgeColor
-      : '#3B82F6';
+      : '#007BFF';
   return {
     selectedNodeGlowIntensity,
     dimmedNodeOpacity,
@@ -362,14 +362,14 @@ export type RendererPalette = {
 
 export const MVP_COLOR_PALETTE = {
   nodes: {
-    idea: '#2563EB',
-    hypothesis: '#EAB308',
-    execution: '#22C55E',
-    pivot: '#F97316',
-    alert: '#EF4444',
+    idea: '#007BFF',
+    hypothesis: '#FFC107',
+    execution: '#28A745',
+    pivot: '#FD7E14',
+    alert: '#DC3545',
   },
   edges: {
-    critical: '#EF4444',
+    critical: '#DC3545',
     neutral: '#9CA3AF',
   },
 } as const;
