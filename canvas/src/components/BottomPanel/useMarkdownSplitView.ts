@@ -27,7 +27,6 @@ export function useBottomPanelMarkdownSplitView(args: {
   const gutterLayerRef = React.useRef<HTMLDivElement | null>(null)
 
   const [splitRatio, setSplitRatio] = React.useState(0.5)
-  const [markdownFullscreen, setMarkdownFullscreen] = React.useState(false)
   const [lineHeightPx, setLineHeightPx] = React.useState(16)
   const [editorPaddingTopPx, setEditorPaddingTopPx] = React.useState(8)
   const [editorPaddingBottomPx, setEditorPaddingBottomPx] = React.useState(8)
@@ -199,31 +198,6 @@ export function useBottomPanelMarkdownSplitView(args: {
   })
 
   React.useEffect(() => {
-    const handler = () => {
-      try {
-        const el = viewerRef.current
-        const active = typeof document !== 'undefined' && !!el && document.fullscreenElement === el
-        setMarkdownFullscreen(active)
-      } catch {
-        setMarkdownFullscreen(false)
-      }
-    }
-    try {
-      document.addEventListener('fullscreenchange', handler)
-    } catch {
-      void 0
-    }
-    handler()
-    return () => {
-      try {
-        document.removeEventListener('fullscreenchange', handler)
-      } catch {
-        void 0
-      }
-    }
-  }, [])
-
-  React.useEffect(() => {
     const ta = editorTextAreaRef.current
     const layer = gutterLayerRef.current
     if (!ta || !layer) return
@@ -378,7 +352,6 @@ export function useBottomPanelMarkdownSplitView(args: {
     splitRatio,
     handleDividerPointerDown,
     handleViewerScroll,
-    markdownFullscreen,
     lineHeightPx,
     editorPaddingTopPx,
     editorLineCount,

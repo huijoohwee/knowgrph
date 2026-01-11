@@ -16,8 +16,6 @@ type ViewerHeaderRowProps = {
   uiIconStrokeWidth: number
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
-  markdownFullscreen: boolean
-  toggleMarkdownFullscreen: () => void
   setMarkdownPresentationMode: (next: boolean) => void
   presentationApiRef: React.RefObject<MarkdownPreviewPresentationApi | null>
   presentationSlideState: MarkdownPreviewPresentationSlideState | null
@@ -51,8 +49,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     uiIconStrokeWidth,
     markdownTextHighlight,
     setMarkdownTextHighlight,
-    markdownFullscreen,
-    toggleMarkdownFullscreen,
     setMarkdownPresentationMode,
     presentationApiRef,
     presentationSlideState,
@@ -188,14 +184,22 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
         <IconButton
-          className={`App-toolbar__btn flex items-center justify-center ${markdownFullscreen ? 'text-blue-600' : ''}`}
+          className="App-toolbar__btn flex items-center justify-center"
           title={fullscreenToggleTitle}
-          tooltipContent={
-            markdownFullscreen
-              ? fullscreenOnTooltip
-              : fullscreenOffTooltip
-          }
-          onClick={toggleMarkdownFullscreen}
+          tooltipContent={markdownPresentationMode ? fullscreenOnTooltip : fullscreenOffTooltip}
+          onClick={() => {
+            if (!markdownPresentationMode) {
+              setMarkdownPresentationMode(true)
+              emitMarkdownPanelMetric('markdownPresentationModeToggled', {
+                enabled: true,
+                slideCount: presentationSlideState?.slideCount ?? null,
+              })
+            }
+            presentationApiRef.current?.enterFullscreen?.()
+            emitMarkdownPanelMetric('markdownFullscreenToggleRequested', {
+              enabled: true,
+            })
+          }}
           showTooltip
         >
           <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />

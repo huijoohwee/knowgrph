@@ -35,6 +35,7 @@ export const ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET = 500000
 export type MarkdownPreviewPresentationApi = {
   prev: () => void
   next: () => void
+  enterFullscreen?: () => void
 }
 
 export type MarkdownPreviewPresentationSlideState = {
@@ -187,6 +188,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
   }, [headMeta, slides])
 
   const [activeFragmentStep, setActiveFragmentStep] = React.useState(0)
+  const [fullscreenHandler, setFullscreenHandler] = React.useState<(() => void) | null>(null)
 
   React.useEffect(() => {
     if (!markdownPresentationMode) return
@@ -208,6 +210,10 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
 
   const activeFragmentConfig =
     slideFragmentConfigs[activeSlideId] || DEFAULT_FRAGMENT_CONFIG
+
+  const handleRegisterFullscreenHandler = React.useCallback((fn: (() => void) | null) => {
+    setFullscreenHandler(() => (fn ? () => fn() : null))
+  }, [])
 
   const goPrev = React.useCallback(() => {
     const cfg = activeFragmentConfig
@@ -262,7 +268,15 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       return
     }
     if (presentationApiRef) {
-      presentationApiRef.current = { prev: goPrev, next: goNext }
+      presentationApiRef.current = {
+        prev: goPrev,
+        next: goNext,
+        enterFullscreen: () => {
+          if (fullscreenHandler) {
+            fullscreenHandler()
+          }
+        },
+      }
     }
     onPresentationSlideStateChange?.({
       activeSlideIndex: Math.min(Math.max(0, activeSlideIndex), Math.max(0, orderedSlideIndices.length - 1)),
@@ -274,6 +288,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     goPrev,
     markdownPresentationMode,
     onPresentationSlideStateChange,
+    fullscreenHandler,
     presentationApiRef,
     orderedSlideIndices.length,
     slides.length,
@@ -652,6 +667,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
         >
           <MarkdownPreviewPresentation
             rootRef={setRootRef}
+            onRegisterFullscreenHandler={handleRegisterFullscreenHandler}
             headMeta={headMeta as Record<string, unknown>}
             slides={slides as never}
             activeSlideId={activeSlideId}

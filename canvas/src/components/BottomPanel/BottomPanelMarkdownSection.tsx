@@ -125,7 +125,6 @@ export function BottomPanelMarkdownSection() {
     viewerRef,
     gutterLayerRef,
     handleViewerScroll,
-    markdownFullscreen,
     lineHeightPx,
     editorPaddingTopPx,
     editorRowStartByLine,
@@ -161,28 +160,6 @@ export function BottomPanelMarkdownSection() {
       }
     }
   }, [editorTextAreaRef, handleViewerScroll, markdownLayoutMode, markdownSyncScroll, viewerRef])
-
-  const toggleMarkdownFullscreen = React.useCallback(() => {
-    const el = viewerRef.current
-    if (!el) return
-    void (async () => {
-      try {
-        if (!markdownPresentationMode) {
-          setMarkdownPresentationMode(true)
-        }
-        if (document.fullscreenElement === el) {
-          await document.exitFullscreen()
-          return
-        }
-        await el.requestFullscreen()
-      } catch {
-        void 0
-      }
-    })()
-    emitMarkdownPanelMetric('markdownFullscreenToggleRequested', {
-      enabled: !markdownFullscreen,
-    })
-  }, [markdownFullscreen, markdownPresentationMode, setMarkdownPresentationMode, viewerRef])
 
   const visibleLineNumbers = React.useMemo(() => {
     const nums: number[] = []
@@ -554,8 +531,6 @@ export function BottomPanelMarkdownSection() {
       presentationApiRef={presentationApiRef}
       presentationSlideState={presentationSlideState}
       setPresentationSlideState={setPresentationSlideState}
-      markdownFullscreen={markdownFullscreen}
-      toggleMarkdownFullscreen={toggleMarkdownFullscreen}
       handleViewerScroll={handleViewerScroll}
       setMarkdownPresentationMode={setMarkdownPresentationMode}
       isMarkdownPreviewTruncated={isMarkdownPreviewTruncated}

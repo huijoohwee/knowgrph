@@ -55,8 +55,6 @@ type BottomPanelMarkdownSectionViewProps = {
   presentationApiRef: React.RefObject<MarkdownPreviewPresentationApi | null>
   presentationSlideState: MarkdownPreviewPresentationSlideState | null
   setPresentationSlideState: (next: MarkdownPreviewPresentationSlideState | null) => void
-  markdownFullscreen: boolean
-  toggleMarkdownFullscreen: () => void
   handleViewerScroll: (event: React.UIEvent<HTMLElement>) => void
   setMarkdownPresentationMode: (next: boolean) => void
   isMarkdownPreviewTruncated: boolean
@@ -110,8 +108,6 @@ export function BottomPanelMarkdownSectionView(
     presentationApiRef,
     presentationSlideState,
     setPresentationSlideState,
-    markdownFullscreen,
-    toggleMarkdownFullscreen,
     handleViewerScroll,
     setMarkdownPresentationMode,
     isMarkdownPreviewTruncated,
@@ -165,8 +161,6 @@ export function BottomPanelMarkdownSectionView(
             uiIconStrokeWidth={uiIconStrokeWidth}
             markdownTextHighlight={markdownTextHighlight}
             setMarkdownTextHighlight={setMarkdownTextHighlight}
-            markdownFullscreen={markdownFullscreen}
-            toggleMarkdownFullscreen={toggleMarkdownFullscreen}
             setMarkdownPresentationMode={setMarkdownPresentationMode}
             presentationApiRef={presentationApiRef}
             presentationSlideState={presentationSlideState}

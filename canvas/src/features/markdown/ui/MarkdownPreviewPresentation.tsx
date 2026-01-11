@@ -12,6 +12,7 @@ import { parseMermaidConfigFromFrontmatter } from '@/features/panels/views/previ
 
 type MarkdownPreviewPresentationProps = {
   rootRef: (el: HTMLDivElement | null) => void
+  onRegisterFullscreenHandler?: (fn: (() => void) | null) => void
   headMeta: Record<string, unknown>
   slides: Array<{
     text: string
@@ -51,6 +52,7 @@ type MarkdownPreviewPresentationProps = {
 export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationProps) {
   const {
     rootRef,
+    onRegisterFullscreenHandler,
     headMeta,
     slides,
     activeSlideId,
@@ -79,9 +81,10 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
 
   const [presentationViewport, setPresentationViewport] = React.useState<{ w: number; h: number }>({ w: 1, h: 1 })
   const [isSlidesFullscreenOpen, setIsSlidesFullscreenOpen] = React.useState(false)
+  const containerRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
-    const el = (rootRef as unknown as React.MutableRefObject<HTMLDivElement | null>).current
+    const el = containerRef.current
     if (!el) return
     const ro = new ResizeObserver(entries => {
       const rect = entries[0]?.contentRect
@@ -92,7 +95,17 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [rootRef])
+  }, [])
+
+  React.useEffect(() => {
+    if (!onRegisterFullscreenHandler) return
+    onRegisterFullscreenHandler(() => {
+      setIsSlidesFullscreenOpen(true)
+    })
+    return () => {
+      onRegisterFullscreenHandler(null)
+    }
+  }, [onRegisterFullscreenHandler])
 
   const baseSlideSize = React.useMemo(() => {
     const meta = headMeta
@@ -311,7 +324,10 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   return (
     <>
       <div
-        ref={rootRef}
+        ref={(el) => {
+          containerRef.current = el
+          rootRef(el)
+        }}
         tabIndex={0}
         className={[
           'relative flex-1 min-h-0 w-full overflow-hidden bg-gray-100 outline-none flex flex-col',
