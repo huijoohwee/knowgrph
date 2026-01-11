@@ -16,6 +16,22 @@ export function ToolbarMarkdownArea(props: ToolbarToolMenuAreasProps) {
   const [urlInputValue, setUrlInputValue] = React.useState('')
   const urlInputRef = React.useRef<HTMLInputElement | null>(null)
 
+  const markdownIngestionKind = useGraphStore(s => {
+    const graphData = s.graphData
+    if (!graphData) return null
+    const meta = graphData.metadata
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null
+    const ingestionMetrics = (meta as Record<string, unknown>).ingestionMetrics
+    if (!ingestionMetrics || typeof ingestionMetrics !== 'object' || Array.isArray(ingestionMetrics)) {
+      return null
+    }
+    const record = ingestionMetrics as Record<string, unknown>
+    const kind = record.kind
+    return typeof kind === 'string' ? kind : null
+  })
+
+  const isMarkdownLargeSummary = markdownIngestionKind === 'markdown-large'
+
   React.useEffect(() => {
     if (!props.isMarkdownImportMenuOpen) {
       setIsUrlInputOpen(false)
@@ -78,12 +94,24 @@ export function ToolbarMarkdownArea(props: ToolbarToolMenuAreasProps) {
           )}
         </div>
       )}
-      <div className="flex items-center justify-end gap-2">
-        <StatusBadge
-          label={UI_LABELS.markdown}
-          ok={props.dataLoadOk}
-          msg={props.dataLoadMsg}
-        />
+      <div className="flex items-end justify-end gap-2 flex-col">
+        <div className="flex items-center justify-end gap-2">
+          <StatusBadge
+            label={UI_LABELS.markdown}
+            ok={props.dataLoadOk}
+            msg={props.dataLoadMsg}
+          />
+        </div>
+        {isMarkdownLargeSummary && (
+          <div
+            className={[
+              uiPanelKeyValueTextSizeClass,
+              'text-[10px] text-gray-400',
+            ].join(' ')}
+          >
+            {UI_COPY.markdownLargeSummaryHelperText}
+          </div>
+        )}
       </div>
     </div>
   )

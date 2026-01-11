@@ -190,20 +190,30 @@ export const parseMarkdownBlocks = (lines: string[], startIndex: number): Markdo
       continue
     }
 
-    const fenceMatch = /^```([\w-]+)?\s*$/.exec(trimmed)
-    if (fenceMatch) {
-      const language = (fenceMatch[1] || '').trim() || undefined
+    const fenceOpenMatch = /^(```+|~~~+)\s*(.*)$/.exec(trimmed)
+    if (fenceOpenMatch) {
+      const marker = fenceOpenMatch[1] || ''
+      const info = fenceOpenMatch[2] || ''
+      const language = (info.trim().split(/\s+/)[0] || '').trim() || undefined
       const startLine = i + 1
       i += 1
       const bodyLines: string[] = []
       while (i < lineCount) {
-        const t = (lines[i] ?? '').trim()
-        if (t === '```') break
-        bodyLines.push(lines[i] ?? '')
+        const rawInner = lines[i] ?? ''
+        const tInner = rawInner.trim()
+        const fenceCloseMatch = /^(```+|~~~+)\s*(.*)$/.exec(tInner)
+        if (fenceCloseMatch && fenceCloseMatch[1] === marker) break
+        bodyLines.push(rawInner)
         i += 1
       }
       const endLine = Math.min(lineCount, i + 1)
-      if (i < lineCount && (lines[i] ?? '').trim() === '```') i += 1
+      if (i < lineCount) {
+        const maybeClose = (lines[i] ?? '').trim()
+        const fenceCloseMatch = /^(```+|~~~+)\s*(.*)$/.exec(maybeClose)
+        if (fenceCloseMatch && fenceCloseMatch[1] === marker) {
+          i += 1
+        }
+      }
       blocks.push({ kind: 'code', text: bodyLines.join('\n'), language, startLine, endLine })
       continue
     }
@@ -284,7 +294,7 @@ export const parseMarkdownBlocks = (lines: string[], startIndex: number): Markdo
       const raw = lines[i] ?? ''
       const t = raw.trim()
       if (!t) break
-      if (/^```/.test(t)) break
+      if (/^(```+|~~~+)/.test(t)) break
       if (/^(#{1,6})\s+/.test(t)) break
       if (/^(\s*)([-*+]|(\d+)\.)\s+/.test(raw)) break
       if (t.includes('|') && i + 1 < lineCount && isTableDivider(lines[i + 1] ?? '')) break

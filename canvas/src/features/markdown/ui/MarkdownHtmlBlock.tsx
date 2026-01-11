@@ -19,6 +19,10 @@ type MarkdownHtmlBlockProps = {
   highlightClass: string
   opts: RenderOpts
   highlightStyle?: React.CSSProperties
+  fragmentsEnabled?: boolean
+  fragmentStep?: number
+  fragmentClassNames?: string[]
+  fragmentTags?: string[]
 }
 
 export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
@@ -26,6 +30,10 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
   highlightClass,
   opts,
   highlightStyle,
+  fragmentsEnabled = false,
+  fragmentStep = 0,
+  fragmentClassNames,
+  fragmentTags,
 }: MarkdownHtmlBlockProps) {
   const html = String((t as unknown as TokensHTML).text || '').trim()
   
@@ -104,6 +112,15 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
     uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
     markdownPresentationMode: opts.markdownPresentationMode,
     renderNodeText: (text, key) => <React.Fragment key={key}>{text}</React.Fragment>,
+    fragmentOptions:
+      opts.markdownPresentationMode && fragmentsEnabled
+        ? {
+            enabled: true,
+            currentStep: fragmentStep,
+            classNames: fragmentClassNames || [],
+            tags: fragmentTags || [],
+          }
+        : null,
   })
 
   if (safeHtml) {

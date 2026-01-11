@@ -175,6 +175,11 @@ import {
   testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
   testMarkdownFrontmatterPolygonLayersAliasWarning,
 } from '@/__tests__/exampleWorkflowMarkdownIngestion.test'
+import {
+  testGuidelinesMarkdownHighlightGuardWithLargeGraph,
+  testGuidelinesMarkdownHighlightGuardWithSmallGraph,
+  testGuidelinesMarkdownIngestionLexingAndSlides,
+} from '@/__tests__/markdownGuidelinesIngestion.test'
 import { testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges } from '@/__tests__/exampleWorkflowTidyTree.test'
 import {
   testSemanticLayerVisualFillParity2dVs3d,
@@ -476,6 +481,18 @@ export const runAllTests = async () => {
     testMarkdownFrontmatterPolygonLayersAliasWarning,
   )
   await exec(
+    'ui.markdown.guidelinesIngestion.lexingAndSlides',
+    testGuidelinesMarkdownIngestionLexingAndSlides,
+  )
+  await exec(
+    'ui.markdown.guidelinesHighlightGuard.largeGraph',
+    testGuidelinesMarkdownHighlightGuardWithLargeGraph,
+  )
+  await exec(
+    'ui.markdown.guidelinesHighlightGuard.smallGraph',
+    testGuidelinesMarkdownHighlightGuardWithSmallGraph,
+  )
+  await exec(
     'ui.markdown.exampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges',
     testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges,
   )
@@ -497,6 +514,7 @@ export const runAllTests = async () => {
     await exec('ui.markdown.mediaToggleEndToEnd', modToggle.testMarkdownMediaToggleEndToEnd)
     await exec('ui.markdown.headMetaFrontmatterArrays', modToggle.testMarkdownHeadMetaFrontmatterArrays)
     await exec('ui.markdown.scrollSync.viewerToEditor', modToggle.testMarkdownScrollSyncViewerToEditor)
+    await exec('ui.markdown.editToggleKeepsScrollPosition', modToggle.testMarkdownEditToggleKeepsScrollPosition)
 
     const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')
     await exec(

@@ -69,15 +69,22 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
       if (res.input) {
         ui.setLastInput(res.input.name, res.input.text)
       }
-      if (res.warnings && res.warnings.length > 0) {
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
-        ui.setWarnings(res.warnings)
+      const warnings = res.warnings || []
+      const counts = res.counts
+      const nodeCount = counts ? Number(counts.n || 0) : 0
+      const edgeCount = counts ? Number(counts.e || 0) : 0
+      const hasGraph = nodeCount > 0 || edgeCount > 0
+      if (warnings.length > 0 && !hasGraph) {
+        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(warnings[0] || ''))
       } else {
-        ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
-        ui.setWarnings([])
+        ui.setDataLoadStatus(
+          true,
+          res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
+        )
       }
-      if (res.counts) {
-        ui.setCounts(res.counts)
+      ui.setWarnings(warnings)
+      if (counts) {
+        ui.setCounts(counts)
       }
     } catch {
       void 0
@@ -155,15 +162,22 @@ export async function performCsvImport() {
       if (res.input) {
         ui.setLastInput(res.input.name, res.input.text)
       }
-      if (res.warnings && res.warnings.length > 0) {
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
-        ui.setWarnings(res.warnings)
+      const warnings = res.warnings || []
+      const counts = res.counts
+      const nodeCount = counts ? Number(counts.n || 0) : 0
+      const edgeCount = counts ? Number(counts.e || 0) : 0
+      const hasGraph = nodeCount > 0 || edgeCount > 0
+      if (warnings.length > 0 && !hasGraph) {
+        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(warnings[0] || ''))
       } else {
-        ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
-        ui.setWarnings([])
+        ui.setDataLoadStatus(
+          true,
+          res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
+        )
       }
-      if (res.counts) {
-        ui.setCounts(res.counts)
+      ui.setWarnings(warnings)
+      if (counts) {
+        ui.setCounts(counts)
       }
     } catch {
       void 0

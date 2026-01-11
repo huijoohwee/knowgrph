@@ -1,7 +1,13 @@
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
-import { getDocumentPathFromMetadata } from '@/features/graph-data-table/graphDataTable'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { getNodeBaseFill, getEdgeBaseStroke } from '@/components/GraphCanvas/helpers'
+import {
+  computeHighlightedRangeFromLines,
+  getDocumentLocationFromMetadata,
+  getDocumentPathForEdge,
+  getDocumentPathForNode,
+  getEdgeBaseColor,
+  getNodeBaseColor,
+} from '@/lib/graph/markdownMetadata'
 
 export type MarkdownSelectionInfo = {
   id: string
@@ -11,15 +17,6 @@ export type MarkdownSelectionInfo = {
   lineEnd: number | null
   highlightBackgroundColor: string | null
   highlightUnderlineColor: string | null
-}
-
-export function parseLineNumber(raw: unknown): number | null {
-  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null
-  if (typeof raw === 'string') {
-    const parsed = Number.parseInt(raw, 10)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
 }
 
 export function getSelectionInfo(
@@ -33,11 +30,11 @@ export function getSelectionInfo(
   if (!id) return null
   const node = graphData.nodes.find(n => n.id === id)
   if (node) {
-    const meta = node.metadata as unknown
-    const baseColor =
-      schema && (node as GraphNode)
-        ? getNodeBaseFill(node as GraphNode, schema)
-        : ''
+    const location = getDocumentLocationFromMetadata(node.metadata as unknown)
+    const documentPath = location ? location.documentPath : getDocumentPathForNode(node as GraphNode)
+    const lineStart = location ? location.lineStart : null
+    const lineEnd = location ? location.lineEnd : null
+    const baseColor = getNodeBaseColor(node as GraphNode, schema)
     const bg =
       typeof baseColor === 'string' && baseColor.trim()
         ? toRgbaWithAlpha(baseColor, 0.16)
@@ -45,9 +42,9 @@ export function getSelectionInfo(
     return {
       id,
       kind: 'node',
-      documentPath: getDocumentPathFromMetadata(meta),
-      lineStart: parseLineNumber((meta as Record<string, unknown> | null)?.lineStart),
-      lineEnd: parseLineNumber((meta as Record<string, unknown> | null)?.lineEnd),
+      documentPath,
+      lineStart,
+      lineEnd,
       highlightBackgroundColor: bg,
       highlightUnderlineColor:
         typeof baseColor === 'string' && baseColor.trim() ? baseColor : null,
@@ -55,11 +52,11 @@ export function getSelectionInfo(
   }
   const edge = graphData.edges.find(e => e.id === id)
   if (edge) {
-    const meta = edge.metadata as unknown
-    const baseColor =
-      schema && (edge as GraphEdge)
-        ? getEdgeBaseStroke(edge as GraphEdge, schema)
-        : ''
+    const location = getDocumentLocationFromMetadata(edge.metadata as unknown)
+    const documentPath = location ? location.documentPath : getDocumentPathForEdge(edge as GraphEdge)
+    const lineStart = location ? location.lineStart : null
+    const lineEnd = location ? location.lineEnd : null
+    const baseColor = getEdgeBaseColor(edge as GraphEdge, schema)
     const bg =
       typeof baseColor === 'string' && baseColor.trim()
         ? toRgbaWithAlpha(baseColor, 0.12)
@@ -67,9 +64,9 @@ export function getSelectionInfo(
     return {
       id,
       kind: 'edge',
-      documentPath: getDocumentPathFromMetadata(meta),
-      lineStart: parseLineNumber((meta as Record<string, unknown> | null)?.lineStart),
-      lineEnd: parseLineNumber((meta as Record<string, unknown> | null)?.lineEnd),
+      documentPath,
+      lineStart,
+      lineEnd,
       highlightBackgroundColor: bg,
       highlightUnderlineColor:
         typeof baseColor === 'string' && baseColor.trim() ? baseColor : null,
@@ -110,11 +107,11 @@ function toRgbaWithAlpha(color: string, alpha: number): string | null {
 export function getDefaultDocumentPath(graphData: GraphData | null): string {
   if (!graphData) return ''
   for (const node of graphData.nodes) {
-    const path = getDocumentPathFromMetadata(node.metadata as unknown)
+    const path = getDocumentPathForNode(node as GraphNode)
     if (path) return path
   }
   for (const edge of graphData.edges) {
-    const path = getDocumentPathFromMetadata(edge.metadata as unknown)
+    const path = getDocumentPathForEdge(edge as GraphEdge)
     if (path) return path
   }
   return ''
@@ -126,10 +123,7 @@ export function computeHighlightedLineRange(
 ): { start: number; end: number } | null {
   const start = selectionInfo?.lineStart ?? null
   const end = selectionInfo?.lineEnd ?? selectionInfo?.lineStart ?? null
-  if (start == null || end == null) return null
-  const safeStart = Math.max(1, Math.min(editorLineCount, start))
-  const safeEnd = Math.max(1, Math.min(editorLineCount, end))
-  return safeStart <= safeEnd ? { start: safeStart, end: safeEnd } : { start: safeEnd, end: safeStart }
+  return computeHighlightedRangeFromLines(editorLineCount, start, end)
 }
 
 export function computeVisibleLineRange(args: {

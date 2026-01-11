@@ -7,7 +7,7 @@ import { getSpotlightCardStyle } from '@/features/spotlight/positioning'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import SchemaSummary from '@/features/panels/ui/SchemaSummary'
 import { UI_LABELS } from '@/lib/config'
-import { getIconSizeClass } from '@/lib/ui'
+import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 
 type LaunchSpotlightStatusCardProps = {
@@ -51,6 +51,10 @@ export function LaunchSpotlightStatusCard({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const uiIconBadgeChipClass = useGraphStore(s => s.uiIconBadgeChipClass)
+  const uiIconBadgeChipTextSizeClass = useGraphStore(
+    s => s.uiIconBadgeChipTextSizeClass || s.uiPanelMicroLabelTextSizeClass || 'text-[9px]',
+  )
 
   const graphValidationStatusText = React.useMemo(() => {
     const status = graphValidationStatus
@@ -67,6 +71,43 @@ export function LaunchSpotlightStatusCard({
     const statusPhrase = status === 'invalid' ? 'completed with errors' : 'completed'
     return `Graph validation ${statusPhrase} ${timePhrase}`
   }, [graphValidationStatus, graphValidationTimestamp, graphData])
+
+  const ingestionMetricsRecord = React.useMemo(() => {
+    if (!graphData || !graphData.metadata || typeof graphData.metadata !== 'object' || Array.isArray(graphData.metadata)) {
+      return null
+    }
+    const ingestionMetrics = (graphData.metadata as Record<string, unknown>).ingestionMetrics
+    if (!ingestionMetrics || typeof ingestionMetrics !== 'object' || Array.isArray(ingestionMetrics)) {
+      return null
+    }
+    return ingestionMetrics as Record<string, unknown>
+  }, [graphData])
+
+  const ingestionKindRaw = React.useMemo(() => {
+    if (!ingestionMetricsRecord) return null
+    const kind = ingestionMetricsRecord.kind
+    return typeof kind === 'string' ? kind : null
+  }, [ingestionMetricsRecord])
+
+  const ingestionKindLabel = React.useMemo(() => {
+    if (!ingestionKindRaw) return null
+    if (ingestionKindRaw === 'markdown') return 'Markdown'
+    if (ingestionKindRaw === 'markdown-large') return 'Markdown (summary)'
+    if (ingestionKindRaw === 'jsonld') return 'JSON-LD'
+    if (ingestionKindRaw === 'rawJson') return 'JSON'
+    if (ingestionKindRaw === 'html') return 'HTML'
+    if (ingestionKindRaw === 'csv') return 'CSV'
+    return ingestionKindRaw
+  }, [ingestionKindRaw])
+
+  const ingestionKindChipClass = React.useMemo(
+    () =>
+      getBadgeChipClass('selected', {
+        baseClass: uiIconBadgeChipClass,
+        textSizeClass: uiIconBadgeChipTextSizeClass,
+      }),
+    [uiIconBadgeChipClass, uiIconBadgeChipTextSizeClass],
+  )
 
   const { anchor, dragPos, cardRef, handleCardPointerDown } = useSpotlightAnchor({
     enabled: enableSpotlight,
@@ -178,6 +219,11 @@ export function LaunchSpotlightStatusCard({
                 <StatusBadge label={UI_LABELS.graphFields} ok={graphFieldsOpOk} msg={graphFieldsOpMsg} />
                 <StatusBadge label={UI_LABELS.orchestrator} ok={orchestratorOpOk} msg={orchestratorOpMsg} />
                 <StatusBadge label={UI_LABELS.renderer} ok={renderOpOk} msg={renderOpMsg} />
+                {ingestionKindLabel && (
+                  <span className={ingestionKindChipClass}>
+                    {ingestionKindLabel}
+                  </span>
+                )}
               </div>
               <div className="text-xs text-gray-700 space-y-2">
                 <div>

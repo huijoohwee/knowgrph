@@ -456,26 +456,41 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     set({ minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } }, minimapWorkerRef: null });
     get().cancelMinimapWorker?.();
     get().scheduleHistory('Set Data');
-    const quick = get().computeMinimapPreviewQuick;
-    if (typeof quick === 'function') quick();
-    const async = get().computeMinimapPreviewAsync;
-    if (typeof async === 'function') async();
     lsSetJson(LS_KEYS.graphData, nextGraphData)
 
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData, { resetVisibleColumns: true })
-    } catch { void 0 }
+    } catch {
+      void 0
+    }
 
-    try {
-      applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
-    } catch { void 0 }
-    try {
-      const mode = get().schema.layout?.mode
-      if (mode === 'radial' || mode === 'tidy-tree') {
-        const setCanvasRenderMode = get().setCanvasRenderMode
-        if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
+    const runHeavyGraphDataSideEffects = () => {
+      const quick = get().computeMinimapPreviewQuick
+      if (typeof quick === 'function') quick()
+      const async = get().computeMinimapPreviewAsync
+      if (typeof async === 'function') async()
+
+      try {
+        applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
+      } catch {
+        void 0
       }
-    } catch { void 0 }
+      try {
+        const mode = get().schema.layout?.mode
+        if (mode === 'radial' || mode === 'tidy-tree') {
+          const setCanvasRenderMode = get().setCanvasRenderMode
+          if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
+        }
+      } catch {
+        void 0
+      }
+    }
+
+    if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
+      window.setTimeout(runHeavyGraphDataSideEffects, 0)
+    } else {
+      runHeavyGraphDataSideEffects()
+    }
   },
 
   clearGraphData: () => {

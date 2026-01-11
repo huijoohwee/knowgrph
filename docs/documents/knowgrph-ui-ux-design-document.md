@@ -60,6 +60,9 @@
   - When users select a media card sourced from the graph in the Preview gallery, the Bottom Panel automatically opens the Curation tab in Markdown mode, keeping the media selection, canvas selection, and source text aligned without additional clicks.
 - Markdown panel highlight:
   - Auto-opening the markdown curation view applies a brief, subtle highlight to the panel chrome so users can see where the source text came from without introducing long-lived visual noise.
+- Markdown header layout:
+  - The Bottom Panel markdown view splits responsibilities between a stateful container and a pure view component that renders three small header rows: the status row (JSON-backed badge and markdown status), the editor row (Apply, word-wrap toggle, and layout mode controls), and the viewer row (layout mode controls, presentation navigation, text highlight, and fullscreen).
+  - Editor and viewer layout mode controls are shared via a `MarkdownLayoutControlsRow` helper that receives a text size class from the panel theme, so the icon buttons inherit the same typographic scale as surrounding header copy while keeping icon size and stroke width configurable per theme.
 - Selection alignment:
   - Canvas node/edge selections with markdown provenance scroll the Bottom Panel markdown editor and viewer so the associated text range snaps to the top of the viewport, avoiding “lost in the middle” placements.
   - The markdown editor uses the textarea’s wrap model to align the first wrapped row of the selected range directly under the top border, and the viewer uses block-level `data-start-line` markers to anchor the corresponding rendered block to the top of its scroll container.

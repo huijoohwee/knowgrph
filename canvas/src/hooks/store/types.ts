@@ -167,6 +167,7 @@ export interface GraphState {
   graphDataTableNumericSampleMinRatio: number;
   spotlightMargin: number;
   spotlightNearTopThreshold: number;
+  markdownAlwaysOnHighlightComplexityBudget: number | null;
   graphDataTableFrozenDragStepNoneLabelPx: number;
   graphDataTableFrozenDragStepLabelIdPx: number;
   graphDataTableVirtualOverscanRows: number;
@@ -229,6 +230,7 @@ export interface GraphState {
   setGraphDataTableNumericSampleMinRatio: (v: number) => void;
   setSpotlightMargin: (v: number) => void;
   setSpotlightNearTopThreshold: (v: number) => void;
+  setMarkdownAlwaysOnHighlightComplexityBudget: (v: number | null) => void;
   setGraphDataTableFrozenDragStepNoneLabelPx: (v: number) => void;
   setGraphDataTableFrozenDragStepLabelIdPx: (v: number) => void;
   setGraphDataTableVirtualOverscanRows: (v: number) => void;

@@ -59,6 +59,11 @@ This section describes how each format enters the system, how it is converted, a
     - Splits blocks (`parseMarkdownBlocks`).
     - Builds JSON‑LD via `buildMarkdownJsonLd`.
     - Converts JSON‑LD into `GraphData` via `parseJsonLd`.
+    - Records ingestion timing metrics under `graphData.metadata.ingestionMetrics`, including:
+      - `totalMs`: end‑to‑end time from Markdown text to `GraphData`.
+      - `buildMarkdownJsonLdMs`: time spent building JSON‑LD from Markdown.
+      - `parseJsonLdMs`: time spent turning JSON‑LD into `GraphData`.
+    - The Canvas Bottom Panel **Curation** tab reads `metadata.ingestionMetrics` and surfaces these timings in the “Ingestion metrics” header so large documents (for example, long slide decks) expose parse performance without additional logging.
 - Media:
   - Inline refs are extracted from paragraph text:
     - `![alt](url)` for images/media.

@@ -33,6 +33,10 @@ type MarkdownTokenRendererProps = {
     underlineColor: string | null
     backgroundColor: string | null
   }[] | null
+  fragmentsEnabled?: boolean
+  fragmentStep?: number
+  fragmentClassNames?: string[]
+  fragmentTags?: string[]
 }
 
 const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: MarkdownTokenRendererProps) {
@@ -54,6 +58,10 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     highlightUnderlineColor,
     alwaysOnHighlightMode,
     alwaysOnTokenHighlights,
+    fragmentsEnabled,
+    fragmentStep,
+    fragmentClassNames,
+    fragmentTags,
   } = props
 
   const opts: RenderOpts = {
@@ -195,6 +203,10 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               highlightClass={highlightClass}
               highlightStyle={highlightStyle}
               opts={opts}
+              fragmentsEnabled={!!fragmentsEnabled}
+              fragmentStep={fragmentStep || 0}
+              fragmentClassNames={fragmentClassNames}
+              fragmentTags={fragmentTags}
             />
           )
         case 'paragraph':

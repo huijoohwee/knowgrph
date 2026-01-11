@@ -1,129 +1,29 @@
 import React from 'react'
-import {
-  ArrowUpDown,
-  Check,
-  LayoutPanelLeft,
-  LayoutPanelTop,
-  Maximize2,
-  MonitorPlay,
-  Split,
-  WrapText,
-} from 'lucide-react'
-import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import { LS_KEYS, UI_COPY, UI_LABELS } from '@/lib/config'
+import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { jsonToMarkdown } from '@/features/markdown/jsonToMarkdown'
 import { getIconSizeClass } from '@/lib/ui'
-import Tooltip from '@/features/panels/ui/Tooltip'
-import MarkdownPreview, {
-  type MarkdownPreviewPresentationApi,
-  type MarkdownPreviewPresentationSlideState,
+import type {
+  MarkdownPreviewPresentationApi,
+  MarkdownPreviewPresentationSlideState,
 } from '@/features/markdown/ui/MarkdownPreview'
-import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { getDocumentPathFromMetadata } from '@/features/graph-data-table/graphDataTable'
+import { toMetadataRecord } from '@/lib/graph/markdownMetadata'
 import {
   useBottomPanelMarkdownModel,
   useBottomPanelMarkdownSplitView,
 } from './BottomPanelMarkdownSectionModel'
+import { BottomPanelMarkdownSectionView } from './BottomPanelMarkdownSectionView'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
 
-type MarkdownLayoutMode = 'split' | 'editor' | 'viewer'
+export type MarkdownLayoutMode = 'split' | 'editor' | 'viewer'
 
 type JsonMarkdownMode = JsonToMarkdownMode
-
-type MarkdownLayoutControlsRowProps = {
-  layoutMode: MarkdownLayoutMode
-  setLayoutMode: (mode: MarkdownLayoutMode) => void
-  syncScroll: boolean
-  setSyncScroll: (next: boolean) => void
-  iconSizeClass: string
-  textSizeClass: string
-  uiIconStrokeWidth: number
-}
-
-function MarkdownLayoutControlsRow(props: MarkdownLayoutControlsRowProps) {
-  const {
-    layoutMode,
-    setLayoutMode,
-    syncScroll,
-    setSyncScroll,
-    iconSizeClass,
-    uiIconStrokeWidth,
-  } = props
-
-  return (
-    <>
-      <IconButton
-        className={`App-toolbar__btn flex items-center justify-center ${layoutMode === 'editor' ? 'text-blue-600' : ''}`}
-        title={UI_COPY.bottomPanelMarkdownFullEditorViewToggleTitle}
-        tooltipContent={
-          layoutMode === 'editor'
-            ? UI_COPY.bottomPanelMarkdownFullEditorViewOnTooltip
-            : UI_COPY.bottomPanelMarkdownFullEditorViewOffTooltip
-        }
-        onClick={() => {
-          setLayoutMode(layoutMode === 'editor' ? 'split' : 'editor')
-        }}
-        showTooltip
-      >
-        <LayoutPanelLeft className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn flex items-center justify-center ${layoutMode === 'viewer' ? 'text-blue-600' : ''}`}
-        title={UI_COPY.bottomPanelMarkdownFullViewerViewToggleTitle}
-        tooltipContent={
-          layoutMode === 'viewer'
-            ? UI_COPY.bottomPanelMarkdownFullViewerViewOnTooltip
-            : UI_COPY.bottomPanelMarkdownFullViewerViewOffTooltip
-        }
-        onClick={() => {
-          setLayoutMode(layoutMode === 'viewer' ? 'split' : 'viewer')
-        }}
-        showTooltip
-      >
-        <LayoutPanelTop className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn flex items-center justify-center ${layoutMode === 'split' ? 'text-blue-600' : ''}`}
-        title={UI_COPY.bottomPanelMarkdownSplitViewToggleTitle}
-        tooltipContent={
-          layoutMode === 'split'
-            ? UI_COPY.bottomPanelMarkdownSplitViewOnTooltip
-            : UI_COPY.bottomPanelMarkdownSplitViewOffTooltip
-        }
-        onClick={() => {
-          setLayoutMode('split')
-        }}
-        showTooltip
-      >
-        <Split className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-      </IconButton>
-      {layoutMode === 'split' && (
-        <IconButton
-          className={`App-toolbar__btn flex items-center justify-center ${syncScroll ? 'text-blue-600' : ''}`}
-          title={UI_COPY.bottomPanelMarkdownSyncScrollToggleTitle}
-          tooltipContent={
-            syncScroll
-              ? UI_COPY.bottomPanelMarkdownSyncScrollOnTooltip
-              : UI_COPY.bottomPanelMarkdownSyncScrollOffTooltip
-          }
-          onClick={() => {
-            const next = !syncScroll
-            setSyncScroll(next)
-          }}
-          showTooltip
-        >
-          <ArrowUpDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-        </IconButton>
-      )}
-    </>
-  )
-}
 
 export function BottomPanelMarkdownSection() {
   const graphData = useGraphStore(s => s.graphData)
@@ -151,12 +51,12 @@ export function BottomPanelMarkdownSection() {
 
   const [markdownTextHighlight, setMarkdownTextHighlight] = usePersistedBoolean(
     LS_KEYS.markdownTextHighlight,
-    true,
+    false,
   )
 
-  const selectionHighlightEnabled = !markdownTextHighlight
+  const selectionHighlightEnabled = markdownTextHighlight
 
-  const [markdownWordWrap, setMarkdownWordWrap] = usePersistedBoolean(
+  const [markdownWordWrap] = usePersistedBoolean(
     LS_KEYS.markdownWordWrap,
     false,
   )
@@ -166,15 +66,20 @@ export function BottomPanelMarkdownSection() {
     false,
   )
 
-  const [markdownSyncScroll, setMarkdownSyncScroll] = usePersistedBoolean(
+  const [markdownSyncScroll] = usePersistedBoolean(
     LS_KEYS.markdownSyncScroll,
     true,
   )
   const [markdownLayoutMode, setMarkdownLayoutMode] = React.useState<MarkdownLayoutMode>(() =>
     lsJson<MarkdownLayoutMode>(
       LS_KEYS.markdownLayoutMode,
-      'split',
-      value => (value === 'editor' || value === 'viewer' || value === 'split' ? value : 'split'),
+      'viewer',
+      value =>
+        value === 'editor' || value === 'viewer' || value === 'split'
+          ? value === 'split'
+            ? 'viewer'
+            : value
+          : 'viewer',
     ),
   )
 
@@ -219,8 +124,6 @@ export function BottomPanelMarkdownSection() {
     editorTextAreaRef,
     viewerRef,
     gutterLayerRef,
-    splitRatio,
-    handleDividerPointerDown,
     handleViewerScroll,
     markdownFullscreen,
     lineHeightPx,
@@ -237,6 +140,27 @@ export function BottomPanelMarkdownSection() {
     uiPanelMonospaceTextClass,
     syncScroll: markdownSyncScroll,
   })
+
+  const prevLayoutModeRef = React.useRef<MarkdownLayoutMode | null>(null)
+
+  React.useEffect(() => {
+    const prev = prevLayoutModeRef.current
+    prevLayoutModeRef.current = markdownLayoutMode
+    if (!markdownSyncScroll) return
+    if (markdownLayoutMode !== 'split') return
+    const ta = editorTextAreaRef.current
+    const viewer = viewerRef.current
+    if (!ta || !viewer) return
+    if (prev === 'viewer') {
+      handleViewerScroll()
+    } else if (prev === 'editor') {
+      try {
+        ta.dispatchEvent(new Event('scroll', { bubbles: true }))
+      } catch {
+        void 0
+      }
+    }
+  }, [editorTextAreaRef, handleViewerScroll, markdownLayoutMode, markdownSyncScroll, viewerRef])
 
   const toggleMarkdownFullscreen = React.useCallback(() => {
     const el = viewerRef.current
@@ -356,7 +280,12 @@ export function BottomPanelMarkdownSection() {
         setApplyStatus({ ok: false, msg: UI_COPY.parserDataLoadFailed })
         return
       }
-      if (res.warnings && res.warnings.length > 0) {
+      const warnings = res.warnings || []
+      const counts = res.counts
+      const nodeCount = counts ? Number(counts.n || 0) : 0
+      const edgeCount = counts ? Number(counts.e || 0) : 0
+      const hasGraph = nodeCount > 0 || edgeCount > 0
+      if (warnings.length > 0 && !hasGraph) {
         if (beforeGraph) {
           try {
             const store = useGraphStore.getState()
@@ -367,7 +296,7 @@ export function BottomPanelMarkdownSection() {
         }
         setApplyStatus({
           ok: false,
-          msg: UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''),
+          msg: UI_COPY.parserDataLoadSyntaxErrorStatus(warnings[0] || ''),
         })
         return
       }
@@ -376,20 +305,12 @@ export function BottomPanelMarkdownSection() {
       if (beforeGraph && parsedGraph && targetDocumentPath.trim()) {
         const trimmedPath = targetDocumentPath.trim()
         const normalizeNode = (node: typeof parsedGraph.nodes[number]) => {
-          const metaRaw = node.metadata as unknown
-          const record =
-            metaRaw && typeof metaRaw === 'object' && !Array.isArray(metaRaw)
-              ? (metaRaw as Record<string, unknown>)
-              : {}
+          const record = toMetadataRecord(node.metadata as unknown)
           const nextMeta = { ...record, documentPath: trimmedPath }
           return { ...node, metadata: nextMeta }
         }
         const normalizeEdge = (edge: typeof parsedGraph.edges[number]) => {
-          const metaRaw = edge.metadata as unknown
-          const record =
-            metaRaw && typeof metaRaw === 'object' && !Array.isArray(metaRaw)
-              ? (metaRaw as Record<string, unknown>)
-              : {}
+          const record = toMetadataRecord(edge.metadata as unknown)
           const nextMeta = { ...record, documentPath: trimmedPath }
           return { ...edge, metadata: nextMeta }
         }
@@ -433,14 +354,7 @@ export function BottomPanelMarkdownSection() {
     } catch {
       setApplyStatus({ ok: false, msg: UI_COPY.parserDataLoadFailed })
     }
-  }, [
-    markdownText,
-    selectionDocumentPath,
-    markdownDocumentName,
-    hasSelection,
-    isJsonBacked,
-    activeDocumentPath,
-  ])
+  }, [markdownText, selectionDocumentPath, markdownDocumentName, hasSelection, isJsonBacked, activeDocumentPath])
 
   React.useEffect(() => {
     lsSetJson<MarkdownLayoutMode>(LS_KEYS.markdownLayoutMode, markdownLayoutMode)
@@ -461,16 +375,19 @@ export function BottomPanelMarkdownSection() {
     })
   }, [markdownPresentationMode, presentationSlideState])
 
-  const headerText =
-    isLoading
-      ? UI_COPY.bottomPanelMarkdownLoadingLabel
-      : loadError
-      ? UI_COPY.bottomPanelMarkdownLoadFailedLabel
-      : hasMarkdown
-      ? hasSelection && !selectionDocumentPath
-        ? UI_COPY.bottomPanelMarkdownMissingDocumentPathLabel
-        : UI_COPY.bottomPanelMarkdownNoSelectionLabel
-      : UI_COPY.bottomPanelMarkdownNoMarkdownLabel
+  const markdownIngestionKind = React.useMemo(() => {
+    const meta = graphData && graphData.metadata
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null
+    const ingestionMetrics = (meta as Record<string, unknown>).ingestionMetrics
+    if (!ingestionMetrics || typeof ingestionMetrics !== 'object' || Array.isArray(ingestionMetrics)) {
+      return null
+    }
+    const record = ingestionMetrics as Record<string, unknown>
+    const rawKind = record.kind
+    return typeof rawKind === 'string' ? rawKind : null
+  }, [graphData])
+
+  const isMarkdownLargeSummary = markdownIngestionKind === 'markdown-large'
 
   const status = React.useMemo((): { ok: boolean | null; msg: string; details?: string } => {
     if (isLoading) return { ok: null, msg: UI_COPY.bottomPanelMarkdownStatusLoading }
@@ -481,6 +398,26 @@ export function BottomPanelMarkdownSection() {
 
   const deferredMarkdownText = React.useDeferredValue(markdownText)
   const deferredJsonSourceText = React.useDeferredValue(jsonSourceDocumentText)
+
+  const markdownPreviewText = React.useMemo(() => {
+    const raw = deferredMarkdownText || ''
+    const previewMaxChars = 180000
+    if (raw.length <= previewMaxChars) return raw
+    const slice = raw.slice(0, previewMaxChars)
+    const lastNewline = slice.lastIndexOf('\n')
+    if (lastNewline > previewMaxChars - 4000 && lastNewline > 0) {
+      return slice.slice(0, lastNewline)
+    }
+    return slice
+  }, [deferredMarkdownText])
+
+  const isMarkdownPreviewTruncated = React.useMemo(() => {
+    const raw = deferredMarkdownText || ''
+    const previewMaxChars = 180000
+    if (!raw) return false
+    if (raw.length <= previewMaxChars) return false
+    return markdownPreviewText.length < raw.length
+  }, [deferredMarkdownText, markdownPreviewText])
 
   const jsonMarkdownSuggestedMode = React.useMemo((): JsonMarkdownMode => {
     try {
@@ -573,402 +510,56 @@ export function BottomPanelMarkdownSection() {
   }, [])
 
   return (
-    <div className="h-full min-h-0 flex flex-col">
-      <div
-        className={[
-          'flex-1 min-h-0 flex flex-col border rounded bg-white overflow-hidden transition-colors duration-300',
-          autoOpenHighlight ? 'border-blue-400 ring-1 ring-blue-200' : 'border-gray-200',
-        ].join(' ')}
-      >
-        <div
-          className={[
-            'px-2 py-1 border-b border-gray-200 flex items-center justify-between gap-2 text-gray-600',
-            uiPanelKeyValueTextSizeClass,
-            uiPanelTextFontClass,
-          ].join(' ')}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0 truncate flex items-center gap-2">
-              <span>{headerText}</span>
-              {isJsonBacked && (
-                <Tooltip
-                  content={UI_COPY.bottomPanelMarkdownJsonBackedPreviewBadgeTooltip}
-                  maxWidthPx={260}
-                  contentClassName="bg-gray-800/90"
-                >
-                  <span className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1 py-px text-[10px] text-gray-500">
-                    {UI_COPY.bottomPanelMarkdownJsonBackedPreviewBadgeLabel}
-                  </span>
-                </Tooltip>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-400">
-                {UI_COPY.bottomPanelJsonMarkdownModeLabel}
-              </span>
-              <select
-                className={[
-                  'border border-gray-200 rounded px-1 py-0.5 text-xs bg-white text-gray-700',
-                  'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500',
-                  jsonModeEnabled ? '' : 'opacity-50 cursor-not-allowed',
-                ].join(' ')}
-                disabled={!jsonModeEnabled}
-                value={jsonMarkdownMode}
-                onChange={e => {
-                  const next = e.target.value as JsonMarkdownMode
-                  const valid =
-                    next === 'table' ||
-                    next === 'key-value' ||
-                    next === 'hierarchical' ||
-                    next === 'auto'
-                  setJsonMarkdownMode(valid ? next : 'auto')
-                }}
-              >
-                <option value="auto">{UI_COPY.bottomPanelJsonMarkdownModeAutoLabel}</option>
-                <option value="table">{UI_COPY.bottomPanelJsonMarkdownModeTableLabel}</option>
-                <option value="key-value">
-                  {UI_COPY.bottomPanelJsonMarkdownModeKeyValueLabel}
-                </option>
-                <option value="hierarchical">
-                  {UI_COPY.bottomPanelJsonMarkdownModeHierarchicalLabel}
-                </option>
-              </select>
-              {jsonMarkdownSuggestedMode !== 'auto' && (
-                <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                  {UI_COPY.bottomPanelJsonMarkdownModeSuggestedPrefix}{' '}
-                  {jsonMarkdownSuggestedMode === 'table'
-                    ? UI_COPY.bottomPanelJsonMarkdownModeTableLabel
-                    : jsonMarkdownSuggestedMode === 'key-value'
-                    ? UI_COPY.bottomPanelJsonMarkdownModeKeyValueLabel
-                    : UI_COPY.bottomPanelJsonMarkdownModeHierarchicalLabel}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <StatusBadge
-              label={UI_LABELS.markdown}
-              ok={status.ok}
-              msg={status.msg}
-              details={applyStatus && applyStatus.msg ? applyStatus.msg : status.details}
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0 flex">
-          {!markdownPresentationMode && markdownLayoutMode !== 'viewer' && (
-            <div
-              className={[
-                'flex flex-col',
-                markdownLayoutMode === 'editor' ? 'w-full' : 'min-w-[20%] max-w-[80%]',
-              ].join(' ')}
-              style={{
-                width:
-                  markdownLayoutMode === 'editor'
-                    ? '100%'
-                    : `${Math.round(splitRatio * 100)}%`,
-              }}
-            >
-              <div
-                className={[
-                  'px-2 py-1 border-b border-gray-200 text-gray-500 flex items-center justify-between gap-2',
-                  uiPanelKeyValueTextSizeClass,
-                  uiPanelTextFontClass,
-                ].join(' ')}
-              >
-                <span>{UI_COPY.bottomPanelMarkdownEditorTitle}</span>
-                <div className="flex items-center gap-1">
-                  {markdownLayoutMode === 'editor' && !markdownPresentationMode && (
-                    <MarkdownLayoutControlsRow
-                      layoutMode={markdownLayoutMode}
-                      setLayoutMode={setMarkdownLayoutMode}
-                      syncScroll={markdownSyncScroll}
-                      setSyncScroll={setMarkdownSyncScroll}
-                      iconSizeClass={iconSizeClass}
-                      textSizeClass={uiPanelKeyValueTextSizeClass}
-                      uiIconStrokeWidth={uiIconStrokeWidth}
-                    />
-                  )}
-                  <IconButton
-                    className={`group relative select-none rounded p-2 App-toolbar__btn flex items-center justify-center ${
-                      !hasMarkdown || isLoading || !!loadError || isJsonBacked
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-blue-600'
-                    }`}
-                    title="Apply"
-                    tooltipContent={
-                      isJsonBacked
-                        ? UI_COPY.bottomPanelMarkdownApplyJsonBackedUnsupportedStatus
-                        : undefined
-                    }
-                    onClick={() => {
-                      if (isJsonBacked) return
-                      void handleApplyMarkdown()
-                    }}
-                    disabled={!hasMarkdown || isLoading || !!loadError || isJsonBacked}
-                  >
-                    <Check className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-                  </IconButton>
-                  <IconButton
-                    className={`App-toolbar__btn flex items-center justify-center ${markdownWordWrap ? 'text-blue-600' : ''}`}
-                    title={UI_COPY.bottomPanelMarkdownWordWrapToggleTitle}
-                    tooltipContent={
-                      markdownWordWrap
-                        ? UI_COPY.bottomPanelMarkdownWordWrapOnTooltip
-                        : UI_COPY.bottomPanelMarkdownWordWrapOffTooltip
-                    }
-                    onClick={() => {
-                      const next = !markdownWordWrap
-                      setMarkdownWordWrap(next)
-                      emitMarkdownPanelMetric('markdownWordWrapToggled', {
-                        enabled: next,
-                      })
-                    }}
-                    showTooltip
-                  >
-                    <WrapText className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-                  </IconButton>
-                </div>
-              </div>
-              <div className="flex-1 min-h-0 flex">
-                <div
-                  className="shrink-0 border-r border-gray-200 bg-gray-50 text-gray-500 relative overflow-hidden"
-                  style={{ width: `${editorGutterWidthCh}ch` }}
-                  onWheel={e => {
-                    const ta = editorTextAreaRef.current
-                    if (!ta) return
-                    if (!e.deltaY) return
-                    e.preventDefault()
-                    ta.scrollTop = ta.scrollTop + e.deltaY
-                  }}
-                  >
-                    <div
-                      ref={gutterLayerRef}
-                      className="absolute left-0 right-0 top-0"
-                    style={{
-                      height: `${editorContentHeightPx}px`,
-                      transform: 'translateY(0px)',
-                      willChange: 'transform',
-                    }}
-                    >
-                      {visibleLineNumbers.map(line => {
-                        const isHighlighted =
-                          selectionHighlightEnabled &&
-                          highlightedLineRange != null &&
-                          line >= highlightedLineRange.start &&
-                          line <= highlightedLineRange.end
-                        const startRow =
-                          editorRowStartByLine[visibleLineRange.startLine] ??
-                          visibleLineRange.startLine
-                        const row = editorRowStartByLine[line] ?? line
-                        const useFlash =
-                          !!flashSelectionId &&
-                          !!selectionInfo &&
-                          flashSelectionId === selectionInfo.id &&
-                          isHighlighted
-                        const baseBg =
-                          isHighlighted && selectionInfo?.highlightBackgroundColor
-                            ? selectionInfo.highlightBackgroundColor
-                            : null
-                        const bgColor = useFlash ? 'rgba(249,115,22,0.35)' : baseBg
-                        return (
-                          <div
-                            key={line}
-                            className={[
-                              'absolute left-0 right-0 pr-2 text-right select-none',
-                              uiPanelMonospaceTextClass,
-                            ].join(' ')}
-                            style={{
-                              top: `${editorPaddingTopPx + (row - startRow) * lineHeightPx}px`,
-                              height: `${lineHeightPx}px`,
-                              lineHeight: `${lineHeightPx}px`,
-                              backgroundColor: bgColor || undefined,
-                            }}
-                          >
-                            {line}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-                <textarea
-                  ref={editorTextAreaRef}
-                  value={markdownText}
-                  onChange={e => {
-                    const next = e.target.value
-                    setMarkdownText(next)
-                    setMarkdownDocument(markdownDocumentName, next)
-                  }}
-                  className={[
-                    'w-full h-full px-2 py-2 border-0 rounded-none resize-none bg-transparent text-gray-900 outline-none',
-                    'overflow-auto',
-                    markdownWordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre',
-                    uiPanelMonospaceTextClass,
-                  ].join(' ')}
-                  style={{ lineHeight: `${lineHeightPx}px` }}
-                  wrap={markdownWordWrap ? 'soft' : 'off'}
-                />
-              </div>
-            </div>
-          )}
-
-          {!markdownPresentationMode && markdownLayoutMode === 'split' && (
-            <div
-              className="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400"
-              onPointerDown={handleDividerPointerDown}
-            />
-          )}
-
-          {(markdownPresentationMode || markdownLayoutMode !== 'editor') && (
-            <div
-              className={[
-                'flex-1 min-h-0 flex flex-col',
-                markdownPresentationMode || markdownLayoutMode === 'viewer' ? 'min-w-0' : 'min-w-[20%]',
-              ].join(' ')}
-            >
-            <div
-              className={[
-                'px-2 py-1 border-b border-gray-200 text-gray-500 flex items-center justify-between gap-2',
-                uiPanelKeyValueTextSizeClass,
-                uiPanelTextFontClass,
-              ].join(' ')}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="min-w-0 truncate">{UI_COPY.bottomPanelMarkdownViewerTitle}</span>
-                {!markdownPresentationMode && (
-                  <MarkdownLayoutControlsRow
-                    layoutMode={markdownLayoutMode}
-                    setLayoutMode={setMarkdownLayoutMode}
-                    syncScroll={markdownSyncScroll}
-                    setSyncScroll={setMarkdownSyncScroll}
-                    iconSizeClass={iconSizeClass}
-                    textSizeClass={uiPanelKeyValueTextSizeClass}
-                    uiIconStrokeWidth={uiIconStrokeWidth}
-                  />
-                )}
-                {markdownPresentationMode && (
-                  <>
-                    <button
-                      type="button"
-                      className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
-                      onClick={() => {
-                        emitMarkdownPanelMetric('markdownPresentationPrevClicked', {
-                          activeIndex: presentationSlideState?.activeSlideIndex ?? null,
-                          slideCount: presentationSlideState?.slideCount ?? null,
-                        })
-                        presentationApiRef.current?.prev()
-                      }}
-                      disabled={!presentationSlideState || presentationSlideState.activeSlideIndex <= 0}
-                    >
-                      {UI_COPY.markdownPreviewPrevButtonLabel}
-                    </button>
-                    <button
-                      type="button"
-                      className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
-                      onClick={() => {
-                        emitMarkdownPanelMetric('markdownPresentationNextClicked', {
-                          activeIndex: presentationSlideState?.activeSlideIndex ?? null,
-                          slideCount: presentationSlideState?.slideCount ?? null,
-                        })
-                        presentationApiRef.current?.next()
-                      }}
-                      disabled={
-                        !presentationSlideState
-                        || presentationSlideState.activeSlideIndex >= presentationSlideState.slideCount - 1
-                      }
-                    >
-                      {UI_COPY.markdownPreviewNextButtonLabel}
-                    </button>
-                    <div className="ml-1">
-                      {Math.min(
-                        presentationSlideState?.slideCount ?? 1,
-                        (presentationSlideState?.activeSlideIndex ?? 0) + 1,
-                      )}{' '}
-                      / {presentationSlideState?.slideCount ?? 1}
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <IconButton
-                  className={`App-toolbar__btn flex items-center justify-center ${markdownTextHighlight ? 'text-blue-600' : ''}`}
-                  title={UI_COPY.bottomPanelMarkdownTextHighlightToggleTitle}
-                  tooltipContent={
-                    markdownTextHighlight
-                      ? UI_COPY.bottomPanelMarkdownTextHighlightOnTooltip
-                      : UI_COPY.bottomPanelMarkdownTextHighlightOffTooltip
-                  }
-                  onClick={() => {
-                    const next = !markdownTextHighlight
-                    setMarkdownTextHighlight(next)
-                    emitMarkdownPanelMetric('markdownTextHighlightToggled', {
-                      enabled: next,
-                    })
-                  }}
-                  showTooltip
-                >
-                  <LayoutPanelTop className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-                </IconButton>
-                <IconButton
-                  className={`App-toolbar__btn flex items-center justify-center ${markdownPresentationMode ? 'text-blue-600' : ''}`}
-                  title={UI_COPY.bottomPanelMarkdownPresentationModeToggleTitle}
-                  tooltipContent={
-                    markdownPresentationMode
-                      ? UI_COPY.bottomPanelMarkdownPresentationModeOnTooltip
-                      : UI_COPY.bottomPanelMarkdownPresentationModeOffTooltip
-                  }
-                  onClick={() => {
-                    const next = !markdownPresentationMode
-                    setMarkdownPresentationMode(next)
-                    emitMarkdownPanelMetric('markdownPresentationModeToggled', {
-                      enabled: next,
-                      slideCount: presentationSlideState?.slideCount ?? null,
-                    })
-                  }}
-                  showTooltip
-                >
-                  <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-                </IconButton>
-                <IconButton
-                  className={`App-toolbar__btn flex items-center justify-center ${markdownFullscreen ? 'text-blue-600' : ''}`}
-                  title={UI_COPY.bottomPanelMarkdownFullscreenToggleTitle}
-                  tooltipContent={
-                    markdownFullscreen
-                      ? UI_COPY.bottomPanelMarkdownFullscreenOnTooltip
-                      : UI_COPY.bottomPanelMarkdownFullscreenOffTooltip
-                  }
-                  onClick={toggleMarkdownFullscreen}
-                  showTooltip
-                >
-                  <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-                </IconButton>
-              </div>
-          </div>
-          {markdownLayoutMode !== 'editor' && (
-            <MarkdownPreview
-              ref={viewerRef}
-              markdownText={deferredMarkdownText}
-              activeDocumentPath={previewBasePath}
-              highlightedLineRange={highlightedLineRange}
-              markdownWordWrap={markdownWordWrap}
-              markdownPresentationMode={markdownPresentationMode}
-              markdownTextHighlight={selectionHighlightEnabled}
-              alwaysOnHighlightMode={markdownTextHighlight}
-              selectionKind={selectionInfo?.kind ?? null}
-              highlightBackgroundColor={selectionInfo?.highlightBackgroundColor ?? null}
-              highlightUnderlineColor={selectionInfo?.highlightUnderlineColor ?? null}
-              presentationApiRef={presentationApiRef}
-              onPresentationSlideStateChange={setPresentationSlideState}
-              uiPanelTextFontClass={uiPanelTextFontClass}
-              uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-              previewScrollable
-                onScroll={markdownPresentationMode ? undefined : handleViewerScroll}
-              />
-            )}
-          </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <BottomPanelMarkdownSectionView
+      autoOpenHighlight={autoOpenHighlight}
+      uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+      uiPanelTextFontClass={uiPanelTextFontClass}
+      uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+      isJsonBacked={isJsonBacked}
+      jsonModeEnabled={jsonModeEnabled}
+      jsonMarkdownMode={jsonMarkdownMode}
+      setJsonMarkdownMode={setJsonMarkdownMode}
+      jsonMarkdownSuggestedMode={jsonMarkdownSuggestedMode}
+      status={status}
+      applyStatus={applyStatus}
+      isMarkdownLargeSummary={isMarkdownLargeSummary}
+      markdownPresentationMode={markdownPresentationMode}
+      markdownLayoutMode={markdownLayoutMode}
+      setMarkdownLayoutMode={setMarkdownLayoutMode}
+      iconSizeClass={iconSizeClass}
+      uiIconStrokeWidth={uiIconStrokeWidth}
+      markdownWordWrap={markdownWordWrap}
+      editorGutterWidthCh={editorGutterWidthCh}
+      editorContentHeightPx={editorContentHeightPx}
+      editorTextAreaRef={editorTextAreaRef}
+      gutterLayerRef={gutterLayerRef}
+      visibleLineNumbers={visibleLineNumbers}
+      selectionHighlightEnabled={selectionHighlightEnabled}
+      highlightedLineRange={highlightedLineRange}
+      editorRowStartByLine={editorRowStartByLine}
+      visibleLineRange={visibleLineRange}
+      flashSelectionId={flashSelectionId}
+      selectionInfo={selectionInfo}
+      editorPaddingTopPx={editorPaddingTopPx}
+      lineHeightPx={lineHeightPx}
+      markdownText={markdownText}
+      setMarkdownText={setMarkdownText}
+      setMarkdownDocument={setMarkdownDocument}
+      markdownDocumentName={markdownDocumentName}
+      markdownPreviewText={markdownPreviewText}
+      previewBasePath={previewBasePath}
+      viewerRef={viewerRef}
+      markdownTextHighlight={markdownTextHighlight}
+      setMarkdownTextHighlight={setMarkdownTextHighlight}
+      presentationApiRef={presentationApiRef}
+      presentationSlideState={presentationSlideState}
+      setPresentationSlideState={setPresentationSlideState}
+      markdownFullscreen={markdownFullscreen}
+      toggleMarkdownFullscreen={toggleMarkdownFullscreen}
+      handleViewerScroll={handleViewerScroll}
+      setMarkdownPresentationMode={setMarkdownPresentationMode}
+      isMarkdownPreviewTruncated={isMarkdownPreviewTruncated}
+      handleApplyMarkdown={handleApplyMarkdown}
+    />
   )
 }

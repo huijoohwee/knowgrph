@@ -26,6 +26,7 @@
 -  - This behavior is validated by tests that load `docs/assets/example-workflow.jsonld` and compare node and edge counts between document-structure and semantic layers.
   - JSON-LD parsing infers edges generically from array-valued properties whose targets exist as nodes (including `{"@id": ...}` references), so property and document-structure layers receive the full edge set without dataset-specific logic.
   - Markdown ingestion uses `buildMarkdownJsonLd` to convert large documents such as `docs/assets/example-workflow.md` into graphs; tests validate that ingestion produces non-empty node sets with no parser warnings.
+  - Markdown → graph parses also attach neutral ingestion timing metrics under `metadata.ingestionMetrics` (for example, `totalMs`, `buildMarkdownJsonLdMs`, `parseJsonLdMs`) so schema-aware tools can reason about parser performance without depending on canvas-specific UI.
   - Markdown graphs produced by `parse_markdown_to_graph_jsonld` expose neutral layer hints in `metadata.layers` so canvas and downstream tools can treat:
     - `layers.semantic` as the semantic similarity layer over `Entity` nodes and co-occurrence edges.
     - `layers.documentStructure` as the structural layer over `Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, and `Table` nodes plus `hasSection`, `hasBlock`, `hasItem`, `next`, and `linksTo` edges.

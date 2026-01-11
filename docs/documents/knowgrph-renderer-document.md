@@ -312,6 +312,45 @@
 - When the toggle is disabled:
   - Markdown still scrolls and auto-aligns to the selected node/edge, but no extra background or underline treatments are applied.
 
+### Markdown provenance helpers and line-range semantics
+- Graph nodes and edges carry markdown provenance via `metadata.documentPath`/`metadata.codebaseRelPath` and `metadata.lineStart`/`metadata.lineEnd`.
+- The canvas normalizes this metadata through a small set of helpers in `canvas/src/lib/graph/markdownMetadata.ts`:
+  - `toMetadataRecord` guards against non-object metadata and provides a `Record<string, unknown>` view for downstream helpers.
+  - `getLineRangeFromMetadata` parses `lineStart`/`lineEnd` (numbers or numeric strings), clamps them to 1-based line indices, and returns a normalized `{ start, end }` range or `null` when `lineStart` is missing or invalid.
+  - `getDocumentPathFromMetadata` resolves a stable document identifier by preferring `documentPath` and falling back to `codebaseRelPath` when the primary field is empty.
+  - `getDocumentLocationFromMetadata` combines these into a single `{ documentPath, lineStart, lineEnd }` object and only returns a location when both a document path and a valid line range are present.
+  - `computeHighlightedRangeFromLines` takes a candidate line range and the editor’s current line count, clamps the range into visible bounds, and returns `null` when no usable start line is available.
+- Bottom Panel selection, the markdown viewer’s `highlightedLineRange`, the Markdown Preview always-on token highlights, and the “Show on Canvas” context action all consume these helpers so markdown ↔ canvas alignment and highlight behavior share a single, schema-aware definition of document location.
+
+## Markdown presentation fragments and step engine
+- The Bottom Panel Markdown Preview supports slide decks split by `---` separators with optional frontmatter:
+  - Deck-level frontmatter configures slide-wide options such as `layout`, `background`, `aspectRatio`, and fragment behavior.
+  - Per-slide frontmatter can override layout, background, class, and fragment configuration for individual slides.
+- Fragment configuration is schema-free and driven by markdown metadata:
+  - When the deck or slide frontmatter includes a `fragments` key, the viewer interprets matching elements as stepped fragments:
+    - `fragments: true` enables the fragment engine with default tags and classes.
+    - `fragments: { enabled: true, steps: N }` configures an explicit number of steps for the slide.
+    - `fragmentTags` and `fragmentClassNames` frontmatter keys override the defaults.
+  - Default fragment selectors in the Knowgrph viewer:
+    - Tags: `<v-click>`, `<v-mark>`.
+    - Classes: `.fragment`.
+- Fragment ordering is deterministic and compatible with common slide frameworks:
+  - Block-level fragments:
+    - Elements with `class="fragment"` are treated as fragments.
+    - `data-fragment-index="N"` controls ordering when present; otherwise, document order is used.
+  - Tag-based fragments:
+    - `<v-click>` blocks are treated as fragments.
+    - `at="N"` on `<v-click>` sets the explicit fragment index; when omitted, order falls back to document order within the fragment sequence.
+  - Inline markers:
+    - `<v-mark>` elements participate in fragment stepping like `<v-click>`.
+    - Color and type attributes on `<v-mark>` are rendered as plain content without special styling; only step visibility is applied.
+- The presentation navigation API integrates fragment steps with slide navigation:
+  - The viewer exposes a `MarkdownPreviewPresentationApi` with `prev()` and `next()` methods.
+  - `next()` first advances fragment steps on the active slide until the configured step count is reached, then advances to the next slide.
+  - `prev()` decrements fragment steps when possible; once the active slide is at its first step, it moves to the previous slide and, when fragments are enabled there, jumps to that slide’s last step.
+  - Keyboard shortcuts (`Space`, `ArrowRight`, `PageDown`, `ArrowLeft`, `PageUp`, `Home`, `End`) are wired through the same API so fragment stepping and slide navigation stay consistent across input methods.
+  - The fragment engine is continuously validated against the public `markdown-slide-styling-reference.md` guideline so viewer behavior and the reference style guide stay aligned.
+
 ## Canvas ↔ Markdown selection sync
 - Canvas-driven sync:
   - When a node or edge with `metadata.lineStart`/`metadata.lineEnd` is selected on the canvas, the Bottom Panel markdown editor and viewer compute the corresponding wrapped-row range and scroll so the first line of that range sits under the top edge of the editor viewport.
@@ -369,6 +408,12 @@
     - Confirms `MarkdownPreview` renders `<img>` elements for multiple
       markdown sources, including local files, GitHub-hosted assets and
       HTML blocks.
+  - `markdownPresentationFragments.test.ts`:
+    - Verifies slide-fragment stepping for `.fragment`, `<v-click>`, and `<v-mark>` elements.
+    - Confirms `data-fragment-index="N"` and `at="N"` ordering semantics match the documented fragment engine behavior.
+  - `markdownSlideStylingReferenceRender.test.ts`:
+    - Loads the external markdown slide styling reference document at `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/markdown-slide-styling-reference.md`.
+    - Smoke-tests that the Bottom Panel markdown viewer can render the full deck in presentation mode without hardcoding or inlining the reference markdown content.
   - `selectionHighlight.test.ts`:
     - Verifies selection highlight logic for nodes and edges while
       keeping the media-aware extension compatible with the existing

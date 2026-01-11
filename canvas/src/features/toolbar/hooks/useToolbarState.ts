@@ -14,6 +14,15 @@ export function useToolbarState() {
       launchSpotlightMode: s.launchSpotlightMode,
       nodesCount: s.graphData?.nodes?.length ?? 0,
       edgesCount: s.graphData?.edges?.length ?? 0,
+      ingestionMetrics: (() => {
+        const data = s.graphData;
+        if (!data) return null;
+        const meta = data.metadata;
+        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null;
+        const raw = (meta as Record<string, unknown>).ingestionMetrics;
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+        return raw as Record<string, unknown>;
+      })(),
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       uiIconAnimationEnabled: s.uiIconAnimationEnabled,

@@ -1,7 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
-import '@/tests/run'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { clearCustomParsers } from '@/features/parsers/persistence'
 import type { GraphSchema } from '@/lib/graph/schema'

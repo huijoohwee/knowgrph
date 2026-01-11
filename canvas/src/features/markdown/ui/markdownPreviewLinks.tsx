@@ -137,6 +137,12 @@ export const renderSafeHtmlBlock = (
     uiPanelMonospaceTextClass: string
     markdownPresentationMode: boolean
     renderNodeText: (text: string, key: React.Key) => React.ReactNode
+    fragmentOptions?: {
+      enabled: boolean
+      currentStep: number
+      classNames: string[]
+      tags: string[]
+    } | null
   },
 ): React.ReactNode | null => {
   if (typeof window === 'undefined') return null
@@ -150,6 +156,12 @@ export const renderSafeHtmlBlock = (
     const root = doc.body.firstElementChild
     if (!root) return null
 
+    const fragmentOpts = opts.fragmentOptions
+    const fragmentEnabled = !!fragmentOpts && !!fragmentOpts.enabled
+    const fragmentClassNames = fragmentOpts?.classNames || []
+    const fragmentTags = fragmentOpts?.tags || []
+    let fragmentIndex = 0
+
     const renderNode = (node: ChildNode, key: React.Key): React.ReactNode => {
       if (node.nodeType === Node.TEXT_NODE) {
         return opts.renderNodeText(node.textContent || '', key)
@@ -160,6 +172,41 @@ export const renderSafeHtmlBlock = (
       const el = node as Element
       const tag = el.tagName.toLowerCase()
       const children = Array.from(el.childNodes).map((n, i) => renderNode(n, `${key}-${i}`))
+
+      let isFragmentTag = false
+      let isFragmentClass = false
+      if (fragmentEnabled) {
+        const tagMatch = fragmentTags.some(name => name.toLowerCase() === tag)
+        const classMatch =
+          fragmentClassNames.length > 0 && (el.classList?.length || 0) > 0
+            ? fragmentClassNames.some(name => el.classList.contains(name))
+            : false
+        isFragmentTag = tagMatch
+        isFragmentClass = classMatch
+      }
+
+      if (fragmentEnabled && (isFragmentTag || isFragmentClass)) {
+        const explicitIndexAttr =
+          el.getAttribute('data-fragment-index') ||
+          (tag === 'v-click' ? el.getAttribute('at') : null)
+        let idx: number
+        if (explicitIndexAttr != null && explicitIndexAttr.trim()) {
+          const parsed = Number.parseInt(explicitIndexAttr.trim(), 10)
+          idx = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+        } else {
+          fragmentIndex += 1
+          idx = fragmentIndex
+        }
+        const current = Number.isFinite(fragmentOpts?.currentStep)
+          ? Math.max(0, fragmentOpts?.currentStep || 0)
+          : 0
+        if (idx <= 0 || current < idx) {
+          return <React.Fragment key={key}>{''}</React.Fragment>
+        }
+        if (isFragmentTag) {
+          return <React.Fragment key={key}>{children}</React.Fragment>
+        }
+      }
 
       if (tag === 'a') {
         const hrefRaw = el.getAttribute('href') || ''

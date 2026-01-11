@@ -108,6 +108,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   graphDataTableVirtualMinRows: 10,
   graphDataTableVirtualDebugLogRanges: false,
   graphId: 'default',
+  markdownAlwaysOnHighlightComplexityBudget: null as number | null,
   tabId: (() => {
     try {
       const existing = ssString(SESSION_KEYS.tabId, '');
@@ -233,6 +234,15 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   setSpotlightNearTopThreshold: (v: number) => {
     const n = Number.isFinite(v) ? Number(v) : 96;
     set({ spotlightNearTopThreshold: n >= 0 ? n : 0 });
+  },
+  setMarkdownAlwaysOnHighlightComplexityBudget: (v: number | null) => {
+    if (v == null) {
+      set({ markdownAlwaysOnHighlightComplexityBudget: null });
+      return;
+    }
+    const n = Number.isFinite(v) ? Number(v) : 0;
+    const clamped = n < 0 ? 0 : n;
+    set({ markdownAlwaysOnHighlightComplexityBudget: clamped });
   },
   setGraphId: (id: string) => set({ graphId: id }),
   setEnableTabSync: (v: boolean) => set({ enableTabSync: v }),

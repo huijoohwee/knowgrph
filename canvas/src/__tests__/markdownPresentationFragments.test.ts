@@ -1,20 +1,17 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import type { GraphData } from '@/lib/graph/types'
 
-export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
+export async function testMarkdownPresentationFragmentsAdvanceWithinSlide() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const anyWindow = dom.window as unknown as {
       requestAnimationFrame?: (cb: (ts: number) => void) => number
-      getSelection?: () => Selection | null
     }
     if (!anyWindow.requestAnimationFrame) {
       anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
@@ -27,55 +24,18 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
 
     const doc = dom.window.document
 
-    const graphData: GraphData = {
-      type: 'Graph',
-      nodes: [
-        {
-          id: 'n1',
-          type: 'Paragraph',
-          label: 'First',
-          properties: {},
-          metadata: {
-            documentPath: 'docs/example.md',
-            lineStart: 5,
-            lineEnd: 7,
-          },
-        },
-        {
-          id: 'n2',
-          type: 'Paragraph',
-          label: 'Second',
-          properties: {},
-          metadata: {
-            documentPath: 'docs/example.md',
-            lineStart: 20,
-            lineEnd: 22,
-          },
-        },
-      ],
-      edges: [],
-      metadata: {},
-    }
-
-    const state = useGraphStore.getState()
-    state.setGraphData(graphData as never)
-    state.selectNode(null)
-    state.selectEdge(null)
-
     const markdownLines = [
-      '# Title',
+      '---',
+      'fragments:',
+      '  enabled: true',
+      '  steps: 2',
+      '---',
       '',
-      'intro',
+      '# Slide 1',
       '',
-      'first para line 1',
-      'first para line 2',
-      'first para line 3',
-      '',
-      'other content',
-      '',
-      'second para line 1',
-      'second para line 2',
-      'second para line 3',
+      '<p>always visible</p>',
+      '<p class="fragment">first fragment</p>',
+      '<p class="fragment">second fragment</p>',
     ]
     const markdownText = markdownLines.join('\n')
 
@@ -84,19 +44,22 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
+    const presentationApiRef = React.createRef<{ prev: () => void; next: () => void }>()
+
     root.render(
       React.createElement(MarkdownPreview, {
         markdownText,
-        activeDocumentPath: 'docs/example.md',
+        activeDocumentPath: 'docs/fragments.md',
         highlightedLineRange: null,
         markdownWordWrap: true,
-        markdownPresentationMode: false,
+        markdownPresentationMode: true,
         markdownTextHighlight: false,
         uiPanelTextFontClass: 'font-sans text-xs',
         uiPanelMonospaceTextClass: 'font-mono text-xs',
         previewOverlayScope: 'viewport',
         previewOverlayPortalTarget: null,
         previewScrollable: true,
+        presentationApiRef,
       } as never),
     )
 
@@ -111,44 +74,38 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
       throw new Error('markdown preview root not found')
     }
 
-    const targetBlock = rootEl.querySelector('[data-start-line="5"]') as HTMLElement | null
-    if (!targetBlock) {
-      throw new Error('block with data-start-line=5 not found')
+    const getText = () => (rootEl.textContent || '').replace(/\s+/g, ' ').trim()
+
+    const initialText = getText()
+    if (!initialText.includes('always visible')) {
+      throw new Error('expected non-fragment content to be visible at initial step')
+    }
+    if (initialText.includes('first fragment') || initialText.includes('second fragment')) {
+      throw new Error('expected fragments to be hidden at initial step')
     }
 
-    anyWindow.getSelection = () =>
-      ({
-        isCollapsed: false,
-      } as unknown as Selection)
-
-    const contextMenuEvent = new dom.window.MouseEvent('contextmenu', {
-      bubbles: true,
-      cancelable: true,
-      clientX: 10,
-      clientY: 10,
-    })
-    Object.defineProperty(contextMenuEvent, 'target', {
-      value: targetBlock,
-      writable: false,
-    })
-
-    rootEl.dispatchEvent(contextMenuEvent)
-    await tick()
-
-    const menuButton = rootEl.querySelector('button') as HTMLButtonElement | null
-    if (!menuButton) {
-      throw new Error('Show on Canvas menu button not found')
+    const api = presentationApiRef.current
+    if (!api) {
+      throw new Error('presentationApiRef.current is null')
     }
 
-    menuButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    api.next()
     await tick()
 
-    const selectedNodeId = useGraphStore.getState().selectedNodeId
-    const selectedEdgeId = useGraphStore.getState().selectedEdgeId
-    if (selectedNodeId !== 'n1') {
-      throw new Error(
-        `expected selectedNodeId to be "n1" after Show on Canvas, got ${String(selectedNodeId)} (edge=${String(selectedEdgeId)})`,
-      )
+    const afterFirstStep = getText()
+    if (!afterFirstStep.includes('first fragment')) {
+      throw new Error('expected first fragment to be visible after first next()')
+    }
+    if (afterFirstStep.includes('second fragment')) {
+      throw new Error('expected second fragment to still be hidden after first next()')
+    }
+
+    api.next()
+    await tick()
+
+    const afterSecondStep = getText()
+    if (!afterSecondStep.includes('second fragment')) {
+      throw new Error('expected second fragment to be visible after second next()')
     }
 
     root.unmount()
@@ -158,14 +115,13 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
   }
 }
 
-export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
+export async function testMarkdownPresentationFragmentOrderingByIndexAndVClickAt() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const anyWindow = dom.window as unknown as {
       requestAnimationFrame?: (cb: (ts: number) => void) => number
-      getSelection?: () => Selection | null
     }
     if (!anyWindow.requestAnimationFrame) {
       anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
@@ -179,13 +135,17 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
     const doc = dom.window.document
 
     const markdownLines = [
-      '# Title',
+      '---',
+      'fragments:',
+      '  enabled: true',
+      '  steps: 3',
+      '---',
       '',
-      'intro',
+      '# Slide with explicit ordering',
       '',
-      'first para line 1',
-      'first para line 2',
-      'first para line 3',
+      '<p class="fragment" data-fragment-index="2">second-by-index</p>',
+      '<p class="fragment" data-fragment-index="1">first-by-index</p>',
+      '<v-click at="3">third-v-click</v-click>',
     ]
     const markdownText = markdownLines.join('\n')
 
@@ -194,19 +154,22 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
+    const presentationApiRef = React.createRef<{ prev: () => void; next: () => void }>()
+
     root.render(
       React.createElement(MarkdownPreview, {
         markdownText,
-        activeDocumentPath: 'docs/example.md',
+        activeDocumentPath: 'docs/fragments-order.md',
         highlightedLineRange: null,
         markdownWordWrap: true,
-        markdownPresentationMode: false,
+        markdownPresentationMode: true,
         markdownTextHighlight: false,
         uiPanelTextFontClass: 'font-sans text-xs',
         uiPanelMonospaceTextClass: 'font-mono text-xs',
         previewOverlayScope: 'viewport',
         previewOverlayPortalTarget: null,
         previewScrollable: true,
+        presentationApiRef,
       } as never),
     )
 
@@ -221,33 +184,46 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
       throw new Error('markdown preview root not found')
     }
 
-    const targetBlock = rootEl.querySelector('[data-start-line="5"]') as HTMLElement | null
-    if (!targetBlock) {
-      throw new Error('block with data-start-line=5 not found')
+    const getText = () => (rootEl.textContent || '').replace(/\s+/g, ' ').trim()
+
+    const initialText = getText()
+    if (initialText.includes('first-by-index') || initialText.includes('second-by-index') || initialText.includes('third-v-click')) {
+      throw new Error('expected all fragments to be hidden at initial step')
     }
 
-    anyWindow.getSelection = () =>
-      ({
-        isCollapsed: false,
-      } as unknown as Selection)
+    const api = presentationApiRef.current
+    if (!api) {
+      throw new Error('presentationApiRef.current is null')
+    }
 
-    const contextMenuEvent = new dom.window.MouseEvent('contextmenu', {
-      bubbles: true,
-      cancelable: true,
-      clientX: 10,
-      clientY: 10,
-    })
-    Object.defineProperty(contextMenuEvent, 'target', {
-      value: targetBlock,
-      writable: false,
-    })
-
-    rootEl.dispatchEvent(contextMenuEvent)
+    api.next()
     await tick()
 
-    const menuButton = rootEl.querySelector('button') as HTMLButtonElement | null
-    if (!menuButton) {
-      throw new Error('context menu button not found inside markdown preview root')
+    const afterFirstStep = getText()
+    if (!afterFirstStep.includes('first-by-index')) {
+      throw new Error('expected first-by-index to be visible at step 1')
+    }
+    if (afterFirstStep.includes('second-by-index') || afterFirstStep.includes('third-v-click')) {
+      throw new Error('expected only first-by-index to be visible at step 1')
+    }
+
+    api.next()
+    await tick()
+
+    const afterSecondStep = getText()
+    if (!afterSecondStep.includes('first-by-index') || !afterSecondStep.includes('second-by-index')) {
+      throw new Error('expected first-by-index and second-by-index to be visible at step 2')
+    }
+    if (afterSecondStep.includes('third-v-click')) {
+      throw new Error('expected third-v-click to still be hidden at step 2')
+    }
+
+    api.next()
+    await tick()
+
+    const afterThirdStep = getText()
+    if (!afterThirdStep.includes('third-v-click')) {
+      throw new Error('expected third-v-click to be visible at step 3')
     }
 
     root.unmount()

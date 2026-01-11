@@ -41,12 +41,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setFitToScreenMode,
     enableLaunchSpotlight,
     launchSpotlightMode,
-    nodesCount,
-    edgesCount,
     uiIconScale,
     uiIconStrokeWidth,
     uiIconAnimationEnabled,
-    uiPanelKeyValueTextSizeClass,
     selectMode,
     setSelectMode,
     isSidebarOpen,
@@ -150,9 +147,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <BarChart3 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        <span className={`${uiPanelKeyValueTextSizeClass} leading-none whitespace-nowrap`}>
-          Rows: {(nodesCount + edgesCount).toLocaleString()} (nodes: {nodesCount.toLocaleString()}, edges: {edgesCount.toLocaleString()})
-        </span>
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${selectMode === 'multi' || selectMode === 'lasso' ? 'text-blue-600' : 'text-gray-600'}`}

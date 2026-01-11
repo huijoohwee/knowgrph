@@ -2,6 +2,11 @@
 
 ## P0-Critical
 
+
+### 2025-01-10
+- public version max 20 kb; pay to unlock to 100 kb;
+
+
 ### 2025-01-07
 - Add semantic parsing mode as default; provide document‑structure parsing mode as fallback.
 

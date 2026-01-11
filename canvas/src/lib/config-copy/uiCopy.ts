@@ -356,9 +356,9 @@ export const UI_COPY = {
     `Bar height: ${metricLabel} weight (click to highlight edges)`,
   bottomPanelExternalPreviewMissingCodebasePathLabel:
     'External File Preview: selected row has no metadata.codebasePath (nothing to load).',
-  bottomPanelMarkdownLoadingLabel: 'Markdown Viewer: loading markdown…',
-  bottomPanelMarkdownLoadFailedLabel: 'Markdown Viewer: failed to load markdown.',
-  bottomPanelMarkdownNoMarkdownLabel: 'Markdown Viewer: no imported markdown available.',
+  bottomPanelMarkdownLoadingLabel: 'Loading markdown…',
+  bottomPanelMarkdownLoadFailedLabel: 'Failed to load markdown.',
+  bottomPanelMarkdownNoMarkdownLabel: 'No imported markdown available.',
   bottomPanelMarkdownMissingPathError: MISSING_PATH,
   bottomPanelMarkdownLoadFailedError: FAILED_TO_LOAD_MARKDOWN,
   markdownPreviewPrevButtonLabel: 'Prev',
@@ -389,11 +389,20 @@ export const UI_COPY = {
   bottomPanelMarkdownFullscreenToggleTitle: 'Toggle fullscreen presentation',
   bottomPanelMarkdownFullscreenOnTooltip: 'Fullscreen: On',
   bottomPanelMarkdownFullscreenOffTooltip: 'Fullscreen: Off',
+  bottomPanelMarkdownEditToggleTitle: 'Toggle edit mode',
+  bottomPanelMarkdownEditOnTooltip: 'Edit mode: On',
+  bottomPanelMarkdownEditOffTooltip: 'Edit mode: Off',
+  bottomPanelMarkdownApplyButtonLabel: 'Apply',
+  bottomPanelMarkdownApplyButtonTitle: 'Apply markdown changes to graph',
   bottomPanelMarkdownStatusLoading: 'Loading',
   bottomPanelMarkdownStatusReady: 'Ready',
   bottomPanelMarkdownStatusError: 'Error',
   bottomPanelMarkdownApplyJsonBackedUnsupportedStatus:
     'Apply is not supported for JSON → Markdown preview. Edit graph via JSON or UI Editor instead.',
+  markdownLargeSummaryHelperText:
+    'Large markdown summary: long slide decks are summarized; original file stays unchanged.',
+  markdownPreviewTruncatedHelperText:
+    'Preview truncated for very large markdown; edit source for full text.',
   bottomPanelMarkdownJsonBackedPreviewBadgeLabel: 'JSON-backed preview',
   bottomPanelMarkdownJsonBackedPreviewBadgeTooltip:
     'Preview of the last JSON/JSON-LD import. Edit graph structure via JSON Editor or UI Editor; Apply from Markdown is disabled.',
@@ -410,9 +419,7 @@ export const UI_COPY = {
   toolbarParserExportJsonButtonLabel: 'JSON',
   toolbarParserExportYamlButtonLabel: 'YAML',
   toolbarParserExportPythonButtonLabel: 'Python',
-  bottomPanelMarkdownNoSelectionLabel:
-    'Markdown Viewer: showing imported markdown. Select a node or edge to highlight matching lines.',
-  bottomPanelMarkdownMissingDocumentPathLabel:
-    'Markdown Viewer: selected row has no metadata.documentPath (showing imported markdown only).',
+  bottomPanelMarkdownNoSelectionLabel: 'Imported markdown loaded.',
+  bottomPanelMarkdownMissingDocumentPathLabel: 'Selected row has no metadata.documentPath.',
   bottomPanelImportHistoryJsonLdAgenticRagButtonLabel: 'Import History JSON-LD (AgenticRAG)',
 } as const;
