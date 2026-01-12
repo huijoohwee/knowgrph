@@ -158,7 +158,9 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     onSlidesReordered,
   })
 
-  const { tokens } = React.useMemo(() => lexMarkdown(markdownText || ''), [markdownText])
+  const { tokens } = React.useMemo(() => {
+    return lexMarkdown(markdownText || '')
+  }, [markdownText])
 
   const graphData = useGraphStore(s => s.graphData)
   const markdownAlwaysOnHighlightComplexityBudget = useGraphStore(

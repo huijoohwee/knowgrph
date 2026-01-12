@@ -35,7 +35,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   const ListTag = (list.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
   const listClass = list.ordered ? 'list-decimal' : 'list-disc'
   
-  const containerClassName = ['mt-3 mb-3'].filter(Boolean).join(' ')
+  const containerClassName = ['mt-4 mb-4'].filter(Boolean).join(' ')
   return (
     <MarkdownBlockContainer
       as="div"
@@ -45,7 +45,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
       startLine={t.startLine}
       endLine={t.endLine}
     >
-      <ListTag className={[listClass, 'pl-5', baseTextClass, opts.uiPanelTextFontClass].join(' ')}>
+      <ListTag className={[listClass, 'pl-6 space-y-2 marker:text-gray-500', baseTextClass, opts.uiPanelTextFontClass].join(' ')}>
         {list.items.map((item, j) => {
           const task = item.task ? (
             <input

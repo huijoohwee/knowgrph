@@ -36,7 +36,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     <MarkdownBlockContainer
       as="blockquote"
       className={[
-        'mt-3 mb-3 pl-3 border-l-4 border-gray-200 text-gray-700',
+        'mt-4 mb-4 pl-4 py-2 border-l-4 border-blue-400 bg-blue-50/30 rounded-r text-gray-700 italic',
         baseTextClass,
         commonBlockClass,
       ].filter(Boolean).join(' ')}

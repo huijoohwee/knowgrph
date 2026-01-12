@@ -12,6 +12,10 @@ import type {
   TokensCode,
   TokensMath,
   TokensHTML,
+  TokensSub,
+  TokensSup,
+  TokensMark,
+  TokensFootnoteRef,
 } from './MarkdownTokens'
 import { isAbsoluteWebUrl, isSafeHref, resolveHref, buildAnchorAttrs } from '@/features/markdown/ui/markdownPreviewLinks'
 import type { InlineRenderOpts } from './MarkdownRendererTypes'
@@ -88,6 +92,33 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     if (tt.type === 'del') {
       return <del key={key}>{renderTokens((t as unknown as TokensDel).tokens, insideLink)}</del>
     }
+    if (tt.type === 'sub') {
+      return <sub key={key}>{renderTokens((t as unknown as TokensSub).tokens, insideLink)}</sub>
+    }
+    if (tt.type === 'sup') {
+      return <sup key={key}>{renderTokens((t as unknown as TokensSup).tokens, insideLink)}</sup>
+    }
+    if (tt.type === 'mark') {
+      return (
+        <mark key={key} className="bg-yellow-200 text-yellow-900 px-0.5 rounded-sm">
+          {renderTokens((t as unknown as TokensMark).tokens, insideLink)}
+        </mark>
+      )
+    }
+    if (tt.type === 'footnote_ref') {
+      const ref = t as unknown as TokensFootnoteRef
+      return (
+        <sup key={key} id={`fnref${ref.id}`} className="scroll-mt-16">
+          <a
+            href={`#fn${ref.id}`}
+            className="text-blue-600 hover:text-blue-800 no-underline font-medium px-0.5"
+            aria-describedby={`fn${ref.id}`}
+          >
+            {ref.label}
+          </a>
+        </sup>
+      )
+    }
     if (tt.type === 'br') return <br key={key} />
     if (tt.type === 'link') {
       const link = t as unknown as TokensLink
@@ -121,7 +152,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     if (tt.type === 'code') {
       return (
-        <code key={key} className={uiPanelMonospaceTextClass}>
+        <code key={key} className={[uiPanelMonospaceTextClass, 'bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200 text-sm'].filter(Boolean).join(' ')}>
           {(t as unknown as TokensCode).text}
         </code>
       )

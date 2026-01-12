@@ -2,7 +2,8 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { deriveTidyTreeDerivation } from '@/components/GraphCanvas/simulation'
 import { computeTidyTreeCollapseHiddenNodes } from '@/components/GraphCanvas/tidyTreeLabelLod'
-import { applyLayoutAutosuggestFromMetadata, type GetGraph } from '@/hooks/store/graphDataSlice'
+import { type GetGraph } from '@/hooks/store/graphDataSlice'
+import { applyLayoutAutosuggestFromMetadata } from '@/hooks/store/graphDataSliceUtils'
 import { computeNextSchemaForTidyPreset } from '@/features/toolbar/tidyTreePreset'
 
 export function testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges() {

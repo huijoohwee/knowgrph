@@ -98,12 +98,23 @@
           "hypothesis": "#EAB308"
         },
         "edges": {
-          "neutral": "#64748B"
+          "critical": "#EF4444"
         }
       }
     }
-  }
   ```
+
+## Markdown Renderer
+
+- **Scope**: Renders markdown content for preview panel and presentation mode.
+- **Capabilities**:
+  - **Syntax Highlighting**: Uses `highlight.js` for code blocks with language support.
+  - **Extended Syntax**: Supports footnotes (`[^1]`), subscript (`~sub~`), superscript (`^sup^`), highlight (`==mark==`), and task lists.
+  - **Presentation Mode**: Supports slide layouts, fragments, and navigation (similar to slidev but domain-agnostic).
+  - **Styling**: Configurable via frontmatter (`theme`, `institution`, `author`, `meeting`, `layout`) and fully customizable CSS classes. Supports `default` and `academic` themes (`neversink` accepted as a legacy alias).
+  - **Tables**: Supports inline HTML (`<br>`, `<pre>`) for complex cell formatting.
+  - **Heading IDs**: Auto-generated and custom IDs (`{#id}`) for deep linking.
+  - **Token Handling**: Uses a custom token renderer loop (`MarkdownTokenRenderer`) adhering to SRP and configuration-driven design.
 
 - When this metadata is present:
   - 2D nodes and labels:
@@ -463,7 +474,7 @@
 - The Bottom Panel Markdown Preview supports slide decks split by `---` separators with optional frontmatter:
   - Deck-level frontmatter configures slide-wide options such as `layout`, `background`, `aspectRatio`, and fragment behavior.
   - Per-slide frontmatter can override layout, background, class, and fragment configuration for individual slides.
-- Slide-level transitions and math rendering follow the markdown slide styling reference:
+- Slide-level transitions and math rendering follow the markdown slide styling guidelines:
   - `transition` keys in deck or slide frontmatter map to CSS-based slide transitions (`fade`, `slide-left`, `slide-right`, `slide-up`, `slide-down`, `zoom`, or `none`).
   - Inline (`$...$` or `\\(...\\)`) and display (`$$...$$` or `\\[...\\]`) math expressions are parsed into dedicated math tokens and rendered via KaTeX in both viewer and presentation modes.
 - Fragment configuration is schema-free and driven by markdown metadata:
@@ -489,7 +500,7 @@
   - `next()` first advances fragment steps on the active slide until the configured step count is reached, then advances to the next slide.
   - `prev()` decrements fragment steps when possible; once the active slide is at its first step, it moves to the previous slide and, when fragments are enabled there, jumps to that slide’s last step.
   - Keyboard shortcuts (`Space`, `ArrowRight`, `PageDown`, `ArrowLeft`, `PageUp`, `Home`, `End`) are wired through the same API so fragment stepping and slide navigation stay consistent across input methods.
-  - The fragment engine is continuously validated against the public `markdown-slide-styling-reference.md` guideline so viewer behavior and the reference style guide stay aligned.
+  - The fragment engine is continuously validated against the public `markdown-slide-styling-guidelines.md` guideline so viewer behavior and the style guide stay aligned.
 
 ## Canvas ↔ Markdown selection sync
 - Canvas-driven sync:
@@ -553,7 +564,7 @@
     - Verifies slide-fragment stepping for `.fragment`, `<v-click>`, and `<v-mark>` elements.
     - Confirms `data-fragment-index="N"` and `at="N"` ordering semantics match the documented fragment engine behavior.
   - `markdownSlideStylingReferenceRender.test.ts`:
-    - Loads the external markdown slide styling reference document at `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/markdown-slide-styling-reference.md`.
+    - Loads the external markdown slide styling guideline document at `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/markdown-slide-styling-guidelines.md`.
     - Smoke-tests that the Bottom Panel markdown viewer can render the full deck in presentation mode without hardcoding or inlining the reference markdown content.
   - `selectionHighlight.test.ts`:
     - Verifies selection highlight logic for nodes and edges while

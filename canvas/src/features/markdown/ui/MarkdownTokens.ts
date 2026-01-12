@@ -23,6 +23,44 @@ export type DelToken = GenericToken & {
   tokens?: Token[]
 }
 
+export type SubToken = GenericToken & {
+  type: 'sub'
+  tokens?: Token[]
+}
+
+export type SupToken = GenericToken & {
+  type: 'sup'
+  tokens?: Token[]
+}
+
+export type MarkToken = GenericToken & {
+  type: 'mark'
+  tokens?: Token[]
+}
+
+export type FootnoteRefToken = GenericToken & {
+  type: 'footnote_ref'
+  id: number
+  label?: string
+  caption?: string
+}
+
+export type FootnoteAnchorToken = GenericToken & {
+  type: 'footnote_anchor'
+  id: number
+  label?: string
+}
+
+export type FootnoteItemToken = {
+  label: string
+  tokens?: Token[]
+}
+
+export type FootnoteBlockToken = GenericToken & {
+  type: 'footnote_block'
+  items: FootnoteItemToken[]
+}
+
 export type BrToken = GenericToken & {
   type: 'br'
 }
@@ -53,6 +91,7 @@ export type ParagraphToken = GenericToken & {
 export type HeadingToken = GenericToken & {
   type: 'heading'
   depth: number
+  id?: string
   text?: string
   tokens?: Token[]
 }
@@ -116,6 +155,11 @@ export type Token =
   | StrongToken
   | EmToken
   | DelToken
+  | SubToken
+  | SupToken
+  | MarkToken
+  | FootnoteRefToken
+  | FootnoteBlockToken
   | BrToken
   | CodeSpanToken
   | LinkToken
@@ -136,6 +180,11 @@ export type TokensText = TextToken
 export type TokensStrong = StrongToken
 export type TokensEm = EmToken
 export type TokensDel = DelToken
+export type TokensSub = SubToken
+export type TokensSup = SupToken
+export type TokensMark = MarkToken
+export type TokensFootnoteRef = FootnoteRefToken
+export type TokensFootnoteBlock = FootnoteBlockToken
 export type TokensBr = BrToken
 export type TokensCode = CodeSpanToken | CodeBlockToken
 export type TokensMath = MathToken

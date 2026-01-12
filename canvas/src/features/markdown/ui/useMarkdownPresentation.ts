@@ -62,7 +62,8 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
   }, [headMeta, slides])
 
   const [activeFragmentStep, setActiveFragmentStep] = React.useState(0)
-  const [fullscreenHandler, setFullscreenHandler] = React.useState<(() => void) | null>(null)
+  const fullscreenHandlerRef = React.useRef<(() => void) | null>(null)
+  const pendingEnterFullscreenRef = React.useRef(false)
   const prevOrderedSlideIndicesRef = React.useRef<number[] | null>(null)
   const ignoreNextSlidesReorderedRef = React.useRef(false)
   const slidesSignatureRef = React.useRef<string | null>(null)
@@ -133,7 +134,11 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
     slideFragmentConfigs[activeSlideId] || DEFAULT_FRAGMENT_CONFIG
 
   const handleRegisterFullscreenHandler = React.useCallback((fn: (() => void) | null) => {
-    setFullscreenHandler(() => (fn ? () => fn() : null))
+    fullscreenHandlerRef.current = fn ? () => fn() : null
+    if (fullscreenHandlerRef.current && pendingEnterFullscreenRef.current) {
+      pendingEnterFullscreenRef.current = false
+      fullscreenHandlerRef.current()
+    }
   }, [])
 
   const goPrev = React.useCallback(() => {
@@ -193,9 +198,9 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
         prev: goPrev,
         next: goNext,
         enterFullscreen: () => {
-          if (fullscreenHandler) {
-            fullscreenHandler()
-          }
+          const handler = fullscreenHandlerRef.current
+          if (handler) handler()
+          else pendingEnterFullscreenRef.current = true
         },
       }
     }
@@ -212,7 +217,6 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
     goPrev,
     markdownPresentationMode,
     onPresentationSlideStateChange,
-    fullscreenHandler,
     presentationApiRef,
     orderedSlideIndices.length,
     slides.length,
@@ -265,4 +269,3 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
     handleRegisterFullscreenHandler,
   }
 }
-

@@ -271,10 +271,22 @@ export const renderSafeHtmlBlock = (
         if (!items.length) {
           return <React.Fragment key={key}>{children}</React.Fragment>
         }
-        const current = Number.isFinite(fragmentOpts?.currentStep)
-          ? Math.max(0, fragmentOpts?.currentStep || 0)
-          : 0
-        const visibleCount = fragmentEnabled ? Math.min(items.length, current) : items.length
+        const current = Number.isFinite(fragmentOpts?.currentStep) ? Math.max(0, fragmentOpts?.currentStep || 0) : 0
+        const explicitAt = el.getAttribute('at')
+        const explicitStart = explicitAt && explicitAt.trim() ? Number.parseInt(explicitAt.trim(), 10) : NaN
+        const startIndex =
+          fragmentEnabled && Number.isFinite(explicitStart) && explicitStart > 0
+            ? explicitStart
+            : fragmentEnabled
+              ? fragmentIndex + 1
+              : 1
+        if (fragmentEnabled) {
+          const nextEnd = startIndex + items.length - 1
+          fragmentIndex = Math.max(fragmentIndex, nextEnd)
+        }
+        const visibleCount = fragmentEnabled
+          ? Math.max(0, Math.min(items.length, current - startIndex + 1))
+          : items.length
         const ListTag = (ordered ? 'ol' : 'ul') as 'ol' | 'ul'
         const listClass = ordered ? 'list-decimal' : 'list-disc'
         return (

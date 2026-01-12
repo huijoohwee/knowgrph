@@ -12,6 +12,7 @@ type ViewerHeaderRowProps = {
   uiPanelKeyValueTextSizeClass: string
   uiPanelTextFontClass: string
   viewerTitle: string
+  editorTitle?: string
   markdownPresentationMode: boolean
   iconSizeClass: string
   uiIconStrokeWidth: number
@@ -39,6 +40,7 @@ type ViewerHeaderRowProps = {
   editOffTooltip: string
   isEditing: boolean
   onToggleEdit: () => void
+  onFullscreenToggleRequested?: () => void
 }
 
 export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
@@ -71,11 +73,17 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     editOffTooltip,
     isEditing,
     onToggleEdit,
+    onFullscreenToggleRequested,
   } = props
 
   return (
     <div className={['flex items-center justify-between gap-2', uiPanelKeyValueTextSizeClass, uiPanelTextFontClass].join(' ')}>
       <div className="flex items-center gap-2 min-w-0">
+        {!markdownPresentationMode && (
+          <span className="font-medium text-gray-700 select-none truncate">
+            {isEditing && props.editorTitle ? props.editorTitle : props.viewerTitle}
+          </span>
+        )}
         {markdownPresentationMode && (
           <>
             <button
@@ -196,13 +204,18 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           tooltipContent={markdownPresentationMode ? fullscreenOnTooltip : fullscreenOffTooltip}
           onClick={() => {
             if (!markdownPresentationMode) {
-              setMarkdownPresentationMode(true)
+              if (onFullscreenToggleRequested) {
+                onFullscreenToggleRequested()
+              } else {
+                setMarkdownPresentationMode(true)
+              }
               emitMarkdownPanelMetric('markdownPresentationModeToggled', {
                 enabled: true,
                 slideCount: presentationSlideState?.slideCount ?? null,
               })
+            } else {
+              presentationApiRef.current?.enterFullscreen?.()
             }
-            presentationApiRef.current?.enterFullscreen?.()
             emitMarkdownPanelMetric('markdownFullscreenToggleRequested', {
               enabled: true,
             })

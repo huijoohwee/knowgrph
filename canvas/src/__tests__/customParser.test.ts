@@ -1,9 +1,10 @@
 import { toParserSpec } from '@/features/parsers/custom'
-import { registerParser, bestMatch, applyParser } from '@/features/parsers/registry'
+import { registerParser, bestMatch, applyParser, resetParsers } from '@/features/parsers/registry'
 import { toParserId } from '@/features/parsers'
 import type { CustomParserConfig } from '@/features/parsers/persistence'
 
 export function testCustomParserConversion() {
+  resetParsers()
   const cfg: CustomParserConfig = {
     id: 'custom-json',
     name: 'Custom JSON',

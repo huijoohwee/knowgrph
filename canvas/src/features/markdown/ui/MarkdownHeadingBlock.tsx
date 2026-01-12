@@ -33,17 +33,22 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const size =
     depth === 1
       ? opts.markdownPresentationMode
-        ? 'text-3xl'
-        : 'text-base'
+        ? 'text-5xl'
+        : 'text-3xl pb-2 border-b border-gray-200'
       : depth === 2
       ? opts.markdownPresentationMode
-        ? 'text-2xl'
-        : 'text-sm'
+        ? 'text-4xl'
+        : 'text-2xl pb-1 border-b border-gray-100'
+      : depth === 3
+      ? opts.markdownPresentationMode
+        ? 'text-3xl'
+        : 'text-xl'
       : opts.markdownPresentationMode
-      ? 'text-xl'
-      : 'text-xs'
+      ? 'text-2xl'
+      : 'text-lg'
   
-  const cls = ['font-semibold mt-5 mb-2', size, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
+  const color = depth === 1 ? 'text-slate-800' : depth === 2 ? 'text-slate-700' : 'text-slate-600'
+  const cls = ['font-bold mt-6 mb-4', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const content = renderInlineTokens(h.tokens, {
     activeDocumentPath: opts.activeDocumentPath,
     uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
@@ -72,8 +77,18 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
       highlightStyle={highlightStyle}
       startLine={startLine}
       endLine={endLine}
+      id={h.id}
     >
       {content}
+      {h.id && (
+        <a
+          href={`#${h.id}`}
+          className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-blue-500 no-underline"
+          aria-hidden="true"
+        >
+          #
+        </a>
+      )}
     </MarkdownBlockContainer>
   )
 })

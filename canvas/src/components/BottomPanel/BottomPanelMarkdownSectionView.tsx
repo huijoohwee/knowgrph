@@ -61,6 +61,7 @@ type BottomPanelMarkdownSectionViewProps = {
   setMarkdownPresentationMode: (next: boolean) => void
   isMarkdownPreviewTruncated: boolean
   handleApplyMarkdown: () => void | Promise<void>
+  onFullscreenToggleRequested: () => void
 }
 
 export function BottomPanelMarkdownSectionView(
@@ -174,6 +175,7 @@ export function BottomPanelMarkdownSectionView(
             uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
             uiPanelTextFontClass={uiPanelTextFontClass}
             viewerTitle={UI_COPY.bottomPanelMarkdownViewerTitle}
+            editorTitle={UI_COPY.bottomPanelMarkdownEditorTitle}
             markdownPresentationMode={markdownPresentationMode}
             iconSizeClass={iconSizeClass}
             uiIconStrokeWidth={uiIconStrokeWidth}
@@ -202,6 +204,7 @@ export function BottomPanelMarkdownSectionView(
             editOnTooltip={UI_COPY.bottomPanelMarkdownEditOnTooltip}
             editOffTooltip={UI_COPY.bottomPanelMarkdownEditOffTooltip}
             isEditing={isEditing}
+            onFullscreenToggleRequested={props.onFullscreenToggleRequested}
             onToggleEdit={() => {
               const nextIsEditing = !isEditing
               setMarkdownLayoutMode(nextIsEditing ? 'editor' : 'viewer')

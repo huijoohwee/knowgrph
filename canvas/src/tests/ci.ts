@@ -37,6 +37,63 @@ if (!g.window) {
   }
 }
 
+if (!g.window.requestAnimationFrame) {
+  g.window.requestAnimationFrame = (callback: FrameRequestCallback) => {
+    return setTimeout(callback, 0) as unknown as number
+  }
+}
+if (!g.window.cancelAnimationFrame) {
+  g.window.cancelAnimationFrame = (id: number) => {
+    clearTimeout(id)
+  }
+}
+
+if (!g.NodeFilter) {
+  g.NodeFilter = {
+    FILTER_ACCEPT: 1,
+    FILTER_REJECT: 2,
+    FILTER_SKIP: 3,
+    SHOW_ALL: -1,
+    SHOW_ELEMENT: 1,
+    SHOW_ATTRIBUTE: 2,
+    SHOW_TEXT: 4,
+    SHOW_CDATA_SECTION: 8,
+    SHOW_ENTITY_REFERENCE: 16,
+    SHOW_ENTITY: 32,
+    SHOW_PROCESSING_INSTRUCTION: 64,
+    SHOW_COMMENT: 128,
+    SHOW_DOCUMENT: 256,
+    SHOW_DOCUMENT_TYPE: 512,
+    SHOW_DOCUMENT_FRAGMENT: 1024,
+    SHOW_NOTATION: 2048,
+  } as unknown as {
+    readonly FILTER_ACCEPT: 1
+    readonly FILTER_REJECT: 2
+    readonly FILTER_SKIP: 3
+    readonly SHOW_ALL: 4294967295
+    readonly SHOW_ELEMENT: 1
+    readonly SHOW_ATTRIBUTE: 2
+    readonly SHOW_TEXT: 4
+    readonly SHOW_CDATA_SECTION: 8
+    readonly SHOW_ENTITY_REFERENCE: 16
+    readonly SHOW_ENTITY: 32
+    readonly SHOW_PROCESSING_INSTRUCTION: 64
+    readonly SHOW_COMMENT: 128
+    readonly SHOW_DOCUMENT: 256
+    readonly SHOW_DOCUMENT_TYPE: 512
+    readonly SHOW_DOCUMENT_FRAGMENT: 1024
+    readonly SHOW_NOTATION: 2048
+  }
+}
+
+if (!g.ResizeObserver) {
+  g.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
 async function main() {
   const startedAt = Date.now()
   const results = await runAllTests()

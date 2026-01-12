@@ -4,118 +4,21 @@ import {
   splitMarkdownLines,
 } from '@/lib/markdown'
 import { normalizeGitHubBlobLikeUrl } from '@/lib/url'
+import {
+  slugify,
+  extractMarkdownInlineRefs,
+  classifyMediaFromAltAndUrl,
+} from './markdownJsonLdUtils'
+import {
+  mermaidDensityConfig,
+  computeMermaidTidyTreeSeparation,
+} from './markdownJsonLdMermaid'
+import {
+  parseMermaidFrontmatter,
+  MermaidParserContext,
+} from './markdownJsonLdMermaidParser'
 
-export const slugify = (text: string): string => {
-  const normalized = String(text || '')
-    .trim()
-    .toLowerCase()
-    .replace(/['"]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '')
-  return normalized || 'x'
-}
-
-const resolveUrl = (baseUrl: string | undefined, value: string): string => {
-  const raw = String(value || '').trim()
-  if (!raw) return ''
-  if (/^(data:|mailto:|tel:|javascript:)/i.test(raw)) return raw
-  if (!baseUrl) return raw
-  try {
-    return new URL(raw, baseUrl).toString()
-  } catch {
-    return raw
-  }
-}
-
-const coerceMarkdownParenUrl = (raw: string): string => {
-  const trimmed = String(raw || '').trim()
-  if (!trimmed) return ''
-  const unwrapped =
-    trimmed.startsWith('<') && trimmed.endsWith('>') ? trimmed.slice(1, -1).trim() : trimmed
-  const firstToken = unwrapped.split(/\s+/)[0] || ''
-  return firstToken.trim()
-}
-
-const extractHtmlAttr = (html: string, attr: string): string => {
-  const re = new RegExp(`${attr}\\s*=\\s*(?:"([^"]+)"|'([^']+)'|([^\\s>]+))`, 'i')
-  const m = String(html || '').match(re)
-  return String(m?.[1] ?? m?.[2] ?? m?.[3] ?? '').trim()
-}
-
-const extractMarkdownInlineRefs = (
-  text: string,
-  options?: { baseUrl?: string },
-): { links: Array<{ label: string; url: string }>; images: Array<{ alt: string; url: string }> } => {
-  const raw = String(text || '')
-  const links: Array<{ label: string; url: string }> = []
-  const images: Array<{ alt: string; url: string }> = []
-  const baseUrl = options?.baseUrl
-
-  const imageRe = /!\[([^\]]*)\]\(([^)]+)\)/g
-  imageRe.lastIndex = 0
-  let match: RegExpExecArray | null
-  while ((match = imageRe.exec(raw))) {
-    const alt = String(match[1] || '').trim()
-    const url = coerceMarkdownParenUrl(match[2] || '')
-    if (!url) continue
-    images.push({ alt, url: resolveUrl(baseUrl, url) })
-  }
-
-  const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g
-  linkRe.lastIndex = 0
-  while ((match = linkRe.exec(raw))) {
-    const idx = typeof match.index === 'number' ? match.index : -1
-    if (idx > 0 && raw[idx - 1] === '!') continue
-    const label = String(match[1] || '').trim()
-    const url = coerceMarkdownParenUrl(match[2] || '')
-    if (!url) continue
-    links.push({ label, url: resolveUrl(baseUrl, url) })
-  }
-
-  const htmlImgRe = /<img\b[^>]*>/gi
-  htmlImgRe.lastIndex = 0
-  while ((match = htmlImgRe.exec(raw))) {
-    const tag = match[0] || ''
-    const src = extractHtmlAttr(tag, 'src')
-    if (!src) continue
-    const url = resolveUrl(baseUrl, src)
-    if (!url) continue
-    const alt = extractHtmlAttr(tag, 'alt')
-    images.push({ alt, url })
-  }
-
-  return { links, images }
-}
-
-const classifyMediaFromAltAndUrl = (
-  url: string,
-  alt: string,
-): { type: 'Image' | 'Video' | 'IFrame'; props: Record<string, unknown> } => {
-  const altRaw = String(alt || '')
-  const altNorm = altRaw.trim().toLowerCase()
-  const isVideo = altNorm.startsWith('video') || /\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(url)
-  const isIFrame = altNorm.startsWith('iframe')
-  const type: 'Image' | 'Video' | 'IFrame' = isVideo ? 'Video' : isIFrame ? 'IFrame' : 'Image'
-  const mediaProps: Record<string, unknown> = {
-    url,
-    alt,
-    media_url: url,
-    media: url,
-    'visual:shape': 'rect',
-  }
-  if (type === 'IFrame') {
-    mediaProps.media_kind = 'iframe'
-    mediaProps.iframe_url = url
-  } else if (type === 'Video') {
-    mediaProps.media_kind = 'video'
-    mediaProps.video = url
-  } else {
-    mediaProps.media_kind = 'image'
-    mediaProps.image = url
-  }
-  return { type, props: mediaProps }
-}
+export { slugify } from './markdownJsonLdUtils'
 
 export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<string, unknown> => {
   const rawLines = splitMarkdownLines(markdownText)
@@ -153,7 +56,6 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const docId = `doc:${gid}`
   const nodeById = new Map<string, Record<string, unknown>>()
   const nodes: Record<string, unknown>[] = []
-  const mermaidNodeIdsByName = new Map<string, string>()
   let mermaidTidyTreeLayout: {
     orientation?: 'vertical' | 'horizontal'
     direction?: 'source-target' | 'target-source'
@@ -211,239 +113,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       : typeof mermaidAnchorsOnlyRaw === 'string'
       ? mermaidAnchorsOnlyRaw.trim().toLowerCase() === 'true'
       : false
-  const parseMermaidFrontmatter = (code: string): void => {
-    const lines = String(code || '').split('\n')
-    if (lines.length === 0) return
-    const mermaidSubgraphIdsByName = new Map<string, string>()
-    const docSubgraphIds = new Set<string>()
-    let currentSubgraphName: string | null = null
-    let currentSubgraphId: string | null = null
 
-    if (!mermaidTidyTreeLayout) {
-      for (let i = 0; i < lines.length; i += 1) {
-        const rawLine = lines[i] ?? ''
-        const trimmed = rawLine.trim()
-        if (!trimmed) continue
-        const m = /^graph\s+(TD|LR|BT|RL)\b/i.exec(trimmed)
-        if (!m) continue
-        const dirToken = String(m[1] || '').toUpperCase()
-        const next: {
-          orientation?: 'vertical' | 'horizontal'
-          direction?: 'source-target' | 'target-source'
-        } = {}
-        if (dirToken === 'TD') {
-          next.orientation = 'vertical'
-          next.direction = 'source-target'
-        } else if (dirToken === 'BT') {
-          next.orientation = 'vertical'
-          next.direction = 'target-source'
-        } else if (dirToken === 'LR') {
-          next.orientation = 'horizontal'
-          next.direction = 'source-target'
-        } else if (dirToken === 'RL') {
-          next.orientation = 'horizontal'
-          next.direction = 'target-source'
-        }
-        if (next.orientation || next.direction) {
-          mermaidTidyTreeLayout = next
-        }
-        break
-      }
-    }
-
-    const ensureSubgraph = (rawName: string, rawLabel: string | null): string => {
-      const name = String(rawName || '').trim()
-      if (!name) return ''
-      const existing = mermaidSubgraphIdsByName.get(name)
-      if (existing) return existing
-      const subgraphId = `mermaid:${gid}:subgraph:${slugify(name)}`
-      mermaidSubgraphIdsByName.set(name, subgraphId)
-      const label = (rawLabel || '').trim()
-      const display = label || name
-      ensureNode({
-        '@id': subgraphId,
-        '@type': 'MermaidSubgraph',
-        labels: ['MermaidSubgraph'],
-        name: display,
-        chunk_text: display.slice(0, 800),
-        properties: { subgraphName: name, label: display },
-        metadata: mkMeta(1, Math.max(1, startIndex - 1)),
-      })
-      if (!docSubgraphIds.has(subgraphId)) {
-        docSubgraphIds.add(subgraphId)
-        addRel(docId, 'hasMermaidSubgraph', subgraphId)
-      }
-      return subgraphId
-    }
-
-    const attachNodeToCurrentSubgraph = (
-      nodeId: string,
-      nodeProps: Record<string, unknown>,
-    ): Record<string, unknown> => {
-      if (!currentSubgraphName || !currentSubgraphId) return nodeProps
-      addRel(currentSubgraphId, 'hasMermaidNode', nodeId)
-      const nextProps = { ...nodeProps }
-      if (!Object.prototype.hasOwnProperty.call(nextProps, 'mermaidSubgraphName')) {
-        ;(nextProps as { mermaidSubgraphName?: unknown }).mermaidSubgraphName = currentSubgraphName
-      }
-      if (!Object.prototype.hasOwnProperty.call(nextProps, 'visual:layer')) {
-        const layerIndexFromL = (() => {
-          const m = /^L(\d+)$/.exec(currentSubgraphName as string)
-          if (!m) return null
-          const raw = Number(m[1] || '')
-          if (!Number.isFinite(raw)) return null
-          const idx = raw + 1
-          return idx > 0 ? idx : null
-        })()
-
-        const layerIndexFromPhase = (() => {
-          const m = /^P(\d+)$/.exec(currentSubgraphName as string)
-          if (!m) return null
-          const raw = Number(m[1] || '')
-          if (!Number.isFinite(raw)) return null
-          const idx = raw + 1
-          return idx > 0 ? idx : null
-        })()
-
-        const layerIndexFromPhaseWord = (() => {
-          const m = /^Phase(\d+)$/.exec(currentSubgraphName as string)
-          if (!m) return null
-          const raw = Number(m[1] || '')
-          if (!Number.isFinite(raw)) return null
-          const idx = raw + 1
-          return idx > 0 ? idx : null
-        })()
-
-        const layerIndexFromSpecial = (() => {
-          if (currentSubgraphName === 'CROSS') return 10
-          if (currentSubgraphName === 'INTERVIEW') return 11
-          return null
-        })()
-
-        const layerIndex =
-          layerIndexFromL != null
-            ? layerIndexFromL
-            : layerIndexFromPhase != null
-            ? layerIndexFromPhase
-            : layerIndexFromPhaseWord != null
-            ? layerIndexFromPhaseWord
-            : layerIndexFromSpecial
-
-        if (layerIndex != null) {
-          ;(nextProps as { ['visual:layer']?: unknown })['visual:layer'] = layerIndex
-        }
-      }
-      return nextProps
-    }
-
-    for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i] || ''
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      if (trimmed.startsWith('graph')) continue
-      if (trimmed.startsWith('%%')) continue
-      if (trimmed.toLowerCase().startsWith('subgraph ')) {
-        const m = /^subgraph\s+([A-Za-z0-9_]+)\s*\[(.+)\]/.exec(trimmed)
-        const subgraphName = m ? String(m[1] || '').trim() : ''
-        const subgraphLabel = m ? String(m[2] || '').trim().replace(/^"|"$/g, '') : ''
-        if (subgraphName) {
-          const id = ensureSubgraph(subgraphName, subgraphLabel)
-          if (id) {
-            currentSubgraphName = subgraphName
-            currentSubgraphId = id
-          }
-        }
-        continue
-      }
-      if (trimmed === 'end') {
-        currentSubgraphName = null
-        currentSubgraphId = null
-        continue
-      }
-      const nodeMatch = /^([A-Za-z0-9_]+)\s*\[([^\]]+)\]/.exec(trimmed)
-      if (!nodeMatch) continue
-      const nodeName = String(nodeMatch[1] || '').trim()
-      const nodeLabel = String(nodeMatch[2] || '').trim()
-      if (!nodeName) continue
-      const existingId = mermaidNodeIdsByName.get(nodeName)
-      if (existingId) continue
-      const nodeId = `mermaid:${gid}:${slugify(nodeName)}`
-      mermaidNodeIdsByName.set(nodeName, nodeId)
-      const baseProps = { nodeName, label: nodeLabel || nodeName }
-      const propsWithLayer = attachNodeToCurrentSubgraph(nodeId, baseProps)
-      ensureNode({
-        '@id': nodeId,
-        '@type': 'MermaidNode',
-        labels: ['MermaidNode'],
-        name: nodeLabel || nodeName,
-        chunk_text: (nodeLabel || nodeName).slice(0, 800),
-        properties: propsWithLayer,
-        metadata: mkMeta(1, Math.max(1, startIndex - 1)),
-      })
-      addRel(docId, 'hasMermaidNode', nodeId)
-    }
-    for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i] || ''
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      if (trimmed.startsWith('graph')) continue
-      if (trimmed.startsWith('%%')) continue
-      if (trimmed.toLowerCase().startsWith('subgraph ')) continue
-      if (trimmed === 'end') continue
-      const edgeMatch = /^([A-Za-z0-9_]+)\s*[-.]+[->]\s*(?:\|[^|]*\|\s*)?([A-Za-z0-9_]+)/.exec(trimmed)
-      if (edgeMatch) {
-        const srcName = String(edgeMatch[1] || '').trim()
-        const tgtName = String(edgeMatch[2] || '').trim()
-        if (srcName && tgtName) {
-          let srcId = mermaidNodeIdsByName.get(srcName)
-          if (!srcId) {
-            srcId = `mermaid:${gid}:${slugify(srcName)}`
-            mermaidNodeIdsByName.set(srcName, srcId)
-            const baseProps = { nodeName: srcName, label: srcName }
-            const propsWithLayer = attachNodeToCurrentSubgraph(srcId, baseProps)
-            ensureNode({
-              '@id': srcId,
-              '@type': 'MermaidNode',
-              labels: ['MermaidNode'],
-              name: srcName,
-              chunk_text: srcName.slice(0, 800),
-              properties: propsWithLayer,
-              metadata: mkMeta(1, Math.max(1, startIndex - 1)),
-            })
-            addRel(docId, 'hasMermaidNode', srcId)
-          }
-          let tgtId = mermaidNodeIdsByName.get(tgtName)
-          if (!tgtId) {
-            tgtId = `mermaid:${gid}:${slugify(tgtName)}`
-            mermaidNodeIdsByName.set(tgtName, tgtId)
-            const baseProps = { nodeName: tgtName, label: tgtName }
-            const propsWithLayer = attachNodeToCurrentSubgraph(tgtId, baseProps)
-            ensureNode({
-              '@id': tgtId,
-              '@type': 'MermaidNode',
-              labels: ['MermaidNode'],
-              name: tgtName,
-              chunk_text: tgtName.slice(0, 800),
-              properties: propsWithLayer,
-              metadata: mkMeta(1, Math.max(1, startIndex - 1)),
-            })
-            addRel(docId, 'hasMermaidNode', tgtId)
-          }
-          addRel(srcId, 'pointsTo', tgtId)
-        }
-        continue
-      }
-      const clickMatch = /^click\s+([A-Za-z0-9_]+)\s+"#([^"]+)"/.exec(trimmed)
-      if (!clickMatch) continue
-      const nodeName = String(clickMatch[1] || '').trim()
-      const anchorIdRaw = String(clickMatch[2] || '').trim()
-      if (!nodeName || !anchorIdRaw) continue
-      const nodeId = mermaidNodeIdsByName.get(nodeName)
-      if (!nodeId) continue
-      const anchorNodeId = `anchor:${gid}:${anchorIdRaw}`
-      addRel(nodeId, 'pointsTo', anchorNodeId)
-    }
-  }
   if (mermaidCode) {
     const mermaidId = `mermaid:${gid}:frontmatter`
     ensureNode({
@@ -456,7 +126,20 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       metadata: mkMeta(1, Math.max(1, startIndex - 1)),
     })
     addRel(docId, 'hasMermaid', mermaidId)
-    parseMermaidFrontmatter(mermaidCode)
+
+    const parserCtx: MermaidParserContext = {
+      gid,
+      docId,
+      startIndex,
+      mermaidTidyTreeLayout,
+      ensureNode,
+      addRel,
+      mkMeta,
+      setMermaidTidyTreeLayout: (layout) => {
+        mermaidTidyTreeLayout = layout
+      },
+    }
+    parseMermaidFrontmatter(mermaidCode, parserCtx)
   }
 
   const sectionStack: Array<{ level: number; id: string }> = []
@@ -783,53 +466,6 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     }
   } = {}
 
-  const mermaidDensityConfig = {
-    sparseMaxStatements: 30,
-    denseMaxStatements: 100,
-    anchorsOnly: { sparse: 1.5, medium: 1.8, dense: 2.1 },
-    defaultDiagram: { sparse: 1.3, medium: 1.6, dense: 1.9 },
-  }
-
-  const computeMermaidTidyTreeSeparation = (
-    code: string,
-    anchorsOnly: boolean,
-  ): { separation: number; statementCount: number; density: 'none' | 'sparse' | 'medium' | 'dense' } => {
-    const lines = String(code || '')
-      .split('\n')
-      .map(l => l.trim())
-    let statementCount = 0
-    for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i] || ''
-      if (!line) continue
-      if (line.startsWith('%%')) continue
-      if (line.startsWith('graph ')) continue
-      if (line.startsWith('subgraph ')) continue
-      if (line === 'end') continue
-      statementCount += 1
-    }
-    if (statementCount <= 0) {
-      const base = anchorsOnly ? mermaidDensityConfig.anchorsOnly.sparse : mermaidDensityConfig.defaultDiagram.sparse
-      return { separation: base, statementCount, density: 'none' }
-    }
-    const cfgBucket = anchorsOnly ? mermaidDensityConfig.anchorsOnly : mermaidDensityConfig.defaultDiagram
-    let density: 'sparse' | 'medium' | 'dense'
-    if (statementCount <= mermaidDensityConfig.sparseMaxStatements) {
-      density = 'sparse'
-    } else if (statementCount <= mermaidDensityConfig.denseMaxStatements) {
-      density = 'medium'
-    } else {
-      density = 'dense'
-    }
-    const sep =
-      density === 'sparse'
-        ? cfgBucket.sparse
-        : density === 'medium'
-        ? cfgBucket.medium
-        : cfgBucket.dense
-    const separation = Number.isFinite(sep) && sep > 0 ? sep : cfgBucket.sparse
-    return { separation, statementCount, density }
-  }
-
   if (hasMermaid) {
     tidyTreeMeta.edgeLabels = ['pointsTo']
     if (mermaidTidyTreeLayout?.orientation) {
@@ -865,20 +501,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     generatedAt: nowIso,
     layoutMode: 'tidy-tree',
     tidyTree: tidyTreeMeta,
-    suggestedTraversalEdges: [
-      'hasSection',
-      'hasBlock',
-      'hasItem',
-      'linksTo',
-      'embedsImage',
-      'hasMermaid',
-      'hasMermaidNode',
-      'hasAnchor',
-      'hasInternalLink',
-      'pointsTo',
-      'next',
-    ],
   }
 
-  return { '@context': ctx, '@graph': nodes, metadata }
+  return { '@context': ctx, metadata, '@graph': nodes }
 }

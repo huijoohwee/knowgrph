@@ -276,6 +276,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     backgroundRaw,
     backgroundSize,
     backgroundPosition,
+    themeStyle,
   } = getSlideVisualMeta(slideMeta, headMetaRecord)
   const frameVariantRaw = String(slideMeta.frame || headMetaRecord.frame || '').trim().toLowerCase()
   const framePaddingRaw = slideMeta.framePadding ?? headMetaRecord.framePadding
@@ -286,14 +287,21 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     [activeTransitionKey, slideTransitionPhase],
   )
   const layout = layoutRaw
+  const isAcademicTheme = themeStyle === 'academic'
   const slideOuterClass =
     layout === 'center'
       ? 'w-full h-full flex items-center justify-center'
       : 'w-full h-full flex'
   const slideContentClass =
     layout === 'center'
-      ? 'max-w-4xl max-h-full px-12 py-10 overflow-auto mx-auto flex items-center justify-center'
-      : 'w-full h-full px-12 py-10 overflow-auto'
+      ? [
+          'max-h-full overflow-auto mx-auto flex items-center justify-center',
+          isAcademicTheme ? 'max-w-5xl px-16 py-14' : 'max-w-4xl px-12 py-10',
+        ].join(' ')
+      : [
+          'w-full h-full overflow-auto',
+          isAcademicTheme ? 'px-16 py-14' : 'px-12 py-10',
+        ].join(' ')
   const slideContent = slideBody
 
   let slideFramePaddingPx: number | undefined
@@ -311,6 +319,9 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
 
   const frameVariant = frameVariantRaw || 'default'
   let baseFrameClass = 'rounded border border-gray-200 shadow bg-white'
+  if (isAcademicTheme && !frameVariantRaw) {
+    baseFrameClass = 'rounded bg-white'
+  }
   if (frameVariant === 'borderless') {
     baseFrameClass = 'rounded bg-white'
   } else if (frameVariant === 'minimal') {

@@ -109,8 +109,15 @@ import {
 } from '@/__tests__/graphRagTraversal.test'
 import { testGraphTraversalFloatingPanelGenericDepthClamp } from '@/__tests__/graphTraversalFloatingPanel.test'
 import { testThemeModePersistence } from '@/__tests__/theme.test'
-import { testMarkdownLayoutModePersistence } from '@/__tests__/markdownLayoutModePersistence.test'
-import { testMarkdownSyncScrollPersistence } from '@/__tests__/markdownSyncScrollPersistence.test'
+import { runMarkdownTests } from '@/tests/runners/runMarkdownTests'
+import {
+  testMarkdownLayoutViewToggleEndToEnd,
+  testMarkdownPresentationFullscreenFromBottomPanelControls,
+} from '@/__tests__/markdown/markdownLayoutToggle.test'
+import {
+  testMarkdownScrollSyncViewerToEditor,
+  testMarkdownScrollSyncMixedContentViewerToEditor,
+} from '@/__tests__/markdown/markdownScrollSync.test'
 import { testLaunchSpotlightStorageHelpers } from '@/__tests__/launchSpotlight.test'
 import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.test'
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
@@ -167,8 +174,6 @@ import {
   testSpreadsheetSortsDeduplicateSortKeysKeepsFirstRule,
   testSpreadsheetSortsAddRuleSkipsExistingKeys,
 } from '@/__tests__/spreadsheetFiltersSorts.test'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
 import {
   testPreviewGalleryArrowMovesThirdSlideAboveSecond,
   testPreviewGalleryDragMovesThirdSlideAboveSecond,
@@ -176,22 +181,9 @@ import {
   testPreviewGalleryDragMovesFirstSlideToLastInLongerList,
   testPreviewGalleryDragMovesLastSlideToFirstInLongerList,
 } from '@/__tests__/previewGalleryReorder.test'
-import {
-  testExampleWorkflowMarkdownIngestionProducesGraph,
-  testMarkdownFrontmatterOntologiesAndGraphLayersRoundTrip,
-  testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions,
-  testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
-  testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture,
-  testEdaMlpInterviewSessionMarkdownPresentationFromDisk,
-  testMarkdownFrontmatterPolygonLayersAliasWarning,
-} from '@/__tests__/exampleWorkflowMarkdownIngestion.test'
-import { testMarkdownMermaidFrontmatterTidyTreeMetadataDefaults } from '@/__tests__/markdownMermaidTidyTreeMetadata.test'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
 import { testTidyTreeSeparationSchemaRoundTrip } from '@/__tests__/tidyTreeSeparationRoundTrip.test'
-import {
-  testGuidelinesMarkdownHighlightGuardWithLargeGraph,
-  testGuidelinesMarkdownHighlightGuardWithSmallGraph,
-  testGuidelinesMarkdownIngestionLexingAndSlides,
-} from '@/__tests__/markdownGuidelinesIngestion.test'
 import { testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges } from '@/__tests__/exampleWorkflowTidyTree.test'
 import {
   testSemanticLayerVisualFillParity2dVs3d,
@@ -274,6 +266,19 @@ export const runAllTests = async () => {
     }
   }
 
+  // ONLY RUN REPRO
+  // await exec('repro.lexMarkdownRepro', testLexMarkdownRepro)
+
+  // Markdown Tests
+  // await exec('markdown.rendering.basic', testMarkdownRendering)
+  // await exec('markdown.rendering.gfm', testMarkdownGfm)
+  // await exec('markdown.rendering.html', testMarkdownHtml)
+  // await exec('markdown.rendering.sanitization', testMarkdownSanitization)
+  await exec('markdown.layout.toggle', testMarkdownLayoutViewToggleEndToEnd)
+  await exec('markdown.presentation.fullscreen', testMarkdownPresentationFullscreenFromBottomPanelControls)
+  await exec('markdown.scrollSync.basic', testMarkdownScrollSyncViewerToEditor)
+  await exec('markdown.scrollSync.mixedContent', testMarkdownScrollSyncMixedContentViewerToEditor)
+  
   await exec('previewGalleryReorder: arrow moves third above second', testPreviewGalleryArrowMovesThirdSlideAboveSecond)
   await exec('previewGalleryReorder: drag moves third above second', testPreviewGalleryDragMovesThirdSlideAboveSecond)
   await exec('previewGalleryReorder: drag moves first below third', testPreviewGalleryDragMovesFirstSlideBelowThird)
@@ -402,8 +407,7 @@ export const runAllTests = async () => {
   )
   await exec('ui.graphFieldsSyncOnHistoryUndoRedo', testGraphFieldsSyncOnHistoryUndoRedo)
   await exec('ui.themeModePersistence', testThemeModePersistence)
-  await exec('ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
-  await exec('ui.markdown.syncScrollPersistence', testMarkdownSyncScrollPersistence)
+  await runMarkdownTests(results)
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)
   await exec('persistence.storagePrimitives', testPersistencePrimitives)
   await exec('search.cacheVersionKey', testSearchCacheKeysRespectVersion)
@@ -498,30 +502,6 @@ export const runAllTests = async () => {
   )
   await exec('ui.media.mediaInteractiveDefaults', testMediaInteractiveDefaults)
   await exec(
-    'ui.markdown.exampleWorkflowMarkdownIngestionProducesGraph',
-    testExampleWorkflowMarkdownIngestionProducesGraph,
-  )
-  await exec(
-    'ui.markdown.frontmatterOntologiesAndGraphLayersRoundTrip',
-    testMarkdownFrontmatterOntologiesAndGraphLayersRoundTrip,
-  )
-  await exec(
-    'ui.markdown.frontmatterPolygonLayersAliasWarning',
-    testMarkdownFrontmatterPolygonLayersAliasWarning,
-  )
-  await exec(
-    'ui.markdown.guidelinesIngestion.lexingAndSlides',
-    testGuidelinesMarkdownIngestionLexingAndSlides,
-  )
-  await exec(
-    'ui.markdown.guidelinesHighlightGuard.largeGraph',
-    testGuidelinesMarkdownHighlightGuardWithLargeGraph,
-  )
-  await exec(
-    'ui.markdown.guidelinesHighlightGuard.smallGraph',
-    testGuidelinesMarkdownHighlightGuardWithSmallGraph,
-  )
-  await exec(
     'ui.markdown.exampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges',
     testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges,
   )
@@ -553,21 +533,11 @@ export const runAllTests = async () => {
   )
 
   await exec(
-    'markdown.mermaidFrontmatter.tidyTreeMetadataDefaults',
-    testMarkdownMermaidFrontmatterTidyTreeMetadataDefaults,
-  )
-  await exec(
     'schema.tidyTree.separationSchemaRoundTrip',
     testTidyTreeSeparationSchemaRoundTrip,
   )
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {
-    const modToggle = await import('@/__tests__/markdownMediaToggleE2e.test')
-    await exec('ui.markdown.mediaToggleEndToEnd', modToggle.testMarkdownMediaToggleEndToEnd)
-    await exec('ui.markdown.headMetaFrontmatterArrays', modToggle.testMarkdownHeadMetaFrontmatterArrays)
-    await exec('ui.markdown.scrollSync.viewerToEditor', modToggle.testMarkdownScrollSyncViewerToEditor)
-    await exec('ui.markdown.editToggleKeepsScrollPosition', modToggle.testMarkdownEditToggleKeepsScrollPosition)
-
     const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')
     await exec(
       'ui.markdown.preview.showOnCanvas',
@@ -612,30 +582,6 @@ export const runAllTests = async () => {
         modFrontmatterToggle.testFrontmatterModeGraphLayersShowMermaidSubgraphNodesIn2dLayerWhenOff,
       )
     }
-
-    const pathMod = await import('node:path')
-    const fsMod = await import('node:fs')
-    const mdPath = pathMod.resolve(
-      process.cwd(),
-      'src/__tests__/sandbox/md-mmd-template.md',
-    )
-    const mdText = fsMod.readFileSync(mdPath, 'utf8')
-  await exec(
-    'ui.markdown.mermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions',
-    () => testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions(mdText),
-  )
-  await exec(
-    'ui.markdown.edaMlpInterviewSessionMarkdownFixtureFromDisk',
-    testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
-  )
-  await exec(
-    'ui.markdown.edaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture',
-    testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture,
-  )
-  await exec(
-    'ui.markdown.edaMlpInterviewSessionMarkdownPresentationFromDisk',
-    testEdaMlpInterviewSessionMarkdownPresentationFromDisk,
-  )
   }
 
   await exec(

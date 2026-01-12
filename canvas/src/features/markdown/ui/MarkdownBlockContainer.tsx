@@ -7,6 +7,7 @@ type MarkdownBlockContainerProps = {
   highlightStyle?: React.CSSProperties
   startLine: number
   endLine?: number
+  id?: string
   children: React.ReactNode
 }
 
@@ -17,11 +18,21 @@ export const MarkdownBlockContainer = ({
   highlightStyle,
   startLine,
   endLine,
+  id,
   children,
 }: MarkdownBlockContainerProps) => {
   const cls = [className, highlightClass].filter(Boolean).join(' ')
+  
+
+
   return (
-    <Tag className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine ?? startLine}>
+    <Tag
+      id={id}
+      className={cls}
+      style={highlightStyle}
+      data-start-line={startLine}
+      data-end-line={endLine ?? startLine}
+    >
       {children}
     </Tag>
   )

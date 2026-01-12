@@ -195,6 +195,20 @@ export function BottomPanelMarkdownSection() {
   const [presentationSlideState, setPresentationSlideState] =
     React.useState<MarkdownPreviewPresentationSlideState | null>(null)
 
+  const [pendingFullscreenRequest, setPendingFullscreenRequest] = React.useState(false)
+
+  React.useEffect(() => {
+    if (markdownPresentationMode && pendingFullscreenRequest && presentationApiRef.current) {
+      presentationApiRef.current.enterFullscreen?.()
+      setPendingFullscreenRequest(false)
+    }
+  }, [markdownPresentationMode, pendingFullscreenRequest])
+
+  const handleFullscreenToggleRequested = React.useCallback(() => {
+    setMarkdownPresentationMode(true)
+    setPendingFullscreenRequest(true)
+  }, [setMarkdownPresentationMode])
+
   const [flashSelectionId, setFlashSelectionId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -535,6 +549,7 @@ export function BottomPanelMarkdownSection() {
       setMarkdownPresentationMode={setMarkdownPresentationMode}
       isMarkdownPreviewTruncated={isMarkdownPreviewTruncated}
       handleApplyMarkdown={handleApplyMarkdown}
+      onFullscreenToggleRequested={handleFullscreenToggleRequested}
     />
   )
 }

@@ -99,7 +99,9 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   }
 
   const p = t as unknown as TokensParagraph
-  const baseClassName = ['mt-2 mb-2', baseTextClass, commonBlockClass].filter(Boolean).join(' ')
+  const baseClassName = ['mt-3 mb-3 leading-relaxed', baseTextClass, commonBlockClass]
+    .filter(Boolean)
+    .join(' ')
   return (
     <MarkdownBlockContainer
       as="p"

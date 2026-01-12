@@ -10,7 +10,8 @@ import { RUN_CODEBASE_INDEX_PIPELINE_LABEL } from '@/lib/config'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
 import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSection'
-import RenderTidyTreeSettingsRows, { type TidyTreeLod } from '@/features/panels/views/RenderTidyTreeSettingsRows'
+import RenderTidyTreeSettingsRows from '@/features/panels/views/RenderTidyTreeSettingsRows'
+import { type TidyTreeLod } from '@/features/panels/views/RenderTidyTreeSettingsRowsTypes'
 import MediaNodesSection from '@/features/panels/views/MediaNodesSection'
 
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>

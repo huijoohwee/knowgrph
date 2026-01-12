@@ -1,14 +1,17 @@
 ---
-title: Knowgrph Markdown Slide Demo
-theme: default
-background: '#0f172a'
-class: text-center
-highlighter: shiki
-lineNumbers: true
-transition: slide-left
-layout: cover
-aspectRatio: '16/9'
+title: Markdown Slide Demo
+graphId: md:markdown-slide-demo
+theme: academic
+aspectRatio: 16/9
 lang: en-US
+authors:
+  - A. Researcher
+  - B. Scientist
+meeting: "Example Research Meeting"
+date: "2026-01-12"
+venue: "Example City"
+institution: "Example Research Group"
+url: "https://example.com"
 mermaid: |
   graph LR
     subgraph L0["L0: BUSINESS OUTCOMES"]
@@ -36,11 +39,45 @@ mermaid: |
     L1D --> L2A
 ---
 
-# Knowgrph Markdown Slide Demo
+---
+layout: cover
+class: text-center
+background: https://placehold.co/1920x1080?text=Cover+Image
+transition: slide-left
+---
 
-**Goal:** End‑to‑end demo of markdown slide rendering in the Knowgrph viewer.
+# Markdown Slide Demo
+
+**Goal:** End‑to‑end demo of markdown slide rendering in the viewer.
 
 This deck mirrors the styling capabilities described in the *Markdown Slide Styling Guidelines*.
+
+---
+
+## Academic Theme Metadata
+
+This presentation uses the **Academic / Metadata** keys in the frontmatter to render the footer you see at the bottom of the screen.
+
+**Frontmatter configuration:**
+
+```yaml
+theme: academic
+authors:
+  - A. Researcher
+  - B. Scientist
+meeting: "Example Research Meeting"
+institution: "Example Research Group"
+date: "2026-01-12"
+venue: "Example City"
+url: "https://example.com"
+```
+
+The footer persists on all slides (except `cover` and `intro`) and displays:
+- Theme-dependent footer content (meeting/authors/institution/page)
+
+**Themes:**
+- `theme: academic`: Meeting + Authors (Left), Institution/Venue + Page X / Y (Right)
+- `theme: default`: Meeting/Venue/Institution/Date (Left), Authors/URL (Right), Page Numbers (Right)
 
 ---
 
@@ -50,13 +87,15 @@ This deck mirrors the styling capabilities described in the *Markdown Slide Styl
 **Italic:** *emphasis*  
 **Bold+Italic:** ***very important***  
 **Underline:** <u>underlined text</u>  
-**Highlight:** <mark>highlighted text</mark>  
+**Highlight:** ==highlighted text==  
 **Strikethrough:** ~~deprecated~~  
+**Subscript:** H~2~O  
+**Superscript:** E=mc^2^  
 **Inline code:** `code-span`
 
 Inline hover text (native tooltip):
 
-Hover over this term: <abbr title="Interactive markdown and graph viewer">Knowgrph Canvas</abbr>
+Hover over this term: <abbr title="Interactive markdown and graph viewer">Canvas Viewer</abbr>
 
 Custom span for framework utility classes:
 
@@ -102,6 +141,26 @@ Alignment:
 | Metric | Before | After |
 |:-------|-------:|:-----:|
 | Speed  |  3.2s  | 0.8s  |
+
+Line breaks and code in tables:
+
+| Feature | Details |
+|---------|---------|
+| Break   | Line 1<br>Line 2 |
+| Code    | `inline code` inside cell |
+| Pre     | <pre>block code</pre> |
+
+---
+
+## Footnotes and Heading IDs
+
+This slide demonstrates footnotes[^1] and custom heading IDs.
+
+### Custom ID Heading {#my-custom-id}
+
+Link to [Custom ID Heading](#my-custom-id).
+
+[^1]: This is a footnote rendered at the bottom of the slide.
 ```
 
 Rendered:
@@ -139,7 +198,7 @@ function greet(name) {
   return `Hello, ${name}!`
 }
 
-console.log(greet('Knowgrph'))
+console.log(greet('Demo'))
 ```
 
 ```python
@@ -239,7 +298,7 @@ Display:
 
 Basic image:
 
-![Alt text showing an example image](https://placehold.co/400x200?text=Knowgrph+Slide)
+![Alt text showing an example image](https://placehold.co/400x200?text=Demo+Slide)
 
 Sized images:
 
@@ -258,7 +317,7 @@ Background image semantics (structural for this demo):
 
 Standard links:
 
-- [Knowgrph Canvas Repository](https://github.com/huijoohwee/knowgrph)
+- [Project repository](https://example.com)
 - [Markdown Slide Styling Guidelines](https://huijoohwee.github.io/guidelines/markdown-slide-styling-guidelines)
 
 Link with title:
@@ -326,7 +385,7 @@ Markers that participate in fragment stepping:
 <v-mark type="underline">underlined content</v-mark>  
 <v-mark type="strike-through">struck content</v-mark>
 
-These markers are parsed structurally and treated as fragments by the Knowgrph viewer.
+These markers are parsed structurally and treated as fragments by the viewer.
 
 ---
 
@@ -518,8 +577,8 @@ Accessibility:
 
 You can now:
 
-- Load this markdown file into the Knowgrph markdown viewer
+- Load this markdown file into the markdown viewer
 - Toggle between viewer and presentation modes
 - Step through fragments, clicks, and animations
 
-This deck is designed as a compact, production‑ready demo of Knowgrph’s markdown slide rendering capabilities.
+This deck is designed as a compact, production‑ready demo of the markdown slide rendering capabilities.

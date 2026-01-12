@@ -10,6 +10,7 @@ import { MarkdownListBlock } from './MarkdownListBlock'
 import { MarkdownHtmlBlock } from './MarkdownHtmlBlock'
 import { MarkdownParagraphBlock } from './MarkdownParagraphBlock'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
+import { MarkdownFootnoteBlock } from './MarkdownFootnoteBlock'
 import type { RenderOpts } from './MarkdownRendererTypes'
 
 type MarkdownTokenRendererProps = {
@@ -154,7 +155,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
             />
           )
         case 'hr':
-          return <hr key={key} className="my-6 border-gray-200" />
+          return <hr key={key} className="my-8 border-t-2 border-slate-100" />
         case 'blockquote':
           return (
             <MarkdownBlockquoteBlock
@@ -241,6 +242,16 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               fragmentStep={fragmentStep || 0}
               fragmentClassNames={fragmentClassNames}
               fragmentTags={fragmentTags}
+            />
+          )
+        case 'footnote_block':
+          return (
+            <MarkdownFootnoteBlock
+              key={key}
+              token={t}
+              highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
+              opts={opts}
             />
           )
         default: {

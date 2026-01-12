@@ -32,7 +32,7 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
       '..',
       'huijoohwee.github.io',
       'guidelines',
-      'markdown-slide-styling-reference.md',
+      'markdown-slide-styling-guidelines.md',
     )
     const markdownText = readFileSync(mdPath, 'utf8')
 
@@ -44,7 +44,7 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
     root.render(
       React.createElement(MarkdownPreview, {
         markdownText,
-        activeDocumentPath: 'docs/markdown-slide-styling-reference.md',
+        activeDocumentPath: 'docs/markdown-slide-styling-guidelines.md',
         highlightedLineRange: null,
         markdownWordWrap: true,
         markdownPresentationMode: false,
@@ -71,8 +71,8 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
     }
 
     const textContent = (rootEl.textContent || '').replace(/\s+/g, ' ').trim()
-    if (!textContent.includes('Markdown Slide Styling Reference')) {
-      throw new Error('expected title from slide styling reference to be present in viewer mode')
+    if (!textContent.includes('Markdown Slide Styling Guidelines')) {
+      throw new Error('expected title from slide styling guidelines to be present in viewer mode')
     }
     if (!textContent.includes('Click-Based Progressive Disclosure')) {
       throw new Error('expected click-based section heading to be present in viewer mode')
@@ -90,7 +90,7 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
     root2.render(
       React.createElement(MarkdownPreview, {
         markdownText,
-        activeDocumentPath: 'docs/markdown-slide-styling-reference.md',
+        activeDocumentPath: 'docs/markdown-slide-styling-guidelines.md',
         highlightedLineRange: null,
         markdownWordWrap: true,
         markdownPresentationMode: true,

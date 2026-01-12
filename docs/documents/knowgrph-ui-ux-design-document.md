@@ -76,6 +76,17 @@
   - Triggering this action updates the graph selection using the same selection pathways as other tools, so viewport zoom, highlight, and related panels behave consistently.
   - For Mermaid frontmatter, Canvas selection and layout behavior follow the same neutrality guarantees as other graph content: `MermaidNode` and `pointsTo` edges are styled and filtered via schema‑driven layer configuration, and layout modes (force, radial, tidy‑tree) all operate on the same schema‑aligned subgraph without special cases for any particular template or dataset; see `docs/documents/knowgrph-mermaid-frontmatter-document.md` for details on Mermaid‑specific legend chips and path highlighting.
 
+# GitBook-like Markdown Viewer
+- Navigation and Layout:
+  - The markdown viewer supports a GitBook-like reading experience with a collapsible sidebar Table of Contents (TOC).
+  - The TOC is automatically generated from headings in the markdown content, providing quick navigation to sections.
+  - Clicking a TOC item smooth-scrolls the main content to the corresponding section.
+  - The layout is responsive, with a maximum content width (`max-w-4xl`) for optimal readability.
+- Interaction:
+  - A toggle button allows users to show/hide the sidebar, maximizing screen real estate when needed.
+  - When the sidebar is hidden, a floating button allows for easy restoration.
+  - The viewer integrates seamlessly with existing markdown features (highlighting, code blocks, mermaid diagrams).
+
 # Reordering interactions
 - Shared list reordering:
   - All list-style reordering (slides in the fullscreen gallery, graph field select options, and traversal path editors) uses a shared immutable helper: `reorderList` in `canvas/src/lib/reorder.ts`.

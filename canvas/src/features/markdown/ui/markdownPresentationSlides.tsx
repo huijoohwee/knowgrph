@@ -14,6 +14,27 @@ type SlideVisualMeta = {
   backgroundRaw: string
   backgroundSize: string
   backgroundPosition: string
+  authors: string[]
+  meeting: string
+  date: string
+  venue: string
+  url: string
+  themeStyle: string
+  institution: string
+}
+
+const normalizeThemeStyle = (raw: string): string => {
+  const key = String(raw || '').trim().toLowerCase()
+  if (!key) return 'default'
+  if (key === 'neversink') return 'academic'
+  return key
+}
+
+const getThemeBaseSlideClass = (themeStyle: string) => {
+  if (themeStyle === 'academic') {
+    return 'bg-white text-slate-900 font-sans tracking-tight'
+  }
+  return ''
 }
 
 export const buildBackgroundStyle = (
@@ -44,15 +65,135 @@ export const getSlideVisualMeta = (
   slideMeta: Record<string, unknown>,
   headMetaRecord: Record<string, unknown>,
 ): SlideVisualMeta => {
-  const slideClass = String(slideMeta.class || headMetaRecord.class || '').trim()
+  const slideClassRaw = String(slideMeta.class || headMetaRecord.class || '').trim()
   const layout = String(slideMeta.layout || headMetaRecord.layout || '').trim().toLowerCase()
   const backgroundRaw = String(slideMeta.background || headMetaRecord.background || '').trim()
   const backgroundSize =
     String(slideMeta.backgroundSize || headMetaRecord.backgroundSize || '').trim() || 'cover'
   const backgroundPosition =
     String(slideMeta.backgroundPosition || headMetaRecord.backgroundPosition || '').trim() || 'center'
-  return { slideClass, layout, backgroundRaw, backgroundSize, backgroundPosition }
+  
+  const authorsRaw = slideMeta.authors || headMetaRecord.authors || []
+  const authors = Array.isArray(authorsRaw) ? authorsRaw.map(String) : [String(authorsRaw)].filter(Boolean)
+  const meeting = String(slideMeta.meeting || headMetaRecord.meeting || '').trim()
+  const date = String(slideMeta.date || headMetaRecord.date || '').trim()
+  const venue = String(slideMeta.venue || headMetaRecord.venue || '').trim()
+  const url = String(slideMeta.url || headMetaRecord.url || '').trim()
+  const themeStyle = normalizeThemeStyle(String(slideMeta.theme || headMetaRecord.theme || ''))
+  const institution = String(slideMeta.institution || headMetaRecord.institution || '').trim()
+  const themeBaseClass = getThemeBaseSlideClass(themeStyle)
+  const slideClass = [themeBaseClass, slideClassRaw].filter(Boolean).join(' ')
+
+  return {
+    slideClass,
+    layout,
+    backgroundRaw,
+    backgroundSize,
+    backgroundPosition,
+    authors,
+    meeting,
+    date,
+    venue,
+    url,
+    themeStyle,
+    institution,
+  }
 }
+
+const buildSlideFooter = (args: { meta: SlideVisualMeta; page: number; total: number }): React.ReactNode => {
+  const { meta, page, total } = args
+  if (
+    !meta.authors.length &&
+    !meta.meeting &&
+    !meta.date &&
+    !meta.venue &&
+    !meta.url &&
+    !meta.institution &&
+    meta.themeStyle !== 'academic'
+  )
+    return null
+
+  if (meta.layout === 'cover' || meta.layout === 'intro') return null
+
+  if (meta.themeStyle === 'academic') {
+    return (
+      <div className="absolute bottom-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs bg-white/95 border-t border-slate-100 z-10 font-sans">
+        <div className="min-w-0 flex items-center gap-4">
+          {meta.meeting && (
+            <span className="min-w-0 font-semibold text-slate-900 truncate">
+              {meta.meeting}
+            </span>
+          )}
+          {meta.authors.length > 0 && (
+            <span className="hidden sm:inline-block min-w-0 text-slate-600 truncate">
+              {meta.authors.join(', ')}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-slate-600">
+          {(meta.institution || meta.venue) && (
+            <span className="hidden md:inline-block font-medium text-slate-700 truncate max-w-[28rem]">
+              {[meta.institution, meta.venue].filter(Boolean).join(' · ')}
+            </span>
+          )}
+          <span className="font-mono text-slate-500 tabular-nums">
+            {page} <span className="mx-1 text-slate-300">/</span> {total}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="absolute bottom-0 left-0 w-full px-4 py-2 text-[10px] text-gray-500/80 bg-white/90 border-t border-gray-100/50 flex justify-between items-center z-10 font-sans">
+      <div className="flex gap-3">
+        {meta.meeting && <span className="font-medium text-gray-600">{meta.meeting}</span>}
+        {meta.venue && <span>{meta.venue}</span>}
+        {meta.institution && <span className="font-semibold text-gray-600">{meta.institution}</span>}
+        {meta.date && <span>{meta.date}</span>}
+      </div>
+      <div className="flex gap-3">
+        {meta.authors.length > 0 && <span>{meta.authors.join(', ')}</span>}
+        {meta.url && <span className="opacity-75">{meta.url}</span>}
+      </div>
+      <div className="font-mono opacity-60">
+        {page} / {total}
+      </div>
+    </div>
+  )
+}
+
+const buildTokenRendererProps = (
+  tokens: TokenWithLines[],
+  common: Omit<BuildSlideBodyArgs, 'twoColumnTokens' | 'slideTokens' | 'slides' | 'safeActiveSlideId' | 'hasSlides' | 'headMeta' | 'buildAlwaysOnTokenHighlights'>,
+  highlights: Array<{
+    textColor: string | null
+    underlineColor: string | null
+    backgroundColor: string | null
+  }> | null
+) => ({
+  tokens,
+  activeDocumentPath: common.activeDocumentPath,
+  highlightedLineRange: common.highlightedLineRange,
+  markdownWordWrap: common.markdownWordWrap,
+  markdownPresentationMode: true,
+  uiPanelTextFontClass: common.uiPanelTextFontClass,
+  uiPanelMonospaceTextClass: common.uiPanelMonospaceTextClass,
+  mermaidFrontmatterConfig: common.mermaidFrontmatterConfig,
+  rootThemeMode: common.rootThemeMode,
+  previewOverlayScope: common.previewOverlayScope,
+  previewOverlayPortalTarget: common.previewOverlayPortalTarget,
+  alwaysOnHighlightMode: common.alwaysOnHighlightMode,
+  alwaysOnTokenHighlights: highlights,
+  markdownTextHighlight: common.markdownTextHighlight,
+  selectionKind: common.selectionKind,
+  highlightBackgroundColor: common.effectiveHighlightBackgroundColor,
+  highlightUnderlineColor: common.effectiveHighlightUnderlineColor,
+  fragmentsEnabled: common.activeFragmentConfig.enabled,
+  fragmentStep: common.activeFragmentStep,
+  fragmentClassNames: common.activeFragmentConfig.classNames,
+  fragmentTags: common.activeFragmentConfig.tags,
+})
 
 export const getSlideTextBodyAndNotes = (
   slide: { text: string; notes: string | null },
@@ -211,23 +352,9 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
     twoColumnTokens,
     slideTokens,
     headMeta,
-    activeDocumentPath,
-    highlightedLineRange,
-    markdownWordWrap,
-    markdownTextHighlight,
-    selectionKind,
     uiPanelTextFontClass,
-    uiPanelMonospaceTextClass,
-    previewOverlayScope,
-    previewOverlayPortalTarget,
-    alwaysOnHighlightMode,
     buildAlwaysOnTokenHighlights,
-    activeFragmentConfig,
-    activeFragmentStep,
     mermaidFrontmatterConfig,
-    rootThemeMode,
-    effectiveHighlightBackgroundColor,
-    effectiveHighlightUnderlineColor,
   } = args
 
   if (!hasSlides) {
@@ -259,92 +386,51 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   if (!currentSlide) return null
   const slideMeta = (currentSlide.meta || {}) as Record<string, unknown>
   const headMetaRecord = headMeta as Record<string, unknown>
-  const layoutRaw = String(slideMeta.layout || headMetaRecord.layout || '').trim().toLowerCase()
-  if (layoutRaw === 'two-cols' && twoColumnTokens) {
+  
+  const visualMeta = getSlideVisualMeta(slideMeta, headMetaRecord)
+  const { layout } = visualMeta
+
+  const slideMermaidConfig = parseMermaidConfigFromFrontmatter(currentSlide.meta || {})
+  const effectiveMermaidConfig = slideMermaidConfig || mermaidFrontmatterConfig
+  
+  let content: React.ReactNode = null
+
+  if (layout === 'two-cols' && twoColumnTokens) {
     const leftHighlights = buildAlwaysOnTokenHighlights(twoColumnTokens.left)
     const rightHighlights = buildAlwaysOnTokenHighlights(twoColumnTokens.right)
-    const slideMermaidConfig = parseMermaidConfigFromFrontmatter(currentSlide.meta || {})
-    return (
+    
+    content = (
       <div className="w-full h-full grid grid-cols-2 gap-8">
-        <div className="w-full h-full px-8 py-8 overflow-auto">
+        <div className="w-full h-full px-8 py-8 pb-14 overflow-auto">
           <MarkdownTokenRenderer
-            tokens={twoColumnTokens.left}
-            activeDocumentPath={activeDocumentPath}
-            highlightedLineRange={highlightedLineRange}
-            markdownWordWrap={markdownWordWrap}
-            markdownPresentationMode={true}
-            uiPanelTextFontClass={uiPanelTextFontClass}
-            uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-            mermaidFrontmatterConfig={slideMermaidConfig || mermaidFrontmatterConfig}
-            rootThemeMode={rootThemeMode}
-            previewOverlayScope={previewOverlayScope}
-            previewOverlayPortalTarget={previewOverlayPortalTarget}
-            alwaysOnHighlightMode={alwaysOnHighlightMode}
-            alwaysOnTokenHighlights={leftHighlights}
-            markdownTextHighlight={markdownTextHighlight}
-            selectionKind={selectionKind}
-            highlightBackgroundColor={effectiveHighlightBackgroundColor}
-            highlightUnderlineColor={effectiveHighlightUnderlineColor}
-            fragmentsEnabled={activeFragmentConfig.enabled}
-            fragmentStep={activeFragmentStep}
-            fragmentClassNames={activeFragmentConfig.classNames}
-            fragmentTags={activeFragmentConfig.tags}
+            {...buildTokenRendererProps(twoColumnTokens.left, args, leftHighlights)}
+            mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </div>
-        <div className="w-full h-full px-8 py-8 overflow-auto">
+        <div className="w-full h-full px-8 py-8 pb-14 overflow-auto">
           <MarkdownTokenRenderer
-            tokens={twoColumnTokens.right}
-            activeDocumentPath={activeDocumentPath}
-            highlightedLineRange={highlightedLineRange}
-            markdownWordWrap={markdownWordWrap}
-            markdownPresentationMode={true}
-            uiPanelTextFontClass={uiPanelTextFontClass}
-            uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-            mermaidFrontmatterConfig={slideMermaidConfig || mermaidFrontmatterConfig}
-            rootThemeMode={rootThemeMode}
-            previewOverlayScope={previewOverlayScope}
-            previewOverlayPortalTarget={previewOverlayPortalTarget}
-            alwaysOnHighlightMode={alwaysOnHighlightMode}
-            alwaysOnTokenHighlights={rightHighlights}
-            markdownTextHighlight={markdownTextHighlight}
-            selectionKind={selectionKind}
-            highlightBackgroundColor={effectiveHighlightBackgroundColor}
-            highlightUnderlineColor={effectiveHighlightUnderlineColor}
-            fragmentsEnabled={activeFragmentConfig.enabled}
-            fragmentStep={activeFragmentStep}
-            fragmentClassNames={activeFragmentConfig.classNames}
-            fragmentTags={activeFragmentConfig.tags}
+            {...buildTokenRendererProps(twoColumnTokens.right, args, rightHighlights)}
+            mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </div>
       </div>
     )
+  } else if (slideTokens) {
+    content = (
+      <MarkdownTokenRenderer
+        {...buildTokenRendererProps(slideTokens, args, buildAlwaysOnTokenHighlights(slideTokens))}
+        mermaidFrontmatterConfig={effectiveMermaidConfig}
+      />
+    )
   }
-  if (!slideTokens) return null
-  const slideMermaidConfig = parseMermaidConfigFromFrontmatter(currentSlide.meta || {})
+
+  if (!content) return null
+
   return (
-    <MarkdownTokenRenderer
-      tokens={slideTokens}
-      activeDocumentPath={activeDocumentPath}
-      highlightedLineRange={highlightedLineRange}
-      markdownWordWrap={markdownWordWrap}
-      markdownPresentationMode={true}
-      uiPanelTextFontClass={uiPanelTextFontClass}
-      uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-      mermaidFrontmatterConfig={slideMermaidConfig || mermaidFrontmatterConfig}
-      rootThemeMode={rootThemeMode}
-      previewOverlayScope={previewOverlayScope}
-      previewOverlayPortalTarget={previewOverlayPortalTarget}
-      alwaysOnHighlightMode={alwaysOnHighlightMode}
-      alwaysOnTokenHighlights={buildAlwaysOnTokenHighlights(slideTokens)}
-      markdownTextHighlight={markdownTextHighlight}
-      selectionKind={selectionKind}
-      highlightBackgroundColor={effectiveHighlightBackgroundColor}
-      highlightUnderlineColor={effectiveHighlightUnderlineColor}
-      fragmentsEnabled={activeFragmentConfig.enabled}
-      fragmentStep={activeFragmentStep}
-      fragmentClassNames={activeFragmentConfig.classNames}
-      fragmentTags={activeFragmentConfig.tags}
-    />
+    <div className="w-full h-full relative pb-14">
+      {content}
+      {buildSlideFooter({ meta: visualMeta, page: safeActiveSlideId + 1, total: slides.length })}
+    </div>
   )
 }
 
@@ -394,6 +480,26 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
   const slideClassPreview = slideClass
   const { text, body } = getSlideTextBodyAndNotes(slide)
   if (!body) return null
+  const commonProps = {
+    activeDocumentPath,
+    highlightedLineRange: null,
+    markdownWordWrap: false,
+    markdownPresentationMode: true,
+    uiPanelTextFontClass,
+    uiPanelMonospaceTextClass,
+    mermaidFrontmatterConfig,
+    rootThemeMode,
+    previewOverlayScope,
+    previewOverlayPortalTarget,
+    alwaysOnHighlightMode: false,
+    markdownTextHighlight: false,
+    selectionKind: null as 'node' | 'edge' | null,
+    effectiveHighlightBackgroundColor: null,
+    effectiveHighlightUnderlineColor: null,
+    activeFragmentConfig: { enabled: false, classNames: [], tags: [], steps: 0 },
+    activeFragmentStep: 0,
+  }
+
   if (layoutPreview === 'two-cols') {
     const twoColumnTokens = buildTwoColumnTokens({ slide, headMeta })
     if (!twoColumnTokens) return null
@@ -411,44 +517,12 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
         <div className="w-full h-full grid grid-cols-2 gap-2">
           <div className="w-full h-full px-2 py-2 overflow-hidden">
             <MarkdownTokenRenderer
-              tokens={leftTokens}
-              activeDocumentPath={activeDocumentPath}
-              highlightedLineRange={null}
-              markdownWordWrap={false}
-              markdownPresentationMode={true}
-              uiPanelTextFontClass={uiPanelTextFontClass}
-              uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-              mermaidFrontmatterConfig={mermaidFrontmatterConfig}
-              rootThemeMode={rootThemeMode}
-              previewOverlayScope={previewOverlayScope}
-              previewOverlayPortalTarget={previewOverlayPortalTarget}
-              markdownTextHighlight={false}
-              selectionKind={null}
-              highlightBackgroundColor={null}
-              highlightUnderlineColor={null}
-              alwaysOnHighlightMode={false}
-              alwaysOnTokenHighlights={null}
+              {...buildTokenRendererProps(leftTokens, commonProps, null)}
             />
           </div>
           <div className="w-full h-full px-2 py-2 overflow-hidden">
             <MarkdownTokenRenderer
-              tokens={rightTokens}
-              activeDocumentPath={activeDocumentPath}
-              highlightedLineRange={null}
-              markdownWordWrap={false}
-              markdownPresentationMode={true}
-              uiPanelTextFontClass={uiPanelTextFontClass}
-              uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-              mermaidFrontmatterConfig={mermaidFrontmatterConfig}
-              rootThemeMode={rootThemeMode}
-              previewOverlayScope={previewOverlayScope}
-              previewOverlayPortalTarget={previewOverlayPortalTarget}
-              markdownTextHighlight={false}
-              selectionKind={null}
-              highlightBackgroundColor={null}
-              highlightUnderlineColor={null}
-              alwaysOnHighlightMode={false}
-              alwaysOnTokenHighlights={null}
+              {...buildTokenRendererProps(rightTokens, commonProps, null)}
             />
           </div>
         </div>
@@ -480,23 +554,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
       <div className={slideOuterClassPreview}>
         <div className={slideContentClassPreview}>
           <MarkdownTokenRenderer
-            tokens={tokens}
-            activeDocumentPath={activeDocumentPath}
-            highlightedLineRange={null}
-            markdownWordWrap={false}
-            markdownPresentationMode={true}
-            uiPanelTextFontClass={uiPanelTextFontClass}
-            uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-            mermaidFrontmatterConfig={mermaidFrontmatterConfig}
-            rootThemeMode={rootThemeMode}
-            previewOverlayScope={previewOverlayScope}
-            previewOverlayPortalTarget={previewOverlayPortalTarget}
-            markdownTextHighlight={false}
-            selectionKind={null}
-            highlightBackgroundColor={null}
-            highlightUnderlineColor={null}
-            alwaysOnHighlightMode={false}
-            alwaysOnTokenHighlights={null}
+            {...buildTokenRendererProps(tokens, commonProps, null)}
           />
         </div>
       </div>
