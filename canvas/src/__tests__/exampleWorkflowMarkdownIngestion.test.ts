@@ -1,6 +1,14 @@
+import React from 'react'
+import { createRoot } from 'react-dom/client'
 import { applyParser, builtInParsers, registerParser, resetParsers, toParserId } from '@/features/parsers'
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
+import { schemaFromJsonLd } from '@/features/schema/schemaJsonLd'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 type NodeWithOptionalProps = { properties?: unknown }
 
@@ -250,17 +258,167 @@ export async function testEdaMlpInterviewSessionMarkdownProducesMermaidAnchorsAn
   await runEdaMlpInterviewSessionMarkdownTest(markdown, true)
 }
 
-export async function testEdaMlpInterviewSessionMarkdownFixtureFromDisk() {
+async function readEdaMlpInterviewSessionMarkdownFromEnv(): Promise<string | null> {
   const envValue = String(process.env.KNOWGRPH_EDA_MLP_INTERVIEW_MD_PATH || '').trim()
   if (!envValue) {
-    await Promise.resolve()
-    return
+    return null
   }
   const pathMod = await import('node:path')
   const fsMod = await import('node:fs')
   const mdPath = pathMod.resolve(process.cwd(), envValue)
   const mdText = fsMod.readFileSync(mdPath, 'utf8')
+  return mdText
+}
+
+export async function testEdaMlpInterviewSessionMarkdownFixtureFromDisk() {
+  const mdText = await readEdaMlpInterviewSessionMarkdownFromEnv()
+  if (!mdText || !mdText.trim()) {
+    await Promise.resolve()
+    return
+  }
   await runEdaMlpInterviewSessionMarkdownTest(mdText, false)
+}
+
+export async function testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture() {
+  const mdText = await readEdaMlpInterviewSessionMarkdownFromEnv()
+  if (!mdText || !mdText.trim()) {
+    await Promise.resolve()
+    return
+  }
+
+  resetParsers()
+  builtInParsers.forEach(p => registerParser(p))
+
+  const jsonld = buildMarkdownJsonLd(
+    'file://eda-mlp-interview-session.md',
+    mdText,
+  )
+
+  const res = applyParser(toParserId('jsonld'), {
+    name: 'eda-mlp-interview-session.jsonld',
+    text: JSON.stringify(jsonld),
+  })
+
+  if (!res) throw new Error('jsonld parse returned null')
+  if (res.warnings && res.warnings.length > 0) {
+    throw new Error(`jsonld parse warnings: ${res.warnings.join('; ')}`)
+  }
+
+  const schema = schemaFromJsonLd(jsonld)
+  const meta = schema.metadata as Record<string, unknown> | undefined
+  if (!meta) {
+    throw new Error('expected schema.metadata to be present')
+  }
+  const tidy = meta.tidyTree as Record<string, unknown> | undefined
+  if (!tidy) {
+    throw new Error('expected metadata.tidyTree to be present')
+  }
+  const separation = tidy.separation
+  if (typeof separation !== 'number' || !Number.isFinite(separation) || separation <= 0) {
+    throw new Error(`expected positive metadata.tidyTree.separation, got ${String(separation)}`)
+  }
+  const density = tidy.mermaidDensity as Record<string, unknown> | undefined
+  if (!density) {
+    throw new Error('expected metadata.tidyTree.mermaidDensity to be present')
+  }
+  const statementCount = density.statementCount
+  if (typeof statementCount !== 'number' || !Number.isFinite(statementCount) || statementCount <= 0) {
+    throw new Error(`expected positive mermaidDensity.statementCount, got ${String(statementCount)}`)
+  }
+  const densityLabel = String(density.density || '')
+  if (!densityLabel) {
+    throw new Error('expected non-empty mermaidDensity.density label')
+  }
+  if (densityLabel !== 'medium') {
+    throw new Error(`expected mermaidDensity.density === "medium", got ${densityLabel}`)
+  }
+  if (separation !== 1.6) {
+    throw new Error(`expected metadata.tidyTree.separation === 1.6, got ${String(separation)}`)
+  }
+
+  await Promise.resolve()
+}
+
+export async function testEdaMlpInterviewSessionMarkdownPresentationFromDisk() {
+  const markdown = await readEdaMlpInterviewSessionMarkdownFromEnv()
+  if (!markdown || !markdown.trim()) {
+    await Promise.resolve()
+    return
+  }
+
+  const { slides } = splitSlides(markdown)
+  if (!slides.length) {
+    throw new Error('eda-mlp-interview-session markdown produced no slides')
+  }
+
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const anyWindow = dom.window as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+    }
+    if (!anyWindow.requestAnimationFrame) {
+      anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+        setTimeout(() => cb(Date.now()), 0) as unknown as number
+    }
+    const anyGlobal = globalThis as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+    }
+    if (!anyGlobal.requestAnimationFrame) {
+      anyGlobal.requestAnimationFrame = anyWindow.requestAnimationFrame
+    }
+
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: markdown,
+        activeDocumentPath: 'interview-session-keywords-v0.4.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: true,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans text-xs',
+        uiPanelMonospaceTextClass: 'font-mono text-xs',
+        previewOverlayScope: 'viewport',
+        previewOverlayPortalTarget: null,
+        previewScrollable: true,
+        alwaysOnHighlightMode: false,
+      } as never),
+    )
+
+    const tick = () =>
+      new Promise<void>(resolve =>
+        anyWindow.requestAnimationFrame
+          ? anyWindow.requestAnimationFrame(() => resolve())
+          : setTimeout(() => resolve(), 0),
+      )
+    await tick()
+
+    const presentationRoot = doc.querySelector(
+      '[data-testid="markdown-presentation-root"]',
+    ) as HTMLDivElement | null
+    if (!presentationRoot) {
+      throw new Error('eda-mlp-interview-session presentation root not found')
+    }
+
+    const mermaidContainers = presentationRoot.querySelectorAll(
+      '.mt-3.mb-3.p-3.rounded.border.border-gray-200.bg-white.overflow-auto',
+    )
+    if (!mermaidContainers.length) {
+      throw new Error('eda-mlp-interview-session presentation contains no Mermaid diagram containers')
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+    restoreWindow()
+  }
 }
 
 export async function testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions(markdown: string) {

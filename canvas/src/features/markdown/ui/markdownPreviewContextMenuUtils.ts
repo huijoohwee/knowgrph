@@ -8,6 +8,33 @@ export type MarkdownPreviewMenuPosition = {
   y: number
 }
 
+export const findLineRangeFromTarget = (
+  root: HTMLDivElement | null,
+  target: EventTarget | null,
+): MarkdownSelectionRange | null => {
+  if (!root) return null
+  const element = target as HTMLElement | null
+  if (!element) return null
+  let el: HTMLElement | null = element
+  let startLine: number | null = null
+  let endLine: number | null = null
+  while (el && el !== root) {
+    const ds = el.dataset
+    if (ds && ds.startLine) {
+      const s = Number.parseInt(ds.startLine, 10)
+      const eLine = ds.endLine ? Number.parseInt(ds.endLine, 10) : s
+      if (Number.isFinite(s) && Number.isFinite(eLine)) {
+        startLine = s
+        endLine = eLine
+        break
+      }
+    }
+    el = el.parentElement
+  }
+  if (startLine == null || endLine == null) return null
+  return { startLine, endLine }
+}
+
 export function computeMarkdownPreviewMenuPosition(args: {
   containerRect: DOMRect
   clientX: number

@@ -198,12 +198,12 @@ const RenderTidyTreeSettingsRows = React.memo(function RenderTidyTreeSettingsRow
             <input
               type="number"
               step={0.1}
-              min={0.1}
+              min={0.25}
               className={uiPanelKeyValueInputClass}
               value={tidyTreeCfg.separation ?? 1}
               onChange={e => {
                 const raw = parseFloat(e.target.value || '1')
-                const next = Number.isFinite(raw) ? Math.max(0.1, raw) : 1
+                const next = Number.isFinite(raw) ? Math.max(0.25, raw) : 1
                 updateTidyTree({ separation: next })
               }}
             />
@@ -556,6 +556,63 @@ const RenderTidyTreeSettingsRows = React.memo(function RenderTidyTreeSettingsRow
                   } else {
                     const raw = parseFloat(rawText)
                     if (Number.isFinite(raw)) tidy.maxLeafLabels = Math.max(0, Math.floor(raw))
+                  }
+                  const hasAny = Object.keys(tidy).length > 0
+                  return hasAny ? tidy : null
+                })
+              }}
+            />
+          </RightAlignedValueCell>
+        )}
+      />
+      <KeyTypeValueRow
+        layout="keyValue"
+        density="compact"
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.lod.tidyTree.collapseMode</span>}
+        valueNode={(
+          <RightAlignedValueCell>
+            <select
+              className={uiPanelKeyValueInputClass}
+              value={tidyTreeLod.collapseMode === 'depth' ? 'depth' : 'none'}
+              onChange={e => {
+                const raw = e.target.value
+                const next = raw === 'depth' ? 'depth' : 'none'
+                updateTidyTreeLod((cur) => {
+                  const tidy = { ...cur }
+                  tidy.collapseMode = next
+                  const hasAny = Object.keys(tidy).length > 0
+                  return hasAny ? tidy : null
+                })
+              }}
+            >
+              <option value="none">none</option>
+              <option value="depth">collapse by depth</option>
+            </select>
+          </RightAlignedValueCell>
+        )}
+      />
+      <KeyTypeValueRow
+        layout="keyValue"
+        density="compact"
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.lod.tidyTree.maxDepth</span>}
+        valueNode={(
+          <RightAlignedValueCell>
+            <input
+              type="number"
+              step={1}
+              min={1}
+              className={uiPanelKeyValueInputClass}
+              value={typeof tidyTreeLod.maxDepth === 'number' ? tidyTreeLod.maxDepth : ''}
+              placeholder={UI_COPY.autoPlaceholder}
+              onChange={e => {
+                const rawText = String(e.target.value || '')
+                updateTidyTreeLod((cur) => {
+                  const tidy = { ...cur }
+                  if (!rawText.trim()) {
+                    delete (tidy as Partial<TidyTreeLod>).maxDepth
+                  } else {
+                    const raw = parseFloat(rawText)
+                    if (Number.isFinite(raw)) tidy.maxDepth = Math.max(1, Math.floor(raw))
                   }
                   const hasAny = Object.keys(tidy).length > 0
                   return hasAny ? tidy : null

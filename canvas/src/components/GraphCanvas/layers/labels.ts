@@ -16,8 +16,18 @@ export const createLabelsLayer = (args: {
   tidyTreeDerivation: TidyTreeDerivation | null;
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   renderMediaAsNodes: boolean;
+  graphLayersVisible: boolean;
 }) => {
-  const { g, graphData, schema, edgesForDisplay, tidyTreeDerivation, labelsSelRef, renderMediaAsNodes } = args;
+  const {
+    g,
+    graphData,
+    schema,
+    edgesForDisplay,
+    tidyTreeDerivation,
+    labelsSelRef,
+    renderMediaAsNodes,
+    graphLayersVisible,
+  } = args;
   const isTidyTree = schema.layout?.mode === 'tidy-tree';
   const tidyCfg = schema.layout?.tidyTree || {};
   const tidyColorMode = tidyCfg.colorMode === 'schema' ? 'schema' : 'observable';
@@ -39,8 +49,13 @@ export const createLabelsLayer = (args: {
       const filtered = rawNodes.filter(n => !hiddenTypeSet.has(String(n.type || '')));
       return filtered.length > 0 ? filtered : rawNodes;
     })();
-    if (!renderMediaAsNodes) return base;
-    return base.filter(n => !hasNodeMedia(n));
+    const withoutMedia = (() => {
+      if (!renderMediaAsNodes) return base;
+      return base.filter(n => !hasNodeMedia(n));
+    })();
+    if (!graphLayersVisible) return withoutMedia;
+    const filteredForLayers = withoutMedia.filter(n => String(n.type || '') !== 'MermaidSubgraph');
+    return filteredForLayers.length > 0 ? filteredForLayers : withoutMedia;
   })();
   const tidyTreeLabelVisibility = isTidyTree
     ? computeTidyTreeLabelVisibility({ nodes, edgesForDisplay, direction, lod: schema.performance?.lod?.tidyTree })

@@ -11,6 +11,8 @@ export type JsonToMarkdownConfig = {
   sortKeys?: boolean
 }
 
+import { JSON_TO_MARKDOWN_COPY } from './markdownCopy'
+
 type ResolvedConfig = {
   defaultMode: JsonToMarkdownMode
   tableMaxRows: number
@@ -133,7 +135,7 @@ function detectMode(value: JsonLike, config: ResolvedConfig): Exclude<JsonToMark
 }
 
 function renderTable(rows: Record<string, JsonLike>[], config: ResolvedConfig): string[] {
-  if (!rows.length) return ['(empty array)']
+  if (!rows.length) return [JSON_TO_MARKDOWN_COPY.emptyArrayLabel]
   let headerKeys = Object.keys(rows[0])
   if (config.tableMaxColumns > 0 && headerKeys.length > config.tableMaxColumns) {
     headerKeys = headerKeys.slice(0, config.tableMaxColumns)
@@ -162,7 +164,7 @@ function renderTable(rows: Record<string, JsonLike>[], config: ResolvedConfig): 
   if (rows.length > maxRows) {
     const remaining = rows.length - maxRows
     lines.push('')
-    lines.push(`... ${remaining} more rows`)
+    lines.push(JSON_TO_MARKDOWN_COPY.moreRowsLabel(remaining))
   }
   return lines
 }
@@ -208,7 +210,7 @@ function renderHierarchical(
     if (Array.isArray(value)) {
       const items = value as JsonLike[]
       if (!items.length) {
-        lines.push(`${indent}${config.bullet} (empty list)`)
+        lines.push(`${indent}${config.bullet} ${JSON_TO_MARKDOWN_COPY.emptyListLabel}`)
         return lines
       }
       for (let idx = 0; idx < items.length; idx += 1) {
@@ -218,7 +220,7 @@ function renderHierarchical(
           const rendered = formatScalar(item)
           lines.push(`${prefix}${rendered}`)
         } else if (item && typeof item === 'object') {
-          const label = `item ${idx + 1}`
+          const label = JSON_TO_MARKDOWN_COPY.itemLabel(idx + 1)
           lines.push(`${prefix}${label}:`)
           lines.push(...renderHierarchical(item, config, level + 1))
         } else {
@@ -293,4 +295,3 @@ export function jsonToMarkdown(
   const lines = renderHierarchical(value, resolved, 0)
   return lines.join('\n')
 }
-

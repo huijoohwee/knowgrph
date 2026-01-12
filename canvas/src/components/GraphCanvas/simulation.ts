@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import dagre from 'dagre';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema, getNodeRadiusFromSchema } from '@/lib/graph/schema';
 
@@ -40,11 +41,6 @@ type GraphLike = { nodes: GraphNode[]; edges: GraphEdge[] };
 type RadialClusterNode = {
   id: string;
   children?: RadialClusterNode[];
-};
-
-type TidyTreeNode = {
-  id: string;
-  children?: TidyTreeNode[];
 };
 
 const applyRadialClusterLayout = (
@@ -288,95 +284,13 @@ const applyTidyTreeLayout = (
   const derivation = deriveTidyTreeDerivation(edgesForSim, schema, nodeIds);
   const candidateEdges = derivation?.candidateEdges ?? [];
   const direction = derivation?.direction ?? resolveTidyTreeDirection(tidyCfg, candidateEdges, nodeIds);
-  const parentByChild = new Map<string, string>();
-  const childrenByParent = new Map<string, string[]>();
 
-  for (let i = 0; i < candidateEdges.length; i += 1) {
-    const e = candidateEdges[i];
-    const src = String(e.source);
-    const tgt = String(e.target);
-    const parent = direction === 'source-target' ? src : tgt;
-    const child = direction === 'source-target' ? tgt : src;
-    if (!parent || !child) continue;
-    if (parent === child) continue;
-    if (!nodeIds.has(parent) || !nodeIds.has(child)) continue;
-    if (parentByChild.has(child)) continue;
-    parentByChild.set(child, parent);
-    const arr = childrenByParent.get(parent);
-    if (arr) arr.push(child);
-    else childrenByParent.set(parent, [child]);
-  }
-
-  const sortBy = tidyCfg?.sortBy || 'label';
-  const compareIds = (a: string, b: string) => {
-    if (a === b) return 0;
-    if (sortBy === 'none') return 0;
-    if (sortBy === 'id') return a.localeCompare(b);
-    if (sortBy === 'type') {
-      const ta = nodeById.get(a)?.type || '';
-      const tb = nodeById.get(b)?.type || '';
-      const tCmp = ta.localeCompare(tb);
-      return tCmp !== 0 ? tCmp : a.localeCompare(b);
-    }
-    const la = nodeById.get(a)?.label || '';
-    const lb = nodeById.get(b)?.label || '';
-    const lCmp = la.localeCompare(lb);
-    return lCmp !== 0 ? lCmp : a.localeCompare(b);
-  };
-
-  const roots: string[] = [];
-  nodeIds.forEach(id => {
-    if (!parentByChild.has(id)) roots.push(id);
-  });
-  roots.sort(compareIds);
-
-  const visited = new Set<string>();
-  const buildNode = (id: string): TidyTreeNode | null => {
-    const nodeId = String(id);
-    if (!nodeId) return null;
-    if (visited.has(nodeId)) return null;
-    if (!nodeById.has(nodeId)) return null;
-    visited.add(nodeId);
-    const childIds = (childrenByParent.get(nodeId) || []).slice();
-    childIds.sort(compareIds);
-    const children: TidyTreeNode[] = [];
-    for (let i = 0; i < childIds.length; i += 1) {
-      const child = buildNode(childIds[i]);
-      if (child) children.push(child);
-    }
-    return children.length > 0 ? { id: nodeId, children } : { id: nodeId };
-  };
-
-  const forest: TidyTreeNode[] = [];
-  for (let i = 0; i < roots.length; i += 1) {
-    const n = buildNode(roots[i]);
-    if (n) forest.push(n);
-  }
-
-  for (let i = 0; i < nodes.length; i += 1) {
-    const id = String(nodes[i].id);
-    if (!id || visited.has(id)) continue;
-    const extra = buildNode(id);
-    if (extra) forest.push(extra);
-  }
-
-  if (!forest.length) return;
-
-  const treeRoot: TidyTreeNode = forest.length === 1 ? forest[0] : { id: '__root__', children: forest };
-  const root = d3.hierarchy<TidyTreeNode>(treeRoot);
-  if (sortBy !== 'none') {
-    root.sort((a, b) => compareIds(a.data.id, b.data.id));
-  }
-
+  const g = new dagre.graphlib.Graph({ directed: true });
   const padding = schema.layout?.fitPadding ?? 80;
   const orientation = tidyCfg?.orientation === 'vertical' ? 'vertical' : 'horizontal';
 
   const innerW = Math.max(1, width - 2 * Math.max(0, padding));
   const innerH = Math.max(1, height - 2 * Math.max(0, padding));
-
-  const separationRaw = tidyCfg?.separation;
-  const separation =
-    typeof separationRaw === 'number' && Number.isFinite(separationRaw) && separationRaw > 0 ? separationRaw : 1;
 
   const nodeSizeXRaw = tidyCfg?.nodeSize?.x;
   const nodeSizeYRaw = tidyCfg?.nodeSize?.y;
@@ -386,28 +300,75 @@ const applyTidyTreeLayout = (
   const dx =
     typeof nodeSizeXRaw === 'number' && Number.isFinite(nodeSizeXRaw) && nodeSizeXRaw > 0
       ? nodeSizeXRaw
-      : 14;
+      : 40;
   const dy =
     typeof nodeSizeYRaw === 'number' && Number.isFinite(nodeSizeYRaw) && nodeSizeYRaw > 0
       ? nodeSizeYRaw
-      : Math.max(18, depthBudget / Math.max(1, root.height + paddingColumns));
+      : Math.max(40, depthBudget / Math.max(1, (nodes.length || 1) + paddingColumns));
 
-  const treeLayout = d3
-    .tree<TidyTreeNode>()
-    .nodeSize([dx, dy])
-    .separation((a, b) => (a.parent === b.parent ? 1 : 2) * separation);
-  treeLayout(root);
+  const separationRaw = tidyCfg?.separation;
+  const separation =
+    typeof separationRaw === 'number' && Number.isFinite(separationRaw) && separationRaw > 0
+      ? separationRaw
+      : 1;
+
+  const nodeSep = dx * separation;
+  const rankSep = dy * separation;
+
+  const rankdir = orientation === 'vertical' ? 'TB' : 'LR';
+
+  g.setGraph({
+    rankdir,
+    nodesep: nodeSep,
+    ranksep: rankSep,
+  });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  nodeIds.forEach(id => {
+    const n = nodeById.get(id);
+    if (!n) return;
+    const radius = getNodeRadiusFromSchema(n, schema);
+    const size = Math.max(18, radius * 2);
+    const props = (n as { properties?: unknown }).properties as Record<string, unknown> | undefined;
+    let rank: number | null = null;
+    if (props) {
+      const raw = props['visual:layer'];
+      if (typeof raw === 'number' && Number.isFinite(raw)) {
+        rank = raw;
+      } else if (typeof raw === 'string') {
+        const parsed = parseFloat(raw);
+        if (Number.isFinite(parsed)) rank = parsed;
+      }
+    }
+    const dagreNode = rank != null ? { width: size, height: size, rank } : { width: size, height: size };
+    g.setNode(id, dagreNode);
+  });
+
+  for (let i = 0; i < candidateEdges.length; i += 1) {
+    const e = candidateEdges[i];
+    const rawSrc = String(e.source);
+    const rawTgt = String(e.target);
+    const src = direction === 'source-target' ? rawSrc : rawTgt;
+    const tgt = direction === 'source-target' ? rawTgt : rawSrc;
+    if (!src || !tgt) continue;
+    if (!nodeIds.has(src) || !nodeIds.has(tgt)) continue;
+    if (src === tgt) continue;
+    g.setEdge(src, tgt);
+  }
+
+  if (g.nodeCount() === 0) return;
+
+  dagre.layout(g);
 
   const coordsById = new Map<string, { x: number; y: number }>();
-  root.descendants().forEach(d => {
-    const id = d.data.id;
-    if (!nodeById.has(id)) return;
-    const breadth = d.x;
-    const depth = d.y;
-    if (typeof breadth !== 'number' || typeof depth !== 'number') return;
-    const x = orientation === 'vertical' ? breadth : depth;
-    const y = orientation === 'vertical' ? depth : breadth;
-    coordsById.set(id, { x, y });
+  g.nodes().forEach(id => {
+    const n = g.node(id as string) as { x?: number; y?: number } | undefined;
+    if (!n) return;
+    const x = typeof n.x === 'number' ? n.x : null;
+    const y = typeof n.y === 'number' ? n.y : null;
+    if (x == null || y == null) return;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    coordsById.set(String(id), { x, y });
   });
 
   if (coordsById.size === 0) return;
@@ -426,7 +387,7 @@ const applyTidyTreeLayout = (
 
   const spanX = Math.max(1, maxX - minX);
   const spanY = Math.max(1, maxY - minY);
-  const margin = dx * 1.25;
+  const margin = nodeSep * 1.25;
   const spanWithMarginX = Math.max(1, spanX + 2 * margin);
   const spanWithMarginY = Math.max(1, spanY + 2 * margin);
   const scale = Math.min(1, innerW / spanWithMarginX, innerH / spanWithMarginY);
@@ -441,6 +402,10 @@ const applyTidyTreeLayout = (
     if (!p) continue;
     node.x = offsetX + p.x * scale;
     node.y = offsetY + p.y * scale;
+    node.vx = 0;
+    node.vy = 0;
+    node.fx = null;
+    node.fy = null;
   }
 };
 

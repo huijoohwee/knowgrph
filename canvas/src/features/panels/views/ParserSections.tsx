@@ -19,6 +19,10 @@ import {
   PARSER_JSONLD_EDGE_MAPPING_PIPELINE_DESCRIPTION,
 } from '@/lib/config'
 import { getPillClass, getChipClass } from '@/lib/ui'
+import {
+  uiPrimaryToggleActiveClassName,
+  uiPrimaryIconInactiveClassName,
+} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
@@ -303,10 +307,10 @@ export function ParserDataSection({
                       const variantClassOptions = checked
                         ? {
                             textColorClass: 'text-blue-700',
-                            extraClassName: 'border-blue-500 bg-blue-50',
+                            extraClassName: uiPrimaryToggleActiveClassName,
                           }
                         : {
-                            textColorClass: 'text-gray-700',
+                            textColorClass: uiPrimaryIconInactiveClassName,
                             extraClassName: 'border-gray-300 bg-white',
                           }
                       return (

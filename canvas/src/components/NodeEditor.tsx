@@ -13,6 +13,7 @@ import {
   getEndpointId,
 } from '@/features/node-editor/utils';
 import { getBadgeChipClass } from '@/lib/ui';
+import { uiPrimaryLinkClassName, uiPrimaryLinkSmallClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 
 export default function NodeEditor() {
   const graphData = useGraphStore(s => s.graphData);
@@ -109,7 +110,7 @@ export default function NodeEditor() {
               href={referenceUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-blue-600 hover:underline"
+              className={uiPrimaryLinkClassName}
             >
               Reference
             </a>
@@ -187,7 +188,7 @@ export default function NodeEditor() {
                       href={v as string}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-blue-600 hover:underline"
+                      className={uiPrimaryLinkClassName}
                     >
                       {v as string}
                     </a>
@@ -320,7 +321,7 @@ export default function NodeEditor() {
                           href={ref}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs text-blue-600 hover:underline"
+                          className={uiPrimaryLinkSmallClassName}
                         >
                           Reference
                         </a>

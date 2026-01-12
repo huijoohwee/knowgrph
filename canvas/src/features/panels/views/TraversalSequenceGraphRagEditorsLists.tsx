@@ -2,11 +2,8 @@ import React from 'react'
 import { Eraser } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import {
-  reorderList,
-  type TraversalSummary,
-  type GraphRagTraversalSummary,
-} from '@/features/panels/utils/orchestratorTraversal'
+import { type TraversalSummary, type GraphRagTraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
+import { reorderList } from '@/lib/reorder'
 import type {
   OrchestratorTraversalSectionViewModel,
   OrchestratorTraversalPathEditState,

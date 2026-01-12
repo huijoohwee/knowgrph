@@ -13,6 +13,7 @@ import {
 import { renderInlineTokens } from './MarkdownInlineRenderer'
 import { MediaWrapper, MediaIframe, MediaVideo } from './MarkdownMediaUi'
 import type { RenderOpts } from './MarkdownRendererTypes'
+import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 
 type MarkdownParagraphBlockProps = {
   token: TokenWithLines
@@ -21,6 +22,10 @@ type MarkdownParagraphBlockProps = {
   baseTextClass: string
   commonBlockClass: string
   highlightStyle?: React.CSSProperties
+  fragmentsEnabled?: boolean
+  fragmentStep?: number
+  fragmentClassNames?: string[]
+  fragmentTags?: string[]
 }
 
 const isStandaloneLinkParagraph = (token: Token): string | null => {
@@ -41,90 +46,82 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   baseTextClass,
   commonBlockClass,
   highlightStyle,
+  fragmentsEnabled = false,
+  fragmentStep = 0,
+  fragmentClassNames,
+  fragmentTags,
 }: MarkdownParagraphBlockProps) {
-  // Check for standalone media links
   const standaloneHref = isStandaloneLinkParagraph(t as unknown as Token)
-  
   if (standaloneHref && isSafeHref(standaloneHref) && isAbsoluteWebUrl(standaloneHref)) {
-    // YouTube
+    const renderStandaloneMedia = (type: string, children: React.ReactNode) => (
+      <MediaWrapper
+        type={type}
+        srcRaw={standaloneHref}
+        startLine={t.startLine}
+        endLine={t.endLine || t.startLine}
+        highlightClass={highlightClass}
+        highlightStyle={highlightStyle}
+        opts={opts}
+      >
+        {children}
+      </MediaWrapper>
+    )
+
     const yt = getYouTubeId(standaloneHref)
     if (yt) {
-      return (
-        <MediaWrapper
-          type="youtube"
-          srcRaw={standaloneHref}
-          startLine={t.startLine}
-          endLine={t.endLine || t.startLine}
-          highlightClass={highlightClass}
-          highlightStyle={highlightStyle}
-          opts={opts}
-        >
-          <MediaIframe
-            src={`https://www.youtube-nocookie.com/embed/${yt}`}
-            title="YouTube"
-            presentationMode={opts.markdownPresentationMode}
-          />
-        </MediaWrapper>
+      return renderStandaloneMedia(
+        'youtube',
+        <MediaIframe
+          src={`https://www.youtube-nocookie.com/embed/${yt}`}
+          title="YouTube"
+          presentationMode={opts.markdownPresentationMode}
+        />,
       )
     }
 
-    // Vimeo
     const vimeo = getVimeoId(standaloneHref)
     if (vimeo) {
-      return (
-        <MediaWrapper
-          type="vimeo"
-          srcRaw={standaloneHref}
-          startLine={t.startLine}
-          endLine={t.endLine || t.startLine}
-          highlightClass={highlightClass}
-          highlightStyle={highlightStyle}
-          opts={opts}
-        >
-          <MediaIframe
-            src={`https://player.vimeo.com/video/${vimeo}`}
-            title="Vimeo"
-            presentationMode={opts.markdownPresentationMode}
-          />
-        </MediaWrapper>
+      return renderStandaloneMedia(
+        'vimeo',
+        <MediaIframe
+          src={`https://player.vimeo.com/video/${vimeo}`}
+          title="Vimeo"
+          presentationMode={opts.markdownPresentationMode}
+        />,
       )
     }
 
-    // Direct Video
     if (isVideoUrl(standaloneHref)) {
       const resolved = resolveHref(standaloneHref, opts.activeDocumentPath)
       const src = applyMediaProxySrc(resolved)
-      return (
-        <MediaWrapper
-          type="video"
-          srcRaw={standaloneHref}
-          startLine={t.startLine}
-          endLine={t.endLine || t.startLine}
-          highlightClass={highlightClass}
-          highlightStyle={highlightStyle}
-          opts={opts}
-        >
-          <MediaVideo src={src} />
-        </MediaWrapper>
-      )
+      return renderStandaloneMedia('video', <MediaVideo src={src} />)
     }
   }
 
-  // Regular Paragraph
   const p = t as unknown as TokensParagraph
+  const baseClassName = ['mt-2 mb-2', baseTextClass, commonBlockClass].filter(Boolean).join(' ')
   return (
-    <p
-      className={[
-        'mt-2 mb-2',
-        baseTextClass,
-        commonBlockClass,
-        highlightClass,
-      ].filter(Boolean).join(' ')}
-      style={highlightStyle}
-      data-start-line={t.startLine}
-      data-end-line={t.endLine || t.startLine}
+    <MarkdownBlockContainer
+      as="p"
+      className={baseClassName}
+      highlightClass={highlightClass}
+      highlightStyle={highlightStyle}
+      startLine={t.startLine}
+      endLine={t.endLine}
     >
-      {renderInlineTokens(p.tokens, { activeDocumentPath: opts.activeDocumentPath, uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass })}
-    </p>
+      {renderInlineTokens(p.tokens, {
+        activeDocumentPath: opts.activeDocumentPath,
+        uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
+        fragmentOptions:
+          opts.markdownPresentationMode && fragmentsEnabled
+            ? {
+                enabled: true,
+                currentStep: fragmentStep,
+                classNames: fragmentClassNames || [],
+                tags: fragmentTags || [],
+              }
+            : null,
+      })}
+    </MarkdownBlockContainer>
   )
 })

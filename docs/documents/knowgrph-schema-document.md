@@ -52,3 +52,15 @@
       - `layers.semantic.minSimilarity.cosine`.
       - `layers.semantic.minSimilarity.pmi`.
   - Canvas UI exposes `schema.layers.semantic.topKEdgesPerNode` and `schema.layers.semantic.minSimilarity` so curators can adapt thresholds per dataset; schema-config JSON-LD acts as a preset source of truth that LLMs and tools can read and update.
+- Tidy-tree Mermaid density presets:
+  - Markdown ingestion attaches a density summary for Mermaid frontmatter diagrams under `graph_jsonld.metadata.tidyTree.mermaidDensity`:
+    - `statementCount`: number of non-comment Mermaid statements (nodes, edges, and click bindings; comments, `graph`, `subgraph`, and `end` lines are excluded).
+    - `density`: coarse bucket label (`"none"`, `"sparse"`, `"medium"`, `"dense"`) derived from `statementCount`.
+    - `anchorsOnly`: boolean indicating whether the Mermaid diagram was parsed in anchors-only mode.
+    - `config`: neutral preset object with:
+      - `sparseMaxStatements` and `denseMaxStatements` thresholds.
+      - `anchorsOnly` and `defaultDiagram` separation presets for `sparse`, `medium`, and `dense` density buckets.
+  - Canvas reads `metadata.tidyTree.separation` as the parser-suggested Dagre spacing for tidy-tree layouts; users can override this interactively via `schema.layout.tidyTree.separation` in the Renderer Floating Panel or Renderer toolbar settings panel.
+  - Schema-config JSON-LD can override or extend these presets by emitting a compatible `metadata.tidyTree.mermaidDensity.config` object for a given dataset; tools and LLMs can treat this config as the canonical source of truth for Mermaid density thresholds and separation values when generating or updating markdown+Mermaid workflows, while the canvas continues to treat `metadata.tidyTree.separation` and `schema.layout.tidyTree.separation` as the effective layout inputs.
+  - The toolbar **Tidy preset** control acts as a neutral, metadata-aware switch between Mermaid-centric and document-structure-centric tidy-tree layouts: when set to the Mermaid preset, it seeds `schema.layout.tidyTree.edgeLabels`, `schema.layout.tidyTree.orientation`, `schema.layout.tidyTree.direction`, `schema.layout.tidyTree.separation`, and `schema.layout.tidyTree.colorMode` from `metadata.tidyTree` (if present) for density-aware Mermaid flows; when set to the Document preset, it swaps `edgeLabels` to the document hierarchy set while keeping separation and direction aligned with the existing schema configuration instead of hardcoding dataset-specific values.
+  - When Markdown metadata includes a Mermaid density summary, the canvas uses a neutral heuristic to seed tidy-tree label LOD collapse for Mermaid frontmatter graphs: `"medium"` density diagrams start with `schema.performance.lod.tidyTree.collapseMode: "depth"` and `schema.performance.lod.tidyTree.maxDepth: 3`, `"dense"` diagrams start with `collapseMode: "depth"` and `maxDepth: 2`, and `"none"`/`"sparse"` diagrams leave collapse disabled. These defaults are applied only when `schema.performance.lod.tidyTree` has no explicit collapse configuration and remain fully overridable from the Renderer settings UI or schema-config JSON-LD.

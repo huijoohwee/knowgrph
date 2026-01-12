@@ -3,6 +3,8 @@ import MarkdownPreview, {
   type MarkdownPreviewPresentationApi,
   type MarkdownPreviewPresentationSlideState,
 } from '@/features/markdown/ui/MarkdownPreview'
+import { reorderSlidesInMarkdown } from '@/features/markdown/ui/markdownPreviewSlides'
+import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import type { MarkdownLayoutMode } from './BottomPanelMarkdownSection'
@@ -113,6 +115,22 @@ export function BottomPanelMarkdownSectionView(
     isMarkdownPreviewTruncated,
     handleApplyMarkdown,
   } = props
+
+  const handleSlidesReordered = React.useCallback(
+    (nextOrder: number[]) => {
+      const source = markdownText || ''
+      if (!source.trim()) return
+      const next = reorderSlidesInMarkdown(source, nextOrder)
+      if (next === source) return
+      setMarkdownText(next)
+      setMarkdownDocument(markdownDocumentName, next)
+      emitMarkdownPanelMetric('markdownSlidesReordered', {
+        slideCount: nextOrder.length,
+        documentName: markdownDocumentName || null,
+      })
+    },
+    [markdownDocumentName, markdownText, setMarkdownDocument, setMarkdownText],
+  )
 
   const isEditing = !markdownPresentationMode && markdownLayoutMode === 'editor'
 
@@ -340,6 +358,7 @@ export function BottomPanelMarkdownSectionView(
                   highlightUnderlineColor={selectionInfo?.highlightUnderlineColor ?? null}
                   presentationApiRef={presentationApiRef}
                   onPresentationSlideStateChange={setPresentationSlideState}
+                  onSlidesReordered={handleSlidesReordered}
                   uiPanelTextFontClass={uiPanelTextFontClass}
                   uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
                   previewScrollable

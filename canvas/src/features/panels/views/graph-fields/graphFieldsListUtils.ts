@@ -262,13 +262,18 @@ export function computeEdgeScopeBorderColor(args: {
   edgeStyleOwnerKey: string
 }): string {
   const { schema, edgeStyleOwnerKey } = args
-  if (!schema) return '#9CA3AF'
+  if (!schema) {
+    const palette = getRendererPalette(null)
+    return palette.edges.neutral
+  }
   const styles = schema.edgeStyles || {}
   const color =
     typeof styles[edgeStyleOwnerKey]?.color === 'string'
       ? styles[edgeStyleOwnerKey]!.color!.trim()
       : ''
-  return color || '#9CA3AF'
+  if (color) return color
+  const palette = getRendererPalette(schema)
+  return palette.edges.neutral
 }
 
 export function partitionPropertyColumnKeys(args: {

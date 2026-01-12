@@ -14,6 +14,7 @@ import {
   ScopeIcon,
   VisibilityIcon,
 } from '@/features/graph-fields/ui/graphFieldIcons'
+import { UI_RING_PRIMARY_BLUE_INDICATOR } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 
@@ -226,7 +227,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
           'border-b border-gray-100 last:border-b-0 px-2 py-1.5',
           'flex items-center gap-2 border-l-2',
           active ? 'bg-blue-50' : 'bg-white hover:bg-gray-50',
-          isDragOver ? 'ring-1 ring-blue-400' : '',
+          isDragOver ? ['ring-1', UI_RING_PRIMARY_BLUE_INDICATOR].join(' ') : '',
           'min-w-0 overflow-hidden',
         ]
           .filter(Boolean)

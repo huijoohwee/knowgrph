@@ -1,5 +1,6 @@
 import { Eraser } from 'lucide-react'
 import { secondaryButtonClassName } from '@/features/graph-data-table/ui/GraphDataTableUiPrimitives'
+import { uiDataTableToggleActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { type GraphDataTableColumnKey } from '@/features/graph-data-table/graphDataTable'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
@@ -73,7 +74,7 @@ export function GroupPanel({
           <button
             type="button"
             className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
-              groupKey === '' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white'
+              groupKey === '' ? uiDataTableToggleActiveClassName : 'border-gray-200 bg-white'
             }`}
             onClick={() => setGroupKey('')}
           >
@@ -84,9 +85,7 @@ export function GroupPanel({
               key={option.value}
               type="button"
               className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
-                groupKey === option.value
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 bg-white'
+                groupKey === option.value ? uiDataTableToggleActiveClassName : 'border-gray-200 bg-white'
               }`}
               onClick={() => setGroupKey(option.value)}
             >
@@ -147,7 +146,7 @@ export function GroupPanel({
                   key={key}
                   type="button"
                   className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
-                    isActive ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white'
+                    isActive ? uiDataTableToggleActiveClassName : 'border-gray-200 bg-white'
                   }`}
                   onClick={() => {
                     if (isActive) {

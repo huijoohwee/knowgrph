@@ -120,6 +120,7 @@ export const UI_LABELS = {
   localSchemaTemplate: 'Local schema · Template',
   localSchemaValidation: 'Local schema · Validation',
   localSchemaLocalRules: 'Local schema · Local rules',
+  mermaidFocus: 'Mermaid Focus',
 } as const;
 
 export type UiLabelId = (typeof UI_LABELS)[keyof typeof UI_LABELS];

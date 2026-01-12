@@ -4,6 +4,7 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { addLineRangesToTokens } from '@/features/markdown/ui/markdownPreviewLex'
 import MarkdownTokenRenderer from './MarkdownTokenRenderer'
 import type { RenderOpts } from './MarkdownRendererTypes'
+import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 
 type MarkdownListBlockProps = {
   token: TokenWithLines
@@ -12,6 +13,10 @@ type MarkdownListBlockProps = {
   baseTextClass: string
   wrapClass: string
   highlightStyle?: React.CSSProperties
+  fragmentsEnabled?: boolean
+  fragmentStep?: number
+  fragmentClassNames?: string[]
+  fragmentTags?: string[]
 }
 
 export const MarkdownListBlock = React.memo(function MarkdownListBlock({
@@ -21,17 +26,24 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   baseTextClass,
   wrapClass,
   highlightStyle,
+  fragmentsEnabled,
+  fragmentStep,
+  fragmentClassNames,
+  fragmentTags,
 }: MarkdownListBlockProps) {
   const list = t as unknown as TokensList
   const ListTag = (list.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
   const listClass = list.ordered ? 'list-decimal' : 'list-disc'
   
+  const containerClassName = ['mt-3 mb-3'].filter(Boolean).join(' ')
   return (
-    <div
-      className={['mt-3 mb-3', highlightClass].filter(Boolean).join(' ')}
-      style={highlightStyle}
-      data-start-line={t.startLine}
-      data-end-line={t.endLine || t.startLine}
+    <MarkdownBlockContainer
+      as="div"
+      className={containerClassName}
+      highlightClass={highlightClass}
+      highlightStyle={highlightStyle}
+      startLine={t.startLine}
+      endLine={t.endLine}
     >
       <ListTag className={[listClass, 'pl-5', baseTextClass, opts.uiPanelTextFontClass].join(' ')}>
         {list.items.map((item, j) => {
@@ -58,11 +70,15 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
                 rootThemeMode={opts.rootThemeMode}
                 previewOverlayScope={opts.previewOverlayScope}
                 previewOverlayPortalTarget={opts.previewOverlayPortalTarget}
+                fragmentsEnabled={fragmentsEnabled}
+                fragmentStep={fragmentStep}
+                fragmentClassNames={fragmentClassNames}
+                fragmentTags={fragmentTags}
               />
             </li>
           )
         })}
       </ListTag>
-    </div>
+    </MarkdownBlockContainer>
   )
 })

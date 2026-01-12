@@ -1,6 +1,7 @@
 import React from 'react'
 import { Check, Edit3, LayoutPanelTop, Maximize2, MonitorPlay } from 'lucide-react'
 import IconButton from '@/components/IconButton'
+import { uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import type {
   MarkdownPreviewPresentationApi,
@@ -136,7 +137,9 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           </IconButton>
         )}
         <IconButton
-          className={`App-toolbar__btn flex items-center justify-center ${markdownTextHighlight ? 'text-blue-600' : ''}`}
+          className={`App-toolbar__btn flex items-center justify-center ${
+            markdownTextHighlight ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+          }`}
           title={textHighlightToggleTitle}
           tooltipContent={
             markdownTextHighlight
@@ -155,7 +158,9 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           <LayoutPanelTop className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
         <IconButton
-          className={`App-toolbar__btn flex items-center justify-center ${isEditing ? 'text-blue-600' : ''}`}
+          className={`App-toolbar__btn flex items-center justify-center ${
+            isEditing ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+          }`}
           title={editToggleTitle}
           tooltipContent={isEditing ? editOnTooltip : editOffTooltip}
           onClick={onToggleEdit}
@@ -164,7 +169,9 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           <Edit3 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
         <IconButton
-          className={`App-toolbar__btn flex items-center justify-center ${markdownPresentationMode ? 'text-blue-600' : ''}`}
+          className={`App-toolbar__btn flex items-center justify-center ${
+            markdownPresentationMode ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+          }`}
           title={presentationModeToggleTitle}
           tooltipContent={
             markdownPresentationMode

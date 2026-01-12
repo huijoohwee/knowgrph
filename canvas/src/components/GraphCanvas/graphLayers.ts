@@ -1,6 +1,8 @@
 import * as d3 from 'd3'
-import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
-import { getAgenticRagTagColor, getRendererPalette, type GraphSchema } from '@/lib/graph/schema'
+import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import { getAgenticRagTagColor, getRendererPalette, MVP_COLOR_PALETTE, type GraphSchema } from '@/lib/graph/schema'
+import type { HoverInfo } from '@/components/GraphHoverTooltip'
+import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -24,8 +26,63 @@ export type GraphLayerGroupStyle = {
   dash: string
 }
 
+export type GraphLayerHullGeometry = {
+  path: string
+  cx: number
+  cy: number
+} | null
+
+type GraphLayerStyleConfig = {
+  fill?: unknown
+  fillColor?: unknown
+  stroke?: unknown
+  strokeColor?: unknown
+  dash?: unknown
+  dashArray?: unknown
+  strokeDasharray?: unknown
+  opacity?: unknown
+  fillOpacity?: unknown
+  strokeWidth?: unknown
+}
+
 const isRecord = (val: unknown): val is Record<string, unknown> =>
   !!val && typeof val === 'object' && !Array.isArray(val)
+
+const applyStyleOverrides = (style: GraphLayerGroupStyle, config: GraphLayerStyleConfig): void => {
+  const fill =
+    typeof config.fill === 'string'
+      ? config.fill
+      : typeof config.fillColor === 'string'
+        ? config.fillColor
+        : null
+  const stroke =
+    typeof config.stroke === 'string'
+      ? config.stroke
+      : typeof config.strokeColor === 'string'
+        ? config.strokeColor
+        : null
+  const dash =
+    typeof config.dash === 'string'
+      ? config.dash
+      : typeof config.dashArray === 'string'
+        ? config.dashArray
+        : typeof config.strokeDasharray === 'string'
+          ? config.strokeDasharray
+          : null
+  const opacity =
+    typeof config.opacity === 'number'
+      ? config.opacity
+      : typeof config.fillOpacity === 'number'
+        ? config.fillOpacity
+        : null
+  const strokeWidth = typeof config.strokeWidth === 'number' ? config.strokeWidth : null
+
+  if (fill) style.fill = fill
+  if (stroke) style.stroke = stroke
+  if (dash) style.dash = dash
+  if (opacity != null && Number.isFinite(opacity)) style.fillOpacity = opacity
+  if (strokeWidth != null && Number.isFinite(strokeWidth)) style.strokeWidth = strokeWidth
+}
 
 export const buildNodeGroups = (graphData: GraphData): NodeGroup[] => {
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
@@ -145,7 +202,7 @@ export const getGraphLayerStyleForGroup = (args: {
   const palette = getRendererPalette(schema)
   const baseColor = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
     ? palette.nodes.idea
-    : '#007BFF'
+    : MVP_COLOR_PALETTE.nodes.idea
 
   const base: GraphLayerGroupStyle = {
     fill: baseColor,
@@ -195,60 +252,14 @@ export const getGraphLayerStyleForGroup = (args: {
 
     const defaultStyleRaw = 'defaultStyle' in meta ? meta.defaultStyle : undefined
     if (defaultStyleRaw && isRecord(defaultStyleRaw)) {
-      const m = defaultStyleRaw
-      const fill = typeof m.fill === 'string' ? m.fill : typeof m.fillColor === 'string' ? m.fillColor : null
-      const stroke = typeof m.stroke === 'string' ? m.stroke : typeof m.strokeColor === 'string' ? m.strokeColor : null
-      const dash =
-        typeof m.dash === 'string'
-          ? m.dash
-          : typeof m.dashArray === 'string'
-            ? m.dashArray
-            : typeof m.strokeDasharray === 'string'
-              ? m.strokeDasharray
-              : null
-      const opacity =
-        typeof m.opacity === 'number'
-          ? m.opacity
-          : typeof m.fillOpacity === 'number'
-            ? m.fillOpacity
-            : null
-      const strokeWidth = typeof m.strokeWidth === 'number' ? m.strokeWidth : null
-
-      if (fill) style.fill = fill
-      if (stroke) style.stroke = stroke
-      if (dash) style.dash = dash
-      if (opacity != null && Number.isFinite(opacity)) style.fillOpacity = opacity
-      if (strokeWidth != null && Number.isFinite(strokeWidth)) style.strokeWidth = strokeWidth
+      applyStyleOverrides(style, defaultStyleRaw as GraphLayerStyleConfig)
     }
 
     const byOwnerTypeRaw = 'byOwnerType' in meta ? meta.byOwnerType : undefined
     if (ownerType && byOwnerTypeRaw && isRecord(byOwnerTypeRaw)) {
       const ownerStyleRaw = byOwnerTypeRaw[ownerType] as unknown
       if (ownerStyleRaw && isRecord(ownerStyleRaw)) {
-        const m = ownerStyleRaw
-        const fill = typeof m.fill === 'string' ? m.fill : typeof m.fillColor === 'string' ? m.fillColor : null
-        const stroke = typeof m.stroke === 'string' ? m.stroke : typeof m.strokeColor === 'string' ? m.strokeColor : null
-        const dash =
-          typeof m.dash === 'string'
-            ? m.dash
-            : typeof m.dashArray === 'string'
-              ? m.dashArray
-              : typeof m.strokeDasharray === 'string'
-                ? m.strokeDasharray
-                : null
-        const opacity =
-          typeof m.opacity === 'number'
-            ? m.opacity
-            : typeof m.fillOpacity === 'number'
-              ? m.fillOpacity
-              : null
-        const strokeWidth = typeof m.strokeWidth === 'number' ? m.strokeWidth : null
-
-        if (fill) style.fill = fill
-        if (stroke) style.stroke = stroke
-        if (dash) style.dash = dash
-        if (opacity != null && Number.isFinite(opacity)) style.fillOpacity = opacity
-        if (strokeWidth != null && Number.isFinite(strokeWidth)) style.strokeWidth = strokeWidth
+        applyStyleOverrides(style, ownerStyleRaw as GraphLayerStyleConfig)
       }
     }
 
@@ -256,30 +267,7 @@ export const getGraphLayerStyleForGroup = (args: {
     if (propKey && byPropertyKeyRaw && isRecord(byPropertyKeyRaw)) {
       const keyStyleRaw = byPropertyKeyRaw[propKey] as unknown
       if (keyStyleRaw && isRecord(keyStyleRaw)) {
-        const m = keyStyleRaw
-        const fill = typeof m.fill === 'string' ? m.fill : typeof m.fillColor === 'string' ? m.fillColor : null
-        const stroke = typeof m.stroke === 'string' ? m.stroke : typeof m.strokeColor === 'string' ? m.strokeColor : null
-        const dash =
-          typeof m.dash === 'string'
-            ? m.dash
-            : typeof m.dashArray === 'string'
-              ? m.dashArray
-              : typeof m.strokeDasharray === 'string'
-                ? m.strokeDasharray
-                : null
-        const opacity =
-          typeof m.opacity === 'number'
-            ? m.opacity
-            : typeof m.fillOpacity === 'number'
-              ? m.fillOpacity
-              : null
-        const strokeWidth = typeof m.strokeWidth === 'number' ? m.strokeWidth : null
-
-        if (fill) style.fill = fill
-        if (stroke) style.stroke = stroke
-        if (dash) style.dash = dash
-        if (opacity != null && Number.isFinite(opacity)) style.fillOpacity = opacity
-        if (strokeWidth != null && Number.isFinite(strokeWidth)) style.strokeWidth = strokeWidth
+        applyStyleOverrides(style, keyStyleRaw as GraphLayerStyleConfig)
       }
     }
   }
@@ -307,16 +295,108 @@ export const getGraphLayerStyleForGroup = (args: {
   return style
 }
 
+export const computeGraphLayerHullGeometry = (args: {
+  group: NodeGroup
+  nodeById: Map<string, GraphNode>
+  schema: GraphSchema
+}): GraphLayerHullGeometry => {
+  const { group, nodeById, schema } = args
+  const ids = group.memberIds
+  if (!ids || !ids.length) return null
+  const points: [number, number][] = []
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = ids[i]
+    const node = nodeById.get(String(id))
+    if (!node) continue
+    const x = typeof node.x === 'number' ? node.x : null
+    const y = typeof node.y === 'number' ? node.y : null
+    if (x == null || y == null || !Number.isFinite(x) || !Number.isFinite(y)) continue
+    const r = getRenderNodeRadius2d(node, schema)
+    const radius = Number.isFinite(r) && r > 0 ? r : 10
+    const px1 = x + radius
+    const py1 = y
+    if (Number.isFinite(px1) && Number.isFinite(py1)) points.push([px1, py1])
+    const px2 = x
+    const py2 = y + radius
+    if (Number.isFinite(px2) && Number.isFinite(py2)) points.push([px2, py2])
+    const px3 = x - radius
+    const py3 = y
+    if (Number.isFinite(px3) && Number.isFinite(py3)) points.push([px3, py3])
+    const px4 = x
+    const py4 = y - radius
+    if (Number.isFinite(px4) && Number.isFinite(py4)) points.push([px4, py4])
+  }
+  if (points.length < 3) return null
+  const hull = d3.polygonHull(points) ?? points
+  if (!hull || hull.length === 0) return null
+  const pathBuilder = d3.path()
+  pathBuilder.moveTo(hull[0][0], hull[0][1])
+  for (let i = 1; i < hull.length; i += 1) {
+    pathBuilder.lineTo(hull[i][0], hull[i][1])
+  }
+  pathBuilder.closePath()
+  const d = pathBuilder.toString()
+  if (!d) return null
+  const centroid = d3.polygonCentroid(hull)
+  const cx = Number.isFinite(centroid[0]) ? centroid[0] : hull[0][0]
+  const cy = Number.isFinite(centroid[1]) ? centroid[1] : hull[0][1]
+  return { path: d, cx, cy }
+}
+
+export const applyGraphLayerCentroidDelta = (args: {
+  group: NodeGroup
+  dx: number
+  dy: number
+  nodeById: Map<string, GraphNode>
+  hullSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown>
+  centroidSel: d3.Selection<SVGCircleElement, NodeGroup, SVGGElement, unknown>
+  schema: GraphSchema
+}): void => {
+  const { group, dx, dy, nodeById, hullSel, centroidSel, schema } = args
+  if (!(dx || dy)) return
+  const ids = Array.isArray(group.memberIds) ? group.memberIds : []
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = String(ids[i])
+    if (!id) continue
+    const node = nodeById.get(id)
+    if (!node) continue
+    const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0
+    const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : 0
+    const nx = x + dx
+    const ny = y + dy
+    if (!Number.isFinite(nx) || !Number.isFinite(ny)) continue
+    node.x = nx
+    node.y = ny
+    node.fx = nx
+    node.fy = ny
+  }
+  const geometry = computeGraphLayerHullGeometry({ group, nodeById, schema })
+  if (!geometry) return
+  hullSel
+    .filter(d => d.id === group.id)
+    .attr('d', geometry.path)
+  centroidSel
+    .filter(d => d.id === group.id)
+    .attr('cx', geometry.cx)
+    .attr('cy', geometry.cy)
+}
+
 export const createGraphLayersLayer = (args: {
   g: GSelection
   nodeGroups: NodeGroup[]
   graphData: GraphData
   schema: GraphSchema
   graphLayersVisible: boolean
-}) => {
-  const { g, nodeGroups, graphData, schema, graphLayersVisible } = args
+  hoverEnabled: boolean
+  setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void
+  simulation?: d3.Simulation<GraphNode, GraphEdge>
+}): {
+  hullSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
+  centroidSel: d3.Selection<SVGCircleElement, NodeGroup, SVGGElement, unknown> | null
+} => {
+  const { g, nodeGroups, graphData, schema, graphLayersVisible, hoverEnabled, setHoverInfo, simulation } = args
   if (!nodeGroups.length || !graphLayersVisible) {
-    return null
+    return { hullSel: null, centroidSel: null }
   }
 
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
@@ -327,48 +407,105 @@ export const createGraphLayersLayer = (args: {
   }
 
   const layerRoot = g.append('g').attr('data-kg-layer', 'node-groups')
-  const layer = layerRoot
+  const getHoverNodeIdForGroup = (group: NodeGroup): string | null => {
+    const ownerId = group.meta?.ownerId
+    if (ownerId) return String(ownerId)
+    const first = Array.isArray(group.memberIds) && group.memberIds.length > 0 ? group.memberIds[0] : null
+    if (first) return String(first)
+    return null
+  }
+  const hullSel = layerRoot
     .selectAll<SVGPathElement, NodeGroup>('path')
     .data(nodeGroups, d => d.id)
     .enter()
     .append('path')
-    .attr('fill', group => getGraphLayerStyleForGroup({ group, graphData, schema }).fill)
-    .attr('fill-opacity', group => getGraphLayerStyleForGroup({ group, graphData, schema }).fillOpacity)
-    .attr('stroke', group => getGraphLayerStyleForGroup({ group, graphData, schema }).stroke)
-    .attr('stroke-width', group => getGraphLayerStyleForGroup({ group, graphData, schema }).strokeWidth)
-    .attr('stroke-dasharray', group => getGraphLayerStyleForGroup({ group, graphData, schema }).dash)
-    .style('pointer-events', 'visibleFill')
+    .each(function applyGroupStyle(group) {
+      const style = getGraphLayerStyleForGroup({ group, graphData, schema })
+      const sel = d3.select<SVGPathElement, NodeGroup>(this as SVGPathElement)
+      sel
+        .attr('fill', style.fill)
+        .attr('fill-opacity', style.fillOpacity)
+        .attr('stroke', style.stroke)
+        .attr('stroke-width', style.strokeWidth)
+        .attr('stroke-dasharray', style.dash)
+    })
+    .attr('data-kg-layer-hull', '1')
+    .style('pointer-events', 'none')
+    .style('cursor', 'default')
+
+  const centroidSel = layerRoot
+    .selectAll<SVGCircleElement, NodeGroup>('circle')
+    .data(nodeGroups, d => d.id)
+    .enter()
+    .append('circle')
+    .attr('data-kg-layer-centroid', '1')
+    .attr('r', 6)
+    .style('pointer-events', 'all')
     .style('cursor', 'move')
+    .each(function applyCentroidStyle(group) {
+      const style = getGraphLayerStyleForGroup({ group, graphData, schema })
+      const sel = d3.select<SVGCircleElement, NodeGroup>(this as SVGCircleElement)
+      sel
+        .attr('fill', style.fill)
+        .attr('fill-opacity', Math.min(1, style.fillOpacity + 0.1))
+        .attr('stroke', style.stroke)
+        .attr('stroke-width', style.strokeWidth)
+    })
+    .on('mouseover', (event: MouseEvent, group: NodeGroup) => {
+      if (!hoverEnabled) return
+      const hoverId = getHoverNodeIdForGroup(group)
+      if (!hoverId) return
+      setHoverInfo(() => ({
+        kind: 'node',
+        id: hoverId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      }))
+    })
+    .on('mousemove', (event: MouseEvent, group: NodeGroup) => {
+      if (!hoverEnabled) return
+      const hoverId = getHoverNodeIdForGroup(group)
+      if (!hoverId) return
+      setHoverInfo(() => ({
+        kind: 'node',
+        id: hoverId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      }))
+    })
+    .on('mouseout', (_event: MouseEvent, group: NodeGroup) => {
+      if (!hoverEnabled) return
+      const hoverId = getHoverNodeIdForGroup(group)
+      if (!hoverId) return
+      setHoverInfo(prev => (prev && prev.kind === 'node' && prev.id === hoverId ? null : prev))
+    })
     .call(
       d3
-        .drag<SVGPathElement, NodeGroup>()
+        .drag<SVGCircleElement, NodeGroup>()
         .on('start', (event) => {
           if (event.sourceEvent && typeof event.sourceEvent.stopPropagation === 'function') {
             event.sourceEvent.stopPropagation()
+          }
+          if (simulation && !event.active) {
+            simulation.alphaTarget(0.3).restart()
           }
         })
         .on('drag', (event, group) => {
           const dx = typeof event.dx === 'number' && Number.isFinite(event.dx) ? event.dx : 0
           const dy = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
           if (dx === 0 && dy === 0) return
-          const ids = Array.isArray(group.memberIds) ? group.memberIds : []
-          for (let i = 0; i < ids.length; i += 1) {
-            const id = String(ids[i])
-            if (!id) continue
-            const node = nodeById.get(id)
-            if (!node) continue
-            const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0
-            const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : 0
-            const nx = x + dx
-            const ny = y + dy
-            if (!Number.isFinite(nx) || !Number.isFinite(ny)) continue
-            node.x = nx
-            node.y = ny
-            node.fx = nx
-            node.fy = ny
+          applyGraphLayerCentroidDelta({ group, dx, dy, nodeById, hullSel, centroidSel, schema })
+        })
+        .on('end', (event) => {
+          if (!simulation) return
+          if (!event.active) {
+            simulation.alphaTarget(0)
+          }
+          if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tidy-tree') {
+            simulation.stop()
           }
         }),
     )
 
-  return layer as d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
+  return { hullSel, centroidSel }
 }

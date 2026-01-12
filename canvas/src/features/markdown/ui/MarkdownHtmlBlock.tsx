@@ -13,6 +13,7 @@ import {
 } from '@/features/markdown/ui/markdownPreviewLinks'
 import { MediaWrapper, MediaIframe, MediaVideo, MediaImage } from './MarkdownMediaUi'
 import type { RenderOpts } from './MarkdownRendererTypes'
+import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 
 type MarkdownHtmlBlockProps = {
   token: TokenWithLines
@@ -109,6 +110,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
   // Safe HTML or Raw Code
   const safeHtml = renderSafeHtmlBlock(html, {
     activeDocumentPath: opts.activeDocumentPath,
+    uiPanelTextFontClass: opts.uiPanelTextFontClass,
     uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
     markdownPresentationMode: opts.markdownPresentationMode,
     renderNodeText: (text, key) => <React.Fragment key={key}>{text}</React.Fragment>,
@@ -125,28 +127,33 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
 
   if (safeHtml) {
     return (
-      <div
-        className={['mt-3 mb-3', highlightClass].filter(Boolean).join(' ')}
-        style={highlightStyle}
-        data-start-line={t.startLine}
-        data-end-line={t.endLine || t.startLine}
+      <MarkdownBlockContainer
+        as="div"
+        className={['mt-3 mb-3'].filter(Boolean).join(' ')}
+        highlightClass={highlightClass}
+        highlightStyle={highlightStyle}
+        startLine={t.startLine}
+        endLine={t.endLine}
       >
         {safeHtml}
-      </div>
+      </MarkdownBlockContainer>
     )
   }
 
   return (
-    <pre
+    <MarkdownBlockContainer
+      as="pre"
       className={[
         'mt-3 mb-3 p-3 rounded border border-gray-200 bg-gray-50 overflow-auto',
-        highlightClass,
-      ].filter(Boolean).join(' ')}
-      style={highlightStyle}
-      data-start-line={t.startLine}
-      data-end-line={t.endLine || t.startLine}
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      highlightClass={highlightClass}
+      highlightStyle={highlightStyle}
+      startLine={t.startLine}
+      endLine={t.endLine}
     >
       <code className={opts.uiPanelMonospaceTextClass}>{html}</code>
-    </pre>
+    </MarkdownBlockContainer>
   )
 })

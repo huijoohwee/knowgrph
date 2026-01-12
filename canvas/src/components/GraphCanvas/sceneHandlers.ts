@@ -2,7 +2,8 @@ import * as d3 from 'd3'
 import type { MutableRefObject, RefObject } from 'react'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import type { NodeGroup } from '@/components/GraphCanvas/graphLayers'
+import type { NodeGroup, GraphLayerHullGeometry } from '@/components/GraphCanvas/graphLayers'
+import { computeGraphLayerHullGeometry } from '@/components/GraphCanvas/graphLayers'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { calcMouseGraphPosition, isNodePointerTarget } from '@/features/canvas/utils'
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
@@ -17,7 +18,8 @@ export const attachSimulationTick = (args: {
   mediaSel?: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null
   linkSel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
   labelsSel: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>
-  graphLayersSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
+  graphLayersHullSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
+  graphLayerCentroidSel: d3.Selection<SVGCircleElement, NodeGroup, SVGGElement, unknown> | null
   nodeGroups: NodeGroup[]
   nodes: GraphNode[]
   schema: GraphSchema
@@ -32,7 +34,8 @@ export const attachSimulationTick = (args: {
     mediaSel,
     linkSel,
     labelsSel,
-    graphLayersSel,
+    graphLayersHullSel,
+    graphLayerCentroidSel,
     nodeGroups,
     nodes,
     schema,
@@ -221,40 +224,54 @@ export const attachSimulationTick = (args: {
       }
     })
 
-    if (graphLayersSel && nodeGroups.length) {
-      graphLayersSel.attr('d', group => {
-        const ids = group.memberIds
-        if (!ids || !ids.length) return ''
-        const points: [number, number][] = []
-        for (let i = 0; i < ids.length; i += 1) {
-          const id = ids[i]
-          const node = nodeById.get(String(id))
-          if (!node) continue
-          const x = typeof node.x === 'number' ? node.x : null
-          const y = typeof node.y === 'number' ? node.y : null
-          if (x == null || y == null || !Number.isFinite(x) || !Number.isFinite(y)) continue
-          const r = getRenderNodeRadius2d(node, schema)
-          const radius = Number.isFinite(r) && r > 0 ? r : 10
-          const step = Math.PI / 4
-          for (let angle = 0; angle < Math.PI * 2; angle += step) {
-            const px = x + radius * Math.cos(angle)
-            const py = y + radius * Math.sin(angle)
-            if (!Number.isFinite(px) || !Number.isFinite(py)) continue
-            points.push([px, py])
-          }
+    if ((graphLayersHullSel || graphLayerCentroidSel) && nodeGroups.length) {
+      const hideBelow = schema.performance?.lod?.hideLabelsBelowScale ?? 0
+      const hideLayers = hideBelow > 0 && k < hideBelow
+      if (hideLayers) {
+        if (graphLayersHullSel) {
+          graphLayersHullSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
         }
-        if (points.length < 3) return ''
-        const hull = d3.polygonHull(points) ?? points
-        if (!hull || hull.length === 0) return ''
-        const path = d3.path()
-        path.moveTo(hull[0][0], hull[0][1])
-        for (let i = 1; i < hull.length; i += 1) {
-          path.lineTo(hull[i][0], hull[i][1])
+        if (graphLayerCentroidSel) {
+          graphLayerCentroidSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
         }
-        path.closePath()
-        const d = path.toString()
-        return d || ''
-      })
+        return
+      }
+      if (graphLayersHullSel) {
+        graphLayersHullSel.attr('data-zoom-lod-hidden', '0').style('display', null)
+      }
+      if (graphLayerCentroidSel) {
+        graphLayerCentroidSel.attr('data-zoom-lod-hidden', '0').style('display', null)
+      }
+      const geometryById = new Map<string, GraphLayerHullGeometry>()
+      for (let i = 0; i < nodeGroups.length; i += 1) {
+        const group = nodeGroups[i]
+        const geometry = computeGraphLayerHullGeometry({ group, nodeById, schema })
+        geometryById.set(group.id, geometry)
+      }
+      if (graphLayersHullSel) {
+        graphLayersHullSel.attr('d', group => {
+          const geometry = geometryById.get(group.id)
+          if (!geometry || !geometry.path) return ''
+          return geometry.path
+        })
+      }
+      if (graphLayerCentroidSel) {
+        graphLayerCentroidSel
+          .attr('cx', group => {
+            const geometry = geometryById.get(group.id)
+            if (!geometry) return Number.NaN
+            return geometry.cx
+          })
+          .attr('cy', group => {
+            const geometry = geometryById.get(group.id)
+            if (!geometry) return Number.NaN
+            return geometry.cy
+          })
+          .style('display', group => {
+            const geometry = geometryById.get(group.id)
+            return geometry ? null : 'none'
+          })
+      }
     }
   }
   simulation.on('tick', renderFrame)

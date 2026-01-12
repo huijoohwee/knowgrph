@@ -1,4 +1,5 @@
 import React from 'react'
+import katex from 'katex'
 import type {
   Token,
   TokensGeneric,
@@ -9,8 +10,10 @@ import type {
   TokensLink,
   TokensImage,
   TokensCode,
+  TokensMath,
+  TokensHTML,
 } from './MarkdownTokens'
-import { isAbsoluteWebUrl, isSafeHref, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
+import { isAbsoluteWebUrl, isSafeHref, resolveHref, buildAnchorAttrs } from '@/features/markdown/ui/markdownPreviewLinks'
 import type { InlineRenderOpts } from './MarkdownRendererTypes'
 
 const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: string }> => {
@@ -34,6 +37,8 @@ const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: stri
 
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
   const { activeDocumentPath, uiPanelMonospaceTextClass } = opts
+  const fragmentOpts = opts.fragmentOptions || null
+  let fragmentIndex = 0
 
   const renderTokens = (subTokens: Token[] | undefined, insideLink: boolean): React.ReactNode => {
     const list = Array.isArray(subTokens) ? subTokens : []
@@ -58,13 +63,14 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
             if (!hrefRaw || !isAbsoluteWebUrl(hrefRaw) || !isSafeHref(hrefRaw)) {
               return <React.Fragment key={k}>{p.value}</React.Fragment>
             }
+            const anchor = buildAnchorAttrs(hrefRaw)
             return (
               <a
                 key={k}
                 href={hrefRaw}
-                target="_blank"
-                rel="noreferrer"
-                className="text-blue-600 hover:underline break-words"
+                target={anchor.target}
+                rel={anchor.rel}
+                className={anchor.className}
               >
                 {hrefRaw}
               </a>
@@ -86,13 +92,14 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     if (tt.type === 'link') {
       const link = t as unknown as TokensLink
       const href = isSafeHref(link.href) ? resolveHref(link.href, activeDocumentPath) : ''
+      const anchor = buildAnchorAttrs(href)
       return (
         <a
           key={key}
           href={href || undefined}
-          target={href && href.startsWith('#') ? undefined : '_blank'}
-          rel={href && href.startsWith('#') ? undefined : 'noreferrer'}
-          className="text-blue-600 hover:underline break-words"
+          target={anchor.target}
+          rel={anchor.rel}
+          className={anchor.className}
         >
           {renderTokens(link.tokens, true)}
         </a>
@@ -118,6 +125,164 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           {(t as unknown as TokensCode).text}
         </code>
       )
+    }
+    if (tt.type === 'math') {
+      const m = t as unknown as TokensMath
+      let html = ''
+      try {
+        html = katex.renderToString(m.tex, {
+          throwOnError: false,
+          displayMode: !!m.display,
+          strict: 'warn',
+        })
+      } catch {
+        html = m.tex
+      }
+      if (m.display) {
+        return (
+          <span
+            key={key}
+            className="block my-3 overflow-x-auto"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        )
+      }
+      return (
+        <span
+          key={key}
+          className="inline-block"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      )
+    }
+    if (tt.type === 'html') {
+      const raw = String((t as unknown as TokensHTML).text || '').trim()
+      if (!raw) {
+        return <React.Fragment key={key}>{''}</React.Fragment>
+      }
+      const rawLower = raw.toLowerCase()
+      if (
+        rawLower.startsWith('<v-click') ||
+        rawLower.startsWith('</v-click') ||
+        rawLower.startsWith('<v-mark') ||
+        rawLower.startsWith('</v-mark')
+      ) {
+        const isStandalone =
+          (rawLower.startsWith('<v-click') && !rawLower.includes('</v-click>')) ||
+          (rawLower.startsWith('</v-click') && !rawLower.includes('<v-click')) ||
+          (rawLower.startsWith('<v-mark') && !rawLower.includes('</v-mark>')) ||
+          (rawLower.startsWith('</v-mark') && !rawLower.includes('<v-mark'))
+        if (isStandalone) {
+          return <React.Fragment key={key}>{''}</React.Fragment>
+        }
+      }
+      if (typeof window !== 'undefined' && typeof DOMParser !== 'undefined') {
+        try {
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(raw, 'text/html')
+          const el = doc.body.firstElementChild
+          if (!el) {
+            return <React.Fragment key={key}>{raw}</React.Fragment>
+          }
+          const tag = el.tagName.toLowerCase()
+          if (fragmentOpts?.enabled) {
+            const tagMatch = fragmentOpts.tags.some(name => name.toLowerCase() === tag)
+            const classMatch =
+              fragmentOpts.classNames.length > 0 && (el.classList?.length || 0) > 0
+                ? fragmentOpts.classNames.some(name => el.classList.contains(name))
+                : false
+            if (tagMatch || classMatch) {
+              const explicitIndexAttr =
+                el.getAttribute('data-fragment-index') || el.getAttribute('at') || null
+              let idx: number
+              if (explicitIndexAttr != null && explicitIndexAttr.trim()) {
+                const parsed = Number.parseInt(explicitIndexAttr.trim(), 10)
+                idx = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+              } else {
+                fragmentIndex += 1
+                idx = fragmentIndex
+              }
+              const current = Number.isFinite(fragmentOpts.currentStep)
+                ? Math.max(0, fragmentOpts.currentStep || 0)
+                : 0
+              if (idx <= 0 || current < idx) {
+                return <React.Fragment key={key}>{''}</React.Fragment>
+              }
+            }
+          }
+          if (tag === 'v-click') {
+            return <React.Fragment key={key}>{el.textContent || ''}</React.Fragment>
+          }
+          if (tag === 'v-mark') {
+            const type = String(el.getAttribute('type') || '').trim().toLowerCase()
+            const color = String(el.getAttribute('color') || '').trim().toLowerCase()
+            const cls: string[] = []
+            if (type === 'circle') cls.push('inline-block border border-current rounded-full px-1')
+            if (type === 'underline') cls.push('underline decoration-2 underline-offset-2')
+            if (type === 'strike-through') cls.push('line-through')
+            if (color === 'red') cls.push('bg-red-200 text-red-900 px-1 rounded-sm')
+            if (color === 'yellow') cls.push('bg-yellow-200 text-yellow-900 px-1 rounded-sm')
+            if (cls.length) {
+              return (
+                <span key={key} className={cls.join(' ')}>
+                  {el.textContent || ''}
+                </span>
+              )
+            }
+            return <span key={key}>{el.textContent || ''}</span>
+          }
+          if (tag === 'abbr') {
+            const title = el.getAttribute('title') || ''
+            const text = el.textContent || ''
+            return (
+              <abbr
+                key={key}
+                title={title || undefined}
+                className="bg-yellow-100 border-b border-dotted border-yellow-400 cursor-help px-0.5 rounded-sm"
+              >
+                {text}
+              </abbr>
+            )
+          }
+          if (tag === 'span') {
+            const className = el.getAttribute('class') || undefined
+            const text = el.textContent || ''
+            return (
+              <span key={key} className={className}>
+                {text}
+              </span>
+            )
+          }
+          if (tag === 'br') {
+            return <br key={key} />
+          }
+          if (tag === 'code') {
+            const text = el.textContent || ''
+            return (
+              <code key={key} className={uiPanelMonospaceTextClass}>
+                {text}
+              </code>
+            )
+          }
+          if (tag === 'pre') {
+            const codeEl = el.querySelector('code')
+            const text = codeEl ? codeEl.textContent || '' : el.textContent || ''
+            return (
+              <pre
+                key={key}
+                className="inline-block align-top max-w-full overflow-auto rounded border border-gray-200 bg-gray-50 px-2 py-1"
+              >
+                <code className={uiPanelMonospaceTextClass}>{text}</code>
+              </pre>
+            )
+          }
+          const fallbackText = el && el.textContent ? el.textContent : raw
+          return <React.Fragment key={key}>{fallbackText}</React.Fragment>
+        } catch {
+          return <React.Fragment key={key}>{raw}</React.Fragment>
+        }
+      }
+      return <React.Fragment key={key}>{raw}</React.Fragment>
     }
     if ((t as unknown as { tokens?: unknown }).tokens) {
       return (

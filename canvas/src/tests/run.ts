@@ -55,6 +55,7 @@ import {
   testJsonLdPhaseMembershipArraysWithKgPrefix,
 } from '@/__tests__/jsonldInferredEdges.test'
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
+import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
 import { testUnifiedPanelExport } from '@/__tests__/panel.test'
 import { testSettingsViewCollapsePersistence } from '@/__tests__/settingsCollapse.test'
 import {
@@ -169,12 +170,23 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
 import {
+  testPreviewGalleryArrowMovesThirdSlideAboveSecond,
+  testPreviewGalleryDragMovesThirdSlideAboveSecond,
+  testPreviewGalleryDragMovesFirstSlideBelowThird,
+  testPreviewGalleryDragMovesFirstSlideToLastInLongerList,
+  testPreviewGalleryDragMovesLastSlideToFirstInLongerList,
+} from '@/__tests__/previewGalleryReorder.test'
+import {
   testExampleWorkflowMarkdownIngestionProducesGraph,
   testMarkdownFrontmatterOntologiesAndGraphLayersRoundTrip,
   testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions,
   testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
+  testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture,
+  testEdaMlpInterviewSessionMarkdownPresentationFromDisk,
   testMarkdownFrontmatterPolygonLayersAliasWarning,
 } from '@/__tests__/exampleWorkflowMarkdownIngestion.test'
+import { testMarkdownMermaidFrontmatterTidyTreeMetadataDefaults } from '@/__tests__/markdownMermaidTidyTreeMetadata.test'
+import { testTidyTreeSeparationSchemaRoundTrip } from '@/__tests__/tidyTreeSeparationRoundTrip.test'
 import {
   testGuidelinesMarkdownHighlightGuardWithLargeGraph,
   testGuidelinesMarkdownHighlightGuardWithSmallGraph,
@@ -186,6 +198,9 @@ import {
   testDocumentStructureLayerOpacityParity2dVs3d,
   testLayerModeNodeBaseFillConsistentAcrossModes,
 } from '@/__tests__/layerVisualParity.test'
+import { testStatsTokensByGraphLayerUsesPaletteFillForMarkdownSlideDemo } from '@/__tests__/statsGraphLayerTokens.test'
+import { testFrontmatterModeFiltersGraphToMermaidNodes } from '@/__tests__/frontmatterModeGraphFilter.test'
+import { testFrontmatterModeEdaMlpFiltersGraphToMermaidFrontmatter } from '@/__tests__/frontmatterModeEdaMlpGraphFilter.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -258,6 +273,18 @@ export const runAllTests = async () => {
       results.push({ name, ok: false, error: msg })
     }
   }
+
+  await exec('previewGalleryReorder: arrow moves third above second', testPreviewGalleryArrowMovesThirdSlideAboveSecond)
+  await exec('previewGalleryReorder: drag moves third above second', testPreviewGalleryDragMovesThirdSlideAboveSecond)
+  await exec('previewGalleryReorder: drag moves first below third', testPreviewGalleryDragMovesFirstSlideBelowThird)
+  await exec(
+    'previewGalleryReorder: drag moves first to last in longer list',
+    testPreviewGalleryDragMovesFirstSlideToLastInLongerList,
+  )
+  await exec(
+    'previewGalleryReorder: drag moves last to first in longer list',
+    testPreviewGalleryDragMovesLastSlideToFirstInLongerList,
+  )
 
   await exec('tabSync.buildEnvelope', testBuildEnvelope)
   await exec('graph.edgeExists', testEdgeExists)
@@ -355,6 +382,8 @@ export const runAllTests = async () => {
   )
   await exec('cache.lruBasic', testLRUCacheBasic)
   await exec('cache.lruClear', testLRUCacheClear)
+  await exec('util.reorderList.basicMoves', testReorderListBasicMoves)
+  await exec('util.reorderList.noopAndBounds', testReorderListNoopAndBounds)
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
   await exec('ui.bottomPanelCollapsePersistence', testBottomPanelCollapsePersistence)
@@ -508,6 +537,29 @@ export const runAllTests = async () => {
     'graph.layerVisualParity.layerModeNodeBaseFillConsistentAcrossModes',
     testLayerModeNodeBaseFillConsistentAcrossModes,
   )
+  await exec(
+    'stats.tokensByGraphLayer.usesPaletteFillForMarkdownSlideDemo',
+    testStatsTokensByGraphLayerUsesPaletteFillForMarkdownSlideDemo,
+  )
+
+  await exec(
+    'graph.frontmatterMode.filtersToMermaidFrontmatter',
+    testFrontmatterModeFiltersGraphToMermaidNodes,
+  )
+
+  await exec(
+    'graph.frontmatterMode.edaMlpFiltersToMermaidFrontmatter',
+    testFrontmatterModeEdaMlpFiltersGraphToMermaidFrontmatter,
+  )
+
+  await exec(
+    'markdown.mermaidFrontmatter.tidyTreeMetadataDefaults',
+    testMarkdownMermaidFrontmatterTidyTreeMetadataDefaults,
+  )
+  await exec(
+    'schema.tidyTree.separationSchemaRoundTrip',
+    testTidyTreeSeparationSchemaRoundTrip,
+  )
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     const modToggle = await import('@/__tests__/markdownMediaToggleE2e.test')
@@ -534,6 +586,33 @@ export const runAllTests = async () => {
       modCollapsible.testCollapsibleDefaultsCompactAndAnchoredToLsKeys,
     )
 
+    const modFrontmatterToggle = await import('@/__tests__/frontmatterModeCanvasToggle.test')
+    await exec(
+      'ui.graph.frontmatterMode.canvasToggleFiltersNodesAndEdges2dAnd3d',
+      modFrontmatterToggle.testFrontmatterModeCanvasToggleFiltersNodesAndEdgesFor2dAnd3d,
+    )
+
+    if (typeof modFrontmatterToggle.testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo === 'function') {
+      await exec(
+        'graph.frontmatterMode.hullMicrobenchmark.markdownSlideDemo',
+        modFrontmatterToggle.testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo,
+      )
+    }
+
+    if (typeof modFrontmatterToggle.testFrontmatterModeGraphLayersHideMermaidSubgraphNodesIn2dLayer === 'function') {
+      await exec(
+        'graph.frontmatterMode.graphLayersHideMermaidSubgraphNodesIn2dLayer',
+        modFrontmatterToggle.testFrontmatterModeGraphLayersHideMermaidSubgraphNodesIn2dLayer,
+      )
+    }
+
+    if (typeof modFrontmatterToggle.testFrontmatterModeGraphLayersShowMermaidSubgraphNodesIn2dLayerWhenOff === 'function') {
+      await exec(
+        'graph.frontmatterMode.graphLayersShowMermaidSubgraphNodesIn2dLayerWhenOff',
+        modFrontmatterToggle.testFrontmatterModeGraphLayersShowMermaidSubgraphNodesIn2dLayerWhenOff,
+      )
+    }
+
     const pathMod = await import('node:path')
     const fsMod = await import('node:fs')
     const mdPath = pathMod.resolve(
@@ -541,14 +620,22 @@ export const runAllTests = async () => {
       'src/__tests__/sandbox/md-mmd-template.md',
     )
     const mdText = fsMod.readFileSync(mdPath, 'utf8')
-    await exec(
-      'ui.markdown.mermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions',
-      () => testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions(mdText),
-    )
-    await exec(
-      'ui.markdown.edaMlpInterviewSessionMarkdownFixtureFromDisk',
-      testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
-    )
+  await exec(
+    'ui.markdown.mermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions',
+    () => testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions(mdText),
+  )
+  await exec(
+    'ui.markdown.edaMlpInterviewSessionMarkdownFixtureFromDisk',
+    testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
+  )
+  await exec(
+    'ui.markdown.edaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture',
+    testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture,
+  )
+  await exec(
+    'ui.markdown.edaMlpInterviewSessionMarkdownPresentationFromDisk',
+    testEdaMlpInterviewSessionMarkdownPresentationFromDisk,
+  )
   }
 
   await exec(

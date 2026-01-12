@@ -3,6 +3,10 @@ import { ChevronDown } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  UI_COLOR_PRIMARY_BLUE_BG,
+  uiToolbarToggleActiveClassName,
+} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { getIconSizeClass } from '@/lib/ui'
 import { SETTINGS_TAB_HEADER_TOOLTIP } from '@/lib/config'
 type MainPanelSettingsActions = {
@@ -97,7 +101,7 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
             type="button"
             className={`${iconToggleButtonBaseClass} ${
               uiIconScale === 'default'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                ? uiToolbarToggleActiveClassName
                 : 'border-gray-300 bg-white text-gray-700'
             }`}
             onClick={() => setUiIconScale('default')}
@@ -108,7 +112,7 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
             type="button"
             className={`${iconToggleButtonBaseClass} ${
               uiIconScale === 'compact'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                ? uiToolbarToggleActiveClassName
                 : 'border-gray-300 bg-white text-gray-700'
             }`}
             onClick={() => setUiIconScale('compact')}
@@ -119,7 +123,7 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
             type="button"
             className={`${iconToggleButtonBaseClass} ${
               uiIconAnimationEnabled
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                ? uiToolbarToggleActiveClassName
                 : 'border-gray-300 bg-white text-gray-700'
             }`}
             onClick={() => setUiIconAnimationEnabled(!uiIconAnimationEnabled)}
@@ -128,7 +132,7 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
           </button>
           <button
             type="button"
-            className={`${iconToggleButtonBaseClass} border-dashed border-blue-400 text-blue-700 bg-blue-50`}
+            className={`${iconToggleButtonBaseClass} border-dashed border-blue-400 text-blue-700 ${UI_COLOR_PRIMARY_BLUE_BG}`}
             onClick={() => {
               setUiIconScale('compact')
               setUiIconAnimationEnabled(true)
@@ -150,7 +154,7 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
             type="button"
             className={`${iconToggleButtonBaseClass} ${
               headerDensityIsDefault
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                ? uiToolbarToggleActiveClassName
                 : 'border-gray-300 bg-white text-gray-700'
             }`}
             onClick={() => {
@@ -166,7 +170,7 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
             type="button"
             className={`${iconToggleButtonBaseClass} ${
               headerDensityIsCompact
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                ? uiToolbarToggleActiveClassName
                 : 'border-gray-300 bg-white text-gray-700'
             }`}
             onClick={() => {

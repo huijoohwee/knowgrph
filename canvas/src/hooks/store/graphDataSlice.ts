@@ -16,7 +16,7 @@ import {
 } from '@/features/graph-data-table/graphDataTable'
 
 type SetGraph = StoreApi<GraphState>['setState']
-type GetGraph = StoreApi<GraphState>['getState']
+export type GetGraph = StoreApi<GraphState>['getState']
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -130,7 +130,7 @@ function parseTidyTreeMetadata(raw: unknown): Partial<NonNullable<NonNullable<Gr
   return Object.keys(out).length > 0 ? out : null
 }
 
-function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unknown) {
+export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unknown) {
   if (!isRecord(metadata)) return
   const rawMode =
     metadata['canvas:layoutMode'] ??
@@ -148,6 +148,8 @@ function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unknown) {
   const schema = get().schema
   const curLayout = schema.layout || {}
   let nextLayout = curLayout
+  const curPerformance = schema.performance || {}
+  let nextPerformance = curPerformance
   let changed = false
 
   if (modeSuggestion && (curLayout.mode || 'force') === 'force' && modeSuggestion !== 'force') {
@@ -190,8 +192,71 @@ function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unknown) {
     }
   }
 
+  const tidyMeta = isRecord(tidyRaw) ? tidyRaw : null
+  if (tidyMeta && isRecord(tidyMeta.mermaidDensity)) {
+    const mermaidDensity = tidyMeta.mermaidDensity as Record<string, unknown>
+    const densityLabelRaw = typeof mermaidDensity.density === 'string' ? mermaidDensity.density.trim() : ''
+    const densityLabel =
+      densityLabelRaw === 'none' || densityLabelRaw === 'sparse' || densityLabelRaw === 'medium' || densityLabelRaw === 'dense'
+        ? densityLabelRaw
+        : ''
+    const statementCount =
+      typeof mermaidDensity.statementCount === 'number' && Number.isFinite(mermaidDensity.statementCount) && mermaidDensity.statementCount > 0
+        ? mermaidDensity.statementCount
+        : null
+
+    if (statementCount != null && (densityLabel === 'medium' || densityLabel === 'dense')) {
+      const curLod = curPerformance.lod || {}
+      const curTidyLod = (curLod.tidyTree || {}) as NonNullable<NonNullable<GraphSchema['performance']>['lod']>['tidyTree']
+      const nextTidyLod = { ...curTidyLod }
+
+      if (curTidyLod.collapseMode == null) {
+        nextTidyLod.collapseMode = 'depth'
+      }
+      const maxDepthRaw = typeof curTidyLod.maxDepth === 'number' && Number.isFinite(curTidyLod.maxDepth) ? curTidyLod.maxDepth : null
+      if (maxDepthRaw == null || maxDepthRaw <= 0) {
+        let maxDepth = densityLabel === 'dense' ? 2 : 3
+        const configRaw = mermaidDensity.config
+        let isVeryDense = false
+        if (densityLabel === 'dense' && configRaw && isRecord(configRaw)) {
+          const denseMaxRaw = (configRaw.denseMaxStatements as unknown)
+          const denseMax =
+            typeof denseMaxRaw === 'number' && Number.isFinite(denseMaxRaw) && denseMaxRaw > 0 ? denseMaxRaw : null
+          if (denseMax != null && statementCount >= denseMax * 2) {
+            maxDepth = 1
+            isVeryDense = true
+          }
+        }
+        nextTidyLod.maxDepth = maxDepth
+
+        if (isVeryDense) {
+          const curLayoutTidy = (nextLayout.tidyTree || {}) as NonNullable<NonNullable<GraphSchema['layout']>['tidyTree']>
+          const sepRaw =
+            typeof curLayoutTidy.separation === 'number' &&
+            Number.isFinite(curLayoutTidy.separation) &&
+            curLayoutTidy.separation > 0
+              ? curLayoutTidy.separation
+              : null
+          if (sepRaw != null) {
+            const boosted = sepRaw * 1.1
+            const nextTidyLayout = { ...curLayoutTidy, separation: boosted }
+            nextLayout = { ...nextLayout, tidyTree: nextTidyLayout }
+            changed = true
+          }
+        }
+      }
+
+      const tidyLodChanged = JSON.stringify(curTidyLod) !== JSON.stringify(nextTidyLod)
+      if (tidyLodChanged) {
+        const nextLod = { ...curLod, tidyTree: nextTidyLod }
+        nextPerformance = { ...curPerformance, lod: nextLod }
+        changed = true
+      }
+    }
+  }
+
   if (!changed) return
-  get().setSchema({ ...schema, layout: nextLayout })
+  get().setSchema({ ...schema, layout: nextLayout, performance: nextPerformance })
   if ((nextLayout.mode || schema.layout?.mode) === 'radial' || (nextLayout.mode || schema.layout?.mode) === 'tidy-tree') {
     const setCanvasRenderMode = get().setCanvasRenderMode
     if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')

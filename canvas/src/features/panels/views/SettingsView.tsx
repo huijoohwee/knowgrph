@@ -2,6 +2,10 @@ import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import {
+  uiDangerButtonClassName,
+  uiToolbarToggleActiveClassName,
+} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { useSettingsView } from './useSettingsView'
 
 export default function SettingsView({
@@ -101,7 +105,7 @@ export default function SettingsView({
                     </button>
                     <button
                       type="button"
-                      className="App-toolbar__btn text-xs border border-blue-400 bg-blue-50 text-blue-700"
+                      className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
                       onClick={() => {
                         setUiPanelKeyValueTextSizeClass('text-xs')
                         setUiPanelTextFontClass('font-sans')
@@ -200,7 +204,7 @@ export default function SettingsView({
             </div>
             <button
               type="button"
-              className="App-toolbar__btn text-xs border border-red-300 bg-red-50 text-red-700"
+              className={uiDangerButtonClassName}
               onClick={onGlobalReset}
             >
               Global Reset

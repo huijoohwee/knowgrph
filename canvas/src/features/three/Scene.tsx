@@ -4,7 +4,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
-import { getThreeConfig } from '@/lib/graph/schema'
+import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { computeNeighborIds } from '@/components/GraphCanvas/highlight'
 import { getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
 import { Physics3D, type Vec3 } from './layout'
@@ -87,7 +87,9 @@ export function Scene({
   )
   const selectionMode: NodeSelectionMode =
     selectionSets.selectedEdgeIdSet.size > 0 ? 'edge' : selectionSets.selectedNodeIdSet.size > 0 ? 'node' : 'none'
-  const colorByLabel = (l: string) => schema.edgeStyles[l]?.color || '#999999'
+  const palette = getRendererPalette(schema)
+  const neutralEdgeColor = palette.edges.neutral || MVP_COLOR_PALETTE.edges.neutral
+  const colorByLabel = (l: string) => schema.edgeStyles[l]?.color || neutralEdgeColor
   const selectionVisuals = getSelectionVisuals(schema)
   const cameraConfig = getCameraConfig(schema)
   const threeCfg: ThreeConfig = getThreeConfig(schema)
@@ -233,7 +235,7 @@ export function Scene({
               finalOpacity = Math.max(finalOpacity, 0.9)
               width = Math.max(width, selectedEdgeWidth)
             } else {
-              finalColor = '#999999'
+              finalColor = neutralEdgeColor
               finalOpacity = Math.min(finalOpacity, dimmedEdgeOpacity)
               width = Math.max(1, Math.min(baseWidth, selectedEdgeWidth * 0.5))
             }
@@ -243,7 +245,7 @@ export function Scene({
               finalOpacity = Math.max(finalOpacity, 0.9)
               width = Math.max(width, selectedEdgeWidth)
             } else {
-              finalColor = schema.edgeStyles[e.label]?.color || '#999999'
+              finalColor = schema.edgeStyles[e.label]?.color || neutralEdgeColor
               finalOpacity = Math.min(finalOpacity, dimmedEdgeOpacity)
               width = Math.max(1, Math.min(baseWidth, selectedEdgeWidth * 0.5))
             }

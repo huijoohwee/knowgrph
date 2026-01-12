@@ -27,6 +27,22 @@ export const normalizeLineRange = (start: number, end: number): { start: number;
   return { start: s, end: e }
 }
 
+const parseLineRangeFragment = (raw: unknown): { start: number; end: number } | null => {
+  if (typeof raw !== 'string') return null
+  const text = raw.trim()
+  if (!text) return null
+  const hashIndex = text.indexOf('#')
+  if (hashIndex < 0) return null
+  const frag = text.slice(hashIndex + 1).trim()
+  const m = frag.match(/^L(\d+)(?:-(\d+))?$/i)
+  if (!m) return null
+  const startNum = Number.parseInt(m[1] || '', 10)
+  const endNum = m[2] ? Number.parseInt(m[2] || '', 10) : startNum
+  if (!Number.isFinite(startNum) || !Number.isFinite(endNum)) return null
+  if (startNum <= 0 || endNum <= 0) return null
+  return normalizeLineRange(startNum, endNum)
+}
+
 export const getLineRangeFromMetadata = (
   meta: unknown,
 ): { start: number; end: number } | null => {
@@ -35,9 +51,17 @@ export const getLineRangeFromMetadata = (
   const rawEnd = record.lineEnd
   const start = parseLineNumber(rawStart)
   const endRaw = parseLineNumber(rawEnd)
-  if (start == null) return null
-  const end = endRaw != null ? endRaw : start
-  return normalizeLineRange(start, end)
+  if (start != null) {
+    const end = endRaw != null ? endRaw : start
+    return normalizeLineRange(start, end)
+  }
+  const fromDocumentPath = parseLineRangeFragment(record.documentPath)
+  if (fromDocumentPath) return fromDocumentPath
+  const fromCodebaseRelPath = parseLineRangeFragment(record.codebaseRelPath)
+  if (fromCodebaseRelPath) return fromCodebaseRelPath
+  const fromCodebasePath = parseLineRangeFragment(record.codebasePath)
+  if (fromCodebasePath) return fromCodebasePath
+  return null
 }
 
 export type DocumentLocationWithRange = {

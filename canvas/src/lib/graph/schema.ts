@@ -223,6 +223,8 @@ export interface GraphSchema {
         labelMode?: 'auto' | 'all' | 'internal' | 'none';
         maxLabels?: number;
         maxLeafLabels?: number;
+        collapseMode?: 'none' | 'depth';
+        maxDepth?: number;
       };
     };
     caps?: { maxNodes?: number; maxEdges?: number };
@@ -345,7 +347,7 @@ export function getThreeSelectionConfig(schema: GraphSchema | null | undefined):
   const selectedEdgeColor =
     typeof raw.selectedEdgeColor === 'string' && raw.selectedEdgeColor.trim().length > 0
       ? raw.selectedEdgeColor
-      : '#007BFF';
+      : MVP_COLOR_PALETTE.nodes.idea;
   return {
     selectedNodeGlowIntensity,
     dimmedNodeOpacity,

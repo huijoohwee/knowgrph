@@ -9,6 +9,7 @@ import { MarkdownBlockquoteBlock } from './MarkdownBlockquoteBlock'
 import { MarkdownListBlock } from './MarkdownListBlock'
 import { MarkdownHtmlBlock } from './MarkdownHtmlBlock'
 import { MarkdownParagraphBlock } from './MarkdownParagraphBlock'
+import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import type { RenderOpts } from './MarkdownRendererTypes'
 
 type MarkdownTokenRendererProps = {
@@ -146,6 +147,10 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               highlightClass={highlightClass}
               highlightStyle={highlightStyle}
               opts={opts}
+              fragmentsEnabled={!!fragmentsEnabled}
+              fragmentStep={fragmentStep || 0}
+              fragmentClassNames={fragmentClassNames}
+              fragmentTags={fragmentTags}
             />
           )
         case 'hr':
@@ -160,6 +165,10 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               opts={opts}
               baseTextClass={baseTextClass}
               commonBlockClass={commonBlockClass}
+              fragmentsEnabled={!!fragmentsEnabled}
+              fragmentStep={fragmentStep || 0}
+              fragmentClassNames={fragmentClassNames}
+              fragmentTags={fragmentTags}
             />
           )
         case 'code':
@@ -171,6 +180,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               highlightStyle={highlightStyle}
               opts={opts}
               wrapClass={markdownWordWrap ? 'whitespace-pre-wrap break-words' : ''}
+              fragmentStep={fragmentStep}
             />
           )
         case 'table':
@@ -181,6 +191,10 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               highlightClass={highlightClass}
               highlightStyle={highlightStyle}
               opts={opts}
+              fragmentsEnabled={!!fragmentsEnabled}
+              fragmentStep={fragmentStep || 0}
+              fragmentClassNames={fragmentClassNames}
+              fragmentTags={fragmentTags}
             />
           )
         case 'list':
@@ -193,6 +207,10 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               opts={opts}
               baseTextClass={baseTextClass}
               wrapClass={markdownWordWrap ? 'whitespace-pre-wrap' : ''}
+              fragmentsEnabled={!!fragmentsEnabled}
+              fragmentStep={fragmentStep || 0}
+              fragmentClassNames={fragmentClassNames}
+              fragmentTags={fragmentTags}
             />
           )
         case 'html':
@@ -219,20 +237,28 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               opts={opts}
               baseTextClass={baseTextClass}
               commonBlockClass={commonBlockClass}
+              fragmentsEnabled={!!fragmentsEnabled}
+              fragmentStep={fragmentStep || 0}
+              fragmentClassNames={fragmentClassNames}
+              fragmentTags={fragmentTags}
             />
           )
-        default:
+        default: {
+          const className = ['mt-2 mb-2', baseTextClass, commonBlockClass].filter(Boolean).join(' ')
           return (
-            <div
+            <MarkdownBlockContainer
               key={key}
-              className={['mt-2 mb-2', baseTextClass, commonBlockClass, highlightClass].filter(Boolean).join(' ')}
-              style={highlightStyle}
-              data-start-line={t.startLine}
-              data-end-line={t.endLine || t.startLine}
+              as="div"
+              className={className}
+              highlightClass={highlightClass}
+              highlightStyle={highlightStyle}
+              startLine={t.startLine}
+              endLine={t.endLine}
             >
               {String((t as unknown as { raw?: unknown }).raw || '')}
-            </div>
+            </MarkdownBlockContainer>
           )
+        }
       }
     })
   }

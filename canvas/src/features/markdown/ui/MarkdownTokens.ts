@@ -61,6 +61,7 @@ export type CodeBlockToken = GenericToken & {
   type: 'code'
   text: string
   lang?: string
+  info?: string
 }
 
 export type TableCellToken = {
@@ -100,6 +101,12 @@ export type HrToken = GenericToken & {
   type: 'hr'
 }
 
+export type MathToken = GenericToken & {
+  type: 'math'
+  tex: string
+  display: boolean
+}
+
 export type SpaceToken = GenericToken & {
   type: 'space'
 }
@@ -116,6 +123,7 @@ export type Token =
   | ParagraphToken
   | HeadingToken
   | CodeBlockToken
+  | MathToken
   | TableToken
   | ListToken
   | BlockquoteToken
@@ -130,6 +138,7 @@ export type TokensEm = EmToken
 export type TokensDel = DelToken
 export type TokensBr = BrToken
 export type TokensCode = CodeSpanToken | CodeBlockToken
+export type TokensMath = MathToken
 export type TokensLink = LinkToken
 export type TokensImage = ImageToken
 export type TokensParagraph = ParagraphToken

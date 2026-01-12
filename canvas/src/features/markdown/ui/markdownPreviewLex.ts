@@ -18,6 +18,7 @@ import type {
   TokensBlockquote,
   TokensList,
   TokensTable,
+  MathToken,
 } from './MarkdownTokens'
 
 export type TokenWithLines = Token & {
@@ -42,6 +43,32 @@ const md = new MarkdownIt({
   breaks: false,
 })
 
+const normalizeVClicksHtmlBlocks = (markdownText: string): string => {
+  const lines = splitMarkdownLines(markdownText || '')
+  const out: string[] = []
+  let inVClicks = false
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? ''
+    const trimmed = line.trim()
+    if (!inVClicks) {
+      if (/^<v-clicks\b[^>]*>\s*$/i.test(trimmed)) {
+        inVClicks = true
+      }
+      out.push(line)
+      continue
+    }
+
+    if (/^<\/v-clicks>\s*$/i.test(trimmed)) {
+      inVClicks = false
+      out.push(line)
+      continue
+    }
+
+    out.push(trimmed ? line : '<!--kg:keep-->')
+  }
+  return out.join('\n')
+}
+
 export const addLineRangesToTokens = (tokens: Token[], lineOffset: number): TokenWithLines[] => {
   const out: TokenWithLines[] = []
   let cursorLine = 1
@@ -64,6 +91,116 @@ const getAttr = (token: MdToken, name: string): string => {
   return ''
 }
 
+const splitTextIntoTextAndMath = (raw: string): Token[] => {
+  const src = String(raw || '')
+  if (!src) return []
+  const out: Token[] = []
+  const pushText = (text: string) => {
+    if (!text) return
+    const t: TokensText = {
+      type: 'text',
+      raw: text,
+      text,
+    }
+    out.push(t)
+  }
+  const pushMath = (tex: string, display: boolean) => {
+    const m: MathToken = {
+      type: 'math',
+      raw: tex,
+      tex,
+      display,
+    }
+    out.push(m)
+  }
+  const len = src.length
+  let i = 0
+  let textStart = 0
+  while (i < len) {
+    const ch = src[i]
+    if (ch === '$') {
+      const prev = i > 0 ? src[i - 1] : ''
+      if (prev === '\\') {
+        i += 1
+        continue
+      }
+      let delimCount = 1
+      if (i + 1 < len && src[i + 1] === '$') {
+        delimCount = 2
+      }
+      const startContent = i + delimCount
+      let j = startContent
+      let found = -1
+      while (j < len) {
+        if (src[j] === '$') {
+          let k = j
+          let count = 0
+          while (k < len && src[k] === '$') {
+            count += 1
+            k += 1
+          }
+          if ((delimCount === 2 && count >= 2) || (delimCount === 1 && count >= 1)) {
+            found = j
+            break
+          }
+          j = k
+          continue
+        }
+        j += 1
+      }
+      if (found < 0) {
+        break
+      }
+      if (textStart < i) {
+        pushText(src.slice(textStart, i))
+      }
+      const tex = src.slice(startContent, found)
+      pushMath(tex, delimCount === 2)
+      i = found + delimCount
+      textStart = i
+      continue
+    }
+    if (ch === '\\' && i + 1 < len && (src[i + 1] === '(' || src[i + 1] === '[')) {
+      const isDisplay = src[i + 1] === '['
+      const endChar = isDisplay ? ']' : ')'
+      const startContent = i + 2
+      let j = startContent
+      let found = -1
+      while (j < len - 1) {
+        if (src[j] === '\\' && src[j + 1] === endChar) {
+          found = j
+          break
+        }
+        j += 1
+      }
+      if (found < 0) {
+        break
+      }
+      if (textStart < i) {
+        pushText(src.slice(textStart, i))
+      }
+      const tex = src.slice(startContent, found)
+      pushMath(tex, isDisplay)
+      i = found + 2
+      textStart = i
+      continue
+    }
+    i += 1
+  }
+  if (textStart < len) {
+    pushText(src.slice(textStart, len))
+  }
+  if (!out.length) {
+    const t: TokensText = {
+      type: 'text',
+      raw: src,
+      text: src,
+    }
+    return [t]
+  }
+  return out
+}
+
 const buildInlineTokens = (inlineChildren: MdToken[] | undefined): Token[] => {
   const children = Array.isArray(inlineChildren) ? inlineChildren : []
   const root: Token[] = []
@@ -82,14 +219,62 @@ const buildInlineTokens = (inlineChildren: MdToken[] | undefined): Token[] => {
     }
   }
 
-  for (const t of children) {
-    if (t.type === 'text') {
-      const text: TokensText = {
-        type: 'text',
-        raw: t.content,
-        text: t.content,
+  const mergeSimpleHtmlSpanLike = (
+    startIndex: number,
+  ): { merged: TokensHTML | null; nextIndex: number } => {
+    const start = children[startIndex]
+    if (!start || start.type !== 'html_inline') {
+      return { merged: null, nextIndex: startIndex }
+    }
+    const rawOpen = String(start.content || '')
+    const trimmedOpen = rawOpen.trim().toLowerCase()
+    const isAbbrOpen = trimmedOpen === '<abbr>' || trimmedOpen.startsWith('<abbr ')
+    const isSpanOpen = trimmedOpen === '<span>' || trimmedOpen.startsWith('<span ')
+    const isVClickOpen = trimmedOpen === '<v-click>' || trimmedOpen.startsWith('<v-click ')
+    const isVMarkOpen = trimmedOpen === '<v-mark>' || trimmedOpen.startsWith('<v-mark ')
+    if (!isAbbrOpen && !isSpanOpen && !isVClickOpen && !isVMarkOpen) {
+      return { merged: null, nextIndex: startIndex }
+    }
+    const closingTag = isAbbrOpen ? '</abbr>' : isSpanOpen ? '</span>' : isVClickOpen ? '</v-click>' : '</v-mark>'
+    let textContent = ''
+    let endIndex = -1
+    for (let i = startIndex + 1; i < children.length; i += 1) {
+      const t = children[i]
+      if (t.type === 'html_inline') {
+        const raw = String(t.content || '')
+        const trimmed = raw.trim().toLowerCase()
+        if (trimmed === closingTag) {
+          endIndex = i
+          break
+        }
+        return { merged: null, nextIndex: startIndex }
       }
-      pushNode(text)
+      if (t.type === 'text') {
+        textContent += t.content
+        continue
+      }
+      return { merged: null, nextIndex: startIndex }
+    }
+    if (endIndex < 0) {
+      return { merged: null, nextIndex: startIndex }
+    }
+    const rawClose = String(children[endIndex].content || '')
+    const fullRaw = `${rawOpen}${textContent}${rawClose}`
+    const htmlTok: TokensHTML = {
+      type: 'html',
+      raw: fullRaw,
+      text: fullRaw,
+    }
+    return { merged: htmlTok, nextIndex: endIndex }
+  }
+
+  for (let index = 0; index < children.length; index += 1) {
+    const t = children[index]
+    if (t.type === 'text') {
+      const pieces = splitTextIntoTextAndMath(t.content)
+      for (const piece of pieces) {
+        pushNode(piece)
+      }
       continue
     }
     if (t.type === 'code_inline') {
@@ -119,6 +304,24 @@ const buildInlineTokens = (inlineChildren: MdToken[] | undefined): Token[] => {
         text: alt,
       }
       pushNode(img)
+      continue
+    }
+    if (t.type === 'html_inline') {
+      const merged = mergeSimpleHtmlSpanLike(index)
+      if (merged.merged) {
+        pushNode(merged.merged)
+        index = merged.nextIndex
+        continue
+      }
+      const raw = String(t.content || '')
+      if (raw) {
+        const htmlTok: TokensHTML = {
+          type: 'html',
+          raw,
+          text: raw,
+        }
+        pushNode(htmlTok)
+      }
       continue
     }
     if (t.type === 'strong_open' || t.type === 'em_open' || t.type === 's_open') {
@@ -171,6 +374,16 @@ const buildInlineTokens = (inlineChildren: MdToken[] | undefined): Token[] => {
   return root
 }
 
+const buildInlineTokensWithText = (
+  inlineChildren: MdToken[] | undefined,
+): { tokens: Token[]; text: string } => {
+  const tokens = buildInlineTokens(inlineChildren)
+  const text = tokens
+    .map(tt => (tt as { text?: string }).text || '')
+    .join('')
+  return { tokens, text }
+}
+
 const mapLines = (tok: MdToken, lineOffset: number): { startLine: number; endLine: number } => {
   const map = tok.map
   if (!map) {
@@ -191,10 +404,8 @@ const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLines: str
       const inlineTok = mdTokens[i + 1]
       const closeTok = mdTokens[i + 2]
       const depth = Number.parseInt(t.tag.replace(/^h/i, ''), 10) || 1
-      const inlineTokens = inlineTok && inlineTok.type === 'inline' ? buildInlineTokens(inlineTok.children) : []
-      const text = inlineTokens
-        .map(tt => (tt as { text?: string }).text || '')
-        .join('')
+      const inlineChildren = inlineTok && inlineTok.type === 'inline' ? inlineTok.children : undefined
+      const { tokens: inlineTokens, text } = buildInlineTokensWithText(inlineChildren)
       const { startLine, endLine } = mapLines(t, lineOffset)
       const map = t.map || [0, 0]
       const raw = srcLines.slice(map[0], map[1]).join('\n')
@@ -212,10 +423,8 @@ const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLines: str
     if (t.type === 'paragraph_open') {
       const inlineTok = mdTokens[i + 1]
       const closeTok = mdTokens[i + 2]
-      const inlineTokens = inlineTok && inlineTok.type === 'inline' ? buildInlineTokens(inlineTok.children) : []
-      const text = inlineTokens
-        .map(tt => (tt as { text?: string }).text || '')
-        .join('')
+      const inlineChildren = inlineTok && inlineTok.type === 'inline' ? inlineTok.children : undefined
+      const { tokens: inlineTokens, text } = buildInlineTokensWithText(inlineChildren)
       const { startLine, endLine } = mapLines(t, lineOffset)
       const map = t.map || [0, 0]
       const raw = srcLines.slice(map[0], map[1]).join('\n')
@@ -240,6 +449,7 @@ const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLines: str
         raw,
         text: t.content,
         lang: lang || undefined,
+        info,
       }
       out.push(Object.assign({}, c, { startLine, endLine }) as TokenWithLines)
       i += 1
@@ -379,10 +589,8 @@ const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLines: str
             while (j < mdTokens.length && mdTokens[j].type !== 'tr_close') {
               if (mdTokens[j].type === 'th_open') {
                 const inlineTok = mdTokens[j + 1]
-                const inlineTokens = inlineTok && inlineTok.type === 'inline' ? buildInlineTokens(inlineTok.children) : []
-                const cellText = inlineTokens
-                  .map(tt => (tt as { text?: string }).text || '')
-                  .join('')
+                const inlineChildren = inlineTok && inlineTok.type === 'inline' ? inlineTok.children : undefined
+                const { tokens: inlineTokens, text: cellText } = buildInlineTokensWithText(inlineChildren)
                 headCells.push({
                   text: cellText,
                   tokens: inlineTokens,
@@ -407,11 +615,8 @@ const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLines: str
             while (j < mdTokens.length && mdTokens[j].type !== 'tr_close') {
               if (mdTokens[j].type === 'td_open') {
                 const inlineTok = mdTokens[j + 1]
-                const inlineTokens =
-                  inlineTok && inlineTok.type === 'inline' ? buildInlineTokens(inlineTok.children) : []
-                const cellText = inlineTokens
-                  .map(tt => (tt as { text?: string }).text || '')
-                  .join('')
+                const inlineChildren = inlineTok && inlineTok.type === 'inline' ? inlineTok.children : undefined
+                const { tokens: inlineTokens, text: cellText } = buildInlineTokensWithText(inlineChildren)
                 rowCells.push({
                   text: cellText,
                   tokens: inlineTokens,
@@ -460,7 +665,7 @@ export const lexMarkdownContent = (
   markdownText: string,
   lineOffset: number,
 ): { tokens: TokenWithLines[] } => {
-  const content = String(markdownText || '')
+  const content = normalizeVClicksHtmlBlocks(String(markdownText || ''))
   const srcLines = splitMarkdownLines(content)
   const mdTokens = md.parse(content, {}) as unknown as MdToken[]
   const tokens = buildBlockTokens(mdTokens, lineOffset, srcLines)

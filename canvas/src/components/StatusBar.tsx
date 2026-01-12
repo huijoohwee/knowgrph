@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import {
   type SelectionPerfSubscriber,
   setSelectionPerfEnabled,
@@ -81,7 +82,7 @@ export default function StatusBar() {
             <button
               type="button"
               className={`px-2 py-0.5 rounded border ${
-                perfEnabled ? 'border-blue-500 text-blue-600' : 'border-gray-300 text-gray-600'
+                perfEnabled ? `border-blue-500 ${uiPrimaryIconActiveClassName}` : `border-gray-300 ${uiPrimaryIconInactiveClassName}`
               }`}
               onClick={() => setPerfEnabled(v => !v)}
             >

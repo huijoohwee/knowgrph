@@ -5,7 +5,7 @@ import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import type { GraphDataTablePanel } from '@/features/graph-data-table/ui/GraphDataTablePanelOverlay'
 import type { GraphDataTableRowDensity } from '@/features/graph-data-table/graphDataTable'
-import { graphDataTableToolbarButtonClassName, GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { graphDataTableToolbarButtonClassName, GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS, uiPrimaryChipActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import type { GraphDataTableScope } from './BottomPanelCuratorToolbarModel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
@@ -424,7 +424,7 @@ export function BottomPanelCuratorToolbar({
             Array.isArray(lastTraversalSummary.edgeIds) &&
             lastTraversalSummary.edgeIds.length > 0 && (
               <span
-                className={`ml-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 ${uiPanelMonospaceTextClass}`}
+                className={`ml-1 px-2 py-0.5 rounded-full ${uiPrimaryChipActiveClassName} ${uiPanelMonospaceTextClass}`}
               >
                 {lastTraversalSummary.edgeIds.length.toLocaleString()} edges
               </span>

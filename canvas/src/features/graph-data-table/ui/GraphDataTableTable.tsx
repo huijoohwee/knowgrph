@@ -238,7 +238,9 @@ export const GraphDataTable = React.memo(function GraphDataTable({
     const styles = schema?.edgeStyles || {}
     const first = Object.values(styles)[0]
     const color = typeof first?.color === 'string' ? first.color.trim() : ''
-    return color || '#9CA3AF'
+    if (color) return color
+    const palette = getRendererPalette(schema || null)
+    return palette.edges.neutral
   }, [schema])
 
   const incidentEdgeIds = React.useMemo(() => {

@@ -3,6 +3,7 @@ import type { MutableRefObject, RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createZoom, buildSimulation, deriveTidyTreeDerivation } from '@/components/GraphCanvas/utils'
+import { computeTidyTreeCollapseHiddenNodes } from '@/components/GraphCanvas/tidyTreeLabelLod'
 import { buildNodeGroupsFromSchema, createGraphLayersLayer } from '@/components/GraphCanvas/graphLayers'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
@@ -193,16 +194,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyCachedPositions()
   }
 
-  const nodeGroups = buildNodeGroupsFromSchema(graphData, schema)
-
-  const graphLayersSel = createGraphLayersLayer({
-    g,
-    nodeGroups,
-    graphData,
-    schema,
-    graphLayersVisible,
-  })
-
   const nodeIds = new Set<string>()
   for (let i = 0; i < graphData.nodes.length; i += 1) {
     nodeIds.add(String(graphData.nodes[i].id))
@@ -220,7 +211,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     return tidyTreeDerivation.candidateEdges
   })()
 
-  const edgesForDisplay = (() => {
+  const edgesForDisplayRaw = (() => {
     const layersCfg = schema.layers || {}
     const mode = layersCfg.mode || 'property'
     const semanticCfg = layersCfg.semantic || {}
@@ -246,6 +237,30 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   })()
 
+  const tidyTreeHiddenNodeIds = (() => {
+    if (schema.layout?.mode !== 'tidy-tree' || !tidyTreeDerivation) return null
+    const lod = schema.performance?.lod?.tidyTree
+    if (!lod) return null
+    const hidden = computeTidyTreeCollapseHiddenNodes({
+      nodes: graphData.nodes,
+      edgesForDisplay: edgesForDisplayRaw,
+      direction: tidyTreeDerivation.direction,
+      lod,
+    })
+    return hidden.size ? hidden : null
+  })()
+
+  const edgesForDisplay = (() => {
+    if (!tidyTreeHiddenNodeIds) return edgesForDisplayRaw
+    return edgesForDisplayRaw.filter((e) => {
+      const src = String(e.source ?? '')
+      const tgt = String(e.target ?? '')
+      if (!src || !tgt) return false
+      if (tidyTreeHiddenNodeIds.has(src) || tidyTreeHiddenNodeIds.has(tgt)) return false
+      return true
+    })
+  })()
+
   const linkSel = createLinksLayer({
     g,
     edgesForDisplay,
@@ -258,9 +273,15 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
   linksSelRef.current = linkSel
 
+  const graphDataForDisplay = (() => {
+    if (!tidyTreeHiddenNodeIds) return graphData
+    const nodes = graphData.nodes.filter(n => !tidyTreeHiddenNodeIds.has(String(n.id)))
+    return nodes.length === graphData.nodes.length ? graphData : { ...graphData, nodes }
+  })()
+
   const { nodeSel, mediaSel } = createNodesLayer({
     g,
-    graphData,
+    graphData: graphDataForDisplay,
     edgesForDisplay,
     schema,
     tidyTreeDerivation,
@@ -280,6 +301,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     updateEdge,
     setHoverInfo,
     requestZoomSelection,
+    graphLayersVisible,
   })
   nodesSelRef.current = nodeSel
   mediaSelRef.current = mediaSel
@@ -288,12 +310,26 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   createLabelsLayer({
     g,
-    graphData,
+    graphData: graphDataForDisplay,
     schema,
     edgesForDisplay,
     tidyTreeDerivation,
     labelsSelRef,
     renderMediaAsNodes,
+    graphLayersVisible,
+  })
+
+  const nodeGroups = buildNodeGroupsFromSchema(graphData, schema)
+
+  const { hullSel: graphLayersHullSel, centroidSel: graphLayerCentroidSel } = createGraphLayersLayer({
+    g,
+    nodeGroups,
+    graphData,
+    schema,
+    graphLayersVisible,
+    hoverEnabled,
+    setHoverInfo,
+    simulation,
   })
 
   if (labelsSelRef.current) {
@@ -308,7 +344,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       mediaSel,
       linkSel,
       labelsSel: labelsSelRef.current,
-      graphLayersSel,
+      graphLayersHullSel,
+      graphLayerCentroidSel,
       nodeGroups,
       nodes: graphData.nodes,
       schema,

@@ -4,6 +4,7 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { addLineRangesToTokens } from '@/features/markdown/ui/markdownPreviewLex'
 import MarkdownTokenRenderer from './MarkdownTokenRenderer'
 import type { RenderOpts } from './MarkdownRendererTypes'
+import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 
 type MarkdownBlockquoteBlockProps = {
   token: TokenWithLines
@@ -12,6 +13,10 @@ type MarkdownBlockquoteBlockProps = {
   opts: RenderOpts
   baseTextClass: string
   commonBlockClass: string
+  fragmentsEnabled?: boolean
+  fragmentStep?: number
+  fragmentClassNames?: string[]
+  fragmentTags?: string[]
 }
 
 export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlock({
@@ -21,19 +26,24 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
   opts,
   baseTextClass,
   commonBlockClass,
+  fragmentsEnabled,
+  fragmentStep,
+  fragmentClassNames,
+  fragmentTags,
 }: MarkdownBlockquoteBlockProps) {
   const bq = t as unknown as TokensBlockquote
   return (
-    <blockquote
+    <MarkdownBlockContainer
+      as="blockquote"
       className={[
         'mt-3 mb-3 pl-3 border-l-4 border-gray-200 text-gray-700',
         baseTextClass,
         commonBlockClass,
-        highlightClass,
       ].filter(Boolean).join(' ')}
-      style={highlightStyle}
-      data-start-line={t.startLine}
-      data-end-line={t.endLine || t.startLine}
+      highlightClass={highlightClass}
+      highlightStyle={highlightStyle}
+      startLine={t.startLine}
+      endLine={t.endLine}
     >
       <MarkdownTokenRenderer
         tokens={addLineRangesToTokens(bq.tokens as unknown as Token[], 0)}
@@ -47,7 +57,11 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
         rootThemeMode={opts.rootThemeMode}
         previewOverlayScope={opts.previewOverlayScope}
         previewOverlayPortalTarget={opts.previewOverlayPortalTarget}
+        fragmentsEnabled={fragmentsEnabled}
+        fragmentStep={fragmentStep}
+        fragmentClassNames={fragmentClassNames}
+        fragmentTags={fragmentTags}
       />
-    </blockquote>
+    </MarkdownBlockContainer>
   )
 })

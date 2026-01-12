@@ -16,6 +16,7 @@ import {
 } from '@/features/graph-data-table/ui/GraphDataTableAggregateViz'
 import { BodyCell } from './GraphDataTableBody'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { uiPrimaryIconActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 
 type SelectionSets = {
   selectedNodeIdSet: Set<string>
@@ -301,7 +302,7 @@ export function GraphDataTableRows({
                 </span>
                 <input
                   type="checkbox"
-                  className={`absolute h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-opacity ${
+                  className={`absolute h-4 w-4 rounded border-gray-300 ${uiPrimaryIconActiveClassName} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-opacity ${
                     isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
                   checked={isActive}

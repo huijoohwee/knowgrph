@@ -145,6 +145,74 @@ function clampNumber(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
 }
 
+export function filterGraphToFrontmatterMermaid(
+  graphData: GraphData | null | undefined,
+  activeDocumentPath?: string | null,
+): GraphData | null {
+  if (!graphData) return null
+  const nodesRaw = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  const edgesRaw = Array.isArray(graphData.edges) ? graphData.edges : []
+
+  const docBaseName = (() => {
+    const raw = String(activeDocumentPath || '').trim()
+    if (!raw) return ''
+    const norm = raw.replace(/\\/g, '/')
+    const parts = norm.split('/')
+    const last = parts[parts.length - 1] || ''
+    return last
+  })()
+
+  const filteredNodes: GraphNode[] = []
+  for (let i = 0; i < nodesRaw.length; i += 1) {
+    const node = nodesRaw[i] as GraphNode
+    const type = String(node.type || '')
+    if (type !== 'MermaidDiagram' && type !== 'MermaidNode' && type !== 'MermaidSubgraph') continue
+    const meta = (node.metadata || {}) as Record<string, unknown>
+    const docPathRaw = meta.documentPath
+    const docPath = typeof docPathRaw === 'string' ? docPathRaw.trim() : ''
+    if (docBaseName && docPath && docPath !== docBaseName) continue
+    const lineStartRaw = meta.lineStart
+    const lineEndRaw = meta.lineEnd
+    const lineStart =
+      typeof lineStartRaw === 'number' && Number.isFinite(lineStartRaw) ? lineStartRaw : null
+    const lineEnd =
+      typeof lineEndRaw === 'number' && Number.isFinite(lineEndRaw) ? lineEndRaw : null
+    if (docBaseName && (lineStart == null || lineEnd == null || lineStart !== 1)) continue
+    filteredNodes.push(node)
+  }
+
+  if (filteredNodes.length === 0) {
+    return {
+      ...graphData,
+      nodes: [],
+      edges: [],
+    }
+  }
+
+  const keepIds = new Set<string>()
+  for (let i = 0; i < filteredNodes.length; i += 1) {
+    const n = filteredNodes[i]
+    keepIds.add(String(n.id))
+  }
+
+  const filteredEdges: GraphEdge[] = []
+  for (let i = 0; i < edgesRaw.length; i += 1) {
+    const e = edgesRaw[i] as GraphEdge
+    const label = String(e.label || '')
+    if (label !== 'pointsTo') continue
+    const s = String(e.source)
+    const t = String(e.target)
+    if (!keepIds.has(s) || !keepIds.has(t)) continue
+    filteredEdges.push(e)
+  }
+
+  return {
+    ...graphData,
+    nodes: filteredNodes,
+    edges: filteredEdges,
+  }
+}
+
 function computeLouvainCommunities(args: {
   nodeIds: string[]
   edges: Array<{ source: string; target: string; weight: number }>
@@ -254,7 +322,7 @@ export function deriveGraphDataForLayers(graphData: GraphData | null | undefined
   if (!graphData) return null
   const nodesRaw = Array.isArray(graphData.nodes) ? graphData.nodes : []
   const edges = Array.isArray(graphData.edges) ? graphData.edges : []
-  const nodes = nodesRaw.filter(n => String((n as GraphNode).type || '') !== 'MermaidSubgraph')
+  const nodes = nodesRaw as GraphNode[]
   const mode = schema.layers?.mode || 'property'
   if (mode === 'property') {
     const nextNodes = nodes.filter(n => String((n as GraphNode).type || '') !== 'Document') as GraphNode[]

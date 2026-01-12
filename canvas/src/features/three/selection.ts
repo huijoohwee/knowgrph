@@ -1,5 +1,5 @@
 import type { GraphSchema } from '@/lib/graph/schema'
-import { getThreeConfig } from '@/lib/graph/schema'
+import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 
 export type NodeSelectionMode = 'none' | 'node' | 'edge'
 
@@ -37,9 +37,13 @@ export function getSelectionVisuals(schema: GraphSchema): SelectionVisuals {
   const dimNode = typeof raw.dimmedNodeOpacity === 'number' ? clamp(raw.dimmedNodeOpacity, 0, 1) : 0.2
   const dimEdge = typeof raw.dimmedEdgeOpacity === 'number' ? clamp(raw.dimmedEdgeOpacity, 0, 1) : 0.2
   const width = typeof raw.selectedEdgeWidth === 'number' ? clamp(raw.selectedEdgeWidth, 1, 6) : 3
+  const palette = getRendererPalette(schema)
+  const defaultEdgeColor = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
+    ? palette.nodes.idea
+    : MVP_COLOR_PALETTE.nodes.idea
   const edgeColor = typeof raw.selectedEdgeColor === 'string' && raw.selectedEdgeColor.trim().length > 0
     ? raw.selectedEdgeColor
-    : '#3B82F6'
+    : defaultEdgeColor
   return {
     selectedNodeGlowIntensity: glow,
     dimmedNodeOpacity: dimNode,

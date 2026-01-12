@@ -172,12 +172,22 @@ export function getCodebasePathFromMetadata(metadata: unknown): string {
   return trimmed
 }
 
+const stripLineFragment = (value: string): string => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const hashIndex = raw.indexOf('#')
+  if (hashIndex < 0) return raw
+  return raw.slice(0, hashIndex).trim() || ''
+}
+
 export function getDocumentPathFromMetadata(metadata: unknown): string {
   if (!metadata || typeof metadata !== 'object') return ''
   const record = metadata as Record<string, unknown>
-  const primary = typeof record.documentPath === 'string' ? record.documentPath.trim() : ''
+  const primaryRaw = typeof record.documentPath === 'string' ? record.documentPath.trim() : ''
+  const primary = primaryRaw ? stripLineFragment(primaryRaw) : ''
   if (primary) return primary
-  const fallback = typeof record.codebaseRelPath === 'string' ? record.codebaseRelPath.trim() : ''
+  const fallbackRaw = typeof record.codebaseRelPath === 'string' ? record.codebaseRelPath.trim() : ''
+  const fallback = fallbackRaw ? stripLineFragment(fallbackRaw) : ''
   if (fallback) return fallback
   return ''
 }

@@ -22,20 +22,14 @@ const coerceEndpointId = (value: unknown): string | null => {
   return null
 }
 
-export const computeTidyTreeLabelVisibility = (args: {
+const buildTidyTreeStructure = (args: {
   nodes: GraphNode[]
   edgesForDisplay: GraphEdge[]
   direction: 'source-target' | 'target-source'
-  lod: TidyTreeLabelLodConfig | null | undefined
-}): Set<string> => {
-  const { nodes, edgesForDisplay, direction, lod } = args
-  const mode = resolveLabelMode(lod?.labelMode)
-
+}) => {
+  const { nodes, edgesForDisplay, direction } = args
   const nodeIds = new Set<string>()
   for (let i = 0; i < nodes.length; i += 1) nodeIds.add(String(nodes[i].id))
-
-  if (mode === 'none') return new Set<string>()
-  if (mode === 'all') return new Set<string>(Array.from(nodeIds))
 
   const childrenByParent = new Map<string, Set<string>>()
   const inDegree = new Map<string, number>()
@@ -98,6 +92,27 @@ export const computeTidyTreeLabelVisibility = (args: {
     else leafIds.push(id)
   })
 
+  return { nodeIds, childrenByParent, inDegree, outDegree, depthById, internalIds, leafIds }
+}
+
+export const computeTidyTreeLabelVisibility = (args: {
+  nodes: GraphNode[]
+  edgesForDisplay: GraphEdge[]
+  direction: 'source-target' | 'target-source'
+  lod: TidyTreeLabelLodConfig | null | undefined
+}): Set<string> => {
+  const { nodes, edgesForDisplay, direction, lod } = args
+  const mode = resolveLabelMode(lod?.labelMode)
+
+  const { nodeIds, outDegree, depthById, internalIds, leafIds } = buildTidyTreeStructure({
+    nodes,
+    edgesForDisplay,
+    direction,
+  })
+
+  if (mode === 'none') return new Set<string>()
+  if (mode === 'all') return new Set<string>(Array.from(nodeIds))
+
   const compareInternal = (a: string, b: string) => {
     const da = depthById.get(a) ?? 0
     const db = depthById.get(b) ?? 0
@@ -149,4 +164,30 @@ export const computeTidyTreeLabelVisibility = (args: {
   }
 
   return visible
+}
+
+export const computeTidyTreeCollapseHiddenNodes = (args: {
+  nodes: GraphNode[]
+  edgesForDisplay: GraphEdge[]
+  direction: 'source-target' | 'target-source'
+  lod: TidyTreeLabelLodConfig | null | undefined
+}): Set<string> => {
+  const { nodes, edgesForDisplay, direction, lod } = args
+  const mode = lod?.collapseMode === 'depth' ? 'depth' : 'none'
+  if (mode !== 'depth') return new Set<string>()
+  const maxDepth = coerceFinitePositiveInt(lod?.maxDepth)
+  if (maxDepth == null) return new Set<string>()
+
+  const { nodeIds, depthById } = buildTidyTreeStructure({
+    nodes,
+    edgesForDisplay,
+    direction,
+  })
+
+  const hidden = new Set<string>()
+  nodeIds.forEach((id) => {
+    const d = depthById.get(id)
+    if (d != null && d > maxDepth) hidden.add(id)
+  })
+  return hidden
 }

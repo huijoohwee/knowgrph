@@ -5,6 +5,12 @@ export type HighlightedLineRange = { start: number; end: number } | null
 export type InlineRenderOpts = {
   activeDocumentPath: string
   uiPanelMonospaceTextClass: string
+  fragmentOptions?: {
+    enabled: boolean
+    currentStep: number
+    classNames: string[]
+    tags: string[]
+  } | null
 }
 
 export type RenderOpts = InlineRenderOpts & {

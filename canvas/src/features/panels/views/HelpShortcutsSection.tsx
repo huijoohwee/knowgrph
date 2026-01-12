@@ -3,6 +3,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection';
 import { HELP_STEP_COPY } from '@/features/panels/config';
 import { UI_COPY } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 
 interface HelpShortcutsSectionProps {
   collapsed: boolean;
@@ -60,7 +61,7 @@ export function HelpShortcutsSection({
         <button
           type="button"
           onClick={onLaunchSpotlight}
-          className="App-toolbar__btn text-xs bg-blue-50 text-blue-700"
+          className={`App-toolbar__btn text-xs ${uiPrimaryPillActiveClassName}`}
         >
           Launch
         </button>
@@ -71,4 +72,3 @@ export function HelpShortcutsSection({
     </CollapsibleSection>
   );
 }
-

@@ -2,6 +2,7 @@ import React from 'react'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildMarkdownPreviewMediaKey } from '@/features/markdown/ui/markdownPreviewLinks'
+import { UI_COPY } from '@/lib/config'
 import type { RenderOpts } from './MarkdownRendererTypes'
 
 type MediaWrapperProps = {
@@ -104,11 +105,15 @@ export const MediaVideo = ({ src }: { src: string }) => {
   )
 }
 
-const MediaErrorPlaceholder = ({ alt }: { alt?: string }) => (
-  <div className="flex items-center justify-center w-full max-w-xl h-32 rounded border border-dashed border-red-300 bg-red-50 text-[11px] text-red-700 px-3 text-center">
-    <span>{alt ? `Media failed to load: ${alt}` : 'Media failed to load'}</span>
-  </div>
-)
+const MediaErrorPlaceholder = ({ alt }: { alt?: string }) => {
+  const prefix = UI_COPY.markdownMediaErrorPrefix
+  const label = alt ? `${prefix}: ${alt}` : prefix
+  return (
+    <div className="flex items-center justify-center w-full max-w-xl h-32 rounded border border-dashed border-red-300 bg-red-50 text-[11px] text-red-700 px-3 text-center">
+      <span>{label}</span>
+    </div>
+  )
+}
 
 export const MediaImage = ({
   src,

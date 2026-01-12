@@ -1,0 +1,268 @@
+import React from 'react'
+import type { Slide } from '@/features/markdown/ui/markdownPreviewSlides'
+import type { HighlightedLineRange } from './MarkdownRendererTypes'
+import {
+  type MarkdownFragmentConfig,
+  DEFAULT_FRAGMENT_CONFIG,
+  buildSlideFragmentConfig,
+  normalizeSlideOrder,
+} from './markdownPreviewFragments'
+
+type MarkdownPresentationApiRef = React.MutableRefObject<{
+  prev: () => void
+  next: () => void
+  enterFullscreen?: () => void
+} | null>
+
+type MarkdownPresentationSlideState = {
+  activeSlideIndex: number
+  slideCount: number
+}
+
+type UseMarkdownPresentationArgs = {
+  slides: Slide[]
+  headMeta: Record<string, unknown>
+  markdownPresentationMode: boolean
+  highlightedLineRange: HighlightedLineRange
+  presentationApiRef?: MarkdownPresentationApiRef
+  onPresentationSlideStateChange?: (state: MarkdownPresentationSlideState) => void
+  onSlidesReordered?: (nextOrder: number[]) => void
+}
+
+export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
+  const {
+    slides,
+    headMeta,
+    markdownPresentationMode,
+    highlightedLineRange,
+    presentationApiRef,
+    onPresentationSlideStateChange,
+    onSlidesReordered,
+  } = args
+
+  const [activeSlideIndex, setActiveSlideIndex] = React.useState(0)
+  const [slideOrder, setSlideOrder] = React.useState<number[]>([])
+
+  const orderedSlideIndices = React.useMemo(
+    () => normalizeSlideOrder(slideOrder, slides.length),
+    [slideOrder, slides.length],
+  )
+
+  const activeSlideId =
+    orderedSlideIndices[
+      Math.min(Math.max(0, activeSlideIndex), Math.max(0, orderedSlideIndices.length - 1))
+    ] ?? 0
+
+  const slideFragmentConfigs = React.useMemo(() => {
+    const headMetaRecord = headMeta as Record<string, unknown>
+    if (!slides.length) return [] as MarkdownFragmentConfig[]
+    return slides.map(slide =>
+      buildSlideFragmentConfig(headMetaRecord, (slide.meta || {}) as Record<string, unknown>),
+    )
+  }, [headMeta, slides])
+
+  const [activeFragmentStep, setActiveFragmentStep] = React.useState(0)
+  const [fullscreenHandler, setFullscreenHandler] = React.useState<(() => void) | null>(null)
+  const prevOrderedSlideIndicesRef = React.useRef<number[] | null>(null)
+  const ignoreNextSlidesReorderedRef = React.useRef(false)
+  const slidesSignatureRef = React.useRef<string | null>(null)
+
+  React.useEffect(() => {
+    if (!markdownPresentationMode) return
+    setSlideOrder(prev => normalizeSlideOrder(prev, slides.length))
+  }, [markdownPresentationMode, slides.length])
+
+  React.useEffect(() => {
+    if (!markdownPresentationMode) {
+      prevOrderedSlideIndicesRef.current = null
+      return
+    }
+    if (!onSlidesReordered) return
+    const nextOrdered = normalizeSlideOrder(slideOrder, slides.length)
+    const prev = prevOrderedSlideIndicesRef.current
+    if (!prev) {
+      prevOrderedSlideIndicesRef.current = nextOrdered
+      return
+    }
+    if (prev.length === nextOrdered.length) {
+      let same = true
+      for (let i = 0; i < prev.length; i += 1) {
+        if (prev[i] !== nextOrdered[i]) {
+          same = false
+          break
+        }
+      }
+      if (same) return
+    }
+    if (ignoreNextSlidesReorderedRef.current) {
+      ignoreNextSlidesReorderedRef.current = false
+      prevOrderedSlideIndicesRef.current = nextOrdered
+      return
+    }
+    prevOrderedSlideIndicesRef.current = nextOrdered
+    onSlidesReordered(nextOrdered)
+  }, [markdownPresentationMode, onSlidesReordered, slideOrder, slides.length])
+
+  React.useEffect(() => {
+    const signature = slides.map(s => `${s.startLine}-${s.endLine}-${s.endLine - s.startLine}`).join('|')
+    if (slidesSignatureRef.current == null) {
+      slidesSignatureRef.current = signature
+      return
+    }
+    if (slidesSignatureRef.current === signature) return
+    slidesSignatureRef.current = signature
+    if (!markdownPresentationMode) return
+    ignoreNextSlidesReorderedRef.current = true
+    setSlideOrder([])
+  }, [markdownPresentationMode, slides])
+
+  React.useEffect(() => {
+    const maxIdx = Math.max(0, orderedSlideIndices.length - 1)
+    setActiveSlideIndex(i => Math.min(Math.max(0, i), maxIdx))
+  }, [orderedSlideIndices.length])
+
+  React.useEffect(() => {
+    if (!markdownPresentationMode) {
+      setActiveFragmentStep(0)
+      return
+    }
+    setActiveFragmentStep(0)
+  }, [markdownPresentationMode, activeSlideId])
+
+  const activeFragmentConfig =
+    slideFragmentConfigs[activeSlideId] || DEFAULT_FRAGMENT_CONFIG
+
+  const handleRegisterFullscreenHandler = React.useCallback((fn: (() => void) | null) => {
+    setFullscreenHandler(() => (fn ? () => fn() : null))
+  }, [])
+
+  const goPrev = React.useCallback(() => {
+    const cfg = activeFragmentConfig
+    if (cfg.enabled && activeFragmentStep > 0) {
+      setActiveFragmentStep(step => (step > 0 ? step - 1 : 0))
+      return
+    }
+    const maxOrderedIndex = Math.max(0, orderedSlideIndices.length - 1)
+    const currentOrderedIndex = Math.min(Math.max(0, activeSlideIndex), maxOrderedIndex)
+    const prevOrderedIndex = Math.max(0, currentOrderedIndex - 1)
+    const prevSlideId = orderedSlideIndices[prevOrderedIndex] ?? 0
+    const prevCfg = slideFragmentConfigs[prevSlideId] || DEFAULT_FRAGMENT_CONFIG
+    setActiveSlideIndex(prevOrderedIndex)
+    if (prevCfg.enabled && prevCfg.steps > 0) {
+      setActiveFragmentStep(prevCfg.steps)
+    } else {
+      setActiveFragmentStep(0)
+    }
+  }, [
+    activeFragmentConfig,
+    activeFragmentStep,
+    activeSlideIndex,
+    orderedSlideIndices,
+    slideFragmentConfigs,
+  ])
+
+  const goNext = React.useCallback(() => {
+    const cfg = activeFragmentConfig
+    if (cfg.enabled && cfg.steps > 0 && activeFragmentStep < cfg.steps) {
+      setActiveFragmentStep(step => {
+        const next = step + 1
+        return next > cfg.steps ? cfg.steps : next
+      })
+      return
+    }
+    const maxOrderedIndex = Math.max(0, orderedSlideIndices.length - 1)
+    const currentOrderedIndex = Math.min(Math.max(0, activeSlideIndex), maxOrderedIndex)
+    if (currentOrderedIndex >= maxOrderedIndex) return
+    const nextOrderedIndex = Math.min(maxOrderedIndex, currentOrderedIndex + 1)
+    setActiveSlideIndex(nextOrderedIndex)
+    setActiveFragmentStep(0)
+  }, [
+    activeFragmentConfig,
+    activeFragmentStep,
+    activeSlideIndex,
+    orderedSlideIndices,
+  ])
+
+  React.useEffect(() => {
+    if (!markdownPresentationMode) {
+      if (presentationApiRef) presentationApiRef.current = null
+      return
+    }
+    if (presentationApiRef) {
+      presentationApiRef.current = {
+        prev: goPrev,
+        next: goNext,
+        enterFullscreen: () => {
+          if (fullscreenHandler) {
+            fullscreenHandler()
+          }
+        },
+      }
+    }
+    onPresentationSlideStateChange?.({
+      activeSlideIndex: Math.min(
+        Math.max(0, activeSlideIndex),
+        Math.max(0, orderedSlideIndices.length - 1),
+      ),
+      slideCount: Math.max(0, slides.length),
+    })
+  }, [
+    activeSlideIndex,
+    goNext,
+    goPrev,
+    markdownPresentationMode,
+    onPresentationSlideStateChange,
+    fullscreenHandler,
+    presentationApiRef,
+    orderedSlideIndices.length,
+    slides.length,
+  ])
+
+  React.useEffect(() => {
+    if (!markdownPresentationMode) return
+    if (!highlightedLineRange) return
+    const target = highlightedLineRange.start
+    const idx = slides.findIndex(s => target >= s.startLine && target <= s.endLine)
+    if (idx >= 0) {
+      const next = orderedSlideIndices.indexOf(idx)
+      const nextIdx = next >= 0 ? next : idx
+      setActiveSlideIndex(prev => (prev === nextIdx ? prev : nextIdx))
+    }
+  }, [highlightedLineRange, markdownPresentationMode, orderedSlideIndices, slides])
+
+  React.useEffect(() => {
+    if (!markdownPresentationMode) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        e.preventDefault()
+        goNext()
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault()
+        goPrev()
+      } else if (e.key === 'Home') {
+        e.preventDefault()
+        setActiveSlideIndex(0)
+      } else if (e.key === 'End') {
+        e.preventDefault()
+        setActiveSlideIndex(Math.max(0, slides.length - 1))
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [goNext, goPrev, markdownPresentationMode, slides.length])
+
+  return {
+    activeSlideIndex,
+    setActiveSlideIndex,
+    slideOrder,
+    setSlideOrder,
+    orderedSlideIndices,
+    activeSlideId,
+    activeFragmentConfig,
+    activeFragmentStep,
+    goPrev,
+    goNext,
+    handleRegisterFullscreenHandler,
+  }
+}
+

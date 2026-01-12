@@ -4,7 +4,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
-import { getNodeRadiusFromSchema, getThreeConfig } from '@/lib/graph/schema'
+import { getNodeRadiusFromSchema, getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { getLayerOpacity, getNodeBaseFill } from '@/components/GraphCanvas/helpers'
 import type { Vec3 } from './layout'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -47,12 +47,14 @@ export function NodeMesh({
   let displayColor = baseColor
   let displayOpacity = baseLayerOpacity
   const mediaOpacity = mediaNodeOpacity
+  const palette = getRendererPalette(schema)
+  const dimmedColor = palette.edges.neutral || MVP_COLOR_PALETTE.edges.neutral
   if (selection.mode === 'edge') {
     if (selection.isEdgeEndpoint) {
       displayColor = baseColor
       displayOpacity = mediaOpacity
     } else {
-      displayColor = '#9CA3AF'
+      displayColor = dimmedColor
       displayOpacity = mediaOpacity * visuals.dimmedNodeOpacity
     }
   } else if (selection.mode === 'node') {
@@ -63,7 +65,7 @@ export function NodeMesh({
       displayColor = baseColor
       displayOpacity = mediaOpacity
     } else {
-      displayColor = '#9CA3AF'
+      displayColor = dimmedColor
       displayOpacity = mediaOpacity * visuals.dimmedNodeOpacity
     }
   }

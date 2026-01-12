@@ -1,6 +1,6 @@
 import { Selection } from 'd3-selection';
 import { GraphNode, GraphEdge, GraphData, type SelectionAnchorIds } from '@/lib/graph/types';
-import { GraphSchema } from '@/lib/graph/schema';
+import { GraphSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
 import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
 import { getEdgeBaseStroke, getLayerOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 
@@ -181,6 +181,13 @@ export const computeNodeVisual = (
   const { schema, neighborIds, selectionSets, activeLayerBandIndex } = params
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
+  const palette = getRendererPalette(schema)
+  const highlightFill = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
+    ? palette.nodes.idea
+    : MVP_COLOR_PALETTE.nodes.idea
+  const dimmedFill = typeof palette.edges.neutral === 'string' && palette.edges.neutral.trim()
+    ? palette.edges.neutral
+    : MVP_COLOR_PALETTE.edges.neutral
   const baseStroke = schema.nodeStroke?.[node.type]?.color ?? '#ffffff'
   const baseStrokeWidth = schema.nodeStroke?.[node.type]?.width ?? 1.5
   const isMediaNode = hasNodeMedia(node)
@@ -210,19 +217,19 @@ export const computeNodeVisual = (
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
       return {
-        fill: '#007BFF',
+        fill: highlightFill,
         opacity: isMediaNode ? mediaOpacity : 1,
-        stroke: '#007BFF',
+        stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
-    const fill = isEndpoint ? getNodeBaseFill(node, schema) : '#9CA3AF'
+    const fill = isEndpoint ? getNodeBaseFill(node, schema) : dimmedFill
     let opacity = isMediaNode ? mediaOpacity : isEndpoint ? 1 : 0.2
     if (shouldDimForLayerBand && opacity > 0) {
       opacity *= 0.2
     }
-    const stroke = isEndpoint ? baseStroke : '#9CA3AF'
+    const stroke = isEndpoint ? baseStroke : dimmedFill
     const strokeWidth = isEndpoint ? baseStrokeWidth : baseStrokeWidth
     return { fill, opacity, stroke, strokeWidth }
   }
@@ -233,9 +240,9 @@ export const computeNodeVisual = (
         opacity *= 0.2
       }
       return {
-        fill: '#007BFF',
+        fill: highlightFill,
         opacity,
-        stroke: '#007BFF',
+        stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
@@ -256,9 +263,9 @@ export const computeNodeVisual = (
       opacity *= 0.2
     }
     return {
-      fill: '#9CA3AF',
+      fill: dimmedFill,
       opacity,
-      stroke: '#9CA3AF',
+      stroke: dimmedFill,
       strokeWidth: baseStrokeWidth,
     }
   }
@@ -322,9 +329,13 @@ export const computeEdgeVisual = (
   const { schema, selectionSets } = params
   const { selectedNodeIdSet, selectedEdgeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
+  const palette = getRendererPalette(schema)
+  const highlightStroke = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
+    ? palette.nodes.idea
+    : MVP_COLOR_PALETTE.nodes.idea
   if (selectedEdgeIdSet.size > 0) {
     const isSelected = selectedEdgeIdSet.has(edge.id)
-    const stroke = isSelected ? '#007BFF' : getEdgeBaseStroke(edge, schema)
+    const stroke = isSelected ? highlightStroke : getEdgeBaseStroke(edge, schema)
     const opacity = isSelected ? 0.9 : 0.2
     const width = isSelected ? getEdgeStrokeWidth(edge, schema) * 1.5 : getEdgeStrokeWidth(edge, schema)
     return { stroke, opacity, width }
@@ -351,7 +362,7 @@ export const computeEdgeVisual = (
     return { stroke: baseStroke, opacity: baseOpacity, width: baseWidth }
   }
   if (isHighlighted) {
-    return { stroke: '#007BFF', opacity: 0.9, width: baseWidth * 1.5 }
+    return { stroke: highlightStroke, opacity: 0.9, width: baseWidth * 1.5 }
   }
   return { stroke: baseStroke, opacity: 0.2, width: baseWidth }
 }

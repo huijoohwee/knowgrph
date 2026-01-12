@@ -15,7 +15,7 @@ import {
 import { setupGraphScene } from '@/components/GraphCanvas/scene';
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight';
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
-import { deriveGraphDataForLayers } from '@/lib/graph/layerDerivation';
+import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation';
 import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasStyles';
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects';
 import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect';
@@ -64,9 +64,11 @@ export default function GraphCanvas() {
     mediaPanelDensity,
     setLayoutPositionsForMode,
     activeLayerBandIndex,
+    frontmatterModeEnabled,
+    markdownDocumentName,
   } = useGraphStore(
     useShallow((s) => ({
-      graphData: s.graphData,
+      graphData: s.graphData as GraphData | null,
       graphDataRevision: s.graphDataRevision,
       selectedNodeId: s.selectedNodeId,
       selectedEdgeId: s.selectedEdgeId,
@@ -97,6 +99,8 @@ export default function GraphCanvas() {
       mediaPanelDensity: s.mediaPanelDensity,
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
       activeLayerBandIndex: s.activeLayerBandIndex,
+      frontmatterModeEnabled: s.frontmatterModeEnabled || false,
+      markdownDocumentName: s.markdownDocumentName || '',
     })),
   );
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
@@ -117,8 +121,15 @@ export default function GraphCanvas() {
   const requestZoomRef = useRef(requestZoom);
   const graphDataRevisionRef = useRef(graphDataRevision);
   const renderGraphData = useMemo(
-    () => deriveGraphDataForLayers(graphData as GraphData | null, schema as GraphSchema),
-    [graphData, schema],
+    () => {
+      const base = graphData as GraphData | null;
+      const schemaObj = schema as GraphSchema;
+      const docName = (markdownDocumentName || '').trim() || null;
+      const frontmatterOnly = !!frontmatterModeEnabled;
+      const scopedGraph = frontmatterOnly ? filterGraphToFrontmatterMermaid(base, docName) : base;
+      return deriveGraphDataForLayers(scopedGraph as GraphData | null, schemaObj);
+    },
+    [graphData, schema, frontmatterModeEnabled, markdownDocumentName],
   );
 
   useEffect(() => {

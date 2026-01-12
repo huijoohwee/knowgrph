@@ -30,6 +30,24 @@ export function RendererTidyTreeSettings() {
     return null;
   }
 
+  const tidyMeta = (schema.metadata as Record<string, unknown> | undefined)?.tidyTree as
+    | Record<string, unknown>
+    | undefined;
+  const mermaidDensity = tidyMeta?.mermaidDensity as
+    | {
+        statementCount?: unknown;
+        density?: unknown;
+      }
+    | undefined;
+  const densityLabel =
+    mermaidDensity && typeof mermaidDensity.density === 'string'
+      ? mermaidDensity.density
+      : '';
+  const statementCount =
+    mermaidDensity && typeof mermaidDensity.statementCount === 'number' && Number.isFinite(mermaidDensity.statementCount)
+      ? mermaidDensity.statementCount
+      : null;
+
   return (
     <div className="grid grid-cols-1 gap-1">
       <KeyTypeValueRow
@@ -72,6 +90,81 @@ export function RendererTidyTreeSettings() {
                 <option value="linear">linear</option>
                 <option value="step">step</option>
               </select>
+            </Tooltip>
+          </RightAlignedValueCell>
+        }
+      />
+      <KeyTypeValueRow
+        layout="keyIconValue"
+        density="compact"
+        keyNode={
+          <Tooltip
+            content="Read-only summary of metadata.tidyTree.mermaidDensity from the parser, showing the bucket and statement count used to seed the initial separation."
+            maxWidthPx={260}
+            contentClassName="bg-gray-800/90"
+            className="break-words"
+          >
+            <span className="text-gray-700 break-words">
+              metadata.tidyTree.mermaidDensity
+            </span>
+          </Tooltip>
+        }
+        typeNode={null}
+        valueNode={
+          <RightAlignedValueCell>
+            <span className="text-xs text-gray-300">
+              {densityLabel && statementCount != null
+                ? `${densityLabel} (${statementCount} statements)`
+                : 'not available'}
+            </span>
+          </RightAlignedValueCell>
+        }
+      />
+      <KeyTypeValueRow
+        layout="keyIconValue"
+        density="compact"
+        keyNode={
+          <Tooltip
+            content="Set graph.layout.tidyTree.separation to control Dagre node and rank spacing; Mermaid frontmatter diagrams seed a density-aware default via metadata.tidyTree.separation, and this field overrides that suggestion for the active schema."
+            maxWidthPx={260}
+            contentClassName="bg-gray-800/90"
+            className="break-words"
+          >
+            <span className="text-gray-700 break-words">
+              graph.layout.tidyTree.separation
+            </span>
+          </Tooltip>
+        }
+        typeNode={null}
+        valueNode={
+          <RightAlignedValueCell>
+            <Tooltip
+              content="Default: 1; larger values increase Dagre nodesep/ranksep; fractional values (e.g. 1.3, 1.5, 1.8, 2.1) are allowed. Mermaid density presets influence the initial value via metadata.tidyTree.mermaidDensity.config, but the schema separation here is the final authority."
+              maxWidthPx={260}
+              contentClassName="bg-gray-800/90"
+              className="w-full"
+            >
+              <input
+                className={uiPanelKeyValueInputClass}
+                type="number"
+                min={0.25}
+                step={0.1}
+                value={
+                  typeof schema.layout?.tidyTree?.separation === 'number'
+                    ? schema.layout?.tidyTree?.separation
+                    : 1
+                }
+                onChange={(e) => {
+                  const raw = parseFloat(String(e.target.value || '1'));
+                  const sep = Number.isFinite(raw) ? Math.max(0.25, raw) : 1;
+                  const layout = schema.layout || {};
+                  const tidyTree = layout.tidyTree || {};
+                  setSchema({
+                    ...schema,
+                    layout: { ...layout, tidyTree: { ...tidyTree, separation: sep } },
+                  });
+                }}
+              />
             </Tooltip>
           </RightAlignedValueCell>
         }

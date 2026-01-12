@@ -1,0 +1,59 @@
+{
+  "@context": {
+    "@vocab": "https://huijoohwee.github.io/knowgrph#",
+    "kg": "http://example.org/kg#",
+    "schema": "https://schema.org/",
+    "name": "schema:name",
+    "owner": "schema:domainIncludes",
+    "range": "schema:rangeIncludes"
+  },
+  "@type": "kg:SchemaConfig",
+  "metadata": {
+    "agenticRagSchema": "https://huijoohwee.github.io/schema/AgenticRAG",
+    "renderer:palette": {
+      "nodes": {
+        "idea": "#2563EB",
+        "hypothesis": "#EAB308",
+        "execution": "#22C55E",
+        "pivot": "#F97316",
+        "alert": "#EF4444"
+      },
+      "edges": {
+        "critical": "#DC2626",
+        "neutral": "#64748B"
+      }
+    },
+    "canvas:graphLayers": {
+      "defaultStyle": {
+        "fill": "#2563EB",
+        "fillOpacity": 0.16,
+        "stroke": "#2563EB",
+        "strokeWidth": 1.5,
+        "dash": "4,2"
+      },
+      "byPropertyKey": {
+        "contains": {
+          "fill": "#22C55E",
+          "fillOpacity": 0.14,
+          "stroke": "#16A34A",
+          "strokeWidth": 1.4,
+          "dash": "6,3"
+        },
+        "steps": {
+          "fill": "#F97316",
+          "fillOpacity": 0.18,
+          "stroke": "#EA580C",
+          "strokeWidth": 1.6,
+          "dash": "2,2"
+        }
+      }
+    }
+  },
+  "layers": {
+    "mode": "document-structure",
+    "documentStructure": {
+      "minGroupSize": 2
+    }
+  }
+}
+

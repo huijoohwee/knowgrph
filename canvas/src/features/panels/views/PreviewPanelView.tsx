@@ -53,6 +53,7 @@ export default function PreviewPanelView() {
     s => s.uiPanelTextFontClass || 'font-sans',
   )
   const graphData = useGraphStore(s => s.graphData as GraphData | null)
+  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
   const rootThemeMode = useRootThemeMode()
 
   const hasMarkdown = !!(markdownText && markdownText.trim())
@@ -73,6 +74,29 @@ export default function PreviewPanelView() {
     () => parseMermaidConfigFromFrontmatter(meta),
     [meta],
   )
+  const frontmatterMermaidCode = React.useMemo(
+    () => String((meta as Record<string, unknown>).mermaid || '').trim(),
+    [meta],
+  )
+
+  React.useEffect(() => {
+    if (!frontmatterModeEnabled) return
+    if (!frontmatterMermaidCode) return
+    const current = String(mermaidFocusCode || '').trim()
+    if (current === frontmatterMermaidCode) return
+    setActiveMediaKey(null)
+    setMermaidFocus({
+      code: frontmatterMermaidCode,
+      frontmatterConfig: mermaidFrontmatterConfig,
+    })
+  }, [
+    frontmatterModeEnabled,
+    frontmatterMermaidCode,
+    mermaidFocusCode,
+    mermaidFrontmatterConfig,
+    setActiveMediaKey,
+    setMermaidFocus,
+  ])
 
   const isStandaloneLinkParagraph = (token: TokenWithLines): string | null => {
     const p = token as unknown as TokensParagraph
@@ -309,7 +333,7 @@ export default function PreviewPanelView() {
     [activeMediaKey, mediaItems],
   )
 
-  const activeMedia = hasMermaidFocus ? null : activeMediaFromKey || mediaItems[0] || null
+  const activeMedia = hasMermaidFocus || frontmatterModeEnabled ? null : activeMediaFromKey || mediaItems[0] || null
 
   const handleSelectMedia = (item: MediaItem) => {
     if (item.kind === 'mermaid') {

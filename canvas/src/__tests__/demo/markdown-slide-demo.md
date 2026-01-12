@@ -9,6 +9,31 @@ transition: slide-left
 layout: cover
 aspectRatio: '16/9'
 lang: en-US
+mermaid: |
+  graph LR
+    subgraph L0["L0: BUSINESS OUTCOMES"]
+      L0A[Grow Revenue]
+      L0B[Reduce Risk]
+      L0A --> L0B
+    end
+    subgraph L1["L1: PIPELINE"]
+      L1A[Ingest]
+      L1B[Profile]
+      L1C[Train]
+      L1D[Deploy]
+      L1A --> L1B
+      L1B --> L1C
+      L1C --> L1D
+    end
+    subgraph L2["L2: OPERATIONS"]
+      L2A[Monitor]
+      L2B[Alert]
+      L2C[Iterate]
+      L2A --> L2B
+      L2B --> L2C
+    end
+    L0B --> L1A
+    L1D --> L2A
 ---
 
 # Knowgrph Markdown Slide Demo
@@ -28,6 +53,10 @@ This deck mirrors the styling capabilities described in the *Markdown Slide Styl
 **Highlight:** <mark>highlighted text</mark>  
 **Strikethrough:** ~~deprecated~~  
 **Inline code:** `code-span`
+
+Inline hover text (native tooltip):
+
+Hover over this term: <abbr title="Interactive markdown and graph viewer">Knowgrph Canvas</abbr>
 
 Custom span for framework utility classes:
 
@@ -193,6 +222,16 @@ $$
 0 & 1
 \end{bmatrix}
 $$
+
+Backslash delimiters:
+
+Inline: The same equation written as \(E = mc^2\).
+
+Display:
+
+\[
+\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
+\]
 
 ---
 
@@ -484,4 +523,3 @@ You can now:
 - Step through fragments, clicks, and animations
 
 This deck is designed as a compact, production‑ready demo of Knowgrph’s markdown slide rendering capabilities.
-

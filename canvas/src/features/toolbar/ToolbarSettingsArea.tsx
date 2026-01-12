@@ -1,6 +1,7 @@
 import React from 'react'
 import { EXPORT_UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { uiPrimaryIconActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 
 interface ToolbarSettingsAreaProps {
   onExportSettingsJsonLd: () => void
@@ -28,7 +29,7 @@ export function ToolbarSettingsArea({
             type="checkbox"
             checked={renderMediaAsNodes}
             onChange={e => setRenderMediaAsNodes(e.target.checked)}
-            className="w-3 h-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className={`w-3 h-3 rounded border-gray-300 ${uiPrimaryIconActiveClassName} focus:ring-blue-500`}
           />
           Render Media as Nodes
         </label>

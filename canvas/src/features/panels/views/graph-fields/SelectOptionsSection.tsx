@@ -4,6 +4,7 @@ import { normalizeSelectOptionsAndDefaultValue } from '@/features/graph-fields/g
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
+import { reorderList } from '@/lib/reorder'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
 
 function buildOptionSwatchStyle(value: string): React.CSSProperties {
@@ -99,9 +100,7 @@ export function SelectOptionsSection({
               const fromIndex = Number(raw)
               if (!Number.isFinite(fromIndex)) return
               if (fromIndex === idx) return
-              const next = [...selectedSettings.selectOptions]
-              const [moved] = next.splice(fromIndex, 1)
-              next.splice(idx, 0, moved)
+              const next = reorderList(selectedSettings.selectOptions, fromIndex, idx)
               setSelectedSelectOptions(next)
               setDraggingSelectOptionIndex(null)
             }}

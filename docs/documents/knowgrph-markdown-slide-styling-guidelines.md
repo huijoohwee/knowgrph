@@ -186,18 +186,18 @@ const editable = true;
 
 ---
 
-## Math: LaTeX (structural only today)
+## Math: LaTeX (fully supported in Knowgrph viewer)
 
-**Inline:** `$E = mc^2$` renders inline equation
+**Inline:** `$E = mc^2$` or `\\(E = mc^2\\)` render inline equations via KaTeX
 
-**Block:**
+**Block (display):** `$$...$$` or `\\[...\\]` render display equations
 ```markdown
 $$
 \int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
 $$
 ```
 
-**Matrix:**
+**Matrix (display):**
 ```markdown
 $$
 \begin{bmatrix}
@@ -258,6 +258,31 @@ $$
 ***
 ___
 ```
+
+---
+
+## Slide Separation and Reordering in Knowgrph
+
+```markdown
+# Slide 1
+---
+# Slide 2
+```
+
+**Semantics in Knowgrph:**
+- Top-of-document YAML frontmatter is treated as metadata and is not split into a slide by horizontal rules.
+- `---` lines outside YAML frontmatter and outside fenced code blocks are treated as slide separators in the Knowgrph markdown viewer and fullscreen slide gallery.
+- `---` that appear inside fenced code blocks or inside YAML frontmatter are treated as literal content, not slide breaks.
+
+**Reordering behavior:**
+- The fullscreen Markdown slide gallery sidebar exposes drag-to-reorder thumbnails; the resulting slide index order is applied to the underlying markdown source so that the Bottom Panel editor, viewer, and on-disk file share a single authoritative slide order.
+- Reordering operates on slide-sized chunks, preserving per-slide YAML frontmatter blocks, notes, and fenced code blocks (including those that contain `---`), so content is moved as intact units rather than being rewritten piecemeal.
+
+**Fullscreen frame, zoom, and scroll semantics in Knowgrph:**
+- The fullscreen slide gallery renders each slide inside a static frame; the frame border, corner radius, and drop shadow do not zoom.
+- The slide content inside the frame can be zoomed and panned for detail inspection, while the frame stays fixed.
+- Mouse wheel or trackpad scroll **inside the frame** scrolls the slide content; it does not trigger zoom.
+- Zoom gestures are modifier-based: holding `Ctrl` (or `Cmd` on macOS) while scrolling zooms; plain scroll without modifiers only scrolls.
 
 ---
 
@@ -840,4 +865,3 @@ extends: ./base.md
 
 **45 slides** • **Universal syntax** • **Zero duplication** • **Production-ready**
 ```
-

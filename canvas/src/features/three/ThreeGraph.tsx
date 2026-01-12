@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { deriveGraphDataForLayers } from '@/lib/graph/layerDerivation'
+import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 
@@ -20,13 +20,24 @@ const ControlsLazy = React.lazy(() =>
 )
 
 export default function ThreeGraph() {
-  const { graphData: data, schema, selectNode, selectEdge, setSelectionSource } = useGraphStore()
+  const {
+    graphData: data,
+    schema,
+    selectNode,
+    selectEdge,
+    setSelectionSource,
+    frontmatterModeEnabled,
+    markdownDocumentName,
+  } = useGraphStore()
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const glCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const graph = data as GraphData | null
   const s = schema as GraphSchema | null
   const effectiveSchema = s || { nodeStyles: {}, edgeStyles: {}, rules: [] }
-  const renderGraph = deriveGraphDataForLayers(graph, effectiveSchema as GraphSchema)
+  const docName = typeof markdownDocumentName === 'string' ? markdownDocumentName.trim() || null : null
+  const frontmatterOnly = !!frontmatterModeEnabled
+  const scopedGraph = frontmatterOnly ? filterGraphToFrontmatterMermaid(graph, docName) : graph
+  const renderGraph = deriveGraphDataForLayers(scopedGraph as GraphData | null, effectiveSchema as GraphSchema)
   const hasGraph = !!(renderGraph && Array.isArray(renderGraph.nodes) && Array.isArray(renderGraph.edges))
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(hasGraph ? renderGraph!.nodes : [], hasGraph ? (effectiveSchema as GraphSchema) : null)

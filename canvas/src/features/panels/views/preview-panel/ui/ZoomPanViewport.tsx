@@ -28,6 +28,10 @@ type ZoomPanViewportProps = {
   frameAspectRatio?: number | null
   framePaddingPx?: number
   wheelZoomSpeed?: number
+  showControls?: boolean
+  showZoomIndicator?: boolean
+  frameClassName?: string
+  disablePan?: boolean
 }
 
 export default function ZoomPanViewport({
@@ -39,6 +43,10 @@ export default function ZoomPanViewport({
   frameAspectRatio = 16 / 9,
   framePaddingPx = 16,
   wheelZoomSpeed = 0.002,
+  showControls = true,
+  showZoomIndicator = false,
+  frameClassName,
+  disablePan = false,
 }: ZoomPanViewportProps) {
   const viewportRef = React.useRef<HTMLDivElement | null>(null)
   const frameRef = React.useRef<HTMLDivElement | null>(null)
@@ -137,62 +145,56 @@ export default function ZoomPanViewport({
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="shrink-0 h-10 px-3 flex items-center justify-end gap-2 border-b border-gray-200 text-xs text-gray-700">
-        <button
-          type="button"
-          className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
-          onClick={() => scheduleApply({ zoom: clampZoom(zoomRef.current / 1.15), pan: panRef.current })}
-        >
-          -
-        </button>
-        <button
-          type="button"
-          className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
-          onClick={() => scheduleApply({ zoom: clampZoom(zoomRef.current * 1.15), pan: panRef.current })}
-        >
-          +
-        </button>
-        <button
-          type="button"
-          className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
-          onClick={() => {
-            scheduleApply({ zoom: 1, pan: { x: 0, y: 0 } })
-          }}
-        >
-          100%
-        </button>
-        <button
-          type="button"
-          className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
-          onClick={fitToViewport}
-        >
-          Fit
-        </button>
-      </div>
+      {showControls ? (
+        <div className="shrink-0 h-10 px-3 flex items-center justify-end gap-2 border-b border-gray-200 text-xs text-gray-700">
+          <button
+            type="button"
+            className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            onClick={() => scheduleApply({ zoom: clampZoom(zoomRef.current / 1.15), pan: panRef.current })}
+          >
+            -
+          </button>
+          <button
+            type="button"
+            className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            onClick={() => scheduleApply({ zoom: clampZoom(zoomRef.current * 1.15), pan: panRef.current })}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            onClick={() => {
+              scheduleApply({ zoom: 1, pan: { x: 0, y: 0 } })
+            }}
+          >
+            100%
+          </button>
+          <button
+            type="button"
+            className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            onClick={fitToViewport}
+          >
+            Fit
+          </button>
+        </div>
+      ) : null}
       <div
         ref={viewportRef}
         className="flex-1 min-h-0 bg-white overflow-hidden"
         onWheel={(e) => {
+          const isModifierZoom = e.ctrlKey || e.metaKey
+          if (!isModifierZoom) return
           e.preventDefault()
-          const frame = frameRef.current
-          if (!frame) return
-          const rect = frame.getBoundingClientRect()
-          const px = e.clientX - rect.left
-          const py = e.clientY - rect.top
           const prevZoom = zoomRef.current
           const prevPan = panRef.current
           const rawFactor = Math.exp(-e.deltaY * wheelZoomSpeed)
           const nextZoom = clampZoom(prevZoom * rawFactor)
           if (nextZoom === prevZoom) return
-          const cx = rect.width / 2
-          const cy = rect.height / 2
-          const x = (px - cx - prevPan.x) / prevZoom
-          const y = (py - cy - prevPan.y) / prevZoom
-          const nextX = (px - cx) - x * nextZoom
-          const nextY = (py - cy) - y * nextZoom
-          scheduleApply({ zoom: nextZoom, pan: { x: nextX, y: nextY } })
+          scheduleApply({ zoom: nextZoom, pan: prevPan })
         }}
         onPointerDown={(e) => {
+          if (disablePan) return
           try {
             e.currentTarget.setPointerCapture(e.pointerId)
           } catch {
@@ -202,6 +204,7 @@ export default function ZoomPanViewport({
           dragRef.current = { active: true, startX: e.clientX, startY: e.clientY, baseX: prevPan.x, baseY: prevPan.y }
         }}
         onPointerMove={(e) => {
+          if (disablePan) return
           const st = dragRef.current
           if (!st || !st.active) return
           const dx = e.clientX - st.startX
@@ -209,6 +212,7 @@ export default function ZoomPanViewport({
           scheduleApply({ zoom: zoomRef.current, pan: { x: st.baseX + dx, y: st.baseY + dy } })
         }}
         onPointerUp={(e) => {
+          if (disablePan) return
           try {
             e.currentTarget.releasePointerCapture(e.pointerId)
           } catch {
@@ -221,7 +225,7 @@ export default function ZoomPanViewport({
           <div style={{ padding: `${frameSize.pad}px` }}>
             <div
               ref={frameRef}
-              className="overflow-hidden"
+              className={['relative overflow-hidden', frameClassName || ''].filter(Boolean).join(' ')}
               style={{
                 width: `${Math.max(1, frameSize.w)}px`,
                 height: `${Math.max(1, frameSize.h)}px`,
@@ -231,7 +235,7 @@ export default function ZoomPanViewport({
               <div className="w-full h-full flex items-center justify-center">
                 <div
                   style={{
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transform: `translate(${disablePan ? 0 : pan.x}px, ${disablePan ? 0 : pan.y}px) scale(${zoom})`,
                     transformOrigin: 'center center',
                     willChange: 'transform',
                   }}
@@ -239,6 +243,11 @@ export default function ZoomPanViewport({
                   {children}
                 </div>
               </div>
+              {showZoomIndicator ? (
+                <div className="absolute right-2 bottom-2 rounded bg-black/60 text-white text-[11px] px-1.5 py-0.5 pointer-events-none">
+                  {`${Math.round(zoom * 100)}%`}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -246,4 +255,3 @@ export default function ZoomPanViewport({
     </div>
   )
 }
-

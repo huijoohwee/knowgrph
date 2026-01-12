@@ -154,6 +154,10 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const nodeById = new Map<string, Record<string, unknown>>()
   const nodes: Record<string, unknown>[] = []
   const mermaidNodeIdsByName = new Map<string, string>()
+  let mermaidTidyTreeLayout: {
+    orientation?: 'vertical' | 'horizontal'
+    direction?: 'source-target' | 'target-source'
+  } | null = null
 
   const ensureNode = (node: Record<string, unknown>): void => {
     const id = String(node['@id'] || '')
@@ -215,6 +219,38 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     let currentSubgraphName: string | null = null
     let currentSubgraphId: string | null = null
 
+    if (!mermaidTidyTreeLayout) {
+      for (let i = 0; i < lines.length; i += 1) {
+        const rawLine = lines[i] ?? ''
+        const trimmed = rawLine.trim()
+        if (!trimmed) continue
+        const m = /^graph\s+(TD|LR|BT|RL)\b/i.exec(trimmed)
+        if (!m) continue
+        const dirToken = String(m[1] || '').toUpperCase()
+        const next: {
+          orientation?: 'vertical' | 'horizontal'
+          direction?: 'source-target' | 'target-source'
+        } = {}
+        if (dirToken === 'TD') {
+          next.orientation = 'vertical'
+          next.direction = 'source-target'
+        } else if (dirToken === 'BT') {
+          next.orientation = 'vertical'
+          next.direction = 'target-source'
+        } else if (dirToken === 'LR') {
+          next.orientation = 'horizontal'
+          next.direction = 'source-target'
+        } else if (dirToken === 'RL') {
+          next.orientation = 'horizontal'
+          next.direction = 'target-source'
+        }
+        if (next.orientation || next.direction) {
+          mermaidTidyTreeLayout = next
+        }
+        break
+      }
+    }
+
     const ensureSubgraph = (rawName: string, rawLabel: string | null): string => {
       const name = String(rawName || '').trim()
       if (!name) return ''
@@ -269,6 +305,15 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
           return idx > 0 ? idx : null
         })()
 
+        const layerIndexFromPhaseWord = (() => {
+          const m = /^Phase(\d+)$/.exec(currentSubgraphName as string)
+          if (!m) return null
+          const raw = Number(m[1] || '')
+          if (!Number.isFinite(raw)) return null
+          const idx = raw + 1
+          return idx > 0 ? idx : null
+        })()
+
         const layerIndexFromSpecial = (() => {
           if (currentSubgraphName === 'CROSS') return 10
           if (currentSubgraphName === 'INTERVIEW') return 11
@@ -280,6 +325,8 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
             ? layerIndexFromL
             : layerIndexFromPhase != null
             ? layerIndexFromPhase
+            : layerIndexFromPhaseWord != null
+            ? layerIndexFromPhaseWord
             : layerIndexFromSpecial
 
         if (layerIndex != null) {
@@ -716,21 +763,108 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     next: { '@id': 'kg:next', '@type': '@id' },
   }
 
+  const hasMermaid = !!mermaidCode
+
+  const tidyTreeMeta: {
+    edgeLabels?: string[]
+    direction?: 'source-target' | 'target-source'
+    orientation?: 'vertical' | 'horizontal'
+    separation?: number
+    mermaidDensity?: {
+      statementCount: number
+      density: 'none' | 'sparse' | 'medium' | 'dense'
+      anchorsOnly: boolean
+      config: {
+        sparseMaxStatements: number
+        denseMaxStatements: number
+        anchorsOnly: { sparse: number; medium: number; dense: number }
+        defaultDiagram: { sparse: number; medium: number; dense: number }
+      }
+    }
+  } = {}
+
+  const mermaidDensityConfig = {
+    sparseMaxStatements: 30,
+    denseMaxStatements: 100,
+    anchorsOnly: { sparse: 1.5, medium: 1.8, dense: 2.1 },
+    defaultDiagram: { sparse: 1.3, medium: 1.6, dense: 1.9 },
+  }
+
+  const computeMermaidTidyTreeSeparation = (
+    code: string,
+    anchorsOnly: boolean,
+  ): { separation: number; statementCount: number; density: 'none' | 'sparse' | 'medium' | 'dense' } => {
+    const lines = String(code || '')
+      .split('\n')
+      .map(l => l.trim())
+    let statementCount = 0
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i] || ''
+      if (!line) continue
+      if (line.startsWith('%%')) continue
+      if (line.startsWith('graph ')) continue
+      if (line.startsWith('subgraph ')) continue
+      if (line === 'end') continue
+      statementCount += 1
+    }
+    if (statementCount <= 0) {
+      const base = anchorsOnly ? mermaidDensityConfig.anchorsOnly.sparse : mermaidDensityConfig.defaultDiagram.sparse
+      return { separation: base, statementCount, density: 'none' }
+    }
+    const cfgBucket = anchorsOnly ? mermaidDensityConfig.anchorsOnly : mermaidDensityConfig.defaultDiagram
+    let density: 'sparse' | 'medium' | 'dense'
+    if (statementCount <= mermaidDensityConfig.sparseMaxStatements) {
+      density = 'sparse'
+    } else if (statementCount <= mermaidDensityConfig.denseMaxStatements) {
+      density = 'medium'
+    } else {
+      density = 'dense'
+    }
+    const sep =
+      density === 'sparse'
+        ? cfgBucket.sparse
+        : density === 'medium'
+        ? cfgBucket.medium
+        : cfgBucket.dense
+    const separation = Number.isFinite(sep) && sep > 0 ? sep : cfgBucket.sparse
+    return { separation, statementCount, density }
+  }
+
+  if (hasMermaid) {
+    tidyTreeMeta.edgeLabels = ['pointsTo']
+    if (mermaidTidyTreeLayout?.orientation) {
+      tidyTreeMeta.orientation = mermaidTidyTreeLayout.orientation
+    } else {
+      tidyTreeMeta.orientation = 'horizontal'
+    }
+    if (mermaidTidyTreeLayout?.direction) {
+      tidyTreeMeta.direction = mermaidTidyTreeLayout.direction
+    }
+    const density = computeMermaidTidyTreeSeparation(mermaidCode, mermaidAnchorsOnly)
+    tidyTreeMeta.separation = density.separation
+    tidyTreeMeta.mermaidDensity = {
+      statementCount: density.statementCount,
+      density: density.density,
+      anchorsOnly: mermaidAnchorsOnly,
+      config: mermaidDensityConfig,
+    }
+  } else {
+    tidyTreeMeta.edgeLabels = [
+      'hasSection',
+      'hasBlock',
+      'hasItem',
+      'hasMermaid',
+      'hasMermaidNode',
+      'hasAnchor',
+      'hasInternalLink',
+    ]
+  }
+
   const metadata = {
     graphId: gid,
     generatedAt: nowIso,
     layoutMode: 'tidy-tree',
-    tidyTree: {
-      edgeLabels: [
-        'hasSection',
-        'hasBlock',
-        'hasItem',
-        'hasMermaid',
-        'hasMermaidNode',
-        'hasAnchor',
-        'hasInternalLink',
-      ],
-    },
+    tidyTree: tidyTreeMeta,
     suggestedTraversalEdges: [
       'hasSection',
       'hasBlock',
@@ -748,4 +882,3 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   return { '@context': ctx, '@graph': nodes, metadata }
 }
-

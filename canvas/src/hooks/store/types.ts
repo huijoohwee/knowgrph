@@ -140,6 +140,7 @@ export interface GraphState {
   launchSpotlightMode: 'tour' | 'stats';
   enableLaunchSpotlight: boolean;
   statusPanelPinned: boolean;
+  frontmatterModeEnabled: boolean;
   schemaDeriveCacheCapacity: number;
   graphFieldSettingsById: GraphFieldSettingsById;
   selectedGraphFieldId: GraphFieldId | null;
@@ -200,6 +201,7 @@ export interface GraphState {
   setLaunchSpotlightMode: (mode: 'tour' | 'stats') => void;
   setEnableLaunchSpotlight: (v: boolean) => void;
   setStatusPanelPinned: (v: boolean) => void;
+  setFrontmatterModeEnabled: (enabled: boolean) => void;
   setSchemaDeriveCacheCapacity: (n: number) => void;
   setGraphFieldSettingsById: (next: GraphFieldSettingsById) => void;
   setSelectedGraphFieldId: (id: GraphFieldId | null) => void;

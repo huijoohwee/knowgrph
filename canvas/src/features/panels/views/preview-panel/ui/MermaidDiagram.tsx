@@ -109,9 +109,18 @@ export function MermaidDiagram({
     setSvg('')
     void (async () => {
       try {
+        const trimmedCode = String(code || '').trim()
+        if (!trimmedCode) {
+          setError('Mermaid diagram code is empty')
+          return
+        }
+        if (/^<\s*(svg|div|span)\b/i.test(trimmedCode)) {
+          setError('Mermaid diagram code is not a Mermaid definition')
+          return
+        }
         const mermaid = await initMermaid(config)
         if (cancelled) return
-        const out = await mermaid.render(`m_${id}`, String(code || ''))
+        const out = await mermaid.render(`m_${id}`, trimmedCode)
         if (cancelled) return
         const nextSvg = String(out.svg || '')
         host.innerHTML = nextSvg

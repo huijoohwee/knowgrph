@@ -333,24 +333,24 @@ export const RENDERER_PALETTE_LIFECYCLE_TOOLTIP = buildRoleActionOutcomeTooltip(
 });
 
 export const RENDERER_TIDY_TREE_CURVE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer tidy-tree curve',
+  role: 'Renderer tidy-tree Dagre curve',
   actions: [
-    'set graph.layout.tidyTree.curve style',
+    'set graph.layout.tidyTree.curve style for Dagre layout',
     'choose bump, linear, or step link shapes',
   ],
-  outcome: 'improve tidy-tree readability in dense hierarchies',
+  outcome: 'improve Dagre tidy-tree readability in dense hierarchies',
 });
 
 export const RENDERER_TIDY_TREE_CURVE_VALUE_TOOLTIP =
   'Default: bump; Options: bump, linear, step; Changes tidy-tree link shape.';
 
 export const RENDERER_TIDY_TREE_ORIENTATION_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer tidy-tree orientation',
+  role: 'Renderer tidy-tree Dagre orientation',
   actions: [
     'set graph.layout.tidyTree.orientation axis',
-    'render tidy-tree horizontal or vertical',
+    'render Dagre tidy-tree horizontal or vertical',
   ],
-  outcome: 'fit tree layouts to panel and screen space',
+  outcome: 'fit Dagre tree layouts to panel and screen space',
 });
 
 export const RENDERER_TIDY_TREE_ORIENTATION_VALUE_TOOLTIP =

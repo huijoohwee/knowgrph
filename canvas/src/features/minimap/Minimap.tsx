@@ -2,7 +2,7 @@ import React from 'react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import type { GraphNode, GraphEdge } from '@/lib/graph/types';
 import type { GraphState } from '@/hooks/useGraphStore';
-import { getRendererPalette } from '@/lib/graph/schema';
+import { getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
 import { computeViewRect, computeGraphBounds, computeTransformFromViewTopLeft, computeTransformFromCenter, ZOOM_MIN, ZOOM_MAX, MINIMAP_WIDTH, MINIMAP_HEIGHT } from '@/features/minimap/math';
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer';
 
@@ -42,6 +42,9 @@ function Minimap() {
   const schema = useGraphStore(s => s.schema);
   const threeCfg = (schema?.three || {});
   const palette = getRendererPalette(schema || null);
+  const highlightColor = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
+    ? palette.nodes.idea
+    : MVP_COLOR_PALETTE.nodes.idea;
   const minimapOpacity = typeof threeCfg.minimapOpacity === 'number' ? Math.max(0.2, Math.min(1, threeCfg.minimapOpacity)) : 0.7;
   const nodes = React.useMemo(
     () => (Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []),
@@ -350,13 +353,13 @@ function Minimap() {
           <path d={nodesPathD} fill="#334155" stroke="none" pointerEvents="none" />
         )}
         {selEdgesPathD && (
-          <path d={selEdgesPathD} stroke="#3B82F6" strokeWidth={1.5} strokeOpacity={0.9} fill="none" pointerEvents="none" shapeRendering="crispEdges" />
+          <path d={selEdgesPathD} stroke={highlightColor} strokeWidth={1.5} strokeOpacity={0.9} fill="none" pointerEvents="none" shapeRendering="crispEdges" />
         )}
         {nbrNodesPathD && (
           <path d={nbrNodesPathD} fill={palette.nodes.execution} stroke="none" pointerEvents="none" />
         )}
         {selNodesPathD && (
-          <path d={selNodesPathD} fill="#3B82F6" stroke="none" pointerEvents="none" />
+          <path d={selNodesPathD} fill={highlightColor} stroke="none" pointerEvents="none" />
         )}
         <rect
           x={viewRect.x}
@@ -364,7 +367,7 @@ function Minimap() {
           width={viewRect.w}
           height={viewRect.h}
           fill="none"
-          stroke="#3B82F6"
+          stroke={highlightColor}
           strokeWidth={1}
           style={{ cursor: dragRef.current ? 'grabbing' : (hoverCenter ? 'grab' : 'auto'), touchAction: 'none' }}
           onPointerDown={onRectPointerDown}
@@ -387,8 +390,8 @@ function Minimap() {
         />
         {hoverCenter && (
           <g transform={`translate(${viewRect.x + viewRect.w / 2}, ${viewRect.y + viewRect.h / 2})`}>
-            <line x1={-6} y1={0} x2={6} y2={0} stroke="#3B82F6" strokeWidth={1} />
-            <line x1={0} y1={-6} x2={0} y2={6} stroke="#3B82F6" strokeWidth={1} />
+            <line x1={-6} y1={0} x2={6} y2={0} stroke={highlightColor} strokeWidth={1} />
+            <line x1={0} y1={-6} x2={0} y2={6} stroke={highlightColor} strokeWidth={1} />
           </g>
         )}
       </svg>

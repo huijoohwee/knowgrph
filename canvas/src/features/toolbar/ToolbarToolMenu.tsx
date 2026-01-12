@@ -10,6 +10,7 @@ import { ToolbarToolMenuAreas } from '@/features/toolbar/ToolbarToolMenuAreas'
 import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import {
   LS_KEYS,
   UI_LABELS,
@@ -19,6 +20,12 @@ import { lsBool, lsSetBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import GraphLayerView from '@/features/panels/views/GraphLayerView'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
+import {
+  type MermaidInitConfig,
+  useRootThemeMode,
+} from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 
 interface ToolbarToolMenuProps {
   dataLoadOk: boolean | null
@@ -92,7 +99,7 @@ interface ToolbarToolMenuProps {
   toolMenuCardRef: React.RefObject<HTMLDivElement>
   toolMenuCardStyle: React.CSSProperties
   onHeaderPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
-  requestedFloatingPanelView?: 'workspaceActions' | 'propsPanel' | 'graphLayer' | 'renderer' | 'graphTraversal'
+  requestedFloatingPanelView?: 'workspaceActions' | 'propsPanel' | 'graphLayer' | 'renderer' | 'graphTraversal' | 'mermaidFocus'
   requestedFloatingPanelViewSeq?: number
   onOpenData: () => void
   onRunPipeline: () => void
@@ -106,7 +113,174 @@ interface ToolbarToolMenuProps {
   onOpenWorkflowTab: () => void
 }
 
-type FloatingPanelView = 'workspaceActions' | 'propsPanel' | 'graphLayer' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'workspaceActions' | 'propsPanel' | 'graphLayer' | 'renderer' | 'graphTraversal' | 'mermaidFocus'
+
+const extractMermaidSubgraphCode = (code: string, subgraphName: string): string => {
+  const text = String(code || '')
+  if (!text) return ''
+  const lines = text.split('\n')
+  if (lines.length === 0) return ''
+
+  let graphLine: string | null = null
+  for (let i = 0; i < lines.length; i += 1) {
+    const trimmed = lines[i].trim()
+    if (!trimmed) continue
+    if (trimmed.startsWith('graph ')) {
+      graphLine = lines[i]
+      break
+    }
+  }
+  if (!graphLine) return text
+
+  const name = String(subgraphName || '').trim()
+  if (!name) return text
+
+  const startRe = new RegExp(`^\\s*subgraph\\s+${name}\\b`)
+
+  const body: string[] = []
+  let inTarget = false
+  let depth = 0
+  let targetDepth = 0
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    if (trimmed.startsWith('graph ')) continue
+
+    if (/^\s*subgraph\b/.test(trimmed)) {
+      const isTarget = startRe.test(trimmed)
+      if (isTarget && !inTarget) {
+        inTarget = true
+        depth += 1
+        targetDepth = depth
+        body.push(line)
+      } else {
+        depth += 1
+        if (inTarget) body.push(line)
+      }
+      continue
+    }
+
+    if (trimmed === 'end') {
+      if (inTarget) {
+        body.push(line)
+        depth -= 1
+        if (depth < targetDepth) {
+          break
+        }
+      } else if (depth > 0) {
+        depth -= 1
+      }
+      continue
+    }
+
+    if (inTarget) body.push(line)
+  }
+
+  if (!inTarget || body.length === 0) return text
+  const out: string[] = []
+  out.push(graphLine)
+  for (let i = 0; i < body.length; i += 1) out.push(body[i])
+  return out.join('\n')
+}
+
+const resolveMermaidDiagramFromGraph = (graphData: GraphData | null): { code: string } | null => {
+  if (!graphData || !Array.isArray(graphData.nodes)) return null
+  for (let i = 0; i < graphData.nodes.length; i += 1) {
+    const node = graphData.nodes[i] as GraphNode
+    const type = String(node.type || '')
+    if (type !== 'MermaidDiagram') continue
+    const props = (node.properties || {}) as Record<string, unknown> | undefined
+    if (!props) continue
+    const rawCode = props.code
+    const code = typeof rawCode === 'string' ? rawCode.trim() : ''
+    if (!code) continue
+    return { code }
+  }
+  return null
+}
+
+function MermaidFocusPanel() {
+  const graphData = useGraphStore(s => s.graphData as GraphData | null)
+  const schema = useGraphStore(s => s.schema)
+  const selectedNodeId = useGraphStore(s => s.selectedNodeId || null)
+  const mermaidFocusCode = useGraphStore(s => s.markdownPreviewMermaidFocusCode || '')
+  const mermaidFocusConfig = useGraphStore(s => s.markdownPreviewMermaidFocusConfig || null)
+  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
+  const uiPanelTextFontClass = useGraphStore(
+    s => s.uiPanelTextFontClass || 'font-sans',
+  )
+  const rootThemeMode = useRootThemeMode()
+  const [overlayPortalTarget, setOverlayPortalTarget] = React.useState<HTMLDivElement | null>(null)
+  const setOverlayPortalRef = React.useCallback((el: HTMLDivElement | null) => {
+    setOverlayPortalTarget(prev => (prev === el ? prev : el))
+  }, [])
+
+  const fallback = React.useMemo(() => resolveMermaidDiagramFromGraph(graphData), [graphData])
+  const baseCode = React.useMemo(() => {
+    const fromFocus = String(mermaidFocusCode || '').trim()
+    if (!frontmatterModeEnabled && fromFocus) return fromFocus
+    const fromGraph = fallback?.code ? String(fallback.code || '').trim() : ''
+    if (fromGraph) return fromGraph
+    return fromFocus
+  }, [fallback, mermaidFocusCode, frontmatterModeEnabled])
+
+  const selectedSubgraphName = React.useMemo(() => {
+    const id = selectedNodeId ? String(selectedNodeId) : ''
+    if (!graphData || !id) return ''
+    const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i] as GraphNode
+      if (String(n.id) !== id) continue
+      const type = String(n.type || '')
+      if (type !== 'MermaidNode') return ''
+      const props = (n.properties || {}) as Record<string, unknown>
+      const rawName = props.mermaidSubgraphName
+      const name = typeof rawName === 'string' ? rawName.trim() : ''
+      return name
+    }
+    return ''
+  }, [graphData, selectedNodeId])
+
+  const effectiveCode = React.useMemo(() => {
+    const raw = baseCode
+    if (!raw) return ''
+    const mode = schema?.layout?.mode || 'force'
+    if (mode !== 'tidy-tree') return raw
+    if (!selectedSubgraphName) return raw
+    return extractMermaidSubgraphCode(raw, selectedSubgraphName)
+  }, [baseCode, schema, selectedSubgraphName])
+
+  if (!effectiveCode) {
+    return (
+      <div ref={setOverlayPortalRef} className="h-full min-h-0 flex items-center justify-center px-3">
+        <div className={['text-xs text-gray-600 text-center', uiPanelTextFontClass].join(' ')}>
+          No Mermaid diagram is available for the current graph.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div ref={setOverlayPortalRef} className="h-full min-h-0 flex flex-col overflow-hidden relative">
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="aspect-video w-full max-w-4xl">
+          <div className="w-full h-full overflow-auto">
+            <MermaidDiagram
+              code={effectiveCode}
+              highlightClass=""
+              frontmatterConfig={mermaidFocusConfig as MermaidInitConfig | null}
+              rootThemeMode={rootThemeMode}
+              overlayScope="container"
+              overlayPortalTarget={overlayPortalTarget}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function ToolbarToolMenu({
   dataLoadOk,
@@ -284,7 +458,9 @@ export function ToolbarToolMenu({
       <IconButton
         title={UI_LABELS.workspaceActions}
         onClick={() => handleSelectView('workspaceActions')}
-        className={`App-toolbar__btn ${floatingPanelView === 'workspaceActions' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'workspaceActions' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+        }`}
         showTooltip
       >
         <PanelsTopLeft className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
@@ -292,7 +468,9 @@ export function ToolbarToolMenu({
       <IconButton
         title={UI_LABELS.propsPanel}
         onClick={() => handleSelectView('propsPanel')}
-        className={`App-toolbar__btn ${floatingPanelView === 'propsPanel' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'propsPanel' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+        }`}
         showTooltip
       >
         <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
@@ -300,7 +478,9 @@ export function ToolbarToolMenu({
       <IconButton
         title={UI_LABELS.graphLayersMode}
         onClick={() => handleSelectView('graphLayer')}
-        className={`App-toolbar__btn ${floatingPanelView === 'graphLayer' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'graphLayer' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+        }`}
         showTooltip
       >
         <Shapes className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
@@ -308,7 +488,9 @@ export function ToolbarToolMenu({
       <IconButton
         title={UI_LABELS.renderer}
         onClick={() => handleSelectView('renderer')}
-        className={`App-toolbar__btn ${floatingPanelView === 'renderer' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'renderer' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+        }`}
         showTooltip
       >
         <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
@@ -316,10 +498,22 @@ export function ToolbarToolMenu({
       <IconButton
         title={UI_LABELS.graphTraversal}
         onClick={() => handleSelectView('graphTraversal')}
-        className={`App-toolbar__btn ${floatingPanelView === 'graphTraversal' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'graphTraversal' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+        }`}
         showTooltip
       >
         <GitBranch className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+      <IconButton
+        title={UI_LABELS.mermaidFocus}
+        onClick={() => handleSelectView('mermaidFocus')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'mermaidFocus' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+        }`}
+        showTooltip
+      >
+        <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
     </>
   )
@@ -536,6 +730,9 @@ export function ToolbarToolMenu({
                 tracingCollapsed={orchestratorWorkflowTracingCollapsed}
                 setTracingCollapsed={setOrchestratorWorkflowTracingCollapsed}
               />
+            )}
+            {floatingPanelView === 'mermaidFocus' && (
+              <MermaidFocusPanel />
             )}
           </div>
         </div>

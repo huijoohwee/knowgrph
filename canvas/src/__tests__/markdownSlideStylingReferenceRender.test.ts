@@ -106,9 +106,9 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
 
     await tick()
 
-    const rootEl2 = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    const rootEl2 = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
     if (!rootEl2) {
-      throw new Error('markdown preview root not found in presentation mode')
+      throw new Error('markdown presentation root not found in presentation mode')
     }
 
     const textContent2 = (rootEl2.textContent || '').replace(/\s+/g, ' ').trim()
@@ -135,4 +135,3 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
     restoreWindow()
   }
 }
-

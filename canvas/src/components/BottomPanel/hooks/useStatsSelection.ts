@@ -1,6 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { deriveGraphDataForLayers } from '@/lib/graph/layerDerivation'
+import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
 import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
 import type { GraphData } from '@/lib/graph/types'
@@ -15,10 +15,18 @@ export function useStatsSelection() {
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
+  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
+  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || '')
 
   const derivedGraph = React.useMemo(
-    () => deriveGraphDataForLayers(data as GraphData | null, schema),
-    [data, schema],
+    () => {
+      const base = data as GraphData | null
+      const docName = (markdownDocumentName || '').trim() || null
+      const frontmatterOnly = !!frontmatterModeEnabled
+      const scopedGraph = frontmatterOnly ? filterGraphToFrontmatterMermaid(base, docName) : base
+      return deriveGraphDataForLayers(scopedGraph as GraphData | null, schema)
+    },
+    [data, schema, frontmatterModeEnabled, markdownDocumentName],
   )
 
   const graphLayerSelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)

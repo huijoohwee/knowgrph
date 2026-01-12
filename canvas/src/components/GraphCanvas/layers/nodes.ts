@@ -47,6 +47,7 @@ export const createNodesLayer = (args: {
   updateEdge: (id: string, u: Partial<GraphEdge>) => void;
   setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void;
   requestZoomSelection: () => void;
+  graphLayersVisible: boolean;
 }): {
   nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>;
   mediaSel: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null;
@@ -58,6 +59,7 @@ export const createNodesLayer = (args: {
     schema,
     tidyTreeDerivation,
     hoverEnabled,
+    graphLayersVisible,
     renderMediaAsNodes,
     mediaPanelDensity,
     zoomOnDoubleClick,
@@ -114,9 +116,14 @@ export const createNodesLayer = (args: {
       ? new Set(semanticHiddenTypes)
       : null;
   const nodes = (() => {
-    if (!hiddenTypeSet) return rawNodes;
-    const filtered = rawNodes.filter(n => !hiddenTypeSet.has(String(n.type || '')));
-    return filtered.length > 0 ? filtered : rawNodes;
+    const base = (() => {
+      if (!hiddenTypeSet) return rawNodes;
+      const filtered = rawNodes.filter(n => !hiddenTypeSet.has(String(n.type || '')));
+      return filtered.length > 0 ? filtered : rawNodes;
+    })();
+    if (!graphLayersVisible) return base;
+    const filteredForLayers = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
+    return filteredForLayers.length > 0 ? filteredForLayers : base;
   })();
   const getNodeShape = (n: GraphNode): 'circle' | 'rect' => {
     const fromSchema = schema.nodeShapes?.[String(n.type || '')]

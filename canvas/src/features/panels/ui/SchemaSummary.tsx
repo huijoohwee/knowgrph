@@ -4,6 +4,7 @@ import { getBottomTabLabel } from '@/features/panels/config'
 import { toSchemaImportFileName } from '@/features/schema-editor/utils'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { UI_ANCHORS } from '@/lib/config'
+import { uiPrimaryLinkButtonClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 
 interface SchemaSummaryProps {
   className?: string
@@ -129,7 +130,7 @@ export default function SchemaSummary({
             (e.g.,{' '}
             <button
               type="button"
-              className="underline text-blue-600 hover:text-blue-800 focus:outline-none"
+              className={uiPrimaryLinkButtonClassName}
               onClick={() => {
                 if (onOpenSchemaUiEditor) {
                   onOpenSchemaUiEditor()

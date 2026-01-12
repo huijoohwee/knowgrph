@@ -3,6 +3,11 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import IconButton from '@/components/IconButton'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_SELECTORS } from '@/lib/config'
+import {
+  uiPrimaryPillActiveClassName,
+  uiToolbarToggleActiveClassName,
+  uiPrimaryIconInactiveClassName,
+} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 
 type Tab = { key: string; label: string }
 
@@ -130,7 +135,7 @@ function TabHeaderImpl({
                     title={t.label}
                     onClick={() => onTabChange && onTabChange(t.key)}
                     className={`App-toolbar__btn ${
-                      activeTab === t.key ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                      activeTab === t.key ? uiPrimaryPillActiveClassName : uiPrimaryIconInactiveClassName
                     }`}
                     showTooltip
                   >
@@ -145,7 +150,9 @@ function TabHeaderImpl({
                   type="button"
                   onClick={() => onTabChange && onTabChange(t.key)}
                   className={`App-toolbar__btn text-xs ${
-                    activeTab === t.key ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+                    activeTab === t.key
+                      ? uiToolbarToggleActiveClassName
+                      : 'bg-gray-100 text-gray-700'
                   }`}
                 >
                   {t.label}

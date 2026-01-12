@@ -3,12 +3,17 @@ import type { TokensHeading } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { renderInlineTokens } from './MarkdownInlineRenderer'
 import type { RenderOpts } from './MarkdownRendererTypes'
+import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 
 type MarkdownHeadingBlockProps = {
   token: TokenWithLines
   highlightClass: string
   highlightStyle?: React.CSSProperties
   opts: RenderOpts
+  fragmentsEnabled?: boolean
+  fragmentStep?: number
+  fragmentClassNames?: string[]
+  fragmentTags?: string[]
 }
 
 export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
@@ -16,6 +21,10 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   highlightClass,
   highlightStyle,
   opts,
+  fragmentsEnabled = false,
+  fragmentStep = 0,
+  fragmentClassNames,
+  fragmentTags,
 }: MarkdownHeadingBlockProps) {
   const h = t as unknown as TokensHeading
   const depth = Math.min(6, Math.max(1, h.depth || 1))
@@ -34,47 +43,37 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
       ? 'text-xl'
       : 'text-xs'
   
-  const cls = ['font-semibold mt-5 mb-2', size, opts.uiPanelTextFontClass, highlightClass].filter(Boolean).join(' ')
-  const content = renderInlineTokens(h.tokens, { activeDocumentPath: opts.activeDocumentPath, uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass })
-  
-  if (depth === 1) {
-    return (
-      <h1 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
-        {content}
-      </h1>
-    )
-  }
-  if (depth === 2) {
-    return (
-      <h2 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
-        {content}
-      </h2>
-    )
-  }
-  if (depth === 3) {
-    return (
-      <h3 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
-        {content}
-      </h3>
-    )
-  }
-  if (depth === 4) {
-    return (
-      <h4 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
-        {content}
-      </h4>
-    )
-  }
-  if (depth === 5) {
-    return (
-      <h5 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
-        {content}
-      </h5>
-    )
-  }
+  const cls = ['font-semibold mt-5 mb-2', size, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
+  const content = renderInlineTokens(h.tokens, {
+    activeDocumentPath: opts.activeDocumentPath,
+    uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
+    fragmentOptions:
+      opts.markdownPresentationMode && fragmentsEnabled
+        ? {
+            enabled: true,
+            currentStep: fragmentStep,
+            classNames: fragmentClassNames || [],
+            tags: fragmentTags || [],
+          }
+        : null,
+  })
+  const Tag = (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'][depth - 1] || 'h6') as
+    | 'h1'
+    | 'h2'
+    | 'h3'
+    | 'h4'
+    | 'h5'
+    | 'h6'
   return (
-    <h6 className={cls} style={highlightStyle} data-start-line={startLine} data-end-line={endLine}>
+    <MarkdownBlockContainer
+      as={Tag}
+      className={cls}
+      highlightClass={highlightClass}
+      highlightStyle={highlightStyle}
+      startLine={startLine}
+      endLine={endLine}
+    >
       {content}
-    </h6>
+    </MarkdownBlockContainer>
   )
 })
