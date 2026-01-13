@@ -13,6 +13,7 @@ import {
   getEndpointId,
 } from '@/features/node-editor/utils';
 import { getBadgeChipClass } from '@/lib/ui';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 import { uiPrimaryLinkClassName, uiPrimaryLinkSmallClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 
 export default function NodeEditor() {
@@ -311,11 +312,11 @@ export default function NodeEditor() {
                       />
                     )}
                     <div className="flex-1">
-                      <div className="text-sm text-gray-800">
+                      <div className={`text-sm ${UI_THEME_TOKENS.text.primary}`}>
                         {n.label}{' '}
-                        <span className="text-gray-500">({n.type})</span>
+                        <span className={UI_THEME_TOKENS.text.tertiary}>({n.type})</span>
                       </div>
-                      <div className="text-xs text-gray-500">{n.id}</div>
+                      <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{n.id}</div>
                       {ref && (
                         <a
                           href={ref}

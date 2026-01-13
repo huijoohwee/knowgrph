@@ -2,6 +2,7 @@ import React from 'react'
 import type { LsStorageKey } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { scheduleIdle } from '@/features/panels/utils/idle'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type ContentSize = { w: number; h: number }
 type Pan = { x: number; y: number }
@@ -144,26 +145,26 @@ export default function ZoomPanViewport({
   }, [fitOnOpen, fitToViewport, open])
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className={`w-full h-full flex flex-col ${UI_THEME_TOKENS.panel.bg}`}>
       {showControls ? (
-        <div className="shrink-0 h-10 px-3 flex items-center justify-end gap-2 border-b border-gray-200 text-xs text-gray-700">
+        <div className={`shrink-0 h-10 px-3 flex items-center justify-end gap-2 border-b ${UI_THEME_TOKENS.panel.divider} text-xs ${UI_THEME_TOKENS.text.secondary}`}>
           <button
             type="button"
-            className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={() => scheduleApply({ zoom: clampZoom(zoomRef.current / 1.15), pan: panRef.current })}
           >
             -
           </button>
           <button
             type="button"
-            className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={() => scheduleApply({ zoom: clampZoom(zoomRef.current * 1.15), pan: panRef.current })}
           >
             +
           </button>
           <button
             type="button"
-            className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={() => {
               scheduleApply({ zoom: 1, pan: { x: 0, y: 0 } })
             }}
@@ -172,7 +173,7 @@ export default function ZoomPanViewport({
           </button>
           <button
             type="button"
-            className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={fitToViewport}
           >
             Fit
@@ -181,7 +182,7 @@ export default function ZoomPanViewport({
       ) : null}
       <div
         ref={viewportRef}
-        className="flex-1 min-h-0 bg-white overflow-hidden"
+        className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
         onWheel={(e) => {
           const isModifierZoom = e.ctrlKey || e.metaKey
           if (!isModifierZoom) return

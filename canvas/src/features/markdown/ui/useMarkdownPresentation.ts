@@ -17,6 +17,7 @@ type MarkdownPresentationApiRef = React.MutableRefObject<{
 type MarkdownPresentationSlideState = {
   activeSlideIndex: number
   slideCount: number
+  activeSlideLine: number
 }
 
 type UseMarkdownPresentationArgs = {
@@ -52,6 +53,11 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
     orderedSlideIndices[
       Math.min(Math.max(0, activeSlideIndex), Math.max(0, orderedSlideIndices.length - 1))
     ] ?? 0
+  const slideCount = slides.length
+  const activeSlideLine = React.useMemo(
+    () => slides[activeSlideId]?.startLine || 0,
+    [activeSlideId, slides],
+  )
 
   const slideFragmentConfigs = React.useMemo(() => {
     const headMetaRecord = headMeta as Record<string, unknown>
@@ -209,17 +215,20 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
         Math.max(0, activeSlideIndex),
         Math.max(0, orderedSlideIndices.length - 1),
       ),
-      slideCount: Math.max(0, slides.length),
+      slideCount: Math.max(0, slideCount),
+      activeSlideLine,
     })
   }, [
     activeSlideIndex,
+    activeSlideId,
+    activeSlideLine,
     goNext,
     goPrev,
     markdownPresentationMode,
     onPresentationSlideStateChange,
     presentationApiRef,
     orderedSlideIndices.length,
-    slides.length,
+    slideCount,
   ])
 
   React.useEffect(() => {

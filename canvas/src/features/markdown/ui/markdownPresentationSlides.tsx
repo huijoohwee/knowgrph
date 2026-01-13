@@ -7,6 +7,7 @@ import { lexMarkdownContent, type TokenWithLines } from './markdownPreviewLex'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { MarkdownFragmentConfig } from './markdownPreviewFragments'
 import { parseMermaidConfigFromFrontmatter } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type SlideVisualMeta = {
   slideClass: string
@@ -23,16 +24,15 @@ type SlideVisualMeta = {
   institution: string
 }
 
-const normalizeThemeStyle = (raw: string): string => {
-  const key = String(raw || '').trim().toLowerCase()
-  if (!key) return 'default'
-  if (key === 'neversink') return 'academic'
-  return key
+export const normalizeThemeStyle = (raw: string): 'default' | 'academic' => {
+  const t = raw.trim().toLowerCase()
+  if (t === 'academic') return 'academic'
+  return 'default'
 }
 
 const getThemeBaseSlideClass = (themeStyle: string) => {
   if (themeStyle === 'academic') {
-    return 'bg-white text-slate-900 font-sans tracking-tight'
+    return `${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} tracking-tight`
   }
   return ''
 }
@@ -64,6 +64,7 @@ export const buildBackgroundStyle = (
 export const getSlideVisualMeta = (
   slideMeta: Record<string, unknown>,
   headMetaRecord: Record<string, unknown>,
+  uiPanelTextFontClass: string,
 ): SlideVisualMeta => {
   const slideClassRaw = String(slideMeta.class || headMetaRecord.class || '').trim()
   const layout = String(slideMeta.layout || headMetaRecord.layout || '').trim().toLowerCase()
@@ -82,7 +83,7 @@ export const getSlideVisualMeta = (
   const themeStyle = normalizeThemeStyle(String(slideMeta.theme || headMetaRecord.theme || ''))
   const institution = String(slideMeta.institution || headMetaRecord.institution || '').trim()
   const themeBaseClass = getThemeBaseSlideClass(themeStyle)
-  const slideClass = [themeBaseClass, slideClassRaw].filter(Boolean).join(' ')
+  const slideClass = [themeBaseClass, uiPanelTextFontClass, slideClassRaw].filter(Boolean).join(' ')
 
   return {
     slideClass,
@@ -100,8 +101,13 @@ export const getSlideVisualMeta = (
   }
 }
 
-const buildSlideFooter = (args: { meta: SlideVisualMeta; page: number; total: number }): React.ReactNode => {
-  const { meta, page, total } = args
+const buildSlideFooter = (args: {
+  meta: SlideVisualMeta
+  page: number
+  total: number
+  uiPanelTextFontClass: string
+}): React.ReactNode => {
+  const { meta, page, total, uiPanelTextFontClass } = args
   if (
     !meta.authors.length &&
     !meta.meeting &&
@@ -117,27 +123,29 @@ const buildSlideFooter = (args: { meta: SlideVisualMeta; page: number; total: nu
 
   if (meta.themeStyle === 'academic') {
     return (
-      <div className="absolute bottom-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs bg-white/95 border-t border-slate-100 z-10 font-sans">
+      <div
+        className={`absolute bottom-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
+      >
         <div className="min-w-0 flex items-center gap-4">
           {meta.meeting && (
-            <span className="min-w-0 font-semibold text-slate-900 truncate">
+            <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
               {meta.meeting}
             </span>
           )}
           {meta.authors.length > 0 && (
-            <span className="hidden sm:inline-block min-w-0 text-slate-600 truncate">
+            <span className={`hidden sm:inline-block min-w-0 ${UI_THEME_TOKENS.text.secondary} truncate`}>
               {meta.authors.join(', ')}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 text-slate-600">
+        <div className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
           {(meta.institution || meta.venue) && (
-            <span className="hidden md:inline-block font-medium text-slate-700 truncate max-w-[28rem]">
+            <span className={`hidden md:inline-block font-medium ${UI_THEME_TOKENS.text.primary} truncate max-w-[28rem]`}>
               {[meta.institution, meta.venue].filter(Boolean).join(' · ')}
             </span>
           )}
-          <span className="font-mono text-slate-500 tabular-nums">
-            {page} <span className="mx-1 text-slate-300">/</span> {total}
+          <span className={`font-mono ${UI_THEME_TOKENS.text.tertiary} tabular-nums`}>
+            {page} <span className={`mx-1 ${UI_THEME_TOKENS.text.tertiary}`}>/</span> {total}
           </span>
         </div>
       </div>
@@ -145,11 +153,13 @@ const buildSlideFooter = (args: { meta: SlideVisualMeta; page: number; total: nu
   }
 
   return (
-    <div className="absolute bottom-0 left-0 w-full px-4 py-2 text-[10px] text-gray-500/80 bg-white/90 border-t border-gray-100/50 flex justify-between items-center z-10 font-sans">
+    <div
+      className={`absolute bottom-0 left-0 w-full px-4 py-2 text-[10px] ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.panel.bg} border-t ${UI_THEME_TOKENS.panel.border} flex justify-between items-center z-10 ${uiPanelTextFontClass}`}
+    >
       <div className="flex gap-3">
-        {meta.meeting && <span className="font-medium text-gray-600">{meta.meeting}</span>}
+        {meta.meeting && <span className={`font-medium ${UI_THEME_TOKENS.text.secondary}`}>{meta.meeting}</span>}
         {meta.venue && <span>{meta.venue}</span>}
-        {meta.institution && <span className="font-semibold text-gray-600">{meta.institution}</span>}
+        {meta.institution && <span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>{meta.institution}</span>}
         {meta.date && <span>{meta.date}</span>}
       </div>
       <div className="flex gap-3">
@@ -387,7 +397,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   const slideMeta = (currentSlide.meta || {}) as Record<string, unknown>
   const headMetaRecord = headMeta as Record<string, unknown>
   
-  const visualMeta = getSlideVisualMeta(slideMeta, headMetaRecord)
+  const visualMeta = getSlideVisualMeta(slideMeta, headMetaRecord, uiPanelTextFontClass)
   const { layout } = visualMeta
 
   const slideMermaidConfig = parseMermaidConfigFromFrontmatter(currentSlide.meta || {})
@@ -429,7 +439,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   return (
     <div className="w-full h-full relative pb-14">
       {content}
-      {buildSlideFooter({ meta: visualMeta, page: safeActiveSlideId + 1, total: slides.length })}
+      {buildSlideFooter({ meta: visualMeta, page: safeActiveSlideId + 1, total: slides.length, uiPanelTextFontClass })}
     </div>
   )
 }
@@ -471,7 +481,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     backgroundRaw: backgroundRawPreview,
     backgroundSize: backgroundSizePreview,
     backgroundPosition: backgroundPositionPreview,
-  } = getSlideVisualMeta(slideMeta, headMetaRecord)
+  } = getSlideVisualMeta(slideMeta, headMetaRecord, uiPanelTextFontClass)
   const slideStylePreview = buildBackgroundStyle(
     backgroundRawPreview,
     backgroundSizePreview,

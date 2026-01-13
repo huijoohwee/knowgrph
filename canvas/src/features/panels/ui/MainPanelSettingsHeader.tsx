@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_COLOR_PRIMARY_BLUE_BG,
   uiToolbarToggleActiveClassName,
@@ -67,7 +68,7 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
     <div
       className={
         [
-          'mt-4 border-t border-gray-200 flex items-center justify-between mb-1',
+          `mt-4 border-t ${UI_THEME_TOKENS.panel.divider} flex items-center justify-between mb-1`,
           uiSectionHeaderRowHeightClass,
           uiSectionHeaderRowPaddingClass,
         ].join(' ')
@@ -75,14 +76,14 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
     >
       <div
         className={[
-          'text-left flex items-center gap-1 text-gray-600',
+          `text-left flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`,
           uiPanelMicroLabelTextSizeClass,
         ].join(' ')}
       >
         <Tooltip
           content={SETTINGS_TAB_HEADER_TOOLTIP}
           maxWidthPx={280}
-          contentClassName="bg-gray-800/90"
+          contentClassName={UI_THEME_TOKENS.tooltip.bg}
         >
           <span>Settings</span>
         </Tooltip>
@@ -90,11 +91,11 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
       <div className="flex items-center gap-2">
         <div
           className={[
-            'hidden md:flex items-center gap-1 text-gray-600',
+            `hidden md:flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`,
             uiPanelMicroLabelTextSizeClass,
           ].join(' ')}
         >
-          <span className="uppercase tracking-wide text-[9px] text-gray-500">
+          <span className={`uppercase tracking-wide text-[9px] ${UI_THEME_TOKENS.text.tertiary}`}>
             Icons
           </span>
           <button

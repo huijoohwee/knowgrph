@@ -22,4 +22,6 @@ export type RenderOpts = InlineRenderOpts & {
   rootThemeMode: 'light' | 'dark'
   previewOverlayScope: 'viewport' | 'container'
   previewOverlayPortalTarget?: HTMLElement | null
+  collapsedIds?: Set<string>
+  onToggleCollapse?: (id: string) => void
 }

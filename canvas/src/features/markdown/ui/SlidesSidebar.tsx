@@ -2,6 +2,7 @@ import React from 'react'
 import { LayoutList, LayoutPanelTop } from 'lucide-react'
 import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
 import { UI_COPY } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type SlidesSidebarProps = {
   orderedSlideIndices: number[]
@@ -15,6 +16,7 @@ export type SlidesSidebarProps = {
   onActiveSlideIndexChange: (index: number) => void
   onSlideOrderChange: (nextOrder: number[]) => void
   renderSlidePreview: (slideIdx: number) => React.ReactNode
+  onSlideDoubleClick?: (slideIdx: number) => void
 }
 
 export function SlidesSidebar(props: SlidesSidebarProps) {
@@ -30,13 +32,14 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
     onActiveSlideIndexChange,
     onSlideOrderChange,
     renderSlidePreview,
+    onSlideDoubleClick,
   } = props
 
   const [selectedSlideIds, setSelectedSlideIds] = React.useState<string[]>([])
 
   return (
-    <div className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col">
-      <div className="h-9 border-b border-gray-200 bg-gray-50 px-2 flex items-center justify-between gap-2 shrink-0">
+    <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col">
+      <header className="h-auto py-2 border-b border-gray-200 bg-gray-50 px-2 flex items-center justify-between gap-2 shrink-0">
         <div className="min-w-0">
           <div className="text-xs font-medium text-gray-700">
             {UI_COPY.markdownSlidesSidebarViewTitle}
@@ -59,10 +62,10 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
           <button
             type="button"
             className={[
-              'App-toolbar__btn flex items-center justify-center rounded border text-gray-700',
+              'App-toolbar__btn flex items-center justify-center rounded border',
               showSlideThumbnails
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white border-gray-300 hover:bg-gray-50',
+                ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} border-transparent`
+                : `${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
             ].join(' ')}
             onClick={onToggleShowSlideThumbnails}
           >
@@ -73,8 +76,8 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
             )}
           </button>
         </div>
-      </div>
-      <div className="flex-1 min-h-0 overflow-auto">
+      </header>
+      <nav className="flex-1 min-h-0 overflow-auto">
         <div className="py-2">
           <PreviewGallery
             items={orderedSlideIndices.map((slideIdx, i) => ({
@@ -109,9 +112,14 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
               const nextPos = nextOrder.indexOf(activeSlideId)
               if (nextPos >= 0) onActiveSlideIndexChange(nextPos)
             }}
+            onDoubleClick={(id) => {
+              const idx = Number.parseInt(id, 10)
+              if (!Number.isFinite(idx)) return
+              if (onSlideDoubleClick) onSlideDoubleClick(idx)
+            }}
           />
         </div>
-      </div>
-    </div>
+      </nav>
+    </aside>
   )
 }

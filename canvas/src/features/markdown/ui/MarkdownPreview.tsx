@@ -1,5 +1,5 @@
 import React from 'react'
-import { lexMarkdown, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
+import { buildMarkdownTokensKey, lexMarkdown, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import {
@@ -7,14 +7,12 @@ import {
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
-import { UI_COPY } from '@/lib/config'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import { useMarkdownPresentation } from './useMarkdownPresentation'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
 import { MarkdownPreviewPresentation } from '@/features/markdown/ui/MarkdownPreviewPresentation'
-import { MarkdownPreviewContextMenu } from '@/features/markdown/ui/MarkdownPreviewContextMenu'
+import { MarkdownSelectionToolbar, type MarkdownSelectionToolbarState } from '@/features/markdown/ui/MarkdownSelectionToolbar'
 import {
   computeMarkdownPreviewMenuPosition,
   findLineRangeFromTarget,
@@ -37,6 +35,7 @@ export type MarkdownPreviewPresentationApi = {
 export type MarkdownPreviewPresentationSlideState = {
   activeSlideIndex: number
   slideCount: number
+  activeSlideLine: number
 }
 
 type MarkdownPreviewProps = {
@@ -60,6 +59,23 @@ type MarkdownPreviewProps = {
   previewScrollable?: boolean
   onScroll?: (event: React.UIEvent<HTMLDivElement>) => void
   onSlidesReordered?: (nextOrder: number[]) => void
+  onPreviewClick?: (line: number) => void
+  tokens?: TokenWithLines[]
+  showSidebar?: boolean
+  onToggleSidebar?: (show: boolean) => void
+  collapsedIds?: Set<string>
+  onToggleCollapse?: (id: string) => void
+  onExpandAll?: () => void
+  onCollapseAll?: () => void
+  onTocSelect?: (id: string) => void
+  onTocDoubleClick?: (id: string) => void
+  onTocReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
+  frontmatterMermaidCode?: string
+  onShowInViewer?: (line: number) => void
+  onShowInEditor?: (line: number) => void
+  onShowInPresentation?: (line: number) => void
+  onShowInSlidesGallery?: (line: number) => void
+  onShowInGraphDataTable?: (line: number) => void
 }
 
 const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(function MarkdownPreview(
@@ -84,13 +100,30 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     previewScrollable = true,
     onScroll,
     onSlidesReordered,
+    onPreviewClick,
+    tokens: providedTokens,
+    showSidebar,
+    onToggleSidebar,
+    collapsedIds,
+    onToggleCollapse,
+    onExpandAll,
+    onCollapseAll,
+    onTocSelect,
+    onTocDoubleClick,
+    onTocReorder,
+    frontmatterMermaidCode: frontmatterMermaidCodeProp,
+    onShowInViewer,
+    onShowInEditor,
+    onShowInPresentation,
+    onShowInSlidesGallery,
+    onShowInGraphDataTable,
   },
   ref,
-  ) {
+) {
 
   const selectionFlashDurationMs = useGraphStore(s => s.selectionFlashDurationMs || 500)
-  const setMarkdownPreviewMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
-  const setMarkdownPreviewActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
+  const selectionFlashOpacity = useGraphStore(s => s.selectionFlashOpacity || 0.18)
+  const flashAlpha = Math.max(0, Math.min(1, selectionFlashOpacity * 1.7))
   const rootThemeMode = useRootThemeMode()
   const [flashSelectionId, setFlashSelectionId] = React.useState<string | null>(null)
 
@@ -130,11 +163,13 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     () => parseMermaidConfigFromFrontmatter(headMeta),
     [headMeta],
   )
-  const frontmatterMermaidCode = React.useMemo(() => {
+  const computedFrontmatterMermaidCode = React.useMemo(() => {
     const meta = headMeta as Record<string, unknown>
     const raw = String(meta.mermaid || '').trim()
     return raw
   }, [headMeta])
+
+  const frontmatterMermaidCode = frontmatterMermaidCodeProp ?? computedFrontmatterMermaidCode
   const hasFrontmatterMermaid = !!frontmatterMermaidCode
 
   const {
@@ -158,9 +193,31 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     onSlidesReordered,
   })
 
-  const { tokens } = React.useMemo(() => {
-    return lexMarkdown(markdownText || '')
+  const storedTokens = useGraphStore(s => s.markdownTokens)
+  const storedTokensPath = useGraphStore(s => s.markdownTokensPath)
+  const storedTokensKey = useGraphStore(s => s.markdownTokensKey)
+  const setMarkdownTokens = useGraphStore(s => s.setMarkdownTokens)
+
+  const currentTokensKey = React.useMemo(() => {
+    return buildMarkdownTokensKey(markdownText || '')
   }, [markdownText])
+
+  const tokens = React.useMemo(() => {
+    if (providedTokens) return providedTokens
+    
+    if (storedTokens && storedTokensKey === currentTokensKey) {
+      return storedTokens
+    }
+
+    const { tokens: parsedTokens } = lexMarkdown(markdownText || '')
+    return parsedTokens
+  }, [markdownText, providedTokens, storedTokens, storedTokensKey, currentTokensKey])
+
+  React.useEffect(() => {
+    if (!providedTokens && tokens && (tokens !== storedTokens || storedTokensKey !== currentTokensKey || storedTokensPath !== activeDocumentPath)) {
+      setMarkdownTokens(tokens, activeDocumentPath, currentTokensKey)
+    }
+  }, [tokens, storedTokens, storedTokensKey, currentTokensKey, storedTokensPath, activeDocumentPath, providedTokens, setMarkdownTokens])
 
   const graphData = useGraphStore(s => s.graphData)
   const markdownAlwaysOnHighlightComplexityBudget = useGraphStore(
@@ -171,21 +228,16 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
 
-  const [contextMenu, setContextMenu] = React.useState<{
-    x: number
-    y: number
-    startLine: number
-    endLine: number
-  } | null>(null)
+  const [selectionToolbar, setSelectionToolbar] = React.useState<MarkdownSelectionToolbarState | null>(null)
 
-  const closeContextMenu = React.useCallback(() => {
-    setContextMenu(null)
+  const closeSelectionToolbar = React.useCallback(() => {
+    setSelectionToolbar(null)
   }, [])
 
   React.useEffect(() => {
-    if (!contextMenu) return
+    if (!selectionToolbar) return
     const handler = () => {
-      closeContextMenu()
+      closeSelectionToolbar()
     }
     window.addEventListener('mousedown', handler)
     window.addEventListener('scroll', handler, true)
@@ -193,7 +245,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       window.removeEventListener('mousedown', handler)
       window.removeEventListener('scroll', handler, true)
     }
-  }, [contextMenu, closeContextMenu])
+  }, [selectionToolbar, closeSelectionToolbar])
 
   const buildAlwaysOnTokenHighlights = React.useCallback(
     (sourceTokens: TokenWithLines[] | null): TokenHighlightSpec[] | null =>
@@ -233,21 +285,100 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     [activeDocumentPath, graphData, selectEdge, selectNode, setSelectionSource],
   )
 
-  const handleCmdClick = React.useCallback(
+  const handleDoubleClick = React.useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!e.metaKey) return
-      if (!rootElRef.current) return
-      const range = findLineRangeFromTarget(rootElRef.current, e.target)
-      if (!range) return
-      e.preventDefault()
-      e.stopPropagation()
-      handleShowOnCanvas(range.startLine, range.endLine)
+      const range = findLineRangeFromTarget(e.currentTarget, e.target as HTMLElement)
+      if (range && onShowInEditor) {
+        onShowInEditor(range.startLine)
+      }
     },
-    [handleShowOnCanvas],
+    [onShowInEditor],
+  )
+
+  const handleMouseUp = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      // Don't show if simple click (handled by click handlers)
+      // But we need to check selection
+      const sel = typeof window !== 'undefined' ? window.getSelection() : null
+      if (sel && !sel.isCollapsed && sel.toString().trim().length > 0 && rootElRef.current) {
+        // Find line range for the selection
+        // We use the anchorNode of selection
+        let target = sel.anchorNode
+        if (target && target.nodeType === Node.TEXT_NODE) {
+            target = target.parentElement
+        }
+        const range = findLineRangeFromTarget(rootElRef.current, target)
+        if (range) {
+             const rect = rootElRef.current.getBoundingClientRect()
+             // Position near mouse
+             const x = e.clientX - rect.left
+             const y = e.clientY - rect.top + 20
+             setSelectionToolbar({
+                 x,
+                 y,
+                 startLine: range.startLine,
+                 endLine: range.endLine,
+                 text: sel.toString()
+             })
+             // Stop propagation to prevent clearing selection immediately?
+             // But mousedown listener clears it.
+             e.stopPropagation() 
+             return
+        }
+      }
+      // If we are here, maybe it was a double click that selected a word?
+      // handleClick handles double click action if we want to override it.
+    },
+    []
+  )
+
+  const handleClick = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!rootElRef.current) return
+
+      if (e.metaKey) {
+        const range = findLineRangeFromTarget(rootElRef.current, e.target)
+        if (!range) return
+        e.preventDefault()
+        e.stopPropagation()
+        handleShowOnCanvas(range.startLine, range.endLine)
+        return
+      }
+
+      if (e.detail >= 2) {
+          // Double click
+          // Check if selection exists, if so handleMouseUp will handle it (or has handled it)
+          // But handleMouseUp fires after mouseup. click fires after mouseup.
+          // dblclick fires after second click.
+          // e.detail is on click event.
+          
+          // If we want to replace the default "edit" action with the toolbar,
+          // we should ensure the toolbar shows up.
+          // Double click usually selects a word.
+          
+          // Let's defer to onMouseUp for selection-based toolbar.
+          // If the user wants double-click to just show toolbar, onMouseUp covers it because double-click selects text.
+          
+          // If onPreviewClick is present (which triggers edit), we might want to disable it if we show toolbar.
+          // Or make "Edit" an option in toolbar.
+          
+          // We'll disable direct jump on double click if we have the toolbar feature enabled (which is implied by presence of onShowInEditor etc)
+          if (onShowInEditor) {
+              return 
+          }
+      }
+
+      if (!onPreviewClick) return
+      if (e.detail < 2) return
+      const range = findLineRangeFromTarget(rootElRef.current, e.target)
+      if (range) {
+        onPreviewClick(range.startLine)
+      }
+  }, [handleShowOnCanvas, onPreviewClick, onShowInEditor],
   )
 
   const flashActive = !!flashSelectionId && !!selectionId && flashSelectionId === selectionId
-  const flashBg = flashActive ? 'rgba(249,115,22,0.28)' : null
+  const flashBg = flashActive ? `rgba(249,115,22,${flashAlpha})` : null
   const flashUnderline = flashActive ? '#fbbf24' : null
   const effectiveHighlightBackgroundColor = flashBg || highlightBackgroundColor || null
   const effectiveHighlightUnderlineColor = flashUnderline || highlightUnderlineColor || null
@@ -281,122 +412,179 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [goNext, goPrev, markdownPresentationMode, slides.length, setActiveSlideIndex])
 
-  const handleClickFrontmatterMermaidHint = React.useCallback(() => {
-    if (!frontmatterMermaidCode) return
-    try {
-      setMarkdownPreviewActiveMediaKey(null)
-    } catch {
-      void 0
-    }
-    try {
-      setMarkdownPreviewMermaidFocus({
-        code: frontmatterMermaidCode,
-        frontmatterConfig: (mermaidFrontmatterConfig as unknown as Record<string, unknown> | null) || null,
-      })
-    } catch {
-      void 0
-    }
-    try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'preview' as const } }),
-        )
-      }
-    } catch {
-      void 0
-    }
-  }, [
-    frontmatterMermaidCode,
-    mermaidFrontmatterConfig,
-    setMarkdownPreviewActiveMediaKey,
-    setMarkdownPreviewMermaidFocus,
-  ])
-
   const scrollClass = previewScrollable ? 'overflow-auto' : 'overflow-hidden'
 
   const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!rootElRef.current) return
+    const rootEl = (e.currentTarget as HTMLDivElement) || rootElRef.current
+    if (!rootEl) return
+    
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
-    if (!sel || sel.isCollapsed) return
-    const range = findLineRangeFromTarget(rootElRef.current, e.target)
+    
+    // If there is a selection, show the Selection Toolbar on context menu instead of the simple context menu
+    if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
+      e.preventDefault()
+      const rect = rootEl.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      
+      let target = sel.anchorNode
+      if (target && target.nodeType === Node.TEXT_NODE) {
+          target = target.parentElement
+      }
+      const range = findLineRangeFromTarget(rootEl, target)
+      
+      if (range) {
+        setSelectionToolbar({
+          x,
+          y,
+          startLine: range.startLine,
+          endLine: range.endLine,
+          text: sel.toString()
+        })
+      }
+      return
+    }
+
+    const range = findLineRangeFromTarget(rootEl, e.target)
     if (!range) return
     e.preventDefault()
-    const rootEl = rootElRef.current
     const rect = rootEl.getBoundingClientRect()
-    const targetBlock = rootEl.querySelector(
-      `[data-start-line="${range.startLine}"]`,
-    ) as HTMLElement | null
-    const selectionBlockRect = targetBlock ? targetBlock.getBoundingClientRect() : null
     const pos = computeMarkdownPreviewMenuPosition({
       containerRect: rect,
       clientX: e.clientX,
       clientY: e.clientY,
       clampToContainer: true,
-      selectionBlockRect,
-      biasToSelectionBlock: true,
+      selectionBlockRect: null, // Don't bias to block for simple click
+      biasToSelectionBlock: false,
     })
-    setContextMenu({
+    
+    // For right-click without selection, we can also show the toolbar but with single line scope
+    // But the toolbar is designed for "Show in..." actions which work for single line too.
+    // Let's unify by showing the Selection Toolbar for right click too, effectively replacing the old ContextMenu
+    
+    setSelectionToolbar({
       x: pos.x,
       y: pos.y,
       startLine: range.startLine,
       endLine: range.endLine,
+      text: '' // No text selected
     })
   }
 
   if (markdownPresentationMode) {
     return (
       <>
-        <div
+        <MarkdownPreviewPresentation
+          rootRef={setRootRef}
+          onClick={handleClick}
+          onMouseUp={handleMouseUp}
           onContextMenu={handleContextMenu}
-          onClick={handleCmdClick}
-        >
-          <MarkdownPreviewPresentation
-            rootRef={setRootRef}
-            onRegisterFullscreenHandler={handleRegisterFullscreenHandler}
-            headMeta={headMeta as Record<string, unknown>}
-            slides={slides as never}
-            activeSlideId={activeSlideId}
-            orderedSlideIndices={orderedSlideIndices}
-            setActiveSlideIndex={setActiveSlideIndex}
-            slideOrder={slideOrder}
-            setSlideOrder={setSlideOrder}
-            activeFragmentConfig={activeFragmentConfig}
-            activeFragmentStep={activeFragmentStep}
-            markdownWordWrap={markdownWordWrap}
-            markdownTextHighlight={markdownTextHighlight}
-            selectionKind={selectionKind || null}
-            uiPanelTextFontClass={uiPanelTextFontClass}
-            uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-            previewOverlayScope={previewOverlayScope}
-            previewOverlayPortalTarget={previewOverlayPortalTarget || null}
-            alwaysOnHighlightMode={alwaysOnHighlightMode}
-            buildAlwaysOnTokenHighlights={buildAlwaysOnTokenHighlights}
-            highlightedLineRange={highlightedLineRange}
-            activeDocumentPath={activeDocumentPath}
-            mermaidFrontmatterConfig={mermaidFrontmatterConfig as Record<string, unknown> | null}
-            rootThemeMode={rootThemeMode}
-            effectiveHighlightBackgroundColor={effectiveHighlightBackgroundColor}
-            effectiveHighlightUnderlineColor={effectiveHighlightUnderlineColor}
-          />
-        </div>
-        <MarkdownPreviewContextMenu
+          onRegisterFullscreenHandler={handleRegisterFullscreenHandler}
+          headMeta={headMeta as Record<string, unknown>}
+          slides={slides as never}
+          activeSlideId={activeSlideId}
+          orderedSlideIndices={orderedSlideIndices}
+          setActiveSlideIndex={setActiveSlideIndex}
+          slideOrder={slideOrder}
+          setSlideOrder={setSlideOrder}
+          activeFragmentConfig={activeFragmentConfig}
+          activeFragmentStep={activeFragmentStep}
+          markdownWordWrap={markdownWordWrap}
+          markdownTextHighlight={markdownTextHighlight}
+          selectionKind={selectionKind || null}
+          uiPanelTextFontClass={uiPanelTextFontClass}
+          uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+          previewOverlayScope={previewOverlayScope}
+          previewOverlayPortalTarget={previewOverlayPortalTarget || null}
+          alwaysOnHighlightMode={alwaysOnHighlightMode}
+          buildAlwaysOnTokenHighlights={buildAlwaysOnTokenHighlights}
+          highlightedLineRange={highlightedLineRange}
+          activeDocumentPath={activeDocumentPath}
+          mermaidFrontmatterConfig={mermaidFrontmatterConfig as Record<string, unknown> | null}
+          rootThemeMode={rootThemeMode}
+          effectiveHighlightBackgroundColor={effectiveHighlightBackgroundColor}
+          effectiveHighlightUnderlineColor={effectiveHighlightUnderlineColor}
+          onPreviewClick={onPreviewClick}
+        />
+        {/* <MarkdownPreviewContextMenu
           contextMenu={contextMenu}
           label={UI_COPY.markdownPreviewShowOnCanvasLabel}
           onClickShowOnCanvas={handleShowOnCanvas}
           onClose={closeContextMenu}
-        />
+        /> */}
       </>
     )
   }
 
-  const contextMenuNode = (
-    <MarkdownPreviewContextMenu
-      contextMenu={contextMenu}
-      label={UI_COPY.markdownPreviewShowOnCanvasLabel}
-      onClickShowOnCanvas={handleShowOnCanvas}
-      onClose={closeContextMenu}
+  // const contextMenuNode = (
+  //   <MarkdownPreviewContextMenu
+  //     contextMenu={contextMenu}
+  //     label={UI_COPY.markdownPreviewShowOnCanvasLabel}
+  //     onClickShowOnCanvas={handleShowOnCanvas}
+  //     onClose={closeContextMenu}
+  //   />
+  // )
+
+  const selectionToolbarNode = (
+    <MarkdownSelectionToolbar
+      toolbar={selectionToolbar}
+      onClose={closeSelectionToolbar}
+      onShowOnCanvas={handleShowOnCanvas}
+      onShowInViewer={onShowInViewer || (() => {})}
+      onShowInEditor={onShowInEditor || (() => {})}
+      onShowInPresentation={onShowInPresentation || (() => {})}
+      onShowInSlidesGallery={onShowInSlidesGallery || (() => {})}
+      onShowInGraphDataTable={onShowInGraphDataTable || (() => {})}
+      currentView={markdownPresentationMode ? 'presentation' : 'viewer'}
     />
   )
+
+  if (markdownPresentationMode) {
+    return (
+      <>
+        <MarkdownPreviewPresentation
+          rootRef={setRootRef}
+          onClick={handleClick}
+          onMouseUp={handleMouseUp}
+          onContextMenu={handleContextMenu}
+          onRegisterFullscreenHandler={handleRegisterFullscreenHandler}
+          headMeta={headMeta as Record<string, unknown>}
+          slides={slides as never}
+          activeSlideId={activeSlideId}
+          orderedSlideIndices={orderedSlideIndices}
+          setActiveSlideIndex={setActiveSlideIndex}
+          slideOrder={slideOrder}
+          setSlideOrder={setSlideOrder}
+          activeFragmentConfig={activeFragmentConfig}
+          activeFragmentStep={activeFragmentStep}
+          markdownWordWrap={markdownWordWrap}
+          markdownTextHighlight={markdownTextHighlight}
+          selectionKind={selectionKind || null}
+          uiPanelTextFontClass={uiPanelTextFontClass}
+          uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+          previewOverlayScope={previewOverlayScope}
+          previewOverlayPortalTarget={previewOverlayPortalTarget || null}
+          alwaysOnHighlightMode={alwaysOnHighlightMode}
+          buildAlwaysOnTokenHighlights={buildAlwaysOnTokenHighlights}
+          highlightedLineRange={highlightedLineRange}
+          activeDocumentPath={activeDocumentPath}
+          mermaidFrontmatterConfig={mermaidFrontmatterConfig as Record<string, unknown> | null}
+          rootThemeMode={rootThemeMode}
+          effectiveHighlightBackgroundColor={effectiveHighlightBackgroundColor}
+          effectiveHighlightUnderlineColor={effectiveHighlightUnderlineColor}
+          onPreviewClick={onPreviewClick}
+          onShowInEditor={onShowInEditor}
+          selectionToolbar={selectionToolbarNode}
+        />
+        {/* <MarkdownPreviewContextMenu
+          contextMenu={contextMenu}
+          label={UI_COPY.markdownPreviewShowOnCanvasLabel}
+          onClickShowOnCanvas={handleShowOnCanvas}
+          onClose={closeContextMenu}
+        /> */}
+      </>
+    )
+  }
 
   return (
     <MarkdownPreviewViewer
@@ -421,9 +609,20 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       hasFrontmatterMermaid={hasFrontmatterMermaid}
       onScroll={onScroll}
       onContextMenu={handleContextMenu}
-      onClick={handleCmdClick}
-      onClickFrontmatterHint={handleClickFrontmatterMermaidHint}
-      contextMenu={contextMenuNode}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      onMouseUp={handleMouseUp}
+      selectionToolbar={selectionToolbarNode}
+      showSidebar={showSidebar}
+      onToggleSidebar={onToggleSidebar}
+      collapsedIds={collapsedIds}
+      onToggleCollapse={onToggleCollapse}
+      onExpandAll={onExpandAll}
+      onCollapseAll={onCollapseAll}
+      onTocSelect={onTocSelect}
+      onTocDoubleClick={onTocDoubleClick}
+      onTocReorder={onTocReorder}
+      frontmatterMermaidCode={frontmatterMermaidCode}
     />
   )
 })

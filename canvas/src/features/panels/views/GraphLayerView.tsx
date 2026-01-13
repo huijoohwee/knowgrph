@@ -8,6 +8,7 @@ import AiKgLayersControls from '@/features/panels/views/AiKgLayersSectionControl
 import { GraphLayerMetadataPresetsSection } from '@/features/panels/views/graph-fields/FieldGraphLayersSection'
 import { UI_LABELS } from '@/lib/config'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export default function GraphLayerView() {
   const {
@@ -46,27 +47,27 @@ export default function GraphLayerView() {
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`,
   )
 
   const [traversalDelayMs, setTraversalDelayMs] = React.useState<number>(0)
 
   return (
     <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden px-1 py-1 space-y-3">
-      <div className="rounded border border-gray-200 bg-white p-3">
+      <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>
             {UI_LABELS.graphLayersMode}
           </div>
           <button
             type="button"
-            className="App-toolbar__btn text-xs bg-gray-100 text-gray-700"
+            className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary}`}
             onClick={() => setGraphLayersVisible(!graphLayersVisible)}
           >
             {graphLayersVisible ? 'Hide' : 'Show'}
           </button>
         </div>
-        <div className={`${uiPanelKeyValueTextSizeClass} mb-2 text-gray-500`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} mb-2 ${UI_THEME_TOKENS.text.secondary}`}>
           Use this tab to configure graph layers, semantic overlays, and renderer behavior. All layer controls now live here for the Floating Panel.
         </div>
         <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -74,12 +75,12 @@ export default function GraphLayerView() {
             <span className="mr-1 h-2 w-2 rounded-full bg-pink-500" />
             Mermaid Layer · MermaidSubgraph
           </span>
-          <div className="flex items-center gap-1 text-[10px] text-gray-600">
+          <div className={`flex items-center gap-1 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
             <span>Layer band</span>
             <input
               type="number"
               min={1}
-              className={`${uiPanelKeyValueInputClass} w-14 h-5 px-1 text-[10px]`}
+              className={`${uiPanelKeyValueInputClass} w-14 h-5 px-1 text-[10px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
               value={activeLayerBandIndex ?? ''}
               onChange={e => {
                 const raw = e.target.value
@@ -97,7 +98,7 @@ export default function GraphLayerView() {
             />
             <button
               type="button"
-              className="App-toolbar__btn text-[10px] bg-gray-100 text-gray-700"
+              className={`App-toolbar__btn text-[10px] ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary}`}
               onClick={() => setActiveLayerBandIndex(null)}
             >
               Clear
@@ -208,31 +209,31 @@ function LifecycleTagHelper({
   const label = selectedNode ? String(selectedNode.label || selectedNode.id || '') : ''
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3 space-y-2">
+    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
       <div className="flex items-center justify-between gap-2">
-        <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`}>
           Lifecycle tags for layers
         </div>
         <Tooltip
           content="Lifecycle tags set on the selected owner node write into properties.tags and reuse renderer:palette.nodes.idea/hypothesis/execution/pivot/alert so graph layer hull overlays and node fills share the same lifecycle colors."
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+          contentClassName={UI_THEME_TOKENS.tooltip.bg}
         >
-          <span className="text-[10px] text-gray-500 underline decoration-dotted cursor-help">
+          <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} underline decoration-dotted cursor-help`}>
             how it maps
           </span>
         </Tooltip>
       </div>
-      <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+      <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
         Set lifecycle tags on the selected node so graph layer hulls and node fills reuse the corresponding renderer palette color.
       </div>
       {!selectedNode ? (
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
           Select a node in the canvas to edit lifecycle tags.
         </div>
       ) : (
         <>
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-600 truncate`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary} truncate`}>
             Selected node: {label}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -242,7 +243,7 @@ function LifecycleTagHelper({
               const isActive = currentTag === key
               const baseClasses = isActive
                 ? 'border-transparent text-white'
-                : 'border-gray-300 text-gray-700'
+                : `${UI_THEME_TOKENS.pill.base} ${UI_THEME_TOKENS.table.text}`
               const bgStyle = isActive && color
                 ? { backgroundColor: color }
                 : color

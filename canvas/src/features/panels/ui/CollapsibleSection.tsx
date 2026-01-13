@@ -5,6 +5,7 @@ import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface CollapsibleSectionProps {
   title: React.ReactNode
@@ -70,14 +71,14 @@ export default function CollapsibleSection({
 
   const chevronIcon = (
     <ChevronDown
-      className={clsx(`${iconSizeClass} text-gray-700 transition-transform`, !isCollapsed && 'rotate-180')}
+      className={clsx(`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary} transition-transform`, !isCollapsed && 'rotate-180')}
       strokeWidth={uiIconStrokeWidth}
       aria-hidden="true"
     />
   )
 
   return (
-    <div className={clsx('mt-3 border-t border-gray-200 pt-2', className)}>
+    <div className={clsx(`mt-3 border-t ${UI_THEME_TOKENS.panel.border} pt-2`, className)}>
       <div
         className={clsx(
           'flex items-center justify-between cursor-pointer select-none',
@@ -94,7 +95,7 @@ export default function CollapsibleSection({
         onClick={() => setCollapsed(!isCollapsed)}
         onKeyDown={handleKeyDown}
       >
-        <div className="text-xs font-semibold">{title}</div>
+        <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>{title}</div>
         {toolbarAligned ? (
           <div className="flex items-center gap-1">
             {actions}

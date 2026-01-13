@@ -194,8 +194,6 @@ export function useGraphDataTableWindowing(options: GraphDataTableWindowingOptio
     if (!debugLogRanges) return
     if (typeof window === 'undefined') return
     if (!windowingEnabled) return
-    const payload = { kind: 'graphDataTableWindow', startIndex, endIndex, total: listItems.length }
-    console.log(payload)
   }, [debugLogRanges, endIndex, listItems.length, startIndex, windowingEnabled])
 
   const totalRows = React.useMemo(() => {

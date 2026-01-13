@@ -57,6 +57,8 @@ interface GraphRagWorkflowIndexingSectionProps {
   onUpdateWorkflow: (updater: (current: GraphRagWorkflowJsonLd) => GraphRagWorkflowJsonLd) => void
 }
 
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
 export function GraphRagWorkflowIndexingSection({
   mode,
   workflowDoc,
@@ -88,7 +90,7 @@ export function GraphRagWorkflowIndexingSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`,
   )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',

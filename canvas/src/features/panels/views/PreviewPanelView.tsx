@@ -10,9 +10,11 @@ import type {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import {
+  buildMarkdownTokensKey,
   lexMarkdown,
   type TokenWithLines,
 } from '@/features/markdown/ui/markdownPreviewLex'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import {
   buildMarkdownPreviewMediaKey,
   extractAttr,
@@ -37,6 +39,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { openBottomPanel } from '@/features/bottom-panel/open'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -69,7 +72,31 @@ export default function PreviewPanelView() {
     }
   }, [setActiveMediaKey, setMermaidFocus])
 
-  const { tokens, meta } = React.useMemo(() => lexMarkdown(markdownText || ''), [markdownText])
+  const storedTokens = useGraphStore(s => s.markdownTokens)
+  const storedTokensKey = useGraphStore(s => s.markdownTokensKey)
+  const setMarkdownTokens = useGraphStore(s => s.setMarkdownTokens)
+
+  const currentTokensKey = React.useMemo(
+    () => buildMarkdownTokensKey(markdownText || ''),
+    [markdownText],
+  )
+
+  const { tokens, meta } = React.useMemo(() => {
+    if (storedTokens && storedTokensKey === currentTokensKey) {
+      const lines = splitMarkdownLines(markdownText || '')
+      const { meta: parsedMeta } = parseMarkdownFrontmatter(lines)
+      return { tokens: storedTokens, meta: parsedMeta }
+    }
+    return lexMarkdown(markdownText || '')
+  }, [markdownText, storedTokens, storedTokensKey, currentTokensKey])
+
+  React.useEffect(() => {
+    if (!tokens || !markdownText) return
+    if (tokens !== storedTokens || storedTokensKey !== currentTokensKey) {
+      setMarkdownTokens(tokens, markdownDocumentName || null, currentTokensKey)
+    }
+  }, [tokens, storedTokens, storedTokensKey, currentTokensKey, markdownText, markdownDocumentName, setMarkdownTokens])
+
   const mermaidFrontmatterConfig = React.useMemo(
     () => parseMermaidConfigFromFrontmatter(meta),
     [meta],
@@ -457,7 +484,7 @@ export default function PreviewPanelView() {
     ) {
       return (
         <div className="w-full h-full flex items-center justify-center">
-          <div className="aspect-video w-full max-w-4xl bg-black/5 rounded border border-gray-200 overflow-hidden">
+          <div className={`aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
             <iframe
               src={activeMedia.src}
               title={activeMedia.label}
@@ -513,20 +540,20 @@ export default function PreviewPanelView() {
                             'relative flex flex-col items-stretch justify-between rounded border text-left text-[11px] px-2 py-2 transition-colors',
                             'aspect-video',
                             isActive
-                              ? 'border-blue-400 bg-blue-50'
-                              : 'border-gray-200 bg-white hover:bg-gray-50',
+                              ? UI_THEME_TOKENS.table.rowSelected
+                              : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHover}`,
                           ].join(' ')}
                         >
                           <div className="absolute left-1 top-1 rounded bg-black/60 text-white px-1 py-0.5 text-[10px]">
                             {item.kind}
                           </div>
-                          <div className="absolute right-1 top-1 rounded bg-white/80 text-gray-800 px-1 py-0.5 text-[9px] border border-gray-200">
+                          <div className={`absolute right-1 top-1 rounded bg-white/80 dark:bg-black/80 text-gray-800 dark:text-gray-200 px-1 py-0.5 text-[9px] border ${UI_THEME_TOKENS.panel.border}`}>
                             {item.source === 'markdown' ? 'Markdown' : 'Graph'}
                           </div>
                           <div className="flex-1 w-full mb-1">
                             {renderMiniPreview(item)}
                           </div>
-                          <div className="mt-1 mx-1 line-clamp-2 text-gray-800">
+                          <div className={`mt-1 mx-1 line-clamp-2 ${UI_THEME_TOKENS.text.primary}`}>
                             {item.label}
                           </div>
                         </button>
@@ -536,7 +563,7 @@ export default function PreviewPanelView() {
                 </div>
               ) : null}
             </div>
-            <div className="flex-1 min-h-0 bg-gray-50/80">
+            <div className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg}`}>
               {hasMermaidFocus ? (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="aspect-video w-full max-w-4xl">

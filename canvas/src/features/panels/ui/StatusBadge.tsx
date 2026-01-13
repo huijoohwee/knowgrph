@@ -2,6 +2,7 @@ import React from 'react'
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface StatusBadgeProps {
   label: string
@@ -20,9 +21,9 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
   )
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const classes = React.useMemo(() => {
-    if (ok === true) return 'text-green-700 border-green-200 bg-green-50'
-    if (ok === false) return 'text-red-700 border-red-200 bg-red-50'
-    return 'text-gray-600 border-gray-300 bg-gray-100'
+    if (ok === true) return UI_THEME_TOKENS.status.success
+    if (ok === false) return UI_THEME_TOKENS.status.error
+    return UI_THEME_TOKENS.status.neutral
   }, [ok])
   return (
     <div>
@@ -35,12 +36,13 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
           <XCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         ) : null}
         <span className="max-w-40 truncate">{ok == null ? (msg || 'Idle') : (msg || '')}</span>
-        {!below && details ? <span className="text-gray-500">· {details}</span> : null}
+        {!below && details ? <span className={`${UI_THEME_TOKENS.text.tertiary}`}>· {details}</span> : null}
       </div>
       {below && details ? (
         <div
           className={[
-            'mt-1 text-gray-600',
+            'mt-1',
+            UI_THEME_TOKENS.text.secondary,
             uiPanelMicroLabelTextSizeClass,
           ].join(' ')}
         >

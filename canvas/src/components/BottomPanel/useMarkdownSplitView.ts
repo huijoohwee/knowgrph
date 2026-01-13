@@ -100,14 +100,27 @@ export function useBottomPanelMarkdownSplitView(args: {
       }
     }
 
-    const lh = computeLineHeightPx()
-    const pad = computePaddingPx()
-    const measure = computeTextMeasure()
-    setLineHeightPx(prev => (prev === lh ? prev : lh))
-    setEditorPaddingTopPx(prev => (prev === pad.top ? prev : pad.top))
-    setEditorPaddingBottomPx(prev => (prev === pad.bottom ? prev : pad.bottom))
-    setEditorContentWidthPx(prev => (prev === measure.contentWidthPx ? prev : measure.contentWidthPx))
-    setEditorFontCss(prev => (prev === measure.fontCss ? prev : measure.fontCss))
+    const updateMeasures = () => {
+      const lh = computeLineHeightPx()
+      const pad = computePaddingPx()
+      const measure = computeTextMeasure()
+      setLineHeightPx(prev => (prev === lh ? prev : lh))
+      setEditorPaddingTopPx(prev => (prev === pad.top ? prev : pad.top))
+      setEditorPaddingBottomPx(prev => (prev === pad.bottom ? prev : pad.bottom))
+      setEditorContentWidthPx(prev => (prev === measure.contentWidthPx ? prev : measure.contentWidthPx))
+      setEditorFontCss(prev => (prev === measure.fontCss ? prev : measure.fontCss))
+    }
+
+    updateMeasures()
+
+    const observer = new ResizeObserver(() => {
+      updateMeasures()
+    })
+    observer.observe(ta)
+
+    return () => {
+      observer.disconnect()
+    }
   }, [uiPanelMonospaceTextClass])
 
   const wrapModel = React.useMemo(() => {

@@ -1,4 +1,6 @@
 import React from 'react'
+import { LS_KEYS } from '@/lib/config'
+import { lsSetJson } from '@/lib/persistence'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
@@ -41,6 +43,9 @@ import {
   buildBottomPanelCuratorTableModel,
   type GraphDataTableScope,
 } from './BottomPanelCuratorModels'
+import { MarkdownSelectionToolbar, type MarkdownSelectionToolbarState } from '@/features/markdown/ui/MarkdownSelectionToolbar'
+import { findSelectionTarget } from '@/features/markdown/ui/markdownPreviewSelection'
+import type { GraphData } from '@/lib/graph/types'
 import { createUniqueId } from '@/lib/ids'
 import { emitPropsPanelOpen } from '@/features/canvas/utils'
 import { useBottomPanelCuratorVisibleRows } from './hooks/useBottomPanelCuratorVisibleRows'
@@ -108,6 +113,8 @@ export default function BottomPanelCuratorTab({
   const freezeFirstDataColumnByScope = useGraphStore(s => s.graphDataTableFreezeFirstDataColumnByScope)
   const lastTraversalSummary = useGraphStore(s => s.lastTraversalSummary)
   const setFreezeFirstDataColumnScoped = useGraphStore(s => s.setGraphDataTableFreezeFirstDataColumn)
+  const graphData = useGraphStore(s => s.graphData)
+  const setBottomPanelCurationView = useGraphStore(s => s.setBottomPanelCurationView)
   const [query, setQuery] = React.useState('')
   const [graphDataTableScope, setGraphDataTableScope] = React.useState<GraphDataTableScope>('all')
   const [graphDataTableViewMode, setGraphDataTableViewMode] = React.useState<
@@ -121,6 +128,7 @@ export default function BottomPanelCuratorTab({
   const [graphDataTableFieldsQuery, setGraphDataTableFieldsQuery] = React.useState('')
   const [draggingColumnKey, setDraggingColumnKey] = React.useState<GraphDataTableColumnKey | null>(null)
   const [toolbarResetToken, setToolbarResetToken] = React.useState(0)
+  const [selectionToolbar, setSelectionToolbar] = React.useState<MarkdownSelectionToolbarState | null>(null)
 
   const freezeFirstDataColumn = freezeFirstDataColumnByScope[graphDataTableScope] ?? 'none'
 
@@ -411,6 +419,53 @@ export default function BottomPanelCuratorTab({
     [selectEdge, selectMode, selectNode, setSelectionSource],
   )
 
+  const handleRowContextMenu = React.useCallback(
+    (e: React.MouseEvent, row: UnifiedRow) => {
+      e.preventDefault()
+      const startLine = Number(row.metadata?.lineStart) || 1
+      const endLine = Number(row.metadata?.lineEnd) || startLine
+      const text = row.kind === 'node' ? row.id : (row.label || row.id)
+      
+      setSelectionToolbar({
+        x: e.clientX,
+        y: e.clientY,
+        startLine,
+        endLine,
+        text,
+      })
+    },
+    [],
+  )
+
+  const closeSelectionToolbar = React.useCallback(() => {
+    setSelectionToolbar(null)
+  }, [])
+
+  React.useEffect(() => {
+    if (!selectionToolbar) return
+    const handler = () => closeSelectionToolbar()
+    window.addEventListener('mousedown', handler)
+    window.addEventListener('scroll', handler, true)
+    return () => {
+      window.removeEventListener('mousedown', handler)
+      window.removeEventListener('scroll', handler, true)
+    }
+  }, [selectionToolbar, closeSelectionToolbar])
+
+  const handleShowOnCanvas = React.useCallback(
+    (startLine: number, endLine: number) => {
+      const target = findSelectionTarget(graphData as GraphData | null, '', startLine, endLine)
+      if (!target) return
+      setSelectionSource('editor')
+      if (target.kind === 'node') {
+        selectNode(target.id)
+      } else {
+        selectEdge(target.id)
+      }
+    },
+    [graphData, selectEdge, selectNode, setSelectionSource],
+  )
+
   const activePanelAnchorRef =
     graphDataTablePanel === 'fields'
       ? fieldsMenuRef
@@ -467,6 +522,61 @@ export default function BottomPanelCuratorTab({
     },
     [setSelectedGraphFieldId, setGraphDataTableVisibleColumnsState],
   )
+
+  const handleShowInViewer = React.useCallback((line: number) => {
+    handleShowOnCanvas(line, line)
+    lsSetJson(LS_KEYS.markdownLayoutMode, 'viewer')
+    lsSetJson(LS_KEYS.markdownPresentationMode, false)
+    setBottomPanelCurationView('markdown')
+  }, [handleShowOnCanvas, setBottomPanelCurationView])
+
+  const handleShowInEditor = React.useCallback((line: number) => {
+    handleShowOnCanvas(line, line)
+    lsSetJson(LS_KEYS.markdownLayoutMode, 'editor')
+    lsSetJson(LS_KEYS.markdownPresentationMode, false)
+    setBottomPanelCurationView('markdown')
+  }, [handleShowOnCanvas, setBottomPanelCurationView])
+
+  const handleShowInPresentation = React.useCallback((line: number) => {
+    handleShowOnCanvas(line, line)
+    lsSetJson(LS_KEYS.markdownPresentationMode, true)
+    setBottomPanelCurationView('markdown')
+  }, [handleShowOnCanvas, setBottomPanelCurationView])
+
+  const handleShowInSlidesGallery = React.useCallback((line: number) => {
+    handleShowOnCanvas(line, line)
+    lsSetJson(LS_KEYS.markdownPresentationMode, true)
+    setBottomPanelCurationView('markdown')
+  }, [handleShowOnCanvas, setBottomPanelCurationView])
+
+  const handleRowDoubleClick = React.useCallback(
+    (row: UnifiedRow) => {
+      const line = Number(row.metadata?.lineStart)
+      if (line) {
+        handleShowInEditor(line)
+        return
+      }
+      handleRowSelect(row)
+      if (row.metadata?.lineStart) {
+        setBottomPanelCurationView('markdown')
+      }
+    },
+    [handleRowSelect, handleShowInEditor, setBottomPanelCurationView],
+  )
+
+  const selectionToolbarNode = selectionToolbar ? (
+    <MarkdownSelectionToolbar
+      toolbar={selectionToolbar}
+      onClose={closeSelectionToolbar}
+      onShowOnCanvas={handleShowOnCanvas}
+      onShowInViewer={handleShowInViewer}
+      onShowInEditor={handleShowInEditor}
+      onShowInPresentation={handleShowInPresentation}
+      onShowInSlidesGallery={handleShowInSlidesGallery}
+      onShowInGraphDataTable={() => {}}
+      currentView="table"
+    />
+  ) : undefined
 
   const viewModel: BottomPanelCuratorContentViewModel = {
     toolbar: buildBottomPanelCuratorToolbarModel({
@@ -551,7 +661,8 @@ export default function BottomPanelCuratorTab({
       updateNode,
       updateEdge,
       onRowClick: handleRowSelect,
-      onRowDoubleClick: handleRowSelect,
+      onRowDoubleClick: handleRowDoubleClick,
+      onRowContextMenu: handleRowContextMenu,
       graphDataTableSortRules,
       addGraphDataTableFilterForColumn: addGraphDataTableFilterForColumn,
       requestGroupByColumn,
@@ -565,6 +676,6 @@ export default function BottomPanelCuratorTab({
   }
 
   return (
-    <BottomPanelCuratorContent viewModel={viewModel} />
+    <BottomPanelCuratorContent viewModel={viewModel} selectionToolbar={selectionToolbarNode} />
   )
 }

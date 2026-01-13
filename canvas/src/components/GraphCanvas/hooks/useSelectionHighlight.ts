@@ -4,6 +4,8 @@ import { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
 import { selectionPerfStart, selectionPerfEnd } from '@/lib/selectionPerf';
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight';
+import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens';
+import type { ThemeMode } from '@/lib/ui/theme';
 
 interface UseSelectionHighlightProps {
   renderGraphData: GraphData | null;
@@ -17,6 +19,7 @@ interface UseSelectionHighlightProps {
   renderMediaAsNodes: boolean;
   mediaNodeOpacity: number;
   activeLayerBandIndex: number | null;
+  themeMode: ThemeMode;
   
   // Refs to d3 selections
   nodesSelRef: React.MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>;
@@ -37,6 +40,7 @@ export function useSelectionHighlight({
   renderMediaAsNodes,
   mediaNodeOpacity,
   activeLayerBandIndex,
+  themeMode,
   nodesSelRef,
   mediaSelRef,
   labelsSelRef,
@@ -52,6 +56,10 @@ export function useSelectionHighlight({
     if (!renderGraphData) return;
     const t0 = selectionPerfStart();
     setLifecycleStageRef.current('selectionUpdate');
+    
+    const isDark = themeMode === 'dark' || (themeMode === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const themeColors = isDark ? UI_THEME_COLORS.dark : UI_THEME_COLORS.light;
+
     applySelectionHighlight(
       nodesSelRef.current,
       mediaSelRef.current,
@@ -64,7 +72,7 @@ export function useSelectionHighlight({
       selectedNodeIds,
       selectedEdgeIds,
       renderMediaAsNodes,
-      { mediaNodeOpacity, activeLayerBandIndex },
+      { mediaNodeOpacity, activeLayerBandIndex, themeColors },
     );
     selectionPerfEnd('canvas', t0);
   }, [
@@ -82,5 +90,6 @@ export function useSelectionHighlight({
     renderMediaAsNodes,
     mediaNodeOpacity,
     activeLayerBandIndex,
+    themeMode,
   ]);
 }

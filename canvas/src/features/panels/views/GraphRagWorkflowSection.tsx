@@ -30,6 +30,8 @@ export interface AgenticContextGraphContextUrlRowProps {
   mode: 'edit' | 'redirect'
 }
 
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
 export function AgenticContextGraphContextUrlRow({
   agenticContext,
   onChangeAgenticContextUrl,
@@ -45,9 +47,9 @@ export function AgenticContextGraphContextUrlRow({
         <Tooltip
           content={AGENTIC_RAG_CONTEXT_IRI_TOOLTIP}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+          contentClassName={UI_THEME_TOKENS.tooltip.bg}
         >
-          <span className="text-xs text-gray-700 break-words">
+          <span className={`text-xs ${UI_THEME_TOKENS.text.primary} break-words`}>
             agenticContext.graphContextUrl
           </span>
         </Tooltip>
@@ -60,14 +62,14 @@ export function AgenticContextGraphContextUrlRow({
               <Tooltip
                 content={AGENTIC_RAG_CONTEXT_IRI_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={UI_THEME_TOKENS.tooltip.bg}
                 className="w-full h-full"
               >
                 <textarea
                   value={agenticContext?.graphContextUrl || ''}
                   onChange={e => onChangeAgenticContextUrl(e.target.value)}
                   placeholder={agenticContext?.canonicalContextUrl || 'https://...'}
-                  className={`w-full border border-gray-300 rounded px-2 py-2 leading-[1rem] whitespace-pre-wrap break-words resize-y min-h-[96px] bg-transparent ${uiPanelMonospaceTextClass}`}
+                  className={`w-full border ${UI_THEME_TOKENS.input.border} rounded px-2 py-2 leading-[1rem] whitespace-pre-wrap break-words resize-y min-h-[96px] bg-transparent ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.input.text}`}
                 />
               </Tooltip>
             </RightAlignedValueCell>
@@ -75,7 +77,7 @@ export function AgenticContextGraphContextUrlRow({
             <div className="flex items-center justify-start">
               <button
                 type="button"
-                className="App-toolbar__btn bg-gray-50 text-gray-700"
+                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary}`}
                 onClick={() => {
                   try {
                     openBottomPanel('orchestrator')

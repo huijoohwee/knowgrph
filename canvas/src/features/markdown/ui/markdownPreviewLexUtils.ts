@@ -66,9 +66,20 @@ export const addLineRangesToTokens = (tokens: Token[], lineOffset: number): Toke
   const out: TokenWithLines[] = []
   let cursorLine = 1
   for (const t of tokens) {
+    const existingStart = (t as unknown as { startLine?: number }).startLine
+    const existingEnd = (t as unknown as { endLine?: number }).endLine
+
     const raw = String((t as unknown as { raw?: unknown }).raw || '')
-    const startLine = cursorLine + lineOffset
     const lineCount = raw ? raw.split('\n').length : 0
+
+    if (typeof existingStart === 'number' && existingStart > 0) {
+      const endLine = typeof existingEnd === 'number' ? existingEnd : existingStart + Math.max(0, lineCount - 1)
+      out.push(Object.assign({}, t, { startLine: existingStart, endLine }) as TokenWithLines)
+      cursorLine += Math.max(0, lineCount - 1)
+      continue
+    }
+
+    const startLine = cursorLine + lineOffset
     const endLine = Math.max(startLine, startLine + Math.max(0, lineCount - 1))
     out.push(Object.assign({}, t, { startLine, endLine }) as TokenWithLines)
     cursorLine += Math.max(0, lineCount - 1)

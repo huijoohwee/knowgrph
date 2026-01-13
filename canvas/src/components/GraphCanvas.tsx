@@ -66,6 +66,7 @@ export default function GraphCanvas() {
     activeLayerBandIndex,
     frontmatterModeEnabled,
     markdownDocumentName,
+    themeMode,
   } = useGraphStore(
     useShallow((s) => ({
       graphData: s.graphData as GraphData | null,
@@ -101,6 +102,7 @@ export default function GraphCanvas() {
       activeLayerBandIndex: s.activeLayerBandIndex,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       markdownDocumentName: s.markdownDocumentName || '',
+      themeMode: s.themeMode,
     })),
   );
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
@@ -406,6 +408,7 @@ export default function GraphCanvas() {
     renderGraphData: renderGraphData as GraphData | null,
     graphData: graphData as GraphData | null,
     schema: schema as GraphSchema,
+    themeMode,
     selectedNodeId,
     selectedEdgeId,
     selectedNodeIds,
@@ -439,6 +442,7 @@ export default function GraphCanvas() {
     linksSelRef,
     labelsSelRef,
     schema,
+    themeMode,
   });
 
 

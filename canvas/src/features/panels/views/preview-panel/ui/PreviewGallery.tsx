@@ -1,9 +1,11 @@
 import React from 'react'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   uiToolbarToggleActiveClassName,
   uiSecondaryToggleActiveClassName,
   UI_COLOR_PRIMARY_BLUE_INDICATOR,
   UI_RING_PRIMARY_BLUE_INDICATOR,
+  UI_COLOR_PRIMARY_BLUE_BG,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { reorderList } from '@/lib/reorder'
 
@@ -22,6 +24,7 @@ type PreviewGalleryProps = {
   onHighlightChange?: (id: string | null) => void
   selectedIds?: string[]
   onSelectedIdsChange?: (ids: string[]) => void
+  onDoubleClick?: (id: string) => void
 }
 
 export default function PreviewGallery({
@@ -33,6 +36,7 @@ export default function PreviewGallery({
   onHighlightChange,
   selectedIds,
   onSelectedIdsChange,
+  onDoubleClick,
 }: PreviewGalleryProps) {
   const [draggingId, setDraggingId] = React.useState<string | null>(null)
   const [dragOverId, setDragOverId] = React.useState<string | null>(null)
@@ -46,7 +50,7 @@ export default function PreviewGallery({
 
   const ids = React.useMemo(() => items.map(i => i.id), [items])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (!onSelectedIdsChange || !selectedIds) return
     const rawKey = e.key
     const key = rawKey.toLowerCase()
@@ -127,21 +131,22 @@ export default function PreviewGallery({
   }
 
   return (
-    <div
-      className="p-2 rounded outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+    <section
+      className={`p-2 rounded outline-none focus-visible:ring-1 ${UI_THEME_TOKENS.button.ring}`}
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      aria-label="Slides"
     >
-      <div className="mb-2">
-        <div className="text-xs font-medium text-gray-700">Slides</div>
-        <div className="mt-0.5 text-[11px] text-gray-500">
+      <header className="mb-2">
+        <h3 className={`text-xs font-medium ${UI_THEME_TOKENS.text.primary}`}>Slides</h3>
+        <p className={`mt-0.5 text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
           Drag or use arrows to reorder
-        </div>
-      </div>
-      <div className="space-y-3">
+        </p>
+      </header>
+      <ul className="space-y-3">
         {items.length > 0 && draggingId ? (
-          <div
-            className="h-6 flex items-center justify-center bg-blue-50 border-y-2 cursor-move transition-colors rounded"
+          <li
+            className={`h-6 flex items-center justify-center ${UI_COLOR_PRIMARY_BLUE_BG} border-y-2 cursor-move transition-colors rounded`}
             style={{ borderColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
             onDragOver={(e) => {
               e.preventDefault()
@@ -178,7 +183,7 @@ export default function PreviewGallery({
               className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent"
               style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
             />
-          </div>
+          </li>
         ) : null}
         {items.map((it, idx) => {
           const isActive = activeId === it.id
@@ -191,7 +196,7 @@ export default function PreviewGallery({
           const showTopDivider = isDragOver && !isDragging && fromIdx > idx
           const showBottomDivider = isDragOver && !isDragging && fromIdx >= 0 && fromIdx < idx
           return (
-            <div key={it.id} className="relative">
+            <li key={it.id} className="relative">
               {showTopDivider ? (
                 <div
                   className="absolute left-0 right-0 -top-2 h-5 flex items-center justify-center bg-blue-50 border-t-2 cursor-move transition-colors"
@@ -263,14 +268,14 @@ export default function PreviewGallery({
                 className={[
                   'relative rounded border px-2 py-2 select-none',
                   isDraggingAny
-                    ? 'border-gray-200 bg-white'
+                    ? `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
                     : isActive
                       ? uiToolbarToggleActiveClassName
                       : isFocused
                         ? uiSecondaryToggleActiveClassName
                         : isSelected
-                          ? 'border-blue-300 bg-blue-50'
-                          : 'border-gray-200 bg-white hover:bg-gray-50',
+                          ? `${UI_THEME_TOKENS.table.rowSelected}`
+                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHoverAmber}`,
                   isDragOver ? ['ring-1', UI_RING_PRIMARY_BLUE_INDICATOR].join(' ') : '',
                 ].filter(Boolean).join(' ')}
                 draggable
@@ -310,6 +315,10 @@ export default function PreviewGallery({
                     onSelectedIdsChange(nextSelected.length ? nextSelected : [it.id])
                     onSelect(it.id)
                   }
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation()
+                  if (onDoubleClick) onDoubleClick(it.id)
                 }}
                 onDragStart={(e) => {
                   setDraggingId(it.id)
@@ -417,7 +426,7 @@ export default function PreviewGallery({
               >
                 {showPreview && it.preview ? (
                   <div className="mb-2">
-                    <div className="w-full aspect-video overflow-hidden rounded border border-gray-200 bg-white">
+                    <div className={`w-full aspect-video overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}>
                       <div className="w-full h-full flex items-center justify-center">
                         <div className="w-full h-full overflow-hidden">
                           {it.preview}
@@ -428,8 +437,8 @@ export default function PreviewGallery({
                 ) : null}
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-xs text-gray-900 truncate">{it.label}</div>
-                    <div className="text-[11px] text-gray-500">#{idx + 1}</div>
+                    <div className={`text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>{it.label}</div>
+                    <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>#{idx + 1}</div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <div className="flex items-center gap-1">
@@ -466,15 +475,15 @@ export default function PreviewGallery({
                         </button>
                       ) : null}
                     </div>
-                    {isDragging ? <div className="text-[11px] text-gray-500">Moving</div> : null}
+                    {isDragging ? <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>Moving</div> : null}
                   </div>
                 </div>
               </div>
-            </div>
+            </li>
           )
         })}
         {items.length > 0 && draggingId ? (
-          <div
+          <li
             className="h-6 flex items-center justify-center bg-blue-50 border-y-2 cursor-move transition-colors rounded"
             style={{ borderColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
             onDragOver={(e) => {
@@ -512,16 +521,16 @@ export default function PreviewGallery({
               className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent"
               style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
             />
-          </div>
+          </li>
         ) : null}
-      </div>
+      </ul>
       <div
         ref={dragImageRef}
         className="fixed top-0 left-0 pointer-events-none z-50"
       >
         <div
           ref={dragImageContainerRef}
-          className="flex items-stretch rounded border border-gray-300 bg-white shadow-md max-w-[260px]"
+          className={`flex items-stretch rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-md max-w-[260px]`}
         >
           <div
             ref={dragImageStripRef}
@@ -531,14 +540,14 @@ export default function PreviewGallery({
           <div className="px-3 py-1.5 flex flex-col">
             <div
               ref={dragImagePrimaryLabelRef}
-              className="text-[12px] font-semibold text-gray-900 leading-tight"
+              className={`text-[12px] font-semibold ${UI_THEME_TOKENS.text.primary} leading-tight`}
             >
               #1
             </div>
             <div className="flex items-center gap-1">
               <div
                 ref={dragImageSecondaryLabelRef}
-                className="text-[11px] text-gray-600 leading-tight truncate"
+                className={`text-[11px] ${UI_THEME_TOKENS.text.secondary} leading-tight truncate`}
               >
                 Slide title
               </div>
@@ -552,6 +561,6 @@ export default function PreviewGallery({
           </div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

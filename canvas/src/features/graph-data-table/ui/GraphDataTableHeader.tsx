@@ -2,6 +2,7 @@ import React from 'react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { ChevronDown, Lock } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   isGraphDataTableGroupableColumnKey,
   type GraphDataTableColumnKey,
@@ -30,10 +31,10 @@ export function FrozenAreaResizeHandle({ onStartDrag }: FrozenAreaResizeHandlePr
           if (onStartDrag) onStartDrag(event.clientX)
         }}
       >
-        <div className="mx-auto h-5 w-3 rounded-full bg-blue-50/70 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
-          <div className="h-4 border-r border-blue-400/60" />
+        <div className={`mx-auto h-5 w-3 rounded-full ${UI_THEME_TOKENS.button.activeBg} bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100`}>
+          <div className={`h-4 border-r ${UI_THEME_TOKENS.button.activeBorder} border-opacity-60`} />
         </div>
-        <div className={`pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 ${uiPanelKeyValueTextSizeClass} text-white opacity-0 group-hover:opacity-100`}>
+        <div className={`pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded ${UI_THEME_TOKENS.tooltip.bg} px-2 py-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.tooltip.text} opacity-0 group-hover:opacity-100`}>
           {FROZEN_RESIZE_TOOLTIP_TEXT}
         </div>
       </div>
@@ -94,9 +95,9 @@ export const HeaderCell = React.memo(function HeaderCell({
   const widthClass = getHeaderCellLayoutClass(columnKey)
   const stickyClass =
     freezeFirstDataColumn === 'label' && columnKey === 'label'
-      ? 'sticky z-10 bg-gray-100'
+      ? `sticky z-10 ${UI_THEME_TOKENS.table.headerBg}`
       : freezeFirstDataColumn === 'id' && columnKey === 'id'
-        ? 'sticky z-10 bg-gray-100'
+        ? `sticky z-10 ${UI_THEME_TOKENS.table.headerBg}`
         : ''
 
   const cellRef = React.useRef<HTMLTableCellElement>(null)
@@ -116,7 +117,7 @@ export const HeaderCell = React.memo(function HeaderCell({
   return (
     <th
       ref={cellRef}
-      className={`${headerCellBaseClassName} ${headerHeightClassName} ${widthClass} ${stickyClass} text-xs font-normal text-gray-500`}
+      className={`${headerCellBaseClassName} ${headerHeightClassName} ${widthClass} ${stickyClass} text-xs font-normal ${UI_THEME_TOKENS.text.tertiary}`}
       style={style}
       onContextMenu={event => {
         event.preventDefault()
@@ -125,23 +126,23 @@ export const HeaderCell = React.memo(function HeaderCell({
     >
       <div className="flex items-center justify-between gap-1 px-2">
         <div className="flex items-center gap-1 min-w-0">
-          {stickyClass && <Lock className="size-3 text-gray-400 shrink-0" />}
+          {stickyClass && <Lock className={`size-3 ${UI_THEME_TOKENS.text.tertiary} shrink-0`} />}
           <span className="truncate" data-column-key={columnKey}>
             {label}
           </span>
         </div>
         <div className="flex items-center gap-1">
           {isSorted && (
-            <span className="text-xs text-gray-500">
+            <span className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>
               {sortDir === 'asc' ? 'A→Z' : 'Z→A'}
             </span>
           )}
           {isGroupable && (
-            <span className="rounded bg-gray-100 px-1 text-xs text-gray-500">group</span>
+            <span className={`rounded ${UI_THEME_TOKENS.badge.chip} px-1 text-xs ${UI_THEME_TOKENS.text.tertiary}`}>group</span>
           )}
           <ChevronDown
             className={`size-3.5 transition-opacity ${
-              isSorted ? 'text-gray-600 opacity-100' : 'text-gray-400 opacity-0'
+              isSorted ? `${UI_THEME_TOKENS.text.secondary} opacity-100` : `${UI_THEME_TOKENS.text.tertiary} opacity-0`
             }`}
           />
         </div>
@@ -170,10 +171,10 @@ export const HeaderCell = React.memo(function HeaderCell({
           onClose={() => setIsMenuOpen(false)}
           align="bottom-left"
         >
-          <div className="bg-white border border-gray-200 rounded shadow-md py-1 text-xs min-w-[180px]">
+          <div className={`${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md py-1 text-xs min-w-[180px]`}>
             <button
               type="button"
-              className="flex w-full items-center justify-between px-3 py-1 text-left text-gray-700 hover:bg-gray-100"
+              className={`flex w-full items-center justify-between px-3 py-1 text-left ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.table.rowHover}`}
               onClick={() => {
                 onRequestSortByColumn(columnKey, 'asc')
                 setIsMenuOpen(false)
@@ -181,12 +182,12 @@ export const HeaderCell = React.memo(function HeaderCell({
             >
               <span>Sort A→Z</span>
               {isSorted && sortDir === 'asc' && (
-                <ChevronDown className="size-3 rotate-180 text-gray-500" />
+                <ChevronDown className={`size-3 rotate-180 ${UI_THEME_TOKENS.text.tertiary}`} />
               )}
             </button>
             <button
               type="button"
-              className="flex w-full items-center justify-between px-3 py-1 text-left text-gray-700 hover:bg-gray-100"
+              className={`flex w-full items-center justify-between px-3 py-1 text-left ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.table.rowHover}`}
               onClick={() => {
                 onRequestSortByColumn(columnKey, 'desc')
                 setIsMenuOpen(false)
@@ -194,13 +195,13 @@ export const HeaderCell = React.memo(function HeaderCell({
             >
               <span>Sort Z→A</span>
               {isSorted && sortDir === 'desc' && (
-                <ChevronDown className="size-3 text-gray-500" />
+                <ChevronDown className={`size-3 ${UI_THEME_TOKENS.text.tertiary}`} />
               )}
             </button>
-            <div className="my-1 h-px bg-gray-100" />
+            <div className={`my-1 h-px ${UI_THEME_TOKENS.panel.divider}`} />
           <button
               type="button"
-              className="flex w-full items-center justify-between px-3 py-1 text-left text-gray-700 hover:bg-gray-100"
+              className={`flex w-full items-center justify-between px-3 py-1 text-left ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.table.rowHover}`}
               onClick={() => {
                 onRequestAddFilter(columnKey)
                 setIsMenuOpen(false)
@@ -211,7 +212,7 @@ export const HeaderCell = React.memo(function HeaderCell({
             {isGroupable && (
               <button
                 type="button"
-                className="flex w-full items-center justify-between px-3 py-1 text-left text-gray-700 hover:bg-gray-100"
+                className={`flex w-full items-center justify-between px-3 py-1 text-left ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.table.rowHover}`}
                 onClick={() => {
                   onRequestGroupBy(columnKey)
                   setIsMenuOpen(false)
@@ -222,7 +223,7 @@ export const HeaderCell = React.memo(function HeaderCell({
             )}
             <button
               type="button"
-              className="flex w-full items-center justify-between px-3 py-1 text-left text-gray-700 hover:bg-gray-100"
+              className={`flex w-full items-center justify-between px-3 py-1 text-left ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.table.rowHover}`}
               onClick={() => {
                 onRequestHideColumn(columnKey)
                 setIsMenuOpen(false)

@@ -39,6 +39,8 @@
 - The UI maps markdown blocks (headings, paragraphs, lists, tables, code, blockquotes, HTML) into a neutral token AST for:
   - Line-aware preview and media extraction (for Mermaid, images, video, iframes).
   - HTML/PDF export of markdown documents via `markdown-it.render`.
+  - **Token Sharing**: The markdown lexer runs once at the parent level, and tokens are shared between the Viewer, TOC, and Editor components to optimize performance and prevent redundant processing.
+  - Heading reordering and folding reuse TOC tree helpers (`buildTocTree`, `findParent`) so sibling constraints stay consistent.
 - Line mapping:
   - The markdown tokenizer preserves 1-based `lineStart`/`lineEnd` ranges for block-level tokens so downstream components can relate rendered text back to the original source.
   - When graphs carry `metadata.lineStart`/`metadata.lineEnd` on nodes and edges, the Bottom Panel markdown editor/viewer can scroll directly to the corresponding text range and keep it pinned under the editor viewport’s top edge when selections change on the canvas.

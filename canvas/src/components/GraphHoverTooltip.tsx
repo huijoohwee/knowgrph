@@ -4,6 +4,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { summarizePropertySpec, getNodePropSpec, getEdgePropSpec, buildEdgeSchemaBadges } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphFieldKind } from '@/features/graph-fields/graphFields'
 import { FieldTypeBadgeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import Tooltip from '@/features/panels/ui/Tooltip'
@@ -66,11 +67,11 @@ function buildNodeContent(
     <div>
       <div className="font-semibold">
         {node.label}{' '}
-        <span className="text-gray-300">
+        <span className={UI_THEME_TOKENS.tooltip.textSecondary}>
           ({node.type})
         </span>
       </div>
-      <div className="text-xs text-gray-300 break-all">
+      <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
         {node.id}
       </div>
       {sorted.length > 0 && (
@@ -88,15 +89,15 @@ function buildNodeContent(
                       className={iconClassName}
                     />
                   ) : null}
-                  <span className="text-xs text-gray-300 truncate max-w-[80px]">
+                  <span className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} truncate max-w-[80px]`}>
                     {k}:
                   </span>
-                  <span className="text-xs text-gray-100 break-all">
+                  <span className={`text-xs ${UI_THEME_TOKENS.tooltip.text} break-all`}>
                     {formatPropValue(v)}
                   </span>
                 </div>
                 {description && (
-                  <div className={`${uiPanelMicroLabelTextSizeClass} text-gray-400 leading-tight break-normal`}>
+                  <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.tooltip.textTertiary} leading-tight break-normal`}>
                     {description}
                   </div>
                 )}

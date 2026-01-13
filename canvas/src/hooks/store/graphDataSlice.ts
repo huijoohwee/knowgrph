@@ -21,6 +21,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   graphDataRevision: 0,
   markdownDocumentName: null as string | null,
   markdownDocumentText: null as string | null,
+  markdownTokens: null as import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null,
+  markdownTokensPath: null as string | null,
+  markdownTokensKey: null as string | null,
   markdownDocumentSourceUrl: null as string | null,
   jsonSourceDocumentText: null as string | null,
   markdownPreviewMermaidFocusCode: null as string | null,
@@ -43,7 +46,18 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     set({
       markdownDocumentName: name,
       markdownDocumentText: text,
+      markdownTokens: null, // Invalidate tokens
+      markdownTokensPath: null,
+      markdownTokensKey: null,
     })
+  },
+
+  setMarkdownTokens: (
+    tokens: import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null,
+    path?: string | null,
+    key?: string | null,
+  ) => {
+    set({ markdownTokens: tokens, markdownTokensPath: path ?? null, markdownTokensKey: key ?? null })
   },
 
   setJsonSourceDocument: (name: string | null, text: string | null) => {

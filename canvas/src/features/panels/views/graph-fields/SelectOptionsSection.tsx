@@ -5,6 +5,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
 import { reorderList } from '@/lib/reorder'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
 
 function buildOptionSwatchStyle(value: string): React.CSSProperties {
@@ -74,22 +75,22 @@ export function SelectOptionsSection({
   )
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3">
+    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
       <div className="flex items-center justify-between">
-        <span className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>{UI_LABELS.options}</span>
-        <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+        <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>{UI_LABELS.options}</span>
+        <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
           {typeof sampleCount === 'number' && sampleCount > 0 ? <span>Graph data {sampleCount}</span> : null}
           <span>{selectedSettings.selectOptions.length}</span>
         </div>
       </div>
-      <div className="mt-2 rounded-lg border border-gray-200 overflow-auto">
+      <div className={`mt-2 rounded-lg border ${UI_THEME_TOKENS.panel.border} overflow-auto`}>
         {selectedSettings.selectOptions.length === 0 ? (
-          <div className={`px-2 py-2 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>{UI_COPY.graphFieldsNoOptions}</div>
+          <div className={`px-2 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsNoOptions}</div>
         ) : null}
         {selectedSettings.selectOptions.map((opt, idx) => (
           <div
             key={`${idx}:${opt}`}
-            className={`flex py-1 items-center group hover:bg-gray-50 ${draggingSelectOptionIndex === idx ? 'opacity-60' : ''}`}
+            className={`flex py-1 items-center group ${UI_THEME_TOKENS.table.rowHover} ${draggingSelectOptionIndex === idx ? 'opacity-60' : ''}`}
             onDragOver={e => {
               e.preventDefault()
               e.dataTransfer.dropEffect = 'move'
@@ -106,7 +107,7 @@ export function SelectOptionsSection({
             }}
           >
             <div
-              className="p-2 flex cursor-grab text-gray-400"
+              className={`p-2 flex cursor-grab ${UI_THEME_TOKENS.text.tertiary}`}
               draggable
               onDragStart={e => {
                 setDraggingSelectOptionIndex(idx)
@@ -150,11 +151,11 @@ export function SelectOptionsSection({
                 next[idx] = e.target.value
                 setSelectedSelectOptions(next)
               }}
-              className="h-8 flex-1 rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+              className={`h-8 flex-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text}`}
             />
             <button
               type="button"
-              className="mx-1 text-gray-400 hover:!text-gray-700 cursor-pointer hover:bg-gray-100 py-1 px-1.5 rounded-md h-7 flex items-center invisible group-hover:visible"
+              className={`mx-1 ${UI_THEME_TOKENS.text.tertiary} hover:!${UI_THEME_TOKENS.text.secondary} cursor-pointer ${UI_THEME_TOKENS.button.hoverBg} py-1 px-1.5 rounded-md h-7 flex items-center invisible group-hover:visible`}
               onClick={() => {
                 const next = selectedSettings.selectOptions.filter((_, i) => i !== idx)
                 setSelectedSelectOptions(next)
@@ -174,7 +175,7 @@ export function SelectOptionsSection({
       </div>
       <button
         type="button"
-        className="mt-2 w-full App-toolbar__btn text-xs border border-gray-300 bg-gray-50 text-gray-700 flex items-center justify-center gap-2"
+        className={`mt-2 w-full App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary} flex items-center justify-center gap-2`}
         onClick={() => {
           const nextLabel = createNextSelectOptionLabel(selectedSettings.selectOptions)
           setPendingFocusSelectOptionIndex(selectedSettings.selectOptions.length)

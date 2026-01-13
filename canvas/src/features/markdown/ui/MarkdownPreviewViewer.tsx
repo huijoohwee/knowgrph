@@ -1,9 +1,10 @@
 import React from 'react'
 import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
-import { MarkdownTableOfContents } from '@/features/markdown/ui/MarkdownTableOfContents'
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { TokenWithLines } from './markdownPreviewLex'
+import { MarkdownPanelLayout } from './MarkdownPanelLayout'
+import { slugify } from '@/features/parsers/markdownJsonLd'
+import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
 
 type MarkdownPreviewViewerProps = {
   rootRef: (el: HTMLDivElement | null) => void
@@ -29,11 +30,22 @@ type MarkdownPreviewViewerProps = {
   effectiveHighlightUnderlineColor: string | null
   scrollClass: string
   hasFrontmatterMermaid: boolean
+  frontmatterMermaidCode?: string
   onScroll?: (event: React.UIEvent<HTMLDivElement>) => void
   onContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void
   onClick: (event: React.MouseEvent<HTMLDivElement>) => void
-  onClickFrontmatterHint: () => void
-  contextMenu: React.ReactNode
+  onMouseUp?: (event: React.MouseEvent<HTMLDivElement>) => void
+  selectionToolbar?: React.ReactNode
+  showSidebar?: boolean
+  onToggleSidebar?: (show: boolean) => void
+  collapsedIds?: Set<string>
+  onToggleCollapse?: (id: string) => void
+  onExpandAll?: () => void
+  onCollapseAll?: () => void
+  onTocSelect?: (id: string) => void
+  onTocDoubleClick?: (id: string) => void
+  onTocReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
+  onDoubleClick?: (event: React.MouseEvent<HTMLDivElement>) => void
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -60,23 +72,98 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     onScroll,
     onContextMenu,
     onClick,
-    onClickFrontmatterHint,
-    contextMenu,
+    onMouseUp,
+    selectionToolbar,
+    showSidebar,
+    onToggleSidebar,
+    collapsedIds,
+    onToggleCollapse,
+    onExpandAll,
+    onCollapseAll,
+    onTocSelect,
+    onTocDoubleClick,
+    onTocReorder,
+    frontmatterMermaidCode,
+    onDoubleClick
   } = props
 
-  const [showSidebar, setShowSidebar] = React.useState(true)
+  const [localShowSidebar, setLocalShowSidebar] = React.useState(true)
+  const effectiveShowSidebar = showSidebar ?? localShowSidebar
+
+  React.useEffect(() => {
+    if (showSidebar === undefined) {
+      try {
+        const stored = localStorage.getItem('markdownPreviewSidebarOpen')
+        if (stored !== null) {
+          setLocalShowSidebar(stored === 'true')
+        }
+      } catch {
+        void 0
+      }
+    }
+  }, [showSidebar])
+
+  const handleToggleSidebar = React.useCallback(
+    (show: boolean) => {
+      if (onToggleSidebar) {
+        onToggleSidebar(show)
+      } else {
+        setLocalShowSidebar(show)
+        try {
+          localStorage.setItem('markdownPreviewSidebarOpen', String(show))
+        } catch {
+          void 0
+        }
+      }
+    },
+    [onToggleSidebar],
+  )
 
   const handleTocSelect = React.useCallback((id: string) => {
+    if (onTocSelect) {
+      onTocSelect(id)
+      return
+    }
     const el = document.getElementById(id)
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [])
+  }, [onTocSelect])
+
+  const visibleTokens = React.useMemo(() => {
+    if (!collapsedIds || collapsedIds.size === 0) return tokens
+
+    const result: TokenWithLines[] = []
+    let skipUntilDepth: number | null = null
+
+    for (const t of tokens) {
+      if (t.type === 'heading') {
+        const depth = t.depth || 1
+        const id = t.id || slugify(t.text || '')
+
+        if (skipUntilDepth !== null && depth <= skipUntilDepth) {
+          skipUntilDepth = null
+        }
+
+        if (skipUntilDepth === null) {
+          result.push(t)
+          if (collapsedIds.has(id)) {
+            skipUntilDepth = depth
+          }
+        }
+      } else {
+        if (skipUntilDepth === null) {
+          result.push(t)
+        }
+      }
+    }
+    return result
+  }, [tokens, collapsedIds])
 
   const body = React.useMemo(
     () => (
       <MarkdownTokenRenderer
-        tokens={tokens}
+        tokens={visibleTokens}
         activeDocumentPath={activeDocumentPath}
         highlightedLineRange={highlightedLineRange}
         markdownWordWrap={markdownWordWrap}
@@ -93,6 +180,8 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         selectionKind={selectionKind}
         highlightBackgroundColor={effectiveHighlightBackgroundColor}
         highlightUnderlineColor={effectiveHighlightUnderlineColor}
+        collapsedIds={collapsedIds}
+        onToggleCollapse={onToggleCollapse}
       />
     ),
     [
@@ -109,84 +198,59 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       previewOverlayScope,
       rootThemeMode,
       selectionKind,
-      tokens,
+      visibleTokens,
       uiPanelMonospaceTextClass,
       uiPanelTextFontClass,
+      collapsedIds,
+      onToggleCollapse,
     ],
   )
 
   return (
-    <div className="flex flex-1 min-h-0 relative h-full">
-      {/* Sidebar (GitBook-like) */}
-      <div
-        className={`flex-shrink-0 border-r border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900 transition-all duration-300 ${
-          showSidebar ? 'w-64' : 'w-0 overflow-hidden'
-        }`}
+    <MarkdownPanelLayout
+      tokens={tokens}
+      uiPanelTextFontClass={uiPanelTextFontClass}
+      showSidebar={effectiveShowSidebar}
+      setShowSidebar={handleToggleSidebar}
+      onTocSelect={handleTocSelect}
+      onTocDoubleClick={onTocDoubleClick}
+      onTocReorder={onTocReorder}
+      collapsedIds={collapsedIds}
+      onToggleCollapse={onToggleCollapse}
+      onExpandAll={onExpandAll}
+      onCollapseAll={onCollapseAll}
+    >
+      <section
+        ref={rootRef}
+        onScroll={onScroll}
+        onContextMenu={onContextMenu}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        onMouseUp={onMouseUp}
+        className={[
+          'relative flex-1 min-h-0 px-8 py-6', // Increased padding for document feel
+          scrollClass,
+          uiPanelTextFontClass,
+        ].join(' ')}
+        data-testid="markdown-preview-root"
+        aria-label="Markdown Preview Content"
       >
-        <div className="h-full flex flex-col">
-          <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700">
-            <span className="text-xs font-semibold text-gray-500 uppercase">
-              Contents
-            </span>
-            <button
-              onClick={() => setShowSidebar(false)}
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-              title="Close Sidebar"
-            >
-              <PanelLeftClose size={14} />
-            </button>
-          </div>
-          <MarkdownTableOfContents
-            tokens={tokens}
-            onSelect={handleTocSelect}
-            uiPanelTextFontClass={uiPanelTextFontClass}
-            className="flex-1"
-          />
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
-        {!showSidebar && (
-          <div className="absolute top-2 left-2 z-10">
-            <button
-              onClick={() => setShowSidebar(true)}
-              className="p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-              title="Open Sidebar"
-            >
-              <PanelLeftOpen size={16} />
-            </button>
-          </div>
+        {hasFrontmatterMermaid && frontmatterMermaidCode && (
+          <figure className="mb-8 p-4 border rounded bg-white dark:bg-gray-900 overflow-auto">
+            <MermaidDiagram
+              code={frontmatterMermaidCode}
+              highlightClass=""
+              frontmatterConfig={mermaidFrontmatterConfig}
+              rootThemeMode={rootThemeMode}
+              overlayScope={previewOverlayScope}
+              overlayPortalTarget={previewOverlayPortalTarget}
+            />
+          </figure>
         )}
-        <div
-          ref={rootRef}
-          onScroll={onScroll}
-          onContextMenu={onContextMenu}
-          onClick={onClick}
-          className={[
-            'relative flex-1 min-h-0 px-8 py-6', // Increased padding for document feel
-            scrollClass,
-            uiPanelTextFontClass,
-          ].join(' ')}
-          data-testid="markdown-preview-root"
-        >
-          {hasFrontmatterMermaid && (
-            <div className="mb-4 px-3 py-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md">
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 hover:underline"
-                onClick={onClickFrontmatterHint}
-              >
-                <span>Info: Frontmatter Mermaid diagram is available. Click to jump.</span>
-              </button>
-            </div>
-          )}
-          <div className="max-w-4xl mx-auto">
-             {body}
-          </div>
-          {contextMenu}
-        </div>
-      </div>
-    </div>
+        <article className="max-w-4xl mx-auto">
+           {body}
+        </article>
+        {selectionToolbar}
+      </section> </MarkdownPanelLayout>
   )
 }

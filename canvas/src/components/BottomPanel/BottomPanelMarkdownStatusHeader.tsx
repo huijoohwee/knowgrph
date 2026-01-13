@@ -1,6 +1,7 @@
 import Tooltip from '@/features/panels/ui/Tooltip'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type JsonMarkdownMode = JsonToMarkdownMode
 
@@ -24,6 +25,8 @@ type HeaderStatusRowProps = {
   jsonModeSuggestedPrefix: string
   statusLabel: string
   largeSummaryHelperText: string
+  hasFrontmatterMermaid?: boolean
+  onClickFrontmatterHint?: () => void
 }
 
 export function HeaderStatusRow(props: HeaderStatusRowProps) {
@@ -47,6 +50,8 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
     jsonModeSuggestedPrefix,
     statusLabel,
     largeSummaryHelperText,
+    hasFrontmatterMermaid,
+    onClickFrontmatterHint,
   } = props
 
   return (
@@ -58,19 +63,19 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
             maxWidthPx={260}
             contentClassName="bg-gray-800/90"
           >
-            <span className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1 py-px text-[10px] text-gray-500">
+            <span className={`inline-flex items-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1 py-px text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
               {jsonBackedBadgeLabel}
             </span>
           </Tooltip>
         )}
       </div>
       <div className="flex items-center gap-1">
-        <span className="text-xs text-gray-400">
+        <span className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>
           {jsonModeLabel}
         </span>
         <select
           className={[
-            'border border-gray-200 rounded px-1 py-0.5 text-xs bg-white text-gray-700',
+            `border ${UI_THEME_TOKENS.input.border} rounded px-1 py-0.5 text-xs ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
             'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500',
             jsonModeEnabled ? '' : 'opacity-50 cursor-not-allowed',
           ].join(' ')}
@@ -108,6 +113,16 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
       </div>
       <div className="flex flex-col items-end gap-0.5">
         <div className="flex items-center gap-2">
+          {hasFrontmatterMermaid && onClickFrontmatterHint && (
+            <button
+              type="button"
+              onClick={onClickFrontmatterHint}
+              className={`text-[10px] text-blue-600 hover:underline px-1 py-0.5 rounded hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors`}
+              title="Frontmatter Mermaid diagram is available. Click to view."
+            >
+              Mermaid
+            </button>
+          )}
           <StatusBadge
             label={statusLabel}
             ok={status.ok}
@@ -119,7 +134,7 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
           <div
             className={[
               uiPanelKeyValueTextSizeClass,
-              'text-[10px] text-gray-400',
+              `text-[10px] ${UI_THEME_TOKENS.text.tertiary}`,
             ].join(' ')}
           >
             {largeSummaryHelperText}

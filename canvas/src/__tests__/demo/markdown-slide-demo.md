@@ -2,6 +2,10 @@
 title: Markdown Slide Demo
 graphId: md:markdown-slide-demo
 theme: academic
+background: https://placehold.co/1920x1080?text=Cover+Image
+class: text-center
+transition: slide-left
+layout: cover
 aspectRatio: 16/9
 lang: en-US
 authors:
@@ -39,59 +43,62 @@ mermaid: |
     L1D --> L2A
 ---
 
----
-layout: cover
-class: text-center
-background: https://placehold.co/1920x1080?text=Cover+Image
-transition: slide-left
----
+# Markdown Slide Styling Guidelines
 
-# Markdown Slide Demo
+Universal syntax guide for presentation frameworks
 
-**Goal:** End‑to‑end demo of markdown slide rendering in the viewer.
-
-This deck mirrors the styling capabilities described in the *Markdown Slide Styling Guidelines*.
+> Status: This document distinguishes between **fully supported semantics** in the Knowgrph canvas markdown viewer and **structurally accepted only** features that are rendered as plain content without special behavior.
 
 ---
 
-## Academic Theme Metadata
-
-This presentation uses the **Academic / Metadata** keys in the frontmatter to render the footer you see at the bottom of the screen.
-
-**Frontmatter configuration:**
+## Frontmatter Configuration (fully supported in Knowgrph viewer)
 
 ```yaml
-theme: academic
-authors:
-  - A. Researcher
-  - B. Scientist
-meeting: "Example Research Meeting"
-institution: "Example Research Group"
-date: "2026-01-12"
-venue: "Example City"
-url: "https://example.com"
+---
+theme: default
+background: /cover.jpg
+class: text-center
+transition: slide-left
+layout: cover
+aspectRatio: '16/9'
+lang: en-US
+mermaid: |
+  graph LR
+    A[Start] --> B[End]
+---
 ```
 
-The footer persists on all slides (except `cover` and `intro`) and displays:
-- Theme-dependent footer content (meeting/authors/institution/page)
+**Purpose**: Configures presentation-wide settings via YAML metadata block
 
-**Themes:**
-- `theme: academic`: Meeting + Authors (Left), Institution/Venue + Page X / Y (Right)
-- `theme: default`: Meeting/Venue/Institution/Date (Left), Authors/URL (Right), Page Numbers (Right)
+**Common keys**: `theme`, `background`, `class`, `transition`, `layout`, `aspectRatio`, `lang`
+
+**Academic / Metadata keys (fully supported):**
+- `authors`: List of authors (string or array)
+- `meeting`: Conference or meeting name
+- `date`: Presentation date
+- `venue`: Presentation venue
+- `institution`: Institution or organization name (displays in footer)
+- `url`: Link to paper or project
+- `theme`: Theme style (e.g., `default`, `academic`)
+- `mermaid`: Global mermaid diagram definition (string)
+
+**Effect**: When these keys are present, a persistent footer is rendered on slides (except `cover` and `intro` layouts).
+- **Default Theme**: Meeting/Venue/Institution/Date (Left), Authors/URL (Right), Page Numbers (Right).
+- **Academic Theme** (`theme: academic`): Meeting + Authors (Left), Institution/Venue + Page X / Y (Right). (`neversink` is accepted as a legacy alias.)
 
 ---
 
-## Text Styling
+## Text Styling (fully supported)
 
-**Bold:** **important**  
-**Italic:** *emphasis*  
-**Bold+Italic:** ***very important***  
-**Underline:** <u>underlined text</u>  
-**Highlight:** ==highlighted text==  
-**Strikethrough:** ~~deprecated~~  
-**Subscript:** H~2~O  
-**Superscript:** E=mc^2^  
-**Inline code:** `code-span`
+**Bold:** `**text**` → **text**  
+**Italic:** `*text*` → *text*  
+**Bold+Italic:** `***text***` → ***text***  
+**Underline:** `<u>text</u>` → <u>text</u>  
+**Highlight:** `==text==` or `<mark>text</mark>` → <mark>text</mark>  
+**Strikethrough:** `~~text~~` → ~~text~~  
+**Subscript:** `~text~` → <sub>text</sub>  
+**Superscript:** `^text^` → <sup>text</sup>  
+**Code:** `` `text` `` → `text`
 
 Inline hover text (native tooltip):
 
@@ -103,260 +110,324 @@ Custom span for framework utility classes:
 
 ---
 
-## Lists and Tasks
+## Lists (fully supported)
 
-**Unordered list**
-
+**Unordered:**
+```markdown
 - Item one
 - Item two
-  - Nested item A
-  - Nested item B
+  - Nested item
+```
 
-**Ordered list**
+**Ordered:**
+```markdown
+1. Step one
+2. Step two
+```
 
-1. First step
-2. Second step
-3. Third step
-
-**Task list**
-
-- [x] Connect markdown editor
-- [x] Enable presentation mode
-- [ ] Ship this deck to production
+**Task:**
+```markdown
+- [x] Completed
+- [ ] Pending
+```
 
 ---
 
-## Tables and Alignment
+## Footnotes (fully supported)
 
-Basic table:
+```markdown
+Here is a footnote reference[^1].
 
+[^1]: This is the footnote content.
+```
+
+**Purpose**: Add citations or additional context at the bottom of the slide/document.
+
+---
+
+## Headings and IDs (fully supported)
+
+```markdown
+# Heading Level 1 {#custom-id}
+## Heading Level 2
+```
+
+**Auto-generated IDs**: Headings automatically get IDs derived from their text (kebab-case).
+**Custom IDs**: You can specify a custom ID using the `{#id}` syntax.
+**Linking**: Link to headings using `[Link Text](#custom-id)`.
+
+---
+
+## Tables (fully supported)
+
+```markdown
 | Column A | Column B | Column C |
 |----------|----------|----------|
-| Alpha    | Bravo    | Charlie  |
-| Delta    | Echo     | Foxtrot  |
+| Data 1   | Data 2   | Data 3   |
+| Data 4   | Data 5   | Data 6   |
+```
 
-Alignment:
+**Alignment:** `:---` (left), `:---:` (center), `---:` (right)
 
+**Example:**
 ```markdown
 | Metric | Before | After |
 |:-------|-------:|:-----:|
-| Speed  |  3.2s  | 0.8s  |
-
-Line breaks and code in tables:
-
-| Feature | Details |
-|---------|---------|
-| Break   | Line 1<br>Line 2 |
-| Code    | `inline code` inside cell |
-| Pre     | <pre>block code</pre> |
-
----
-
-## Footnotes and Heading IDs
-
-This slide demonstrates footnotes[^1] and custom heading IDs.
-
-### Custom ID Heading {#my-custom-id}
-
-Link to [Custom ID Heading](#my-custom-id).
-
-[^1]: This is a footnote rendered at the bottom of the slide.
+| Speed  | 3.2s   | 0.8s  |
 ```
 
-Rendered:
-
-| Metric | Before | After |
-|:-------|-------:|:-----:|
-| Speed  |  3.2s  | 0.8s  |
-
 ---
 
-## Blockquotes and Horizontal Rules
+## Blockquotes (fully supported)
 
-> **Single‑line quote**
->
-> Presentation‑ready markdown with clear visual hierarchy.
+```markdown
+> Single-line quote
 
-> **Multi‑line quote with list**
+> **Multi-line quote:**
 >
 > - Point one
 > - Point two
 > - Point three
+```
 
-Horizontal rules inside a slide:
-
-***
-
-Content below the rule stays on the same slide.
+**Purpose**: Highlights citations, callouts, or emphasized content blocks
 
 ---
 
-## Code Blocks with Syntax Highlighting
+## Code Blocks (fully supported as static code)
 
+**Basic:**
+````markdown
 ```javascript
-function greet(name) {
-  return `Hello, ${name}!`
+function example() {
+  return 42;
 }
-
-console.log(greet('Demo'))
 ```
+````
 
+**With language hint:**
+````markdown
 ```python
-def square(x: int) -> int:
-    return x * x
-
-print(square(7))
+def calculate(x):
+    return x * 2
 ```
+````
 
-```bash
-curl https://api.example.com/health
-```
+**Supported languages:** `javascript`, `python`, `java`, `cpp`, `go`, `rust`, `sql`, `bash`, `css`, `html`, `json`, `yaml`, `markdown`
 
 ---
 
-## Code Line Highlighting and Steps
+## Code: Line Highlighting (structural only today)
 
+````markdown
 ```js {1,3-5}
-const a = 1          // highlighted
-const b = 2
-const c = 3          // highlighted
-const d = 4          // highlighted
-const e = 5          // highlighted
+const a = 1;     // Highlighted
+const b = 2;
+const c = 3;     // Highlighted
+const d = 4;     // Highlighted
+const e = 5;     // Highlighted
 ```
+````
 
-Progressive steps:
-
+**Progressive steps:**
+````markdown
 ```js {1|3-5|all}
-// Step 1: show heading line only
-// Step 2: reveal core block (lines 3‑5)
-// Step 3: show all lines
+// Step 1: line 1
+// Step 2: lines 3-5
+// Step 3: all lines
 ```
+````
 
-Line numbers:
+---
 
+## Code: Advanced Features (structural only today)
+
+**Line numbers:**
+````markdown
 ```python {lines:true}
 def example():
-    total = 0
-    for i in range(5):
-        total += i
-    return total
+    pass
 ```
+````
 
----
-
-## Diff and Editable Code (Structural)
-
-Diff syntax:
-
+**Diff syntax:**
+````markdown
 ```diff
 - removed_line()
 + added_line()
   unchanged_line()
 ```
+````
 
-Editable code (Monaco‑style structural marker):
-
+**Editable code:**
+````markdown
 ```js {monaco}
-const editable = true
-const message = 'Edit me in the embedded editor'
+const editable = true;
+```
+````
+
+---
+
+## Math: LaTeX (structural only today)
+
+**Inline:** `$E = mc^2$` renders inline equation
+
+**Block:**
+```markdown
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+```
+
+**Matrix:**
+```markdown
+$$
+\begin{bmatrix}
+a & b \\
+c & d
+\end{bmatrix}
+$$
 ```
 
 ---
 
-## Math and LaTeX
+## Images (fully supported)
 
-Inline math: The famous equation is $E = mc^2$.
+**Basic:**
+```markdown
+![Alt text](path/to/image.jpg)
+```
 
-Block math:
+**With size attributes:**
+```markdown
+![width:200px](image.jpg)
+![w:50%](image.jpg)
+```
 
-$$
-\int_{-\infty}^{\infty} e^{-x^2} \, dx = \sqrt{\pi}
-$$
-
-Matrix:
-
-$$
-\begin{bmatrix}
-1 & 0 \\
-0 & 1
-\end{bmatrix}
-$$
-
-Backslash delimiters:
-
-Inline: The same equation written as \(E = mc^2\).
-
-Display:
-
-\[
-\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
-\]
+**Background image:**
+```markdown
+![bg](background.jpg)
+![bg right](split.jpg)
+![bg left:40%](split.jpg)
+```
 
 ---
 
-## Images and Backgrounds
+## Links (fully supported)
 
-Basic image:
+```markdown
+[Link text](https://example.com)
+[Link with title](https://example.com "Tooltip text")
+```
 
-![Alt text showing an example image](https://placehold.co/400x200?text=Demo+Slide)
-
-Sized images:
-
-![width:200px](https://placehold.co/400x200?text=200px+wide)
-![w:50%](https://placehold.co/400x200?text=50%25+width)
-
-Background image semantics (structural for this demo):
-
-![bg](https://placehold.co/1600x900?text=Background+Image)
-![bg right](https://placehold.co/800x900?text=Split+Right)
-![bg left:40%](https://placehold.co/800x900?text=Split+Left+40%25)
-
----
-
-## Links and Auto‑Links
-
-Standard links:
-
-- [Project repository](https://example.com)
-- [Markdown Slide Styling Guidelines](https://huijoohwee.github.io/guidelines/markdown-slide-styling-guidelines)
-
-Link with title:
-
-[External docs](https://example.com "Example documentation site")
-
-Auto‑linked URL:
-
+**Auto-linking:**
+```markdown
 <https://example.com>
+```
 
 ---
 
+## Horizontal Rules (fully supported)
+
+```markdown
+---
+```
+
+**Purpose**: Separates slides or sections depending on framework configuration
+
+**Alternative syntax:**
+```markdown
+***
+___
+```
+
+---
+
+## Slide Separation and Reordering in Knowgrph
+
+```markdown
+# Slide 1
+
+---
+
+# Slide 2
+```
+
+**Semantics in Knowgrph:**
+- Top-of-document YAML frontmatter (`---` … `---` at the very start) is treated as metadata and does not create a slide break.
+- `---` lines that appear outside YAML frontmatter and outside fenced code blocks are treated as slide separators by the Knowgrph markdown viewer and Slides Gallery.
+- `---` that appear inside fenced code blocks or inside YAML frontmatter are treated as literal content, not slide breaks.
+
+**Reordering behavior:**
+- The Slides Gallery sidebar lets you drag thumbnails to change slide order; Knowgrph rewrites the underlying markdown to match that order so the editor, viewer, and on-disk file stay aligned.
+- Reordering operates on slide-sized chunks, preserving per-slide YAML blocks, notes, and fenced code blocks (including those that contain `---`) as intact units.
+- When Knowgrph rewrites a deck after reordering, it normalizes slide separators to the form:
+
+  ```markdown
+  <last non-empty line of previous slide>
+  
+  ---
+  
+  <first non-empty line of next slide>
+  ```
+
+  enforcing a single blank line before and after each `---` separator.
+
+**Fullscreen frame, zoom, and scroll semantics in Knowgrph:**
+- The Slides Gallery renders each slide inside a static frame; the frame border, corner radius, and drop shadow do not zoom.
+- The slide content inside the frame can be zoomed and panned for detail inspection, while the frame stays fixed.
+- Mouse wheel or trackpad scroll **inside the frame** scrolls the slide content; it does not trigger zoom.
+- Zoom gestures are modifier-based: holding `Ctrl` (or `Cmd` on macOS) while scrolling zooms; plain scroll without modifiers only scrolls.
+
+---
+
+## Two-Column Layout: HTML (structural only)
+
+```html
+<div class="two-column">
+<div>
+
+**Left column:**
+- Content A
+- Content B
+
+</div>
+<div>
+
+**Right column:**
+- Content C
+- Content D
+
+</div>
+</div>
+```
+
+**Requires CSS:** `.two-column { display: grid; grid-template-columns: 1fr 1fr; }`
+
+---
+
+## Two-Column Layout: Native (fully supported)
+
+```markdown
 ---
 layout: two-cols
-class: text-left
 ---
 
-## Two‑Column Layout (Native)
-
 Left column content
-
-- One
-- Two
-- Three
 
 ::right::
 
 Right column content
+```
 
-- A
-- B
-- C
+**Purpose**: Framework-specific delimiter for column splitting
 
 ---
 
-## Click‑Based Progressive Disclosure
+## Click-Based Progressive Disclosure (fully supported in Knowgrph viewer)
 
-Group animation:
-
+**Group animation:**
+```html
 <v-clicks>
 
 - Appears on click 1
@@ -364,221 +435,523 @@ Group animation:
 - Appears on click 3
 
 </v-clicks>
+```
 
-Individual fragments:
+**Individual control (step-based reveal):**
+```html
+<v-click>Block appears on click</v-click>
 
-<v-click>Appears first</v-click>
+<v-click at="2">Appears at step 2</v-click>
+```
 
-<v-click at="2">Appears second</v-click>
-
-<v-click at="3">Appears third</v-click>
-
----
-
-## Inline Text Markers
-
-Markers that participate in fragment stepping:
-
-<v-mark color="red">red highlight</v-mark>  
-<v-mark color="yellow">yellow highlight</v-mark>  
-<v-mark type="circle">circled content</v-mark>  
-<v-mark type="underline">underlined content</v-mark>  
-<v-mark type="strike-through">struck content</v-mark>
-
-These markers are parsed structurally and treated as fragments by the viewer.
+**Knowgrph semantics:**
+- `<v-click>` blocks are treated as slide fragments.
+- `at="N"` sets the explicit fragment index for ordering.
+- When presentation mode is enabled and fragments are configured, fragments appear as the presenter advances steps.
 
 ---
 
+## Inline Text Markers (partially supported in Knowgrph viewer)
+
+```html
+<v-mark color="red">red highlight</v-mark>
+<v-mark color="yellow">yellow highlight</v-mark>
+<v-mark type="circle">circled</v-mark>
+<v-mark type="underline">underlined</v-mark>
+<v-mark type="strike-through">strikethrough</v-mark>
+```
+
+**Colors:** `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `gray`
+
+**Types:** `highlight`, `circle`, `underline`, `strike-through`
+
+**Knowgrph semantics:**
+- `<v-mark>` blocks participate in fragment stepping like `<v-click>`.
+- Color and type attributes are treated as plain content (no special styling today).
+
+---
+
+## Slide-Specific Directives (partially supported)
+
+**Per-slide YAML:**
+```markdown
 ---
 layout: center
 class: text-center
-background: '#111827'
+background: #1a1a2e
 transition: fade
 fragments:
   enabled: true
   steps: 3
 ---
 
-# Fragment Animations
+Slide content
 
-<p class="fragment">Default fade‑in (step 1)</p>
-<p class="fragment fade-up" data-fragment-index="2">Fade up (step 2)</p>
-<p class="fragment highlight-red" data-fragment-index="3">Highlight red (step 3)</p>
+Additional fragment configuration keys understood by the Knowgrph viewer:
+- `fragmentTags`: overrides the default fragment tag list (`['v-click', 'v-mark']`).
+- `fragmentClassNames`: overrides the default fragment class list (`['fragment']`).
+- `fragmentSteps` / `fragmentStepCount`: alternative way to specify total steps.
+```
 
----
+**HTML comments:**
+```markdown
+<!-- _class: lead -->
+<!-- _backgroundColor: #ffffff -->
+<!-- _color: #333333 -->
 
-## Custom CSS Classes and Utilities
-
-Framework utility classes applied via HTML:
-
-<div class="text-center opacity-50">
-  Centered, semi‑transparent text
-</div>
-
-<div class="grid grid-cols-3 gap-4 mt-4">
-  <div class="bg-slate-800 p-2">Column 1</div>
-  <div class="bg-slate-800 p-2">Column 2</div>
-  <div class="bg-slate-800 p-2">Column 3</div>
-</div>
+Slide content
+```
 
 ---
 
-## Absolute Positioning and Grid Layouts
+## Layout Types (partially supported)
 
-<div class="relative h-48 bg-slate-900">
-  <div class="absolute top-2 left-2 bg-emerald-600 px-2 py-1">
-    Top‑left
-  </div>
-  <div class="absolute bottom-2 right-2 bg-sky-600 px-2 py-1">
-    Bottom‑right
-  </div>
-  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-indigo-600 px-3 py-2">
-    Center
-  </div>
-</div>
-
-Grid examples:
-
-<div class="grid grid-cols-2 grid-rows-2 gap-2 mt-4">
-  <div class="bg-slate-800 p-2">Cell 1</div>
-  <div class="bg-slate-800 p-2">Cell 2</div>
-  <div class="bg-slate-800 p-2">Cell 3</div>
-  <div class="bg-slate-800 p-2">Cell 4</div>
-</div>
+**Common layouts:**
+- `default` - Standard content
+- `cover` - Title slide
+- `intro` - Introduction
+- `center` - Centered content
+- `two-cols` - Two columns
+- `image-right` - Image on right
+- `image-left` - Image on left
+- `quote` - Large quote
+- `fact` - Large number/fact
+- `section` - Section divider
 
 ---
 
-## Diagrams: Mermaid and PlantUML
+## Background Control (fully supported)
 
-Mermaid diagram:
+**Image:**
+```yaml
+---
+background: /path/to/image.jpg
+backgroundSize: cover
+backgroundPosition: center
+---
+```
 
+**Gradient:**
+```yaml
+---
+background: linear-gradient(135deg, #667eea, #764ba2)
+---
+```
+
+**Color:**
+```yaml
+---
+background: '#1a1a2e'
+---
+```
+
+---
+
+## Transition Effects (structural only today)
+
+```yaml
+---
+transition: slide-left
+---
+```
+
+**Options:**
+- `none` - No transition
+- `fade` - Crossfade
+- `slide-left` - Slide from right
+- `slide-right` - Slide from left
+- `slide-up` - Slide from bottom
+- `slide-down` - Slide from top
+- `zoom` - Zoom effect
+
+---
+
+## Fragment Animations (fully supported in Knowgrph viewer)
+
+```html
+<p class="fragment">Default fade-in</p>
+<p class="fragment fade-out">Fade out</p>
+<p class="fragment fade-up">Fade up</p>
+<p class="fragment highlight-red">Highlight red</p>
+<p class="fragment grow">Grow</p>
+<p class="fragment shrink">Shrink</p>
+```
+
+**Ordering:**
+```html
+<p class="fragment" data-fragment-index="1">First</p>
+<p class="fragment" data-fragment-index="2">Second</p>
+```
+
+**Knowgrph semantics:**
+- Elements with `class="fragment"` are treated as slide fragments.
+- `data-fragment-index="N"` controls the ordering; when omitted, order follows document flow.
+- Fragment visibility is driven by the current presentation “step” within the active slide.
+
+**Knowgrph-only minimal fragment deck (copy-paste template):**
+
+```markdown
+---
+layout: center
+aspectRatio: '16/9'
+fragments:
+  enabled: true
+  steps: 3
+---
+
+# Demo: Fragments
+
+Intro text (always visible)
+
+<p class="fragment">First fragment (step 1)</p>
+<p class="fragment">Second fragment (step 2)</p>
+
+---
+
+# Demo: v-click
+
+<v-click>Appears at step 1</v-click>
+<v-click at="2">Appears at step 2</v-click>
+<v-click at="3">Appears at step 3</v-click>
+```
+
+---
+
+## Speaker Notes (partially supported)
+
+**Method 1: HTML comments**
+```markdown
+## Slide Content
+
+<!--
+Speaker notes here
+- Not visible to audience
+- Accessible via presenter mode
+-->
+```
+
+**Method 2: Note delimiter**
+```markdown
+## Slide Content
+
+Note:
+- Speaker note line 1
+- Speaker note line 2
+```
+
+---
+
+## Diagrams: Mermaid (fully supported)
+
+````markdown
 ```mermaid
 graph LR
   A[Start] --> B{Decision}
-  B -->|Yes| C[Proceed]
-  B -->|No| D[Stop]
+  B -->|Yes| C[Action]
+  B -->|No| D[End]
 ```
+````
 
-PlantUML (structural only):
+**Diagram types:** `graph`, `flowchart`, `sequenceDiagram`, `classDiagram`, `stateDiagram`, `gantt`, `pie`
 
+---
+
+## Diagrams: PlantUML (structural only today)
+
+````markdown
 ```plantuml
 @startuml
 Alice -> Bob: Request
 Bob --> Alice: Response
 @enduml
 ```
+````
+
+**Purpose**: Generates UML diagrams from text syntax
 
 ---
 
----
-layout: center
-class: text-center
-background: linear-gradient(135deg, #667eea, #764ba2)
-transition: zoom
-fragments:
-  enabled: true
-  steps: 2
----
+## Custom CSS Classes (fully supported where expressed via HTML and CSS classes)
 
-# Speaker Notes and Directives
+**Framework utilities:**
+```html
+<div class="text-center opacity-50">Centered, semi-transparent</div>
+<div class="grid grid-cols-3 gap-4">Three columns</div>
+<div class="absolute top-10 right-10">Positioned</div>
+```
 
-Visible slide content for the audience.
-
-<!--
-Speaker notes:
-- Not visible to the audience
-- Accessible in presenter mode
--->
-
-Note:
-- This section demonstrates note‑style speaker notes
-- Use for quick talking points per slide
+**Common utilities:** `text-center`, `flex`, `grid`, `absolute`, `relative`, `opacity-*`, `scale-*`
 
 ---
 
-## Global and Slide‑Level Configuration
+## Scoped Styling (structural only today)
 
-Aspect ratio is set globally to **16:9** in the deck frontmatter.
+```markdown
+<style scoped>
+h1 { color: #667eea; }
+section { background: #1a1a2e; }
+code { font-size: 1.2em; }
+</style>
 
-Per‑slide configuration overrides:
+# Styled Slide
+Content affected by scoped styles
+```
+
+**Scope:** Applies only to current slide, not globally
+
+---
+
+## Embedded Components (structural only today)
+
+**QR Code:**
+```html
+<QRCode value="https://example.com" :size="200" />
+```
+
+**Chart:**
+```html
+<ChartJS type="bar" :data="{
+  labels: ['A', 'B', 'C'],
+  datasets: [{ data: [10, 20, 30] }]
+}" />
+```
+
+**Icons:**
+```html
+<carbon-logo-github />
+<mdi-check-circle class="text-3xl" />
+```
+
+---
+
+## Absolute Positioning (fully supported where expressed via HTML classes)
+
+```html
+<div class="absolute top-0 left-0">
+  Top-left corner
+</div>
+
+<div class="absolute bottom-0 right-0">
+  Bottom-right corner
+</div>
+
+<div class="absolute top-50% left-50% transform -translate-x-50% -translate-y-50%">
+  Center
+</div>
+```
+
+---
+
+## Grid Layouts (fully supported where expressed via HTML classes)
+
+```html
+<div class="grid grid-cols-3 gap-4">
+  <div>Column 1</div>
+  <div>Column 2</div>
+  <div>Column 3</div>
+</div>
+
+<div class="grid grid-cols-2 grid-rows-2 gap-2">
+  <div>Cell 1</div>
+  <div>Cell 2</div>
+  <div>Cell 3</div>
+  <div>Cell 4</div>
+</div>
+```
+
+---
+
+## Aspect Ratio Configuration (fully supported)
 
 ```yaml
 ---
-layout: center
-class: text-center
-background: '#1a1a2e'
-transition: fade
-fragments:
-  enabled: true
-  steps: 3
+aspectRatio: '16/9'   # Widescreen (default)
+# aspectRatio: '4/3'  # Standard
+# aspectRatio: '16/10' # Wide
 ---
 ```
 
-Font configuration (structural in this viewer):
+**Purpose**: Controls slide dimensions for target display
+
+---
+
+## Font Configuration (structural only today)
 
 ```yaml
+---
 fonts:
   sans: 'Inter'
   serif: 'Merriweather'
   mono: 'Fira Code'
   provider: 'google'
+---
+```
+
+**Providers:** `google`, `local`, `none`
+
+---
+
+## Export Configuration (framework-dependent, structural only)
+
+```yaml
+---
+download: true
+exportFilename: presentation
+---
+```
+
+**Export commands (framework-dependent):**
+```bash
+export --format pdf
+export --format png
+export --format pptx
+export --with-clicks
 ```
 
 ---
 
-## Drawing Mode and Multi‑Language Support
+## Keyboard Navigation (partially supported)
 
-Drawing mode (structural toggle):
+| Action | Keys |
+|--------|------|
+| Next slide | `Space`, `→`, `Page Down` |
+| Previous slide | `←`, `Page Up` |
+| First slide | `Home` |
+| Last slide | `End` |
+| Overview mode | `O`, `Esc` |
+| Speaker view | `S` |
+| Fullscreen | `F`, `F11` |
+| Drawing mode | `D` |
+| Go to slide | `G` |
+
+---
+
+## Drawing Mode (structural only today)
 
 ```yaml
+---
 drawings:
   enabled: true
   persist: false
   presenterOnly: false
+---
 ```
 
-Language and direction:
+**Purpose**: Enables on-slide annotations during presentation
+
+**Activation:** Press `D` key during presentation
+
+---
+
+## Multi-language Support (structural only today)
 
 ```yaml
+---
 lang: en-US
 # lang: zh-CN
-
-dir: ltr
-# dir: rtl
+---
 ```
 
-These keys are parsed structurally and can be used by compatible presentation frameworks.
+**RTL support:**
+```yaml
+---
+dir: rtl
+lang: ar
+---
+```
 
 ---
 
-## Best Practices Recap
+## Theme Customization (structural only today)
 
-Content structure:
+```css
+:root {
+  --primary-color: #667eea;
+  --secondary-color: #764ba2;
+  --text-color: #333333;
+  --background-color: #ffffff;
+  --code-background: #1a1a2e;
+}
 
-- One main concept per slide
-- Aim for ≤ 6 bullet points
-- Prefer visuals over dense paragraphs
+.slidev-layout {
+  font-family: 'Inter', sans-serif;
+}
 
-Code presentation:
+h1 {
+  color: var(--primary-color);
+}
+```
 
+---
+
+## Plugin System (framework-dependent, structural only)
+
+```javascript
+// config.js
+export default {
+  plugins: [
+    'plugin-qrcode',
+    'plugin-charts',
+    'plugin-diagrams'
+  ]
+}
+```
+
+**Purpose**: Extends framework capabilities via modular plugins
+
+---
+
+## Configuration Inheritance (framework-dependent, structural only)
+
+```yaml
+---
+extends: ./base.md
+---
+```
+
+**Purpose**: Reuses common configuration across multiple presentations
+
+**Effect**: Current file inherits settings from base file, overriding as needed
+
+---
+
+## Feature Comparison
+
+| Feature | Framework A | Framework B | Framework C |
+|---------|-------------|-------------|-------------|
+| Components | ✅ | ❌ | ❌ |
+| Live reload | ✅ | ✅ | ❌ |
+| PDF export | ✅ | ✅ | ✅ |
+| PPTX export | ❌ | ✅ | ❌ |
+| Drawing | ✅ | ❌ | ✅ |
+| Monaco editor | ✅ | ❌ | ❌ |
+
+**Purpose**: Compare capabilities across presentation frameworks
+
+---
+
+## Best Practices
+
+**Content structure:**
+- One concept per slide
+- Maximum 6 bullet points
+- Maximum 6 words per point
+- Prioritize visuals over text
+
+**Code presentation:**
 - Highlight changed lines
-- Keep blocks small and focused
-- Always specify language hints for syntax highlighting
+- Limit blocks to 15 lines
+- Include language hints
+- Use syntax highlighting
 
-Accessibility:
-
-- Maintain high contrast
-- Use readable font sizes
-- Provide alternative text for images
+**Accessibility:**
+- High contrast (4.5:1 minimum)
+- Readable fonts (20px+)
+- Semantic HTML structure
+- Alternative text for images
 
 ---
 
-## End of Demo
+# Complete Reference
 
-You can now:
-
-- Load this markdown file into the markdown viewer
-- Toggle between viewer and presentation modes
-- Step through fragments, clicks, and animations
-
-This deck is designed as a compact, production‑ready demo of the markdown slide rendering capabilities.
+**45 slides** • **Universal syntax** • **Zero duplication** • **Production-ready**

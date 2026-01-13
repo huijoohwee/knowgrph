@@ -101,7 +101,7 @@ body {
     align-items: center;
     gap: var(--toolbar-gap);
     padding: var(--toolbar-padding);
-    background-color: rgba(255,255,255,var(--toolbar-opacity));
+    background-color: rgba(var(--panel-bg-rgb),var(--toolbar-opacity));
     border: 1px solid var(--island-border-color);
     border-radius: var(--island-radius);
     box-shadow: var(--island-shadow);

@@ -6,7 +6,7 @@ type SlideFrameProps = {
   slideTransitionStyle: React.CSSProperties
   slideOuterClass: string
   slideContentClass: string
-  onDoubleClick?: () => void
+  onDoubleClick?: (e: React.MouseEvent) => void
   children: React.ReactNode
 }
 
@@ -22,7 +22,7 @@ export function SlideFrame(props: SlideFrameProps) {
   } = props
 
   return (
-    <div
+    <article
       className={frameClassName}
       style={{ ...slideStyle, ...slideTransitionStyle }}
       onDoubleClick={onDoubleClick}
@@ -32,7 +32,7 @@ export function SlideFrame(props: SlideFrameProps) {
           {children}
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 

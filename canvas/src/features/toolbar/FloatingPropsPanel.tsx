@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { useFloatingPropsPanelModel } from '@/features/toolbar/useFloatingPropsPanelModel'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function FloatingPropsPanel() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -14,7 +15,7 @@ export function FloatingPropsPanel() {
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass
-      || 'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right',
+      || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
 
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
@@ -75,7 +76,7 @@ export function FloatingPropsPanel() {
   }) => (
     <button
       type="button"
-      className={`block w-full text-left px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-700`}
+      className={`block w-full text-left px-3 py-2 ${UI_THEME_TOKENS.table.rowHover} disabled:opacity-50 disabled:cursor-not-allowed ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.primary}`}
       onClick={onClick}
       disabled={disabled}
     >
@@ -84,7 +85,7 @@ export function FloatingPropsPanel() {
   )
 
   return (
-    <div className="min-w-56 bg-white">
+    <div className={`min-w-56 ${UI_THEME_TOKENS.panel.bg}`}>
       <CollapsibleSection
         title="Add"
         stickyHeader={false}
@@ -94,7 +95,7 @@ export function FloatingPropsPanel() {
         <div className="px-3 py-2">
           <div className="mb-2 flex items-center gap-2">
             <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
+              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
             >
               Type
             </label>
@@ -124,7 +125,7 @@ export function FloatingPropsPanel() {
           </div>
           <div className="flex items-center gap-2">
             <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
+              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
             >
               Label
             </label>
@@ -136,7 +137,7 @@ export function FloatingPropsPanel() {
           </div>
           <div className="mt-2 flex items-center gap-2">
             <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
+              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
             >
               Edge Label
             </label>
@@ -216,42 +217,42 @@ export function FloatingPropsPanel() {
         <div className="px-3 py-2">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-gray-500">
+              <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
                 Media view
               </span>
-              <div className="inline-flex rounded border border-gray-300 overflow-hidden bg-gray-50">
+              <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
                 <button
                   type="button"
                   onClick={() => setRenderMediaAsNodes(false)}
-                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${renderMediaAsNodes ? 'bg-gray-50 text-gray-600' : 'bg-blue-600 text-white'}`}
+                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${renderMediaAsNodes ? `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}` : `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}`}
                 >
                   Circle-only
                 </button>
                 <button
                   type="button"
                   onClick={() => setRenderMediaAsNodes(true)}
-                  className={`px-2 py-1 text-[11px] border-l border-gray-300 ${uiPanelTextFontClass} ${renderMediaAsNodes ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-600'}`}
+                  className={`px-2 py-1 text-[11px] border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${renderMediaAsNodes ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
                   Panel-only
                 </button>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-gray-500">
+              <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
                 Panel layout
               </span>
-              <div className="inline-flex rounded border border-gray-300 overflow-hidden bg-gray-50">
+              <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
                 <button
                   type="button"
                   onClick={() => setMediaPanelDensity('default')}
-                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${mediaPanelDensity === 'default' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-600'}`}
+                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${mediaPanelDensity === 'default' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
                   Standard
                 </button>
                 <button
                   type="button"
                   onClick={() => setMediaPanelDensity('compact')}
-                  className={`px-2 py-1 text-[11px] border-l border-gray-300 ${uiPanelTextFontClass} ${mediaPanelDensity === 'compact' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-600'}`}
+                  className={`px-2 py-1 text-[11px] border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${mediaPanelDensity === 'compact' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
                   Compact
                 </button>
@@ -260,7 +261,7 @@ export function FloatingPropsPanel() {
           </div>
           <div className="mb-2 flex items-center gap-2">
             <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
+              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
             >
               Opacity
             </label>
@@ -275,7 +276,7 @@ export function FloatingPropsPanel() {
                 className="flex-1"
               />
               <span
-                className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 w-10 text-right`}
+                className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} w-10 text-right`}
               >
                 {Math.round(mediaNodeOpacity * 100)}%
               </span>
@@ -283,7 +284,7 @@ export function FloatingPropsPanel() {
           </div>
           <div className="mb-2 flex items-center gap-2">
             <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
+              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
             >
               Kind
             </label>
@@ -303,7 +304,7 @@ export function FloatingPropsPanel() {
           </div>
           <div className="mb-2 flex items-center gap-2">
             <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
+              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
             >
               URL
             </label>
@@ -315,21 +316,21 @@ export function FloatingPropsPanel() {
           </div>
           <div className="flex items-center gap-2">
             <label
-              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal text-gray-600`}
+              className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
             >
               Interactive
             </label>
             <div className="w-[70%] flex items-center gap-1">
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs border border-gray-300 ${!mediaInteractive ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}
+                className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${!mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
                 onClick={() => setMediaInteractive(false)}
               >
                 Off
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs border border-gray-300 ${mediaInteractive ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}
+                className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${mediaInteractive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
                 onClick={() => setMediaInteractive(true)}
               >
                 On

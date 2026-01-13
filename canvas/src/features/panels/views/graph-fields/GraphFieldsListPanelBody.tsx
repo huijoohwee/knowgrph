@@ -22,6 +22,7 @@ import {
 } from '@/features/panels/views/graph-fields/graphFieldsListUtils'
 import { NewFieldForm } from './NewFieldForm'
 import { useGraphFieldsFiltering } from '@/features/panels/views/graph-fields/hooks/useGraphFieldsFiltering'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type GraphFieldsListPanelBodyProps = {
   uiPanelKeyValueTextSizeClass: string
@@ -165,8 +166,8 @@ export function GraphFieldsListPanelBody({
   })
 
   return (
-    <div className="row-span-2 rounded border border-gray-200 bg-white overflow-hidden flex flex-col min-h-0 min-w-0">
-      <div className="h-9 border-b border-gray-200 bg-gray-50 px-2 text-gray-700 flex items-center justify-between gap-2">
+    <div className={`row-span-2 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col min-h-0 min-w-0`}>
+      <div className={`h-9 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 ${UI_THEME_TOKENS.text.primary} flex items-center justify-between gap-2`}>
         <div className="flex items-center gap-2">
           <div className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.graphFields}</div>
         </div>
@@ -185,7 +186,7 @@ export function GraphFieldsListPanelBody({
           >
             <SearchIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
           </IconButton>
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-400 whitespace-nowrap`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>
             {UI_COPY.graphFieldsVisibleTotalStatus(
               visibleGraphFieldColumnCount,
               orderedAllCuratorColumnKeys.length,
@@ -204,17 +205,17 @@ export function GraphFieldsListPanelBody({
       </div>
 
       {searchOpen ? (
-        <div className="border-b border-gray-200 bg-white p-2">
-          <div className="h-8 flex items-center gap-2 rounded border border-gray-300 bg-white px-2">
+        <div className={`border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-2`}>
+          <div className={`h-8 flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} px-2`}>
             <SearchIcon
-              className={`${iconSizeClass} text-gray-500`}
+              className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}
               strokeWidth={uiIconStrokeWidth}
             />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={UI_COPY.searchFieldsPlaceholder}
-              className="h-8 w-full bg-transparent text-xs outline-none"
+              className={`h-8 w-full bg-transparent text-xs outline-none ${UI_THEME_TOKENS.text.primary}`}
               autoFocus
             />
           </div>
@@ -307,7 +308,7 @@ export function GraphFieldsListPanelBody({
             )
           }
 
-          const sectionHeaderClass = `mt-2 border-t border-gray-200 px-2 pt-1 ${uiPanelKeyValueTextSizeClass} font-medium tracking-wide text-gray-400`
+          const sectionHeaderClass = `mt-2 border-t ${UI_THEME_TOKENS.panel.border} px-2 pt-1 ${uiPanelKeyValueTextSizeClass} font-medium tracking-wide ${UI_THEME_TOKENS.text.tertiary}`
 
           const hasAnyRows =
             globalSchemaVisible ||
@@ -322,7 +323,7 @@ export function GraphFieldsListPanelBody({
 
           if (!hasAnyRows) {
             return (
-              <div className={`p-2 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+              <div className={`p-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 {UI_COPY.noFields}
               </div>
             )
@@ -330,9 +331,9 @@ export function GraphFieldsListPanelBody({
 
           const localSchemaButtonClassName = (active: boolean) =>
             [
-              'w-full border-b border-gray-100 last:border-b-0 px-2 py-1.5',
+              `w-full border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0 px-2 py-1.5`,
               'flex items-center gap-2 border-l-2',
-              active ? 'bg-blue-50' : 'bg-white hover:bg-gray-50',
+              active ? UI_THEME_TOKENS.table.rowSelected : `${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHover}`,
               'min-w-0 overflow-hidden text-left',
             ].join(' ')
 
@@ -374,12 +375,12 @@ export function GraphFieldsListPanelBody({
                       setSelectedFieldId(null)
                     }}
                   >
-                    <GraphFieldsIcon className={`${iconSizeClass} text-gray-500`} aria-hidden={true} />
+                    <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1 min-w-0 text-xs text-gray-800 truncate">
+                      <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                         <span className="truncate">{globalSchemaLabel}</span>
                       </div>
-                      <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 truncate`}>
+                      <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                         {SCHEMA_KEYS.globalSchema}
                       </div>
                     </div>
@@ -394,12 +395,12 @@ export function GraphFieldsListPanelBody({
                       style={{ borderLeftColor: '#93C5FD' }}
                       onClick={() => onSelectLocalSchemaFacet('validation', 'global')}
                     >
-                      <GraphFieldsIcon className={`${iconSizeClass} text-gray-500`} aria-hidden={true} />
+                      <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1 min-w-0 text-xs text-gray-800 truncate">
+                        <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                           <span className="truncate">{localSchemaValidationLabel}</span>
                         </div>
-                        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 truncate`}>
+                        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                           {formatLocalSubtitle('validation')}
                         </div>
                       </div>
@@ -421,12 +422,12 @@ export function GraphFieldsListPanelBody({
                       style={{ borderLeftColor: '#93C5FD' }}
                       onClick={() => onSelectLocalSchemaFacet('properties', 'base')}
                     >
-                      <GraphFieldsIcon className={`${iconSizeClass} text-gray-500`} aria-hidden={true} />
+                      <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1 min-w-0 text-xs text-gray-800 truncate">
+                        <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                           <span className="truncate">{localSchemaPropsLabel}</span>
                         </div>
-                        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 truncate`}>
+                        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                           {formatLocalSubtitle('properties')}
                         </div>
                       </div>
@@ -450,12 +451,12 @@ export function GraphFieldsListPanelBody({
                       style={{ borderLeftColor: '#93C5FD' }}
                       onClick={() => onSelectLocalSchemaFacet('template', 'custom')}
                     >
-                      <GraphFieldsIcon className={`${iconSizeClass} text-gray-500`} aria-hidden={true} />
+                      <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1 min-w-0 text-xs text-gray-800 truncate">
+                        <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                           <span className="truncate">{localSchemaTemplateLabel}</span>
                         </div>
-                        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 truncate`}>
+                        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                           {formatLocalSubtitle('template')}
                         </div>
                       </div>
@@ -478,12 +479,12 @@ export function GraphFieldsListPanelBody({
                       style={{ borderLeftColor: '#93C5FD' }}
                       onClick={() => onSelectLocalSchemaFacet('localRules', 'derived')}
                     >
-                      <GraphFieldsIcon className={`${iconSizeClass} text-gray-500`} aria-hidden={true} />
+                      <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} aria-hidden={true} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1 min-w-0 text-xs text-gray-800 truncate">
+                        <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
                           <span className="truncate">{localSchemaLocalRulesLabel}</span>
                         </div>
-                        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 truncate`}>
+                        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate`}>
                           {formatLocalSubtitle('localRules')}
                         </div>
                       </div>

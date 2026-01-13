@@ -20,12 +20,19 @@ import {
 import { BottomPanelMarkdownSectionView } from './BottomPanelMarkdownSectionView'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
+import type { BottomTab } from '@/features/bottom-panel/open'
 
 export type MarkdownLayoutMode = 'split' | 'editor' | 'viewer'
 
 type JsonMarkdownMode = JsonToMarkdownMode
 
-export function BottomPanelMarkdownSection() {
+type BottomPanelMarkdownSectionProps = {
+  setBottomPanelCurationView?: (view: 'table' | 'json' | 'markdown') => void
+  setTabStore?: (tab: BottomTab) => void
+}
+
+export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProps) {
+  const { setBottomPanelCurationView } = props
   const graphData = useGraphStore(s => s.graphData)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
@@ -550,6 +557,9 @@ export function BottomPanelMarkdownSection() {
       isMarkdownPreviewTruncated={isMarkdownPreviewTruncated}
       handleApplyMarkdown={handleApplyMarkdown}
       onFullscreenToggleRequested={handleFullscreenToggleRequested}
+      onShowInGraphDataTable={() => {
+        if (setBottomPanelCurationView) setBottomPanelCurationView('table')
+      }}
     />
   )
 }

@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type GraphLayerStyleMeta = {
   fill?: string
@@ -302,16 +303,16 @@ export function GraphLayerMetadataPresetsSection({
   }
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
+    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
+      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`}>
         Graph layer defaults
       </div>
-      <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+      <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
         Configure default fill, stroke, opacity, and dash used by graph layers in both 2D and 3D views. Field-level overrides live in the schema extras panel.
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill color
           </div>
           <input
@@ -322,7 +323,7 @@ export function GraphLayerMetadataPresetsSection({
           />
         </div>
         <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default stroke color
           </div>
           <input
@@ -335,7 +336,7 @@ export function GraphLayerMetadataPresetsSection({
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill opacity
           </div>
           <input

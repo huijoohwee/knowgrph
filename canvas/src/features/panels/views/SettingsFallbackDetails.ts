@@ -94,6 +94,11 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'UI Density: Icons',
     responsibility: 'Enable toolbar launch/3D icon animation',
   },
+  themeMode: {
+    area: 'UI Appearance',
+    responsibility: 'Global color theme (Light, Dark, or System)',
+    notes: 'Controls the application color palette. Light mode follows GitHub Light Tritanopia, Dark mode follows GitHub Dark Tritanopia.',
+  },
   selectionFlashDurationMs: {
     area: 'Selection Flash',
     responsibility: 'Duration of canvas-driven selection flash highlights (ms)',

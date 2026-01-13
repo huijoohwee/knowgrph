@@ -1,6 +1,7 @@
 import React from 'react'
 import { fieldKindLabel } from '@/features/graph-fields/graphFields'
 import type { GraphFieldKind, GraphFieldScope } from '@/features/graph-fields/graphFields'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function GripDotsIcon({ className }: { className?: string }) {
   return (
@@ -247,7 +248,7 @@ export function KindPill({
   return (
     <span
       className={
-        className ?? 'inline-flex items-center justify-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5'
+        className ?? `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1.5 py-0.5`
       }
       title={display}
       aria-label={display}

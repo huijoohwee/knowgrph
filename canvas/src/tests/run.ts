@@ -255,6 +255,7 @@ export const runAllTests = async () => {
   const results: { name: string; ok: boolean; error?: string }[] = []
   const exec = async (name: string, fn: () => void | Promise<void>) => {
     try {
+      console.log(`RUN ${name}`)
       await fn()
       results.push({ name, ok: true })
     } catch (e: unknown) {

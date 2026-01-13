@@ -20,6 +20,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   const originalElement = (g as { Element?: typeof Element }).Element
   const originalDomParser = (g as { DOMParser?: typeof DOMParser }).DOMParser
   const originalHtmlIFrameElement = (g as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement
+  const originalResizeObserver = (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
 
   ;(g as { window: Window }).window = dom.window as unknown as Window
   ;(g as { document: Document }).document = dom.window.document as unknown as Document
@@ -36,6 +37,16 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       anyGlobal.HTMLIFrameElement = HTMLIFrameElement
     } else {
       anyGlobal.HTMLIFrameElement = class {} as typeof HTMLIFrameElement
+    }
+
+    // Polyfill ResizeObserver
+    const anyGlobalResize = g as unknown as { ResizeObserver: unknown }
+    if (!anyGlobalResize.ResizeObserver) {
+      anyGlobalResize.ResizeObserver = class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
     }
   } catch {
     void 0
@@ -77,6 +88,12 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
     } else {
       ;(g as { HTMLIFrameElement: typeof HTMLIFrameElement }).HTMLIFrameElement =
         originalHtmlIFrameElement as typeof HTMLIFrameElement
+    }
+
+    if (typeof originalResizeObserver === 'undefined') {
+      delete (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
+    } else {
+      ;(g as { ResizeObserver: typeof ResizeObserver }).ResizeObserver = originalResizeObserver as typeof ResizeObserver
     }
 
     dom.window.close()

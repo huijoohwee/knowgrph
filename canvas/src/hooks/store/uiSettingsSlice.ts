@@ -12,7 +12,9 @@ import type {
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
 import { SESSION_KEYS } from '@/lib/config';
-import { ssSetString, ssString } from '@/lib/persistence';
+import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
+import { ThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode } from '@/lib/ui/theme';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 type SetGraph = StoreApi<GraphState>['setState'];
 
@@ -41,15 +43,21 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   uiIconScale: 'default' as const,
   uiIconFormat: 'default' as const,
   uiIconStrokeWidth: 1.5,
-  uiIconColorClass: 'text-slate-500 dark:text-slate-400',
-  uiIconHoverBgClass: 'hover:bg-slate-100 dark:hover:bg-slate-800',
-  uiIconButtonPaddingClass: 'p-1',
-  uiIconPillClass: 'rounded-full px-2 py-0.5 border border-slate-200 dark:border-slate-700',
-  uiIconPillLegendTextSizeClass: 'text-[10px] font-medium text-slate-500',
-  uiIconPillBadgeTextSizeClass: 'text-[10px] font-bold',
-  uiIconBadgeChipClass: 'rounded px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800',
-  uiIconBadgeChipTextSizeClass: 'text-[10px] font-mono',
+  uiIconColorClass: UI_THEME_TOKENS.icon.color,
+  uiIconHoverBgClass: UI_THEME_TOKENS.button.hoverBg,
+  uiIconButtonPaddingClass: UI_THEME_TOKENS.button.padding,
+  uiIconPillClass: UI_THEME_TOKENS.pill.base,
+  uiIconPillLegendTextSizeClass: UI_THEME_TOKENS.pill.text,
+  uiIconPillBadgeTextSizeClass: UI_THEME_TOKENS.pill.badgeText,
+  uiIconBadgeChipClass: UI_THEME_TOKENS.badge.chip,
+  uiIconBadgeChipTextSizeClass: UI_THEME_TOKENS.badge.text,
   uiIconAnimationEnabled: true,
+  themeMode: getInitialThemeMode(getLocalStorage()),
+  setThemeMode: (mode: ThemeMode) => {
+    persistThemeMode(getLocalStorage(), mode);
+    applyThemeMode(mode);
+    set({ themeMode: mode });
+  },
   selectionFlashDurationMs: 500,
   selectionFlashOpacity: 0.18,
   uiOverlayOpacity: 0.9,
@@ -70,6 +78,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   launchSpotlightMode: 'tour' as const,
   enableLaunchSpotlight: true,
   statusPanelPinned: false,
+  frontmatterModeEnabled: true,
   schemaDeriveCacheCapacity: 50,
   graphFieldSettingsById: {} as GraphFieldSettingsById,
   selectedGraphFieldId: null as GraphFieldId | null,

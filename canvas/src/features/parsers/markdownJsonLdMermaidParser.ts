@@ -69,7 +69,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     }
   }
 
-  const ensureSubgraph = (rawName: string, rawLabel: string | null): string => {
+  const ensureSubgraph = (rawName: string, rawLabel: string | null, lineOffset: number): string => {
     const name = String(rawName || '').trim()
     if (!name) return ''
     const existing = mermaidSubgraphIdsByName.get(name)
@@ -85,7 +85,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       name: display,
       chunk_text: display.slice(0, 800),
       properties: { subgraphName: name, label: display },
-      metadata: mkMeta(1, Math.max(1, startIndex - 1)),
+      metadata: mkMeta(startIndex + lineOffset, startIndex + lineOffset),
     })
     if (!docSubgraphIds.has(subgraphId)) {
       docSubgraphIds.add(subgraphId)
@@ -165,7 +165,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       const subgraphName = m ? String(m[1] || '').trim() : ''
       const subgraphLabel = m ? String(m[2] || '').trim().replace(/^"|"$/g, '') : ''
       if (subgraphName) {
-        const id = ensureSubgraph(subgraphName, subgraphLabel)
+        const id = ensureSubgraph(subgraphName, subgraphLabel, i)
         if (id) {
           currentSubgraphName = subgraphName
           currentSubgraphId = id
@@ -196,7 +196,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       name: nodeLabel || nodeName,
       chunk_text: (nodeLabel || nodeName).slice(0, 800),
       properties: propsWithLayer,
-      metadata: mkMeta(1, Math.max(1, startIndex - 1)),
+      metadata: mkMeta(startIndex + i, startIndex + i),
     })
     addRel(docId, 'hasMermaidNode', nodeId)
   }
@@ -226,7 +226,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
             name: srcName,
             chunk_text: srcName.slice(0, 800),
             properties: propsWithLayer,
-            metadata: mkMeta(1, Math.max(1, startIndex - 1)),
+            metadata: mkMeta(startIndex + i, startIndex + i),
           })
           addRel(docId, 'hasMermaidNode', srcId)
         }
@@ -243,7 +243,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
             name: tgtName,
             chunk_text: tgtName.slice(0, 800),
             properties: propsWithLayer,
-            metadata: mkMeta(1, Math.max(1, startIndex - 1)),
+            metadata: mkMeta(startIndex + i, startIndex + i),
           })
           addRel(docId, 'hasMermaidNode', tgtId)
         }

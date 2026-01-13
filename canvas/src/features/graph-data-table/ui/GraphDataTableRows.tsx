@@ -17,6 +17,7 @@ import {
 import { BodyCell } from './GraphDataTableBody'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { uiPrimaryIconActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type SelectionSets = {
   selectedNodeIdSet: Set<string>
@@ -64,6 +65,7 @@ export type GraphDataTableRowsProps = {
   updateEdge: (id: string, patch: Partial<GraphEdge>) => void
   onRowClick: (row: UnifiedRow) => void
   onRowDoubleClick: (row: UnifiedRow) => void
+  onRowContextMenu?: (event: React.MouseEvent, row: UnifiedRow) => void
   flashSelectionId?: string | null
 }
 
@@ -108,6 +110,7 @@ export function GraphDataTableRows({
   updateEdge,
   onRowClick,
   onRowDoubleClick,
+  onRowContextMenu,
   flashSelectionId,
 }: GraphDataTableRowsProps) {
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
@@ -130,9 +133,9 @@ export function GraphDataTableRows({
 
         if (item.kind === 'group') {
           return (
-            <tr key={`group:${itemIndex}:${item.id}`} className="bg-gray-50">
+            <tr key={`group:${itemIndex}:${item.id}`} className={UI_THEME_TOKENS.table.headerBg}>
               <td
-                className={`${bodyCellBaseClassName} font-medium text-gray-700 border-gray-200`}
+                className={`${bodyCellBaseClassName} font-medium ${UI_THEME_TOKENS.table.text} ${UI_THEME_TOKENS.table.cellBorder}`}
                 colSpan={effectiveColumnCount}
               >
                 {item.label} ({item.rows.length.toLocaleString()})
@@ -142,9 +145,9 @@ export function GraphDataTableRows({
         }
         if (item.kind === 'aggregate') {
           return (
-            <tr key={`aggregate:${itemIndex}:${item.groupId}`} className="bg-gray-50">
+            <tr key={`aggregate:${itemIndex}:${item.groupId}`} className={UI_THEME_TOKENS.table.headerBg}>
               <td
-                className={`${bodyCellBaseClassName} ${uiPanelKeyValueTextSizeClass} text-gray-500 border-gray-200`}
+                className={`${bodyCellBaseClassName} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.table.textSecondary} ${UI_THEME_TOKENS.table.cellBorder}`}
                 colSpan={effectiveColumnCount}
               >
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -157,9 +160,9 @@ export function GraphDataTableRows({
                   {item.numericSummaries.map((summary, summaryIndex) => (
                     <span
                       key={summary.key ?? `summary:${summaryIndex}`}
-                      className={`flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} text-gray-500`}
+                      className={`flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.table.textSecondary}`}
                     >
-                      <span className="text-gray-300">•</span>
+                      <span className={UI_THEME_TOKENS.text.tertiary}>•</span>
                       <span className={uiPanelMonospaceTextClass}>
                         {columnLabelByKey.get(summary.key) ?? summary.key}
                         {': '}
@@ -198,7 +201,7 @@ export function GraphDataTableRows({
                       )}
                       <button
                         type="button"
-                        className={`${uiPanelKeyValueTextSizeClass} text-gray-400 hover:text-gray-600 ml-2`}
+                        className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} hover:${UI_THEME_TOKENS.text.secondary} ml-2`}
                         onClick={() =>
                           setAggregateVizMode(prev => {
                             if (prev === 'none') return 'radial'
@@ -256,35 +259,35 @@ export function GraphDataTableRows({
               : null
 
         const selectionClassName = isActive
-          ? 'bg-blue-100'
-          : isRelated
-            ? 'bg-blue-50'
-            : rowIndex % 2 === 0
-              ? 'bg-white'
-              : 'bg-gray-50/50'
-        const outlineClassName =
-          useFlash && outlineThicknessClass
-            ? `${outlineThicknessClass} ring-orange-600 dark:ring-orange-300`
-            : ''
-        const flashStyle = useFlash
-          ? {
-              backgroundColor: `rgba(249,115,22,${flashAlpha})`,
-            }
-          : undefined
-        return (
-          <tr
-            key={`row:${itemIndex}:${row.id}`}
-            className={`cursor-default border-b border-gray-100 hover:bg-blue-50/40 ${selectionClassName} ${outlineClassName}`}
-            style={{
-              ...(mediaNodeOpacity < 1 ? { opacity: mediaNodeOpacity } : undefined),
-              ...(flashStyle || {}),
-            }}
-            onClick={() => onRowClick(row)}
-            onDoubleClick={() => onRowDoubleClick(row)}
-          >
-            <th
-              scope="row"
-              className={`group p-0 border-b border-gray-200 border-r border-gray-200 sticky left-0 z-10 ${indexColumnWidthClassName} bg-gray-100 text-xs font-normal text-gray-400 text-center align-top`}
+    ? `${UI_THEME_TOKENS.table.rowSelected}`
+    : isRelated
+      ? UI_THEME_TOKENS.table.rowRelated
+      : UI_THEME_TOKENS.table.rowBg
+  const outlineClassName =
+    useFlash && outlineThicknessClass
+      ? `${outlineThicknessClass} ring-orange-600 dark:ring-orange-300`
+      : ''
+  const flashStyle = useFlash
+    ? {
+        backgroundColor: `rgba(249,115,22,${flashAlpha})`,
+      }
+    : undefined
+  const borderClass = isActive ? '' : `border-b ${UI_THEME_TOKENS.table.cellBorder}`
+  return (
+    <tr
+      key={`row:${itemIndex}:${row.id}`}
+      className={`cursor-default ${borderClass} ${UI_THEME_TOKENS.table.rowHoverAmber} ${selectionClassName} ${outlineClassName}`}
+      style={{
+        ...(mediaNodeOpacity < 1 ? { opacity: mediaNodeOpacity } : undefined),
+        ...(flashStyle || {}),
+      }}
+      onClick={() => onRowClick(row)}
+      onDoubleClick={() => onRowDoubleClick(row)}
+      onContextMenu={(e) => onRowContextMenu && onRowContextMenu(e, row)}
+    >
+      <th
+        scope="row"
+              className={`group p-0 ${borderClass} border-r ${UI_THEME_TOKENS.table.cellBorder} sticky left-0 z-10 ${indexColumnWidthClassName} ${UI_THEME_TOKENS.table.headerBg} text-xs font-normal ${UI_THEME_TOKENS.table.textSecondary} text-center align-top`}
               data-row-index={rowIndex}
             >
               <div className="relative flex items-center justify-center h-8">
@@ -297,12 +300,12 @@ export function GraphDataTableRows({
                     <rect x="0" y="0" width="3" height="24" fill={scopeBorderColor} />
                   </svg>
                 ) : null}
-                <span className={`${uiPanelMonospaceTextClass} tabular-nums text-gray-500 transition-opacity ${isActive ? 'opacity-0' : 'group-hover:opacity-0'}`}>
+                <span className={`${uiPanelMonospaceTextClass} tabular-nums ${UI_THEME_TOKENS.table.textSecondary} transition-opacity ${isActive ? 'opacity-0' : 'group-hover:opacity-0'}`}>
                   {rowIndex}
                 </span>
                 <input
                   type="checkbox"
-                  className={`absolute h-4 w-4 rounded border-gray-300 ${uiPrimaryIconActiveClassName} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-opacity ${
+                  className={`absolute h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} ${uiPrimaryIconActiveClassName} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-opacity ${
                     isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
                   checked={isActive}
@@ -352,7 +355,7 @@ export function GraphDataTableRows({
       )}
       {isEmpty && (
         <tr>
-          <td className="px-2 py-10 text-gray-500 text-center" colSpan={effectiveColumnCount}>
+          <td className={`px-2 py-10 ${UI_THEME_TOKENS.table.textSecondary} text-center`} colSpan={effectiveColumnCount}>
             {UI_COPY.graphDataTableNoRowsMatch}
           </td>
         </tr>

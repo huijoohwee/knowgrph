@@ -74,14 +74,18 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     if (!node) return
     const cur = node[key]
     if (Array.isArray(cur)) {
-      cur.push(tgt)
+      if (!cur.includes(tgt)) {
+        cur.push(tgt)
+      }
       return
     }
     if (typeof cur === 'string' && cur.trim()) {
-      node[key] = [cur, tgt]
+      if (cur !== tgt) {
+        node[key] = [cur, tgt]
+      }
       return
     }
-    node[key] = [tgt]
+    node[key] = tgt
   }
 
   const setNext = (prev: string | null, next: string): void => {
@@ -127,10 +131,28 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     })
     addRel(docId, 'hasMermaid', mermaidId)
 
+    let mermaidStartLine = 1
+    for (let i = 0; i < startIndex; i++) {
+      const line = rawLines[i] || ''
+      if (line.trim().startsWith('mermaid:')) {
+        if (line.includes('|') || line.includes('>')) {
+          mermaidStartLine = i + 2
+        } else {
+          const afterKey = line.slice(line.indexOf('mermaid:') + 8).trim()
+          if (afterKey) {
+            mermaidStartLine = i + 1
+          } else {
+            mermaidStartLine = i + 2
+          }
+        }
+        break
+      }
+    }
+
     const parserCtx: MermaidParserContext = {
       gid,
       docId,
-      startIndex,
+      startIndex: mermaidStartLine,
       mermaidTidyTreeLayout,
       ensureNode,
       addRel,

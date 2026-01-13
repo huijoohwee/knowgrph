@@ -9,7 +9,12 @@ export async function testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo() {
     'utf8',
   ).split('\n')
 
-  const snippet = markdownLines.slice(84, 105).join('\n')
+  const abbrLineIndex = markdownLines.findIndex(line => line.includes('<abbr'))
+  if (abbrLineIndex === -1) {
+    throw new Error('Could not find <abbr> line in markdown-slide-demo.md')
+  }
+
+  const snippet = markdownLines.slice(Math.max(0, abbrLineIndex - 5), abbrLineIndex + 15).join('\n')
   const html = renderMarkdownPreview(snippet, 'docs/markdown-slide-demo.md')
 
   if (!html.includes('Hover over this term:')) {

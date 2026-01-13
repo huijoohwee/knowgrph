@@ -128,7 +128,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
   if (safeHtml) {
     return (
       <MarkdownBlockContainer
-        as="div"
+        as="section"
         className={['mt-3 mb-3'].filter(Boolean).join(' ')}
         highlightClass={highlightClass}
         highlightStyle={highlightStyle}

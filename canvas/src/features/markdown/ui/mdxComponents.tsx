@@ -1,6 +1,7 @@
 import React from 'react'
 import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
 import { type MermaidInitConfig, useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function Alert({
   title,
@@ -114,7 +115,7 @@ export function LiveCode({
   }, [css, html, js])
 
   return (
-    <div className="my-3 rounded border border-gray-200 overflow-hidden bg-white">
+    <div className={`my-3 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.bg}`}>
       <iframe
         title="Live preview"
         sandbox="allow-scripts"

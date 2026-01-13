@@ -1,3 +1,14 @@
+## themeMode
+
+- Area: UI Appearance
+- Responsibility: Global color theme (Light, Dark, or System)
+- Notes:
+  - Controls the application color palette.
+  - Light mode follows GitHub Light Tritanopia (`bg-white` panels, `text-gray-900` primary text).
+  - Dark mode follows GitHub Dark Tritanopia (`bg-[#0d1117]` panels, `text-gray-100` primary text).
+  - System mode automatically syncs with the OS preference.
+  - Configurable via the "Theme Mode" preset buttons in the Settings panel.
+
 ## selectionFlashDurationMs
 
 - Area: Selection Flash

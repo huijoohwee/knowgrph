@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import Tooltip from '@/features/panels/ui/Tooltip';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 type BaseButtonProps = Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -32,14 +33,14 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     const paddingClass =
       uiIconButtonPaddingClass && uiIconButtonPaddingClass.trim().length > 0
         ? uiIconButtonPaddingClass
-        : 'p-2';
+        : UI_THEME_TOKENS.button.padding;
     const enabledClasses = cn(
-      uiIconColorClass && uiIconColorClass.trim().length > 0 ? uiIconColorClass : 'text-gray-600',
+      uiIconColorClass && uiIconColorClass.trim().length > 0 ? uiIconColorClass : UI_THEME_TOKENS.icon.color,
       isMinimal
         ? ''
         : uiIconHoverBgClass && uiIconHoverBgClass.trim().length > 0
           ? uiIconHoverBgClass
-          : 'hover:bg-gray-100',
+          : UI_THEME_TOKENS.button.hoverBg,
       isMinimal || !hoverRingClass ? '' : cn('hover:ring-2 ring-offset-1', hoverRingClass),
     );
 
@@ -68,7 +69,7 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
 
     if (!showTooltip) return button
     return (
-      <Tooltip content={content} contentClassName="bg-gray-800/80">
+      <Tooltip content={content} contentClassName={UI_THEME_TOKENS.tooltip.bg}>
         {button}
       </Tooltip>
     )

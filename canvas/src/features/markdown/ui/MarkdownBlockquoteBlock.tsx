@@ -19,6 +19,8 @@ type MarkdownBlockquoteBlockProps = {
   fragmentTags?: string[]
 }
 
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
 export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlock({
   token: t,
   highlightClass,
@@ -36,7 +38,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     <MarkdownBlockContainer
       as="blockquote"
       className={[
-        'mt-4 mb-4 pl-4 py-2 border-l-4 border-blue-400 bg-blue-50/30 rounded-r text-gray-700 italic',
+        `mt-4 mb-4 pl-4 py-2 border-l-4 border-blue-400 dark:border-blue-600 ${UI_THEME_TOKENS.table.rowRelated} rounded-r ${UI_THEME_TOKENS.text.secondary} italic`,
         baseTextClass,
         commonBlockClass,
       ].filter(Boolean).join(' ')}

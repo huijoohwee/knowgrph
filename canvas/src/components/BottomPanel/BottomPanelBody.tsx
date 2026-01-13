@@ -195,6 +195,21 @@ export default function BottomPanelBody({
   )
   const warningText = firstWarningText(parserSelectionProps.detection.warnings)
 
+  const hasMermaidFrontmatterInCode = React.useMemo(() => {
+    if (!codeText) return false
+    // Simple check for markdown frontmatter mermaid block or JSON mermaid field
+    if (codeText.includes('mermaid:') && codeText.includes('graph ')) return true
+    if (codeText.includes('"mermaid":')) return true
+    return false
+  }, [codeText])
+
+  const mermaidHint = hasMermaidFrontmatterInCode ? (
+    <div className="flex items-center gap-2 mb-1">
+      <div className={`text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100`}>
+        Info: Frontmatter Mermaid diagram is available.
+      </div>
+    </div>
+  ) : null
 
   return (
     <>
@@ -253,7 +268,12 @@ export default function BottomPanelBody({
             codeRef={codeRef}
             handlers={handlers}
             readOnly={false}
-            header={<div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>{UI_COPY.bottomPanelViewingGraphJsonLabel}</div>}
+            header={
+              <div className="flex flex-col gap-1">
+                <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>{UI_COPY.bottomPanelViewingGraphJsonLabel}</div>
+                {mermaidHint}
+              </div>
+            }
           />
         ) : tab === 'curation' || tab === 'nodes' || tab === 'edges' ? (
           bottomPanelCurationView === 'json' ? (
@@ -263,6 +283,7 @@ export default function BottomPanelBody({
               codeRef={codeRef}
               handlers={handlers}
               readOnly={false}
+              header={mermaidHint}
             />
           ) : bottomPanelCurationView === 'markdown' ? (
             <BottomPanelMarkdownSection />

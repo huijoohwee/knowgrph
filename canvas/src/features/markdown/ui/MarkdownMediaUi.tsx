@@ -50,7 +50,7 @@ export const MediaWrapper = ({
   }
 
   return (
-    <div
+    <figure
       className={['mt-4 mb-4', highlightClass, className].filter(Boolean).join(' ')}
       data-start-line={startLine}
       data-end-line={endLine || startLine}
@@ -58,7 +58,7 @@ export const MediaWrapper = ({
       style={highlightStyle}
     >
       {children}
-    </div>
+    </figure>
   )
 }
 

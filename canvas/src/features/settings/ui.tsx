@@ -2,6 +2,7 @@ import React from 'react'
 import { Settings as SettingsIcon, Tag as TagIcon } from 'lucide-react'
 import { ScopeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { getIconSizeClass, getPillClass } from '@/lib/ui/icons'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export const renderSettingInput = (
   key: string,
@@ -22,23 +23,23 @@ export const renderSettingInput = (
   const pillBaseClass =
     typeof pillBaseRaw === 'string' && pillBaseRaw.trim().length > 0
       ? pillBaseRaw
-      : 'inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5'
+      : `inline-flex items-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1.5 py-0.5`
   const badgeChipBaseRaw = values.uiIconBadgeChipClass
   const badgeChipBaseClass =
     typeof badgeChipBaseRaw === 'string' && badgeChipBaseRaw.trim().length > 0
       ? badgeChipBaseRaw
-      : 'inline-flex items-center rounded-full border px-1 py-[1px] bg-white'
+      : `inline-flex items-center rounded-full border px-1 py-[1px] ${UI_THEME_TOKENS.panel.bg}`
   const rawPanelInputClass = values['uiPanelKeyValueInputClass']
   const uiPanelKeyValueInputClass =
     typeof rawPanelInputClass === 'string' && rawPanelInputClass.trim().length > 0
       ? rawPanelInputClass
-      : 'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right'
+      : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`
   const iconSizeClass = getIconSizeClass(values.uiIconScale === 'compact' ? 'compact' : 'default')
   const iconStrokeWidth =
     typeof values.uiIconStrokeWidth === 'number' && Number.isFinite(values.uiIconStrokeWidth)
       ? values.uiIconStrokeWidth
       : 1.5
-  if (!writable) return <span className="text-gray-700">{String(v)}</span>
+  if (!writable) return <span className={UI_THEME_TOKENS.text.primary}>{String(v)}</span>
   if (type === 'boolean') {
     return (
       <input
@@ -53,14 +54,14 @@ export const renderSettingInput = (
   }
   if (key === 'uiIconColorClass' || key === 'uiIconHoverBgClass') {
     const str = String(v || '')
-    const placeholder = key === 'uiIconColorClass' ? 'text-gray-600' : 'hover:bg-gray-100'
+    const placeholder = key === 'uiIconColorClass' ? UI_THEME_TOKENS.icon.color : UI_THEME_TOKENS.button.hoverBg
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewBase =
-      'w-8 h-6 p-0 border border-gray-300 rounded bg-white text-xs flex items-center justify-center'
+      `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.panel.bg} text-xs flex items-center justify-center`
     const previewClass =
       key === 'uiIconColorClass'
         ? `${previewBase} ${appliedClass}`
-        : `${previewBase} text-gray-600 ${appliedClass}`
+        : `${previewBase} ${UI_THEME_TOKENS.text.secondary} ${appliedClass}`
     const previewLabel = key === 'uiIconColorClass' ? 'Aa' : 'Hover'
     return (
       <div className="flex items-center gap-2">
@@ -81,10 +82,10 @@ export const renderSettingInput = (
   }
   if (key === 'uiIconButtonPaddingClass') {
     const str = String(v || '')
-    const placeholder = 'p-2'
+    const placeholder = UI_THEME_TOKENS.button.padding
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
-      'inline-flex items-center justify-center w-8 h-6 rounded border border-dashed border-gray-300 bg-white text-xs',
+      `inline-flex items-center justify-center w-8 h-6 rounded border border-dashed ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} text-xs`,
       appliedClass,
     ]
       .filter(Boolean)

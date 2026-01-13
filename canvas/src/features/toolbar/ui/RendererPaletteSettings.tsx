@@ -5,12 +5,13 @@ import { useGraphStore } from '@/hooks/useGraphStore';
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema';
 import { useRendererPalette } from '@/features/toolbar/hooks/useRendererPalette';
 import { RENDERER_PALETTE_LIFECYCLE_TOOLTIP } from '@/lib/config';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 export function RendererPaletteSettings() {
   const uiPanelKeyValueInputClass = useGraphStore(
     (s) =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right'
+      `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`
   );
 
   const { palette, handleUpdatePaletteColor, normalizeColorForPicker } = useRendererPalette();
@@ -20,11 +21,11 @@ export function RendererPaletteSettings() {
 
   return (
     <div className="grid grid-cols-1 gap-1">
-      <div className="text-[10px] text-gray-600 leading-snug">
+      <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
         <Tooltip
           content={RENDERER_PALETTE_LIFECYCLE_TOOLTIP}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+          contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           className="break-words"
         >
           <span>
@@ -38,7 +39,7 @@ export function RendererPaletteSettings() {
           layout="keyIconValue"
           density="compact"
           keyNode={
-            <span className="text-gray-700 break-words">
+            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
               {`renderer:palette.nodes.${type}`}
             </span>
           }
@@ -48,7 +49,7 @@ export function RendererPaletteSettings() {
               <div className="flex items-center gap-2">
                 <input
                   type="color"
-                  className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent"
+                  className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
                   value={normalizeColorForPicker(
                     palette.nodes[type],
                     MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]
@@ -57,7 +58,7 @@ export function RendererPaletteSettings() {
                 />
                 <input
                   type="text"
-                  className={uiPanelKeyValueInputClass}
+                  className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                   value={String(palette.nodes[type] || '')}
                   onChange={(e) => handleUpdatePaletteColor('node', type, e.target.value)}
                   placeholder={MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]}
@@ -74,7 +75,7 @@ export function RendererPaletteSettings() {
           layout="keyIconValue"
           density="compact"
           keyNode={
-            <span className="text-gray-700 break-words">
+            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
               {`renderer:palette.edges.${type}`}
             </span>
           }
@@ -84,7 +85,7 @@ export function RendererPaletteSettings() {
               <div className="flex items-center gap-2">
                 <input
                   type="color"
-                  className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent"
+                  className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
                   value={normalizeColorForPicker(
                     palette.edges[type],
                     MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]
@@ -93,7 +94,7 @@ export function RendererPaletteSettings() {
                 />
                 <input
                   type="text"
-                  className={uiPanelKeyValueInputClass}
+                  className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                   value={String(palette.edges[type] || '')}
                   onChange={(e) => handleUpdatePaletteColor('edge', type, e.target.value)}
                   placeholder={MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]}

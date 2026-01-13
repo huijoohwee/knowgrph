@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { TokensCode } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
@@ -6,17 +6,30 @@ import type { RenderOpts } from './MarkdownRendererTypes'
 import { parseCodeInfoMeta } from './markdownCodeInfo'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import hljs from 'highlight.js'
+import { Check, Copy } from 'lucide-react'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const HLJS_STYLE_ID = 'kg-hljs-theme'
 const HLJS_THEME_CSS = `
-.hljs{color:#0f172a}
-.hljs-comment,.hljs-quote{color:#64748b;font-style:italic}
-.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-title,.hljs-section{color:#2563eb}
-.hljs-string,.hljs-attribute,.hljs-symbol,.hljs-bullet{color:#16a34a}
-.hljs-number,.hljs-meta,.hljs-built_in{color:#b45309}
-.hljs-function,.hljs-params{color:#7c3aed}
-.hljs-addition{color:#16a34a;background-color:#f0fdf4}
-.hljs-deletion{color:#dc2626;background-color:#fef2f2}
+/* Light Theme (GitHub-like) */
+.hljs { color: #24292f; background: transparent; }
+.hljs-comment, .hljs-quote { color: #6e7781; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-title, .hljs-section { color: #cf222e; }
+.hljs-string, .hljs-attribute, .hljs-symbol, .hljs-bullet { color: #0a3069; }
+.hljs-number, .hljs-meta, .hljs-built_in { color: #953800; }
+.hljs-function, .hljs-params { color: #8250df; }
+.hljs-addition { color: #1a7f37; background-color: #dafbe1; }
+.hljs-deletion { color: #cf222e; background-color: #ffebe9; }
+
+/* Dark Theme (GitHub Dark-like) */
+.dark .hljs { color: #c9d1d9; background: transparent; }
+.dark .hljs-comment, .dark .hljs-quote { color: #8b949e; }
+.dark .hljs-keyword, .dark .hljs-selector-tag, .dark .hljs-literal, .dark .hljs-title, .dark .hljs-section { color: #ff7b72; }
+.dark .hljs-string, .dark .hljs-attribute, .dark .hljs-symbol, .dark .hljs-bullet { color: #a5d6ff; }
+.dark .hljs-number, .dark .hljs-meta, .dark .hljs-built_in { color: #d2a8ff; }
+.dark .hljs-function, .dark .hljs-params { color: #d2a8ff; }
+.dark .hljs-addition { color: #3fb950; background-color: rgba(46, 160, 67, 0.15); }
+.dark .hljs-deletion { color: #f85149; background-color: rgba(218, 54, 51, 0.15); }
 `
 
 type MarkdownCodeBlockProps = {
@@ -26,6 +39,34 @@ type MarkdownCodeBlockProps = {
   wrapClass: string
   highlightStyle?: React.CSSProperties
   fragmentStep?: number
+}
+
+function ClipboardCopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="zeroclipboard-container absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button
+        aria-label="Copy"
+        className={`ClipboardButton btn btn-invisible m-2 p-1.5 flex items-center justify-center rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer`}
+        onClick={handleCopy}
+        type="button"
+      >
+        {copied ? (
+          <Check className="w-3.5 h-3.5 text-green-500" />
+        ) : (
+          <Copy className={`w-3.5 h-3.5 ${UI_THEME_TOKENS.text.secondary}`} />
+        )}
+      </button>
+    </div>
+  )
 }
 
 export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
@@ -89,14 +130,14 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   }
 
   const containerClassName = [
-    'mt-4 mb-4 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden shadow-sm text-sm relative group',
+    `mt-4 mb-4 rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm text-sm relative group highlight highlight-source-${lang} notranslate position-relative overflow-auto`,
   ]
     .filter(Boolean)
     .join(' ')
 
   return (
     <MarkdownBlockContainer
-      as="div"
+      as="figure"
       className={containerClassName}
       highlightClass={highlightClass}
       highlightStyle={highlightStyle}
@@ -111,7 +152,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
           return (
             <div
               key={idx}
-              className="h-[1.5em] bg-blue-100/50 w-full"
+              className="h-[1.5em] bg-blue-100/50 dark:bg-blue-900/20 w-full"
             />
           )
         })}
@@ -119,7 +160,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
 
       <div className="relative flex overflow-auto p-4">
         {meta.showLineNumbers && (
-          <div className="select-none mr-4 text-xs text-gray-400 text-right flex flex-col" style={{ minWidth: '1.5em' }}>
+          <div className="select-none mr-4 text-xs text-gray-400 dark:text-gray-600 text-right flex flex-col" style={{ minWidth: '1.5em' }}>
             {lines.map((_, idx) => (
               <span key={idx} className="h-[1.5em] leading-[1.5em]">{idx + 1}</span>
             ))}
@@ -134,8 +175,10 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
         </pre>
       </div>
       
+      <ClipboardCopyButton text={c.text} />
+      
       {lang && (
-        <div className="absolute top-2 right-2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity select-none uppercase font-mono">
+        <div className="absolute top-2 right-10 text-xs text-gray-400 dark:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity select-none uppercase font-mono">
           {lang}
         </div>
       )}

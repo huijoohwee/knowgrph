@@ -103,6 +103,7 @@ interface BottomPanelCuratorTableModel {
   updateEdge: (id: string, patch: Partial<GraphEdge>) => void
   onRowClick: (row: UnifiedRow) => void
   onRowDoubleClick: (row: UnifiedRow) => void
+  onRowContextMenu?: (event: React.MouseEvent, row: UnifiedRow) => void
   sortRules: ReadonlyArray<GraphDataTableSortRule>
   onRequestAddFilter: (key: GraphDataTableColumnKey) => void
   onRequestGroupBy: (key: GraphDataTableColumnKey | '') => void
@@ -122,10 +123,12 @@ export interface BottomPanelCuratorContentViewModel {
 
 interface BottomPanelCuratorContentProps {
   viewModel: BottomPanelCuratorContentViewModel
+  selectionToolbar?: React.ReactNode
 }
 
 export function BottomPanelCuratorContent({
   viewModel,
+  selectionToolbar,
 }: BottomPanelCuratorContentProps) {
   const { toolbar, overlay, table } = viewModel
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -246,6 +249,7 @@ export function BottomPanelCuratorContent({
             updateEdge={table.updateEdge}
             onRowClick={table.onRowClick}
             onRowDoubleClick={table.onRowDoubleClick}
+            onRowContextMenu={table.onRowContextMenu}
             sortKey={table.sortRules[0]?.key ?? 'id'}
             sortDir={table.sortRules[0]?.dir ?? 'asc'}
             onRequestAddFilter={table.onRequestAddFilter}
@@ -254,6 +258,7 @@ export function BottomPanelCuratorContent({
             onRequestSortByColumn={table.onRequestSortByColumn}
           />
         </div>
+        {selectionToolbar}
         <div className="border-t border-gray-200 px-2 py-1 flex items-center justify-between bg-gray-50">
           <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
             {visibleRange.totalRows === 0

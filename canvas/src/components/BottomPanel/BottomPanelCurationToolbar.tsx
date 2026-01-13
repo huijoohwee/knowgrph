@@ -5,6 +5,7 @@ import type { BottomTab } from '@/features/bottom-panel/open'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type BottomPanelCurationView = 'grid' | 'json' | 'markdown'
 
@@ -86,7 +87,7 @@ export default function BottomPanelCurationToolbar({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 mb-0">
           <select
-            className="h-6 px-2 text-xs border border-gray-300 rounded bg-white text-gray-700"
+            className={`h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
             value={layerMode}
             onChange={e => {
               const raw = String(e.target.value || '')
@@ -112,7 +113,7 @@ export default function BottomPanelCurationToolbar({
           </select>
           <button
             type="button"
-            className="App-toolbar__btn text-xs bg-gray-100 text-gray-700"
+            className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
             onClick={onValidateGraph}
           >
             Validate Graph

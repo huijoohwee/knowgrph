@@ -19,6 +19,8 @@ type MarkdownListBlockProps = {
   fragmentTags?: string[]
 }
 
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
 export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   token: t,
   highlightClass,
@@ -35,18 +37,26 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   const ListTag = (list.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
   const listClass = list.ordered ? 'list-decimal' : 'list-disc'
   
-  const containerClassName = ['mt-4 mb-4'].filter(Boolean).join(' ')
+  const containerClassName = [
+    'mt-4 mb-4',
+    listClass,
+    `pl-6 space-y-2 marker:${UI_THEME_TOKENS.text.tertiary}`,
+    baseTextClass,
+    opts.uiPanelTextFontClass,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <MarkdownBlockContainer
-      as="div"
+      as={ListTag}
       className={containerClassName}
       highlightClass={highlightClass}
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
     >
-      <ListTag className={[listClass, 'pl-6 space-y-2 marker:text-gray-500', baseTextClass, opts.uiPanelTextFontClass].join(' ')}>
-        {list.items.map((item, j) => {
+      {list.items.map((item, j) => {
           const task = item.task ? (
             <input
               type="checkbox"
@@ -78,7 +88,6 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
             </li>
           )
         })}
-      </ListTag>
     </MarkdownBlockContainer>
   )
 })

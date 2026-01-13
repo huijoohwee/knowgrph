@@ -1,5 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { SettingMeta } from './types'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import type { ThemeMode } from '@/lib/ui/theme'
 
 const s = () => useGraphStore.getState()
 
@@ -175,7 +177,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().uiIconColorClass,
     write: (v) => s().setUiIconColorClass(String(v || '')),
     docKey: 'uiIconColorClass',
-    default: () => 'text-gray-600',
+    default: () => UI_THEME_TOKENS.icon.color,
   },
   {
     key: 'uiIconHoverBgClass',
@@ -184,7 +186,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().uiIconHoverBgClass,
     write: (v) => s().setUiIconHoverBgClass(String(v || '')),
     docKey: 'uiIconHoverBgClass',
-    default: () => 'hover:bg-gray-100',
+    default: () => UI_THEME_TOKENS.button.hoverBg,
   },
   {
     key: 'uiIconButtonPaddingClass',
@@ -203,7 +205,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setUiIconPillClass(String(v || '')),
     docKey: 'uiIconPillClass',
     default: () =>
-      'inline-flex items-center justify-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5',
+      `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1.5 py-0.5`,
   },
   {
     key: 'uiIconPillLegendTextSizeClass',
@@ -258,6 +260,21 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setUiIconAnimationEnabled(Boolean(v)),
     docKey: 'uiIconAnimationEnabled',
     default: () => true,
+  },
+  {
+    key: 'themeMode',
+    type: 'string',
+    source: 'store',
+    read: () => s().themeMode,
+    write: (v) => {
+      const raw = String(v || '')
+      const next: ThemeMode =
+        raw === 'light' || raw === 'dark' || raw === 'system' ? raw : 'system'
+      s().setThemeMode(next)
+    },
+    docKey: 'themeMode',
+    default: () => 'system',
+    options: ['light', 'dark', 'system'],
   },
   {
     key: 'bottomPanelHeightRatio',

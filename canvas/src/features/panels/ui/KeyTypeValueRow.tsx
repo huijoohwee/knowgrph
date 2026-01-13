@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export interface KeyTypeValueRowProps {
   keyNode: React.ReactNode
@@ -13,6 +14,7 @@ export interface KeyTypeValueRowProps {
   className?: string
   id?: string
   dataKgAnchor?: string
+  isActive?: boolean
 }
 
 export interface SimpleKeyValueRowProps {
@@ -47,6 +49,7 @@ export function KeyTypeValueRow({
   className,
   id,
   dataKgAnchor,
+  isActive,
 }: KeyTypeValueRowProps) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
@@ -61,11 +64,13 @@ export function KeyTypeValueRow({
   const densityClass =
     density === 'compact' ? uiPanelRowDensityCompactClass : uiPanelRowDensityDefaultClass
   const cursorClass = onClick ? 'cursor-pointer' : ''
+  const activeClass = isActive ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverAmber
 
   if (layout === 'keyIconSliderInput') {
     const rootClassName = [
       'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,0.49fr)_minmax(0,0.01fr)_minmax(0,0.245fr)_minmax(0,0.245fr)]',
-      'gap-x-2 gap-y-1 rounded hover:bg-gray-50',
+      'gap-x-2 gap-y-1 rounded',
+      activeClass,
       uiPanelKeyValueTextSizeClass,
       uiPanelTextFontClass,
       densityClass,
@@ -77,14 +82,14 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <div className={rootClassName} onClick={onClick}>
-        <span className="flex min-w-0 items-center gap-1 text-gray-800 break-words">
+        <span className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
           {keyNode}
         </span>
-        <span className="flex min-w-0 items-center justify-center text-gray-500" />
-        <span className="flex min-w-0 items-center gap-2 text-gray-700 break-words">
+        <span className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`} />
+        <span className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
           {typeNode}
         </span>
-        <span className="flex min-w-0 items-stretch justify-end gap-2 text-gray-700 break-words">
+        <span className={`flex min-w-0 items-stretch justify-end gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
           {valueNode}
         </span>
       </div>
@@ -94,7 +99,8 @@ export function KeyTypeValueRow({
   if (layout === 'keyIconValue') {
     const rootClassName = [
       'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,0.49fr)_minmax(0,0.02fr)_minmax(0,0.49fr)]',
-      'gap-x-2 gap-y-1 rounded hover:bg-gray-50',
+      'gap-x-2 gap-y-1 rounded',
+      activeClass,
       uiPanelKeyValueTextSizeClass,
       uiPanelTextFontClass,
       densityClass,
@@ -106,13 +112,13 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <div className={rootClassName} onClick={onClick}>
-        <span className="flex min-w-0 items-center gap-1 text-gray-800 break-words">
+        <span className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
           {keyNode}
         </span>
-        <span className="flex min-w-0 items-center justify-center text-gray-500">
+        <span className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>
           {typeNode}
         </span>
-        <span className="flex min-w-0 items-center gap-2 text-gray-700 break-words">
+        <span className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
           {valueNode}
         </span>
       </div>
@@ -122,7 +128,8 @@ export function KeyTypeValueRow({
   if (layout === 'keyValue') {
     const rootClassName = [
       'grid w-full grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]',
-      'gap-x-2 gap-y-1 rounded hover:bg-gray-50',
+      'gap-x-2 gap-y-1 rounded',
+      activeClass,
       uiPanelKeyValueTextSizeClass,
       uiPanelTextFontClass,
       densityClass,
@@ -134,10 +141,10 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <div className={rootClassName} onClick={onClick}>
-        <span className="flex min-w-0 items-center gap-1 text-gray-800 break-words">
+        <span className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
           {keyNode}
         </span>
-        <span className="flex min-w-0 items-center gap-2 text-gray-700 break-words">
+        <span className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
           {valueNode}
         </span>
       </div>
@@ -145,7 +152,8 @@ export function KeyTypeValueRow({
   }
 
   const rootClassName = [
-    'grid w-full grid-cols-3 gap-1 rounded hover:bg-gray-50',
+    'grid w-full grid-cols-3 gap-1 rounded',
+    activeClass,
     uiPanelKeyValueTextSizeClass,
     uiPanelTextFontClass,
     densityClass,
@@ -162,13 +170,13 @@ export function KeyTypeValueRow({
       className={rootClassName}
       onClick={onClick}
     >
-      <div className="flex min-w-0 items-center gap-1 text-gray-800 break-words">
+      <div className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
         {keyNode}
       </div>
-      <div className="min-w-0 text-gray-700 break-words">
+      <div className={`min-w-0 ${UI_THEME_TOKENS.text.secondary} break-words`}>
         {typeNode}
       </div>
-      <div className="flex min-w-0 items-center gap-1 text-gray-700 break-words">
+      <div className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.secondary} break-words`}>
         {valueNode}
       </div>
     </div>

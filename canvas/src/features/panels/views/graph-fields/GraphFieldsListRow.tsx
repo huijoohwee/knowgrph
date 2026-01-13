@@ -17,6 +17,7 @@ import {
 import { UI_RING_PRIMARY_BLUE_INDICATOR } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type GraphFieldsListRowProps = {
   columnKey: GraphDataTableColumnKey
@@ -112,9 +113,9 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
     typeof scopeColor === 'string' && scopeColor.trim().startsWith('#') ? scopeColor.trim() : '#000000'
 
   const scopeIconNode = field ? (
-    <ScopeIcon scope={field.scope} className={`${iconSizeClass} text-gray-500`} strokeWidth={uiIconStrokeWidth} />
+    <ScopeIcon scope={field.scope} className={`${iconSizeClass} ${UI_THEME_TOKENS.icon.color}`} strokeWidth={uiIconStrokeWidth} />
   ) : (
-    <GraphFieldsIcon className={`${iconSizeClass} text-gray-400`} strokeWidth={uiIconStrokeWidth} />
+    <GraphFieldsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.icon.color}`} strokeWidth={uiIconStrokeWidth} />
   )
 
   const originIconNode = (() => {
@@ -224,9 +225,9 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
   return (
       <div
         className={[
-          'border-b border-gray-100 last:border-b-0 px-2 py-1.5',
+          `border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0 px-2 py-1.5`,
           'flex items-center gap-2 border-l-2',
-          active ? 'bg-blue-50' : 'bg-white hover:bg-gray-50',
+          active ? UI_THEME_TOKENS.table.rowSelected : `${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHoverAmber}`,
           isDragOver ? ['ring-1', UI_RING_PRIMARY_BLUE_INDICATOR].join(' ') : '',
           'min-w-0 overflow-hidden',
         ]
@@ -271,7 +272,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
         }}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <GripDotsIcon className={`${iconSizeClass} text-gray-400`} />
+          <GripDotsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} />
           <div className="min-w-0 flex-1">
             <div className="min-w-0 flex items-center gap-2">
               {scopeIconNode}
@@ -281,13 +282,13 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
                     <input
                       value={settings.displayName}
                       onChange={e => updateGraphFieldSettings(field.id, { displayName: e.target.value })}
-                      className="h-7 w-full min-w-0 rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+                      className={`h-7 w-full min-w-0 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.text.primary}`}
                       onClick={e => e.stopPropagation()}
                     />
                     <select
                       value={settings.fieldType}
                       onChange={e => updateGraphFieldSettings(field.id, { fieldType: e.target.value as GraphFieldType })}
-                      className="h-7 w-44 shrink-0 rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+                      className={`h-7 w-44 shrink-0 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.text.primary}`}
                       onClick={e => e.stopPropagation()}
                     >
                       {GRAPH_FIELD_TYPES.map(t => (
@@ -298,14 +299,15 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
                     </select>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1 min-w-0 text-xs text-gray-800 truncate">
-                    <span className="truncate">{label}</span>
-                  </div>
+                  <>
+                    <div className={`flex items-center gap-1 min-w-0 text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>
+                      <span className="truncate">{settings?.displayName || label}</span>
+                    </div>
+                    <div className={`text-sm ${UI_THEME_TOKENS.text.tertiary} truncate`}>
+                      {graphFieldId || columnKey}
+                    </div>
+                  </>
                 )}
-                <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 truncate`}>
-                  {String(columnKey)}
-                  {field ? ` · ${field.samples.toLocaleString()} samples` : null}
-                </div>
               </div>
             </div>
           </div>

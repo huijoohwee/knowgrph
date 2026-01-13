@@ -18,6 +18,7 @@ import {
   type VisibleRowRange,
 } from '@/features/graph-data-table/ui/GraphDataTableWindowing'
 import { useGraphDataTableFrozenArea } from '@/features/graph-data-table/ui/useGraphDataTableFrozenArea'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { HeaderCell } from './GraphDataTableHeader'
 import { GraphDataTableRows } from './GraphDataTableRows'
 
@@ -51,6 +52,7 @@ interface GraphDataTableProps {
   onRequestGroupBy: (key: GraphDataTableColumnKey | '') => void
   onRequestHideColumn: (key: GraphDataTableColumnKey) => void
   onRequestSortByColumn: (key: GraphDataTableColumnKey, dir: 'asc' | 'desc') => void
+  onRowContextMenu?: (event: React.MouseEvent, row: UnifiedRow) => void
 }
 
 function createSelectionHighlightParams(
@@ -113,6 +115,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   updateEdge,
   onRowClick,
   onRowDoubleClick,
+  onRowContextMenu,
   sortKey,
   sortDir,
   onRequestAddFilter,
@@ -123,13 +126,13 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const stepNoneLabelPx = useGraphStore(s => s.graphDataTableFrozenDragStepNoneLabelPx)
   const stepLabelIdPx = useGraphStore(s => s.graphDataTableFrozenDragStepLabelIdPx)
   const headerCellBaseClassName =
-    'relative p-0 border-b border-gray-200 border-r border-gray-200 last:border-r-0'
+    `relative p-0 border-b ${UI_THEME_TOKENS.table.cellBorder} border-r ${UI_THEME_TOKENS.table.cellBorder} last:border-r-0`
   const headerHeightClassName = 'h-8'
   const bodyVerticalPaddingClassName = 'py-1'
   const bodyTextSizeClassName = 'text-xs'
-  const bodyCellBaseClassName = `px-2 ${bodyVerticalPaddingClassName} ${bodyTextSizeClassName} align-top border-b border-gray-100 border-r border-gray-100 last:border-r-0`
+  const bodyCellBaseClassName = `px-2 ${bodyVerticalPaddingClassName} ${bodyTextSizeClassName} align-top border-b ${UI_THEME_TOKENS.table.cellBorder} border-r ${UI_THEME_TOKENS.table.cellBorder} last:border-r-0`
   const textInputClassName =
-    `h-7 text-xs w-full px-2 border border-gray-300 rounded-md bg-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500`
+    `h-7 text-xs w-full px-2 border ${UI_THEME_TOKENS.input.border} rounded-md ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500`
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
@@ -138,7 +141,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   )
   const monoTextInputClassName = `${textInputClassName} ${uiPanelMonospaceTextClass}`
   const textareaClassName =
-    `w-full px-2 py-1 border border-gray-300 rounded-md bg-white leading-snug resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${uiPanelMonospaceTextClass}`
+    `w-full px-2 py-1 border ${UI_THEME_TOKENS.input.border} rounded-md ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} leading-snug resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${uiPanelMonospaceTextClass}`
   const indexColumnWidthClassName = 'w-8'
 
   const enableVirtualTables = useGraphStore(s => s.enableVirtualTables)
@@ -481,7 +484,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   return (
     <div
       ref={scrollContainerRef}
-      className="relative h-full min-h-0 overflow-auto bg-white"
+      className={`relative h-full min-h-0 overflow-auto ${UI_THEME_TOKENS.panel.bg}`}
       onScroll={handleScroll}
     >
       {frozenAreaDragIndicatorLeft != null && (
@@ -492,15 +495,15 @@ export const GraphDataTable = React.memo(function GraphDataTable({
           style={{ left: frozenAreaDragIndicatorLeft }}
         />
       )}
-      <table className="w-full border-separate border-spacing-0">
-        <thead ref={headerRef} className="sticky top-0 z-30 bg-gray-100">
+      <table className={`w-full border-separate border-spacing-0 ${UI_THEME_TOKENS.table.rowBg}`}>
+        <thead ref={headerRef} className={`sticky top-0 z-30 ${UI_THEME_TOKENS.table.headerBg}`}>
           <tr className="text-left">
             <th
               scope="col"
-              className={`${headerCellBaseClassName} ${headerHeightClassName} group p-0 sticky left-0 top-0 z-40 ${indexColumnWidthClassName} bg-gray-100 text-xs font-normal text-gray-500 text-center`}
+              className={`${headerCellBaseClassName} ${headerHeightClassName} group p-0 sticky left-0 top-0 z-40 ${indexColumnWidthClassName} ${UI_THEME_TOKENS.table.headerBg} text-xs font-normal ${UI_THEME_TOKENS.table.textSecondary} text-center`}
             >
               <div className="relative flex items-center justify-center h-8">
-                <span className={`${uiPanelMonospaceTextClass} tabular-nums text-gray-500`}>#</span>
+                <span className={`${uiPanelMonospaceTextClass} tabular-nums ${UI_THEME_TOKENS.table.textSecondary}`}>#</span>
               </div>
             </th>
             {orderedVisibleColumnKeys.map(columnKey => (
@@ -568,6 +571,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
             updateEdge={updateEdge}
             onRowClick={onRowClick}
             onRowDoubleClick={onRowDoubleClick}
+            onRowContextMenu={onRowContextMenu}
           />
         </tbody>
       </table>

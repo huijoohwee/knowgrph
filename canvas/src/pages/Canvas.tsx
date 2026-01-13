@@ -9,6 +9,7 @@ import { LS_KEYS, LS_LEGACY_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/conf
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FileCode, MessageCircle } from 'lucide-react'
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
@@ -77,28 +78,28 @@ function MarkdownMetricsDevOverlay() {
   }
 
   return (
-    <div className="fixed bottom-2 right-2 z-50 text-xs text-gray-800">
+    <div className={`fixed bottom-2 right-2 z-50 text-xs ${UI_THEME_TOKENS.text.primary}`}>
       <button
         type="button"
         className={[
-          'px-2 py-1 rounded border border-gray-300 bg-white shadow-sm',
-          open ? 'bg-blue-50 border-blue-300' : '',
+          `px-2 py-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm`,
+          open ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' : '',
         ].join(' ')}
         onClick={() => setOpen(v => !v)}
       >
         Markdown metrics
       </button>
       {open && (
-        <div className="mt-1 w-80 max-h-64 overflow-auto rounded bg-white border border-gray-300 shadow-lg p-2 space-y-1">
+        <div className={`mt-1 w-80 max-h-64 overflow-auto rounded ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.input.border} shadow-lg p-2 space-y-1`}>
           <div className="flex items-center justify-between mb-1">
             <div className="font-semibold">Markdown usage</div>
-            <div className="text-[10px] text-gray-500">slides: {slideLabel}</div>
+            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>slides: {slideLabel}</div>
           </div>
           <div className="space-y-1">
             {samples.map(s => (
-              <div key={s.ts.toString() + s.event} className="border-b last:border-b-0 border-gray-100 pb-1">
+              <div key={s.ts.toString() + s.event} className="border-b last:border-b-0 border-gray-100 dark:border-gray-800 pb-1">
                 <div className="flex items-center justify-between">
-                  <div className="font-semibold text-[11px] text-gray-700">{s.event}</div>
+                  <div className={`font-semibold text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>{s.event}</div>
                   <div className="text-[10px] text-gray-400">
                     {new Date(s.ts).toLocaleTimeString(undefined, { hour12: false })}
                   </div>

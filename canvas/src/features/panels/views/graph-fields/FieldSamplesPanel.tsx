@@ -4,6 +4,7 @@ import type { GraphField, GraphFieldSettingsResolved } from '@/features/graph-fi
 import { computeFieldValueFrequencies } from '@/features/panels/views/graph-fields/fieldSamples'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type FieldSamplesPanelProps = {
   graphData: GraphData | null
@@ -137,10 +138,10 @@ export default function FieldSamplesPanel({
   }, [onStatusChange, selectedCount, selectedValues])
 
   return (
-    <div className="rounded border border-gray-200 bg-white overflow-hidden flex flex-col min-h-0 min-w-0">
-      <div className="h-9 border-b border-gray-200 bg-gray-50 px-2 text-gray-700 flex items-center justify-between gap-2">
+    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col min-h-0 min-w-0`}>
+      <div className={`h-9 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 ${UI_THEME_TOKENS.text.primary} flex items-center justify-between gap-2`}>
         <div className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.samples}</div>
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 whitespace-nowrap max-w-[65%] truncate text-right`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap max-w-[65%] truncate text-right`}>
           {selectedField
             ? `${selectedField.scope === 'node' ? 'Node' : 'Edge'} · ${selectedField.key}${
                 typeof selectedField.samples === 'number'
@@ -150,20 +151,20 @@ export default function FieldSamplesPanel({
             : '—'}
         </div>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2">
+      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2 ${UI_THEME_TOKENS.panel.bg}`}>
         {!selectedField ? (
-          <div className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>{UI_COPY.graphFieldsSelectFieldToViewSamples}</div>
+          <div className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsSelectFieldToViewSamples}</div>
         ) : samples.length === 0 ? (
-          <div className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>{UI_COPY.graphFieldsNoSamplesFound}</div>
+          <div className={`px-3 py-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphFieldsNoSamplesFound}</div>
         ) : (
           <div className="px-3 space-y-1">
             <div className="flex items-center justify-between mb-1 gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+              <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
                 {samples.length.toLocaleString()} values · {totalSampleCount.toLocaleString()} occurrences
                 {selectedCount > 0 ? ` · ${selectedCount.toLocaleString()} selected` : ''}
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <label className={`flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+                <label className={`flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>
                   <input
                     ref={selectAllRef}
                     type="checkbox"
@@ -200,7 +201,7 @@ export default function FieldSamplesPanel({
                 <button
                   key={sample.value}
                   type="button"
-                  className={`w-full flex items-center justify-between gap-2 rounded px-1 py-1 text-left ${selected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                  className={`w-full flex items-center justify-between gap-2 rounded px-1 py-1 text-left ${selected ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverAmber}`}
                   onClick={() => onToggleValue(sample.value)}
                 >
                   <span className="min-w-0 flex-1 inline-flex items-center gap-2">
@@ -211,11 +212,11 @@ export default function FieldSamplesPanel({
                       tabIndex={-1}
                       className="h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
                     />
-                    <span className={`min-w-0 flex-1 ${uiPanelKeyValueTextSizeClass} ${selected ? 'text-blue-900' : 'text-gray-800'} truncate`}>
+                    <span className={`min-w-0 flex-1 ${uiPanelKeyValueTextSizeClass} ${selected ? 'text-blue-900 dark:text-blue-100' : UI_THEME_TOKENS.text.primary} truncate`}>
                       {sample.value}
                     </span>
                   </span>
-                  <span className={`${uiPanelKeyValueTextSizeClass} text-gray-500 shrink-0`}>×{sample.count}</span>
+                  <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} shrink-0`}>×{sample.count}</span>
                 </button>
               )
             })}

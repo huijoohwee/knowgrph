@@ -26,6 +26,7 @@ export function buildBottomPanelCuratorTableModel(params: {
   updateEdge: (id: string, patch: Partial<GraphEdge>) => void
   onRowClick: (row: UnifiedRow) => void
   onRowDoubleClick: (row: UnifiedRow) => void
+  onRowContextMenu?: (event: React.MouseEvent, row: UnifiedRow) => void
   graphDataTableSortRules: ReadonlyArray<GraphDataTableSortRule>
   addGraphDataTableFilterForColumn: (key: GraphDataTableColumnKey) => void
   requestGroupByColumn: (key: GraphDataTableColumnKey | '') => void
@@ -52,6 +53,7 @@ export function buildBottomPanelCuratorTableModel(params: {
     updateEdge: params.updateEdge,
     onRowClick: params.onRowClick,
     onRowDoubleClick: params.onRowDoubleClick,
+    onRowContextMenu: params.onRowContextMenu,
     sortRules: params.graphDataTableSortRules,
     onRequestAddFilter: params.addGraphDataTableFilterForColumn,
     onRequestGroupBy: params.requestGroupByColumn,

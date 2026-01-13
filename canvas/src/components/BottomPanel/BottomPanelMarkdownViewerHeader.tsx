@@ -8,7 +8,9 @@ import type {
   MarkdownPreviewPresentationSlideState,
 } from '@/features/markdown/ui/MarkdownPreview'
 
-type ViewerHeaderRowProps = {
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+export type ViewerHeaderRowProps = {
   uiPanelKeyValueTextSizeClass: string
   uiPanelTextFontClass: string
   viewerTitle: string
@@ -80,7 +82,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     <div className={['flex items-center justify-between gap-2', uiPanelKeyValueTextSizeClass, uiPanelTextFontClass].join(' ')}>
       <div className="flex items-center gap-2 min-w-0">
         {!markdownPresentationMode && (
-          <span className="font-medium text-gray-700 select-none truncate">
+          <span className={`font-medium ${UI_THEME_TOKENS.text.secondary} select-none truncate`}>
             {isEditing && props.editorTitle ? props.editorTitle : props.viewerTitle}
           </span>
         )}
@@ -88,7 +90,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           <>
             <button
               type="button"
-              className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+              className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
               onClick={() => {
                 emitMarkdownPanelMetric('markdownPresentationPrevClicked', {
                   activeIndex: presentationSlideState?.activeSlideIndex ?? null,
@@ -104,7 +106,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
             </button>
             <button
               type="button"
-              className="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+              className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
               onClick={() => {
                 emitMarkdownPanelMetric('markdownPresentationNextClicked', {
                   activeIndex: presentationSlideState?.activeSlideIndex ?? null,
@@ -120,7 +122,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
             >
               {markdownPreviewNextButtonLabel}
             </button>
-            <div className="ml-1">
+            <div className={`ml-1 ${UI_THEME_TOKENS.text.secondary}`}>
               {Math.min(
                 presentationSlideState?.slideCount ?? 1,
                 (presentationSlideState?.activeSlideIndex ?? 0) + 1,
@@ -133,7 +135,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
       <div className="flex items-center gap-1">
         {isEditing && (
           <IconButton
-            className="App-toolbar__btn flex items-center justify-center text-gray-600"
+            className={`App-toolbar__btn flex items-center justify-center ${UI_THEME_TOKENS.text.secondary}`}
             title={applyButtonTitle}
             tooltipContent={applyButtonTitle}
             onClick={() => {

@@ -77,11 +77,11 @@ export default function BottomPanelCodeTab({
   )
 
   return (
-    <div className="h-full min-h-0 flex flex-col">
+    <section className="h-full min-h-0 flex flex-col">
       {header && (
-        <div className="mb-2 shrink-0">
+        <header className="mb-2 shrink-0">
           {header}
-        </div>
+        </header>
       )}
       {codeError && (
         <div className={`mt-2 ${uiPanelMicroLabelTextSizeClass} text-red-600 shrink-0`}>
@@ -117,6 +117,6 @@ export default function BottomPanelCodeTab({
           {footer}
         </div>
       )}
-    </div>
+    </section>
   )
 }

@@ -2,6 +2,15 @@
 
 This document summarizes how Knowgrph manages token-related limits in the markdown viewer, with a focus on the always-on highlight complexity budget.
 
+## Token Sharing & Performance Optimization
+
+To further optimize performance in dual-mode editors (Markdown Viewer + Presentation Mode), Knowgrph implements a token sharing strategy.
+
+- **Shared Lexing**: Markdown text is lexed once, and the resulting tokens are stored in the global store (e.g., Zustand).
+- **Consumption**: Both the Markdown Viewer and Presentation Mode consume these pre-calculated tokens instead of re-lexing the text.
+- **Cache Invalidation**: The token cache is invalidated only when the source markdown text changes.
+- **Semantic Rendering**: The renderer uses semantic HTML (`article`, `section`, `nav`, `figure`) to reduce DOM complexity and improve accessibility, which also contributes to better rendering performance.
+
 ## Always-On Markdown Highlight Budget
 
 The markdown preview panel supports “always-on” text highlights that are derived from the active graph (nodes and edges) and the current markdown document.
@@ -110,3 +119,19 @@ Operationally, this means:
 
 - Keeping Text Highlight Off by default minimizes extra highlight computations and is safest for large notebooks and dense graphs.
 - Power users can turn Text Highlight On when working with moderate-sized documents or after raising the always-on budget, accepting the additional token-level work in exchange for richer visual feedback.
+
+## Token Sharing Directive
+
+To avoid redundant lexing and improve performance:
+- **Share Tokenized Data**: Developers must share tokenized data structures across viewer and editor modes.
+- **Reuse Parsed Tokens**: Reuse parsed tokens instead of re-parsing unchanged content when switching modes.
+- **Single Source of Truth**: Maintain a single source of truth for token data to prevent inconsistencies.
+- **Prevent Re-parsing**: Prevent re-parsing of unchanged content to optimize rendering cycles.
+
+### Implementation Details
+
+- **Store**: `GraphState` in `useGraphStore` holds `markdownTokens`, plus integrity metadata (`markdownTokensKey`, `markdownTokensPath`).
+- **Key**: `buildMarkdownTokensKey(markdownText)` uses length + hash to bind tokens to exact content.
+- **Set**: `MarkdownPreview` / `PreviewPanelView` computes tokens via `lexMarkdown` and calls `setMarkdownTokens(tokens, path, key)`.
+- **Invalidate**: `setMarkdownDocument` in `graphDataSlice` clears `markdownTokens`, `markdownTokensPath`, and `markdownTokensKey` when text changes.
+- **Read**: Components reuse stored tokens only when `storedTokensKey === buildMarkdownTokensKey(currentText)`.

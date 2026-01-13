@@ -9,6 +9,7 @@ import { ToolbarToolMenuAreas } from '@/features/toolbar/ToolbarToolMenuAreas'
 import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import {
   LS_KEYS,
@@ -201,7 +202,7 @@ export function ToolbarToolMenu({
         title={UI_LABELS.workspaceActions}
         onClick={() => handleSelectView('workspaceActions')}
         className={`App-toolbar__btn ${
-          floatingPanelView === 'workspaceActions' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+          floatingPanelView === 'workspaceActions' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
         showTooltip
       >
@@ -211,7 +212,7 @@ export function ToolbarToolMenu({
         title={UI_LABELS.propsPanel}
         onClick={() => handleSelectView('propsPanel')}
         className={`App-toolbar__btn ${
-          floatingPanelView === 'propsPanel' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+          floatingPanelView === 'propsPanel' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
         showTooltip
       >
@@ -221,7 +222,7 @@ export function ToolbarToolMenu({
         title={UI_LABELS.graphLayersMode}
         onClick={() => handleSelectView('graphLayer')}
         className={`App-toolbar__btn ${
-          floatingPanelView === 'graphLayer' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+          floatingPanelView === 'graphLayer' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
         showTooltip
       >
@@ -231,7 +232,7 @@ export function ToolbarToolMenu({
         title={UI_LABELS.renderer}
         onClick={() => handleSelectView('renderer')}
         className={`App-toolbar__btn ${
-          floatingPanelView === 'renderer' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+          floatingPanelView === 'renderer' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
         showTooltip
       >
@@ -241,7 +242,7 @@ export function ToolbarToolMenu({
         title={UI_LABELS.graphTraversal}
         onClick={() => handleSelectView('graphTraversal')}
         className={`App-toolbar__btn ${
-          floatingPanelView === 'graphTraversal' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+          floatingPanelView === 'graphTraversal' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
         showTooltip
       >
@@ -251,7 +252,7 @@ export function ToolbarToolMenu({
         title={UI_LABELS.mermaidFocus}
         onClick={() => handleSelectView('mermaidFocus')}
         className={`App-toolbar__btn ${
-          floatingPanelView === 'mermaidFocus' ? uiPrimaryPillActiveClassName : 'text-gray-700'
+          floatingPanelView === 'mermaidFocus' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
         showTooltip
       >
@@ -301,7 +302,7 @@ export function ToolbarToolMenu({
           <div className="flex items-center gap-1 min-w-0">
               {viewButtons}
               {pipelineStatus && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} text-gray-500 truncate max-w-[120px]`}>
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
                   {pipelineStatus}
                 </span>
               )}
@@ -333,12 +334,12 @@ export function ToolbarToolMenu({
             <div className="flex items-center gap-1 min-w-0">
               {viewButtons}
               {pipelineStatus && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} text-gray-500 truncate max-w-[120px]`}>
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
                   {pipelineStatus}
                 </span>
               )}
               {exportStatus && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} text-gray-500 truncate max-w-[160px]`}>
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
                   {exportStatus}
                 </span>
               )}
@@ -366,11 +367,11 @@ export function ToolbarToolMenu({
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={UI_LABELS.search}
-                className="h-7 w-full px-2 text-xs border border-gray-300 rounded-lg bg-white"
+                className={`h-7 w-full px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded-lg ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
               />
             </div>
           )}
-          <div className="mt-1 -mx-1 px-1 pb-1 border-t border-gray-100 flex-1 min-h-0 overflow-y-auto overflow-x-hidden text-xs text-gray-700">
+          <div className={`mt-1 -mx-1 px-1 pb-1 border-t ${UI_THEME_TOKENS.panel.divider} flex-1 min-h-0 overflow-y-auto overflow-x-hidden text-xs ${UI_THEME_TOKENS.text.primary}`}>
             {floatingPanelView === 'workspaceActions' && (
               <ToolbarToolMenuAreas
                 dataLoadOk={dataLoadOk}

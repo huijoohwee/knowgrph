@@ -8,6 +8,7 @@ import type { GraphBehavior, GraphSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
 import { RUN_CODEBASE_INDEX_PIPELINE_LABEL } from '@/lib/config'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
 import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSection'
 import RenderTidyTreeSettingsRows from '@/features/panels/views/RenderTidyTreeSettingsRows'
@@ -71,7 +72,7 @@ export default function RenderSettingsSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass
-      || 'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right',
+      || `w-full h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded text-right`,
   )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
@@ -239,16 +240,16 @@ export default function RenderSettingsSection({
         <div className="flex flex-col">
           <span className="inline-flex items-center gap-2">
             {copy.badge && (
-              <span className="text-xs font-semibold text-gray-500">
+              <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary}`}>
                 {copy.badge}
               </span>
             )}
-            <span className="text-xs font-semibold text-gray-800">
+            <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>
               {copy.title}
             </span>
           </span>
           {copy.descriptionShort && (
-            <span className={`${uiPanelMicroLabelTextSizeClass} text-gray-600`}>
+            <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
               {copy.descriptionShort}
             </span>
           )}
@@ -273,7 +274,7 @@ export default function RenderSettingsSection({
       {schemaBadges.length > 0 && (
         <div
           className={[
-            'mb-2 flex flex-wrap gap-1 text-gray-700',
+            `mb-2 flex flex-wrap gap-1 ${UI_THEME_TOKENS.text.primary}`,
             uiPanelKeyValueTextSizeClass,
             uiPanelTextFontClass,
           ].join(' ')}
@@ -281,7 +282,7 @@ export default function RenderSettingsSection({
           {schemaBadges.map(badge => (
             <span
               key={badge}
-              className="px-[4px] py-[1px] rounded-full border border-gray-300 bg-gray-50"
+              className={`px-[4px] py-[1px] rounded-full border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.headerBg}`}
             >
               {badge === 'required' ? 'R' : badge === 'unique' ? 'U' : badge}
             </span>
@@ -298,7 +299,7 @@ export default function RenderSettingsSection({
         <div className="mt-2 space-y-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700`}>
+              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Render Mode
               </div>
               <select
@@ -311,7 +312,7 @@ export default function RenderSettingsSection({
               </select>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700`}>
+              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Selection Mode
               </div>
               <select

@@ -13,6 +13,7 @@ import {
   UI_COPY,
 } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 interface HelpViewProps {
   searchQuery: string;
@@ -191,36 +192,36 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
         {(import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV && (
           <div className="mt-4 border-t border-gray-200 pt-2 space-y-3">
             <div>
-              <div className="text-xs font-semibold text-gray-500 mb-1">
+              <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
                 Dev: LS key mappings
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
-                  <div className="text-xs font-medium text-gray-500">
+                  <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>
                     Orchestrator sections (Markdown)
                   </div>
-                  <pre className={`text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-48 ${uiPanelMonospaceTextClass}`}>
+                  <pre className={`text-xs ${UI_THEME_TOKENS.panel.headerBg} border ${UI_THEME_TOKENS.panel.border} rounded p-2 overflow-auto max-h-48 ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary}`}>
                     {getOrchestratorSectionMarkdownTable()}
                   </pre>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <div className="text-xs font-medium text-gray-500">
+                  <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>
                     Render sections (diagnostics)
                   </div>
-                  <pre className={`text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-48 ${uiPanelMonospaceTextClass}`}>
+                  <pre className={`text-xs ${UI_THEME_TOKENS.panel.headerBg} border ${UI_THEME_TOKENS.panel.border} rounded p-2 overflow-auto max-h-48 ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary}`}>
                     {JSON.stringify(getRenderSectionDiagnostics(), null, 2)}
                   </pre>
                 </div>
               </div>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 mb-1">
+              <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
                 Dev: uiIconScale preview
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <button
                   type="button"
-                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
                   onClick={handleOpenSettingsTab}
                   data-kg-anchor={UI_ANCHORS.settingsUiIconScale}
                 >
@@ -254,10 +255,10 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
               </div>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 mb-1">
+              <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
                 Layer order and graph layers (semantic → document‑structure → property: “Similarity clusters (semantic)” → “Layered structure (document)” → “Raw data (schema)”)
               </div>
-              <div className="text-[11px] text-gray-600 leading-snug space-y-1">
+              <div className={`text-[11px] ${UI_THEME_TOKENS.text.secondary} leading-snug space-y-1`}>
                 <p>
                   The Graph Layer tab controls the same schema.layers.mode cycle (semantic → document‑structure → property) and drives how a single GraphData snapshot is filtered and decorated for rendering. Semantic is the default and adds similarity edges, Louvain communities, and importance‑based node sizing on top of the imported graph without mutating the source JSON‑LD.
                 </p>

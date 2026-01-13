@@ -4,6 +4,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
+import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { computeNeighborIds } from '@/components/GraphCanvas/highlight'
 import { getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
@@ -122,9 +123,9 @@ export function Scene({
         theme = null
       }
       if (theme === 'dark') {
-        color = '#020617'
+        color = UI_THEME_COLORS.dark.bg
       } else {
-        color = '#ffffff'
+        color = UI_THEME_COLORS.light.bg
       }
     }
     try {

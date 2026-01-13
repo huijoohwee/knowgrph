@@ -36,6 +36,7 @@ import AdvancedSection from '@/features/schema-editor/AdvancedSection'
 import SchemaUiEditor from '@/features/schema/ui/SchemaUiEditor'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { FieldGraphLayersSection, GraphLayerMetadataPresetsSection } from '@/features/panels/views/graph-fields/FieldGraphLayersSection'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type FieldSettingsPanelProps = {
   graphData: GraphData | null
@@ -251,8 +252,8 @@ export default function FieldSettingsPanel({
   }, [selectedField, selectedSettings, setGraphFieldSettingsById, settingsById, suggestedFieldType])
 
   return (
-    <div className="rounded border border-gray-200 bg-white overflow-hidden flex flex-col min-h-0 min-w-0">
-      <div className="border-b border-gray-200 bg-gray-50 px-2 py-1.5 text-gray-700 flex items-center justify-between gap-2">
+    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col min-h-0 min-w-0`}>
+      <div className={`border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 py-1.5 ${UI_THEME_TOKENS.text.primary} flex items-center justify-between gap-2`}>
         <div className="flex-1 min-w-0">
             <Tooltip
               content={UI_COPY.graphFieldsAgenticFieldSettingsDescription}
@@ -263,16 +264,16 @@ export default function FieldSettingsPanel({
               <div className={`${uiPanelKeyValueTextSizeClass} truncate`}>{UI_LABELS.fieldSettings}</div>
             </Tooltip>
           </div>
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 whitespace-nowrap max-w-[55%] truncate text-right`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap max-w-[55%] truncate text-right`}>
           {secondaryLabel}
         </div>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2">
+      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2 ${UI_THEME_TOKENS.panel.bg}`}>
         {selectedGlobalView?.kind === 'globalSchema' ? (
           <div className="p-3 space-y-3">
             <SchemaUiEditor schema={schema} setSchema={setSchema} mode="globalOnly" />
             {uniqueNodeTypes.length > 0 ? (
-              <div className="rounded border border-gray-200 bg-white p-3">
+              <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
                 <AdvancedSection uniqueNodeTypes={uniqueNodeTypes} />
               </div>
             ) : null}
@@ -296,7 +297,7 @@ export default function FieldSettingsPanel({
             localSchemaEdgeLabels={localSchemaEdgeLabels}
           />
         ) : !selectedField || !selectedSettings ? (
-          <div className={`p-3 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+          <div className={`p-3 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
             {UI_COPY.graphFieldsSelectFieldToEdit}
           </div>
         ) : (

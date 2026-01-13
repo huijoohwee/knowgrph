@@ -3,6 +3,7 @@ import { GraphNode, GraphEdge, GraphData, type SelectionAnchorIds } from '@/lib/
 import { GraphSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
 import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
 import { getEdgeBaseStroke, getLayerOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
+import { UI_THEME_COLORS, type ThemeColors } from '@/lib/ui/theme-tokens';
 
 export type SelectionHighlightParams = {
   data: GraphData
@@ -14,6 +15,7 @@ export type SelectionHighlightParams = {
   renderMediaAsNodes: boolean
   mediaNodeOpacity?: number
   activeLayerBandIndex?: number | null
+  themeColors?: ThemeColors
 }
 
 export type SelectionIdParams = Pick<
@@ -188,7 +190,7 @@ export const computeNodeVisual = (
   const dimmedFill = typeof palette.edges.neutral === 'string' && palette.edges.neutral.trim()
     ? palette.edges.neutral
     : MVP_COLOR_PALETTE.edges.neutral
-  const baseStroke = schema.nodeStroke?.[node.type]?.color ?? '#ffffff'
+  const baseStroke = schema.nodeStroke?.[node.type]?.color ?? params.themeColors?.nodeStroke ?? '#ffffff'
   const baseStrokeWidth = schema.nodeStroke?.[node.type]?.width ?? 1.5
   const isMediaNode = hasNodeMedia(node)
   const mediaOpacity = (() => {
@@ -379,7 +381,11 @@ export const applySelectionHighlight = (
   selectedNodeIds?: string[],
   selectedEdgeIds?: string[],
   renderMediaAsNodes: boolean = true,
-  extra?: { mediaNodeOpacity?: number; activeLayerBandIndex?: number | null },
+  extra?: {
+    mediaNodeOpacity?: number
+    activeLayerBandIndex?: number | null
+    themeColors?: typeof UI_THEME_COLORS.light
+  },
 ): void => {
   const params: SelectionHighlightParams = {
     data,
@@ -391,6 +397,7 @@ export const applySelectionHighlight = (
     renderMediaAsNodes,
     mediaNodeOpacity: extra?.mediaNodeOpacity,
     activeLayerBandIndex: extra?.activeLayerBandIndex,
+    themeColors: extra?.themeColors,
   }
   const neighborIds = computeNeighborIds(params)
   const selectionSets = deriveSelectionSets(params)

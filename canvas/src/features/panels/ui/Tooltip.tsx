@@ -1,6 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   computeTooltipMaxWidthPx,
   computeTooltipPositionFromAnchor,
@@ -154,7 +155,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
       {open && pos && createPortal(
         <div
           ref={scrollRef}
-          className={cn("px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-normal break-words overflow-hidden pointer-events-auto z-[10000]", contentClassName)}
+          className={cn(`px-2 py-1 text-xs rounded ${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} whitespace-normal break-words overflow-hidden pointer-events-auto z-[10000]`, contentClassName)}
           style={{ position: 'fixed', top: pos.top, left: pos.left, transform: 'translateX(-50%)', maxWidth: maxW ? `${maxW}px` : '250px' }}
           onMouseEnter={() => {
             if (scrollDelayRef.current !== null) return

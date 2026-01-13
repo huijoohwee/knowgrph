@@ -24,7 +24,7 @@ export const MarkdownFootnoteBlock = React.memo(function MarkdownFootnoteBlock({
 
   return (
     <MarkdownBlockContainer
-      as="div"
+      as="aside"
       className={`mt-8 pt-4 border-t border-slate-200 text-sm text-slate-500 ${opts.uiPanelTextFontClass}`}
       highlightClass={highlightClass}
       highlightStyle={highlightStyle}

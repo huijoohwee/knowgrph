@@ -11,6 +11,7 @@ import {
   RENDERER_TIDY_TREE_LINK_OPACITY_VALUE_TOOLTIP,
 } from '@/lib/config';
 import { useShallow } from 'zustand/react/shallow';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 export function RendererTidyTreeSettings() {
   const { schema, setSchema } = useGraphStore(
@@ -23,7 +24,7 @@ export function RendererTidyTreeSettings() {
   const uiPanelKeyValueInputClass = useGraphStore(
     (s) =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right'
+      `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`
   );
 
   if ((schema.layout?.mode || 'force') !== 'tidy-tree') {
@@ -57,10 +58,10 @@ export function RendererTidyTreeSettings() {
           <Tooltip
             content={RENDERER_TIDY_TREE_CURVE_ROW_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="break-words"
           >
-            <span className="text-gray-700 break-words">graph.layout.tidyTree.curve</span>
+            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>graph.layout.tidyTree.curve</span>
           </Tooltip>
         }
         typeNode={null}
@@ -69,11 +70,11 @@ export function RendererTidyTreeSettings() {
             <Tooltip
               content={RENDERER_TIDY_TREE_CURVE_VALUE_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="w-full"
             >
               <select
-                className={uiPanelKeyValueInputClass}
+                className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                 value={schema.layout?.tidyTree?.curve || 'bump'}
                 onChange={(e) => {
                   const raw = String(e.target.value || '');
@@ -101,10 +102,10 @@ export function RendererTidyTreeSettings() {
           <Tooltip
             content="Read-only summary of metadata.tidyTree.mermaidDensity from the parser, showing the bucket and statement count used to seed the initial separation."
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="break-words"
           >
-            <span className="text-gray-700 break-words">
+            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
               metadata.tidyTree.mermaidDensity
             </span>
           </Tooltip>
@@ -112,7 +113,7 @@ export function RendererTidyTreeSettings() {
         typeNode={null}
         valueNode={
           <RightAlignedValueCell>
-            <span className="text-xs text-gray-300">
+            <span className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>
               {densityLabel && statementCount != null
                 ? `${densityLabel} (${statementCount} statements)`
                 : 'not available'}
@@ -127,10 +128,10 @@ export function RendererTidyTreeSettings() {
           <Tooltip
             content="Set graph.layout.tidyTree.separation to control Dagre node and rank spacing; Mermaid frontmatter diagrams seed a density-aware default via metadata.tidyTree.separation, and this field overrides that suggestion for the active schema."
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="break-words"
           >
-            <span className="text-gray-700 break-words">
+            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
               graph.layout.tidyTree.separation
             </span>
           </Tooltip>
@@ -141,11 +142,11 @@ export function RendererTidyTreeSettings() {
             <Tooltip
               content="Default: 1; larger values increase Dagre nodesep/ranksep; fractional values (e.g. 1.3, 1.5, 1.8, 2.1) are allowed. Mermaid density presets influence the initial value via metadata.tidyTree.mermaidDensity.config, but the schema separation here is the final authority."
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="w-full"
             >
               <input
-                className={uiPanelKeyValueInputClass}
+                className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                 type="number"
                 min={0.25}
                 step={0.1}
@@ -176,10 +177,10 @@ export function RendererTidyTreeSettings() {
           <Tooltip
             content={RENDERER_TIDY_TREE_ORIENTATION_ROW_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="break-words"
           >
-            <span className="text-gray-700 break-words">
+            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
               graph.layout.tidyTree.orientation
             </span>
           </Tooltip>
@@ -190,11 +191,11 @@ export function RendererTidyTreeSettings() {
             <Tooltip
               content={RENDERER_TIDY_TREE_ORIENTATION_VALUE_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="w-full"
             >
               <select
-                className={uiPanelKeyValueInputClass}
+                className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                 value={
                   schema.layout?.tidyTree?.orientation === 'vertical' ? 'vertical' : 'horizontal'
                 }
@@ -223,10 +224,10 @@ export function RendererTidyTreeSettings() {
           <Tooltip
             content={RENDERER_TIDY_TREE_LINK_OPACITY_ROW_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="break-words"
           >
-            <span className="text-gray-700 break-words">
+            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
               graph.layout.tidyTree.linkOpacity
             </span>
           </Tooltip>
@@ -237,11 +238,11 @@ export function RendererTidyTreeSettings() {
             <Tooltip
               content={RENDERER_TIDY_TREE_LINK_OPACITY_VALUE_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="w-full"
             >
               <input
-                className={uiPanelKeyValueInputClass}
+                className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                 type="number"
                 min={0}
                 max={1}

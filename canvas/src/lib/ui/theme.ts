@@ -39,4 +39,9 @@ export function applyThemeMode(mode: ThemeMode): void {
   const root = document.documentElement
   const resolved = mode === 'system' ? getSystemTheme() : mode
   root.setAttribute('data-theme', resolved)
+  if (resolved === 'dark') {
+    root.classList.add('dark')
+  } else {
+    root.classList.remove('dark')
+  }
 }

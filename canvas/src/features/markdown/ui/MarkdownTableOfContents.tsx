@@ -1,66 +1,242 @@
 import React from 'react'
+import { ChevronRight, ChevronDown, GripVertical } from 'lucide-react'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { TokenWithLines } from './markdownPreviewLex'
-import { slugify } from '@/features/parsers/markdownJsonLd'
+import { buildTocTree, findParent, type TocItem } from './markdownSectionUtils'
 
-type MarkdownTableOfContentsProps = {
+// Constants matching Slides Gallery styles
+const UI_COLOR_PRIMARY_BLUE_INDICATOR = '#2563EB' // blue-600
+const UI_COLOR_PRIMARY_BLUE_BG = 'bg-blue-50'
+
+export type MarkdownTableOfContentsProps = {
   tokens: TokenWithLines[]
-  onSelect: (id: string) => void
-  className?: string
+  onSelect?: (id: string) => void
+  onDoubleClick?: (id: string) => void
+  onReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
   uiPanelTextFontClass: string
+  className?: string
+  allCollapsed?: boolean
+  collapsedIds?: Set<string>
+  onToggleCollapse?: (id: string) => void
 }
 
-type TocItem = {
-  id: string
-  text: string
+type TocItemRendererProps = {
+  item: TocItem
+  onSelect?: (id: string) => void
+  onDoubleClick?: (id: string) => void
+  onReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
+  uiPanelTextFontClass: string
   depth: number
-  index: number
+  allCollapsed?: boolean
+  collapsedIds?: Set<string>
+  onToggleCollapse?: (id: string) => void
+  rootItems: TocItem[]
 }
 
-export function MarkdownTableOfContents(props: MarkdownTableOfContentsProps) {
-  const { tokens, onSelect, className, uiPanelTextFontClass } = props
+function TocItemRenderer({
+  item,
+  onSelect,
+  onDoubleClick,
+  onReorder,
+  uiPanelTextFontClass,
+  depth,
+  allCollapsed,
+  collapsedIds,
+  onToggleCollapse,
+  rootItems,
+}: TocItemRendererProps) {
+  const [dragState, setDragState] = React.useState<'none' | 'top' | 'bottom'>('none')
+  const [isDragging, setIsDragging] = React.useState(false)
+  const isCollapsed = collapsedIds ? collapsedIds.has(item.id) : (allCollapsed && item.children.length > 0)
+  
+  const hasChildren = item.children.length > 0
 
-  const items = React.useMemo(() => {
-    const list: TocItem[] = []
-    tokens.forEach((t, i) => {
-      if (t.type === 'heading') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const h = t as any
-        const text = h.text || ''
-        const id = h.id || slugify(text)
-        if (text) {
-          list.push({
-            id,
-            text,
-            depth: h.depth || 1,
-            index: i,
-          })
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!onReorder) return
+    setIsDragging(true)
+    e.dataTransfer.setData('text/plain', item.id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragEnd = () => {
+    setIsDragging(false)
+    setDragState('none')
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    if (!onReorder) return
+    e.dataTransfer.dropEffect = 'move'
+    
+    // Calculate if we are in top or bottom half
+    const rect = e.currentTarget.getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    if (e.clientY < midY) {
+      setDragState('top')
+    } else {
+      setDragState('bottom')
+    }
+  }
+
+  const handleDragLeave = () => {
+    setDragState('none')
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragState('none')
+    if (!onReorder) return
+
+    const sourceId = e.dataTransfer.getData('text/plain')
+    if (sourceId === item.id) return
+
+    const sourceInfo = findParent(rootItems, sourceId)
+    const targetInfo = findParent(rootItems, item.id)
+
+    if (sourceInfo && targetInfo) {
+      const sameParent = sourceInfo.parent?.id === targetInfo.parent?.id
+      if (sameParent) {
+        let targetIndex = targetInfo.index
+        if (dragState === 'bottom') {
+          targetIndex += 1
         }
-      }
-    })
-    return list
-  }, [tokens])
+        if (sourceInfo.index < targetIndex) {
+          targetIndex -= 1
+        }
+        if (targetIndex < 0) targetIndex = 0
+        if (targetIndex >= targetInfo.siblings.length) targetIndex = targetInfo.siblings.length - 1
 
-  if (items.length === 0) {
-    return null
+        onReorder(sourceInfo.parent?.id ?? null, sourceInfo.index, targetIndex)
+      }
+    }
   }
 
   return (
-    <nav className={`h-full overflow-y-auto p-4 ${className || ''}`}>
-      <ul className="space-y-1">
-        {items.map((item, idx) => (
-          <li
-            key={`${item.id}-${idx}`}
-            style={{ paddingLeft: `${(item.depth - 1) * 12}px` }}
+    <li className="relative">
+      {dragState === 'top' && (
+        <div
+          className="absolute left-0 right-0 -top-1 h-2 bg-blue-50 border-t-2 z-10 pointer-events-none"
+          style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+        >
+          <div
+            className="absolute left-0 -top-1 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent"
+            style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+          />
+        </div>
+      )}
+      {dragState === 'bottom' && (
+        <div
+          className="absolute left-0 right-0 -bottom-1 h-2 bg-blue-50 border-b-2 z-10 pointer-events-none"
+          style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+        >
+          <div
+            className="absolute left-0 -bottom-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent"
+            style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+          />
+        </div>
+      )}
+      <div
+        className={[
+          'group flex items-center gap-1 py-1 pr-2 rounded cursor-pointer select-none transition-colors relative',
+          isDragging ? `${UI_COLOR_PRIMARY_BLUE_BG} opacity-50` : `hover:${UI_THEME_TOKENS.table.rowHoverAmber} dark:hover:bg-gray-800`,
+          uiPanelTextFontClass,
+          dragState !== 'none' ? `${UI_COLOR_PRIMARY_BLUE_BG}` : '',
+        ].join(' ')}
+        style={{ paddingLeft: `${(depth - 1) * 12 + 4}px` }}
+        onClick={() => onSelect?.(item.id)}
+        onDoubleClick={(e) => {
+            e.stopPropagation()
+            onDoubleClick?.(item.id)
+        }}
+        draggable={!!onReorder}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {onReorder && (
+          <div className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-0.5 text-gray-400 hover:text-gray-600">
+            <GripVertical size={12} />
+          </div>
+        )}
+        
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleCollapse?.(item.id)
+            }}
+            className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
           >
-            <button
-              type="button"
-              onClick={() => onSelect(item.id)}
-              className={`text-left w-full hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 py-1 text-sm truncate ${uiPanelTextFontClass}`}
-              title={item.text}
-            >
-              {item.text}
-            </button>
-          </li>
+            {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          </button>
+        ) : (
+          <div className="w-4" />
+        )}
+        
+        <span className="truncate flex-1 text-gray-700 dark:text-gray-300">
+          {item.text}
+        </span>
+      </div>
+      
+      {hasChildren && !isCollapsed && (
+        <ul>
+          {item.children.map(child => (
+            <TocItemRenderer
+              key={child.id}
+              item={child}
+              onSelect={onSelect}
+              onDoubleClick={onDoubleClick}
+              onReorder={onReorder}
+              uiPanelTextFontClass={uiPanelTextFontClass}
+              depth={depth + 1}
+              allCollapsed={allCollapsed}
+              collapsedIds={collapsedIds}
+              onToggleCollapse={onToggleCollapse}
+              rootItems={rootItems}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+export function MarkdownTableOfContents({
+  tokens,
+  onSelect,
+  onDoubleClick,
+  onReorder,
+  uiPanelTextFontClass,
+  className,
+  allCollapsed,
+  collapsedIds,
+  onToggleCollapse,
+}: MarkdownTableOfContentsProps) {
+  const rootItems = React.useMemo(() => buildTocTree(tokens), [tokens])
+
+  if (rootItems.length === 0) return null
+
+  return (
+    <nav className={`overflow-y-auto p-2 ${className || ''}`}>
+      <ul className="space-y-0.5">
+        {rootItems.map(item => (
+          <TocItemRenderer
+            key={item.id}
+            item={item}
+            onSelect={onSelect}
+            onDoubleClick={onDoubleClick}
+            onReorder={onReorder}
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            depth={1}
+            allCollapsed={allCollapsed}
+            collapsedIds={collapsedIds}
+            onToggleCollapse={onToggleCollapse}
+            rootItems={rootItems}
+          />
         ))}
       </ul>
     </nav>

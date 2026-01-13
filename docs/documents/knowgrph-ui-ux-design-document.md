@@ -1,3 +1,19 @@
+# Theme and Color Palette
+- The application supports Light, Dark, and System theme modes, configurable in MainPanel Settings.
+- Button and UI element colors follow the **GitHub Tritanopia** palette for optimal contrast and accessibility.
+- **Light Mode**: Uses `text-gray-600` and `bg-gray-100` hover states, with `bg-white` panels.
+- **Dark Mode**: Uses `text-gray-300` and `bg-gray-800` hover states, with `bg-[#0d1117]` panels.
+- **Code Blocks**: Follows the PlayCanvas-style structure (`div` > `div` > `clipboard-copy`) with theme-aware syntax highlighting (Light: GitHub Light, Dark: GitHub Dark). Uses `UI_THEME_TOKENS.code` for consistent background and border styling (`slate` color family).
+- **Consistency**: All icon buttons (`IconButton`), panels, tables, inputs, floating panel buttons, and code blocks use shared theme tokens defined in `UI_THEME_TOKENS` to ensure global consistency. Hardcoded styles (e.g., `text-gray-*`, `bg-blue-*`) are strictly forbidden in favor of semantic tokens.
+- **Configuration**: Users can switch themes (Light/Dark/System) via the "UI Appearance" section in Settings.
+- **Implementation**: Theme changes update the `data-theme` attribute on the root element and toggle the `dark` class, enabling Tailwind's `dark:` modifier.
+- **Graph Data Table**: Table rows, headers, and sticky columns use `UI_THEME_TOKENS.table` for consistent light/dark backgrounds and borders. Zebra striping is disabled in favor of a clean, flat look (`rowBg`). Selected rows are highlighted with a subtle tint (`rowSelected`), replacing legacy blue borders. Redundant grey divs in Dark Mode are removed by enforcing `UI_THEME_TOKENS.panel.bg` on scroll containers.
+- **Main Table Settings**: Key/Value rows in settings and property panels follow the same interaction model as the Graph Data Table, using `UI_THEME_TOKENS.table.rowHoverAmber` for hover states and `UI_THEME_TOKENS.table.rowSelected` for active/selected states.
+- **Slides Gallery**: Follows the same selection and hover styles as the data table (`rowHoverAmber`, `rowSelected`), ensuring a unified visual experience across list-like views.
+- **Canvas Visualization**: Graph nodes, edges, and labels use `UI_THEME_COLORS` (raw hex values) to match the theme palette in the D3/WebGL context.
+- **Tooltips**: Tooltips use `UI_THEME_TOKENS.tooltip` for high-contrast overlays (dark background in both modes or theme-adaptive).
+- **Status Badges**: Use `UI_THEME_TOKENS.status` (success, warning, error, neutral) for consistent feedback colors across the application.
+
 # Media node panels
 - Panel-only mode hides base circle/rect glyphs for media-capable nodes and
   renders standalone media panels.
@@ -57,7 +73,7 @@
 
 # Canvas ↔ Markdown panel UX
 - Bottom Panel auto-open:
-  - When users select a media card sourced from the graph in the Preview gallery, the Bottom Panel automatically opens the Curation tab in Markdown mode, keeping the media selection, canvas selection, and source text aligned without additional clicks.
+  - When users select a media card sourced from the graph in the Slides Gallery, the Bottom Panel automatically opens the Curation tab in Markdown mode, keeping the media selection, canvas selection, and source text aligned without additional clicks.
 - Markdown panel highlight:
   - Auto-opening the markdown curation view applies a brief, subtle highlight to the panel chrome so users can see where the source text came from without introducing long-lived visual noise.
 - Markdown header layout:
@@ -66,75 +82,28 @@
 - Selection alignment:
   - Canvas node/edge selections with markdown provenance scroll the Bottom Panel markdown editor and viewer so the associated text range snaps to the top of the viewport, avoiding “lost in the middle” placements.
   - The markdown editor uses the textarea’s wrap model to align the first wrapped row of the selected range directly under the top border, and the viewer uses block-level `data-start-line` markers to anchor the corresponding rendered block to the top of its scroll container.
+  - **Mermaid Frontmatter Sync**: When a Canvas node corresponds to a node defined in the Markdown frontmatter (Mermaid block), the editor auto-scrolls to the exact line of the node definition within the frontmatter code, rather than defaulting to the start of the frontmatter block.
   - When the Markdown “Text Highlight” toggle is on, the highlighted range uses the same semantic colors as the active selection on the canvas:
     - Node-backed ranges inherit the node’s fill color and appear as a tinted background band in the viewer and editor gutter.
     - Edge-backed ranges are rendered with an underline treatment that mirrors the edge color in the canvas.
     - Graph layer highlights reuse the layer’s background color so document-structure vs semantic vs property layers stay visually aligned.
   - When the toggle is off, markdown remains unadorned while scrolling and auto-alignment still work.
-- Markdown Preview context action:
-  - Right-clicking a non-empty selection in the Markdown Preview exposes a “Show on Canvas” action when the selection maps to a known node or edge.
-  - Triggering this action updates the graph selection using the same selection pathways as other tools, so viewport zoom, highlight, and related panels behave consistently.
+- Markdown Preview Interaction:
+  - **Selection Toolbar**: Selecting text (or double-clicking a word) in the Markdown Viewer, Editor (Preview mode), or Presentation displays a floating toolbar with context-aware navigation options:
+    - **Show on Canvas**: Highlights the corresponding node/edge on the graph.
+    - **Show in Viewer**: Switches to Markdown Viewer mode.
+    - **Show in Editor**: Switches to Markdown Editor mode.
+    - **Show in Presentation**: Enters Presentation mode.
+    - **Show in Slides Gallery**: Switches to Slides Gallery view (Presentation with thumbnails).
+    - **Show in Graph Data Table**: Opens the Graph Data Table tab.
+    - Irrelevant options (e.g., "Show in Viewer" when already in Viewer) are disabled.
+  - **Right-Click Context Menu**: Unified with the Selection Toolbar. Right-clicking in the Viewer, Editor, Presentation, Slides Gallery, or Graph Data Table displays the context-aware Selection Toolbar, providing consistent access to all navigation actions (Show on Canvas, Show in Viewer, etc.).
+  - **Double-Click Behavior**: Double-clicking a line in the Viewer or Editor jumps to the corresponding line in the other view. The mapping is precise, preserving line numbers even for nested content like lists.
   - For Mermaid frontmatter, Canvas selection and layout behavior follow the same neutrality guarantees as other graph content: `MermaidNode` and `pointsTo` edges are styled and filtered via schema‑driven layer configuration, and layout modes (force, radial, tidy‑tree) all operate on the same schema‑aligned subgraph without special cases for any particular template or dataset; see `docs/documents/knowgrph-mermaid-frontmatter-document.md` for details on Mermaid‑specific legend chips and path highlighting.
-
-# GitBook-like Markdown Viewer
+# Unified Markdown Layout (Editor & Viewer)
 - Navigation and Layout:
-  - The markdown viewer supports a GitBook-like reading experience with a collapsible sidebar Table of Contents (TOC).
-  - The TOC is automatically generated from headings in the markdown content, providing quick navigation to sections.
-  - Clicking a TOC item smooth-scrolls the main content to the corresponding section.
-  - The layout is responsive, with a maximum content width (`max-w-4xl`) for optimal readability.
+  - Both Editor and Viewer modes share a unified `MarkdownPanelLayout` with a collapsible sidebar Table of Contents (TOC).
+  - The layout uses semantic wrappers (`section`, `aside`, `header`, `main`, `article`, `figure`) for accessibility and code readability, replacing generic `div`s. `figure` is used for frontmatter Mermaid diagrams.
+  - **Sidebar Position**: The sidebar is positioned on the **left** side of the panel (default layout).
+  - **Token Sharing**: The markdown lexer runs once at the parent level, and tokens are shared between the Viewer, TOC, and Editor components to optimize performance and prevent redundant processing. Line maps are preserved during token processing to ensure accurate scroll synchronization.
 - Interaction:
-  - A toggle button allows users to show/hide the sidebar, maximizing screen real estate when needed.
-  - When the sidebar is hidden, a floating button allows for easy restoration.
-  - The viewer integrates seamlessly with existing markdown features (highlighting, code blocks, mermaid diagrams).
-
-# Reordering interactions
-- Shared list reordering:
-  - All list-style reordering (slides in the fullscreen gallery, graph field select options, and traversal path editors) uses a shared immutable helper: `reorderList` in `canvas/src/lib/reorder.ts`.
-  - `reorderList` moves one item from `fromIndex` to `toIndex` in a shallow copy of the input array, preserving value identity while avoiding in-place mutation.
-- Slide gallery sidebar:
-  - The fullscreen Markdown slide gallery sidebar is implemented as a reusable `SlidesSidebar` component in `canvas/src/features/markdown/ui/SlidesSidebar.tsx`. `SlidesSidebar` owns the header copy, thumbnail/list toggle, selection state, and wiring to the shared `PreviewGallery` list while remaining presentation-agnostic: callers provide slide IDs, preview renderers, and ordering callbacks so future “slides-only” views (such as a dedicated slide manager) can reuse the same sidebar without changing the core presentation container.
-  - The sidebar uses `reorderList` to update slide order when users drag thumbnails; the visual insertion bands (with up/down arrows) are purely presentational and map directly onto the same `reorderList` call for consistent “before/after” semantics. Slide drag results are fed into a markdown-aware helper (`reorderSlidesInMarkdown` in `canvas/src/features/markdown/ui/markdownPreviewSlides.ts`) that rewrites the underlying markdown source so the Bottom Panel editor, viewer, and on-disk document stay in sync while preserving frontmatter blocks, per-slide notes, and fenced code blocks that contain `---` as literal content.
-- Slide gallery metrics:
-  - Slide reordering in the fullscreen Markdown gallery emits a `markdownSlidesReordered` UI metric that records slide count and before/after index order for instrumentation and UX analysis.
-- Graph field select options:
-  - Graph field select options use the same helper when users drag the handle icon to reorder options, ensuring that option order changes follow identical index semantics to the slide gallery and traversal editors.
-- Future reordering affordances:
-  - New drag-to-reorder controls should call `reorderList` (or thin wrappers over it) instead of implementing bespoke splice logic, so UX expectations and edge-case handling remain consistent across panels.
-
-# Primary blue and semantic palette helpers
-- `UI_COLOR_PRIMARY_BLUE`, `UI_COLOR_PRIMARY_BLUE_BORDER`, `UI_COLOR_PRIMARY_BLUE_BG`:
-  - Core role-based tokens for primary blue text, border, and background classes.
-  - `UI_COLOR_PRIMARY_BLUE` encodes text color (`text-blue-600`).
-  - `UI_COLOR_PRIMARY_BLUE_BORDER` encodes primary blue borders (`border-blue-500`).
-  - `UI_COLOR_PRIMARY_BLUE_BG` encodes primary blue backgrounds (`bg-blue-50`).
-- `UI_COLOR_WARNING_AMBER_BORDER`, `UI_COLOR_WARNING_AMBER_BG`:
-  - Core tokens for warning/secondary amber surfaces.
-  - `UI_COLOR_WARNING_AMBER_BORDER` encodes amber borders (`border-amber-400`).
-  - `UI_COLOR_WARNING_AMBER_BG` encodes amber backgrounds (`bg-amber-50`).
-- `UI_COLOR_DANGER_RED_BORDER`, `UI_COLOR_DANGER_RED_BG`, `UI_COLOR_DANGER_RED_TEXT`:
-  - Core tokens for danger/red surfaces.
-  - `UI_COLOR_DANGER_RED_BORDER` encodes red borders (`border-red-300`).
-  - `UI_COLOR_DANGER_RED_BG` encodes red backgrounds (`bg-red-50`).
-  - `UI_COLOR_DANGER_RED_TEXT` encodes red text (`text-red-700`).
-- `uiToolbarToggleActiveClassName` and `uiDataTableToggleActiveClassName`:
-  - Used for “primary active” toggle buttons that own a surface (e.g., toolbar settings toggles or graph data table toggles where the active state should be visually dominant).
-  - Compose the full blue toggle surface from the tokens: `UI_COLOR_PRIMARY_BLUE_BORDER UI_COLOR_PRIMARY_BLUE_BG text-blue-700`.
-- `uiSecondaryToggleActiveClassName`:
-  - Used for the secondary (amber) variant of primary toggles.
-  - Composes warning surfaces from the amber tokens: `UI_COLOR_WARNING_AMBER_BORDER UI_COLOR_WARNING_AMBER_BG text-amber-800`.
-- `uiPrimaryPillActiveClassName`:
-  - Used for pill-style chips and compact actions that sit inline with text but still represent a primary “on” state (e.g., icon tabs, Launch shortcuts).
-  - Encodes a blue pill using `UI_COLOR_PRIMARY_BLUE_BG` for the background and `text-blue-700` for text.
-- `uiPrimaryChipActiveClassName`:
-  - Used for count chips and status badges that need a compact, bordered blue pill surface (e.g., traversal edge count badges).
-  - Encodes pill + border using `UI_COLOR_PRIMARY_BLUE_BG` for the background, `text-blue-700` for text, and a light blue border.
-- `uiPrimaryIconActiveClassName` and `uiPrimaryIconInactiveClassName`:
-  - Used for icon‑only toggles and checkboxes (no surface change, just icon color).
-  - Active icons use `uiPrimaryIconActiveClassName` (`text-blue-600`); inactive icons use `uiPrimaryIconInactiveClassName` (`text-gray-600`).
-- Usage guidelines:
-  - Prefer `uiPrimaryToggleActiveClassName` for buttons that change their background when active.
-  - Prefer `uiPrimaryPillActiveClassName` or `uiPrimaryChipActiveClassName` for inline pills and count chips.
-  - Prefer `uiPrimaryIconActiveClassName` / `uiPrimaryIconInactiveClassName` for icon-only toggles and controls that do not own a background surface.
-  - Prefer amber and danger tokens for semantic variants:
-    - Use `uiSecondaryToggleActiveClassName` (warning amber) for secondary toggles that still own a surface.
-    - Use `UI_COLOR_DANGER_RED_BORDER` / `UI_COLOR_DANGER_RED_BG` / `UI_COLOR_DANGER_RED_TEXT` for destructive actions such as “Global Reset” in Main Panel Settings.

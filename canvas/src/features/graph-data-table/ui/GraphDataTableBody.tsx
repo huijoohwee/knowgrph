@@ -11,6 +11,7 @@ import {
 } from '@/features/graph-data-table/graphDataTable'
 import type { GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { FrozenAreaResizeHandle, FROZEN_DATA_COLUMN_LEFT } from './GraphDataTableHeader'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface BodyCellProps {
   columnKey: GraphDataTableColumnKey
@@ -65,7 +66,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'kind') {
     return (
       <td
-        className={`${bodyCellBaseClassName} text-gray-700 ${
+        className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.secondary} ${
           isExpandedCell
             ? 'whitespace-pre-wrap break-words'
             : 'truncate max-w-16 overflow-hidden whitespace-nowrap'
@@ -89,8 +90,8 @@ export const BodyCell = React.memo(function BodyCell({
     return (
       <td
         className={`${bodyCellBaseClassName} relative ${
-          isFrozen ? 'sticky z-0 bg-white' : ''
-        } ${uiPanelMonospaceTextClass} text-gray-900 ${overflowClass}`}
+          isFrozen ? `sticky z-0 ${UI_THEME_TOKENS.panel.bg}` : ''
+        } ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${overflowClass}`}
         style={isFrozen ? { left: FROZEN_DATA_COLUMN_LEFT } : undefined}
         title={row.id}
         onClick={() => {
@@ -116,7 +117,7 @@ export const BodyCell = React.memo(function BodyCell({
       <td
         className={`${bodyCellBaseClassName} relative ${
           isFrozen ? 'sticky z-0' : ''
-        } text-gray-900 w-60 border-gray-100 ${overflowClass}`}
+        } ${UI_THEME_TOKENS.text.primary} w-60 ${UI_THEME_TOKENS.table.cellBorder} ${overflowClass}`}
         style={isFrozen ? { left: FROZEN_DATA_COLUMN_LEFT } : undefined}
         title={row.label}
         onClick={() => {
@@ -151,7 +152,7 @@ export const BodyCell = React.memo(function BodyCell({
       : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
     return (
       <td
-        className={`${bodyCellBaseClassName} text-gray-700 ${overflowClass}`}
+        className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.secondary} ${overflowClass}`}
         onClick={() => {
           if (rowDensity === 'compact' && !isActive && onToggleExpandCell) {
             onToggleExpandCell(columnKey, row.id)
@@ -178,7 +179,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'source') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} text-gray-900 ${
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${
           isExpandedCell
             ? 'whitespace-pre-wrap break-words'
             : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
@@ -210,7 +211,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'target') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} text-gray-900 ${
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${
           isExpandedCell
             ? 'whitespace-pre-wrap break-words'
             : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
@@ -242,7 +243,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'properties') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} text-gray-700 align-top ${
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} align-top ${
           isExpandedCell
             ? 'whitespace-pre-wrap break-words'
             : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
@@ -283,7 +284,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'metadata') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} text-gray-700 align-top ${
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.secondary} align-top ${
           isExpandedCell
             ? 'whitespace-pre-wrap break-words'
             : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
@@ -324,7 +325,7 @@ export const BodyCell = React.memo(function BodyCell({
   if (columnKey === 'codebasePath') {
     return (
       <td
-        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} text-gray-700 align-top ${
+        className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} align-top ${
           isExpandedCell
             ? 'whitespace-pre-wrap break-words'
             : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
@@ -361,7 +362,7 @@ export const BodyCell = React.memo(function BodyCell({
 
       return (
         <td
-          className={`${bodyCellBaseClassName} text-gray-700 ${
+          className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.primary} ${
             isExpandedCell
               ? 'whitespace-pre-wrap break-words'
               : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
@@ -379,7 +380,7 @@ export const BodyCell = React.memo(function BodyCell({
               {filteredValues.map((value, i) => (
                 <span
                   key={`${value}-${i}`}
-                  className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] leading-tight text-gray-800 max-w-full"
+                  className={`inline-flex items-center rounded-full ${UI_THEME_TOKENS.badge.chip} px-2 py-0.5 text-[11px] leading-tight ${UI_THEME_TOKENS.text.primary} max-w-full`}
                 >
                   {value}
                 </span>
@@ -393,7 +394,7 @@ export const BodyCell = React.memo(function BodyCell({
 
   return (
     <td
-      className={`${bodyCellBaseClassName} text-gray-700 ${
+      className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.primary} ${
         isExpandedCell
           ? 'whitespace-pre-wrap break-words'
           : 'truncate max-w-40 overflow-hidden whitespace-nowrap'

@@ -1,5 +1,6 @@
 import { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types';
 import { GraphSchema, GraphBehavior, PropertySpec } from '@/lib/graph/schema';
+import { ThemeMode } from '@/lib/ui/theme';
 import type { BottomTab } from '@/features/bottom-panel/open';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
 import type {
@@ -11,6 +12,7 @@ import type {
   GraphDataTableSortRule,
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
+import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex';
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -119,6 +121,8 @@ export interface GraphState {
   uiIconBadgeChipClass: string;
   uiIconBadgeChipTextSizeClass: string;
   uiIconAnimationEnabled: boolean;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
   selectionFlashDurationMs: number;
   selectionFlashOpacity: number;
   uiOverlayOpacity: number;
@@ -177,11 +181,15 @@ export interface GraphState {
   graphDataTableVirtualDebugLogRanges: boolean;
   markdownDocumentName: string | null;
   markdownDocumentText: string | null;
+  markdownTokens: TokenWithLines[] | null;
+  markdownTokensPath: string | null;
+  markdownTokensKey: string | null;
   markdownDocumentSourceUrl: string | null;
   jsonSourceDocumentText: string | null;
   markdownPreviewMermaidFocusCode: string | null;
   markdownPreviewMermaidFocusConfig: Record<string, unknown> | null;
   markdownPreviewActiveMediaKey: string | null;
+  setMarkdownTokens: (tokens: TokenWithLines[] | null, path?: string | null, key?: string | null) => void;
   setUiIconScale: (scale: 'compact' | 'default') => void;
   setUiOverlayOpacity: (v: number) => void;
   setUiPanelOpacity: (v: number) => void;

@@ -2,6 +2,7 @@ import React from 'react'
 import { TOOL_MENU_AREAS } from '@/features/toolbar/toolMenu'
 import { TOOLBAR_AREA_RENDERERS, type ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function ToolbarToolMenuAreasInspector() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -82,18 +83,18 @@ export function ToolbarToolMenuAreasInspector() {
   }
 
   return (
-    <div className="p-4 space-y-3 bg-gray-50">
+    <div className={`p-4 space-y-3 ${UI_THEME_TOKENS.panel.headerBg}`}>
       {TOOL_MENU_AREAS.map(area => {
         const renderArea = TOOLBAR_AREA_RENDERERS[area.key]
         return (
           <div
             key={area.key}
-            className="border border-gray-200 rounded-md bg-white p-3"
+            className={`border ${UI_THEME_TOKENS.panel.border} rounded-md ${UI_THEME_TOKENS.panel.bg} p-3`}
           >
-            <div className="text-xs font-semibold text-gray-900 mb-1">
+            <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary} mb-1`}>
               {area.label}
             </div>
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500 mb-2`}>
+            <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} mb-2`}>
               {area.description}
             </div>
             <div>{renderArea ? renderArea(mockedProps) : null}</div>

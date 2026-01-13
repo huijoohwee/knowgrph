@@ -5,8 +5,11 @@ import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import {
   uiDangerButtonClassName,
   uiToolbarToggleActiveClassName,
+  UI_COLOR_DANGER_RED_BORDER,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useSettingsView } from './useSettingsView'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export default function SettingsView({
   searchQuery,
@@ -41,14 +44,17 @@ export default function SettingsView({
     setUiPanelMicroLabelTextSizeClass,
   } = useSettingsView({ searchQuery, onRegisterActions })
 
+  const themeMode = useGraphStore(s => s.themeMode)
+  const setThemeMode = useGraphStore(s => s.setThemeMode)
+
   return (
     <div className="h-full min-h-0 flex flex-col space-y-0">
       <div className="flex-1 min-h-0 overflow-auto space-y-0">
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div className={`sticky top-0 z-10 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
           <KeyTypeValueRow
-            keyNode={<span className="font-semibold text-gray-600">Key</span>}
-            typeNode={<span className="font-semibold text-gray-600">Type</span>}
-            valueNode={<span className="font-semibold text-gray-600">Value</span>}
+            keyNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</span>}
+            typeNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</span>}
+            valueNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Value</span>}
             density="compact"
             className="h-9 py-0"
           />
@@ -70,11 +76,11 @@ export default function SettingsView({
                 <Tooltip
                   content={tooltipContent}
                   maxWidthPx={250}
-                  contentClassName="bg-gray-800/90"
+                  contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 >
                   <span className="inline-flex items-center gap-1">
                     <span>{area}</span>
-                    <span className="text-xs uppercase tracking-wide text-gray-400 ml-1">
+                    <span className={`text-xs uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} ml-1`}>
                       {entries.length}
                       {' '}
                       items
@@ -86,12 +92,50 @@ export default function SettingsView({
               onToggle={next => toggleArea(area, next)}
             >
               <div>
-                {area === 'UI Density: Panels' && (
-                  <div className="mb-1 flex flex-wrap items-center gap-1 text-xs text-gray-600">
-                    <span className="font-semibold text-gray-700">Presets</span>
+                {area === 'UI Appearance' && (
+                  <div className={`mb-2 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+                    <span className={`font-semibold ${UI_THEME_TOKENS.text.primary} mr-1`}>Theme Mode</span>
                     <button
                       type="button"
-                      className="App-toolbar__btn text-xs border border-gray-300 bg-white text-gray-700"
+                      className={`App-toolbar__btn text-xs h-6 px-2 border rounded ${
+                        themeMode === 'light'
+                          ? uiToolbarToggleActiveClassName
+                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+                      }`}
+                      onClick={() => setThemeMode('light')}
+                    >
+                      Light
+                    </button>
+                    <button
+                      type="button"
+                      className={`App-toolbar__btn text-xs h-6 px-2 border rounded ${
+                        themeMode === 'dark'
+                          ? uiToolbarToggleActiveClassName
+                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+                      }`}
+                      onClick={() => setThemeMode('dark')}
+                    >
+                      Dark
+                    </button>
+                    <button
+                      type="button"
+                      className={`App-toolbar__btn text-xs h-6 px-2 border rounded ${
+                        themeMode === 'system'
+                          ? uiToolbarToggleActiveClassName
+                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+                      }`}
+                      onClick={() => setThemeMode('system')}
+                    >
+                      System
+                    </button>
+                  </div>
+                )}
+                {area === 'UI Density: Panels' && (
+                  <div className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+                    <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Presets</span>
+                    <button
+                      type="button"
+                      className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
                       onClick={() => {
                         setUiPanelKeyValueTextSizeClass('text-sm')
                         setUiPanelTextFontClass('font-sans')
@@ -150,12 +194,12 @@ export default function SettingsView({
                                 <button
                                   onClick={checkChatHealth}
                                   disabled={isCheckingHealth}
-                                  className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded"
+                                  className={`text-xs ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.button.text} px-2 py-1 rounded`}
                                 >
                                   {isCheckingHealth ? 'Checking...' : 'Check Health'}
                                 </button>
                                 {chatHealthStatus && (
-                                  <div className="mt-1 text-xs text-gray-500">
+                                  <div className={`mt-1 text-xs ${UI_THEME_TOKENS.text.tertiary}`}>
                                     {chatHealthStatus}
                                   </div>
                                 )}
@@ -166,7 +210,7 @@ export default function SettingsView({
                         onClick={() => setExpanded(isExpanded ? null : s.key)}
                       />
                       {isExpanded && (
-                        <div className="mt-0 mb-0 text-xs text-gray-700 border-l pl-2">
+                        <div className={`mt-0 mb-0 text-xs ${UI_THEME_TOKENS.text.primary} border-l pl-2`}>
                           <div className="grid grid-cols-7 gap-1">
                             <div className="font-medium">Area</div>
                             <div className="font-medium">Modules</div>
@@ -196,9 +240,9 @@ export default function SettingsView({
           title="Resets and data"
           collapsed={false}
           onToggle={() => void 0}
-          className="mt-2 pt-2 border-t border-red-200"
+          className={`mt-2 pt-2 border-t ${UI_COLOR_DANGER_RED_BORDER}`}
         >
-          <div className="space-y-1 text-xs text-gray-700">
+          <div className={`space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
             <div>
               Reset all settings to defaults and clear canvas data. This action cannot be undone.
             </div>

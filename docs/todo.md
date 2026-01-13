@@ -3,14 +3,22 @@
 ## P0-Critical
 
 
-### 2025-01-10
-- public version max 20 kb; pay to unlock to 100 kb;
+### 2026-01-13
+- [] when in full-screen mode, canvas inactive, forbid recompute
+- code block
+  - syntax highlighting
+  - [layout](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/automating-projects-using-actions)
 
 
-### 2025-01-07
+
+### 2026-01-10
+- Enforce public version max 20 kb; pay to unlock to 100 kb;
+
+
+### 2026-01-07
 - Add semantic parsing mode as default; provide document‑structure parsing mode as fallback.
 
-### 2025-01-06
+### 2026-01-06
 - Showcase public demo repo; keep implementation private.  
   - Evaluate Git subtree split/CI/CD automation.  
   - Provide demo repo with simplified interactive version; enable instant run on FOSS hosting without installation.  
@@ -19,10 +27,10 @@
 
 ## P1‑High
 
-### 2025-01-06
+### 2026-01-06
 - Support HTML import for extended format coverage.  
 
-- Render images as panel‑like rectangular nodes (default if available); link images as fallback.
+- Render images as panel‑like rectangular media panel nodes (default if available); link images as fallback.
 
 ---
 

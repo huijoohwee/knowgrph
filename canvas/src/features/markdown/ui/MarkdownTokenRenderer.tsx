@@ -39,6 +39,8 @@ type MarkdownTokenRendererProps = {
   fragmentStep?: number
   fragmentClassNames?: string[]
   fragmentTags?: string[]
+  collapsedIds?: Set<string>
+  onToggleCollapse?: (id: string) => void
 }
 
 const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: MarkdownTokenRendererProps) {
@@ -64,6 +66,8 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     fragmentStep,
     fragmentClassNames,
     fragmentTags,
+    collapsedIds,
+    onToggleCollapse,
   } = props
 
   const opts: RenderOpts = {
@@ -77,6 +81,8 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     rootThemeMode,
     previewOverlayScope,
     previewOverlayPortalTarget,
+    collapsedIds,
+    onToggleCollapse,
   }
 
   const baseTextClass = markdownPresentationMode ? 'text-lg leading-relaxed' : 'text-sm leading-normal'
@@ -119,7 +125,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
         const hEnd = highlightedLineRange.end
         const overlap = Math.max(tStart, hStart) <= Math.min(tEnd, hEnd)
         if (overlap) {
-          highlightClass = '-mx-1 px-1 rounded transition-colors duration-300'
+          highlightClass = '-mx-1 px-1 rounded transition-colors duration-1000'
           const bg = highlightBackgroundColor || null
           const baseColor = highlightUnderlineColor || null
           if (selectionKind === 'edge') {
@@ -259,7 +265,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
           return (
             <MarkdownBlockContainer
               key={key}
-              as="div"
+              as="section"
               className={className}
               highlightClass={highlightClass}
               highlightStyle={highlightStyle}

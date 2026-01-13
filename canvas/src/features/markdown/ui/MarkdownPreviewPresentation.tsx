@@ -2,6 +2,7 @@ import React from 'react'
 import { LS_KEYS } from '@/lib/config'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { splitMarkdownLines } from '@/lib/markdown'
 import { lexMarkdownContent, type TokenWithLines } from './markdownPreviewLex'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
@@ -19,9 +20,12 @@ import {
 } from './markdownPresentationSlides'
 import { SlideFrame } from './SlideFrame'
 import { SlidesSidebar } from './SlidesSidebar'
+import { findLineRangeFromTarget } from '@/features/markdown/ui/markdownPreviewContextMenuUtils'
 
 type MarkdownPreviewPresentationProps = {
   rootRef: (el: HTMLDivElement | null) => void
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void
+  onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void
   onRegisterFullscreenHandler?: (fn: (() => void) | null) => void
   headMeta: Record<string, unknown>
   slides: Array<{
@@ -58,11 +62,17 @@ type MarkdownPreviewPresentationProps = {
   rootThemeMode: 'light' | 'dark'
   effectiveHighlightBackgroundColor: string | null
   effectiveHighlightUnderlineColor: string | null
+  onPreviewClick?: (line: number) => void
+  onShowInEditor?: (line: number) => void
+  onMouseUp?: (e: React.MouseEvent<HTMLDivElement>) => void
+  selectionToolbar?: React.ReactNode
 }
 
 export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationProps) {
   const {
     rootRef,
+    onClick,
+    onContextMenu,
     onRegisterFullscreenHandler,
     headMeta,
     slides,
@@ -88,6 +98,10 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     rootThemeMode,
     effectiveHighlightBackgroundColor,
     effectiveHighlightUnderlineColor,
+    onPreviewClick,
+    onShowInEditor,
+    onMouseUp,
+    selectionToolbar,
   } = props
 
   const [presentationViewport, setPresentationViewport] = React.useState<{ w: number; h: number }>({ w: 1, h: 1 })
@@ -98,7 +112,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const [showSpeakerNotes, setShowSpeakerNotes] = React.useState<boolean>(() =>
     lsBool(LS_KEYS.previewSlidesShowNotes, false),
   )
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const containerRef = React.useRef<HTMLElement | null>(null)
   const [slideTransitionPhase, setSlideTransitionPhase] = React.useState<'from' | 'to'>('to')
 
   React.useEffect(() => {
@@ -277,7 +291,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     backgroundSize,
     backgroundPosition,
     themeStyle,
-  } = getSlideVisualMeta(slideMeta, headMetaRecord)
+  } = getSlideVisualMeta(slideMeta, headMetaRecord, uiPanelTextFontClass)
   const frameVariantRaw = String(slideMeta.frame || headMetaRecord.frame || '').trim().toLowerCase()
   const framePaddingRaw = slideMeta.framePadding ?? headMetaRecord.framePadding
   const slideStyle = buildBackgroundStyle(backgroundRaw, backgroundSize, backgroundPosition)
@@ -318,22 +332,18 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   }
 
   const frameVariant = frameVariantRaw || 'default'
-  let baseFrameClass = 'rounded border border-gray-200 shadow bg-white'
+  let baseFrameClass = `rounded border ${UI_THEME_TOKENS.panel.border} shadow ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
   if (isAcademicTheme && !frameVariantRaw) {
-    baseFrameClass = 'rounded bg-white'
+    baseFrameClass = `rounded ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
   }
   if (frameVariant === 'borderless') {
-    baseFrameClass = 'rounded bg-white'
+    baseFrameClass = `rounded ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
   } else if (frameVariant === 'minimal') {
-    baseFrameClass = 'rounded border border-gray-200 bg-white'
+    baseFrameClass = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
   } else if (frameVariant === 'dark') {
-    baseFrameClass = 'rounded border border-gray-700 shadow bg-gray-900'
+    baseFrameClass = 'rounded border border-gray-700 shadow bg-gray-900 text-gray-100'
   } else if (frameVariant === 'auto') {
-    if (rootThemeMode === 'dark') {
-      baseFrameClass = 'rounded border border-gray-700 shadow bg-gray-900'
-    } else {
-      baseFrameClass = 'rounded border border-gray-200 shadow bg-white'
-    }
+    baseFrameClass = `rounded border ${UI_THEME_TOKENS.panel.border} shadow ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
   }
 
   React.useEffect(() => {
@@ -420,14 +430,56 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     ],
   )
 
+  const handleDoubleClick = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (onShowInEditor) {
+        const range = findLineRangeFromTarget(e.currentTarget as unknown as HTMLDivElement, e.target)
+        if (range) {
+          onShowInEditor(range.startLine)
+          return
+        }
+        const currentSlide = slides[safeActiveSlideId]
+        if (currentSlide) {
+          onShowInEditor(currentSlide.startLine)
+          return
+        }
+      }
+      if (onPreviewClick) {
+        const range = findLineRangeFromTarget(e.currentTarget as unknown as HTMLDivElement, e.target)
+        if (range) {
+          onPreviewClick(range.startLine)
+          return
+        }
+        // Fallback to active slide start if clicking on slide background
+        const currentSlide = slides[safeActiveSlideId]
+        if (currentSlide) {
+          onPreviewClick(currentSlide.startLine)
+          return
+        }
+      }
+      setIsSlidesFullscreenOpen(true)
+    },
+    [onShowInEditor, onPreviewClick, slides, safeActiveSlideId],
+  )
+
+  const setRef = React.useCallback((el: HTMLDivElement | null) => {
+    containerRef.current = el
+    rootRef(el)
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const w = Math.max(1, rect.width)
+    const h = Math.max(1, rect.height)
+    setPresentationViewport(prev => (prev.w === w && prev.h === h ? prev : { w, h }))
+  }, [rootRef])
+
   return (
     <>
-      <div
-        ref={(el) => {
-          containerRef.current = el
-          rootRef(el)
-        }}
+      <section
+        ref={setRef}
         tabIndex={0}
+        onClick={onClick}
+        onMouseUp={onMouseUp}
+        onContextMenu={onContextMenu}
         className={[
           'relative flex-1 min-h-0 w-full overflow-hidden bg-gray-100 outline-none flex flex-col',
           uiPanelTextFontClass,
@@ -460,7 +512,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
                 slideTransitionStyle={slideTransitionStyle}
                 slideOuterClass={slideOuterClass}
                 slideContentClass={slideContentClass}
-                onDoubleClick={() => setIsSlidesFullscreenOpen(true)}
+                onDoubleClick={handleDoubleClick}
               >
                 {slideContent}
               </SlideFrame>
@@ -493,14 +545,16 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
             </div>
           </div>
         )}
-      </div>
+        {selectionToolbar}
+      </section>
       <PreviewOverlay
         open={isSlidesFullscreenOpen}
         onClose={() => setIsSlidesFullscreenOpen(false)}
         scope={previewOverlayScope}
         portalTarget={previewOverlayPortalTarget}
       >
-        <div className="w-full h-full flex">
+        <section className="w-full h-full flex" onContextMenu={onContextMenu}>
+          {selectionToolbar}
           <SlidesSidebar
             orderedSlideIndices={orderedSlideIndices}
             activeSlideId={activeSlideId}
@@ -513,8 +567,17 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
             onActiveSlideIndexChange={setActiveSlideIndex}
             onSlideOrderChange={setSlideOrder}
             renderSlidePreview={renderSlidePreview}
+            onSlideDoubleClick={(idx) => {
+              if (onPreviewClick) {
+                const s = slides[idx]
+                if (s) {
+                  onPreviewClick(s.startLine)
+                  setIsSlidesFullscreenOpen(false)
+                }
+              }
+            }}
           />
-          <div className="flex-1 min-w-0 flex flex-col">
+          <main className="flex-1 min-w-0 flex flex-col">
             <ZoomPanViewport
               open={isSlidesFullscreenOpen}
               storageKey={LS_KEYS.previewZoomPanSlides}
@@ -537,6 +600,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
                   slideTransitionStyle={slideTransitionStyle}
                   slideOuterClass={slideContentClass}
                   slideContentClass=""
+                  onDoubleClick={handleDoubleClick}
                 >
                   {slideContent}
                 </SlideFrame>
@@ -565,8 +629,9 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </main>
+          {selectionToolbar}
+        </section>
       </PreviewOverlay>
     </>
   )

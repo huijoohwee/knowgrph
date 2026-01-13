@@ -10,33 +10,51 @@ export function useMarkdownLoader(
   setMarkdownDocument: (name: string, content: string) => void,
   setMarkdownDocumentSourceUrl: (url: string | null) => void,
 ) {
-  const [markdownText, setMarkdownText] = React.useState('')
+  const [localMarkdownText, setLocalMarkdownText] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
   const [loadError, setLoadError] = React.useState<string | null>(null)
 
-  React.useEffect(() => {
-    if (!activeDocumentPath) return
-    let cancelled = false
-    const basePath = activeDocumentPath.split('#')[0]
-    const url = buildFsUrlForRelPath(basePath)
-    const importedText = typeof importedMarkdownText === 'string' ? importedMarkdownText : ''
-    const importedName = typeof markdownDocumentName === 'string' ? markdownDocumentName : ''
-    const preferImported =
+  const importedText = React.useMemo(
+    () => (typeof importedMarkdownText === 'string' ? importedMarkdownText : ''),
+    [importedMarkdownText],
+  )
+  const importedName = React.useMemo(
+    () => (typeof markdownDocumentName === 'string' ? markdownDocumentName : ''),
+    [markdownDocumentName],
+  )
+  const basePath = React.useMemo(
+    () => activeDocumentPath.split('#')[0],
+    [activeDocumentPath],
+  )
+  const preferImported = React.useMemo(() => {
+    return (
       importedText.trim()
       && importedName.trim()
       && basePath.trim()
       && basePath.trim() === importedName.trim()
+    )
+  }, [basePath, importedName, importedText])
+  const allowImportedWhenNoPath = React.useMemo(() => {
+    return !activeDocumentPath.trim() && importedText.trim()
+  }, [activeDocumentPath, importedText])
+
+  const markdownText = preferImported || allowImportedWhenNoPath ? importedText : localMarkdownText
+
+  React.useEffect(() => {
+    if (!activeDocumentPath) return
+    let cancelled = false
+    const url = buildFsUrlForRelPath(basePath)
     if (preferImported) {
       setIsLoading(false)
       setLoadError(null)
-      setMarkdownText(importedText)
+      setLocalMarkdownText(importedText)
       return
     }
     if (!url) {
       if (importedText.trim()) {
         setIsLoading(false)
         setLoadError(null)
-        setMarkdownText(importedText)
+        setLocalMarkdownText(importedText)
         return
       }
       setIsLoading(false)
@@ -61,7 +79,7 @@ export function useMarkdownLoader(
           const trimmed = raw.trim()
           return trimmed || 'document.md'
         })()
-        setMarkdownText(text)
+        setLocalMarkdownText(text)
         setMarkdownDocument(baseName, text)
         try {
           const state = useGraphStore.getState()
@@ -74,7 +92,7 @@ export function useMarkdownLoader(
         if (cancelled) return
         const message = err instanceof Error ? err.message : ''
         if (!importedText.trim()) {
-          setMarkdownText('')
+          setLocalMarkdownText('')
         }
         setLoadError(message || UI_COPY.bottomPanelMarkdownLoadFailedError)
       } finally {
@@ -89,19 +107,16 @@ export function useMarkdownLoader(
     }
   }, [
     activeDocumentPath,
-    importedMarkdownText,
-    markdownDocumentName,
+    basePath,
+    importedText,
+    preferImported,
     setMarkdownDocument,
     setMarkdownDocumentSourceUrl,
   ])
 
-  React.useEffect(() => {
-    const text = typeof importedMarkdownText === 'string' ? importedMarkdownText : ''
-    if (!text.trim()) return
-    setIsLoading(false)
-    setLoadError(null)
-    setMarkdownText(text)
-  }, [importedMarkdownText])
+  const setMarkdownText = React.useCallback((next: string) => {
+    setLocalMarkdownText(next)
+  }, [])
 
   return { markdownText, setMarkdownText, isLoading, loadError }
 }

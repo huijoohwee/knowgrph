@@ -171,13 +171,13 @@ export function filterGraphToFrontmatterMermaid(
     const docPathRaw = meta.documentPath
     const docPath = typeof docPathRaw === 'string' ? docPathRaw.trim() : ''
     if (docBaseName && docPath && docPath !== docBaseName) continue
-    const lineStartRaw = meta.lineStart
-    const lineEndRaw = meta.lineEnd
-    const lineStart =
-      typeof lineStartRaw === 'number' && Number.isFinite(lineStartRaw) ? lineStartRaw : null
-    const lineEnd =
-      typeof lineEndRaw === 'number' && Number.isFinite(lineEndRaw) ? lineEndRaw : null
-    if (docBaseName && (lineStart == null || lineEnd == null || lineStart !== 1)) continue
+    // Allow Mermaid nodes from frontmatter regardless of line number (parser handles context)
+    if (docBaseName && type !== 'MermaidDiagram' && type !== 'MermaidNode' && type !== 'MermaidSubgraph') {
+      const lineStartRaw = meta.lineStart
+      const lineStart =
+        typeof lineStartRaw === 'number' && Number.isFinite(lineStartRaw) ? lineStartRaw : null
+      if (lineStart == null || lineStart !== 1) continue
+    }
     filteredNodes.push(node)
   }
 

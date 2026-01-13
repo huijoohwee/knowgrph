@@ -18,6 +18,7 @@ import type {
   TokensFootnoteRef,
 } from './MarkdownTokens'
 import { isAbsoluteWebUrl, isSafeHref, resolveHref, buildAnchorAttrs } from '@/features/markdown/ui/markdownPreviewLinks'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { InlineRenderOpts } from './MarkdownRendererTypes'
 
 const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: string }> => {
@@ -100,7 +101,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     if (tt.type === 'mark') {
       return (
-        <mark key={key} className="bg-yellow-200 text-yellow-900 px-0.5 rounded-sm">
+        <mark key={key} className={`${UI_THEME_TOKENS.status.warning} px-0.5 rounded-sm`}>
           {renderTokens((t as unknown as TokensMark).tokens, insideLink)}
         </mark>
       )
@@ -111,7 +112,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
         <sup key={key} id={`fnref${ref.id}`} className="scroll-mt-16">
           <a
             href={`#fn${ref.id}`}
-            className="text-blue-600 hover:text-blue-800 no-underline font-medium px-0.5"
+            className={`${UI_THEME_TOKENS.icon.active} no-underline font-medium px-0.5`}
             aria-describedby={`fn${ref.id}`}
           >
             {ref.label}
@@ -146,13 +147,13 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           src={src || undefined}
           alt={alt}
           loading="lazy"
-          className="max-w-full h-auto rounded border border-gray-200"
+          className={`max-w-full h-auto rounded border ${UI_THEME_TOKENS.panel.border}`}
         />
       )
     }
     if (tt.type === 'code') {
       return (
-        <code key={key} className={[uiPanelMonospaceTextClass, 'bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200 text-sm'].filter(Boolean).join(' ')}>
+        <code key={key} className={[uiPanelMonospaceTextClass, UI_THEME_TOKENS.code.bg, UI_THEME_TOKENS.code.text, 'border', UI_THEME_TOKENS.code.border, 'px-1.5 py-0.5 rounded text-sm'].filter(Boolean).join(' ')}>
           {(t as unknown as TokensCode).text}
         </code>
       )
@@ -251,8 +252,8 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
             if (type === 'circle') cls.push('inline-block border border-current rounded-full px-1')
             if (type === 'underline') cls.push('underline decoration-2 underline-offset-2')
             if (type === 'strike-through') cls.push('line-through')
-            if (color === 'red') cls.push('bg-red-200 text-red-900 px-1 rounded-sm')
-            if (color === 'yellow') cls.push('bg-yellow-200 text-yellow-900 px-1 rounded-sm')
+            if (color === 'red') cls.push(`${UI_THEME_TOKENS.status.error} px-1 rounded-sm`)
+            if (color === 'yellow') cls.push(`${UI_THEME_TOKENS.status.warning} px-1 rounded-sm`)
             if (cls.length) {
               return (
                 <span key={key} className={cls.join(' ')}>
@@ -269,7 +270,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
               <abbr
                 key={key}
                 title={title || undefined}
-                className="bg-yellow-100 border-b border-dotted border-yellow-400 cursor-help px-0.5 rounded-sm"
+                className={`${UI_THEME_TOKENS.status.warning} border-b border-dotted cursor-help px-0.5 rounded-sm`}
               >
                 {text}
               </abbr>
@@ -301,7 +302,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
             return (
               <pre
                 key={key}
-                className="inline-block align-top max-w-full overflow-auto rounded border border-gray-200 bg-gray-50 px-2 py-1"
+                className={`inline-block align-top max-w-full overflow-auto rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 py-1`}
               >
                 <code className={uiPanelMonospaceTextClass}>{text}</code>
               </pre>

@@ -106,7 +106,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     normalizedTidyLabels.length === normalizedDocLabels.length &&
     normalizedTidyLabels.every((v, idx) => v === normalizedDocLabels[idx]);
   const isMermaidPreset = normalizedTidyLabels.length === 1 && normalizedTidyLabels[0] === 'pointsTo';
-  const tidyPreset: 'mermaid' | 'document' | 'custom' = isMermaidPreset ? 'mermaid' : isDocPreset ? 'document' : 'custom';
+  const tidyPreset: 'mermaid' | 'document' | 'custom' = isMermaidPreset ? 'mermaid' : isDocPreset ? 'document' : 'mermaid';
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false);
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const rawLayerMode = schema.layers?.mode;

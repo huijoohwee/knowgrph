@@ -2,6 +2,7 @@ import React from 'react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import type { GraphNode } from '@/lib/graph/types'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 
@@ -27,12 +28,12 @@ export function SidePanelChatMessagesSection({
   return (
     <>
       <div className="flex items-center justify-between">
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-gray-500'].join(' ')}>
+        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {UI_COPY.chatHistoryCountStatus(messages.length)}
         </div>
         <button
           type="button"
-          className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
+          className={`text-xs ${UI_THEME_TOKENS.text.tertiary} hover:${UI_THEME_TOKENS.text.primary} disabled:opacity-50`}
           onClick={() => {
             setMessages([])
             const storage = getLocalStorage()
@@ -50,7 +51,7 @@ export function SidePanelChatMessagesSection({
       </div>
 
       {messages.length === 0 && (
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-gray-600'].join(' ')}>
+        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {UI_COPY.chatEmptyStateHelp}
         </div>
       )}
@@ -62,7 +63,7 @@ export function SidePanelChatMessagesSection({
               'max-w-[85%] rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words',
               uiPanelTextFontClass,
               uiPanelKeyValueTextSizeClass,
-              m.role === 'user' ? 'ml-auto bg-blue-600 text-white' : 'mr-auto bg-gray-100 text-gray-900',
+              m.role === 'user' ? 'ml-auto bg-blue-600 text-white' : `mr-auto ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`,
             ].join(' ')}
           >
             {m.content}

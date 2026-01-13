@@ -5,6 +5,7 @@ import markdownItSup from 'markdown-it-sup'
 import markdownItMark from 'markdown-it-mark'
 import markdownItAnchor from 'markdown-it-anchor'
 import { parseMarkdownFrontmatter, splitMarkdownLines, type MarkdownFrontmatter } from '@/lib/markdown'
+import { hashText } from '@/features/parsers/hash'
 import {
   MdToken,
   TokenWithLines,
@@ -38,6 +39,11 @@ export const lexMarkdown = (
   const content = lines.slice(startIndex).join('\n')
   const { tokens } = lexMarkdownContent(content, startIndex)
   return { tokens, startLineOffset: startIndex, meta }
+}
+
+export const buildMarkdownTokensKey = (markdownText: string): string => {
+  const text = String(markdownText || '')
+  return `${text.length}|${hashText(text)}`
 }
 
 export const lexMarkdownContent = (

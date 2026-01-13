@@ -16,6 +16,8 @@ type MarkdownTableBlockProps = {
   fragmentTags?: string[]
 }
 
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
 export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
   token: t,
   highlightClass,
@@ -27,12 +29,12 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
   fragmentTags,
 }: MarkdownTableBlockProps) {
   const tbl = t as unknown as TokensTable
-  const containerClassName = ['mt-4 mb-4 overflow-auto rounded-lg border border-slate-200 shadow-sm']
+  const containerClassName = [`mt-4 mb-4 overflow-auto rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`]
     .filter(Boolean)
     .join(' ')
   return (
     <MarkdownBlockContainer
-      as="div"
+      as="figure"
       className={containerClassName}
       highlightClass={highlightClass}
       highlightStyle={highlightStyle}
@@ -40,10 +42,10 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
       endLine={t.endLine}
     >
       <table className={['min-w-full', opts.markdownPresentationMode ? 'text-lg' : 'text-sm'].join(' ')}>
-        <thead className="bg-slate-100 text-slate-700">
+        <thead className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.text}`}>
           <tr>
             {tbl.header.map((cell, j) => (
-              <th key={j} className="px-4 py-2 text-left font-semibold border-b border-slate-200 align-top">
+              <th key={j} className={`px-4 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>
                 {renderInlineTokens(cell.tokens as unknown as Token[] | undefined, {
                   activeDocumentPath: opts.activeDocumentPath,
                   uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
@@ -61,11 +63,11 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
             ))}
           </tr>
         </thead>
-        <tbody className="text-slate-800">
+        <tbody className={UI_THEME_TOKENS.table.text}>
           {tbl.rows.map((row, rIdx) => (
-            <tr key={rIdx} className="odd:bg-white even:bg-slate-50 hover:bg-slate-100 transition-colors">
+            <tr key={rIdx} className={`odd:${UI_THEME_TOKENS.table.rowBg} even:${UI_THEME_TOKENS.table.rowBgAlt} ${UI_THEME_TOKENS.table.rowHoverAmber} transition-colors`}>
               {row.map((cell, cIdx) => (
-                <td key={cIdx} className="px-4 py-2 border-b border-slate-100 align-top">
+                <td key={cIdx} className={`px-4 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>
                   {renderInlineTokens(cell.tokens as unknown as Token[] | undefined, {
                     activeDocumentPath: opts.activeDocumentPath,
                     uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,

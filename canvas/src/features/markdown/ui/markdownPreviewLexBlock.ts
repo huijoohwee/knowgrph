@@ -171,13 +171,19 @@ export const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLin
             firstText.raw = firstText.text
           }
         }
-        const para: TokensParagraph = {
+        const para: TokensParagraph & { startLine?: number; endLine?: number } = {
           type: 'paragraph',
           raw: itemRaw,
           tokens: inlineTokens,
           text: inlineTokens
             .map(tt => (tt as { text?: string }).text || '')
             .join(''),
+        }
+        if (itemMap) {
+          const itemStart = lineOffset + itemMap[0] + 1
+          const itemEnd = lineOffset + itemMap[1]
+          para.startLine = itemStart
+          para.endLine = itemEnd
         }
         const listItem: ListItemToken = {
           task,
