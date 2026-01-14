@@ -1,6 +1,9 @@
 import React from 'react'
 import { ChevronDown } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export interface FilterComboboxOption<T extends string> {
   value: T
@@ -17,6 +20,9 @@ export interface FilterComboboxProps<T extends string> {
 export function FilterCombobox<T extends string>({ value, options, onChange, className }: FilterComboboxProps<T>) {
   const [isOpen, setIsOpen] = React.useState(false)
   const buttonRef = React.useRef<HTMLButtonElement | null>(null)
+  const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
+  const iconSizeClass = getIconSizeClass(uiIconScale)
 
   const selectedLabel = React.useMemo(
     () => options.find(option => option.value === value)?.label ?? '',
@@ -32,7 +38,7 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
         onClick={() => setIsOpen(open => !open)}
       >
         <span className="truncate">{selectedLabel}</span>
-        <ChevronDown className="size-4 shrink-0 text-gray-500" />
+        <ChevronDown className={`${iconSizeClass} shrink-0 ${UI_THEME_TOKENS.icon.color}`} strokeWidth={uiIconStrokeWidth} />
       </button>
       {isOpen && (
         <DropdownPanel
@@ -41,12 +47,12 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
           onClose={() => setIsOpen(false)}
           align="bottom-left"
         >
-          <div className="z-50 w-40 rounded-md border border-gray-200 bg-white p-1 text-xs text-gray-900 shadow-md">
+          <div className={`z-50 w-40 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-1 text-xs ${UI_THEME_TOKENS.text.primary} shadow-md`}>
             {options.map(option => (
               <button
                 key={option.value}
                 type="button"
-                className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 hover:bg-gray-50"
+                className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1 ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={() => {
                   onChange(option.value)
                   setIsOpen(false)
@@ -63,8 +69,7 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
 }
 
 export const iconButtonClassName =
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md border border-gray-200 bg-white text-xs text-gray-600 shadow-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 h-7 w-7'
+  `inline-flex items-center justify-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} text-xs ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 h-7 w-7`
 
 export const secondaryButtonClassName =
-  'inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-1.5 text-xs h-7 px-2 rounded-md hover:bg-gray-50 text-gray-700'
-
+  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-1.5 text-xs h-7 px-2 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg}`

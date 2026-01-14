@@ -10,10 +10,9 @@ import type {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import {
-  buildMarkdownTokensKey,
-  lexMarkdown,
   type TokenWithLines,
 } from '@/features/markdown/ui/markdownPreviewLex'
+import { useMarkdownPreviewTokens } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import {
   buildMarkdownPreviewMediaKey,
@@ -72,30 +71,13 @@ export default function PreviewPanelView() {
     }
   }, [setActiveMediaKey, setMermaidFocus])
 
-  const storedTokens = useGraphStore(s => s.markdownTokens)
-  const storedTokensKey = useGraphStore(s => s.markdownTokensKey)
-  const setMarkdownTokens = useGraphStore(s => s.setMarkdownTokens)
+  const tokens = useMarkdownPreviewTokens(markdownText || '', undefined, markdownDocumentName || '', true)
 
-  const currentTokensKey = React.useMemo(
-    () => buildMarkdownTokensKey(markdownText || ''),
-    [markdownText],
-  )
-
-  const { tokens, meta } = React.useMemo(() => {
-    if (storedTokens && storedTokensKey === currentTokensKey) {
-      const lines = splitMarkdownLines(markdownText || '')
-      const { meta: parsedMeta } = parseMarkdownFrontmatter(lines)
-      return { tokens: storedTokens, meta: parsedMeta }
-    }
-    return lexMarkdown(markdownText || '')
-  }, [markdownText, storedTokens, storedTokensKey, currentTokensKey])
-
-  React.useEffect(() => {
-    if (!tokens || !markdownText) return
-    if (tokens !== storedTokens || storedTokensKey !== currentTokensKey) {
-      setMarkdownTokens(tokens, markdownDocumentName || null, currentTokensKey)
-    }
-  }, [tokens, storedTokens, storedTokensKey, currentTokensKey, markdownText, markdownDocumentName, setMarkdownTokens])
+  const meta = React.useMemo(() => {
+    const lines = splitMarkdownLines(markdownText || '')
+    const { meta } = parseMarkdownFrontmatter(lines)
+    return meta
+  }, [markdownText])
 
   const mermaidFrontmatterConfig = React.useMemo(
     () => parseMermaidConfigFromFrontmatter(meta),

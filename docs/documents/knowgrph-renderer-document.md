@@ -7,11 +7,11 @@
 - Markdown preview media proxying
 
 ## 2D layout caching and layer interaction
-- Structured 2D layouts (`radial`, `tidy-tree`) cache node positions per `(schema.layers.mode, graph.layout.mode)` key in the graph store.
-- The `tidy-tree` layout uses a Dagre layered layout under the hood, driven by `graph.layout.tidyTree` (edgeLabels, direction, orientation, nodeSize, separation, curve) while link shapes remain schema-driven via D3 curves; when nodes expose a numeric `properties["visual:layer"]` (for example, Mermaid-derived bands), that value is passed through to Dagre as a node rank so nodes in the same band share a row or column, yielding flowchart‑style TD/LR and subgraph‑like layering without hardcoding any particular diagram template.
-- `graph.layout.tidyTree.separation` controls node spacing in this structured layout: the schema accepts any finite number and the Renderer settings panel exposes this value as a numeric field (step `0.1`, lower bound `0.25` by default) so curators can tune dense diagrams (for example, setting `1.3` vs `1.5`) without changing application code. When Markdown frontmatter includes a Mermaid block, the parser computes a density‑aware default separation from the diagram itself (counting non‑comment Mermaid statements and respecting `mermaidAnchorsOnly`) and stores it in `metadata.tidyTree.separation` together with a neutral `metadata.tidyTree.mermaidDensity` payload that records `statementCount`, a coarse density bucket (`"none"`, `"sparse"`, `"medium"`, `"dense"`), the `anchorsOnly` flag, and the neutral separation thresholds used for each bucket. `graphDataSlice.applyLayoutAutosuggestFromMetadata` then seeds `layout.tidyTree.separation` from this metadata so Mermaid diagrams start with spacing that matches their structural density, while remaining fully overridable from the Floating Panel Renderer. A dedicated schema‑level test (`schema.tidyTree.separationSchemaRoundTrip`) exercises this path by writing `layout.tidyTree.separation` into the store schema and asserting that the configured value round trips unchanged through renderer configuration, keeping spacing adjustments fully data‑driven.
+- Structured 2D layouts (`radial`, `tree`) cache node positions per `(schema.layers.mode, graph.layout.mode)` key in the graph store.
+- The `tree` layout uses **dagre** (directed acyclic graph layout) under the hood, driven by `graph.layout.tree` (edgeLabels, direction, orientation, separation). It builds a layered graph layout (Sugiyama method) which handles both trees and DAGs effectively. This produces a "Mermaid flowchart"-like structure that is cleaner and more readable for directed graphs.
+- `graph.layout.tree.separation` controls node spacing in this structured layout: the schema accepts any finite number and the Renderer settings panel exposes this value as a numeric field (step `0.1`, lower bound `0.25` by default) so curators can tune dense diagrams (for example, setting `1.3` vs `1.5`) without changing application code. When Markdown frontmatter includes a Mermaid block, the parser computes a density‑aware default separation from the diagram itself (counting non‑comment Mermaid statements and respecting `mermaidAnchorsOnly`) and stores it in `metadata.tree.separation` together with a neutral `metadata.tree.mermaidDensity` payload that records `statementCount`, a coarse density bucket (`"none"`, `"sparse"`, `"medium"`, `"dense"`), the `anchorsOnly` flag, and the neutral separation thresholds used for each bucket. `graphDataSlice.applyLayoutAutosuggestFromMetadata` then seeds `layout.tree.separation` from this metadata so Mermaid diagrams start with spacing that matches their structural density, while remaining fully overridable from the Floating Panel Renderer. A dedicated schema‑level test (`schema.tree.separationSchemaRoundTrip`) exercises this path by writing `layout.tree.separation` into the store schema and asserting that the configured value round trips unchanged through renderer configuration, keeping spacing adjustments fully data‑driven.
 - Cache keys and storage:
-  - `GraphCanvas` computes a cache key such as `"semantic:tidy-tree"` or `"property:radial"` from the active schema layer and layout mode ([GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx#L260-L283)).
+  - `GraphCanvas` computes a cache key such as `"semantic:tree"` or `"property:radial"` from the active schema layer and layout mode ([GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx#L260-L283)).
   - `layoutPositionCacheByMode` in the store maps each cache key to a dictionary of node positions (`{ [nodeId]: { x, y } }`) and is reset whenever graph data is cleared or replaced ([useGraphStore.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useGraphStore.ts#L40-L74)).
   - `setLayoutPositionsForMode` writes or deletes entries so unused layouts do not linger in memory.
 - Deciding when to reuse cached positions:
@@ -19,7 +19,7 @@
     - `coverageFromNodes`: fraction of nodes in `renderGraphData` that already have finite `x,y` coordinates.
     - `coverageFromCache`: fraction of nodes with finite cached positions for the active `(layer, layout)` cache key.
   - A cached layout is reused when:
-    - Layout mode is `radial` or `tidy-tree`, and
+    - Layout mode is `radial` or `tree`, and
     - Cached positions exist for the cache key, and
     - `coverageFromCache >= 0.95`, and
     - Either the layout mode or the layer mode changed, or the current node coverage is low.
@@ -32,13 +32,18 @@
   - `setupGraphScene` receives `layoutPositionsForMode`, `skipInitialLayout`, `layoutCacheKey`, and `setLayoutPositionsForMode` ([scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts#L30-L189)).
   - When `skipInitialLayout` is true:
     - Cached positions are applied to nodes before building the simulation so the graph reuses previous coordinates.
-    - `buildSimulation` receives `skipInitialLayout` and skips the deterministic `radial` or `tidy-tree` placement step.
+    - `buildSimulation` receives `skipInitialLayout` and skips the deterministic `radial` or `tree` placement step.
   - When `skipInitialLayout` is false:
     - The simulation runs the structured layout once, then `simulation.on('end')` captures final positions and stores them in `layoutPositionCacheByMode[layoutCacheKey]`.
     - Subsequent toggles back to the same `(layer, layout)` reuse this cached layout instead of recomputing it.
 - Reset and memory safety:
   - `resetAll` in the store clears `layoutPositionCacheByMode` when users reset the canvas or load a new dataset so per-dataset layout caches do not leak across imports.
   - Empty or invalid position sets are stored as `null` and are removed on the next write so the cache stays small and bounded per dataset.
+- Layout Continuity:
+  - When switching between layout modes (e.g., Tree → Force), the previous node positions are preserved and used as the initial state for the new layout. This prevents visual chaos and "mess-up" of the graph structure during transitions.
+- Tree Layout Performance:
+  - The `dagre` layout calculation is cached in memory based on graph topology (node/edge counts) and configuration.
+  - This prevents expensive re-computation during window resize events, ensuring the tree just re-centers efficiently instead of running the full layout algorithm again.
 
 ## Renderer palette and default colors
 - The renderer palette is driven by `MVP_COLOR_PALETTE` and `getRendererPalette(schema)`:
@@ -237,7 +242,7 @@
 - When introducing a new structured 2D layout mode (for example `"grid"` or `"sankey"`), keep layout caching behavior aligned with existing modes:
   - Treat the layout as cacheable if it deterministically assigns node positions from `(graphData, schema)` without relying on simulation randomness.
   - Extend the `isStructuredMode` check in `GraphCanvas` so the new mode participates in `(schema.layers.mode, graph.layout.mode)` cache keys and `skipInitialLayout` decisions.
-  - Implement the layout in `buildSimulation` alongside `radial` and `tidy-tree`:
+  - Implement the layout in `buildSimulation` alongside `radial` and `tree`:
     - Respect the `skipInitialLayout` flag so cached coordinates are reused instead of recomputed.
     - Stop the simulation once the initial deterministic placement is applied, mirroring the existing structured modes.
   - Rely on the existing `layoutPositionCacheByMode` and `setLayoutPositionsForMode` helpers instead of introducing new caches:
@@ -253,6 +258,8 @@
   - `zoomToSelectionMode: boolean` in the canvas slice.
 - Fit to Screen:
   - Default: enabled (`fitToScreenMode = true`) on canvas initialization.
+  - **Initialization Behavior**: When the graph is loaded from source files or reset to a clean slate, the view automatically centers and fits all nodes to the screen. This ensures the initial view is always optimal regardless of the graph size or layout mode (Force, Radial, or Tree).
+  - **Cross-Mode Behavior**: When "Fit to Screen" is enabled, switching layout modes (e.g., Force to Tree) or layer modes (e.g., Property to Semantic) automatically triggers a re-fit to ensure the new graph structure is fully visible. If "Fit to Screen" is disabled, the zoom level is preserved to maintain the user's viewport context.
   - 2D: implemented via `useZoomEffects` and `applyZoomRequest("fit")`:
     - Uses `fitAllTransform` to compute a bounding box of all nodes and
       center that box in the SVG viewport while scaling to keep a small

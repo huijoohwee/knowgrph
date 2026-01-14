@@ -1,16 +1,16 @@
 import React from 'react'
 import { UI_COPY } from '@/lib/config'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
-import type { RenderTidyTreeSettingsRowsProps } from './RenderTidyTreeSettingsRowsTypes'
+import type { RenderTreeSettingsRowsProps } from './RenderTreeSettingsRowsTypes'
 
 type Props = Pick<
-  RenderTidyTreeSettingsRowsProps,
-  'tidyTreeCfg' | 'updateTidyTree' | 'uiPanelKeyValueInputClass' | 'uiPanelMonospaceTextClass'
+  RenderTreeSettingsRowsProps,
+  'treeCfg' | 'updateTree' | 'uiPanelKeyValueInputClass' | 'uiPanelMonospaceTextClass'
 >
 
-export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
-  tidyTreeCfg,
-  updateTidyTree,
+export const TreeNodeSettings = React.memo(function TreeNodeSettings({
+  treeCfg,
+  updateTree,
   uiPanelKeyValueInputClass,
   uiPanelMonospaceTextClass,
 }: Props) {
@@ -19,7 +19,7 @@ export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.nodeSize.x</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.nodeSize.x</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
@@ -27,21 +27,21 @@ export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
               step={1}
               min={1}
               className={uiPanelKeyValueInputClass}
-              value={tidyTreeCfg.nodeSize?.x ?? ''}
+              value={treeCfg.nodeSize?.x ?? ''}
               placeholder={UI_COPY.autoPlaceholder}
               onChange={e => {
                 const rawText = String(e.target.value || '')
                 if (!rawText.trim()) {
-                  const next = { ...(tidyTreeCfg.nodeSize || {}) } as { x?: number; y?: number }
+                  const next = { ...(treeCfg.nodeSize || {}) } as { x?: number; y?: number }
                   delete next.x
                   const hasAny = typeof next.x === 'number' || typeof next.y === 'number'
-                  updateTidyTree({ nodeSize: hasAny ? next : undefined })
+                  updateTree({ nodeSize: hasAny ? next : undefined })
                   return
                 }
                 const raw = parseFloat(rawText)
                 const next = Number.isFinite(raw) ? Math.max(1, raw) : undefined
                 if (next == null) return
-                updateTidyTree({ nodeSize: { ...(tidyTreeCfg.nodeSize || {}), x: next } })
+                updateTree({ nodeSize: { ...(treeCfg.nodeSize || {}), x: next } })
               }}
             />
           </RightAlignedValueCell>
@@ -50,7 +50,7 @@ export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.nodeSize.y</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.nodeSize.y</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
@@ -58,21 +58,21 @@ export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
               step={1}
               min={1}
               className={uiPanelKeyValueInputClass}
-              value={tidyTreeCfg.nodeSize?.y ?? ''}
+              value={treeCfg.nodeSize?.y ?? ''}
               placeholder={UI_COPY.autoPlaceholder}
               onChange={e => {
                 const rawText = String(e.target.value || '')
                 if (!rawText.trim()) {
-                  const next = { ...(tidyTreeCfg.nodeSize || {}) } as { x?: number; y?: number }
+                  const next = { ...(treeCfg.nodeSize || {}) } as { x?: number; y?: number }
                   delete next.y
                   const hasAny = typeof next.x === 'number' || typeof next.y === 'number'
-                  updateTidyTree({ nodeSize: hasAny ? next : undefined })
+                  updateTree({ nodeSize: hasAny ? next : undefined })
                   return
                 }
                 const raw = parseFloat(rawText)
                 const next = Number.isFinite(raw) ? Math.max(1, raw) : undefined
                 if (next == null) return
-                updateTidyTree({ nodeSize: { ...(tidyTreeCfg.nodeSize || {}), y: next } })
+                updateTree({ nodeSize: { ...(treeCfg.nodeSize || {}), y: next } })
               }}
             />
           </RightAlignedValueCell>
@@ -81,7 +81,7 @@ export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.nodeRadius</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.nodeRadius</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
@@ -89,17 +89,17 @@ export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
               step={0.1}
               min={0.1}
               className={uiPanelKeyValueInputClass}
-              value={typeof tidyTreeCfg.nodeRadius === 'number' ? tidyTreeCfg.nodeRadius : ''}
+              value={typeof treeCfg.nodeRadius === 'number' ? treeCfg.nodeRadius : ''}
               placeholder="2.5"
               onChange={e => {
                 const rawText = String(e.target.value || '')
                 if (!rawText.trim()) {
-                  updateTidyTree({ nodeRadius: undefined })
+                  updateTree({ nodeRadius: undefined })
                   return
                 }
                 const raw = parseFloat(rawText)
                 if (!Number.isFinite(raw)) return
-                updateTidyTree({ nodeRadius: Math.max(0.1, raw) })
+                updateTree({ nodeRadius: Math.max(0.1, raw) })
               }}
             />
           </RightAlignedValueCell>
@@ -108,17 +108,17 @@ export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.internalFill</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.internalFill</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
               type="text"
               className={`${uiPanelKeyValueInputClass} text-left ${uiPanelMonospaceTextClass}`}
-              value={typeof tidyTreeCfg.internalFill === 'string' ? tidyTreeCfg.internalFill : ''}
+              value={typeof treeCfg.internalFill === 'string' ? treeCfg.internalFill : ''}
               placeholder={UI_COPY.autoPlaceholder}
               onChange={e => {
                 const raw = String(e.target.value || '')
-                updateTidyTree({ internalFill: raw.trim() ? raw : undefined })
+                updateTree({ internalFill: raw.trim() ? raw : undefined })
               }}
             />
           </RightAlignedValueCell>
@@ -127,17 +127,17 @@ export const TidyTreeNodeSettings = React.memo(function TidyTreeNodeSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.leafFill</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.leafFill</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
               type="text"
               className={`${uiPanelKeyValueInputClass} text-left ${uiPanelMonospaceTextClass}`}
-              value={typeof tidyTreeCfg.leafFill === 'string' ? tidyTreeCfg.leafFill : ''}
+              value={typeof treeCfg.leafFill === 'string' ? treeCfg.leafFill : ''}
               placeholder={UI_COPY.autoPlaceholder}
               onChange={e => {
                 const raw = String(e.target.value || '')
-                updateTidyTree({ leafFill: raw.trim() ? raw : undefined })
+                updateTree({ leafFill: raw.trim() ? raw : undefined })
               }}
             />
           </RightAlignedValueCell>

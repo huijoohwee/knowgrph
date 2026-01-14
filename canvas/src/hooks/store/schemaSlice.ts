@@ -48,7 +48,7 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
 }
 
 export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
-  type LayoutMode = 'force' | 'radial' | 'tidy-tree'
+  type LayoutMode = 'force' | 'radial' | 'tree'
   type LayerMode = 'property' | 'document-structure' | 'semantic'
   const setSchemaState = (schema: GraphSchema) => {
     const next = { ...schema }

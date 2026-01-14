@@ -222,7 +222,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       }
       try {
         const mode = get().schema.layout?.mode
-        if (mode === 'radial' || mode === 'tidy-tree') {
+        if (mode === 'radial' || mode === 'tree') {
           const setCanvasRenderMode = get().setCanvasRenderMode
           if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
         }

@@ -9,6 +9,8 @@ export type MarkdownPanelLayoutProps = {
   children: React.ReactNode
   tokens?: TokenWithLines[]
   uiPanelTextFontClass: string
+  uiPanelKeyValueTextSizeClass?: string
+  uiPanelMicroLabelTextSizeClass?: string
   showSidebar: boolean
   setShowSidebar: (show: boolean) => void
   onTocSelect?: (id: string) => void
@@ -28,6 +30,8 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
     children,
     tokens,
     uiPanelTextFontClass,
+    uiPanelKeyValueTextSizeClass,
+    uiPanelMicroLabelTextSizeClass,
     showSidebar,
     setShowSidebar,
     onTocSelect,
@@ -63,13 +67,21 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
         }`}
       >
           <header className={`flex items-center justify-between p-2 border-b ${UI_THEME_TOKENS.panel.border}`}>
-            <h2 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} uppercase truncate`}>
+            <h2
+              className={[
+                uiPanelTextFontClass,
+                uiPanelMicroLabelTextSizeClass || uiPanelKeyValueTextSizeClass || 'text-xs',
+                'font-semibold',
+                UI_THEME_TOKENS.text.tertiary,
+                'uppercase truncate',
+              ].join(' ')}
+            >
               {UI_COPY.markdownPreviewContentsLabel}
             </h2>
             <div className="flex items-center gap-1">
               <button
                 onClick={handleToggleAll}
-                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                className={`p-1 ${UI_THEME_TOKENS.button.hoverBg} rounded transition-colors`}
                 title={allCollapsed ? 'Expand All' : 'Collapse All'}
               >
                 <ChevronDown
@@ -79,7 +91,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
               </button>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                className={`p-1 ${UI_THEME_TOKENS.button.hoverBg} rounded transition-colors`}
                 title="Close Sidebar"
               >
                 <PanelLeftClose size={14} className={UI_THEME_TOKENS.text.secondary} />
@@ -87,17 +99,20 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
             </div>
           </header>
           {tokens && (
-            <MarkdownTableOfContents
-              tokens={tokens}
-              onSelect={onTocSelect}
-              onDoubleClick={onTocDoubleClick}
-              onReorder={onTocReorder}
-              uiPanelTextFontClass={uiPanelTextFontClass}
-              className="flex-1"
-              allCollapsed={allCollapsed}
-              collapsedIds={collapsedIds}
-              onToggleCollapse={onToggleCollapse}
-            />
+            <nav className="flex-1 overflow-auto" aria-label="Table of Contents">
+              <MarkdownTableOfContents
+                tokens={tokens}
+                onSelect={onTocSelect}
+                onDoubleClick={onTocDoubleClick}
+                onReorder={onTocReorder}
+                uiPanelTextFontClass={uiPanelTextFontClass}
+                uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+                className="flex-1"
+                allCollapsed={allCollapsed}
+                collapsedIds={collapsedIds}
+                onToggleCollapse={onToggleCollapse}
+              />
+            </nav>
           )}
       </aside>
 
@@ -106,7 +121,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
           <div className="absolute top-2 left-2 z-10">
             <button
               onClick={() => setShowSidebar(true)}
-              className="p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className={`p-1.5 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded-md shadow-sm ${UI_THEME_TOKENS.button.hoverBg} transition-colors`}
               title="Open Sidebar"
             >
               <PanelLeftOpen size={16} className={UI_THEME_TOKENS.text.secondary} />

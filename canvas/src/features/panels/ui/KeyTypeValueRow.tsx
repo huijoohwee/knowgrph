@@ -81,18 +81,18 @@ export function KeyTypeValueRow({
       .filter(Boolean)
       .join(' ')
     return (
-      <div className={rootClassName} onClick={onClick}>
-        <span className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
+      <dl className={rootClassName} onClick={onClick}>
+        <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
           {keyNode}
-        </span>
-        <span className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`} />
-        <span className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+        </dt>
+        <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`} />
+        <dd className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
           {typeNode}
-        </span>
-        <span className={`flex min-w-0 items-stretch justify-end gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+        </dd>
+        <dd className={`flex min-w-0 items-stretch justify-end gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
           {valueNode}
-        </span>
-      </div>
+        </dd>
+      </dl>
     )
   }
 
@@ -111,17 +111,17 @@ export function KeyTypeValueRow({
       .filter(Boolean)
       .join(' ')
     return (
-      <div className={rootClassName} onClick={onClick}>
-        <span className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
+      <dl className={rootClassName} onClick={onClick}>
+        <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
           {keyNode}
-        </span>
-        <span className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>
+        </dt>
+        <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>
           {typeNode}
-        </span>
-        <span className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+        </dd>
+        <dd className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
           {valueNode}
-        </span>
-      </div>
+        </dd>
+      </dl>
     )
   }
 
@@ -140,14 +140,14 @@ export function KeyTypeValueRow({
       .filter(Boolean)
       .join(' ')
     return (
-      <div className={rootClassName} onClick={onClick}>
-        <span className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
+      <dl className={rootClassName} onClick={onClick}>
+        <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
           {keyNode}
-        </span>
-        <span className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+        </dt>
+        <dd className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
           {valueNode}
-        </span>
-      </div>
+        </dd>
+      </dl>
     )
   }
 
@@ -164,22 +164,22 @@ export function KeyTypeValueRow({
     .filter(Boolean)
     .join(' ')
   return (
-    <div
+    <dl
       id={id}
       data-kg-anchor={dataKgAnchor}
       className={rootClassName}
       onClick={onClick}
     >
-      <div className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
+      <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
         {keyNode}
-      </div>
-      <div className={`min-w-0 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+      </dt>
+      <dd className={`min-w-0 ${UI_THEME_TOKENS.text.secondary} break-words`}>
         {typeNode}
-      </div>
-      <div className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+      </dd>
+      <dd className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.secondary} break-words`}>
         {valueNode}
-      </div>
-    </div>
+      </dd>
+    </dl>
   )
 }
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const FLASH_STYLE_ID = 'monaco-flash-style'
 const FLASH_CSS = `
@@ -114,7 +115,6 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
 
   React.useEffect(() => {
     if (editorInstanceRef.current) return
-    lastAppliedValueRef.current = value
     if (document.getElementById(FLASH_STYLE_ID)) return
     const styleEl = document.createElement('style')
     styleEl.id = FLASH_STYLE_ID
@@ -154,6 +154,12 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
 
     return () => clearTimeout(timer)
   }, [flashLine, flashDurationMs])
+
+  React.useEffect(() => {
+    if (editorInstanceRef.current && monacoRef.current) {
+        monacoRef.current.editor.setTheme(themeMode === 'dark' ? 'vs-dark' : 'vs')
+    }
+  }, [themeMode])
 
   const canUseMonaco =
     typeof window !== 'undefined' &&
@@ -422,13 +428,13 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   }, [canUseMonaco, themeMode])
 
   return (
-    <section className={className}>
+    <section className={canUseMonaco ? className : undefined}>
       {canUseMonaco ? (
         <section
           ref={el => {
             hostRef.current = el
           }}
-          className="h-full w-full"
+          className={['h-full w-full', UI_THEME_TOKENS.input.bg].join(' ')}
         />
       ) : (
         <textarea
@@ -436,7 +442,12 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
           readOnly={!!readOnly}
           onChange={e => onChange(e.target.value)}
           onBlur={onBlur}
-          className="h-full w-full resize-none"
+          className={[
+            'h-full w-full resize-none outline-none p-2',
+            UI_THEME_TOKENS.input.bg,
+            UI_THEME_TOKENS.input.text,
+            className || '',
+          ].join(' ')}
         />
       )}
     </section>

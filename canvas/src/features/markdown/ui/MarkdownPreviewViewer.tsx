@@ -5,6 +5,8 @@ import type { TokenWithLines } from './markdownPreviewLex'
 import { MarkdownPanelLayout } from './MarkdownPanelLayout'
 import { slugify } from '@/features/parsers/markdownJsonLd'
 import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type MarkdownPreviewViewerProps = {
   rootRef: (el: HTMLDivElement | null) => void
@@ -52,6 +54,7 @@ export type MarkdownPreviewViewerProps = {
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const {
     rootRef,
     tokens,
@@ -222,6 +225,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     <MarkdownPanelLayout
       tokens={tokens}
       uiPanelTextFontClass={uiPanelTextFontClass}
+      uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
       showSidebar={effectiveShowSidebar}
       setShowSidebar={handleToggleSidebar}
       onTocSelect={handleTocSelect}
@@ -248,7 +252,14 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         aria-label="Markdown Preview Content"
       >
         {hasFrontmatterMermaid && frontmatterMermaidCode && (
-          <figure className="mb-8 p-4 border rounded bg-white dark:bg-gray-900 overflow-auto">
+          <figure
+            className={[
+              'mb-8 p-4 border rounded overflow-auto',
+              UI_THEME_TOKENS.panel.bg,
+              UI_THEME_TOKENS.panel.border,
+              UI_THEME_TOKENS.text.primary,
+            ].join(' ')}
+          >
             <MermaidDiagram
               code={frontmatterMermaidCode}
               highlightClass=""

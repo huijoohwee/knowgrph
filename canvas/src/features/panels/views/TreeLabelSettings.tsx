@@ -1,23 +1,23 @@
 import React from 'react'
 import { UI_COPY } from '@/lib/config'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
-import type { RenderTidyTreeSettingsRowsProps, TidyTreeLod } from './RenderTidyTreeSettingsRowsTypes'
+import type { RenderTreeSettingsRowsProps, TreeLod } from './RenderTreeSettingsRowsTypes'
 
 type Props = Pick<
-  RenderTidyTreeSettingsRowsProps,
-  | 'tidyTreeCfg'
-  | 'updateTidyTree'
-  | 'tidyTreeLod'
-  | 'updateTidyTreeLod'
+  RenderTreeSettingsRowsProps,
+  | 'treeCfg'
+  | 'updateTree'
+  | 'treeLod'
+  | 'updateTreeLod'
   | 'uiPanelKeyValueInputClass'
   | 'uiPanelMonospaceTextClass'
 >
 
-export const TidyTreeLabelSettings = React.memo(function TidyTreeLabelSettings({
-  tidyTreeCfg,
-  updateTidyTree,
-  tidyTreeLod,
-  updateTidyTreeLod,
+export const TreeLabelSettings = React.memo(function TreeLabelSettings({
+  treeCfg,
+  updateTree,
+  treeLod,
+  updateTreeLod,
   uiPanelKeyValueInputClass,
   uiPanelMonospaceTextClass,
 }: Props) {
@@ -26,7 +26,7 @@ export const TidyTreeLabelSettings = React.memo(function TidyTreeLabelSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.labelFontSize</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.labelFontSize</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
@@ -34,17 +34,17 @@ export const TidyTreeLabelSettings = React.memo(function TidyTreeLabelSettings({
               step={1}
               min={1}
               className={uiPanelKeyValueInputClass}
-              value={typeof tidyTreeCfg.labelFontSize === 'number' ? tidyTreeCfg.labelFontSize : ''}
+              value={typeof treeCfg.labelFontSize === 'number' ? treeCfg.labelFontSize : ''}
               placeholder="10"
               onChange={e => {
                 const rawText = String(e.target.value || '')
                 if (!rawText.trim()) {
-                  updateTidyTree({ labelFontSize: undefined })
+                  updateTree({ labelFontSize: undefined })
                   return
                 }
                 const raw = parseFloat(rawText)
                 if (!Number.isFinite(raw)) return
-                updateTidyTree({ labelFontSize: Math.max(1, raw) })
+                updateTree({ labelFontSize: Math.max(1, raw) })
               }}
             />
           </RightAlignedValueCell>
@@ -53,17 +53,17 @@ export const TidyTreeLabelSettings = React.memo(function TidyTreeLabelSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.labelFontFamily</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.labelFontFamily</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
               type="text"
               className={`${uiPanelKeyValueInputClass} text-left ${uiPanelMonospaceTextClass}`}
-              value={typeof tidyTreeCfg.labelFontFamily === 'string' ? tidyTreeCfg.labelFontFamily : ''}
+              value={typeof treeCfg.labelFontFamily === 'string' ? treeCfg.labelFontFamily : ''}
               placeholder="sans-serif"
               onChange={e => {
                 const raw = String(e.target.value || '')
-                updateTidyTree({ labelFontFamily: raw.trim() ? raw : undefined })
+                updateTree({ labelFontFamily: raw.trim() ? raw : undefined })
               }}
             />
           </RightAlignedValueCell>
@@ -72,28 +72,28 @@ export const TidyTreeLabelSettings = React.memo(function TidyTreeLabelSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.lod.tidyTree.labelMode</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.lod.tree.labelMode</span>}
         valueNode={(
           <RightAlignedValueCell>
             <select
               className={uiPanelKeyValueInputClass}
               value={
-                tidyTreeLod.labelMode === 'all' || tidyTreeLod.labelMode === 'internal' || tidyTreeLod.labelMode === 'none'
-                  ? tidyTreeLod.labelMode
+                treeLod.labelMode === 'all' || treeLod.labelMode === 'internal' || treeLod.labelMode === 'none'
+                  ? treeLod.labelMode
                   : 'auto'
               }
               onChange={e => {
                 const raw = e.target.value
                 const next = raw === 'all' || raw === 'internal' || raw === 'none' ? raw : 'auto'
-                updateTidyTreeLod((cur) => {
-                  const tidy = { ...cur }
+                updateTreeLod((cur) => {
+                  const tree = { ...cur }
                   if (next === 'auto') {
-                    delete (tidy as Partial<TidyTreeLod>).labelMode
+                    delete (tree as Partial<TreeLod>).labelMode
                   } else {
-                    tidy.labelMode = next
+                    tree.labelMode = next
                   }
-                  const hasAny = Object.keys(tidy).length > 0
-                  return hasAny ? tidy : null
+                  const hasAny = Object.keys(tree).length > 0
+                  return hasAny ? tree : null
                 })
               }}
             >
@@ -108,7 +108,7 @@ export const TidyTreeLabelSettings = React.memo(function TidyTreeLabelSettings({
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.lod.tidyTree.maxLabels</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.lod.tree.maxLabels</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
@@ -116,23 +116,23 @@ export const TidyTreeLabelSettings = React.memo(function TidyTreeLabelSettings({
               step={1}
               min={1}
               className={uiPanelKeyValueInputClass}
-              value={typeof tidyTreeLod.maxLabels === 'number' ? tidyTreeLod.maxLabels : ''}
+              value={typeof treeLod.maxLabels === 'number' ? treeLod.maxLabels : ''}
               placeholder={UI_COPY.autoPlaceholder}
               onChange={e => {
                 const rawText = String(e.target.value || '')
                 if (!rawText.trim()) {
-                  updateTidyTreeLod((cur) => {
-                    const tidy = { ...cur }
-                    delete (tidy as Partial<TidyTreeLod>).maxLabels
-                    const hasAny = Object.keys(tidy).length > 0
-                    return hasAny ? tidy : null
+                  updateTreeLod((cur) => {
+                    const tree = { ...cur }
+                    delete (tree as Partial<TreeLod>).maxLabels
+                    const hasAny = Object.keys(tree).length > 0
+                    return hasAny ? tree : null
                   })
                   return
                 }
                 const raw = parseFloat(rawText)
                 if (!Number.isFinite(raw)) return
                 const next = Math.max(1, raw)
-                updateTidyTreeLod((cur) => {
+                updateTreeLod((cur) => {
                   return { ...cur, maxLabels: next }
                 })
               }}

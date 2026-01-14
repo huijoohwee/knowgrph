@@ -3,6 +3,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor, type MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
 type CodeEditorHandlers = {
   onChange: (value: string) => void
   onSelectionChange: (start: number, end: number) => void
@@ -49,7 +51,14 @@ export default function BottomPanelCodeTab({
           {codeError}
         </div>
       )}
-      <div className="relative flex-1 min-h-0 border border-gray-300 rounded overflow-hidden">
+      <div
+        className={[
+          'relative flex-1 min-h-0 border rounded overflow-hidden',
+          UI_THEME_TOKENS.input.border,
+          UI_THEME_TOKENS.input.bg,
+          UI_THEME_TOKENS.input.text,
+        ].join(' ')}
+      >
         <MonacoTextEditor
           editorRef={codeRef}
           value={codeText}

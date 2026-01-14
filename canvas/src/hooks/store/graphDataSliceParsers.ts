@@ -10,7 +10,7 @@ export function parseLayoutMode(raw: unknown): NonNullable<NonNullable<GraphSche
   const normalized = text.toLowerCase()
   if (normalized === 'force') return 'force'
   if (normalized === 'radial' || normalized === 'radial-cluster' || normalized === 'cluster') return 'radial'
-  if (normalized === 'tidy-tree' || normalized === 'tidytree' || normalized === 'tree' || normalized === 'tidy') return 'tidy-tree'
+  if (normalized === 'tree' || normalized === 'tidy-tree' || normalized === 'tidytree' || normalized === 'tidy') return 'tree'
   return null
 }
 
@@ -33,9 +33,9 @@ function parseEdgeLabels(raw: unknown): string[] | null {
   return null
 }
 
-export function parseTidyTreeMetadata(raw: unknown): Partial<NonNullable<NonNullable<GraphSchema['layout']>['tidyTree']>> | null {
+export function parseTreeMetadata(raw: unknown): Partial<NonNullable<NonNullable<GraphSchema['layout']>['tree']>> | null {
   if (!isRecord(raw)) return null
-  const out: Partial<NonNullable<NonNullable<GraphSchema['layout']>['tidyTree']>> = {}
+  const out: Partial<NonNullable<NonNullable<GraphSchema['layout']>['tree']>> = {}
   if ('edgeLabels' in raw) {
     const parsed = parseEdgeLabels(raw.edgeLabels)
     if (parsed) out.edgeLabels = parsed

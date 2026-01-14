@@ -66,6 +66,7 @@ export function useSettingsView({
     s => s.uiPanelKeyValueInputClass || 'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right',
   )
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
 
   React.useEffect(() => {
     let alive = true
@@ -268,6 +269,7 @@ export function useSettingsView({
     setSchema,
     uiPanelKeyValueInputClass,
     uiPanelMonospaceTextClass,
+    uiPanelKeyValueTextSizeClass,
     chatHealthStatus,
     isCheckingHealth,
     checkChatHealth,

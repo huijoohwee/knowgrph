@@ -227,7 +227,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
         className={[
           `border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0 px-2 py-1.5`,
           'flex items-center gap-2 border-l-2',
-          active ? UI_THEME_TOKENS.table.rowSelected : `${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHoverAmber}`,
+          active ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverAmber,
           isDragOver ? ['ring-1', UI_RING_PRIMARY_BLUE_INDICATOR].join(' ') : '',
           'min-w-0 overflow-hidden',
         ]

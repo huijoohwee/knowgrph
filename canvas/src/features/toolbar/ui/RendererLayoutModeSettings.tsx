@@ -52,17 +52,17 @@ export function RendererLayoutModeSettings() {
                 value={schema.layout?.mode || 'force'}
                 onChange={(e) => {
                   const raw = String(e.target.value || '');
-                  const nextMode = raw === 'radial' || raw === 'tidy-tree' ? raw : 'force';
+                  const nextMode = raw === 'radial' || raw === 'tree' ? raw : 'force';
                   const layout = schema.layout || {};
                   setSchema({ ...schema, layout: { ...layout, mode: nextMode } });
-                  if (nextMode === 'radial' || nextMode === 'tidy-tree') {
+                  if (nextMode === 'radial' || nextMode === 'tree') {
                     setCanvasRenderMode('2d');
                   }
                 }}
               >
                 <option value="force">force</option>
                 <option value="radial">radial</option>
-                <option value="tidy-tree">tidy-tree</option>
+                <option value="tree">tree</option>
               </select>
             </Tooltip>
           </RightAlignedValueCell>

@@ -179,7 +179,7 @@ export interface GraphSchema {
     }>;
   };
   layout?: {
-    mode?: 'force' | 'radial' | 'tidy-tree';
+    mode?: 'force' | 'radial' | 'tree';
     forces?: {
       linkDistanceByLabel?: Record<string, number>;
       charge?: number;
@@ -188,7 +188,7 @@ export interface GraphSchema {
       alphaDecay?: number;
     };
     fitPadding?: number;
-    tidyTree?: {
+    tree?: {
       edgeLabels?: string[];
       direction?: 'auto' | 'source-target' | 'target-source';
       orientation?: 'vertical' | 'horizontal';
@@ -219,7 +219,7 @@ export interface GraphSchema {
   performance?: {
     lod?: {
       hideLabelsBelowScale?: number;
-      tidyTree?: {
+      tree?: {
         labelMode?: 'auto' | 'all' | 'internal' | 'none';
         maxLabels?: number;
         maxLeafLabels?: number;
@@ -469,7 +469,7 @@ export const defaultSchema: GraphSchema = {
   endpointMatrix: {},
   cardinality: { nodeType: {}, edgeLabel: {} },
   templates: { node: {}, edge: {} },
-  performance: { lod: { hideLabelsBelowScale: 0.0, tidyTree: { labelMode: 'auto' } }, caps: { maxNodes: 0, maxEdges: 0 } },
+  performance: { lod: { hideLabelsBelowScale: 0.0, tree: { labelMode: 'auto' } }, caps: { maxNodes: 0, maxEdges: 0 } },
   accessibility: { highContrast: false },
   legend: { showLegend: false },
   rules: [],

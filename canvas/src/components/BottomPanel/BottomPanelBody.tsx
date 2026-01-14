@@ -72,6 +72,8 @@ type BottomPanelBodyProps = {
   setSchemaText: (v: string) => void
 }
 
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
 export default function BottomPanelBody({
   tab,
   startTransition,
@@ -158,7 +160,11 @@ export default function BottomPanelBody({
 
   const toggleButtonClassName = React.useCallback(
     (isActive: boolean) =>
-      `App-toolbar__btn text-xs ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`,
+      `App-toolbar__btn text-xs ${
+        isActive
+          ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+          : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+      }`,
     [],
   )
 
@@ -205,7 +211,7 @@ export default function BottomPanelBody({
 
   const mermaidHint = hasMermaidFrontmatterInCode ? (
     <div className="flex items-center gap-2 mb-1">
-      <div className={`text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100`}>
+      <div className={`text-[10px] ${UI_THEME_TOKENS.button.activeText} ${UI_THEME_TOKENS.button.activeBg} px-2 py-0.5 rounded border ${UI_THEME_TOKENS.button.activeBorder}`}>
         Info: Frontmatter Mermaid diagram is available.
       </div>
     </div>
@@ -260,7 +266,7 @@ export default function BottomPanelBody({
         />
       )}
 
-      <div className="flex-1 min-h-0 overflow-hidden px-3 pb-1">
+      <section className="flex-1 min-h-0 overflow-hidden px-3 pb-1" aria-label="Panel Content">
         {tab === 'code' ? (
           <BottomPanelCodeTab
             codeText={codeText}
@@ -270,7 +276,9 @@ export default function BottomPanelBody({
             readOnly={false}
             header={
               <div className="flex flex-col gap-1">
-                <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>{UI_COPY.bottomPanelViewingGraphJsonLabel}</div>
+                <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+                  {UI_COPY.bottomPanelViewingGraphJsonLabel}
+                </div>
                 {mermaidHint}
               </div>
             }
@@ -330,10 +338,10 @@ export default function BottomPanelBody({
           <BottomPanelCodeTab codeText={codeText} codeError={codeError} codeRef={codeRef} handlers={handlers} />
         ) : tab === 'history' ? (
           <div className="h-full min-h-0 flex flex-col overflow-auto">
-            <div className="px-3 py-2 border-b border-gray-200">
+            <div className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider}`}>
               <button
                 type="button"
-                className="App-toolbar__btn text-xs bg-gray-100 text-gray-700"
+                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={importHistoryJsonLd}
               >
                 {UI_COPY.bottomPanelImportHistoryJsonLdAgenticRagButtonLabel}
@@ -361,7 +369,7 @@ export default function BottomPanelBody({
             <option key={n.id} value={n.id} />
           ))}
         </datalist>
-      </div>
+      </section>
     </>
   )
 }

@@ -68,7 +68,7 @@ export default function StatusBar() {
   );
 
   return (
-    <div className="StatusBar">
+    <footer className="StatusBar" aria-label="Status Bar">
       <div className="flex items-center gap-4">
         <span>Nodes: {nodeCount}</span>
         <span>Edges: {edgeCount}</span>
@@ -111,6 +111,6 @@ export default function StatusBar() {
           </div>
         )}
       </div>
-    </div>
+    </footer>
   );
 }

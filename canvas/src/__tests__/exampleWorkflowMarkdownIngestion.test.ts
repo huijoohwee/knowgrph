@@ -279,7 +279,7 @@ export async function testEdaMlpInterviewSessionMarkdownFixtureFromDisk() {
   await runEdaMlpInterviewSessionMarkdownTest(mdText, false)
 }
 
-export async function testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture() {
+export async function testEdaMlpInterviewSessionMarkdownTreeDensityFromFixture() {
   const mdText = await readEdaMlpInterviewSessionMarkdownFromEnv()
   if (!mdText || !mdText.trim()) {
     await Promise.resolve()
@@ -309,17 +309,17 @@ export async function testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixtu
   if (!meta) {
     throw new Error('expected schema.metadata to be present')
   }
-  const tidy = meta.tidyTree as Record<string, unknown> | undefined
-  if (!tidy) {
-    throw new Error('expected metadata.tidyTree to be present')
+  const tree = meta.tree as Record<string, unknown> | undefined
+  if (!tree) {
+    throw new Error('expected metadata.tree to be present')
   }
-  const separation = tidy.separation
+  const separation = tree.separation
   if (typeof separation !== 'number' || !Number.isFinite(separation) || separation <= 0) {
-    throw new Error(`expected positive metadata.tidyTree.separation, got ${String(separation)}`)
+    throw new Error(`expected positive metadata.tree.separation, got ${String(separation)}`)
   }
-  const density = tidy.mermaidDensity as Record<string, unknown> | undefined
+  const density = tree.mermaidDensity as Record<string, unknown> | undefined
   if (!density) {
-    throw new Error('expected metadata.tidyTree.mermaidDensity to be present')
+    throw new Error('expected metadata.tree.mermaidDensity to be present')
   }
   const statementCount = density.statementCount
   if (typeof statementCount !== 'number' || !Number.isFinite(statementCount) || statementCount <= 0) {
@@ -333,7 +333,7 @@ export async function testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixtu
     throw new Error(`expected mermaidDensity.density === "medium", got ${densityLabel}`)
   }
   if (separation !== 1.6) {
-    throw new Error(`expected metadata.tidyTree.separation === 1.6, got ${String(separation)}`)
+    throw new Error(`expected metadata.tree.separation === 1.6, got ${String(separation)}`)
   }
 
   await Promise.resolve()

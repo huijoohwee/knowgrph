@@ -16,6 +16,7 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export interface FilterPanelProps {
   filterMatch: GraphDataTableFilterMatch
@@ -54,6 +55,8 @@ export function FilterPanel({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
 
   const handleFilterOperatorChange = React.useCallback(
     (id: string, operator: GraphDataTableFilterOperator) => {
@@ -77,13 +80,13 @@ export function FilterPanel({
   )
 
   return (
-    <div className="z-50 border border-gray-200 bg-white text-gray-900 shadow-md outline-none flex max-h-96 w-80 sm:w-96 md:w-[544px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-lg p-4 relative">
-      <div className="mb-2 text-[13px]">
+    <div className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex max-h-96 w-80 sm:w-96 md:w-[544px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-lg p-4 relative ${uiPanelTextFontClass}`}>
+      <div className={`mb-2 ${uiPanelKeyValueTextSizeClass}`}>
         <div>In this view, show records</div>
       </div>
       <div className="flex flex-1 gap-2 flex-col overflow-auto pt-2 pb-4">
         {filterClauses.length === 0 ? (
-          <div className="text-xs text-gray-500">{UI_COPY.graphDataTableNoFilters}</div>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.graphDataTableNoFilters}</div>
         ) : null}
         {filterClauses.map((clause, index) => {
           const prefix =
@@ -97,7 +100,7 @@ export function FilterPanel({
                   { value: 'any', label: 'or' },
                 ]}
                 onChange={value => setFilterMatch(value === 'any' ? 'any' : 'all')}
-                className="inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border border-gray-200 bg-white shadow-sm hover:bg-gray-50 justify-between px-2 py-1 text-xs"
+                className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${uiPanelKeyValueTextSizeClass}`}
               />
             )
           if (clause.kind === 'condition') {
@@ -114,7 +117,7 @@ export function FilterPanel({
                   onChange={value =>
                     handleFilterColumnChange(condition.id, value as GraphDataTableColumnKey)
                   }
-                  className="inline-flex items-center whitespace-nowrap rounded-md border border-gray-200 bg-transparent hover:border-blue-500/30 px-2 py-1 text-xs shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent hover:border-blue-500/30 px-2 py-1 ${uiPanelKeyValueTextSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50`}
                 />
                 <FilterCombobox
                   value={condition.operator}
@@ -122,10 +125,10 @@ export function FilterPanel({
                   onChange={value =>
                     handleFilterOperatorChange(condition.id, value as GraphDataTableFilterOperator)
                   }
-                  className="inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border border-gray-200 bg-white shadow-sm hover:bg-gray-50 justify-between px-2 py-1 text-xs"
+                  className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${uiPanelKeyValueTextSizeClass}`}
                 />
                 <input
-                  className={`h-8 w-40 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs shadow-sm transition-colors placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
+                  className={`h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${uiPanelKeyValueTextSizeClass} shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
                     isValueDisabled ? 'opacity-50' : ''
                   }`}
                   placeholder={`Enter value for ${columnLabel.toLowerCase()}`}
@@ -147,9 +150,9 @@ export function FilterPanel({
 
           const group = clause
           return (
-            <div key={group.id} className="flex flex-col gap-2 rounded-md border border-gray-100 bg-gray-50 p-2">
+            <div key={group.id} className={`flex flex-col gap-2 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} p-2`}>
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs">
+                <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass}`}>
                   {prefix}
                   <FilterCombobox
                     value={group.match}
@@ -158,9 +161,9 @@ export function FilterPanel({
                       { value: 'any', label: 'any' },
                     ]}
                     onChange={value => setFilterGroupMatch(group.id, value)}
-                    className="inline-flex items-center whitespace-nowrap rounded-md border border-gray-200 bg-transparent hover:border-blue-500/30 px-2 py-1 text-xs shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent hover:border-blue-500/30 px-2 py-1 ${uiPanelKeyValueTextSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50`}
                   />
-                  <span className="text-gray-500">of the following conditions:</span>
+                  <span className={UI_THEME_TOKENS.text.tertiary}>of the following conditions:</span>
                 </div>
                 <button
                   type="button"
@@ -185,7 +188,7 @@ export function FilterPanel({
                         onChange={value =>
                           handleFilterColumnChange(condition.id, value as GraphDataTableColumnKey)
                         }
-                        className="inline-flex items-center whitespace-nowrap rounded-md border border-gray-200 bg-transparent hover:border-blue-500/30 px-2 py-1 text-xs shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent hover:border-blue-500/30 px-2 py-1 ${uiPanelKeyValueTextSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50`}
                       />
                       <FilterCombobox
                         value={condition.operator}
@@ -196,10 +199,10 @@ export function FilterPanel({
                             value as GraphDataTableFilterOperator,
                           )
                         }
-                        className="inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border border-gray-200 bg-white shadow-sm hover:bg-gray-50 justify-between px-2 py-1 text-xs"
+                        className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${uiPanelKeyValueTextSizeClass}`}
                       />
                       <input
-                        className={`h-8 w-40 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs shadow-sm transition-colors placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
+                        className={`h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${uiPanelKeyValueTextSizeClass} shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
                           isValueDisabled ? 'opacity-50' : ''
                         }`}
                         placeholder={`Enter value for ${columnLabel.toLowerCase()}`}

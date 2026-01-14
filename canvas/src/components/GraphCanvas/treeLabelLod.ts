@@ -1,7 +1,7 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 
-type TidyTreeLabelLodConfig = NonNullable<NonNullable<NonNullable<GraphSchema['performance']>['lod']>['tidyTree']>
+type TreeLabelLodConfig = NonNullable<NonNullable<NonNullable<GraphSchema['performance']>['lod']>['tree']>
 
 const coerceFinitePositiveInt = (value: unknown): number | null => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null
@@ -9,7 +9,7 @@ const coerceFinitePositiveInt = (value: unknown): number | null => {
   return n > 0 ? n : null
 }
 
-const resolveLabelMode = (mode: unknown): NonNullable<TidyTreeLabelLodConfig['labelMode']> => {
+const resolveLabelMode = (mode: unknown): NonNullable<TreeLabelLodConfig['labelMode']> => {
   if (mode === 'all' || mode === 'internal' || mode === 'none' || mode === 'auto') return mode
   return 'auto'
 }
@@ -22,7 +22,7 @@ const coerceEndpointId = (value: unknown): string | null => {
   return null
 }
 
-const buildTidyTreeStructure = (args: {
+const buildTreeStructure = (args: {
   nodes: GraphNode[]
   edgesForDisplay: GraphEdge[]
   direction: 'source-target' | 'target-source'
@@ -95,16 +95,16 @@ const buildTidyTreeStructure = (args: {
   return { nodeIds, childrenByParent, inDegree, outDegree, depthById, internalIds, leafIds }
 }
 
-export const computeTidyTreeLabelVisibility = (args: {
+export const computeTreeLabelVisibility = (args: {
   nodes: GraphNode[]
   edgesForDisplay: GraphEdge[]
   direction: 'source-target' | 'target-source'
-  lod: TidyTreeLabelLodConfig | null | undefined
+  lod: TreeLabelLodConfig | null | undefined
 }): Set<string> => {
   const { nodes, edgesForDisplay, direction, lod } = args
   const mode = resolveLabelMode(lod?.labelMode)
 
-  const { nodeIds, outDegree, depthById, internalIds, leafIds } = buildTidyTreeStructure({
+  const { nodeIds, outDegree, depthById, internalIds, leafIds } = buildTreeStructure({
     nodes,
     edgesForDisplay,
     direction,
@@ -166,11 +166,11 @@ export const computeTidyTreeLabelVisibility = (args: {
   return visible
 }
 
-export const computeTidyTreeCollapseHiddenNodes = (args: {
+export const computeTreeCollapseHiddenNodes = (args: {
   nodes: GraphNode[]
   edgesForDisplay: GraphEdge[]
   direction: 'source-target' | 'target-source'
-  lod: TidyTreeLabelLodConfig | null | undefined
+  lod: TreeLabelLodConfig | null | undefined
 }): Set<string> => {
   const { nodes, edgesForDisplay, direction, lod } = args
   const mode = lod?.collapseMode === 'depth' ? 'depth' : 'none'
@@ -178,7 +178,7 @@ export const computeTidyTreeCollapseHiddenNodes = (args: {
   const maxDepth = coerceFinitePositiveInt(lod?.maxDepth)
   if (maxDepth == null) return new Set<string>()
 
-  const { nodeIds, depthById } = buildTidyTreeStructure({
+  const { nodeIds, depthById } = buildTreeStructure({
     nodes,
     edgesForDisplay,
     direction,

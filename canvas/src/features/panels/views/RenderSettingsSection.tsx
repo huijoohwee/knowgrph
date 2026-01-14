@@ -11,8 +11,8 @@ import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
 import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSection'
-import RenderTidyTreeSettingsRows from '@/features/panels/views/RenderTidyTreeSettingsRows'
-import { type TidyTreeLod } from '@/features/panels/views/RenderTidyTreeSettingsRowsTypes'
+import RenderTreeSettingsRows from '@/features/panels/views/RenderTreeSettingsRows'
+import { type TreeLod } from '@/features/panels/views/RenderTreeSettingsRowsTypes'
 import MediaNodesSection from '@/features/panels/views/MediaNodesSection'
 
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>
@@ -79,11 +79,11 @@ export default function RenderSettingsSection({
   )
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-    schema.layout?.mode === 'radial' || schema.layout?.mode === 'tidy-tree' ? schema.layout.mode : 'force'
-  const tidyTreeCfg = schema.layout?.tidyTree || {}
-  const tidyTreeLod = (schema.performance?.lod?.tidyTree || {}) as TidyTreeLod
-  const tidyEdgeLabelsText = React.useMemo(() => (tidyTreeCfg.edgeLabels || []).join(', '), [tidyTreeCfg.edgeLabels])
-  const tidyEdgeLabelSuggestion = React.useMemo(() => {
+    schema.layout?.mode === 'radial' || schema.layout?.mode === 'tree' ? schema.layout.mode : 'force'
+  const treeCfg = schema.layout?.tree || {}
+  const treeLod = (schema.performance?.lod?.tree || {}) as TreeLod
+  const treeEdgeLabelsText = React.useMemo(() => (treeCfg.edgeLabels || []).join(', '), [treeCfg.edgeLabels])
+  const treeEdgeLabelSuggestion = React.useMemo(() => {
     const graph = data as GraphData | null
     const edges = Array.isArray(graph?.edges) ? graph!.edges : []
     if (!edges.length) return null
@@ -118,12 +118,21 @@ export default function RenderSettingsSection({
     [schema, setSchema],
   )
 
-  const updateTidyTree = React.useCallback(
-    (patch: Partial<NonNullable<NonNullable<GraphSchema['layout']>['tidyTree']>>) => {
-      const current = schema
-      const curLayout = current.layout || {}
-      const cur = curLayout.tidyTree || {}
-      setSchema({ ...current, layout: { ...curLayout, tidyTree: { ...cur, ...patch } } })
+  const updateTree = React.useCallback(
+    (patch: Partial<typeof treeCfg>) => {
+      const currentLayout = schema.layout || {}
+      const currentTree = currentLayout.tree || {}
+      const next = {
+        ...schema,
+        layout: {
+          ...currentLayout,
+          tree: {
+            ...currentTree,
+            ...patch,
+          },
+        },
+      }
+      setSchema(next as GraphSchema)
     },
     [schema, setSchema],
   )
@@ -142,18 +151,23 @@ export default function RenderSettingsSection({
     [schema, setSchema],
   )
 
-  const updateTidyTreeLod = React.useCallback(
-    (updater: (cur: TidyTreeLod) => TidyTreeLod | null) => {
-      const current = schema
-      const curPerformance = current.performance || {}
-      const curLod = (curPerformance.lod || {}) as PerformanceLod
-      const curTidyTree = (curLod.tidyTree || {}) as TidyTreeLod
-      const nextTidyTree = updater(curTidyTree)
-      const nextLod: PerformanceLod = {
-        ...curLod,
-        tidyTree: nextTidyTree ? nextTidyTree : undefined,
+  const updateTreeLod = React.useCallback(
+    (updater: (cur: TreeLod) => TreeLod | null) => {
+      const currentLod = schema.performance?.lod || {}
+      const currentTree = (currentLod.tree || {}) as TreeLod
+      const nextTree = updater(currentTree)
+      const nextLod = {
+        ...currentLod,
+        tree: nextTree || undefined,
       }
-      setSchema({ ...current, performance: { ...curPerformance, lod: nextLod } })
+      const next = {
+        ...schema,
+        performance: {
+          ...schema.performance,
+          lod: nextLod,
+        },
+      }
+      setSchema(next as GraphSchema)
     },
     [schema, setSchema],
   )
@@ -385,16 +399,16 @@ export default function RenderSettingsSection({
                       onChange={e => {
                         const raw = e.target.value
                         const next: typeof layoutMode =
-                          raw === 'radial' || raw === 'tidy-tree' ? raw : 'force'
+                          raw === 'radial' || raw === 'tree' ? raw : 'force'
                         setLayoutMode(next)
-                        if (next === 'radial' || next === 'tidy-tree') {
+                        if (next === 'radial' || next === 'tree') {
                           setCanvasRenderMode('2d')
                         }
                       }}
                     >
                       <option value="force">force</option>
                       <option value="radial">radial</option>
-                      <option value="tidy-tree">tidy-tree</option>
+                      <option value="tree">tree</option>
                     </select>
                   </RightAlignedValueCell>
                 )}
@@ -433,20 +447,20 @@ export default function RenderSettingsSection({
                   </RightAlignedValueCell>
                 )}
               />
-              {layoutMode === 'tidy-tree' ? (
-                <RenderTidyTreeSettingsRows
-                  tidyTreeCfg={tidyTreeCfg}
-                  tidyTreeLod={tidyTreeLod}
-                  tidyEdgeLabelsText={tidyEdgeLabelsText}
-                  tidyEdgeLabelSuggestion={tidyEdgeLabelSuggestion}
-                  updateTidyTree={updateTidyTree}
-                  updateTidyTreeLod={updateTidyTreeLod}
-                  uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
-                  uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-                  uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
-                  uiPanelTextFontClass={uiPanelTextFontClass}
-                />
-              ) : null}
+              {layoutMode === 'tree' ? (
+        <RenderTreeSettingsRows
+          treeCfg={treeCfg}
+          treeLod={treeLod}
+          treeEdgeLabelsText={treeEdgeLabelsText}
+          treeEdgeLabelSuggestion={treeEdgeLabelSuggestion}
+          updateTree={updateTree}
+          updateTreeLod={updateTreeLod}
+          uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+          uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+          uiPanelTextFontClass={uiPanelTextFontClass}
+        />
+      ) : null}
             </div>
           </div>
         </div>

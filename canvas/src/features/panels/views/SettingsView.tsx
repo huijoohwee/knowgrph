@@ -42,15 +42,16 @@ export default function SettingsView({
     setUiPanelRowDensityDefaultClass,
     setUiPanelMonospaceTextClass,
     setUiPanelMicroLabelTextSizeClass,
+    uiPanelKeyValueTextSizeClass,
   } = useSettingsView({ searchQuery, onRegisterActions })
 
   const themeMode = useGraphStore(s => s.themeMode)
   const setThemeMode = useGraphStore(s => s.setThemeMode)
 
   return (
-    <div className="h-full min-h-0 flex flex-col space-y-0">
-      <div className="flex-1 min-h-0 overflow-auto space-y-0">
-        <div className={`sticky top-0 z-10 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
+    <article className="h-full min-h-0 flex flex-col space-y-0">
+      <section className="flex-1 min-h-0 overflow-auto space-y-0">
+        <header className={`sticky top-0 z-10 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
           <KeyTypeValueRow
             keyNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</span>}
             typeNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</span>}
@@ -58,7 +59,7 @@ export default function SettingsView({
             density="compact"
             className="h-9 py-0"
           />
-        </div>
+        </header>
         {groupByArea.map(([area, entries]) => {
           const collapsed = collapsedByArea[area] ?? true
           const responsibilities = entries.map(e => e.details.responsibility).filter(Boolean)
@@ -91,9 +92,9 @@ export default function SettingsView({
               collapsed={collapsed}
               onToggle={next => toggleArea(area, next)}
             >
-              <div>
+              <ul>
                 {area === 'UI Appearance' && (
-                  <div className={`mb-2 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+                  <li className={`mb-2 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                     <span className={`font-semibold ${UI_THEME_TOKENS.text.primary} mr-1`}>Theme Mode</span>
                     <button
                       type="button"
@@ -128,10 +129,10 @@ export default function SettingsView({
                     >
                       System
                     </button>
-                  </div>
+                  </li>
                 )}
                 {area === 'UI Density: Panels' && (
-                  <div className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+                  <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                     <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Presets</span>
                     <button
                       type="button"
@@ -161,14 +162,14 @@ export default function SettingsView({
                     >
                       Compact
                     </button>
-                  </div>
+                  </li>
                 )}
                 {entries.map(({ meta: s, details, writable, anchorId }) => {
                   const isExpanded = expanded === s.key
                   const hasOptions = Array.isArray(s.options) && s.options.length > 0
                   const hint = details.notes || details.responsibility || ''
                   return (
-                    <div key={s.key}>
+                    <li key={s.key}>
                       <KeyTypeValueRow
                         id={anchorId}
                         dataKgAnchor={anchorId}
@@ -176,7 +177,7 @@ export default function SettingsView({
                           <Tooltip
                             content={hint}
                             maxWidthPx={250}
-                            contentClassName="bg-gray-800/90"
+                            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                           >
                             <span className="inline-flex items-center gap-1">
                               <span className="truncate">{s.key}</span>
@@ -211,28 +212,36 @@ export default function SettingsView({
                       />
                       {isExpanded && (
                         <div className={`mt-0 mb-0 text-xs ${UI_THEME_TOKENS.text.primary} border-l pl-2`}>
-                          <div className="grid grid-cols-7 gap-1">
-                            <div className="font-medium">Area</div>
-                            <div className="font-medium">Modules</div>
-                            <div className="font-medium">Classes/Objects</div>
-                            <div className="font-medium">Functions/Methods</div>
-                            <div className="font-medium">Responsibility</div>
-                            <div className="font-medium">Dependencies / Imports</div>
-                            <div className="font-medium">Notes</div>
-                            <div>{details.area}</div>
-                            <div>{(details.modules || []).join(', ') || '—'}</div>
-                            <div>{(details.classes || []).join(', ') || '—'}</div>
-                            <div>{(details.functions || []).join(', ') || '—'}</div>
-                            <div>{details.responsibility}</div>
-                            <div>{(details.imports || []).join(', ') || '—'}</div>
-                            <div>{details.notes || '—'}</div>
-                          </div>
+                          <table className={`w-full text-left border-collapse ${uiPanelKeyValueTextSizeClass || ''}`}>
+                            <thead>
+                              <tr>
+                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Area</th>
+                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Modules</th>
+                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Classes/Objects</th>
+                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Functions/Methods</th>
+                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Responsibility</th>
+                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Dependencies / Imports</th>
+                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{details.area}</td>
+                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.modules || []).join(', ') || '—'}</td>
+                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.classes || []).join(', ') || '—'}</td>
+                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.functions || []).join(', ') || '—'}</td>
+                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{details.responsibility}</td>
+                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.imports || []).join(', ') || '—'}</td>
+                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{details.notes || '—'}</td>
+                              </tr>
+                            </tbody>
+                          </table>
                         </div>
                       )}
-                    </div>
+                    </li>
                   )
                 })}
-              </div>
+              </ul>
             </CollapsibleSection>
           )
         })}
@@ -255,7 +264,7 @@ export default function SettingsView({
             </button>
           </div>
         </CollapsibleSection>
-      </div>
-    </div>
+      </section>
+    </article>
   )
 }

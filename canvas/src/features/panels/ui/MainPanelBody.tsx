@@ -9,11 +9,15 @@ interface MainPanelBodyProps {
 
 export default function MainPanelBody({ header, children, scrollRef, scrollable = true }: MainPanelBodyProps) {
   return (
-    <div className="h-full w-full min-h-0 flex flex-col overflow-hidden">
+    <aside className="h-full w-full min-h-0 flex flex-col overflow-hidden" aria-label="Sidebar Panel">
       {header}
-      <div ref={scrollRef} className={`flex-1 min-h-0 w-full ${scrollable ? 'overflow-auto' : 'overflow-hidden'}`}>
+      <section
+        ref={scrollRef}
+        className={`flex-1 min-h-0 w-full ${scrollable ? 'overflow-auto' : 'overflow-hidden'}`}
+        aria-label="Sidebar Content"
+      >
         {children}
-      </div>
-    </div>
+      </section>
+    </aside>
   );
 }

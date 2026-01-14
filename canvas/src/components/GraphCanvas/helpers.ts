@@ -124,7 +124,7 @@ export function getNodeRadius(d: GraphNode, schema: GraphSchema): number {
 }
 
 export function getRenderNodeRadius2d(node: GraphNode, schema: GraphSchema): number {
-  const isTidyTree = schema.layout?.mode === 'tidy-tree'
+  const isTree = schema.layout?.mode === 'tree'
   const props = (node.properties || {}) as Record<string, unknown>
   const rawSize = props['visual:nodeSize']
   if (typeof rawSize === 'number' && Number.isFinite(rawSize) && rawSize > 0) {
@@ -141,9 +141,9 @@ export function getRenderNodeRadius2d(node: GraphNode, schema: GraphSchema): num
     }
   }
 
-  if (!isTidyTree) return getNodeRadiusFromSchema(node, schema)
+  if (!isTree) return getNodeRadiusFromSchema(node, schema)
 
-  const configured = schema.layout?.tidyTree?.nodeRadius
+  const configured = schema.layout?.tree?.nodeRadius
   if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) {
     return configured
   }
@@ -162,7 +162,7 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
   const baseFromSchema =
     typeof styles.width === 'number' && Number.isFinite(styles.width) && styles.width > 0
       ? styles.width
-      : (schema.layout?.mode === 'tidy-tree' ? 1.5 : 2)
+      : (schema.layout?.mode === 'tree' ? 1.5 : 2)
   const props = edge.properties || {}
   const threeCfg = getThreeConfig(schema)
   const formula = threeCfg.edgeWidthFormula || 'schema'

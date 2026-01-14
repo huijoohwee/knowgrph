@@ -15,8 +15,10 @@ import {
   type GraphDataTablePanel,
 } from '@/features/graph-data-table/ui/GraphDataTablePanelOverlay'
 import { GraphDataTable } from '@/features/graph-data-table/ui/GraphDataTableTable'
+import { UI_COLOR_PRIMARY_BLUE_BORDER } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { BottomPanelCuratorToolbar } from './BottomPanelCuratorToolbar'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface BottomPanelCuratorToolbarModel {
   graphDataTablePanel: GraphDataTablePanel
@@ -177,7 +179,7 @@ export function BottomPanelCuratorContent({
         setIsAutoScrollDisabled={toolbar.setIsAutoScrollDisabled}
       />
 
-      <div className="flex-1 min-h-0 overflow-hidden border border-gray-200 rounded flex flex-col">
+      <div className={`flex-1 min-h-0 overflow-hidden border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} rounded flex flex-col`}>
         {toolbar.graphDataTablePanel !== 'none' && (
           <GraphDataTablePanelOverlay
             panel={toolbar.graphDataTablePanel as Exclude<GraphDataTablePanel, 'none'>}
@@ -259,23 +261,23 @@ export function BottomPanelCuratorContent({
           />
         </div>
         {selectionToolbar}
-        <div className="border-t border-gray-200 px-2 py-1 flex items-center justify-between bg-gray-50">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+        <div className={`border-t ${UI_THEME_TOKENS.panel.divider} px-2 py-1 flex items-center justify-between ${UI_THEME_TOKENS.panel.headerBg}`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
             {visibleRange.totalRows === 0
               ? 'No rows'
               : `Rows ${visibleRange.visibleStartRow.toLocaleString()}–${visibleRange.visibleEndRow.toLocaleString()} of ${visibleRange.totalRows.toLocaleString()} (showing ${visibleRange.visibleRowCount.toLocaleString()} rows, ${visibleRange.totalGroups.toLocaleString()} groups, ${visibleRange.totalAggregates.toLocaleString()} aggregates)`}
           </div>
-          <div className={`flex items-center gap-3 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+          <div className={`flex items-center gap-3 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
             <div className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 rounded-sm bg-blue-300 border border-blue-500" />
+              <span className={`inline-block w-3 h-3 rounded-sm ${UI_THEME_TOKENS.table.rowSelected} border ${UI_COLOR_PRIMARY_BLUE_BORDER}`} />
               <span>Selected row</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 rounded-sm bg-blue-200 border border-blue-400" />
+              <span className={`inline-block w-3 h-3 rounded-sm ${UI_THEME_TOKENS.table.rowRelated} border ${UI_COLOR_PRIMARY_BLUE_BORDER}`} />
               <span>Related to selection</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 rounded-sm bg-white border border-gray-300" />
+              <span className={`inline-block w-3 h-3 rounded-sm ${UI_THEME_TOKENS.table.rowOutside} border ${UI_THEME_TOKENS.table.cellBorder}`} />
               <span>Outside selection neighborhood</span>
             </div>
           </div>

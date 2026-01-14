@@ -14,8 +14,8 @@
 ## Layer and mode interaction
 
 - Layout modes:
-  - `graph.layout.mode` supports `"force"`, `"radial"`, and `"tidy-tree"` layouts.
-  - Structured layouts (`"radial"`, `"tidy-tree"`) cache node positions per `(schema.layers.mode, graph.layout.mode)` key so switching layers or layout modes does not corrupt other combinations.
+  - `schema.layout.mode` supports `"force"`, `"radial"`, and `"tree"` layouts.
+  - Structured layouts (`"radial"`, `"tree"`) cache node positions per `(schema.layers.mode, schema.layout.mode)` key so switching layers or layout modes does not corrupt other combinations.
   - Layout caches are cleared when graph data is replaced or reset so memory usage stays bounded per dataset and does not leak across imports.
 - Semantic layer behavior:
   - Semantic layer is the default (`layers.mode: "semantic"`) and derives a similarity graph from tokenized node text using cosine similarity or PMI.
@@ -52,15 +52,15 @@
       - `layers.semantic.minSimilarity.cosine`.
       - `layers.semantic.minSimilarity.pmi`.
   - Canvas UI exposes `schema.layers.semantic.topKEdgesPerNode` and `schema.layers.semantic.minSimilarity` so curators can adapt thresholds per dataset; schema-config JSON-LD acts as a preset source of truth that LLMs and tools can read and update.
-- Tidy-tree Mermaid density presets:
-  - Markdown ingestion attaches a density summary for Mermaid frontmatter diagrams under `graph_jsonld.metadata.tidyTree.mermaidDensity`:
+- Tree Mermaid density presets:
+  - Markdown ingestion attaches a density summary for Mermaid frontmatter diagrams under `graph_jsonld.metadata.tree.mermaidDensity`:
     - `statementCount`: number of non-comment Mermaid statements (nodes, edges, and click bindings; comments, `graph`, `subgraph`, and `end` lines are excluded).
     - `density`: coarse bucket label (`"none"`, `"sparse"`, `"medium"`, `"dense"`) derived from `statementCount`.
     - `anchorsOnly`: boolean indicating whether the Mermaid diagram was parsed in anchors-only mode.
     - `config`: neutral preset object with:
       - `sparseMaxStatements` and `denseMaxStatements` thresholds.
       - `anchorsOnly` and `defaultDiagram` separation presets for `sparse`, `medium`, and `dense` density buckets.
-  - Canvas reads `metadata.tidyTree.separation` as the parser-suggested Dagre spacing for tidy-tree layouts; users can override this interactively via `schema.layout.tidyTree.separation` in the Renderer Floating Panel or Renderer toolbar settings panel.
-  - Schema-config JSON-LD can override or extend these presets by emitting a compatible `metadata.tidyTree.mermaidDensity.config` object for a given dataset; tools and LLMs can treat this config as the canonical source of truth for Mermaid density thresholds and separation values when generating or updating markdown+Mermaid workflows, while the canvas continues to treat `metadata.tidyTree.separation` and `schema.layout.tidyTree.separation` as the effective layout inputs.
-  - The toolbar **Tidy preset** control acts as a neutral, metadata-aware switch between Mermaid-centric and document-structure-centric tidy-tree layouts: when set to the Mermaid preset, it seeds `schema.layout.tidyTree.edgeLabels`, `schema.layout.tidyTree.orientation`, `schema.layout.tidyTree.direction`, `schema.layout.tidyTree.separation`, and `schema.layout.tidyTree.colorMode` from `metadata.tidyTree` (if present) for density-aware Mermaid flows; when set to the Document preset, it swaps `edgeLabels` to the document hierarchy set while keeping separation and direction aligned with the existing schema configuration instead of hardcoding dataset-specific values.
-  - When Markdown metadata includes a Mermaid density summary, the canvas uses a neutral heuristic to seed tidy-tree label LOD collapse for Mermaid frontmatter graphs: `"medium"` density diagrams start with `schema.performance.lod.tidyTree.collapseMode: "depth"` and `schema.performance.lod.tidyTree.maxDepth: 3`, `"dense"` diagrams start with `collapseMode: "depth"` and `maxDepth: 2`, and `"none"`/`"sparse"` diagrams leave collapse disabled. These defaults are applied only when `schema.performance.lod.tidyTree` has no explicit collapse configuration and remain fully overridable from the Renderer settings UI or schema-config JSON-LD.
+  - Canvas reads `metadata.tree.separation` as the parser-suggested Dagre spacing for tree layouts; users can override this interactively via `schema.layout.tree.separation` in the Renderer Floating Panel or Renderer toolbar settings panel.
+  - Schema-config JSON-LD can override or extend these presets by emitting a compatible `metadata.tree.mermaidDensity.config` object for a given dataset; tools and LLMs can treat this config as the canonical source of truth for Mermaid density thresholds and separation values when generating or updating markdown+Mermaid workflows, while the canvas continues to treat `metadata.tree.separation` and `schema.layout.tree.separation` as the effective layout inputs.
+  - The toolbar **Tree preset** control acts as a neutral, metadata-aware switch between Mermaid-centric and document-structure-centric tree layouts: when set to the Mermaid preset, it seeds `schema.layout.tree.edgeLabels`, `schema.layout.tree.orientation`, `schema.layout.tree.direction`, `schema.layout.tree.separation`, and `schema.layout.tree.colorMode` from `metadata.tree` (if present) for density-aware Mermaid flows; when set to the Document preset, it swaps `edgeLabels` to the document hierarchy set while keeping separation and direction aligned with the existing schema configuration instead of hardcoding dataset-specific values.
+  - When Markdown metadata includes a Mermaid density summary, the canvas uses a neutral heuristic to seed tree label LOD collapse for Mermaid frontmatter graphs: `"medium"` density diagrams start with `schema.performance.lod.tree.collapseMode: "depth"` and `schema.performance.lod.tree.maxDepth: 3`, `"dense"` diagrams start with `collapseMode: "depth"` and `maxDepth: 2`, and `"none"`/`"sparse"` diagrams leave collapse disabled. These defaults are applied only when `schema.performance.lod.tree` has no explicit collapse configuration and remain fully overridable from the Renderer settings UI or schema-config JSON-LD.

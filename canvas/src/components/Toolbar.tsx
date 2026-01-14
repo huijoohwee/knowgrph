@@ -83,11 +83,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const iconStrokeWidth = uiIconStrokeWidth;
   const launchIconClass = uiIconAnimationEnabled ? 'LaunchButton__icon' : '';
   const layoutMode = schema.layout?.mode || 'force';
-  const tidyCfg = schema.layout?.tidyTree || {};
-  const tidyEdgeLabels = Array.isArray(tidyCfg.edgeLabels)
-    ? tidyCfg.edgeLabels.map(v => String(v || '').trim()).filter(Boolean)
+  const treeCfg = schema.layout?.tree || {};
+  const treeEdgeLabels = Array.isArray(treeCfg.edgeLabels)
+    ? treeCfg.edgeLabels.map(v => String(v || '').trim()).filter(Boolean)
     : [];
-  const tidyDocEdgeLabels = [
+  const treeDocEdgeLabels = [
     'hasSection',
     'hasBlock',
     'hasItem',
@@ -97,13 +97,13 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     'hasInternalLink',
   ];
   const normalizeLabels = (labels: string[]) => labels.slice().map(v => v.trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  const normalizedTidyLabels = normalizeLabels(tidyEdgeLabels);
-  const normalizedDocLabels = normalizeLabels(tidyDocEdgeLabels);
+  const normalizedTreeLabels = normalizeLabels(treeEdgeLabels);
+  const normalizedDocLabels = normalizeLabels(treeDocEdgeLabels);
   const isDocPreset =
-    normalizedTidyLabels.length === normalizedDocLabels.length &&
-    normalizedTidyLabels.every((v, idx) => v === normalizedDocLabels[idx]);
-  const isMermaidPreset = normalizedTidyLabels.length === 1 && normalizedTidyLabels[0] === 'pointsTo';
-  const tidyPreset: 'mermaid' | 'document' | 'custom' = isMermaidPreset ? 'mermaid' : isDocPreset ? 'document' : 'mermaid';
+    normalizedTreeLabels.length === normalizedDocLabels.length &&
+    normalizedTreeLabels.every((v, idx) => v === normalizedDocLabels[idx]);
+  const isMermaidPreset = normalizedTreeLabels.length === 1 && normalizedTreeLabels[0] === 'pointsTo';
+  const treePreset: 'mermaid' | 'document' | 'custom' = isMermaidPreset ? 'mermaid' : isDocPreset ? 'document' : 'mermaid';
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false);
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const rawLayerMode = schema.layers?.mode;
@@ -125,8 +125,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     schema,
     setSchema,
     setCanvasRenderMode,
-    tidyPreset,
-    tidyDocEdgeLabels,
+    treePreset,
+    treeDocEdgeLabels,
     setThemeMode,
     launchSpotlight,
     openMainPanel,
@@ -182,7 +182,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   }, [openMainPanel]);
 
   return (
-    <div className="Island App-toolbar App-toolbar--compact w-fit">
+    <nav className="Island App-toolbar App-toolbar--compact w-fit" aria-label="Main Toolbar">
       <ToolbarMenuLauncher onOpenMainPanel={openMainPanel} />
 
       <IconButton
@@ -255,39 +255,39 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
-          canvasRenderMode === '2d' && layoutMode === 'tidy-tree'
+          canvasRenderMode === '2d' && layoutMode === 'tree'
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
         }`}
-        title={UI_LABELS.tidyTreeLayoutMode}
-        tooltipContent={UI_LABELS.tidyTreeLayoutMode}
-        onClick={actions.handleToggleTidyTreeLayout}
+        title={UI_LABELS.treeLayoutMode}
+        tooltipContent={UI_LABELS.treeLayoutMode}
+        onClick={actions.handleToggleTreeLayout}
         showTooltip
       >
         <TreePine className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
-          layoutMode === 'tidy-tree' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+          layoutMode === 'tree' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
         title={
-          tidyPreset === 'mermaid'
-            ? 'Tidy preset: Mermaid flowchart'
-            : tidyPreset === 'document'
-              ? 'Tidy preset: Document hierarchy'
-              : 'Tidy preset: Custom'
+          treePreset === 'mermaid'
+            ? 'Tree preset: Mermaid flowchart'
+            : treePreset === 'document'
+              ? 'Tree preset: Document hierarchy'
+              : 'Tree preset: Custom'
         }
         tooltipContent={
-          tidyPreset === 'mermaid'
-            ? 'Tidy tree preset: use Mermaid flowchart edges (pointsTo)'
-            : tidyPreset === 'document'
-              ? 'Tidy tree preset: use document structure edges (sections, blocks, items)'
-              : 'Tidy tree preset: custom tidy-tree configuration'
+          treePreset === 'mermaid'
+            ? 'Tree preset: use Mermaid flowchart edges (pointsTo)'
+            : treePreset === 'document'
+              ? 'Tree preset: use document structure edges (sections, blocks, items)'
+              : 'Tree preset: custom tree configuration'
         }
-        onClick={actions.handleToggleTidyPreset}
+        onClick={actions.handleToggleTreePreset}
         showTooltip
       >
-        {tidyPreset === 'mermaid' ? (
+        {treePreset === 'mermaid' ? (
           <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
         ) : (
           <FileText className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -498,7 +498,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <SunMoon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
-
-    </div>
+    </nav>
   );
 }

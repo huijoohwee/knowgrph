@@ -5,6 +5,7 @@ import { type GraphDataTableColumnKey } from '@/features/graph-data-table/graphD
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export interface GroupPanelProps {
   panelTitle: string
@@ -48,18 +49,23 @@ export function GroupPanel({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
 
   return (
-    <div className="z-50 border border-gray-200 bg-white text-gray-900 shadow-md outline-none flex max-h-80 w-80 sm:w-96 md:w-[384px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-lg p-4 relative">
-      <div className="mb-2 flex items-center justify-between gap-2 text-[13px]">
+    <section
+      className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex max-h-80 w-80 sm:w-96 md:w-[384px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-lg p-4 relative ${uiPanelTextFontClass}`}
+      aria-label="Group Panel"
+    >
+      <div className={`mb-2 flex items-center justify-between gap-2 ${uiPanelKeyValueTextSizeClass}`}>
         <div className="font-medium">{panelTitle}</div>
         <button type="button" className={secondaryButtonClassName} onClick={onClose}>
           {UI_LABELS.close}
         </button>
       </div>
       <div className="flex flex-1 flex-col gap-3 overflow-auto pt-2 pb-4">
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <div className="text-gray-700">{UI_COPY.graphDataTableGroupRowsByLabel}</div>
+        <div className={`flex items-center justify-between gap-2 ${uiPanelKeyValueTextSizeClass}`}>
+          <div className={UI_THEME_TOKENS.text.secondary}>{UI_COPY.graphDataTableGroupRowsByLabel}</div>
           <button
             type="button"
             className={`${secondaryButtonClassName} inline-flex items-center gap-1`}
@@ -74,7 +80,7 @@ export function GroupPanel({
           <button
             type="button"
             className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
-              groupKey === '' ? uiDataTableToggleActiveClassName : 'border-gray-200 bg-white'
+              groupKey === '' ? uiDataTableToggleActiveClassName : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text}`
             }`}
             onClick={() => setGroupKey('')}
           >
@@ -85,7 +91,7 @@ export function GroupPanel({
               key={option.value}
               type="button"
               className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
-                groupKey === option.value ? uiDataTableToggleActiveClassName : 'border-gray-200 bg-white'
+                groupKey === option.value ? uiDataTableToggleActiveClassName : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text}`
               }`}
               onClick={() => setGroupKey(option.value)}
             >
@@ -95,41 +101,41 @@ export function GroupPanel({
             </button>
           ))}
         </div>
-        <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3">
+        <div className={`mt-3 flex flex-col gap-2 border-t ${UI_THEME_TOKENS.panel.divider} pt-3`}>
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs text-gray-700">{UI_COPY.graphDataTableAggregateNumericFieldsLabel}</div>
+            <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.graphDataTableAggregateNumericFieldsLabel}</div>
             <div className="flex items-center gap-2">
-              <label className="inline-flex items-center gap-1 text-xs text-gray-600">
+              <label className={`inline-flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
-                  className="h-3 w-3 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
                   checked={includeMixedNumericFields}
                   onChange={event => setIncludeMixedNumericFields(event.target.checked)}
                 />
                 <span>Include mixed</span>
               </label>
-              <label className="inline-flex items-center gap-1 text-xs text-gray-600">
+              <label className={`inline-flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
-                  className="h-3 w-3 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
                   checked={includeIdAsNumeric}
                   onChange={event => setIncludeIdAsNumeric(event.target.checked)}
                 />
                 <span>Treat ID as numeric</span>
               </label>
-              <label className="inline-flex items-center gap-1 text-xs text-gray-600">
+              <label className={`inline-flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
-                  className="h-3 w-3 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
                   checked={includeSourceAsNumeric}
                   onChange={event => setIncludeSourceAsNumeric(event.target.checked)}
                 />
                 <span>Treat Source as numeric</span>
               </label>
-              <label className="inline-flex items-center gap-1 text-xs text-gray-600">
+              <label className={`inline-flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
-                  className="h-3 w-3 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
                   checked={includeTargetAsNumeric}
                   onChange={event => setIncludeTargetAsNumeric(event.target.checked)}
                 />
@@ -146,7 +152,7 @@ export function GroupPanel({
                   key={key}
                   type="button"
                   className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
-                    isActive ? uiDataTableToggleActiveClassName : 'border-gray-200 bg-white'
+                    isActive ? uiDataTableToggleActiveClassName : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text}`
                   }`}
                   onClick={() => {
                     if (isActive) {
@@ -163,6 +169,6 @@ export function GroupPanel({
           </div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

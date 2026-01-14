@@ -2,8 +2,10 @@ import * as d3 from 'd3'
 import type { MutableRefObject, RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { createZoom, buildSimulation, deriveTidyTreeDerivation } from '@/components/GraphCanvas/utils'
-import { computeTidyTreeCollapseHiddenNodes } from '@/components/GraphCanvas/tidyTreeLabelLod'
+import { createZoom, buildSimulation } from '@/components/GraphCanvas/utils'
+import { centerAllTransform } from '@/components/GraphCanvas/fit'
+import { deriveTreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
+import { computeTreeCollapseHiddenNodes } from '@/components/GraphCanvas/treeLabelLod'
 import { buildNodeGroupsFromSchema, createGraphLayersLayer } from '@/components/GraphCanvas/graphLayers'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
@@ -29,6 +31,7 @@ type SetupGraphSceneArgs = {
   mediaPanelDensity: 'default' | 'compact'
   initialZoomTransform?: { k: number; x: number; y: number } | null
   layoutPositionsForMode?: Record<string, { x: number; y: number }> | null
+  prevPositions?: Record<string, { x: number; y: number }> | null
   skipInitialLayout?: boolean
   gRef: MutableRefObject<GSelection | null>
   nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
@@ -72,6 +75,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     mediaPanelDensity,
     initialZoomTransform,
     layoutPositionsForMode,
+    prevPositions,
     skipInitialLayout,
     gRef,
     nodesSelRef,
@@ -139,10 +143,14 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   }
 
   const applyCachedPositions = () => {
-    if (!layoutPositionsForMode || Object.keys(layoutPositionsForMode).length === 0) return
+    const cached = layoutPositionsForMode && Object.keys(layoutPositionsForMode).length > 0 ? layoutPositionsForMode : null
+    const prev = prevPositions && Object.keys(prevPositions).length > 0 ? prevPositions : null
+    const source = cached || prev
+
+    if (!source) return
     for (let i = 0; i < graphData.nodes.length; i += 1) {
       const node = graphData.nodes[i]
-      const p = layoutPositionsForMode[String(node.id)]
+      const p = source[String(node.id)]
       if (!p) continue
       const x = typeof p.x === 'number' ? p.x : null
       const y = typeof p.y === 'number' ? p.y : null
@@ -159,11 +167,37 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   if (skipInitialLayout) {
     applyCachedPositions()
+  } else {
+    // If not skipping layout, we still want to apply prev positions as initial guess for force layout
+    // to avoid chaos when switching from tree -> force
+    applyCachedPositions()
   }
 
   const simulation = buildSimulation(graphData.nodes, edgesForSim, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
     skipInitialLayout: !!skipInitialLayout,
   })
+
+  // Fit to screen logic for clean slate
+  if (!initialZoomTransform) {
+      const isStructured = schema.layout?.mode === 'tree' || schema.layout?.mode === 'radial'
+      // If structured, positions are final. If force, they are initial/random/centered.
+      // For force, we default to centered identity.
+      // For structured, we fit to screen.
+      if (isStructured) {
+          // centerAllTransform uses current node.x/y
+          const t = centerAllTransform(graphData.nodes, width, height)
+          svg.call(zoom.transform as unknown as (
+            sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+            t: d3.ZoomTransform,
+          ) => void, t)
+      } else {
+          // Force layout: center camera (identity) which aligns with d3.forceCenter(w/2, h/2)
+          svg.call(zoom.transform as unknown as (
+            sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+            t: d3.ZoomTransform,
+          ) => void, d3.zoomIdentity)
+      }
+  }
 
   if (layoutCacheKey && typeof setLayoutPositionsForMode === 'function') {
     simulation.on('end', () => {
@@ -190,25 +224,25 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   }
 
-  if (!skipInitialLayout) {
-    applyCachedPositions()
-  }
+  // removed redundant if (!skipInitialLayout) applyCachedPositions() block
+
 
   const nodeIds = new Set<string>()
   for (let i = 0; i < graphData.nodes.length; i += 1) {
     nodeIds.add(String(graphData.nodes[i].id))
   }
-  const tidyTreeDerivation =
-    schema.layout?.mode === 'tidy-tree' ? deriveTidyTreeDerivation(edgesForSim, schema, nodeIds) : null
+
+  const treeDerivation =
+    schema.layout?.mode === 'tree' ? deriveTreeDerivation(edgesForSim, schema, nodeIds) : null
 
   const edgesForDisplayBase = (() => {
     const layersCfg = schema.layers || {}
     const layerMode = layersCfg.mode || 'property'
-    if (schema.layout?.mode !== 'tidy-tree' || !tidyTreeDerivation || !tidyTreeDerivation.candidateEdges.length) {
+    if (schema.layout?.mode !== 'tree' || !treeDerivation || !treeDerivation.candidateEdges.length) {
       return edgesForSim
     }
     if (layerMode === 'property') return edgesForSim
-    return tidyTreeDerivation.candidateEdges
+    return treeDerivation.candidateEdges
   })()
 
   const edgesForDisplayRaw = (() => {
@@ -237,29 +271,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   })()
 
-  const tidyTreeHiddenNodeIds = (() => {
-    if (schema.layout?.mode !== 'tidy-tree' || !tidyTreeDerivation) return null
-    const lod = schema.performance?.lod?.tidyTree
-    if (!lod) return null
-    const hidden = computeTidyTreeCollapseHiddenNodes({
-      nodes: graphData.nodes,
-      edgesForDisplay: edgesForDisplayRaw,
-      direction: tidyTreeDerivation.direction,
-      lod,
-    })
-    return hidden.size ? hidden : null
-  })()
-
-  const edgesForDisplay = (() => {
-    if (!tidyTreeHiddenNodeIds) return edgesForDisplayRaw
-    return edgesForDisplayRaw.filter((e) => {
-      const src = String(e.source ?? '')
-      const tgt = String(e.target ?? '')
-      if (!src || !tgt) return false
-      if (tidyTreeHiddenNodeIds.has(src) || tidyTreeHiddenNodeIds.has(tgt)) return false
-      return true
-    })
-  })()
+  const edgesForDisplay = edgesForDisplayRaw
 
   const linkSel = createLinksLayer({
     g,
@@ -273,18 +285,13 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
   linksSelRef.current = linkSel
 
-  const graphDataForDisplay = (() => {
-    if (!tidyTreeHiddenNodeIds) return graphData
-    const nodes = graphData.nodes.filter(n => !tidyTreeHiddenNodeIds.has(String(n.id)))
-    return nodes.length === graphData.nodes.length ? graphData : { ...graphData, nodes }
-  })()
+  const graphDataForDisplay = graphData
 
   const { nodeSel, mediaSel } = createNodesLayer({
     g,
     graphData: graphDataForDisplay,
     edgesForDisplay,
     schema,
-    tidyTreeDerivation,
     hoverEnabled,
     renderMediaAsNodes,
     mediaPanelDensity,
@@ -313,7 +320,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     graphData: graphDataForDisplay,
     schema,
     edgesForDisplay,
-    tidyTreeDerivation,
     labelsSelRef,
     renderMediaAsNodes,
     graphLayersVisible,
@@ -349,14 +355,30 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       nodeGroups,
       nodes: graphData.nodes,
       schema,
-      tidyTreeDerivation,
+      treeDerivation,
       width,
       height,
     })
   }
 
-  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tidy-tree') {
+  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tree') {
     simulation.stop()
+    if (layoutCacheKey && typeof setLayoutPositionsForMode === 'function') {
+      const positions: Record<string, { x: number; y: number }> = {}
+      for (let i = 0; i < graphData.nodes.length; i += 1) {
+        const node = graphData.nodes[i]
+        const id = String(node.id)
+        if (!id) continue
+        const x = typeof node.x === 'number' ? node.x : null
+        const y = typeof node.y === 'number' ? node.y : null
+        if (x == null || y == null) continue
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        positions[id] = { x, y }
+      }
+      if (Object.keys(positions).length > 0) {
+        setLayoutPositionsForMode(layoutCacheKey, positions)
+      }
+    }
   }
 
   setLifecycleStageRendering()

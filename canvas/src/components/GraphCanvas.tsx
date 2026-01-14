@@ -24,7 +24,7 @@ import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelecti
 export default function GraphCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'tidy-tree'>(null);
+  const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'tree'>(null);
   const lastLayerModeRef = useRef<null | string>(null);
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
   const nodesSelRef = useRef<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>(null);
@@ -278,7 +278,7 @@ export default function GraphCanvas() {
       const prevLayerMode = lastLayerModeRef.current
       const isModeChange = prevMode !== mode
       const isLayerChange = prevLayerMode !== layerMode
-      const isStructuredMode = mode === 'radial' || mode === 'tidy-tree'
+      const isStructuredMode = mode === 'radial' || mode === 'tree'
       const nodes = Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes : []
       const coverageFromNodes = (() => {
         if (!isStructuredMode) return 0
@@ -324,6 +324,16 @@ export default function GraphCanvas() {
       const skipInitialLayout =
         isStructuredMode &&
         (shouldUseCache || (!isModeChange && !isLayerChange && coverageFromNodes >= 0.95))
+      
+      const prevPositions: Record<string, { x: number; y: number }> = {}
+      if (nodesSelRef.current) {
+        nodesSelRef.current.each((d: GraphNode) => {
+          if (d.id && typeof d.x === 'number' && typeof d.y === 'number' && Number.isFinite(d.x) && Number.isFinite(d.y)) {
+            prevPositions[String(d.id)] = { x: d.x, y: d.y }
+          }
+        })
+      }
+
       lastLayoutModeRef.current = mode
       lastLayerModeRef.current = layerMode
       cleanupScene = setupGraphScene({
@@ -341,6 +351,7 @@ export default function GraphCanvas() {
         mediaPanelDensity,
         initialZoomTransform,
         layoutPositionsForMode,
+        prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
         skipInitialLayout,
         gRef,
         nodesSelRef,

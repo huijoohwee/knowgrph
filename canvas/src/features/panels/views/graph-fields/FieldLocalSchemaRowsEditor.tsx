@@ -41,22 +41,23 @@ export default function FieldLocalSchemaRowsEditor({
   enumCandidatesByKey,
 }: FieldLocalSchemaRowsEditorProps) {
   return (
-    <div className="rounded border border-gray-200 bg-white">
-      <KeyTypeValueRow
-        keyNode={
-          <span className="font-semibold text-gray-600">
-            {localSchemaFacet === 'localRules' ? 'Rule' : 'Key'}
-          </span>
-        }
-        valueNode={
-          <span className="font-semibold text-gray-600">
-            {localSchemaFacet === 'localRules' ? 'Rule JSON' : 'Value JSON'}
-          </span>
-        }
-        density="compact"
-        layout="keyValue"
-        className="px-2 border-b border-gray-200"
-      />
+    <section className="rounded border border-gray-200 bg-white" aria-label="Schema Rows Editor">
+      <header className="px-2 border-b border-gray-200">
+        <KeyTypeValueRow
+          keyNode={
+            <span className="font-semibold text-gray-600">
+              {localSchemaFacet === 'localRules' ? 'Rule' : 'Key'}
+            </span>
+          }
+          valueNode={
+            <span className="font-semibold text-gray-600">
+              {localSchemaFacet === 'localRules' ? 'Rule JSON' : 'Value JSON'}
+            </span>
+          }
+          density="compact"
+          layout="keyValue"
+        />
+      </header>
       <div className="max-h-72 overflow-auto">
         {localSchemaRows.map((row, index) => {
           const trimmedKey = String(row.key || '').trim()
@@ -349,7 +350,7 @@ export default function FieldLocalSchemaRowsEditor({
           {localSchemaFacet === 'localRules' ? 'Add rule' : 'Add key'}
         </button>
       </div>
-    </div>
+    </section>
   )
 }
 

@@ -139,7 +139,7 @@ export function MermaidFocusPanel() {
     const raw = baseCode
     if (!raw) return ''
     const mode = schema?.layout?.mode || 'force'
-    if (mode !== 'tidy-tree') return raw
+    if (mode !== 'tree') return raw
     if (!selectedSubgraphName) return raw
     return extractMermaidSubgraphCode(raw, selectedSubgraphName)
   }, [baseCode, schema, selectedSubgraphName])

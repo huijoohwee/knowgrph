@@ -4,6 +4,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type JsonEditorProps = {
   value: string
@@ -106,7 +107,9 @@ export default function JsonEditor({
         wordWrap
         className={[
           'w-full h-full border rounded',
-          ok ? 'border-gray-300' : 'border-red-400',
+          ok ? UI_THEME_TOKENS.input.border : 'border-red-400 dark:border-red-600',
+          UI_THEME_TOKENS.input.bg,
+          UI_THEME_TOKENS.input.text,
           uiPanelMonospaceTextClass,
         ].join(' ')}
       />

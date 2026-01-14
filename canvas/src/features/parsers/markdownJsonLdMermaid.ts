@@ -5,7 +5,7 @@ export const mermaidDensityConfig = {
   defaultDiagram: { sparse: 1.3, medium: 1.6, dense: 1.9 },
 }
 
-export const computeMermaidTidyTreeSeparation = (
+export const computeMermaidTreeSeparation = (
   code: string,
   anchorsOnly: boolean,
 ): { separation: number; statementCount: number; density: 'none' | 'sparse' | 'medium' | 'dense' } => {

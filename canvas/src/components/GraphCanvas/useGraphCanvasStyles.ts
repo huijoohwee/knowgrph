@@ -26,9 +26,9 @@ export function useGraphCanvasStyles({
     const isDark = themeMode === 'dark' || (themeMode === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const colors = isDark ? UI_THEME_COLORS.dark : UI_THEME_COLORS.light;
 
-    const isTidyTree = schema.layout?.mode === 'tidy-tree';
-    const tidyCfg = schema.layout?.tidyTree || {};
-    const tidyColorMode = tidyCfg.colorMode === 'schema' ? 'schema' : 'observable';
+    const isTree = schema.layout?.mode === 'tree';
+    const treeCfg = schema.layout?.tree || {};
+    const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
 
     if (nodesSelRef.current) {
       nodesSelRef.current.each(function (d: GraphNode) {
@@ -45,38 +45,38 @@ export function useGraphCanvasStyles({
             .attr('height', radius * 2);
         }
       });
-      if (isTidyTree && tidyColorMode === 'observable') {
+      if (isTree && treeColorMode === 'observable') {
         nodesSelRef.current.attr('stroke', 'none').attr('stroke-width', 0);
       } else {
         nodesSelRef.current
-          .attr('stroke', (d: GraphNode) => (schema.nodeStroke?.[d.type]?.color ?? (isTidyTree ? 'none' : colors.nodeStroke)))
-          .attr('stroke-width', (d: GraphNode) => (schema.nodeStroke?.[d.type]?.width ?? (isTidyTree ? 0 : 1.5)));
+          .attr('stroke', (d: GraphNode) => (schema.nodeStroke?.[d.type]?.color ?? (isTree ? 'none' : colors.nodeStroke)))
+          .attr('stroke-width', (d: GraphNode) => (schema.nodeStroke?.[d.type]?.width ?? (isTree ? 0 : 1.5)));
       }
     }
 
     if (linksSelRef.current) {
       linksSelRef.current.attr('stroke', (d: GraphEdge) => {
-        if (isTidyTree) {
-          const override = typeof tidyCfg.linkStroke === 'string' ? tidyCfg.linkStroke.trim() : '';
+        if (isTree) {
+          const override = typeof treeCfg.linkStroke === 'string' ? treeCfg.linkStroke.trim() : '';
           if (override) return override;
           return getEdgeBaseStroke(d, schema) || colors.edgeStroke;
         }
         return getEdgeBaseStroke(d, schema) || colors.edgeStroke;
       });
       linksSelRef.current.attr('stroke-opacity', () => {
-        if (!isTidyTree) return 0.6;
-        const raw = tidyCfg.linkOpacity;
+        if (!isTree) return 0.6;
+        const raw = treeCfg.linkOpacity;
         if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
         return 0.4;
       });
       linksSelRef.current.attr('stroke-width', (d: GraphEdge) => {
-        if (isTidyTree) {
-          const raw = tidyCfg.linkWidth;
+        if (isTree) {
+          const raw = treeCfg.linkWidth;
           if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
         }
         return getEdgeStrokeWidth(d as EdgeWithRuntime, schema);
       });
-      if (schema.layout?.mode === 'tidy-tree') {
+      if (schema.layout?.mode === 'tree') {
         linksSelRef.current.attr('marker-end', null);
       } else {
         linksSelRef.current.attr(
@@ -88,8 +88,8 @@ export function useGraphCanvasStyles({
 
     if (labelsSelRef.current) {
       const labelFontSize = (() => {
-        if (!isTidyTree) return schema.labelStyles?.fontSize ?? 12;
-        const raw = tidyCfg.labelFontSize;
+        if (!isTree) return schema.labelStyles?.fontSize ?? 12;
+        const raw = treeCfg.labelFontSize;
         if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
         const fromLabelStyles = schema.labelStyles?.fontSize;
         if (typeof fromLabelStyles === 'number' && Number.isFinite(fromLabelStyles) && fromLabelStyles > 0) return fromLabelStyles;
@@ -100,12 +100,12 @@ export function useGraphCanvasStyles({
       const haloWidth =
         typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3;
       const labelFill = (() => {
-        if (!isTidyTree || tidyColorMode === 'schema') return schema.labelStyles?.color ?? colors.labelFill;
-        const override = typeof tidyCfg.linkStroke === 'string' ? tidyCfg.linkStroke.trim() : '';
+        if (!isTree || treeColorMode === 'schema') return schema.labelStyles?.color ?? colors.labelFill;
+        const override = typeof treeCfg.linkStroke === 'string' ? treeCfg.linkStroke.trim() : '';
         return override || colors.textSecondary;
       })();
       labelsSelRef.current.attr('font-size', labelFontSize).attr('fill', labelFill);
-      if (isTidyTree && tidyColorMode === 'observable') {
+      if (isTree && treeColorMode === 'observable') {
         labelsSelRef.current
           .attr('paint-order', 'stroke')
           .attr('stroke', haloColor)
@@ -114,12 +114,12 @@ export function useGraphCanvasStyles({
       } else {
         labelsSelRef.current.attr('paint-order', null).attr('stroke', null).attr('stroke-width', null).attr('stroke-linejoin', null);
       }
-      if (!isTidyTree) {
+      if (!isTree) {
         labelsSelRef.current
           .attr('dx', (schema.labelStyles?.offset?.dx ?? 12))
           .attr('dy', (schema.labelStyles?.offset?.dy ?? 4));
       } else {
-        const visibleMode = schema.performance?.lod?.tidyTree?.labelMode ?? 'auto';
+        const visibleMode = schema.performance?.lod?.tree?.labelMode ?? 'auto';
         if (visibleMode === 'none') {
           labelsSelRef.current.attr('opacity', 0).attr('pointer-events', 'none');
         } else {

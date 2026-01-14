@@ -5,7 +5,8 @@ import { buildMarkdownTokensKey, lexMarkdown, type TokenWithLines } from '@/feat
 export function useMarkdownPreviewTokens(
   markdownText: string,
   providedTokens: TokenWithLines[] | undefined,
-  activeDocumentPath: string
+  activeDocumentPath: string,
+  shouldUpdateStore: boolean = true
 ) {
   const storedTokens = useGraphStore(s => s.markdownTokens)
   const storedTokensPath = useGraphStore(s => s.markdownTokensPath)
@@ -28,10 +29,11 @@ export function useMarkdownPreviewTokens(
   }, [markdownText, providedTokens, storedTokens, storedTokensKey, currentTokensKey])
 
   React.useEffect(() => {
+    if (!shouldUpdateStore) return
     if (!providedTokens && tokens && (tokens !== storedTokens || storedTokensKey !== currentTokensKey || storedTokensPath !== activeDocumentPath)) {
       setMarkdownTokens(tokens, activeDocumentPath, currentTokensKey)
     }
-  }, [tokens, storedTokens, storedTokensKey, currentTokensKey, storedTokensPath, activeDocumentPath, providedTokens, setMarkdownTokens])
+  }, [tokens, storedTokens, storedTokensKey, currentTokensKey, storedTokensPath, activeDocumentPath, providedTokens, setMarkdownTokens, shouldUpdateStore])
 
   return tokens
 }

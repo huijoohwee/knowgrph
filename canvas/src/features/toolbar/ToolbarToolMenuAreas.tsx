@@ -5,6 +5,7 @@ import { TOOL_MENU_ACTION_LABELS, TOOL_MENU_AREAS } from '@/features/toolbar/too
 import { TOOLBAR_AREA_RENDERERS, type ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
   const {
@@ -46,10 +47,10 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
   }, [normalizedSearchQuery])
   return (
     <>
-      <div className="flex items-center justify-between gap-1 px-0.5 pb-1 border-b border-gray-100">
+      <div className={`flex items-center justify-between gap-1 px-0.5 pb-1 border-b ${UI_THEME_TOKENS.panel.divider}`}>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 disabled:opacity-50 inline-flex items-center gap-1`}
+          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-50 inline-flex items-center justify-center gap-1.5 h-7 px-2 rounded transition-colors`}
           onClick={onOpenData}
           disabled={dataLoadOk !== true}
         >
@@ -58,7 +59,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 inline-flex items-center gap-1`}
+          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} inline-flex items-center justify-center gap-1.5 h-7 px-2 rounded transition-colors`}
           onClick={onRunPipeline}
         >
           <PlayCircle className={iconSizeClass} aria-hidden="true" />
@@ -67,7 +68,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
         {onRunDemo && (
           <button
             type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 inline-flex items-center gap-1`}
+            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} inline-flex items-center justify-center gap-1.5 h-7 px-2 rounded transition-colors`}
             onClick={onRunDemo}
           >
             <MonitorPlay className={iconSizeClass} aria-hidden="true" />
@@ -78,16 +79,16 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
       {visibleAreas.map(area => (
         <div
           key={area.key}
-          className="flex flex-col gap-1 px-0.5 py-1 border-b border-gray-100 last:border-b-0"
+          className={`flex flex-col gap-1 px-0.5 py-1 border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`}
         >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1 min-w-0">
-              <div className="text-xs font-medium text-gray-800 truncate">
+              <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary} truncate`}>
                 {area.description ? (
                   <Tooltip
                     content={area.description}
                     maxWidthPx={280}
-                    contentClassName="bg-gray-800/90"
+                    contentClassName={UI_THEME_TOKENS.tooltip.bg}
                   >
                     <span>{area.label}</span>
                   </Tooltip>

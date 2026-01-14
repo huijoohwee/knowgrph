@@ -29,34 +29,34 @@ export const createLinksLayer = (args: {
     selectNode,
     selectEdge,
   } = args;
-  const isTidyTree = schema.layout?.mode === 'tidy-tree';
-  const tidyCfg = schema.layout?.tidyTree || {};
-  const tidyColorMode = tidyCfg.colorMode === 'schema' ? 'schema' : 'observable';
+  const isTree = schema.layout?.mode === 'tree';
+  const treeCfg = schema.layout?.tree || {};
+  const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
   const linkRoot = g.append('g').attr('data-kg-layer', 'links');
-  const link = isTidyTree
+  const link = isTree
     ? linkRoot.selectAll<SVGPathElement, GraphEdge>('path').data(edgesForDisplay).enter().append('path').attr('fill', 'none')
     : linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edgesForDisplay).enter().append('line');
   (link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
     .attr('stroke', (d: GraphEdge) => {
-      if (isTidyTree) {
-        const override = typeof tidyCfg.linkStroke === 'string' ? tidyCfg.linkStroke.trim() : '';
+      if (isTree) {
+        const override = typeof treeCfg.linkStroke === 'string' ? treeCfg.linkStroke.trim() : '';
         if (override) return override;
-        if (tidyColorMode === 'observable') return '#555';
+        if (treeColorMode === 'observable') return '#555';
         return getEdgeBaseStroke(d, schema);
       }
       return getEdgeBaseStroke(d, schema);
     })
     .attr('stroke-opacity', () => {
-      if (!isTidyTree) return 0.6;
-      const raw = tidyCfg.linkOpacity;
+      if (!isTree) return 0.6;
+      const raw = treeCfg.linkOpacity;
       if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
       return 0.4;
     })
     .attr('stroke-width', (d: GraphEdge) => {
-      if (!isTidyTree) return getEdgeStrokeWidth(d, schema);
-      const raw = tidyCfg.linkWidth;
+      if (!isTree) return getEdgeStrokeWidth(d, schema);
+      const raw = treeCfg.linkWidth;
       if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
-      if (tidyColorMode === 'observable') return 1.5;
+      if (treeColorMode === 'observable') return 1.5;
       return getEdgeStrokeWidth(d, schema);
     })
     .style('cursor', 'pointer')
@@ -95,7 +95,7 @@ export const createLinksLayer = (args: {
       selectEdge(d.id);
       emitPropsPanelOpen({ clientX: event.clientX, clientY: event.clientY });
     });
-  if (!isTidyTree) {
+  if (!isTree) {
     (link as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>).attr(
       'marker-end',
       (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow ? 'url(#arrowhead)' : null),

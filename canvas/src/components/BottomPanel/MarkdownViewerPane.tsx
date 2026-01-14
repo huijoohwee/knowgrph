@@ -6,6 +6,7 @@ import MarkdownPreview, {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import type { MarkdownSelectionInfo } from './BottomPanelMarkdownSectionModel'
+import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 
 type MarkdownViewerPaneProps = {
   viewerRef: React.RefObject<HTMLDivElement>
@@ -29,6 +30,7 @@ type MarkdownViewerPaneProps = {
   isMarkdownPreviewTruncated: boolean
   uiPanelKeyValueTextSizeClass: string
   flashLine?: number | null
+  tokens?: TokenWithLines[]
 }
 
 export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
@@ -54,6 +56,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
     isMarkdownPreviewTruncated,
     uiPanelKeyValueTextSizeClass,
     flashLine,
+    tokens,
   } = props
 
   return (
@@ -93,6 +96,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
           onShowInSlidesGallery={onShowInSlidesGallery}
           onShowInEditor={onShowInEditor}
           flashLine={flashLine}
+          tokens={tokens}
         />
       </div>
     </section>

@@ -1,9 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import {
-  buildMarkdownTokensKey,
-  lexMarkdown,
-} from '@/features/markdown/ui/markdownPreviewLex'
+import { useMarkdownPreviewTokens } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import {
   reorderMarkdownHeadings,
   buildTocTree,
@@ -52,7 +49,6 @@ export function useBottomPanelMarkdownLogic(props: UseBottomPanelMarkdownLogicPr
     markdownText,
     markdownPreviewText,
     markdownDocumentName,
-    markdownDocumentText,
     previewBasePath,
     markdownLayoutMode,
     setMarkdownLayoutMode,
@@ -84,10 +80,6 @@ export function useBottomPanelMarkdownLogic(props: UseBottomPanelMarkdownLogicPr
 
   const setMarkdownPreviewMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const setMarkdownPreviewActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
-  const markdownTokens = useGraphStore(s => s.markdownTokens)
-  const markdownTokensPath = useGraphStore(s => s.markdownTokensPath)
-  const markdownTokensKey = useGraphStore(s => s.markdownTokensKey)
-  const setMarkdownTokens = useGraphStore(s => s.setMarkdownTokens)
 
   // --- Flash Effect Logic ---
   React.useEffect(() => {
@@ -222,50 +214,7 @@ export function useBottomPanelMarkdownLogic(props: UseBottomPanelMarkdownLogicPr
   }, [])
 
   // --- Lexing Logic ---
-  const currentTokensKey = React.useMemo(
-    () => buildMarkdownTokensKey(markdownPreviewText || ''),
-    [markdownPreviewText],
-  )
-
-  const tokens = React.useMemo(() => {
-    if (
-      markdownTokens &&
-      markdownTokensKey === currentTokensKey &&
-      markdownDocumentText === markdownPreviewText
-    ) {
-      return markdownTokens
-    }
-    const { tokens } = lexMarkdown(markdownPreviewText || '')
-    return tokens
-  }, [
-    markdownPreviewText,
-    markdownTokens,
-    markdownTokensKey,
-    currentTokensKey,
-    markdownDocumentText,
-  ])
-
-  React.useEffect(() => {
-    if (!tokens) return
-    if (markdownDocumentText !== markdownPreviewText) return
-    if (
-      tokens !== markdownTokens ||
-      markdownTokensKey !== currentTokensKey ||
-      markdownTokensPath !== previewBasePath
-    ) {
-      setMarkdownTokens(tokens, previewBasePath, currentTokensKey)
-    }
-  }, [
-    tokens,
-    markdownTokens,
-    markdownTokensPath,
-    markdownTokensKey,
-    currentTokensKey,
-    markdownDocumentText,
-    markdownPreviewText,
-    previewBasePath,
-    setMarkdownTokens,
-  ])
+  const tokens = useMarkdownPreviewTokens(markdownPreviewText || '', undefined, previewBasePath)
 
   const rootItems = React.useMemo(() => buildTocTree(tokens), [tokens])
 

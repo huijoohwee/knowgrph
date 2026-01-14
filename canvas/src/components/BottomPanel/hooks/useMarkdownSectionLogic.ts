@@ -1,7 +1,7 @@
 import React from 'react'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
 import { parseMermaidConfigFromFrontmatter } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
-import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { useMarkdownPreviewTokens } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import { slugify } from '@/features/parsers/markdownJsonLd'
 import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -66,11 +66,7 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const graphData = useGraphStore(s => s.graphData)
   const selectionSource = useGraphStore(s => s.selectionSource)
-  const markdownTokens = useGraphStore(s => s.markdownTokens)
-  const markdownTokensPath = useGraphStore(s => s.markdownTokensPath)
-  const markdownTokensKey = useGraphStore(s => s.markdownTokensKey)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
-  const setMarkdownTokens = useGraphStore(s => s.setMarkdownTokens)
 
   const handleShowOnCanvas = React.useCallback(
     (startLine: number, endLine: number) => {
@@ -357,26 +353,12 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
     }
   }, [])
 
-  const currentTokensKey = React.useMemo(
-    () => buildMarkdownTokensKey(markdownPreviewText || ''),
-    [markdownPreviewText],
+  const tokens = useMarkdownPreviewTokens(
+    markdownPreviewText || '',
+    undefined,
+    previewBasePath,
+    markdownDocumentText === markdownPreviewText,
   )
-
-  const tokens = React.useMemo(() => {
-    if (markdownTokens && markdownTokensKey === currentTokensKey && markdownDocumentText === markdownPreviewText) {
-      return markdownTokens
-    }
-    const { tokens } = lexMarkdown(markdownPreviewText || '')
-    return tokens
-  }, [markdownPreviewText, markdownTokens, markdownTokensKey, currentTokensKey, markdownDocumentText])
-
-  React.useEffect(() => {
-    if (!tokens) return
-    if (markdownDocumentText !== markdownPreviewText) return
-    if (tokens !== markdownTokens || markdownTokensKey !== currentTokensKey || markdownTokensPath !== previewBasePath) {
-      setMarkdownTokens(tokens, previewBasePath, currentTokensKey)
-    }
-  }, [tokens, markdownTokens, markdownTokensPath, markdownTokensKey, currentTokensKey, markdownDocumentText, markdownPreviewText, previewBasePath, setMarkdownTokens])
 
   const handleToggleCollapse = React.useCallback((id: string) => {
     setCollapsedIds(prev => {

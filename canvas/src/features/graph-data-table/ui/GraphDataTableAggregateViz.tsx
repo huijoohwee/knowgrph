@@ -1,6 +1,7 @@
 import React from 'react'
 import * as d3 from 'd3'
 import type { GraphDataTableAggregateNumericSummary } from '@/features/graph-data-table/graphDataTable'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface AggregateRowVisualizationProps {
   numericSummaries: GraphDataTableAggregateNumericSummary[]
@@ -82,7 +83,7 @@ export function AggregateRowVisualization({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       aria-hidden="true"
-      className={isHighlighted ? 'text-blue-400' : 'text-gray-300'}
+      className={isHighlighted ? UI_THEME_TOKENS.icon.active : UI_THEME_TOKENS.text.tertiary}
     >
       <path d={pathData} fill="none" stroke="currentColor" strokeWidth={isHighlighted ? 1.5 : 1} />
     </svg>
@@ -127,7 +128,7 @@ export function AggregateRowBarVisualization({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       aria-hidden="true"
-      className={isHighlighted ? 'text-blue-400' : 'text-gray-300'}
+      className={isHighlighted ? UI_THEME_TOKENS.icon.active : UI_THEME_TOKENS.text.tertiary}
     >
       {bars.map((bar, index) => (
         <rect
@@ -183,10 +184,9 @@ export function AggregateRowSparklineVisualization({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       aria-hidden="true"
-      className={isHighlighted ? 'text-blue-400' : 'text-gray-300'}
+      className={isHighlighted ? UI_THEME_TOKENS.icon.active : UI_THEME_TOKENS.text.tertiary}
     >
       <path d={pathData} fill="none" stroke="currentColor" strokeWidth={isHighlighted ? 1.5 : 1} />
     </svg>
   )
 }
-

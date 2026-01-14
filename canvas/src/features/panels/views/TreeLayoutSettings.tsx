@@ -1,15 +1,15 @@
 import React from 'react'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
-import type { RenderTidyTreeSettingsRowsProps } from './RenderTidyTreeSettingsRowsTypes'
+import type { RenderTreeSettingsRowsProps } from './RenderTreeSettingsRowsTypes'
 
 type Props = Pick<
-  RenderTidyTreeSettingsRowsProps,
-  'tidyTreeCfg' | 'updateTidyTree' | 'uiPanelKeyValueInputClass' | 'uiPanelMonospaceTextClass'
+  RenderTreeSettingsRowsProps,
+  'treeCfg' | 'updateTree' | 'uiPanelKeyValueInputClass' | 'uiPanelMonospaceTextClass'
 >
 
-export const TidyTreeLayoutSettings = React.memo(function TidyTreeLayoutSettings({
-  tidyTreeCfg,
-  updateTidyTree,
+export const TreeLayoutSettings = React.memo(function TreeLayoutSettings({
+  treeCfg,
+  updateTree,
   uiPanelKeyValueInputClass,
   uiPanelMonospaceTextClass,
 }: Props) {
@@ -18,20 +18,20 @@ export const TidyTreeLayoutSettings = React.memo(function TidyTreeLayoutSettings
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.direction</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.direction</span>}
         valueNode={(
           <RightAlignedValueCell>
             <select
               className={uiPanelKeyValueInputClass}
               value={
-                tidyTreeCfg.direction === 'target-source' || tidyTreeCfg.direction === 'source-target'
-                  ? tidyTreeCfg.direction
+                treeCfg.direction === 'target-source' || treeCfg.direction === 'source-target'
+                  ? treeCfg.direction
                   : 'auto'
               }
               onChange={e => {
                 const raw = e.target.value
                 const next = raw === 'source-target' || raw === 'target-source' ? raw : 'auto'
-                updateTidyTree({ direction: next })
+                updateTree({ direction: next })
               }}
             >
               <option value="auto">auto (infer parent→child)</option>
@@ -44,15 +44,15 @@ export const TidyTreeLayoutSettings = React.memo(function TidyTreeLayoutSettings
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.orientation</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.orientation</span>}
         valueNode={(
           <RightAlignedValueCell>
             <select
               className={uiPanelKeyValueInputClass}
-              value={tidyTreeCfg.orientation === 'vertical' ? 'vertical' : 'horizontal'}
+              value={treeCfg.orientation === 'vertical' ? 'vertical' : 'horizontal'}
               onChange={e => {
                 const raw = e.target.value
-                updateTidyTree({ orientation: raw === 'horizontal' ? 'horizontal' : 'vertical' })
+                updateTree({ orientation: raw === 'horizontal' ? 'horizontal' : 'vertical' })
               }}
             >
               <option value="horizontal">left-to-right</option>
@@ -64,7 +64,7 @@ export const TidyTreeLayoutSettings = React.memo(function TidyTreeLayoutSettings
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.separation</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.separation</span>}
         valueNode={(
           <RightAlignedValueCell>
             <input
@@ -72,11 +72,11 @@ export const TidyTreeLayoutSettings = React.memo(function TidyTreeLayoutSettings
               step={0.1}
               min={0.25}
               className={uiPanelKeyValueInputClass}
-              value={tidyTreeCfg.separation ?? 1}
+              value={treeCfg.separation ?? 1}
               onChange={e => {
                 const raw = parseFloat(e.target.value || '1')
                 const next = Number.isFinite(raw) ? Math.max(0.25, raw) : 1
-                updateTidyTree({ separation: next })
+                updateTree({ separation: next })
               }}
             />
           </RightAlignedValueCell>
@@ -85,20 +85,20 @@ export const TidyTreeLayoutSettings = React.memo(function TidyTreeLayoutSettings
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.sortBy</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.sortBy</span>}
         valueNode={(
           <RightAlignedValueCell>
             <select
               className={uiPanelKeyValueInputClass}
               value={
-                tidyTreeCfg.sortBy === 'none' || tidyTreeCfg.sortBy === 'id' || tidyTreeCfg.sortBy === 'type'
-                  ? tidyTreeCfg.sortBy
+                treeCfg.sortBy === 'none' || treeCfg.sortBy === 'id' || treeCfg.sortBy === 'type'
+                  ? treeCfg.sortBy
                   : 'label'
               }
               onChange={e => {
                 const raw = e.target.value
                 const next = raw === 'none' || raw === 'id' || raw === 'type' || raw === 'label' ? raw : 'label'
-                updateTidyTree({ sortBy: next })
+                updateTree({ sortBy: next })
               }}
             >
               <option value="label">label</option>
@@ -112,18 +112,18 @@ export const TidyTreeLayoutSettings = React.memo(function TidyTreeLayoutSettings
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.curve</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.curve</span>}
         valueNode={(
           <RightAlignedValueCell>
             <select
               className={uiPanelKeyValueInputClass}
               value={
-                tidyTreeCfg.curve === 'linear' || tidyTreeCfg.curve === 'step' ? tidyTreeCfg.curve : 'bump'
+                treeCfg.curve === 'linear' || treeCfg.curve === 'step' ? treeCfg.curve : 'bump'
               }
               onChange={e => {
                 const raw = e.target.value
                 const next = raw === 'linear' || raw === 'step' || raw === 'bump' ? raw : 'bump'
-                updateTidyTree({ curve: next })
+                updateTree({ curve: next })
               }}
             >
               <option value="bump">bump (curved)</option>
@@ -136,15 +136,15 @@ export const TidyTreeLayoutSettings = React.memo(function TidyTreeLayoutSettings
       <KeyTypeValueRow
         layout="keyValue"
         density="compact"
-        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tidyTree.colorMode</span>}
+        keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.tree.colorMode</span>}
         valueNode={(
           <RightAlignedValueCell>
             <select
               className={uiPanelKeyValueInputClass}
-              value={tidyTreeCfg.colorMode === 'schema' ? 'schema' : 'observable'}
+              value={treeCfg.colorMode === 'schema' ? 'schema' : 'observable'}
               onChange={e => {
                 const raw = e.target.value
-                updateTidyTree({ colorMode: raw === 'schema' ? 'schema' : 'observable' })
+                updateTree({ colorMode: raw === 'schema' ? 'schema' : 'observable' })
               }}
             >
               <option value="observable">observable</option>

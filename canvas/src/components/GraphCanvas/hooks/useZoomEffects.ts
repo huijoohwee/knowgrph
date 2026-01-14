@@ -47,7 +47,7 @@ export function useZoomEffects({
   selectedEdgeIds,
   requestZoom,
 }: UseZoomEffectsProps) {
-  const lastFitDepsRef = useRef<{ nodesCount: number; width: number; height: number } | null>(null);
+  const lastFitDepsRef = useRef<{ nodesCount: number; width: number; height: number; layoutMode?: string; layerMode?: string } | null>(null);
 
   // Effect 1: Handle fitToScreenMode
   useEffect(() => {
@@ -56,18 +56,31 @@ export function useZoomEffects({
       return;
     }
     if (!renderGraphData || !Array.isArray(renderGraphData.nodes) || renderGraphData.nodes.length === 0) return;
+    
+    const layoutMode = schema.layout?.mode || 'force';
+    const layerMode = schema.layers?.mode || 'property';
+    
     const next = {
       nodesCount: renderGraphData.nodes.length,
       width: Math.max(1, Math.floor(width)),
       height: Math.max(1, Math.floor(height)),
+      layoutMode,
+      layerMode,
     };
     const prev = lastFitDepsRef.current;
-    if (prev && prev.nodesCount === next.nodesCount && prev.width === next.width && prev.height === next.height) {
+    if (
+      prev &&
+      prev.nodesCount === next.nodesCount &&
+      prev.width === next.width &&
+      prev.height === next.height &&
+      prev.layoutMode === next.layoutMode &&
+      prev.layerMode === next.layerMode
+    ) {
       return;
     }
     lastFitDepsRef.current = next;
     requestZoom('fit');
-  }, [fitToScreenMode, renderGraphData, width, height, requestZoom]);
+  }, [fitToScreenMode, renderGraphData, width, height, requestZoom, schema.layout?.mode, schema.layers?.mode]);
 
   // Effect 2: Handle zoomRequest
   useEffect(() => {

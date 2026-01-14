@@ -480,11 +480,12 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   })
 
   return (
-    <div
-      ref={scrollContainerRef}
-      className={`relative h-full min-h-0 overflow-auto ${UI_THEME_TOKENS.panel.bg}`}
-      onScroll={handleScroll}
-    >
+    <section className="relative w-full h-full overflow-hidden select-text" aria-label="Data Table">
+      <div
+        ref={scrollContainerRef}
+        className={`w-full h-full overflow-auto ${UI_THEME_TOKENS.panel.bg} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent`}
+        onScroll={handleScroll}
+      >
       {frozenAreaDragIndicatorLeft != null && (
         <div
           className={`pointer-events-none absolute top-0 bottom-0 border-r border-blue-400/80 transition-opacity duration-150 ${
@@ -572,6 +573,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
           />
         </tbody>
       </table>
-    </div>
+      </div>
+    </section>
   )
 })

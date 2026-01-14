@@ -170,10 +170,11 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
 
   return (
     <MainPanelBody header={header} scrollRef={scrollRef}>
-      <div
+      <article
         className={
           [
-            'min-h-0 flex flex-col py-2 text-gray-600',
+            'min-h-0 flex flex-col py-2',
+            UI_THEME_TOKENS.text.secondary,
             uiPanelKeyValueTextSizeClass,
             uiPanelTextFontClass,
           ].join(' ')
@@ -190,7 +191,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
           onOpenSettingsTab={handleOpenSettingsTab}
         />
         {(import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV && (
-          <div className="mt-4 border-t border-gray-200 pt-2 space-y-3">
+          <section className={`mt-4 border-t ${UI_THEME_TOKENS.panel.border} pt-2 space-y-3`}>
             <div>
               <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
                 Dev: LS key mappings
@@ -276,9 +277,9 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                 </p>
               </div>
             </div>
-          </div>
+          </section>
         )}
-      </div>
+      </article>
     </MainPanelBody>
   );
 }

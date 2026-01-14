@@ -126,6 +126,7 @@ export function ToolbarToolMenu({
   const uiPanelMicroLabelTextSizeClass = useGraphStore(
     s => s.uiPanelMicroLabelTextSizeClass || s.uiIconBadgeChipTextSizeClass || 'text-[9px]',
   )
+  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
 
   const { sections: orchestratorSections } = useOrchestratorBottomPanelState()
   const orchestratorSectionCollapsedById = orchestratorSections.byId
@@ -299,7 +300,7 @@ export function ToolbarToolMenu({
           onPointerDown={handleFloatingPanelPointerDown}
         >
           <div className="flex items-center justify-between gap-2 w-full">
-          <div className="flex items-center gap-1 min-w-0">
+            <div className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`}>
               {viewButtons}
               {pipelineStatus && (
                 <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
@@ -325,13 +326,13 @@ export function ToolbarToolMenu({
     <div className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
       <div
         ref={toolMenuCardRef}
-        className="pointer-events-auto ModalContainer flex flex-col overflow-hidden p-0"
+        className={`pointer-events-auto ModalContainer flex flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
         style={{ ...toolMenuCardStyle, ...floatingPanelSizeStyle }}
         onPointerDown={handleFloatingPanelPointerDown}
       >
         <div className="px-2 py-1 flex flex-col gap-1 min-w-[260px] min-h-[36px] h-full">
           <div className={`flex items-center justify-between gap-2 w-full select-none ${floatingPanelPinned ? 'cursor-move' : ''}`}>
-            <div className="flex items-center gap-1 min-w-0">
+            <div className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`}>
               {viewButtons}
               {pipelineStatus && (
                 <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
@@ -371,7 +372,7 @@ export function ToolbarToolMenu({
               />
             </div>
           )}
-          <div className={`mt-1 -mx-1 px-1 pb-1 border-t ${UI_THEME_TOKENS.panel.divider} flex-1 min-h-0 overflow-y-auto overflow-x-hidden text-xs ${UI_THEME_TOKENS.text.primary}`}>
+          <div className={`mt-1 -mx-1 px-1 pb-1 border-t ${UI_THEME_TOKENS.panel.divider} flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.primary}`}>
             {floatingPanelView === 'workspaceActions' && (
               <ToolbarToolMenuAreas
                 dataLoadOk={dataLoadOk}

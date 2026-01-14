@@ -166,8 +166,11 @@ export function GraphFieldsListPanelBody({
   })
 
   return (
-    <div className={`row-span-2 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col min-h-0 min-w-0`}>
-      <div className={`h-9 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 ${UI_THEME_TOKENS.text.primary} flex items-center justify-between gap-2`}>
+    <section
+      className={`row-span-2 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden flex flex-col min-h-0 min-w-0`}
+      style={{ backgroundColor: 'var(--panel-bg)' }}
+    >
+      <header className={`h-9 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 ${UI_THEME_TOKENS.text.primary} flex items-center justify-between gap-2`}>
         <div className="flex items-center gap-2">
           <div className={uiPanelKeyValueTextSizeClass}>{UI_LABELS.graphFields}</div>
         </div>
@@ -202,11 +205,16 @@ export function GraphFieldsListPanelBody({
             <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
           </IconButton>
         </div>
-      </div>
-
-      {searchOpen ? (
-        <div className={`border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-2`}>
-          <div className={`h-8 flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} px-2`}>
+      </header>
+      {searchOpen && (
+        <div
+          className={`border-b ${UI_THEME_TOKENS.panel.border} p-2`}
+          style={{ backgroundColor: 'var(--panel-bg)' }}
+        >
+          <div
+            className={`h-8 flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border} px-2`}
+            style={{ backgroundColor: 'var(--panel-bg)' }}
+          >
             <SearchIcon
               className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}
               strokeWidth={uiIconStrokeWidth}
@@ -220,7 +228,7 @@ export function GraphFieldsListPanelBody({
             />
           </div>
         </div>
-      ) : null}
+      )}
 
       {newFieldOpen ? (
         <NewFieldForm
@@ -497,6 +505,6 @@ export function GraphFieldsListPanelBody({
           )
         })()}
       </div>
-    </div>
+    </section>
   )
 }

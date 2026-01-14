@@ -108,7 +108,7 @@ export const UI_LABELS = {
   layerMode: 'Layer Mode',
   graphLayersMode: 'Graph Layers',
   radialLayoutMode: 'Radial Layout',
-  tidyTreeLayoutMode: 'Tidy Tree Mode',
+  treeLayoutMode: 'Tree Layout',
   dragToReorder: 'Drag to reorder',
   removeOption: 'Remove option',
   fieldSettings: 'Field Settings',

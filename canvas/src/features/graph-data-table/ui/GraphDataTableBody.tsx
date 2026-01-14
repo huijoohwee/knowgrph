@@ -15,6 +15,7 @@ import type { GraphFieldSettingsResolved } from '@/features/graph-fields/graphFi
 import { FrozenAreaResizeHandle, FROZEN_DATA_COLUMN_LEFT } from './GraphDataTableHeader'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import { useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 
 interface BodyCellProps {
   columnKey: GraphDataTableColumnKey
@@ -61,15 +62,16 @@ function CellJsonEditor({
   onSave: (val: Record<string, JSONValue>) => void
 }) {
   const [text, setText] = React.useState(() => JSON.stringify(initialValue ?? {}, null, 2))
+  const themeMode = useRootThemeMode()
   
   return (
-    <div className="h-32 min-w-[300px] border border-gray-300 rounded overflow-hidden bg-white shadow-lg relative z-10">
+    <div className={`h-32 min-w-[300px] border ${UI_THEME_TOKENS.panel.border} rounded overflow-hidden ${UI_THEME_TOKENS.panel.bg} shadow-lg relative z-10`}>
       <MonacoTextEditor
         value={text}
         onChange={setText}
         language="json"
         uri={`inmemory://cell/editor/${Math.random().toString(36).slice(2)}`}
-        themeMode="light"
+        themeMode={themeMode}
         wordWrap={false}
         className="w-full h-full"
         onBlur={() => {

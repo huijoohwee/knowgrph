@@ -25,6 +25,7 @@ import BottomPanelBody from '@/components/BottomPanel/BottomPanelBody'
 import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, COLLAPSE_STORAGE_LEGACY_KEYS, DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO, PARSER_UI_EDITOR_OPEN_STORAGE_KEY } from '@/features/bottom-panel/constants'
 import { PANEL_MAX_RATIO } from '@/features/panels/config'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export default function BottomPanel() {
   const graphData = useGraphStore(s => s.graphData)
@@ -411,12 +412,12 @@ export default function BottomPanel() {
           title={UI_LABELS.dragToResize}
           aria-label="Resize bottom panel"
         >
-          <div className="pointer-events-none mx-auto h-px w-20 rounded-full bg-gray-300 transition-colors group-hover:bg-gray-400" />
+          <div className={`pointer-events-none mx-auto h-px w-20 rounded-full ${UI_THEME_TOKENS.panel.divider} transition-colors ${UI_THEME_TOKENS.button.hoverBg}`} />
         </button>
       )}
       <div
         ref={panelRef}
-        className="ModalContainer h-full flex flex-col overflow-hidden rounded-none shadow-none p-0 border-t border-gray-200 border-x-0 border-b-0"
+        className={`ModalContainer h-full flex flex-col overflow-hidden rounded-none shadow-none p-0 border-t ${UI_THEME_TOKENS.panel.border} border-x-0 border-b-0 ${UI_THEME_TOKENS.panel.bg}`}
       >
         <div ref={headerRef}>
           <BottomPanelHeader

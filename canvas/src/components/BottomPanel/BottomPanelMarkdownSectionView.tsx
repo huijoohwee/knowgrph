@@ -21,6 +21,7 @@ type JsonMarkdownMode = JsonToMarkdownMode
 type BottomPanelMarkdownSectionViewProps = {
   autoOpenHighlight: boolean
   uiPanelKeyValueTextSizeClass: string
+  uiPanelMicroLabelTextSizeClass: string
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
   isJsonBacked: boolean
@@ -74,6 +75,7 @@ type BottomPanelMarkdownSectionViewProps = {
   selectNode: (id: string) => void
   selectEdge: (id: string) => void
   setSelectionSource: (source: 'editor' | 'canvas' | 'table') => void
+  themeMode: 'light' | 'dark'
 }
 
 export function BottomPanelMarkdownSectionView(
@@ -82,6 +84,7 @@ export function BottomPanelMarkdownSectionView(
   const {
     autoOpenHighlight,
     uiPanelKeyValueTextSizeClass,
+    uiPanelMicroLabelTextSizeClass,
     uiPanelTextFontClass,
     uiPanelMonospaceTextClass,
     isJsonBacked,
@@ -131,6 +134,7 @@ export function BottomPanelMarkdownSectionView(
     selectNode,
     selectEdge,
     setSelectionSource,
+    themeMode,
   } = props
 
   const {
@@ -280,6 +284,8 @@ export function BottomPanelMarkdownSectionView(
         <MarkdownPanelLayout
           tokens={tokens}
           uiPanelTextFontClass={uiPanelTextFontClass}
+          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+          uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
           showSidebar={showSidebar}
           setShowSidebar={handleToggleSidebar}
           onTocSelect={handleTocSelect}
@@ -315,6 +321,7 @@ export function BottomPanelMarkdownSectionView(
             onShowInGraphDataTable={(line) => onShowInGraphDataTable?.(line)}
             triggerJump={triggerJump}
             flashLine={jumpFlash?.line}
+            themeMode={themeMode}
           />
         </MarkdownPanelLayout>
         <div
@@ -349,6 +356,7 @@ export function BottomPanelMarkdownSectionView(
             isMarkdownPreviewTruncated={isMarkdownPreviewTruncated}
             uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
             flashLine={jumpFlash?.line}
+            tokens={tokens}
           />
         </div>
       </article>

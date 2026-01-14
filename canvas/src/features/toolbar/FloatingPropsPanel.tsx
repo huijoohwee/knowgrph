@@ -12,6 +12,9 @@ export function FloatingPropsPanel() {
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
+  const uiPanelMicroLabelTextSizeClass = useGraphStore(
+    s => s.uiPanelMicroLabelTextSizeClass || 'text-[10px]',
+  )
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass
@@ -102,22 +105,22 @@ export function FloatingPropsPanel() {
             <select
               value={newType}
               onChange={e => setNewType(e.target.value)}
-              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
+              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.bg}`}
             >
               {catalogTypes.map(t => (
-                <option key={t} value={t}>
+                <option key={t} value={t} className={UI_THEME_TOKENS.panel.bg}>
                   {t}
                 </option>
               ))}
               {nodeTypes
                 .filter(t => !catalogTypes.includes(t))
                 .map(t => (
-                  <option key={t} value={t}>
+                  <option key={t} value={t} className={UI_THEME_TOKENS.panel.bg}>
                     {t}
                   </option>
                 ))}
               {!catalogTypes.length && !nodeTypes.length && (
-                <option value="entity">
+                <option value="entity" className={UI_THEME_TOKENS.panel.bg}>
                   entity
                 </option>
               )}
@@ -231,28 +234,28 @@ export function FloatingPropsPanel() {
                 <button
                   type="button"
                   onClick={() => setRenderMediaAsNodes(true)}
-                  className={`px-2 py-1 text-[11px] border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${renderMediaAsNodes ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
+                  className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${renderMediaAsNodes ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
                   Panel-only
                 </button>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
+              <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
                 Panel layout
               </span>
               <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
                 <button
                   type="button"
                   onClick={() => setMediaPanelDensity('default')}
-                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${mediaPanelDensity === 'default' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
+                  className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} ${uiPanelTextFontClass} ${mediaPanelDensity === 'default' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
                   Standard
                 </button>
                 <button
                   type="button"
                   onClick={() => setMediaPanelDensity('compact')}
-                  className={`px-2 py-1 text-[11px] border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${mediaPanelDensity === 'compact' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
+                  className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${mediaPanelDensity === 'compact' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
                   Compact
                 </button>

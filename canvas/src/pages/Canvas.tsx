@@ -156,6 +156,8 @@ export default function CanvasPage() {
     root.style.setProperty('--overlay-opacity', String(uiOverlayOpacity))
     root.style.setProperty('--panel-opacity', String(uiPanelOpacity))
     root.style.setProperty('--toolbar-opacity', String(uiToolbarOpacity))
+    root.style.setProperty('--panel-bg', `rgba(var(--panel-bg-rgb), ${uiPanelOpacity})`)
+    root.style.setProperty('--toolbar-bg', `rgba(var(--panel-bg-rgb), ${uiToolbarOpacity})`)
   }, [uiOverlayOpacity, uiPanelOpacity, uiToolbarOpacity])
 
   React.useEffect(() => {
@@ -315,7 +317,12 @@ export default function CanvasPage() {
   const handleZoomSelection = makeZoomHandler('selection')
 
   return (
-    <div className="h-screen overflow-hidden bg-transparent flex flex-col">
+    <>
+      <style>{`
+        :root { --panel-bg-rgb: 255, 255, 255; }
+        .dark { --panel-bg-rgb: 13, 17, 23; }
+      `}</style>
+      <div className="flex h-screen w-screen flex-col overflow-hidden bg-white dark:bg-[#0d1117] transition-colors duration-300">
       <main className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 relative overflow-hidden">
@@ -390,6 +397,7 @@ export default function CanvasPage() {
           </div>
         </div>
       </main>
-    </div>
+      </div>
+    </>
   )
 }

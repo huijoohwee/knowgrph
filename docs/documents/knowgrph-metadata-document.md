@@ -11,7 +11,7 @@
   - `semanticConfig`: effective semantic extraction configuration (thresholds, limits) used by the parser.
   - `suggestedTraversalEdges`: list of edge labels that downstream tooling can prioritize when building traversals.
 - Layer hints:
-  - `layoutMode`: suggested initial layout mode (for example, `"tidy-tree"` for markdown graphs).
+  - `layoutMode`: suggested initial layout mode (for example, `"tree"` for markdown graphs).
   - `defaultLayer`: suggested initial schema layer mode (`"semantic"`, `"document-structure"`, or `"property"`).
   - `layers`: neutral layer descriptors emitted by parsers:
     - `layers.semantic`:

@@ -17,6 +17,7 @@ type MarkdownEditorPaneProps = {
   onShowInGraphDataTable: (line: number) => void
   triggerJump: (line: number) => void
   flashLine?: number | null
+  themeMode: 'light' | 'dark'
 }
 
 export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
@@ -34,6 +35,7 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
     onShowInGraphDataTable,
     triggerJump,
     flashLine,
+    themeMode,
   } = props
 
   const editorContainerRef = React.useRef<HTMLDivElement>(null)
@@ -98,25 +100,23 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
 
   return (
     <div ref={editorContainerRef} className="flex flex-1 min-h-0 relative h-full">
-      <div className="flex-1 h-full min-w-0">
-        <MonacoTextEditor
-          editorRef={editorTextAreaRef}
-          value={markdownText}
-          language="markdown"
-          uri={`file:///${markdownDocumentName || 'readme.md'}`}
-          themeMode="light"
-          wordWrap={markdownWordWrap}
-          className="w-full h-full"
-          onChange={next => {
-            setMarkdownText(next)
-            setMarkdownDocument(markdownDocumentName, next)
-          }}
-          onContextMenuSelection={handleEditorSelection}
-          onDoubleClickSelection={handleEditorSelection}
-          onContextMenu={handleEditorContextMenu}
-          flashLine={flashLine}
-        />
-      </div>
+      <MonacoTextEditor
+        editorRef={editorTextAreaRef}
+        value={markdownText}
+        language="markdown"
+        uri={`file:///${markdownDocumentName || 'readme.md'}`}
+        themeMode={themeMode}
+        wordWrap={markdownWordWrap}
+        className="flex-1 h-full min-w-0"
+        onChange={next => {
+          setMarkdownText(next)
+          setMarkdownDocument(markdownDocumentName, next)
+        }}
+        onContextMenuSelection={handleEditorSelection}
+        onDoubleClickSelection={handleEditorSelection}
+        onContextMenu={handleEditorContextMenu}
+        flashLine={flashLine}
+      />
       {selectionToolbar && (
         <MarkdownSelectionToolbar
           toolbar={selectionToolbar}

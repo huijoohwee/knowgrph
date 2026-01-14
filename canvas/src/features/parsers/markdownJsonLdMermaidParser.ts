@@ -4,14 +4,14 @@ export interface MermaidParserContext {
   gid: string
   docId: string
   startIndex: number
-  mermaidTidyTreeLayout: {
+  mermaidTreeLayout: {
     orientation?: 'vertical' | 'horizontal'
     direction?: 'source-target' | 'target-source'
   } | null
   ensureNode: (node: Record<string, unknown>) => void
   addRel: (src: string, key: string, tgt: string) => void
   mkMeta: (startLine: number, endLine: number) => Record<string, unknown>
-  setMermaidTidyTreeLayout: (layout: {
+  setMermaidTreeLayout: (layout: {
     orientation?: 'vertical' | 'horizontal'
     direction?: 'source-target' | 'target-source'
   }) => void
@@ -25,7 +25,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     ensureNode,
     addRel,
     mkMeta,
-    setMermaidTidyTreeLayout,
+    setMermaidTreeLayout,
   } = ctx
 
   const lines = String(code || '').split('\n')
@@ -37,7 +37,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
   let currentSubgraphName: string | null = null
   let currentSubgraphId: string | null = null
 
-  if (!ctx.mermaidTidyTreeLayout) {
+  if (!ctx.mermaidTreeLayout) {
     for (let i = 0; i < lines.length; i += 1) {
       const rawLine = lines[i] ?? ''
       const trimmed = rawLine.trim()
@@ -63,7 +63,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
         next.direction = 'target-source'
       }
       if (next.orientation || next.direction) {
-        setMermaidTidyTreeLayout(next)
+        setMermaidTreeLayout(next)
       }
       break
     }

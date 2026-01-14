@@ -122,8 +122,8 @@ import {
 } from '@/__tests__/previewGalleryReorder.test'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
-import { testTidyTreeSeparationSchemaRoundTrip } from '@/__tests__/tidyTreeSeparationRoundTrip.test'
-import { testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges } from '@/__tests__/exampleWorkflowTidyTree.test'
+import { testTreeSeparationSchemaRoundTrip } from '@/__tests__/treeSeparationRoundTrip.test'
+import { testExampleWorkflowSliceTreeDerivationUsesWorkflowEdges } from '@/__tests__/exampleWorkflowTree.test'
 import {
   testSemanticLayerVisualFillParity2dVs3d,
   testDocumentStructureLayerOpacityParity2dVs3d,
@@ -386,10 +386,7 @@ export const runAllTests = async () => {
     testMarkdownParserMetadataAnchorsAreAgenticRagCompatible,
   )
   await exec('ui.media.mediaInteractiveDefaults', testMediaInteractiveDefaults)
-  await exec(
-    'ui.markdown.exampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges',
-    testExampleWorkflowSliceTidyTreeDerivationUsesWorkflowEdges,
-  )
+  await exec('tree.derivation.exampleWorkflow', testExampleWorkflowSliceTreeDerivationUsesWorkflowEdges)
   await exec(
     'graph.layerVisualParity.semanticVisualFill2dVs3d',
     testSemanticLayerVisualFillParity2dVs3d,
@@ -417,10 +414,7 @@ export const runAllTests = async () => {
     testFrontmatterModeEdaMlpFiltersGraphToMermaidFrontmatter,
   )
 
-  await exec(
-    'schema.tidyTree.separationSchemaRoundTrip',
-    testTidyTreeSeparationSchemaRoundTrip,
-  )
+  await exec('tree.separation.roundTrip', testTreeSeparationSchemaRoundTrip)
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')

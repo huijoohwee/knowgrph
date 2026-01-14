@@ -6,11 +6,12 @@ import {
   testMarkdownFrontmatterOntologiesAndGraphLayersRoundTrip,
   testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions,
   testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
-  testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture,
+  testEdaMlpInterviewSessionMarkdownTreeDensityFromFixture,
   testEdaMlpInterviewSessionMarkdownPresentationFromDisk,
   testMarkdownFrontmatterPolygonLayersAliasWarning,
 } from '@/__tests__/exampleWorkflowMarkdownIngestion.test'
-import { testMarkdownMermaidFrontmatterTidyTreeMetadataDefaults } from '@/__tests__/markdownMermaidTidyTreeMetadata.test'
+import { testMarkdownMermaidFrontmatterTreeMetadataDefaults } from '@/__tests__/markdownMermaidTreeMetadata.test'
+import { testEdaMlpTreeRendering } from '@/__tests__/edaMlpTreeRendering.test'
 import {
   testGuidelinesMarkdownHighlightGuardWithLargeGraph,
   testGuidelinesMarkdownHighlightGuardWithSmallGraph,
@@ -57,13 +58,14 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     )
 
     await execTest(results, 'markdown.edaMlp.fixtureFromDisk', testEdaMlpInterviewSessionMarkdownFixtureFromDisk)
-    await execTest(results, 'markdown.edaMlp.tidyTreeDensity', testEdaMlpInterviewSessionMarkdownTidyTreeDensityFromFixture)
+    await execTest(results, 'markdown.edaMlp.treeDensity', testEdaMlpInterviewSessionMarkdownTreeDensityFromFixture)
     await execTest(results, 'markdown.edaMlp.presentation', testEdaMlpInterviewSessionMarkdownPresentationFromDisk)
+    await execTest(results, 'markdown.edaMlp.treeRendering', testEdaMlpTreeRendering)
   }
 
   await execTest(results, 'markdown.frontmatter.polygonLayersWarning', testMarkdownFrontmatterPolygonLayersAliasWarning)
 
-  await execTest(results, 'markdown.mermaid.tidyTreeMetadataDefaults', testMarkdownMermaidFrontmatterTidyTreeMetadataDefaults)
+  await execTest(results, 'markdown.mermaid.treeMetadata', testMarkdownMermaidFrontmatterTreeMetadataDefaults)
 
   await execTest(results, 'markdown.guidelines.highlightGuardLarge', testGuidelinesMarkdownHighlightGuardWithLargeGraph)
   await execTest(results, 'markdown.guidelines.highlightGuardSmall', testGuidelinesMarkdownHighlightGuardWithSmallGraph)

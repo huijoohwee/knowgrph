@@ -360,7 +360,7 @@ export const computeEdgeVisual = (
   const baseStroke = getEdgeBaseStroke(edge, schema)
   const baseWidth = getEdgeStrokeWidth(edge, schema)
   if (selectedNodeIdSet.size === 0) {
-    const baseOpacity = schema.layout?.mode === 'tidy-tree' ? 0.4 : 0.6
+    const baseOpacity = schema.layout?.mode === 'tree' ? 0.4 : 0.6
     return { stroke: baseStroke, opacity: baseOpacity, width: baseWidth }
   }
   if (isHighlighted) {

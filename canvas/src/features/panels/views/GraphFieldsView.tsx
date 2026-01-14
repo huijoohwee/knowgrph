@@ -17,6 +17,7 @@ import GraphFieldsListPanel from '@/features/panels/views/graph-fields/GraphFiel
 import FieldSettingsPanel from '@/features/panels/views/graph-fields/FieldSettingsPanel'
 import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamplesPanel'
 import { normalized } from '@/features/panels/utils/json'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -169,15 +170,16 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
 
   return (
     <MainPanelBody header={<MainPanelGraphFieldsHeader agenticLegend={agenticLegend} />} scrollable={false}>
-      <div
+      <article
         className="h-full min-h-0 flex flex-col overflow-hidden"
         data-kg-anchor={UI_ANCHORS.graphFields}
       >
         <div className="flex-1 min-h-0 overflow-hidden">
           {graphData && graphData.context === 'raw-nodes-edges' && (
             <div
+              role="alert"
               className={[
-                'mb-2 px-3 py-2 rounded border border-amber-200 bg-amber-50 text-amber-900',
+                `mb-2 px-3 py-2 rounded border ${UI_THEME_TOKENS.status.warning}`,
                 'text-[11px]',
               ].join(' ')}
             >
@@ -226,7 +228,7 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
             />
           </div>
         </div>
-      </div>
+      </article>
     </MainPanelBody>
   )
 }

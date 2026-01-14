@@ -44,6 +44,12 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       isMinimal || !hoverRingClass ? '' : cn('hover:ring-2 ring-offset-1', hoverRingClass),
     );
 
+    const inner = hasMultipleChildren ? (
+      <span className="inline-flex items-center justify-center gap-2">{children}</span>
+    ) : (
+      <span className="inline-flex items-center justify-center">{children}</span>
+    )
+
     const button = (
       <button
         ref={ref}
@@ -52,18 +58,17 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         disabled={isDisabled}
         onClick={onClick}
         className={cn(
-          'group relative select-none rounded',
+          'group relative select-none rounded inline-flex items-center justify-center',
           paddingClass,
           isDisabled
             ? 'text-gray-400 cursor-not-allowed pointer-events-none'
             : enabledClasses,
-          hasMultipleChildren ? 'flex items-center gap-2' : '',
           className,
         )}
         title={showTooltip ? undefined : title}
         aria-label={title}
       >
-        {children}
+        {inner}
       </button>
     )
 

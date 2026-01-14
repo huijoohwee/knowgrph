@@ -23,7 +23,7 @@ export type GraphDataTableScope = 'all' | 'nodes' | 'edges';
 
 export type GraphDataTableFreezeMode = 'none' | 'label' | 'id';
 
-export type LayoutMode = 'force' | 'radial' | 'tidy-tree';
+export type LayoutMode = 'force' | 'radial' | 'tree';
 export type NodePosition2d = { x: number; y: number };
 export type LayoutPositionCacheKey = `${string}:${LayoutMode}`;
 

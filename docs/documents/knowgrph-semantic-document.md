@@ -182,8 +182,8 @@ In addition to TokenLinker‑derived mentions, parsers that surface higher‑lev
   - Core fields include:
     - `graphId`, `generatedAt`.
     - `agenticRagSchema`, `agenticRagContext`.
-    - `layoutMode: "tidy-tree"`.
-    - `tidyTree.edgeLabels`: `["hasSection", "hasBlock", "hasItem"]`.
+    - `layoutMode: "tree"`.
+    - `tree.edgeLabels`: `["hasSection", "hasBlock", "hasItem"]`.
   - Layer hints:
     - `defaultLayer: "semantic"`.
     - `layers.semantic`:

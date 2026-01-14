@@ -21,6 +21,7 @@ import { BottomPanelMarkdownSectionView } from './BottomPanelMarkdownSectionView
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
 import type { BottomTab } from '@/features/bottom-panel/open'
+import { useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 
 export type MarkdownLayoutMode = 'split' | 'editor' | 'viewer'
 
@@ -50,6 +51,9 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const uiPanelMicroLabelTextSizeClass = useGraphStore(
+    s => s.uiPanelMicroLabelTextSizeClass || 'text-[10px]',
+  )
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
@@ -58,6 +62,7 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   )
   const schema = useGraphStore(s => s.schema)
   const selectionFlashDurationMs = useGraphStore(s => s.selectionFlashDurationMs || 500)
+  const themeMode = useRootThemeMode()
 
   const [markdownTextHighlight, setMarkdownTextHighlight] = usePersistedBoolean(
     LS_KEYS.markdownTextHighlight,
@@ -520,6 +525,7 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
     <BottomPanelMarkdownSectionView
       autoOpenHighlight={autoOpenHighlight}
       uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+      uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
       isJsonBacked={isJsonBacked}
@@ -573,6 +579,7 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
       selectNode={selectNode}
       selectEdge={selectEdge}
       setSelectionSource={setSelectionSource}
+      themeMode={themeMode}
     />
   )
 }

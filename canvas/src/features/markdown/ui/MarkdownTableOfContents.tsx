@@ -14,6 +14,7 @@ export type MarkdownTableOfContentsProps = {
   onDoubleClick?: (id: string) => void
   onReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
   uiPanelTextFontClass: string
+  uiPanelKeyValueTextSizeClass?: string
   className?: string
   allCollapsed?: boolean
   collapsedIds?: Set<string>
@@ -26,6 +27,7 @@ type TocItemRendererProps = {
   onDoubleClick?: (id: string) => void
   onReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
   uiPanelTextFontClass: string
+  uiPanelKeyValueTextSizeClass?: string
   depth: number
   allCollapsed?: boolean
   collapsedIds?: Set<string>
@@ -39,6 +41,7 @@ function TocItemRenderer({
   onDoubleClick,
   onReorder,
   uiPanelTextFontClass,
+  uiPanelKeyValueTextSizeClass,
   depth,
   allCollapsed,
   collapsedIds,
@@ -139,8 +142,10 @@ function TocItemRenderer({
       <div
         className={[
           'group flex items-center gap-1 py-1 pr-2 rounded cursor-pointer select-none transition-colors relative',
-          isDragging ? `${UI_COLOR_PRIMARY_BLUE_BG} opacity-50` : `hover:${UI_THEME_TOKENS.table.rowHoverAmber} dark:hover:bg-gray-800`,
+          isDragging ? `${UI_COLOR_PRIMARY_BLUE_BG} opacity-50` : `hover:${UI_THEME_TOKENS.table.rowHoverAmber} ${UI_THEME_TOKENS.table.rowHover}`,
           uiPanelTextFontClass,
+          uiPanelKeyValueTextSizeClass || 'text-xs',
+          'leading-5',
           dragState !== 'none' ? `${UI_COLOR_PRIMARY_BLUE_BG}` : '',
         ].join(' ')}
         style={{ paddingLeft: `${(depth - 1) * 12 + 4}px` }}
@@ -157,7 +162,7 @@ function TocItemRenderer({
         onDrop={handleDrop}
       >
         {onReorder && (
-          <div className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-0.5 text-gray-400 hover:text-gray-600">
+          <div className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-0.5 ${UI_THEME_TOKENS.text.tertiary} hover:${UI_THEME_TOKENS.text.secondary}`}>
             <GripVertical size={12} />
           </div>
         )}
@@ -169,7 +174,7 @@ function TocItemRenderer({
               e.stopPropagation()
               onToggleCollapse?.(item.id)
             }}
-            className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+            className={`p-0.5 rounded ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.tertiary}`}
           >
             {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </button>
@@ -177,7 +182,7 @@ function TocItemRenderer({
           <div className="w-4" />
         )}
         
-        <span className="truncate flex-1 text-gray-700 dark:text-gray-300">
+        <span className={`truncate flex-1 ${UI_THEME_TOKENS.text.primary}`}>
           {item.text}
         </span>
       </div>
@@ -192,6 +197,7 @@ function TocItemRenderer({
               onDoubleClick={onDoubleClick}
               onReorder={onReorder}
               uiPanelTextFontClass={uiPanelTextFontClass}
+              uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
               depth={depth + 1}
               allCollapsed={allCollapsed}
               collapsedIds={collapsedIds}
@@ -211,6 +217,7 @@ export function MarkdownTableOfContents({
   onDoubleClick,
   onReorder,
   uiPanelTextFontClass,
+  uiPanelKeyValueTextSizeClass,
   className,
   allCollapsed,
   collapsedIds,
@@ -231,6 +238,7 @@ export function MarkdownTableOfContents({
             onDoubleClick={onDoubleClick}
             onReorder={onReorder}
             uiPanelTextFontClass={uiPanelTextFontClass}
+            uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
             depth={1}
             allCollapsed={allCollapsed}
             collapsedIds={collapsedIds}

@@ -134,7 +134,7 @@ export default function BottomPanelCuratorTab({
     if (!selectedNodeId && !selectedEdgeId) {
       setGraphDataTableViewMode('allRows')
     }
-  }, [graphDataTableViewMode, selectedNodeId, selectedEdgeId])
+  }, [graphDataTableViewMode, selectedNodeId, selectedEdgeId, setGraphDataTableViewMode])
 
   const visibleRows = useBottomPanelCuratorVisibleRows({
     nodes,
@@ -276,6 +276,7 @@ export default function BottomPanelCuratorTab({
     setIsGraphDataTableAutoSortEnabled,
     setGraphDataTableSortRules,
     setGraphDataTableGroupKey,
+    setGraphDataTableViewMode,
     setToolbarResetToken,
   ])
 

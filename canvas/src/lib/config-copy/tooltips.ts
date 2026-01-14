@@ -315,13 +315,13 @@ export const RENDERER_LAYOUT_MODE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Renderer',
   actions: [
     'set schema.layout.mode for the active graph view',
-    'switch between force, radial, and tidy-tree layouts',
+    'switch between force, radial, and tree layouts',
   ],
   outcome: 'keep layout selection consistent across renderer panels and the toolbar',
 });
 
 export const RENDERER_LAYOUT_MODE_VALUE_TOOLTIP =
-  'Default: force; Options: force, radial, tidy-tree; radial/tidy-tree switch to 2D.';
+  'Default: force; Options: force, radial, tree; radial/tree switch to 2D.';
 
 export const RENDERER_PALETTE_LIFECYCLE_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Renderer palette lifecycle roles',
@@ -332,40 +332,40 @@ export const RENDERER_PALETTE_LIFECYCLE_TOOLTIP = buildRoleActionOutcomeTooltip(
     'keep blue/yellow/green/orange/red colors aligned with core ideas, hypotheses, execution, pivots, and alerts.',
 });
 
-export const RENDERER_TIDY_TREE_CURVE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer tidy-tree Dagre curve',
+export const RENDERER_TREE_CURVE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'Renderer tree curve',
   actions: [
-    'set graph.layout.tidyTree.curve style for Dagre layout',
+    'set graph.layout.tree.curve style for Tree layout',
     'choose bump, linear, or step link shapes',
   ],
-  outcome: 'improve Dagre tidy-tree readability in dense hierarchies',
+  outcome: 'improve Tree layout readability in dense hierarchies',
 });
 
-export const RENDERER_TIDY_TREE_CURVE_VALUE_TOOLTIP =
-  'Default: bump; Options: bump, linear, step; Changes tidy-tree link shape.';
+export const RENDERER_TREE_CURVE_VALUE_TOOLTIP =
+  'Default: bump; Options: bump, linear, step; Changes tree link shape.';
 
-export const RENDERER_TIDY_TREE_ORIENTATION_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer tidy-tree Dagre orientation',
+export const RENDERER_TREE_ORIENTATION_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'Renderer tree orientation',
   actions: [
-    'set graph.layout.tidyTree.orientation axis',
-    'render Dagre tidy-tree horizontal or vertical',
+    'set graph.layout.tree.orientation axis',
+    'render Tree layout horizontal or vertical',
   ],
-  outcome: 'fit Dagre tree layouts to panel and screen space',
+  outcome: 'fit Tree layouts to panel and screen space',
 });
 
-export const RENDERER_TIDY_TREE_ORIENTATION_VALUE_TOOLTIP =
-  'Default: horizontal; Options: horizontal, vertical; Rotates tidy-tree layout axis.';
+export const RENDERER_TREE_ORIENTATION_VALUE_TOOLTIP =
+  'Default: horizontal; Options: horizontal, vertical; Rotates tree layout axis.';
 
-export const RENDERER_TIDY_TREE_LINK_OPACITY_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer tidy-tree link opacity',
+export const RENDERER_TREE_LINK_OPACITY_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'Renderer tree link opacity',
   actions: [
-    'set graph.layout.tidyTree.linkOpacity',
+    'set graph.layout.tree.linkOpacity',
     'tune link visibility against node and label density',
   ],
-  outcome: 'keep tidy-tree edges readable without overpowering nodes',
+  outcome: 'keep tree edges readable without overpowering nodes',
 });
 
-export const RENDERER_TIDY_TREE_LINK_OPACITY_VALUE_TOOLTIP = buildNumericTooltip({
+export const RENDERER_TREE_LINK_OPACITY_VALUE_TOOLTIP = buildNumericTooltip({
   defaultValue: 0.4,
   min: 0,
   max: 1,

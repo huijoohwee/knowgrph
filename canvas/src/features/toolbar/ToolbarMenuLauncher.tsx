@@ -18,6 +18,7 @@ import {
   type PropsPanelOpenEventDetail,
 } from '@/features/canvas/utils'
 import { IMPORT_EXPORT_STATUS_COPY, LS_KEYS, UI_LABELS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
 import { useToolbarMenuAction } from '@/features/toolbar/useToolbarMenuAction'
@@ -282,7 +283,13 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     <>
       <IconButton
         ref={toolMenuButtonRef}
-        className={`App-toolbar__btn ${dataLoadOk === true ? 'text-green-600' : dataLoadOk === false ? 'text-red-600' : 'text-gray-600'}`}
+        className={`App-toolbar__btn ${
+          dataLoadOk === true
+            ? UI_THEME_TOKENS.status.success
+            : dataLoadOk === false
+              ? UI_THEME_TOKENS.status.error
+              : UI_THEME_TOKENS.icon.color
+        }`}
         title={dataLoadOk === true ? UI_LABELS.openData : UI_LABELS.loadStatus}
         onClick={toggleToolMenu}
       >
@@ -301,7 +308,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
         ) : (
           <div className="flex items-center gap-1">
             <Upload className={iconSizeClass} />
-            <span className="text-xs max-w-20 truncate">{UI_LABELS.floatingPanel}</span>
+            <span className="text-xs max-w-20 truncate">{UI_LABELS.openData}</span>
             <ChevronDown className={iconSizeClass} />
           </div>
         )}

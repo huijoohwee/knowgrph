@@ -501,7 +501,7 @@ export const createGraphLayersLayer = (args: {
           if (!event.active) {
             simulation.alphaTarget(0)
           }
-          if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tidy-tree') {
+          if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tree') {
             simulation.stop()
           }
         }),

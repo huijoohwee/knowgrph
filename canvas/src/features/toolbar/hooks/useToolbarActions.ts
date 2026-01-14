@@ -1,7 +1,8 @@
 import { useCallback } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { computeNextSchemaForTidyPreset } from '@/features/toolbar/tidyTreePreset'
-import { deriveTidyTreeDerivation, normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
+import { computeNextSchemaForTreePreset } from '@/features/toolbar/treePreset'
+import { deriveTreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
+import { normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
 import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
 import { getNextThemeMode, type ThemeMode } from '@/lib/ui/theme'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -10,8 +11,8 @@ export function useToolbarActions(
   schema: GraphSchema,
   setSchema: (s: GraphSchema) => void,
   setCanvasRenderMode: (m: '2d' | '3d') => void,
-  tidyPreset: 'mermaid' | 'document' | 'custom',
-  tidyDocEdgeLabels: string[],
+  treePreset: 'mermaid' | 'document' | 'custom',
+  treeDocEdgeLabels: string[],
   setThemeMode: React.Dispatch<React.SetStateAction<ThemeMode>>,
   launchSpotlight: (mode?: string) => void,
   openMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'graphLayer' | 'preview' | 'settings') => void,
@@ -55,25 +56,25 @@ export function useToolbarActions(
     setSchema(next as GraphSchema)
   }, [schema, setSchema])
 
-  const handleToggleTidyTreeLayout = useCallback(() => {
+  const handleToggleTreeLayout = useCallback(() => {
     const current = schema
     const layout = current.layout || {}
     const nextMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-      layout.mode === 'tidy-tree' ? 'force' : 'tidy-tree'
+      layout.mode === 'tree' ? 'force' : 'tree'
     const baseNext = {
       ...current,
       layout: { ...layout, mode: nextMode },
     } as GraphSchema
 
     const next = (() => {
-      if (nextMode !== 'tidy-tree') return baseNext
-      const tidyCfg = baseNext.layout?.tidyTree
-      const rawEdgeLabels = tidyCfg?.edgeLabels
+      if (nextMode !== 'tree') return baseNext
+      const treeCfg = baseNext.layout?.tree
+      const rawEdgeLabels = treeCfg?.edgeLabels
       const configuredLabels = Array.isArray(rawEdgeLabels)
         ? rawEdgeLabels.map((v: string) => String(v || '').trim()).filter(Boolean)
         : []
       const shouldResolveLabels = configuredLabels.length === 0
-      const shouldResolveDirection = !tidyCfg?.direction || tidyCfg.direction === 'auto'
+      const shouldResolveDirection = !treeCfg?.direction || treeCfg.direction === 'auto'
       if (!shouldResolveLabels && !shouldResolveDirection) return baseNext
 
       try {
@@ -84,25 +85,25 @@ export function useToolbarActions(
 
         const edgesForSim = normalizeEdgesForSim(nodes, edges)
         const nodeIds = new Set<string>(nodes.map(n => String(n.id)))
-        const derivation = deriveTidyTreeDerivation(edgesForSim, baseNext, nodeIds)
+        const derivation = deriveTreeDerivation(edgesForSim, baseNext, nodeIds)
         if (!derivation) return baseNext
 
-        const nextTidyTree = { ...(tidyCfg || {}) }
+        const nextTree = { ...(treeCfg || {}) }
         let changed = false
 
         if (shouldResolveLabels && derivation.labelSet.size > 0) {
-          nextTidyTree.edgeLabels = Array.from(derivation.labelSet).sort((a, b) => a.localeCompare(b))
+          nextTree.edgeLabels = Array.from(derivation.labelSet).sort((a, b) => a.localeCompare(b))
           changed = true
         }
         if (shouldResolveDirection) {
-          nextTidyTree.direction = derivation.direction
+          nextTree.direction = derivation.direction
           changed = true
         }
         if (!changed) return baseNext
 
         return {
           ...baseNext,
-          layout: { ...(baseNext.layout || {}), tidyTree: nextTidyTree },
+          layout: { ...(baseNext.layout || {}), tree: nextTree },
         } as GraphSchema
       } catch {
         return baseNext
@@ -110,18 +111,18 @@ export function useToolbarActions(
     })()
 
     setSchema(next)
-    if (nextMode === 'tidy-tree') {
+    if (nextMode === 'tree') {
       setCanvasRenderMode('2d')
     }
   }, [schema, setSchema, setCanvasRenderMode])
 
-  const handleToggleTidyPreset = useCallback(() => {
+  const handleToggleTreePreset = useCallback(() => {
     const current = schema
-    const nextPreset = tidyPreset === 'mermaid' ? 'document' : 'mermaid'
-    const nextSchema = computeNextSchemaForTidyPreset(current, nextPreset, tidyDocEdgeLabels)
+    const nextPreset = treePreset === 'mermaid' ? 'document' : 'mermaid'
+    const nextSchema = computeNextSchemaForTreePreset(current, nextPreset, treeDocEdgeLabels)
     setSchema(nextSchema)
     setCanvasRenderMode('2d')
-  }, [schema, tidyPreset, tidyDocEdgeLabels, setSchema, setCanvasRenderMode])
+  }, [schema, treePreset, treeDocEdgeLabels, setSchema, setCanvasRenderMode])
 
   const handleToggleRadialLayout = useCallback(() => {
     const current = schema
@@ -211,8 +212,8 @@ export function useToolbarActions(
     handleLaunchStats,
     handleLaunch,
     handleToggleLayerMode,
-    handleToggleTidyTreeLayout,
-    handleToggleTidyPreset,
+    handleToggleTreeLayout,
+    handleToggleTreePreset,
     handleToggleRadialLayout,
     handleOpenGraphFields,
     handleOpenSettings,

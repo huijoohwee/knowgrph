@@ -7,7 +7,8 @@ import { computeGraphLayerHullGeometry } from '@/components/GraphCanvas/graphLay
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { calcMouseGraphPosition, isNodePointerTarget } from '@/features/canvas/utils'
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
-import type { EdgeWithRuntime, TidyTreeDerivation } from '@/components/GraphCanvas/utils'
+import type { EdgeWithRuntime } from '@/components/GraphCanvas/utils'
+import type { TreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
 
 type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 
@@ -23,7 +24,7 @@ export const attachSimulationTick = (args: {
   nodeGroups: NodeGroup[]
   nodes: GraphNode[]
   schema: GraphSchema
-  tidyTreeDerivation: TidyTreeDerivation | null
+  treeDerivation?: TreeDerivation | null
   width: number
   height: number
 }) => {
@@ -39,7 +40,7 @@ export const attachSimulationTick = (args: {
     nodeGroups,
     nodes,
     schema,
-    tidyTreeDerivation,
+    treeDerivation,
     width,
     height,
   } = args
@@ -48,19 +49,19 @@ export const attachSimulationTick = (args: {
     const n = nodes[i]
     nodeById.set(String(n.id), n)
   }
-  const tidyCfg = schema.layout?.tidyTree || {}
-  const tidyOrientation = tidyCfg.orientation === 'vertical' ? 'vertical' : 'horizontal'
-  type TidyPoint = { x: number; y: number }
-  type TidyLinkDatum = { source: TidyPoint; target: TidyPoint }
-  const tidyCurve = (() => {
-    const raw = tidyCfg.curve
+  const treeCfg = schema.layout?.tree || {}
+  const treeOrientation = treeCfg.orientation === 'vertical' ? 'vertical' : 'horizontal'
+  type TreePoint = { x: number; y: number }
+  type TreeLinkDatum = { source: TreePoint; target: TreePoint }
+  const treeCurve = (() => {
+    const raw = treeCfg.curve
     const kind = raw === 'linear' || raw === 'step' || raw === 'bump' ? raw : 'bump'
     if (kind === 'linear') return d3.curveLinear
     if (kind === 'step') return d3.curveStep
-    return tidyOrientation === 'horizontal' ? d3.curveBumpX : d3.curveBumpY
+    return treeOrientation === 'horizontal' ? d3.curveBumpX : d3.curveBumpY
   })()
-  const tidyLinkGen = d3
-    .link<TidyLinkDatum, TidyPoint>(tidyCurve)
+  const treeLinkGen = d3
+    .link<TreeLinkDatum, TreePoint>(treeCurve)
     .x(d => d.x)
     .y(d => d.y)
 
@@ -81,20 +82,20 @@ export const attachSimulationTick = (args: {
     return null
   }
 
-  const isTidyTree = schema.layout?.mode === 'tidy-tree'
+  const isTree = schema.layout?.mode === 'tree'
   const baseDxFallback = schema.labelStyles?.offset?.dx ?? 12
   const baseDyFallback = schema.labelStyles?.offset?.dy ?? 4
   const labelFontSize = (() => {
-    if (!isTidyTree) return schema.labelStyles?.fontSize ?? 12
-    const raw = tidyCfg.labelFontSize
+    if (!isTree) return schema.labelStyles?.fontSize ?? 12
+    const raw = treeCfg.labelFontSize
     if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
     const fromLabelStyles = schema.labelStyles?.fontSize
     if (typeof fromLabelStyles === 'number' && Number.isFinite(fromLabelStyles) && fromLabelStyles > 0) return fromLabelStyles
     return 10
   })()
   const renderFrame = () => {
-    if (isTidyTree) {
-      const direction = tidyTreeDerivation?.direction ?? 'source-target'
+    if (isTree) {
+      const direction = treeDerivation?.direction ?? treeCfg.direction ?? 'source-target'
       ;(linkSel as d3.Selection<SVGPathElement, GraphEdge, SVGGElement, unknown>).attr('d', d => {
         const edge = d as unknown as EdgeWithRuntime
         const srcNode = resolveNode(edge.source)
@@ -108,17 +109,17 @@ export const attachSimulationTick = (args: {
         const sy = source.y ?? 0
         const tx = target.x ?? 0
         const ty = target.y ?? 0
-        const axisDelta = tidyOrientation === 'horizontal' ? tx - sx : ty - sy
+        const axisDelta = treeOrientation === 'horizontal' ? tx - sx : ty - sy
         const axisSign = axisDelta === 0 ? 1 : Math.sign(axisDelta)
-        const sourcePoint: TidyPoint =
-          tidyOrientation === 'horizontal'
+        const sourcePoint: TreePoint =
+          treeOrientation === 'horizontal'
             ? { x: sx + axisSign * sr, y: sy }
             : { x: sx, y: sy + axisSign * sr }
-        const targetPoint: TidyPoint =
-          tidyOrientation === 'horizontal'
+        const targetPoint: TreePoint =
+          treeOrientation === 'horizontal'
             ? { x: tx - axisSign * tr, y: ty }
             : { x: tx, y: ty - axisSign * tr }
-        const path = tidyLinkGen({
+        const path = treeLinkGen({
           source: sourcePoint,
           target: targetPoint,
         })
@@ -136,15 +137,25 @@ export const attachSimulationTick = (args: {
       .attr('cx', (d: GraphNode) => d.x!)
       .attr('cy', (d: GraphNode) => d.y!)
       .attr('x', (d: GraphNode) => {
-        const r = getRenderNodeRadius2d(d, schema)
-        return (d.x ?? 0) - r
+        const props = (d.properties || {}) as Record<string, unknown>;
+        const w = typeof props['visual:width'] === 'number' ? props['visual:width'] : getRenderNodeRadius2d(d, schema) * 2;
+        return (d.x ?? 0) - w / 2;
       })
       .attr('y', (d: GraphNode) => {
-        const r = getRenderNodeRadius2d(d, schema)
-        return (d.y ?? 0) - r
+        const props = (d.properties || {}) as Record<string, unknown>;
+        const h = typeof props['visual:height'] === 'number' ? props['visual:height'] : getRenderNodeRadius2d(d, schema) * 2;
+        return (d.y ?? 0) - h / 2;
       })
-      .attr('width', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 2)
-      .attr('height', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 2)
+      .attr('width', (d: GraphNode) => {
+        const props = (d.properties || {}) as Record<string, unknown>;
+        const w = typeof props['visual:width'] === 'number' ? props['visual:width'] : getRenderNodeRadius2d(d, schema) * 2;
+        return w;
+      })
+      .attr('height', (d: GraphNode) => {
+        const props = (d.properties || {}) as Record<string, unknown>;
+        const h = typeof props['visual:height'] === 'number' ? props['visual:height'] : getRenderNodeRadius2d(d, schema) * 2;
+        return h;
+      })
       .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
       .attr('rx', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
       .attr('ry', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
@@ -182,7 +193,7 @@ export const attachSimulationTick = (args: {
         return baseDyFallback
       })()
       const candidates: Array<{ anchor: 'start' | 'end'; dx: number }> = []
-      if (isTidyTree) {
+      if (isTree) {
         candidates.push({ anchor: baseAnchor, dx: baseDx })
       } else {
         const abs = Math.abs(baseDx)
@@ -211,7 +222,7 @@ export const attachSimulationTick = (args: {
       const dxAdjusted = best.dx + (k > 0 ? shiftPx / k : 0)
       el.setAttribute('text-anchor', best.anchor)
       el.setAttribute('dx', String(dxAdjusted))
-      if (!isTidyTree) {
+      if (!isTree) {
         const estAscentPx = labelFontSize * k * 0.8
         const estDescentPx = labelFontSize * k * 0.25
         const top = sy + baseDy * k - estAscentPx

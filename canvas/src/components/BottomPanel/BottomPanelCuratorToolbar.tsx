@@ -9,6 +9,7 @@ import { graphDataTableToolbarButtonClassName, GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_C
 import type { GraphDataTableScope } from './BottomPanelCuratorToolbarModel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface BottomPanelCuratorToolbarProps {
   graphDataTablePanel: GraphDataTablePanel
@@ -93,7 +94,7 @@ export function BottomPanelCuratorToolbar({
   }, [resetToken])
 
   return (
-    <div className="flex h-[48px] items-center border-b border-gray-200 px-2 py-2 gap-2">
+    <div className={`flex h-[48px] items-center border-b ${UI_THEME_TOKENS.panel.divider} px-2 py-2 gap-2`}>
       <button
         ref={addMenuRef}
         type="button"

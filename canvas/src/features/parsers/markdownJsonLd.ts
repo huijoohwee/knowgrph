@@ -11,12 +11,13 @@ import {
 } from './markdownJsonLdUtils'
 import {
   mermaidDensityConfig,
-  computeMermaidTidyTreeSeparation,
+  computeMermaidTreeSeparation,
 } from './markdownJsonLdMermaid'
 import {
   parseMermaidFrontmatter,
   MermaidParserContext,
 } from './markdownJsonLdMermaidParser'
+import { MarkdownGraphBuilder } from './markdownJsonLdBuilder'
 
 export { slugify } from './markdownJsonLdUtils'
 
@@ -54,59 +55,16 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   })
 
   const docId = `doc:${gid}`
-  const nodeById = new Map<string, Record<string, unknown>>()
-  const nodes: Record<string, unknown>[] = []
-  let mermaidTidyTreeLayout: {
+  const builder = new MarkdownGraphBuilder({ gid, docId, sourceUrl, mkMeta })
+  
+  let mermaidTreeLayout: {
     orientation?: 'vertical' | 'horizontal'
     direction?: 'source-target' | 'target-source'
   } | null = null
 
-  const ensureNode = (node: Record<string, unknown>): void => {
-    const id = String(node['@id'] || '')
-    if (!id) return
-    if (nodeById.has(id)) return
-    nodeById.set(id, node)
-    nodes.push(node)
-  }
-
-  const addRel = (src: string, key: string, tgt: string): void => {
-    const node = nodeById.get(src)
-    if (!node) return
-    const cur = node[key]
-    if (Array.isArray(cur)) {
-      if (!cur.includes(tgt)) {
-        cur.push(tgt)
-      }
-      return
-    }
-    if (typeof cur === 'string' && cur.trim()) {
-      if (cur !== tgt) {
-        node[key] = [cur, tgt]
-      }
-      return
-    }
-    node[key] = tgt
-  }
-
-  const setNext = (prev: string | null, next: string): void => {
-    if (!prev) return
-    const node = nodeById.get(prev)
-    if (!node) return
-    if ((node as { next?: unknown }).next) return
-    ;(node as { next?: unknown }).next = next
-  }
-
   const docProps: Record<string, unknown> = { format: 'text/markdown', graphId: gid }
   if (baseName) docProps.path = baseName
-  ensureNode({
-    '@id': docId,
-    '@type': 'Document',
-    labels: ['Document'],
-    name: title,
-    chunk_text: `${title}\n\nSource: ${baseName || 'inline'}`,
-    properties: docProps,
-    metadata: mkMeta(1, Math.max(1, rawLines.length)),
-  })
+  builder.createDocumentNode(title, `${title}\n\nSource: ${baseName || 'inline'}`, docProps, mkMeta(1, Math.max(1, rawLines.length)))
 
   const mermaidRaw = typeof meta.mermaid === 'string' ? meta.mermaid : ''
   const mermaidCode = String(mermaidRaw || '').trim()
@@ -120,16 +78,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   if (mermaidCode) {
     const mermaidId = `mermaid:${gid}:frontmatter`
-    ensureNode({
-      '@id': mermaidId,
-      '@type': 'MermaidDiagram',
-      labels: ['MermaidDiagram'],
-      name: 'Frontmatter Mermaid Diagram',
-      chunk_text: mermaidCode.slice(0, 800),
-      properties: { code: mermaidCode, format: 'graph' },
-      metadata: mkMeta(1, Math.max(1, startIndex - 1)),
-    })
-    addRel(docId, 'hasMermaid', mermaidId)
+    builder.createMermaidNode(mermaidId, mermaidCode, mkMeta(1, Math.max(1, startIndex - 1)))
 
     let mermaidStartLine = 1
     for (let i = 0; i < startIndex; i++) {
@@ -153,12 +102,12 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       gid,
       docId,
       startIndex: mermaidStartLine,
-      mermaidTidyTreeLayout,
-      ensureNode,
-      addRel,
+      mermaidTreeLayout,
+      ensureNode: (n) => builder.ensureNode(n),
+      addRel: (s, k, t) => builder.addRel(s, k, t),
       mkMeta,
-      setMermaidTidyTreeLayout: (layout) => {
-        mermaidTidyTreeLayout = layout
+      setMermaidTreeLayout: (layout) => {
+        mermaidTreeLayout = layout
       },
     }
     parseMermaidFrontmatter(mermaidCode, parserCtx)
@@ -168,8 +117,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   let currentSectionId: string = docId
   let lastBlockId: string | null = null
   const indexByParent = new Map<string, number>()
-  const linkNodeIds = new Set<string>()
-  const imageNodeIds = new Set<string>()
+
   if (!mermaidAnchorsOnly) {
     for (const b of blocks) {
       if (b.kind === 'heading') {
@@ -181,17 +129,10 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         const secId = `sec:${gid}:${anchor}:${b.startLine}`
         const order = (indexByParent.get(parentId) || 0) + 1
         indexByParent.set(parentId, order)
-        ensureNode({
-          '@id': secId,
-          '@type': 'Section',
-          labels: ['Section'],
-          name: b.text,
-          chunk_text: b.text,
-          properties: { heading: b.text, level: b.level, anchor, order },
-          metadata: mkMeta(b.startLine, b.endLine),
-        })
-        addRel(parentId, 'hasSection', secId)
-        setNext(lastBlockId, secId)
+        
+        builder.createSectionNode(secId, b.text, { heading: b.text, level: b.level, anchor, order }, mkMeta(b.startLine, b.endLine), parentId)
+        
+        builder.setNext(lastBlockId, secId)
         lastBlockId = secId
         sectionStack.push({ level: b.level, id: secId })
         currentSectionId = secId
@@ -204,34 +145,13 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
       if (b.kind === 'paragraph') {
         const id = `blk:${gid}:p:${b.startLine}:${order}`
-        ensureNode({
-          '@id': id,
-          '@type': 'Paragraph',
-          labels: ['Paragraph'],
-          name: `Paragraph ${order}`,
-          chunk_text: (b.text || '').slice(0, 800),
-          properties: { text: b.text, order, charCount: (b.text || '').length },
-          metadata: mkMeta(b.startLine, b.endLine),
-        })
-        addRel(parentId, 'hasBlock', id)
-        setNext(lastBlockId, id)
+        builder.createParagraphNode(id, b.text, { text: b.text, order, charCount: (b.text || '').length, name: `Paragraph ${order}` }, mkMeta(b.startLine, b.endLine), parentId)
+        
+        builder.setNext(lastBlockId, id)
         lastBlockId = id
         const refs = extractMarkdownInlineRefs(b.text || '', { baseUrl: sourceUrl || undefined })
         for (const link of refs.links) {
-          const linkId = `link:${slugify(link.url)}`
-          if (!linkNodeIds.has(linkId)) {
-            linkNodeIds.add(linkId)
-            ensureNode({
-              '@id': linkId,
-              '@type': 'Link',
-              labels: ['Link'],
-              name: link.label || link.url,
-              chunk_text: (link.label || '').slice(0, 800),
-              properties: { url: link.url, label: link.label },
-              metadata: mkMeta(b.startLine, b.endLine),
-            })
-          }
-          addRel(id, 'linksTo', linkId)
+          builder.createLinkNode(link.url, link.label, mkMeta(b.startLine, b.endLine), id)
         }
         for (const img of refs.images) {
           const normalizedUrl = (() => {
@@ -241,24 +161,8 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
             return fromGitHub || raw
           })()
           const imgId = `img:${slugify(normalizedUrl || img.url)}`
-          if (!imageNodeIds.has(imgId)) {
-            imageNodeIds.add(imgId)
-            const { type, props: mediaProps } = classifyMediaFromAltAndUrl(
-              normalizedUrl,
-              img.alt,
-            )
-
-            ensureNode({
-              '@id': imgId,
-              '@type': type,
-              labels: [type],
-              name: img.alt || normalizedUrl || img.url,
-              chunk_text: (img.alt || normalizedUrl || img.url).slice(0, 800),
-              properties: mediaProps,
-              metadata: mkMeta(b.startLine, b.endLine),
-            })
-            addRel(id, 'embedsImage', imgId)
-          }
+          const { type, props: mediaProps } = classifyMediaFromAltAndUrl(normalizedUrl, img.alt)
+          builder.createImageNode(imgId, type, img.alt || normalizedUrl || img.url, (img.alt || normalizedUrl || img.url).slice(0, 800), mediaProps, mkMeta(b.startLine, b.endLine), id)
         }
         continue
       }
@@ -267,77 +171,43 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         const id = `blk:${gid}:code:${b.startLine}:${order}`
         const props: Record<string, unknown> = { code: b.text, order, charCount: (b.text || '').length }
         if (b.language) props.language = b.language
-        ensureNode({
-          '@id': id,
-          '@type': 'CodeBlock',
-          labels: ['CodeBlock'],
-          name: `Code ${order}`,
-          chunk_text: (b.text || '').slice(0, 800),
-          properties: props,
-          metadata: mkMeta(b.startLine, b.endLine),
-        })
-        addRel(parentId, 'hasBlock', id)
-        setNext(lastBlockId, id)
+        builder.createCodeBlockNode(id, `Code ${order}`, (b.text || '').slice(0, 800), props, mkMeta(b.startLine, b.endLine), parentId)
+        
+        builder.setNext(lastBlockId, id)
         lastBlockId = id
         continue
       }
 
       if (b.kind === 'table') {
         const id = `blk:${gid}:table:${b.startLine}:${order}`
-        ensureNode({
-          '@id': id,
-          '@type': 'Table',
-          labels: ['Table'],
-          name: `Table ${order}`,
-          chunk_text: (b.text || '').slice(0, 800),
-          properties: { markdown: b.text, order },
-          metadata: mkMeta(b.startLine, b.endLine),
-        })
-        addRel(parentId, 'hasBlock', id)
-        setNext(lastBlockId, id)
+        builder.createTableNode(id, `Table ${order}`, (b.text || '').slice(0, 800), { markdown: b.text, order }, mkMeta(b.startLine, b.endLine), parentId)
+        
+        builder.setNext(lastBlockId, id)
         lastBlockId = id
         continue
       }
 
       if (b.kind === 'list') {
         const listId = `blk:${gid}:list:${b.startLine}:${order}`
-        ensureNode({
-          '@id': listId,
-          '@type': 'List',
-          labels: ['List'],
-          name: `List ${order}`,
-          chunk_text: b.items.map(it => it.text).join('\n').slice(0, 800),
-          properties: { order },
-          metadata: mkMeta(b.startLine, b.endLine),
-        })
-        addRel(parentId, 'hasBlock', listId)
-        setNext(lastBlockId, listId)
+        builder.createListNode(listId, `List ${order}`, b.items.map(it => it.text).join('\n').slice(0, 800), { order }, mkMeta(b.startLine, b.endLine), parentId)
+        
+        builder.setNext(lastBlockId, listId)
         lastBlockId = listId
         for (let idx = 0; idx < b.items.length; idx++) {
           const item = b.items[idx]!
           const itId = `blk:${gid}:li:${b.startLine}:${idx + 1}`
-          ensureNode({
-            '@id': itId,
-            '@type': 'ListItem',
-            labels: ['ListItem'],
-            name: (item.text || '').slice(0, 80) || `Item ${idx + 1}`,
-            chunk_text: (item.text || '').slice(0, 800),
-            properties: {
-              text: item.text,
-              ordered: !!item.ordered,
-              index: item.index ?? null,
-              order: idx + 1,
-            },
-            metadata: mkMeta(b.startLine, b.endLine),
-          })
-          addRel(listId, 'hasItem', itId)
+          builder.createListItemNode(itId, (item.text || '').slice(0, 80) || `Item ${idx + 1}`, (item.text || '').slice(0, 800), {
+            text: item.text,
+            ordered: !!item.ordered,
+            index: item.index ?? null,
+            order: idx + 1,
+          }, mkMeta(b.startLine, b.endLine), listId)
         }
         continue
       }
     }
   }
 
-  const anchorNodeIds = new Set<string>()
   for (let i = startIndex; i < rawLines.length; i += 1) {
     const line = rawLines[i] ?? ''
     const trimmed = line.trim()
@@ -352,18 +222,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       const anchorIdRaw = String(match[1] || match[2] || match[3] || '').trim()
       if (!anchorIdRaw) continue
       const anchorNodeId = `anchor:${gid}:${anchorIdRaw}`
-      if (anchorNodeIds.has(anchorNodeId)) continue
-      anchorNodeIds.add(anchorNodeId)
-      ensureNode({
-        '@id': anchorNodeId,
-        '@type': 'Anchor',
-        labels: ['Anchor'],
-        name: anchorIdRaw,
-        chunk_text: anchorIdRaw,
-        properties: { anchorId: anchorIdRaw },
-        metadata: mkMeta(lineNo, lineNo),
-      })
-      addRel(docId, 'hasAnchor', anchorNodeId)
+      builder.createAnchorNode(anchorNodeId, anchorIdRaw, { anchorId: anchorIdRaw }, mkMeta(lineNo, lineNo))
     }
 
     const internalLinkRe = /\[([^\]]+)\]\(#([^)]+)\)/g
@@ -375,22 +234,11 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       const anchorIdRaw = String(match[2] || '').trim()
       if (!anchorIdRaw) continue
       const linkId = `internal-link:${gid}:${slugify(label || anchorIdRaw)}:${slugify(anchorIdRaw)}`
-      if (!linkNodeIds.has(linkId)) {
-        linkNodeIds.add(linkId)
-        ensureNode({
-          '@id': linkId,
-          '@type': 'InternalLink',
-          labels: ['InternalLink'],
-          name: label || anchorIdRaw,
-          chunk_text: (label || anchorIdRaw).slice(0, 800),
-          properties: { anchorId: anchorIdRaw, label },
-          metadata: mkMeta(lineNo, lineNo),
-        })
-      }
-      addRel(docId, 'hasInternalLink', linkId)
+      builder.createInternalLinkNode(linkId, label || anchorIdRaw, { anchorId: anchorIdRaw, label }, mkMeta(lineNo, lineNo))
+
       const anchorNodeId = `anchor:${gid}:${anchorIdRaw}`
-      if (anchorNodeIds.has(anchorNodeId)) {
-        addRel(linkId, 'pointsTo', anchorNodeId)
+      if (builder.hasAnchor(anchorNodeId)) {
+        builder.addRel(linkId, 'pointsTo', anchorNodeId)
       }
     }
 
@@ -399,20 +247,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       for (const link of refs.links) {
         const url = String(link.url || '').trim()
         if (!url || url.startsWith('#')) continue
-        const linkId = `link:${slugify(url)}`
-        if (!linkNodeIds.has(linkId)) {
-          linkNodeIds.add(linkId)
-          ensureNode({
-            '@id': linkId,
-            '@type': 'Link',
-            labels: ['Link'],
-            name: link.label || url,
-            chunk_text: (link.label || url).slice(0, 800),
-            properties: { url, label: link.label },
-            metadata: mkMeta(lineNo, lineNo),
-          })
-        }
-        addRel(docId, 'linksTo', linkId)
+        builder.createLinkNode(url, link.label, mkMeta(lineNo, lineNo), docId)
       }
       for (const img of refs.images) {
         const normalizedUrl = (() => {
@@ -422,24 +257,8 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
           return fromGitHub || raw
         })()
         const imgId = `img:${slugify(normalizedUrl || img.url)}`
-        if (!imageNodeIds.has(imgId)) {
-          imageNodeIds.add(imgId)
-          const { type, props: mediaProps } = classifyMediaFromAltAndUrl(
-            normalizedUrl,
-            img.alt,
-          )
-
-          ensureNode({
-            '@id': imgId,
-            '@type': type,
-            labels: [type],
-            name: img.alt || normalizedUrl || img.url,
-            chunk_text: (img.alt || normalizedUrl || img.url).slice(0, 800),
-            properties: mediaProps,
-            metadata: mkMeta(lineNo, lineNo),
-          })
-        }
-        addRel(docId, 'embedsImage', imgId)
+        const { type, props: mediaProps } = classifyMediaFromAltAndUrl(normalizedUrl, img.alt)
+        builder.createImageNode(imgId, type, img.alt || normalizedUrl || img.url, (img.alt || normalizedUrl || img.url).slice(0, 800), mediaProps, mkMeta(lineNo, lineNo), docId)
       }
     }
   }
@@ -470,7 +289,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   const hasMermaid = !!mermaidCode
 
-  const tidyTreeMeta: {
+  const treeMeta: {
     edgeLabels?: string[]
     direction?: 'source-target' | 'target-source'
     orientation?: 'vertical' | 'horizontal'
@@ -489,25 +308,25 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   } = {}
 
   if (hasMermaid) {
-    tidyTreeMeta.edgeLabels = ['pointsTo']
-    if (mermaidTidyTreeLayout?.orientation) {
-      tidyTreeMeta.orientation = mermaidTidyTreeLayout.orientation
+    treeMeta.edgeLabels = ['pointsTo']
+    if (mermaidTreeLayout?.orientation) {
+      treeMeta.orientation = mermaidTreeLayout.orientation
     } else {
-      tidyTreeMeta.orientation = 'horizontal'
+      treeMeta.orientation = 'horizontal'
     }
-    if (mermaidTidyTreeLayout?.direction) {
-      tidyTreeMeta.direction = mermaidTidyTreeLayout.direction
+    if (mermaidTreeLayout?.direction) {
+      treeMeta.direction = mermaidTreeLayout.direction
     }
-    const density = computeMermaidTidyTreeSeparation(mermaidCode, mermaidAnchorsOnly)
-    tidyTreeMeta.separation = density.separation
-    tidyTreeMeta.mermaidDensity = {
+    const density = computeMermaidTreeSeparation(mermaidCode, mermaidAnchorsOnly)
+    treeMeta.separation = density.separation
+    treeMeta.mermaidDensity = {
       statementCount: density.statementCount,
       density: density.density,
       anchorsOnly: mermaidAnchorsOnly,
       config: mermaidDensityConfig,
     }
   } else {
-    tidyTreeMeta.edgeLabels = [
+    treeMeta.edgeLabels = [
       'hasSection',
       'hasBlock',
       'hasItem',
@@ -521,9 +340,9 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const metadata = {
     graphId: gid,
     generatedAt: nowIso,
-    layoutMode: 'tidy-tree',
-    tidyTree: tidyTreeMeta,
+    layoutMode: 'tree',
+    tree: treeMeta,
   }
 
-  return { '@context': ctx, metadata, '@graph': nodes }
+  return { '@context': ctx, metadata, '@graph': builder.getNodes() }
 }

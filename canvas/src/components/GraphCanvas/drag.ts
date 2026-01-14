@@ -35,7 +35,7 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       d.fy = null;
       d.vx = 0;
       d.vy = 0;
-      if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tidy-tree') {
+      if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tree') {
         simulation.stop();
       }
     });

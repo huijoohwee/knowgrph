@@ -2,13 +2,12 @@ export { createZoom } from './zoom';
 export {
   normalizeEdgesForSim,
   buildSimulation,
-  deriveTidyTreeDerivation,
   buildNeighborIds,
   buildAdjacencyMap,
   getAdjacencyMap,
   getEdgeEndpoints,
 } from './simulation';
-export type { EdgeWithRuntime, TidyTreeDerivation } from './simulation';
+export type { EdgeWithRuntime } from './simulation';
 export { nodeDragBehavior } from './drag';
 export { fitNodeTransform, fitEdgeTransform, fitAllTransform, centerAllTransform } from './fit';
 export { applySelectionHighlight } from './highlight';
