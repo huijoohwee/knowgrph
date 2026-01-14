@@ -99,13 +99,21 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
 
   React.useEffect(() => {
     if (!enabled || dismissed || !ready || !selector) return
-    const handle = () => updateAnchor()
+    let frame: number | null = null
+    const handle = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(() => {
+        updateAnchor()
+        frame = null
+      })
+    }
     window.addEventListener('resize', handle)
     window.addEventListener('scroll', handle, true)
     return () => {
       clearObserver()
       window.removeEventListener('resize', handle)
       window.removeEventListener('scroll', handle, true)
+      if (frame) window.cancelAnimationFrame(frame)
     }
   }, [enabled, dismissed, ready, selector, updateAnchor, clearObserver])
 

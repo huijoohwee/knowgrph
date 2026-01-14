@@ -94,12 +94,20 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
   React.useEffect(() => {
     if (!open) return
     updatePosition()
-    const h = () => updatePosition()
+    let frame: number | null = null
+    const h = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(() => {
+        updatePosition()
+        frame = null
+      })
+    }
     window.addEventListener('scroll', h, true)
     window.addEventListener('resize', h, true)
     return () => {
       window.removeEventListener('scroll', h, true)
       window.removeEventListener('resize', h, true)
+      if (frame) window.cancelAnimationFrame(frame)
     }
   }, [open, updatePosition])
 

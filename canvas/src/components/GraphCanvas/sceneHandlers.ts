@@ -83,6 +83,7 @@ export const attachSimulationTick = (args: {
   }
 
   const isTree = schema.layout?.mode === 'tree'
+  const isMermaid = schema.layout?.mode === 'mermaid'
   const baseDxFallback = schema.labelStyles?.offset?.dx ?? 12
   const baseDyFallback = schema.labelStyles?.offset?.dy ?? 4
   const labelFontSize = (() => {
@@ -125,6 +126,25 @@ export const attachSimulationTick = (args: {
         })
         return path ?? ''
       })
+    } else if (isMermaid) {
+       ;(linkSel as d3.Selection<SVGPathElement, GraphEdge, SVGGElement, unknown>).attr('d', d => {
+          const props = (d.properties || {}) as Record<string, unknown>;
+          const points = props['visual:points'] as Array<{x: number, y: number}> | undefined;
+          
+          if (Array.isArray(points) && points.length > 0) {
+              const lineGen = d3.line<{x: number, y: number}>()
+                  .x(p => p.x)
+                  .y(p => p.y)
+                  .curve(d3.curveBasis);
+              return lineGen(points) || '';
+          }
+          
+          const edge = d as unknown as EdgeWithRuntime;
+          const src = resolveNode(edge.source);
+          const tgt = resolveNode(edge.target);
+          if (!src || !tgt || src.x == null || src.y == null || tgt.x == null || tgt.y == null) return '';
+          return `M${src.x},${src.y}L${tgt.x},${tgt.y}`;
+       });
     } else {
       ;(linkSel as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>)
         .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.source.x ?? 0)
@@ -174,6 +194,12 @@ export const attachSimulationTick = (args: {
     const padPx = 8
     labelsSel.each(function (d: GraphNode) {
       const el = this as unknown as SVGTextElement
+      if (isMermaid) {
+          el.setAttribute('text-anchor', 'middle')
+          el.setAttribute('dx', '0')
+          el.setAttribute('dy', '0.35em')
+          return
+      }
       const label = String(d.label ?? '')
       const charCount = label.length
       const estWidthPx = Math.max(0, charCount) * labelFontSize * k * 0.6

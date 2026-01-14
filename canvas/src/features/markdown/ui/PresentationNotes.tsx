@@ -25,7 +25,7 @@ export function PresentationNotes(props: PresentationNotesProps) {
   if (!notesTokens || notesTokens.length === 0) return null
   
   return (
-    <div className={className}>
+    <aside className={className} aria-label="Speaker Notes">
         <div className={['px-4 py-3 text-xs text-gray-800', props.uiPanelTextFontClass].filter(Boolean).join(' ')}>
             <MarkdownTokenRenderer
                 tokens={notesTokens}
@@ -41,6 +41,6 @@ export function PresentationNotes(props: PresentationNotesProps) {
                 {...rest}
             />
         </div>
-    </div>
+    </aside>
   )
 }

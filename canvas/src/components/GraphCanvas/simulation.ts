@@ -3,6 +3,7 @@ import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema, getNodeRadiusFromSchema } from '@/lib/graph/schema';
 import { applyTreeLayout } from './layout/tree';
 import { applyRadialClusterLayout } from './layout/radial';
+import { applyMermaidLayout } from './layout/mermaid';
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined;
 
@@ -54,8 +55,8 @@ export const buildSimulation = (
   schema: GraphSchema,
   options?: { skipInitialLayout?: boolean }
 ) => {
-  const linkDist = (e: GraphEdge) => schema.layout?.forces?.linkDistanceByLabel?.[e.label] ?? 100;
-  const baseChargeVal = schema.layout?.forces?.charge ?? -300;
+  const linkDist = (e: GraphEdge) => schema.layout?.forces?.linkDistanceByLabel?.[e.label] ?? 150;
+  const baseChargeVal = schema.layout?.forces?.charge ?? -500;
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {};
   const mode = schema.layout?.mode || 'force';
   if (!options?.skipInitialLayout) {
@@ -65,13 +66,16 @@ export const buildSimulation = (
     if (mode === 'tree') {
       applyTreeLayout(nodes, edgesForSim, width, height, schema);
     }
+    if (mode === 'mermaid') {
+      applyMermaidLayout(nodes, edgesForSim, width, height, schema);
+    }
   }
   const linkForce = d3
     .forceLink<GraphNode, GraphEdge>(edgesForSim)
     .id(d => d.id)
     .distance(linkDist);
   const simulation = d3.forceSimulation<GraphNode>(nodes).force('link', linkForce);
-  if (mode === 'radial' || mode === 'tree') {
+  if (mode === 'radial' || mode === 'tree' || mode === 'mermaid') {
     linkForce.strength(0);
   } else {
     const collideRadiusFn = (d: GraphNode) => {
@@ -79,12 +83,36 @@ export const buildSimulation = (
       if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) {
         return configured;
       }
-      return getNodeRadiusFromSchema(d, schema);
+      return (getNodeRadiusFromSchema(d, schema) || 20) * 1.5;
     };
     simulation
       .force('charge', d3.forceManyBody().strength(baseChargeVal))
-      .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn))
-      .force('center', d3.forceCenter(Math.max(1, width) / 2, Math.max(1, height) / 2));
+      .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.7))
+      .force('center', d3.forceCenter(Math.max(1, width) / 2, Math.max(1, height) / 2))
+       .force('box', () => {
+         const enabled = schema.layout?.forces?.boxForce !== false;
+         if (!enabled) return;
+         const strength = schema.layout?.forces?.boxForceStrength ?? 0.05;
+         const cx = Math.max(1, width) / 2;
+         const cy = Math.max(1, height) / 2;
+         // Tighter constraints: keep nodes mostly within the viewport
+         const limitX = Math.max(1, width) * 0.6;
+         const limitY = Math.max(1, height) * 0.6;
+         const alpha = simulation.alpha();
+         const k = alpha * strength;
+         for (const d of nodes) {
+           if (d.x == null || d.y == null) continue;
+           const dx = d.x - cx;
+           const dy = d.y - cy;
+           // Apply force if outside limits
+           if (Math.abs(dx) > limitX) {
+              d.vx! -= (dx - Math.sign(dx) * limitX) * k;
+           }
+           if (Math.abs(dy) > limitY) {
+              d.vy! -= (dy - Math.sign(dy) * limitY) * k;
+           }
+         }
+       });
   }
   if (schema.layout?.forces?.alphaDecay != null) {
     simulation.alphaDecay(schema.layout.forces.alphaDecay!);

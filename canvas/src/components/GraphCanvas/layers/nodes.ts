@@ -123,12 +123,21 @@ export const createNodesLayer = (args: {
       return filtered.length > 0 ? filtered : rawNodes;
     })();
     if (!graphLayersVisible) return base;
+    // If Mermaid mode, keep MermaidSubgraph nodes as they are part of the layout
+    if (schema.layout?.mode === 'mermaid') {
+       // Sort MermaidSubgraph nodes to the beginning so they render behind other nodes
+       return [...base].sort((a, b) => {
+           if (a.type === 'MermaidSubgraph' && b.type !== 'MermaidSubgraph') return -1;
+           if (a.type !== 'MermaidSubgraph' && b.type === 'MermaidSubgraph') return 1;
+           return 0;
+       });
+    }
     const filteredForLayers = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
     return filteredForLayers.length > 0 ? filteredForLayers : base;
   })();
   const getNodeShape = (n: GraphNode): 'circle' | 'rect' => {
     // If Tree layout is active, force rect shape for all nodes or specifically Mermaid nodes
-    if (isTree) return 'rect'
+    if (isTree || schema.layout?.mode === 'mermaid') return 'rect'
 
     const fromSchema = schema.nodeShapes?.[String(n.type || '')]
     if (fromSchema === 'rect') return 'rect'
@@ -350,8 +359,14 @@ export const createNodesLayer = (args: {
     .data(rectNodes)
     .enter()
     .append('rect')
-    .attr('rx', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
-    .attr('ry', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
+    .attr('rx', (d: GraphNode) => {
+       if (d.type === 'MermaidSubgraph') return 4;
+       return getRenderNodeRadius2d(d, schema) * 0.22;
+    })
+    .attr('ry', (d: GraphNode) => {
+       if (d.type === 'MermaidSubgraph') return 4;
+       return getRenderNodeRadius2d(d, schema) * 0.22;
+    })
 
   const node = (circleSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).merge(
     rectSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>,
@@ -360,23 +375,31 @@ export const createNodesLayer = (args: {
     .attr(
       'fill',
       (d: GraphNode) =>
-        isTree && treeColorMode === 'observable'
+        d.type === 'MermaidSubgraph'
+          ? '#fafafa'
+          : isTree && treeColorMode === 'observable'
           ? nodesWithChildren.has(String(d.id))
             ? internalFill
             : leafFill
           : getNodeBaseFill(d, schema),
     )
     .attr('stroke', (d: GraphNode) => {
+      if (d.type === 'MermaidSubgraph') return '#333';
       if (isTree && treeColorMode === 'observable') return 'none';
       if (schema.layout?.mode === 'tree') return schema.nodeStroke?.[d.type]?.color ?? 'none';
       return schema.nodeStroke?.[d.type]?.color ?? '#ffffff';
     })
     .attr('stroke-width', (d: GraphNode) => {
+      if (d.type === 'MermaidSubgraph') return 1;
       if (isTree && treeColorMode === 'observable') return 0;
       const w = schema.nodeStroke?.[d.type]?.width;
       if (typeof w === 'number' && Number.isFinite(w) && w >= 0) return w;
       if (schema.layout?.mode === 'tree') return 0;
       return 1.5;
+    })
+    .attr('stroke-dasharray', (d: GraphNode) => {
+        if (d.type === 'MermaidSubgraph') return '4,2';
+        return null;
     })
     .style('cursor', 'pointer')
     .style('pointer-events', 'all');

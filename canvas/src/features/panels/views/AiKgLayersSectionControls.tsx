@@ -45,6 +45,7 @@ export default function AiKgLayersControls({
       />
       <AiKgForceControls
         schema={schema}
+        setSchema={setSchema}
         setCharge={setCharge}
         setCollisionByType={setCollisionByType}
         traversalDelayMs={traversalDelayMs}

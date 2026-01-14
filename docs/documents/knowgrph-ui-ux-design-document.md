@@ -42,6 +42,17 @@
     `canvas/src/components/GraphCanvas/helpers.ts`.
   - Image and video URLs are passed through `applyMediaProxySrc` so that
     cross-origin HTTP(S) media is fetched via `/__fetch_remote`.
+- Zoom & Fit Implementation:
+  - 2D: implemented via `useZoomEffects` and `applyZoomRequest("fit")`:
+    - Uses `fitAllTransform` to compute a strict bounding box of all nodes (ignoring origin) and center that box in the SVG viewport while scaling to keep a small margin on all sides.
+    - This ensures that even if the graph has drifted far from the origin, it will be perfectly centered.
+    - For single-node graphs, `fitAllTransform` treats the node’s position as the entire bounding box.
+    - When the graph transitions from empty to non-empty, this guarantees visibility.
+  - Safety Forces:
+    - To ensure nodes remain visible and "well spread out" without flying off-screen during force simulation, a "Box Force" is applied.
+    - This soft-constraint pushes nodes back towards the center if they exceed 1.5x the viewport dimensions.
+    - Configurable via `schema.layout.forces.boxForce` and `boxForceStrength`.
+  - 3D: implemented via `Controls` and `requestThreeCamera("fit")`:
 
 # Media panel visual QA checklist
 - Zoom behavior:
@@ -105,6 +116,11 @@
   - **Double-Click Behavior**: Double-clicking a line in the Viewer, Presentation, or Slides Gallery auto-positions the Markdown Editor to the corresponding line. This mapping is precise, preserving line numbers even for nested content.
   - **Canvas Click**: Clicking a node/edge/graph layer on the Canvas auto-positions the Markdown Editor to the corresponding Mermaid Frontmatter line (if applicable), removing legacy implementations to ensure a single source of truth.
   - For Mermaid frontmatter, Canvas selection and layout behavior follow the same neutrality guarantees as other graph content: `MermaidNode` and `pointsTo` edges are styled and filtered via schema‑driven layer configuration, and layout modes (force, radial, tidy‑tree) all operate on the same schema‑aligned subgraph without special cases for any particular template or dataset; see `docs/documents/knowgrph-mermaid-frontmatter-document.md` for details on Mermaid‑specific legend chips and path highlighting.
+- Hover Tooltip Configuration:
+  - Users can configure what information is displayed in the node/edge hover tooltip via the "Graph Layers" settings panel.
+  - Configurable options: `Show Type`, `Show ID`, `Show Props`.
+  - This allows users to reduce visual clutter by hiding redundant information (e.g., hiding IDs or Types if they are obvious from context).
+  - Schema backing: `schema.behavior.hover.content` object.
 # Unified Markdown Layout (Editor & Viewer)
 - Navigation and Layout:
   - Both Editor and Viewer modes share a unified `MarkdownPanelLayout` with a collapsible sidebar Table of Contents (TOC).
@@ -116,7 +132,7 @@
   - **Settings View**: Technical details in the Settings view now use a semantic `<table>` instead of a grid of divs, improving readability and accessibility for tabular data.
   - **Legacy Cleanup**: Removed redundant `div`-based line number columns and legacy GutterRow components in favor of semantic structures and efficient Monaco Editor integration.
   - **Sidebar Position**: The sidebar is positioned on the **left** side of the panel (default layout).
-  - **Token Sharing**: The markdown lexer runs once at the parent level, and tokens are shared between the Viewer, TOC, and Editor components to optimize performance and prevent redundant processing. Line maps are preserved during token processing to ensure accurate scroll synchronization.
+  - **Token Sharing**: The markdown lexer runs once at the parent level, and tokens are shared between the Viewer, TOC, Editor, and Presentation components to optimize performance and prevent redundant processing. Line maps are preserved during token processing to ensure accurate scroll synchronization.
   - **Component Architecture**:
     - The `BottomPanelMarkdownSectionView` is split into dedicated `MarkdownEditorPane` and `MarkdownViewerPane` components to separate concerns and improve maintainability.
     - Complex state and logic (scroll sync, auto-positioning, flash effects, TOC handling) are extracted into a custom `useMarkdownSectionLogic` hook, keeping the view component lightweight.

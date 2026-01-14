@@ -27,6 +27,7 @@ import {
 
 type AiKgForceControlsProps = {
   schema: GraphSchema
+  setSchema: (schema: GraphSchema) => void
   setCharge: (charge: number) => void
   setCollisionByType: (type: string, radius: number) => void
   traversalDelayMs: number
@@ -36,6 +37,7 @@ type AiKgForceControlsProps = {
 
 export default function AiKgForceControls({
   schema,
+  setSchema,
   setCharge,
   setCollisionByType,
   traversalDelayMs,
@@ -257,6 +259,88 @@ export default function AiKgForceControls({
               className={uiPanelKeyValueInputClass}
             />
           </Tooltip>
+        )}
+      />
+      <KeyTypeValueRow
+        density="compact"
+        keyNode={(
+          <Tooltip
+             content="Box Force → constrain nodes to viewport to prevent flying off-screen."
+             maxWidthPx={260}
+             contentClassName="bg-gray-800/90"
+             className="text-gray-700"
+          >
+            Box Force
+          </Tooltip>
+        )}
+        typeNode={
+           <div className="flex items-center">
+             <input
+               type="checkbox"
+               checked={schema.layout?.forces?.boxForce !== false}
+               onChange={e => {
+                  const forces = schema.layout?.forces || {};
+                  setSchema({
+                     ...schema,
+                     layout: { ...schema.layout, forces: { ...forces, boxForce: e.target.checked } }
+                  });
+               }}
+               className="h-4 w-4"
+             />
+           </div>
+        }
+        valueNode={
+           <span className="text-xs text-gray-500 italic">Constrain</span>
+        }
+      />
+      <KeyTypeValueRow
+        density="compact"
+        layout="keyIconSliderInput"
+        keyNode={(
+          <Tooltip
+             content="Strength of the box force constraint."
+             maxWidthPx={260}
+             contentClassName="bg-gray-800/90"
+             className="text-gray-700"
+          >
+            Box Str.
+          </Tooltip>
+        )}
+        typeNode={(
+           <input
+               type="range"
+               min={0.01}
+               max={0.2}
+               step={0.01}
+               value={schema.layout?.forces?.boxForceStrength ?? 0.05}
+               onChange={e => {
+                 const val = Number(e.target.value);
+                 const forces = schema.layout?.forces || {};
+                 setSchema({
+                    ...schema,
+                    layout: { ...schema.layout, forces: { ...forces, boxForceStrength: val } }
+                 });
+               }}
+               className="w-full h-full"
+           />
+        )}
+        valueNode={(
+           <input
+               type="number"
+               min={0.01}
+               max={0.2}
+               step={0.01}
+               value={schema.layout?.forces?.boxForceStrength ?? 0.05}
+               onChange={e => {
+                 const val = Number(e.target.value);
+                 const forces = schema.layout?.forces || {};
+                 setSchema({
+                    ...schema,
+                    layout: { ...schema.layout, forces: { ...forces, boxForceStrength: val } }
+                 });
+               }}
+               className={uiPanelKeyValueInputClass}
+           />
         )}
       />
     </>

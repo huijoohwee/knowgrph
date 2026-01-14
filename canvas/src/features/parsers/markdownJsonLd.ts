@@ -340,8 +340,8 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const metadata = {
     graphId: gid,
     generatedAt: nowIso,
-    layoutMode: 'tree',
-    tree: treeMeta,
+    layoutMode: hasMermaid ? 'mermaid' : 'tree',
+    ...(hasMermaid ? { mermaid: treeMeta } : { tree: treeMeta }),
   }
 
   return { '@context': ctx, metadata, '@graph': builder.getNodes() }

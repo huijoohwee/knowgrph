@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, Maximize, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon, Layers, Shapes, GitMerge, FileText } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon, Layers, Shapes, GitMerge, FileText } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -20,6 +20,9 @@ import {
   uiPrimaryIconInactiveClassName,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
+
+import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
+import { FitToViewButton } from '@/features/toolbar/ui/FitToViewButton';
 
 interface ToolbarProps {
   onZoomIn?: () => void;
@@ -83,27 +86,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const iconStrokeWidth = uiIconStrokeWidth;
   const launchIconClass = uiIconAnimationEnabled ? 'LaunchButton__icon' : '';
   const layoutMode = schema.layout?.mode || 'force';
-  const treeCfg = schema.layout?.tree || {};
-  const treeEdgeLabels = Array.isArray(treeCfg.edgeLabels)
-    ? treeCfg.edgeLabels.map(v => String(v || '').trim()).filter(Boolean)
-    : [];
-  const treeDocEdgeLabels = [
-    'hasSection',
-    'hasBlock',
-    'hasItem',
-    'hasMermaid',
-    'hasMermaidNode',
-    'hasAnchor',
-    'hasInternalLink',
-  ];
-  const normalizeLabels = (labels: string[]) => labels.slice().map(v => v.trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  const normalizedTreeLabels = normalizeLabels(treeEdgeLabels);
-  const normalizedDocLabels = normalizeLabels(treeDocEdgeLabels);
-  const isDocPreset =
-    normalizedTreeLabels.length === normalizedDocLabels.length &&
-    normalizedTreeLabels.every((v, idx) => v === normalizedDocLabels[idx]);
-  const isMermaidPreset = normalizedTreeLabels.length === 1 && normalizedTreeLabels[0] === 'pointsTo';
-  const treePreset: 'mermaid' | 'document' | 'custom' = isMermaidPreset ? 'mermaid' : isDocPreset ? 'document' : 'mermaid';
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false);
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const rawLayerMode = schema.layers?.mode;
@@ -125,8 +107,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     schema,
     setSchema,
     setCanvasRenderMode,
-    treePreset,
-    treeDocEdgeLabels,
     setThemeMode,
     launchSpotlight,
     openMainPanel,
@@ -218,6 +198,19 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
+          canvasRenderMode === '2d' && layoutMode === 'mermaid'
+            ? uiPrimaryIconActiveClassName
+            : uiPrimaryIconInactiveClassName
+        }`}
+        title="Mermaid Layout"
+        tooltipContent="Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout."
+        onClick={actions.handleToggleMermaidLayout}
+        showTooltip
+      >
+        <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${
           selectMode === 'multi' || selectMode === 'lasso'
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
@@ -265,33 +258,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <TreePine className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          layoutMode === 'tree' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={
-          treePreset === 'mermaid'
-            ? 'Tree preset: Mermaid flowchart'
-            : treePreset === 'document'
-              ? 'Tree preset: Document hierarchy'
-              : 'Tree preset: Custom'
-        }
-        tooltipContent={
-          treePreset === 'mermaid'
-            ? 'Tree preset: use Mermaid flowchart edges (pointsTo)'
-            : treePreset === 'document'
-              ? 'Tree preset: use document structure edges (sections, blocks, items)'
-              : 'Tree preset: custom tree configuration'
-        }
-        onClick={actions.handleToggleTreePreset}
-        showTooltip
-      >
-        {treePreset === 'mermaid' ? (
-          <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : (
-          <FileText className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        )}
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
@@ -404,17 +370,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       <IconButton className="App-toolbar__btn" title={UI_LABELS.zoomOut} onClick={onZoomOut} showTooltip>
         <ZoomOut className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          fitToScreenMode ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.fitToScreen}
-        tooltipContent="Fit to Screen mode: toggle to center the viewport on the full graph and clear Zoom to Selection until you turn it off."
-        onClick={actions.handleToggleFitToScreen}
-        showTooltip
-      >
-        <Maximize className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
+      <FitToViewButton />
+      <FitToScreenButton />
       <IconButton
         className={`App-toolbar__btn ${
           zoomToSelectionMode ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName

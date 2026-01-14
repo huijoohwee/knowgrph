@@ -20,12 +20,15 @@ import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasSty
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects';
 import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect';
 import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight';
+import { determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning';
+import { useDebouncedValue } from '@/features/hooks/useDebouncedValue';
 
 export default function GraphCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'tree'>(null);
+  const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'tree' | 'mermaid'>(null);
   const lastLayerModeRef = useRef<null | string>(null);
+  const lastFrontmatterModeRef = useRef<boolean | null>(null);
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
   const nodesSelRef = useRef<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>(null);
   const mediaSelRef = useRef<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>(null);
@@ -170,6 +173,8 @@ export default function GraphCanvas() {
     updateEdge,
   ]);
   const { width, height, left, top } = useContainerDims(containerRef as unknown as React.RefObject<HTMLElement | null>);
+  const debouncedWidth = useDebouncedValue(width, 100);
+  const debouncedHeight = useDebouncedValue(height, 100);
   const tempLinkSelRef = useRef<TempLinkSelection>(null);
   const linkDragRef = useRef<PendingLink | null>(null);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
@@ -276,54 +281,22 @@ export default function GraphCanvas() {
       const prevMode = lastLayoutModeRef.current
       const layerMode = String(schemaValue.layers?.mode || 'property')
       const prevLayerMode = lastLayerModeRef.current
-      const isModeChange = prevMode !== mode
-      const isLayerChange = prevLayerMode !== layerMode
-      const isStructuredMode = mode === 'radial' || mode === 'tree'
-      const nodes = Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes : []
-      const coverageFromNodes = (() => {
-        if (!isStructuredMode) return 0
-        if (nodes.length === 0) return 0
-        let matches = 0
-        for (let i = 0; i < nodes.length; i += 1) {
-          const n = nodes[i]
-          const x = typeof n.x === 'number' ? n.x : null
-          const y = typeof n.y === 'number' ? n.y : null
-          if (x == null || y == null) continue
-          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-          matches += 1
-        }
-        return matches / Math.max(1, nodes.length)
-      })()
-      const cacheKey = `${layerMode}:${mode}`
-      const cachedPositions =
-        isStructuredMode && layoutPositionCacheByMode
-          ? (layoutPositionCacheByMode[cacheKey] ?? null)
-          : null
-      const coverageFromCache = (() => {
-        if (!isStructuredMode) return 0
-        if (!cachedPositions) return 0
-        if (nodes.length === 0) return 0
-        let matches = 0
-        for (let i = 0; i < nodes.length; i += 1) {
-          const p = cachedPositions[String(nodes[i].id)]
-          if (!p) continue
-          const x = typeof p.x === 'number' ? p.x : null
-          const y = typeof p.y === 'number' ? p.y : null
-          if (x == null || y == null) continue
-          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-          matches += 1
-        }
-        return matches / Math.max(1, nodes.length)
-      })()
-      const shouldUseCache =
-        isStructuredMode &&
-        !!cachedPositions &&
-        coverageFromCache >= 0.95 &&
-        (isModeChange || isLayerChange || coverageFromNodes < 0.95)
-      const layoutPositionsForMode = shouldUseCache ? cachedPositions : null
-      const skipInitialLayout =
-        isStructuredMode &&
-        (shouldUseCache || (!isModeChange && !isLayerChange && coverageFromNodes >= 0.95))
+      const prevFrontmatterMode = lastFrontmatterModeRef.current
+
+      const {
+        layoutPositionsForMode,
+        skipInitialLayout,
+        cacheKey,
+      } = determineLayoutPositions({
+        mode,
+        layerMode,
+        frontmatterMode: !!frontmatterModeEnabled,
+        prevMode,
+        prevLayerMode,
+        prevFrontmatterMode,
+        nodes: Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes : [],
+        layoutPositionCacheByMode,
+      });
       
       const prevPositions: Record<string, { x: number; y: number }> = {}
       if (nodesSelRef.current) {
@@ -336,14 +309,15 @@ export default function GraphCanvas() {
 
       lastLayoutModeRef.current = mode
       lastLayerModeRef.current = layerMode
+      lastFrontmatterModeRef.current = !!frontmatterModeEnabled
       cleanupScene = setupGraphScene({
         svgEl: svgRef.current,
         svgRef,
         graphData: renderGraphData,
         schema: schemaValue,
         edgesForSim,
-        width,
-        height,
+        width: debouncedWidth,
+        height: debouncedHeight,
         hoverEnabled,
         zoomOnDoubleClick,
         graphLayersVisible,
@@ -401,8 +375,8 @@ export default function GraphCanvas() {
   }, [
     graphData,
     graphDataRevision,
-    width,
-    height,
+    debouncedWidth,
+    debouncedHeight,
     renderGraphData,
     schema,
     edgesForSim,

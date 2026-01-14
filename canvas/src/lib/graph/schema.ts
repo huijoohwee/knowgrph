@@ -9,7 +9,16 @@ export interface GraphBehavior {
   preventSelfLoopsGlobal?: boolean;
   selectMode?: 'single' | 'multi' | 'lasso';
   createMode?: 'shift-drag' | 'click-source-target' | 'panel-only';
-  hover?: { enabled?: boolean; intensity?: number; debounceMs?: number };
+  hover?: {
+    enabled?: boolean;
+    intensity?: number;
+    debounceMs?: number;
+    content?: {
+      showProps?: boolean;
+      showType?: boolean;
+      showId?: boolean;
+    };
+  };
   expansion?: {
     enabled?: boolean;
     highlightNeighbors?: boolean;
@@ -179,15 +188,35 @@ export interface GraphSchema {
     }>;
   };
   layout?: {
-    mode?: 'force' | 'radial' | 'tree';
+    mode?: 'force' | 'radial' | 'tree' | 'mermaid';
     forces?: {
       linkDistanceByLabel?: Record<string, number>;
       charge?: number;
       collisionByType?: Record<string, number>;
       centerStrength?: number;
       alphaDecay?: number;
+      boxForce?: boolean;
+      boxForceStrength?: number;
     };
     fitPadding?: number;
+    mermaid?: {
+      edgeLabels?: string[];
+      direction?: 'auto' | 'source-target' | 'target-source';
+      orientation?: 'vertical' | 'horizontal';
+      nodeSize?: { x?: number; y?: number };
+      separation?: number;
+      sortBy?: 'none' | 'label' | 'id' | 'type';
+      curve?: 'bump' | 'linear' | 'step';
+      linkStroke?: string;
+      linkOpacity?: number;
+      linkWidth?: number;
+      nodeRadius?: number;
+      colorMode?: 'observable' | 'schema';
+      internalFill?: string;
+      leafFill?: string;
+      labelFontSize?: number;
+      labelFontFamily?: string;
+    };
     tree?: {
       edgeLabels?: string[];
       direction?: 'auto' | 'source-target' | 'target-source';
@@ -480,7 +509,14 @@ export const defaultSchema: GraphSchema = {
     snapGrid: { enabled: false, size: 10 },
     preventDuplicatesGlobal: true,
     preventSelfLoopsGlobal: true,
-    hover: { enabled: true },
+    hover: {
+      enabled: true,
+      content: {
+        showProps: true,
+        showType: true,
+        showId: true,
+      }
+    },
     expansion: {
       enabled: true,
       highlightNeighbors: true,

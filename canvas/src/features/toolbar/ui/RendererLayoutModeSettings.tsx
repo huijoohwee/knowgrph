@@ -54,7 +54,12 @@ export function RendererLayoutModeSettings() {
                   const raw = String(e.target.value || '');
                   const nextMode = raw === 'radial' || raw === 'tree' ? raw : 'force';
                   const layout = schema.layout || {};
+                  
+                  // When switching modes, we want to ensure visibility
+                  // We rely on the automatic effect in GraphCanvas that detects mode changes
+                  // to trigger "fit", but we also explicitly set 2d mode.
                   setSchema({ ...schema, layout: { ...layout, mode: nextMode } });
+                  
                   if (nextMode === 'radial' || nextMode === 'tree') {
                     setCanvasRenderMode('2d');
                   }

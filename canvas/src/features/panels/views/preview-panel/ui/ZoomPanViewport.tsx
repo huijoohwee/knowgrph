@@ -69,9 +69,20 @@ export default function ZoomPanViewport({
   }, [pan, zoom])
 
   React.useEffect(() => {
-    scheduleIdle(() => {
+    const handle = scheduleIdle(() => {
       lsSetJson(storageKey, { zoom, panX: pan.x, panY: pan.y })
     })
+    return () => {
+      try {
+        if (typeof (globalThis as any).cancelIdleCallback === 'function') {
+          ;(globalThis as any).cancelIdleCallback(handle)
+        } else {
+           clearTimeout(handle as unknown as number)
+        }
+      } catch {
+        void 0
+      }
+    }
   }, [pan.x, pan.y, storageKey, zoom])
 
   React.useEffect(() => {

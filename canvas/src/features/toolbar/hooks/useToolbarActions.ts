@@ -1,6 +1,5 @@
 import { useCallback } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { computeNextSchemaForTreePreset } from '@/features/toolbar/treePreset'
 import { deriveTreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
 import { normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
 import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
@@ -11,8 +10,6 @@ export function useToolbarActions(
   schema: GraphSchema,
   setSchema: (s: GraphSchema) => void,
   setCanvasRenderMode: (m: '2d' | '3d') => void,
-  treePreset: 'mermaid' | 'document' | 'custom',
-  treeDocEdgeLabels: string[],
   setThemeMode: React.Dispatch<React.SetStateAction<ThemeMode>>,
   launchSpotlight: (mode?: string) => void,
   openMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'graphLayer' | 'preview' | 'settings') => void,
@@ -116,14 +113,6 @@ export function useToolbarActions(
     }
   }, [schema, setSchema, setCanvasRenderMode])
 
-  const handleToggleTreePreset = useCallback(() => {
-    const current = schema
-    const nextPreset = treePreset === 'mermaid' ? 'document' : 'mermaid'
-    const nextSchema = computeNextSchemaForTreePreset(current, nextPreset, treeDocEdgeLabels)
-    setSchema(nextSchema)
-    setCanvasRenderMode('2d')
-  }, [schema, treePreset, treeDocEdgeLabels, setSchema, setCanvasRenderMode])
-
   const handleToggleRadialLayout = useCallback(() => {
     const current = schema
     const layout = current.layout || {}
@@ -135,6 +124,21 @@ export function useToolbarActions(
     }
     setSchema(next as GraphSchema)
     if (nextMode === 'radial') {
+      setCanvasRenderMode('2d')
+    }
+  }, [schema, setSchema, setCanvasRenderMode])
+
+  const handleToggleMermaidLayout = useCallback(() => {
+    const current = schema
+    const layout = current.layout || {}
+    const nextMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
+      layout.mode === 'mermaid' ? 'force' : 'mermaid'
+    const next = {
+      ...current,
+      layout: { ...layout, mode: nextMode },
+    }
+    setSchema(next as GraphSchema)
+    if (nextMode === 'mermaid') {
       setCanvasRenderMode('2d')
     }
   }, [schema, setSchema, setCanvasRenderMode])
@@ -213,8 +217,8 @@ export function useToolbarActions(
     handleLaunch,
     handleToggleLayerMode,
     handleToggleTreeLayout,
-    handleToggleTreePreset,
     handleToggleRadialLayout,
+    handleToggleMermaidLayout,
     handleOpenGraphFields,
     handleOpenSettings,
     handleOpenHistory,

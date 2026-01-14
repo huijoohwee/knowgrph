@@ -63,18 +63,27 @@ function buildNodeContent(
   uiPanelMicroLabelTextSizeClass: string,
 ): React.ReactNode {
   const sorted = sortProps(node.properties || {}, 'node')
+  const contentCfg = schema?.behavior?.hover?.content;
+  const showProps = contentCfg?.showProps !== false;
+  const showType = contentCfg?.showType !== false;
+  const showId = contentCfg?.showId !== false;
+
   return (
     <div>
       <div className="font-semibold">
         {node.label}{' '}
-        <span className={UI_THEME_TOKENS.tooltip.textSecondary}>
-          ({node.type})
-        </span>
+        {showType && (
+          <span className={UI_THEME_TOKENS.tooltip.textSecondary}>
+            ({node.type})
+          </span>
+        )}
       </div>
-      <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
-        {node.id}
-      </div>
-      {sorted.length > 0 && (
+      {showId && (
+        <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
+          {node.id}
+        </div>
+      )}
+      {showProps && sorted.length > 0 && (
         <div className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
             const spec = getNodePropSpec(schema, node.type, k)
@@ -139,6 +148,10 @@ function buildEdgeContent(
     edge.label,
     edge.properties as Record<string, unknown> | null | undefined,
   )
+  const contentCfg = schema?.behavior?.hover?.content;
+  const showProps = contentCfg?.showProps !== false;
+  const showId = contentCfg?.showId !== false;
+
   return (
     <div>
       <div className="font-semibold">
@@ -162,10 +175,12 @@ function buildEdgeContent(
           ))}
         </div>
       )}
-      <div className="text-xs text-gray-400 break-all">
-        {edge.id}
-      </div>
-          {sorted.length > 0 && (
+      {showId && (
+        <div className="text-xs text-gray-400 break-all">
+          {edge.id}
+        </div>
+      )}
+      {showProps && sorted.length > 0 && (
         <div className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
             const spec = getEdgePropSpec(schema, edge.label, k)

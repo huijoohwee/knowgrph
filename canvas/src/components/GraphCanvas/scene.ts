@@ -3,7 +3,7 @@ import type { MutableRefObject, RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createZoom, buildSimulation } from '@/components/GraphCanvas/utils'
-import { centerAllTransform } from '@/components/GraphCanvas/fit'
+import { fitAllTransform, centerAllTransform } from '@/components/GraphCanvas/fit'
 import { deriveTreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
 import { computeTreeCollapseHiddenNodes } from '@/components/GraphCanvas/treeLabelLod'
 import { buildNodeGroupsFromSchema, createGraphLayersLayer } from '@/components/GraphCanvas/graphLayers'
@@ -179,13 +179,14 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   // Fit to screen logic for clean slate
   if (!initialZoomTransform) {
-      const isStructured = schema.layout?.mode === 'tree' || schema.layout?.mode === 'radial'
+      const isStructured = schema.layout?.mode === 'tree' || schema.layout?.mode === 'radial' || schema.layout?.mode === 'mermaid'
       // If structured, positions are final. If force, they are initial/random/centered.
       // For force, we default to centered identity.
       // For structured, we fit to screen.
       if (isStructured) {
-          // centerAllTransform uses current node.x/y
-          const t = centerAllTransform(graphData.nodes, width, height)
+          // fitAllTransform uses current node.x/y and scales to viewport
+          const padding = (schema.layout as any)?.fitPadding
+          const t = fitAllTransform(graphData.nodes, width, height, padding)
           svg.call(zoom.transform as unknown as (
             sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
             t: d3.ZoomTransform,
@@ -223,9 +224,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       }
     })
   }
-
-  // removed redundant if (!skipInitialLayout) applyCachedPositions() block
-
 
   const nodeIds = new Set<string>()
   for (let i = 0; i < graphData.nodes.length; i += 1) {
@@ -361,7 +359,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   }
 
-  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tree') {
+  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tree' || schema.layout?.mode === 'mermaid') {
     simulation.stop()
     if (layoutCacheKey && typeof setLayoutPositionsForMode === 'function') {
       const positions: Record<string, { x: number; y: number }> = {}

@@ -24,8 +24,8 @@ export default function FieldLayoutSection({
 
   const hasOwner = Boolean(String(ownerKey || '').trim())
 
-  const linkDistance = schema.layout?.forces?.linkDistanceByLabel?.[ownerKey] ?? 100
-  const collisionRadius = schema.layout?.forces?.collisionByType?.[ownerKey] ?? (schema.nodeSizes?.[ownerKey]?.radius ?? 10)
+  const linkDistance = schema.layout?.forces?.linkDistanceByLabel?.[ownerKey] ?? 150
+  const collisionRadius = schema.layout?.forces?.collisionByType?.[ownerKey] ?? (schema.nodeSizes?.[ownerKey]?.radius ?? 10) * 1.5
   const curvatureRaw = schema.edgeRouting?.curvatureByLabel?.[ownerKey]
   const curvature = typeof curvatureRaw === 'number' ? curvatureRaw : 0
 
@@ -70,7 +70,7 @@ export default function FieldLayoutSection({
               max={400}
               step={10}
               value={linkDistance}
-              onChange={e => setLinkDistanceByLabel(ownerKey, parseInt(e.target.value || '100', 10))}
+              onChange={e => setLinkDistanceByLabel(ownerKey, parseInt(e.target.value || '150', 10))}
               className={uiPanelKeyValueInputClass}
             />
           </div>

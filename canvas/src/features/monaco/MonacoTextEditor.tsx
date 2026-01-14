@@ -330,6 +330,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
           if (onDoubleClickSelectionRef.current) {
             // Queue to let Monaco finish its internal selection logic
             setTimeout(() => {
+                if (!editorInstanceRef.current) return
                 const model = editor.getModel()
                 if (!model) return
                 const sel = editor.getSelection()

@@ -45,11 +45,22 @@ type MarkdownCodeBlockProps = {
 
 function ClipboardCopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  React.useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => {
+        setCopied(false)
+        timerRef.current = null
+      }, 2000)
     })
   }
 

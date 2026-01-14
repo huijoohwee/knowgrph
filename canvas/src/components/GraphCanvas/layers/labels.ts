@@ -89,6 +89,7 @@ export const createLabelsLayer = (args: {
     const override = typeof treeCfg.linkStroke === 'string' ? treeCfg.linkStroke.trim() : '';
     return override || '#555';
   })();
+  const isMermaid = schema.layout?.mode === 'mermaid';
   const baseDx = schema.labelStyles?.offset?.dx ?? 12;
   const label = g
     .append('g')
@@ -102,6 +103,7 @@ export const createLabelsLayer = (args: {
     .attr('data-lod-hidden', '0')
     .attr('data-zoom-lod-hidden', '0')
     .attr('dx', (d: GraphNode) => {
+      if (isMermaid) return 0;
       if (!isTree) return schema.labelStyles?.offset?.dx ?? 12;
       const id = String(d.id);
       const r = getRenderNodeRadius2d(d, schema);
@@ -112,13 +114,18 @@ export const createLabelsLayer = (args: {
       }
       return nodesWithChildren.has(id) ? -(r + pad) : r + pad;
     })
-    .attr('dy', isTree ? '0.32em' : (schema.labelStyles?.offset?.dy ?? 4))
+    .attr('dy', (d: GraphNode) => {
+        if (isMermaid) return '0.35em';
+        return isTree ? '0.32em' : (schema.labelStyles?.offset?.dy ?? 4)
+    })
     .attr('data-base-anchor', (d: GraphNode) => {
+      if (isMermaid) return 'middle';
       if (!isTree) return 'start';
       const id = String(d.id);
       return nodesWithChildren.has(id) ? 'end' : 'start';
     })
     .attr('data-base-dx', (d: GraphNode) => {
+      if (isMermaid) return '0';
       if (!isTree) return String(baseDx);
       const id = String(d.id);
       const r = getRenderNodeRadius2d(d, schema);
@@ -130,11 +137,13 @@ export const createLabelsLayer = (args: {
       return String(nodesWithChildren.has(id) ? -(r + pad) : r + pad);
     })
     .attr('data-base-dy', () => {
+      if (isMermaid) return '0.35em';
       if (isTree) return '';
       return String(schema.labelStyles?.offset?.dy ?? 4);
     })
     .attr('fill', labelFill)
     .attr('text-anchor', (d: GraphNode) => {
+      if (isMermaid) return 'middle';
       if (!isTree) return null;
       const id = String(d.id);
       return nodesWithChildren.has(id) ? 'end' : 'start';

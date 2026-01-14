@@ -185,16 +185,24 @@ export default function CanvasPage() {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
+    let timer: ReturnType<typeof setTimeout> | null = null
     const measure = () => {
-      const toolbar = typeof document === 'undefined' ? null : document.querySelector('.App-toolbar')
-      const toolbarOffsetPx = UI_LAYOUT.toolbarOffsetPx
-      const toolbarBottomPx = toolbar instanceof HTMLElement ? toolbar.getBoundingClientRect().bottom : toolbarOffsetPx
-      const topOffset = toolbarBottomPx + toolbarOffsetPx
-      setSidebarTopOffsetPx(topOffset)
+      if (timer) return
+      timer = setTimeout(() => {
+        const toolbar = typeof document === 'undefined' ? null : document.querySelector('.App-toolbar')
+        const toolbarOffsetPx = UI_LAYOUT.toolbarOffsetPx
+        const toolbarBottomPx = toolbar instanceof HTMLElement ? toolbar.getBoundingClientRect().bottom : toolbarOffsetPx
+        const topOffset = toolbarBottomPx + toolbarOffsetPx
+        setSidebarTopOffsetPx(topOffset)
+        timer = null
+      }, 100)
     }
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+      if (timer) clearTimeout(timer)
+    }
   }, [])
 
   React.useEffect(() => {

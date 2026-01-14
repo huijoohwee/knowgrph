@@ -153,7 +153,7 @@ const buildSlideFooter = (args: {
   }
 
   return (
-    <div
+    <footer
       className={`absolute bottom-0 left-0 w-full px-4 py-2 text-[10px] ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.panel.bg} border-t ${UI_THEME_TOKENS.panel.border} flex justify-between items-center z-10 ${uiPanelTextFontClass}`}
     >
       <div className="flex gap-3">
@@ -169,7 +169,7 @@ const buildSlideFooter = (args: {
       <div className="font-mono opacity-60">
         {page} / {total}
       </div>
-    </div>
+    </footer>
   )
 }
 

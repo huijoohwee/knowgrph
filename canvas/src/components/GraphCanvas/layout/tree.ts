@@ -60,9 +60,9 @@ export const applyTreeLayout = (
       else rankdir = 'LR';
     }
 
-    const separation = typeof treeConfig?.separation === 'number' ? treeConfig.separation : 1;
-    const nodeSep = 50 * separation;
-    const rankSep = 100 * separation;
+    const separation = typeof treeConfig?.separation === 'number' ? treeConfig.separation : 3.0;
+    const nodeSep = 120 * separation;
+    const rankSep = 200 * separation;
 
     const g = new dagre.graphlib.Graph({ multigraph: true, compound: true });
     
@@ -70,8 +70,8 @@ export const applyTreeLayout = (
       rankdir,
       nodesep: nodeSep,
       ranksep: rankSep,
-      marginx: 0,
-      marginy: 0,
+      marginx: 100,
+      marginy: 100,
     });
 
     g.setDefaultEdgeLabel(() => ({}));

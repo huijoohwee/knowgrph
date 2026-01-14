@@ -373,6 +373,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
           onShowInEditor={onShowInEditor}
           selectionToolbar={selectionToolbarNode}
           onSlideContextMenu={handleSlideContextMenu}
+          fullDocTokens={tokens}
         />
       </>
     )

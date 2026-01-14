@@ -331,76 +331,88 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
     const rafFn = getRaf()
     const cancelRafFn = getCancelRaf()
     const viewerFromEvent = e?.currentTarget ?? null
-    const viewer = viewerFromEvent || viewerRef.current
-    const handle = editorTextAreaRef.current
-    if (syncingFromEditorRef.current) return
-    if (!viewer || !handle) return
-    if (!syncScrollRef.current) return
-
-    const totalLines = editorLineCountRef.current || 1
-
-    let targetLine: number | null = null
-    try {
-      const containerRect =
-        typeof viewer.getBoundingClientRect === 'function' ? viewer.getBoundingClientRect() : null
-      if (containerRect) {
-        const bias = getViewportBias()
-        const anchor = containerRect.top + containerRect.height * bias
-        const nodes = viewer.querySelectorAll<HTMLElement>('[data-start-line]')
-        let best: HTMLElement | null = null
-        let bestDelta = Number.POSITIVE_INFINITY
-        nodes.forEach(el => {
-          const raw = el.getAttribute('data-start-line')
-          if (!raw) return
-          const start = Number.parseInt(raw, 10)
-          if (!Number.isFinite(start)) return
-          const elRect =
-            typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
-          if (!elRect) return
-          const elMid = (elRect.top + elRect.bottom) / 2
-          const delta = Math.abs(elMid - anchor)
-          if (delta < bestDelta) {
-            bestDelta = delta
-            best = el
-          }
-        })
-        if (best) {
-          const rawStart = best.getAttribute('data-start-line')
-          const rawEnd = best.getAttribute('data-end-line')
-          const start = rawStart ? Number.parseInt(rawStart, 10) : NaN
-          const endParsed = rawEnd ? Number.parseInt(rawEnd, 10) : NaN
-          const end = Number.isFinite(endParsed) ? endParsed : start
-          if (Number.isFinite(start)) {
-            const s = Math.max(1, Math.min(start, totalLines))
-            const e = Math.max(s, Math.min(end, totalLines))
-            const mid = Math.round((s + e) / 2)
-            targetLine = mid
-          }
-
-          applyScrollDebugOutline(best, viewerDebugElRef)
-        }
-      }
-    } catch {
-      targetLine = null
-    }
-
-    const prevRaf = viewerSyncRafRef.current
-    if (prevRaf) cancelRafFn(prevRaf)
-    syncingFromViewerRef.current = true
-
-    if (targetLine != null) {
-      const desiredTop = handle.getTopForLineNumber(targetLine)
-      handle.setScrollTop(desiredTop)
-    } else {
-      const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
-      const ratio = viewerScrollable > 0 ? viewer.scrollTop / Math.max(1, viewerScrollable) : 0
-      const editorScrollable = Math.max(0, handle.getScrollHeight() - handle.getClientHeight())
-      handle.setScrollTop(editorScrollable > 0 ? ratio * editorScrollable : 0)
-    }
-
+    
+    // Throttle scroll handling
+    if (viewerSyncRafRef.current) return
+    
     viewerSyncRafRef.current = rafFn(() => {
-      syncingFromViewerRef.current = false
-      viewerSyncRafRef.current = 0
+        viewerSyncRafRef.current = 0
+        
+        const viewer = viewerFromEvent || viewerRef.current
+        const handle = editorTextAreaRef.current
+        if (syncingFromEditorRef.current) return
+        if (!viewer || !handle) return
+        if (!syncScrollRef.current) return
+    
+        const totalLines = editorLineCountRef.current || 1
+    
+        let targetLine: number | null = null
+        try {
+          const containerRect =
+            typeof viewer.getBoundingClientRect === 'function' ? viewer.getBoundingClientRect() : null
+          if (containerRect) {
+            const bias = getViewportBias()
+            const anchor = containerRect.top + containerRect.height * bias
+            const nodes = viewer.querySelectorAll<HTMLElement>('[data-start-line]')
+            let best: HTMLElement | null = null
+            let bestDelta = Number.POSITIVE_INFINITY
+            nodes.forEach(el => {
+              const raw = el.getAttribute('data-start-line')
+              if (!raw) return
+              const start = Number.parseInt(raw, 10)
+              if (!Number.isFinite(start)) return
+              const elRect =
+                typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
+              if (!elRect) return
+              const elMid = (elRect.top + elRect.bottom) / 2
+              const delta = Math.abs(elMid - anchor)
+              if (delta < bestDelta) {
+                bestDelta = delta
+                best = el
+              }
+            })
+            if (best) {
+              const rawStart = best.getAttribute('data-start-line')
+              const rawEnd = best.getAttribute('data-end-line')
+              const start = rawStart ? Number.parseInt(rawStart, 10) : NaN
+              const endParsed = rawEnd ? Number.parseInt(rawEnd, 10) : NaN
+              const end = Number.isFinite(endParsed) ? endParsed : start
+              if (Number.isFinite(start)) {
+                const s = Math.max(1, Math.min(start, totalLines))
+                const e = Math.max(s, Math.min(end, totalLines))
+                const mid = Math.round((s + e) / 2)
+                targetLine = mid
+              }
+    
+              applyScrollDebugOutline(best, viewerDebugElRef)
+            }
+          }
+        } catch {
+          targetLine = null
+        }
+    
+        syncingFromViewerRef.current = true
+    
+        if (targetLine != null) {
+          const desiredTop = handle.getTopForLineNumber(targetLine)
+          handle.setScrollTop(desiredTop)
+        } else {
+          const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
+          const ratio = viewerScrollable > 0 ? viewer.scrollTop / Math.max(1, viewerScrollable) : 0
+          const editorScrollable = Math.max(0, handle.getScrollHeight() - handle.getClientHeight())
+          handle.setScrollTop(editorScrollable > 0 ? ratio * editorScrollable : 0)
+        }
+        
+        // Reset flag after a short delay or immediately?
+        // Original code cleared it in a separate RAF.
+        // We can just clear it here or set a timeout.
+        // But since we are IN a RAF, we should probably set a timeout to clear the flag to prevent feedback loops.
+        // Or just let the next frame handle it.
+        // The original code used a separate RAF to clear the flag.
+        // Let's use a timeout to be safe and simple.
+        setTimeout(() => {
+             syncingFromViewerRef.current = false
+        }, 50)
     })
   }, [editorLineCountRef, viewerRef, editorTextAreaRef])
 

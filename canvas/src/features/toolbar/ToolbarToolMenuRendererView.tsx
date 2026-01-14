@@ -4,6 +4,7 @@ import { UI_LABELS } from '@/lib/config'
 import { RendererPaletteSettings } from '@/features/toolbar/ui/RendererPaletteSettings'
 import { RendererTreeSettings } from '@/features/toolbar/ui/RendererTreeSettings'
 import { RendererLayoutModeSettings } from '@/features/toolbar/ui/RendererLayoutModeSettings'
+import { RendererHoverSettings } from '@/features/toolbar/ui/RendererHoverSettings'
 
 export function ToolbarToolMenuRendererView() {
   const {
@@ -38,6 +39,7 @@ export function ToolbarToolMenuRendererView() {
       <RendererLayoutModeSettings />
       <RendererPaletteSettings />
       <RendererTreeSettings />
+      <RendererHoverSettings />
       <div className="flex items-center gap-2">
         <button
           type="button"

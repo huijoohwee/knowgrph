@@ -66,6 +66,7 @@ export default function AiKgLayerModeControls({
                   },
                 }
                 setSchema(next)
+                // Mode change will automatically trigger "fit" via GraphCanvas effects
               }}
             >
               <option value="property">property (array properties)</option>

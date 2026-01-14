@@ -310,6 +310,7 @@ export function BottomPanelMarkdownSectionView(
               triggerJump(line)
               if (viewerRef.current) {
                   setTimeout(() => {
+                      if (!viewerRef.current) return
                       scrollToLineInViewer(viewerRef.current, line)
                   }, 50)
               }

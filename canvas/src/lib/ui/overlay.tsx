@@ -52,18 +52,20 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
     }
 
     const handleReposition = () => {
-      const el = anchorRef.current
-      if (!el) return
-      const r = el.getBoundingClientRect()
-      const margin = 4
-      let top = 0
-      let left = 0
-      if (align.startsWith('bottom')) top = r.bottom + margin
-      else top = r.top - margin
-      if (align.endsWith('center')) left = r.left + r.width / 2
-      else if (align.endsWith('right')) left = r.right
-      else left = r.left
-      setPos({ top, left })
+      requestAnimationFrame(() => {
+        const el = anchorRef.current
+        if (!el) return
+        const r = el.getBoundingClientRect()
+        const margin = 4
+        let top = 0
+        let left = 0
+        if (align.startsWith('bottom')) top = r.bottom + margin
+        else top = r.top - margin
+        if (align.endsWith('center')) left = r.left + r.width / 2
+        else if (align.endsWith('right')) left = r.right
+        else left = r.left
+        setPos({ top, left })
+      })
     }
 
     window.addEventListener('keydown', handleKeyDown)

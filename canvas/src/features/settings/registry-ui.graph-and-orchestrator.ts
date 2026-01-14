@@ -360,4 +360,85 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     docKey: 'schema.layers.semantic.minSimilarity',
     default: () => 0.12,
   },
+  {
+    key: 'schema.behavior.hover.content.type',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.behavior?.hover?.content?.type ?? true
+    },
+    write: (v) => {
+      const current = s().schema
+      const behavior = current.behavior || {}
+      const hover = behavior.hover || {}
+      const content = hover.content || {}
+      s().setSchema({
+        ...current,
+        behavior: {
+          ...behavior,
+          hover: {
+            ...hover,
+            content: { ...content, type: Boolean(v) },
+          },
+        },
+      })
+    },
+    docKey: 'schema.behavior.hover.content.type',
+    default: () => true,
+  },
+  {
+    key: 'schema.behavior.hover.content.id',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.behavior?.hover?.content?.id ?? true
+    },
+    write: (v) => {
+      const current = s().schema
+      const behavior = current.behavior || {}
+      const hover = behavior.hover || {}
+      const content = hover.content || {}
+      s().setSchema({
+        ...current,
+        behavior: {
+          ...behavior,
+          hover: {
+            ...hover,
+            content: { ...content, id: Boolean(v) },
+          },
+        },
+      })
+    },
+    docKey: 'schema.behavior.hover.content.id',
+    default: () => true,
+  },
+  {
+    key: 'schema.behavior.hover.content.properties',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.behavior?.hover?.content?.properties ?? true
+    },
+    write: (v) => {
+      const current = s().schema
+      const behavior = current.behavior || {}
+      const hover = behavior.hover || {}
+      const content = hover.content || {}
+      s().setSchema({
+        ...current,
+        behavior: {
+          ...behavior,
+          hover: {
+            ...hover,
+            content: { ...content, properties: Boolean(v) },
+          },
+        },
+      })
+    },
+    docKey: 'schema.behavior.hover.content.properties',
+    default: () => true,
+  },
 ]

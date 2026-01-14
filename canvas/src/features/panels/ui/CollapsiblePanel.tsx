@@ -18,15 +18,24 @@ export default function CollapsiblePanel({ collapsed, setCollapsed, heightRatio,
   const dragRef = React.useRef<HTMLButtonElement | null>(null)
 
   React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
     const measure = () => {
-      const el = headerRef.current
-      if (!el) return
-      const h = Math.max(24, Math.floor(el.getBoundingClientRect().height))
-      setCollapsedHeaderPx(h)
+      if (timer) return
+      timer = setTimeout(() => {
+        const el = headerRef.current
+        if (el) {
+          const h = Math.max(24, Math.floor(el.getBoundingClientRect().height))
+          setCollapsedHeaderPx(h)
+        }
+        timer = null
+      }, 100)
     }
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+      if (timer) clearTimeout(timer)
+    }
   }, [])
 
   React.useEffect(() => {

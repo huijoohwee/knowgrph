@@ -7,17 +7,32 @@
 - Markdown preview media proxying
 
 ## 2D layout caching and layer interaction
-- Structured 2D layouts (`radial`, `tree`) cache node positions per `(schema.layers.mode, graph.layout.mode)` key in the graph store.
+- Structured 2D layouts (`radial`, `tree`, `mermaid`) cache node positions per `(schema.layers.mode, graph.layout.mode)` key in the graph store.
 - The `tree` layout uses **dagre** (directed acyclic graph layout) under the hood, driven by `graph.layout.tree` (edgeLabels, direction, orientation, separation). It builds a layered graph layout (Sugiyama method) which handles both trees and DAGs effectively. This produces a "Mermaid flowchart"-like structure that is cleaner and more readable for directed graphs.
+- **Mermaid Layout Mode**:
+  - Activated via `layout.mode = 'mermaid'`.
+  - A standalone, dedicated layout preset for rendering high-fidelity Mermaid flowcharts.
+  - Decoupled from the generic `tree` preset to ensure stability and specific handling for Mermaid diagrams.
+  - Configuration:
+    - `layout.mermaid.orientation`: 'vertical' | 'horizontal'
+    - `layout.mermaid.direction`: 'source-target' | 'target-source'
+    - `layout.mermaid.separation`: Controls node spacing (default 3.0).
+    - `layout.mermaid.nodeRadius`: Controls node size.
+  - Rendering:
+    - Forces **Rectangular Box** shape for all nodes to match standard Mermaid flowchart aesthetics.
+    - Renders edges as **curved B-spline paths** derived from Dagre control points for smooth routing.
+    - Supports **Subgraphs** as light gray containers behind grouped nodes.
+    - Ensures nodes are always **well-spread, centered, and visible** within the viewport.
+    - Calculates the layout bounding box and applies an offset to center the graph perfectly in the canvas.
 - `graph.layout.tree.separation` controls node spacing in this structured layout: the schema accepts any finite number and the Renderer settings panel exposes this value as a numeric field (step `0.1`, lower bound `0.25` by default) so curators can tune dense diagrams (for example, setting `1.3` vs `1.5`) without changing application code. When Markdown frontmatter includes a Mermaid block, the parser computes a density‑aware default separation from the diagram itself (counting non‑comment Mermaid statements and respecting `mermaidAnchorsOnly`) and stores it in `metadata.tree.separation` together with a neutral `metadata.tree.mermaidDensity` payload that records `statementCount`, a coarse density bucket (`"none"`, `"sparse"`, `"medium"`, `"dense"`), the `anchorsOnly` flag, and the neutral separation thresholds used for each bucket. `graphDataSlice.applyLayoutAutosuggestFromMetadata` then seeds `layout.tree.separation` from this metadata so Mermaid diagrams start with spacing that matches their structural density, while remaining fully overridable from the Floating Panel Renderer. A dedicated schema‑level test (`schema.tree.separationSchemaRoundTrip`) exercises this path by writing `layout.tree.separation` into the store schema and asserting that the configured value round trips unchanged through renderer configuration, keeping spacing adjustments fully data‑driven.
 - Cache keys and storage:
-  - `GraphCanvas` computes a cache key such as `"semantic:tree"` or `"property:radial"` from the active schema layer and layout mode ([GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx#L260-L283)).
-  - `layoutPositionCacheByMode` in the store maps each cache key to a dictionary of node positions (`{ [nodeId]: { x, y } }`) and is reset whenever graph data is cleared or replaced ([useGraphStore.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useGraphStore.ts#L40-L74)).
+  - `GraphCanvas` computes a cache key such as `"semantic:tree"` or `"property:radial"` from the active schema layer and layout mode ([GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)).
+  - `layoutPositionCacheByMode` in the store maps each cache key to a dictionary of node positions (`{ [nodeId]: { x, y } }`) and is reset whenever graph data is cleared or replaced ([useGraphStore.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useGraphStore.ts)).
   - `setLayoutPositionsForMode` writes or deletes entries so unused layouts do not linger in memory.
 - Deciding when to reuse cached positions:
-  - `GraphCanvas` computes:
-    - `coverageFromNodes`: fraction of nodes in `renderGraphData` that already have finite `x,y` coordinates.
-    - `coverageFromCache`: fraction of nodes with finite cached positions for the active `(layer, layout)` cache key.
+  - `determineLayoutPositions` (in `layout/positioning.ts`) encapsulates the decision logic:
+    - Calculates `coverageFromNodes`: fraction of nodes in `renderGraphData` that already have finite `x,y` coordinates.
+    - Calculates `coverageFromCache`: fraction of nodes with finite cached positions for the active `(layer, layout)` cache key.
   - A cached layout is reused when:
     - Layout mode is `radial` or `tree`, and
     - Cached positions exist for the cache key, and
@@ -68,6 +83,11 @@
   - Dimmed nodes and non‑selected edges read `renderer:palette.edges.neutral` (default `#9CA3AF`).
   - The minimap reuses these selection colors for node/edge overlays and viewport handles.
 - These defaults are aligned with `/guidelines/color-palette.md` in `huijoohwee.github.io` so node, edge, minimap, and graph layer visuals share a common, domain‑agnostic color vocabulary.
+- Tooltip Configuration:
+  - Users can configure the content of the hover tooltip via the "Graph Layers" or "Floating Panel" settings.
+  - Options include toggling the display of **Type**, **ID**, and **Properties**.
+  - This allows users to reduce visual clutter for presentation or focus on specific data points during debugging.
+  - Configuration is stored in `schema.behavior.hover.content`.
 
 ### Graph layers and lifecycle tags
 
@@ -259,19 +279,24 @@
 - Fit to Screen:
   - Default: enabled (`fitToScreenMode = true`) on canvas initialization.
   - **Initialization Behavior**: When the graph is loaded from source files or reset to a clean slate, the view automatically centers and fits all nodes to the screen. This ensures the initial view is always optimal regardless of the graph size or layout mode (Force, Radial, or Tree).
-  - **Cross-Mode Behavior**: When "Fit to Screen" is enabled, switching layout modes (e.g., Force to Tree) or layer modes (e.g., Property to Semantic) automatically triggers a re-fit to ensure the new graph structure is fully visible. If "Fit to Screen" is disabled, the zoom level is preserved to maintain the user's viewport context.
+  - **Cross-Mode Behavior**: Switching layout modes (e.g., Force to Tree) or layer modes (e.g., Property to Semantic) automatically triggers a re-fit to ensure the new graph structure is fully visible and centered, regardless of the "Fit to Screen" toggle state. This prevents "chaotic" views where nodes might be off-screen due to different coordinate systems between layouts.
   - 2D: implemented via `useZoomEffects` and `applyZoomRequest("fit")`:
     - Uses `fitAllTransform` to compute a bounding box of all nodes and
       center that box in the SVG viewport while scaling to keep a small
       margin on all sides.
-    - For multi-node graphs, the bounding box is anchored to the origin so
-      the full graph stays stable as you add nodes.
-    - For single-node graphs, `fitAllTransform` treats the node’s position
-      as the entire bounding box, so the node itself is centered in the
-      viewport regardless of its simulation coordinates.
+    - Enforces a minimum bounding box size (100px) to prevent "one-line"
+      layouts or single nodes from triggering excessive zoom levels or
+      hugging the viewport edges.
+    - The bounding box is calculated strictly from node positions (min/max X/Y)
+      without bias toward the origin, ensuring the graph is centered even if
+      it has drifted far from (0,0).
     - When the graph transitions from empty to non-empty (for example, when
-      the first node is added to a new canvas), this single-node behavior
-      guarantees that the first node appears in the middle of the viewport.
+      the first node is added to a new canvas), the minimum size constraint
+      guarantees that the first node appears centered with reasonable padding.
+  - Safety Forces:
+    - To ensure nodes remain visible and "well spread out" without flying off-screen during force simulation, a "Box Force" is applied.
+    - This soft-constraint pushes nodes back towards the center if they exceed ~60% of the viewport dimensions (relative to center).
+    - Configurable via `schema.layout.forces.boxForce` and `boxForceStrength`.
   - 3D: implemented via `Controls` and `requestThreeCamera("fit")`:
     - Uses `fitCameraToPositions` to frame all node positions within the
       perspective camera frustum.

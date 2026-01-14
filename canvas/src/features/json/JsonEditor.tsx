@@ -1,6 +1,7 @@
 import React from 'react'
 import yaml from 'js-yaml'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { UI_COPY } from '@/lib/config'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
@@ -39,13 +40,14 @@ export default function JsonEditor({
   const [errors, setErrors] = React.useState<string[]>([])
   const [ok, setOk] = React.useState<boolean>(true)
   const onValidityChangeRef = React.useRef<JsonEditorProps['onValidityChange']>(onValidityChange)
+  const debouncedValue = useDebouncedValue(value, 300)
 
   React.useEffect(() => {
     onValidityChangeRef.current = onValidityChange
   }, [onValidityChange])
 
   React.useEffect(() => {
-    const nextValue = value || ''
+    const nextValue = debouncedValue || ''
     if (language === 'json') {
       try {
         const obj = nextValue.trim() ? (JSON.parse(nextValue) as unknown) : {}
@@ -83,7 +85,7 @@ export default function JsonEditor({
     setOk(true)
     setErrors([])
     onValidityChangeRef.current?.(true, [])
-  }, [language, validate, value])
+  }, [language, validate, debouncedValue])
 
   const editorUri = React.useMemo(() => {
     if (typeof uri === 'string' && uri.trim()) return uri.trim()

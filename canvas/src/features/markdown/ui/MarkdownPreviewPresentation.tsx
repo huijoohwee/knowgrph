@@ -68,6 +68,7 @@ type MarkdownPreviewPresentationProps = {
   onMouseUp?: (e: React.MouseEvent<HTMLDivElement>) => void
   selectionToolbar?: React.ReactNode
   onSlideContextMenu?: (slideIdx: number, e: React.MouseEvent) => void
+  fullDocTokens?: TokenWithLines[]
 }
 
 export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationProps) {
@@ -105,6 +106,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     onMouseUp,
     selectionToolbar,
     onSlideContextMenu,
+    fullDocTokens,
   } = props
 
   const [isSlidesFullscreenOpen, setIsSlidesFullscreenOpen] = React.useState(false)

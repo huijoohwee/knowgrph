@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
+import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
@@ -408,8 +409,8 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
     return { ok: null, msg: UI_COPY.bottomPanelMarkdownStatusReady }
   }, [hasMarkdown, isLoading, loadError, markdownDocumentName])
 
-  const deferredMarkdownText = React.useDeferredValue(markdownText)
-  const deferredJsonSourceText = React.useDeferredValue(jsonSourceDocumentText)
+  const deferredMarkdownText = useDebouncedValue(markdownText, 200)
+  const deferredJsonSourceText = useDebouncedValue(jsonSourceDocumentText, 200)
 
   const markdownPreviewText = React.useMemo(() => {
     const raw = deferredMarkdownText || ''
@@ -498,14 +499,14 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   const [autoOpenHighlight, setAutoOpenHighlight] = React.useState(false)
 
   React.useEffect(() => {
+    let timer: number | null = null
     const handler = () => {
       setAutoOpenHighlight(true)
-      const timer = window.setTimeout(() => {
+      if (timer) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
         setAutoOpenHighlight(false)
+        timer = null
       }, 1200)
-      return () => {
-        window.clearTimeout(timer)
-      }
     }
     try {
       window.addEventListener(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT, handler)
@@ -515,6 +516,7 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
     return () => {
       try {
         window.removeEventListener(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT, handler)
+        if (timer) window.clearTimeout(timer)
       } catch {
         void 0
       }

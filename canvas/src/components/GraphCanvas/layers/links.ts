@@ -30,10 +30,12 @@ export const createLinksLayer = (args: {
     selectEdge,
   } = args;
   const isTree = schema.layout?.mode === 'tree';
+  const isMermaid = schema.layout?.mode === 'mermaid';
+  const usePath = isTree || isMermaid;
   const treeCfg = schema.layout?.tree || {};
   const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
   const linkRoot = g.append('g').attr('data-kg-layer', 'links');
-  const link = isTree
+  const link = usePath
     ? linkRoot.selectAll<SVGPathElement, GraphEdge>('path').data(edgesForDisplay).enter().append('path').attr('fill', 'none')
     : linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edgesForDisplay).enter().append('line');
   (link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
@@ -95,7 +97,7 @@ export const createLinksLayer = (args: {
       selectEdge(d.id);
       emitPropsPanelOpen({ clientX: event.clientX, clientY: event.clientY });
     });
-  if (!isTree) {
+  if (!usePath) {
     (link as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>).attr(
       'marker-end',
       (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow ? 'url(#arrowhead)' : null),
@@ -104,6 +106,14 @@ export const createLinksLayer = (args: {
     (link as d3.Selection<SVGPathElement, GraphEdge, SVGGElement, unknown>)
       .attr('stroke-linecap', 'round')
       .attr('stroke-linejoin', 'round');
+    
+    // Mermaid edges need arrows
+    if (isMermaid) {
+       (link as d3.Selection<SVGPathElement, GraphEdge, SVGGElement, unknown>).attr(
+        'marker-end',
+        (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow !== false ? 'url(#arrowhead)' : null), // Default to arrow for Mermaid
+      );
+    }
   }
   return link as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>;
 };

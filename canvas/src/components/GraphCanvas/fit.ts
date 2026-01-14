@@ -34,19 +34,33 @@ export const fitAllTransform = (nodes: GraphNode[], width: number, height: numbe
   }
   const xs = coords.map(([x]) => x);
   const ys = coords.map(([, y]) => y);
-  const hasMultipleNodes = coords.length > 1;
-  const minX = hasMultipleNodes ? Math.min(...xs, 0) : Math.min(...xs);
-  const maxX = hasMultipleNodes ? Math.max(...xs, 0) : Math.max(...xs);
-  const minY = hasMultipleNodes ? Math.min(...ys, 0) : Math.min(...ys);
-  const maxY = hasMultipleNodes ? Math.max(...ys, 0) : Math.max(...ys);
-  const boxW = Math.max(1, maxX - minX);
-  const boxH = Math.max(1, maxY - minY);
-  const sX = (width - 2 * pad) / boxW;
-  const sY = (height - 2 * pad) / boxH;
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  const w = Math.max(1, width);
+  const h = Math.max(1, height);
+  const p = Math.max(20, pad ?? 80);
+
+  // Enforce minimum bounding box dimensions to prevent "one-line" infinite zoom
+  // or edge-hugging layouts.
+  const bboxW = Math.max(maxX - minX, 100);
+  const bboxH = Math.max(maxY - minY, 100);
+
+  // Calculate center of the bounding box
+  const cx = minX + (maxX - minX) / 2;
+  const cy = minY + (maxY - minY) / 2;
+
+  const sX = (w - p * 2) / bboxW;
+  const sY = (h - p * 2) / bboxH;
+
   const s = Math.max(0.1, Math.min(4, Math.min(sX, sY, 3)));
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-  return d3.zoomIdentity.translate(width / 2 - s * cx, height / 2 - s * cy).scale(s);
+
+  // Center the bounding box in the viewport
+  return d3.zoomIdentity
+    .translate(w / 2 - s * cx, h / 2 - s * cy)
+    .scale(s);
 };
 
 export const fitSubsetTransform = (nodes: GraphNode[], width: number, height: number, pad: number = 80) => {
@@ -84,10 +98,10 @@ export const centerAllTransform = (nodes: GraphNode[], width: number, height: nu
   }
   const xs = coords.map(([x]) => x);
   const ys = coords.map(([, y]) => y);
-  const minX = Math.min(...xs, 0);
-  const maxX = Math.max(...xs, 0);
-  const minY = Math.min(...ys, 0);
-  const maxY = Math.max(...ys, 0);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
   return d3.zoomIdentity.translate(width / 2 - cx, height / 2 - cy).scale(1);
