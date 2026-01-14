@@ -125,6 +125,7 @@ export interface GraphState {
   setThemeMode: (mode: ThemeMode) => void;
   selectionFlashDurationMs: number;
   selectionFlashOpacity: number;
+  markdownSelectionFlashMode: 'auto' | 'manual';
   uiOverlayOpacity: number;
   uiPanelOpacity: number;
   uiToolbarOpacity: number;
@@ -278,6 +279,7 @@ export interface GraphState {
   setUiIconAnimationEnabled: (v: boolean) => void;
   setSelectionFlashDurationMs: (v: number) => void;
   setSelectionFlashOpacity: (v: number) => void;
+  setMarkdownSelectionFlashMode: (v: 'auto' | 'manual') => void;
   canvasDims: { w: number; h: number };
   canvasPos: { x: number; y: number };
   setCanvasDims: (d: { w: number; h: number }) => void;

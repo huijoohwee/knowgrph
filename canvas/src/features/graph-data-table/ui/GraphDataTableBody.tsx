@@ -1,5 +1,7 @@
 import React from 'react'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
+import type { JSONValue } from '@/lib/graph/types'
+import { isJsonValue } from '@/lib/graph/jsonValue'
 import {
   getRowFieldText,
   stringifyPreview,
@@ -12,6 +14,7 @@ import {
 import type { GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { FrozenAreaResizeHandle, FROZEN_DATA_COLUMN_LEFT } from './GraphDataTableHeader'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 interface BodyCellProps {
   columnKey: GraphDataTableColumnKey
@@ -24,7 +27,6 @@ interface BodyCellProps {
   bodyCellBaseClassName: string
   textInputClassName: string
   monoTextInputClassName: string
-  textareaClassName: string
   uiPanelMonospaceTextClass: string
   activeNode: GraphNode | undefined
   activeEdge: GraphEdge | undefined
@@ -34,6 +36,50 @@ interface BodyCellProps {
   showFrozenResizeHandle: boolean
   onStartFrozenAreaDrag?: (clientX: number) => void
   fieldSettingsByColumnKey: Map<GraphDataTableColumnKey, GraphFieldSettingsResolved>
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function parseJsonRecord(text: string): Record<string, JSONValue> | null {
+  try {
+    const parsed = JSON.parse(text) as unknown
+    if (!isRecord(parsed)) return null
+    if (!isJsonValue(parsed)) return null
+    return parsed as Record<string, JSONValue>
+  } catch {
+    return null
+  }
+}
+
+function CellJsonEditor({
+  initialValue,
+  onSave,
+}: {
+  initialValue: unknown
+  onSave: (val: Record<string, JSONValue>) => void
+}) {
+  const [text, setText] = React.useState(() => JSON.stringify(initialValue ?? {}, null, 2))
+  
+  return (
+    <div className="h-32 min-w-[300px] border border-gray-300 rounded overflow-hidden bg-white shadow-lg relative z-10">
+      <MonacoTextEditor
+        value={text}
+        onChange={setText}
+        language="json"
+        uri={`inmemory://cell/editor/${Math.random().toString(36).slice(2)}`}
+        themeMode="light"
+        wordWrap={false}
+        className="w-full h-full"
+        onBlur={() => {
+          const next = parseJsonRecord(text)
+          if (!next) return
+          onSave(next)
+        }}
+      />
+    </div>
+  )
 }
 
 export const BodyCell = React.memo(function BodyCell({
@@ -47,7 +93,6 @@ export const BodyCell = React.memo(function BodyCell({
   bodyCellBaseClassName,
   textInputClassName,
   monoTextInputClassName,
-  textareaClassName,
   uiPanelMonospaceTextClass,
   activeNode,
   activeEdge,
@@ -255,24 +300,17 @@ export const BodyCell = React.memo(function BodyCell({
         }}
       >
         {isActive ? (
-          <textarea
-            defaultValue={JSON.stringify(row.properties ?? {}, null, 2)}
-            onBlur={event => {
-              try {
-                const next = JSON.parse(event.target.value)
-                if (row.kind === 'node') {
-                  if (!activeNode) return
-                  updateNode(row.id, { properties: next })
-                } else {
-                  if (!activeEdge) return
-                  updateEdge(row.id, { properties: next })
-                }
-              } catch {
-                void 0
+          <CellJsonEditor
+            initialValue={row.properties}
+            onSave={(next) => {
+              if (row.kind === 'node') {
+                if (!activeNode) return
+                updateNode(row.id, { properties: next })
+              } else {
+                if (!activeEdge) return
+                updateEdge(row.id, { properties: next })
               }
             }}
-            rows={3}
-            className={textareaClassName}
           />
         ) : (
           stringifyPreview(row.properties)
@@ -296,24 +334,17 @@ export const BodyCell = React.memo(function BodyCell({
         }}
       >
         {isActive ? (
-          <textarea
-            defaultValue={JSON.stringify(row.metadata ?? {}, null, 2)}
-            onBlur={event => {
-              try {
-                const next = JSON.parse(event.target.value)
-                if (row.kind === 'node') {
-                  if (!activeNode) return
-                  updateNode(row.id, { metadata: next })
-                } else {
-                  if (!activeEdge) return
-                  updateEdge(row.id, { metadata: next })
-                }
-              } catch {
-                void 0
+          <CellJsonEditor
+            initialValue={row.metadata}
+            onSave={(next) => {
+              if (row.kind === 'node') {
+                if (!activeNode) return
+                updateNode(row.id, { metadata: next })
+              } else {
+                if (!activeEdge) return
+                updateEdge(row.id, { metadata: next })
               }
             }}
-            rows={3}
-            className={textareaClassName}
           />
         ) : (
           stringifyPreview(row.metadata)

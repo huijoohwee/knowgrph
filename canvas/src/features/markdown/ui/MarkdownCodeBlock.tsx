@@ -8,6 +8,7 @@ import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import hljs from 'highlight.js'
 import { Check, Copy } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { parseAnnotatedCode, type AnnotatedCodeRow } from './markdownAnnotatedCode'
 
 const HLJS_STYLE_ID = 'kg-hljs-theme'
 const HLJS_THEME_CSS = `
@@ -39,6 +40,7 @@ type MarkdownCodeBlockProps = {
   wrapClass: string
   highlightStyle?: React.CSSProperties
   fragmentStep?: number
+  annotateDisplayMode?: 'inline' | 'beside'
 }
 
 function ClipboardCopyButton({ text }: { text: string }) {
@@ -52,22 +54,86 @@ function ClipboardCopyButton({ text }: { text: string }) {
   }
 
   return (
-    <div className="zeroclipboard-container absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-      <button
-        aria-label="Copy"
-        className={`ClipboardButton btn btn-invisible m-2 p-1.5 flex items-center justify-center rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer`}
-        onClick={handleCopy}
-        type="button"
-      >
-        {copied ? (
-          <Check className="w-3.5 h-3.5 text-green-500" />
-        ) : (
-          <Copy className={`w-3.5 h-3.5 ${UI_THEME_TOKENS.text.secondary}`} />
-        )}
-      </button>
-    </div>
+    <button
+      aria-label="Copy code to clipboard"
+      className={`btn btn-sm tooltipped tooltipped-nw p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${UI_THEME_TOKENS.text.secondary}`}
+      onClick={handleCopy}
+      type="button"
+    >
+      {copied ? (
+        <Check className="w-3.5 h-3.5 text-green-500" />
+      ) : (
+        <Copy className="w-3.5 h-3.5" />
+      )}
+    </button>
   )
 }
+
+const HighlightedCode = React.memo(({ code, lang }: { code: string; lang: string }) => {
+  const highlighted = useMemo(() => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang }).value
+      } catch {
+        return hljs.highlightAuto(code).value
+      }
+    }
+    return hljs.highlightAuto(code).value
+  }, [code, lang])
+
+  return (
+    <code
+      className={`hljs language-${lang} !bg-transparent !p-0 block leading-[1.5em]`}
+      dangerouslySetInnerHTML={{ __html: highlighted }}
+    />
+  )
+})
+
+const AnnotatedRow = React.memo(({ row, lang, wrapClass, isBeside }: { row: AnnotatedCodeRow; lang: string; wrapClass: string; isBeside: boolean }) => {
+  if (!row.code.trim() && !row.annotation) return null
+
+  // For Inline mode (!isBeside), we want to show Annotation then Code to match source order if that's preferred,
+  // OR we keep it as is.
+  // User request: "when Inline, show the code as-is from source without reordering".
+  // If source is:
+  // // Annotation
+  // Code
+  // Then we should render Annotation first.
+  // But AnnotatedCodeRow splits by patterns.
+  // Let's swap the render order for !isBeside.
+  
+  const codeBlock = (
+    <div className={`annotate-code flex-1 min-w-0 p-4 bg-white dark:bg-[#0d1117] overflow-x-auto ${!isBeside && row.annotation ? 'border-b border-dashed border-gray-200 dark:border-gray-800' : ''}`}>
+      <pre className={`m-0 p-0 bg-transparent ${wrapClass} font-mono text-sm`}>
+        <HighlightedCode code={row.code} lang={lang} />
+      </pre>
+    </div>
+  )
+
+  const annotationBlock = row.annotation ? (
+    <div className={`annotate-note flex-shrink-0 p-4 bg-gray-50 dark:bg-gray-900/50 text-xs text-gray-600 dark:text-gray-400 ${isBeside ? 'w-full lg:w-72 border-t lg:border-t-0 lg:border-l' : 'w-full'} border-gray-100 dark:border-gray-800`}>
+      <div className="prose prose-xs max-w-none dark:prose-invert">
+        <p className="whitespace-pre-wrap leading-relaxed m-0">{row.annotation}</p>
+      </div>
+    </div>
+  ) : null
+
+  return (
+    <div className={`annotate-row flex ${isBeside ? 'flex-col lg:flex-row-reverse' : 'flex-col'} border-b border-gray-100 dark:border-gray-800 last:border-0 group/row relative transition-shadow duration-200`}>
+      {/* Hover border overlay */}
+      <div className="absolute inset-0 pointer-events-none border-2 border-transparent group-hover/row:border-blue-500 z-10 transition-colors duration-200" />
+      
+      {/* 
+        Unified render order: Annotation then Code.
+        - Inline: flex-col -> Annotation top, Code bottom.
+        - Beside (mobile): flex-col -> Annotation top, Code bottom.
+        - Beside (desktop): flex-row-reverse -> Code left, Annotation right.
+      */}
+      {annotationBlock}
+      {codeBlock}
+    </div>
+  )
+})
 
 export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   token: t,
@@ -75,8 +141,11 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   opts,
   wrapClass,
   highlightStyle,
-  fragmentStep,
+  annotateDisplayMode,
 }: MarkdownCodeBlockProps) {
+  const [localViewMode, setLocalViewMode] = useState<'inline' | 'beside' | null>(null)
+  const containerRef = React.useRef<HTMLElement>(null)
+
   React.useEffect(() => {
     if (typeof document === 'undefined') return
     if (document.getElementById(HLJS_STYLE_ID)) return
@@ -89,19 +158,55 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   const c = t as unknown as TokensCode
   const meta = parseCodeInfoMeta(c)
   const lang = String(meta.lang || '').trim().toLowerCase()
-
-  const highlightedCode = useMemo(() => {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(c.text, { language: lang }).value
-      } catch {
-        return hljs.highlightAuto(c.text).value
-      }
-    }
-    return hljs.highlightAuto(c.text).value
-  }, [c.text, lang])
+  const isMermaidLang = lang === 'mermaid' || lang === 'mmd'
   
-  if (lang === 'mermaid' || lang === 'mmd') {
+  // Local toggle overrides global preference
+  const effectiveViewMode = localViewMode ?? annotateDisplayMode ?? 'inline'
+  const isBeside = effectiveViewMode === 'beside'
+
+  const handleToggleMode = (mode: 'inline' | 'beside') => {
+    if (mode === effectiveViewMode) return
+    
+    // Capture relative scroll position
+    const el = containerRef.current
+    let offsetFromTop = 0
+    if (el) {
+      const rect = el.getBoundingClientRect()
+      offsetFromTop = rect.top
+    }
+    
+    setLocalViewMode(mode)
+    
+    // Restore relative position after render
+    requestAnimationFrame(() => {
+        if (el) {
+            const rect = el.getBoundingClientRect()
+            const diff = rect.top - offsetFromTop
+            if (diff !== 0) {
+                // Try scrolling the window
+                window.scrollBy({ top: diff, behavior: 'auto' })
+            }
+        }
+    })
+  }
+
+  // Parse for annotation view if needed
+  const annotatedRows = useMemo(() => {
+    if (isMermaidLang) return null
+    // Attempt to parse annotations regardless of mode, but fallback to raw if empty
+    const rows = parseAnnotatedCode(c.text, lang, t.startLine)
+    // If no annotations found (single row with null annotation), we might treat it differently
+    if (rows.length === 1 && !rows[0].annotation) return null
+    return rows
+  }, [c.text, isMermaidLang, lang, t.startLine])
+
+  const containerClassName = [
+    `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm text-sm my-4 group highlight highlight-source-${lang} transition-shadow duration-200`,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  if (isMermaidLang) {
     return (
       <MermaidDiagram
         code={c.text}
@@ -114,72 +219,68 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     )
   }
 
-  const lines = String(c.text || '').split('\n')
-  const stepIndex = fragmentStep && fragmentStep > 0 ? fragmentStep - 1 : 0
-  let activeRanges = meta.highlightRanges
-  if (opts.markdownPresentationMode && meta.steps.length > 0) {
-    const idx = Math.min(Math.max(0, stepIndex), meta.steps.length - 1)
-    activeRanges = meta.steps[idx].ranges
-  }
-  const isHighlighted = (lineNumber: number): boolean => {
-    if (!activeRanges.length) return false
-    for (const r of activeRanges) {
-      if (lineNumber >= r.start && lineNumber <= r.end) return true
-    }
-    return false
-  }
-
-  const containerClassName = [
-    `mt-4 mb-4 rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm text-sm relative group highlight highlight-source-${lang} notranslate position-relative overflow-auto`,
-  ]
-    .filter(Boolean)
-    .join(' ')
-
   return (
     <MarkdownBlockContainer
       as="figure"
+      ref={containerRef}
       className={containerClassName}
       highlightClass={highlightClass}
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
     >
-       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        {lines.map((_, idx) => {
-          const lineNumber = idx + 1
-          const highlighted = isHighlighted(lineNumber)
-          if (!highlighted) return <div key={idx} className="h-[1.5em]" />
-          return (
-            <div
-              key={idx}
-              className="h-[1.5em] bg-blue-100/50 dark:bg-blue-900/20 w-full"
-            />
-          )
-        })}
-      </div>
+      <header
+        className={`flex items-center justify-between px-3 py-1.5 border-b ${UI_THEME_TOKENS.panel.border} bg-gray-50/50 dark:bg-gray-800/50`}
+      >
+        <span className="flex-1 font-mono text-xs text-gray-600 dark:text-gray-400 font-semibold uppercase">
+          {lang || 'text'}
+        </span>
 
-      <div className="relative flex overflow-auto p-4">
-        {meta.showLineNumbers && (
-          <div className="select-none mr-4 text-xs text-gray-400 dark:text-gray-600 text-right flex flex-col" style={{ minWidth: '1.5em' }}>
-            {lines.map((_, idx) => (
-              <span key={idx} className="h-[1.5em] leading-[1.5em]">{idx + 1}</span>
-            ))}
-          </div>
-        )}
+        <div className="annotate-toggle flex items-center mr-2 bg-gray-200/50 dark:bg-gray-700/50 rounded-md p-0.5">
+          <button
+            type="button"
+            name="annotate-display"
+            value="beside"
+            className={`annotate-option px-2 py-0.5 text-xs rounded-sm transition-colors ${
+              isBeside
+                ? 'selected bg-white dark:bg-gray-600 shadow-sm text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            aria-current={isBeside ? 'true' : undefined}
+            onClick={() => handleToggleMode('beside')}
+          >
+            Beside
+          </button>
+          <button
+            type="button"
+            name="annotate-display"
+            value="inline"
+            className={`annotate-option px-2 py-0.5 text-xs rounded-sm transition-colors ${
+              !isBeside
+                ? 'selected bg-white dark:bg-gray-600 shadow-sm text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            aria-current={!isBeside ? 'true' : undefined}
+            onClick={() => handleToggleMode('inline')}
+          >
+            Inline
+          </button>
+        </div>
 
-        <pre className={`m-0 p-0 bg-transparent ${wrapClass} flex-1`}>
-          <code
-            className={`hljs language-${lang} !bg-transparent !p-0 block leading-[1.5em]`}
-            dangerouslySetInnerHTML={{ __html: highlightedCode }}
-          />
-        </pre>
-      </div>
-      
-      <ClipboardCopyButton text={c.text} />
-      
-      {lang && (
-        <div className="absolute top-2 right-10 text-xs text-gray-400 dark:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity select-none uppercase font-mono">
-          {lang}
+        <ClipboardCopyButton text={c.text} />
+      </header>
+
+      {annotatedRows ? (
+         <div className="flex flex-col bg-white dark:bg-[#0d1117]">
+             {annotatedRows.map(row => (
+                 <AnnotatedRow key={row.id} row={row} lang={lang} wrapClass={wrapClass} isBeside={isBeside} />
+             ))}
+         </div>
+      ) : (
+        <div className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
+          <pre className={`m-0 p-0 bg-transparent ${wrapClass} font-mono text-sm`}>
+            <HighlightedCode code={c.text} lang={lang} />
+          </pre>
         </div>
       )}
     </MarkdownBlockContainer>

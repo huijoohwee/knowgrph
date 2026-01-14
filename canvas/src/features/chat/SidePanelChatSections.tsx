@@ -3,6 +3,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import type { GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 
@@ -124,13 +125,17 @@ export function SidePanelChatFooter({
       )}
 
       <form onSubmit={onSubmit} className="space-y-2">
-        <textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          rows={3}
-          className={['w-full border border-gray-300 rounded px-2 py-1 text-sm resize-none', uiPanelTextFontClass].join(' ')}
-          placeholder={UI_COPY.chatInputPlaceholder}
-        />
+        <div className={`w-full border border-gray-300 rounded overflow-hidden bg-white h-[88px]`}>
+          <MonacoTextEditor
+            value={input}
+            onChange={(val) => setInput(val)}
+            language="text"
+            uri="inmemory://chat/input"
+            themeMode="light"
+            wordWrap
+            className={['w-full h-full', uiPanelTextFontClass].join(' ')}
+          />
+        </div>
 
         <div className="flex items-center justify-between">
           <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-gray-500'].join(' ')}>
@@ -161,4 +166,3 @@ export function SidePanelChatFooter({
     </div>
   )
 }
-

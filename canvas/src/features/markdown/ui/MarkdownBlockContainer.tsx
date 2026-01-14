@@ -11,7 +11,7 @@ type MarkdownBlockContainerProps = {
   children: React.ReactNode
 }
 
-export const MarkdownBlockContainer = ({
+export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBlockContainerProps>(({
   as: Tag,
   className,
   highlightClass,
@@ -20,13 +20,14 @@ export const MarkdownBlockContainer = ({
   endLine,
   id,
   children,
-}: MarkdownBlockContainerProps) => {
+}, ref) => {
   const cls = [className, highlightClass].filter(Boolean).join(' ')
   
 
 
   return (
     <Tag
+      ref={ref}
       id={id}
       className={cls}
       style={highlightStyle}
@@ -36,5 +37,5 @@ export const MarkdownBlockContainer = ({
       {children}
     </Tag>
   )
-}
+})
 

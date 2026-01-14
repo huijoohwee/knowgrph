@@ -25,6 +25,7 @@ type PreviewGalleryProps = {
   selectedIds?: string[]
   onSelectedIdsChange?: (ids: string[]) => void
   onDoubleClick?: (id: string) => void
+  onContextMenu?: (id: string, e: React.MouseEvent) => void
 }
 
 export default function PreviewGallery({
@@ -37,6 +38,7 @@ export default function PreviewGallery({
   selectedIds,
   onSelectedIdsChange,
   onDoubleClick,
+  onContextMenu,
 }: PreviewGalleryProps) {
   const [draggingId, setDraggingId] = React.useState<string | null>(null)
   const [dragOverId, setDragOverId] = React.useState<string | null>(null)
@@ -280,6 +282,12 @@ export default function PreviewGallery({
                 ].filter(Boolean).join(' ')}
                 draggable
                 onClick={(e) => {
+                  if (onContextMenu && (e.ctrlKey || e.metaKey)) {
+                     e.preventDefault()
+                     onContextMenu(it.id, e)
+                     return
+                  }
+                  
                   if (!onSelectedIdsChange || !selectedIds) {
                     onSelect(it.id)
                     return
@@ -319,6 +327,12 @@ export default function PreviewGallery({
                 onDoubleClick={(e) => {
                   e.stopPropagation()
                   if (onDoubleClick) onDoubleClick(it.id)
+                }}
+                onContextMenu={(e) => {
+                  if (onContextMenu) {
+                    e.preventDefault()
+                    onContextMenu(it.id, e)
+                  }
                 }}
                 onDragStart={(e) => {
                   setDraggingId(it.id)

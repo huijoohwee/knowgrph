@@ -85,6 +85,64 @@ export const parseMarkdownFrontmatter = (
         const fieldKey = trimmed.slice(0, colonIndex).trim()
         const fieldVal = trimmed.slice(colonIndex + 1).trim()
         if (!fieldKey) continue
+
+        // Handle Block Scalar (|) for multiline strings (e.g. mermaid)
+        if (fieldVal === '|') {
+          const blockLines: string[] = []
+          let j = i + 1
+          let baseIndent = -1
+          while (j < lines.length) {
+            const nextLine = lines[j]
+            // Stop at next section or empty frontmatter close
+            if (nextLine.trim() === '---') break
+            
+            // Determine indentation of the first content line
+            const nextTrimmed = nextLine.trim()
+            if (nextTrimmed) {
+              const nextIndent = nextLine.length - nextTrimmed.length
+              if (baseIndent === -1) baseIndent = nextIndent
+              
+              // If indentation is less than the block start, it's likely the end of the block
+              // (unless it's empty, handled below)
+              if (nextIndent < indent + 2 && nextIndent < baseIndent) {
+                break
+              }
+            } else {
+              // Empty lines are part of the block if we are inside
+              // but if we haven't started, they are just empty
+            }
+            
+            blockLines.push(nextLine)
+            j += 1
+          }
+          
+          // Normalize indentation
+          if (blockLines.length > 0 && baseIndent > -1) {
+            const normalized = blockLines.map(l => {
+              if (!l.trim()) return '' // Empty line
+              if (l.length >= baseIndent) return l.slice(baseIndent)
+              return l.trimStart()
+            }).join('\n')
+            
+            // Assign to meta
+            if (currentKey === 'ontologies') {
+              const last = currentList[currentList.length - 1]
+              if (last && typeof last === 'object' && !Array.isArray(last)) {
+                ;(last as Record<string, unknown>)[fieldKey] = normalized
+              } else {
+                const obj: Record<string, unknown> = {}
+                obj[fieldKey] = normalized
+                currentList.push(obj)
+              }
+            } else {
+              meta[fieldKey] = normalized
+            }
+          }
+          
+          i = j - 1
+          continue
+        }
+
         if (currentKey === 'ontologies') {
           const last = currentList[currentList.length - 1]
           if (last && typeof last === 'object' && !Array.isArray(last)) {
@@ -111,25 +169,40 @@ export const parseMarkdownFrontmatter = (
       if (!key) continue
       if (!structuredKeys.has(key) && (val === '|' || val === '>')) {
         const blockLines: string[] = []
-        const blockIndent = indent
         let j = i + 1
+        let baseIndent = -1
+
         while (j < lines.length) {
-          const rawNext = lines[j] ?? ''
-          const trimmedNext = rawNext.trim()
+          const nextLine = lines[j] ?? ''
+          const trimmedNext = nextLine.trim()
+
           if (trimmedNext === '---') break
-          if (!trimmedNext) {
-            blockLines.push('')
-            j += 1
-            continue
+
+          if (trimmedNext) {
+            const nextIndent = nextLine.length - trimmedNext.length
+            if (baseIndent === -1) baseIndent = nextIndent
+
+            // If indentation is less than or equal to the key's indent, it's a new key
+            if (nextIndent <= indent) break
           }
-          const nextIndent = rawNext.length - trimmedNext.length
-          if (nextIndent <= blockIndent) break
-          const relIndent = Math.max(0, nextIndent - blockIndent)
-          const text = `${' '.repeat(relIndent)}${trimmedNext}`
-          blockLines.push(text)
+
+          blockLines.push(nextLine)
           j += 1
         }
-        meta[key] = blockLines.join('\n')
+
+        let normalized = ''
+        if (blockLines.length > 0) {
+          const effectiveIndent = baseIndent > -1 ? baseIndent : 0
+          normalized = blockLines
+            .map(l => {
+              if (!l.trim()) return ''
+              if (l.length >= effectiveIndent) return l.slice(effectiveIndent)
+              return l.trimStart()
+            })
+            .join('\n')
+        }
+
+        meta[key] = normalized
         i = j - 1
       } else if (structuredKeys.has(key)) {
         currentKey = key

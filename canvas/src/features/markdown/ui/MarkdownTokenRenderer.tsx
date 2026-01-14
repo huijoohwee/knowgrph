@@ -41,6 +41,9 @@ type MarkdownTokenRendererProps = {
   fragmentTags?: string[]
   collapsedIds?: Set<string>
   onToggleCollapse?: (id: string) => void
+  codeAnnotations?: Record<string, string> | null
+  annotateDisplayMode?: 'inline' | 'beside'
+  flashLine?: number | null
 }
 
 const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: MarkdownTokenRendererProps) {
@@ -68,6 +71,9 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     fragmentTags,
     collapsedIds,
     onToggleCollapse,
+    codeAnnotations,
+    annotateDisplayMode,
+    flashLine,
   } = props
 
   const opts: RenderOpts = {
@@ -81,6 +87,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     rootThemeMode,
     previewOverlayScope,
     previewOverlayPortalTarget,
+    codeAnnotations,
     collapsedIds,
     onToggleCollapse,
   }
@@ -145,6 +152,14 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
         }
       }
 
+      if (flashLine) {
+        const tStart = t.startLine
+        const tEnd = t.endLine || t.startLine
+        if (tStart <= flashLine && flashLine <= tEnd) {
+          highlightClass = `${highlightClass} markdown-flash-highlight -mx-1 px-1 rounded`.trim()
+        }
+      }
+
       switch (tt.type) {
         case 'heading':
           return (
@@ -183,6 +198,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
             <MarkdownCodeBlock
               key={key}
               token={t}
+              annotateDisplayMode={annotateDisplayMode}
               highlightClass={highlightClass}
               highlightStyle={highlightStyle}
               opts={opts}

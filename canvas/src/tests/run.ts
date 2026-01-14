@@ -6,22 +6,6 @@ import {
   testFinalizeUpdateSource,
   testFinalizeUpdateTarget,
 } from '@/__tests__/edgeCreation.test'
-import {
-  testValidateSchemaFillsDefaults,
-  testValidateSchemaBehaviorDefaults,
-  testAddRenameRemoveNodeType,
-  testUpsertRemoveNodeProperty,
-  testClampAlphaDecay,
-  testSchemaTabEnterText,
-  testSchemaPersistenceWrites,
-  testResetImportSchemaTabTextSync,
-  testResetImportSchemaTabApplyModifiedSync,
-  testSchemaUiApplyUsesLatestStoreSchema,
-  testSchemaUiApplyRegistrationGuardsAgainstImportRace,
-  testParseSchemaTextRejectsInvalidJson,
-  testClampCollisionRadiusUsesSharedBounds,
-  testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance,
-} from '@/__tests__/schema.test'
 import { testComputeViewRect } from '@/__tests__/minimap.test'
 import {
   testSelectionHighlightNeighborsFromNodeSelection,
@@ -42,18 +26,6 @@ import {
   testGraphFieldsDerivedFromCsvJsonJsonLd,
   testGraphFieldsDerivedFromPlainEdgesCsv,
 } from '@/__tests__/roundtrip.test'
-import {
-  testJsonLdRoundTrip,
-  testJsonLdAiVizEdges,
-  testJsonLdAgenticGraphEdges,
-  testJsonLdAgenticGraphRagPathStaysInNodeProperties,
-  testJsonLdWorkerPipelineParsesExpectedEdges,
-  testJsonLdTriplesMatchExpectedSet,
-} from '@/__tests__/jsonldRoundtrip.test'
-import {
-  testJsonLdInferredEdgesFromCompactIriArrays,
-  testJsonLdPhaseMembershipArraysWithKgPrefix,
-} from '@/__tests__/jsonldInferredEdges.test'
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
 import { testUnifiedPanelExport } from '@/__tests__/panel.test'
@@ -68,28 +40,7 @@ import {
 } from '@/__tests__/bottomPanelPersistence.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
-import { testParserRegistryCrud } from '@/__tests__/parserRegistry.test'
-import { testCustomParserConversion } from '@/__tests__/customParser.test'
-import { testCustomParserTransforms } from '@/__tests__/customParserTransforms.test'
-import { testTransformArrayPath } from '@/__tests__/transformArrayPath.test'
-import { testWildcardAggregation } from '@/__tests__/wildcardAgg.test'
-import { testWildcardMinMaxAvg } from '@/__tests__/wildcardMinMaxAvg.test'
-import { testWildcardPercentile } from '@/__tests__/wildcardPercentile.test'
-import { testWildcardPercentileNearest } from '@/__tests__/wildcardPercentileMethod.test'
-import { testWildcardPercentileTukeyHazen } from '@/__tests__/wildcardPercentileTukeyHazen.test'
-import { testWildcardPercentileHF } from '@/__tests__/wildcardPercentileHF.test'
-import { testCustomParserTypeMethodWarning } from '@/__tests__/customParserWarnings.test'
-import { testParserAutoSelectOnLoad } from '@/__tests__/parserAutoApply.test'
-import { testParserUIStateHydration } from '@/__tests__/parserUiState.test'
-import { testYamlTransformsValidation } from '@/__tests__/yamlTransforms.test'
-import { testParserCacheCfgKey } from '@/__tests__/parserCacheCfgKey.test'
 import { testJsonEditorLineHeightConstant } from '@/__tests__/jsonEditorRendering.test'
-import { testParserWorkflowPresetStorage } from '@/__tests__/parserWorkflowPersistence.test'
-import {
-  testRawJsonNodesArrayIngestion,
-  testRawJsonExtendedNodesIngestion,
-} from '@/__tests__/rawJsonIngestion.test'
-import { testRawJsonWorkflowShapeIngestion } from '@/__tests__/rawJsonWorkflowShapeIngestion.test'
 import {
   testBuildSelectionSubgraphFromNode,
   testBuildSelectionSubgraphFromEdge,
@@ -100,6 +51,7 @@ import {
   testGraphValidationNodeRulesApplied,
   testGraphValidationMetricsWithSyntheticRawDataset,
 } from '@/__tests__/graphValidation.test'
+import { testMarkdownMermaidFrontmatterLabeledEdgeAndMentions } from '@/__tests__/markdownMermaidFrontmatter.test'
 import {
   testGraphRagTraversalHappyPath,
   testGraphRagTraversalIgnoresInvalidShapes,
@@ -110,14 +62,9 @@ import {
 import { testGraphTraversalFloatingPanelGenericDepthClamp } from '@/__tests__/graphTraversalFloatingPanel.test'
 import { testThemeModePersistence } from '@/__tests__/theme.test'
 import { runMarkdownTests } from '@/tests/runners/runMarkdownTests'
-import {
-  testMarkdownLayoutViewToggleEndToEnd,
-  testMarkdownPresentationFullscreenFromBottomPanelControls,
-} from '@/__tests__/markdown/markdownLayoutToggle.test'
-import {
-  testMarkdownScrollSyncViewerToEditor,
-  testMarkdownScrollSyncMixedContentViewerToEditor,
-} from '@/__tests__/markdown/markdownScrollSync.test'
+import { runSchemaTests } from '@/tests/runners/runSchemaTests'
+import { runJsonLdTests } from '@/tests/runners/runJsonLdTests'
+import { runParserTests } from '@/tests/runners/runParserTests'
 import { testLaunchSpotlightStorageHelpers } from '@/__tests__/launchSpotlight.test'
 import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.test'
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
@@ -132,14 +79,6 @@ import {
   testExampleWorkflowSchemaSnippetParsesHiddenNodeTypes,
   testExampleWorkflowJsonLdSemanticVsDocumentStructureLayers,
 } from '@/__tests__/schemaFixtures.test'
-import {
-  testWorkflowJsonLdHistoryGraphShape,
-  testWorkflowJsonLdGraphFieldSettingsGraphShape,
-  testWorkflowJsonLdGraphFieldSettingsAgenticRagRoundTrip,
-  testWorkflowJsonLdGraphRagWorkflowShape,
-  testWorkflowJsonLdGraphRagCliYamlMapping,
-  testWorkflowJsonLdGraphRagPathGraphFieldSettingsFixture,
-} from '@/__tests__/workflowJsonLd.test'
 import {
   testWorkflowPresetPipelinesAreSelfConsistent,
   testExportFunctionsAcceptBrandedPaths,
@@ -256,7 +195,16 @@ export const runAllTests = async () => {
   const exec = async (name: string, fn: () => void | Promise<void>) => {
     try {
       console.log(`RUN ${name}`)
-      await fn()
+      const timeoutMs = 120_000
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs)
+      })
+      try {
+        await Promise.race([Promise.resolve().then(fn), timeoutPromise])
+      } finally {
+        if (timeoutId != null) clearTimeout(timeoutId)
+      }
       results.push({ name, ok: true })
     } catch (e: unknown) {
       const msg = (() => {
@@ -267,18 +215,13 @@ export const runAllTests = async () => {
     }
   }
 
-  // ONLY RUN REPRO
-  // await exec('repro.lexMarkdownRepro', testLexMarkdownRepro)
+  // Runners
+  await runMarkdownTests(results)
+  await runSchemaTests(results)
+  await runJsonLdTests(results)
+  await runParserTests(results)
 
-  // Markdown Tests
-  // await exec('markdown.rendering.basic', testMarkdownRendering)
-  // await exec('markdown.rendering.gfm', testMarkdownGfm)
-  // await exec('markdown.rendering.html', testMarkdownHtml)
-  // await exec('markdown.rendering.sanitization', testMarkdownSanitization)
-  await exec('markdown.layout.toggle', testMarkdownLayoutViewToggleEndToEnd)
-  await exec('markdown.presentation.fullscreen', testMarkdownPresentationFullscreenFromBottomPanelControls)
-  await exec('markdown.scrollSync.basic', testMarkdownScrollSyncViewerToEditor)
-  await exec('markdown.scrollSync.mixedContent', testMarkdownScrollSyncMixedContentViewerToEditor)
+  // Remaining tests
   
   await exec('previewGalleryReorder: arrow moves third above second', testPreviewGalleryArrowMovesThirdSlideAboveSecond)
   await exec('previewGalleryReorder: drag moves third above second', testPreviewGalleryDragMovesThirdSlideAboveSecond)
@@ -292,6 +235,8 @@ export const runAllTests = async () => {
     testPreviewGalleryDragMovesLastSlideToFirstInLongerList,
   )
 
+  await exec('markdown.mermaidFrontmatter.labeledEdgeAndMentions', testMarkdownMermaidFrontmatterLabeledEdgeAndMentions)
+
   await exec('tabSync.buildEnvelope', testBuildEnvelope)
   await exec('graph.edgeExists', testEdgeExists)
   await exec(
@@ -302,23 +247,7 @@ export const runAllTests = async () => {
   await exec('edgeCreation.finalizeExisting', testFinalizeUseExistingEdge)
   await exec('edgeCreation.finalizeUpdateSource', testFinalizeUpdateSource)
   await exec('edgeCreation.finalizeUpdateTarget', testFinalizeUpdateTarget)
-  await exec('schema.validateDefaults', testValidateSchemaFillsDefaults)
-  await exec('schema.behaviorDefaults', testValidateSchemaBehaviorDefaults)
-  await exec('schema.typeCRUD', testAddRenameRemoveNodeType)
-  await exec('schema.nodePropertyCRUD', testUpsertRemoveNodeProperty)
-  await exec('schema.alphaDecayClamp', testClampAlphaDecay)
-  await exec('schema.collisionRadiusClamp', testClampCollisionRadiusUsesSharedBounds)
-  await exec('schema.semanticNodeRadiusUsesProps', testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance)
-  await exec('schema.tabEnterText', testSchemaTabEnterText)
-  await exec('schema.persistenceWrites', testSchemaPersistenceWrites)
-  await exec('schema.resetImportTextSync', testResetImportSchemaTabTextSync)
-  await exec('schema.resetImportApplyModifiedTextSync', testResetImportSchemaTabApplyModifiedSync)
-  await exec('schema.uiApplyUsesLatestStoreSchema', testSchemaUiApplyUsesLatestStoreSchema)
-  await exec(
-    'schema.uiApplyRegistrationGuardsAgainstImportRace',
-    testSchemaUiApplyRegistrationGuardsAgainstImportRace,
-  )
-  await exec('schema.parseSchemaTextRejectsInvalidJson', testParseSchemaTextRejectsInvalidJson)
+  
   await exec('minimap.computeViewRect', testComputeViewRect)
   await exec(
     'graph.selectionHighlight.nodeNeighbors',
@@ -343,35 +272,7 @@ export const runAllTests = async () => {
   await exec('csv.roundTrip', testCsvRoundTrip)
   await exec('export.graphMl', testGraphMlExport)
   await exec('export.cypher', testCypherExport)
-  await exec('jsonld.roundTrip', testJsonLdRoundTrip)
-  await exec('jsonld.aiVizEdges', testJsonLdAiVizEdges)
-  await exec('jsonld.agenticGraphEdges', testJsonLdAgenticGraphEdges)
-  await exec(
-    'jsonld.inferredEdges.compactIriArrays',
-    testJsonLdInferredEdgesFromCompactIriArrays,
-  )
-  await exec('jsonld.phaseMembership.kgPrefix', testJsonLdPhaseMembershipArraysWithKgPrefix)
-  await exec(
-    'jsonld.graphRagPathInNodeProperties',
-    testJsonLdAgenticGraphRagPathStaysInNodeProperties,
-  )
-  await exec('jsonld.workerPipelineEdges', testJsonLdWorkerPipelineParsesExpectedEdges)
-  await exec('jsonld.triplesExpectedSet', testJsonLdTriplesMatchExpectedSet)
-  await exec('jsonld.workflow.historyGraphShape', testWorkflowJsonLdHistoryGraphShape)
-  await exec(
-    'jsonld.workflow.graphFieldSettingsGraphShape',
-    testWorkflowJsonLdGraphFieldSettingsGraphShape,
-  )
-  await exec(
-    'jsonld.workflow.graphFieldSettings.agenticRagRoundTrip',
-    testWorkflowJsonLdGraphFieldSettingsAgenticRagRoundTrip,
-  )
-  await exec('jsonld.workflow.graphRagWorkflowShape', testWorkflowJsonLdGraphRagWorkflowShape)
-  await exec('jsonld.workflow.graphRagCliYamlMapping', testWorkflowJsonLdGraphRagCliYamlMapping)
-  await exec(
-    'jsonld.workflow.graphRagPathGraphFieldSettingsFixture',
-    testWorkflowJsonLdGraphRagPathGraphFieldSettingsFixture,
-  )
+  
   await exec('graphFields.derivedFromCsvJsonJsonLd', testGraphFieldsDerivedFromCsvJsonJsonLd)
   await exec('graphFields.derivedFromPlainEdgesCsv', testGraphFieldsDerivedFromPlainEdgesCsv)
   await exec('graphrag.traversal.happyPath', testGraphRagTraversalHappyPath)
@@ -408,31 +309,14 @@ export const runAllTests = async () => {
   )
   await exec('ui.graphFieldsSyncOnHistoryUndoRedo', testGraphFieldsSyncOnHistoryUndoRedo)
   await exec('ui.themeModePersistence', testThemeModePersistence)
-  await runMarkdownTests(results)
+  
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)
   await exec('persistence.storagePrimitives', testPersistencePrimitives)
   await exec('search.cacheVersionKey', testSearchCacheKeysRespectVersion)
   await exec('n8n.parseWorkflow', testN8nParsingBasic)
-  await exec('parser.registryCrud', testParserRegistryCrud)
-  await exec('parser.customConversion', testCustomParserConversion)
-  await exec('parser.customTransforms', testCustomParserTransforms)
-  await exec('parser.arrayPath', testTransformArrayPath)
-  await exec('parser.wildcardAgg', testWildcardAggregation)
-  await exec('parser.wildcardMinMaxAvg', testWildcardMinMaxAvg)
-  await exec('parser.wildcardPercentile', testWildcardPercentile)
-  await exec('parser.wildcardPercentileNearest', testWildcardPercentileNearest)
-  await exec('parser.wildcardPercentileTukeyHazen', testWildcardPercentileTukeyHazen)
-  await exec('parser.wildcardPercentileHF', testWildcardPercentileHF)
-  await exec('parser.typeMethodWarning', testCustomParserTypeMethodWarning)
-  await exec('parser.autoSelectOnLoad', testParserAutoSelectOnLoad)
-  await exec('parser.uiStateHydration', testParserUIStateHydration)
-  await exec('parser.yamlTransformsValidation', testYamlTransformsValidation)
-  await exec('parser.cacheCfgKey', testParserCacheCfgKey)
+  
   await exec('jsonEditor.lineHeightConstant', testJsonEditorLineHeightConstant)
-  await exec('parser.workflowPresetStorage', testParserWorkflowPresetStorage)
-  await exec('parser.rawJson.nodesArrayIngestion', testRawJsonNodesArrayIngestion)
-  await exec('parser.rawJson.extendedNodesIngestion', testRawJsonExtendedNodesIngestion)
-  await exec('parser.rawJson.workflowShapeIngestion', testRawJsonWorkflowShapeIngestion)
+  
   await exec(
     'spreadsheet.filtersFallbackOnLastRemoval',
     testSpreadsheetFiltersFallbackOnLastRemoval,

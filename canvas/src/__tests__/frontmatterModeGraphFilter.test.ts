@@ -78,6 +78,20 @@ export async function testFrontmatterModeFiltersGraphToMermaidNodes() {
     throw new Error('frontmatter filter produced no MermaidSubgraph nodes')
   }
 
+  const phaseNode = nodes.find(n => (n.properties as Record<string, unknown> | undefined)?.nodeName === 'S0.1.0')
+  if (!phaseNode) {
+    throw new Error('expected frontmatter mermaid to include S0.1.0 node')
+  }
+  const phaseLayer = (phaseNode.properties as Record<string, unknown> | undefined)?.['visual:layer']
+  if (phaseLayer !== 1) {
+    throw new Error(`expected S0.1.0 visual:layer to be 1, got ${String(phaseLayer)}`)
+  }
+
+  const phaseNode2 = nodes.find(n => (n.properties as Record<string, unknown> | undefined)?.nodeName === 'S0.2.0')
+  if (!phaseNode2) {
+    throw new Error('expected frontmatter mermaid to include S0.2.0 node')
+  }
+
   const nodeIds = new Set(nodes.map(n => String(n.id)))
   edges.forEach((e) => {
     const label = String(e.label || '')
@@ -90,6 +104,13 @@ export async function testFrontmatterModeFiltersGraphToMermaidNodes() {
       throw new Error(`frontmatter filter kept edge with endpoint outside frontmatter nodes ${s} -> ${t}`)
     }
   })
+
+  const hasPhaseEdge = edges.some(
+    e => String(e.source) === String(phaseNode.id) && String(e.target) === String(phaseNode2.id),
+  )
+  if (!hasPhaseEdge) {
+    throw new Error('expected frontmatter mermaid to include S0.1.0 -> S0.2.0 edge')
+  }
 
   await Promise.resolve()
 }

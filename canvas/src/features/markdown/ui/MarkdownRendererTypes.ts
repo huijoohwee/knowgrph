@@ -18,6 +18,7 @@ export type RenderOpts = InlineRenderOpts & {
   markdownWordWrap: boolean
   markdownPresentationMode: boolean
   uiPanelTextFontClass: string
+  codeAnnotations?: Record<string, string> | null
   mermaidFrontmatterConfig: MermaidInitConfig | null
   rootThemeMode: 'light' | 'dark'
   previewOverlayScope: 'viewport' | 'container'

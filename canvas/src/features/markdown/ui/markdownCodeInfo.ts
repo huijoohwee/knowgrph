@@ -11,6 +11,7 @@ export type CodeStepSpec = {
 
 export type CodeInfoMeta = {
   lang?: string
+  id?: string
   highlightRanges: CodeHighlightRange[]
   steps: CodeStepSpec[]
   showLineNumbers: boolean
@@ -83,14 +84,15 @@ const parseTrailingBraces = (infoRemainder: string): {
   highlightExpr: string | null
   stepExpr: string | null
   showLineNumbers: boolean
+  id: string | null
 } => {
   const trimmed = infoRemainder.trim()
   if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
-    return { highlightExpr: null, stepExpr: null, showLineNumbers: false }
+    return { highlightExpr: null, stepExpr: null, showLineNumbers: false, id: null }
   }
   const inner = trimmed.slice(1, -1).trim()
   if (!inner) {
-    return { highlightExpr: null, stepExpr: null, showLineNumbers: false }
+    return { highlightExpr: null, stepExpr: null, showLineNumbers: false, id: null }
   }
   if (!inner.includes(':')) {
     if (inner.includes('|')) {
@@ -98,12 +100,14 @@ const parseTrailingBraces = (infoRemainder: string): {
         highlightExpr: null,
         stepExpr: inner,
         showLineNumbers: false,
+        id: null,
       }
     }
     return {
       highlightExpr: inner,
       stepExpr: null,
       showLineNumbers: false,
+      id: null,
     }
   }
   const content = trimmed
@@ -112,12 +116,14 @@ const parseTrailingBraces = (infoRemainder: string): {
   if (singleKey.length === 1 && !singleKey[0].includes(':')) {
     const key = singleKey[0]
     if (key.toLowerCase() === 'lines' || key.toLowerCase() === 'lines:true') {
-      return { highlightExpr: null, stepExpr: null, showLineNumbers: true }
+      return { highlightExpr: null, stepExpr: null, showLineNumbers: true, id: null }
     }
   }
   let showLineNumbers = false
   let highlightExpr: string | null = null
   let stepExpr: string | null = null
+  let id: string | null = null
+  
   const linesRaw = obj.lines ?? obj.lineNumbers
   if (typeof linesRaw === 'string') {
     const v = linesRaw.trim().toLowerCase()
@@ -131,7 +137,12 @@ const parseTrailingBraces = (infoRemainder: string): {
   if (typeof stepsRaw === 'string' && stepsRaw.trim()) {
     stepExpr = stepsRaw
   }
-  return { highlightExpr, stepExpr, showLineNumbers }
+  const idRaw = obj.id
+  if (typeof idRaw === 'string' && idRaw.trim()) {
+    id = idRaw.trim()
+  }
+  
+  return { highlightExpr, stepExpr, showLineNumbers, id }
 }
 
 export const parseCodeInfoMeta = (token: TokensCode): CodeInfoMeta => {
@@ -142,6 +153,7 @@ export const parseCodeInfoMeta = (token: TokensCode): CodeInfoMeta => {
   let highlightRanges: CodeHighlightRange[] = []
   let steps: CodeStepSpec[] = []
   let showLineNumbers = false
+  let id: string | undefined
 
   if (infoRaw) {
     const parts = infoRaw.split(/\s+/)
@@ -155,6 +167,8 @@ export const parseCodeInfoMeta = (token: TokensCode): CodeInfoMeta => {
         const braceExpr = tail.slice(braceStart).trim()
         const parsed = parseTrailingBraces(braceExpr)
         showLineNumbers = parsed.showLineNumbers
+        id = parsed.id || undefined
+        
         if (parsed.highlightExpr) {
           highlightRanges = parseHighlightList(parsed.highlightExpr)
         } else if (!parsed.stepExpr) {
@@ -171,6 +185,7 @@ export const parseCodeInfoMeta = (token: TokensCode): CodeInfoMeta => {
 
   return {
     lang: lang || undefined,
+    id,
     highlightRanges,
     steps,
     showLineNumbers,

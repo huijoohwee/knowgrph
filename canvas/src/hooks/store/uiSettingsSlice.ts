@@ -60,6 +60,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   },
   selectionFlashDurationMs: 500,
   selectionFlashOpacity: 0.18,
+  markdownSelectionFlashMode: 'auto' as const,
   uiOverlayOpacity: 0.9,
   uiPanelOpacity: 0.95,
   uiToolbarOpacity: 0.95,
@@ -235,6 +236,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
     const clamped = n < 0 ? 0 : n > 1 ? 1 : n;
     set({ selectionFlashOpacity: clamped });
   },
+  setMarkdownSelectionFlashMode: (v: 'auto' | 'manual') => set({ markdownSelectionFlashMode: v }),
 
   setSpotlightMargin: (v: number) => {
     const n = Number.isFinite(v) ? Number(v) : 8;

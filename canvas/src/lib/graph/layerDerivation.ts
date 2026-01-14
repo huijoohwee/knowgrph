@@ -167,18 +167,17 @@ export function filterGraphToFrontmatterMermaid(
     const node = nodesRaw[i] as GraphNode
     const type = String(node.type || '')
     if (type !== 'MermaidDiagram' && type !== 'MermaidNode' && type !== 'MermaidSubgraph') continue
-    const meta = (node.metadata || {}) as Record<string, unknown>
+    const meta = node.metadata || {}
     const docPathRaw = meta.documentPath
     const docPath = typeof docPathRaw === 'string' ? docPathRaw.trim() : ''
     if (docBaseName && docPath && docPath !== docBaseName) continue
-    // Allow Mermaid nodes from frontmatter regardless of line number (parser handles context)
-    if (docBaseName && type !== 'MermaidDiagram' && type !== 'MermaidNode' && type !== 'MermaidSubgraph') {
-      const lineStartRaw = meta.lineStart
-      const lineStart =
-        typeof lineStartRaw === 'number' && Number.isFinite(lineStartRaw) ? lineStartRaw : null
-      if (lineStart == null || lineStart !== 1) continue
+    const nextMeta: Record<string, GraphNode['metadata'][string]> = {
+      ...meta,
+      documentPath: docBaseName || docPath || '',
+      lineStart: 1,
+      lineEnd: 1,
     }
-    filteredNodes.push(node)
+    filteredNodes.push({ ...node, metadata: nextMeta })
   }
 
   if (filteredNodes.length === 0) {

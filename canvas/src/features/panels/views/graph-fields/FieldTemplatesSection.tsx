@@ -4,6 +4,7 @@ import type { JSONValue } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { parseJsonOrError } from '@/features/schema-editor/advancedSerialization'
 import { UI_COPY } from '@/lib/config.copy'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 type FieldTemplatesSectionProps = {
   schema: GraphSchema
@@ -66,26 +67,31 @@ export default function FieldTemplatesSection({
               ? `${UI_COPY.graphFieldsScopeNodeLabel} ${UI_COPY.graphFieldsLocalSchemaFacetTemplateJsonLabel}`
               : `${UI_COPY.graphFieldsScopeEdgeLabel} ${UI_COPY.graphFieldsLocalSchemaFacetTemplateJsonLabel}`}
           </div>
-          <textarea
-            rows={6}
-            value={templateText}
-            onChange={e => setTemplateText(e.target.value)}
-            onBlur={() => {
-              const { value, error: parseError } = parseJsonOrError(templateText)
-              if (parseError) {
-                setError(parseError)
-                return
-              }
-              if (!isTemplateObject(value)) {
-                setError('Template must be a JSON object')
-                return
-              }
-              if (scope === 'node') setNodeTemplate(ownerKey, value)
-              else setEdgeTemplate(ownerKey, value)
-              setError('')
-            }}
-            className={`w-full px-2 py-2 border border-gray-300 rounded text-xs bg-transparent ${uiPanelMonospaceTextClass}`}
-          />
+          <div className="w-full border border-gray-300 rounded overflow-hidden bg-white h-[168px]">
+            <MonacoTextEditor
+              value={templateText}
+              onChange={setTemplateText}
+              language="json"
+              uri={`inmemory://graph-fields/templates/${encodeURIComponent(scope)}/${encodeURIComponent(ownerKey)}`}
+              themeMode="light"
+              wordWrap={false}
+              className={`w-full h-full ${uiPanelMonospaceTextClass}`}
+              onBlur={() => {
+                const { value, error: parseError } = parseJsonOrError(templateText)
+                if (parseError) {
+                  setError(parseError)
+                  return
+                }
+                if (!isTemplateObject(value)) {
+                  setError('Template must be a JSON object')
+                  return
+                }
+                if (scope === 'node') setNodeTemplate(ownerKey, value)
+                else setEdgeTemplate(ownerKey, value)
+                setError('')
+              }}
+            />
+          </div>
           {error ? (
             <div className={`${uiPanelKeyValueTextSizeClass} text-red-600`}>
               {error}

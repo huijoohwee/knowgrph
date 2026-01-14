@@ -30,6 +30,10 @@ import {
   testMarkdownEditToggleKeepsScrollPosition,
   testMarkdownScrollSyncMixedContentViewerToEditor,
 } from '@/__tests__/markdown/markdownScrollSync.test'
+import {
+  testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine,
+  testMarkdownViewerDoubleClickScrollsEditor,
+} from '@/__tests__/markdown/markdownDoubleClick.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -73,4 +77,6 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.scrollSync.viewerToEditor', testMarkdownScrollSyncViewerToEditor)
   await execTest(results, 'markdown.scrollSync.editToggleKeepsPos', testMarkdownEditToggleKeepsScrollPosition)
   await execTest(results, 'markdown.scrollSync.mixedContent', testMarkdownScrollSyncMixedContentViewerToEditor)
+  await execTest(results, 'markdown.scrollSync.editorDblClick', testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine)
+  await execTest(results, 'markdown.scrollSync.viewerDblClick', testMarkdownViewerDoubleClickScrollsEditor)
 }

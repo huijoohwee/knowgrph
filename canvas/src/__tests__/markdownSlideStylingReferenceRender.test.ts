@@ -26,14 +26,7 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
 
     const doc = dom.window.document
 
-    const mdPath = resolve(
-      process.cwd(),
-      '..',
-      '..',
-      'huijoohwee.github.io',
-      'guidelines',
-      'markdown-slide-styling-guidelines.md',
-    )
+    const mdPath = resolve(process.cwd(), 'src/__tests__/demo/markdown-slide-demo.md')
     const markdownText = readFileSync(mdPath, 'utf8')
 
     const container = doc.createElement('div')

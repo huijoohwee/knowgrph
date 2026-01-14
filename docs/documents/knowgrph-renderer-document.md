@@ -115,6 +115,7 @@
   - **Tables**: Supports inline HTML (`<br>`, `<pre>`) for complex cell formatting.
   - **Heading IDs**: Auto-generated and custom IDs (`{#id}`) for deep linking.
   - **Token Handling**: Uses a custom token renderer loop (`MarkdownTokenRenderer`) adhering to SRP and configuration-driven design.
+  - **Visual Feedback**: Supports `flashLine` prop to highlight specific lines during navigation events, using CSS animations for a smooth "flash" effect that fades out automatically.
   - **Semantic HTML**:
     - Replaced generic `div`s with semantic elements:
       - `figure` for code blocks, tables, and media.
@@ -123,6 +124,21 @@
       - `article` (optional) for slide containers.
       - `nav` (optional) for TOC.
     - Improves accessibility and structure for screen readers and search engines.
+
+### Unified Editor Experience
+- The Bottom Panel Markdown, Schema, Parser, and Orchestrator editors now use **Monaco Editor** for a consistent, high-performance editing experience:
+  - Supports syntax highlighting, line numbers, and minimap (disabled by default for compactness).
+  - Preserves scroll synchronization between the Markdown editor and viewer using the same robust line-mapping algorithm as the previous implementation.
+  - Enables rich interaction patterns like context menu actions and potential future extensions (intellisense, diagnostics).
+
+### Code Block Annotations & Display Modes
+- Markdown code blocks support a "Display Mode" toggle in the viewer:
+  - **Inline**: Traditional rendering where code is shown within the flow of the document.
+  - **Beside**: Renders code and annotations side-by-side, ideal for literate programming or educational content where explanations accompany code.
+- Annotations are linked to code blocks via stable identifiers:
+  - Blocks can explicitly define an ID in their info string: \`\`\`js {id:my-block}\`.
+  - If no ID is present, a fallback key based on line numbers is used.
+  - This ID is used to look up external annotations (passed via \`codeAnnotations\` prop) and render them in the side panel or below the code block.
 
 - When this metadata is present:
   - 2D nodes and labels:

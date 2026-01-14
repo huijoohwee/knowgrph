@@ -84,7 +84,8 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       labels: ['MermaidSubgraph'],
       name: display,
       chunk_text: display.slice(0, 800),
-      properties: { subgraphName: name, label: display },
+      subgraphName: name,
+      label: display,
       metadata: mkMeta(startIndex + lineOffset, startIndex + lineOffset),
     })
     if (!docSubgraphIds.has(subgraphId)) {
@@ -124,7 +125,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       })()
 
       const layerIndexFromPhaseWord = (() => {
-        const m = /^Phase(\d+)$/.exec(currentSubgraphName as string)
+        const m = /^Phase\s*(\d+)$/i.exec(currentSubgraphName as string)
         if (!m) return null
         const raw = Number(m[1] || '')
         if (!Number.isFinite(raw)) return null
@@ -178,7 +179,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       currentSubgraphId = null
       continue
     }
-    const nodeMatch = /^([A-Za-z0-9_]+)\s*\[([^\]]+)\]/.exec(trimmed)
+    const nodeMatch = /^([A-Za-z0-9_.]+)\s*\[([^\]]+)\]/.exec(trimmed)
     if (!nodeMatch) continue
     const nodeName = String(nodeMatch[1] || '').trim()
     const nodeLabel = String(nodeMatch[2] || '').trim()
@@ -208,7 +209,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     if (trimmed.startsWith('%%')) continue
     if (trimmed.toLowerCase().startsWith('subgraph ')) continue
     if (trimmed === 'end') continue
-    const edgeMatch = /^([A-Za-z0-9_]+)\s*[-.]+[->]\s*(?:\|[^|]*\|\s*)?([A-Za-z0-9_]+)/.exec(trimmed)
+    const edgeMatch = /^([A-Za-z0-9_.]+)\s*[-.]+[->]\s*(?:\|[^|]*\|\s*)?([A-Za-z0-9_.]+)/.exec(trimmed)
     if (edgeMatch) {
       const srcName = String(edgeMatch[1] || '').trim()
       const tgtName = String(edgeMatch[2] || '').trim()
@@ -251,7 +252,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       }
       continue
     }
-    const clickMatch = /^click\s+([A-Za-z0-9_]+)\s+"#([^"]+)"/.exec(trimmed)
+    const clickMatch = /^click\s+([A-Za-z0-9_.]+)\s+"#([^"]+)"/.exec(trimmed)
     if (!clickMatch) continue
     const nodeName = String(clickMatch[1] || '').trim()
     const anchorIdRaw = String(clickMatch[2] || '').trim()

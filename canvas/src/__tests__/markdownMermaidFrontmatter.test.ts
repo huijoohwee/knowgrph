@@ -1,13 +1,17 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { applyParser, builtInParsers, registerParser, resetParsers, toParserId } from '@/features/parsers'
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 export async function testMarkdownMermaidFrontmatterLabeledEdgeAndMentions() {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))
 
-  const path = resolve(process.cwd(), 'canvas/src/__tests__/sandbox/md-mmd-template.md')
+  const path = resolve(__dirname, 'sandbox/md-mmd-template.md')
   const markdown = readFileSync(path, 'utf8')
 
   const jsonld = buildMarkdownJsonLd(

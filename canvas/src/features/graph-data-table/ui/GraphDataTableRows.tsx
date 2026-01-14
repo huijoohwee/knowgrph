@@ -40,7 +40,6 @@ export type GraphDataTableRowsProps = {
   indexColumnWidthClassName: string
   textInputClassName: string
   monoTextInputClassName: string
-  textareaClassName: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelMonospaceTextClass: string
   aggregateVizMode: GraphDataTableAggregateVizMode
@@ -85,7 +84,6 @@ export function GraphDataTableRows({
   indexColumnWidthClassName,
   textInputClassName,
   monoTextInputClassName,
-  textareaClassName,
   uiPanelKeyValueTextSizeClass,
   uiPanelMonospaceTextClass,
   aggregateVizMode,
@@ -327,7 +325,6 @@ export function GraphDataTableRows({
                 bodyCellBaseClassName={bodyCellBaseClassName}
                 textInputClassName={textInputClassName}
                 monoTextInputClassName={monoTextInputClassName}
-                textareaClassName={textareaClassName}
                 activeNode={activeNode}
                 activeEdge={activeEdge}
                 updateNode={updateNode}

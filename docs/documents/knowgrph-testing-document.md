@@ -7,6 +7,17 @@
   - Neutral, configuration‑driven test inputs.
   - Markdown ingestion fixtures, including Mermaid frontmatter and interview graphs.
   - How tests are wired to use reusable helpers from the Canvas test suite.
+  - The modular test runner architecture for maintainability.
+
+## Test Runner Architecture
+
+- The test suite is executed via a central entry point: `canvas/src/tests/run.ts`.
+- To maintain codebase maintainability and keep file sizes manageable, tests are grouped into modular runners:
+  - `runMarkdownTests.ts`: Markdown rendering, layout, and scroll sync tests.
+  - `runSchemaTests.ts`: Schema validation, defaults, and CRUD operations.
+  - `runJsonLdTests.ts`: JSON-LD roundtrip, inferred edges, and workflow persistence.
+  - `runParserTests.ts`: Parser registry, custom parsers, transforms, and wildcard aggregations.
+- `run.ts` aggregates these runners and executes remaining individual tests, ensuring comprehensive coverage while adhering to the <600 lines/file guideline.
 
 ## Markdown ingestion fixtures
 

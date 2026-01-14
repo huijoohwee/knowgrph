@@ -1,11 +1,8 @@
 import React from 'react'
 import type { MarkdownSelectionInfo } from './markdownUtils'
 import { computeHighlightedLineRange } from './markdownUtils'
-import {
-  getTextMeasureContext,
-  estimateWrappedRowCountByChars,
-} from './markdownLayoutUtils'
 import { useMarkdownScrollSync } from './useMarkdownScrollSync'
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 export function useBottomPanelMarkdownSplitView(args: {
   markdownText: string
@@ -22,16 +19,14 @@ export function useBottomPanelMarkdownSplitView(args: {
     syncScroll,
   } = args
 
-  const editorTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null)
+  const editorTextAreaRef = React.useRef<MonacoTextEditorHandle | null>(null)
   const viewerRef = React.useRef<HTMLDivElement | null>(null)
   const gutterLayerRef = React.useRef<HTMLDivElement | null>(null)
 
   const [splitRatio, setSplitRatio] = React.useState(0.5)
   const [lineHeightPx, setLineHeightPx] = React.useState(16)
-  const [editorPaddingTopPx, setEditorPaddingTopPx] = React.useState(8)
-  const [editorPaddingBottomPx, setEditorPaddingBottomPx] = React.useState(8)
-  const [editorContentWidthPx, setEditorContentWidthPx] = React.useState(320)
-  const [editorFontCss, setEditorFontCss] = React.useState('12px monospace')
+  const [editorPaddingTopPx, setEditorPaddingTopPx] = React.useState(0)
+  const [editorPaddingBottomPx, setEditorPaddingBottomPx] = React.useState(0)
   const [visibleLineRange, setVisibleLineRange] = React.useState({ startLine: 1, endLine: 1 })
 
   const dragStateRef = React.useRef<{
@@ -42,11 +37,7 @@ export function useBottomPanelMarkdownSplitView(args: {
   } | null>(null)
 
   const editorLineCountRef = React.useRef(1)
-  const wrapModelRef = React.useRef<{
-    prefixRows: number[]
-    rowStartByLine: number[]
-    totalRows: number
-  } | null>(null)
+  const wrapModelRef = React.useRef<unknown>(null)
 
   const editorLineCount = React.useMemo(() => {
     const text = markdownText || ''
@@ -65,117 +56,36 @@ export function useBottomPanelMarkdownSplitView(args: {
   }, [editorLineCount])
 
   React.useLayoutEffect(() => {
-    const ta = editorTextAreaRef.current
-    if (!ta) return
-    const computeLineHeightPx = (): number => {
-      try {
-        const raw = window.getComputedStyle(ta).lineHeight
-        const parsed = Number.parseFloat(raw)
-        if (Number.isFinite(parsed) && parsed > 0) return Math.round(parsed)
-        return 16
-      } catch {
-        return 16
-      }
-    }
-    const computePaddingPx = (): { top: number; bottom: number } => {
-      try {
-        const style = window.getComputedStyle(ta)
-        const top = Math.max(0, Math.round(Number.parseFloat(style.paddingTop || '0') || 0))
-        const bottom = Math.max(0, Math.round(Number.parseFloat(style.paddingBottom || '0') || 0))
-        return { top, bottom }
-      } catch {
-        return { top: 8, bottom: 8 }
-      }
-    }
-    const computeTextMeasure = (): { contentWidthPx: number; fontCss: string } => {
-      try {
-        const style = window.getComputedStyle(ta)
-        const padLeft = Math.max(0, Math.round(Number.parseFloat(style.paddingLeft || '0') || 0))
-        const padRight = Math.max(0, Math.round(Number.parseFloat(style.paddingRight || '0') || 0))
-        const width = Math.max(1, Math.floor(ta.clientWidth - padLeft - padRight))
-        const fontCss = (style.font && style.font.trim()) || `${style.fontSize || '12px'} ${style.fontFamily || 'monospace'}`
-        return { contentWidthPx: width, fontCss }
-      } catch {
-        return { contentWidthPx: 320, fontCss: '12px monospace' }
-      }
-    }
-
+    const handle = editorTextAreaRef.current
+    if (!handle) return
+    
     const updateMeasures = () => {
-      const lh = computeLineHeightPx()
-      const pad = computePaddingPx()
-      const measure = computeTextMeasure()
-      setLineHeightPx(prev => (prev === lh ? prev : lh))
-      setEditorPaddingTopPx(prev => (prev === pad.top ? prev : pad.top))
-      setEditorPaddingBottomPx(prev => (prev === pad.bottom ? prev : pad.bottom))
-      setEditorContentWidthPx(prev => (prev === measure.contentWidthPx ? prev : measure.contentWidthPx))
-      setEditorFontCss(prev => (prev === measure.fontCss ? prev : measure.fontCss))
+        const lh = handle.getLineHeight() || 16
+        setLineHeightPx(lh)
+        setEditorPaddingTopPx(0)
+        setEditorPaddingBottomPx(0)
     }
 
     updateMeasures()
-
-    const observer = new ResizeObserver(() => {
-      updateMeasures()
-    })
-    observer.observe(ta)
-
+    const layoutSub = handle.onDidLayoutChange(() => updateMeasures())
+    
     return () => {
-      observer.disconnect()
+      layoutSub.dispose()
     }
   }, [uiPanelMonospaceTextClass])
 
-  const wrapModel = React.useMemo(() => {
-    if (!markdownWordWrap) return null
-    const text = markdownText || ''
-    const lines = text ? text.split('\n') : ['']
-    const lineCount = Math.max(1, lines.length)
-    const ctx = getTextMeasureContext(editorFontCss)
-    if (!ctx) return null
-    const prefixRows = new Array<number>(lineCount + 1)
-    const rowStartByLine = new Array<number>(lineCount + 1)
-    prefixRows[0] = 0
-    rowStartByLine[0] = 1
-    for (let i = 1; i <= lineCount; i += 1) {
-      rowStartByLine[i] = prefixRows[i - 1] + 1
-      const rows = estimateWrappedRowCountByChars({
-        text: lines[i - 1] ?? '',
-        maxWidthPx: editorContentWidthPx,
-        ctx,
-      })
-      prefixRows[i] = prefixRows[i - 1] + Math.max(1, rows)
-    }
-    const totalRows = Math.max(1, prefixRows[lineCount] || 1)
-    return { prefixRows, rowStartByLine, totalRows }
-  }, [editorContentWidthPx, editorFontCss, markdownText, markdownWordWrap])
-
-  React.useEffect(() => {
-    wrapModelRef.current = wrapModel
-  }, [wrapModel])
-
   const editorRowStartByLine = React.useMemo(() => {
     const lineCount = editorLineCount
-    const model = wrapModel
-    if (markdownWordWrap && model?.rowStartByLine) {
-      if (model.rowStartByLine.length === lineCount + 1) return model.rowStartByLine
-    }
     const fallback = new Array<number>(lineCount + 1)
     fallback[0] = 1
     for (let i = 1; i <= lineCount; i += 1) fallback[i] = i
     return fallback
-  }, [editorLineCount, markdownWordWrap, wrapModel])
+  }, [editorLineCount])
 
   const editorContentHeightPx = React.useMemo(() => {
     const lh = Math.max(1, lineHeightPx || 16)
-    const model = wrapModel
-    const rowCount = markdownWordWrap && model ? model.totalRows : editorLineCount
-    return editorPaddingTopPx + editorPaddingBottomPx + rowCount * lh
-  }, [
-    editorLineCount,
-    editorPaddingBottomPx,
-    editorPaddingTopPx,
-    lineHeightPx,
-    markdownWordWrap,
-    wrapModel,
-  ])
+    return editorLineCount * lh
+  }, [editorLineCount, lineHeightPx])
 
   React.useEffect(() => {
     editorLineCountRef.current = editorLineCount
@@ -188,7 +98,7 @@ export function useBottomPanelMarkdownSplitView(args: {
     })
   }, [editorLineCount])
 
-  const { handleViewerScroll } = useMarkdownScrollSync({
+  const { handleViewerScroll, syncViewerFromEditor } = useMarkdownScrollSync({
     editorTextAreaRef,
     viewerRef,
     gutterLayerRef,
@@ -210,10 +120,10 @@ export function useBottomPanelMarkdownSplitView(args: {
     dragStateRef,
   })
 
-  React.useEffect(() => {
-    const ta = editorTextAreaRef.current
+  React.useLayoutEffect(() => {
+    const handle = editorTextAreaRef.current
     const layer = gutterLayerRef.current
-    if (!ta || !layer) return
+    if (!handle || !layer) return
     if (!selectionInfo || selectionInfo.lineStart == null) return
     if (dragStateRef.current?.active) return
     const rafFn = (cb: FrameRequestCallback) => {
@@ -235,21 +145,18 @@ export function useBottomPanelMarkdownSplitView(args: {
       attempts += 1
       const totalLines = editorLineCount || 1
       const line = Math.max(1, Math.min(selectionInfo.lineStart || 1, totalLines))
-      const lh = Math.max(1, lineHeightPx || 16)
-      const model = wrapModelRef.current
-      const rowStartByLine =
-        markdownWordWrap && model?.rowStartByLine && model.rowStartByLine.length === totalLines + 1
-          ? model.rowStartByLine
-          : null
-      const rowIndex = rowStartByLine ? Math.max(0, (rowStartByLine[line] || 1) - 1) : Math.max(0, line - 1)
-      const desiredTop = rowIndex * lh
-      const editorScrollable = Math.max(0, ta.scrollHeight - ta.clientHeight)
+      
+      const desiredTop = handle.getTopForLineNumber(line)
+      const editorScrollable = Math.max(0, handle.getScrollHeight() - handle.getClientHeight())
+      
       if (editorScrollable <= 0 && attempts < 8) {
         raf = rafFn(align)
         return
       }
+      
       const targetTop = editorScrollable > 0 ? Math.min(desiredTop, editorScrollable) : desiredTop
-      ta.scrollTop = targetTop
+      handle.setScrollTop(targetTop)
+      
       const viewer = viewerRef.current
       if (viewer) {
         const container = viewer
@@ -365,6 +272,7 @@ export function useBottomPanelMarkdownSplitView(args: {
     splitRatio,
     handleDividerPointerDown,
     handleViewerScroll,
+    syncViewerFromEditor,
     lineHeightPx,
     editorPaddingTopPx,
     editorLineCount,

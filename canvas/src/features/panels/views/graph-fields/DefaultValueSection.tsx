@@ -6,6 +6,7 @@ import type { GraphFieldDateTimeFormat, GraphFieldSettingsResolved } from '@/fea
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 export function DefaultValueSection({
   selectedSettings,
@@ -157,22 +158,36 @@ export function DefaultValueSection({
                 {longTextDefaultExpanded ? 'Collapse' : 'Expand'}
               </button>
             </div>
-            <textarea
-              value={typeof selectedSettings.defaultValue === 'string' ? selectedSettings.defaultValue : ''}
-              onChange={e => setDefaultValue(e.target.value ? e.target.value : null)}
-              className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800"
-              rows={longTextDefaultExpanded ? 8 : 3}
-            />
+            <div
+              className={[
+                'w-full rounded border border-gray-300 overflow-hidden bg-white',
+                longTextDefaultExpanded ? 'h-[216px]' : 'h-[92px]',
+              ].join(' ')}
+            >
+              <MonacoTextEditor
+                value={typeof selectedSettings.defaultValue === 'string' ? selectedSettings.defaultValue : ''}
+                onChange={(val) => setDefaultValue(val ? val : null)}
+                language="text"
+                uri="inmemory://graph-fields/default/long-text"
+                themeMode="light"
+                wordWrap
+                className="w-full h-full"
+              />
+            </div>
           </div>
         ) : selectedSettings.fieldType === 'JSON' ? (
           <div className="space-y-2">
-            <textarea
-              value={jsonDefaultDraft}
-              onChange={e => setJsonDefaultDraft(e.target.value)}
-              placeholder='{"key":"value"}'
-              className={`w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 ${uiPanelMonospaceTextClass}`}
-              rows={5}
-            />
+            <div className="w-full rounded border border-gray-300 overflow-hidden bg-white h-[140px]">
+              <MonacoTextEditor
+                value={jsonDefaultDraft}
+                onChange={setJsonDefaultDraft}
+                language="json"
+                uri="inmemory://graph-fields/default/json"
+                themeMode="light"
+                wordWrap={false}
+                className={`w-full h-full ${uiPanelMonospaceTextClass}`}
+              />
+            </div>
             <div className="flex items-center gap-1">
               <button type="button" className="App-toolbar__btn text-xs border border-gray-300 bg-gray-50 text-gray-700" onClick={applyJsonDraft}>
                 Apply

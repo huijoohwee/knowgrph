@@ -25,13 +25,13 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { SCHEMA_SECTION_IDS, UI_COPY, type SchemaSectionId } from '@/lib/config'
 import { useOrchestratorBottomPanelState } from '@/features/panels/hooks/useOrchestratorBottomPanelState'
 
-type CodeTextareaHandlers = {
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
-  onSelect: (e: React.SyntheticEvent<HTMLTextAreaElement>) => void
-  onDoubleClick: (e: React.MouseEvent<HTMLTextAreaElement>) => void
-  onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
-  onClick: (e: React.MouseEvent<HTMLTextAreaElement>) => void
-  onBlur: (e: React.FocusEvent<HTMLTextAreaElement>) => void
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
+
+type CodeEditorHandlers = {
+  onChange: (value: string) => void
+  onSelectionChange: (start: number, end: number) => void
+  onDoubleClick: (start: number, end: number) => void
+  onBlur: () => void
 }
 
 type BottomPanelBodyProps = {
@@ -55,8 +55,8 @@ type BottomPanelBodyProps = {
   setSchemaUiStep332Collapsed: (next: boolean) => void
   codeText: string
   codeError: string
-  codeRef: RefObject<HTMLTextAreaElement | null>
-  handlers: CodeTextareaHandlers
+  codeRef: RefObject<MonacoTextEditorHandle | null>
+  handlers: CodeEditorHandlers
   sortedNodes: GraphNode[]
   selectedNodeId: string | null
   sortedEdges: GraphEdge[]

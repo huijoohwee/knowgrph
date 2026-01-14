@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import { STORAGE_CHANNELS } from '@/lib/config'
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 export function useCodeSelectionSync({
   enableTabSync,
@@ -13,7 +14,7 @@ export function useCodeSelectionSync({
   graphId: string
   tabId: string
   isGraphJsonView: boolean
-  codeRef: React.RefObject<HTMLTextAreaElement>
+  codeRef: React.RefObject<MonacoTextEditorHandle | null>
 }) {
   const syncRef = useRef<ReturnType<typeof createTabSync> | null>(null)
   useEffect(() => {
@@ -32,8 +33,7 @@ export function useCodeSelectionSync({
         const end = typeof p.end === 'number' ? p.end : pos
         try {
           codeRef.current.focus()
-          codeRef.current.setSelectionRange(pos, end)
-          codeRef.current.dispatchEvent(new Event('select', { bubbles: true }))
+          codeRef.current.setSelectionOffsets(pos, end)
         } catch { void 0 }
       }
     })

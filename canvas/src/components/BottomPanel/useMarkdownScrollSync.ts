@@ -1,9 +1,8 @@
 import React from 'react'
-import { computeVisibleLineRange } from './markdownUtils'
-import { computeVisibleLineRangeWrapped } from './markdownLayoutUtils'
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 export type MarkdownScrollSyncConfig = {
-  editorTextAreaRef: React.RefObject<HTMLTextAreaElement>
+  editorTextAreaRef: React.RefObject<MonacoTextEditorHandle | null>
   viewerRef: React.RefObject<HTMLDivElement>
   gutterLayerRef: React.RefObject<HTMLDivElement>
   lineHeightPx: number
@@ -11,11 +10,7 @@ export type MarkdownScrollSyncConfig = {
   editorPaddingBottomPx: number
   markdownWordWrap: boolean
   syncScroll: boolean
-  wrapModelRef: React.MutableRefObject<{
-    prefixRows: number[]
-    rowStartByLine: number[]
-    totalRows: number
-  } | null>
+  wrapModelRef: React.MutableRefObject<unknown> // Legacy, unused with Monaco
   editorLineCountRef: React.MutableRefObject<number>
   visibleLineRangeRef: {
     value: { startLine: number; endLine: number }
@@ -138,11 +133,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
     viewerRef,
     gutterLayerRef,
     lineHeightPx,
-    editorPaddingTopPx,
-    editorPaddingBottomPx,
-    markdownWordWrap,
     syncScroll,
-    wrapModelRef,
     editorLineCountRef,
     visibleLineRangeRef,
     dragStateRef,
@@ -151,6 +142,8 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
   const syncingFromEditorRef = React.useRef(false)
   const syncingFromViewerRef = React.useRef(false)
   const viewerSyncRafRef = React.useRef(0)
+  const editorSyncRafRef = React.useRef(0)
+  const editorClearSyncRafRef = React.useRef(0)
   const viewerDebugElRef = React.useRef<HTMLElement | null>(null)
   const syncScrollRef = React.useRef(syncScroll)
 
@@ -158,70 +151,50 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
     syncScrollRef.current = syncScroll
   }, [syncScroll])
 
-  React.useEffect(() => {
-    const ta = editorTextAreaRef.current
-    if (!ta) return
+  const syncViewerFromEditor = React.useCallback(() => {
+    const handle = editorTextAreaRef.current
+    if (!handle) return
     const rafFn = getRaf()
     const cancelRafFn = getCancelRaf()
-    let raf = 0
-    let clearSyncRaf = 0
-    let pending: 'scroll' | 'resize' | null = null
-    const schedule = (reason: 'scroll' | 'resize') => {
-      pending = pending === 'scroll' ? pending : reason
-      if (raf) return
-      raf = rafFn(() => {
-        raf = 0
-        const reasonToUse = pending || 'resize'
-        pending = null
-
-        const nextScrollTop = Math.max(0, Math.floor(ta.scrollTop))
-        const lh = Math.max(1, lineHeightPx || 16)
-        const viewportSansPadding = Math.max(0, ta.clientHeight - editorPaddingTopPx - editorPaddingBottomPx)
-        const model = wrapModelRef.current
-        const range =
-          markdownWordWrap && model?.prefixRows
-            ? computeVisibleLineRangeWrapped({
-                scrollTop: nextScrollTop,
-                viewportHeight: viewportSansPadding,
-                lineCount: editorLineCountRef.current,
-                lineHeight: lh,
-                prefixRows: model.prefixRows,
-              })
-            : computeVisibleLineRange({
-                scrollTop: nextScrollTop,
-                viewportHeight: viewportSansPadding,
-                lineCount: editorLineCountRef.current,
-                lineHeight: lh,
-              })
+    
+    if (editorSyncRafRef.current) return
+    editorSyncRafRef.current = rafFn(() => {
+        editorSyncRafRef.current = 0
+        
+        const range = handle.getVisibleRange()
         visibleLineRangeRef.set(range)
+        
         const layer = gutterLayerRef.current
         if (layer) {
-          const model = wrapModelRef.current
-          const baseRow =
-            markdownWordWrap && model?.rowStartByLine
-              ? Math.max(1, model.rowStartByLine[range.startLine] || 1)
-              : range.startLine
-          layer.style.transform = `translateY(${(baseRow - 1) * lh - nextScrollTop}px)`
+          const startTop = handle.getTopForLineNumber(range.startLine)
+          const scrollTop = handle.getScrollTop()
+          // Adjust transform based on sub-pixel scroll if needed, but getTopForLineNumber includes scroll
+          // Wait, getTopForLineNumber is relative to editor content top.
+          // scrollTop is how much content is scrolled up.
+          // So relative to viewport: top - scrollTop
+          layer.style.transform = `translateY(${startTop - scrollTop}px)`
         }
+        
         const viewer = viewerRef.current
         if (!viewer) return
         if (!syncScrollRef.current) return
         if (syncingFromViewerRef.current) return
-        if (reasonToUse === 'scroll') {
-          if (dragStateRef.current?.active) return
-          if (clearSyncRaf) cancelRafFn(clearSyncRaf)
-          syncingFromEditorRef.current = true
+        
+        if (dragStateRef.current?.active) return
+        if (editorClearSyncRafRef.current) cancelRafFn(editorClearSyncRafRef.current)
+        syncingFromEditorRef.current = true
 
-          const totalLines = editorLineCountRef.current || 1
-          const midLine = Math.max(
+        const totalLines = editorLineCountRef.current || 1
+        const midLine = Math.max(
             1,
             Math.min(
               range.startLine + Math.floor((range.endLine - range.startLine) / 2),
               totalLines,
             ),
-          )
-          let viewerTargetTop: number | null = null
-          try {
+        )
+        
+        let viewerTargetTop: number | null = null
+        try {
             const container = viewer
             const containerRect =
               typeof container.getBoundingClientRect === 'function'
@@ -232,6 +205,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
               const anchor = containerRect.top + containerRect.height * bias
               const nodes = container.querySelectorAll<HTMLElement>('[data-start-line]')
               const weights = getScrollWeights()
+              const lh = Math.max(1, lineHeightPx || 16)
               const blocks: {
                 el: HTMLElement
                 start: number
@@ -310,71 +284,60 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
                 applyScrollDebugOutline(best, viewerDebugElRef)
               }
             }
-          } catch {
+        } catch {
             viewerTargetTop = null
-          }
+        }
 
-          if (viewerTargetTop == null) {
-            const editorScrollable = Math.max(0, ta.scrollHeight - ta.clientHeight)
+        if (viewerTargetTop == null) {
+            const nextScrollTop = Math.max(0, Math.floor(handle.getScrollTop()))
+            const editorScrollable = Math.max(0, handle.getScrollHeight() - handle.getClientHeight())
             const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
             const ratio = editorScrollable > 0 ? nextScrollTop / editorScrollable : 0
             viewer.scrollTop = viewerScrollable > 0 ? ratio * viewerScrollable : 0
-          } else {
+        } else {
             viewer.scrollTop = viewerTargetTop
-          }
-
-          clearSyncRaf = rafFn(() => {
-            syncingFromEditorRef.current = false
-            clearSyncRaf = 0
-          })
         }
-      })
-    }
 
-    schedule('resize')
-    const onScroll = () => {
-      schedule('scroll')
-    }
-    ta.addEventListener('scroll', onScroll, { passive: true })
-    const ResizeObserverCtor =
-      typeof window !== 'undefined'
-        ? (window as unknown as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
-        : undefined
-    let ro: ResizeObserver | null = null
-    if (ResizeObserverCtor) {
-      ro = new ResizeObserverCtor(() => {
-        schedule('resize')
-      })
-      ro.observe(ta)
-    }
-    const onWindowResize = () => schedule('resize')
+        editorClearSyncRafRef.current = rafFn(() => {
+            syncingFromEditorRef.current = false
+            editorClearSyncRafRef.current = 0
+        })
+    })
+  }, [lineHeightPx, editorLineCountRef, viewerRef, editorTextAreaRef, gutterLayerRef, visibleLineRangeRef, dragStateRef])
+
+  React.useEffect(() => {
+    const handle = editorTextAreaRef.current
+    if (!handle) return
+    
+    // Initial sync/resize check
+    syncViewerFromEditor()
+    
+    const scrollSub = handle.onDidScrollChange(() => syncViewerFromEditor())
+    const layoutSub = handle.onDidLayoutChange(() => syncViewerFromEditor())
+    
+    const onWindowResize = () => syncViewerFromEditor()
     window.addEventListener('resize', onWindowResize)
     return () => {
-      if (raf) cancelRafFn(raf)
-      if (clearSyncRaf) cancelRafFn(clearSyncRaf)
-      ta.removeEventListener('scroll', onScroll)
-      if (ro) ro.disconnect()
+      const cancelRafFn = getCancelRaf()
+      if (editorSyncRafRef.current) cancelRafFn(editorSyncRafRef.current)
+      if (editorClearSyncRafRef.current) cancelRafFn(editorClearSyncRafRef.current)
+      scrollSub.dispose()
+      layoutSub.dispose()
       window.removeEventListener('resize', onWindowResize)
     }
-  })
+  }, [editorTextAreaRef, syncViewerFromEditor])
 
   const handleViewerScroll = React.useCallback((e?: React.UIEvent<HTMLDivElement>) => {
     const rafFn = getRaf()
     const cancelRafFn = getCancelRaf()
     const viewerFromEvent = e?.currentTarget ?? null
     const viewer = viewerFromEvent || viewerRef.current
-    const ta = editorTextAreaRef.current
+    const handle = editorTextAreaRef.current
     if (syncingFromEditorRef.current) return
-    if (!viewer || !ta) return
+    if (!viewer || !handle) return
     if (!syncScrollRef.current) return
 
-    const lh = Math.max(1, lineHeightPx || 16)
     const totalLines = editorLineCountRef.current || 1
-    const model = wrapModelRef.current
-    const rowStartByLine =
-      markdownWordWrap && model?.rowStartByLine && model.rowStartByLine.length === totalLines + 1
-        ? model.rowStartByLine
-        : null
 
     let targetLine: number | null = null
     try {
@@ -425,26 +388,21 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
     if (prevRaf) cancelRafFn(prevRaf)
     syncingFromViewerRef.current = true
 
-    if (targetLine != null && lh > 0) {
-      const rowIndex = rowStartByLine
-        ? Math.max(0, (rowStartByLine[targetLine] || 1) - 1)
-        : Math.max(0, targetLine - 1)
-      const desiredTop = rowIndex * lh
-      const editorScrollable = Math.max(0, ta.scrollHeight - ta.clientHeight)
-      const targetTop = editorScrollable > 0 ? Math.min(desiredTop, editorScrollable) : desiredTop
-      ta.scrollTop = targetTop
+    if (targetLine != null) {
+      const desiredTop = handle.getTopForLineNumber(targetLine)
+      handle.setScrollTop(desiredTop)
     } else {
       const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
       const ratio = viewerScrollable > 0 ? viewer.scrollTop / Math.max(1, viewerScrollable) : 0
-      const editorScrollable = Math.max(0, ta.scrollHeight - ta.clientHeight)
-      ta.scrollTop = editorScrollable > 0 ? ratio * editorScrollable : 0
+      const editorScrollable = Math.max(0, handle.getScrollHeight() - handle.getClientHeight())
+      handle.setScrollTop(editorScrollable > 0 ? ratio * editorScrollable : 0)
     }
 
     viewerSyncRafRef.current = rafFn(() => {
       syncingFromViewerRef.current = false
       viewerSyncRafRef.current = 0
     })
-  }, [lineHeightPx, markdownWordWrap, editorLineCountRef, wrapModelRef, viewerRef, editorTextAreaRef])
+  }, [editorLineCountRef, viewerRef, editorTextAreaRef])
 
   React.useEffect(() => {
     return () => {
@@ -454,5 +412,5 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
     }
   }, [])
 
-  return { handleViewerScroll }
+  return { handleViewerScroll, syncViewerFromEditor }
 }

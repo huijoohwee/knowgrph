@@ -6,7 +6,7 @@ import { MarkdownPanelLayout } from './MarkdownPanelLayout'
 import { slugify } from '@/features/parsers/markdownJsonLd'
 import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
 
-type MarkdownPreviewViewerProps = {
+export type MarkdownPreviewViewerProps = {
   rootRef: (el: HTMLDivElement | null) => void
   tokens: TokenWithLines[]
   activeDocumentPath: string
@@ -31,6 +31,7 @@ type MarkdownPreviewViewerProps = {
   scrollClass: string
   hasFrontmatterMermaid: boolean
   frontmatterMermaidCode?: string
+  codeAnnotations?: Record<string, string> | null
   onScroll?: (event: React.UIEvent<HTMLDivElement>) => void
   onContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void
   onClick: (event: React.MouseEvent<HTMLDivElement>) => void
@@ -46,6 +47,8 @@ type MarkdownPreviewViewerProps = {
   onTocDoubleClick?: (id: string) => void
   onTocReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
   onDoubleClick?: (event: React.MouseEvent<HTMLDivElement>) => void
+  annotateDisplayMode?: 'inline' | 'beside'
+  flashLine?: number | null
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -84,7 +87,10 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     onTocDoubleClick,
     onTocReorder,
     frontmatterMermaidCode,
-    onDoubleClick
+    onDoubleClick,
+    codeAnnotations,
+    annotateDisplayMode,
+    flashLine,
   } = props
 
   const [localShowSidebar, setLocalShowSidebar] = React.useState(true)
@@ -177,11 +183,14 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         alwaysOnHighlightMode={alwaysOnHighlightMode}
         alwaysOnTokenHighlights={alwaysOnTokenHighlights}
         markdownTextHighlight={markdownTextHighlight}
+        codeAnnotations={codeAnnotations}
+        annotateDisplayMode={annotateDisplayMode}
         selectionKind={selectionKind}
         highlightBackgroundColor={effectiveHighlightBackgroundColor}
         highlightUnderlineColor={effectiveHighlightUnderlineColor}
         collapsedIds={collapsedIds}
         onToggleCollapse={onToggleCollapse}
+        flashLine={flashLine}
       />
     ),
     [
@@ -193,16 +202,19 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       highlightedLineRange,
       markdownTextHighlight,
       markdownWordWrap,
+      annotateDisplayMode,
       mermaidFrontmatterConfig,
       previewOverlayPortalTarget,
       previewOverlayScope,
       rootThemeMode,
+      codeAnnotations,
       selectionKind,
       visibleTokens,
       uiPanelMonospaceTextClass,
       uiPanelTextFontClass,
       collapsedIds,
       onToggleCollapse,
+      flashLine,
     ],
   )
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { DEFAULT_PARSER_SCRIPT_TEXT, useParserUIState } from '@/features/parsers/uiState'
+import { useParserUIState } from '@/features/parsers/uiState'
 import { AGENTIC_RAG_PARSER_DESCRIPTION } from '@/lib/config'
 import {
   ParserSelectionSection,
@@ -10,6 +10,7 @@ import type {
   ParserDataSectionProps,
 } from '@/features/panels/views/ParserSectionsModel'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 interface BottomPanelParserTabProps {
   parserScriptText: string
@@ -28,11 +29,7 @@ export default function BottomPanelParserTab({
   parserSelectionProps,
   parserDataProps,
 }: BottomPanelParserTabProps) {
-  const placeholder = DEFAULT_PARSER_SCRIPT_TEXT
   const setScriptText = useParserUIState(s => s.setScriptText)
-  const uiPanelMonospaceTextClass = useGraphStore(
-    s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
-  )
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
@@ -59,14 +56,19 @@ export default function BottomPanelParserTab({
             </div>
           </div>
         ) : (
-          <textarea
-            value={parserScriptText}
-            onChange={e => {
-              setScriptText(e.target.value)
-            }}
-            placeholder={placeholder}
-            className={`w-full h-full flex-1 min-h-0 px-2 py-2 border border-gray-300 rounded resize-none bg-transparent ${uiPanelMonospaceTextClass}`}
-          />
+          <div className="w-full h-full flex-1 min-h-0 border border-gray-300 rounded overflow-hidden">
+            <MonacoTextEditor
+              value={parserScriptText}
+              onChange={(val) => {
+                setScriptText(val)
+              }}
+              language="python"
+              uri="inmemory://parser/script"
+              themeMode="light"
+              wordWrap={false}
+              className="w-full h-full"
+            />
+          </div>
         )}
       </div>
     </div>

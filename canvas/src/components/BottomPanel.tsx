@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect, useRef, useDeferredValue, useCallback, useTransition } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS, UI_LAYOUT } from '@/lib/config'
-import { findObjectBoundsById, centerBlock, countLinesUpTo, smoothScrollTextareaToCenter } from '@/lib/editor'
-import { scheduleIdle, centerIdInCode as centerIdInCodeUtil } from '@/features/bottom-panel/utils'
+import { findObjectBoundsById, countLinesUpTo, smoothScrollTextareaToCenter } from '@/lib/editor'
+import { scheduleIdle } from '@/features/bottom-panel/utils'
 import { type NodeSort, type EdgeSort } from '@/components/BottomPanel/sort'
 import { tryFormatJson } from '@/features/code-editor/format'
 import { detectIdAroundSelection } from '@/features/code-editor/selection'
@@ -16,7 +16,8 @@ import { DEFAULT_GRAPH_JSON } from '@/features/panels/constants'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { buildCodeActions } from '@/features/code-editor/actions'
 import { DEFAULT_PARSER_SCRIPT_TEXT, useParserUIState } from '@/features/parsers/uiState'
-import { useEditorTextareaHandlers } from '@/features/hooks/useEditorTextareaHandlers'
+import { useCodeEditorHandlers } from '@/features/hooks/useCodeEditorHandlers'
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useParserEditor } from '@/features/parsers/useParserEditor'
 import { useBottomPanelSchema } from '@/features/schema-editor/useBottomPanelSchema'
 import BottomPanelHeader from '@/components/BottomPanel/BottomPanelHeader'
@@ -60,7 +61,7 @@ export default function BottomPanel() {
   const edgeRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
   const [codeText, setCodeText] = useState('')
   const [codeError, setCodeError] = useState('')
-  const codeRef = useRef<HTMLTextAreaElement | null>(null)
+  const codeRef = useRef<MonacoTextEditorHandle | null>(null)
   const blockHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const codeSelectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastCenteredRef = useRef<string | null>(null)
@@ -235,17 +236,24 @@ export default function BottomPanel() {
 
   const centerIdInCode = useCallback((id: string) => {
     if (lastCenteredRef.current === id) return
-    centerIdInCodeUtil(
-      codeText,
-      id,
-      codeRef,
-      findObjectBoundsById,
-      centerBlock,
-      codeHighlightUntilClick,
-      codeHighlightDurationMs,
-      stickyBlockRef,
-      blockHighlightTimerRef,
-    )
+    const bounds = findObjectBoundsById(codeText, id)
+    if (!bounds) return
+    const handle = codeRef.current
+    if (!handle) return
+    
+    handle.revealOffsetInCenter(bounds.start)
+    handle.focus()
+    handle.setSelectionOffsets(bounds.start, bounds.end)
+    
+    if (codeHighlightUntilClick) {
+      stickyBlockRef.current = bounds
+    } else {
+      if (blockHighlightTimerRef.current) clearTimeout(blockHighlightTimerRef.current)
+      blockHighlightTimerRef.current = setTimeout(() => {
+        if (codeRef.current) codeRef.current.setSelectionOffsets(bounds.start, bounds.start)
+      }, codeHighlightDurationMs)
+    }
+
     lastCenteredRef.current = id
   }, [codeText, codeHighlightUntilClick, codeHighlightDurationMs])
 
@@ -370,7 +378,7 @@ export default function BottomPanel() {
     [formatEditor, applyJson, graphData, setCodeText, setCodeError],
   )
 
-  const handlers = useEditorTextareaHandlers({
+  const handlers = useCodeEditorHandlers({
     codeText,
     setCodeText,
     setCodeError,

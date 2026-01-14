@@ -1,5 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 interface BottomPanelSchemaTabProps {
   schemaText: string
@@ -12,9 +13,6 @@ export default function BottomPanelSchemaTab({
   schemaError,
   onSchemaTextChange,
 }: BottomPanelSchemaTabProps) {
-  const uiPanelMonospaceTextClass = useGraphStore(
-    s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
-  )
   const uiPanelMicroLabelTextSizeClass = useGraphStore(
     s => s.uiPanelMicroLabelTextSizeClass || 'text-xs',
   )
@@ -25,11 +23,17 @@ export default function BottomPanelSchemaTab({
           {schemaError}
         </div>
       )}
-      <textarea
-        value={schemaText}
-        onChange={e => onSchemaTextChange(e.target.value)}
-        className={`w-full flex-1 min-h-0 px-2 py-2 border border-gray-300 rounded resize-none bg-transparent ${uiPanelMonospaceTextClass}`}
-      />
+      <div className="flex-1 min-h-0 border border-gray-300 rounded overflow-hidden">
+        <MonacoTextEditor
+          value={schemaText}
+          onChange={onSchemaTextChange}
+          language="json"
+          uri="inmemory://schema/editor"
+          themeMode="light"
+          wordWrap={false}
+          className="w-full h-full"
+        />
+      </div>
     </div>
   )
 }

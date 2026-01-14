@@ -8,7 +8,6 @@ import { lexMarkdownContent, type TokenWithLines } from './markdownPreviewLex'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { MarkdownFragmentConfig } from './markdownPreviewFragments'
 import { lsBool, lsSetBool } from '@/lib/persistence'
-import MarkdownTokenRenderer from './MarkdownTokenRenderer'
 import {
   buildBackgroundStyle,
   buildSlideBody,
@@ -21,6 +20,8 @@ import {
 import { SlideFrame } from './SlideFrame'
 import { SlidesSidebar } from './SlidesSidebar'
 import { findLineRangeFromTarget } from '@/features/markdown/ui/markdownPreviewContextMenuUtils'
+import { PresentationNotes } from './PresentationNotes'
+import { usePresentationLayout } from './usePresentationLayout'
 
 type MarkdownPreviewPresentationProps = {
   rootRef: (el: HTMLDivElement | null) => void
@@ -66,6 +67,7 @@ type MarkdownPreviewPresentationProps = {
   onShowInEditor?: (line: number) => void
   onMouseUp?: (e: React.MouseEvent<HTMLDivElement>) => void
   selectionToolbar?: React.ReactNode
+  onSlideContextMenu?: (slideIdx: number, e: React.MouseEvent) => void
 }
 
 export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationProps) {
@@ -102,9 +104,9 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     onShowInEditor,
     onMouseUp,
     selectionToolbar,
+    onSlideContextMenu,
   } = props
 
-  const [presentationViewport, setPresentationViewport] = React.useState<{ w: number; h: number }>({ w: 1, h: 1 })
   const [isSlidesFullscreenOpen, setIsSlidesFullscreenOpen] = React.useState(false)
   const [showSlideThumbnails, setShowSlideThumbnails] = React.useState<boolean>(() =>
     lsBool(LS_KEYS.previewSlidesShowThumbnails, true),
@@ -112,22 +114,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const [showSpeakerNotes, setShowSpeakerNotes] = React.useState<boolean>(() =>
     lsBool(LS_KEYS.previewSlidesShowNotes, false),
   )
-  const containerRef = React.useRef<HTMLElement | null>(null)
   const [slideTransitionPhase, setSlideTransitionPhase] = React.useState<'from' | 'to'>('to')
-
-  React.useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const ro = new ResizeObserver(entries => {
-      const rect = entries[0]?.contentRect
-      if (!rect) return
-      const w = Math.max(1, rect.width)
-      const h = Math.max(1, rect.height)
-      setPresentationViewport(prev => (prev.w === w && prev.h === h ? prev : { w, h }))
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   const activeTransitionKey = React.useMemo(() => {
     const currentSlide = slides[activeSlideId]
@@ -189,11 +176,8 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     return { w: width, h: height }
   }, [headMeta])
 
-  const slideScale = React.useMemo(() => {
-    const availableW = Math.max(1, presentationViewport.w)
-    const availableH = Math.max(1, presentationViewport.h)
-    return Math.max(0.05, Math.min(availableW / baseSlideSize.w, availableH / baseSlideSize.h))
-  }, [baseSlideSize.h, baseSlideSize.w, presentationViewport.h, presentationViewport.w])
+  const { setRef, slideScale } = usePresentationLayout(rootRef, baseSlideSize)
+
   const hasSlides = React.useMemo(
     () => slides.length > 0,
     [slides.length],
@@ -462,16 +446,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     [onShowInEditor, onPreviewClick, slides, safeActiveSlideId],
   )
 
-  const setRef = React.useCallback((el: HTMLDivElement | null) => {
-    containerRef.current = el
-    rootRef(el)
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const w = Math.max(1, rect.width)
-    const h = Math.max(1, rect.height)
-    setPresentationViewport(prev => (prev.w === w && prev.h === h ? prev : { w, h }))
-  }, [rootRef])
-
   return (
     <>
       <section
@@ -519,32 +493,18 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
             </div>
           </div>
         </div>
-        {notesTokens && notesTokens.length > 0 && (
-          <div
-            data-testid="markdown-presentation-notes"
+        <PresentationNotes
+            notesTokens={notesTokens}
+            activeDocumentPath={activeDocumentPath}
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+            mermaidFrontmatterConfig={mermaidFrontmatterConfig}
+            rootThemeMode={rootThemeMode}
+            previewOverlayScope={previewOverlayScope}
+            previewOverlayPortalTarget={previewOverlayPortalTarget}
             className="w-full max-h-48 overflow-auto border-t border-gray-200 bg-white"
-          >
-            <div className={['px-4 py-3 text-xs text-gray-800', uiPanelTextFontClass].filter(Boolean).join(' ')}>
-              <MarkdownTokenRenderer
-                tokens={notesTokens}
-                activeDocumentPath={activeDocumentPath}
-                highlightedLineRange={null}
-                markdownWordWrap={true}
-                markdownPresentationMode={false}
-                uiPanelTextFontClass={uiPanelTextFontClass}
-                uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-                mermaidFrontmatterConfig={mermaidFrontmatterConfig}
-                rootThemeMode={rootThemeMode}
-                previewOverlayScope={previewOverlayScope}
-                previewOverlayPortalTarget={previewOverlayPortalTarget}
-                alwaysOnHighlightMode={false}
-                alwaysOnTokenHighlights={null}
-                markdownTextHighlight={false}
-                selectionKind={null}
-              />
-            </div>
-          </div>
-        )}
+            data-testid="markdown-presentation-notes"
+        />
         {selectionToolbar}
       </section>
       <PreviewOverlay
@@ -568,14 +528,20 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
             onSlideOrderChange={setSlideOrder}
             renderSlidePreview={renderSlidePreview}
             onSlideDoubleClick={(idx) => {
+              const s = slides[idx]
+              if (s && onShowInEditor) {
+                onShowInEditor(s.startLine)
+                setIsSlidesFullscreenOpen(false)
+                return
+              }
               if (onPreviewClick) {
-                const s = slides[idx]
                 if (s) {
                   onPreviewClick(s.startLine)
                   setIsSlidesFullscreenOpen(false)
                 }
               }
             }}
+            onSlideContextMenu={onSlideContextMenu}
           />
           <main className="flex-1 min-w-0 flex flex-col">
             <ZoomPanViewport
@@ -606,29 +572,17 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
                 </SlideFrame>
               </div>
             </ZoomPanViewport>
-            {notesTokens && notesTokens.length > 0 && (
-              <div className="w-full max-h-56 overflow-auto border-t border-gray-200 bg-white">
-                <div className={['px-4 py-3 text-xs text-gray-800', uiPanelTextFontClass].filter(Boolean).join(' ')}>
-                  <MarkdownTokenRenderer
-                    tokens={notesTokens}
-                    activeDocumentPath={activeDocumentPath}
-                    highlightedLineRange={null}
-                    markdownWordWrap={true}
-                    markdownPresentationMode={false}
-                    uiPanelTextFontClass={uiPanelTextFontClass}
-                    uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-                    mermaidFrontmatterConfig={mermaidFrontmatterConfig}
-                    rootThemeMode={rootThemeMode}
-                    previewOverlayScope={previewOverlayScope}
-                    previewOverlayPortalTarget={previewOverlayPortalTarget}
-                    alwaysOnHighlightMode={false}
-                    alwaysOnTokenHighlights={null}
-                    markdownTextHighlight={false}
-                    selectionKind={null}
-                  />
-                </div>
-              </div>
-            )}
+            <PresentationNotes
+                notesTokens={notesTokens}
+                activeDocumentPath={activeDocumentPath}
+                uiPanelTextFontClass={uiPanelTextFontClass}
+                uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+                mermaidFrontmatterConfig={mermaidFrontmatterConfig}
+                rootThemeMode={rootThemeMode}
+                previewOverlayScope={previewOverlayScope}
+                previewOverlayPortalTarget={previewOverlayPortalTarget}
+                className="w-full max-h-56 overflow-auto border-t border-gray-200 bg-white"
+            />
           </main>
           {selectionToolbar}
         </section>

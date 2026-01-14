@@ -118,6 +118,17 @@ export function parseJsonLd(jsonld: unknown): GraphData {
         if (isRecord(vMeta)) metadata = vMeta as Record<string, JSONValue>;
         return;
       }
+      if (k === 'properties') {
+        const inner = item[k] as unknown;
+        if (isRecord(inner)) {
+          Object.keys(inner).forEach((pk) => {
+            if (!pk || pk === '@id' || pk === '@type' || pk === 'labels' || pk === 'name' || pk === 'metadata') return;
+            if (typeof props[pk] !== 'undefined') return;
+            props[pk] = inner[pk] as JSONValue;
+          });
+          return;
+        }
+      }
       const v = item[k] as unknown;
       const isIdKey = isIdPropertyKey(ctxRecord, k);
       if (Array.isArray(v)) {

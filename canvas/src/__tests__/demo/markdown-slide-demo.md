@@ -32,6 +32,12 @@ mermaid: |
       L1B --> L1C
       L1C --> L1D
     end
+    subgraph Phase0["Phase 0"]
+      S0.1.0[Step 0.1.0]
+      S0.2.0[Step 0.2.0]
+      S0.1.0 --> S0.2.0
+      click S0.1.0 "#step-0-1-0"
+    end
     subgraph L2["L2: OPERATIONS"]
       L2A[Monitor]
       L2B[Alert]

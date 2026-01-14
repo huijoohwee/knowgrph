@@ -1,15 +1,38 @@
 import React from 'react'
+import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
-const waitForNextFrame = (win: Window): Promise<void> => {
-  const anyWindow = win as unknown as { requestAnimationFrame?: (cb: () => void) => number }
-  if (!anyWindow.requestAnimationFrame) {
-    anyWindow.requestAnimationFrame = (cb: () => void) =>
-      setTimeout(cb, 0) as unknown as number
+const createDataTransfer = (): DataTransfer => {
+  const store = new Map<string, string>()
+  const dt: DataTransfer = {
+    dropEffect: 'none',
+    effectAllowed: 'all',
+    files: {} as never,
+    items: {} as never,
+    types: [],
+    clearData: (format?: string) => {
+      if (!format) store.clear()
+      else store.delete(format)
+    },
+    getData: (format: string) => store.get(format) ?? '',
+    setData: (format: string, data: string) => {
+      store.set(format, data)
+    },
+    setDragImage: () => {},
   }
-  return new Promise<void>(resolve => anyWindow.requestAnimationFrame!(() => resolve()))
+  return dt
+}
+
+const dispatchDragEvent = (win: Window, target: EventTarget, type: string, dataTransfer?: DataTransfer) => {
+  const eventCtor =
+    (win as unknown as { Event?: typeof Event }).Event ?? (globalThis as unknown as { Event: typeof Event }).Event
+  const ev = new eventCtor(type, { bubbles: true, cancelable: true }) as DragEvent
+  if (dataTransfer) {
+    Object.defineProperty(ev, 'dataTransfer', { value: dataTransfer, configurable: true })
+  }
+  target.dispatchEvent(ev)
 }
 
 export async function testPreviewGalleryArrowMovesThirdSlideAboveSecond() {
@@ -29,19 +52,19 @@ export async function testPreviewGalleryArrowMovesThirdSlideAboveSecond() {
 
     const reordered: string[][] = []
 
-    root.render(
-      React.createElement(PreviewGallery, {
-        items,
-        activeId: '1',
-        onSelect: () => {},
-        onReorder: (nextIds: string[]) => {
-          reordered.push(nextIds)
-        },
-        showPreview: false,
-      }),
-    )
-
-    await waitForNextFrame(dom.window)
+    flushSync(() => {
+      root.render(
+        React.createElement(PreviewGallery, {
+          items,
+          activeId: '1',
+          onSelect: () => {},
+          onReorder: (nextIds: string[]) => {
+            reordered.push(nextIds)
+          },
+          showPreview: false,
+        }),
+      )
+    })
 
     const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
     const upButtons = buttons.filter(btn => (btn.textContent || '').trim() === '↑')
@@ -50,9 +73,9 @@ export async function testPreviewGalleryArrowMovesThirdSlideAboveSecond() {
     }
 
     const thirdUp = upButtons[1]
-    thirdUp.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-
-    await waitForNextFrame(dom.window)
+    flushSync(() => {
+      thirdUp.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    })
 
     if (!reordered.length) {
       throw new Error('expected onReorder to be called at least once')
@@ -87,19 +110,19 @@ export async function testPreviewGalleryDragMovesThirdSlideAboveSecond() {
 
     const reordered: string[][] = []
 
-    root.render(
-      React.createElement(PreviewGallery, {
-        items,
-        activeId: '1',
-        onSelect: () => {},
-        onReorder: (nextIds: string[]) => {
-          reordered.push(nextIds)
-        },
-        showPreview: false,
-      }),
-    )
-
-    await waitForNextFrame(dom.window)
+    flushSync(() => {
+      root.render(
+        React.createElement(PreviewGallery, {
+          items,
+          activeId: '1',
+          onSelect: () => {},
+          onReorder: (nextIds: string[]) => {
+            reordered.push(nextIds)
+          },
+          showPreview: false,
+        }),
+      )
+    })
 
     const cards = Array.from(
       container.querySelectorAll('div[draggable="true"]'),
@@ -111,33 +134,12 @@ export async function testPreviewGalleryDragMovesThirdSlideAboveSecond() {
     const third = cards[2]
     const second = cards[1]
 
-    const dataTransfer: DataTransfer = {
-      dropEffect: 'none',
-      effectAllowed: 'all',
-      files: {} as never,
-      items: {} as never,
-      types: [],
-      clearData: () => {},
-      getData: () => '3',
-      setData: () => {},
-      setDragImage: () => {},
-    }
-
-    third.dispatchEvent(
-      new dom.window.Event('dragstart', {
-        bubbles: true,
-        cancelable: true,
-      }) as DragEvent,
-    )
-
-    second.dispatchEvent(
-      new dom.window.Event('dragover', {
-        bubbles: true,
-        cancelable: true,
-      }) as DragEvent,
-    )
-
-    await waitForNextFrame(dom.window)
+    const dataTransfer = createDataTransfer()
+    flushSync(() => {
+      dispatchDragEvent(dom.window, third, 'dragstart', dataTransfer)
+      dataTransfer.setData('text/plain', '3')
+      dispatchDragEvent(dom.window, second, 'dragover', dataTransfer)
+    })
 
     const topBands = Array.from(
       container.querySelectorAll('div.border-t-2.cursor-move'),
@@ -147,22 +149,9 @@ export async function testPreviewGalleryDragMovesThirdSlideAboveSecond() {
     }
     const targetBand = topBands[0]
 
-    Object.defineProperty(second, 'draggable', {
-      value: true,
-      configurable: true,
+    flushSync(() => {
+      dispatchDragEvent(dom.window, targetBand, 'drop', dataTransfer)
     })
-
-    const dropEvent = new dom.window.Event('drop', {
-      bubbles: true,
-      cancelable: true,
-    }) as DragEvent
-    Object.defineProperty(dropEvent, 'dataTransfer', {
-      value: dataTransfer,
-      configurable: true,
-    })
-    targetBand.dispatchEvent(dropEvent)
-
-    await waitForNextFrame(dom.window)
 
     if (!reordered.length) {
       throw new Error('expected onReorder to be called at least once')
@@ -197,19 +186,19 @@ export async function testPreviewGalleryDragMovesFirstSlideBelowThird() {
 
     const reordered: string[][] = []
 
-    root.render(
-      React.createElement(PreviewGallery, {
-        items,
-        activeId: '1',
-        onSelect: () => {},
-        onReorder: (nextIds: string[]) => {
-          reordered.push(nextIds)
-        },
-        showPreview: false,
-      }),
-    )
-
-    await waitForNextFrame(dom.window)
+    flushSync(() => {
+      root.render(
+        React.createElement(PreviewGallery, {
+          items,
+          activeId: '1',
+          onSelect: () => {},
+          onReorder: (nextIds: string[]) => {
+            reordered.push(nextIds)
+          },
+          showPreview: false,
+        }),
+      )
+    })
 
     const cards = Array.from(
       container.querySelectorAll('div[draggable="true"]'),
@@ -221,33 +210,12 @@ export async function testPreviewGalleryDragMovesFirstSlideBelowThird() {
     const first = cards[0]
     const third = cards[2]
 
-    const dataTransfer: DataTransfer = {
-      dropEffect: 'none',
-      effectAllowed: 'all',
-      files: {} as never,
-      items: {} as never,
-      types: [],
-      clearData: () => {},
-      getData: () => '1',
-      setData: () => {},
-      setDragImage: () => {},
-    }
-
-    first.dispatchEvent(
-      new dom.window.Event('dragstart', {
-        bubbles: true,
-        cancelable: true,
-      }) as DragEvent,
-    )
-
-    third.dispatchEvent(
-      new dom.window.Event('dragover', {
-        bubbles: true,
-        cancelable: true,
-      }) as DragEvent,
-    )
-
-    await waitForNextFrame(dom.window)
+    const dataTransfer = createDataTransfer()
+    flushSync(() => {
+      dispatchDragEvent(dom.window, first, 'dragstart', dataTransfer)
+      dataTransfer.setData('text/plain', '1')
+      dispatchDragEvent(dom.window, third, 'dragover', dataTransfer)
+    })
 
     const bottomBands = Array.from(
       container.querySelectorAll('div.border-b-2.cursor-move'),
@@ -257,22 +225,9 @@ export async function testPreviewGalleryDragMovesFirstSlideBelowThird() {
     }
     const targetBand = bottomBands[0]
 
-    Object.defineProperty(third, 'draggable', {
-      value: true,
-      configurable: true,
+    flushSync(() => {
+      dispatchDragEvent(dom.window, targetBand, 'drop', dataTransfer)
     })
-
-    const dropEvent = new dom.window.Event('drop', {
-      bubbles: true,
-      cancelable: true,
-    }) as DragEvent
-    Object.defineProperty(dropEvent, 'dataTransfer', {
-      value: dataTransfer,
-      configurable: true,
-    })
-    targetBand.dispatchEvent(dropEvent)
-
-    await waitForNextFrame(dom.window)
 
     if (!reordered.length) {
       throw new Error('expected onReorder to be called at least once')
@@ -309,19 +264,19 @@ export async function testPreviewGalleryDragMovesFirstSlideToLastInLongerList() 
 
     const reordered: string[][] = []
 
-    root.render(
-      React.createElement(PreviewGallery, {
-        items,
-        activeId: '1',
-        onSelect: () => {},
-        onReorder: (nextIds: string[]) => {
-          reordered.push(nextIds)
-        },
-        showPreview: false,
-      }),
-    )
-
-    await waitForNextFrame(dom.window)
+    flushSync(() => {
+      root.render(
+        React.createElement(PreviewGallery, {
+          items,
+          activeId: '1',
+          onSelect: () => {},
+          onReorder: (nextIds: string[]) => {
+            reordered.push(nextIds)
+          },
+          showPreview: false,
+        }),
+      )
+    })
 
     const cards = Array.from(
       container.querySelectorAll('div[draggable="true"]'),
@@ -333,33 +288,12 @@ export async function testPreviewGalleryDragMovesFirstSlideToLastInLongerList() 
     const first = cards[0]
     const last = cards[4]
 
-    const dataTransfer: DataTransfer = {
-      dropEffect: 'none',
-      effectAllowed: 'all',
-      files: {} as never,
-      items: {} as never,
-      types: [],
-      clearData: () => {},
-      getData: () => '1',
-      setData: () => {},
-      setDragImage: () => {},
-    }
-
-    first.dispatchEvent(
-      new dom.window.Event('dragstart', {
-        bubbles: true,
-        cancelable: true,
-      }) as DragEvent,
-    )
-
-    last.dispatchEvent(
-      new dom.window.Event('dragover', {
-        bubbles: true,
-        cancelable: true,
-      }) as DragEvent,
-    )
-
-    await waitForNextFrame(dom.window)
+    const dataTransfer = createDataTransfer()
+    flushSync(() => {
+      dispatchDragEvent(dom.window, first, 'dragstart', dataTransfer)
+      dataTransfer.setData('text/plain', '1')
+      dispatchDragEvent(dom.window, last, 'dragover', dataTransfer)
+    })
 
     const bottomBands = Array.from(
       container.querySelectorAll('div.border-b-2.cursor-move'),
@@ -369,22 +303,9 @@ export async function testPreviewGalleryDragMovesFirstSlideToLastInLongerList() 
     }
     const targetBand = bottomBands[bottomBands.length - 1]
 
-    Object.defineProperty(last, 'draggable', {
-      value: true,
-      configurable: true,
+    flushSync(() => {
+      dispatchDragEvent(dom.window, targetBand, 'drop', dataTransfer)
     })
-
-    const dropEvent = new dom.window.Event('drop', {
-      bubbles: true,
-      cancelable: true,
-    }) as DragEvent
-    Object.defineProperty(dropEvent, 'dataTransfer', {
-      value: dataTransfer,
-      configurable: true,
-    })
-    targetBand.dispatchEvent(dropEvent)
-
-    await waitForNextFrame(dom.window)
 
     if (!reordered.length) {
       throw new Error('expected onReorder to be called at least once')
@@ -421,19 +342,19 @@ export async function testPreviewGalleryDragMovesLastSlideToFirstInLongerList() 
 
     const reordered: string[][] = []
 
-    root.render(
-      React.createElement(PreviewGallery, {
-        items,
-        activeId: '5',
-        onSelect: () => {},
-        onReorder: (nextIds: string[]) => {
-          reordered.push(nextIds)
-        },
-        showPreview: false,
-      }),
-    )
-
-    await waitForNextFrame(dom.window)
+    flushSync(() => {
+      root.render(
+        React.createElement(PreviewGallery, {
+          items,
+          activeId: '5',
+          onSelect: () => {},
+          onReorder: (nextIds: string[]) => {
+            reordered.push(nextIds)
+          },
+          showPreview: false,
+        }),
+      )
+    })
 
     const cards = Array.from(
       container.querySelectorAll('div[draggable="true"]'),
@@ -445,33 +366,12 @@ export async function testPreviewGalleryDragMovesLastSlideToFirstInLongerList() 
     const first = cards[0]
     const last = cards[4]
 
-    const dataTransfer: DataTransfer = {
-      dropEffect: 'none',
-      effectAllowed: 'all',
-      files: {} as never,
-      items: {} as never,
-      types: [],
-      clearData: () => {},
-      getData: () => '5',
-      setData: () => {},
-      setDragImage: () => {},
-    }
-
-    last.dispatchEvent(
-      new dom.window.Event('dragstart', {
-        bubbles: true,
-        cancelable: true,
-      }) as DragEvent,
-    )
-
-    first.dispatchEvent(
-      new dom.window.Event('dragover', {
-        bubbles: true,
-        cancelable: true,
-      }) as DragEvent,
-    )
-
-    await waitForNextFrame(dom.window)
+    const dataTransfer = createDataTransfer()
+    flushSync(() => {
+      dispatchDragEvent(dom.window, last, 'dragstart', dataTransfer)
+      dataTransfer.setData('text/plain', '5')
+      dispatchDragEvent(dom.window, first, 'dragover', dataTransfer)
+    })
 
     const topBands = Array.from(
       container.querySelectorAll('div.border-t-2.cursor-move'),
@@ -481,22 +381,9 @@ export async function testPreviewGalleryDragMovesLastSlideToFirstInLongerList() 
     }
     const targetBand = topBands[0]
 
-    Object.defineProperty(first, 'draggable', {
-      value: true,
-      configurable: true,
+    flushSync(() => {
+      dispatchDragEvent(dom.window, targetBand, 'drop', dataTransfer)
     })
-
-    const dropEvent = new dom.window.Event('drop', {
-      bubbles: true,
-      cancelable: true,
-    }) as DragEvent
-    Object.defineProperty(dropEvent, 'dataTransfer', {
-      value: dataTransfer,
-      configurable: true,
-    })
-    targetBand.dispatchEvent(dropEvent)
-
-    await waitForNextFrame(dom.window)
 
     if (!reordered.length) {
       throw new Error('expected onReorder to be called at least once')

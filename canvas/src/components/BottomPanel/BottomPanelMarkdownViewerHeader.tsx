@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check, Edit3, LayoutPanelTop, Maximize2, MonitorPlay } from 'lucide-react'
+import { Check, Edit3, LayoutPanelTop, Maximize2, MonitorPlay, WrapText } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
@@ -20,6 +20,13 @@ export type ViewerHeaderRowProps = {
   uiIconStrokeWidth: number
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
+  markdownWordWrap: boolean
+  setMarkdownWordWrap: (next: boolean) => void
+  wordWrapToggleTitle: string
+  wordWrapOnTooltip: string
+  wordWrapOffTooltip: string
+  annotateDisplayMode: 'inline' | 'beside'
+  setAnnotateDisplayMode: (mode: 'inline' | 'beside') => void
   setMarkdownPresentationMode: (next: boolean) => void
   presentationApiRef: React.RefObject<MarkdownPreviewPresentationApi | null>
   presentationSlideState: MarkdownPreviewPresentationSlideState | null
@@ -54,6 +61,13 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     uiIconStrokeWidth,
     markdownTextHighlight,
     setMarkdownTextHighlight,
+    markdownWordWrap,
+    setMarkdownWordWrap,
+    wordWrapToggleTitle,
+    wordWrapOnTooltip,
+    wordWrapOffTooltip,
+    annotateDisplayMode,
+    setAnnotateDisplayMode,
     setMarkdownPresentationMode,
     presentationApiRef,
     presentationSlideState,
@@ -90,7 +104,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           <>
             <button
               type="button"
-              className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
+              className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
               onClick={() => {
                 emitMarkdownPanelMetric('markdownPresentationPrevClicked', {
                   activeIndex: presentationSlideState?.activeSlideIndex ?? null,
@@ -133,6 +147,38 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
         )}
       </div>
       <div className="flex items-center gap-1">
+        <div className={`flex items-center mr-1 ${UI_THEME_TOKENS.badge.chip} p-0.5`}>
+          <button
+            type="button"
+            name="annotate-display"
+            value="beside"
+            className={[
+              'px-2 py-0.5 text-[10px] rounded-sm transition-colors',
+              annotateDisplayMode === 'beside'
+                ? `${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.activeText}`
+                : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+            ].join(' ')}
+            aria-current={annotateDisplayMode === 'beside' ? 'true' : undefined}
+            onClick={() => setAnnotateDisplayMode('beside')}
+          >
+            Beside
+          </button>
+          <button
+            type="button"
+            name="annotate-display"
+            value="inline"
+            className={[
+              'px-2 py-0.5 text-[10px] rounded-sm transition-colors',
+              annotateDisplayMode === 'inline'
+                ? `${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.activeText}`
+                : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+            ].join(' ')}
+            aria-current={annotateDisplayMode === 'inline' ? 'true' : undefined}
+            onClick={() => setAnnotateDisplayMode('inline')}
+          >
+            Inline
+          </button>
+        </div>
         {isEditing && (
           <IconButton
             className={`App-toolbar__btn flex items-center justify-center ${UI_THEME_TOKENS.text.secondary}`}
@@ -151,11 +197,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
             markdownTextHighlight ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
           }`}
           title={textHighlightToggleTitle}
-          tooltipContent={
-            markdownTextHighlight
-              ? textHighlightOnTooltip
-              : textHighlightOffTooltip
-          }
+          tooltipContent={markdownTextHighlight ? textHighlightOnTooltip : textHighlightOffTooltip}
           onClick={() => {
             const next = !markdownTextHighlight
             setMarkdownTextHighlight(next)
@@ -166,6 +208,17 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           showTooltip
         >
           <LayoutPanelTop className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+        </IconButton>
+        <IconButton
+          className={`App-toolbar__btn flex items-center justify-center ${
+            markdownWordWrap ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+          }`}
+          title={wordWrapToggleTitle}
+          tooltipContent={markdownWordWrap ? wordWrapOnTooltip : wordWrapOffTooltip}
+          onClick={() => setMarkdownWordWrap(!markdownWordWrap)}
+          showTooltip
+        >
+          <WrapText className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
         <IconButton
           className={`App-toolbar__btn flex items-center justify-center ${

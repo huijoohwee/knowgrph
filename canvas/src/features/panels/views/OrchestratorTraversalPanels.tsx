@@ -14,6 +14,7 @@ import type { GraphRagPathHelper } from '@/features/panels/views/OrchestratorTra
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 type DuckDbQueryPresetDirectionMode = {
   id: string
@@ -400,17 +401,22 @@ function DuckDbQueryPresetsSection({
               contentClassName="bg-gray-800/90"
               className="w-full"
             >
-              <textarea
-                className={`w-full border border-gray-300 rounded px-1 py-1 whitespace-pre resize-y min-h-[96px] ${uiPanelMonospaceTextClass}`}
-                value={editableSqlById[activePresetId] || activePreset.sql}
-                onChange={e => {
-                  const value = e.target.value
-                  setEditableSqlById(prev => ({
-                    ...prev,
-                    [activePresetId]: value,
-                  }))
-                }}
-              />
+              <div className="w-full border border-gray-300 rounded overflow-hidden min-h-[96px] bg-white">
+                <MonacoTextEditor
+                  value={editableSqlById[activePresetId] || activePreset.sql}
+                  onChange={(value) => {
+                    setEditableSqlById(prev => ({
+                      ...prev,
+                      [activePresetId]: value,
+                    }))
+                  }}
+                  language="sql"
+                  uri={`inmemory://duckdb/sql/${encodeURIComponent(activePresetId)}`}
+                  themeMode="light"
+                  wordWrap={false}
+                  className={`w-full h-full ${uiPanelMonospaceTextClass}`}
+                />
+              </div>
             </Tooltip>
           )}
           align="start"

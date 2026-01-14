@@ -13,7 +13,7 @@
 
 ### 2026-01-10
 - Enforce public version max 20 kb; pay to unlock to 100 kb;
-
+- https://youtube-to-markdown.streamlit.app
 
 ### 2026-01-07
 - Add semantic parsing mode as default; provide document‑structure parsing mode as fallback.

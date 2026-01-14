@@ -28,6 +28,7 @@ import {
   buildOrchestratorPathLegend,
   buildTraversalStepLegend,
 } from './OrchestratorTextEditorSection.model'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 export default function OrchestratorTextEditorSection() {
   const data = useGraphStore(s => s.graphData) as GraphData | null
@@ -116,11 +117,6 @@ export default function OrchestratorTextEditorSection() {
     genericHeadWhenTruncated,
     tailStepsWhenTruncated,
   ])
-
-  const handleChange = React.useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setDraftText(event.target.value)
-    setHasUserEdited(true)
-  }, [])
 
   const handleReset = React.useCallback(() => {
     setDraftText(text)
@@ -395,11 +391,20 @@ export default function OrchestratorTextEditorSection() {
           {UI_LABELS.reset}
         </button>
       </div>
-      <textarea
-        value={draftText}
-        onChange={handleChange}
-        className={`w-full flex-1 min-h-0 px-2 py-2 border border-gray-300 rounded resize-none bg-transparent ${uiPanelMonospaceTextClass}`}
-      />
+      <div className="flex-1 min-h-0 border border-gray-300 rounded overflow-hidden">
+        <MonacoTextEditor
+          value={draftText}
+          onChange={(val) => {
+            setDraftText(val)
+            setHasUserEdited(true)
+          }}
+          language="json"
+          uri="inmemory://orchestrator/editor"
+          themeMode="light"
+          wordWrap={false}
+          className="w-full h-full"
+        />
+      </div>
     </div>
   )
 }

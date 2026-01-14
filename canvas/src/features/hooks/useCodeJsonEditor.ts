@@ -4,12 +4,13 @@ import { detectIdAroundSelection } from '@/features/code-editor/selection'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 type UseCodeJsonEditorArgs = {
   codeText: string
   setCodeText: (v: string) => void
   setCodeError: (e: string) => void
-  codeRef: React.RefObject<HTMLTextAreaElement>
+  codeRef: React.RefObject<MonacoTextEditorHandle | null>
   setGraphData: (v: GraphData) => void
 }
 
@@ -24,23 +25,24 @@ export function useCodeJsonEditor({
 }: UseCodeJsonEditorArgs) {
   const formatEditor = () => {
     try {
-      const el = codeRef.current
-      const caret = el ? el.selectionStart : 0
+      const handle = codeRef.current
+      const offsets = handle?.getSelectionOffsets()
+      const caret = offsets ? offsets.startOffset : 0
       const id = detectIdAroundSelection(codeText, caret, caret + 1)
       const formatted = tryFormatJson(codeText)
       setCodeText(formatted)
       setCodeError('')
-      if (el) {
+      if (handle) {
         if (id) {
           const bounds = findObjectBoundsById(formatted, id)
           if (bounds && bounds.start >= 0) {
-            el.focus()
-            el.setSelectionRange(bounds.start, bounds.start)
+            handle.focus()
+            handle.setSelectionOffsets(bounds.start, bounds.start)
           }
         } else {
           const pos = Math.min(caret, formatted.length)
-          el.focus()
-          el.setSelectionRange(pos, pos)
+          handle.focus()
+          handle.setSelectionOffsets(pos, pos)
         }
       }
     } catch (err: unknown) {

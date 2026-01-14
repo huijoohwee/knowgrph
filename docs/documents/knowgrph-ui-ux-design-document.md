@@ -3,7 +3,7 @@
 - Button and UI element colors follow the **GitHub Tritanopia** palette for optimal contrast and accessibility.
 - **Light Mode**: Uses `text-gray-600` and `bg-gray-100` hover states, with `bg-white` panels.
 - **Dark Mode**: Uses `text-gray-300` and `bg-gray-800` hover states, with `bg-[#0d1117]` panels.
-- **Code Blocks**: Follows the PlayCanvas-style structure (`div` > `div` > `clipboard-copy`) with theme-aware syntax highlighting (Light: GitHub Light, Dark: GitHub Dark). Uses `UI_THEME_TOKENS.code` for consistent background and border styling (`slate` color family).
+- **Code Blocks**: Use a semantic structure (`figure` > `header` > `pre`/`code`) with GitHub-like syntax highlighting (Light: GitHub Light, Dark: GitHub Dark). The header includes a language label, Beside/Inline view toggle buttons (`name="annotate-display"`, `value="beside" | "inline"`, `aria-current="true"` on the active option), and a Copy button that writes code to the clipboard. Layout mode is stored in component state and reflected via `data-annotate-display` so the same lexed tokens are reused when toggling between views without re-rendering the markdown source.
 - **Consistency**: All icon buttons (`IconButton`), panels, tables, inputs, floating panel buttons, and code blocks use shared theme tokens defined in `UI_THEME_TOKENS` to ensure global consistency. Hardcoded styles (e.g., `text-gray-*`, `bg-blue-*`) are strictly forbidden in favor of semantic tokens.
 - **Configuration**: Users can switch themes (Light/Dark/System) via the "UI Appearance" section in Settings.
 - **Implementation**: Theme changes update the `data-theme` attribute on the root element and toggle the `dark` class, enabling Tailwind's `dark:` modifier.
@@ -81,8 +81,8 @@
   - Editor and viewer layout mode controls are shared via a `MarkdownLayoutControlsRow` helper that receives a text size class from the panel theme, so the icon buttons inherit the same typographic scale as surrounding header copy while keeping icon size and stroke width configurable per theme.
 - Selection alignment:
   - Canvas node/edge selections with markdown provenance scroll the Bottom Panel markdown editor and viewer so the associated text range snaps to the top of the viewport, avoiding “lost in the middle” placements.
-  - The markdown editor uses the textarea’s wrap model to align the first wrapped row of the selected range directly under the top border, and the viewer uses block-level `data-start-line` markers to anchor the corresponding rendered block to the top of its scroll container.
-  - **Mermaid Frontmatter Sync**: When a Canvas node corresponds to a node defined in the Markdown frontmatter (Mermaid block), the editor auto-scrolls to the exact line of the node definition within the frontmatter code, rather than defaulting to the start of the frontmatter block.
+  - The markdown editor uses Monaco Editor's wrap model to align the first wrapped row of the selected range directly under the top border, and the viewer uses block-level `data-start-line` markers to anchor the corresponding rendered block to the top of its scroll container.
+  - **Mermaid Frontmatter Sync**: When a Canvas node/edge or graph layer corresponds to a node defined in the Markdown frontmatter (Mermaid block), the editor auto-scrolls to the exact line of the node definition within the frontmatter code, rather than defaulting to the start of the frontmatter block.
   - When the Markdown “Text Highlight” toggle is on, the highlighted range uses the same semantic colors as the active selection on the canvas:
     - Node-backed ranges inherit the node’s fill color and appear as a tinted background band in the viewer and editor gutter.
     - Edge-backed ranges are rendered with an underline treatment that mirrors the edge color in the canvas.
@@ -91,19 +91,40 @@
 - Markdown Preview Interaction:
   - **Selection Toolbar**: Selecting text (or double-clicking a word) in the Markdown Viewer, Editor (Preview mode), or Presentation displays a floating toolbar with context-aware navigation options:
     - **Show on Canvas**: Highlights the corresponding node/edge on the graph.
-    - **Show in Viewer**: Switches to Markdown Viewer mode.
+    - **Show in Viewer**: Switches to Markdown Viewer mode and auto-positions to the **exact line** of the selection.
     - **Show in Editor**: Switches to Markdown Editor mode.
     - **Show in Presentation**: Enters Presentation mode.
     - **Show in Slides Gallery**: Switches to Slides Gallery view (Presentation with thumbnails).
     - **Show in Graph Data Table**: Opens the Graph Data Table tab.
     - Irrelevant options (e.g., "Show in Viewer" when already in Viewer) are disabled.
-  - **Right-Click Context Menu**: Unified with the Selection Toolbar. Right-clicking in the Viewer, Editor, Presentation, Slides Gallery, or Graph Data Table displays the context-aware Selection Toolbar, providing consistent access to all navigation actions (Show on Canvas, Show in Viewer, etc.).
-  - **Double-Click Behavior**: Double-clicking a line in the Viewer or Editor jumps to the corresponding line in the other view. The mapping is precise, preserving line numbers even for nested content like lists.
+  - **Right-Click Context Menu**: Unified with the Selection Toolbar. Right-clicking in the Viewer, Editor, Presentation, Slides Gallery, or Graph Data Table displays the context-aware Selection Toolbar, providing consistent access to all navigation actions.
+  - **Flash Feedback**: When navigating from other views (e.g., "Show in Editor" or "Show in Viewer"), the target line is visually emphasized with a momentary flash effect (`flashLine` prop). This helps users locate the exact context after a jump.
+  - **Architecture**: The Bottom Panel Markdown section logic is encapsulated in `useMarkdownSectionLogic` to maintain separation of concerns and reduce component complexity.
+  - **Editor Theme Alignment**: The Markdown Editor (Monaco) fully respects the global theme (Light/Dark/System), matching the background and text colors defined in `UI_THEME_TOKENS` and `UI_THEME_COLORS`.
+  - **Double-Click Behavior**: Double-clicking a line in the Viewer, Presentation, or Slides Gallery auto-positions the Markdown Editor to the corresponding line. This mapping is precise, preserving line numbers even for nested content.
+  - **Canvas Click**: Clicking a node/edge/graph layer on the Canvas auto-positions the Markdown Editor to the corresponding Mermaid Frontmatter line (if applicable), removing legacy implementations to ensure a single source of truth.
   - For Mermaid frontmatter, Canvas selection and layout behavior follow the same neutrality guarantees as other graph content: `MermaidNode` and `pointsTo` edges are styled and filtered via schema‑driven layer configuration, and layout modes (force, radial, tidy‑tree) all operate on the same schema‑aligned subgraph without special cases for any particular template or dataset; see `docs/documents/knowgrph-mermaid-frontmatter-document.md` for details on Mermaid‑specific legend chips and path highlighting.
 # Unified Markdown Layout (Editor & Viewer)
 - Navigation and Layout:
   - Both Editor and Viewer modes share a unified `MarkdownPanelLayout` with a collapsible sidebar Table of Contents (TOC).
   - The layout uses semantic wrappers (`section`, `aside`, `header`, `main`, `article`, `figure`) for accessibility and code readability, replacing generic `div`s. `figure` is used for frontmatter Mermaid diagrams.
+  - **Legacy Cleanup**: Removed redundant `div`-based line number columns and legacy GutterRow components in favor of semantic structures and efficient Monaco Editor integration.
   - **Sidebar Position**: The sidebar is positioned on the **left** side of the panel (default layout).
   - **Token Sharing**: The markdown lexer runs once at the parent level, and tokens are shared between the Viewer, TOC, and Editor components to optimize performance and prevent redundant processing. Line maps are preserved during token processing to ensure accurate scroll synchronization.
+  - **Component Architecture**:
+    - The `BottomPanelMarkdownSectionView` is split into dedicated `MarkdownEditorPane` and `MarkdownViewerPane` components to separate concerns and improve maintainability.
+    - Complex state and logic (scroll sync, auto-positioning, flash effects, TOC handling) are extracted into a custom `useMarkdownSectionLogic` hook, keeping the view component lightweight.
+  - **Visual Feedback**:
+    - **Flash Effect**: Navigation actions ("Show in Editor", "Show in Viewer") trigger a temporary yellow flash on the target line (`flashLine` prop) to draw user attention. This effect uses CSS animations (`monaco-flash-fade` in Editor, `markdown-flash-highlight` in Viewer) and automatically fades out after a configured duration.
 - Interaction:
+  - **Markdown Editor**:
+    - Monaco Editor integration for robust text editing.
+    - Word Wrap toggle in the toolbar for better readability of long lines.
+    - "Flash Line" visual feedback when navigating from other panels (e.g. Graph Data Table).
+    - "Beside" and "Inline" modes for code block annotations.
+    - Integrated "Apply" button to re-parse markdown and update the graph.
+  - **Markdown Viewer**:
+    - Rendered preview with syntax highlighting and Mermaid diagram support.
+    - Scroll synchronization with the editor.
+    - Interactive elements (links, anchors) that integrate with the graph selection.
+    - Descriptive error feedback for invalid Mermaid diagrams.

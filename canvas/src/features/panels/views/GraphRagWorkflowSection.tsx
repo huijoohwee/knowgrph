@@ -23,6 +23,7 @@ import { applyIgnoreCodebasePathsUpdate, computeInvalidIgnorePrefixes } from '@/
 import { GraphRagWorkflowIndexingSection } from '@/features/panels/views/GraphRagWorkflowIndexingSection'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 export interface AgenticContextGraphContextUrlRowProps {
   agenticContext: AgenticRagContextComparison | null
@@ -65,12 +66,17 @@ export function AgenticContextGraphContextUrlRow({
                 contentClassName={UI_THEME_TOKENS.tooltip.bg}
                 className="w-full h-full"
               >
-                <textarea
-                  value={agenticContext?.graphContextUrl || ''}
-                  onChange={e => onChangeAgenticContextUrl(e.target.value)}
-                  placeholder={agenticContext?.canonicalContextUrl || 'https://...'}
-                  className={`w-full border ${UI_THEME_TOKENS.input.border} rounded px-2 py-2 leading-[1rem] whitespace-pre-wrap break-words resize-y min-h-[96px] bg-transparent ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.input.text}`}
-                />
+                <div className={`w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden min-h-[96px] bg-transparent`}>
+                  <MonacoTextEditor
+                    value={agenticContext?.graphContextUrl || ''}
+                    onChange={(val) => onChangeAgenticContextUrl(val)}
+                    language="text"
+                    uri="inmemory://graphrag/agentic-context-url"
+                    themeMode="light"
+                    wordWrap
+                    className={`w-full h-full ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.input.text}`}
+                  />
+                </div>
               </Tooltip>
             </RightAlignedValueCell>
           ) : (

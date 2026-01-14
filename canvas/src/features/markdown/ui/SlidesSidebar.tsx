@@ -17,6 +17,7 @@ export type SlidesSidebarProps = {
   onSlideOrderChange: (nextOrder: number[]) => void
   renderSlidePreview: (slideIdx: number) => React.ReactNode
   onSlideDoubleClick?: (slideIdx: number) => void
+  onSlideContextMenu?: (slideIdx: number, e: React.MouseEvent) => void
 }
 
 export function SlidesSidebar(props: SlidesSidebarProps) {
@@ -33,6 +34,7 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
     onSlideOrderChange,
     renderSlidePreview,
     onSlideDoubleClick,
+    onSlideContextMenu,
   } = props
 
   const [selectedSlideIds, setSelectedSlideIds] = React.useState<string[]>([])
@@ -116,6 +118,11 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
               const idx = Number.parseInt(id, 10)
               if (!Number.isFinite(idx)) return
               if (onSlideDoubleClick) onSlideDoubleClick(idx)
+            }}
+            onContextMenu={(id, e) => {
+              const idx = Number.parseInt(id, 10)
+              if (!Number.isFinite(idx)) return
+              if (onSlideContextMenu) onSlideContextMenu(idx, e)
             }}
           />
         </div>

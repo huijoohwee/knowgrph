@@ -37,6 +37,7 @@ import SchemaUiEditor from '@/features/schema/ui/SchemaUiEditor'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { FieldGraphLayersSection, GraphLayerMetadataPresetsSection } from '@/features/panels/views/graph-fields/FieldGraphLayersSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 type FieldSettingsPanelProps = {
   graphData: GraphData | null
@@ -361,13 +362,17 @@ export default function FieldSettingsPanel({
                     </Tooltip>
                   </label>
                   <div className="mt-1">
-                    <textarea
-                      id="graph-fields-description"
-                      value={selectedSettings.description}
-                      onChange={e => updateSelectedSettings({ description: e.target.value })}
-                      className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800"
-                      rows={3}
-                    />
+                    <div className="h-[84px] w-full rounded border border-gray-300 overflow-hidden bg-white">
+                      <MonacoTextEditor
+                        value={selectedSettings.description}
+                        onChange={(val) => updateSelectedSettings({ description: val })}
+                        language="text"
+                        uri="inmemory://graph-fields/description"
+                        themeMode="light"
+                        wordWrap
+                        className="w-full h-full"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

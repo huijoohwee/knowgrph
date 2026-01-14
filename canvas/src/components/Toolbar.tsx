@@ -1,18 +1,16 @@
 import React, { useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, Maximize, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon, Layers, Shapes, GitMerge, FileText } from 'lucide-react';
-import { computeNextSchemaForTidyPreset } from '@/features/toolbar/tidyTreePreset';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
 import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
-import { openBottomPanel } from '@/features/bottom-panel/open';
 import { DropdownPanel } from '@/lib/ui/overlay';
 import { getIconSizeClass } from '@/lib/ui';
 import SearchPanel from '@/components/SearchPanel';
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
-import { ThemeMode, applyThemeMode, getInitialThemeMode, getNextThemeMode, persistThemeMode } from '@/lib/ui/theme';
+import { ThemeMode, applyThemeMode, getInitialThemeMode, persistThemeMode } from '@/lib/ui/theme';
 import { UI_LABELS } from '@/lib/config';
 import { getLocalStorage } from '@/lib/persistence';
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
@@ -21,8 +19,7 @@ import {
   uiPrimaryIconActiveClassName,
   uiPrimaryIconInactiveClassName,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
-import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils';
-import { deriveTidyTreeDerivation, normalizeEdgesForSim } from '@/components/GraphCanvas/simulation';
+import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
 
 interface ToolbarProps {
   onZoomIn?: () => void;
@@ -124,7 +121,28 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const LayerModeIcon =
     layerMode === 'property' ? PanelsTopLeft : layerMode === 'document-structure' ? Layers : CircleDot;
 
-
+  const actions = useToolbarActions(
+    schema,
+    setSchema,
+    setCanvasRenderMode,
+    tidyPreset,
+    tidyDocEdgeLabels,
+    setThemeMode,
+    launchSpotlight,
+    openMainPanel,
+    onZoomIn,
+    onZoomOut,
+    onReset,
+    onZoomSelection,
+    setZoomToSelectionMode,
+    setFitToScreenMode,
+    toggleFitToScreenMode,
+    fitToScreenMode,
+    zoomToSelectionMode,
+    renderMediaAsNodes,
+    setRenderMediaAsNodes,
+    canvasRenderMode
+  );
 
   React.useEffect(() => {
     applyThemeMode(themeMode);
@@ -175,7 +193,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title="Status"
         tooltipContent="Status"
-        onClick={() => launchSpotlight('stats')}
+        onClick={actions.handleLaunchStats}
         showTooltip
       >
         <BarChart3 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -219,24 +237,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={layerModeTitle}
         tooltipContent={layerModeTitle}
-        onClick={() => {
-          const currentLayers = schema.layers || {};
-          const currentMode = currentLayers.mode || 'semantic';
-          const nextMode: 'property' | 'document-structure' | 'semantic' =
-            currentMode === 'semantic'
-              ? 'document-structure'
-              : currentMode === 'document-structure'
-                ? 'property'
-                : 'semantic';
-          const next = {
-            ...schema,
-            layers: {
-              ...currentLayers,
-              mode: nextMode,
-            },
-          };
-          setSchema(next);
-        }}
+        onClick={actions.handleToggleLayerMode}
         showTooltip
       >
         <LayerModeIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -260,66 +261,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={UI_LABELS.tidyTreeLayoutMode}
         tooltipContent={UI_LABELS.tidyTreeLayoutMode}
-        onClick={() => {
-          const current = schema;
-          const layout = current.layout || {};
-          const nextMode: 'force' | 'radial' | 'tidy-tree' =
-            layout.mode === 'tidy-tree' ? 'force' : 'tidy-tree';
-          const baseNext: typeof current = {
-            ...current,
-            layout: { ...layout, mode: nextMode },
-          };
-
-          const next = (() => {
-            if (nextMode !== 'tidy-tree') return baseNext;
-            const tidyCfg = baseNext.layout?.tidyTree;
-            const rawEdgeLabels = tidyCfg?.edgeLabels;
-            const configuredLabels =
-              Array.isArray(rawEdgeLabels)
-                ? rawEdgeLabels.map(v => String(v || '').trim()).filter(Boolean)
-                : [];
-            const shouldResolveLabels = configuredLabels.length === 0;
-            const shouldResolveDirection = !tidyCfg?.direction || tidyCfg.direction === 'auto';
-            if (!shouldResolveLabels && !shouldResolveDirection) return baseNext;
-
-            try {
-              const graphData = useGraphStore.getState().graphData;
-              const nodes = graphData?.nodes || [];
-              const edges = graphData?.edges || [];
-              if (!nodes.length) return baseNext;
-
-              const edgesForSim = normalizeEdgesForSim(nodes, edges);
-              const nodeIds = new Set<string>(nodes.map(n => String(n.id)));
-              const derivation = deriveTidyTreeDerivation(edgesForSim, baseNext, nodeIds);
-              if (!derivation) return baseNext;
-
-              const nextTidyTree = { ...(tidyCfg || {}) };
-              let changed = false;
-
-              if (shouldResolveLabels && derivation.labelSet.size > 0) {
-                nextTidyTree.edgeLabels = Array.from(derivation.labelSet).sort((a, b) => a.localeCompare(b));
-                changed = true;
-              }
-              if (shouldResolveDirection) {
-                nextTidyTree.direction = derivation.direction;
-                changed = true;
-              }
-              if (!changed) return baseNext;
-
-              return {
-                ...baseNext,
-                layout: { ...(baseNext.layout || {}), tidyTree: nextTidyTree },
-              };
-            } catch {
-              return baseNext;
-            }
-          })();
-
-          setSchema(next);
-          if (nextMode === 'tidy-tree') {
-            setCanvasRenderMode('2d');
-          }
-        }}
+        onClick={actions.handleToggleTidyTreeLayout}
         showTooltip
       >
         <TreePine className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -342,13 +284,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
               ? 'Tidy tree preset: use document structure edges (sections, blocks, items)'
               : 'Tidy tree preset: custom tidy-tree configuration'
         }
-        onClick={() => {
-          const current = schema;
-          const nextPreset: 'mermaid' | 'document' = tidyPreset === 'mermaid' ? 'document' : 'mermaid';
-          const nextSchema = computeNextSchemaForTidyPreset(current, nextPreset, tidyDocEdgeLabels);
-          setSchema(nextSchema);
-          setCanvasRenderMode('2d');
-        }}
+        onClick={actions.handleToggleTidyPreset}
         showTooltip
       >
         {tidyPreset === 'mermaid' ? (
@@ -365,19 +301,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={UI_LABELS.radialLayoutMode}
         tooltipContent={UI_LABELS.radialLayoutMode}
-        onClick={() => {
-          const current = schema;
-          const layout = current.layout || {};
-          const nextMode: 'force' | 'radial' | 'tidy-tree' = layout.mode === 'radial' ? 'force' : 'radial';
-          const next = {
-            ...current,
-            layout: { ...layout, mode: nextMode },
-          };
-          setSchema(next);
-          if (nextMode === 'radial') {
-            setCanvasRenderMode('2d');
-          }
-        }}
+        onClick={actions.handleToggleRadialLayout}
         showTooltip
       >
         <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -386,9 +310,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className="App-toolbar__btn"
         title={UI_LABELS.graphFields}
         tooltipContent={UI_LABELS.graphFields}
-        onClick={() => {
-          openMainPanel('graphFields');
-        }}
+        onClick={actions.handleOpenGraphFields}
         showTooltip
       >
         <GraphFieldsIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -397,9 +319,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className="App-toolbar__btn"
         title={UI_LABELS.settings}
         tooltipContent={UI_LABELS.settings}
-        onClick={() => {
-          openMainPanel('settings');
-        }}
+        onClick={actions.handleOpenSettings}
         showTooltip
       >
         <Settings className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -433,11 +353,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         </div>
       )}
 
-      <IconButton className="App-toolbar__btn" title={UI_LABELS.history} onClick={() => { openBottomPanel('history'); }} showTooltip>
+      <IconButton className="App-toolbar__btn" title={UI_LABELS.history} onClick={actions.handleOpenHistory} showTooltip>
         <HistoryIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
 
-      <IconButton className="App-toolbar__btn" title={UI_LABELS.help} onClick={() => { openMainPanel('help'); }} showTooltip>
+      <IconButton className="App-toolbar__btn" title={UI_LABELS.help} onClick={actions.handleOpenHelp} showTooltip>
         <HelpCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
 
@@ -456,9 +376,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       <IconButton
         className="App-toolbar__btn"
         title={UI_LABELS.propsPanel}
-        onClick={() => {
-          emitPropsPanelOpen();
-        }}
+        onClick={actions.handleOpenPropsPanel}
         showTooltip
       >
         <SlidersHorizontal className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -467,9 +385,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className="App-toolbar__btn"
         title={UI_LABELS.createNode}
         tooltipContent={UI_LABELS.createNode}
-        onClick={() => {
-          emitPropsPanelOpen();
-        }}
+        onClick={actions.handleOpenPropsPanel}
         showTooltip
       >
         <Plus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -477,7 +393,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       <IconButton
         className="App-toolbar__btn"
         title={UI_LABELS.reset}
-        onClick={onReset ?? (() => { try { useGraphStore.getState().resetAll(); } catch { void 0; } })}
+        onClick={actions.handleReset}
         showTooltip
       >
         <RotateCcw className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -494,13 +410,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={UI_LABELS.fitToScreen}
         tooltipContent="Fit to Screen mode: toggle to center the viewport on the full graph and clear Zoom to Selection until you turn it off."
-        onClick={() => {
-          const next = !fitToScreenMode;
-          toggleFitToScreenMode();
-          if (next) {
-            setZoomToSelectionMode(false);
-          }
-        }}
+        onClick={actions.handleToggleFitToScreen}
         showTooltip
       >
         <Maximize className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -511,16 +421,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={UI_LABELS.zoomToSelection}
         tooltipContent="Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused."
-        onClick={() => {
-          const next = !zoomToSelectionMode;
-          setZoomToSelectionMode(next);
-          if (next) {
-            setFitToScreenMode(false);
-            if (onZoomSelection) {
-              onZoomSelection();
-            }
-          }
-        }}
+        onClick={actions.handleToggleZoomToSelection}
         showTooltip
       >
         <Focus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -531,7 +432,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={renderMediaAsNodes ? 'Render Media as Nodes (On)' : 'Render Media as Nodes (Off)'}
         tooltipContent="View-only: shows or hides media overlays on media-capable nodes without reloading."
-        onClick={() => setRenderMediaAsNodes(!renderMediaAsNodes)}
+        onClick={actions.handleToggleRenderMedia}
         showTooltip
       >
         <ImageIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -541,7 +442,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           canvasRenderMode === '3d' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
         title={canvasRenderMode === '3d' ? '3D Mode (On)' : '3D Mode (Off)'}
-        onClick={() => setCanvasRenderMode(canvasRenderMode === '3d' ? '2d' : '3d')}
+        onClick={actions.handleToggle3DMode}
         showTooltip
       >
         <Box className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
@@ -560,7 +461,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className="App-toolbar__btn"
         title={UI_LABELS.chat}
         tooltipContent={UI_LABELS.chat}
-        onClick={() => emitSidePanelOpen({ tab: 'chat', open: true })}
+        onClick={actions.handleOpenChat}
         showTooltip
       >
         <MessageCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -582,7 +483,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title="Launch"
         tooltipContent="Launch"
-        onClick={() => launchSpotlight()}
+        onClick={actions.handleLaunch}
         showTooltip
       >
         <Rocket className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
@@ -592,7 +493,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           themeMode === 'dark' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
         title={`Theme: ${themeMode === 'system' ? 'System' : themeMode === 'light' ? 'Light' : 'Dark'}`}
-        onClick={() => setThemeMode(prev => getNextThemeMode(prev))}
+        onClick={actions.handleToggleTheme}
         showTooltip
       >
         <SunMoon className={iconSizeClass} strokeWidth={iconStrokeWidth} />

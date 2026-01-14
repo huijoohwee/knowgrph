@@ -21,6 +21,8 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   const originalDomParser = (g as { DOMParser?: typeof DOMParser }).DOMParser
   const originalHtmlIFrameElement = (g as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement
   const originalResizeObserver = (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
+  const originalRequestAnimationFrame = (g as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame
+  const originalCancelAnimationFrame = (g as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame
 
   ;(g as { window: Window }).window = dom.window as unknown as Window
   ;(g as { document: Document }).document = dom.window.document as unknown as Document
@@ -51,6 +53,22 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   } catch {
     void 0
   }
+
+  const anyWindow = dom.window as unknown as {
+    requestAnimationFrame?: (cb: FrameRequestCallback) => number
+    cancelAnimationFrame?: (id: number) => void
+    setTimeout: typeof setTimeout
+    clearTimeout: typeof clearTimeout
+  }
+
+  anyWindow.requestAnimationFrame = (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(Date.now()), 0) as unknown as number
+  anyWindow.cancelAnimationFrame = (id: number) => clearTimeout(id as unknown as never)
+
+  ;(g as unknown as { requestAnimationFrame: (cb: FrameRequestCallback) => number }).requestAnimationFrame =
+    anyWindow.requestAnimationFrame.bind(dom.window)
+  ;(g as unknown as { cancelAnimationFrame: (id: number) => void }).cancelAnimationFrame =
+    anyWindow.cancelAnimationFrame.bind(dom.window)
 
   const restore = () => {
     if (typeof originalWindow === 'undefined') {
@@ -93,7 +111,19 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
     if (typeof originalResizeObserver === 'undefined') {
       delete (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
     } else {
-      ;(g as { ResizeObserver: typeof ResizeObserver }).ResizeObserver = originalResizeObserver as typeof ResizeObserver
+      ;(g as { ResizeObserver: typeof ResizeObserver }).ResizeObserver = originalResizeObserver
+    }
+
+    if (typeof originalRequestAnimationFrame === 'undefined') {
+      delete (g as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame
+    } else {
+      ;(g as unknown as { requestAnimationFrame: unknown }).requestAnimationFrame = originalRequestAnimationFrame
+    }
+
+    if (typeof originalCancelAnimationFrame === 'undefined') {
+      delete (g as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame
+    } else {
+      ;(g as unknown as { cancelAnimationFrame: unknown }).cancelAnimationFrame = originalCancelAnimationFrame
     }
 
     dom.window.close()

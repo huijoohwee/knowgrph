@@ -15,7 +15,8 @@ async function readGuidelinesMarkdownFromDisk(): Promise<string | null> {
   const pathMod = await import('node:path')
   const fsMod = await import('node:fs')
   const absPath = pathMod.resolve(
-    '/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/markdown-slide-styling-guidelines.md',
+    process.cwd(),
+    'src/__tests__/demo/markdown-slide-demo.md',
   )
   try {
     return fsMod.readFileSync(absPath, 'utf8')

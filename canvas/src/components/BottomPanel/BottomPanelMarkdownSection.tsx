@@ -42,6 +42,9 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   const jsonSourceDocumentText = useGraphStore(s => s.jsonSourceDocumentText)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const setMarkdownDocumentSourceUrl = useGraphStore(s => s.setMarkdownDocumentSourceUrl)
+  const selectNode = useGraphStore(s => s.selectNode)
+  const selectEdge = useGraphStore(s => s.selectEdge)
+  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -63,10 +66,20 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
 
   const selectionHighlightEnabled = markdownTextHighlight
 
-  const [markdownWordWrap] = usePersistedBoolean(
+  const [markdownWordWrap, setMarkdownWordWrap] = usePersistedBoolean(
     LS_KEYS.markdownWordWrap,
     false,
   )
+
+  const [annotateDisplayMode, setAnnotateDisplayMode] = React.useState<'inline' | 'beside'>(() => {
+    if (typeof window === 'undefined') return 'inline'
+    try {
+      const raw = window.localStorage.getItem('kg:ui:markdown:annotateDisplay')
+      return raw === 'beside' ? 'beside' : 'inline'
+    } catch {
+      return 'inline'
+    }
+  })
 
   const [markdownPresentationMode, setMarkdownPresentationMode] = usePersistedBoolean(
     LS_KEYS.markdownPresentationMode,
@@ -130,8 +143,8 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   const {
     editorTextAreaRef,
     viewerRef,
-    gutterLayerRef,
     handleViewerScroll,
+    syncViewerFromEditor,
     lineHeightPx,
     editorPaddingTopPx,
     editorRowStartByLine,
@@ -160,21 +173,9 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
     if (prev === 'viewer') {
       handleViewerScroll()
     } else if (prev === 'editor') {
-      try {
-        ta.dispatchEvent(new Event('scroll', { bubbles: true }))
-      } catch {
-        void 0
-      }
+      if (syncViewerFromEditor) syncViewerFromEditor()
     }
-  }, [editorTextAreaRef, handleViewerScroll, markdownLayoutMode, markdownSyncScroll, viewerRef])
-
-  const visibleLineNumbers = React.useMemo(() => {
-    const nums: number[] = []
-    for (let line = visibleLineRange.startLine; line <= visibleLineRange.endLine; line += 1) {
-      nums.push(line)
-    }
-    return nums
-  }, [visibleLineRange])
+  }, [editorTextAreaRef, handleViewerScroll, markdownLayoutMode, markdownSyncScroll, viewerRef, syncViewerFromEditor])
 
   const hasSelection = !!selectionInfo
   const hasMarkdown = !!(markdownText && markdownText.trim())
@@ -359,6 +360,14 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   }, [markdownLayoutMode])
 
   React.useEffect(() => {
+    try {
+      window.localStorage.setItem('kg:ui:markdown:annotateDisplay', annotateDisplayMode)
+    } catch {
+      void 0
+    }
+  }, [annotateDisplayMode])
+
+  React.useEffect(() => {
     if (!markdownPresentationMode) {
       setPresentationSlideState(null)
     }
@@ -524,14 +533,15 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
       markdownPresentationMode={markdownPresentationMode}
       markdownLayoutMode={markdownLayoutMode}
       setMarkdownLayoutMode={setMarkdownLayoutMode}
+      annotateDisplayMode={annotateDisplayMode}
+      setAnnotateDisplayMode={setAnnotateDisplayMode}
       iconSizeClass={iconSizeClass}
       uiIconStrokeWidth={uiIconStrokeWidth}
       markdownWordWrap={markdownWordWrap}
+      setMarkdownWordWrap={setMarkdownWordWrap}
       editorGutterWidthCh={editorGutterWidthCh}
       editorContentHeightPx={editorContentHeightPx}
       editorTextAreaRef={editorTextAreaRef}
-      gutterLayerRef={gutterLayerRef}
-      visibleLineNumbers={visibleLineNumbers}
       selectionHighlightEnabled={selectionHighlightEnabled}
       highlightedLineRange={highlightedLineRange}
       editorRowStartByLine={editorRowStartByLine}
@@ -560,6 +570,9 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
       onShowInGraphDataTable={() => {
         if (setBottomPanelCurationView) setBottomPanelCurationView('table')
       }}
+      selectNode={selectNode}
+      selectEdge={selectEdge}
+      setSelectionSource={setSelectionSource}
     />
   )
 }

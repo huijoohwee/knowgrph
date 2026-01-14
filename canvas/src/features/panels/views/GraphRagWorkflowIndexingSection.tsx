@@ -14,6 +14,7 @@ import {
 } from '@/lib/config'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 const DATASET_INPUT_DIR_TOOLTIP = buildNumericTooltip({
   defaultValue: './data/raw',
@@ -478,12 +479,17 @@ export function GraphRagWorkflowIndexingSection({
                         contentClassName="bg-gray-800/90"
                         className="w-full h-full"
                       >
-                        <textarea
-                          value={ignoreFilters ? ignoreFilters.rawPatterns.join(', ') : ''}
-                          onChange={e => onChangeIgnoreCodebasePathsInput(e.target.value)}
-                          placeholder={UI_COPY.graphRagIgnorePatternsPlaceholder}
-                          className={`w-full border border-gray-300 rounded px-2 py-2 leading-[1rem] whitespace-pre-wrap break-words resize-y min-h-[96px] bg-transparent ${uiPanelMonospaceTextClass}`}
-                        />
+                        <div className={`w-full border border-gray-300 rounded overflow-hidden bg-transparent min-h-[96px]`}>
+                          <MonacoTextEditor
+                            value={ignoreFilters ? ignoreFilters.rawPatterns.join(', ') : ''}
+                            onChange={(val) => onChangeIgnoreCodebasePathsInput(val)}
+                            language="text"
+                            uri="inmemory://graphrag/ignore-patterns"
+                            themeMode="light"
+                            wordWrap
+                            className={`w-full h-full ${uiPanelMonospaceTextClass}`}
+                          />
+                        </div>
                       </Tooltip>
                     </RightAlignedValueCell>
                     {invalidIgnorePrefixes.length > 0 && (

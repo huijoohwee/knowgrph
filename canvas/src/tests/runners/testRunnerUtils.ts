@@ -6,7 +6,17 @@ export const execTest = async (
   fn: () => void | Promise<void>,
 ) => {
   try {
-    await fn()
+    console.log(`RUN ${name}`)
+    const timeoutMs = 120_000
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs)
+    })
+    try {
+      await Promise.race([Promise.resolve().then(fn), timeoutPromise])
+    } finally {
+      if (timeoutId != null) clearTimeout(timeoutId)
+    }
     results.push({ name, ok: true })
   } catch (e: unknown) {
     const msg = (() => {

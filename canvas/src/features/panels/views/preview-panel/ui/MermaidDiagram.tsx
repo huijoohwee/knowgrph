@@ -5,6 +5,7 @@ import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOver
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { ErrorFeedback } from '@/components/ui/ErrorFeedback'
 
 type MermaidRenderResult = {
   svg: string
@@ -145,7 +146,7 @@ export function MermaidDiagram({
 
   const getSvgSize = React.useCallback((raw: string): { w: number; h: number } => {
     try {
-      const doc = new DOMParser().parseFromString(String(raw || ''), 'image/svg+xml')
+      const doc = new window.DOMParser().parseFromString(String(raw || ''), 'image/svg+xml')
       const el = doc.querySelector('svg')
       if (!el) return { w: 800, h: 600 }
       const vb = el.getAttribute('viewBox')
@@ -170,16 +171,7 @@ export function MermaidDiagram({
   }, [])
 
   if (error) {
-    return (
-      <pre
-        className={[
-          'mt-3 mb-3 p-3 rounded border border-gray-200 bg-gray-50 overflow-auto',
-          highlightClass,
-        ].filter(Boolean).join(' ')}
-      >
-        <code className="font-mono text-xs whitespace-pre">{code}</code>
-      </pre>
-    )
+    return <ErrorFeedback error={error} code={code} className={highlightClass} />
   }
 
   return (

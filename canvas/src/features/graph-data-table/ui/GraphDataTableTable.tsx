@@ -140,8 +140,6 @@ export const GraphDataTable = React.memo(function GraphDataTable({
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
   const monoTextInputClassName = `${textInputClassName} ${uiPanelMonospaceTextClass}`
-  const textareaClassName =
-    `w-full px-2 py-1 border ${UI_THEME_TOKENS.input.border} rounded-md ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} leading-snug resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${uiPanelMonospaceTextClass}`
   const indexColumnWidthClassName = 'w-8'
 
   const enableVirtualTables = useGraphStore(s => s.enableVirtualTables)
@@ -545,7 +543,6 @@ export const GraphDataTable = React.memo(function GraphDataTable({
             indexColumnWidthClassName={indexColumnWidthClassName}
             textInputClassName={textInputClassName}
             monoTextInputClassName={monoTextInputClassName}
-            textareaClassName={textareaClassName}
             uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
             uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
             flashSelectionId={flashSelectionId}

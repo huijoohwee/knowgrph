@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { UI_COPY } from '@/lib/config.copy'
+import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 export type ValidationWarning =
   | { kind: 'requiredMissingSchema'; keys: string[] }
@@ -299,13 +300,17 @@ export default function FieldLocalSchemaValidationEditor({
         <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700 mb-1`}>
           {UI_COPY.validationAdditionalOptionsJsonTitle}
         </div>
-        <textarea
-          value={localValidationOtherText}
-          onChange={e => setLocalValidationOtherText(e.target.value)}
-          className={`w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 ${uiPanelMonospaceTextClass}`}
-          rows={4}
-          placeholder='{"patterns": {...}, "ranges": {...}, "uniqueness": [...]}'
-        />
+        <div className="w-full rounded border border-gray-300 overflow-hidden bg-white h-[116px]">
+          <MonacoTextEditor
+            value={localValidationOtherText}
+            onChange={setLocalValidationOtherText}
+            language="json"
+            uri={`inmemory://graph-fields/validation/other/${encodeURIComponent(localSchemaScope)}/${encodeURIComponent(localSchemaOwnerKey)}`}
+            themeMode="light"
+            wordWrap={false}
+            className={`w-full h-full ${uiPanelMonospaceTextClass}`}
+          />
+        </div>
       </div>
     </div>
   )
