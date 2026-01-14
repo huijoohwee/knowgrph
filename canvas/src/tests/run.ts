@@ -52,6 +52,7 @@ import {
   testGraphValidationMetricsWithSyntheticRawDataset,
 } from '@/__tests__/graphValidation.test'
 import { testMarkdownMermaidFrontmatterLabeledEdgeAndMentions } from '@/__tests__/markdownMermaidFrontmatter.test'
+import { testMermaidLayoutDoesNotFailOnMarkdownSlideDemo } from '@/__tests__/mermaidLayoutStability.test'
 import {
   testGraphRagTraversalHappyPath,
   testGraphRagTraversalIgnoresInvalidShapes,
@@ -236,6 +237,7 @@ export const runAllTests = async () => {
   )
 
   await exec('markdown.mermaidFrontmatter.labeledEdgeAndMentions', testMarkdownMermaidFrontmatterLabeledEdgeAndMentions)
+  await exec('markdown.mermaidLayout.slideDemo.noDagreFailure', testMermaidLayoutDoesNotFailOnMarkdownSlideDemo)
 
   await exec('tabSync.buildEnvelope', testBuildEnvelope)
   await exec('graph.edgeExists', testEdgeExists)

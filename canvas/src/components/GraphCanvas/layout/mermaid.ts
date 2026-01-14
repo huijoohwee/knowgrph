@@ -1,10 +1,7 @@
 import dagre from 'dagre';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
-import { GraphSchema, getNodeRadiusFromSchema } from '@/lib/graph/schema';
-
-// Standalone Mermaid Layout Implementation
-// Decoupled from generic 'tree' layout to ensure stability and specific handling for Mermaid diagrams.
-// Uses dagre for hierarchical layout (TD/LR/etc.)
+import { GraphSchema } from '@/lib/graph/schema';
+import { calculateNodeDimensions } from '@/components/GraphCanvas/layout/utils';
 
 export const applyMermaidLayout = (
   nodes: GraphNode[],
@@ -15,10 +12,21 @@ export const applyMermaidLayout = (
 ) => {
   if (!nodes.length) return;
 
+  const nodeIds = new Set<string>();
+  const validNodes: GraphNode[] = [];
+  
+  nodes.forEach(n => {
+    const id = String(n.id);
+    if (!id) return;
+    if (nodeIds.has(id)) return; // Skip duplicates
+    if (String(n.type || '') === 'MermaidSubgraph') return;
+    nodeIds.add(id);
+    validNodes.push(n);
+  });
+
   const mermaidConfig = (schema.layout as any)?.mermaid || {};
   
-  // 1. Determine Layout Direction
-  const orientation = mermaidConfig?.orientation || 'horizontal';
+  const orientation = mermaidConfig?.orientation || 'vertical';
   const direction = mermaidConfig?.direction || 'source-target';
   
   let rankdir = 'LR';
@@ -30,82 +38,59 @@ export const applyMermaidLayout = (
     else rankdir = 'LR';
   }
 
-  // 2. Configure Separation
-  // Default to spread out values to ensure visibility
-  // Adjusted defaults to be more reasonable (standard dagre is ~50)
   const separation = typeof mermaidConfig?.separation === 'number' ? mermaidConfig.separation : 1.0;
   const nodeSep = 50 * separation;
   const rankSep = 50 * separation;
 
-  // 3. Build Dagre Graph
-  const g = new dagre.graphlib.Graph({ multigraph: true, compound: true });
+  const g = new dagre.graphlib.Graph({ multigraph: true, compound: false });
   
   g.setGraph({
     rankdir,
     nodesep: nodeSep,
     ranksep: rankSep,
-    marginx: 100,
-    marginy: 100,
+    marginx: 40,
+    marginy: 40,
+    ranker: 'network-simplex',
   });
 
   g.setDefaultEdgeLabel(() => ({}));
 
-  // 4. Add Nodes
-  const nodeIds = new Set<string>();
-  nodes.forEach(node => {
+  validNodes.forEach(node => {
     const id = String(node.id);
-    nodeIds.add(id);
     
-    // Calculate dimensions based on label text
-    const label = String(node.label || node.id || '');
-    const charWidth = 9;
-    const lineHeight = 20; // Slightly taller for readability
-    const paddingX = 32; // Generous padding
-    const paddingY = 20;
-    
-    const lines = label.split('\n');
-    const maxLineLength = Math.max(...lines.map(l => l.length));
-    const textWidth = Math.max(40, maxLineLength * charWidth); // Minimum width
-    const textHeight = Math.max(20, lines.length * lineHeight);
+    const { width: w, height: h } = calculateNodeDimensions(node);
 
-    const w = textWidth + paddingX;
-    const h = textHeight + paddingY;
-
-    // Store in properties for the renderer to pick up
     if (!node.properties) node.properties = {};
     (node.properties as any)['visual:width'] = w;
     (node.properties as any)['visual:height'] = h;
 
     g.setNode(id, { width: w, height: h });
-    
-    // Handle subgraphs (compound layout)
-    // If this node is a subgraph, set it as a parent for its children
-    if (node.type === 'MermaidSubgraph') {
-      // Logic for children should be handled if we have parent/child info.
-      // Assuming 'children' property or similar, or we iterate all nodes to find those with this parent.
-      // However, usually in flat list, children point to parent.
-    }
-    // Check if node has a parent (subgraph)
-     const parentId = (node as any).parent;
-     if (parentId) {
-        (g as any).setParent(id, String(parentId));
-     }
-   });
+  });
 
-  // 5. Add Edges
   edges.forEach(edge => {
     const source = String(typeof edge.source === 'object' ? (edge.source as any).id : edge.source);
     const target = String(typeof edge.target === 'object' ? (edge.target as any).id : edge.target);
     
-    if (nodeIds.has(source) && nodeIds.has(target)) {
-       g.setEdge(source, target);
+    if (
+        source !== target && 
+        nodeIds.has(source) && 
+        nodeIds.has(target)
+    ) {
+       try {
+         g.setEdge(source, target);
+       } catch (e) {
+         console.warn('Mermaid Layout: Failed to set edge', source, target, e);
+       }
     }
   });
 
-  // 6. Compute Layout
-  dagre.layout(g);
+  try {
+    dagre.layout(g);
+  } catch (e) {
+    console.error('Mermaid Layout: Dagre layout failed', e);
+    return;
+  }
 
-  // 7. Extract Positions and Bounds
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -119,9 +104,7 @@ export const applyMermaidLayout = (
     
     positions.set(v, { x: layoutNode.x, y: layoutNode.y });
 
-    // Store layout dimensions back to node for rendering
-    // This supports Subgraph rendering which needs width/height
-    const node = nodes.find(n => String(n.id) === v);
+    const node = validNodes.find(n => String(n.id) === v);
     if (node) {
         if (!node.properties) node.properties = {};
         (node.properties as any)['visual:width'] = layoutNode.width;
@@ -130,33 +113,17 @@ export const applyMermaidLayout = (
         (node.properties as any)['visual:y'] = layoutNode.y;
     }
 
-    if (layoutNode.x < minX) minX = layoutNode.x;
-    if (layoutNode.x > maxX) maxX = layoutNode.x;
-    if (layoutNode.y < minY) minY = layoutNode.y;
-    if (layoutNode.y > maxY) maxY = layoutNode.y;
+    if (Number.isFinite(layoutNode.x)) {
+      if (layoutNode.x < minX) minX = layoutNode.x;
+      if (layoutNode.x > maxX) maxX = layoutNode.x;
+    }
+    if (Number.isFinite(layoutNode.y)) {
+      if (layoutNode.y < minY) minY = layoutNode.y;
+      if (layoutNode.y > maxY) maxY = layoutNode.y;
+    }
   });
   
-  // Extract Edge Points
-   g.edges().forEach((e) => {
-       const edgePoints = g.edge(e.v, e.w).points;
-       // Find the edge object to store points
-      // Note: This is O(E*N) potentially, but usually E is small.
-      // Better to map edges by ID or source-target.
-      // But edges array here is the source of truth.
-      const edge = edges.find(ed => {
-          const s = String(typeof ed.source === 'object' ? (ed.source as any).id : ed.source);
-          const t = String(typeof ed.target === 'object' ? (ed.target as any).id : ed.target);
-          return s === e.v && t === e.w;
-      });
-      if (edge) {
-          if (!edge.properties) edge.properties = {};
-          (edge.properties as any)['visual:points'] = edgePoints;
-      }
-  });
-
-  // 8. Center the Graph in the Viewport
-  // "ALWAYS well spreadout, center, visible within canvas/viewport"
-  if (minX === Infinity) return;
+  if (minX === Infinity || maxX === -Infinity) return;
 
   const graphWidth = maxX - minX;
   const graphHeight = maxY - minY;
@@ -169,12 +136,32 @@ export const applyMermaidLayout = (
   const offsetX = targetCenterX - centerX;
   const offsetY = targetCenterY - centerY;
 
-  nodes.forEach(node => {
+  validNodes.forEach(node => {
     const id = String(node.id);
     const pos = positions.get(id);
     if (pos) {
       node.x = pos.x + offsetX;
       node.y = pos.y + offsetY;
+      node.fx = node.x;
+      node.fy = node.y;
     }
+  });
+
+  g.edges().forEach((e) => {
+      const edgePoints = g.edge(e.v, e.w).points;
+      
+      const edge = edges.find(ed => {
+          const s = String(typeof ed.source === 'object' ? (ed.source as any).id : ed.source);
+          const t = String(typeof ed.target === 'object' ? (ed.target as any).id : ed.target);
+          return s === e.v && t === e.w;
+      });
+      
+      if (edge && edgePoints) {
+          if (!edge.properties) edge.properties = {};
+          (edge.properties as any)['visual:points'] = edgePoints.map((p: { x: number; y: number }) => ({
+              x: p.x + offsetX,
+              y: p.y + offsetY
+          }));
+      }
   });
 };

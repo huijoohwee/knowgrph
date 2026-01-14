@@ -409,7 +409,7 @@ export default function BottomPanel() {
   })
 
   return (
-    <div
+    <aside
       className={`absolute bottom-0 left-0 right-0 transition-all duration-200 flex flex-col z-[100]`}
       style={{ height: collapsed ? `${collapsedHeaderPx}px` : `${Math.round(bottomPanelHeightRatio * 100)}vh` }}
     >
@@ -490,6 +490,6 @@ export default function BottomPanel() {
           />
       )}
       </div>
-    </div>
+    </aside>
   )
 }

@@ -290,21 +290,15 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     graphData: graphDataForDisplay,
     edgesForDisplay,
     schema,
-    hoverEnabled,
     renderMediaAsNodes,
     mediaPanelDensity,
     zoomOnDoubleClick,
-    isEditModeRef,
-    selectedEdgeIdRef,
     tempLinkSelRef,
     linkDragRef,
     simulation,
     selectNode,
     selectEdge,
     setSelectionSource,
-    addEdge,
-    updateEdge,
-    setHoverInfo,
     requestZoomSelection,
     graphLayersVisible,
   })
@@ -325,7 +319,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const nodeGroups = buildNodeGroupsFromSchema(graphData, schema)
 
-  const { hullSel: graphLayersHullSel, centroidSel: graphLayerCentroidSel } = createGraphLayersLayer({
+  const { hullSel: graphLayersHullSel, centroidSel: graphLayerCentroidSel, labelSel: graphLayerLabelSel } = createGraphLayersLayer({
     g,
     nodeGroups,
     graphData,
@@ -350,6 +344,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       labelsSel: labelsSelRef.current,
       graphLayersHullSel,
       graphLayerCentroidSel,
+      graphLayerLabelSel,
       nodeGroups,
       nodes: graphData.nodes,
       schema,

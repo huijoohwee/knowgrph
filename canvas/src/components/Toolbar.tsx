@@ -11,7 +11,7 @@ import SearchPanel from '@/components/SearchPanel';
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
 import { ThemeMode, applyThemeMode, getInitialThemeMode, persistThemeMode } from '@/lib/ui/theme';
-import { UI_LABELS } from '@/lib/config';
+import { UI_LABELS, UI_COPY } from '@/lib/config';
 import { getLocalStorage } from '@/lib/persistence';
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import { ToolbarMenuLauncher } from '@/features/toolbar/ToolbarMenuLauncher';
@@ -95,10 +95,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       : 'semantic';
   const layerModeDescriptor =
     layerMode === 'property'
-      ? 'Raw data (schema)'
+      ? UI_LABELS.layerModeDescriptorProperty
       : layerMode === 'document-structure'
-        ? 'Layered structure (document)'
-        : 'Similarity clusters (semantic)';
+        ? UI_LABELS.layerModeDescriptorDocument
+        : UI_LABELS.layerModeDescriptorSemantic;
   const layerModeTitle = `${UI_LABELS.layerMode}: ${layerModeDescriptor}`;
   const LayerModeIcon =
     layerMode === 'property' ? PanelsTopLeft : layerMode === 'document-structure' ? Layers : CircleDot;
@@ -171,8 +171,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
         }`}
-        title="Status"
-        tooltipContent="Status"
+        title={UI_LABELS.status}
+        tooltipContent={UI_LABELS.status}
         onClick={actions.handleLaunchStats}
         showTooltip
       >
@@ -182,11 +182,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className={`App-toolbar__btn ${
           frontmatterModeEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title={frontmatterModeEnabled ? 'Frontmatter Mode (Mermaid focus)' : 'Frontmatter Mode'}
+        title={frontmatterModeEnabled ? UI_LABELS.frontmatterModeMermaidFocus : UI_LABELS.frontmatterMode}
         tooltipContent={
           frontmatterModeEnabled
-            ? 'Frontmatter Mode: focus canvas and panels on Mermaid frontmatter graph'
-            : 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph'
+            ? UI_COPY.frontmatterModeTooltip
+            : UI_COPY.frontmatterModeToggleTooltip
         }
         onClick={() => {
           const next = !frontmatterModeEnabled;
@@ -202,8 +202,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
         }`}
-        title="Mermaid Layout"
-        tooltipContent="Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout."
+        title={UI_LABELS.mermaidLayout}
+        tooltipContent={UI_COPY.mermaidLayoutTooltip}
         onClick={actions.handleToggleMermaidLayout}
         showTooltip
       >
@@ -377,7 +377,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           zoomToSelectionMode ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
         title={UI_LABELS.zoomToSelection}
-        tooltipContent="Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused."
+        tooltipContent={UI_COPY.zoomToSelectionTooltip}
         onClick={actions.handleToggleZoomToSelection}
         showTooltip
       >
@@ -387,8 +387,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className={`App-toolbar__btn ${
           renderMediaAsNodes ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title={renderMediaAsNodes ? 'Render Media as Nodes (On)' : 'Render Media as Nodes (Off)'}
-        tooltipContent="View-only: shows or hides media overlays on media-capable nodes without reloading."
+        title={renderMediaAsNodes ? UI_LABELS.renderMediaAsNodesOn : UI_LABELS.renderMediaAsNodesOff}
+        tooltipContent={UI_COPY.renderMediaAsNodesTooltip}
         onClick={actions.handleToggleRenderMedia}
         showTooltip
       >
@@ -398,7 +398,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className={`App-toolbar__btn ${
           canvasRenderMode === '3d' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title={canvasRenderMode === '3d' ? '3D Mode (On)' : '3D Mode (Off)'}
+        title={canvasRenderMode === '3d' ? UI_COPY.threeDModeOnTitle : UI_COPY.threeDModeOffTitle}
         onClick={actions.handleToggle3DMode}
         showTooltip
       >
@@ -438,8 +438,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className={`App-toolbar__btn ${
           enableLaunchSpotlight ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title="Launch"
-        tooltipContent="Launch"
+        title={UI_LABELS.launch}
+        tooltipContent={UI_LABELS.launch}
         onClick={actions.handleLaunch}
         showTooltip
       >
@@ -449,7 +449,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className={`App-toolbar__btn ${
           themeMode === 'dark' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title={`Theme: ${themeMode === 'system' ? 'System' : themeMode === 'light' ? 'Light' : 'Dark'}`}
+        title={`${UI_COPY.themeTooltipPrefix}${themeMode === 'system' ? UI_LABELS.themeSystem : themeMode === 'light' ? UI_LABELS.themeLight : UI_LABELS.themeDark}`}
         onClick={actions.handleToggleTheme}
         showTooltip
       >

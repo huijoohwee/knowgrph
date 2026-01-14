@@ -16,8 +16,17 @@ export function RendererHoverSettings() {
 
   const updateHover = (key: 'showProps' | 'showType' | 'showId', val: boolean) => {
     const next = { ...hoverContent, [key]: val };
-    const behavior = schema.behavior || { enabled: true };
-    setSchema({ ...schema, behavior: { ...behavior, hover: { ...behavior.hover, content: next } } });
+    const currentBehavior = schema.behavior;
+    setSchema({
+      ...schema,
+      behavior: {
+        ...currentBehavior,
+        hover: {
+          ...currentBehavior.hover,
+          content: next
+        }
+      }
+    });
   };
 
   return (

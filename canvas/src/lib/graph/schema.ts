@@ -1,363 +1,15 @@
 import type { GraphNode } from './types';
+import type { GraphSchema, ThreeConfig, ThreeSelectionConfig, RendererPalette } from './schemaTypes';
 
-export interface GraphBehavior {
-  allowEdgeCreation: boolean;
-  allowNodeDrag: boolean;
-  dragConstraint?: 'free' | 'axis-x' | 'axis-y' | 'none';
-  snapGrid?: { enabled: boolean; size: number };
-  preventDuplicatesGlobal?: boolean;
-  preventSelfLoopsGlobal?: boolean;
-  selectMode?: 'single' | 'multi' | 'lasso';
-  createMode?: 'shift-drag' | 'click-source-target' | 'panel-only';
-  hover?: {
-    enabled?: boolean;
-    intensity?: number;
-    debounceMs?: number;
-    content?: {
-      showProps?: boolean;
-      showType?: boolean;
-      showId?: boolean;
-    };
-  };
-  expansion?: {
-    enabled?: boolean;
-    highlightNeighbors?: boolean;
-    zoomOnSelection?: boolean;
-    zoomOnDoubleClick?: boolean;
-  };
-  defaultNodeType?: string;
-}
-
-export interface PropertySpec {
-  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
-  required?: boolean;
-  uniqueness?: boolean;
-  pattern?: string;
-  range?: { min?: number; max?: number };
-  enum?: string[];
-  default?: import('./types').JSONValue;
-  description?: string;
-}
-
-export function getNodePropSpec(schema: GraphSchema | null | undefined, nodeType: string, prop: string): PropertySpec | null {
-  if (!schema || !schema.propertySchemas || !schema.propertySchemas.node) return null;
-  const byOwner = schema.propertySchemas.node[nodeType];
-  if (!byOwner) return null;
-  const spec = byOwner[prop];
-  return spec || null;
-}
-
-export function getEdgePropSpec(schema: GraphSchema | null | undefined, edgeLabel: string, prop: string): PropertySpec | null {
-  if (!schema || !schema.propertySchemas || !schema.propertySchemas.edge) return null;
-  const byOwner = schema.propertySchemas.edge[edgeLabel];
-  if (!byOwner) return null;
-  const spec = byOwner[prop];
-  return spec || null;
-}
-
-export function summarizePropertySpec(spec: PropertySpec | null | undefined): string[] {
-  const badges: string[] = [];
-  if (!spec) return badges;
-  if (spec.required) badges.push('required');
-  if (spec.uniqueness) badges.push('unique');
-  const range = spec.range;
-  if (range && (typeof range.min === 'number' || typeof range.max === 'number')) {
-    const min = typeof range.min === 'number' ? String(range.min) : '-∞';
-    const max = typeof range.max === 'number' ? String(range.max) : '+∞';
-    badges.push('range: ' + min + '..' + max);
-  }
-  if (spec.enum && spec.enum.length > 0) {
-    const values = spec.enum.slice(0, 3).join(' | ');
-    const suffix = spec.enum.length > 3 ? '…' : '';
-    badges.push('enum: ' + values + suffix);
-  }
-  return badges;
-}
-
-export function toCompactPropertyBadgeLabel(badge: string): string {
-  if (badge === 'required') return 'R';
-  if (badge === 'unique') return 'U';
-  if (badge.startsWith('range:')) return 'Rng';
-  if (badge.startsWith('enum:')) return 'E';
-  const trimmed = badge.trim();
-  if (!trimmed) return '';
-  return trimmed[0] ? trimmed[0].toUpperCase() : '';
-}
-
-export function sortPropertyBadgesByPriority(badges: string[]): string[] {
-  const priority = (badge: string): number => {
-    if (badge === 'required') return 0;
-    if (badge === 'unique') return 1;
-    if (badge.startsWith('range:')) return 2;
-    if (badge.startsWith('enum:')) return 3;
-    return 4;
-  };
-  return badges.slice().sort((a, b) => {
-    const pa = priority(a);
-    const pb = priority(b);
-    if (pa !== pb) return pa - pb;
-    return a.localeCompare(b);
-  });
-}
-
-export type CompactPropertyBadge = { badge: string; label: string };
-
-export function buildNodeSchemaBadges(
-  schema: GraphSchema | null | undefined,
-  nodeType: string,
-  properties: Record<string, unknown> | null | undefined,
-): CompactPropertyBadge[] {
-  if (!schema) return [];
-  const props = properties || {};
-  const keys = Object.keys(props);
-  if (!keys.length) return [];
-  const allBadges = new Set<string>();
-  for (let i = 0; i < keys.length; i += 1) {
-    const key = keys[i];
-    const spec = getNodePropSpec(schema, nodeType, key);
-    if (!spec) continue;
-    const badges = summarizePropertySpec(spec);
-    for (let j = 0; j < badges.length; j += 1) {
-      allBadges.add(badges[j]);
-    }
-  }
-  if (allBadges.size === 0) return [];
-  const sortedBadges = sortPropertyBadgesByPriority(Array.from(allBadges)).slice(0, 4);
-  return sortedBadges
-    .map((badge) => ({ badge, label: toCompactPropertyBadgeLabel(badge) }))
-    .filter((b) => b.label);
-}
-
-export function buildEdgeSchemaBadges(
-  schema: GraphSchema | null | undefined,
-  edgeLabel: string,
-  properties: Record<string, unknown> | null | undefined,
-): CompactPropertyBadge[] {
-  if (!schema) return [];
-  const props = properties || {};
-  const keys = Object.keys(props);
-  if (!keys.length) return [];
-  const allBadges = new Set<string>();
-  for (let i = 0; i < keys.length; i += 1) {
-    const key = keys[i];
-    const spec = getEdgePropSpec(schema, edgeLabel, key);
-    if (!spec) continue;
-    const badges = summarizePropertySpec(spec);
-    for (let j = 0; j < badges.length; j += 1) {
-      allBadges.add(badges[j]);
-    }
-  }
-  if (allBadges.size === 0) return [];
-  const sortedBadges = sortPropertyBadgesByPriority(Array.from(allBadges)).slice(0, 4);
-  return sortedBadges
-    .map((badge) => ({ badge, label: toCompactPropertyBadgeLabel(badge) }))
-    .filter((b) => b.label);
-}
-
-export interface GraphSchema {
-  nodeStyles: Record<string, { color?: string }>;
-  edgeStyles: Record<string, { color?: string; width?: number; arrow?: boolean }>;
-  metadata?: Record<string, import('./types').JSONValue>;
-  nodeSizes?: Record<string, { radius?: number }>;
-  nodeStroke?: Record<string, { color?: string; width?: number }>;
-  labelStyles?: {
-    fontSize?: number;
-    color?: string;
-    offset?: { dx?: number; dy?: number };
-    halo?: { color?: string; width?: number };
-  };
-  nodeShapes?: Record<string, 'circle' | 'rect' | 'diamond' | 'hex' | 'image'>;
-  edgeRouting?: { mode?: 'straight' | 'quadratic' | 'bundled'; curvatureByLabel?: Record<string, number> };
-  rules: Array<{ target: 'node' | 'edge'; type?: string; required?: string[]; severity?: 'error' | 'warn' }>;
-  validation?: {
-    node?: Record<string, {
-      required?: string[];
-      types?: Record<string, 'string' | 'number' | 'boolean' | 'array' | 'object'>;
-      patterns?: Record<string, string>;
-      ranges?: Record<string, { min?: number; max?: number }>;
-      uniqueness?: string[];
-      severity?: 'error' | 'warn';
-    }>;
-    edge?: Record<string, {
-      required?: string[];
-      types?: Record<string, 'string' | 'number' | 'boolean' | 'array' | 'object'>;
-      patterns?: Record<string, string>;
-      ranges?: Record<string, { min?: number; max?: number }>;
-      uniqueness?: string[];
-      severity?: 'error' | 'warn';
-    }>;
-  };
-  layout?: {
-    mode?: 'force' | 'radial' | 'tree' | 'mermaid';
-    forces?: {
-      linkDistanceByLabel?: Record<string, number>;
-      charge?: number;
-      collisionByType?: Record<string, number>;
-      centerStrength?: number;
-      alphaDecay?: number;
-      boxForce?: boolean;
-      boxForceStrength?: number;
-    };
-    fitPadding?: number;
-    mermaid?: {
-      edgeLabels?: string[];
-      direction?: 'auto' | 'source-target' | 'target-source';
-      orientation?: 'vertical' | 'horizontal';
-      nodeSize?: { x?: number; y?: number };
-      separation?: number;
-      sortBy?: 'none' | 'label' | 'id' | 'type';
-      curve?: 'bump' | 'linear' | 'step';
-      linkStroke?: string;
-      linkOpacity?: number;
-      linkWidth?: number;
-      nodeRadius?: number;
-      colorMode?: 'observable' | 'schema';
-      internalFill?: string;
-      leafFill?: string;
-      labelFontSize?: number;
-      labelFontFamily?: string;
-    };
-    tree?: {
-      edgeLabels?: string[];
-      direction?: 'auto' | 'source-target' | 'target-source';
-      orientation?: 'vertical' | 'horizontal';
-      nodeSize?: { x?: number; y?: number };
-      separation?: number;
-      sortBy?: 'none' | 'label' | 'id' | 'type';
-      curve?: 'bump' | 'linear' | 'step';
-      linkStroke?: string;
-      linkOpacity?: number;
-      linkWidth?: number;
-      nodeRadius?: number;
-      colorMode?: 'observable' | 'schema';
-      internalFill?: string;
-      leafFill?: string;
-      labelFontSize?: number;
-      labelFontFamily?: string;
-    };
-  };
-  endpointMatrix?: Record<string, { sources: string[]; targets: string[] }>;
-  cardinality?: {
-    nodeType?: Record<string, { minEdges?: number; maxEdges?: number }>;
-    edgeLabel?: Record<string, { maxPerNode?: number }>;
-  };
-  templates?: {
-    node?: Record<string, Record<string, import('./types').JSONValue>>;
-    edge?: Record<string, Record<string, import('./types').JSONValue>>;
-  };
-  performance?: {
-    lod?: {
-      hideLabelsBelowScale?: number;
-      tree?: {
-        labelMode?: 'auto' | 'all' | 'internal' | 'none';
-        maxLabels?: number;
-        maxLeafLabels?: number;
-        collapseMode?: 'none' | 'depth';
-        maxDepth?: number;
-      };
-    };
-    caps?: { maxNodes?: number; maxEdges?: number };
-  };
-  accessibility?: { highContrast?: boolean };
-  legend?: { showLegend?: boolean };
-  behavior: GraphBehavior;
-  serialization?: {
-    predicatesByLabel?: Record<string, string>;
-    typesByNode?: Record<string, string>;
-    context?: Record<string, import('./types').JSONValue>;
-    version?: string;
-  };
-  catalog?: { nodeTypes: string[]; edgeLabels: string[] };
-  propertySchemas?: {
-    node?: Record<string, Record<string, PropertySpec>>;
-    edge?: Record<string, Record<string, PropertySpec>>;
-  };
-  three?: {
-    linkDirectionalArrowLength?: number;
-    linkOpacity?: number;
-    edgeOpacityByLabel?: Record<string, number>;
-    layerOpacityByLayer?: Record<string, number>;
-    markdownAlwaysOnAlpha?: number;
-    linkCurvature?: number;
-    linkCurveRotation?: number;
-    linkDirectionalArrowRelPos?: number;
-    linkDirectionalParticles?: number;
-    linkDirectionalParticleSpeed?: number;
-    sphereRadius?: number;
-    seed?: number;
-    minSpacing?: number;
-    nodeMotionIntensity?: number;
-    minimapOpacity?: number;
-    starfieldEnabled?: boolean;
-    starfieldCount?: number;
-    starfieldRadius?: number;
-    starfieldOpacity?: number;
-    starfieldColor?: string;
-    backgroundColor?: string;
-    fogColor?: string;
-    fogNear?: number;
-    fogFar?: number;
-    cameraDampingFactor?: number;
-    cameraRotateSpeed?: number;
-    cameraZoomSpeed?: number;
-    cameraPanSpeed?: number;
-    cameraAutoRotate?: boolean;
-    cameraAutoRotateSpeed?: number;
-    nodeSizingFormula?: 'schema' | 'importance';
-    nodeImportanceSources?: string[];
-    edgeWidthFormula?: 'schema' | 'weight';
-    polygons?: {
-      elevationOffset?: number;
-      opacityMultiplier?: number;
-    };
-    selection?: {
-      selectedNodeGlowIntensity?: number;
-      dimmedNodeOpacity?: number;
-      dimmedEdgeOpacity?: number;
-      selectedEdgeWidth?: number;
-      selectedEdgeColor?: string;
-    };
-  };
-  layers?: {
-    mode?: 'property' | 'document-structure' | 'semantic';
-    documentStructure?: {
-      minGroupSize?: number;
-    };
-    semantic?: {
-      textKeys?: string[];
-      minTokenLength?: number;
-      maxTokensPerNode?: number;
-      stopwords?: string[];
-      hiddenNodeTypes?: string[];
-      similarityMetric?: 'cosine' | 'pmi';
-      similarityEdgeLabel?: string;
-      topKEdgesPerNode?: number;
-      minSimilarity?: number;
-      communityDetection?: {
-        enabled?: boolean;
-        resolution?: number;
-        maxPasses?: number;
-        maxMovesPerPass?: number;
-      };
-    };
-  };
-}
-
-export type ThreeConfig = Partial<NonNullable<GraphSchema['three']>>;
+// Re-export types and property helpers
+export * from './schemaTypes';
+export * from './schemaProperties';
 
 export function getThreeConfig(schema: GraphSchema | null | undefined): ThreeConfig {
   const three = schema && schema.three;
   if (!three) return {};
   return three as ThreeConfig;
 }
-
-export type ThreeSelectionConfig = {
-  selectedNodeGlowIntensity: number;
-  dimmedNodeOpacity: number;
-  dimmedEdgeOpacity: number;
-  selectedEdgeWidth: number;
-  selectedEdgeColor: string;
-};
 
 export function getThreeSelectionConfig(schema: GraphSchema | null | undefined): ThreeSelectionConfig {
   const threeCfg = getThreeConfig(schema);
@@ -385,11 +37,6 @@ export function getThreeSelectionConfig(schema: GraphSchema | null | undefined):
     selectedEdgeColor,
   };
 }
-
-export type RendererPalette = {
-  nodes: Record<string, string>;
-  edges: Record<string, string>;
-};
 
 export const MVP_COLOR_PALETTE = {
   nodes: {
@@ -457,8 +104,8 @@ export const defaultSchema: GraphSchema = {
     Entity: { color: MVP_COLOR_PALETTE.nodes.idea },
     Chunk: { color: MVP_COLOR_PALETTE.nodes.execution },
     EmbeddingMeta: { color: '#6B7280' },
-    MermaidNode: { color: '#8B5CF6' },
     MermaidSubgraph: { color: '#EC4899' },
+    MermaidNode: { color: MVP_COLOR_PALETTE.nodes.execution },
   },
   edgeStyles: {
     relatedTo: { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.5 },
@@ -485,7 +132,7 @@ export const defaultSchema: GraphSchema = {
   nodeShapes: { Image: 'rect', MermaidSubgraph: 'hex' },
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {
-    mode: 'force',
+    mode: 'mermaid',
     forces: {
       linkDistanceByLabel: { relatedTo: 80 },
       charge: -300,
@@ -587,7 +234,7 @@ export const defaultSchema: GraphSchema = {
   },
 };
 
-export function getNodeRadiusFromSchema(node: import('./types').GraphNode, schema: GraphSchema): number {
+export function getNodeRadiusFromSchema(node: GraphNode, schema: GraphSchema): number {
   const nodeSizes = schema.nodeSizes || {};
   const properties = node.properties || {};
   const sizingFormula = schema.three?.nodeSizingFormula || 'schema';

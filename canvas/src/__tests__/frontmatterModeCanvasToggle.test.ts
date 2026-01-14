@@ -322,8 +322,6 @@ export async function testFrontmatterModeGraphLayersHideMermaidSubgraphNodesIn2d
       layout: { ...(defaultSchema.layout || {}), mode: 'force' },
     }
 
-    const isEditModeRef: MutableRefObject<boolean> = { current: false }
-    const selectedEdgeIdRef: MutableRefObject<string | null> = { current: null }
     const tempLinkSelRef: MutableRefObject<TempLinkSelection> = { current: null }
     const linkDragRef: MutableRefObject<PendingLink | null> = { current: null }
 
@@ -335,21 +333,15 @@ export async function testFrontmatterModeGraphLayersHideMermaidSubgraphNodesIn2d
       edgesForDisplay: edges,
       schema,
       treeDerivation: null,
-      hoverEnabled: false,
       zoomOnDoubleClick: false,
       renderMediaAsNodes: false,
       mediaPanelDensity: 'default',
-      isEditModeRef,
-      selectedEdgeIdRef,
       tempLinkSelRef,
       linkDragRef,
       simulation,
       selectNode: () => {},
       selectEdge: () => {},
       setSelectionSource: () => {},
-      addEdge: () => {},
-      updateEdge: () => {},
-      setHoverInfo: () => {},
       requestZoomSelection: () => {},
       graphLayersVisible: true,
     })
@@ -391,8 +383,6 @@ export async function testFrontmatterModeGraphLayersShowMermaidSubgraphNodesIn2d
       layout: { ...(defaultSchema.layout || {}), mode: 'force' },
     }
 
-    const isEditModeRef: MutableRefObject<boolean> = { current: false }
-    const selectedEdgeIdRef: MutableRefObject<string | null> = { current: null }
     const tempLinkSelRef: MutableRefObject<TempLinkSelection> = { current: null }
     const linkDragRef: MutableRefObject<PendingLink | null> = { current: null }
 
@@ -404,21 +394,15 @@ export async function testFrontmatterModeGraphLayersShowMermaidSubgraphNodesIn2d
       edgesForDisplay: edges,
       schema,
       treeDerivation: null,
-      hoverEnabled: false,
       zoomOnDoubleClick: false,
       renderMediaAsNodes: false,
       mediaPanelDensity: 'default',
-      isEditModeRef,
-      selectedEdgeIdRef,
       tempLinkSelRef,
       linkDragRef,
       simulation,
       selectNode: () => {},
       selectEdge: () => {},
       setSelectionSource: () => {},
-      addEdge: () => {},
-      updateEdge: () => {},
-      setHoverInfo: () => {},
       requestZoomSelection: () => {},
       graphLayersVisible: false,
     })

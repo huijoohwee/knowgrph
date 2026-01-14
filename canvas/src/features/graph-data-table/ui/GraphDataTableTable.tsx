@@ -19,6 +19,7 @@ import {
 } from '@/features/graph-data-table/ui/GraphDataTableWindowing'
 import { useGraphDataTableFrozenArea } from '@/features/graph-data-table/ui/useGraphDataTableFrozenArea'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_LABELS } from '@/lib/config'
 import { HeaderCell } from './GraphDataTableHeader'
 import { GraphDataTableRows } from './GraphDataTableRows'
 
@@ -480,7 +481,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   })
 
   return (
-    <section className="relative w-full h-full overflow-hidden select-text" aria-label="Data Table">
+    <section className="relative w-full h-full overflow-hidden select-text" aria-label={UI_LABELS.dataTableAriaLabel}>
       <div
         ref={scrollContainerRef}
         className={`w-full h-full overflow-auto ${UI_THEME_TOKENS.panel.bg} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent`}

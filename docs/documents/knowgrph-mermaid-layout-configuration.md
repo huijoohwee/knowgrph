@@ -4,24 +4,34 @@ This document describes the configuration options and behavior of the enhanced M
 
 ## Overview
 
-The Mermaid Layout (`mode: 'mermaid'`) provides a hierarchical, flowchart-like visualization using the **Dagre** layout engine. It is designed to be:
-- **Neutral & Project-Agnostic**: Works with any graph data.
-- **Well-Spread**: Uses optimized separation defaults and text-based node sizing to ensure nodes are readable without overlapping.
-- **Viewport-Fitted**: Automatically scales and centers the graph to fit within the viewport ("Fit to View") to prevent nodes from flying off-screen.
-- **Rectangular**: Enforces rectangular node shapes with dimensions derived from label text length.
+The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical flowchart visualization using the **Dagre** layout engine. It is designed to natively replicate the look and feel of standard Mermaid diagrams while maintaining **100% visual consistency** with the application's "Frontmatter Mode" and being fully interactive.
 
 ## Features
 
-### "Fit to View"
-- **Toolbar Button**: A new "Fit to View" button (Scan icon) is available in the toolbar, left of "Fit to Screen".
-- **Auto-Load**: The graph automatically performs a "Fit to View" operation when the Mermaid layout is first loaded or when switching to it.
-- **Behavior**: Calculates the exact bounding box of the graph content and zooms/pans the camera to fit it perfectly within the viewport with configurable padding.
+### Visual Consistency ("Frontmatter" Style)
+- **Unified Color Palette**: Mermaid nodes (`MermaidNode`) use the **schema-driven color palette** (`getNodeBaseFill`). This ensures that if a node is blue in Force Layout, it remains blue in Mermaid Layout.
+- **Schema-Driven Strokes**: Node borders (`stroke`) and widths (`stroke-width`) are controlled by the schema (`schema.nodeStroke`). If not defined, Mermaid nodes default to a subtle `#333` border.
+- **Subgraph Visualization via Hulls**: Mermaid subgraphs (`MermaidSubgraph`) are represented as **graph layer hull overlays** (not as standalone rect nodes), styled via the schema’s `nodeStyles.MermaidSubgraph.color` and graph-layer style rules.
+- **Node Shapes**: Nodes are rendered as **rectangular boxes** with rounded corners (`4px`), dynamically sized to their content.
+- **Edges**: Renders smooth B-spline curves initially. When dragging nodes, edges dynamically switch to direct lines to maintain connection.
+
+### Interactive Dragging
+- **Draggable Nodes**: Nodes can be dragged to fine-tune the layout. The edge connections update in real-time.
+- **Draggable Subgraphs**: When Graph Layers are enabled, dragging a Mermaid subgraph centroid moves all member nodes together.
+- **Persistence**: In Mermaid mode, dragged nodes stay fixed in their new positions (physics forces are disabled).
+
+### Layout Engine & Robustness
+- **Algorithm**: Uses Dagre's `network-simplex` ranker (switched from `tight-tree`) for enhanced stability and reduced layout failures.
+- **Node Sizing**: Uses shared `calculateNodeDimensions` utility to ensure consistent text measurement across layout engines (Mermaid, Tree) and renderer.
+- **Crash Prevention**: Implements **strict topology validation** to prevent the common `networkSimplex` / "rank undefined" crash:
+  - Filters out edges pointing to non-existent nodes.
+  - Filters out self-loops (A -> A) which destabilize the ranker.
+  - Ensures all nodes are registered before edge definition.
 
 ### Mermaid.js Compliance
-- **Node Shapes**: Renders nodes as **rectangular boxes** (instead of circles) with dimensions dynamically calculated from the label text (Markdown-aware sizing).
-- **Edges**: Renders edges as **curved B-spline paths** (using `d3.line` with `curveBasis`) derived from Dagre's control points, ensuring smooth routing around nodes with arrowheads.
-- **Subgraphs**: Supports **compound layouts** where nodes can be grouped into subgraphs. Subgraphs are rendered as **light gray rectangular containers** with dashed borders, visually grouping their children.
-- **Markdown**: Node labels support basic multiline text which drives the box sizing. Labels are centered within the node.
+- **Markdown Strings**: Supports **Markdown formatting** in node labels (e.g., `id["**Bold** and *Italic*"]`).
+- **Flowchart Syntax**: Supports standard Mermaid flowchart syntax (`graph TD`, `A --> B`, `subgraph Title ... end`).
+- **Edge Types**: Supports normal (`-->`), dotted (`-.->`), and thick (`==>`) edges.
 
 ## Configuration Settings
 
@@ -29,56 +39,30 @@ These settings can be configured in the **Settings** panel under `Layout > Merma
 
 ### Orientation
 - **Key**: `layout.mermaid.orientation`
-- **Values**: `'vertical'` (TB - Top to Bottom), `'horizontal'` (LR - Left to Right)
+- **Values**: `'vertical'` (TB), `'horizontal'` (LR)
 - **Default**: `'vertical'`
-- **Description**: Controls the main direction of the flow.
 
 ### Direction
 - **Key**: `layout.mermaid.direction`
 - **Values**: `'source-target'`, `'target-source'`
 - **Default**: `'source-target'`
-- **Description**: Controls the direction of edges relative to the orientation.
 
 ### Separation
 - **Key**: `layout.mermaid.separation`
 - **Type**: `number` (multiplier)
 - **Default**: `1.0`
-- **Description**: A multiplier for the spacing between nodes and ranks.
-  - `1.0` results in standard spacing (~50px).
-  - Higher values spread the graph out more.
 
 ### Fit Padding
 - **Key**: `layout.fitPadding`
 - **Type**: `number` (pixels)
 - **Default**: `80`
-- **Description**: The padding around the graph when fitting to the screen.
-
-## Behavior
-
-1.  **Text-Based Sizing**:
-    - The layout engine calculates the width and height of each node based on its label text length.
-    - **Logic**: `Width ≈ max_line_length * 9px + 32px`, `Height ≈ line_count * 20px + 20px`.
-    - This ensures text does not overflow the rectangular boundaries.
-
-2.  **Layout Calculation**:
-    - The Dagre engine calculates the `x, y` coordinates for all nodes using the calculated dimensions.
-    - Nodes are treated as rectangles in the collision/layout logic.
-    - Compound graphs (subgraphs) are handled via `g.setParent`.
-
-3.  **Auto-Fit**:
-    - On the initial render (or when the layout mode is switched to Mermaid), the `fitAllTransform` logic calculates the bounding box of the entire graph and applies a zoom transform to fit it perfectly within the canvas viewport, ensuring all nodes are visible.
-
-4.  **No Physics**:
-    - The D3 force simulation is disabled for Mermaid layout, ensuring nodes stay exactly where the layout engine placed them.
-
-5.  **Rendering**:
-    - Nodes are automatically rendered as rectangles (`rect`) in this mode.
-    - Edges are rendered as SVG `<path>` elements with arrow markers.
 
 ## Codebase Integration
 
 - **Layout Engine**: `canvas/src/components/GraphCanvas/layout/mermaid.ts`
-- **Scene Orchestration**: `canvas/src/components/GraphCanvas/scene.ts` (handles auto-fit)
-- **Settings Registry**: `canvas/src/features/settings/registry-layout.ts`
+- **Parser**: `canvas/src/features/parsers/markdownJsonLdMermaidParser.ts`
+- **Scene Orchestration**: `canvas/src/components/GraphCanvas/scene.ts`
+- **Scene Handlers**: `canvas/src/components/GraphCanvas/sceneHandlers.ts`
+- **Label Rendering**: `canvas/src/components/GraphCanvas/layers/labels.ts`
+- **Drag Behavior**: `canvas/src/components/GraphCanvas/drag.ts`
 - **Rendering**: `canvas/src/components/GraphCanvas/layers/nodes.ts` & `links.ts`
-- **Toolbar**: `canvas/src/features/toolbar/ui/FitToViewButton.tsx`

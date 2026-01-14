@@ -80,7 +80,7 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   const [annotateDisplayMode, setAnnotateDisplayMode] = React.useState<'inline' | 'beside'>(() => {
     if (typeof window === 'undefined') return 'inline'
     try {
-      const raw = window.localStorage.getItem('kg:ui:markdown:annotateDisplay')
+      const raw = window.localStorage.getItem(LS_KEYS.markdownAnnotateDisplay)
       return raw === 'beside' ? 'beside' : 'inline'
     } catch {
       return 'inline'
@@ -367,7 +367,7 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
 
   React.useEffect(() => {
     try {
-      window.localStorage.setItem('kg:ui:markdown:annotateDisplay', annotateDisplayMode)
+      window.localStorage.setItem(LS_KEYS.markdownAnnotateDisplay, annotateDisplayMode)
     } catch {
       void 0
     }

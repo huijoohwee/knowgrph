@@ -3,11 +3,10 @@ import type { MutableRefObject } from 'react';
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation';
-import { finalizePendingEdge, startEdgeFromNode, startUpdateEdgeEndpoint } from '@/features/edge-creation';
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
 import type { HoverInfo } from '@/components/GraphHoverTooltip';
 import { getNodeBaseFill, getNodeMediaSpec, getRenderNodeRadius2d, hasNodeMedia } from '@/components/GraphCanvas/helpers';
-import { getEdgeEndpoints, nodeDragBehavior, type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
+import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
 import { type TreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers';
 import { applyMediaProxySrc } from '@/lib/url';
 import { MINIMAP_HEIGHT, ZOOM_MAX } from '@/features/minimap/math';
@@ -32,21 +31,15 @@ export const createNodesLayer = (args: {
   edgesForDisplay: GraphEdge[];
   schema: GraphSchema;
   treeDerivation?: TreeDerivation | null;
-  hoverEnabled: boolean;
   zoomOnDoubleClick: boolean;
   renderMediaAsNodes: boolean;
   mediaPanelDensity: 'default' | 'compact';
-  isEditModeRef: MutableRefObject<boolean>;
-  selectedEdgeIdRef: MutableRefObject<string | null>;
   tempLinkSelRef: MutableRefObject<TempLinkSelection>;
   linkDragRef: MutableRefObject<PendingLink | null>;
   simulation: d3.Simulation<GraphNode, GraphEdge>;
   selectNode: (id: string | null) => void;
   selectEdge: (id: string | null) => void;
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void;
-  addEdge: (e: GraphEdge) => void;
-  updateEdge: (id: string, u: Partial<GraphEdge>) => void;
-  setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void;
   requestZoomSelection: () => void;
   graphLayersVisible: boolean;
 }): {
@@ -59,26 +52,21 @@ export const createNodesLayer = (args: {
     edgesForDisplay,
     schema,
     treeDerivation,
-    hoverEnabled,
     graphLayersVisible,
     renderMediaAsNodes,
     mediaPanelDensity,
     zoomOnDoubleClick,
-    isEditModeRef,
-    selectedEdgeIdRef,
     tempLinkSelRef,
     linkDragRef,
     selectNode,
     selectEdge,
     setSelectionSource,
-    addEdge,
-    updateEdge,
-    setHoverInfo,
     requestZoomSelection,
     simulation,
   } = args;
 
   const isTree = schema.layout?.mode === 'tree';
+  const isMermaid = schema.layout?.mode === 'mermaid';
   const treeCfg = schema.layout?.tree || {};
   const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
   const direction = treeDerivation?.direction ?? treeCfg.direction ?? 'source-target';
@@ -123,21 +111,16 @@ export const createNodesLayer = (args: {
       return filtered.length > 0 ? filtered : rawNodes;
     })();
     if (!graphLayersVisible) return base;
-    // If Mermaid mode, keep MermaidSubgraph nodes as they are part of the layout
-    if (schema.layout?.mode === 'mermaid') {
-       // Sort MermaidSubgraph nodes to the beginning so they render behind other nodes
-       return [...base].sort((a, b) => {
-           if (a.type === 'MermaidSubgraph' && b.type !== 'MermaidSubgraph') return -1;
-           if (a.type !== 'MermaidSubgraph' && b.type === 'MermaidSubgraph') return 1;
-           return 0;
-       });
+    if (isMermaid) {
+      const filtered = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
+      return filtered.length > 0 ? filtered : base;
     }
     const filteredForLayers = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
     return filteredForLayers.length > 0 ? filteredForLayers : base;
   })();
   const getNodeShape = (n: GraphNode): 'circle' | 'rect' => {
     // If Tree layout is active, force rect shape for all nodes or specifically Mermaid nodes
-    if (isTree || schema.layout?.mode === 'mermaid') return 'rect'
+    if (isTree || isMermaid) return 'rect'
 
     const fromSchema = schema.nodeShapes?.[String(n.type || '')]
     if (fromSchema === 'rect') return 'rect'
@@ -269,7 +252,7 @@ export const createNodesLayer = (args: {
               .style('height', '100%')
               .style('border-radius', `${corner}px`)
               .style('overflow', 'hidden')
-              .style('background', '#000')
+              .style('background', 'transparent')
               .style('pointer-events', spec.interactive ? 'auto' : 'none');
             if (spec.kind === 'video') {
               const url = applyMediaProxySrc(spec.url);
@@ -352,6 +335,7 @@ export const createNodesLayer = (args: {
     .data(circleNodes)
     .enter()
     .append('circle')
+    .attr('fill', 'transparent')
     .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
 
   const rectSel = nodeLayer
@@ -359,48 +343,64 @@ export const createNodesLayer = (args: {
     .data(rectNodes)
     .enter()
     .append('rect')
+    .attr('fill', 'transparent')
     .attr('rx', (d: GraphNode) => {
-       if (d.type === 'MermaidSubgraph') return 4;
+       if (d.type === 'MermaidSubgraph') return 0; // Subgraphs often square in Mermaid
+       if (isMermaid) return 4; // Mermaid Land style
        return getRenderNodeRadius2d(d, schema) * 0.22;
     })
     .attr('ry', (d: GraphNode) => {
-       if (d.type === 'MermaidSubgraph') return 4;
+       if (d.type === 'MermaidSubgraph') return 0;
+       if (isMermaid) return 4;
        return getRenderNodeRadius2d(d, schema) * 0.22;
+    })
+    .attr('x', (d: GraphNode) => {
+        const props = (d.properties || {}) as Record<string, unknown>;
+        const w = typeof props['visual:width'] === 'number' ? props['visual:width'] : getRenderNodeRadius2d(d, schema) * 2;
+        return (d.x ?? 0) - w / 2;
+    })
+    .attr('y', (d: GraphNode) => {
+        const props = (d.properties || {}) as Record<string, unknown>;
+        const h = typeof props['visual:height'] === 'number' ? props['visual:height'] : getRenderNodeRadius2d(d, schema) * 2;
+        return (d.y ?? 0) - h / 2;
+    })
+    .attr('width', (d: GraphNode) => {
+        const props = (d.properties || {}) as Record<string, unknown>;
+        return typeof props['visual:width'] === 'number' ? props['visual:width'] : getRenderNodeRadius2d(d, schema) * 2;
+    })
+    .attr('height', (d: GraphNode) => {
+        const props = (d.properties || {}) as Record<string, unknown>;
+        return typeof props['visual:height'] === 'number' ? props['visual:height'] : getRenderNodeRadius2d(d, schema) * 2;
     })
 
   const node = (circleSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).merge(
     rectSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>,
   )
   node
-    .attr(
-      'fill',
-      (d: GraphNode) =>
-        d.type === 'MermaidSubgraph'
-          ? '#fafafa'
-          : isTree && treeColorMode === 'observable'
-          ? nodesWithChildren.has(String(d.id))
-            ? internalFill
-            : leafFill
-          : getNodeBaseFill(d, schema),
-    )
+     .attr('fill', (d: GraphNode) => {
+       if (isTree && treeColorMode === 'observable') {
+         return nodesWithChildren.has(String(d.id)) ? internalFill : leafFill;
+       }
+       return getNodeBaseFill(d, schema);
+     })
     .attr('stroke', (d: GraphNode) => {
-      if (d.type === 'MermaidSubgraph') return '#333';
-      if (isTree && treeColorMode === 'observable') return 'none';
-      if (schema.layout?.mode === 'tree') return schema.nodeStroke?.[d.type]?.color ?? 'none';
-      return schema.nodeStroke?.[d.type]?.color ?? '#ffffff';
+      if (isTree && treeColorMode === 'observable') return 'none'
+      if (isMermaid) return schema.nodeStroke?.[d.type]?.color ?? 'none'
+      if (schema.layout?.mode === 'tree') return schema.nodeStroke?.[d.type]?.color ?? 'none'
+      return schema.nodeStroke?.[d.type]?.color ?? '#ffffff'
     })
     .attr('stroke-width', (d: GraphNode) => {
-      if (d.type === 'MermaidSubgraph') return 1;
-      if (isTree && treeColorMode === 'observable') return 0;
-      const w = schema.nodeStroke?.[d.type]?.width;
-      if (typeof w === 'number' && Number.isFinite(w) && w >= 0) return w;
-      if (schema.layout?.mode === 'tree') return 0;
-      return 1.5;
+      if (isTree && treeColorMode === 'observable') return 0
+      if (isMermaid) {
+        const w = schema.nodeStroke?.[d.type]?.width
+        return typeof w === 'number' ? w : 0
+      }
+      const w = schema.nodeStroke?.[d.type]?.width
+      if (typeof w === 'number' && Number.isFinite(w) && w >= 0) return w
+      if (schema.layout?.mode === 'tree') return 0
+      return 1.5
     })
-    .attr('stroke-dasharray', (d: GraphNode) => {
-        if (d.type === 'MermaidSubgraph') return '4,2';
-        return null;
-    })
+    .attr('stroke-dasharray', () => null)
     .style('cursor', 'pointer')
     .style('pointer-events', 'all');
 
@@ -423,14 +423,10 @@ export const createNodesLayer = (args: {
     setSelectionSource('menu');
     selectEdge(null);
     selectNode(String(d.id));
-    // Re-dispatch as native event to bubble up if needed, or handle here
   });
 
   interactiveNodeSel.on('click', (event: MouseEvent, d: GraphNode) => {
     event.stopPropagation();
-    if (event.ctrlKey || event.metaKey || event.shiftKey) {
-      // Multi-selection logic could be here
-    }
     setSelectionSource('canvas');
     selectEdge(null);
     selectNode(String(d.id));
@@ -444,28 +440,5 @@ export const createNodesLayer = (args: {
     emitPropsPanelOpen();
   });
 
-  const startLinkDrag = (event: MouseEvent | TouchEvent | PointerEvent, d: GraphNode) => {
-    event.stopPropagation();
-    const touch =
-      typeof TouchEvent !== 'undefined' && event instanceof TouchEvent
-        ? event.touches[0]
-        : (event as MouseEvent);
-    if (!touch) return;
-
-    // Start link drag logic
-    const p = d3.pointer(event, g.node() as any);
-    const id = String(d.id);
-    startEdgeFromNode(d, tempLinkSelRef, linkDragRef);
-  };
-
-  // Add edge creation handlers
-  // ... (Assuming standard edge creation logic, but this file ends here in the previous read)
-  // I'll append the rest of the file logic which seems to be standard handlers
-  // The original file had a lot of event handling. I should make sure I didn't cut it off.
-  // The previous read went up to line 400.
-  // I need to check if there is more content.
-  // I'll assume the rest of the file handles interactions.
-  // Wait, I should read the REST of the file first to be safe.
-  
   return { nodeSel: node, mediaSel };
 };

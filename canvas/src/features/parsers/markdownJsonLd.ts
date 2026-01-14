@@ -102,13 +102,9 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       gid,
       docId,
       startIndex: mermaidStartLine,
-      mermaidTreeLayout,
       ensureNode: (n) => builder.ensureNode(n),
       addRel: (s, k, t) => builder.addRel(s, k, t),
       mkMeta,
-      setMermaidTreeLayout: (layout) => {
-        mermaidTreeLayout = layout
-      },
     }
     parseMermaidFrontmatter(mermaidCode, parserCtx)
   }

@@ -1,299 +1,22 @@
 import * as d3 from 'd3'
-import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { getAgenticRagTagColor, getRendererPalette, MVP_COLOR_PALETTE, type GraphSchema } from '@/lib/graph/schema'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
+import { type NodeGroup } from './nodeGroups'
+import { type GraphLayerGroupStyle, getGraphLayerStyleForGroup } from './graphLayerStyles'
+
+// Re-export for backward compatibility
+export * from './nodeGroups'
+export * from './graphLayerStyles'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
-
-export type NodeGroup = {
-  id: string
-  memberIds: string[]
-  meta?: {
-    groupBy: 'property' | 'type' | 'community'
-    ownerId?: string
-    ownerType?: string
-    propertyKey?: string
-    groupValue?: string
-  }
-}
-
-export type GraphLayerGroupStyle = {
-  fill: string
-  fillOpacity: number
-  stroke: string
-  strokeWidth: number
-  dash: string
-}
 
 export type GraphLayerHullGeometry = {
   path: string
   cx: number
   cy: number
 } | null
-
-type GraphLayerStyleConfig = {
-  fill?: unknown
-  fillColor?: unknown
-  stroke?: unknown
-  strokeColor?: unknown
-  dash?: unknown
-  dashArray?: unknown
-  strokeDasharray?: unknown
-  opacity?: unknown
-  fillOpacity?: unknown
-  strokeWidth?: unknown
-}
-
-const isRecord = (val: unknown): val is Record<string, unknown> =>
-  !!val && typeof val === 'object' && !Array.isArray(val)
-
-const applyStyleOverrides = (style: GraphLayerGroupStyle, config: GraphLayerStyleConfig): void => {
-  const fill =
-    typeof config.fill === 'string'
-      ? config.fill
-      : typeof config.fillColor === 'string'
-        ? config.fillColor
-        : null
-  const stroke =
-    typeof config.stroke === 'string'
-      ? config.stroke
-      : typeof config.strokeColor === 'string'
-        ? config.strokeColor
-        : null
-  const dash =
-    typeof config.dash === 'string'
-      ? config.dash
-      : typeof config.dashArray === 'string'
-        ? config.dashArray
-        : typeof config.strokeDasharray === 'string'
-          ? config.strokeDasharray
-          : null
-  const opacity =
-    typeof config.opacity === 'number'
-      ? config.opacity
-      : typeof config.fillOpacity === 'number'
-        ? config.fillOpacity
-        : null
-  const strokeWidth = typeof config.strokeWidth === 'number' ? config.strokeWidth : null
-
-  if (fill) style.fill = fill
-  if (stroke) style.stroke = stroke
-  if (dash) style.dash = dash
-  if (opacity != null && Number.isFinite(opacity)) style.fillOpacity = opacity
-  if (strokeWidth != null && Number.isFinite(strokeWidth)) style.strokeWidth = strokeWidth
-}
-
-export const buildNodeGroups = (graphData: GraphData): NodeGroup[] => {
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-  if (!nodes.length) return []
-  const nodeIdSet = new Set<string>()
-  const normalizeId = (raw: unknown): string => {
-    const s = String(raw ?? '')
-    return s.startsWith('kg:') ? s.slice(3) : s
-  }
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    nodeIdSet.add(String(n.id))
-  }
-  const groups: NodeGroup[] = []
-  for (let i = 0; i < nodes.length; i += 1) {
-    const owner = nodes[i]
-    const props = owner && owner.properties ? owner.properties : {}
-    const keys = Object.keys(props)
-    if (!keys.length) continue
-    for (let j = 0; j < keys.length; j += 1) {
-      const key = keys[j]
-      const value = props[key] as JSONValue
-      if (!Array.isArray(value)) continue
-      const memberIds: string[] = []
-      for (let k = 0; k < value.length; k += 1) {
-        const v = value[k] as JSONValue
-        if (typeof v === 'string') {
-          const id = normalizeId(v)
-          if (nodeIdSet.has(id)) memberIds.push(id)
-        } else if (v && typeof v === 'object') {
-          const maybe = (v as { [key: string]: unknown })['@id']
-          if (typeof maybe === 'string') {
-            const id = normalizeId(maybe)
-            if (nodeIdSet.has(id)) memberIds.push(id)
-          }
-        }
-      }
-      if (memberIds.length < 2) continue
-      const deduped = Array.from(new Set(memberIds))
-      if (deduped.length < 2) continue
-      const groupId = String(owner.id) + '::' + key
-      groups.push({
-        id: groupId,
-        memberIds: deduped,
-        meta: { groupBy: 'property', ownerId: String(owner.id), ownerType: String(owner.type || ''), propertyKey: key },
-      })
-    }
-  }
-  return groups
-}
-
-const DOCUMENT_BLOCK_TYPES = new Set([
-  'Document',
-  'Section',
-  'Paragraph',
-  'CodeBlock',
-  'Table',
-  'List',
-  'ListItem',
-])
-
-const buildNodeGroupsByCommunity = (graphData: GraphData, minGroupSize: number): NodeGroup[] => {
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-  if (!nodes.length) return []
-  const byCommunity = new Map<string, string[]>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    const props = (n.properties || {}) as Record<string, unknown>
-    const raw = props['visual:community']
-    const c =
-      typeof raw === 'number'
-        ? (Number.isFinite(raw) ? String(raw) : '')
-        : (typeof raw === 'string' ? raw.trim() : '')
-    if (!c) continue
-    const arr = byCommunity.get(c) || []
-    arr.push(String(n.id))
-    byCommunity.set(c, arr)
-  }
-  const groups: NodeGroup[] = []
-  byCommunity.forEach((memberIds, c) => {
-    const deduped = Array.from(new Set(memberIds))
-    if (deduped.length < Math.max(2, minGroupSize)) return
-    groups.push({ id: `community::${c}`, memberIds: deduped, meta: { groupBy: 'community', groupValue: c } })
-  })
-  return groups
-}
-
-export const buildNodeGroupsFromSchema = (graphData: GraphData, schema: GraphSchema): NodeGroup[] => {
-  const mode = schema.layers?.mode || 'property'
-  if (mode === 'document-structure') {
-    const groups = buildNodeGroups(graphData)
-    if (!groups.length) return groups
-    const filtered = groups.filter((g) => {
-      const ownerType = g.meta?.ownerType ? String(g.meta.ownerType) : ''
-      if (!ownerType) return true
-      if (DOCUMENT_BLOCK_TYPES.has(ownerType)) return false
-      return true
-    })
-    return filtered.length > 0 ? filtered : groups
-  }
-  if (mode === 'semantic') {
-    const minGroupSizeRaw = schema.layers?.documentStructure?.minGroupSize
-    const minGroupSize =
-      typeof minGroupSizeRaw === 'number' && Number.isFinite(minGroupSizeRaw) ? Math.max(2, Math.floor(minGroupSizeRaw)) : 2
-    return buildNodeGroupsByCommunity(graphData, minGroupSize)
-  }
-  return buildNodeGroups(graphData)
-}
-
-export const getGraphLayerStyleForGroup = (args: {
-  group: NodeGroup
-  graphData: GraphData
-  schema: GraphSchema
-}): GraphLayerGroupStyle => {
-  const { group, graphData, schema } = args
-
-  const palette = getRendererPalette(schema)
-  const baseColor = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
-    ? palette.nodes.idea
-    : MVP_COLOR_PALETTE.nodes.idea
-
-  const base: GraphLayerGroupStyle = {
-    fill: baseColor,
-    fillOpacity: 0.16,
-    stroke: baseColor,
-    strokeWidth: 1.25,
-    dash: '4,2',
-  }
-
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    nodeById.set(String(n.id), n)
-  }
-
-  const idParts = String(group.id || '').split('::')
-  const ownerId = group.meta?.ownerId ?? (idParts[0] || '')
-  const propKey = group.meta?.propertyKey ?? (idParts.length > 1 ? idParts[1] : '')
-  const owner = ownerId ? nodeById.get(ownerId) || null : null
-  const ownerType = group.meta?.ownerType ?? (owner ? String(owner.type || '') : '')
-
-  const metadata = schema && schema.metadata && isRecord(schema.metadata) ? schema.metadata : null
-  const hasGraphLayersMeta =
-    metadata && Object.prototype.hasOwnProperty.call(metadata, 'canvas:graphLayers')
-  const graphLayersMetaRaw = hasGraphLayersMeta
-    ? (metadata['canvas:graphLayers'] as JSONValue | undefined)
-    : undefined
-
-  const style: GraphLayerGroupStyle = { ...base }
-
-  if (group.meta?.groupBy === 'community') {
-    const first = group.memberIds.length > 0 ? nodeById.get(String(group.memberIds[0])) : null
-    const props = (first?.properties || {}) as Record<string, unknown>
-    const fill = typeof props['visual:fill'] === 'string' ? String(props['visual:fill']).trim() : ''
-    if (fill) {
-      style.fill = fill
-      style.stroke = fill
-      style.fillOpacity = 0.12
-      style.strokeWidth = 1.25
-      style.dash = '3,2'
-    }
-  }
-
-  if (graphLayersMetaRaw && isRecord(graphLayersMetaRaw)) {
-    const meta = graphLayersMetaRaw
-
-    const defaultStyleRaw = 'defaultStyle' in meta ? meta.defaultStyle : undefined
-    if (defaultStyleRaw && isRecord(defaultStyleRaw)) {
-      applyStyleOverrides(style, defaultStyleRaw as GraphLayerStyleConfig)
-    }
-
-    const byOwnerTypeRaw = 'byOwnerType' in meta ? meta.byOwnerType : undefined
-    if (ownerType && byOwnerTypeRaw && isRecord(byOwnerTypeRaw)) {
-      const ownerStyleRaw = byOwnerTypeRaw[ownerType] as unknown
-      if (ownerStyleRaw && isRecord(ownerStyleRaw)) {
-        applyStyleOverrides(style, ownerStyleRaw as GraphLayerStyleConfig)
-      }
-    }
-
-    const byPropertyKeyRaw = 'byPropertyKey' in meta ? meta.byPropertyKey : undefined
-    if (propKey && byPropertyKeyRaw && isRecord(byPropertyKeyRaw)) {
-      const keyStyleRaw = byPropertyKeyRaw[propKey] as unknown
-      if (keyStyleRaw && isRecord(keyStyleRaw)) {
-        applyStyleOverrides(style, keyStyleRaw as GraphLayerStyleConfig)
-      }
-    }
-  }
-
-  if (!graphLayersMetaRaw) {
-    if (group.meta?.groupBy !== 'community' && owner) {
-      const tagColor = getAgenticRagTagColor(owner, schema)
-      if (typeof tagColor === 'string' && tagColor.trim()) {
-        style.fill = tagColor
-        style.fillOpacity = 0.16
-        style.stroke = tagColor
-        style.strokeWidth = 1.5
-      } else if (ownerType && schema.nodeStyles && schema.nodeStyles[ownerType] && schema.nodeStyles[ownerType]?.color) {
-        const c = schema.nodeStyles[ownerType]?.color
-        if (typeof c === 'string' && c.trim()) {
-          style.fill = c
-          style.fillOpacity = 0.12
-          style.stroke = c
-          style.strokeWidth = 1.5
-        }
-      }
-    }
-  }
-
-  return style
-}
 
 export const computeGraphLayerHullGeometry = (args: {
   group: NodeGroup
@@ -304,6 +27,10 @@ export const computeGraphLayerHullGeometry = (args: {
   const ids = group.memberIds
   if (!ids || !ids.length) return null
   const points: [number, number][] = []
+  
+  // Use visual:width/height if available (Mermaid/Rect nodes)
+  const isRectMode = schema.layout?.mode === 'mermaid' || schema.layout?.mode === 'tree';
+
   for (let i = 0; i < ids.length; i += 1) {
     const id = ids[i]
     const node = nodeById.get(String(id))
@@ -311,19 +38,40 @@ export const computeGraphLayerHullGeometry = (args: {
     const x = typeof node.x === 'number' ? node.x : null
     const y = typeof node.y === 'number' ? node.y : null
     if (x == null || y == null || !Number.isFinite(x) || !Number.isFinite(y)) continue
-    const r = getRenderNodeRadius2d(node, schema)
-    const radius = Number.isFinite(r) && r > 0 ? r : 10
-    const px1 = x + radius
-    const py1 = y
+    
+    let w = 0;
+    let h = 0;
+    
+    if (isRectMode) {
+       const props = (node.properties || {}) as Record<string, unknown>;
+       const visualW = typeof props['visual:width'] === 'number' ? props['visual:width'] : 0;
+       const visualH = typeof props['visual:height'] === 'number' ? props['visual:height'] : 0;
+       if (visualW && visualH) {
+           w = visualW / 2;
+           h = visualH / 2;
+       } else {
+           const r = getRenderNodeRadius2d(node, schema);
+           w = r;
+           h = r;
+       }
+    } else {
+        const r = getRenderNodeRadius2d(node, schema);
+        const radius = Number.isFinite(r) && r > 0 ? r : 10;
+        w = radius;
+        h = radius;
+    }
+    
+    const px1 = x + w
+    const py1 = y + h
     if (Number.isFinite(px1) && Number.isFinite(py1)) points.push([px1, py1])
-    const px2 = x
-    const py2 = y + radius
+    const px2 = x - w
+    const py2 = y + h
     if (Number.isFinite(px2) && Number.isFinite(py2)) points.push([px2, py2])
-    const px3 = x - radius
-    const py3 = y
+    const px3 = x + w
+    const py3 = y - h
     if (Number.isFinite(px3) && Number.isFinite(py3)) points.push([px3, py3])
-    const px4 = x
-    const py4 = y - radius
+    const px4 = x - w
+    const py4 = y - h
     if (Number.isFinite(px4) && Number.isFinite(py4)) points.push([px4, py4])
   }
   if (points.length < 3) return null
@@ -393,10 +141,11 @@ export const createGraphLayersLayer = (args: {
 }): {
   hullSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
   centroidSel: d3.Selection<SVGCircleElement, NodeGroup, SVGGElement, unknown> | null
+  labelSel: d3.Selection<SVGTextElement, NodeGroup, SVGGElement, unknown> | null
 } => {
   const { g, nodeGroups, graphData, schema, graphLayersVisible, hoverEnabled, setHoverInfo, simulation } = args
   if (!nodeGroups.length || !graphLayersVisible) {
-    return { hullSel: null, centroidSel: null }
+    return { hullSel: null, centroidSel: null, labelSel: null }
   }
 
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
@@ -507,5 +256,23 @@ export const createGraphLayersLayer = (args: {
         }),
     )
 
-  return { hullSel, centroidSel }
+  const labelSel = layerRoot
+    .selectAll<SVGTextElement, NodeGroup>('text')
+    .data(nodeGroups, d => d.id)
+    .enter()
+    .append('text')
+    .attr('data-kg-layer-label', '1')
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .attr('font-size', schema.labelStyles?.fontSize ?? 12)
+    .attr('fill', schema.labelStyles?.color ?? '#111')
+    .style('pointer-events', 'none')
+    .text(group => {
+      const ownerType = group.meta?.ownerType ? String(group.meta.ownerType) : ''
+      if (ownerType !== 'MermaidSubgraph') return ''
+      const raw = group.meta?.groupValue ? String(group.meta.groupValue) : ''
+      return raw
+    })
+
+  return { hullSel, centroidSel, labelSel }
 }

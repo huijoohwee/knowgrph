@@ -54,6 +54,7 @@ export default function AiKgLayersControls({
       />
       <AiKgVisualControls
         schema={schema}
+        setSchema={setSchema}
         setThreeConfig={setThreeConfig}
         uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
       />

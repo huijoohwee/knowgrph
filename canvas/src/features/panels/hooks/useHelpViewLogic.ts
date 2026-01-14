@@ -1,0 +1,178 @@
+import React from 'react';
+import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
+import { HELP_SHORTCUT_ITEMS, type HelpStepKey } from '@/features/panels/config';
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
+import { normalized as normalizeText } from '@/features/panels/utils/json';
+import { UI_ANCHORS } from '@/lib/config';
+import { useGraphStore } from '@/hooks/useGraphStore';
+
+interface UseHelpViewLogicProps {
+  searchQuery: string;
+}
+
+export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
+  // 1. Filter shortcuts
+  const items = HELP_SHORTCUT_ITEMS;
+  const normalizedQuery = normalizeText(searchQuery).trim();
+
+  const filteredShortcuts = React.useMemo(
+    () =>
+      normalizedQuery
+        ? items.filter(text => normalizeText(text).includes(normalizedQuery))
+        : [...items],
+    [items, normalizedQuery],
+  );
+
+  // 2. Copy shortcuts
+  const applyShortcutsCopy = React.useCallback(() => {
+    try {
+      const text = filteredShortcuts.join('\n');
+      if (!text) return;
+      navigator.clipboard.writeText(text);
+    } catch {
+      void 0;
+    }
+  }, [filteredShortcuts]);
+
+  // 3. Scroll ref and anchor scrolling
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    try {
+      node.scrollTop = 0;
+    } catch {
+      void 0;
+    }
+  }, [searchQuery]);
+
+  const scrollToAnchor = React.useCallback((anchorId: string) => {
+    try {
+      const container = scrollRef.current;
+      if (!container) return;
+      const target = container.querySelector<HTMLElement>(`[data-kg-anchor="${anchorId}"]`);
+      if (!target) return;
+      target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } catch {
+      void 0;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      const handler = (ev: Event) => {
+        const e = ev as CustomEvent<{ anchor?: string } | undefined>;
+        const anchor = e.detail && e.detail.anchor;
+        if (!anchor) return;
+        scrollToAnchor(anchor);
+      };
+      window.addEventListener('kg:helpScrollToAnchor', handler as EventListener);
+      return () => {
+        window.removeEventListener('kg:helpScrollToAnchor', handler as EventListener);
+      };
+    } catch {
+      void 0;
+    }
+  }, [scrollToAnchor]);
+
+  // 4. Launch Spotlight
+  const launch = useLaunchSpotlight();
+
+  // 5. Store values
+  const uiIconScale = useGraphStore(s => s.uiIconScale);
+  const uiPanelMonospaceTextClass = useGraphStore(
+    s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
+  );
+  const uiPanelKeyValueTextSizeClass = useGraphStore(
+    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
+  );
+  const uiPanelTextFontClass = useGraphStore(
+    s => s.uiPanelTextFontClass || 'font-sans',
+  );
+
+  // 6. Collapse state
+  const [collapsedBySection, setCollapsedBySection] = React.useState<Record<HelpStepKey, boolean>>({
+    shortcuts: true,
+    cheatsheet: true,
+    panelTour: true,
+    workflowLinks: true,
+    icons: true,
+  });
+
+  const collapseAll = React.useCallback(() => {
+    setCollapsedBySection({
+      shortcuts: true,
+      cheatsheet: true,
+      panelTour: true,
+      workflowLinks: true,
+      icons: true,
+    });
+  }, []);
+
+  const expandAll = React.useCallback(() => {
+    setCollapsedBySection({
+      shortcuts: false,
+      cheatsheet: false,
+      panelTour: false,
+      workflowLinks: false,
+      icons: false,
+    });
+  }, []);
+
+  const handleToggleSection = React.useCallback((key: HelpStepKey, next: boolean) => {
+    setCollapsedBySection(prev => ({ ...prev, [key]: next }));
+  }, []);
+
+  const allSectionsCollapsed = Object.values(collapsedBySection).every(Boolean);
+
+  // 7. Navigation handlers
+  const handleOpenWorkflowTab = React.useCallback(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflow' } }));
+      }
+    } catch {
+      void 0;
+    }
+  }, []);
+
+  const handleOpenGraphFieldsTab = React.useCallback(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'graphFields' } }));
+      }
+    } catch {
+      void 0;
+    }
+  }, []);
+
+  const handleOpenSettingsTab = React.useCallback(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'settings' } }));
+      }
+    } catch {
+      void 0;
+    }
+  }, []);
+
+  return {
+    filteredShortcuts,
+    applyShortcutsCopy,
+    scrollRef,
+    launch,
+    uiIconScale,
+    uiPanelMonospaceTextClass,
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    collapsedBySection,
+    collapseAll,
+    expandAll,
+    handleToggleSection,
+    allSectionsCollapsed,
+    handleOpenWorkflowTab,
+    handleOpenGraphFieldsTab,
+    handleOpenSettingsTab,
+  };
+}

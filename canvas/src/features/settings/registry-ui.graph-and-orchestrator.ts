@@ -366,11 +366,11 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     source: 'store',
     read: () => {
       const schema = s().schema
-      return schema.behavior?.hover?.content?.type ?? true
+      return schema.behavior?.hover?.content?.showType ?? true
     },
     write: (v) => {
       const current = s().schema
-      const behavior = current.behavior || {}
+      const behavior = current.behavior
       const hover = behavior.hover || {}
       const content = hover.content || {}
       s().setSchema({
@@ -379,7 +379,7 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
           ...behavior,
           hover: {
             ...hover,
-            content: { ...content, type: Boolean(v) },
+            content: { ...content, showType: Boolean(v) },
           },
         },
       })
@@ -393,11 +393,11 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     source: 'store',
     read: () => {
       const schema = s().schema
-      return schema.behavior?.hover?.content?.id ?? true
+      return schema.behavior?.hover?.content?.showId ?? true
     },
     write: (v) => {
       const current = s().schema
-      const behavior = current.behavior || {}
+      const behavior = current.behavior
       const hover = behavior.hover || {}
       const content = hover.content || {}
       s().setSchema({
@@ -406,7 +406,7 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
           ...behavior,
           hover: {
             ...hover,
-            content: { ...content, id: Boolean(v) },
+            content: { ...content, showId: Boolean(v) },
           },
         },
       })
@@ -420,11 +420,11 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     source: 'store',
     read: () => {
       const schema = s().schema
-      return schema.behavior?.hover?.content?.properties ?? true
+      return schema.behavior?.hover?.content?.showProps ?? true
     },
     write: (v) => {
       const current = s().schema
-      const behavior = current.behavior || {}
+      const behavior = current.behavior
       const hover = behavior.hover || {}
       const content = hover.content || {}
       s().setSchema({
@@ -433,7 +433,7 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
           ...behavior,
           hover: {
             ...hover,
-            content: { ...content, properties: Boolean(v) },
+            content: { ...content, showProps: Boolean(v) },
           },
         },
       })

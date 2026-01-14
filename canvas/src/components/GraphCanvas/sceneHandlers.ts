@@ -18,9 +18,10 @@ export const attachSimulationTick = (args: {
   nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>
   mediaSel?: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null
   linkSel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
-  labelsSel: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>
+  labelsSel: d3.Selection<any, GraphNode, SVGGElement, unknown>
   graphLayersHullSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
   graphLayerCentroidSel: d3.Selection<SVGCircleElement, NodeGroup, SVGGElement, unknown> | null
+  graphLayerLabelSel: d3.Selection<SVGTextElement, NodeGroup, SVGGElement, unknown> | null
   nodeGroups: NodeGroup[]
   nodes: GraphNode[]
   schema: GraphSchema
@@ -37,6 +38,7 @@ export const attachSimulationTick = (args: {
     labelsSel,
     graphLayersHullSel,
     graphLayerCentroidSel,
+    graphLayerLabelSel,
     nodeGroups,
     nodes,
     schema,
@@ -131,18 +133,35 @@ export const attachSimulationTick = (args: {
           const props = (d.properties || {}) as Record<string, unknown>;
           const points = props['visual:points'] as Array<{x: number, y: number}> | undefined;
           
-          if (Array.isArray(points) && points.length > 0) {
-              const lineGen = d3.line<{x: number, y: number}>()
-                  .x(p => p.x)
-                  .y(p => p.y)
-                  .curve(d3.curveBasis);
-              return lineGen(points) || '';
-          }
-          
           const edge = d as unknown as EdgeWithRuntime;
           const src = resolveNode(edge.source);
           const tgt = resolveNode(edge.target);
           if (!src || !tgt || src.x == null || src.y == null || tgt.x == null || tgt.y == null) return '';
+
+          // If either node is being dragged (or simply has moved), the static 'points' from Dagre
+          // will be dislocated. We check if the points match the current node positions.
+          // If not, we fallback to a simple direct line or a dynamic curve.
+          
+          if (Array.isArray(points) && points.length > 1) {
+              // Heuristic: Check if the first and last points of the B-spline are reasonably close 
+              // to the current node centers. If they've drifted (due to drag), we should recalculate.
+              const first = points[0];
+              const last = points[points.length - 1];
+              const driftThreshold = 3; // pixels - increased for smoother interaction
+              
+              const srcDrift = Math.sqrt(Math.pow(first.x - src.x, 2) + Math.pow(first.y - src.y, 2));
+              const tgtDrift = Math.sqrt(Math.pow(last.x - tgt.x, 2) + Math.pow(last.y - tgt.y, 2));
+
+              if (srcDrift < driftThreshold && tgtDrift < driftThreshold) {
+                  const lineGen = d3.line<{x: number, y: number}>()
+                      .x(p => p.x)
+                      .y(p => p.y)
+                      .curve(d3.curveBasis);
+                  return lineGen(points) || '';
+              }
+          }
+          
+          // Fallback for dragging: dynamic straight line
           return `M${src.x},${src.y}L${tgt.x},${tgt.y}`;
        });
     } else {
@@ -177,8 +196,14 @@ export const attachSimulationTick = (args: {
         return h;
       })
       .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
-      .attr('rx', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
-      .attr('ry', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
+      .attr('rx', (d: GraphNode) => {
+        if (d.type === 'MermaidSubgraph') return 4;
+        return getRenderNodeRadius2d(d, schema) * 0.22;
+      })
+      .attr('ry', (d: GraphNode) => {
+        if (d.type === 'MermaidSubgraph') return 4;
+        return getRenderNodeRadius2d(d, schema) * 0.22;
+      })
 
     if (mediaSel) {
       mediaSel.attr('transform', (d: GraphNode) => {
@@ -188,88 +213,91 @@ export const attachSimulationTick = (args: {
       })
     }
 
-    labelsSel.attr('x', (d: GraphNode) => d.x!).attr('y', (d: GraphNode) => d.y!)
-    const t = d3.zoomTransform(svgEl)
-    const k = t.k || 1
-    const padPx = 8
-    labelsSel.each(function (d: GraphNode) {
-      const el = this as unknown as SVGTextElement
-      if (isMermaid) {
-          el.setAttribute('text-anchor', 'middle')
-          el.setAttribute('dx', '0')
-          el.setAttribute('dy', '0.35em')
-          return
-      }
-      const label = String(d.label ?? '')
-      const charCount = label.length
-      const estWidthPx = Math.max(0, charCount) * labelFontSize * k * 0.6
-      const sx = t.applyX(d.x ?? 0)
-      const sy = t.applyY(d.y ?? 0)
-      const baseAnchor = (el.getAttribute('data-base-anchor') as 'start' | 'end' | null) ?? 'start'
-      const baseDxAttr = el.getAttribute('data-base-dx')
-      const baseDx = (() => {
-        const parsed = baseDxAttr != null ? Number(baseDxAttr) : Number.NaN
-        if (Number.isFinite(parsed)) return parsed
-        return baseDxFallback
-      })()
-      const baseDyAttr = el.getAttribute('data-base-dy')
-      const baseDy = (() => {
-        const parsed = baseDyAttr != null ? Number(baseDyAttr) : Number.NaN
-        if (Number.isFinite(parsed)) return parsed
-        return baseDyFallback
-      })()
-      const candidates: Array<{ anchor: 'start' | 'end'; dx: number }> = []
-      if (isTree) {
-        candidates.push({ anchor: baseAnchor, dx: baseDx })
-      } else {
-        const abs = Math.abs(baseDx)
-        candidates.push({ anchor: 'start', dx: abs })
-        candidates.push({ anchor: 'end', dx: -abs })
-      }
-      let best = candidates[0]
-      let bestOverflow = Number.POSITIVE_INFINITY
-      for (let i = 0; i < candidates.length; i += 1) {
-        const c = candidates[i]
-        const left = c.anchor === 'start' ? sx + c.dx * k : sx + c.dx * k - estWidthPx
-        const right = c.anchor === 'start' ? left + estWidthPx : sx + c.dx * k
-        const overflowLeft = Math.max(0, padPx - left)
-        const overflowRight = Math.max(0, right - (width - padPx))
-        const total = overflowLeft + overflowRight
-        if (total < bestOverflow) {
-          bestOverflow = total
-          best = c
-        }
-      }
-      const left0 = best.anchor === 'start' ? sx + best.dx * k : sx + best.dx * k - estWidthPx
-      const right0 = best.anchor === 'start' ? left0 + estWidthPx : sx + best.dx * k
-      const overflowLeft0 = Math.max(0, padPx - left0)
-      const overflowRight0 = Math.max(0, right0 - (width - padPx))
-      const shiftPx = overflowLeft0 - overflowRight0
-      const dxAdjusted = best.dx + (k > 0 ? shiftPx / k : 0)
-      el.setAttribute('text-anchor', best.anchor)
-      el.setAttribute('dx', String(dxAdjusted))
-      if (!isTree) {
-        const estAscentPx = labelFontSize * k * 0.8
-        const estDescentPx = labelFontSize * k * 0.25
-        const top = sy + baseDy * k - estAscentPx
-        const bottom = sy + baseDy * k + estDescentPx
-        const overflowTop = Math.max(0, padPx - top)
-        const overflowBottom = Math.max(0, bottom - (height - padPx))
-        const shiftYPx = overflowTop - overflowBottom
-        const dyAdjusted = baseDy + (k > 0 ? shiftYPx / k : 0)
-        el.setAttribute('dy', String(dyAdjusted))
-      }
-    })
+    if (isMermaid) {
+       labelsSel.attr('x', (d: GraphNode) => d.x!).attr('y', (d: GraphNode) => d.y!)
+    } else {
+        // Standard text positioning
+        labelsSel.attr('x', (d: GraphNode) => d.x!).attr('y', (d: GraphNode) => d.y!)
+        const t = d3.zoomTransform(svgEl)
+        const k = t.k || 1
+        const padPx = 8
+        labelsSel.each(function (d: GraphNode) {
+          const el = this as unknown as SVGTextElement
+          
+          const label = String(d.label ?? '')
+          const charCount = label.length
+          const estWidthPx = Math.max(0, charCount) * labelFontSize * k * 0.6
+          const sx = t.applyX(d.x ?? 0)
+          const sy = t.applyY(d.y ?? 0)
+          const baseAnchor = (el.getAttribute('data-base-anchor') as 'start' | 'end' | null) ?? 'start'
+          const baseDxAttr = el.getAttribute('data-base-dx')
+          const baseDx = (() => {
+            const parsed = baseDxAttr != null ? Number(baseDxAttr) : Number.NaN
+            if (Number.isFinite(parsed)) return parsed
+            return baseDxFallback
+          })()
+          const baseDyAttr = el.getAttribute('data-base-dy')
+          const baseDy = (() => {
+            const parsed = baseDyAttr != null ? Number(baseDyAttr) : Number.NaN
+            if (Number.isFinite(parsed)) return parsed
+            return baseDyFallback
+          })()
+          const candidates: Array<{ anchor: 'start' | 'end'; dx: number }> = []
+          if (isTree) {
+            candidates.push({ anchor: baseAnchor, dx: baseDx })
+          } else {
+            const abs = Math.abs(baseDx)
+            candidates.push({ anchor: 'start', dx: abs })
+            candidates.push({ anchor: 'end', dx: -abs })
+          }
+          let best = candidates[0]
+          let bestOverflow = Number.POSITIVE_INFINITY
+          for (let i = 0; i < candidates.length; i += 1) {
+            const c = candidates[i]
+            const left = c.anchor === 'start' ? sx + c.dx * k : sx + c.dx * k - estWidthPx
+            const right = c.anchor === 'start' ? left + estWidthPx : sx + c.dx * k
+            const overflowLeft = Math.max(0, padPx - left)
+            const overflowRight = Math.max(0, right - (width - padPx))
+            const total = overflowLeft + overflowRight
+            if (total < bestOverflow) {
+              bestOverflow = total
+              best = c
+            }
+          }
+          const left0 = best.anchor === 'start' ? sx + best.dx * k : sx + best.dx * k - estWidthPx
+          const right0 = best.anchor === 'start' ? left0 + estWidthPx : sx + best.dx * k
+          const overflowLeft0 = Math.max(0, padPx - left0)
+          const overflowRight0 = Math.max(0, right0 - (width - padPx))
+          const shiftPx = overflowLeft0 - overflowRight0
+          const dxAdjusted = best.dx + (k > 0 ? shiftPx / k : 0)
+          el.setAttribute('text-anchor', best.anchor)
+          el.setAttribute('dx', String(dxAdjusted))
+          if (!isTree) {
+            const estAscentPx = labelFontSize * k * 0.8
+            const estDescentPx = labelFontSize * k * 0.25
+            const top = sy + baseDy * k - estAscentPx
+            const bottom = sy + baseDy * k + estDescentPx
+            const overflowTop = Math.max(0, padPx - top)
+            const overflowBottom = Math.max(0, bottom - (height - padPx))
+            const shiftYPx = overflowTop - overflowBottom
+            const dyAdjusted = baseDy + (k > 0 ? shiftYPx / k : 0)
+            el.setAttribute('dy', String(dyAdjusted))
+          }
+        })
+    }
 
-    if ((graphLayersHullSel || graphLayerCentroidSel) && nodeGroups.length) {
+    if ((graphLayersHullSel || graphLayerCentroidSel || graphLayerLabelSel) && nodeGroups.length) {
       const hideBelow = schema.performance?.lod?.hideLabelsBelowScale ?? 0
-      const hideLayers = hideBelow > 0 && k < hideBelow
+      const hideLayers = hideBelow > 0 && d3.zoomTransform(svgEl).k < hideBelow
       if (hideLayers) {
         if (graphLayersHullSel) {
           graphLayersHullSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
         }
         if (graphLayerCentroidSel) {
           graphLayerCentroidSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
+        }
+        if (graphLayerLabelSel) {
+          graphLayerLabelSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
         }
         return
       }
@@ -278,6 +306,9 @@ export const attachSimulationTick = (args: {
       }
       if (graphLayerCentroidSel) {
         graphLayerCentroidSel.attr('data-zoom-lod-hidden', '0').style('display', null)
+      }
+      if (graphLayerLabelSel) {
+        graphLayerLabelSel.attr('data-zoom-lod-hidden', '0').style('display', null)
       }
       const geometryById = new Map<string, GraphLayerHullGeometry>()
       for (let i = 0; i < nodeGroups.length; i += 1) {
@@ -307,6 +338,27 @@ export const attachSimulationTick = (args: {
           .style('display', group => {
             const geometry = geometryById.get(group.id)
             return geometry ? null : 'none'
+          })
+      }
+      if (graphLayerLabelSel) {
+        graphLayerLabelSel
+          .attr('x', group => {
+            const geometry = geometryById.get(group.id)
+            if (!geometry) return Number.NaN
+            return geometry.cx
+          })
+          .attr('y', group => {
+            const geometry = geometryById.get(group.id)
+            if (!geometry) return Number.NaN
+            return geometry.cy
+          })
+          .style('display', group => {
+            const geometry = geometryById.get(group.id)
+            if (!geometry) return 'none'
+            const ownerType = group.meta?.ownerType ? String(group.meta.ownerType) : ''
+            if (ownerType !== 'MermaidSubgraph') return 'none'
+            const label = group.meta?.groupValue ? String(group.meta.groupValue) : ''
+            return label ? null : 'none'
           })
       }
     }

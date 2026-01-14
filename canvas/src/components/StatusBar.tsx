@@ -5,6 +5,7 @@ import {
   type SelectionPerfSubscriber,
   setSelectionPerfEnabled,
 } from '@/lib/selectionPerf';
+import { UI_LABELS } from '@/lib/config';
 
 export default function StatusBar() {
   const { graphData, selectedNodeId } = useGraphStore();
@@ -62,20 +63,20 @@ export default function StatusBar() {
 
   const nodeCount = graphData?.nodes.length || 0;
   const edgeCount = graphData?.edges.length || 0;
-  const selectedLabel = graphData?.nodes.find(n => n.id === selectedNodeId)?.label || 'None';
+  const selectedLabel = graphData?.nodes.find(n => n.id === selectedNodeId)?.label || UI_LABELS.noneLabel;
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   );
 
   return (
-    <footer className="StatusBar" aria-label="Status Bar">
+    <footer className="StatusBar" aria-label={UI_LABELS.statusBarAriaLabel}>
       <div className="flex items-center gap-4">
-        <span>Nodes: {nodeCount}</span>
-        <span>Edges: {edgeCount}</span>
+        <span>{UI_LABELS.nodesLabel} {nodeCount}</span>
+        <span>{UI_LABELS.edgesLabel} {edgeCount}</span>
       </div>
       <div className="flex items-center gap-4">
         <span>
-          Selected: <span className="font-medium">{selectedLabel}</span>
+          {UI_LABELS.selectedLabel} <span className="font-medium">{selectedLabel}</span>
         </span>
         {import.meta.env.DEV && (
           <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} text-gray-600`}>
@@ -86,7 +87,7 @@ export default function StatusBar() {
               }`}
               onClick={() => setPerfEnabled(v => !v)}
             >
-              Perf
+              {UI_LABELS.perfButtonLabel}
             </button>
             {perfEnabled && (
               <div className="flex flex-wrap gap-2">
