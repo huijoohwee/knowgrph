@@ -106,14 +106,20 @@ export function testFitToScreenModeDefaultsOnAndFitsFullGraph() {
   const width = 800
   const height = 600
   const t = fitAllTransform(graphData.nodes, width, height)
-  const xs = graphData.nodes.map(n => n.x || 0)
-  const ys = graphData.nodes.map(n => n.y || 0)
-  const minX = Math.min(...xs, 0)
-  const maxX = Math.max(...xs, 0)
-  const minY = Math.min(...ys, 0)
-  const maxY = Math.max(...ys, 0)
-  const cx = (minX + maxX) / 2
-  const cy = (minY + maxY) / 2
+  let sumX = 0
+  let sumY = 0
+  let count = 0
+  for (let i = 0; i < graphData.nodes.length; i += 1) {
+    const n = graphData.nodes[i]
+    const x = n.x
+    const y = n.y
+    if (typeof x !== 'number' || !Number.isFinite(x) || typeof y !== 'number' || !Number.isFinite(y)) continue
+    sumX += x
+    sumY += y
+    count += 1
+  }
+  const cx = count > 0 ? sumX / count : 0
+  const cy = count > 0 ? sumY / count : 0
   const screenCx = t.k * cx + t.x
   const screenCy = t.k * cy + t.y
   const targetCx = width / 2

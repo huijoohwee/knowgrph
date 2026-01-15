@@ -5,7 +5,7 @@ import type { GraphSchema } from '@/lib/graph/schema';
 import type { TempLinkSelection } from '@/features/edge-creation';
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
 import type { HoverInfo } from '@/components/GraphHoverTooltip';
-import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
+import { compareMermaidEdgesForRender, getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -34,10 +34,11 @@ export const createLinksLayer = (args: {
   const usePath = isTree || isMermaid;
   const treeCfg = schema.layout?.tree || {};
   const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
+  const edges = isMermaid ? [...edgesForDisplay].sort((a, b) => compareMermaidEdgesForRender(a, b, schema)) : edgesForDisplay;
   const linkRoot = g.append('g').attr('data-kg-layer', 'links');
   const link = usePath
-    ? linkRoot.selectAll<SVGPathElement, GraphEdge>('path').data(edgesForDisplay).enter().append('path').attr('fill', 'none')
-    : linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edgesForDisplay).enter().append('line');
+    ? linkRoot.selectAll<SVGPathElement, GraphEdge>('path').data(edges).enter().append('path').attr('fill', 'none')
+    : linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edges).enter().append('line');
   (link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
     .attr('stroke', (d: GraphEdge) => {
       if (isTree) {

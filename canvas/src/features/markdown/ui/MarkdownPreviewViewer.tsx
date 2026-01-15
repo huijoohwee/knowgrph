@@ -140,7 +140,12 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
   }, [onTocSelect])
 
   const visibleTokens = React.useMemo(() => {
-    if (!collapsedIds || collapsedIds.size === 0) return tokens
+    if (!collapsedIds || collapsedIds.size === 0) {
+      if (tokens.length > 0) {
+        console.log('[DEBUG] visibleTokens raw tokens count:', tokens.length, 'first:', tokens[0].startLine)
+      }
+      return tokens
+    }
 
     const result: TokenWithLines[] = []
     let skipUntilDepth: number | null = null

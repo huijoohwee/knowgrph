@@ -10,7 +10,7 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 
 type MarkdownViewerPaneProps = {
   viewerRef: React.RefObject<HTMLDivElement>
-  handleViewerScroll: (event: React.UIEvent<HTMLElement>) => void
+  handleViewerScroll: (event: React.UIEvent<HTMLDivElement>) => void
   markdownPreviewText: string
   previewBasePath: string
   highlightedLineRange: { start: number; end: number } | null
@@ -71,34 +71,30 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
           {UI_COPY.markdownPreviewTruncatedHelperText}
         </div>
       )}
-      <div
+      <MarkdownPreview
         ref={viewerRef}
-        className="flex-1 min-h-0 overflow-auto relative scroll-smooth p-4"
+        markdownText={markdownPreviewText}
+        activeDocumentPath={previewBasePath}
+        highlightedLineRange={highlightedLineRange}
+        markdownWordWrap={markdownWordWrap}
+        markdownPresentationMode={markdownPresentationMode}
+        markdownTextHighlight={markdownTextHighlight}
+        selectionKind={selectionInfo?.kind}
+        highlightBackgroundColor={selectionInfo?.highlightBackgroundColor}
+        highlightUnderlineColor={selectionInfo?.highlightUnderlineColor}
+        selectionId={flashSelectionId}
+        presentationApiRef={presentationApiRef}
+        onPresentationSlideStateChange={setPresentationSlideState}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        annotateDisplayMode={annotateDisplayMode}
+        onShowInGraphDataTable={onShowInGraphDataTable}
+        onShowInSlidesGallery={onShowInSlidesGallery}
+        onShowInEditor={onShowInEditor}
         onScroll={handleViewerScroll}
-      >
-        <MarkdownPreview
-          markdownText={markdownPreviewText}
-          activeDocumentPath={previewBasePath}
-          highlightedLineRange={highlightedLineRange}
-          markdownWordWrap={markdownWordWrap}
-          markdownPresentationMode={markdownPresentationMode}
-          markdownTextHighlight={markdownTextHighlight}
-          selectionKind={selectionInfo?.kind}
-          highlightBackgroundColor={selectionInfo?.highlightBackgroundColor}
-          highlightUnderlineColor={selectionInfo?.highlightUnderlineColor}
-          selectionId={flashSelectionId}
-          presentationApiRef={presentationApiRef}
-          onPresentationSlideStateChange={setPresentationSlideState}
-          uiPanelTextFontClass={uiPanelTextFontClass}
-          uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-          annotateDisplayMode={annotateDisplayMode}
-          onShowInGraphDataTable={onShowInGraphDataTable}
-          onShowInSlidesGallery={onShowInSlidesGallery}
-          onShowInEditor={onShowInEditor}
-          flashLine={flashLine}
-          tokens={tokens}
-        />
-      </div>
+        flashLine={flashLine}
+        tokens={tokens}
+      />
     </section>
   )
 }

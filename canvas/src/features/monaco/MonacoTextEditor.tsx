@@ -163,10 +163,16 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     }
   }, [themeMode])
 
+  const isJsdom =
+    typeof window !== 'undefined' &&
+    typeof window.navigator !== 'undefined' &&
+    /jsdom/i.test(String(window.navigator.userAgent || ''))
+
   const canUseMonaco =
     typeof window !== 'undefined' &&
     typeof document !== 'undefined' &&
-    typeof (window as unknown as { Worker?: unknown }).Worker !== 'undefined'
+    typeof (window as unknown as { Worker?: unknown }).Worker !== 'undefined' &&
+    !isJsdom
 
   React.useEffect(() => {
     if (canUseMonaco) return

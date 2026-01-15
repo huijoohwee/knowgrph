@@ -12,8 +12,7 @@ import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import {
   type TokenWithLines,
 } from '@/features/markdown/ui/markdownPreviewLex'
-import { useMarkdownPreviewTokens } from '@/features/markdown/ui/useMarkdownPreviewTokens'
-import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import {
   buildMarkdownPreviewMediaKey,
   extractAttr,
@@ -71,13 +70,12 @@ export default function PreviewPanelView() {
     }
   }, [setActiveMediaKey, setMermaidFocus])
 
-  const tokens = useMarkdownPreviewTokens(markdownText || '', undefined, markdownDocumentName || '', true)
-
-  const meta = React.useMemo(() => {
-    const lines = splitMarkdownLines(markdownText || '')
-    const { meta } = parseMarkdownFrontmatter(lines)
-    return meta
-  }, [markdownText])
+  const { tokens, meta } = useMarkdownPreviewLexedMarkdown(
+    markdownText || '',
+    undefined,
+    markdownDocumentName || '',
+    true,
+  )
 
   const mermaidFrontmatterConfig = React.useMemo(
     () => parseMermaidConfigFromFrontmatter(meta),
@@ -484,15 +482,15 @@ export default function PreviewPanelView() {
   }
 
   return (
-    <MainPanelBody header={<div />} scrollable={false}>
-      <div ref={setOverlayPortalRef} className="h-full min-h-0 flex flex-col overflow-hidden relative">
+    <MainPanelBody header={<header />} scrollable={false}>
+      <section ref={setOverlayPortalRef} className="h-full min-h-0 flex flex-col overflow-hidden relative">
         {!hasMarkdown && mediaItems.length === 0 ? (
           <div className={['px-2 py-2 text-sm text-gray-600', uiPanelTextFontClass].join(' ')}>
             No markdown loaded.
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-            <div className="shrink-0 border-b border-gray-200 bg-white/60">
+            <header className="shrink-0 border-b border-gray-200 bg-white/60">
               <div className="px-3 py-2 flex items-center justify-between">
                 <div className={['text-xs font-medium text-gray-700', uiPanelTextFontClass].join(' ')}>
                   Preview: Mermaid diagrams and rich media
@@ -544,7 +542,7 @@ export default function PreviewPanelView() {
                   </div>
                 </div>
               ) : null}
-            </div>
+            </header>
             <div className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg}`}>
               {hasMermaidFocus ? (
                 <div className="w-full h-full flex items-center justify-center">
@@ -569,7 +567,7 @@ export default function PreviewPanelView() {
             </div>
           </div>
         )}
-      </div>
+      </section>
     </MainPanelBody>
   )
 }

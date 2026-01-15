@@ -309,17 +309,22 @@ export async function testEdaMlpInterviewSessionMarkdownTreeDensityFromFixture()
   if (!meta) {
     throw new Error('expected schema.metadata to be present')
   }
-  const tree = meta.tree as Record<string, unknown> | undefined
+  const layoutMode = String(meta.layoutMode || '')
+  const treeKey = layoutMode === 'mermaid' ? 'mermaid' : 'tree'
+  const tree =
+    meta[treeKey] && typeof meta[treeKey] === 'object' && !Array.isArray(meta[treeKey])
+      ? (meta[treeKey] as Record<string, unknown>)
+      : undefined
   if (!tree) {
-    throw new Error('expected metadata.tree to be present')
+    throw new Error(`expected metadata.${treeKey} to be present`)
   }
   const separation = tree.separation
   if (typeof separation !== 'number' || !Number.isFinite(separation) || separation <= 0) {
-    throw new Error(`expected positive metadata.tree.separation, got ${String(separation)}`)
+    throw new Error(`expected positive metadata.${treeKey}.separation, got ${String(separation)}`)
   }
   const density = tree.mermaidDensity as Record<string, unknown> | undefined
   if (!density) {
-    throw new Error('expected metadata.tree.mermaidDensity to be present')
+    throw new Error(`expected metadata.${treeKey}.mermaidDensity to be present`)
   }
   const statementCount = density.statementCount
   if (typeof statementCount !== 'number' || !Number.isFinite(statementCount) || statementCount <= 0) {

@@ -32,40 +32,6 @@ export const computeGraphLayerHullGeometry = (args: {
   const isMermaidSubgraph = group.meta?.ownerType === 'MermaidSubgraph'
 
   if (isMermaidSubgraph) {
-    // Check if the subgraph node itself has layout info (from Dagre)
-    if (group.meta?.ownerId) {
-       const ownerNode = nodeById.get(group.meta.ownerId)
-       if (ownerNode) {
-          const props = (ownerNode.properties || {}) as Record<string, unknown>
-          
-          // Use live coordinates (x, y) if available, falling back to static visual props
-          // Dagre layout sets visual:x/y initially, but drag updates .x/.y
-          let vx = typeof ownerNode.x === 'number' ? ownerNode.x : null
-          let vy = typeof ownerNode.y === 'number' ? ownerNode.y : null
-          
-          if (vx == null || vy == null) {
-              vx = typeof props['visual:x'] === 'number' ? props['visual:x'] : null
-              vy = typeof props['visual:y'] === 'number' ? props['visual:y'] : null
-          }
-
-          const vw = typeof props['visual:width'] === 'number' ? props['visual:width'] : null
-          const vh = typeof props['visual:height'] === 'number' ? props['visual:height'] : null
-          
-          if (vx != null && vy != null && vw != null && vh != null && vw > 0 && vh > 0) {
-             const minX = vx - vw / 2
-             const minY = vy - vh / 2
-             const pathBuilder = d3.path()
-             pathBuilder.rect(minX, minY, vw, vh)
-             return {
-                path: pathBuilder.toString(),
-                cx: vx,
-                cy: vy,
-                topY: minY
-             }
-          }
-       }
-    }
-
     let minX = Infinity
     let maxX = -Infinity
     let minY = Infinity
@@ -245,6 +211,10 @@ export const createGraphLayersLayer = (args: {
     nodeById.set(String(n.id), n)
   }
 
+  const hullRoot = g
+    .insert('g', 'g[data-kg-layer="links"]')
+    .attr('data-kg-layer', 'node-groups-hulls')
+
   const layerRoot = g.append('g').attr('data-kg-layer', 'node-groups')
   const getHoverNodeIdForGroup = (group: NodeGroup): string | null => {
     const ownerId = group.meta?.ownerId
@@ -253,7 +223,7 @@ export const createGraphLayersLayer = (args: {
     if (first) return String(first)
     return null
   }
-  const hullSel = layerRoot
+  const hullSel = hullRoot
     .selectAll<SVGPathElement, NodeGroup>('path')
     .data(nodeGroups, d => d.id)
     .enter()
@@ -371,13 +341,6 @@ export const createGraphLayersLayer = (args: {
       if (ownerType !== 'MermaidSubgraph') return ''
       const raw = group.meta?.groupValue ? String(group.meta.groupValue) : ''
       return raw
-    })
-    .each(function positionLabel(group) {
-       const geometry = computeGraphLayerHullGeometry({ group, nodeById, schema })
-       if (!geometry) return
-       d3.select(this)
-         .attr('x', geometry.cx)
-         .attr('y', typeof geometry.topY === 'number' && Number.isFinite(geometry.topY) ? geometry.topY + 14 : geometry.cy)
     })
 
   const geometryById = new Map<string, GraphLayerHullGeometry>()

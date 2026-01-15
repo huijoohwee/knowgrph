@@ -152,6 +152,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     const nodeProps: Record<string, unknown> = {
       nodeName: safeName,
       label: label ?? safeName, // Use name as label if no label provided
+      'visual:layer': 1,
     }
 
     if (currentSubgraph) {
@@ -216,6 +217,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       properties: {
         subgraphName: safeName,
         nodeName: safeName,
+        'visual:layer': 1,
         ...(parent ? { mermaidSubgraphName: parent.name } : {}),
         ...classStyles,
       },

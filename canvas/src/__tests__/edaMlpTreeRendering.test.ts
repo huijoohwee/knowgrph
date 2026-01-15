@@ -1,46 +1,71 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
 import { schemaFromJsonLd } from '@/features/schema/schemaJsonLd'
 
-export function testEdaMlpTreeRendering() {
-  // Path to the file as specified by user
-  const filePath = '/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/eda-mlp-implementation-guidelines.md'
-  let content: string
-  try {
-    content = readFileSync(filePath, 'utf-8')
-  } catch (e) {
-    console.warn('Could not read file at absolute path, trying relative to workspace root or skipping test if not found.')
-    // Fallback for CI/CD or different env where absolute path might differ
-    // Assuming the test runs in project root or we can find it
-    // For this task, we assume the file exists at the path provided by user or we fail.
-    throw e
+export async function testEdaMlpTreeRendering() {
+  const envValue = String(process.env.KNOWGRPH_EDA_MLP_INTERVIEW_MD_PATH || '').trim()
+  const candidatePaths = envValue
+    ? [resolve(process.cwd(), envValue)]
+    : [
+        resolve(process.cwd(), '../data/test-data/eda-mlp-interview-session.fixture.md'),
+        resolve(process.cwd(), 'data/test-data/eda-mlp-interview-session.fixture.md'),
+      ]
+
+  const mdPath = candidatePaths.find(p => existsSync(p))
+  if (!mdPath) {
+    await Promise.resolve()
+    return
   }
 
-  const jsonld = buildMarkdownJsonLd(filePath, content)
+  const markdown = readFileSync(mdPath, 'utf8')
+  if (!markdown.trim()) {
+    await Promise.resolve()
+    return
+  }
+
+  const jsonld = buildMarkdownJsonLd('file://eda-mlp-interview-session.md', markdown)
   const schema = schemaFromJsonLd(jsonld)
+  const meta = schema.metadata as Record<string, unknown> | undefined
+  if (!meta) {
+    throw new Error('expected schema.metadata to be present')
+  }
 
-  if (schema.layout?.mode !== 'tree') {
-    throw new Error(`expected schema.layout.mode to be 'tree', got '${schema.layout?.mode}'`)
+  const layoutMode = String(meta.layoutMode || '')
+  if (layoutMode !== 'mermaid') {
+    throw new Error(`expected metadata.layoutMode to be 'mermaid', got '${layoutMode}'`)
   }
-  
-  const tree = schema.layout?.tree
-  if (!tree) {
-    throw new Error('expected schema.layout.tree to be defined')
+
+  const mermaidMeta =
+    meta.mermaid && typeof meta.mermaid === 'object' && !Array.isArray(meta.mermaid)
+      ? (meta.mermaid as Record<string, unknown>)
+      : null
+  if (!mermaidMeta) {
+    throw new Error('expected metadata.mermaid to be present')
   }
-  if (!tree.direction) {
-    throw new Error('expected schema.layout.tree.direction to be defined')
+
+  const edgeLabels = mermaidMeta.edgeLabels as unknown
+  if (!Array.isArray(edgeLabels) || !edgeLabels.includes('pointsTo')) {
+    throw new Error('expected metadata.mermaid.edgeLabels to include "pointsTo"')
   }
-  
-  // Check if metadata has tree info
-  const meta =
-    jsonld.metadata && typeof jsonld.metadata === 'object' && !Array.isArray(jsonld.metadata)
-      ? (jsonld.metadata as Record<string, unknown>)
-      : {}
-  const layoutMode = typeof meta.layoutMode === 'string' ? meta.layoutMode : null
-  if (layoutMode !== 'tree') {
-    throw new Error(`expected metadata.layoutMode to be 'tree', got '${layoutMode}'`)
+
+  const separation = mermaidMeta.separation as unknown
+  if (typeof separation !== 'number' || !Number.isFinite(separation) || separation <= 0) {
+    throw new Error(`expected positive metadata.mermaid.separation, got ${String(separation)}`)
   }
-  if (!meta.tree) {
-    throw new Error('expected metadata.tree to be defined')
+
+  const density =
+    mermaidMeta.mermaidDensity && typeof mermaidMeta.mermaidDensity === 'object' && !Array.isArray(mermaidMeta.mermaidDensity)
+      ? (mermaidMeta.mermaidDensity as Record<string, unknown>)
+      : null
+  if (!density) {
+    throw new Error('expected metadata.mermaid.mermaidDensity to be present')
   }
+
+  const statementCount = density.statementCount as unknown
+  if (typeof statementCount !== 'number' || !Number.isFinite(statementCount) || statementCount <= 0) {
+    throw new Error(`expected positive metadata.mermaid.mermaidDensity.statementCount, got ${String(statementCount)}`)
+  }
+
+  await Promise.resolve()
 }

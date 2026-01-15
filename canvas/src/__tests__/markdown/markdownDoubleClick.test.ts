@@ -32,6 +32,7 @@ export async function testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine
       new Promise<void>(resolve =>
         anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
       )
+    const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
     await tick()
     await tick()
 
@@ -69,7 +70,7 @@ export async function testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine
     textarea.value = markdown
     textarea.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
     textarea.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-    await tick()
+    await waitDebounce()
     await tick()
 
     const calls: string[] = []
@@ -134,6 +135,7 @@ export async function testMarkdownViewerDoubleClickScrollsEditor() {
       new Promise<void>(resolve =>
         anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
       )
+    const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
     await tick()
     await tick()
 
@@ -148,7 +150,7 @@ export async function testMarkdownViewerDoubleClickScrollsEditor() {
     const markdown = lines.join('\n')
     
     store.setMarkdownDocument('viewer_dblclick.md', markdown)
-    await tick()
+    await waitDebounce()
     await tick()
 
     const viewer = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null

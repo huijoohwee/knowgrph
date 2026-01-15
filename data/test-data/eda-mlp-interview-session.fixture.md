@@ -1,5 +1,6 @@
 ---
 title: "EDA→MLP Interview Session Fixture"
+layoutMode: mermaid
 mermaid: |
   graph TD
 

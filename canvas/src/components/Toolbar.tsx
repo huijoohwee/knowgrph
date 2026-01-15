@@ -162,7 +162,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   }, [openMainPanel]);
 
   return (
-    <nav className="Island App-toolbar App-toolbar--compact w-fit" aria-label="Main Toolbar">
+    <nav className="Island App-toolbar App-toolbar--compact w-fit" role="navigation" aria-label="Main Toolbar">
       <ToolbarMenuLauncher onOpenMainPanel={openMainPanel} />
 
       <IconButton

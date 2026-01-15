@@ -18,7 +18,7 @@ import {
   type TokenHighlightSpec,
 } from '@/features/markdown/ui/markdownPreviewAlwaysOnHighlights'
 import { findSelectionTarget } from '@/features/markdown/ui/markdownPreviewSelection'
-import { useMarkdownPreviewTokens } from '@/features/markdown/ui/useMarkdownPreviewTokens'
+import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import { useSelectionFlash } from '@/features/markdown/ui/useSelectionFlash'
 import { useMarkdownPreviewEvents } from '@/features/markdown/ui/useMarkdownPreviewEvents'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
@@ -133,7 +133,20 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = el
   }, [ref])
 
-  const { headMeta, slides } = React.useMemo(() => splitSlides(markdownText || ''), [markdownText])
+  const { tokens, meta: cachedHeadMeta, startLineOffset } = useMarkdownPreviewLexedMarkdown(
+    markdownText || '',
+    providedTokens,
+    activeDocumentPath,
+  )
+
+  const { headMeta, slides } = React.useMemo(
+    () =>
+      splitSlides(markdownText || '', {
+        headMeta: cachedHeadMeta,
+        headStartIndex: startLineOffset,
+      }),
+    [markdownText, cachedHeadMeta, startLineOffset],
+  )
 
   const codeAnnotations = React.useMemo(() => {
     const meta = headMeta as Record<string, unknown>
@@ -194,8 +207,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     onPresentationSlideStateChange,
     onSlidesReordered,
   })
-
-  const tokens = useMarkdownPreviewTokens(markdownText || '', providedTokens, activeDocumentPath)
 
   const graphData = useGraphStore(s => s.graphData)
   const markdownAlwaysOnHighlightComplexityBudget = useGraphStore(

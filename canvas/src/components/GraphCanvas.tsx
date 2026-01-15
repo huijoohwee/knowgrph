@@ -24,7 +24,7 @@ import { determineLayoutPositions } from '@/components/GraphCanvas/layout/positi
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue';
 
 export default function GraphCanvas() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'tree' | 'mermaid'>(null);
   const lastLayerModeRef = useRef<null | string>(null);
@@ -172,7 +172,7 @@ export default function GraphCanvas() {
     setZoomState,
     updateEdge,
   ]);
-  const { width, height, left, top } = useContainerDims(containerRef as unknown as React.RefObject<HTMLElement | null>);
+  const { width, height, left, top } = useContainerDims(containerRef);
   const debouncedWidth = useDebouncedValue(width, 100);
   const debouncedHeight = useDebouncedValue(height, 100);
   const tempLinkSelRef = useRef<TempLinkSelection>(null);
@@ -431,52 +431,6 @@ export default function GraphCanvas() {
     schema,
     themeMode,
   });
-
-
-
-  useEffect(() => {
-    const state = useGraphStore.getState();
-    const currentSchema = state.schema;
-    if (frontmatterModeEnabled) {
-      let nextSchema: GraphSchema = { ...currentSchema };
-      let changed = false;
-
-      // FORBID Semantic Layer Mode
-      if (currentSchema.layers?.mode === 'semantic') {
-         // Fallback to 'document' or 'property' (schema default)
-         nextSchema = { ...nextSchema, layers: { ...(nextSchema.layers || {}), mode: 'property' } };
-         changed = true;
-      }
-
-      // FORBID Document Structure Layer Mode
-      // The frontmatter filter removes Document/Section nodes, so this mode is invalid/empty.
-      if (currentSchema.layers?.mode === 'document-structure') {
-         nextSchema = { ...nextSchema, layers: { ...(nextSchema.layers || {}), mode: 'property' } };
-         changed = true;
-      }
-      
-      // We generally prefer 'mermaid' layout in this mode, but user might switch.
-      // However, if the current layout is NOT compatible (if any), we might force it.
-      // The user instruction says "Mermaid Layout" is allowed.
-      // It implies we should probably default to it if not set.
-      if (currentSchema.layout?.mode !== 'mermaid') {
-          nextSchema = { ...nextSchema, layout: { ...(nextSchema.layout || {}), mode: 'mermaid' } };
-          changed = true;
-      }
-
-      if (changed) {
-          state.setSchema(nextSchema);
-      }
-    } else {
-      // Frontmatter Mode OFF
-      // FORBID Mermaid Layout
-      if (currentSchema.layout?.mode === 'mermaid') {
-         // Fallback to 'force'
-         const nextSchema: GraphSchema = { ...currentSchema, layout: { ...currentSchema.layout, mode: 'force' } };
-         state.setSchema(nextSchema);
-      }
-    }
-  }, [frontmatterModeEnabled, schema.layers?.mode, schema.layout?.mode]);
 
   return (
     <main

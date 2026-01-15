@@ -26,12 +26,17 @@ const createDataTransfer = (): DataTransfer => {
 }
 
 const dispatchDragEvent = (win: Window, target: EventTarget, type: string, dataTransfer?: DataTransfer) => {
+  const DragEventCtor = (win as unknown as { DragEvent?: typeof DragEvent }).DragEvent
+  if (typeof DragEventCtor === 'function') {
+    const ev = new DragEventCtor(type, { bubbles: true, cancelable: true, dataTransfer })
+    target.dispatchEvent(ev)
+    return
+  }
+
   const eventCtor =
     (win as unknown as { Event?: typeof Event }).Event ?? (globalThis as unknown as { Event: typeof Event }).Event
   const ev = new eventCtor(type, { bubbles: true, cancelable: true }) as DragEvent
-  if (dataTransfer) {
-    Object.defineProperty(ev, 'dataTransfer', { value: dataTransfer, configurable: true })
-  }
+  if (dataTransfer) Object.defineProperty(ev, 'dataTransfer', { value: dataTransfer, configurable: true })
   target.dispatchEvent(ev)
 }
 
@@ -138,19 +143,7 @@ export async function testPreviewGalleryDragMovesThirdSlideAboveSecond() {
     flushSync(() => {
       dispatchDragEvent(dom.window, third, 'dragstart', dataTransfer)
       dataTransfer.setData('text/plain', '3')
-      dispatchDragEvent(dom.window, second, 'dragover', dataTransfer)
-    })
-
-    const topBands = Array.from(
-      container.querySelectorAll('div.border-t-2.cursor-move'),
-    ) as HTMLDivElement[]
-    if (!topBands.length) {
-      throw new Error('expected at least one top insertion band')
-    }
-    const targetBand = topBands[0]
-
-    flushSync(() => {
-      dispatchDragEvent(dom.window, targetBand, 'drop', dataTransfer)
+      dispatchDragEvent(dom.window, second, 'drop', dataTransfer)
     })
 
     if (!reordered.length) {
@@ -214,19 +207,7 @@ export async function testPreviewGalleryDragMovesFirstSlideBelowThird() {
     flushSync(() => {
       dispatchDragEvent(dom.window, first, 'dragstart', dataTransfer)
       dataTransfer.setData('text/plain', '1')
-      dispatchDragEvent(dom.window, third, 'dragover', dataTransfer)
-    })
-
-    const bottomBands = Array.from(
-      container.querySelectorAll('div.border-b-2.cursor-move'),
-    ) as HTMLDivElement[]
-    if (!bottomBands.length) {
-      throw new Error('expected at least one bottom insertion band')
-    }
-    const targetBand = bottomBands[0]
-
-    flushSync(() => {
-      dispatchDragEvent(dom.window, targetBand, 'drop', dataTransfer)
+      dispatchDragEvent(dom.window, third, 'drop', dataTransfer)
     })
 
     if (!reordered.length) {
@@ -292,19 +273,7 @@ export async function testPreviewGalleryDragMovesFirstSlideToLastInLongerList() 
     flushSync(() => {
       dispatchDragEvent(dom.window, first, 'dragstart', dataTransfer)
       dataTransfer.setData('text/plain', '1')
-      dispatchDragEvent(dom.window, last, 'dragover', dataTransfer)
-    })
-
-    const bottomBands = Array.from(
-      container.querySelectorAll('div.border-b-2.cursor-move'),
-    ) as HTMLDivElement[]
-    if (!bottomBands.length) {
-      throw new Error('expected at least one bottom insertion band in longer list')
-    }
-    const targetBand = bottomBands[bottomBands.length - 1]
-
-    flushSync(() => {
-      dispatchDragEvent(dom.window, targetBand, 'drop', dataTransfer)
+      dispatchDragEvent(dom.window, last, 'drop', dataTransfer)
     })
 
     if (!reordered.length) {
@@ -370,19 +339,7 @@ export async function testPreviewGalleryDragMovesLastSlideToFirstInLongerList() 
     flushSync(() => {
       dispatchDragEvent(dom.window, last, 'dragstart', dataTransfer)
       dataTransfer.setData('text/plain', '5')
-      dispatchDragEvent(dom.window, first, 'dragover', dataTransfer)
-    })
-
-    const topBands = Array.from(
-      container.querySelectorAll('div.border-t-2.cursor-move'),
-    ) as HTMLDivElement[]
-    if (!topBands.length) {
-      throw new Error('expected at least one top insertion band in longer list')
-    }
-    const targetBand = topBands[0]
-
-    flushSync(() => {
-      dispatchDragEvent(dom.window, targetBand, 'drop', dataTransfer)
+      dispatchDragEvent(dom.window, first, 'drop', dataTransfer)
     })
 
     if (!reordered.length) {

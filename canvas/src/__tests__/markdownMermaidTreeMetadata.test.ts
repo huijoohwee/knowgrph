@@ -31,9 +31,9 @@ export async function testMarkdownMermaidFrontmatterTreeMetadataDefaults() {
   if (!meta) {
     throw new Error('expected schema.metadata to be present')
   }
-  const tree = meta.tree as Record<string, unknown> | undefined
+  const tree = (meta.tree || meta.mermaid) as Record<string, unknown> | undefined
   if (!tree) {
-    throw new Error('expected metadata.tree to be present')
+    throw new Error('expected metadata.tree or metadata.mermaid to be present')
   }
 
   const orientation = tree.orientation

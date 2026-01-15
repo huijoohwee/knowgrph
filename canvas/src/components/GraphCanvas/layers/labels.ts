@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import type { MutableRefObject } from 'react';
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
-import { getRenderNodeRadius2d, hasNodeMedia } from '@/components/GraphCanvas/helpers';
+import { compareMermaidNodesForRender, getRenderNodeRadius2d, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -51,14 +51,10 @@ export const createLabelsLayer = (args: {
       return base.filter(n => !hasNodeMedia(n));
     })();
     if (!graphLayersVisible) return withoutMedia;
-    if (isMermaid) {
-      const filtered = withoutMedia.filter(n => String(n.type || '') !== 'MermaidSubgraph');
-      return filtered.length > 0 ? filtered : withoutMedia;
-    }
-
-    const filteredForLayers = withoutMedia.filter(n => String(n.type || '') !== 'MermaidSubgraph');
-    return filteredForLayers.length > 0 ? filteredForLayers : withoutMedia;
+    const filtered = withoutMedia.filter(n => String(n.type || '') !== 'MermaidSubgraph');
+    return filtered.length > 0 ? filtered : withoutMedia;
   })();
+  const nodesForLabels = isMermaid ? [...nodes].sort((a, b) => compareMermaidNodesForRender(a, b, schema)) : nodes;
   
   const nodesWithChildren = new Set<string>();
   if (isTree) {
@@ -117,7 +113,7 @@ export const createLabelsLayer = (args: {
   if (isMermaid) {
     label = labelsGroup
       .selectAll<SVGTextElement, GraphNode>('text')
-      .data(nodes)
+      .data(nodesForLabels)
       .enter()
       .append('text')
       .attr('font-size', mermaidLabelFontSize)

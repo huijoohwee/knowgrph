@@ -53,9 +53,9 @@ export default function GraphLayerView() {
   const [traversalDelayMs, setTraversalDelayMs] = React.useState<number>(0)
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden px-1 py-1 space-y-3">
+    <section className="h-full min-h-0 overflow-y-auto overflow-x-hidden px-1 py-1 space-y-3">
       <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <header className="mb-2 flex items-center justify-between gap-2">
           <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>
             {UI_LABELS.graphLayersMode}
           </div>
@@ -66,7 +66,7 @@ export default function GraphLayerView() {
           >
             {graphLayersVisible ? 'Hide' : 'Show'}
           </button>
-        </div>
+        </header>
         <div className={`${uiPanelKeyValueTextSizeClass} mb-2 ${UI_THEME_TOKENS.text.secondary}`}>
           Use this tab to configure graph layers, semantic overlays, and renderer behavior. All layer controls now live here for the Floating Panel.
         </div>
@@ -127,7 +127,7 @@ export default function GraphLayerView() {
         updateNode={updateNode}
         uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
       />
-    </div>
+    </section>
   )
 }
 

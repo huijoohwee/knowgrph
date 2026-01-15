@@ -145,9 +145,9 @@ export const getGraphLayerStyleForGroup = (args: {
   if (!graphLayersMetaRaw) {
     if (ownerType === 'MermaidSubgraph') {
        // 1. Determine base style from Schema (if applicable) or Default
-       let baseFill = '#f4f4f4'
-       let baseStroke = '#333333'
-       let baseOpacity = 1.0
+       let baseFill = baseColor
+       let baseStroke = baseColor
+       let baseOpacity = 0.16
 
        if (owner) {
           const tagColor = getAgenticRagTagColor(owner, schema)

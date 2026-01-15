@@ -78,12 +78,20 @@ const extractInlineHtmlCommentNotes = (lines: string[]): { lines: string[]; note
 
 const buildSlideChunks = (
   lines: string[],
+  opts?: { headMeta?: MarkdownFrontmatter; headStartIndex?: number },
 ): {
   headMeta: MarkdownFrontmatter
   headStartIndex: number
-  slideChunks: Array<{ rawLines: string[]; startLine: number }>
+  slideChunks: Array<{ rawLines: string[]; startLine: number; meta: MarkdownFrontmatter; startIndex: number }>
 } => {
-  const { meta: headMeta, startIndex: rawHeadStartIndex } = parseMarkdownFrontmatter(lines)
+  const parsedHead =
+    opts?.headMeta != null && typeof opts?.headStartIndex === 'number'
+      ? null
+      : parseMarkdownFrontmatter(lines)
+  const headMeta = opts?.headMeta ?? parsedHead?.meta ?? {}
+  const rawHeadStartIndex = (typeof opts?.headStartIndex === 'number'
+    ? opts.headStartIndex
+    : parsedHead?.startIndex) ?? 0
   const lineCount = lines.length
 
   let headStartIndex = rawHeadStartIndex
@@ -91,7 +99,7 @@ const buildSlideChunks = (
     headStartIndex += 1
   }
 
-  const slideChunks: Array<{ rawLines: string[]; startLine: number }> = []
+  const slideChunks: Array<{ rawLines: string[]; startLine: number; meta: MarkdownFrontmatter; startIndex: number }> = []
 
   const findNextSeparator = (startIndex: number): number => {
     let inFence = false
@@ -118,14 +126,14 @@ const buildSlideChunks = (
   let offset = headStartIndex
   while (offset < lineCount) {
     const remaining = lines.slice(offset)
-    const { startIndex: slideFrontmatterStartIndex } = parseMarkdownFrontmatter(remaining)
+    const { meta: slideMeta, startIndex: slideFrontmatterStartIndex } = parseMarkdownFrontmatter(remaining)
     const afterFrontmatterIndex =
       slideFrontmatterStartIndex > 0 ? offset + slideFrontmatterStartIndex : offset
     const sepIndex = findNextSeparator(afterFrontmatterIndex)
     const endIndex = sepIndex >= 0 ? sepIndex : lineCount
     const rawLines = lines.slice(offset, endIndex)
     const startLine = offset + 1
-    slideChunks.push({ rawLines, startLine })
+    slideChunks.push({ rawLines, startLine, meta: slideMeta, startIndex: slideFrontmatterStartIndex })
     if (sepIndex < 0) break
     offset = sepIndex + 1
   }
@@ -133,20 +141,22 @@ const buildSlideChunks = (
   return { headMeta, headStartIndex, slideChunks }
 }
 
-export const splitSlides = (markdownText: string): { headMeta: MarkdownFrontmatter; slides: Slide[] } => {
+export const splitSlides = (
+  markdownText: string,
+  opts?: { headMeta?: MarkdownFrontmatter; headStartIndex?: number },
+): { headMeta: MarkdownFrontmatter; slides: Slide[] } => {
   const lines = splitMarkdownLines(markdownText || '')
-  const { headMeta, slideChunks } = buildSlideChunks(lines)
+  const { headMeta, slideChunks } = buildSlideChunks(lines, opts)
 
   const slides: Slide[] = slideChunks.map((chunk, idx) => {
-    const { meta, startIndex } = parseMarkdownFrontmatter(chunk.rawLines)
-    const bodyLines = chunk.rawLines.slice(startIndex)
+    const bodyLines = chunk.rawLines.slice(chunk.startIndex)
     const { lines: bodySansTailNotes, notes: tailNotes } = stripSlideNotes(bodyLines)
     const { lines: bodySansNotes, notes: inlineNotes } = extractInlineHtmlCommentNotes(bodySansTailNotes)
     const combinedNotes = [inlineNotes, tailNotes].filter(Boolean).join('\n\n').trim() || null
     const text = bodySansNotes.join('\n')
     const startLine = chunk.startLine
     const endLine = chunk.startLine + Math.max(0, chunk.rawLines.length - 1)
-    return { index: idx, startLine, endLine, meta, text, notes: combinedNotes }
+    return { index: idx, startLine, endLine, meta: chunk.meta, text, notes: combinedNotes }
   })
 
   return {

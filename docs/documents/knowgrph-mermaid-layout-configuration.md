@@ -18,11 +18,15 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
 
 ### Interactive Dragging
 - **Draggable Nodes**: Nodes can be dragged to fine-tune the layout. The edge connections update in real-time.
-- **Draggable Subgraphs**: When Graph Layers are enabled, dragging a Mermaid subgraph centroid moves all member nodes together.
+- **Rigid Group Dragging**:
+  - **Dragging a Subgraph**: Dragging a Mermaid subgraph centroid moves all its member nodes (and nested subgraphs) together, preserving their relative positions.
+  - **Dragging a Member Node**: Dragging a member node also moves its parent subgraph and all sibling nodes together. This ensures the subgraph remains a cohesive rigid body, preventing nodes from being "dislocated" from their container.
 - **Persistence**: In Mermaid mode, dragged nodes stay fixed in their new positions (physics forces are disabled).
 
 ### Layout Engine & Robustness
 - **Algorithm**: Uses Dagre's `network-simplex` ranker (switched from `tight-tree`) for enhanced stability and reduced layout failures.
+- **Spacing**: Increased default separation (`nodesep: 72`, `ranksep: 84`) and margins (`marginx: 80`, `marginy: 80`) to ensure the graph is well spread out and doesn't stick to the borders.
+- **Centering**: The graph centroid is always centered in the Infinite Canvas viewport upon layout application.
 - **Compound Layout**: Natively supports **rectangular subgraphs** and nested node hierarchies by enabling Dagre's `compound` mode. It correctly maps parent-child relationships between subgraphs and nodes.
 - **Node Sizing**: Uses shared `calculateNodeDimensions` utility to ensure consistent text measurement across layout engines (Mermaid, Tree) and renderer.
 - **Performance**: 
@@ -62,6 +66,30 @@ These settings can be configured in the **Settings** panel under `Layout > Merma
 - **Key**: `layout.fitPadding`
 - **Type**: `number` (pixels)
 - **Default**: `80`
+
+### Render Order
+- **Key**: `layout.mermaid.renderOrder`
+- **Type**: `Record<string, number>`
+- **Default**: not set (no override; renderer uses stable internal ordering)
+
+In Mermaid mode, the 2D renderer can optionally sort Mermaid nodes, edges, and labels by a schema-provided render order so z-order stays deterministic (for example, subgraph hulls always behind their member nodes, and selected/dragged elements can be raised without reshuffling everything else).
+
+Example:
+
+```json
+{
+  "layout": {
+    "mode": "mermaid",
+    "mermaid": {
+      "renderOrder": {
+        "MermaidSubgraph": -10,
+        "MermaidNode": 0,
+        "edge": 10
+      }
+    }
+  }
+}
+```
 
 ## Codebase Integration
 

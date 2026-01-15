@@ -19,7 +19,6 @@ import {
   mapLines,
 } from './markdownPreviewLexUtils'
 import {
-  buildInlineTokens,
   buildInlineTokensWithText,
 } from './markdownPreviewLexInline'
 
@@ -115,11 +114,19 @@ export const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLin
       const map = open.map || [0, 0]
       const raw = srcLines.slice(map[0], map[1]).join('\n')
       let j = i + 1
-      while (j < mdTokens.length && mdTokens[j].type !== 'blockquote_close') j += 1
+      let balance = 1
+      while (j < mdTokens.length) {
+        if (mdTokens[j].type === 'blockquote_open') balance += 1
+        if (mdTokens[j].type === 'blockquote_close') balance -= 1
+        if (balance === 0) break
+        j += 1
+      }
+      const innerTokens = mdTokens.slice(i + 1, j)
+      const tokens = buildBlockTokens(innerTokens, lineOffset, srcLines)
       const bq: TokensBlockquote = {
         type: 'blockquote',
         raw,
-        tokens: [],
+        tokens,
       }
       out.push(Object.assign({}, bq, { startLine, endLine }) as TokenWithLines)
       i = j + 1
@@ -142,64 +149,72 @@ export const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLin
           j += 1
           continue
         }
-        const itemMap = cur.map || map
-        const itemLines = srcLines.slice(itemMap[0], itemMap[1])
-        const itemRaw = itemLines.join('\n')
+        
         let k = j + 1
-        let inlineTokens: Token[] = []
-        while (k < mdTokens.length && mdTokens[k].type !== 'list_item_close') {
-          const tk = mdTokens[k]
-          if (tk.type === 'paragraph_open') {
-            const inlineTok = mdTokens[k + 1]
-            if (inlineTok && inlineTok.type === 'inline') {
-              inlineTokens = buildInlineTokens(inlineTok.children)
-            }
-          }
+        let balance = 1
+        while (k < mdTokens.length) {
+          if (mdTokens[k].type === 'list_item_open') balance += 1
+          if (mdTokens[k].type === 'list_item_close') balance -= 1
+          if (balance === 0) break
           k += 1
         }
-        const firstText = inlineTokens.find(tt => (tt as { type?: string }).type === 'text') as
-          | TokensText
-          | undefined
+        
+        const itemTokensRaw = mdTokens.slice(j + 1, k)
+        const itemBlockTokens = buildBlockTokens(itemTokensRaw, lineOffset, srcLines)
+        
         let task = false
         let checked = false
-        if (firstText && typeof firstText.text === 'string') {
-          const m = firstText.text.match(/^\s*\[([ xX])]\s+(.*)$/)
-          if (m) {
-            task = true
-            checked = m[1].toLowerCase() === 'x'
-            firstText.text = m[2]
-            firstText.raw = firstText.text
-          }
+        
+        // Check for task list in the first paragraph
+        if (itemBlockTokens.length > 0 && itemBlockTokens[0].type === 'paragraph') {
+            const p = itemBlockTokens[0] as TokensParagraph
+            if (p.tokens && p.tokens.length > 0) {
+                const firstText = p.tokens.find(tt => (tt as { type?: string }).type === 'text') as TokensText | undefined
+                if (firstText && typeof firstText.text === 'string') {
+                    const m = firstText.text.match(/^\s*\[([ xX])]\s+(.*)$/)
+                    if (m) {
+                        task = true
+                        checked = m[1].toLowerCase() === 'x'
+                        firstText.text = m[2]
+                        firstText.raw = firstText.text
+                        // Update paragraph text as well to reflect stripped check
+                        p.text = p.tokens.map(tt => (tt as { text?: string }).text || '').join('')
+                        p.raw = p.text // Approximate raw update
+                    }
+                }
+            }
         }
-        const para: TokensParagraph & { startLine?: number; endLine?: number } = {
-          type: 'paragraph',
-          raw: itemRaw,
-          tokens: inlineTokens,
-          text: inlineTokens
-            .map(tt => (tt as { text?: string }).text || '')
-            .join(''),
-        }
-        if (itemMap) {
-          const itemStart = lineOffset + itemMap[0] + 1
-          const itemEnd = lineOffset + itemMap[1]
-          para.startLine = itemStart
-          para.endLine = itemEnd
-        }
+
         const listItem: ListItemToken = {
           task,
           checked,
-          tokens: [para as Token],
+          tokens: itemBlockTokens as Token[],
         }
         items.push(listItem)
         j = k + 1
       }
-        const list: TokensList = {
+      const list: TokensList = {
         type: 'list',
         raw,
         ordered,
         items,
       }
       out.push(Object.assign({}, list, { startLine, endLine }) as TokenWithLines)
+      // Skip until matching list close
+      // The inner loop handled items, so j is now at a non-item token.
+      // We expect it to be the list close token.
+      // But we need to handle the case where we might have nested lists that we didn't consume? 
+      // No, we consumed everything inside items.
+      // So j should be at list close.
+      // But we need to make sure we advance past the list close token of THIS list.
+      // The outer while loop condition `if (cur.type === ... close ...)` handles breaking.
+      // But we need to advance i to j + 1 after the loop.
+      // Wait, the loop breaks when j is AT the close token.
+      // So i should become j + 1.
+      
+      // However, we need to handle the case where there are nested lists that are NOT inside items? (Invalid MD)
+      // Or if the loop terminated because of end of tokens (shouldn't happen).
+      
       while (j < mdTokens.length && mdTokens[j].type !== 'bullet_list_close' && mdTokens[j].type !== 'ordered_list_close') {
         j += 1
       }

@@ -104,6 +104,13 @@ async function main() {
     const tag = r.ok ? 'OK' : 'FAIL'
     console.log(`${tag} ${r.name}${r.error ? ` — ${r.error}` : ''}`)
   })
+  const okCount = results.length - failed.length
+  console.log(`SUMMARY total=${results.length} ok=${okCount} failed=${failed.length}`)
+  if (failed.length > 0) {
+    failed.forEach(r => {
+      console.log(`FAIL ${r.name}${r.error ? ` — ${r.error}` : ''}`)
+    })
+  }
   try {
     const rootDir = path.resolve(process.cwd(), '..')
     const logDir = path.join(rootDir, 'data', 'outputs')

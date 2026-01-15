@@ -223,17 +223,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const nodeGroups = buildNodeGroupsFromSchema(graphData, schema)
 
-  const { hullSel: graphLayersHullSel, centroidSel: graphLayerCentroidSel, labelSel: graphLayerLabelSel } = createGraphLayersLayer({
-    g,
-    nodeGroups,
-    graphData,
-    schema,
-    graphLayersVisible,
-    hoverEnabled,
-    setHoverInfo,
-    simulation,
-  })
-
   const nodeIds = new Set<string>()
   for (let i = 0; i < graphData.nodes.length; i += 1) {
     nodeIds.add(String(graphData.nodes[i].id))
@@ -279,6 +268,18 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })()
 
   const edgesForDisplay = edgesForDisplayRaw
+
+  const { hullSel: graphLayersHullSel, centroidSel: graphLayerCentroidSel, labelSel: graphLayerLabelSel } =
+    createGraphLayersLayer({
+      g,
+      nodeGroups,
+      graphData,
+      schema,
+      graphLayersVisible,
+      hoverEnabled,
+      setHoverInfo,
+      simulation,
+    })
 
   const linkSel = createLinksLayer({
     g,

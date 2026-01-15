@@ -8,6 +8,7 @@ To further optimize performance in dual-mode editors (Markdown Viewer + Presenta
 
 - **Shared Lexing**: Markdown text is lexed once, and the resulting tokens are stored in the global store (e.g., Zustand).
 - **Consumption**: Both the Markdown Viewer and Presentation Mode consume these pre-calculated tokens instead of re-lexing the text.
+- **Presentation Mode Optimization**: The Presentation view (including "Two Column" layouts) reuses the full document's lexed tokens (`fullDocTokens`) by filtering them based on slide line ranges. This eliminates redundant lexing during slide transitions and preview generation.
 - **Cache Invalidation**: The token cache is invalidated only when the source markdown text changes.
 - **Semantic Rendering**: The renderer uses semantic HTML (`article`, `section`, `nav`, `figure`) to reduce DOM complexity and improve accessibility, which also contributes to better rendering performance.
 

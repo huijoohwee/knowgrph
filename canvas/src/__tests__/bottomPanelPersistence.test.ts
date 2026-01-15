@@ -242,7 +242,6 @@ export function testGraphFieldsSyncOnEdgePropertiesEditViaTableUi() {
     bodyCellBaseClassName: '',
     textInputClassName: '',
     monoTextInputClassName: '',
-    textareaClassName: '',
     uiPanelMonospaceTextClass: '',
     activeNode: undefined,
     activeEdge: edge,
@@ -252,19 +251,18 @@ export function testGraphFieldsSyncOnEdgePropertiesEditViaTableUi() {
     },
     freezeFirstDataColumn: 'none',
     showFrozenResizeHandle: false,
+    fieldSettingsByColumnKey: new Map(),
   }) as unknown as { props?: { children?: unknown } }
 
-  const textareaEl = tdEl?.props?.children as unknown as { type?: unknown; props?: { onBlur?: unknown } }
-  if (!textareaEl || textareaEl.type !== 'textarea') {
-    throw new Error('Expected BodyCell(properties) to render a textarea when active')
-  }
-  const onBlur = textareaEl.props?.onBlur as unknown as ((event: { target: { value: string } }) => void) | undefined
-  if (typeof onBlur !== 'function') {
-    throw new Error('Expected BodyCell(properties) textarea to have onBlur handler')
+  const cellEditorEl = tdEl?.props?.children as unknown as { props?: { onSave?: unknown } } | undefined
+  const onSave = cellEditorEl?.props?.onSave as unknown as
+    | ((val: { [key: string]: unknown }) => void)
+    | undefined
+  if (typeof onSave !== 'function') {
+    throw new Error('Expected BodyCell(properties) to render an editable JSON cell when active')
   }
 
-  const edited = JSON.stringify({ weight: 1, strength: 3 }, null, 2)
-  onBlur({ target: { value: edited } })
+  onSave({ weight: 1, strength: 3 })
 
   const after = useGraphStore.getState()
   if (!after.graphData) {

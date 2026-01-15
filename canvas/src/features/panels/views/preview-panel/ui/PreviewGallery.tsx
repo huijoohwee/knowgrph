@@ -150,6 +150,13 @@ export default function PreviewGallery({
           <li
             className={`h-6 flex items-center justify-center ${UI_COLOR_PRIMARY_BLUE_BG} border-y-2 cursor-move transition-colors rounded`}
             style={{ borderColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+            onDragEnter={(e) => {
+              e.preventDefault()
+              const dt = e.dataTransfer
+              if (dt) dt.dropEffect = 'move'
+              const first = items[0]
+              setDragOverId(first.id)
+            }}
             onDragOver={(e) => {
               e.preventDefault()
               const dt = e.dataTransfer
@@ -203,6 +210,12 @@ export default function PreviewGallery({
                 <div
                   className="absolute left-0 right-0 -top-2 h-5 flex items-center justify-center bg-blue-50 border-t-2 cursor-move transition-colors"
                   style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+                  onDragEnter={(e) => {
+                    e.preventDefault()
+                    const dt = e.dataTransfer
+                    if (dt) dt.dropEffect = 'move'
+                    setDragOverId(it.id)
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault()
                     const dt = e.dataTransfer
@@ -236,6 +249,12 @@ export default function PreviewGallery({
                 <div
                   className="absolute left-0 right-0 -bottom-2 h-5 flex items-center justify-center bg-blue-50 border-b-2 cursor-move transition-colors"
                   style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+                  onDragEnter={(e) => {
+                    e.preventDefault()
+                    const dt = e.dataTransfer
+                    if (dt) dt.dropEffect = 'move'
+                    setDragOverId(it.id)
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault()
                     const dt = e.dataTransfer
@@ -372,6 +391,12 @@ export default function PreviewGallery({
                   }
                 }}
                 onDragOver={(e) => {
+                  e.preventDefault()
+                  const dt = e.dataTransfer
+                  if (dt) dt.dropEffect = 'move'
+                  setDragOverId(it.id)
+                }}
+                onDragEnter={(e) => {
                   e.preventDefault()
                   const dt = e.dataTransfer
                   if (dt) dt.dropEffect = 'move'

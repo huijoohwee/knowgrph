@@ -32,6 +32,19 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
       anyGlobal.requestAnimationFrame = anyWindow.requestAnimationFrame
     }
 
+    Object.defineProperty(dom.window.HTMLTextAreaElement.prototype, 'scrollHeight', {
+      get() {
+        return 1000
+      },
+      configurable: true,
+    })
+    Object.defineProperty(dom.window.HTMLTextAreaElement.prototype, 'clientHeight', {
+      get() {
+        return 100
+      },
+      configurable: true,
+    })
+
     const container = doc.createElement('div')
     container.id = 'root'
     doc.body.appendChild(container)
@@ -91,6 +104,15 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
     if (!textarea) {
       throw new Error('editor textarea not found')
     }
+
+    Object.defineProperty(textarea, 'scrollHeight', {
+      value: 1000,
+      configurable: true,
+    })
+    Object.defineProperty(textarea, 'clientHeight', {
+      value: 100,
+      configurable: true,
+    })
 
     await tick()
     await tick()

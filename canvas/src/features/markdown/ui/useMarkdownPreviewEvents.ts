@@ -35,7 +35,11 @@ export function useMarkdownPreviewEvents({
       // Don't show if simple click (handled by click handlers)
       // But we need to check selection
       const sel = typeof window !== 'undefined' ? window.getSelection() : null
-      if (sel && !sel.isCollapsed && sel.toString().trim().length > 0 && rootElRef.current) {
+      const selectionText =
+        sel && !sel.isCollapsed && sel.anchorNode && typeof sel.toString === 'function'
+          ? sel.toString()
+          : ''
+      if (selectionText.trim().length > 0 && rootElRef.current) {
         // Find line range for the selection
         // We use the anchorNode of selection
         let target = sel.anchorNode
@@ -119,7 +123,11 @@ export function useMarkdownPreviewEvents({
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     
     // If there is a selection, show the Selection Toolbar on context menu instead of the simple context menu
-    if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
+    const selectionText =
+      sel && !sel.isCollapsed && sel.anchorNode && typeof sel.toString === 'function'
+        ? sel.toString()
+        : ''
+    if (selectionText.trim().length > 0) {
       e.preventDefault()
       const rect = rootEl.getBoundingClientRect()
       const x = e.clientX - rect.left
@@ -137,10 +145,10 @@ export function useMarkdownPreviewEvents({
           y,
           startLine: range.startLine,
           endLine: range.endLine,
-          text: sel.toString()
+          text: selectionText
         })
+        return
       }
-      return
     }
 
     const range = findLineRangeFromTarget(rootEl, e.target)

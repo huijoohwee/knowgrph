@@ -13,7 +13,7 @@ import { buildMarkdownJsonLd } from '@/features/parsers/default'
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
-import { applyGraphLayerCentroidDelta, buildNodeGroupsFromSchema, createGraphLayersLayer } from '@/components/GraphCanvas/graphLayers'
+import { applyGraphLayerCentroidDelta, buildNodeGroupsFromSchema, computeGraphLayerHullGeometry, createGraphLayersLayer, type NodeGroup } from '@/components/GraphCanvas/graphLayers'
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import { applyMermaidLayout } from '@/components/GraphCanvas/layout/mermaid'
 import { createNodesLayer } from '@/components/GraphCanvas/sceneLayers'
@@ -547,5 +547,72 @@ export async function testGraphLayerCentroidDragMovesMemberNodes() {
     }
   } finally {
     restoreDom()
+  }
+}
+
+export async function testMermaidSubgraphHullTracksMemberNodesNotOwnerNode() {
+  const nodes: GraphNode[] = [
+    {
+      id: 'sg',
+      type: 'MermaidSubgraph',
+      label: 'S',
+      properties: {
+        subgraphName: 'S',
+        'visual:width': 200,
+        'visual:height': 100,
+      },
+      x: 1000,
+      y: 1000,
+    } as GraphNode,
+    {
+      id: 'n1',
+      type: 'MermaidNode',
+      label: 'N1',
+      properties: { mermaidSubgraphName: 'S', 'visual:width': 40, 'visual:height': 20 },
+      x: 0,
+      y: 0,
+    } as GraphNode,
+    {
+      id: 'n2',
+      type: 'MermaidNode',
+      label: 'N2',
+      properties: { mermaidSubgraphName: 'S', 'visual:width': 40, 'visual:height': 20 },
+      x: 100,
+      y: 0,
+    } as GraphNode,
+  ]
+
+  const nodeById = new Map<string, GraphNode>()
+  for (let i = 0; i < nodes.length; i += 1) nodeById.set(String(nodes[i].id), nodes[i])
+
+  const group: NodeGroup = {
+    id: 'g:S',
+    memberIds: ['n1', 'n2'],
+    meta: {
+      ownerType: 'MermaidSubgraph',
+      ownerId: 'sg',
+      groupValue: 'S',
+      groupBy: 'property',
+      propertyKey: 'mermaidSubgraphName',
+    },
+  }
+
+  const schema: GraphSchema = { ...defaultSchema, layout: { ...(defaultSchema.layout || {}), mode: 'mermaid' } }
+
+  const geom1 = computeGraphLayerHullGeometry({ group, nodeById, schema })
+  if (!geom1) throw new Error('expected mermaid subgraph hull geometry to be computed')
+  if (!Number.isFinite(geom1.cx) || !Number.isFinite(geom1.cy)) throw new Error('expected hull geometry centroid to be finite')
+  if (Math.abs(geom1.cx - 50) > 200 || Math.abs(geom1.cy - 0) > 200) {
+    throw new Error('expected mermaid subgraph hull to track member nodes, not owner node position')
+  }
+
+  const n1 = nodeById.get('n1') as GraphNode
+  n1.x = 300
+  n1.y = 0
+
+  const geom2 = computeGraphLayerHullGeometry({ group, nodeById, schema })
+  if (!geom2) throw new Error('expected mermaid subgraph hull geometry after member move')
+  if (!(geom2.cx > geom1.cx)) {
+    throw new Error('expected hull centroid to shift when a member node moves')
   }
 }

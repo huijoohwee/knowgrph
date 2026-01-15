@@ -4,6 +4,10 @@
 - **Light Mode**: Uses `text-gray-600` and `bg-gray-100` hover states, with `bg-white` panels.
 - **Dark Mode**: Uses `text-gray-300` and `bg-gray-800` hover states, with `bg-[#0d1117]` panels.
 - **Code Blocks**: Use a semantic structure (`figure` > `header` > `pre`/`code`) with GitHub-like syntax highlighting (Light: GitHub Light, Dark: GitHub Dark). The header includes a language label, Beside/Inline view toggle buttons (`name="annotate-display"`, `value="beside" | "inline"`, `aria-current="true"` on the active option), and a Copy button that writes code to the clipboard. Layout mode is stored in component state and reflected via `data-annotate-display` so the same lexed tokens are reused when toggling between views without re-rendering the markdown source.
+- **Semantic HTML**: The application enforces semantic HTML usage to improve accessibility and structure.
+  - **Toolbar**: Wrapped in `<nav>` with `role="navigation"`.
+  - **Panels**: Use `<section>`, `<header>`, `<article>`, and `<footer>` instead of generic `div`s where appropriate (e.g., Preview Panel, Graph Layers).
+  - **Status Bar**: Uses `<footer>`.
 - **Consistency**: All icon buttons (`IconButton`), panels, tables, inputs, floating panel buttons, and code blocks use shared theme tokens defined in `UI_THEME_TOKENS` to ensure global consistency. Hardcoded styles (e.g., `text-gray-*`, `bg-blue-*`) are strictly forbidden in favor of semantic tokens.
 - **Typography**: Panel headers, TOC headings, and micro-labels use `uiPanelMicroLabelTextSizeClass` (defaulting to 10px) to ensure consistent scale across Floating Panels, Table of Contents, and Settings headers, distinct from the standard `uiPanelKeyValueTextSizeClass` used for data rows.
 - **Configuration**: Users can switch themes (Light/Dark/System) via the "UI Appearance" section in Settings.

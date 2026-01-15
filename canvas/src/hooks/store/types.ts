@@ -13,6 +13,7 @@ import type {
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex';
+import type { MarkdownFrontmatter } from '@/lib/markdown'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -200,12 +201,20 @@ export interface GraphState {
   markdownTokens: TokenWithLines[] | null;
   markdownTokensPath: string | null;
   markdownTokensKey: string | null;
+  markdownTokensMeta: MarkdownFrontmatter | null;
+  markdownTokensStartLineOffset: number | null;
   markdownDocumentSourceUrl: string | null;
   jsonSourceDocumentText: string | null;
   markdownPreviewMermaidFocusCode: string | null;
   markdownPreviewMermaidFocusConfig: Record<string, unknown> | null;
   markdownPreviewActiveMediaKey: string | null;
-  setMarkdownTokens: (tokens: TokenWithLines[] | null, path?: string | null, key?: string | null) => void;
+  setMarkdownTokens: (args: {
+    tokens: TokenWithLines[] | null
+    path?: string | null
+    key?: string | null
+    meta?: MarkdownFrontmatter | null
+    startLineOffset?: number | null
+  }) => void;
   setUiIconScale: (scale: 'compact' | 'default') => void;
   setUiOverlayOpacity: (v: number) => void;
   setUiPanelOpacity: (v: number) => void;

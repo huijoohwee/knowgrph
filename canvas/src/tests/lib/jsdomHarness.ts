@@ -18,6 +18,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   const originalDocument = (g as { document?: unknown }).document as Document | undefined
   const originalNode = (g as { Node?: typeof Node }).Node
   const originalElement = (g as { Element?: typeof Element }).Element
+  const originalNodeFilter = (g as { NodeFilter?: typeof NodeFilter }).NodeFilter
   const originalDomParser = (g as { DOMParser?: typeof DOMParser }).DOMParser
   const originalHtmlIFrameElement = (g as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement
   const originalResizeObserver = (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
@@ -28,6 +29,29 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   ;(g as { document: Document }).document = dom.window.document as unknown as Document
   ;(g as { Node: typeof Node }).Node = dom.window.Node as unknown as typeof Node
   ;(g as { Element: typeof Element }).Element = dom.window.Element as unknown as typeof Element
+  const nodeFilter = (dom.window as unknown as { NodeFilter?: typeof NodeFilter }).NodeFilter
+  const polyfillNodeFilter = (nodeFilter ||
+    ({
+      FILTER_ACCEPT: 1,
+      FILTER_REJECT: 2,
+      FILTER_SKIP: 3,
+      SHOW_ALL: -1,
+      SHOW_ELEMENT: 1,
+      SHOW_ATTRIBUTE: 2,
+      SHOW_TEXT: 4,
+      SHOW_CDATA_SECTION: 8,
+      SHOW_ENTITY_REFERENCE: 16,
+      SHOW_ENTITY: 32,
+      SHOW_PROCESSING_INSTRUCTION: 64,
+      SHOW_COMMENT: 128,
+      SHOW_DOCUMENT: 256,
+      SHOW_DOCUMENT_TYPE: 512,
+      SHOW_DOCUMENT_FRAGMENT: 1024,
+      SHOW_NOTATION: 2048,
+    } as unknown as typeof NodeFilter))
+
+  ;(g as { NodeFilter: typeof NodeFilter }).NodeFilter = polyfillNodeFilter
+  ;(dom.window as unknown as { NodeFilter: typeof NodeFilter }).NodeFilter = polyfillNodeFilter
   ;(g as { DOMParser: typeof DOMParser }).DOMParser = dom.window.DOMParser as unknown as typeof DOMParser
 
   try {
@@ -93,6 +117,12 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       delete (g as { Element?: typeof Element }).Element
     } else {
       ;(g as { Element: typeof Element }).Element = originalElement as typeof Element
+    }
+
+    if (typeof originalNodeFilter === 'undefined') {
+      delete (g as { NodeFilter?: typeof NodeFilter }).NodeFilter
+    } else {
+      ;(g as { NodeFilter: typeof NodeFilter }).NodeFilter = originalNodeFilter as typeof NodeFilter
     }
 
     if (typeof originalDomParser === 'undefined') {

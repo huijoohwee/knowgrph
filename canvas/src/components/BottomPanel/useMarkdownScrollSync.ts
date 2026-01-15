@@ -306,23 +306,35 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
   }, [lineHeightPx, editorLineCountRef, viewerRef, editorTextAreaRef, gutterLayerRef, visibleLineRangeRef, dragStateRef])
 
   React.useEffect(() => {
-    const handle = editorTextAreaRef.current
-    if (!handle) return
-    
-    // Initial sync/resize check
-    syncViewerFromEditor()
-    
-    const scrollSub = handle.onDidScrollChange(() => syncViewerFromEditor())
-    const layoutSub = handle.onDidLayoutChange(() => syncViewerFromEditor())
-    
+    const rafFn = getRaf()
+    const cancelRafFn = getCancelRaf()
+    let readyRafId: number | null = null
+    let scrollSub: { dispose: () => void } | null = null
+    let layoutSub: { dispose: () => void } | null = null
+
     const onWindowResize = () => syncViewerFromEditor()
     window.addEventListener('resize', onWindowResize)
+
+    const attach = () => {
+      const handle = editorTextAreaRef.current
+      if (!handle) {
+        readyRafId = rafFn(() => attach())
+        return
+      }
+
+      syncViewerFromEditor()
+      scrollSub = handle.onDidScrollChange(() => syncViewerFromEditor())
+      layoutSub = handle.onDidLayoutChange(() => syncViewerFromEditor())
+    }
+
+    attach()
+
     return () => {
-      const cancelRafFn = getCancelRaf()
+      if (readyRafId != null) cancelRafFn(readyRafId)
       if (editorSyncRafRef.current) cancelRafFn(editorSyncRafRef.current)
       if (editorClearSyncRafRef.current) cancelRafFn(editorClearSyncRafRef.current)
-      scrollSub.dispose()
-      layoutSub.dispose()
+      if (scrollSub) scrollSub.dispose()
+      if (layoutSub) layoutSub.dispose()
       window.removeEventListener('resize', onWindowResize)
     }
   }, [editorTextAreaRef, syncViewerFromEditor])

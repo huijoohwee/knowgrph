@@ -4,7 +4,13 @@ import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation';
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
-import { getNodeBaseFill, getNodeMediaSpec, getRenderNodeRadius2d, hasNodeMedia } from '@/components/GraphCanvas/helpers';
+import {
+  compareMermaidNodesForRender,
+  getNodeBaseFill,
+  getNodeMediaSpec,
+  getRenderNodeRadius2d,
+  hasNodeMedia,
+} from '@/components/GraphCanvas/helpers';
 import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
 import { type TreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers';
 import { applyMediaProxySrc } from '@/lib/url';
@@ -105,38 +111,32 @@ export const createNodesLayer = (args: {
     const base = (() => {
       if (!hiddenTypeSet) return rawNodes;
       const filtered = rawNodes.filter(n => {
-        const t = String(n.type || '')
-        if (!graphLayersVisible && t === 'MermaidSubgraph') return true
-        return !hiddenTypeSet.has(t)
+        const t = String(n.type || '');
+        if (isMermaid && !graphLayersVisible && t === 'MermaidSubgraph') return true;
+        return !hiddenTypeSet.has(t);
       });
       return filtered.length > 0 ? filtered : rawNodes;
     })();
-    if (isMermaid) {
-      if (!graphLayersVisible) return base
-      const filtered = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
-      return filtered.length > 0 ? filtered : base;
-    }
     if (!graphLayersVisible) return base;
-    const filteredForLayers = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
-    return filteredForLayers.length > 0 ? filteredForLayers : base;
+    const filtered = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
+    return filtered.length > 0 ? filtered : base;
   })();
   const getNodeShape = (n: GraphNode): 'circle' | 'rect' => {
-    // If Tree layout is active, force rect shape for all nodes or specifically Mermaid nodes
-    const type = String(n.type || '')
-    if (type === 'MermaidNode' || type === 'MermaidSubgraph') return 'rect'
-    if (isTree || isMermaid) return 'rect'
+    const type = String(n.type || '');
+    if (type === 'MermaidNode' || type === 'MermaidSubgraph') return 'rect';
+    if (isTree || isMermaid) return 'rect';
 
-    const fromSchema = schema.nodeShapes?.[String(n.type || '')]
-    if (fromSchema === 'rect') return 'rect'
-    if (fromSchema === 'circle') return 'circle'
-    const raw = (n.properties || {})['visual:shape']
-    const v = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
-    return v === 'rect' ? 'rect' : 'circle'
-  }
-  const rectNodeIdSet = new Set<string>()
+    const fromSchema = schema.nodeShapes?.[String(n.type || '')];
+    if (fromSchema === 'rect') return 'rect';
+    if (fromSchema === 'circle') return 'circle';
+    const raw = (n.properties || {})['visual:shape'];
+    const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+    return v === 'rect' ? 'rect' : 'circle';
+  };
+  const rectNodeIdSet = new Set<string>();
   for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    if (getNodeShape(n) === 'rect') rectNodeIdSet.add(String(n.id))
+    const n = nodes[i];
+    if (getNodeShape(n) === 'rect') rectNodeIdSet.add(String(n.id));
   }
   const mediaByNodeId = new Map<string, ReturnType<typeof getNodeMediaSpec>>();
   if (renderMediaAsNodes) {
@@ -328,7 +328,6 @@ export const createNodesLayer = (args: {
   const rectNodes = nodes.filter(n => {
     if (renderMediaAsNodes && hasNodeMedia(n)) return false;
     
-    // Always force MermaidNode to be rect
     if (String(n.type || '') === 'MermaidNode') return true;
 
     if (isMermaid) {
@@ -340,12 +339,15 @@ export const createNodesLayer = (args: {
   const circleNodes = nodes.filter(n => {
     if (renderMediaAsNodes && hasNodeMedia(n)) return false;
     
-    // MermaidNode is always rect
     if (String(n.type || '') === 'MermaidNode') return false;
 
     if (isMermaid) return false;
     return !rectNodeIdSet.has(String(n.id));
   });
+  if (isMermaid) {
+    rectNodes.sort((a, b) => compareMermaidNodesForRender(a, b, schema));
+    circleNodes.sort((a, b) => compareMermaidNodesForRender(a, b, schema));
+  }
 
   nodeLayer
     .selectAll('circle')

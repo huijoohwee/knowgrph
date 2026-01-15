@@ -48,20 +48,6 @@ export function useZoomEffects({
   requestZoom,
 }: UseZoomEffectsProps) {
   const lastFitDepsRef = useRef<{ nodesCount: number; width: number; height: number; layoutMode?: string; layerMode?: string } | null>(null);
-  const lastModeRef = useRef<string | null>(null);
-
-  // Effect 0: Handle Layout/Layer Mode changes (Always Fit to ensure "well spreadout, center")
-  useEffect(() => {
-    const layoutMode = schema.layout?.mode || 'force';
-    const layerMode = schema.layers?.mode || 'property';
-    const currentModeKey = `${layoutMode}:${layerMode}`;
-
-    // On mode switch, always trigger fit to screen to prevent chaotic views
-    if (lastModeRef.current !== null && lastModeRef.current !== currentModeKey) {
-      requestZoom('fit');
-    }
-    lastModeRef.current = currentModeKey;
-  }, [schema.layout?.mode, schema.layers?.mode, requestZoom]);
 
   // Effect 1: Handle fitToScreenMode
   useEffect(() => {

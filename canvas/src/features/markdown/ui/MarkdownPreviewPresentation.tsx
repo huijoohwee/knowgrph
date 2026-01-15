@@ -194,6 +194,14 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     if (!hasSlides) return null
     const currentSlide = slides[safeActiveSlideId]
     if (!currentSlide) return null
+
+    // Optimization: Use shared tokens if available
+    if (props.fullDocTokens) {
+      const start = currentSlide.startLine
+      const end = currentSlide.endLine
+      return props.fullDocTokens.filter(t => t.startLine >= start && t.endLine <= end)
+    }
+
     const { text, body } = getSlideTextBodyAndNotes(currentSlide)
     if (!body) return null
     const out = lexMarkdownContent(
@@ -201,7 +209,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
       Math.max(0, (currentSlide.startLine || 1) - 1),
     )
     return out.tokens
-  }, [hasSlides, safeActiveSlideId, slides])
+  }, [hasSlides, safeActiveSlideId, slides, props.fullDocTokens])
 
   const twoColumnTokens = React.useMemo(() => {
     if (!hasSlides) return null
@@ -210,8 +218,9 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     return buildTwoColumnTokens({
       slide: currentSlide as never,
       headMeta,
+      fullDocTokens: props.fullDocTokens,
     }) as { left: TokenWithLines[]; right: TokenWithLines[] } | null
-  }, [hasSlides, headMeta, safeActiveSlideId, slides])
+  }, [hasSlides, headMeta, safeActiveSlideId, slides, props.fullDocTokens])
 
   const slideBody = React.useMemo(
     () =>
@@ -401,6 +410,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
         rootThemeMode,
         previewOverlayScope,
         previewOverlayPortalTarget,
+        fullDocTokens: props.fullDocTokens,
       }),
     [
       slides,
@@ -412,6 +422,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
       rootThemeMode,
       previewOverlayScope,
       previewOverlayPortalTarget,
+      props.fullDocTokens,
     ],
   )
 

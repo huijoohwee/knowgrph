@@ -107,6 +107,26 @@ export const applyMermaidLayout = (
   for (let i = 0; i < validNodes.length; i += 1) nodeById.set(String(validNodes[i].id), validNodes[i])
   for (let i = 0; i < subgraphNodes.length; i += 1) nodeById.set(String(subgraphNodes[i].id), subgraphNodes[i])
 
+  const getMermaidParentName = (n: GraphNode): string => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return String(props.mermaidSubgraphName || '').trim()
+  }
+  const getMermaidSubgraphName = (n: GraphNode): string => {
+    return String(n.properties?.subgraphName || n.label || '').trim()
+  }
+  validNodes.sort((a, b) => {
+    const pa = getMermaidParentName(a)
+    const pb = getMermaidParentName(b)
+    if (pa !== pb) return pa.localeCompare(pb)
+    return String(a.id).localeCompare(String(b.id))
+  })
+  subgraphNodes.sort((a, b) => {
+    const na = getMermaidSubgraphName(a)
+    const nb = getMermaidSubgraphName(b)
+    if (na !== nb) return na.localeCompare(nb)
+    return String(a.id).localeCompare(String(b.id))
+  })
+
   const mermaidConfig = schema.layout?.mermaid || {}
   const orientation = mermaidConfig?.orientation || 'vertical'
   const direction = mermaidConfig?.direction || 'source-target'
@@ -144,7 +164,7 @@ export const applyMermaidLayout = (
   const maxNodeWidth = (() => {
     const raw = mermaidConfig?.maxNodeWidth
     if (typeof raw === 'number' && Number.isFinite(raw) && raw > 80) return raw
-    return 260
+    return 320
   })()
   const maxCharsPerLine = Math.max(4, Math.floor((maxNodeWidth - labelPaddingX) / Math.max(1, labelCharWidth)))
 
@@ -152,17 +172,17 @@ export const applyMermaidLayout = (
   if (orientation === 'vertical') rankdir = direction === 'target-source' ? 'BT' : 'TB'
   else rankdir = direction === 'target-source' ? 'RL' : 'LR'
 
-  const separation = typeof mermaidConfig?.separation === 'number' ? mermaidConfig.separation : 1.0
-  const nodeSep = 50 * separation
-  const rankSep = 50 * separation
+  const separation = typeof mermaidConfig?.separation === 'number' ? mermaidConfig.separation : 1.2
+  const nodeSep = 60 * separation
+  const rankSep = 70 * separation
 
   const g = new dagre.graphlib.Graph({ multigraph: false, compound: true })
   g.setGraph({
     rankdir,
     nodesep: nodeSep,
     ranksep: rankSep,
-    marginx: 40,
-    marginy: 40,
+    marginx: 80,
+    marginy: 80,
     ranker: 'network-simplex',
   })
   g.setDefaultEdgeLabel(() => ({}))
@@ -224,8 +244,17 @@ export const applyMermaidLayout = (
   }
 
   const edgeByEndpoints = new Map<string, GraphEdge>()
-  for (let i = 0; i < edges.length; i += 1) {
-    const edge = edges[i]
+  const orderedEdges = [...edges].sort((a, b) => {
+    const as = getEndpointId(a.source as unknown)
+    const at = getEndpointId(a.target as unknown)
+    const bs = getEndpointId(b.source as unknown)
+    const bt = getEndpointId(b.target as unknown)
+    const ka = `${as}->${at}`
+    const kb = `${bs}->${bt}`
+    return ka.localeCompare(kb)
+  })
+  for (let i = 0; i < orderedEdges.length; i += 1) {
+    const edge = orderedEdges[i]
     const source = getEndpointId(edge.source as unknown)
     const target = getEndpointId(edge.target as unknown)
     if (!source || !target) continue

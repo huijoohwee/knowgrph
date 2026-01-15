@@ -24,6 +24,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   markdownTokens: null as import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null,
   markdownTokensPath: null as string | null,
   markdownTokensKey: null as string | null,
+  markdownTokensMeta: null as import('@/lib/markdown').MarkdownFrontmatter | null,
+  markdownTokensStartLineOffset: null as number | null,
   markdownDocumentSourceUrl: null as string | null,
   jsonSourceDocumentText: null as string | null,
   markdownPreviewMermaidFocusCode: null as string | null,
@@ -49,15 +51,25 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       markdownTokens: null, // Invalidate tokens
       markdownTokensPath: null,
       markdownTokensKey: null,
+      markdownTokensMeta: null,
+      markdownTokensStartLineOffset: null,
     })
   },
 
-  setMarkdownTokens: (
-    tokens: import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null,
-    path?: string | null,
-    key?: string | null,
-  ) => {
-    set({ markdownTokens: tokens, markdownTokensPath: path ?? null, markdownTokensKey: key ?? null })
+  setMarkdownTokens: (args: {
+    tokens: import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null
+    path?: string | null
+    key?: string | null
+    meta?: import('@/lib/markdown').MarkdownFrontmatter | null
+    startLineOffset?: number | null
+  }) => {
+    set({
+      markdownTokens: args.tokens,
+      markdownTokensPath: args.path ?? null,
+      markdownTokensKey: args.key ?? null,
+      markdownTokensMeta: args.meta ?? null,
+      markdownTokensStartLineOffset: args.startLineOffset ?? null,
+    })
   },
 
   setJsonSourceDocument: (name: string | null, text: string | null) => {

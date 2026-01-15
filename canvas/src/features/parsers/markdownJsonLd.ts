@@ -57,7 +57,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const docId = `doc:${gid}`
   const builder = new MarkdownGraphBuilder({ gid, docId, sourceUrl, mkMeta })
   
-  const mermaidTreeLayout: {
+  let mermaidTreeLayout: {
     orientation?: 'vertical' | 'horizontal'
     direction?: 'source-target' | 'target-source'
   } | null = null
@@ -77,6 +77,21 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       : false
 
   if (mermaidCode) {
+    const firstLine = mermaidCode.split('\n')[0]?.trim() || ''
+    if (firstLine.startsWith('graph ') || firstLine.startsWith('flowchart ')) {
+      const parts = firstLine.split(/\s+/)
+      const dir = parts[1]?.toUpperCase()
+      if (dir === 'TD' || dir === 'TB' || dir === 'DT') {
+        mermaidTreeLayout = { orientation: 'vertical', direction: 'source-target' }
+      } else if (dir === 'BT') {
+        mermaidTreeLayout = { orientation: 'vertical', direction: 'target-source' }
+      } else if (dir === 'LR') {
+        mermaidTreeLayout = { orientation: 'horizontal', direction: 'source-target' }
+      } else if (dir === 'RL') {
+        mermaidTreeLayout = { orientation: 'horizontal', direction: 'target-source' }
+      }
+    }
+
     const mermaidId = `mermaid:${gid}:frontmatter`
     builder.createMermaidNode(mermaidId, mermaidCode, mkMeta(1, Math.max(1, startIndex - 1)))
 

@@ -88,6 +88,25 @@ mermaid: |
 - `theme`: Theme style (e.g., `default`, `academic`)
 - `mermaid`: Global mermaid diagram definition (string)
 
+### Mermaid Render Ordering (schema-driven)
+
+Mermaid syntax does not specify z-order rules beyond draw order. For deterministic layering in the Canvas Mermaid layout, configure renderer ordering in the graph schema (not inside the Mermaid diagram text).
+
+```json
+{
+  "layout": {
+    "mode": "mermaid",
+    "mermaid": {
+      "renderOrder": {
+        "MermaidSubgraph": -10,
+        "MermaidNode": 0,
+        "edge": 10
+      }
+    }
+  }
+}
+```
+
 **Effect**: When these keys are present, a persistent footer is rendered on slides (except `cover` and `intro` layouts).
 - **Default Theme**: Meeting/Venue/Institution/Date (Left), Authors/URL (Right), Page Numbers (Right).
 - **Academic Theme** (`theme: academic`): Meeting + Authors (Left), Institution/Venue + Page X / Y (Right). (`neversink` is accepted as a legacy alias.)

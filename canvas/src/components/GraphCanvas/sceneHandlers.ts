@@ -172,6 +172,74 @@ export const attachSimulationTick = (args: {
         .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.y ?? 0)
     }
 
+    if (isMermaid) {
+      const subgraphByName = new Map<string, GraphNode>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        if (String(n.type || '') !== 'MermaidSubgraph') continue
+        const props = (n.properties || {}) as Record<string, unknown>
+        const name = String(props.subgraphName || props.nodeName || n.label || '').trim()
+        if (!name) continue
+        subgraphByName.set(name, n)
+      }
+      if (subgraphByName.size > 0) {
+        const padding = 24
+        const boundsByName = new Map<string, { minX: number; minY: number; maxX: number; maxY: number; valid: boolean }>()
+        for (const name of subgraphByName.keys()) {
+          boundsByName.set(name, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, valid: false })
+        }
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]
+          const props = (n.properties || {}) as Record<string, unknown>
+          const parent = String(props.mermaidSubgraphName || '').trim()
+          if (!parent) continue
+          const b = boundsByName.get(parent)
+          if (!b) continue
+          if (subgraphByName.get(parent) === n) continue
+
+          const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+          const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+          if (x == null || y == null) continue
+
+          const vw = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
+          const vh =
+            typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
+          const r = getRenderNodeRadius2d(n, schema)
+          const halfW = vw != null ? vw / 2 : Math.max(1, r)
+          const halfH = vh != null ? vh / 2 : Math.max(1, r)
+
+          const minX = x - halfW - padding
+          const maxX = x + halfW + padding
+          const minY = y - halfH - padding
+          const maxY = y + halfH + padding
+          if (minX < b.minX) b.minX = minX
+          if (maxX > b.maxX) b.maxX = maxX
+          if (minY < b.minY) b.minY = minY
+          if (maxY > b.maxY) b.maxY = maxY
+          b.valid = true
+        }
+        for (const [name, b] of boundsByName.entries()) {
+          if (!b.valid) continue
+          const subgraph = subgraphByName.get(name)
+          if (!subgraph) continue
+          const w = b.maxX - b.minX
+          const h = b.maxY - b.minY
+          if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) continue
+          const cx = b.minX + w / 2
+          const cy = b.minY + h / 2
+          if (!subgraph.properties) subgraph.properties = {}
+          subgraph.properties['visual:width'] = w
+          subgraph.properties['visual:height'] = h
+          subgraph.properties['visual:x'] = cx
+          subgraph.properties['visual:y'] = cy
+          subgraph.x = cx
+          subgraph.y = cy
+          subgraph.fx = cx
+          subgraph.fy = cy
+        }
+      }
+    }
+
     nodeSel
       .attr('cx', (d: GraphNode) => d.x!)
       .attr('cy', (d: GraphNode) => d.y!)

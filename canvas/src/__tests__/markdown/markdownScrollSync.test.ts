@@ -29,6 +29,7 @@ export async function testMarkdownScrollSyncViewerToEditor() {
     root.render(React.createElement(BottomPanelMarkdownSection))
 
     const tick = () => new Promise<void>(resolve => anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0))
+    const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
     await tick()
 
     const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
@@ -58,7 +59,7 @@ export async function testMarkdownScrollSyncViewerToEditor() {
     textarea.value = longText
     textarea.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
     textarea.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-    await tick()
+    await waitDebounce()
     await tick()
 
     const viewer = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
@@ -148,6 +149,7 @@ export async function testMarkdownEditToggleKeepsScrollPosition() {
       new Promise<void>(resolve =>
         anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
       )
+    const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
     await tick()
 
     const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
@@ -173,7 +175,7 @@ export async function testMarkdownEditToggleKeepsScrollPosition() {
     textarea.value = longText
     textarea.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
     textarea.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-    await tick()
+    await waitDebounce()
     await tick()
 
     const viewer = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
@@ -277,6 +279,7 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
       new Promise<void>(resolve =>
         anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
       )
+    const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
     await tick()
 
     const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
@@ -318,7 +321,7 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
     const { useGraphStore } = await import('@/hooks/useGraphStore')
     const store = useGraphStore.getState()
     store.setMarkdownDocument('mixed.md', mixedMarkdown)
-    await tick()
+    await waitDebounce()
     await tick()
 
     const viewer = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
@@ -339,6 +342,7 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
       viewer.querySelectorAll<HTMLElement>('[data-start-line]'),
     )
     if (blocks.length === 0) {
+      console.log('[DEBUG] viewer innerHTML:', viewer.innerHTML)
       throw new Error('expected markdown preview to render blocks with data-start-line')
     }
 

@@ -110,6 +110,10 @@ export interface GraphSchema {
       labelMinWidth?: number;
       labelMinHeight?: number;
       maxNodeWidth?: number;
+      renderOrder?: {
+        nodes?: 'yx' | 'id';
+        edges?: 'endpoints' | 'id';
+      };
     };
     tree?: {
       edgeLabels?: string[];

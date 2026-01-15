@@ -292,8 +292,9 @@ type TwoColumnTokens = {
 export const buildTwoColumnTokens = (args: {
   slide: Slide
   headMeta: Record<string, unknown>
+  fullDocTokens?: TokenWithLines[]
 }): TwoColumnTokens => {
-  const { slide, headMeta } = args
+  const { slide, headMeta, fullDocTokens } = args
   const slideMeta = (slide.meta || {}) as Record<string, unknown>
   const headMetaRecord = headMeta as Record<string, unknown>
   const layoutRaw = String(slideMeta.layout || headMetaRecord.layout || '').trim().toLowerCase()
@@ -309,6 +310,22 @@ export const buildTwoColumnTokens = (args: {
     }
   }
   const baseOffset = Math.max(0, (slide.startLine || 1) - 1)
+  
+  if (fullDocTokens) {
+    if (splitIndex < 0) {
+      const start = slide.startLine
+      const end = slide.endLine
+      const left = fullDocTokens.filter(t => t.startLine >= start && t.endLine <= end)
+      return { left, right: [] }
+    }
+    const absSplitLine = baseOffset + 1 + splitIndex
+    const start = slide.startLine
+    const end = slide.endLine
+    const left = fullDocTokens.filter(t => t.startLine >= start && t.endLine < absSplitLine)
+    const right = fullDocTokens.filter(t => t.startLine > absSplitLine && t.endLine <= end)
+    return { left, right }
+  }
+
   if (splitIndex < 0) {
     const { tokens: leftTokens } = lexMarkdownContent(text, baseOffset)
     return { left: leftTokens, right: [] as TokenWithLines[] }
@@ -455,6 +472,7 @@ type BuildSlidePreviewArgs = {
   rootThemeMode: 'light' | 'dark'
   previewOverlayScope: 'viewport' | 'container'
   previewOverlayPortalTarget: HTMLElement | null
+  fullDocTokens?: TokenWithLines[]
 }
 
 export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode => {
@@ -469,6 +487,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     rootThemeMode,
     previewOverlayScope,
     previewOverlayPortalTarget,
+    fullDocTokens,
   } = args
 
   const slide = slides[slideIdx]
@@ -511,7 +530,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
   }
 
   if (layoutPreview === 'two-cols') {
-    const twoColumnTokens = buildTwoColumnTokens({ slide, headMeta })
+    const twoColumnTokens = buildTwoColumnTokens({ slide, headMeta, fullDocTokens })
     if (!twoColumnTokens) return null
     const leftTokens = twoColumnTokens.left
     const rightTokens = twoColumnTokens.right
@@ -547,11 +566,9 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     layoutPreview === 'center'
       ? 'max-w-full max-h-full px-4 py-3 overflow-hidden mx-auto flex items-center justify-center'
       : 'w-full h-full px-4 py-3 overflow-hidden'
-  const out = lexMarkdownContent(
-    text,
-    Math.max(0, (slide.startLine || 1) - 1),
-  )
-  const tokens = out.tokens
+  const tokens = fullDocTokens
+    ? fullDocTokens.filter(t => t.startLine >= slide.startLine && t.endLine <= slide.endLine)
+    : lexMarkdownContent(text, Math.max(0, (slide.startLine || 1) - 1)).tokens
   if (!tokens || !tokens.length) return null
   return (
     <div

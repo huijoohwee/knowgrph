@@ -64,7 +64,7 @@ type BottomPanelMarkdownSectionViewProps = {
   presentationApiRef: React.RefObject<MarkdownPreviewPresentationApi | null>
   presentationSlideState: MarkdownPreviewPresentationSlideState | null
   setPresentationSlideState: (next: MarkdownPreviewPresentationSlideState | null) => void
-  handleViewerScroll: (event: React.UIEvent<HTMLElement>) => void
+  handleViewerScroll: (event: React.UIEvent<HTMLDivElement>) => void
   syncViewerFromEditor?: () => void
   setMarkdownPresentationMode: (next: boolean) => void
   isMarkdownPreviewTruncated: boolean
@@ -267,9 +267,9 @@ export function BottomPanelMarkdownSectionView(
                 if (targetLine > 0) {
                   triggerJump(targetLine)
                 } else {
-                   handleViewerScroll({
-                    currentTarget: viewerRef.current as unknown as HTMLElement,
-                  } as React.UIEvent<HTMLElement>)
+                  handleViewerScroll({
+                    currentTarget: viewerRef.current as unknown as HTMLDivElement,
+                  } as React.UIEvent<HTMLDivElement>)
                 }
               } else {
                 // Trigger sync from editor to viewer

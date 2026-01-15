@@ -202,6 +202,86 @@ export function getEdgeBaseStroke(edge: GraphEdge, schema: GraphSchema): string 
   return getRendererPalette(schema).edges.neutral
 }
 
+function getMermaidRenderCoord(node: GraphNode, axis: 'x' | 'y'): number {
+  const v = axis === 'x' ? node.x : node.y
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  const props = (node.properties || {}) as Record<string, unknown>
+  const visual = props[`visual:${axis}`]
+  if (typeof visual === 'number' && Number.isFinite(visual)) return visual
+  return 0
+}
+
+export function compareMermaidNodesForRender(a: GraphNode, b: GraphNode, schema: GraphSchema): number {
+  const renderOrder = schema.layout?.mermaid?.renderOrder?.nodes ?? 'yx'
+  const ta = String(a.type || '')
+  const tb = String(b.type || '')
+  const pa = ta === 'MermaidSubgraph' ? 0 : ta === 'MermaidNode' ? 1 : 2
+  const pb = tb === 'MermaidSubgraph' ? 0 : tb === 'MermaidNode' ? 1 : 2
+  if (pa !== pb) return pa - pb
+  if (renderOrder === 'id') return String(a.id).localeCompare(String(b.id))
+  const ay = getMermaidRenderCoord(a, 'y')
+  const by = getMermaidRenderCoord(b, 'y')
+  if (ay !== by) return ay - by
+  const ax = getMermaidRenderCoord(a, 'x')
+  const bx = getMermaidRenderCoord(b, 'x')
+  if (ax !== bx) return ax - bx
+  return String(a.id).localeCompare(String(b.id))
+}
+
+function getEdgeEndpointId(v: unknown): string {
+  if (typeof v === 'string' || typeof v === 'number') return String(v)
+  if (v && typeof v === 'object' && 'id' in v) {
+    const id = (v as { id?: unknown }).id
+    if (typeof id === 'string' || typeof id === 'number') return String(id)
+  }
+  return ''
+}
+
+export function compareMermaidEdgesForRender(a: GraphEdge, b: GraphEdge, schema: GraphSchema): number {
+  const renderOrder = String(schema.layout?.mermaid?.renderOrder?.edges ?? 'endpoints')
+  if (renderOrder === 'id') return String(a.id).localeCompare(String(b.id))
+  if (renderOrder === 'yx' || renderOrder === 'xy') {
+    const getEdgeCoord = (edge: GraphEdge): { x: number; y: number } => {
+      const props = (edge.properties || {}) as Record<string, unknown>
+      const points = props['visual:points'] as Array<{ x: number; y: number }> | undefined
+      if (!Array.isArray(points) || points.length === 0) return { x: 0, y: 0 }
+      let sx = 0
+      let sy = 0
+      let count = 0
+      for (let i = 0; i < points.length; i += 1) {
+        const p = points[i]
+        const x = typeof p?.x === 'number' ? p.x : null
+        const y = typeof p?.y === 'number' ? p.y : null
+        if (x == null || y == null) continue
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        sx += x
+        sy += y
+        count += 1
+      }
+      if (count <= 0) return { x: 0, y: 0 }
+      return { x: sx / count, y: sy / count }
+    }
+    const ca = getEdgeCoord(a)
+    const cb = getEdgeCoord(b)
+    if (renderOrder === 'yx') {
+      if (ca.y !== cb.y) return ca.y - cb.y
+      if (ca.x !== cb.x) return ca.x - cb.x
+      return String(a.id).localeCompare(String(b.id))
+    }
+    if (ca.x !== cb.x) return ca.x - cb.x
+    if (ca.y !== cb.y) return ca.y - cb.y
+    return String(a.id).localeCompare(String(b.id))
+  }
+  const as = getEdgeEndpointId(a.source)
+  const at = getEdgeEndpointId(a.target)
+  const bs = getEdgeEndpointId(b.source)
+  const bt = getEdgeEndpointId(b.target)
+  const ka = `${as}->${at}`
+  const kb = `${bs}->${bt}`
+  if (ka !== kb) return ka.localeCompare(kb)
+  return String(a.id).localeCompare(String(b.id))
+}
+
 export function getLayerOpacity(d: GraphNode, schema: GraphSchema): number {
   const props = d.properties || {}
   const raw = props['visual:layer']
