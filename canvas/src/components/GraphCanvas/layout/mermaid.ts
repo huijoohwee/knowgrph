@@ -191,8 +191,8 @@ export const applyMermaidLayout = (
   for (let i = 0; i < subgraphNodes.length; i += 1) {
     const n = subgraphNodes[i]
     const id = String(n.id)
-    // Add as group node
-    g.setNode(id, { label: n.label, width: 0, height: 0, padding: 0 }) 
+    // Add as group node - let dagre compute dimensions based on children
+    g.setNode(id, { label: n.label, clusterLabelPos: 'top', style: 'fill: transparent; stroke: none;' }) 
   }
 
   // 2. Add Regular Nodes
@@ -260,6 +260,13 @@ export const applyMermaidLayout = (
     if (!source || !target) continue
     if (source === target) continue
     if (!nodeIds.has(source) || !nodeIds.has(target)) continue
+    
+    // Safety: Filter out edges that connect to/from subgraphs directly to prevent Dagre ranker crashes
+    // (Dagre's network-simplex can fail if edges connect to cluster nodes in certain topologies)
+    const isSourceSubgraph = subgraphNodes.some(n => String(n.id) === source)
+    const isTargetSubgraph = subgraphNodes.some(n => String(n.id) === target)
+    if (isSourceSubgraph || isTargetSubgraph) continue
+
     const k = `${source}->${target}`
     if (!edgeByEndpoints.has(k)) edgeByEndpoints.set(k, edge)
     try {

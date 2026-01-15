@@ -38,7 +38,7 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
     themeMode,
   } = props
 
-  const editorContainerRef = React.useRef<HTMLDivElement>(null)
+  const editorContainerRef = React.useRef<HTMLElement | null>(null)
   const [selectionToolbar, setSelectionToolbar] = React.useState<MarkdownSelectionToolbarState | null>(null)
 
   const closeSelectionToolbar = React.useCallback(() => {
@@ -99,7 +99,7 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
   )
 
   return (
-    <div ref={editorContainerRef} className="flex flex-1 min-h-0 relative h-full">
+    <article ref={editorContainerRef} className="flex flex-1 min-h-0 relative h-full w-full max-w-none">
       <MonacoTextEditor
         editorRef={editorTextAreaRef}
         value={markdownText}
@@ -132,6 +132,6 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
           currentView="editor"
         />
       )}
-    </div>
+    </article>
   )
 }

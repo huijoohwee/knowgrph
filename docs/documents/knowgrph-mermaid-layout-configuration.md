@@ -34,9 +34,11 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
   - **Memoization**: Utility functions like text wrapping are memoized to reduce CPU usage.
   - **Skip Initial Layout**: Skips redundant computations when the graph structure is stable.
 - **Crash Prevention**: Implements **strict topology validation** to prevent the common `networkSimplex` / "rank undefined" crash:
-  - Filters out edges pointing to non-existent nodes.
-  - Filters out self-loops (A -> A) which destabilize the ranker.
-  - Ensures all nodes are registered before edge definition.
+    - Filters out edges pointing to non-existent nodes.
+    - Filters out self-loops (A -> A) which destabilize the ranker.
+    - Ensures all nodes are registered before edge definition.
+    - **Cluster Robustness**: Configures compound nodes (subgraphs) without explicit dimensions (`width: 0`, `height: 0`) to prevent Dagre's ranker from treating them as point nodes, resolving "rank undefined" errors in complex hierarchies.
+    - **Edge Safety**: Filters out edges that connect directly to or from a subgraph/cluster node, as Dagre's `network-simplex` ranker can fail ("rank undefined") in certain topologies involving cluster edges.
 
 ### Mermaid.js Compliance
 - **Markdown Strings**: Supports **Markdown formatting** in node labels (e.g., `id["**Bold** and *Italic*"]`).

@@ -14,7 +14,8 @@
 - **Implementation**: Theme changes update the `data-theme` attribute on the root element and toggle the `dark` class, enabling Tailwind's `dark:` modifier.
 - **Graph Data Table**: Table rows, headers, and sticky columns use `UI_THEME_TOKENS.table` for consistent light/dark backgrounds and borders. Zebra striping is disabled in favor of a clean, flat look (`rowBg`). Selected rows are highlighted with a subtle tint (`rowSelected`), replacing legacy blue borders. Borders and dividers use `UI_THEME_TOKENS.panel.divider` to align with the rest of the application. Redundant grey divs in Dark Mode are removed by enforcing `UI_THEME_TOKENS.panel.bg` on scroll containers.
 - **Main Table Settings**: Key/Value rows in settings and property panels follow the same interaction model as the Graph Data Table, using `UI_THEME_TOKENS.table.rowHoverAmber` for hover states and `UI_THEME_TOKENS.table.rowSelected` for active/selected states.
-- **Slides Gallery**: Follows the same selection and hover styles as the data table (`rowHoverAmber`, `rowSelected`), ensuring a unified visual experience across list-like views.
+- **Slides Gallery**: Follows the same selection and hover styles as the data table (`rowHoverAmber`, `rowSelected`), ensuring a unified visual experience across list-like views. Thumbnails are rendered with a fixed 16:9 aspect ratio (`aspect-video`) to match the default Presentation Mode slide dimensions (1920x1080).
+- **Presentation Mode**: Defaults to a 16:9 aspect ratio (1920x1080) for slides, ensuring consistent scaling and centering on all displays. The slide content is scaled to fit within the viewport while maintaining this ratio.
 - **Canvas Visualization**: Graph nodes, edges, and labels use `UI_THEME_COLORS` (raw hex values) to match the theme palette in the D3/WebGL context.
 - **Tooltips**: Tooltips use `UI_THEME_TOKENS.tooltip` for high-contrast overlays (dark background in both modes or theme-adaptive).
 - **Status Badges**: Use `UI_THEME_TOKENS.status` (success, warning, error, neutral) for consistent feedback colors across the application.
@@ -92,8 +93,8 @@
   - When users select a media card sourced from the graph in the Slides Gallery, the Bottom Panel automatically opens the Curation tab in Markdown mode, keeping the media selection, canvas selection, and source text aligned without additional clicks.
 - Markdown panel highlight:
   - Auto-opening the markdown curation view applies a brief, subtle highlight to the panel chrome so users can see where the source text came from without introducing long-lived visual noise.
-- Markdown header layout:
-  - The Bottom Panel markdown view splits responsibilities between a stateful container and a pure view component that renders three small header rows: the status row (JSON-backed badge and markdown status), the editor row (Apply, word-wrap toggle, and layout mode controls), and the viewer row (layout mode controls, presentation navigation, text highlight, and fullscreen).
+- **Markdown header layout**:
+  - The Bottom Panel markdown view splits responsibilities between a stateful container and a pure view component that renders three small header rows: the status row (JSON-backed badge, markdown status, and a leading section icon), the editor row (Apply, word-wrap toggle, and layout mode controls), and the viewer row (layout mode controls, presentation navigation, text highlight, and fullscreen).
   - Editor and viewer layout mode controls are shared via a `MarkdownLayoutControlsRow` helper that receives a text size class from the panel theme, so the icon buttons inherit the same typographic scale as surrounding header copy while keeping icon size and stroke width configurable per theme.
 - Selection alignment:
   - Canvas node/edge selections with markdown provenance scroll the Bottom Panel markdown editor and viewer so the associated text range snaps to the top of the viewport, avoiding “lost in the middle” placements.
@@ -115,7 +116,11 @@
     - Irrelevant options (e.g., "Show in Viewer" when already in Viewer) are disabled.
   - **Right-Click Context Menu**: Unified with the Selection Toolbar. Right-clicking in the Viewer, Editor, Presentation, Slides Gallery, or Graph Data Table displays the context-aware Selection Toolbar, providing consistent access to all navigation actions.
   - **Flash Feedback**: When navigating from other views (e.g., "Show in Editor" or "Show in Viewer"), the target line is visually emphasized with a momentary flash effect (`flashLine` prop). This helps users locate the exact context after a jump.
-  - **Architecture**: The Bottom Panel Markdown section logic is encapsulated in `useMarkdownSectionLogic` to maintain separation of concerns and reduce component complexity.
+  - **Architecture**: The Bottom Panel Markdown section logic is encapsulated in `useMarkdownSectionLogic` (View logic), `useBottomPanelMarkdownModel` (Data logic), `useMarkdownApply` (Parsing logic), and `useJsonMarkdown` (JSON conversion logic) to maintain strict separation of concerns, reduce component complexity, and ensure <600 lines per file.
+  - **Refactored Bottom Panel**:
+    - **Semantic HTML**: The Markdown section uses `<section>`, `<article>`, `<header>`, and `<nav>` elements, adhering to accessibility standards.
+    - **Presentation Mode**: Defaults to a **16:9 aspect ratio (1920x1080)** for slide layout, ensuring standard widescreen presentation compatibility. The presentation engine uses robust token sharing with fallback lexing to ensure content visibility even when line maps are imperfect or tokens are filtered.
+    - **Synchronization**: 100% synchronization is enforced between Markdown Viewer, Editor, Presentation, Slides Gallery, and Graph Data Table (heading, content, scroll, collapse/expand) using shared state and explicit jump triggers.
   - **Editor Theme Alignment**: The Markdown Editor (Monaco) fully respects the global theme (Light/Dark/System), matching the background and text colors defined in `UI_THEME_TOKENS` and `UI_THEME_COLORS`.
   - **Double-Click Behavior**: Double-clicking a line in the Viewer, Presentation, or Slides Gallery auto-positions the Markdown Editor to the corresponding line. This mapping is precise, preserving line numbers even for nested content.
   - **Canvas Click**: Clicking a node/edge/graph layer on the Canvas auto-positions the Markdown Editor to the corresponding Mermaid Frontmatter line (if applicable), removing legacy implementations to ensure a single source of truth.
@@ -131,6 +136,7 @@
   - The layout uses semantic wrappers (`section`, `aside`, `header`, `main`, `article`, `figure`) for accessibility and code readability, replacing generic `div`s. `figure` is used for frontmatter Mermaid diagrams.
   - **Bottom Panel & Main Panel**: Both `BottomPanelBody` and `MainPanelBody` have been refactored to use semantic HTML (`section`, `aside`, `header`) and strictly adhere to `UI_THEME_TOKENS` for consistent styling, removing hardcoded Tailwind classes. The `BottomPanel` outer container and header now also use theme tokens for borders and backgrounds, ensuring seamless dark mode integration.
   - **Toolbar & StatusBar**: Refactored to use semantic `<nav>` and `<footer>` elements respectively, ensuring accessibility and adherence to the project's semantic HTML guidelines.
+  - **Editor & Viewer**: The Markdown Editor and Viewer panes now wrap their content in semantic `<article>` elements with `w-full max-w-none` to enforce a "Wide" layout by default, ensuring they maintain the same full-width presentation for consistency.
   - **Table of Contents**: The sidebar TOC uses a semantic `<nav>` wrapper with an `aria-label` for better accessibility.
   - **Graph Data Table**: The table structure now uses semantic `<table>`, `<thead>`, `<tbody>`, `<tr>`, `th`, and `td` elements wrapped in a `<section>` container, replacing generic div soups.
   - **Settings View**: Technical details in the Settings view now use a semantic `<table>` instead of a grid of divs, improving readability and accessibility for tabular data.
@@ -147,7 +153,7 @@
     - Monaco Editor integration for robust text editing.
     - Word Wrap toggle in the toolbar for better readability of long lines.
     - "Flash Line" visual feedback when navigating from other panels (e.g. Graph Data Table).
-    - "Beside" and "Inline" modes for code block annotations.
+    - "Beside" and "Inline" modes for code block annotations, with user preference persisted to local storage.
     - Integrated "Apply" button to re-parse markdown and update the graph.
   - **Markdown Viewer**:
     - Rendered preview with syntax highlighting and Mermaid diagram support.

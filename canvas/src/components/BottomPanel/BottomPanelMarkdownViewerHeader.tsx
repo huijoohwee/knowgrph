@@ -146,7 +146,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           </>
         )}
       </div>
-      <div className="flex items-center gap-1">
+      <nav className="flex items-center gap-1" aria-label="Markdown Toolbar">
         <div className={`flex items-center mr-1 ${UI_THEME_TOKENS.badge.chip} p-0.5`}>
           <button
             type="button"
@@ -279,7 +279,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
         >
           <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
-      </div>
+      </nav>
     </div>
   )
 }

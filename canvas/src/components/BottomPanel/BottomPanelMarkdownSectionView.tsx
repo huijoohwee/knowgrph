@@ -318,7 +318,11 @@ export function BottomPanelMarkdownSectionView(
             onShowInPresentation={() => {
               setMarkdownPresentationMode(true)
             }}
-            onShowInSlidesGallery={(line) => onShowInSlidesGallery?.(line)}
+            onShowInSlidesGallery={(line) => {
+              setMarkdownPresentationMode(true)
+              triggerJump(line)
+              if (onShowInSlidesGallery) onShowInSlidesGallery(line)
+            }}
             onShowInGraphDataTable={(line) => onShowInGraphDataTable?.(line)}
             triggerJump={triggerJump}
             flashLine={jumpFlash?.line}
@@ -349,7 +353,11 @@ export function BottomPanelMarkdownSectionView(
             uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
             annotateDisplayMode={annotateDisplayMode}
             onShowInGraphDataTable={onShowInGraphDataTable}
-            onShowInSlidesGallery={onShowInSlidesGallery}
+            onShowInSlidesGallery={(line) => {
+              setMarkdownPresentationMode(true)
+              triggerJump(line)
+              if (onShowInSlidesGallery) onShowInSlidesGallery(line)
+            }}
             onShowInEditor={(line) => {
                 setMarkdownLayoutMode('editor')
                 setMarkdownPresentationMode(false)

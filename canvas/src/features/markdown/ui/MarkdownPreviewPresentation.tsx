@@ -160,15 +160,15 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const baseSlideSize = React.useMemo(() => {
     const meta = headMeta
     const raw = String(meta.aspectRatio || '').trim()
-    let width = 1280
-    let height = 720
+    let width = 1920
+    let height = 1080
     if (raw) {
       const m = /^(\d+)\s*\/\s*(\d+)$/.exec(raw)
       if (m) {
         const w = Number.parseInt(m[1], 10)
         const h = Number.parseInt(m[2], 10)
         if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-          const baseHeight = 720
+          const baseHeight = 1080
           height = baseHeight
           width = Math.max(1, Math.round((baseHeight * w) / h))
         }
@@ -199,7 +199,14 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     if (props.fullDocTokens) {
       const start = currentSlide.startLine
       const end = currentSlide.endLine
-      return props.fullDocTokens.filter(t => t.startLine >= start && t.endLine <= end)
+      const filtered = props.fullDocTokens.filter(t => t.startLine >= start && t.endLine <= end)
+      // If we have tokens, return them.
+      // If filtered is empty but the slide has text, it means line numbers might be misaligned or tokens are missing.
+      // In that case, fall back to on-the-fly lexing.
+      if (filtered.length > 0) return filtered
+      const { body } = getSlideTextBodyAndNotes(currentSlide)
+      if (!body) return []
+      // Fallthrough to lexing below
     }
 
     const { text, body } = getSlideTextBodyAndNotes(currentSlide)

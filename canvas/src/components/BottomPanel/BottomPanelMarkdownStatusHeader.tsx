@@ -2,6 +2,7 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { BookOpen } from 'lucide-react'
 
 type JsonMarkdownMode = JsonToMarkdownMode
 
@@ -56,6 +57,7 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
 
   return (
     <div className="flex items-center gap-3 min-w-0">
+      <BookOpen className={`w-4 h-4 shrink-0 ${UI_THEME_TOKENS.text.tertiary}`} strokeWidth={1.5} />
       <div className="min-w-0 truncate flex items-center gap-2">
         {isJsonBacked && (
           <Tooltip

@@ -60,7 +60,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
   } = props
 
   return (
-    <section className="flex-1 min-h-0 flex flex-col">
+    <article className="flex-1 min-h-0 flex flex-col w-full max-w-none">
       {isMarkdownPreviewTruncated && (
         <div
           className={[
@@ -95,6 +95,6 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
         flashLine={flashLine}
         tokens={tokens}
       />
-    </section>
+    </article>
   )
 }
