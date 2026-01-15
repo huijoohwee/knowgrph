@@ -17,7 +17,6 @@ import MediaNodesSection from '@/features/panels/views/MediaNodesSection'
 
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>
 type GraphCreateMode = NonNullable<GraphBehavior['createMode']>
-type PerformanceLod = NonNullable<NonNullable<GraphSchema['performance']>['lod']>
 
 interface ThreeGroupsCollapsed {
   links: boolean

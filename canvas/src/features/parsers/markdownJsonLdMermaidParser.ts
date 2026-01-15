@@ -34,18 +34,114 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
   const mermaidNodeIdsByName = new Map<string, string>()
   const mermaidSubgraphIdsByName = new Map<string, string>()
   const docSubgraphIds = new Set<string>()
+  const classDefs = new Map<string, Record<string, unknown>>()
+  const nodeClasses = new Map<string, Set<string>>()
 
   // Track active subgraphs stack
   const subgraphStack: Array<{ name: string; id: string }> = []
 
+  // Helper to parse styles from a string (e.g. "fill:#f9f,stroke:#333,stroke-width:4px")
+  const parseStyleString = (styleStr: string): Record<string, unknown> => {
+    const styles: Record<string, unknown> = {}
+    const normalized = styleStr.trim().replace(/;$/, '')
+    const parts = normalized.split(',')
+    for (const part of parts) {
+      const idx = part.indexOf(':')
+      if (idx < 0) continue
+      const key = part.slice(0, idx).trim()
+      const val = part.slice(idx + 1).trim().replace(/;$/, '')
+      if (!key || !val) continue
+      if (key === 'fill') styles['visual:fill'] = val
+      if (key === 'stroke') styles['visual:stroke'] = val
+      if (key === 'stroke-width') {
+        const w = parseFloat(val.replace('px', ''))
+        if (Number.isFinite(w)) styles['visual:strokeWidth'] = w
+        if (Number.isFinite(w)) styles['stroke-width'] = w
+      }
+      if (key === 'color') styles['visual:color'] = val
+    }
+    return styles
+  }
+
+  const getMergedClassStyles = (nodeName: string): Record<string, unknown> => {
+    const classes = nodeClasses.get(nodeName)
+    if (!classes) return {}
+    let mergedStyles: Record<string, unknown> = {}
+    classes.forEach((cls) => {
+      const def = classDefs.get(cls)
+      if (def) mergedStyles = { ...mergedStyles, ...def }
+    })
+    return mergedStyles
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i]?.trim() ?? ''
+    if (!trimmed) continue
+    if (trimmed.startsWith('%%')) continue
+
+    if (trimmed.startsWith('classDef ')) {
+      const parts = trimmed.substring(9).trim().split(/\s+/)
+      const className = parts[0]
+      const styleStr = parts.slice(1).join(' ')
+      if (className && styleStr) {
+        classDefs.set(className, parseStyleString(styleStr))
+      }
+      continue
+    }
+
+    if (trimmed.startsWith('class ')) {
+      const parts = trimmed.substring(6).trim().replace(/;$/, '').split(/\s+/)
+      if (parts.length < 2) continue
+      const classNamesStr = parts[parts.length - 1]
+      const nodesStr = parts.slice(0, parts.length - 1).join(' ')
+
+      const nodeNames = nodesStr
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+
+      const classNames = String(classNamesStr || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+
+      if (!nodeNames.length || !classNames.length) continue
+      for (let j = 0; j < nodeNames.length; j += 1) {
+        const nodeName = nodeNames[j]!
+        if (!nodeClasses.has(nodeName)) nodeClasses.set(nodeName, new Set())
+        const set = nodeClasses.get(nodeName)!
+        for (let k = 0; k < classNames.length; k += 1) {
+          set.add(classNames[k]!)
+        }
+      }
+    }
+  }
+
   // Helper to get or create a node
-  const getOrCreateNode = (name: string, label: string | null, lineIndex: number): string => {
+  const getOrCreateNode = (name: string, label: string | null, lineIndex: number, className?: string): string => {
     const safeName = name.trim()
     if (!safeName) return ''
     
     // Check if already exists
     const existing = mermaidNodeIdsByName.get(safeName)
-    if (existing) return existing
+    // If it exists, we might still want to apply the class if it wasn't applied before?
+    // But typically we create it once. 
+    // However, if the user does `A:::c1 --> B`, and later `A:::c2 --> C`, Mermaid might merge or override.
+    // For simplicity, we assume the first declaration or explicit class statements rule.
+    // But since we have the className now, we should probably ensure it's recorded if this is the first time we see it?
+    // Actually, `existing` check prevents re-creation. 
+    // If we want to support `A:::cls` applying even if node exists, we'd need to update the node.
+    // But `ensureNode` might merge properties if we call it again?
+    // `ctx.ensureNode` usually merges. Let's check `ensureNode` in parser context.
+    // Usually it just pushes to a list or map.
+    
+    if (existing) {
+      // If we have a className that wasn't applied via `class` statement, we might want to apply it.
+      // But `ensureNode` creates a JSON-LD object. We can't easily "update" it here without knowing implementation of ensureNode.
+      // Assuming ensureNode handles merging or we just ignore subsequent definitions.
+      // Let's stick to "first wins" or "existing wins" for now, consistent with current logic.
+      return existing
+    }
 
     const nodeId = `mermaid:${gid}:${slugify(safeName)}`
     mermaidNodeIdsByName.set(safeName, nodeId)
@@ -70,13 +166,21 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       }
     }
 
+    let classStyles = getMergedClassStyles(safeName)
+    if (className) {
+        const extra = classDefs.get(className)
+        if (extra) {
+            classStyles = { ...classStyles, ...extra }
+        }
+    }
+
     ensureNode({
       '@id': nodeId,
       '@type': 'MermaidNode',
       labels: ['MermaidNode'],
       name: label || safeName,
       chunk_text: (label || safeName).slice(0, 800),
-      properties: nodeProps,
+      properties: { ...nodeProps, ...classStyles },
       metadata: mkMeta(startIndex + lineIndex, startIndex + lineIndex),
     })
     
@@ -98,7 +202,9 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     mermaidSubgraphIdsByName.set(safeName, subgraphId)
 
     const display = label || safeName
+    const parent = subgraphStack.length > 0 ? subgraphStack[subgraphStack.length - 1] : null
     
+    const classStyles = getMergedClassStyles(safeName)
     ensureNode({
       '@id': subgraphId,
       '@type': 'MermaidSubgraph',
@@ -107,25 +213,18 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       chunk_text: display.slice(0, 800),
       subgraphName: safeName,
       label: display,
+      properties: {
+        subgraphName: safeName,
+        nodeName: safeName,
+        ...(parent ? { mermaidSubgraphName: parent.name } : {}),
+        ...classStyles,
+      },
       metadata: mkMeta(startIndex + lineIndex, startIndex + lineIndex),
     })
 
     // If there is a parent subgraph, link it
-    const parent = subgraphStack.length > 0 ? subgraphStack[subgraphStack.length - 1] : null
     if (parent) {
       addRel(parent.id, 'hasMermaidSubgraph', subgraphId)
-      // For DAGRE layout: nested subgraphs need parent relationship too
-      // We can use the same mechanism: 'mermaidSubgraphName' property
-      // But we need to update the node we just created.
-      // Since 'ensureNode' merges, we can call it again or just assume logic handles it?
-      // Our mermaid.ts layout looks for 'mermaidSubgraphName'.
-      // So let's add it.
-       ensureNode({
-          '@id': subgraphId,
-          properties: {
-             mermaidSubgraphName: parent.name
-          }
-       });
     } else {
       // Top level subgraph attached to document
        if (!docSubgraphIds.has(subgraphId)) {
@@ -163,6 +262,8 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       continue
     }
 
+
+
     // --- Click Event ---
     const clickMatch = /^click\s+([A-Za-z0-9_.]+)\s+"#([^"]+)"/.exec(trimmed)
     if (clickMatch) {
@@ -177,23 +278,80 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
     // --- Nodes & Edges ---
     // Helper to parse a potential node string
-    const parseNodeString = (str: string): { name: string; label: string | null } | null => {
+    const parseNodeString = (str: string): { name: string; label: string | null; className?: string } | null => {
       const s = str.trim()
       if (!s) return null
       
-      let m = /^([A-Za-z0-9_.]+)\s*\["(.+)"\]$/.exec(s)
-      if (m) return { name: m[1], label: m[2] } 
-      
-      m = /^([A-Za-z0-9_.]+)\s*\[([^\]]+)\]$/.exec(s)
-      if (m) return { name: m[1], label: m[2] }
+      let m: RegExpExecArray | null
 
-      m = /^([A-Za-z0-9_.]+)\s*\(([^)]+)\)$/.exec(s)
-      if (m) return { name: m[1], label: m[2] }
+      // Check for class suffix: :::className
+      let className: string | undefined
+      const classMatch = /:::([a-zA-Z0-9_-]+)$/.exec(s)
+      let cleanStr = s
+      if (classMatch) {
+        className = classMatch[1]
+        cleanStr = s.substring(0, classMatch.index).trim()
+      }
+
+      const finish = (n: string, l: string | null) => ({ name: n, label: l, className })
+
+      // Subroutine: id[[label]]
+      m = /^([A-Za-z0-9_.]+)\s*\[\[([^\]]+)\]\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Cylinder: id[(label)]
+      m = /^([A-Za-z0-9_.]+)\s*\[\(([^)]+)\)\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Circle: id((label))
+      m = /^([A-Za-z0-9_.]+)\s*\(\(([^)]+)\)\)$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Stadium / Pill: id([label])
+      m = /^([A-Za-z0-9_.]+)\s*\(\[([^\]]+)\]\)$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Asymmetric: id>label]
+      m = /^([A-Za-z0-9_.]+)\s*>\s*([^\]]+)\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Hexagon: id{{label}}
+      m = /^([A-Za-z0-9_.]+)\s*\{\{([^}]+)\}\}$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Parallelogram: id[/label/]
+      m = /^([A-Za-z0-9_.]+)\s*\[\/([^/]+)\/\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Parallelogram alt: id[\label\]
+      m = /^([A-Za-z0-9_.]+)\s*\[\\([^\\]+)\\\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Trapezoid: id[/label\]
+      m = /^([A-Za-z0-9_.]+)\s*\[\/([^\]]+)\\\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Trapezoid alt: id[\label/]
+      m = /^([A-Za-z0-9_.]+)\s*\[\\([^/]+)\/\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
       
-      m = /^([A-Za-z0-9_.]+)\s*\{([^}]+)\}$/.exec(s)
-      if (m) return { name: m[1], label: m[2] }
+      // Standard Box: id["label"]
+      m = /^([A-Za-z0-9_.]+)\s*\["(.+)"\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2]) 
       
-      if (/^[A-Za-z0-9_.]+$/.test(s)) return { name: s, label: null }
+      // Standard Box: id[label]
+      m = /^([A-Za-z0-9_.]+)\s*\[([^\]]+)\]$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+
+      // Round Box: id(label)
+      m = /^([A-Za-z0-9_.]+)\s*\(([^)]+)\)$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+      
+      // Rhombus: id{label}
+      m = /^([A-Za-z0-9_.]+)\s*\{([^}]+)\}$/.exec(cleanStr)
+      if (m) return finish(m[1], m[2])
+      
+      if (/^[A-Za-z0-9_.]+$/.test(cleanStr)) return finish(cleanStr, null)
       
       return null
     }
@@ -228,19 +386,18 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     if (parts.length === 1) {
       const nodeDef = parseNodeString(parts[0])
       if (nodeDef) {
-        getOrCreateNode(nodeDef.name, nodeDef.label, i)
+        getOrCreateNode(nodeDef.name, nodeDef.label, i, nodeDef.className)
       }
     } else {
       let currentSrcName: string | null = null
       
       const n0 = parseNodeString(parts[0])
       if (n0) {
-        getOrCreateNode(n0.name, n0.label, i)
+        getOrCreateNode(n0.name, n0.label, i, n0.className)
         currentSrcName = n0.name
       }
       
       for (let k = 1; k < parts.length; k += 2) {
-        const edgeStr = parts[k] // This is the separator (arrow)
         const nextNodeStr = parts[k+1] // This is the node
         
         // Check if nextNodeStr is empty (e.g. trailing arrow?)
@@ -248,7 +405,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
         const nNext = parseNodeString(nextNodeStr)
         if (nNext && currentSrcName) {
-           getOrCreateNode(nNext.name, nNext.label, i)
+           getOrCreateNode(nNext.name, nNext.label, i, nNext.className)
            
            const srcId = mermaidNodeIdsByName.get(currentSrcName)
            const tgtId = mermaidNodeIdsByName.get(nNext.name)

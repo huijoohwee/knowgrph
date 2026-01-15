@@ -8,8 +8,8 @@ declare module 'dagre' {
       setEdge(v: string, w: string, label?: Record<string, unknown>, name?: string): void;
       nodes(): string[];
       edges(): { v: string; w: string }[];
-      node(id: string): any;
-      edge(v: string, w: string): any;
+      node(id: string): unknown;
+      edge(v: string, w: string): unknown;
       nodeCount(): number;
       edgeCount(): number;
     }

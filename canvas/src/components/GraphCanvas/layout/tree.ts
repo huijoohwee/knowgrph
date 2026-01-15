@@ -24,7 +24,7 @@ export const applyTreeLayout = (
 ) => {
   if (!nodes.length) return;
 
-  const treeConfig = (schema.layout as any)?.tree || {};
+  const treeConfig = schema.layout?.tree || {};
   const configJson = JSON.stringify(treeConfig);
   
   // Check if we can reuse the cached layout structure (relative positions)
@@ -81,16 +81,26 @@ export const applyTreeLayout = (
       const id = String(node.id);
       nodeIds.add(id);
       const r = getNodeRadiusFromSchema(node, schema) || 20;
-      const w = (node as any).width || r * 2;
-      const h = (node as any).height || r * 2;
+      const props = (node.properties || {}) as Record<string, unknown>
+      const w = typeof props['visual:width'] === 'number' ? props['visual:width'] : r * 2;
+      const h = typeof props['visual:height'] === 'number' ? props['visual:height'] : r * 2;
       g.setNode(id, { width: w, height: h });
     });
 
+    const coerceEndpointId = (endpoint: unknown): string => {
+      if (typeof endpoint === 'string' || typeof endpoint === 'number') return String(endpoint)
+      if (endpoint && typeof endpoint === 'object') {
+        const maybeId = (endpoint as { id?: unknown }).id
+        if (typeof maybeId === 'string' || typeof maybeId === 'number') return String(maybeId)
+      }
+      return ''
+    }
+
     edges.forEach(edge => {
-      const source = String(typeof edge.source === 'object' ? (edge.source as any).id : edge.source);
-      const target = String(typeof edge.target === 'object' ? (edge.target as any).id : edge.target);
+      const source = coerceEndpointId(edge.source);
+      const target = coerceEndpointId(edge.target);
       
-      if (nodeIds.has(source) && nodeIds.has(target)) {
+      if (source && target && nodeIds.has(source) && nodeIds.has(target)) {
          g.setEdge(source, target);
       }
     });

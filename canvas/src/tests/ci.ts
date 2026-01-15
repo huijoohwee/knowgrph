@@ -121,11 +121,7 @@ async function main() {
   } catch {
     void 0
   }
-  if (failed.length > 0) {
-    process.exitCode = 1
-  } else {
-    process.exitCode = 0
-  }
+  process.exit(failed.length > 0 ? 1 : 0)
 }
 
 main()

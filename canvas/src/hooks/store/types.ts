@@ -27,8 +27,21 @@ export type LayoutMode = 'force' | 'radial' | 'tree';
 export type NodePosition2d = { x: number; y: number };
 export type LayoutPositionCacheKey = `${string}:${LayoutMode}`;
 
+export type GraphHoverPreviewConfig = {
+  showNodeId: boolean;
+  showNodeName: boolean;
+  showNodeLabel: boolean;
+  showNodeDescription: boolean;
+  showNodeProperties: boolean;
+  showEdgeId: boolean;
+  showEdgeLabel: boolean;
+  showEdgeWeight: boolean;
+  showEdgeProperties: boolean;
+};
+
 export interface GraphState {
   graphData: GraphData | null;
+
   graphDataRevision: number;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
@@ -180,6 +193,8 @@ export interface GraphState {
   graphDataTableOverscanMultiplier: number;
   graphDataTableVirtualMinRows: number;
   graphDataTableVirtualDebugLogRanges: boolean;
+  graphHoverPreviewConfig: GraphHoverPreviewConfig;
+  setGraphHoverPreviewConfig: (config: Partial<GraphHoverPreviewConfig>) => void;
   markdownDocumentName: string | null;
   markdownDocumentText: string | null;
   markdownTokens: TokenWithLines[] | null;

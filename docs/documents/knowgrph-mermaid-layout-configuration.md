@@ -10,9 +10,10 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
 
 ### Visual Consistency ("Frontmatter" Style)
 - **Unified Color Palette**: Mermaid nodes (`MermaidNode`) use the **schema-driven color palette** (`getNodeBaseFill`). This ensures that if a node is blue in Force Layout, it remains blue in Mermaid Layout.
+- **Frontmatter Styling**: Supports Mermaid `classDef` and `class` statements to apply custom styles (fill, stroke, width, color) directly from frontmatter.
 - **Schema-Driven Strokes**: Node borders (`stroke`) and widths (`stroke-width`) are controlled by the schema (`schema.nodeStroke`). If not defined, Mermaid nodes default to a subtle `#333` border.
-- **Subgraph Visualization via Hulls**: Mermaid subgraphs (`MermaidSubgraph`) are represented as **graph layer hull overlays** (not as standalone rect nodes), styled via the schema’s `nodeStyles.MermaidSubgraph.color` and graph-layer style rules.
-- **Node Shapes**: Nodes are rendered as **rectangular boxes** with rounded corners (`4px`), dynamically sized to their content.
+- **Subgraph Visualization via Hulls**: Mermaid subgraphs (`MermaidSubgraph`) are rendered as **rectangular hulls** with padding (12px), utilizing the `graphLayers` system. They render *below* nodes to ensure visibility and correct z-indexing.
+- **Node Shapes**: Nodes are rendered as **rectangular boxes** with rounded corners (`4px`), dynamically sized to their content. This applies to all Mermaid node types (including stadium `([...])`, cylinder `[(...)]`, etc.), which are normalized to rectangular nodes for visual consistency.
 - **Edges**: Renders smooth B-spline curves initially. When dragging nodes, edges dynamically switch to direct lines to maintain connection.
 
 ### Interactive Dragging
@@ -22,7 +23,12 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
 
 ### Layout Engine & Robustness
 - **Algorithm**: Uses Dagre's `network-simplex` ranker (switched from `tight-tree`) for enhanced stability and reduced layout failures.
+- **Compound Layout**: Natively supports **rectangular subgraphs** and nested node hierarchies by enabling Dagre's `compound` mode. It correctly maps parent-child relationships between subgraphs and nodes.
 - **Node Sizing**: Uses shared `calculateNodeDimensions` utility to ensure consistent text measurement across layout engines (Mermaid, Tree) and renderer.
+- **Performance**: 
+  - **Revision-Aware Caching**: Uses a robust cache key including graph topology revision (`nodesRevision`, `edgesRevision`) to skip redundant Dagre calculations.
+  - **Memoization**: Utility functions like text wrapping are memoized to reduce CPU usage.
+  - **Skip Initial Layout**: Skips redundant computations when the graph structure is stable.
 - **Crash Prevention**: Implements **strict topology validation** to prevent the common `networkSimplex` / "rank undefined" crash:
   - Filters out edges pointing to non-existent nodes.
   - Filters out self-loops (A -> A) which destabilize the ranker.

@@ -30,6 +30,24 @@
   - Accepts values between 0.0 and 1.0; default is a subtle 0.18.
   - Affects Markdown editor gutter flashes, Markdown Preview block flashes, and Graph Data Table row flashes.
 
+## graphHoverPreview
+
+- Area: Graph Interaction
+- Responsibility: Configures the visibility of information in the graph hover tooltip.
+- Keys:
+  - `graphHoverPreview.showNodeId`: Show Node ID (default: false).
+  - `graphHoverPreview.showNodeName`: Show Node Name/Label (default: true).
+  - `graphHoverPreview.showNodeLabel`: Show Node Type/Category (default: true).
+  - `graphHoverPreview.showNodeDescription`: Show Node Description (default: true).
+  - `graphHoverPreview.showNodeProperties`: Show Node Properties (default: true).
+  - `graphHoverPreview.showEdgeId`: Show Edge ID (default: false).
+  - `graphHoverPreview.showEdgeLabel`: Show Edge Label (default: true).
+  - `graphHoverPreview.showEdgeWeight`: Show Edge Weight (default: true).
+  - `graphHoverPreview.showEdgeProperties`: Show Edge Properties (default: true).
+- Notes:
+  - These settings provide fine-grained control over what information is displayed when hovering over nodes and edges in the graph.
+  - Useful for reducing clutter or focusing on specific attributes during presentation or analysis.
+
 ## Settings schema extraction (`build:settings`)
 
 - The canvas dev and build scripts call `build:settings` to generate `settings-flow.json` and `settings-flow.schema.json` from the repository’s settings flow markdown table.

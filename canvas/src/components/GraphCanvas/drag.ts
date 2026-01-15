@@ -30,14 +30,20 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       const constraint = schema.behavior.dragConstraint || 'free';
       if (constraint === 'axis-x') {
         d.fx = nx;
+        if (isMermaid) d.x = nx;
       } else if (constraint === 'axis-y') {
         d.fy = ny;
+        if (isMermaid) d.y = ny;
       } else if (constraint === 'none') {
         d.fx = d.x; // Keep original if 'none' constraint, though usually 'free' is default
         d.fy = d.y;
       } else {
         d.fx = nx;
         d.fy = ny;
+        if (isMermaid) {
+            d.x = nx;
+            d.y = ny;
+        }
       }
 
       // Mermaid Subgraph Dragging Logic
@@ -48,11 +54,14 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
          // We use the raw event.dx/dy which is the delta of the pointer.
          // This assumes the drag is 1:1. 
          
-         const subgraphName = (d.properties as any).subgraphName;
+         const subgraphNameRaw = d.properties ? d.properties['subgraphName'] : null
+         const subgraphName = typeof subgraphNameRaw === 'string' ? subgraphNameRaw : null
          if (subgraphName && (dx !== 0 || dy !== 0)) {
              simulation.nodes().forEach(n => {
                  // Check if n is a child of this subgraph
-                 if (n !== d && (n.properties as any).mermaidSubgraphName === subgraphName) {
+                 const childSubgraphRaw = n.properties ? n.properties['mermaidSubgraphName'] : null
+                 const childSubgraphName = typeof childSubgraphRaw === 'string' ? childSubgraphRaw : null
+                 if (n !== d && childSubgraphName === subgraphName) {
                      // Move child
                      // We update both fixed position (fx, fy) and current position (x, y)
                      // because simulation might be stopped.
@@ -63,6 +72,15 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
                  }
              });
          }
+      }
+
+      if (isMermaid) {
+          // Force render update without advancing simulation
+          // This ensures edges and other elements track the dragged node immediately
+          const tickHandler = simulation.on('tick')
+          if (typeof tickHandler === 'function') {
+            ;(tickHandler as unknown as () => void)()
+          }
       }
     })
     .on('end', (event, d) => {

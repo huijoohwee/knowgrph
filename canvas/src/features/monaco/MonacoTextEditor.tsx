@@ -83,6 +83,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   } = props
 
   const hostRef = React.useRef<HTMLElement | null>(null)
+  const textareaElRef = React.useRef<HTMLTextAreaElement | null>(null)
   const monacoRef = React.useRef<MonacoApi | null>(null)
   const editorInstanceRef = React.useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
   const decorationsRef = React.useRef<string[]>([])
@@ -98,6 +99,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   const onScrollRef = React.useRef(onScroll)
   const onBlurRef = React.useRef(onBlur)
   const onFocusRef = React.useRef(onFocus)
+  const textareaHandleRef = React.useRef<MonacoTextEditorHandle | null>(null)
 
   React.useEffect(() => {
     editorRefRef.current = editorRef
@@ -165,6 +167,23 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     typeof window !== 'undefined' &&
     typeof document !== 'undefined' &&
     typeof (window as unknown as { Worker?: unknown }).Worker !== 'undefined'
+
+  React.useEffect(() => {
+    if (canUseMonaco) return
+    const editorRefNow = editorRefRef.current
+    if (!editorRefNow) return
+    if (!textareaElRef.current) {
+      editorRefNow.current = null
+      textareaHandleRef.current = null
+      return
+    }
+    editorRefNow.current = textareaHandleRef.current
+    return () => {
+      const current = editorRefRef.current
+      if (current) current.current = null
+      textareaHandleRef.current = null
+    }
+  }, [canUseMonaco])
 
   React.useEffect(() => {
     const host = hostRef.current
@@ -439,6 +458,155 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
         />
       ) : (
         <textarea
+          ref={el => {
+            textareaElRef.current = el
+            const editorRefNow = editorRefRef.current
+            if (!editorRefNow) return
+            if (!el) {
+              editorRefNow.current = null
+              textareaHandleRef.current = null
+              return
+            }
+
+            const readLineHeight = () => {
+              try {
+                const cs = window.getComputedStyle(el)
+                const raw = cs.lineHeight ? Number.parseFloat(cs.lineHeight) : NaN
+                return Number.isFinite(raw) && raw > 0 ? raw : 16
+              } catch {
+                return 16
+              }
+            }
+
+            const splitLines = () => String(el.value || '').split('\n')
+
+            const getOffsetAt = (line: number, column: number) => {
+              const lines = splitLines()
+              const safeLine = Math.max(1, Math.min(Math.floor(line || 1), lines.length || 1))
+              const safeCol = Math.max(1, Math.floor(column || 1))
+              let offset = 0
+              for (let i = 0; i < safeLine - 1; i += 1) {
+                offset += lines[i].length + 1
+              }
+              const lineText = lines[safeLine - 1] ?? ''
+              const colZeroBased = Math.min(safeCol - 1, lineText.length)
+              return offset + colZeroBased
+            }
+
+            const getLineForOffset = (offset: number) => {
+              const safeOffset = Math.max(0, Math.floor(offset || 0))
+              const lines = splitLines()
+              let cursor = 0
+              for (let i = 0; i < lines.length; i += 1) {
+                const len = lines[i].length
+                const end = cursor + len
+                if (safeOffset <= end) return i + 1
+                cursor = end + 1
+              }
+              return Math.max(1, lines.length)
+            }
+
+            const getTopForLineNumber = (line: number) => {
+              const lh = readLineHeight()
+              const safe = Math.max(1, Math.floor(line || 1))
+              return (safe - 1) * lh
+            }
+
+            const handle: MonacoTextEditorHandle = {
+              focus: () => el.focus(),
+              revealLine: (line: number) => {
+                const top = getTopForLineNumber(line)
+                el.scrollTop = top
+              },
+              revealOffsetInCenter: (offset: number) => {
+                const line = getLineForOffset(offset)
+                const top = getTopForLineNumber(line)
+                el.scrollTop = Math.max(0, top - el.clientHeight / 2)
+              },
+              setSelection: (startLine, startColumn, endLine, endColumn) => {
+                const start = getOffsetAt(startLine, startColumn)
+                const end = getOffsetAt(endLine, endColumn)
+                el.selectionStart = Math.min(start, end)
+                el.selectionEnd = Math.max(start, end)
+              },
+              setSelectionOffsets: (startOffset: number, endOffset: number) => {
+                const start = Math.max(0, Math.floor(startOffset || 0))
+                const end = Math.max(0, Math.floor(endOffset || 0))
+                el.selectionStart = Math.min(start, end)
+                el.selectionEnd = Math.max(start, end)
+              },
+              getSelectionOffsets: () => {
+                const startOffset = typeof el.selectionStart === 'number' ? el.selectionStart : null
+                const endOffset = typeof el.selectionEnd === 'number' ? el.selectionEnd : null
+                if (startOffset == null || endOffset == null) return null
+                return { startOffset, endOffset }
+              },
+              getValue: () => String(el.value || ''),
+              setScrollTop: (scrollTop: number) => {
+                el.scrollTop = Math.max(0, Math.floor(scrollTop || 0))
+              },
+              getScrollTop: () => el.scrollTop,
+              getScrollHeight: () => el.scrollHeight,
+              getClientHeight: () => el.clientHeight,
+              getLineHeight: () => readLineHeight(),
+              getContentWidth: () => el.clientWidth,
+              getVisibleRange: () => {
+                const lh = readLineHeight()
+                const totalLines = splitLines().length || 1
+                const startLine = Math.max(1, Math.min(totalLines, Math.floor(el.scrollTop / lh) + 1))
+                const endLine = Math.max(
+                  startLine,
+                  Math.min(totalLines, Math.floor((el.scrollTop + el.clientHeight) / lh) + 1),
+                )
+                return { startLine, endLine }
+              },
+              getTopForLineNumber,
+              onDidScrollChange: (listener) => {
+                const handler = () => {
+                  const ev = {
+                    scrollTop: el.scrollTop,
+                    scrollLeft: el.scrollLeft,
+                    scrollHeight: el.scrollHeight,
+                    scrollWidth: el.scrollWidth,
+                    scrollTopChanged: true,
+                    scrollLeftChanged: false,
+                    scrollWidthChanged: false,
+                    scrollHeightChanged: false,
+                  } as unknown as Monaco.IScrollEvent
+                  listener(ev)
+                }
+                el.addEventListener('scroll', handler)
+                return {
+                  dispose: () => el.removeEventListener('scroll', handler),
+                }
+              },
+              onDidLayoutChange: (listener) => {
+                const handler = () => {
+                  const info = {
+                    width: el.clientWidth,
+                    height: el.clientHeight,
+                  } as unknown as Monaco.editor.EditorLayoutInfo
+                  listener(info)
+                }
+                let ro: ResizeObserver | null = null
+                if (typeof window !== 'undefined' && typeof (window as unknown as { ResizeObserver?: unknown }).ResizeObserver !== 'undefined') {
+                  ro = new ResizeObserver(() => handler())
+                  ro.observe(el)
+                } else {
+                  window.addEventListener('resize', handler)
+                }
+                return {
+                  dispose: () => {
+                    if (ro) ro.disconnect()
+                    window.removeEventListener('resize', handler)
+                  },
+                }
+              },
+            }
+
+            textareaHandleRef.current = handle
+            editorRefNow.current = handle
+          }}
           value={value}
           readOnly={!!readOnly}
           onChange={e => onChange(e.target.value)}

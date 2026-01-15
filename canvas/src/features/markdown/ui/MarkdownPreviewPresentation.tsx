@@ -106,7 +106,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     onMouseUp,
     selectionToolbar,
     onSlideContextMenu,
-    fullDocTokens,
   } = props
 
   const [isSlidesFullscreenOpen, setIsSlidesFullscreenOpen] = React.useState(false)

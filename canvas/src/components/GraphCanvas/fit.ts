@@ -26,18 +26,42 @@ export const fitAllTransform = (nodes: GraphNode[], width: number, height: numbe
   if (!nodes || nodes.length === 0) {
     return d3.zoomIdentity;
   }
-  const coords = nodes
-    .map(n => [n.x, n.y] as const)
-    .filter(([x, y]) => typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y));
-  if (coords.length === 0) {
+  
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let hasValid = false;
+
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    const x = n.x;
+    const y = n.y;
+    if (typeof x !== 'number' || !Number.isFinite(x) || typeof y !== 'number' || !Number.isFinite(y)) continue;
+    
+    hasValid = true;
+    
+    // Estimate node bounds to prevent edge clipping
+    let halfW = 20; // Default radius-ish
+    let halfH = 20;
+    
+    const props = n.properties as Record<string, unknown> | undefined;
+    if (props) {
+        const vw = props['visual:width'];
+        const vh = props['visual:height'];
+        if (typeof vw === 'number' && Number.isFinite(vw) && vw > 0) halfW = vw / 2;
+        if (typeof vh === 'number' && Number.isFinite(vh) && vh > 0) halfH = vh / 2;
+    }
+    
+    if (x - halfW < minX) minX = x - halfW;
+    if (x + halfW > maxX) maxX = x + halfW;
+    if (y - halfH < minY) minY = y - halfH;
+    if (y + halfH > maxY) maxY = y + halfH;
+  }
+
+  if (!hasValid) {
     return d3.zoomIdentity;
   }
-  const xs = coords.map(([x]) => x);
-  const ys = coords.map(([, y]) => y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
 
   const w = Math.max(1, width);
   const h = Math.max(1, height);

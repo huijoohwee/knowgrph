@@ -32,9 +32,13 @@ export function testEdaMlpTreeRendering() {
   }
   
   // Check if metadata has tree info
-  const meta = jsonld.metadata as Record<string, any>
-  if (meta.layoutMode !== 'tree') {
-    throw new Error(`expected metadata.layoutMode to be 'tree', got '${meta.layoutMode}'`)
+  const meta =
+    jsonld.metadata && typeof jsonld.metadata === 'object' && !Array.isArray(jsonld.metadata)
+      ? (jsonld.metadata as Record<string, unknown>)
+      : {}
+  const layoutMode = typeof meta.layoutMode === 'string' ? meta.layoutMode : null
+  if (layoutMode !== 'tree') {
+    throw new Error(`expected metadata.layoutMode to be 'tree', got '${layoutMode}'`)
   }
   if (!meta.tree) {
     throw new Error('expected metadata.tree to be defined')

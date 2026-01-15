@@ -329,7 +329,6 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
 
   const handleViewerScroll = React.useCallback((e?: React.UIEvent<HTMLDivElement>) => {
     const rafFn = getRaf()
-    const cancelRafFn = getCancelRaf()
     const viewerFromEvent = e?.currentTarget ?? null
     
     // Throttle scroll handling

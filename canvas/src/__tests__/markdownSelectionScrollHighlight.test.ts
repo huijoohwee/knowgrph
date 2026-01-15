@@ -65,6 +65,7 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
     const state = useGraphStore.getState()
     state.setGraphData(graphData as never)
     state.setMarkdownDocument('test.md', markdownText)
+    state.setSelectionSource('canvas')
     state.selectNode('node-100')
 
     root.render(React.createElement(BottomPanelMarkdownSection))
@@ -91,16 +92,6 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
       throw new Error('editor textarea not found')
     }
 
-    Object.defineProperty(textarea, 'scrollHeight', {
-      value: 4000,
-      configurable: true,
-    })
-    Object.defineProperty(textarea, 'clientHeight', {
-      value: 400,
-      configurable: true,
-    })
-
-    textarea.dispatchEvent(new dom.window.Event('scroll', { bubbles: true }))
     await tick()
     await tick()
 

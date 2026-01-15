@@ -15,6 +15,7 @@ import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { applyGraphLayerCentroidDelta, buildNodeGroupsFromSchema, createGraphLayersLayer } from '@/components/GraphCanvas/graphLayers'
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
+import { applyMermaidLayout } from '@/components/GraphCanvas/layout/mermaid'
 import { createNodesLayer } from '@/components/GraphCanvas/sceneLayers'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import * as d3 from 'd3'
@@ -229,6 +230,7 @@ export async function testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo(
     if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
       throw new Error(`expected graphData for layer mode ${mode}`)
     }
+    applyMermaidLayout(graph.nodes as GraphNode[], graph.edges as GraphEdge[], 1920, 1080, schemaForMode)
     const nodeById = new Map<string, typeof graph.nodes[number]>()
     graph.nodes.forEach((n) => {
       nodeById.set(String(n.id), n)
@@ -237,6 +239,7 @@ export async function testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo(
     let totalPointCount = 0
     let maxPointsPerGroup = 0
     const step = Math.PI / 4
+    const isRectMode = schemaForMode.layout?.mode === 'mermaid' || schemaForMode.layout?.mode === 'tree'
     nodeGroups.forEach((group) => {
       const ids = group.memberIds || []
       const points: [number, number][] = []
@@ -246,6 +249,18 @@ export async function testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo(
         const x = typeof node.x === 'number' ? node.x : null
         const y = typeof node.y === 'number' ? node.y : null
         if (x == null || y == null || !Number.isFinite(x) || !Number.isFinite(y)) return
+        if (isRectMode) {
+          const props = (node.properties || {}) as Record<string, unknown>
+          const visualW = typeof props['visual:width'] === 'number' ? props['visual:width'] : 0
+          const visualH = typeof props['visual:height'] === 'number' ? props['visual:height'] : 0
+          const padding = 12
+          const w = visualW > 0 ? visualW / 2 + padding : 0
+          const h = visualH > 0 ? visualH / 2 + padding : 0
+          if (w > 0 && h > 0) {
+            points.push([x + w, y + h], [x - w, y + h], [x + w, y - h], [x - w, y - h])
+            return
+          }
+        }
         const r = getRenderNodeRadius2d(node as never, schemaForMode)
         const radius = Number.isFinite(r) && r > 0 ? r : 10
         for (let angle = 0; angle < Math.PI * 2; angle += step) {

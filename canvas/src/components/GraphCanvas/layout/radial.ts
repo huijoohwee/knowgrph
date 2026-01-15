@@ -3,8 +3,6 @@ import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
 import {
   buildAdjacencyMap,
-  getEdgeEndpoints,
-  EdgeWithRuntime,
 } from '../simulation'
 
 type RadialClusterNode = {

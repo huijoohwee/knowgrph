@@ -40,11 +40,6 @@ export const normalizeEdgesForSim = (nodes: GraphNode[], edges: GraphEdge[]): Gr
 
 type GraphLike = { nodes: GraphNode[]; edges: GraphEdge[] };
 
-type RadialClusterNode = {
-  id: string;
-  children?: RadialClusterNode[];
-};
-
 // Removed applyRadialClusterLayout - moved to ./layout/radial.ts
 
 export const buildSimulation = (
@@ -95,9 +90,9 @@ export const buildSimulation = (
          const strength = schema.layout?.forces?.boxForceStrength ?? 0.05;
          const cx = Math.max(1, width) / 2;
          const cy = Math.max(1, height) / 2;
-         // Tighter constraints: keep nodes mostly within the viewport
-         const limitX = Math.max(1, width) * 0.6;
-         const limitY = Math.max(1, height) * 0.6;
+         // Tighter constraints: keep nodes mostly within the viewport (0.48 allows slight bleed but keeps center visible)
+         const limitX = Math.max(1, width) * 0.48;
+         const limitY = Math.max(1, height) * 0.48;
          const alpha = simulation.alpha();
          const k = alpha * strength;
          for (const d of nodes) {

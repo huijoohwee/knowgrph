@@ -1,7 +1,5 @@
 import { useCallback } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { deriveTreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
-import { normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
 import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
 import { getNextThemeMode, type ThemeMode } from '@/lib/ui/theme'
 import type { GraphSchema } from '@/lib/graph/schema'

@@ -3,7 +3,6 @@ import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
 import { HELP_SHORTCUT_ITEMS, type HelpStepKey } from '@/features/panels/config';
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
 import { normalized as normalizeText } from '@/features/panels/utils/json';
-import { UI_ANCHORS } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
 
 interface UseHelpViewLogicProps {

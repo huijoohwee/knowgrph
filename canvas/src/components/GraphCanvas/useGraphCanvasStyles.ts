@@ -2,7 +2,7 @@ import { useEffect, MutableRefObject } from 'react';
 import * as d3 from 'd3';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { type GraphSchema } from '@/lib/graph/schema';
-import { getRenderNodeRadius2d, getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
+import { getNodeBaseFill, getRenderNodeRadius2d, getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
 import { type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
 import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens';
 import type { ThemeMode } from '@/lib/ui/theme';
@@ -26,6 +26,7 @@ export function useGraphCanvasStyles({
     const isDark = themeMode === 'dark' || (themeMode === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const colors = isDark ? UI_THEME_COLORS.dark : UI_THEME_COLORS.light;
 
+    const isMermaid = schema.layout?.mode === 'mermaid';
     const isTree = schema.layout?.mode === 'tree';
     const treeCfg = schema.layout?.tree || {};
     const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
@@ -39,18 +40,34 @@ export function useGraphCanvasStyles({
         } else if (this.tagName === 'rect') {
           const x = typeof d.x === 'number' ? d.x : 0;
           const y = typeof d.y === 'number' ? d.y : 0;
-          el.attr('x', x - radius)
-            .attr('y', y - radius)
-            .attr('width', radius * 2)
-            .attr('height', radius * 2);
+          const props = (d.properties || {}) as Record<string, unknown>;
+          const visualW = typeof props['visual:width'] === 'number' ? props['visual:width'] : null;
+          const visualH = typeof props['visual:height'] === 'number' ? props['visual:height'] : null;
+          const w = isMermaid && visualW != null && Number.isFinite(visualW) && visualW > 0 ? visualW : radius * 2;
+          const h = isMermaid && visualH != null && Number.isFinite(visualH) && visualH > 0 ? visualH : radius * 2;
+          el.attr('x', x - w / 2)
+            .attr('y', y - h / 2)
+            .attr('width', w)
+            .attr('height', h);
         }
       });
       if (isTree && treeColorMode === 'observable') {
         nodesSelRef.current.attr('stroke', 'none').attr('stroke-width', 0);
       } else {
         nodesSelRef.current
-          .attr('stroke', (d: GraphNode) => (schema.nodeStroke?.[d.type]?.color ?? (isTree ? 'none' : colors.nodeStroke)))
-          .attr('stroke-width', (d: GraphNode) => (schema.nodeStroke?.[d.type]?.width ?? (isTree ? 0 : 1.5)));
+          .attr('stroke', (d: GraphNode) => {
+            const override = schema.nodeStroke?.[d.type]?.color;
+            if (override) return override;
+            if (isTree) return 'none';
+            if (isMermaid) return getNodeBaseFill(d, schema);
+            return colors.nodeStroke;
+          })
+          .attr('stroke-width', (d: GraphNode) => {
+            const override = schema.nodeStroke?.[d.type]?.width;
+            if (typeof override === 'number' && Number.isFinite(override) && override >= 0) return override;
+            if (isTree) return 0;
+            return 1.5;
+          });
       }
     }
 
@@ -86,7 +103,7 @@ export function useGraphCanvasStyles({
       }
     }
 
-    if (labelsSelRef.current) {
+    if (labelsSelRef.current && !isMermaid) {
       const labelFontSize = (() => {
         if (!isTree) return schema.labelStyles?.fontSize ?? 12;
         const raw = treeCfg.labelFontSize;

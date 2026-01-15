@@ -8,8 +8,10 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphFieldKind } from '@/features/graph-fields/graphFields'
 import { FieldTypeBadgeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import type { GraphHoverPreviewConfig } from '@/hooks/store/types'
 
 export type HoverKind = 'node' | 'edge'
+
 
 export type HoverInfo = {
   kind: HoverKind;
@@ -61,17 +63,18 @@ function buildNodeContent(
   uiIconBadgeChipClass: string,
   uiIconBadgeChipTextSizeClass: string,
   uiPanelMicroLabelTextSizeClass: string,
+  config: GraphHoverPreviewConfig,
 ): React.ReactNode {
   const sorted = sortProps(node.properties || {}, 'node')
   const contentCfg = schema?.behavior?.hover?.content;
-  const showProps = contentCfg?.showProps !== false;
-  const showType = contentCfg?.showType !== false;
-  const showId = contentCfg?.showId !== false;
+  const showProps = contentCfg?.showProps !== false && config.showNodeProperties;
+  const showType = contentCfg?.showType !== false && config.showNodeLabel;
+  const showId = contentCfg?.showId !== false && config.showNodeId;
 
   return (
     <div>
       <div className="font-semibold">
-        {node.label}{' '}
+        {config.showNodeName && node.label}{' '}
         {showType && (
           <span className={UI_THEME_TOKENS.tooltip.textSecondary}>
             ({node.type})
@@ -83,9 +86,15 @@ function buildNodeContent(
           {node.id}
         </div>
       )}
+      {config.showNodeDescription && node.properties?.description && (
+        <div className={`mt-1 text-xs ${UI_THEME_TOKENS.tooltip.text} break-normal leading-tight max-w-xs`}>
+           {String(node.properties.description)}
+        </div>
+      )}
       {showProps && sorted.length > 0 && (
         <div className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
+            if (k === 'description') return null; // Handled separately if desired, or duplicate? Let's hide if description is shown above
             const spec = getNodePropSpec(schema, node.type, k)
             const description = spec && typeof spec.description === 'string' ? spec.description.trim() : ''
             const badges = summarizePropertySpec(spec)
@@ -141,6 +150,7 @@ function buildEdgeContent(
   uiIconBadgeChipClass: string,
   uiIconBadgeChipTextSizeClass: string,
   uiPanelMicroLabelTextSizeClass: string,
+  config: GraphHoverPreviewConfig,
 ): React.ReactNode {
   const sorted = sortProps(edge.properties || {}, 'edge')
   const schemaBadges = buildEdgeSchemaBadges(
@@ -149,17 +159,19 @@ function buildEdgeContent(
     edge.properties as Record<string, unknown> | null | undefined,
   )
   const contentCfg = schema?.behavior?.hover?.content;
-  const showProps = contentCfg?.showProps !== false;
-  const showId = contentCfg?.showId !== false;
+  const showProps = contentCfg?.showProps !== false && config.showEdgeProperties;
+  const showId = contentCfg?.showId !== false && config.showEdgeId;
 
   return (
     <div>
       <div className="font-semibold">
-        {edge.label}
+        {config.showEdgeLabel && edge.label}
       </div>
-      <div className="text-xs text-gray-300 break-all">
-        {String(edge.source)} → {String(edge.target)}
-      </div>
+      {config.showEdgeLabel && (
+        <div className="text-xs text-gray-300 break-all">
+          {String(edge.source)} → {String(edge.target)}
+        </div>
+      )}
       {schemaBadges.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-1">
           {schemaBadges.map(badge => (
@@ -246,6 +258,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
   const uiPanelMicroLabelTextSizeClass = useGraphStore(
     s => s.uiPanelMicroLabelTextSizeClass || s.uiIconBadgeChipTextSizeClass || 'text-[9px]',
   )
+  const graphHoverPreviewConfig = useGraphStore(s => s.graphHoverPreviewConfig)
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const container = containerRef.current
   const nodeMap = React.useMemo(() => {
@@ -285,6 +298,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
         uiIconBadgeChipClass,
         uiIconBadgeChipTextSizeClass,
         uiPanelMicroLabelTextSizeClass,
+        graphHoverPreviewConfig,
       )
     }
     if (edge) {
@@ -295,6 +309,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
         uiIconBadgeChipClass,
         uiIconBadgeChipTextSizeClass,
         uiPanelMicroLabelTextSizeClass,
+        graphHoverPreviewConfig,
       )
     }
     return null
@@ -306,6 +321,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     uiIconBadgeChipClass,
     uiIconBadgeChipTextSizeClass,
     uiPanelMicroLabelTextSizeClass,
+    graphHoverPreviewConfig,
   ])
   if (!hoverInfo || !container || !content) return null
   const rect = container.getBoundingClientRect()

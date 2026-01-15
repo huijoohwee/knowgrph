@@ -25,7 +25,7 @@ export const calculateNodeDimensions = (
   const lines = label.split('\n');
   const maxLineLength = Math.max(...lines.map(l => l.length));
 
-  const isMarkdown = /[*_\[\]]/.test(label);
+  const isMarkdown = /[*_[\]]/.test(label);
   const widthMultiplier = isMarkdown ? 1.1 : 1.0;
 
   const textWidth = Math.max(minWidth, maxLineLength * charWidth * widthMultiplier);

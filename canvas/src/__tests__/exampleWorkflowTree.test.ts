@@ -1,8 +1,7 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
-import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
+import { type GraphSchema } from '@/lib/graph/schema'
 import { deriveTreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
 import { computeTreeCollapseHiddenNodes } from '@/components/GraphCanvas/treeLabelLod'
-import { computeNextSchemaForTreePreset } from '@/features/toolbar/treePreset'
 
 export function testExampleWorkflowSliceTreeDerivationUsesWorkflowEdges() {
   const nodes: GraphNode[] = [
@@ -113,4 +112,3 @@ export function testTreeDepthCollapseHidesDeepNodes() {
     throw new Error('expected child1 to be visible (depth 1 <= maxDepth 1)')
   }
 }
-

@@ -8,6 +8,7 @@ export interface LayoutPositionConfig {
   prevLayerMode: string | null;
   prevFrontmatterMode: boolean | null;
   nodes: GraphNode[];
+  edgesRevision: number;
   layoutPositionCacheByMode: Record<string, Record<string, { x: number; y: number }>> | null;
 }
 
@@ -25,13 +26,14 @@ export const determineLayoutPositions = ({
   prevLayerMode,
   prevFrontmatterMode,
   nodes,
+  edgesRevision,
   layoutPositionCacheByMode,
 }: LayoutPositionConfig): LayoutPositionResult => {
   const isModeChange = prevMode !== mode;
   const isLayerChange = prevLayerMode !== layerMode;
   const isFrontmatterChange = prevFrontmatterMode !== frontmatterMode;
   const isStructuredMode = mode === 'radial' || mode === 'tree' || mode === 'mermaid';
-  const cacheKey = `${layerMode}:${mode}:${frontmatterMode ? 'fm' : 'full'}`;
+  const cacheKey = `${layerMode}:${mode}:${frontmatterMode ? 'fm' : 'full'}:${edgesRevision}`;
 
   // If not structured, we don't use cache for *target* positions in the same way,
   // though we might use prevPositions for stability (handled by caller).

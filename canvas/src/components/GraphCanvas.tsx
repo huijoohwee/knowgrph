@@ -295,6 +295,7 @@ export default function GraphCanvas() {
         prevLayerMode,
         prevFrontmatterMode,
         nodes: Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes : [],
+        edgesRevision: graphDataRevisionRef.current,
         layoutPositionCacheByMode,
       });
       
@@ -386,6 +387,7 @@ export default function GraphCanvas() {
     mediaPanelDensity,
     setLayoutPositionsForMode,
     activeLayerBandIndex,
+    frontmatterModeEnabled,
   ]);
 
 
@@ -432,16 +434,62 @@ export default function GraphCanvas() {
 
 
 
+  useEffect(() => {
+    const state = useGraphStore.getState();
+    const currentSchema = state.schema;
+    if (frontmatterModeEnabled) {
+      let nextSchema: GraphSchema = { ...currentSchema };
+      let changed = false;
+
+      // FORBID Semantic Layer Mode
+      if (currentSchema.layers?.mode === 'semantic') {
+         // Fallback to 'document' or 'property' (schema default)
+         nextSchema = { ...nextSchema, layers: { ...(nextSchema.layers || {}), mode: 'property' } };
+         changed = true;
+      }
+
+      // FORBID Document Structure Layer Mode
+      // The frontmatter filter removes Document/Section nodes, so this mode is invalid/empty.
+      if (currentSchema.layers?.mode === 'document-structure') {
+         nextSchema = { ...nextSchema, layers: { ...(nextSchema.layers || {}), mode: 'property' } };
+         changed = true;
+      }
+      
+      // We generally prefer 'mermaid' layout in this mode, but user might switch.
+      // However, if the current layout is NOT compatible (if any), we might force it.
+      // The user instruction says "Mermaid Layout" is allowed.
+      // It implies we should probably default to it if not set.
+      if (currentSchema.layout?.mode !== 'mermaid') {
+          nextSchema = { ...nextSchema, layout: { ...(nextSchema.layout || {}), mode: 'mermaid' } };
+          changed = true;
+      }
+
+      if (changed) {
+          state.setSchema(nextSchema);
+      }
+    } else {
+      // Frontmatter Mode OFF
+      // FORBID Mermaid Layout
+      if (currentSchema.layout?.mode === 'mermaid') {
+         // Fallback to 'force'
+         const nextSchema: GraphSchema = { ...currentSchema, layout: { ...currentSchema.layout, mode: 'force' } };
+         state.setSchema(nextSchema);
+      }
+    }
+  }, [frontmatterModeEnabled, schema.layers?.mode, schema.layout?.mode]);
+
   return (
-    <div
+    <main
       ref={containerRef}
       className="absolute inset-0 overflow-hidden"
+      role="main"
+      aria-label="Graph Canvas"
     >
       <svg
         ref={svgRef}
         className="absolute inset-0 w-full h-full z-0"
         viewBox={`0 0 ${Math.max(1, Math.floor(width))} ${Math.max(1, Math.floor(height))}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
       />
       <GraphHoverTooltip
         hoverInfo={hoverInfo}
@@ -450,6 +498,6 @@ export default function GraphCanvas() {
         edges={(renderGraphData as GraphData | null)?.edges}
         schema={schema as GraphSchema | null}
       />
-    </div>
+    </main>
   );
 }

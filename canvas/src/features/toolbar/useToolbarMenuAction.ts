@@ -3,7 +3,6 @@ import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useParserUIState } from '@/features/parsers/uiState'
 import {
   loadGraphDataViaParser,
-  loadGraphDataFromTextViaParser,
   type LoaderResult,
 } from '@/features/parsers/loader'
 import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
@@ -94,32 +93,6 @@ export function useToolbarMenuAction(args: {
           void 0
         }
       }
-      const rebuildMarkdownGraph = () => {
-        try {
-          const state = useGraphStore.getState()
-          const name = state.markdownDocumentName
-          const text = state.markdownDocumentText
-          const hasContent = typeof text === 'string' && text.trim().length > 0
-          const hasName = typeof name === 'string' && name.trim().length > 0
-          if (!hasContent || !hasName) {
-            return
-          }
-          void (async () => {
-            try {
-              const res = await loadGraphDataFromTextViaParser(name as string, text as string)
-              if (!res) {
-                setLoaderFailedStatus()
-                return
-              }
-              applyLoaderResultToUi(res)
-            } catch {
-              setLoaderFailedStatus()
-            }
-          })()
-        } catch {
-          void 0
-        }
-      }
       const exportMarkdownDocument = () => {
         try {
           const state = useGraphStore.getState()
@@ -159,7 +132,22 @@ export function useToolbarMenuAction(args: {
             ? rawName
             : `${base}.html`
           const htmlBody = markdownToHtml.render(markdown)
-          const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${base}</title></head><body>${htmlBody}</body></html>`
+          const style = `
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; color: #333; }
+            h1, h2, h3, h4, h5, h6 { color: #111; margin-top: 2rem; margin-bottom: 1rem; }
+            h1 { border-bottom: 1px solid #eaeaea; padding-bottom: 0.5rem; }
+            pre { background: #f6f8fa; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+            code { font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace; font-size: 0.9em; background: rgba(175, 184, 193, 0.2); padding: 0.2em 0.4em; border-radius: 4px; }
+            pre code { background: transparent; padding: 0; }
+            blockquote { border-left: 4px solid #dfe2e5; padding-left: 1rem; color: #6a737d; margin: 1rem 0; }
+            table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+            th, td { border: 1px solid #dfe2e5; padding: 0.6rem 1rem; }
+            th { background: #f6f8fa; font-weight: 600; }
+            img { max-width: 100%; height: auto; }
+            a { color: #0969da; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+          `
+          const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${base}</title><style>${style}</style></head><body>${htmlBody}</body></html>`
           const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
           downloadBlob(blob, filename)
         } catch {
@@ -179,7 +167,26 @@ export function useToolbarMenuAction(args: {
           const base =
             rawName.replace(/\.(pdf|html|htm|jsonld|json|yaml|yml|md|markdown)$/i, '') || 'document'
           const htmlBody = markdownToHtml.render(markdown)
-          const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${base}</title></head><body>${htmlBody}</body></html>`
+          const style = `
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; color: #333; }
+            h1, h2, h3, h4, h5, h6 { color: #111; margin-top: 2rem; margin-bottom: 1rem; }
+            h1 { border-bottom: 1px solid #eaeaea; padding-bottom: 0.5rem; }
+            pre { background: #f6f8fa; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+            code { font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace; font-size: 0.9em; background: rgba(175, 184, 193, 0.2); padding: 0.2em 0.4em; border-radius: 4px; }
+            pre code { background: transparent; padding: 0; }
+            blockquote { border-left: 4px solid #dfe2e5; padding-left: 1rem; color: #6a737d; margin: 1rem 0; }
+            table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+            th, td { border: 1px solid #dfe2e5; padding: 0.6rem 1rem; }
+            th { background: #f6f8fa; font-weight: 600; }
+            img { max-width: 100%; height: auto; }
+            a { color: #0969da; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            @media print {
+              body { max-width: none; padding: 0; }
+              pre { white-space: pre-wrap; }
+            }
+          `
+          const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${base}</title><style>${style}</style></head><body>${htmlBody}</body></html>`
           const w = window.open('', '_blank', 'noopener,noreferrer')
           if (!w) return
           w.document.open()
@@ -192,7 +199,7 @@ export function useToolbarMenuAction(args: {
             } catch {
               void 0
             }
-          }, 0)
+          }, 500)
         } catch {
           void 0
         }
@@ -276,10 +283,6 @@ export function useToolbarMenuAction(args: {
             })()
             return
           }
-          return
-        }
-        if (action === 'export' && format === 'markdown') {
-          rebuildMarkdownGraph()
           return
         }
         if (action === 'importLocal') {

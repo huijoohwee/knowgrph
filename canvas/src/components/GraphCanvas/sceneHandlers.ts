@@ -18,7 +18,7 @@ export const attachSimulationTick = (args: {
   nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>
   mediaSel?: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null
   linkSel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
-  labelsSel: d3.Selection<any, GraphNode, SVGGElement, unknown>
+  labelsSel: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>
   graphLayersHullSel: d3.Selection<SVGPathElement, NodeGroup, SVGGElement, unknown> | null
   graphLayerCentroidSel: d3.Selection<SVGCircleElement, NodeGroup, SVGGElement, unknown> | null
   graphLayerLabelSel: d3.Selection<SVGTextElement, NodeGroup, SVGGElement, unknown> | null
@@ -197,11 +197,11 @@ export const attachSimulationTick = (args: {
       })
       .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
       .attr('rx', (d: GraphNode) => {
-        if (d.type === 'MermaidSubgraph') return 4;
+        if (d.type === 'MermaidSubgraph') return 0;
         return getRenderNodeRadius2d(d, schema) * 0.22;
       })
       .attr('ry', (d: GraphNode) => {
-        if (d.type === 'MermaidSubgraph') return 4;
+        if (d.type === 'MermaidSubgraph') return 0;
         return getRenderNodeRadius2d(d, schema) * 0.22;
       })
 
@@ -214,7 +214,14 @@ export const attachSimulationTick = (args: {
     }
 
     if (isMermaid) {
-       labelsSel.attr('x', (d: GraphNode) => d.x!).attr('y', (d: GraphNode) => d.y!)
+      labelsSel
+        .attr('x', 0)
+        .attr('y', 0)
+        .attr('transform', (d: GraphNode) => {
+          const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
+          const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
+          return `translate(${x},${y})`
+        })
     } else {
         // Standard text positioning
         labelsSel.attr('x', (d: GraphNode) => d.x!).attr('y', (d: GraphNode) => d.y!)
@@ -350,6 +357,11 @@ export const attachSimulationTick = (args: {
           .attr('y', group => {
             const geometry = geometryById.get(group.id)
             if (!geometry) return Number.NaN
+            if (typeof geometry.topY === 'number' && Number.isFinite(geometry.topY)) {
+               // For Mermaid Subgraphs (or any box), place label slightly above top edge or inside top
+               // Mermaid-land style: Inside top, centered.
+               return geometry.topY + 14 // 14px down from top
+            }
             return geometry.cy
           })
           .style('display', group => {

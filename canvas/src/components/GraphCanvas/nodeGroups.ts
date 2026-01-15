@@ -1,4 +1,4 @@
-import type { GraphData, JSONValue } from '@/lib/graph/types';
+import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 
 export type NodeGroup = {
@@ -104,6 +104,20 @@ export const buildNodeGroupsFromSchema = (graphData: GraphData, schema: GraphSch
   const buildMermaidSubgraphGroups = (): NodeGroup[] => {
     if (schema.layout?.mode !== 'mermaid') return []
     const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+    
+    // Pre-index nodes by subgraph name for O(N) lookup
+    const nodesBySubgraphName = new Map<string, GraphNode[]>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      const props = (node.properties || {}) as Record<string, unknown>
+      const parent = String(props['mermaidSubgraphName'] || '').trim()
+      if (parent) {
+        const list = nodesBySubgraphName.get(parent) || []
+        list.push(node)
+        nodesBySubgraphName.set(parent, list)
+      }
+    }
+
     const nodeIdSet = new Set<string>()
     for (let i = 0; i < nodes.length; i += 1) {
       nodeIdSet.add(String(nodes[i]?.id ?? ''))
@@ -112,22 +126,14 @@ export const buildNodeGroupsFromSchema = (graphData: GraphData, schema: GraphSch
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       if (!n || String(n.type || '') !== 'MermaidSubgraph') continue
-      const rawMembers = (n.properties || {})['hasMermaidNode'] as unknown
-      const memberIds: string[] = []
-      if (Array.isArray(rawMembers)) {
-        for (let k = 0; k < rawMembers.length; k += 1) {
-          const v = rawMembers[k]
-          if (typeof v === 'string') {
-            const id = String(v)
-            if (nodeIdSet.has(id)) memberIds.push(id)
-          } else if (v && typeof v === 'object' && typeof (v as { '@id'?: unknown })['@id'] === 'string') {
-            const id = String((v as { '@id': string })['@id'])
-            if (nodeIdSet.has(id)) memberIds.push(id)
-          }
-        }
-      }
+      const subgraphName = String(n.properties?.subgraphName || n.properties?.nodeName || n.label || '').trim()
+      if (!subgraphName) continue
+
+      const memberNodes = nodesBySubgraphName.get(subgraphName) || []
+      const memberIds = memberNodes.map(m => String(m.id))
+      
       const deduped = Array.from(new Set(memberIds))
-      if (deduped.length < 2) continue
+      if (deduped.length < 1) continue
       groups.push({
         id: `mermaidSubgraph::${String(n.id)}`,
         memberIds: deduped,
@@ -135,11 +141,42 @@ export const buildNodeGroupsFromSchema = (graphData: GraphData, schema: GraphSch
           groupBy: 'property',
           ownerId: String(n.id),
           ownerType: 'MermaidSubgraph',
-          propertyKey: 'hasMermaidNode',
-          groupValue: String(n.label || ''),
+          propertyKey: 'mermaidSubgraphName',
+          groupValue: subgraphName,
         },
       })
     }
+
+    // Sort groups by hierarchy depth (root first) so parents are drawn before children
+    const subgraphParentByName = new Map<string, string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      if (String(n.type || '') !== 'MermaidSubgraph') continue
+      const name = String(n.properties?.subgraphName || n.properties?.nodeName || n.label || '').trim()
+      const parent = String(n.properties?.mermaidSubgraphName || '').trim()
+      if (name) subgraphParentByName.set(name, parent)
+    }
+
+    const getDepth = (name: string): number => {
+      let d = 0
+      let curr = name
+      const visited = new Set<string>()
+      while (curr && !visited.has(curr)) {
+        visited.add(curr)
+        const p = subgraphParentByName.get(curr)
+        if (!p) break
+        curr = p
+        d += 1
+      }
+      return d
+    }
+
+    groups.sort((a, b) => {
+      const da = getDepth(a.meta?.groupValue || '')
+      const db = getDepth(b.meta?.groupValue || '')
+      return da - db
+    })
+
     return groups
   }
 

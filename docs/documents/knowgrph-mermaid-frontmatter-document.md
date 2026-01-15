@@ -27,6 +27,7 @@ Narrative text here.
 
 - `title` is treated as the Document name when no H1 heading is present.
 - `mermaid` is parsed as a multi-line string; its contents are attached as a `MermaidDiagram` node and also parsed into `MermaidNode` graph nodes and `pointsTo` edges between them. The parser supports standard YAML block scalar behavior, stripping common indentation from the block content.
+- `classDef` and `class` statements are parsed to apply custom styles (fill, stroke, stroke-width, color) to nodes, overriding default schema colors.
 
 ## Parser behavior (markdown → JSON-LD → GraphData)
 
@@ -39,9 +40,11 @@ Narrative text here.
     - `properties.code`: raw Mermaid source (for example, `graph TD …`).
   - Adds `hasMermaid` from the `Document` to the `MermaidDiagram`.
   - Parses the frontmatter Mermaid code into graph nodes and edges:
-    - For each Mermaid node like `Input[User Query]`, emits a `MermaidNode` with `properties.nodeName` and `properties.label`.
+    - For each Mermaid node like `Input[User Query]`, emits a `MermaidNode` with `properties.nodeName` and `properties.label`. Supports `:::className` suffix (e.g. `Node:::style1`) to apply styles inline.
     - For each arrow like `Input --> Retrieval`, emits a `pointsTo` edge from the `MermaidNode` for `Input` to the `MermaidNode` for `Retrieval`.
     - For `click` directives of the form `click Retrieval "#agent"`, adds a `pointsTo` edge from the `MermaidNode` to the corresponding `Anchor` node (created from `<a id="agent"></a>`), when present.
+    - For `classDef` statements, stores style definitions.
+    - For `class` statements, applies defined styles to matching nodes and subgraphs as `visual:*` properties (fill, stroke, strokeWidth, strokeDasharray, color). Styles are merged with any existing class assignments.
   - Scans markdown body lines for:
     - HTML anchors of the form `<a id="..."></a>` and emits `Anchor` nodes linked from the `Document` via `hasAnchor`.
     - Internal hash links of the form `[Label](#anchor-id)` and emits `InternalLink` nodes linked from the `Document` via `hasInternalLink`, with optional `pointsTo` edges when the referenced anchor exists.
@@ -92,7 +95,9 @@ In the graph produced by `buildMarkdownJsonLd`, these map to neutral node and ed
 - Canvas:
   - Renders Markdown-derived `Document`, `Section`, `Paragraph`, `List`, `ListItem`, `Link`, media nodes, `Anchor`, and `InternalLink` nodes produced by `buildMarkdownJsonLd`.
   - Renders Mermaid-derived `MermaidNode` nodes and `pointsTo` edges so that the frontmatter diagram appears as a central, navigable subgraph on the Canvas.
-  - Renders Mermaid-derived `MermaidSubgraph` nodes as a distinct layer type (styled as pink hexes) and uses `properties.mermaidSubgraphName` on each `MermaidNode` to group nodes into business, stakeholder, KPI, model, implementation, or mathematical layers without hardcoding any specific file or domain. Subgraphs whose names follow the neutral `Lk` convention (`L0`, `L1`, and so on) propagate a `visual:layer` index to their member nodes so that the Graph Layer tab’s “Mermaid Layer · MermaidSubgraph” chip and layer band control can dim all Mermaid nodes except the selected band while leaving the underlying markdown-derived structure untouched. When the top‑bar Graph Layer button (Shapes icon) is turned on (`graphLayersVisible = true`), these `MermaidSubgraph` hex nodes remain present in `GraphData` and in the Graph Layer panel but are omitted from the base 2D node and label layers, which focus on member `MermaidNode` instances and graph layer hull overlays; turning the Graph Layer button off (`graphLayersVisible = false`) restores `MermaidSubgraph` nodes to the 2D node and label layers so the hexes are rendered alongside their member nodes.
+  - Renders Mermaid-derived `MermaidSubgraph` nodes as rectangular hulls behind their member nodes. The layout (position and dimensions) is computed by the Mermaid (Dagre) engine to ensure subgraphs correctly encompass their children. Subgraphs support custom styling via Mermaid `classDef` (fill, stroke, stroke-width, stroke-dasharray) and default to schema-driven colors (based on L0/L1 tags) if no explicit style is provided. They are sorted by hierarchy depth so that nested subgraphs are rendered on top of their parents.
+  - Supports interactive dragging: Dragging a subgraph automatically moves all its member nodes. Dragging any node updates its connected edges in real-time, maintaining the graph topology visually.
+  - Uses `properties.mermaidSubgraphName` on each `MermaidNode` to group nodes into business, stakeholder, KPI, model, implementation, or mathematical layers without hardcoding any specific file or domain. Subgraphs whose names follow the neutral `Lk` convention (`L0`, `L1`, …), the neutral `Pk` pattern (`P0`, `P1`, …), or the `Phase` pattern (`Phase0`, `Phase1`, …), member nodes also receive a numeric `properties["visual:layer"]` index.
   - When a `MermaidNode` is selected, highlights the entire `pointsTo` path for that node’s Mermaid pipeline component so that all downstream and upstream Mermaid steps (for example, `Input → Retrieval → Augmentation → Generation → Output`) and the connecting `pointsTo` edges are visually emphasized together.
   - The toolbar exposes a **Mermaid focus** floating panel that renders the active frontmatter Mermaid diagram using the same `MermaidDiagram` component as the Preview panel. When tree layout is active and the selection is a `MermaidNode` with a `properties.mermaidSubgraphName` value, this panel derives a subgraph-specific Mermaid snippet based on that name so the focus view zooms in on the selected Mermaid subgraph while keeping the underlying diagram and schema configuration neutral.
   - **Mermaid Frontmatter Sync**: When a Canvas node corresponds to a node defined in the Markdown frontmatter (Mermaid block), the editor auto-scrolls to the exact line of the node definition within the frontmatter code. The logic attempts to find the node definition by ID first, and falls back to matching by node name/label if the ID is generated (e.g., `mermaid:gid:...`). This ensures robust navigation even when graph data contains full URIs while the frontmatter uses simple identifiers.

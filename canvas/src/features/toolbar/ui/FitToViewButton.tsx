@@ -1,14 +1,9 @@
 import React, { useCallback } from 'react';
-import { Maximize, Scan } from 'lucide-react';
+import { Scan } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { getIconSizeClass } from '@/lib/ui';
-import { UI_LABELS } from '@/lib/config';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import {
-  uiPrimaryIconActiveClassName,
-  uiPrimaryIconInactiveClassName,
-} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 
 export const FitToViewButton = () => {
   const {

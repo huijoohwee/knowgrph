@@ -11,7 +11,7 @@ export const createLabelsLayer = (args: {
   graphData: GraphData;
   schema: GraphSchema;
   edgesForDisplay: GraphEdge[];
-  labelsSelRef: MutableRefObject<d3.Selection<any, GraphNode, SVGGElement, unknown> | null>;
+  labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   renderMediaAsNodes: boolean;
   graphLayersVisible: boolean;
 }) => {
@@ -112,27 +112,42 @@ export const createLabelsLayer = (args: {
 
   const labelsGroup = g.append('g').attr('class', 'labels-layer');
 
-  let label: d3.Selection<any, GraphNode, SVGGElement, unknown>;
+  let label: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>;
 
   if (isMermaid) {
     label = labelsGroup
-      .selectAll('text')
+      .selectAll<SVGTextElement, GraphNode>('text')
       .data(nodes)
       .enter()
       .append('text')
-      .text((d: GraphNode) => String(d.label || d.id))
       .attr('font-size', mermaidLabelFontSize)
       .attr('font-family', mermaidLabelFontFamily)
       .attr('fill', schema.labelStyles?.color ?? '#111')
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
       .attr('dx', 0)
-      .attr('dy', '0.1em')
+      .attr('dy', 0)
       .style('pointer-events', 'none');
+    
+    const lineHeightPx = mermaidLabelFontSize * 1.2
+    label.each(function (d: GraphNode) {
+      const el = d3.select(this)
+      const props = (d.properties || {}) as Record<string, unknown>
+      const raw =
+        typeof props['visual:label'] === 'string'
+          ? String(props['visual:label'] || '')
+          : String(d.label || d.id || '')
+      const lines = String(raw).replace(/\r\n?/g, '\n').split('\n')
+      const dy0 = -((Math.max(1, lines.length) - 1) / 2) * lineHeightPx
+      el.text(null)
+      for (let i = 0; i < lines.length; i += 1) {
+        el.append('tspan').attr('x', 0).attr('dy', i === 0 ? `${dy0}px` : `${lineHeightPx}px`).text(lines[i])
+      }
+    })
   } else {
     // Standard Text Rendering
     label = labelsGroup
-      .selectAll('text')
+      .selectAll<SVGTextElement, GraphNode>('text')
       .data(nodes)
       .enter()
       .append('text')
@@ -152,9 +167,7 @@ export const createLabelsLayer = (args: {
         }
         return nodesWithChildren.has(id) ? -(r + pad) : r + pad;
       })
-      .attr('dy', (d: GraphNode) => {
-          return isTree ? '0.32em' : (schema.labelStyles?.offset?.dy ?? 4)
-      })
+      .attr('dy', () => (isTree ? '0.32em' : (schema.labelStyles?.offset?.dy ?? 4)))
       .attr('data-base-anchor', (d: GraphNode) => {
         if (!isTree) return 'start';
         const id = String(d.id);

@@ -1,5 +1,5 @@
 import type { StoreApi } from 'zustand';
-import type { GraphState, GraphDataTableScope, GraphDataTableFreezeMode } from './types';
+import type { GraphState, GraphDataTableScope, GraphDataTableFreezeMode, GraphHoverPreviewConfig } from './types';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
 import type { BottomTab } from '@/features/bottom-panel/open';
 import type {
@@ -117,6 +117,21 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   graphDataTableOverscanMultiplier: 1.5,
   graphDataTableVirtualMinRows: 10,
   graphDataTableVirtualDebugLogRanges: false,
+  graphHoverPreviewConfig: {
+    showNodeId: false,
+    showNodeName: true,
+    showNodeLabel: true,
+    showNodeDescription: true,
+    showNodeProperties: true,
+    showEdgeId: false,
+    showEdgeLabel: true,
+    showEdgeWeight: true,
+    showEdgeProperties: true,
+  },
+  setGraphHoverPreviewConfig: (config: Partial<GraphHoverPreviewConfig>) =>
+    set((state) => ({
+      graphHoverPreviewConfig: { ...state.graphHoverPreviewConfig, ...config },
+    })),
   graphId: 'default',
   markdownAlwaysOnHighlightComplexityBudget: null as number | null,
   tabId: (() => {

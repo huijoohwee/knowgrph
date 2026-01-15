@@ -133,6 +133,7 @@ import {
 import { testStatsTokensByGraphLayerUsesPaletteFillForMarkdownSlideDemo } from '@/__tests__/statsGraphLayerTokens.test'
 import { testFrontmatterModeFiltersGraphToMermaidNodes } from '@/__tests__/frontmatterModeGraphFilter.test'
 import { testFrontmatterModeEdaMlpFiltersGraphToMermaidFrontmatter } from '@/__tests__/frontmatterModeEdaMlpGraphFilter.test'
+import { testMermaidSubgraphLayoutCoordinates } from '@/__tests__/markdown/reproduce_mermaid_subgraph_layout.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -517,6 +518,7 @@ export const runAllTests = async () => {
     'schema.applySchemaUiSnapshot.callsApplyWhenHashMatches',
     testApplySchemaUiSnapshotCallsApplyWhenHashMatches,
   )
+  await exec('markdown.mermaid.subgraphLayoutCoordinates', testMermaidSubgraphLayoutCoordinates)
 
   return results
 }

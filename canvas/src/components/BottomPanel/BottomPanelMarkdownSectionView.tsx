@@ -325,11 +325,12 @@ export function BottomPanelMarkdownSectionView(
             themeMode={themeMode}
           />
         </MarkdownPanelLayout>
-        <div
+        <section
           className={[
             'flex-1 min-h-0 flex flex-col',
             !isEditing ? '' : 'hidden',
           ].join(' ')}
+          aria-label="Markdown Preview"
         >
           <MarkdownViewerPane
             viewerRef={viewerRef}
@@ -359,7 +360,7 @@ export function BottomPanelMarkdownSectionView(
             flashLine={jumpFlash?.line}
             tokens={tokens}
           />
-        </div>
+        </section>
       </article>
     </section>
   )

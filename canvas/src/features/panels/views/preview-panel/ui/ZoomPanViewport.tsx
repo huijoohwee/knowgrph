@@ -74,8 +74,10 @@ export default function ZoomPanViewport({
     })
     return () => {
       try {
-        if (typeof (globalThis as any).cancelIdleCallback === 'function') {
-          ;(globalThis as any).cancelIdleCallback(handle)
+        const cancelIdleCallback = (globalThis as unknown as { cancelIdleCallback?: (h: number) => void })
+          .cancelIdleCallback
+        if (typeof cancelIdleCallback === 'function') {
+          cancelIdleCallback(handle as unknown as number)
         } else {
            clearTimeout(handle as unknown as number)
         }

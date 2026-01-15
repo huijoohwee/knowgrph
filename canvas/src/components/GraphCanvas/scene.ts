@@ -3,9 +3,8 @@ import type { MutableRefObject, RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createZoom, buildSimulation } from '@/components/GraphCanvas/utils'
-import { fitAllTransform, centerAllTransform } from '@/components/GraphCanvas/fit'
+import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { deriveTreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
-import { computeTreeCollapseHiddenNodes } from '@/components/GraphCanvas/treeLabelLod'
 import { buildNodeGroupsFromSchema, createGraphLayersLayer } from '@/components/GraphCanvas/graphLayers'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
@@ -85,7 +84,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     zoomRef,
     tempLinkSelRef,
     linkDragRef,
-    isEditModeRef,
     selectedEdgeIdRef,
     selectedNodeIdRef,
     selectedNodeIdsRef,
@@ -93,8 +91,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     selectNode,
     selectEdge,
     setSelectionSource,
-    addEdge,
-    updateEdge,
     setHoverInfo,
     setLifecycleStageRendering,
     requestZoomSelection,
@@ -185,7 +181,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       // For structured, we fit to screen.
       if (isStructured) {
           // fitAllTransform uses current node.x/y and scales to viewport
-          const padding = (schema.layout as any)?.fitPadding
+          const padding = schema.layout?.fitPadding
           const t = fitAllTransform(graphData.nodes, width, height, padding)
           svg.call(zoom.transform as unknown as (
             sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
@@ -224,6 +220,19 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       }
     })
   }
+
+  const nodeGroups = buildNodeGroupsFromSchema(graphData, schema)
+
+  const { hullSel: graphLayersHullSel, centroidSel: graphLayerCentroidSel, labelSel: graphLayerLabelSel } = createGraphLayersLayer({
+    g,
+    nodeGroups,
+    graphData,
+    schema,
+    graphLayersVisible,
+    hoverEnabled,
+    setHoverInfo,
+    simulation,
+  })
 
   const nodeIds = new Set<string>()
   for (let i = 0; i < graphData.nodes.length; i += 1) {
@@ -315,19 +324,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     labelsSelRef,
     renderMediaAsNodes,
     graphLayersVisible,
-  })
-
-  const nodeGroups = buildNodeGroupsFromSchema(graphData, schema)
-
-  const { hullSel: graphLayersHullSel, centroidSel: graphLayerCentroidSel, labelSel: graphLayerLabelSel } = createGraphLayersLayer({
-    g,
-    nodeGroups,
-    graphData,
-    schema,
-    graphLayersVisible,
-    hoverEnabled,
-    setHoverInfo,
-    simulation,
   })
 
   if (labelsSelRef.current) {

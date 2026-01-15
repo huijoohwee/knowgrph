@@ -83,7 +83,7 @@ export const layoutSettingsRegistry: SettingMeta[] = [
     source: 'store',
     read: () => {
       const schema = s().schema as GraphSchema
-      return (schema.layout as any)?.fitPadding ?? 80
+      return schema.layout?.fitPadding ?? 80
     },
     write: (v) => {
       const schema = s().schema

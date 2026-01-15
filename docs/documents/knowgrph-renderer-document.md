@@ -18,9 +18,17 @@
     - `layout.mermaid.direction`: 'source-target' | 'target-source'
     - `layout.mermaid.separation`: Controls node spacing (default 3.0).
     - `layout.mermaid.nodeRadius`: Controls node size.
+    - `layout.mermaid.maxNodeWidth`: Maximum node box width (default 260px). Used for wrapping.
+    - `layout.mermaid.labelCharWidth`: Label sizing heuristic (default 9).
+    - `layout.mermaid.labelLineHeight`: Label sizing heuristic (default 20).
+    - `layout.mermaid.labelPaddingX`: Horizontal label padding (default 32).
+    - `layout.mermaid.labelPaddingY`: Vertical label padding (default 20).
   - Rendering:
     - Forces **Rectangular Box** shape for all nodes to match standard Mermaid flowchart aesthetics.
+    - Wraps label text into multiple lines and renders it as SVG `tspan` rows.
     - Renders edges as **curved B-spline paths** derived from Dagre control points for smooth routing.
+    - Enforces **visual consistency** with Frontmatter Mode: uses schema-driven colors (`getNodeBaseFill`), defaults to `#333` stroke for nodes, and renders `MermaidSubgraph` nodes as hull overlays (not rects) when graph layers are active.
+    - **Subgraphs**: Rendered as graph layer hulls (via `graphLayers.ts`) with **auto-sizing padding** (12px) to ensure they comfortably contain rectangular member nodes without touching borders.
     - Supports **Subgraphs** as light gray containers behind grouped nodes.
     - Ensures nodes are always **well-spread, centered, and visible** within the viewport.
     - Calculates the layout bounding box and applies an offset to center the graph perfectly in the canvas.
@@ -56,9 +64,9 @@
   - Empty or invalid position sets are stored as `null` and are removed on the next write so the cache stays small and bounded per dataset.
 - Layout Continuity:
   - When switching between layout modes (e.g., Tree → Force), the previous node positions are preserved and used as the initial state for the new layout. This prevents visual chaos and "mess-up" of the graph structure during transitions.
-- Tree Layout Performance:
-  - The `dagre` layout calculation is cached in memory based on graph topology (node/edge counts) and configuration.
-  - This prevents expensive re-computation during window resize events, ensuring the tree just re-centers efficiently instead of running the full layout algorithm again.
+- Tree & Mermaid Layout Performance:
+  - Structured layout positions (`tree`, `radial`, `mermaid`) are cached per `(layer, layout, frontmatter)` cache key and reused when coverage remains high.
+  - The `tree` layout additionally caches its Dagre-derived structure to avoid re-running layout on viewport resize.
 
 ## Renderer palette and default colors
 - The renderer palette is driven by `MVP_COLOR_PALETTE` and `getRendererPalette(schema)`:
@@ -84,10 +92,10 @@
   - The minimap reuses these selection colors for node/edge overlays and viewport handles.
 - These defaults are aligned with `/guidelines/color-palette.md` in `huijoohwee.github.io` so node, edge, minimap, and graph layer visuals share a common, domain‑agnostic color vocabulary.
 - Tooltip Configuration:
-  - Users can configure the content of the hover tooltip via the "Graph Layers" or "Floating Panel" settings.
-  - Options include toggling the display of **Type**, **ID**, and **Properties**.
-  - This allows users to reduce visual clutter for presentation or focus on specific data points during debugging.
-  - Configuration is stored in `schema.behavior.hover.content`.
+  - Users can configure the content of the hover tooltip via the "Graph Interaction" area in MainPanel Settings.
+  - Granular options are available: `Show Node ID`, `Show Node Name`, `Show Node Label`, `Show Node Description`, `Show Node Properties`, and corresponding Edge options.
+  - This allows users to customize the information density for presentation or debugging.
+  - Configuration is stored in `graphHoverPreviewConfig` (user preference) and `schema.behavior.hover.content` (project default).
 
 ### Graph layers and lifecycle tags
 

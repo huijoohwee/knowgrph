@@ -162,7 +162,7 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
   const baseFromSchema =
     typeof styles.width === 'number' && Number.isFinite(styles.width) && styles.width > 0
       ? styles.width
-      : (schema.layout?.mode === 'tree' ? 1.5 : 2)
+      : (schema.layout?.mode === 'tree' || schema.layout?.mode === 'mermaid' ? 1.5 : 2)
   const props = edge.properties || {}
   const threeCfg = getThreeConfig(schema)
   const formula = threeCfg.edgeWidthFormula || 'schema'
@@ -226,8 +226,18 @@ export function getLayerOpacity(d: GraphNode, schema: GraphSchema): number {
 
 export function getNodeBaseFill(d: GraphNode, schema: GraphSchema): string {
   const props = (d.properties || {}) as Record<string, unknown>
+  const isMermaidNode = schema.layout?.mode === 'mermaid' && String(d.type || '') === 'MermaidNode'
+  const isTransparentish = (v: string): boolean => {
+    const s = v.trim().toLowerCase().replace(/\s+/g, '')
+    if (!s) return false
+    if (s === 'transparent' || s === 'none') return true
+    if (s === 'rgba(0,0,0,0)' || s === 'rgb(0,0,0,0)') return true
+    return false
+  }
   const visualFill = typeof props['visual:fill'] === 'string' ? String(props['visual:fill']).trim() : ''
-  if (visualFill) return visualFill
+  if (visualFill && !(isMermaidNode && isTransparentish(visualFill))) return visualFill
+  const fill = typeof props['fill'] === 'string' ? String(props['fill']).trim() : ''
+  if (fill && !(isMermaidNode && isTransparentish(fill))) return fill
   const tagColor = getAgenticRagTagColor(d, schema)
   if (tagColor) return tagColor
   const byType = schema.nodeStyles[d.type]?.color

@@ -103,6 +103,13 @@ export interface GraphSchema {
       leafFill?: string;
       labelFontSize?: number;
       labelFontFamily?: string;
+      labelCharWidth?: number;
+      labelLineHeight?: number;
+      labelPaddingX?: number;
+      labelPaddingY?: number;
+      labelMinWidth?: number;
+      labelMinHeight?: number;
+      maxNodeWidth?: number;
     };
     tree?: {
       edgeLabels?: string[];

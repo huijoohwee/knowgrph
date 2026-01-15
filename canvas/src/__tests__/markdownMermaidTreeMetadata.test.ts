@@ -64,3 +64,58 @@ export async function testMarkdownMermaidFrontmatterTreeMetadataDefaults() {
 
   await Promise.resolve()
 }
+
+export async function testMarkdownMermaidClassDefAppliesVisualStylesToNodes() {
+  resetParsers()
+  builtInParsers.forEach(p => registerParser(p))
+
+  const markdown = [
+    '---',
+    'title: Mermaid classDef test',
+    'mermaid: |',
+    '  graph TD',
+    '    A[Alpha] --> B[Beta]',
+    '    classDef phaseStyle fill:#f4f4f4,stroke:#333,stroke-width:2px,color:#111;',
+    '    class A phaseStyle',
+    '---',
+    '',
+    '# Title',
+  ].join('\n')
+
+  const jsonld = buildMarkdownJsonLd('file://mermaid-classdef.md', markdown)
+  const res = applyParser(toParserId('jsonld'), {
+    name: 'doc.jsonld',
+    text: JSON.stringify(jsonld),
+  })
+
+  if (!res) throw new Error('jsonld parse returned null')
+  if (res.warnings && res.warnings.length > 0) {
+    throw new Error(`jsonld parse warnings: ${res.warnings.join('; ')}`)
+  }
+
+  const nodes = res.graphData.nodes || []
+  const a = nodes.find(n => {
+    const type = String((n as { type?: unknown }).type || '')
+    if (type !== 'MermaidNode') return false
+    const props = ((n as { properties?: unknown }).properties || {}) as Record<string, unknown>
+    return String(props.nodeName || '') === 'A'
+  }) as { properties?: unknown } | undefined
+
+  if (!a) throw new Error('expected MermaidNode A to be present')
+  const props = (a.properties || {}) as Record<string, unknown>
+
+  if (props['visual:fill'] !== '#f4f4f4') {
+    throw new Error(`expected visual:fill to match classDef, got ${String(props['visual:fill'])}`)
+  }
+  if (props['visual:stroke'] !== '#333') {
+    throw new Error(`expected visual:stroke to match classDef, got ${String(props['visual:stroke'])}`)
+  }
+  if (props['visual:strokeWidth'] !== 2) {
+    throw new Error(`expected visual:strokeWidth to match classDef, got ${String(props['visual:strokeWidth'])}`)
+  }
+  if (props['visual:color'] !== '#111') {
+    throw new Error(`expected visual:color to match classDef, got ${String(props['visual:color'])}`)
+  }
+
+  await Promise.resolve()
+}

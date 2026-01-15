@@ -117,10 +117,10 @@
   - **Canvas Click**: Clicking a node/edge/graph layer on the Canvas auto-positions the Markdown Editor to the corresponding Mermaid Frontmatter line (if applicable), removing legacy implementations to ensure a single source of truth.
   - For Mermaid frontmatter, Canvas selection and layout behavior follow the same neutrality guarantees as other graph content: `MermaidNode` and `pointsTo` edges are styled and filtered via schema‑driven layer configuration, and layout modes (force, radial, tidy‑tree) all operate on the same schema‑aligned subgraph without special cases for any particular template or dataset; see `docs/documents/knowgrph-mermaid-frontmatter-document.md` for details on Mermaid‑specific legend chips and path highlighting.
 - Hover Tooltip Configuration:
-  - Users can configure what information is displayed in the node/edge hover tooltip via the "Graph Layers" settings panel.
-  - Configurable options: `Show Type`, `Show ID`, `Show Props`.
-  - This allows users to reduce visual clutter by hiding redundant information (e.g., hiding IDs or Types if they are obvious from context).
-  - Schema backing: `schema.behavior.hover.content` object.
+  - Users can configure what information is displayed in the node/edge hover tooltip via the "Graph Interaction" settings area in the MainPanel Settings tab.
+  - Configurable options: `Show Node ID`, `Show Node Name`, `Show Node Label` (Type), `Show Node Description`, `Show Node Properties`, and corresponding Edge options.
+  - These settings provide fine-grained control over tooltip content, allowing users to customize the level of detail presented during graph exploration.
+  - The settings override or work in conjunction with `schema.behavior.hover.content` (which provides project-level defaults).
 # Unified Markdown Layout (Editor & Viewer)
 - Navigation and Layout:
   - Both Editor and Viewer modes share a unified `MarkdownPanelLayout` with a collapsible sidebar Table of Contents (TOC).

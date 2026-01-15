@@ -57,7 +57,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const docId = `doc:${gid}`
   const builder = new MarkdownGraphBuilder({ gid, docId, sourceUrl, mkMeta })
   
-  let mermaidTreeLayout: {
+  const mermaidTreeLayout: {
     orientation?: 'vertical' | 'horizontal'
     direction?: 'source-target' | 'target-source'
   } | null = null

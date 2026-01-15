@@ -4,7 +4,6 @@ import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation';
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
-import type { HoverInfo } from '@/components/GraphHoverTooltip';
 import { getNodeBaseFill, getNodeMediaSpec, getRenderNodeRadius2d, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
 import { type TreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers';
@@ -56,8 +55,6 @@ export const createNodesLayer = (args: {
     renderMediaAsNodes,
     mediaPanelDensity,
     zoomOnDoubleClick,
-    tempLinkSelRef,
-    linkDragRef,
     selectNode,
     selectEdge,
     setSelectionSource,
@@ -107,19 +104,26 @@ export const createNodesLayer = (args: {
   const nodes = (() => {
     const base = (() => {
       if (!hiddenTypeSet) return rawNodes;
-      const filtered = rawNodes.filter(n => !hiddenTypeSet.has(String(n.type || '')));
+      const filtered = rawNodes.filter(n => {
+        const t = String(n.type || '')
+        if (!graphLayersVisible && t === 'MermaidSubgraph') return true
+        return !hiddenTypeSet.has(t)
+      });
       return filtered.length > 0 ? filtered : rawNodes;
     })();
-    if (!graphLayersVisible) return base;
     if (isMermaid) {
+      if (!graphLayersVisible) return base
       const filtered = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
       return filtered.length > 0 ? filtered : base;
     }
+    if (!graphLayersVisible) return base;
     const filteredForLayers = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
     return filteredForLayers.length > 0 ? filteredForLayers : base;
   })();
   const getNodeShape = (n: GraphNode): 'circle' | 'rect' => {
     // If Tree layout is active, force rect shape for all nodes or specifically Mermaid nodes
+    const type = String(n.type || '')
+    if (type === 'MermaidNode' || type === 'MermaidSubgraph') return 'rect'
     if (isTree || isMermaid) return 'rect'
 
     const fromSchema = schema.nodeShapes?.[String(n.type || '')]
@@ -323,14 +327,27 @@ export const createNodesLayer = (args: {
   const nodeLayer = g.append('g');
   const rectNodes = nodes.filter(n => {
     if (renderMediaAsNodes && hasNodeMedia(n)) return false;
+    
+    // Always force MermaidNode to be rect
+    if (String(n.type || '') === 'MermaidNode') return true;
+
+    if (isMermaid) {
+      if (String(n.type || '') === 'MermaidSubgraph') return !graphLayersVisible;
+      return true;
+    }
     return rectNodeIdSet.has(String(n.id));
   });
   const circleNodes = nodes.filter(n => {
     if (renderMediaAsNodes && hasNodeMedia(n)) return false;
+    
+    // MermaidNode is always rect
+    if (String(n.type || '') === 'MermaidNode') return false;
+
+    if (isMermaid) return false;
     return !rectNodeIdSet.has(String(n.id));
   });
 
-  const circleSel = nodeLayer
+  nodeLayer
     .selectAll('circle')
     .data(circleNodes)
     .enter()
@@ -338,7 +355,7 @@ export const createNodesLayer = (args: {
     .attr('fill', 'transparent')
     .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
 
-  const rectSel = nodeLayer
+  nodeLayer
     .selectAll('rect')
     .data(rectNodes)
     .enter()
@@ -373,9 +390,7 @@ export const createNodesLayer = (args: {
         return typeof props['visual:height'] === 'number' ? props['visual:height'] : getRenderNodeRadius2d(d, schema) * 2;
     })
 
-  const node = (circleSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).merge(
-    rectSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>,
-  )
+  const node = nodeLayer.selectAll<SVGElement, GraphNode>('circle,rect')
   node
      .attr('fill', (d: GraphNode) => {
        if (isTree && treeColorMode === 'observable') {
@@ -385,15 +400,33 @@ export const createNodesLayer = (args: {
      })
     .attr('stroke', (d: GraphNode) => {
       if (isTree && treeColorMode === 'observable') return 'none'
-      if (isMermaid) return schema.nodeStroke?.[d.type]?.color ?? 'none'
+      if (isMermaid) {
+        const props = (d.properties || {}) as Record<string, unknown>
+        const visualStroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke']).trim() : ''
+        const stroke = typeof props.stroke === 'string' ? String(props.stroke).trim() : ''
+        const override = visualStroke || stroke
+        if (override) return override
+        return schema.nodeStroke?.[d.type]?.color ?? '#333'
+      }
       if (schema.layout?.mode === 'tree') return schema.nodeStroke?.[d.type]?.color ?? 'none'
       return schema.nodeStroke?.[d.type]?.color ?? '#ffffff'
     })
     .attr('stroke-width', (d: GraphNode) => {
       if (isTree && treeColorMode === 'observable') return 0
       if (isMermaid) {
+        const props = (d.properties || {}) as Record<string, unknown>
+        const raw =
+          props['visual:strokeWidth'] ??
+          props['stroke-width'] ??
+          props.strokeWidth ??
+          props['visual:stroke-width']
+        if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) return raw
+        if (typeof raw === 'string') {
+          const parsed = parseFloat(raw)
+          if (Number.isFinite(parsed) && parsed >= 0) return parsed
+        }
         const w = schema.nodeStroke?.[d.type]?.width
-        return typeof w === 'number' ? w : 0
+        return typeof w === 'number' ? w : 1.5
       }
       const w = schema.nodeStroke?.[d.type]?.width
       if (typeof w === 'number' && Number.isFinite(w) && w >= 0) return w
@@ -404,41 +437,49 @@ export const createNodesLayer = (args: {
     .style('cursor', 'pointer')
     .style('pointer-events', 'all');
 
-  const interactiveNodeSel = mediaPanelSel
-    ? (node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).merge(
-        mediaPanelSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>,
-      )
-    : node;
+  const mediaInteractiveSel = mediaPanelSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null
 
   if (schema.behavior.allowNodeDrag) {
     const dragBehavior = nodeDragBehavior(simulation, schema);
-    (interactiveNodeSel as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).call(
+    ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).call(
       dragBehavior as d3.DragBehavior<SVGElement, GraphNode, unknown>,
-    );
+    )
+    if (mediaInteractiveSel) {
+      mediaInteractiveSel.call(dragBehavior as d3.DragBehavior<SVGElement, GraphNode, unknown>)
+    }
   }
 
-  interactiveNodeSel.on('contextmenu', (event: MouseEvent, d: GraphNode) => {
+  const onContextMenu = (event: MouseEvent, d: GraphNode) => {
     event.preventDefault();
     event.stopPropagation();
     setSelectionSource('menu');
     selectEdge(null);
     selectNode(String(d.id));
-  });
+  }
 
-  interactiveNodeSel.on('click', (event: MouseEvent, d: GraphNode) => {
+  const onClick = (event: MouseEvent, d: GraphNode) => {
     event.stopPropagation();
     setSelectionSource('canvas');
     selectEdge(null);
     selectNode(String(d.id));
-  });
+  }
 
-  interactiveNodeSel.on('dblclick', (event: MouseEvent, d: GraphNode) => {
+  const onDblClick = (event: MouseEvent) => {
     event.stopPropagation();
     if (zoomOnDoubleClick) {
       requestZoomSelection();
     }
     emitPropsPanelOpen();
-  });
+  }
+
+  ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('contextmenu', onContextMenu)
+  ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('click', onClick)
+  ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('dblclick', onDblClick)
+  if (mediaInteractiveSel) {
+    mediaInteractiveSel.on('contextmenu', onContextMenu)
+    mediaInteractiveSel.on('click', onClick)
+    mediaInteractiveSel.on('dblclick', onDblClick)
+  }
 
   return { nodeSel: node, mediaSel };
 };

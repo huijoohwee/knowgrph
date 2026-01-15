@@ -143,7 +143,70 @@ export const getGraphLayerStyleForGroup = (args: {
   }
 
   if (!graphLayersMetaRaw) {
-    if (group.meta?.groupBy !== 'community' && owner) {
+    if (ownerType === 'MermaidSubgraph') {
+       // 1. Determine base style from Schema (if applicable) or Default
+       let baseFill = '#f4f4f4'
+       let baseStroke = '#333333'
+       let baseOpacity = 1.0
+
+       if (owner) {
+          const tagColor = getAgenticRagTagColor(owner, schema)
+          if (tagColor && typeof tagColor === 'string' && tagColor.trim()) {
+              baseFill = tagColor
+              baseStroke = tagColor
+              baseOpacity = 0.15 // Schema colors are usually strong, so use low opacity for layers
+          }
+       }
+
+       style.fill = baseFill
+       style.fillOpacity = baseOpacity
+       style.stroke = baseStroke
+       style.strokeWidth = 1.5
+       style.dash = '0'
+
+       // 2. Apply Mermaid-specific overrides (explicit classDef or inline styles)
+       // These take precedence over schema colors
+       if (owner) {
+         const props = (owner.properties || {}) as Record<string, unknown>
+         
+         // Helper to check if a value is a valid non-empty string
+         const hasStr = (k: string) => typeof props[k] === 'string' && props[k]
+         
+         if (hasStr('fill') || hasStr('visual:fill')) {
+             style.fill = (props['visual:fill'] || props.fill) as string
+             // If explicit fill is provided, assume user wants full control (or default opacity)
+             // Unless opacity is also specified
+             if (style.fill.startsWith('#') && baseOpacity < 1.0 && !hasStr('fillOpacity')) {
+                 // If we had a schema opacity (low), but user provided a specific fill color,
+                 // we might want to keep it low OR reset to 1.0. 
+                 // Usually mermaid styles imply opaque backgrounds unless alpha is used.
+                 // Let's stick to the current opacity unless overridden.
+                 style.fillOpacity = 1.0 
+             }
+         }
+         
+         if (hasStr('stroke') || hasStr('visual:stroke')) {
+             style.stroke = (props['visual:stroke'] || props.stroke) as string
+         }
+         
+          const sw = props['visual:strokeWidth'] ?? props['stroke-width'] ?? props.strokeWidth ?? props['visual:stroke-width']
+         if (typeof sw === 'number' && Number.isFinite(sw)) style.strokeWidth = sw
+         if (typeof sw === 'string') {
+            const parsed = parseFloat(sw)
+            if (Number.isFinite(parsed)) style.strokeWidth = parsed
+         }
+
+          const dash = typeof props.strokeDasharray === 'string' ? props.strokeDasharray : typeof props['stroke-dasharray'] === 'string' ? props['stroke-dasharray'] : ''
+          if (dash) style.dash = dash
+          
+          const op = props['fillOpacity'] ?? props['visual:fillOpacity'] ?? props['opacity']
+          if (typeof op === 'number' && Number.isFinite(op)) style.fillOpacity = op
+          if (typeof op === 'string') {
+             const parsed = parseFloat(op)
+             if (Number.isFinite(parsed)) style.fillOpacity = parsed
+          }
+       }
+    } else if (group.meta?.groupBy !== 'community' && owner) {
       const tagColor = getAgenticRagTagColor(owner, schema)
       if (typeof tagColor === 'string' && tagColor.trim()) {
         style.fill = tagColor
