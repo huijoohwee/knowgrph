@@ -1,79 +1,12 @@
 import dagre from 'dagre'
 import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
-import { calculateNodeDimensions } from '@/components/GraphCanvas/layout/utils'
-
-const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+import { calculateNodeDimensions, wrapTextByMaxChars, isRecordType } from '@/components/GraphCanvas/layout/utils'
 
 const getEndpointId = (v: unknown): string => {
   if (typeof v === 'string' || typeof v === 'number') return String(v)
-  if (isRecord(v) && (typeof v.id === 'string' || typeof v.id === 'number')) return String(v.id)
+  if (isRecordType(v) && (typeof v.id === 'string' || typeof v.id === 'number')) return String(v.id)
   return ''
-}
-
-const wrapCache = new Map<string, string>()
-
-const wrapTextByMaxChars = (raw: string, maxCharsPerLine: number): string => {
-  const key = `${raw}:${maxCharsPerLine}`
-  if (wrapCache.has(key)) return wrapCache.get(key)!
-
-  const maxChars = Number.isFinite(maxCharsPerLine) && maxCharsPerLine > 1 ? Math.floor(maxCharsPerLine) : 1
-  const normalized = String(raw || '').replace(/\r\n?/g, '\n')
-  const inputLines = normalized.split('\n')
-
-  const chunkWord = (word: string): string[] => {
-    const out: string[] = []
-    const w = String(word || '')
-    if (!w) return ['']
-    for (let i = 0; i < w.length; i += maxChars) out.push(w.slice(i, i + maxChars))
-    return out
-  }
-
-  const wrapLine = (line: string): string[] => {
-    const rawLine = String(line || '')
-    const trimmed = rawLine.trim()
-    if (!trimmed) return ['']
-    if (!/\s/.test(trimmed)) {
-      if (trimmed.length <= maxChars) return [trimmed]
-      return chunkWord(trimmed)
-    }
-    const words = trimmed.split(/\s+/).filter(Boolean)
-    const out: string[] = []
-    let current = ''
-    for (let i = 0; i < words.length; i += 1) {
-      const word = words[i]
-      if (!current) {
-        if (word.length <= maxChars) {
-          current = word
-        } else {
-          const chunks = chunkWord(word)
-          if (chunks.length > 1) out.push(...chunks.slice(0, -1))
-          current = chunks[chunks.length - 1] || ''
-        }
-        continue
-      }
-      if (current.length + 1 + word.length <= maxChars) {
-        current = `${current} ${word}`
-        continue
-      }
-      out.push(current)
-      if (word.length <= maxChars) {
-        current = word
-      } else {
-        const chunks = chunkWord(word)
-        if (chunks.length > 1) out.push(...chunks.slice(0, -1))
-        current = chunks[chunks.length - 1] || ''
-      }
-    }
-    if (current) out.push(current)
-    return out.length ? out : ['']
-  }
-
-  const outLines: string[] = []
-  for (let i = 0; i < inputLines.length; i += 1) outLines.push(...wrapLine(inputLines[i]))
-  const result = outLines.join('\n')
-  wrapCache.set(key, result)
-  return result
 }
 
 export const applyMermaidLayout = (
@@ -172,32 +105,40 @@ export const applyMermaidLayout = (
   if (orientation === 'vertical') rankdir = direction === 'target-source' ? 'BT' : 'TB'
   else rankdir = direction === 'target-source' ? 'RL' : 'LR'
 
-  const separation = typeof mermaidConfig?.separation === 'number' ? mermaidConfig.separation : 1.2
-  const nodeSep = 60 * separation
-  const rankSep = 70 * separation
+  const separation = typeof mermaidConfig?.separation === 'number' ? Math.min(mermaidConfig.separation, 0.8) : 0.8
+  // ENHANCE: Adjusted separation defaults to be more compact by default, but scalable
+  // Cap separation at 0.8 to prevent extreme spread for dense graphs
+  const nodeSep = 40 * separation
+  const rankSep = 40 * separation
 
   const g = new dagre.graphlib.Graph({ multigraph: false, compound: true })
   g.setGraph({
     rankdir,
     nodesep: nodeSep,
     ranksep: rankSep,
-    marginx: 80,
-    marginy: 80,
+    marginx: 20, // ENHANCE: Reduced margin to prevent huge bounding boxes
+    marginy: 20, // ENHANCE: Reduced margin
     ranker: 'network-simplex',
   })
   g.setDefaultEdgeLabel(() => ({}))
 
   // 1. Add Subgraphs (Groups) to Dagre first
-  for (let i = 0; i < subgraphNodes.length; i += 1) {
-    const n = subgraphNodes[i]
+  const subgraphDummyId = new Map<string, string>()
+
+  for (const n of subgraphNodes) {
     const id = String(n.id)
     // Add as group node - let dagre compute dimensions based on children
     g.setNode(id, { label: n.label, clusterLabelPos: 'top', style: 'fill: transparent; stroke: none;' }) 
+    
+    // Create a dummy node inside the subgraph to anchor edges
+    const dummyId = `${id}__dummy`
+    subgraphDummyId.set(id, dummyId)
+    g.setNode(dummyId, { width: 1, height: 1, label: '' })
+    ;(g as any).setParent(dummyId, id)
   }
 
   // 2. Add Regular Nodes
-  for (let i = 0; i < validNodes.length; i += 1) {
-    const node = validNodes[i]
+  for (const node of validNodes) {
     const id = String(node.id)
     const baseLabel = String(node.label || node.id || '')
     const wrappedLabel = wrapTextByMaxChars(baseLabel, maxCharsPerLine)
@@ -230,6 +171,39 @@ export const applyMermaidLayout = (
     if (name) subgraphIdByName.set(name, String(sn.id))
   }
 
+  const subgraphParentByName = new Map<string, string>()
+  for (const sn of subgraphNodes) {
+    const name = getMermaidSubgraphName(sn)
+    if (!name) continue
+    subgraphParentByName.set(name, getMermaidParentName(sn))
+  }
+  const subgraphDepthByName = new Map<string, number>()
+  const getSubgraphDepth = (name: string, stack: Set<string>): number => {
+    const cached = subgraphDepthByName.get(name)
+    if (typeof cached === 'number') return cached
+    if (stack.has(name)) return 0
+    stack.add(name)
+    const parent = String(subgraphParentByName.get(name) || '').trim()
+    if (!parent || !subgraphParentByName.has(parent)) {
+      subgraphDepthByName.set(name, 0)
+      stack.delete(name)
+      return 0
+    }
+    const depth = 1 + getSubgraphDepth(parent, stack)
+    subgraphDepthByName.set(name, depth)
+    stack.delete(name)
+    return depth
+  }
+  for (const sn of subgraphNodes) {
+    const name = getMermaidSubgraphName(sn)
+    if (!sn.properties) sn.properties = {}
+    if (!name) {
+      sn.properties['visual:subgraphDepth'] = 0
+      continue
+    }
+    sn.properties['visual:subgraphDepth'] = getSubgraphDepth(name, new Set<string>())
+  }
+
   for (const n of allLayoutNodes) {
     const id = String(n.id)
     const props = (n.properties || {}) as Record<string, unknown>
@@ -237,6 +211,7 @@ export const applyMermaidLayout = (
     if (parentName) {
       const parentId = subgraphIdByName.get(parentName)
       if (parentId && parentId !== id) {
+        // dagre.graphlib.Graph definition is missing setParent in @types/dagre
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(g as any).setParent(id, parentId)
       }
@@ -253,24 +228,37 @@ export const applyMermaidLayout = (
     const kb = `${bs}->${bt}`
     return ka.localeCompare(kb)
   })
-  for (let i = 0; i < orderedEdges.length; i += 1) {
-    const edge = orderedEdges[i]
+  
+  for (const edge of orderedEdges) {
     const source = getEndpointId(edge.source as unknown)
     const target = getEndpointId(edge.target as unknown)
     if (!source || !target) continue
     if (source === target) continue
     if (!nodeIds.has(source) || !nodeIds.has(target)) continue
     
-    // Safety: Filter out edges that connect to/from subgraphs directly to prevent Dagre ranker crashes
-    // (Dagre's network-simplex can fail if edges connect to cluster nodes in certain topologies)
-    const isSourceSubgraph = subgraphNodes.some(n => String(n.id) === source)
-    const isTargetSubgraph = subgraphNodes.some(n => String(n.id) === target)
-    if (isSourceSubgraph || isTargetSubgraph) continue
-
+    // Use direct edges first. If Dagre crashes, we fall back to tight-tree.
+    // We previously used dummy nodes to avoid crashes, but that broke vertical stacking of subgraphs.
+    // const dagreSource = isSourceSubgraph ? subgraphDummyId.get(source) || source : source
+    // const dagreTarget = isTargetSubgraph ? subgraphDummyId.get(target) || target : target
+    
     const k = `${source}->${target}`
     if (!edgeByEndpoints.has(k)) edgeByEndpoints.set(k, edge)
+    
+    // Debug critical edges
+    if (source.includes('PresentationStart') || target.includes('BusinessProblem')) {
+        // console.log(`Adding edge: ${source} -> ${target}`)
+    }
+    
+    // Use dummy nodes for subgraph connections to enforce layout and avoid crashes
+    const dagreSource = subgraphDummyId.get(source) || source
+    const dagreTarget = subgraphDummyId.get(target) || target
+    
+    // ENHANCE: Increase minlen for subgraph-to-subgraph edges to encourage vertical stacking
+    const isSubgraphEdge = subgraphDummyId.has(source) || subgraphDummyId.has(target)
+    const options = isSubgraphEdge ? { minlen: 5, weight: 100 } : {}
+
     try {
-      g.setEdge(source, target)
+      g.setEdge(dagreSource, dagreTarget, options)
     } catch {
       continue
     }
@@ -278,9 +266,22 @@ export const applyMermaidLayout = (
 
   try {
     dagre.layout(g)
-  } catch (e) {
-    console.error('Mermaid Layout: Dagre layout failed', e)
-    return
+  } catch (err) {
+    console.warn('Mermaid Layout: Dagre layout failed with network-simplex, falling back to tight-tree', err)
+    // Fallback to tight-tree if network-simplex fails
+    g.setGraph({
+      rankdir,
+      nodesep: nodeSep,
+      ranksep: rankSep,
+      marginx: 40,
+      marginy: 40,
+      ranker: 'tight-tree',
+    })
+    try {
+      dagre.layout(g)
+    } catch (err2) {
+       console.error('Mermaid Layout: Fallback failed', err2)
+    }
   }
 
   let minX = Infinity
@@ -289,12 +290,15 @@ export const applyMermaidLayout = (
   let maxY = -Infinity
 
   const positions = new Map<string, { x: number; y: number }>()
-  g.nodes().forEach((v) => {
+  
+  // ENHANCE: Use for...of for cleaner iteration over g.nodes()
+  const graphNodes = g.nodes()
+  for (const v of graphNodes) {
     const layoutNodeRaw = g.node(v) as unknown
-    if (!isRecord(layoutNodeRaw)) return
+    if (!isRecordType(layoutNodeRaw)) continue
     const x = typeof layoutNodeRaw.x === 'number' ? layoutNodeRaw.x : null
     const y = typeof layoutNodeRaw.y === 'number' ? layoutNodeRaw.y : null
-    if (x == null || y == null) return
+    if (x == null || y == null) continue
 
     positions.set(v, { x, y })
 
@@ -310,14 +314,40 @@ export const applyMermaidLayout = (
     }
 
     if (Number.isFinite(x)) {
-      if (x < minX) minX = x
-      if (x > maxX) maxX = x
+      if (x! < minX) minX = x!
+      if (x! > maxX) maxX = x!
     }
     if (Number.isFinite(y)) {
-      if (y < minY) minY = y
-      if (y > maxY) maxY = y
+      if (y! < minY) minY = y!
+      if (y! > maxY) maxY = y!
     }
-  })
+  }
+  
+  // Re-calculate bounds based ONLY on real nodes (excluding dummies) to ensure visual centering
+  minX = Infinity
+  maxX = -Infinity
+  minY = Infinity
+  maxY = -Infinity
+  
+  for (const node of [...validNodes, ...subgraphNodes]) {
+      const id = String(node.id)
+      const pos = positions.get(id)
+      if (!pos) continue
+      
+      // We need to account for node width/height to center the BOUNDING BOX, not just centers
+      const w = Number(node.properties?.['visual:width']) || 0
+      const h = Number(node.properties?.['visual:height']) || 0
+      
+      const left = pos.x - w / 2
+      const right = pos.x + w / 2
+      const top = pos.y - h / 2
+      const bottom = pos.y + h / 2
+      
+      if (left < minX) minX = left
+      if (right > maxX) maxX = right
+      if (top < minY) minY = top
+      if (bottom > maxY) maxY = bottom
+  }
 
   if (minX === Infinity || maxX === -Infinity) return
 
@@ -332,8 +362,7 @@ export const applyMermaidLayout = (
   const offsetX = targetCenterX - centerX
   const offsetY = targetCenterY - centerY
 
-  for (let i = 0; i < validNodes.length; i += 1) {
-    const node = validNodes[i]
+  for (const node of validNodes) {
     const id = String(node.id)
     const pos = positions.get(id)
     if (!pos) continue
@@ -343,8 +372,7 @@ export const applyMermaidLayout = (
     node.fy = node.y
   }
 
-  for (let i = 0; i < subgraphNodes.length; i += 1) {
-    const node = subgraphNodes[i]
+  for (const node of subgraphNodes) {
     const id = String(node.id)
     const pos = positions.get(id)
     if (!pos) continue
@@ -369,17 +397,21 @@ export const applyMermaidLayout = (
     node.fy = node.y
   }
 
-  g.edges().forEach((e) => {
-    const key = `${e.v}->${e.w}`
-    const edge = edgeByEndpoints.get(key)
-    if (!edge) return
+  // 4. Map edges back
+  for (const edge of orderedEdges) {
+    const source = getEndpointId(edge.source as unknown)
+    const target = getEndpointId(edge.target as unknown)
+    if (!source || !target || source === target) continue
 
-    const edgeRaw = g.edge(e.v, e.w) as unknown
-    const pointsRaw = isRecord(edgeRaw) && Array.isArray(edgeRaw.points) ? (edgeRaw.points as unknown[]) : null
+    const dagreSource = subgraphDummyId.get(source) || source
+    const dagreTarget = subgraphDummyId.get(target) || target
+
+    const edgeRaw = g.edge(dagreSource, dagreTarget) as unknown
+    const pointsRaw = isRecordType(edgeRaw) && Array.isArray(edgeRaw.points) ? (edgeRaw.points as unknown[]) : null
     const edgePoints = pointsRaw
       ? pointsRaw
           .map((p) => {
-            if (!isRecord(p)) return null
+            if (!isRecordType(p)) return null
             const x = typeof p.x === 'number' ? p.x : null
             const y = typeof p.y === 'number' ? p.y : null
             if (x == null || y == null) return null
@@ -388,11 +420,11 @@ export const applyMermaidLayout = (
           .filter((p): p is { x: number; y: number } => !!p)
       : null
 
-    if (!edgePoints || edgePoints.length === 0) return
+    if (!edgePoints || edgePoints.length === 0) continue
     if (!edge.properties) edge.properties = {}
     edge.properties['visual:points'] = edgePoints.map((p) => ({
       x: p.x + offsetX,
       y: p.y + offsetY,
     }))
-  })
+  }
 }

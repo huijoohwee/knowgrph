@@ -167,7 +167,10 @@ export const parseMarkdownFrontmatter = (
       const key = trimmed.slice(0, colonIndex).trim()
       const val = trimmed.slice(colonIndex + 1).trim()
       if (!key) continue
-      if (!structuredKeys.has(key) && (val === '|' || val === '>')) {
+      const isBlock = val === '|' || val === '>' || val.startsWith('|') || val.startsWith('>')
+      const isStructured = structuredKeys.has(key)
+      
+      if (!isStructured && isBlock) {
         const blockLines: string[] = []
         let j = i + 1
         let baseIndent = -1
@@ -181,9 +184,19 @@ export const parseMarkdownFrontmatter = (
           if (trimmedNext) {
             const nextIndent = nextLine.length - trimmedNext.length
             if (baseIndent === -1) baseIndent = nextIndent
-
+            
             // If indentation is less than or equal to the key's indent, it's a new key
-            if (nextIndent <= indent) break
+            // Relaxed check: if equal indent, only break if it looks like a key
+            if (nextIndent <= indent) {
+               if (nextIndent < indent) {
+                   break
+               }
+               const colIdx = trimmedNext.indexOf(':')
+               const isKey = colIdx > 0 && !trimmedNext.startsWith('- ')
+               if (isKey) {
+                   break
+               }
+            }
           }
 
           blockLines.push(nextLine)

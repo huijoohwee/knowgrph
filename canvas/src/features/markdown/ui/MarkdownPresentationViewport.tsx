@@ -80,12 +80,13 @@ export function MarkdownPresentationViewport(props: MarkdownPresentationViewport
           aria-label="Slide Canvas"
         >
           <SlideFrame
-            frameClassName={slideOuterClass}
+            frameClassName="w-full h-full"
             slideStyle={slideStyle}
             slideTransitionStyle={slideTransitionStyle}
-            slideOuterClass=""
+            slideOuterClass={slideOuterClass}
             slideContentClass={slideContentClass}
             onDoubleClick={onDoubleClick}
+            autoScaleContent
           >
             {children}
           </SlideFrame>

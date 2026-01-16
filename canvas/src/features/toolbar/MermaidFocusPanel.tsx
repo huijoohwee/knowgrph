@@ -146,16 +146,16 @@ export function MermaidFocusPanel() {
 
   if (!effectiveCode) {
     return (
-      <div ref={setOverlayPortalRef} className="h-full min-h-0 flex items-center justify-center px-3">
+      <section ref={setOverlayPortalRef} className="h-full min-h-0 flex items-center justify-center px-3">
         <div className={['text-xs text-gray-600 text-center', uiPanelTextFontClass].join(' ')}>
           No Mermaid diagram is available for the current graph.
         </div>
-      </div>
+      </section>
     )
   }
 
   return (
-    <div ref={setOverlayPortalRef} className="h-full min-h-0 flex flex-col overflow-hidden relative">
+    <section ref={setOverlayPortalRef} className="h-full min-h-0 flex flex-col overflow-hidden relative">
       <div className="w-full h-full flex items-center justify-center">
         <div className="aspect-video w-full max-w-4xl">
           <div className="w-full h-full overflow-auto">
@@ -170,6 +170,6 @@ export function MermaidFocusPanel() {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

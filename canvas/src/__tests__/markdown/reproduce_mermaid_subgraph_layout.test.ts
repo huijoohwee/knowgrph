@@ -1,5 +1,6 @@
 
 import { applyMermaidLayout } from '../../components/GraphCanvas/layout/mermaid'
+import { compareMermaidNodesForRender } from '../../components/GraphCanvas/helpers'
 import { GraphNode, GraphEdge } from '../../lib/graph/types'
 import { GraphSchema } from '../../lib/graph/schema'
 
@@ -50,6 +51,59 @@ export async function testMermaidSubgraphLayoutCoordinates() {
     // Width and height should be positive numbers (containing the node)
     if (Number(subgraphProps['visual:width']) <= 0) throw new Error('visual:width should be > 0')
     if (Number(subgraphProps['visual:height']) <= 0) throw new Error('visual:height should be > 0')
+
+    await Promise.resolve()
+}
+
+export async function testMermaidNestedSubgraphDepthOrdering() {
+    const parent: GraphNode = {
+      id: 'parentSg',
+      type: 'MermaidSubgraph',
+      label: 'Parent',
+      properties: {
+        subgraphName: 'parent',
+      },
+    }
+    const child: GraphNode = {
+      id: 'childSg',
+      type: 'MermaidSubgraph',
+      label: 'Child',
+      properties: {
+        subgraphName: 'child',
+        mermaidSubgraphName: 'parent',
+      },
+    }
+    const node: GraphNode = {
+      id: 'nodeInside',
+      type: 'MermaidNode',
+      label: 'Node',
+      properties: {
+        mermaidSubgraphName: 'child',
+      },
+    }
+
+    const nodes: GraphNode[] = [child, node, parent]
+    const edges: GraphEdge[] = []
+
+    const schema = {
+        layout: {
+            mermaid: {
+                orientation: 'vertical',
+                direction: 'source-target',
+            },
+        },
+    } as GraphSchema
+
+    applyMermaidLayout(nodes, edges, 800, 600, schema)
+
+    const parentDepth = Number(parent.properties?.['visual:subgraphDepth'])
+    const childDepth = Number(child.properties?.['visual:subgraphDepth'])
+
+    if (!Number.isFinite(parentDepth) || parentDepth !== 0) throw new Error('expected parent subgraph depth to be 0')
+    if (!Number.isFinite(childDepth) || childDepth !== 1) throw new Error('expected child subgraph depth to be 1')
+
+    const cmp = compareMermaidNodesForRender(parent, child, schema)
+    if (cmp >= 0) throw new Error('expected parent subgraph to render before child subgraph')
 
     await Promise.resolve()
 }

@@ -181,8 +181,20 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       // For structured, we fit to screen.
       if (isStructured) {
           // fitAllTransform uses current node.x/y and scales to viewport
+          const mode = schema.layout?.mode
           const padding = schema.layout?.fitPadding
-          const t = fitAllTransform(graphData.nodes, width, height, padding)
+          const t =
+            mode === 'mermaid'
+              ? fitAllTransform(graphData.nodes, width, height, {
+                  pad:
+                    typeof padding === 'number' && Number.isFinite(padding)
+                      ? Math.max(20, Math.min(48, Math.floor(padding)))
+                      : 48,
+                  enforceAspectRatio: false,
+                  maxScale: 6,
+                  maxScaleHardCap: 6,
+                })
+              : fitAllTransform(graphData.nodes, width, height, padding)
           svg.call(zoom.transform as unknown as (
             sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
             t: d3.ZoomTransform,

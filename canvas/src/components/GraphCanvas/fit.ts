@@ -22,11 +22,37 @@ export const fitEdgeTransform = (src: GraphNode, tgt: GraphNode, width: number, 
   return d3.zoomIdentity.translate(width / 2 - s * cx, height / 2 - s * cy).scale(s);
 };
 
-export const fitAllTransform = (nodes: GraphNode[], width: number, height: number, pad: number = 80) => {
+export type FitAllTransformOptions = {
+  pad?: number
+  enforceAspectRatio?: boolean
+  minScale?: number
+  maxScale?: number
+  maxScaleHardCap?: number
+  minBBoxSize?: number
+}
+
+export const fitAllTransform = (
+  nodes: GraphNode[],
+  width: number,
+  height: number,
+  padOrOptions: number | FitAllTransformOptions = 80,
+) => {
   if (!nodes || nodes.length === 0) {
     return d3.zoomIdentity;
   }
   
+  const opts: FitAllTransformOptions =
+    typeof padOrOptions === 'number'
+      ? { pad: padOrOptions }
+      : (padOrOptions || {})
+
+  const enforceAspectRatio = opts.enforceAspectRatio !== false
+  const minScale = typeof opts.minScale === 'number' && Number.isFinite(opts.minScale) ? opts.minScale : 0.1
+  const maxScale = typeof opts.maxScale === 'number' && Number.isFinite(opts.maxScale) ? opts.maxScale : 4
+  const maxScaleHardCap =
+    typeof opts.maxScaleHardCap === 'number' && Number.isFinite(opts.maxScaleHardCap) ? opts.maxScaleHardCap : 6
+  const minBBoxSize = typeof opts.minBBoxSize === 'number' && Number.isFinite(opts.minBBoxSize) ? opts.minBBoxSize : 100
+
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -71,22 +97,24 @@ export const fitAllTransform = (nodes: GraphNode[], width: number, height: numbe
 
   const w = Math.max(1, width);
   const h = Math.max(1, height);
-  const p = Math.max(20, pad ?? 80);
+  const p = Math.max(20, (typeof opts.pad === 'number' && Number.isFinite(opts.pad) ? opts.pad : 80) ?? 80);
 
   // Enforce minimum bounding box dimensions to prevent "one-line" infinite zoom
   // or edge-hugging layouts.
-  let bboxW = Math.max(maxX - minX, 100);
-  let bboxH = Math.max(maxY - minY, 100);
+  let bboxW = Math.max(maxX - minX, minBBoxSize);
+  let bboxH = Math.max(maxY - minY, minBBoxSize);
 
   const viewW = Math.max(1, w - p * 2);
   const viewH = Math.max(1, h - p * 2);
-  const viewRatio = viewW / viewH;
-  const bboxRatio = bboxW / bboxH;
-  if (Number.isFinite(viewRatio) && Number.isFinite(bboxRatio) && viewRatio > 0 && bboxRatio > 0) {
-    if (bboxRatio > viewRatio) {
-      bboxH = Math.max(bboxH, bboxW / viewRatio);
-    } else {
-      bboxW = Math.max(bboxW, bboxH * viewRatio);
+  if (enforceAspectRatio) {
+    const viewRatio = viewW / viewH;
+    const bboxRatio = bboxW / bboxH;
+    if (Number.isFinite(viewRatio) && Number.isFinite(bboxRatio) && viewRatio > 0 && bboxRatio > 0) {
+      if (bboxRatio > viewRatio) {
+        bboxH = Math.max(bboxH, bboxW / viewRatio);
+      } else {
+        bboxW = Math.max(bboxW, bboxH * viewRatio);
+      }
     }
   }
 
@@ -96,7 +124,10 @@ export const fitAllTransform = (nodes: GraphNode[], width: number, height: numbe
   const sX = viewW / bboxW;
   const sY = viewH / bboxH;
 
-  const s = Math.max(0.1, Math.min(4, Math.min(sX, sY, 3)));
+  const unclamped = Math.min(sX, sY)
+  const upper = Math.min(Math.max(0.1, maxScale), Math.max(0.1, maxScaleHardCap))
+  const lower = Math.max(0.01, Math.min(minScale, upper))
+  const s = Math.max(lower, Math.min(upper, unclamped))
 
   // Center the bounding box in the viewport
   return d3.zoomIdentity

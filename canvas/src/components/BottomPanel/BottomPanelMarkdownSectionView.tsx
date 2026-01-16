@@ -249,6 +249,8 @@ export function BottomPanelMarkdownSectionView(
             textHighlightOffTooltip={UI_COPY.bottomPanelMarkdownTextHighlightOffTooltip}
             applyButtonLabel={UI_COPY.bottomPanelMarkdownApplyButtonLabel}
             applyButtonTitle={UI_COPY.bottomPanelMarkdownApplyButtonTitle}
+            fullscreenToggleTitle={UI_COPY.bottomPanelMarkdownFullscreenToggleTitle}
+            fullscreenToggleTooltip={UI_COPY.bottomPanelMarkdownFullscreenOffTooltip}
             onApplyMarkdown={() => void handleApplyMarkdown()}
             editToggleTitle={UI_COPY.bottomPanelMarkdownEditToggleTitle}
             editOnTooltip={UI_COPY.bottomPanelMarkdownEditOnTooltip}

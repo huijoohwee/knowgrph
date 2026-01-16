@@ -218,6 +218,21 @@ export function compareMermaidNodesForRender(a: GraphNode, b: GraphNode, schema:
   const pa = ta === 'MermaidSubgraph' ? 0 : ta === 'MermaidNode' ? 1 : 2
   const pb = tb === 'MermaidSubgraph' ? 0 : tb === 'MermaidNode' ? 1 : 2
   if (pa !== pb) return pa - pb
+  if (ta === 'MermaidSubgraph' && tb === 'MermaidSubgraph') {
+    const getDepth = (n: GraphNode): number => {
+      const props = (n.properties || {}) as Record<string, unknown>
+      const raw = props['visual:subgraphDepth']
+      if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+      if (typeof raw === 'string') {
+        const v = Number(raw)
+        if (Number.isFinite(v)) return v
+      }
+      return 0
+    }
+    const da = getDepth(a)
+    const db = getDepth(b)
+    if (da !== db) return da - db
+  }
   if (renderOrder === 'id') return String(a.id).localeCompare(String(b.id))
   const ay = getMermaidRenderCoord(a, 'y')
   const by = getMermaidRenderCoord(b, 'y')

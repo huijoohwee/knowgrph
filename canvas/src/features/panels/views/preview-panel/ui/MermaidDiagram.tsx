@@ -176,7 +176,7 @@ export function MermaidDiagram({
 
   return (
     <>
-      <div
+      <figure
         className={[
           'mt-3 mb-3 p-3 rounded border border-gray-200 bg-white overflow-auto',
           highlightClass,
@@ -205,9 +205,12 @@ export function MermaidDiagram({
             void 0
           }
         }}
+        role="figure"
+        aria-label="Mermaid diagram"
       >
-        <div ref={containerRef} />
-      </div>
+        <div ref={containerRef} className="mermaid-container w-full h-full flex items-center justify-center" />
+        <figcaption className="sr-only">Mermaid diagram visualization</figcaption>
+      </figure>
       {overlayScope === 'container' && (
         <PreviewOverlay
           open={isFullscreenOpen && !!svg}

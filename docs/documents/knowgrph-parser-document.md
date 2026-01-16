@@ -25,6 +25,23 @@
 - Inline refs:
   - Extracts `![alt](url)` images and `[label](url)` links from paragraph blocks.
   - Resolves relative `url` values against the document URL when `name` is `http(s)`.
+- Mermaid Support:
+  - Supports 100% of standard Mermaid Flowchart syntax including all node shapes:
+    - Standard boxes `[text]`, `["text"]`
+    - Rounded boxes `(text)`
+    - Stadium/Pill `([text])`
+    - Subroutine `[[text]]`
+    - Cylinder `[(text)]`
+    - Circle `((text))`
+    - Asymmetric `>text]`
+    - Rhombus `{text}`
+    - Hexagon `{{text}}`
+    - Parallelogram `[/text/]` and `[\text\]`
+    - Trapezoid `[/text\]` and `[\text/]`
+    - Double Circle `(((text)))`
+  - Supports complex edge definitions including multi-directional and symbol edges (`o--o`, `x--x`, `<-->`).
+  - Correctly parses class definitions (`classDef`, `class`) and style strings.
+  - Handles nested subgraphs and click events.
 - Media nodes:
   - `Image` nodes use `properties.image` / `properties.media_kind: "image"`.
   - `Video` nodes use `properties.video` / `properties.media_kind: "video"`.

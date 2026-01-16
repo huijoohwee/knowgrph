@@ -32,3 +32,19 @@ This document details the optimizations and fixes applied to the Mermaid layout 
 ## 4. Code Cleanup
 - Refactored `graphLayers.ts` to cleanly separate Mermaid-specific rendering logic.
 - Ensured consistent usage of `visual:width` and `visual:height` properties across layout and rendering layers.
+
+## 5. 16:9 Optimization and Full Syntax Support (New)
+- **100% Flowchart Syntax Support**:
+    - **Subgraph Edges**: Enabled edges connecting directly to/from subgraphs (e.g., `A --> Subgraph` or `Subgraph --> B`). Implemented a hybrid strategy using dummy nodes for robustness and `minlen` hints to encourage vertical stacking of subgraphs.
+    - **Enhanced Parsing**: Updated `markdownJsonLdMermaidParser.ts` to support complex arrow syntax, including inline text labels (e.g., `A -- text --> B`) and extended arrow types (`o--o`, `x--x`, `<-->`).
+    - **Unindented Block Scalars**: Fixed `lib/markdown.ts` to robustly handle YAML block scalars (like `mermaid: |`) where the content (e.g., `graph TD`) shares the same indentation as the key, preventing parsing failures for technically invalid but common frontmatter.
+- **16:9 Layout Optimization**:
+    - **Compact Separation**: Reduced default `nodesep` and `ranksep` scaling (capped at 0.8) to prevent massive horizontal spread in complex compound graphs. This ensures diagrams fit better within standard 16:9 viewports.
+    - **Vertical Stacking Hints**: Added `minlen: 5` and `weight: 100` to edges connecting subgraphs, strongly encouraging Dagre to stack main sections vertically rather than placing them side-by-side.
+    - **Configurable Separation**: Spacing scales with the `separation` schema property, allowing user control, but with a safe maximum limit.
+- **Semantic HTML**:
+    - Updated `MermaidDiagram.tsx` to use `<figure>` and `<figcaption>` elements instead of generic divs, improving accessibility and semantic structure.
+- **Stability**:
+    - **Deterministic Ordering**: Ensured stable node/edge ordering during layout passes to prevent "jitter" or chaotic re-ordering on updates.
+    - **Crash Prevention**: Handled Dagre failures gracefully with fallback strategies (tight-tree) and robust error catching.
+    - **Visual Centering**: Fixed layout centering logic to calculate bounding box based on actual node dimensions (including subgraphs) rather than just node centers, ensuring true visual centering on the canvas.

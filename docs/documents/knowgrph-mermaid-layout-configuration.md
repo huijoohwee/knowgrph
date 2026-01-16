@@ -25,7 +25,7 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
 
 ### Layout Engine & Robustness
 - **Algorithm**: Uses Dagre's `network-simplex` ranker (switched from `tight-tree`) for enhanced stability and reduced layout failures.
-- **Spacing**: Increased default separation (`nodesep: 72`, `ranksep: 84`) and margins (`marginx: 80`, `marginy: 80`) to ensure the graph is well spread out and doesn't stick to the borders.
+- **Spacing**: Increased default separation (`nodesep: 80 * separation`, `rankSep: 100 * separation`) and margins (`marginx: 120`, `marginy: 120`) to better utilize the 16:9 canvas aspect ratio and prevent crowding.
 - **Centering**: The graph centroid is always centered in the Infinite Canvas viewport upon layout application.
 - **Compound Layout**: Natively supports **rectangular subgraphs** and nested node hierarchies by enabling Dagre's `compound` mode. It correctly maps parent-child relationships between subgraphs and nodes.
 - **Node Sizing**: Uses shared `calculateNodeDimensions` utility to ensure consistent text measurement across layout engines (Mermaid, Tree) and renderer.

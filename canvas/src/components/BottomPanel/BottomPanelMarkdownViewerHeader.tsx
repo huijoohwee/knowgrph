@@ -47,6 +47,8 @@ export type ViewerHeaderRowProps = {
   applyButtonTitle: string
   onApplyMarkdown: () => void
   onFullscreenToggleRequested: () => void
+  fullscreenToggleTitle: string
+  fullscreenToggleTooltip: string
   editToggleTitle: string
   editOnTooltip: string
   editOffTooltip: string
@@ -84,6 +86,8 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     applyButtonTitle,
     onApplyMarkdown,
     onFullscreenToggleRequested,
+    fullscreenToggleTitle,
+    fullscreenToggleTooltip,
     editToggleTitle,
     editOnTooltip,
     editOffTooltip,
@@ -286,12 +290,21 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           className={`App-toolbar__btn flex items-center justify-center ${
             markdownLayoutMode === 'slides-gallery' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
           }`}
-          title="Slides Gallery"
-          tooltipContent="Slides Gallery"
+          title="Gallery"
+          tooltipContent="Gallery"
           onClick={() => setMarkdownLayoutMode('slides-gallery')}
           showTooltip
         >
           <LayoutGrid className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+        </IconButton>
+        <IconButton
+          className={`App-toolbar__btn flex items-center justify-center ${uiPrimaryIconInactiveClassName}`}
+          title={fullscreenToggleTitle}
+          tooltipContent={fullscreenToggleTooltip}
+          onClick={onFullscreenToggleRequested}
+          showTooltip
+        >
+          <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
         {isPresentationOrGallery && (
           <IconButton

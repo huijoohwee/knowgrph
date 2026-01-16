@@ -365,9 +365,17 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
 
   React.useEffect(() => {
     if (isSlidesFullscreenOpen && previewOverlayContainerRef.current) {
-      previewOverlayContainerRef.current.requestFullscreen().catch(() => {
-        // ignore error
-      })
+      const el = previewOverlayContainerRef.current as unknown as { requestFullscreen?: () => Promise<void> }
+      const fn = el?.requestFullscreen
+      if (typeof fn !== 'function') return
+      try {
+        const p = fn.call(el)
+        if (p && typeof (p as Promise<void>).catch === 'function') {
+          ;(p as Promise<void>).catch(() => void 0)
+        }
+      } catch {
+        void 0
+      }
     }
   }, [isSlidesFullscreenOpen])
 
@@ -538,11 +546,11 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const slideContentClass =
     layout === 'center'
       ? [
-          'max-h-full overflow-auto mx-auto flex items-center justify-center',
+          'max-h-full overflow-hidden mx-auto flex items-center justify-center',
           isAcademicTheme ? 'max-w-5xl px-16 py-14' : 'max-w-4xl px-12 py-10',
         ].join(' ')
       : [
-          'w-full h-full overflow-auto',
+          'w-full h-full overflow-hidden',
           isAcademicTheme ? 'px-16 py-14' : 'px-12 py-10',
         ].join(' ')
   const slideContent = slideBody

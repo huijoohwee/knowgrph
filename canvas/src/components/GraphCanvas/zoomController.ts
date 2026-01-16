@@ -75,7 +75,21 @@ export const applyZoomRequest = (
   }
   if (type === 'fit') {
     if (!graphData) return;
-    const next = fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)));
+    const schema = useGraphStore.getState().schema
+    const mode = schema.layout?.mode
+    const padding = schema.layout?.fitPadding
+    const next =
+      mode === 'mermaid'
+        ? fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), {
+            pad:
+              typeof padding === 'number' && Number.isFinite(padding)
+                ? Math.max(20, Math.min(48, Math.floor(padding)))
+                : 48,
+            enforceAspectRatio: false,
+            maxScale: 6,
+            maxScaleHardCap: 6,
+          })
+        : fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), padding);
     applyTransform(svg, zoom, next, 300);
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
     return;
@@ -127,7 +141,21 @@ export const applyZoomRequest = (
       }
     }
     if (graphData) {
-      const next = fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)));
+      const schema = useGraphStore.getState().schema
+      const mode = schema.layout?.mode
+      const padding = schema.layout?.fitPadding
+      const next =
+        mode === 'mermaid'
+          ? fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), {
+              pad:
+                typeof padding === 'number' && Number.isFinite(padding)
+                  ? Math.max(20, Math.min(48, Math.floor(padding)))
+                  : 48,
+              enforceAspectRatio: false,
+              maxScale: 6,
+              maxScaleHardCap: 6,
+            })
+          : fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), padding);
       applyTransform(svg, zoom, next, 300);
     }
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }

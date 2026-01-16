@@ -53,7 +53,11 @@ import {
   testGraphValidationMetricsWithSyntheticRawDataset,
 } from '@/__tests__/graphValidation.test'
 import { testMarkdownMermaidFrontmatterLabeledEdgeAndMentions } from '@/__tests__/markdownMermaidFrontmatter.test'
-import { testMermaidLayoutDoesNotFailOnMarkdownSlideDemo } from '@/__tests__/mermaidLayoutStability.test'
+import {
+  testMermaidLayoutDoesNotFailOnMarkdownSlideDemo,
+  testMermaidComplexSubgraphEdges,
+  testMermaidExternalMarkdownDemoFits1920x1080,
+} from '@/__tests__/mermaidLayoutStability.test'
 import {
   testGraphRagTraversalHappyPath,
   testGraphRagTraversalIgnoresInvalidShapes,
@@ -134,7 +138,12 @@ import {
 import { testStatsTokensByGraphLayerUsesPaletteFillForMarkdownSlideDemo } from '@/__tests__/statsGraphLayerTokens.test'
 import { testFrontmatterModeFiltersGraphToMermaidNodes } from '@/__tests__/frontmatterModeGraphFilter.test'
 import { testFrontmatterModeEdaMlpFiltersGraphToMermaidFrontmatter } from '@/__tests__/frontmatterModeEdaMlpGraphFilter.test'
-import { testMermaidSubgraphLayoutCoordinates } from '@/__tests__/markdown/reproduce_mermaid_subgraph_layout.test'
+import {
+  testMermaidNestedSubgraphDepthOrdering,
+  testMermaidSubgraphLayoutCoordinates,
+} from '@/__tests__/markdown/reproduce_mermaid_subgraph_layout.test'
+
+import { testMermaidLayoutForPresentationSlides } from '@/__tests__/markdown/reproduce_presentation_layout.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -242,6 +251,7 @@ export const runAllTests = async () => {
 
   await exec('markdown.mermaidFrontmatter.labeledEdgeAndMentions', testMarkdownMermaidFrontmatterLabeledEdgeAndMentions)
   await exec('markdown.mermaidLayout.slideDemo.noDagreFailure', testMermaidLayoutDoesNotFailOnMarkdownSlideDemo)
+  await exec('markdown.mermaidLayout.complexSubgraphEdges', testMermaidComplexSubgraphEdges)
 
   await exec('tabSync.buildEnvelope', testBuildEnvelope)
   await exec('graph.edgeExists', testEdgeExists)
@@ -531,6 +541,9 @@ export const runAllTests = async () => {
     testApplySchemaUiSnapshotCallsApplyWhenHashMatches,
   )
   await exec('markdown.mermaid.subgraphLayoutCoordinates', testMermaidSubgraphLayoutCoordinates)
+  await exec('markdown.mermaid.subgraphDepthOrdering', testMermaidNestedSubgraphDepthOrdering)
+  await exec('markdown.mermaid.externalDemoFits1920x1080', testMermaidExternalMarkdownDemoFits1920x1080)
+  await exec('markdown.mermaid.presentationLayout', testMermaidLayoutForPresentationSlides)
 
   return results
 }
