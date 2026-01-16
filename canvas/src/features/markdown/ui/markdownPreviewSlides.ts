@@ -14,17 +14,34 @@ const stripSlideNotes = (lines: string[]): { lines: string[]; notes: string | nu
   let end = lines.length
   while (end > 0 && !(lines[end - 1] || '').trim()) end -= 1
   if (end <= 0) return { lines: [], notes: null }
+  
+  // Check for notes at the end
   const last = (lines[end - 1] || '').trim()
-  if (!last.endsWith('-->')) return { lines: lines.slice(0, end), notes: null }
-  let start = end - 1
-  while (start >= 0 && !String(lines[start] || '').includes('<!--')) start -= 1
-  if (start < 0) return { lines: lines.slice(0, end), notes: null }
-  const first = String(lines[start] || '').trim()
-  if (!first.startsWith('<!--')) return { lines: lines.slice(0, end), notes: null }
-  const notesLines = lines.slice(start, end)
-  const remaining = lines.slice(0, start)
-  const notes = notesLines.join('\n').trim() || null
-  return { lines: remaining, notes }
+  if (last.endsWith('-->')) {
+    let start = end - 1
+    // Handle multi-line comment block
+    while (start >= 0) {
+      const line = (lines[start] || '').trim()
+      if (line.includes('<!--')) {
+        break
+      }
+      start -= 1
+    }
+    
+    if (start >= 0) {
+      const first = (lines[start] || '').trim()
+      if (first.startsWith('<!--')) {
+        const notesLines = lines.slice(start, end)
+        const remaining = lines.slice(0, start)
+        // Clean up notes: remove comment markers
+        const notesRaw = notesLines.join('\n')
+        const notes = notesRaw.replace(/^\s*<!--/g, '').replace(/-->\s*$/g, '').trim() || null
+        return { lines: remaining, notes }
+      }
+    }
+  }
+  
+  return { lines: lines.slice(0, end), notes: null }
 }
 
 const extractInlineHtmlCommentNotes = (lines: string[]): { lines: string[]; notes: string | null } => {

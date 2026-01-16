@@ -36,6 +36,22 @@ export const mapLines = (tok: MdToken, lineOffset: number): { startLine: number;
   return { startLine, endLine: Math.max(startLine, endLine) }
 }
 
+export const selectTokensInLineRange = (
+  tokens: TokenWithLines[],
+  startLine: number,
+  endLine: number,
+): TokenWithLines[] => {
+  const start = Math.max(1, Math.min(startLine, endLine))
+  const end = Math.max(start, Math.max(startLine, endLine))
+  const out: TokenWithLines[] = []
+  for (const t of tokens) {
+    if (t.endLine < start) continue
+    if (t.startLine > end) break
+    if (t.startLine >= start && t.endLine <= end) out.push(t)
+  }
+  return out
+}
+
 export const normalizeVClicksHtmlBlocks = (markdownText: string): string => {
   const lines = splitMarkdownLines(markdownText || '')
   const out: string[] = []

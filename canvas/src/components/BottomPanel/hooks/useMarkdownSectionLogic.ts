@@ -2,6 +2,7 @@ import React from 'react'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
 import { parseMermaidConfigFromFrontmatter } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { useMarkdownPreviewTokens } from '@/features/markdown/ui/useMarkdownPreviewTokens'
+import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { slugify } from '@/features/parsers/markdownJsonLd'
 import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -27,6 +28,7 @@ type UseMarkdownSectionLogicProps = {
   setSelectionSource: (source: 'editor' | 'canvas' | 'table') => void
   setMarkdownText: (next: string) => void
   setMarkdownDocument: (name: string | null, text: string) => void
+  providedTokens?: TokenWithLines[]
 }
 
 export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
@@ -45,6 +47,7 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
     setSelectionSource,
     setMarkdownText,
     setMarkdownDocument,
+    providedTokens,
   } = props
 
   const [showSidebar, setShowSidebar] = React.useState(true)
@@ -347,7 +350,7 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
 
   const tokens = useMarkdownPreviewTokens(
     markdownPreviewText || '',
-    undefined,
+    providedTokens,
     previewBasePath,
     markdownDocumentText === markdownPreviewText,
   )

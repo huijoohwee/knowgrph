@@ -33,6 +33,7 @@ type ZoomPanViewportProps = {
   showZoomIndicator?: boolean
   frameClassName?: string
   disablePan?: boolean
+  autoScaleTo100?: boolean
 }
 
 export default function ZoomPanViewport({
@@ -48,6 +49,7 @@ export default function ZoomPanViewport({
   showZoomIndicator = false,
   frameClassName,
   disablePan = false,
+  autoScaleTo100 = false,
 }: ZoomPanViewportProps) {
   const viewportRef = React.useRef<HTMLDivElement | null>(null)
   const frameRef = React.useRef<HTMLDivElement | null>(null)
@@ -153,9 +155,13 @@ export default function ZoomPanViewport({
 
   React.useEffect(() => {
     if (!open) return
+    if (autoScaleTo100) {
+      fitToViewport()
+      return
+    }
     if (!fitOnOpen) return
     fitToViewport()
-  }, [fitOnOpen, fitToViewport, open])
+  }, [fitOnOpen, fitToViewport, open, autoScaleTo100])
 
   return (
     <div className={`w-full h-full flex flex-col ${UI_THEME_TOKENS.panel.bg}`}>

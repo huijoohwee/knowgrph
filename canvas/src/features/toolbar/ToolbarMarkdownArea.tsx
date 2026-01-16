@@ -1,7 +1,6 @@
 import React from 'react'
-import StatusBadge from '@/features/panels/ui/StatusBadge'
 import type { ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
-import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function ToolbarMarkdownArea(props: ToolbarToolMenuAreasProps) {
@@ -95,23 +94,16 @@ export function ToolbarMarkdownArea(props: ToolbarToolMenuAreasProps) {
         </div>
       )}
       <div className="flex items-end justify-end gap-2 flex-col">
-        <div className="flex items-center justify-end gap-2">
-          <StatusBadge
-            label={UI_LABELS.markdown}
-            ok={props.dataLoadOk}
-            msg={props.dataLoadMsg}
-          />
-        </div>
         {isMarkdownLargeSummary && (
-          <div
-            className={[
-              uiPanelKeyValueTextSizeClass,
-              'text-[10px] text-gray-400',
-            ].join(' ')}
-          >
-            {UI_COPY.markdownLargeSummaryHelperText}
-          </div>
-        )}
+        <div
+          className={[
+            uiPanelKeyValueTextSizeClass,
+            'text-[10px] text-gray-400',
+          ].join(' ')}
+        >
+          {UI_COPY.markdownLargeSummaryHelperText}
+        </div>
+      )}
       </div>
     </div>
   )

@@ -19,8 +19,9 @@ import type { BottomTab } from '@/features/bottom-panel/open'
 import { useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { useMarkdownApply } from './hooks/useMarkdownApply'
 import { useJsonMarkdown } from './hooks/useJsonMarkdown'
+import { useMarkdownPreviewTokens } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 
-export type MarkdownLayoutMode = 'split' | 'editor' | 'viewer'
+export type MarkdownLayoutMode = 'split' | 'editor' | 'viewer' | 'presentation' | 'slides-gallery'
 
 type BottomPanelMarkdownSectionProps = {
   setBottomPanelCurationView?: (view: 'table' | 'json' | 'markdown') => void
@@ -83,7 +84,7 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
     lsJson<MarkdownLayoutMode>(
       LS_KEYS.markdownLayoutMode,
       'viewer',
-      value => (value === 'editor' || value === 'viewer' || value === 'split' ? (value === 'split' ? 'viewer' : value) : 'viewer'),
+      value => (value === 'editor' || value === 'viewer' || value === 'split' || value === 'presentation' || value === 'slides-gallery' ? (value === 'split' ? 'viewer' : value) : 'viewer'),
     ),
   )
 
@@ -143,6 +144,14 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
     setMarkdownText,
   })
 
+  // Token Sharing
+  const tokens = useMarkdownPreviewTokens(
+    deferredMarkdownText || markdownText || '',
+    undefined,
+    previewBasePath || activeDocumentPath,
+    true
+  )
+
   // Apply Hook
   const { applyStatus, handleApplyMarkdown } = useMarkdownApply({
     markdownText,
@@ -197,9 +206,51 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   const [pendingFullscreenRequest, setPendingFullscreenRequest] = React.useState(false)
 
   React.useEffect(() => {
-    if (markdownPresentationMode && pendingFullscreenRequest && presentationApiRef.current) {
-      presentationApiRef.current.enterFullscreen?.()
-      setPendingFullscreenRequest(false)
+    if (!markdownPresentationMode) return
+    if (!pendingFullscreenRequest) return
+    let cancelled = false
+    let timer: number | null = null
+    let raf: number | null = null
+    const schedule = (fn: () => void) => {
+      try {
+        const w = window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+        if (typeof w.requestAnimationFrame === 'function') {
+          raf = w.requestAnimationFrame(fn)
+          return
+        }
+      } catch {
+        void 0
+      }
+      timer = window.setTimeout(fn, 0)
+    }
+    const run = () => {
+      if (cancelled) return
+      const api = presentationApiRef.current
+      const enter = api?.enterFullscreen
+      if (typeof enter === 'function') {
+        enter()
+        setPendingFullscreenRequest(false)
+        return
+      }
+      schedule(run)
+    }
+    schedule(run)
+    return () => {
+      cancelled = true
+      if (timer != null) {
+        try {
+          window.clearTimeout(timer)
+        } catch {
+          void 0
+        }
+      }
+      if (raf != null) {
+        try {
+          window.cancelAnimationFrame(raf)
+        } catch {
+          void 0
+        }
+      }
     }
   }, [markdownPresentationMode, pendingFullscreenRequest])
 
@@ -383,6 +434,7 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
       setSelectionSource={setSelectionSource}
       themeMode={themeMode}
       syncViewerFromEditor={syncViewerFromEditor}
+      tokens={tokens}
     />
   )
 }

@@ -128,6 +128,12 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
         state.setJsonSourceDocument(name, null)
         state.setMarkdownDocument(name, res.input.text)
         state.setBottomPanelCurationView('grid')
+        state.addRecentFile({
+          name: name,
+          path: type === 'local' ? picked.name : undefined,
+          url: type === 'url' ? picked.name : undefined,
+          type: 'html',
+        })
       }
     } catch {
       void 0

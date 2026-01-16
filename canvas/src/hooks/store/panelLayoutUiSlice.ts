@@ -1,7 +1,7 @@
-import { lsNum, lsSetNum, lsInt, lsSetInt, lsJson, lsSetJson } from '@/lib/persistence';
+import { lsNum, lsSetNum, lsInt, lsSetInt, lsJson, lsSetJson, lsBool } from '@/lib/persistence';
 import { LS_KEYS } from '@/lib/config';
 import type { BottomTab } from '@/features/bottom-panel/open';
-import type { GraphState } from '@/hooks/useGraphStore';
+import type { GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
 
@@ -71,6 +71,7 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     isSidebarOpen: false,
 
     bottomPanelHeightRatio: lsNum(LS_KEYS.bottomPanelHeight, 0.35),
+    bottomPanelCollapsed: lsBool(LS_KEYS.bottomPanelCollapsed, true),
     floatingPanelWidthRatio: lsNum(LS_KEYS.floatingPanelWidthRatio, 0.25),
     floatingPanelHeightRatio: lsNum(LS_KEYS.floatingPanelHeightRatio, 0.5),
     floatingPanelZIndex: lsInt(LS_KEYS.floatingPanelZIndex, 5000),
@@ -86,6 +87,7 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     toggleSidebar: () => set(s => ({ isSidebarOpen: !s.isSidebarOpen })),
 
     setBottomPanelHeightRatio: (v: number) => set({ bottomPanelHeightRatio: lsSetNum(LS_KEYS.bottomPanelHeight, v) }),
+    setBottomPanelCollapsed: (v: boolean) => set({ bottomPanelCollapsed: !!v }),
     setFloatingPanelWidthRatio: (v: number) =>
       set({
         floatingPanelWidthRatio: lsSetNum(LS_KEYS.floatingPanelWidthRatio, v),

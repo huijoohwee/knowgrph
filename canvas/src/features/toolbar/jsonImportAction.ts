@@ -25,7 +25,7 @@ function deriveNameFromUrl(rawUrl: string, format: JsonImportFormat): string {
 
 export async function performJsonImport(type: JsonImportType, format: JsonImportFormat, providedUrl?: string) {
   try {
-    const picked = await (async (): Promise<{ name: string; text: string } | null> => {
+    const picked = await (async (): Promise<{ name: string; text: string; sourceUrl?: string } | null> => {
       if (type === 'url') {
         const rawUrl = (() => {
           const v = typeof providedUrl === 'string' ? providedUrl.trim() : ''
@@ -43,10 +43,12 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           }
           return null
         }
-        return { name: deriveNameFromUrl(rawUrl, format), text }
+        return { name: deriveNameFromUrl(rawUrl, format), text, sourceUrl: rawUrl }
       }
       if (type === 'local') {
-        return pickTextFileWithExtensions(['.json', '.jsonld'])
+        const p = await pickTextFileWithExtensions(['.json', '.jsonld'])
+        if (!p) return null
+        return { ...p, sourceUrl: undefined }
       }
       return null
     })()

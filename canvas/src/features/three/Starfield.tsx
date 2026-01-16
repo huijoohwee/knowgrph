@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
-export function Starfield({ count, radius, opacity, color }: { count: number; radius: number; opacity: number; color: string }) {
+export function Starfield({ count, radius, opacity, color, paused }: { count: number; radius: number; opacity: number; color: string; paused?: boolean }) {
   const { camera } = useThree()
   const pointsRef = useRef<THREE.Points>(null!)
   const positions = useMemo(() => {
@@ -18,6 +18,7 @@ export function Starfield({ count, radius, opacity, color }: { count: number; ra
     return arr
   }, [count, radius])
   useFrame(() => {
+    if (paused) return
     if (!pointsRef.current) return
     pointsRef.current.position.copy(camera.position)
   })
@@ -37,4 +38,3 @@ export function Starfield({ count, radius, opacity, color }: { count: number; ra
     </points>
   )
 }
-

@@ -29,7 +29,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
   fragmentTags,
 }: MarkdownTableBlockProps) {
   const tbl = t as unknown as TokensTable
-  const containerClassName = [`mt-4 mb-4 overflow-auto rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`]
+  const containerClassName = [`mt-4 mb-4 overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`]
     .filter(Boolean)
     .join(' ')
   return (
@@ -45,7 +45,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
         <thead className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.text}`}>
           <tr>
             {tbl.header.map((cell, j) => (
-              <th key={j} className={`px-4 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>
+              <th key={j} className={`px-4 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} align-top sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}>
                 {renderInlineTokens(cell.tokens as unknown as Token[] | undefined, {
                   activeDocumentPath: opts.activeDocumentPath,
                   uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,

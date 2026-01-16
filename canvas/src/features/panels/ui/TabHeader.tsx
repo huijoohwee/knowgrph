@@ -109,7 +109,7 @@ function TabHeaderImpl({
     onDragStart(e)
   }, [onDragStart])
   return (
-    <div
+    <header
       className={
         [
           'HeaderBar',
@@ -189,7 +189,7 @@ function TabHeaderImpl({
         )}
         {rightSlot}
       </div>
-    </div>
+    </header>
   )
 }
 

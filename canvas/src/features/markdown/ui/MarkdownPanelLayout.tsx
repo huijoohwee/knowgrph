@@ -20,6 +20,7 @@ export type MarkdownPanelLayoutProps = {
   onTocSelect?: (id: string) => void
   onTocDoubleClick?: (id: string) => void
   onTocReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
+  sidebarContent?: React.ReactNode
   className?: string
   sidebarWidth?: string
   collapsedIds?: Set<string>
@@ -27,6 +28,7 @@ export type MarkdownPanelLayoutProps = {
   onExpandAll?: () => void
   onCollapseAll?: () => void
   allCollapsed?: boolean
+  hideSidebarHeader?: boolean
 }
 
 export type MarkdownViewerWidthMode = 'standard' | 'wide'
@@ -42,6 +44,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
     onTocSelect,
     onTocDoubleClick,
     onTocReorder,
+    sidebarContent,
     className,
     sidebarWidth = 'w-64',
     collapsedIds,
@@ -49,6 +52,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
     onExpandAll,
     onCollapseAll,
     allCollapsed: propsAllCollapsed,
+    hideSidebarHeader,
   } = props
 
   const [localAllCollapsed, setLocalAllCollapsed] = React.useState(false)
@@ -102,6 +106,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
           showSidebar ? sidebarWidth : 'w-0 overflow-hidden'
         }`}
       >
+        {!hideSidebarHeader && (
           <header className={`flex items-center justify-between p-2 border-b ${UI_THEME_TOKENS.panel.border}`}>
             <h2
               className={[
@@ -130,7 +135,10 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
               )}
             </div>
           </header>
-          {tokens && (
+        )}
+          {sidebarContent ? (
+            sidebarContent
+          ) : tokens ? (
             <nav className="flex-1 overflow-auto" aria-label="Table of Contents">
               <MarkdownTableOfContents
                 tokens={tokens}
@@ -145,7 +153,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
                 onToggleCollapse={onToggleCollapse}
               />
             </nav>
-          )}
+          ) : null}
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 relative">

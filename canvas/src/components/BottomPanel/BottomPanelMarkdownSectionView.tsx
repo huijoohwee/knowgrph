@@ -15,6 +15,7 @@ import { type MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { MarkdownEditorPane } from './MarkdownEditorPane'
 import { MarkdownViewerPane } from './MarkdownViewerPane'
 import { useMarkdownSectionLogic } from './hooks/useMarkdownSectionLogic'
+import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 
 type JsonMarkdownMode = JsonToMarkdownMode
 
@@ -77,6 +78,7 @@ type BottomPanelMarkdownSectionViewProps = {
   selectEdge: (id: string) => void
   setSelectionSource: (source: 'editor' | 'canvas' | 'table') => void
   themeMode: 'light' | 'dark'
+  tokens: TokenWithLines[]
 }
 
 export function BottomPanelMarkdownSectionView(
@@ -135,6 +137,8 @@ export function BottomPanelMarkdownSectionView(
     selectEdge,
     setSelectionSource,
     themeMode,
+    tokens: providedTokens,
+    onFullscreenToggleRequested,
   } = props
 
   const {
@@ -168,7 +172,15 @@ export function BottomPanelMarkdownSectionView(
     setSelectionSource,
     setMarkdownText,
     setMarkdownDocument,
+    providedTokens,
   })
+
+  const viewMode =
+    markdownLayoutMode === 'presentation'
+      ? 'presentation'
+      : markdownLayoutMode === 'slides-gallery'
+      ? 'gallery'
+      : 'viewer'
 
   const isEditing = !markdownPresentationMode && markdownLayoutMode === 'editor'
 
@@ -215,7 +227,8 @@ export function BottomPanelMarkdownSectionView(
             uiPanelTextFontClass={uiPanelTextFontClass}
             viewerTitle={UI_COPY.bottomPanelMarkdownViewerTitle}
             editorTitle={UI_COPY.bottomPanelMarkdownEditorTitle}
-            markdownPresentationMode={markdownPresentationMode}
+            markdownLayoutMode={markdownLayoutMode}
+            setMarkdownLayoutMode={setMarkdownLayoutMode}
             iconSizeClass={iconSizeClass}
             uiIconStrokeWidth={uiIconStrokeWidth}
             markdownTextHighlight={markdownTextHighlight}
@@ -229,9 +242,6 @@ export function BottomPanelMarkdownSectionView(
             wordWrapOffTooltip={UI_COPY.bottomPanelMarkdownWordWrapOffTooltip}
             annotateDisplayMode={annotateDisplayMode}
             setAnnotateDisplayMode={setAnnotateDisplayMode}
-            setMarkdownPresentationMode={setMarkdownPresentationMode}
-            presentationApiRef={presentationApiRef}
-            presentationSlideState={presentationSlideState}
             markdownPreviewPrevButtonLabel={UI_COPY.markdownPreviewPrevButtonLabel}
             markdownPreviewNextButtonLabel={UI_COPY.markdownPreviewNextButtonLabel}
             textHighlightToggleTitle={UI_COPY.bottomPanelMarkdownTextHighlightToggleTitle}
@@ -239,17 +249,12 @@ export function BottomPanelMarkdownSectionView(
             textHighlightOffTooltip={UI_COPY.bottomPanelMarkdownTextHighlightOffTooltip}
             applyButtonLabel={UI_COPY.bottomPanelMarkdownApplyButtonLabel}
             applyButtonTitle={UI_COPY.bottomPanelMarkdownApplyButtonTitle}
-            onApplyMarkdown={() => {
-              void handleApplyMarkdown()
-            }}
-            presentationModeToggleTitle={UI_COPY.bottomPanelMarkdownFullscreenToggleTitle}
-            presentationModeOnTooltip={UI_COPY.bottomPanelMarkdownFullscreenOnTooltip}
-            presentationModeOffTooltip={UI_COPY.bottomPanelMarkdownFullscreenOffTooltip}
+            onApplyMarkdown={() => void handleApplyMarkdown()}
             editToggleTitle={UI_COPY.bottomPanelMarkdownEditToggleTitle}
             editOnTooltip={UI_COPY.bottomPanelMarkdownEditOnTooltip}
             editOffTooltip={UI_COPY.bottomPanelMarkdownEditOffTooltip}
             isEditing={isEditing}
-            onFullscreenToggleRequested={props.onFullscreenToggleRequested}
+            onFullscreenToggleRequested={onFullscreenToggleRequested}
             onExpandAll={handleExpandAll}
             onCollapseAll={handleCollapseAll}
             allCollapsed={allCollapsed}
@@ -319,11 +324,11 @@ export function BottomPanelMarkdownSectionView(
               }
             }}
             onShowInPresentation={(line) => {
-              props.onFullscreenToggleRequested()
+              setMarkdownLayoutMode('presentation')
               triggerJump(line)
             }}
             onShowInSlidesGallery={(line) => {
-              props.onFullscreenToggleRequested()
+              setMarkdownLayoutMode('slides-gallery')
               triggerJump(line)
             }}
             onShowInGraphDataTable={(line) => onShowInGraphDataTable?.(line)}
@@ -358,7 +363,7 @@ export function BottomPanelMarkdownSectionView(
               annotateDisplayMode={annotateDisplayMode}
               onShowInGraphDataTable={onShowInGraphDataTable}
               onShowInSlidesGallery={(line) => {
-                props.onFullscreenToggleRequested()
+                setMarkdownLayoutMode('slides-gallery')
                 triggerJump(line)
               }}
               onShowInEditor={(line) => {
@@ -371,6 +376,7 @@ export function BottomPanelMarkdownSectionView(
               flashLine={jumpFlash?.line}
               tokens={tokens}
               markdownViewerWidthMode={markdownViewerWidthMode}
+              viewMode={viewMode}
               showSidebar={showSidebar}
               onToggleSidebar={handleToggleSidebar}
               collapsedIds={collapsedIds}

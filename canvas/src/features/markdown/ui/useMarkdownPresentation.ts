@@ -12,6 +12,7 @@ type MarkdownPresentationApiRef = React.MutableRefObject<{
   prev: () => void
   next: () => void
   enterFullscreen?: () => void
+  setShowSlideThumbnails?: (show: boolean) => void
 } | null>
 
 type MarkdownPresentationSlideState = {
@@ -28,6 +29,7 @@ type UseMarkdownPresentationArgs = {
   presentationApiRef?: MarkdownPresentationApiRef
   onPresentationSlideStateChange?: (state: MarkdownPresentationSlideState) => void
   onSlidesReordered?: (nextOrder: number[]) => void
+  setShowSlideThumbnails?: (show: boolean) => void
 }
 
 export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
@@ -39,6 +41,7 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
     presentationApiRef,
     onPresentationSlideStateChange,
     onSlidesReordered,
+    setShowSlideThumbnails,
   } = args
 
   const [activeSlideIndex, setActiveSlideIndex] = React.useState(0)
@@ -147,6 +150,10 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
     }
   }, [])
 
+  const enterFullscreen = React.useCallback(() => {
+    fullscreenHandlerRef.current?.()
+  }, [])
+
   const goPrev = React.useCallback(() => {
     const cfg = activeFragmentConfig
     if (cfg.enabled && activeFragmentStep > 0) {
@@ -208,6 +215,7 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
           if (handler) handler()
           else pendingEnterFullscreenRef.current = true
         },
+        setShowSlideThumbnails,
       }
     }
     onPresentationSlideStateChange?.({
@@ -229,6 +237,7 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
     presentationApiRef,
     orderedSlideIndices.length,
     slideCount,
+    setShowSlideThumbnails,
   ])
 
   React.useEffect(() => {
@@ -246,10 +255,10 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
   React.useEffect(() => {
     if (!markdownPresentationMode) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
         e.preventDefault()
         goNext()
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) {
         e.preventDefault()
         goPrev()
       } else if (e.key === 'Home') {
@@ -258,11 +267,14 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
       } else if (e.key === 'End') {
         e.preventDefault()
         setActiveSlideIndex(Math.max(0, slides.length - 1))
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault()
+        enterFullscreen()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [goNext, goPrev, markdownPresentationMode, slides.length])
+  }, [goNext, goPrev, markdownPresentationMode, slides.length, enterFullscreen])
 
   return {
     activeSlideIndex,
@@ -276,5 +288,8 @@ export const useMarkdownPresentation = (args: UseMarkdownPresentationArgs) => {
     goPrev,
     goNext,
     handleRegisterFullscreenHandler,
+    enterFullscreen: () => {
+      fullscreenHandlerRef.current?.()
+    },
   }
 }

@@ -27,7 +27,7 @@ import {
 } from '@/lib/config'
 
 export const PANEL_MIN_PX = 120
-export const PANEL_MAX_RATIO = 0.9
+export const PANEL_MAX_RATIO = 1.0
 export const PANEL_MIN_RATIO = 0.35
 export const MINIMAP_TINY_GAP_PX = 8
 
@@ -173,7 +173,7 @@ export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   'Settings: uiIconScale under “UI Density: Icons” controls compact vs default icon size across toolbars and panels.',
   'Canvas: Tidy tree layout renders an uncluttered parent→child tree using configured edge labels; non-tree edges are omitted so curved links and label LOD stay readable on large graphs.',
   'Markdown: Toolbar → Floating Panel → Markdown → Import loads a Markdown document into the Bottom Panel Markdown editor/viewer.',
-  'Markdown: Presentation Mode renders slides split by standalone --- separators (blank line padded) and scales to 16:9; Arrow keys / PageUp / PageDown navigate.',
+  'Markdown: Presentation Mode renders slides split by standalone --- separators. Shortcuts: Space/Right (Next), Shift+Space/Left (Prev), F (Fullscreen), O (Overview), N (Notes).',
   'Markdown: Presentation Mode applies slide `transition` frontmatter and renders $...$/$$...$$ and \\(...\\)/\\[...\\] math via KaTeX.',
   'Mermaid: Double-click a rendered diagram to open a full-screen viewer with Fit and zoom controls (wheel zoom, drag pan).',
 ] as const

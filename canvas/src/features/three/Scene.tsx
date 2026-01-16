@@ -26,6 +26,7 @@ export function Scene({
   data,
   schema,
   positions,
+  paused,
   onSelectNode,
   onHoverNode,
   onHoverEdge,
@@ -33,6 +34,7 @@ export function Scene({
   data: GraphData;
   schema: GraphSchema;
   positions: Record<string, Vec3>;
+  paused?: boolean;
   onSelectNode: (id: string) => void;
   onHoverNode?: (info: { id: string; clientX: number; clientY: number } | null) => void;
   onHoverEdge?: (info: { id: string; clientX: number; clientY: number } | null) => void;
@@ -188,10 +190,11 @@ export function Scene({
           radius={starfieldRadius}
           opacity={starfieldOpacity}
           color={starfieldColorRaw}
+          paused={paused}
         />
       ) : null}
       <group>
-        <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragOverridesRef} />
+        <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragOverridesRef} paused={paused} />
         {data.edges.map((e) => {
           const a = positions[e.source]
           const b = positions[e.target]
@@ -271,12 +274,12 @@ export function Scene({
               }}
             >
               {curvature > 0.001
-                ? <CurvedEdgeMesh a={a} b={b} color={finalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} />
-                : <EdgeMesh a={a} b={b} color={finalColor} width={width} opacity={finalOpacity} resolution={resolution} />
+                ? <CurvedEdgeMesh a={a} b={b} color={finalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} />
+                : <EdgeMesh a={a} b={b} color={finalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} />
               }
-              <ArrowHead start={a} end={b} color={finalColor} height={arrowLen} relPos={arrowRelPos} />
+              <ArrowHead start={a} end={b} color={finalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} />
               {particles > 0 && particleSpeed > 0 ? (
-                <DirectionalParticles start={a} end={b} count={particles} color={finalColor} speed={particleSpeed} />
+                <DirectionalParticles start={a} end={b} count={particles} color={finalColor} speed={particleSpeed} paused={paused} />
               ) : null}
             </group>
           )
@@ -297,6 +300,7 @@ export function Scene({
               onClick={onSelectNode}
               selection={{ mode: selectionMode, isSelected, isNeighbor, isEdgeEndpoint }}
               visuals={selectionVisuals}
+              paused={paused}
               onDragStart={allowNodeDrag ? handleDragStart : undefined}
               onDrag={allowNodeDrag ? handleDrag : undefined}
               onDragEnd={allowNodeDrag ? handleDragEnd : undefined}

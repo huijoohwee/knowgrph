@@ -67,6 +67,7 @@
 - Tree & Mermaid Layout Performance:
   - Structured layout positions (`tree`, `radial`, `mermaid`) are cached per `(layer, layout, frontmatter)` cache key and reused when coverage remains high.
   - The `tree` layout additionally caches its Dagre-derived structure to avoid re-running layout on viewport resize.
+  - **Simulation Freeze**: When the Bottom Panel is expanded to fullscreen (covering the canvas), the renderer automatically pauses the force simulation and cleanup scene resources (via `isBottomPanelFullscreen` check) to save CPU/GPU cycles.
 
 ## Renderer palette and default colors
 - The renderer palette is driven by `MVP_COLOR_PALETTE` and `getRendererPalette(schema)`:

@@ -40,6 +40,15 @@ export type GraphHoverPreviewConfig = {
   showEdgeProperties: boolean;
 };
 
+export type RecentFileEntry = {
+  id: string
+  name: string
+  path?: string
+  url?: string
+  timestamp: number
+  type: 'json' | 'jsonld' | 'markdown' | 'csv' | 'graphml' | 'cypher' | 'url' | 'html'
+}
+
 export interface GraphState {
   graphData: GraphData | null;
 
@@ -60,6 +69,7 @@ export interface GraphState {
   isSidebarOpen: boolean;
   history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>;
   historyIndex: number;
+  recentFiles: RecentFileEntry[];
   historyDebounceMs: number;
   historyTimer: ReturnType<typeof setTimeout> | null;
   schema: GraphSchema;
@@ -93,6 +103,7 @@ export interface GraphState {
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
   addHistory: (label?: string) => void;
+  addRecentFile: (entry: Omit<RecentFileEntry, 'id' | 'timestamp'>) => void;
   restoreHistory: (index: number) => void;
   undoHistory: () => void;
   redoHistory: () => void;
@@ -149,6 +160,7 @@ export interface GraphState {
   chatTemperature: number;
   chatSystemPrompt: string | null;
   bottomPanelHeightRatio: number;
+  bottomPanelCollapsed: boolean;
   floatingPanelWidthRatio: number;
   floatingPanelHeightRatio: number;
   floatingPanelZIndex: number;
@@ -225,6 +237,7 @@ export interface GraphState {
   setChatTemperature: (v: number) => void;
   setChatSystemPrompt: (v: string | null) => void;
   setBottomPanelHeightRatio: (v: number) => void;
+  setBottomPanelCollapsed: (v: boolean) => void;
   setFloatingPanelWidthRatio: (v: number) => void;
   setFloatingPanelHeightRatio: (v: number) => void;
   setFloatingPanelZIndex: (v: number) => void;

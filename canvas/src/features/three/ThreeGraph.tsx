@@ -1,11 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
-import type { GraphSchema } from '@/lib/graph/schema'
+import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
+import { PANEL_MAX_RATIO } from '@/features/panels/config'
 
 const SceneLazy = React.lazy(() =>
   import('./Scene').then(mod => ({
@@ -29,18 +30,30 @@ export default function ThreeGraph() {
     frontmatterModeEnabled,
     markdownDocumentName,
   } = useGraphStore()
+  const bottomPanelHeightRatio = useGraphStore(s => s.bottomPanelHeightRatio)
+  const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const glCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
+  const paused = !bottomPanelCollapsed && bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.001
   const graph = data as GraphData | null
   const s = schema as GraphSchema | null
-  const effectiveSchema = s || { nodeStyles: {}, edgeStyles: {}, rules: [] }
+  const effectiveSchema = useMemo<GraphSchema>(() => s || defaultSchema, [s])
   const docName = typeof markdownDocumentName === 'string' ? markdownDocumentName.trim() || null : null
   const frontmatterOnly = !!frontmatterModeEnabled
-  const scopedGraph = frontmatterOnly ? filterGraphToFrontmatterMermaid(graph, docName) : graph
-  const renderGraph = deriveGraphDataForLayers(scopedGraph as GraphData | null, effectiveSchema as GraphSchema)
+  const scopedGraph = useMemo(
+    () => (frontmatterOnly ? filterGraphToFrontmatterMermaid(graph, docName) : graph),
+    [frontmatterOnly, graph, docName],
+  )
+  const renderGraphRef = useRef<GraphData | null>(null)
+  const renderGraph = useMemo(() => {
+    if (paused && renderGraphRef.current) return renderGraphRef.current
+    const next = deriveGraphDataForLayers(scopedGraph as GraphData | null, effectiveSchema as GraphSchema)
+    renderGraphRef.current = next as GraphData | null
+    return next
+  }, [paused, scopedGraph, effectiveSchema])
   const hasGraph = !!(renderGraph && Array.isArray(renderGraph.nodes) && Array.isArray(renderGraph.edges))
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
-  const positions = usePositions(hasGraph ? renderGraph!.nodes : [], hasGraph ? (effectiveSchema as GraphSchema) : null)
+  const positions = usePositions(hasGraph ? (renderGraph as GraphData).nodes : [], hasGraph ? (effectiveSchema as GraphSchema) : null)
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
   useEffect(() => {
@@ -88,6 +101,7 @@ export default function ThreeGraph() {
       className="absolute inset-0 w-full h-full z-0"
     >
       <Canvas
+        frameloop={paused ? 'demand' : 'always'}
         camera={{ position: [0, 0, 220], fov: 50 }}
         shadows
         gl={{ antialias: true, alpha: true }}
@@ -140,11 +154,12 @@ export default function ThreeGraph() {
             data={renderGraph as GraphData}
             schema={effectiveSchema as GraphSchema}
             positions={positions}
+            paused={paused}
             onSelectNode={onSelectNode}
             onHoverNode={hoverEnabled ? handleHoverNode : undefined}
             onHoverEdge={hoverEnabled ? handleHoverEdge : undefined}
           />
-          <ControlsLazy schema={effectiveSchema as GraphSchema} positions={positions} />
+          <ControlsLazy schema={effectiveSchema as GraphSchema} positions={positions} paused={paused} />
         </React.Suspense>
       </Canvas>
       <GraphHoverTooltip

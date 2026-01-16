@@ -80,23 +80,49 @@ function ClipboardCopyButton({ text }: { text: string }) {
   )
 }
 
-const HighlightedCode = React.memo(({ code, lang }: { code: string; lang: string }) => {
+const HighlightedCode = React.memo(({ code, lang, highlightLines }: { code: string; lang: string; highlightLines: Set<number> | null }) => {
   const highlighted = useMemo(() => {
+    let html = ''
     if (lang && hljs.getLanguage(lang)) {
       try {
-        return hljs.highlight(code, { language: lang }).value
+        html = hljs.highlight(code, { language: lang }).value
       } catch {
-        return hljs.highlightAuto(code).value
+        html = hljs.highlightAuto(code).value
       }
+    } else {
+      html = hljs.highlightAuto(code).value
     }
-    return hljs.highlightAuto(code).value
-  }, [code, lang])
+    
+    // If no line highlighting, return as is
+    if (!highlightLines) return html
+    
+    // Split by newlines to apply highlighting
+    // Note: hljs output might contain spans spanning multiple lines, which makes this tricky.
+    // A robust solution would need a proper tokenizer or a plugin.
+    // For now, we'll try a simpler approach: wrap the whole thing in a div and use CSS/JS to highlight lines? 
+    // Or just render lines individually if possible?
+    // Rendering lines individually breaks multi-line tokens (like comments).
+    // So we should stick to the block rendering but maybe add a background overlay for lines?
+    return html
+  }, [code, lang, highlightLines])
 
   return (
-    <code
-      className={`hljs language-${lang} !bg-transparent !p-0 block leading-[1.5em]`}
-      dangerouslySetInnerHTML={{ __html: highlighted }}
-    />
+    <div className="relative">
+      {highlightLines && (
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          {code.split('\n').map((_, i) => (
+            <div 
+              key={i} 
+              className={`w-full h-[1.5em] ${highlightLines.has(i + 1) ? 'bg-yellow-100/30 dark:bg-yellow-500/10 border-l-2 border-yellow-500' : ''}`}
+            />
+          ))}
+        </div>
+      )}
+      <code
+        className={`hljs language-${lang} !bg-transparent !p-0 block leading-[1.5em] relative z-10`}
+        dangerouslySetInnerHTML={{ __html: highlighted }}
+      />
+    </div>
   )
 })
 
@@ -116,7 +142,7 @@ const AnnotatedRow = React.memo(({ row, lang, wrapClass, isBeside }: { row: Anno
   const codeBlock = (
     <div className={`annotate-code flex-1 min-w-0 p-4 bg-white dark:bg-[#0d1117] overflow-x-auto ${!isBeside && row.annotation ? 'border-b border-dashed border-gray-200 dark:border-gray-800' : ''}`}>
       <pre className={`m-0 p-0 bg-transparent ${wrapClass} font-mono text-sm`}>
-        <HighlightedCode code={row.code} lang={lang} />
+        <HighlightedCode code={row.code} lang={lang} highlightLines={null} />
       </pre>
     </div>
   )
@@ -166,12 +192,30 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     document.head.appendChild(styleEl)
   }, [])
 
-  const c = t as unknown as TokensCode
+  const c = t as unknown as TokensCode & { info?: string }
   const meta = parseCodeInfoMeta(c)
   const lang = String(meta.lang || '').trim().toLowerCase()
   const isMermaidLang = lang === 'mermaid' || lang === 'mmd'
   
-  // Local toggle overrides global preference
+  // Parse line highlighting from meta.info (e.g. "ts {1-3,5}")
+  const highlightLines = useMemo(() => {
+    const info = c.info || ''
+    const match = info.match(/\{([\d,-]+)\}/)
+    if (!match) return null
+    const rangeStr = match[1]
+    const lines = new Set<number>()
+    rangeStr.split(',').forEach(part => {
+      const [start, end] = part.split('-').map(n => parseInt(n, 10))
+      if (!isNaN(start)) {
+        if (!isNaN(end)) {
+          for (let i = start; i <= end; i++) lines.add(i)
+        } else {
+          lines.add(start)
+        }
+      }
+    })
+    return lines
+  }, [c.info])
   const effectiveViewMode = localViewMode ?? annotateDisplayMode ?? 'inline'
   const isBeside = effectiveViewMode === 'beside'
 
@@ -290,7 +334,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
       ) : (
         <div className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
           <pre className={`m-0 p-0 bg-transparent ${wrapClass} font-mono text-sm`}>
-            <HighlightedCode code={c.text} lang={lang} />
+            <HighlightedCode code={c.text} lang={lang} highlightLines={highlightLines} />
           </pre>
         </div>
       )}

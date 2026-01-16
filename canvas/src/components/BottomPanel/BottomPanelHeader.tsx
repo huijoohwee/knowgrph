@@ -103,14 +103,12 @@ export default function BottomPanelHeader({
           setBottomPanelHeightRatio(PANEL_MAX_RATIO)
           setCollapsed(false)
         } else {
-          // If already near max, collapse
-          if (bottomPanelHeightRatio && bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.05) {
+          if (bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.05) {
+            setBottomPanelHeightRatio(DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO)
             setCollapsed(true)
-          } else {
-            // Otherwise expand to max
-            setBottomPanelHeightRatio(PANEL_MAX_RATIO)
-            setCollapsed(false)
+            return
           }
+          setBottomPanelHeightRatio(PANEL_MAX_RATIO)
         }
       }}
       tabs={[

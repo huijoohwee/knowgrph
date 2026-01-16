@@ -26,6 +26,7 @@ The implementation replaces generic `<div>` wrappers with semantic elements:
 - Powered by `highlight.js`.
 - Supports Light (GitHub-like) and Dark (GitHub Dark-like) themes.
 - Theme tokens are centralized in `UI_THEME_TOKENS`.
+- **Line Highlighting**: Supports highlighting specific lines using `{1-3,5}` syntax in the language info string (e.g., `ts {1-3}`).
 - **Mermaid Support**: Standard `mermaid` and `mmd` blocks are rendered as interactive diagrams using the Mermaid library. `textmermaid` is treated as a standard code block.
 
 ## Architecture & Performance

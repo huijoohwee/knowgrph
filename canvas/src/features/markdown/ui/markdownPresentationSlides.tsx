@@ -4,6 +4,7 @@ import { UI_COPY } from '@/lib/config'
 import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
 import { splitMarkdownLines } from '@/lib/markdown'
 import { lexMarkdownContent, type TokenWithLines } from './markdownPreviewLex'
+import { selectTokensInLineRange } from './markdownPreviewLexUtils'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { MarkdownFragmentConfig } from './markdownPreviewFragments'
 import { parseMermaidConfigFromFrontmatter } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
@@ -43,8 +44,21 @@ export const buildBackgroundStyle = (
   position: string,
 ): React.CSSProperties => {
   const style: React.CSSProperties = {}
-  const value = raw.trim()
+  let value = raw.trim()
   if (!value) return style
+
+  // Fix for deprecated source.unsplash.com triggering ORB errors
+  if (value.includes('source.unsplash.com')) {
+    // Replace with a reliable placeholder service that supports similar dimensions
+    // Attempt to preserve dimensions if present in URL
+    const match = /\/(\d+)x(\d+)/.exec(value)
+    if (match) {
+      value = `https://picsum.photos/${match[1]}/${match[2]}`
+    } else {
+      value = 'https://picsum.photos/1920/1080'
+    }
+  }
+
   const lower = value.toLowerCase()
   if (
     value.startsWith('#') ||
@@ -123,7 +137,7 @@ const buildSlideFooter = (args: {
 
   if (meta.themeStyle === 'academic') {
     return (
-      <div
+      <footer
         className={`fixed bottom-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
       >
         <div className="min-w-0 flex items-center gap-4">
@@ -148,7 +162,7 @@ const buildSlideFooter = (args: {
             {page} <span className={`mx-1 ${UI_THEME_TOKENS.text.tertiary}`}>/</span> {total}
           </span>
         </div>
-      </div>
+      </footer>
     )
   }
 
@@ -220,7 +234,7 @@ const buildSlideHeader = (args: {
 
   if (meta.themeStyle === 'academic') {
     return (
-      <div
+      <header
         className={`absolute top-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs ${UI_THEME_TOKENS.panel.bg}/95 border-b ${UI_THEME_TOKENS.panel.border} z-20 ${uiPanelTextFontClass}`}
       >
         <div className="min-w-0 flex items-center gap-4">
@@ -239,14 +253,14 @@ const buildSlideHeader = (args: {
             {page} <span className={`mx-1 ${UI_THEME_TOKENS.text.tertiary}`}>/</span> {total}
           </span>
         </div>
-      </div>
+      </header>
     )
   }
 
   return (
     <header
       className={[
-        'fixed top-0 left-0 w-full px-4 py-2 text-[10px] border-b flex justify-between items-center z-20 font-sans',
+        'fixed top-0 left-0 w-full h-8 px-4 text-[10px] border-b flex justify-between items-center z-20 font-sans',
         UI_THEME_TOKENS.text.tertiary,
         UI_THEME_TOKENS.panel.bg,
         UI_THEME_TOKENS.panel.border,
@@ -409,14 +423,14 @@ export const buildTwoColumnTokens = (args: {
     if (splitIndex < 0) {
       const start = slide.startLine
       const end = slide.endLine
-      const left = fullDocTokens.filter(t => t.startLine >= start && t.endLine <= end)
+      const left = selectTokensInLineRange(fullDocTokens, start, end)
       return { left, right: [] }
     }
     const absSplitLine = baseOffset + 1 + splitIndex
     const start = slide.startLine
     const end = slide.endLine
-    const left = fullDocTokens.filter(t => t.startLine >= start && t.endLine < absSplitLine)
-    const right = fullDocTokens.filter(t => t.startLine > absSplitLine && t.endLine <= end)
+    const left = selectTokensInLineRange(fullDocTokens, start, absSplitLine - 1)
+    const right = selectTokensInLineRange(fullDocTokens, absSplitLine + 1, end)
     return { left, right }
   }
 
@@ -480,7 +494,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
 
   if (!hasSlides) {
     return (
-      <div className="w-full h-full flex items-center justify-center px-8 py-10 bg-gray-50">
+      <section className="w-full h-full flex items-center justify-center px-8 py-10 bg-gray-50" aria-label="Presentation Empty State">
         <div
           className={[
             'inline-flex flex-col items-center justify-center rounded-md border border-dashed border-blue-200/80 bg-white/70 px-4 py-3 text-center text-xs text-gray-600',
@@ -499,7 +513,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
             {UI_COPY.markdownPresentationEmptyBody}
           </div>
         </div>
-      </div>
+      </section>
     )
   }
 
@@ -510,7 +524,6 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   
   const visualMeta = getSlideVisualMeta(slideMeta, headMetaRecord, uiPanelTextFontClass)
   const { layout } = visualMeta
-  const stickyHeadingTopClass = 'top-[33px]'
   const slideHeading = getSlidePrimaryHeading(currentSlide.text)
   const headerNode = buildSlideHeader({
     meta: visualMeta,
@@ -519,7 +532,16 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
     total: slides.length,
     uiPanelTextFontClass,
   })
-  const stickyHeadingTopPx = 33
+  
+  let stickyHeadingTopPx = 0
+  if (headerNode) {
+    if (visualMeta.themeStyle === 'academic') {
+      stickyHeadingTopPx = 41 // 40px + 1px border
+    } else {
+      stickyHeadingTopPx = 33 // 32px + 1px border
+    }
+  }
+  const stickyHeadingTopClass = `top-[${stickyHeadingTopPx}px]`
 
   const slideMermaidConfig = parseMermaidConfigFromFrontmatter(currentSlide.meta || {})
   const effectiveMermaidConfig = slideMermaidConfig || mermaidFrontmatterConfig
@@ -531,20 +553,20 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
     const rightHighlights = buildAlwaysOnTokenHighlights(twoColumnTokens.right)
     
     content = (
-      <div className="w-full h-full grid grid-cols-2 gap-8">
-        <div className="w-full h-full px-8 pt-10 pb-14 overflow-auto">
+      <section className="w-full h-full grid grid-cols-2 gap-8" aria-label="Slide Columns">
+        <section className="w-full h-full px-8 pt-10 pb-14 overflow-auto" aria-label="Slide Left Column">
           <MarkdownTokenRenderer
             {...buildTokenRendererProps(twoColumnTokens.left, args, leftHighlights, stickyHeadingTopClass, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
-        </div>
-        <div className="w-full h-full px-8 pt-10 pb-14 overflow-auto">
+        </section>
+        <section className="w-full h-full px-8 pt-10 pb-14 overflow-auto" aria-label="Slide Right Column">
           <MarkdownTokenRenderer
             {...buildTokenRendererProps(twoColumnTokens.right, args, rightHighlights, stickyHeadingTopClass, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
-        </div>
-      </div>
+        </section>
+      </section>
     )
   } else if (slideTokens) {
     const slideOuterClass =
@@ -557,8 +579,8 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
         : 'flex-1 min-h-0 w-full px-16 py-12 overflow-y-auto pb-16'
 
     content = (
-      <div className={slideOuterClass}>
-        <div className={slideContentClass}>
+      <section className={slideOuterClass} aria-label="Slide Body">
+        <main className={slideContentClass} aria-label="Slide Content">
           <MarkdownTokenRenderer
             {...buildTokenRendererProps(
               slideTokens,
@@ -569,19 +591,19 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
             )}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
-        </div>
-      </div>
+        </main>
+      </section>
     )
   }
 
   if (!content) return null
 
   return (
-    <div className="w-full h-full relative pb-14">
+    <section className="w-full h-full relative pb-14" aria-label="Slide Document">
       {headerNode}
       {content}
       {buildSlideFooter({ meta: visualMeta, page: safeActiveSlideId + 1, total: slides.length, uiPanelTextFontClass })}
-    </div>
+    </section>
   )
 }
 
@@ -693,11 +715,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
       ? 'max-w-full max-h-full px-4 py-3 overflow-hidden mx-auto flex items-center justify-center pb-8'
       : 'w-full h-full px-4 py-3 overflow-hidden pb-8'
   const tokens = fullDocTokens
-    ? fullDocTokens.filter(t => {
-        const startLine = typeof t.startLine === 'number' ? t.startLine : 0
-        const endLine = typeof t.endLine === 'number' ? t.endLine : startLine
-        return startLine >= slide.startLine && endLine <= slide.endLine
-      })
+    ? selectTokensInLineRange(fullDocTokens, slide.startLine, slide.endLine)
     : lexMarkdownContent(text, Math.max(0, (slide.startLine || 1) - 1)).tokens
   if (!tokens || !tokens.length) return null
   return (

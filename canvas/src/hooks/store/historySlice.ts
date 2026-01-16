@@ -1,5 +1,5 @@
 import { GraphData } from '@/lib/graph/types';
-import type { GraphState } from '@/hooks/useGraphStore'
+import type { GraphState, RecentFileEntry } from '@/hooks/store/types'
 import type { GraphFieldSettingsById } from '@/features/graph-fields/graphFields'
 import type { StoreApi } from 'zustand';
 
@@ -17,8 +17,25 @@ type HistoryEntry = {
 export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   history: [] as HistoryEntry[],
   historyIndex: -1,
+  recentFiles: [] as RecentFileEntry[],
   historyDebounceMs: 500,
   historyTimer: null as ReturnType<typeof setTimeout> | null,
+
+  addRecentFile: (entry: Omit<RecentFileEntry, 'id' | 'timestamp'>) => {
+    const { recentFiles } = get()
+    const newEntry: RecentFileEntry = {
+      ...entry,
+      id: `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+      timestamp: Date.now(),
+    }
+    const filtered = recentFiles.filter(f => {
+      if (entry.path && f.path === entry.path) return false
+      if (entry.url && f.url === entry.url) return false
+      if (!entry.path && !entry.url && f.name === entry.name) return false
+      return true
+    })
+    set({ recentFiles: [newEntry, ...filtered].slice(0, 50) })
+  },
 
   addHistory: (label: string = 'Snapshot') => {
     const { graphData, graphFieldSettingsById, history, historyIndex } = get();

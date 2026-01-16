@@ -33,11 +33,20 @@ export function getStickyHeadingCascadeOffsets(args: {
 }): { topPx: number; zIndex: number } {
   const safeDepth = Math.min(6, Math.max(1, args.depth || 1))
   const safeCascadeBaseDepth = Math.min(6, Math.max(1, args.cascadeBaseDepth || 1))
-  const cascadeStepPx = args.markdownPresentationMode ? 60 : 52
-  const effectiveDepthIndex = Math.max(0, safeDepth - safeCascadeBaseDepth)
-  const cascadeTopPx = effectiveDepthIndex * cascadeStepPx
+  
+  // Measured heights for headings including padding/border (approximate)
+  // H1: ~53px, H2: ~45px, H3: ~40px, H4: ~36px, H5: ~32px, H6: ~28px
+  const heightByDepth = args.markdownPresentationMode
+    ? [0, 60, 60, 50, 40, 40, 40] // Presentation mode tends to have larger headers
+    : [0, 53, 45, 40, 36, 32, 28] // Viewer mode
+
+  let cascadeOffset = 0
+  for (let i = safeCascadeBaseDepth; i < safeDepth; i++) {
+    cascadeOffset += heightByDepth[i] || 30
+  }
+
   return {
-    topPx: Math.max(0, (Number.isFinite(args.baseTopPx) ? args.baseTopPx : 0) + cascadeTopPx),
+    topPx: Math.max(0, (Number.isFinite(args.baseTopPx) ? args.baseTopPx : 0) + cascadeOffset),
     zIndex: 30 - safeDepth,
   }
 }

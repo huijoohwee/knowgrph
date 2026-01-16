@@ -38,6 +38,7 @@ import {
   testGraphFieldsSyncOnHistoryUndoRedo,
   testGraphFieldsSyncOnNodeAndEdgeMutations,
 } from '@/__tests__/bottomPanelPersistence.test'
+import { testBottomPanelMarkdownFullscreenOpensOverlay } from '@/__tests__/bottomPanelFullscreenUi.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
 import { testJsonEditorLineHeightConstant } from '@/__tests__/jsonEditorRendering.test'
@@ -299,6 +300,7 @@ export const runAllTests = async () => {
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
   await exec('ui.bottomPanelCollapsePersistence', testBottomPanelCollapsePersistence)
+  await exec('ui.bottomPanel.markdownFullscreenOpensOverlay', testBottomPanelMarkdownFullscreenOpensOverlay)
   await exec('ui.graphFieldsPruneOnGraphDataChange', testGraphFieldsPruneOnGraphDataChange)
   await exec(
     'ui.graphFieldsStorePopulatesDerivedFields',

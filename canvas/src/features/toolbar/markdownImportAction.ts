@@ -94,13 +94,23 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
           state.setJsonSourceDocument(baseName, null)
           state.setMarkdownDocument(baseName, res.input.text)
           state.setMarkdownDocumentSourceUrl(rawName)
+          state.addRecentFile({
+            name: baseName,
+            url: rawName,
+            type: 'url',
+          })
         } else {
           const name = res.input.name
           state.setJsonSourceDocument(name, null)
           state.setMarkdownDocument(name, res.input.text)
-          state.setMarkdownDocumentSourceUrl(null)
+          state.addRecentFile({
+            name,
+            path: type === 'local' ? name : undefined,
+            url: type === 'url' ? name : undefined,
+            type: 'markdown',
+          })
         }
-        state.setBottomPanelCurationView('grid')
+        state.setBottomPanelCurationView('markdown')
       }
     } catch {
       void 0

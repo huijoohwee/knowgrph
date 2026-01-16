@@ -13,6 +13,7 @@ type UseGraphCanvasStylesProps = {
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   schema: GraphSchema;
   themeMode: ThemeMode;
+  paused?: boolean;
 };
 
 export function useGraphCanvasStyles({
@@ -21,8 +22,10 @@ export function useGraphCanvasStyles({
   labelsSelRef,
   schema,
   themeMode,
+  paused,
 }: UseGraphCanvasStylesProps) {
   useEffect(() => {
+    if (paused) return;
     const isDark = themeMode === 'dark' || (themeMode === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const colors = isDark ? UI_THEME_COLORS.dark : UI_THEME_COLORS.light;
 
@@ -144,5 +147,5 @@ export function useGraphCanvasStyles({
         }
       }
     }
-  }, [nodesSelRef, linksSelRef, labelsSelRef, schema, themeMode]);
+  }, [paused, nodesSelRef, linksSelRef, labelsSelRef, schema, themeMode]);
 }

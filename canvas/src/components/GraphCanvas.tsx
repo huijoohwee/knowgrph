@@ -125,17 +125,15 @@ export default function GraphCanvas() {
   const setLifecycleStageRef = useRef(setLifecycleStage);
   const requestZoomRef = useRef(requestZoom);
   const graphDataRevisionRef = useRef(graphDataRevision);
-  const renderGraphData = useMemo(
-    () => {
-      const base = graphData as GraphData | null;
-      const schemaObj = schema as GraphSchema;
-      const docName = (markdownDocumentName || '').trim() || null;
-      const frontmatterOnly = !!frontmatterModeEnabled;
-      const scopedGraph = frontmatterOnly ? filterGraphToFrontmatterMermaid(base, docName) : base;
-      return deriveGraphDataForLayers(scopedGraph as GraphData | null, schemaObj);
-    },
-    [graphData, schema, frontmatterModeEnabled, markdownDocumentName],
-  );
+  const renderGraphData = useMemo(() => {
+    const base = graphData as GraphData | null;
+    const schemaObj = schema as GraphSchema;
+    const docName = (markdownDocumentName || '').trim() || null;
+    const frontmatterOnly = !!frontmatterModeEnabled;
+    const scopedGraph = frontmatterOnly ? filterGraphToFrontmatterMermaid(base, docName) : base;
+    const next = deriveGraphDataForLayers(scopedGraph as GraphData | null, schemaObj);
+    return next;
+  }, [graphData, schema, frontmatterModeEnabled, markdownDocumentName]);
 
   useEffect(() => {
     selectNodeRef.current = selectNode;

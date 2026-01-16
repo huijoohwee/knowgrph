@@ -1,7 +1,6 @@
 import React from 'react'
-import StatusBadge from '@/features/panels/ui/StatusBadge'
 import type { ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
-import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function ToolbarHtmlArea(props: ToolbarToolMenuAreasProps) {
@@ -78,13 +77,6 @@ export function ToolbarHtmlArea(props: ToolbarToolMenuAreasProps) {
           )}
         </div>
       )}
-      <div className="flex items-center justify-end gap-2">
-        <StatusBadge
-          label={UI_LABELS.html}
-          ok={props.dataLoadOk}
-          msg={props.dataLoadMsg}
-        />
-      </div>
     </div>
   )
 }

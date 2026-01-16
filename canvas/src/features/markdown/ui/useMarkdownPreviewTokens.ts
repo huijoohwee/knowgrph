@@ -58,14 +58,17 @@ export function useMarkdownPreviewLexedMarkdown(
 
   React.useEffect(() => {
     if (!shouldUpdateStore) return
+    if (providedTokens && providedTokens.length > 0) return
 
     const keysMatch = storedTokensKey === currentTokensKey
     const pathMatches = storedTokensPath === activeDocumentPath
+    const metaMatches = storedTokensMeta != null && storedTokensMeta === lexed.meta
+    const offsetMatches =
+      storedTokensStartLineOffset != null && storedTokensStartLineOffset === lexed.startLineOffset
 
-    if (keysMatch && pathMatches && !providedTokens) return
+    if (keysMatch && pathMatches && metaMatches && offsetMatches) return
 
     if (
-      !providedTokens &&
       lexed.tokens &&
       (!keysMatch ||
         !pathMatches ||
@@ -84,7 +87,6 @@ export function useMarkdownPreviewLexedMarkdown(
     lexed.tokens,
     lexed.meta,
     lexed.startLineOffset,
-    storedTokens,
     storedTokensKey,
     currentTokensKey,
     storedTokensPath,

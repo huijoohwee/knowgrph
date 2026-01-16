@@ -10,7 +10,7 @@ import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraC
 
 type SelectionPerfWindow = Window & { __KG_SELECTION_PERF_ENABLED__?: boolean };
 
-export function Controls({ schema, positions }: { schema: GraphSchema; positions: Record<string, Vec3> }) {
+export function Controls({ schema, positions, paused }: { schema: GraphSchema; positions: Record<string, Vec3>; paused?: boolean }) {
   const { camera, gl } = useThree()
   const perspectiveCamera = camera as THREE.PerspectiveCamera
   const controls = useMemo(() => {
@@ -27,9 +27,13 @@ export function Controls({ schema, positions }: { schema: GraphSchema; positions
   const zoomToSelectionMode = useGraphStore(s => s.zoomToSelectionMode)
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
-  useFrame(() => controls.update())
+  useFrame(() => {
+    if (paused) return
+    controls.update()
+  })
   const lastFitDepsRef = React.useRef<{ nodesCount: number } | null>(null)
   React.useEffect(() => {
+    if (paused) return
     if (!fitToScreenMode) {
       lastFitDepsRef.current = null
       return
@@ -47,9 +51,10 @@ export function Controls({ schema, positions }: { schema: GraphSchema; positions
     } catch {
       void 0
     }
-  }, [fitToScreenMode, data, requestThreeCamera])
+  }, [paused, fitToScreenMode, data, requestThreeCamera])
   const lastSelectionRef = React.useRef<{ nodeId: string | null; edgeId: string | null } | null>(null)
   React.useEffect(() => {
+    if (paused) return
     if (!zoomToSelectionMode || !zoomOnSelectionEnabled) {
       lastSelectionRef.current = { nodeId: selectedNodeId, edgeId: selectedEdgeId }
       return
@@ -65,7 +70,7 @@ export function Controls({ schema, positions }: { schema: GraphSchema; positions
     } catch {
       void 0
     }
-  }, [zoomToSelectionMode, zoomOnSelectionEnabled, selectedNodeId, selectedEdgeId, requestThreeCamera])
+  }, [paused, zoomToSelectionMode, zoomOnSelectionEnabled, selectedNodeId, selectedEdgeId, requestThreeCamera])
   React.useEffect(() => {
     const cfg = getCameraConfig(schema)
     controls.dampingFactor = cfg.dampingFactor
@@ -76,6 +81,10 @@ export function Controls({ schema, positions }: { schema: GraphSchema; positions
     controls.autoRotateSpeed = cfg.autoRotateSpeed
   }, [controls, schema])
   React.useEffect(() => {
+    controls.enabled = !paused
+  }, [controls, paused])
+  React.useEffect(() => {
+    if (paused) return
     const req = threeCameraRequest
     if (!req) return
     const enabled =
@@ -136,7 +145,7 @@ export function Controls({ schema, positions }: { schema: GraphSchema; positions
         void 0;
       }
     }
-  }, [threeCameraRequest, data, selectedNodeId, selectedEdgeId, positions, perspectiveCamera, controls, zoomOnSelectionEnabled])
+  }, [paused, threeCameraRequest, data, selectedNodeId, selectedEdgeId, positions, perspectiveCamera, controls, zoomOnSelectionEnabled])
   React.useEffect(() => {
     return () => {
       try { controls.dispose() } catch { void 0 }

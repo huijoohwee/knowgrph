@@ -14,6 +14,7 @@ export function NodeMesh({
   node,
   pos,
   schema,
+  paused,
   onClick,
   selection,
   visuals,
@@ -25,6 +26,7 @@ export function NodeMesh({
   node: GraphNode;
   pos: Vec3;
   schema: GraphSchema;
+  paused?: boolean;
   onClick: (id: string) => void;
   selection: NodeSelectionState;
   visuals: SelectionVisuals;
@@ -73,6 +75,7 @@ export function NodeMesh({
   const emissiveColor = isSelectedNode ? visuals.selectedEdgeColor : '#000000'
   const emissiveIntensity = isSelectedNode ? visuals.selectedNodeGlowIntensity : 0
   useFrame(() => {
+    if (paused) return
     if (!sphereRef.current) return
     const threeCfg: ThreeConfig = getThreeConfig(schema)
     const motionRaw = threeCfg.nodeMotionIntensity

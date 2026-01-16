@@ -317,17 +317,26 @@ ___
 
 ---
 
-## Slide Separation and Reordering in Knowgrph
+## Empty Slide Handling (fully supported)
 
-```markdown
-# Slide 1
+If a slide's content cannot be rendered from shared tokens due to misalignment or missing data, the presentation engine automatically falls back to on-the-fly lexing of the slide text. This ensures that content is always visible, even if line mapping is imperfect.
 
 ---
 
-# Slide 2
-```
+## Semantic HTML Structure (fully supported)
 
-**Semantics in Knowgrph:**
+The presentation engine uses semantic HTML elements to improve accessibility and document structure:
+
+- **`<article>`**: Wraps each individual slide.
+- **`<section>`**: Used for slide content containers and layout divisions.
+- **`<header>`**: Used for slide headers (titles, metadata).
+- **`<footer>`**: Used for slide footers (page numbers, institution info).
+- **`<aside>`**: Used for speaker notes and sidebars.
+- **`<nav>`**: Used for navigation controls and slide galleries.
+
+This semantic structure ensures better compatibility with screen readers and search engines compared to generic `div` wrappers.
+
+---
 - Top-of-document YAML frontmatter (`---` … `---` at the very start) is treated as metadata and does not create a slide break.
 - `---` lines that appear outside YAML frontmatter and outside fenced code blocks are treated as slide separators by the Knowgrph markdown viewer and Slides Gallery.
 - `---` that appear inside fenced code blocks or inside YAML frontmatter are treated as literal content, not slide breaks.
@@ -591,9 +600,9 @@ Intro text (always visible)
 
 ---
 
-## Speaker Notes (partially supported)
+## Speaker Notes (fully supported)
 
-**Method 1: HTML comments**
+**Method 1: HTML comments (Slidev-compatible)**
 ```markdown
 ## Slide Content
 

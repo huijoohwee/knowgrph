@@ -46,6 +46,7 @@ export default function BottomPanel() {
   const enableTabSync = useGraphStore(s => s.enableTabSync)
   const bottomPanelHeightRatio = useGraphStore(s => s.bottomPanelHeightRatio)
   const setBottomPanelHeightRatio = useGraphStore(s => s.setBottomPanelHeightRatio)
+  const setBottomPanelCollapsed = useGraphStore(s => s.setBottomPanelCollapsed)
   const [collapsed, setCollapsed] = usePersistedBoolean(COLLAPSE_STORAGE_KEY, true, COLLAPSE_STORAGE_LEGACY_KEYS)
   const rawTab = useGraphStore(s => s.bottomPanelTab)
   const setTabStore = useGraphStore(s => s.setBottomPanelTab)
@@ -71,20 +72,15 @@ export default function BottomPanel() {
 
   useEffect(() => {
     if (rawTab !== 'render') return
-    try {
-      emitRendererPanelOpen()
-    } catch {
-      void 0
-    }
-    try {
-      setTabStore('curation')
-    } catch {
-      void 0
-    }
+    emitRendererPanelOpen()
+    setTabStore('curation')
   }, [rawTab, setTabStore])
 
   const clampBottomPanelHeightRatio = useCallback((ratio: number) => {
     if (typeof window === 'undefined') return ratio
+    // Allow full screen (covering toolbar) if ratio is at max
+    if (ratio >= 0.999) return 1.0
+
     const vh = window.innerHeight
     if (!Number.isFinite(vh) || vh <= 0) return ratio
     const toolbar = typeof document === 'undefined' ? null : document.querySelector('.App-toolbar')
@@ -152,7 +148,7 @@ export default function BottomPanel() {
   const stickyBlockRef = useRef<{ start: number; end: number } | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const headerRef = useRef<HTMLDivElement | null>(null)
-  const dragHandleRef = useRef<HTMLButtonElement | null>(null)
+  const dragHandleRef = useRef<HTMLDivElement | null>(null)
   const { applyJson, formatEditor } = useCodeJsonEditor({ codeText, setCodeText, setCodeError, codeRef, setGraphData })
 
   const parserScriptText = useParserUIState(s => s.scriptText)
@@ -331,11 +327,11 @@ export default function BottomPanel() {
   useEffect(() => {
     return () => {
       if (codeSelectTimerRef.current) {
-        try { clearTimeout(codeSelectTimerRef.current) } catch { void 0 }
+        clearTimeout(codeSelectTimerRef.current)
         codeSelectTimerRef.current = null
       }
       if (blockHighlightTimerRef.current) {
-        try { clearTimeout(blockHighlightTimerRef.current) } catch { void 0 }
+        clearTimeout(blockHighlightTimerRef.current)
         blockHighlightTimerRef.current = null
       }
     }
@@ -375,6 +371,10 @@ export default function BottomPanel() {
   }, [setCollapsed])
 
   useEffect(() => {
+    setBottomPanelCollapsed(collapsed)
+  }, [collapsed, setBottomPanelCollapsed])
+
+  useEffect(() => {
     const root = document.documentElement
     const vh = window.innerHeight
     const h = collapsed ? collapsedHeaderPx : Math.round(bottomPanelHeightRatio * vh)
@@ -408,27 +408,32 @@ export default function BottomPanel() {
     tryFormatJson,
   })
 
+  const isFullscreen = !collapsed && bottomPanelHeightRatio >= 0.999
+
   return (
     <aside
-      className={`absolute bottom-0 left-0 right-0 transition-all duration-200 flex flex-col z-[100]`}
-      style={{ height: collapsed ? `${collapsedHeaderPx}px` : `${Math.round(bottomPanelHeightRatio * 100)}vh` }}
+      className={`transition-all duration-200 flex flex-col ${
+        isFullscreen ? 'fixed inset-0 z-[180]' : 'absolute bottom-0 left-0 right-0 z-[100]'
+      }`}
+      style={{
+        height: collapsed ? `${collapsedHeaderPx}px` : isFullscreen ? '100vh' : `${Math.round(bottomPanelHeightRatio * 100)}vh`,
+      }}
     >
-      {!collapsed && (
-        <button
-          type="button"
+      {!collapsed && !isFullscreen && (
+        <div
           ref={dragHandleRef}
           className="group h-4 w-full cursor-row-resize bg-transparent select-none pointer-events-auto touch-none flex items-center"
           title={UI_LABELS.dragToResize}
           aria-label="Resize bottom panel"
         >
           <div className={`pointer-events-none mx-auto h-px w-20 rounded-full ${UI_THEME_TOKENS.panel.divider} transition-colors ${UI_THEME_TOKENS.button.hoverBg}`} />
-        </button>
+        </div>
       )}
-      <div
+      <section
         ref={panelRef}
         className={`ModalContainer h-full flex flex-col overflow-hidden rounded-none shadow-none p-0 border-t ${UI_THEME_TOKENS.panel.border} border-x-0 border-b-0 ${UI_THEME_TOKENS.panel.bg}`}
       >
-        <div ref={headerRef}>
+        <header ref={headerRef}>
           <BottomPanelHeader
             collapsed={collapsed}
             bottomPanelHeightRatio={bottomPanelHeightRatio}
@@ -449,7 +454,7 @@ export default function BottomPanel() {
             onResetParser={onResetParser}
             onResetSchema={onResetSchema}
           />
-        </div>
+        </header>
 
         {!collapsed && (
           <BottomPanelBody
@@ -490,7 +495,7 @@ export default function BottomPanel() {
             setSchemaText={setSchemaText}
           />
       )}
-      </div>
+      </section>
     </aside>
   )
 }

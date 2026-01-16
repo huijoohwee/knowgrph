@@ -6,11 +6,13 @@ import {
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
+import { buildSlidePreview } from '@/features/markdown/ui/markdownPresentationSlides'
+import { splitMarkdownLines } from '@/lib/markdown'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import { useMarkdownPresentation } from './useMarkdownPresentation'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
-import { MarkdownPreviewPresentation } from '@/features/markdown/ui/MarkdownPreviewPresentation'
+import { MarkdownPreviewPresentation, SlidesSidebar } from '@/features/markdown/ui/MarkdownPreviewPresentation'
 import { MarkdownSelectionToolbar, type MarkdownSelectionToolbarState } from '@/features/markdown/ui/MarkdownSelectionToolbar'
 import {
   ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET,
@@ -29,6 +31,7 @@ export type MarkdownPreviewPresentationApi = {
   prev: () => void
   next: () => void
   enterFullscreen?: () => void
+  setShowSlideThumbnails?: (show: boolean) => void
 }
 
 export type MarkdownPreviewPresentationSlideState = {
@@ -80,6 +83,7 @@ type MarkdownPreviewProps = {
   annotateDisplayMode?: 'inline' | 'beside'
   flashLine?: number | null
   markdownViewerWidthMode?: 'standard' | 'wide'
+  viewMode?: 'viewer' | 'presentation' | 'gallery'
 }
 
 const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(function MarkdownPreview(
@@ -126,6 +130,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     annotateDisplayMode,
     flashLine,
     markdownViewerWidthMode,
+    viewMode = 'viewer',
   },
   ref,
 ) {
@@ -192,6 +197,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
 
   const frontmatterMermaidCode = frontmatterMermaidCodeProp ?? computedFrontmatterMermaidCode
   const hasFrontmatterMermaid = !!frontmatterMermaidCode
+  const isPresentationMode = markdownPresentationMode || viewMode === 'presentation'
 
   const {
     setActiveSlideIndex,
@@ -204,15 +210,28 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     goPrev,
     goNext,
     handleRegisterFullscreenHandler,
+    enterFullscreen,
   } = useMarkdownPresentation({
     slides,
     headMeta: headMeta as Record<string, unknown>,
-    markdownPresentationMode,
+    markdownPresentationMode: isPresentationMode,
     highlightedLineRange,
     presentationApiRef,
     onPresentationSlideStateChange,
     onSlidesReordered,
+    setShowSlideThumbnails: onToggleSidebar,
   })
+
+  React.useEffect(() => {
+    if (presentationApiRef) {
+      presentationApiRef.current = {
+        prev: goPrev,
+        next: goNext,
+        enterFullscreen,
+        setShowSlideThumbnails: onToggleSidebar,
+      }
+    }
+  }, [presentationApiRef, goPrev, goNext, enterFullscreen, onToggleSidebar])
 
   const graphData = useGraphStore(s => s.graphData)
   const markdownAlwaysOnHighlightComplexityBudget = useGraphStore(
@@ -310,32 +329,11 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
 
 
   React.useEffect(() => {
-    if (!markdownPresentationMode) return
+    if (!isPresentationMode) return
     const el = rootElRef.current
     if (!el) return
     el.focus?.()
-  }, [markdownPresentationMode])
-
-  React.useEffect(() => {
-    if (!markdownPresentationMode) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
-        e.preventDefault()
-        goNext()
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        e.preventDefault()
-        goPrev()
-      } else if (e.key === 'Home') {
-        e.preventDefault()
-        setActiveSlideIndex(0)
-      } else if (e.key === 'End') {
-        e.preventDefault()
-        setActiveSlideIndex(Math.max(0, slides.length - 1))
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [goNext, goPrev, markdownPresentationMode, slides.length, setActiveSlideIndex])
+  }, [isPresentationMode])
 
   const scrollClass = previewScrollable ? 'overflow-auto' : 'overflow-hidden'
 
@@ -353,7 +351,80 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     />
   )
 
-  if (markdownPresentationMode) {
+  const activeSlideHeading = React.useMemo(() => {
+    const slide = slides[activeSlideId]
+    if (!slide || !slide.text) return ''
+    const lines = splitMarkdownLines(slide.text)
+    for (let i = 0; i < lines.length; i += 1) {
+      const raw = lines[i] || ''
+      const trimmed = raw.trim()
+      if (!trimmed.startsWith('#')) continue
+      const heading = trimmed.replace(/^#+\s*/, '').trim()
+      if (!heading) continue
+      if (heading.length <= 60) return heading
+      return `${heading.slice(0, 57)}...`
+    }
+    return ''
+  }, [activeSlideId, slides])
+
+  const renderSlidePreview = React.useCallback(
+    (slideIdx: number) =>
+      buildSlidePreview({
+        slideIdx,
+        slides,
+        headMeta: headMeta as Record<string, unknown>,
+        activeDocumentPath,
+        uiPanelTextFontClass,
+        uiPanelMonospaceTextClass,
+        mermaidFrontmatterConfig: mermaidFrontmatterConfig as Record<string, unknown> | null,
+        rootThemeMode,
+        previewOverlayScope,
+        previewOverlayPortalTarget: previewOverlayPortalTarget || null,
+        fullDocTokens: tokens,
+      }),
+    [
+      slides,
+      headMeta,
+      activeDocumentPath,
+      uiPanelTextFontClass,
+      uiPanelMonospaceTextClass,
+      mermaidFrontmatterConfig,
+      rootThemeMode,
+      previewOverlayScope,
+      previewOverlayPortalTarget,
+      tokens,
+    ],
+  )
+
+  if (viewMode === 'gallery') {
+    return (
+      <section className={`flex-1 min-h-0 flex flex-col ${uiPanelTextFontClass} bg-white dark:bg-[#0d1117]`}>
+        <SlidesSidebar
+          embedded={true}
+          orderedSlideIndices={orderedSlideIndices}
+          activeSlideId={activeSlideId}
+          slideOrder={slideOrder}
+          slideCount={slides.length}
+          activeSlideHeading={activeSlideHeading}
+          showSlideThumbnails={true}
+          onToggleShowSlideThumbnails={() => {}}
+          onSidebarFocusSlideIdChange={() => {}}
+          onActiveSlideIndexChange={setActiveSlideIndex}
+          onSlideOrderChange={setSlideOrder}
+          renderSlidePreview={renderSlidePreview}
+          onSlideDoubleClick={(idx) => {
+             const pos = orderedSlideIndices.indexOf(idx)
+             if (pos >= 0) setActiveSlideIndex(pos)
+             if (onShowInPresentation) onShowInPresentation(slides[idx]?.startLine || 0)
+          }}
+          width="w-full"
+          layout="grid"
+        />
+      </section>
+    )
+  }
+
+  if (markdownPresentationMode || viewMode === 'presentation') {
     return (
       <>
         <MarkdownPreviewPresentation
@@ -391,6 +462,8 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
           selectionToolbar={selectionToolbarNode}
           onSlideContextMenu={handleSlideContextMenu}
           fullDocTokens={tokens}
+          setShowSidebar={onToggleSidebar || (() => {})}
+          showSidebar={showSidebar || false}
         />
       </>
     )

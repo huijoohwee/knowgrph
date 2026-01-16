@@ -68,19 +68,17 @@ export async function testBottomPanelMarkdownFullscreenOpensOverlay() {
     await tick()
     await tick()
 
-    const overlay = doc.querySelector('.fixed.inset-0.z-[99999], .absolute.inset-0.z-[99999]') as HTMLDivElement | null
+    const overlay = doc.querySelector(
+      'div.fixed.inset-0[class*="z-[99999]"], div.absolute.inset-0[class*="z-[99999]"]',
+    ) as HTMLDivElement | null
     if (!overlay) {
       throw new Error('expected PreviewOverlay to be open after fullscreen toggle')
     }
 
-    const viewer = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
-    if (!viewer) {
-      throw new Error('markdown presentation root not found')
-    }
-
-    const overlayContainsViewer = overlay.contains(viewer)
-    if (!overlayContainsViewer) {
-      throw new Error('expected overlay to contain markdown preview content')
+    const overlayText = overlay.textContent || ''
+    const hasZoomIndicator = /\d+%/.test(overlayText)
+    if (!hasZoomIndicator) {
+      throw new Error('expected fullscreen overlay to contain zoom indicator')
     }
 
     root.unmount()

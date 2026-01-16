@@ -64,7 +64,7 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null): Re
   }, [nodes, schema])
 }
 
-export function Physics3D({ positions, nodes, edges, schema, dragOverrides }: { positions: Record<string, Vec3>; nodes: GraphNode[]; edges: GraphData['edges']; schema: GraphSchema; dragOverrides?: React.MutableRefObject<Record<string, Vec3>> }) {
+export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paused }: { positions: Record<string, Vec3>; nodes: GraphNode[]; edges: GraphData['edges']; schema: GraphSchema; dragOverrides?: React.MutableRefObject<Record<string, Vec3>>; paused?: boolean }) {
   const n = nodes.length
   const idxById = useMemo(() => {
     const m = new Map<string, number>()
@@ -111,6 +111,7 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides }: { 
     velX.current.fill(0); velY.current.fill(0); velZ.current.fill(0)
   }, [nodes, positions, n])
   useFrame((_, delta) => {
+    if (paused) return
     const dt = Math.max(0.008, Math.min(0.033, delta || 0.016))
     const px = posX.current, py = posY.current, pz = posZ.current
     const vx = velX.current, vy = velY.current, vz = velZ.current

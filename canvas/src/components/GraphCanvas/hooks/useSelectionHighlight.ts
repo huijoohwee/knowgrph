@@ -11,6 +11,7 @@ interface UseSelectionHighlightProps {
   renderGraphData: GraphData | null;
   graphData: GraphData | null;
   schema: GraphSchema;
+  paused?: boolean;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   selectedNodeIds: string[] | undefined;
@@ -32,6 +33,7 @@ export function useSelectionHighlight({
   renderGraphData,
   graphData,
   schema,
+  paused,
   selectedNodeId,
   selectedEdgeId,
   selectedNodeIds,
@@ -53,6 +55,7 @@ export function useSelectionHighlight({
   }, [setLifecycleStage]);
 
   useEffect(() => {
+    if (paused) return;
     if (!renderGraphData) return;
     const t0 = selectionPerfStart();
     setLifecycleStageRef.current('selectionUpdate');
@@ -76,6 +79,7 @@ export function useSelectionHighlight({
     );
     selectionPerfEnd('canvas', t0);
   }, [
+    paused,
     selectedNodeId, 
     selectedEdgeId, 
     selectedNodeIds, 

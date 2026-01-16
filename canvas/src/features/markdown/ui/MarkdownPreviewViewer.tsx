@@ -265,26 +265,12 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     return result
   }, [tokens, effectiveCollapsedIds])
 
-  const effectiveStickyHeadingTopPx = React.useMemo(
-    () => {
-      const provided = getDefaultStickyHeadingTopPx(stickyHeadingTopPx)
-      if (provided > 0) return provided
-      if (typeof document === 'undefined') return 0
-
-      const rootEl = scrollRootRef.current
-      if (!rootEl) return 0
-
-      const toolbar = document.querySelector('.App-toolbar')
-      if (!(toolbar instanceof HTMLElement)) return 0
-
-      const toolbarBottom = toolbar.getBoundingClientRect().bottom
-      const rootTop = rootEl.getBoundingClientRect().top
-      if (!Number.isFinite(toolbarBottom) || !Number.isFinite(rootTop)) return 0
-
-      return Math.max(0, Math.round(toolbarBottom - rootTop))
-    },
+  const providedStickyHeadingTopPx = React.useMemo(
+    () => getDefaultStickyHeadingTopPx(stickyHeadingTopPx),
     [stickyHeadingTopPx],
   )
+
+  const effectiveStickyHeadingTopPx = providedStickyHeadingTopPx
 
   const body = React.useMemo(
     () => (
@@ -365,7 +351,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         onDoubleClick={onDoubleClick}
         onMouseUp={onMouseUp}
         className={[
-          'relative flex-1 min-h-0 px-8 py-6', // Increased padding for document feel
+          'relative flex-1 min-h-0 px-8', // Removed py-2 to ensure sticky headers snap perfectly to top
           scrollClass,
           uiPanelTextFontClass,
         ].join(' ')}

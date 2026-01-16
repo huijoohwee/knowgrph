@@ -56,7 +56,7 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
   } = props
 
   return (
-    <div className="flex items-center gap-3 min-w-0">
+    <section className="flex items-center gap-3 min-w-0">
       <BookOpen className={`w-4 h-4 shrink-0 ${UI_THEME_TOKENS.text.tertiary}`} strokeWidth={1.5} />
       <div className="min-w-0 truncate flex items-center gap-2">
         {isJsonBacked && (
@@ -143,6 +143,6 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
           </div>
         )}
       </div>
-    </div>
+    </section>
   )
 }

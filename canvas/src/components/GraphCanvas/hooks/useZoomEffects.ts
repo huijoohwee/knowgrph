@@ -16,6 +16,7 @@ interface UseZoomEffectsProps {
   graphData: GraphData | null;
   renderGraphData: GraphData | null;
   schema: GraphSchema;
+  paused?: boolean;
 
   zoomRequest: ZoomRequest | null;
   fitToScreenMode: boolean;
@@ -38,6 +39,7 @@ export function useZoomEffects({
   graphData,
   renderGraphData,
   schema,
+  paused,
   zoomRequest,
   fitToScreenMode,
   zoomToSelectionMode,
@@ -51,6 +53,7 @@ export function useZoomEffects({
 
   // Effect 1: Handle fitToScreenMode
   useEffect(() => {
+    if (paused) return;
     if (!fitToScreenMode) {
       lastFitDepsRef.current = null;
       return;
@@ -80,10 +83,11 @@ export function useZoomEffects({
     }
     lastFitDepsRef.current = next;
     requestZoom('fit');
-  }, [fitToScreenMode, renderGraphData, width, height, requestZoom, schema.layout?.mode, schema.layers?.mode]);
+  }, [paused, fitToScreenMode, renderGraphData, width, height, requestZoom, schema.layout?.mode, schema.layers?.mode]);
 
   // Effect 2: Handle zoomRequest
   useEffect(() => {
+    if (paused) return;
     if (!zoomRequest || !svgRef.current || !zoomRef.current) return;
     const svg = d3.select(svgRef.current);
     const panelDims = computePanelAwareCanvasDims(
@@ -104,6 +108,7 @@ export function useZoomEffects({
       selectedEdgeIds,
     });
   }, [
+    paused,
     zoomRequest,
     svgRef,
     zoomRef,
@@ -120,6 +125,7 @@ export function useZoomEffects({
 
   // Effect 3: Handle zoomToSelectionMode
   useEffect(() => {
+    if (paused) return;
     if (!zoomToSelectionMode) return;
     if (!graphData || !svgRef.current || !zoomRef.current) return;
     const expansionCfg = schema.behavior?.expansion || {};
@@ -145,6 +151,7 @@ export function useZoomEffects({
       selectedEdgeIds,
     });
   }, [
+    paused,
     zoomToSelectionMode,
     svgRef,
     zoomRef,

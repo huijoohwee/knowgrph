@@ -292,7 +292,7 @@ export default function PreviewGallery({
                   />
                 </div>
               ) : null}
-              <div
+              <section
                 className={[
                   'relative rounded border px-2 py-2 select-none',
                   isDraggingAny
@@ -483,7 +483,7 @@ export default function PreviewGallery({
                     </div>
                   </div>
                 ) : null}
-                <div className="flex items-center justify-between gap-2">
+                <header className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className={`text-xs ${UI_THEME_TOKENS.text.primary} truncate`}>{it.label}</div>
                     <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>#{idx + 1}</div>
@@ -525,8 +525,8 @@ export default function PreviewGallery({
                     </div>
                     {isDragging ? <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>Moving</div> : null}
                   </div>
-                </div>
-              </div>
+                </header>
+              </section>
             </li>
           )
         })}

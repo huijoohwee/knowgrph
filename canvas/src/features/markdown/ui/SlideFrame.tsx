@@ -21,17 +21,25 @@ export function SlideFrame(props: SlideFrameProps) {
     children,
   } = props
 
+  // If slideOuterClass/slideContentClass are empty, render children directly
+  // This avoids double-wrapping when the content already provides layout structure
+  const shouldWrap = slideOuterClass && slideContentClass
+
   return (
     <article
       className={frameClassName}
       style={{ ...slideStyle, ...slideTransitionStyle }}
       onDoubleClick={onDoubleClick}
     >
-      <div className={slideOuterClass}>
-        <div className={slideContentClass}>
-          {children}
-        </div>
-      </div>
+      {shouldWrap ? (
+        <section className={slideOuterClass}>
+          <div className={slideContentClass}>
+            {children}
+          </div>
+        </section>
+      ) : (
+        children
+      )}
     </article>
   )
 }

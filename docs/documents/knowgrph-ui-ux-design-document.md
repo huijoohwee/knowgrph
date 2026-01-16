@@ -6,7 +6,9 @@
 - **Code Blocks**: Use a semantic structure (`figure` > `header` > `pre`/`code`) with GitHub-like syntax highlighting (Light: GitHub Light, Dark: GitHub Dark). The header includes a language label, Beside/Inline view toggle buttons (`name="annotate-display"`, `value="beside" | "inline"`, `aria-current="true"` on the active option), and a Copy button that writes code to the clipboard. Layout mode is stored in component state and reflected via `data-annotate-display` so the same lexed tokens are reused when toggling between views without re-rendering the markdown source.
 - **Semantic HTML**: The application enforces semantic HTML usage to improve accessibility and structure.
   - **Toolbar**: Wrapped in `<nav>` with `role="navigation"`.
-  - **Panels**: Use `<section>`, `<header>`, `<article>`, and `<footer>` instead of generic `div`s where appropriate (e.g., Preview Panel, Graph Layers).
+  - **Bottom Panel**: The tab header uses `<header>` instead of `div` and supports double-click to toggle fullscreen.
+  - **Panels**: Use `<section>`, `<header>`, `<article>`, and <footer> instead of generic `div`s where appropriate (e.g., Preview Panel, Graph Layers).
+  - **Slides Gallery**: Slide items use `<section>` for the container and `<header>` for the label/index row, replacing generic `div`s for better semantic structure.
   - **Status Bar**: Uses `<footer>`.
 - **Consistency**: All icon buttons (`IconButton`), panels, tables, inputs, floating panel buttons, and code blocks use shared theme tokens defined in `UI_THEME_TOKENS` to ensure global consistency. Hardcoded styles (e.g., `text-gray-*`, `bg-blue-*`) are strictly forbidden in favor of semantic tokens.
 - **Typography**: Panel headers, TOC headings, and micro-labels use `uiPanelMicroLabelTextSizeClass` (defaulting to 10px) to ensure consistent scale across Floating Panels, Table of Contents, and Settings headers, distinct from the standard `uiPanelKeyValueTextSizeClass` used for data rows.
@@ -93,9 +95,18 @@
   - When users select a media card sourced from the graph in the Slides Gallery, the Bottom Panel automatically opens the Curation tab in Markdown mode, keeping the media selection, canvas selection, and source text aligned without additional clicks.
 - Markdown panel highlight:
   - Auto-opening the markdown curation view applies a brief, subtle highlight to the panel chrome so users can see where the source text came from without introducing long-lived visual noise.
-- **Markdown header layout**:
-  - The Bottom Panel markdown view splits responsibilities between a stateful container and a pure view component that renders three small header rows: the status row (JSON-backed badge, markdown status, and a leading section icon), the editor row (Apply, word-wrap toggle, and layout mode controls), and the viewer row (layout mode controls, presentation navigation, text highlight, and fullscreen).
-  - Editor and viewer layout mode controls are shared via a `MarkdownLayoutControlsRow` helper that receives a text size class from the panel theme, so the icon buttons inherit the same typographic scale as surrounding header copy while keeping icon size and stroke width configurable per theme.
+- **Markdown Component Architecture**:
+  - **Token Sharing**: Markdown tokenization is optimized by sharing lexed tokens across Viewer, Editor, TOC, and Presentation modes. The `useMarkdownPreviewTokens` hook ensures tokens are computed once and reused, preventing redundant re-lexing during mode switches or slide transitions. `MarkdownPreviewPresentation` accepts `fullDocTokens` to optimize slide generation.
+  - **Sticky Headings**: Markdown Viewer sticky headers (`h1`-`h6`) are designed to snap perfectly to the top of the viewer container (below the panel header).
+    - **Cascading Behavior**: Lower-level headers (h2, h3...) stick below higher-level headers (h1, h2...), creating a stacked context.
+    - **Table Headers**: Table headers (`th`) inside `figure` elements also stick to the top of the table container (`figure` has `max-height` and `overflow-auto`) or the page header context if possible, ensuring column labels remain visible while scrolling through long tables.
+    - **Visuals**: Sticky headers use `backdrop-blur-md` and `UI_THEME_TOKENS.panel.bg` to obscure scrolling content.
+  - **Semantic HTML**: The application enforces semantic HTML usage to improve accessibility and structure.
+    - **Bottom Panel**: Uses `<section>` for the main container, `<header>` for the toolbar, and `<article>` for the content panes (Viewer/Editor).
+    - **TOC**: Uses `<nav>` and `<ul>`/`<li>`.
+    - **Presentation**: Uses `<section>` for slides and `<aside>` for the sidebar.
+  - **Layout Controls**: The Bottom Panel markdown view splits responsibilities between a stateful container and a pure view component that renders focused header rows: the status row (JSON-backed badge, markdown status), and the viewer/editor control rows.
+  - **Editor and viewer layout mode controls** are shared via a `MarkdownLayoutControlsRow` helper that receives a text size class from the panel theme, so the icon buttons inherit the same typographic scale as surrounding header copy while keeping icon size and stroke width configurable per theme.
 - Selection alignment:
   - Canvas node/edge selections with markdown provenance scroll the Bottom Panel markdown editor and viewer so the associated text range snaps to the top of the viewport, avoiding “lost in the middle” placements.
   - The markdown editor uses Monaco Editor's wrap model to align the first wrapped row of the selected range directly under the top border, and the viewer uses block-level `data-start-line` markers to anchor the corresponding rendered block to the top of its scroll container.
@@ -114,15 +125,26 @@
     - **Show in Slides Gallery**: Switches to Slides Gallery view (Presentation with thumbnails).
     - **Show in Graph Data Table**: Opens the Graph Data Table tab.
     - Irrelevant options (e.g., "Show in Viewer" when already in Viewer) are disabled.
+  - **Full Screen Presentation**:
+    - A dedicated "Enter Full Screen" button (`Maximize2`) is available in the toolbar when in Presentation or Slides Gallery mode (positioned to the right of the "Slides Gallery" button).
+    - This triggers the browser's native Full Screen API for an immersive experience.
+    - **Sidebar Behavior**:
+      - **Auto-Hide**: The sidebar automatically hides when entering full screen to maximize the viewing area.
+      - **Auto-Show on Hover**: Hovering over the left edge of the screen reveals the sidebar as an overlay. It hides again when the mouse leaves the sidebar area.
+      - **Manual Toggle**: The sidebar can also be toggled via the toolbar button or 'O' shortcut, sharing state with the embedded view.
+    - **Zoom Reset**: Entering full screen automatically resets the slide zoom level to 100% (`autoScaleTo100`).
   - **Right-Click Context Menu**: Unified with the Selection Toolbar. Right-clicking in the Viewer, Editor, Presentation, Slides Gallery, or Graph Data Table displays the context-aware Selection Toolbar, providing consistent access to all navigation actions.
   - **Flash Feedback**: When navigating from other views (e.g., "Show in Editor" or "Show in Viewer"), the target line is visually emphasized with a momentary flash effect (`flashLine` prop). This helps users locate the exact context after a jump.
   - **Architecture**: The Bottom Panel Markdown section logic is encapsulated in `useMarkdownSectionLogic` (View logic), `useBottomPanelMarkdownModel` (Data logic), `useMarkdownApply` (Parsing logic), and `useJsonMarkdown` (JSON conversion logic) to maintain strict separation of concerns, reduce component complexity, and ensure <600 lines per file.
   - **Refactored Bottom Panel**:
-    - **Semantic HTML**: The Markdown section uses `<section>`, `<article>`, `<header>`, and `<nav>` elements, adhering to accessibility standards.
+    - **Semantic HTML**: The Markdown section uses `<section>`, `<article>`, `<header>`, and `<nav>` elements. The History and Orchestrator tabs also use semantic `<section>` and `<header>` elements, adhering to accessibility standards.
     - **Presentation Mode**: Defaults to a **16:9 aspect ratio (1920x1080)** for slide layout, ensuring standard widescreen presentation compatibility. The presentation engine uses robust token sharing with fallback lexing to ensure content visibility even when line maps are imperfect or tokens are filtered.
+    - **Sticky Headings in Presentation**: Slide headings (`h1`-`h6`) are sticky within the slide scroll container. The top offset is dynamically calculated based on the slide's header presence (33px for default, 41px for academic theme, 0px for none) to ensuring headings snap perfectly below the slide title/metadata bar.
+    - **Presentation Sidebar**: The "Slides Gallery" sidebar uses the same semantic structure (`aside`, `header`, `nav`) and UI components (`IconButton`, `UI_THEME_TOKENS`) as the Markdown Viewer sidebar, providing a consistent navigation experience across modes. The sidebar state (open/closed) is synchronized with the Viewer sidebar via `showSidebar` prop and persisted to `LS_KEYS.bottomPanelMarkdownShowSidebar`.
     - **Synchronization**: 100% synchronization is enforced between Markdown Viewer, Editor, Presentation, Slides Gallery, and Graph Data Table (heading, content, scroll, collapse/expand) using shared state and explicit jump triggers.
   - **Editor Theme Alignment**: The Markdown Editor (Monaco) fully respects the global theme (Light/Dark/System), matching the background and text colors defined in `UI_THEME_TOKENS` and `UI_THEME_COLORS`.
   - **Double-Click Behavior**: Double-clicking a line in the Viewer, Presentation, or Slides Gallery auto-positions the Markdown Editor to the corresponding line. This mapping is precise, preserving line numbers even for nested content.
+  - **Bottom Panel Fullscreen**: Double-clicking the Bottom Panel tab bar toggles fullscreen expansion. When expanded to fill the viewport (100% height), the graph canvas rendering and simulation are paused (frozen) to optimize performance and prevent unnecessary computation.
   - **Canvas Click**: Clicking a node/edge/graph layer on the Canvas auto-positions the Markdown Editor to the corresponding Mermaid Frontmatter line (if applicable), removing legacy implementations to ensure a single source of truth.
   - For Mermaid frontmatter, Canvas selection and layout behavior follow the same neutrality guarantees as other graph content: `MermaidNode` and `pointsTo` edges are styled and filtered via schema‑driven layer configuration, and layout modes (force, radial, tidy‑tree) all operate on the same schema‑aligned subgraph without special cases for any particular template or dataset; see `docs/documents/knowgrph-mermaid-frontmatter-document.md` for details on Mermaid‑specific legend chips and path highlighting.
 - Hover Tooltip Configuration:
@@ -145,6 +167,7 @@
   - **Token Sharing**: The markdown lexer runs once at the parent level, and tokens are shared between the Viewer, TOC, Editor, and Presentation components to optimize performance and prevent redundant processing. Line maps are preserved during token processing to ensure accurate scroll synchronization.
   - **Component Architecture**:
     - The `BottomPanelMarkdownSectionView` is split into dedicated `MarkdownEditorPane` and `MarkdownViewerPane` components to separate concerns and improve maintainability.
+    - **View Modes**: The toolbar explicitly toggles between "Viewer", "Editor", "Markdown Presentation", and "Slides Gallery" modes using dedicated icon buttons (`MonitorPlay`, `LayoutGrid`, `Edit3`, `Eye`). The "Markdown Presentation" button is positioned to the left of "Slides Gallery" for intuitive progression.
     - Complex state and logic (scroll sync, auto-positioning, flash effects, TOC handling) are extracted into a custom `useMarkdownSectionLogic` hook, keeping the view component lightweight.
   - **Visual Feedback**:
     - **Flash Effect**: Navigation actions ("Show in Editor", "Show in Viewer") trigger a temporary yellow flash on the target line (`flashLine` prop) to draw user attention. This effect uses CSS animations (`monaco-flash-fade` in Editor, `markdown-flash-highlight` in Viewer) and automatically fades out after a configured duration.

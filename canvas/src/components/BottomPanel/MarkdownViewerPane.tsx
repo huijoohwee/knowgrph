@@ -33,6 +33,7 @@ type MarkdownViewerPaneProps = {
   flashLine?: number | null
   tokens?: TokenWithLines[]
   markdownViewerWidthMode?: 'standard' | 'wide'
+  viewMode?: 'viewer' | 'presentation' | 'gallery'
   showSidebar?: boolean
   onToggleSidebar?: (show: boolean) => void
   collapsedIds?: Set<string>
@@ -70,6 +71,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
     flashLine,
     tokens,
     markdownViewerWidthMode,
+    viewMode,
     showSidebar,
     onToggleSidebar,
     collapsedIds,
@@ -119,6 +121,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
         flashLine={flashLine}
         tokens={tokens}
         markdownViewerWidthMode={markdownViewerWidthMode}
+        viewMode={viewMode}
         showSidebar={showSidebar}
         onToggleSidebar={onToggleSidebar}
         collapsedIds={collapsedIds}

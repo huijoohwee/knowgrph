@@ -1,12 +1,13 @@
 import React from 'react'
+import { MarkdownPanelLayout } from '@/features/markdown/ui/MarkdownPanelLayout'
 import { LayoutList, LayoutPanelTop } from 'lucide-react'
 import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
 import { LS_KEYS, UI_COPY } from '@/lib/config'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
-import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { splitMarkdownLines } from '@/lib/markdown'
 import { lexMarkdownContent, type TokenWithLines } from './markdownPreviewLex'
+import { selectTokensInLineRange } from './markdownPreviewLexUtils'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { MarkdownFragmentConfig } from './markdownPreviewFragments'
 import { lsBool, lsSetBool } from '@/lib/persistence'
@@ -19,9 +20,9 @@ import {
   getSlideTextBodyAndNotes,
   getSlideVisualMeta,
 } from './markdownPresentationSlides'
-import { SlideFrame } from './SlideFrame'
 import { findLineRangeFromTarget } from '@/features/markdown/ui/markdownPreviewContextMenuUtils'
-import { PresentationNotes } from './PresentationNotes'
+import IconButton from '@/components/IconButton'
+import { MarkdownPresentationViewport } from './MarkdownPresentationViewport'
 
 type SlidesSidebarProps = {
   as?: 'aside' | 'section'
@@ -43,7 +44,7 @@ type SlidesSidebarProps = {
   layout?: 'list' | 'grid'
 }
 
-function SlidesSidebar(props: SlidesSidebarProps) {
+export function SlidesSidebar(props: SlidesSidebarProps) {
   const {
     as: Tag = 'aside',
     embedded = false,
@@ -91,49 +92,55 @@ function SlidesSidebar(props: SlidesSidebarProps) {
       ? `${width} border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} flex flex-col rounded`
       : `${width} shrink-0 border-r ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} flex flex-col`
 
+  // When embedded in MarkdownPanelLayout, we let the layout handle the container.
+  // But we might want to customize the header.
+  // If embedded, we assume the parent provides the outer structure (aside),
+  // but we still render our header because it has specific controls (thumbnails toggle, selection clear).
+  
   const content = (
     <>
       <header
-        className={`h-auto py-2 border-b px-2 flex items-center justify-between gap-2 shrink-0 ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.headerBg}`}
+        className={`flex items-center justify-between p-2 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}
       >
         <div className="min-w-0">
-          <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.primary}`}>
+          <h2
+            className={[
+              'text-xs font-semibold uppercase truncate',
+              UI_THEME_TOKENS.text.tertiary,
+            ].join(' ')}
+          >
             {UI_COPY.markdownSlidesSidebarViewTitle}
-          </div>
-          <div className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.secondary} truncate`}>
+          </h2>
+          <div className={`mt-0.5 text-[10px] ${UI_THEME_TOKENS.text.secondary} truncate`}>
             {slideCount} {UI_COPY.markdownSlidesSidebarSlidesSuffix}
             {activeSlideHeading ? ` · ${activeSlideHeading}` : ''}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {selectedSlideIds.length > 0 ? (
             <button
               type="button"
-              className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-900 dark:hover:text-gray-100`}
+              className={`text-[10px] mr-1 ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-900 dark:hover:text-gray-100`}
               onClick={() => setSelectedSlideIds([])}
             >
               {UI_COPY.markdownSlidesSidebarClearSelectionLabel}
             </button>
           ) : null}
-          <button
-            type="button"
-            className={[
-              'App-toolbar__btn flex items-center justify-center rounded border',
-              showSlideThumbnails
-                ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} border-transparent`
-                : `${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
-            ].join(' ')}
+          <IconButton
+            className="App-toolbar__btn flex items-center justify-center"
             onClick={onToggleShowSlideThumbnails}
+            title={showSlideThumbnails ? 'Hide Thumbnails' : 'Show Thumbnails'}
+            showTooltip
           >
             {showSlideThumbnails ? (
-              <LayoutPanelTop className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden={true} />
+              <LayoutPanelTop className="w-4 h-4" strokeWidth={1.5} aria-hidden={true} />
             ) : (
-              <LayoutList className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden={true} />
+              <LayoutList className="w-4 h-4" strokeWidth={1.5} aria-hidden={true} />
             )}
-          </button>
+          </IconButton>
         </div>
       </header>
-      <nav className="flex-1 min-h-0 overflow-auto">
+      <nav className="flex-1 min-h-0 overflow-auto" aria-label="Slides Gallery">
         <PreviewGallery
           items={items}
           activeId={String(activeSlideId)}
@@ -178,7 +185,11 @@ function SlidesSidebar(props: SlidesSidebarProps) {
     </>
   )
 
-  if (embedded) return content
+  if (embedded) {
+    // When embedded, we return just the content (header + nav)
+    // The parent MarkdownPanelLayout provides the container.
+    return content
+  }
 
   return <Tag className={containerClassName}>{content}</Tag>
 }
@@ -229,6 +240,8 @@ type MarkdownPreviewPresentationProps = {
   selectionToolbar?: React.ReactNode
   onSlideContextMenu?: (slideIdx: number, e: React.MouseEvent) => void
   fullDocTokens?: TokenWithLines[]
+  showSidebar: boolean
+  setShowSidebar: (show: boolean) => void
 }
 
 export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationProps) {
@@ -266,16 +279,40 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     onMouseUp,
     selectionToolbar,
     onSlideContextMenu,
+    showSidebar,
+    setShowSidebar,
   } = props
 
   const [isSlidesFullscreenOpen, setIsSlidesFullscreenOpen] = React.useState(false)
-  const [showSlideThumbnails, setShowSlideThumbnails] = React.useState<boolean>(() =>
-    lsBool(LS_KEYS.previewSlidesShowThumbnails, false),
-  )
   const [showSpeakerNotes, setShowSpeakerNotes] = React.useState<boolean>(() =>
     lsBool(LS_KEYS.previewSlidesShowNotes, false),
   )
   const [slideTransitionPhase, setSlideTransitionPhase] = React.useState<'from' | 'to'>('to')
+  const [isSidebarHovered, setIsSidebarHovered] = React.useState(false)
+
+  const sidebarHoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  const handleSidebarMouseEnter = React.useCallback(() => {
+    if (sidebarHoverTimeoutRef.current) {
+      clearTimeout(sidebarHoverTimeoutRef.current)
+      sidebarHoverTimeoutRef.current = null
+    }
+    setIsSidebarHovered(true)
+  }, [])
+
+  const handleSidebarMouseLeave = React.useCallback(() => {
+    sidebarHoverTimeoutRef.current = setTimeout(() => {
+      setIsSidebarHovered(false)
+    }, 300) // 300ms grace period for scrollbar interaction
+  }, [])
+
+  React.useEffect(() => {
+    return () => {
+      if (sidebarHoverTimeoutRef.current) {
+        clearTimeout(sidebarHoverTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const activeTransitionKey = React.useMemo(() => {
     const currentSlide = slides[activeSlideId]
@@ -285,6 +322,12 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     const raw = String(slideMeta.transition || headMetaRecord.transition || '').trim().toLowerCase()
     return raw
   }, [activeSlideId, headMeta, slides])
+
+  React.useEffect(() => {
+    if (isSlidesFullscreenOpen) {
+      setShowSidebar(false)
+    }
+  }, [isSlidesFullscreenOpen, setShowSidebar])
 
   React.useEffect(() => {
     if (!isSlidesFullscreenOpen) return
@@ -318,9 +361,32 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     }
   }, [onRegisterFullscreenHandler])
 
+  const previewOverlayContainerRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    if (isSlidesFullscreenOpen && previewOverlayContainerRef.current) {
+      previewOverlayContainerRef.current.requestFullscreen().catch(() => {
+        // ignore error
+      })
+    }
+  }, [isSlidesFullscreenOpen])
+
+  React.useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement && isSlidesFullscreenOpen) {
+        setIsSlidesFullscreenOpen(false)
+      }
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange)
+    }
+  }, [isSlidesFullscreenOpen])
+
   const baseSlideSize = React.useMemo(() => {
     const meta = headMeta
     const raw = String(meta.aspectRatio || '').trim()
+    // Default to 1920x1080 (16:9) as requested for Fit to View/Screen support
     let width = 1920
     let height = 1080
     if (raw) {
@@ -350,7 +416,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   }, [activeSlideId, hasSlides, slides.length])
 
   const slideTokens = React.useMemo(() => {
-    if (!isSlidesFullscreenOpen) return null
     if (!hasSlides) return null
     const currentSlide = slides[safeActiveSlideId]
     if (!currentSlide) return null
@@ -359,15 +424,13 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     if (props.fullDocTokens) {
       const start = currentSlide.startLine
       const end = currentSlide.endLine
-      const filtered = props.fullDocTokens.filter(t => {
-        const startLine = typeof t.startLine === 'number' ? t.startLine : 0
-        const endLine = typeof t.endLine === 'number' ? t.endLine : startLine
-        return startLine >= start && endLine <= end
-      })
+      const filtered = selectTokensInLineRange(props.fullDocTokens, start, end)
       // If we have tokens, return them.
       // If filtered is empty but the slide has text, it means line numbers might be misaligned or tokens are missing.
       // In that case, fall back to on-the-fly lexing.
       if (filtered.length > 0) return filtered
+      
+      // Fallback: If filtering returned nothing, check if we have content to lex.
       const { body } = getSlideTextBodyAndNotes(currentSlide)
       if (!body) return []
       // Fallthrough to lexing below
@@ -375,15 +438,15 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
 
     const { text, body } = getSlideTextBodyAndNotes(currentSlide)
     if (!body) return null
+    // Ensure we pass a valid offset (0-based)
     const out = lexMarkdownContent(
       text,
       Math.max(0, (currentSlide.startLine || 1) - 1),
     )
     return out.tokens
-  }, [hasSlides, isSlidesFullscreenOpen, safeActiveSlideId, slides, props.fullDocTokens])
+  }, [hasSlides, safeActiveSlideId, slides, props.fullDocTokens])
 
   const twoColumnTokens = React.useMemo(() => {
-    if (!isSlidesFullscreenOpen) return null
     if (!hasSlides) return null
     const currentSlide = slides[safeActiveSlideId]
     if (!currentSlide) return null
@@ -392,12 +455,11 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
       headMeta,
       fullDocTokens: props.fullDocTokens,
     }) as { left: TokenWithLines[]; right: TokenWithLines[] } | null
-  }, [hasSlides, headMeta, isSlidesFullscreenOpen, safeActiveSlideId, slides, props.fullDocTokens])
+  }, [hasSlides, headMeta, safeActiveSlideId, slides, props.fullDocTokens])
 
   const slideBody = React.useMemo(
     () =>
-      isSlidesFullscreenOpen
-        ? buildSlideBody({
+      buildSlideBody({
         hasSlides,
         slides,
         safeActiveSlideId,
@@ -421,11 +483,9 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
         rootThemeMode,
         effectiveHighlightBackgroundColor,
         effectiveHighlightUnderlineColor,
-        })
-        : null,
+      }),
     [
       hasSlides,
-      isSlidesFullscreenOpen,
       slides,
       safeActiveSlideId,
       twoColumnTokens,
@@ -516,23 +576,26 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   }
 
   React.useEffect(() => {
-    lsSetBool(LS_KEYS.previewSlidesShowThumbnails, showSlideThumbnails)
-  }, [showSlideThumbnails])
+    lsSetBool(LS_KEYS.previewSlidesShowThumbnails, showSidebar)
+  }, [showSidebar])
 
   React.useEffect(() => {
     lsSetBool(LS_KEYS.previewSlidesShowNotes, showSpeakerNotes)
   }, [showSpeakerNotes])
 
   React.useEffect(() => {
-    if (!isSlidesFullscreenOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'n' && e.key !== 'N') return
-      e.preventDefault()
-      setShowSpeakerNotes(prev => !prev)
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault()
+        setShowSpeakerNotes(prev => !prev)
+      } else if (e.key === 'o' || e.key === 'O') {
+        e.preventDefault()
+        setShowSidebar(!showSidebar)
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isSlidesFullscreenOpen])
+  }, [showSidebar, setShowSidebar])
 
   const [sidebarFocusSlideId, setSidebarFocusSlideId] = React.useState<number | null>(null)
 
@@ -547,7 +610,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const focusSlideId = sidebarFocusSlideId ?? activeSlideId
 
   const notesTokens = React.useMemo(() => {
-    if (!isSlidesFullscreenOpen) return null
     if (!showSpeakerNotes) return null
     const slide = slides[safeActiveSlideId]
     if (!slide || !slide.notes) return null
@@ -556,7 +618,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     const cleaned = raw.replace(/<!--/g, '').replace(/-->/g, '').trim()
     if (!cleaned) return null
     return lexMarkdownContent(cleaned, 0).tokens
-  }, [isSlidesFullscreenOpen, safeActiveSlideId, showSpeakerNotes, slides])
+  }, [safeActiveSlideId, showSpeakerNotes, slides])
 
   const activeSlideHeading = React.useMemo(() => {
     const slide = slides[focusSlideId]
@@ -637,108 +699,142 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
 
   return (
     <>
-      <section
-        ref={rootRef}
-        tabIndex={0}
-        onClick={onClick}
-        onMouseUp={onMouseUp}
-        onContextMenu={onContextMenu}
-        className={[
-          'relative flex-1 min-h-0 w-full overflow-hidden outline-none flex flex-col border border-gray-200 bg-white rounded font-sans',
-          uiPanelTextFontClass,
-        ].join(' ')}
-        data-testid="markdown-presentation-root"
+      <MarkdownPanelLayout
+        showSidebar={showSidebar}
+        setShowSidebar={setShowSidebar}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        hideSidebarHeader={true}
+        sidebarContent={
+          <SlidesSidebar
+            embedded
+            orderedSlideIndices={orderedSlideIndices}
+            activeSlideId={activeSlideId}
+            slideOrder={slideOrder}
+            slideCount={slideCount}
+            activeSlideHeading={activeSlideHeading}
+            showSlideThumbnails={true} // Always show in sidebar content
+            onToggleShowSlideThumbnails={() => setShowSidebar(!showSidebar)} // Controlled by Layout
+            onSidebarFocusSlideIdChange={setSidebarFocusSlideId}
+            onActiveSlideIndexChange={setActiveSlideIndex}
+            onSlideOrderChange={setSlideOrder}
+            renderSlidePreview={renderSlidePreview}
+            onSlideDoubleClick={(idx) => {
+              const pos = orderedSlideIndices.indexOf(idx)
+              if (pos >= 0) setActiveSlideIndex(pos)
+              setIsSlidesFullscreenOpen(true)
+            }}
+            onSlideContextMenu={onSlideContextMenu}
+            width="w-full"
+            layout="list"
+          />
+        }
       >
-        <SlidesSidebar
-          embedded
-          orderedSlideIndices={orderedSlideIndices}
-          activeSlideId={activeSlideId}
-          slideOrder={slideOrder}
-          slideCount={slideCount}
-          activeSlideHeading={activeSlideHeading}
-          showSlideThumbnails={showSlideThumbnails}
-          onToggleShowSlideThumbnails={() => setShowSlideThumbnails(v => !v)}
-          onSidebarFocusSlideIdChange={setSidebarFocusSlideId}
-          onActiveSlideIndexChange={setActiveSlideIndex}
-          onSlideOrderChange={setSlideOrder}
-          renderSlidePreview={renderSlidePreview}
-          onSlideDoubleClick={(idx) => {
-            const pos = orderedSlideIndices.indexOf(idx)
-            if (pos >= 0) setActiveSlideIndex(pos)
-            setIsSlidesFullscreenOpen(true)
-          }}
-          onSlideContextMenu={onSlideContextMenu}
-          width="w-full"
-          layout="grid"
-        />
-        {selectionToolbar}
-      </section>
+        <section
+          ref={rootRef}
+          tabIndex={0}
+          onClick={onClick}
+          onMouseUp={onMouseUp}
+          onContextMenu={onContextMenu}
+          className={[
+            'relative flex-1 min-h-0 w-full overflow-hidden outline-none flex flex-col bg-gray-50 dark:bg-gray-900',
+            uiPanelTextFontClass,
+          ].join(' ')}
+          data-testid="markdown-presentation-root"
+        >
+          <main className="flex-1 min-h-0 flex flex-col items-center justify-center p-4">
+            <MarkdownPresentationViewport
+              isOpen={true}
+              storageKey={LS_KEYS.previewZoomPanSlides}
+              baseSlideSize={baseSlideSize}
+              slideFramePaddingPx={slideFramePaddingPx}
+              baseFrameClass={baseFrameClass}
+              slideClass={slideClass}
+              slideOuterClass={slideOuterClass}
+              slideStyle={slideStyle}
+              slideTransitionStyle={slideTransitionStyle}
+              slideContentClass={slideContentClass}
+              onDoubleClick={handleDoubleClick}
+              disablePan={false}
+              showControls={false}
+            >
+              {slideContent}
+            </MarkdownPresentationViewport>
+          </main>
+          {selectionToolbar}
+        </section>
+      </MarkdownPanelLayout>
       <PreviewOverlay
         open={isSlidesFullscreenOpen}
         onClose={() => setIsSlidesFullscreenOpen(false)}
         scope={previewOverlayScope}
         portalTarget={previewOverlayPortalTarget}
       >
-        <section className="w-full h-full flex" onContextMenu={onContextMenu}>
-          <SlidesSidebar
-            orderedSlideIndices={orderedSlideIndices}
-            activeSlideId={activeSlideId}
-            slideOrder={slideOrder}
-            slideCount={slideCount}
-            activeSlideHeading={activeSlideHeading}
-            showSlideThumbnails={showSlideThumbnails}
-            onToggleShowSlideThumbnails={() => setShowSlideThumbnails(v => !v)}
-            onSidebarFocusSlideIdChange={setSidebarFocusSlideId}
-            onActiveSlideIndexChange={setActiveSlideIndex}
-            onSlideOrderChange={setSlideOrder}
-            renderSlidePreview={renderSlidePreview}
-            onSlideContextMenu={onSlideContextMenu}
+        <div ref={previewOverlayContainerRef} className="w-full h-full bg-white dark:bg-gray-900 relative overflow-hidden">
+          {/* Sidebar Trigger Area */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-2 z-[60] bg-transparent hover:bg-gray-200/20 dark:hover:bg-gray-700/20 transition-colors duration-200"
+            title="Show Slides Sidebar"
+            onMouseEnter={handleSidebarMouseEnter}
+            onMouseLeave={handleSidebarMouseLeave}
           />
-          <main className="flex-1 min-w-0 flex flex-col">
-            <ZoomPanViewport
-              open={isSlidesFullscreenOpen}
-              storageKey={LS_KEYS.previewZoomPanSlides}
-              getContentSize={() => ({ w: baseSlideSize.w, h: baseSlideSize.h })}
-              fitOnOpen
-              frameAspectRatio={baseSlideSize.w / baseSlideSize.h}
-              showControls={false}
-              showZoomIndicator={true}
-              framePaddingPx={slideFramePaddingPx}
-              disablePan
-              frameClassName={[
-                baseFrameClass,
-                slideClass,
-              ].filter(Boolean).join(' ')}
+          <section className="w-full h-full flex" onContextMenu={onContextMenu}>
+            <div
+              className={`absolute left-0 top-0 h-full z-[50] transition-transform duration-300 ease-in-out bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-xl ${
+                showSidebar || isSidebarHovered ? 'translate-x-0' : '-translate-x-full'
+              }`}
+              onMouseEnter={handleSidebarMouseEnter}
+              onMouseLeave={handleSidebarMouseLeave}
             >
-              <div style={{ width: `${baseSlideSize.w}px`, height: `${baseSlideSize.h}px` }}>
-                <SlideFrame
-                  frameClassName={slideOuterClass}
-                  slideStyle={slideStyle}
-                  slideTransitionStyle={slideTransitionStyle}
-                  slideOuterClass={slideContentClass}
-                  slideContentClass=""
-                  onDoubleClick={handleDoubleClick}
-                >
-                  {slideContent}
-                </SlideFrame>
+              <div className="w-64 h-full flex flex-col overflow-hidden">
+                <SlidesSidebar
+                  orderedSlideIndices={orderedSlideIndices}
+                  activeSlideId={activeSlideId}
+                  slideOrder={slideOrder}
+                  slideCount={slideCount}
+                  activeSlideHeading={activeSlideHeading}
+                  showSlideThumbnails={true}
+                  onToggleShowSlideThumbnails={() => setShowSidebar(!showSidebar)}
+                  onSidebarFocusSlideIdChange={setSidebarFocusSlideId}
+                  onActiveSlideIndexChange={setActiveSlideIndex}
+                  onSlideOrderChange={setSlideOrder}
+                  renderSlidePreview={renderSlidePreview}
+                  onSlideContextMenu={onSlideContextMenu}
+                  width="w-full"
+                />
               </div>
-            </ZoomPanViewport>
-            {showSpeakerNotes && notesTokens && notesTokens.length > 0 ? (
-              <PresentationNotes
-                notesTokens={notesTokens}
-                activeDocumentPath={activeDocumentPath}
-                uiPanelTextFontClass={uiPanelTextFontClass}
-                uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-                mermaidFrontmatterConfig={mermaidFrontmatterConfig}
-                rootThemeMode={rootThemeMode}
-                previewOverlayScope={previewOverlayScope}
-                previewOverlayPortalTarget={previewOverlayPortalTarget}
-                className="w-full max-h-56 overflow-auto border-t border-gray-200 bg-white"
-              />
-            ) : null}
+            </div>
+            <main className="flex-1 min-w-0 flex flex-col">
+            <MarkdownPresentationViewport
+              isOpen={isSlidesFullscreenOpen}
+              storageKey={LS_KEYS.previewZoomPanSlides}
+              baseSlideSize={baseSlideSize}
+              slideFramePaddingPx={slideFramePaddingPx}
+              baseFrameClass={baseFrameClass}
+              slideClass={slideClass}
+              slideOuterClass={slideOuterClass}
+              slideStyle={slideStyle}
+              slideTransitionStyle={slideTransitionStyle}
+              slideContentClass={slideContentClass}
+              onDoubleClick={handleDoubleClick}
+              disablePan={true}
+              showControls={false}
+              showSpeakerNotes={showSpeakerNotes}
+              notesTokens={notesTokens}
+              activeDocumentPath={activeDocumentPath}
+              uiPanelTextFontClass={uiPanelTextFontClass}
+              uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+              mermaidFrontmatterConfig={mermaidFrontmatterConfig}
+              rootThemeMode={rootThemeMode}
+              previewOverlayScope={previewOverlayScope}
+              previewOverlayPortalTarget={previewOverlayPortalTarget}
+              autoScaleTo100={true}
+            >
+              {slideContent}
+            </MarkdownPresentationViewport>
           </main>
           {selectionToolbar}
-        </section>
+          </section>
+        </div>
       </PreviewOverlay>
     </>
   )

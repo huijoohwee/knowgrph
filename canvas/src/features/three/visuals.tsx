@@ -9,7 +9,7 @@ const MAX_PARTICLE_INSTANCES = 64
 
 type DirectionalParticlesProps = { start: Vec3; end: Vec3; count: number; color: string; speed: number }
 
-export function DirectionalParticles({ start, end, count, color, speed }: DirectionalParticlesProps) {
+export function DirectionalParticles({ start, end, count, color, speed, paused }: DirectionalParticlesProps & { paused?: boolean }) {
   const meshRef = useRef<THREE.InstancedMesh | null>(null)
   const offsetsRef = useRef<number[]>([])
   const instanceCountRef = useRef(0)
@@ -29,6 +29,7 @@ export function DirectionalParticles({ start, end, count, color, speed }: Direct
     }
   }, [count])
   useFrame(({ clock }) => {
+    if (paused) return
     const mesh = meshRef.current
     if (!mesh) return
     const n = instanceCountRef.current
@@ -72,13 +73,14 @@ export function DirectionalParticles({ start, end, count, color, speed }: Direct
 
 type ArrowHeadProps = { start: Vec3; end: Vec3; color: string; height: number; relPos: number }
 
-export function ArrowHead({ start, end, color, height, relPos }: ArrowHeadProps) {
+export function ArrowHead({ start, end, color, height, relPos, paused }: ArrowHeadProps & { paused?: boolean }) {
   const ref = useRef<THREE.Mesh>(null!)
   const dir = useRef(new THREE.Vector3())
   const pos = useRef(new THREE.Vector3())
   const quat = useRef(new THREE.Quaternion())
   const up = useRef(new THREE.Vector3(0, 1, 0))
   useFrame(() => {
+    if (paused) return
     if (!ref.current) return
     const sx = start[0], sy = start[1], sz = start[2]
     const ex = end[0], ey = end[1], ez = end[2]
@@ -106,13 +108,14 @@ export function ArrowHead({ start, end, color, height, relPos }: ArrowHeadProps)
 
 type EdgeMeshProps = { a: Vec3; b: Vec3; color: string; width: number; opacity: number; resolution: number }
 
-export function EdgeMesh({ a, b, color, width, opacity, resolution }: EdgeMeshProps) {
+export function EdgeMesh({ a, b, color, width, opacity, resolution, paused }: EdgeMeshProps & { paused?: boolean }) {
   const ref = useRef<THREE.Mesh>(null!)
   const diff = useRef(new THREE.Vector3())
   const mid = useRef(new THREE.Vector3())
   const quat = useRef(new THREE.Quaternion())
   const up = useRef(new THREE.Vector3(0, 1, 0))
   useFrame(() => {
+    if (paused) return
     if (!ref.current) return
     const ax = a[0], ay = a[1], az = a[2]
     const bx = b[0], by = b[1], bz = b[2]
@@ -148,7 +151,7 @@ type CurvedEdgeMeshProps = {
   rotation: number
 }
 
-export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolution, rotation }: CurvedEdgeMeshProps) {
+export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolution, rotation, paused }: CurvedEdgeMeshProps & { paused?: boolean }) {
   const ref = useRef<THREE.Mesh>(null!)
   const geomRef = useRef<THREE.BufferGeometry>(null!)
   const startRef = useRef(new THREE.Vector3())
@@ -161,6 +164,7 @@ export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolut
   const ctrlRef = useRef(new THREE.Vector3())
   const quatRotRef = useRef(new THREE.Quaternion())
   useFrame(() => {
+    if (paused) return
     const ax = a[0], ay = a[1], az = a[2]
     const bx = b[0], by = b[1], bz = b[2]
     const start = startRef.current
@@ -208,4 +212,3 @@ export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolut
     </mesh>
   )
 }
-

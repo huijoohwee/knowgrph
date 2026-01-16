@@ -394,6 +394,25 @@ export const renderSafeHtmlBlock = (
         )
       }
 
+      if (tag === 'section') {
+        const safeClass = sanitizeHtmlClassName(el.getAttribute('class') || '')
+        return <section key={key} className={safeClass || undefined}>{children}</section>
+      }
+
+      if (tag === 'main') {
+        const safeClass = sanitizeHtmlClassName(el.getAttribute('class') || '')
+        return <main key={key} className={safeClass || undefined}>{children}</main>
+      }
+
+      if (tag === 'button') {
+        const safeClass = sanitizeHtmlClassName(el.getAttribute('class') || '')
+        return (
+          <button key={key} type="button" className={safeClass || undefined}>
+            {children}
+          </button>
+        )
+      }
+
       if (tag === 'div') {
         const align = (el.getAttribute('align') || '').toLowerCase()
         const cls = [opts.uiPanelTextFontClass]

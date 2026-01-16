@@ -178,11 +178,7 @@ export default function BottomPanelBody({
 
 
   const validateGraph = React.useCallback(() => {
-    try {
-      parserDataProps.onValidateGraph()
-    } catch {
-      void 0
-    }
+    parserDataProps.onValidateGraph()
   }, [parserDataProps])
 
   const { importHistoryJsonLd } = useWorkflowExportActions({
@@ -313,7 +309,7 @@ export default function BottomPanelBody({
             parserDataProps={parserDataProps}
           />
         ) : tab === 'orchestrator' ? (
-          <div className="h-full min-h-0 flex flex-col overflow-auto">
+          <section className="h-full min-h-0 flex flex-col overflow-auto" aria-label="Orchestrator Panel">
             {orchestratorView === 'ui' ? (
               <OrchestratorSettingsSection
                 variant="bottomPanel"
@@ -333,12 +329,12 @@ export default function BottomPanelBody({
             ) : (
               <OrchestratorTextEditorSection />
             )}
-          </div>
+          </section>
         ) : tab === 'render' ? (
           <BottomPanelCodeTab codeText={codeText} codeError={codeError} codeRef={codeRef} handlers={handlers} />
         ) : tab === 'history' ? (
-          <div className="h-full min-h-0 flex flex-col overflow-auto">
-            <div className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider}`}>
+          <section className="h-full min-h-0 flex flex-col overflow-auto" aria-label="History Panel">
+            <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider}`}>
               <button
                 type="button"
                 className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -346,9 +342,9 @@ export default function BottomPanelBody({
               >
                 {UI_COPY.bottomPanelImportHistoryJsonLdAgenticRagButtonLabel}
               </button>
-            </div>
+            </header>
             <HistoryView searchQuery={searchQuery} />
-          </div>
+          </section>
         ) : tab === 'schema' && schemaUiEditorOpen && schema ? (
           <SchemaUiEditorPane
             schemaError={schemaError}
