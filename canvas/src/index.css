@@ -215,4 +215,8 @@ body {
     font-size: 0.875rem;
     z-index: 20;
   }
+
+  .MainPanelContainer .monaco-editor .sticky-scroll {
+    top: 36px;
+  }
 }

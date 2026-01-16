@@ -144,6 +144,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
   const viewerSyncRafRef = React.useRef(0)
   const editorSyncRafRef = React.useRef(0)
   const editorClearSyncRafRef = React.useRef(0)
+  const viewerClearSyncRafRef = React.useRef(0)
   const viewerDebugElRef = React.useRef<HTMLElement | null>(null)
   const syncScrollRef = React.useRef(syncScroll)
 
@@ -341,6 +342,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
 
   const handleViewerScroll = React.useCallback((e?: React.UIEvent<HTMLDivElement>) => {
     const rafFn = getRaf()
+    const cancelRafFn = getCancelRaf()
     const viewerFromEvent = e?.currentTarget ?? null
     
     // Throttle scroll handling
@@ -413,17 +415,12 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
           const editorScrollable = Math.max(0, handle.getScrollHeight() - handle.getClientHeight())
           handle.setScrollTop(editorScrollable > 0 ? ratio * editorScrollable : 0)
         }
-        
-        // Reset flag after a short delay or immediately?
-        // Original code cleared it in a separate RAF.
-        // We can just clear it here or set a timeout.
-        // But since we are IN a RAF, we should probably set a timeout to clear the flag to prevent feedback loops.
-        // Or just let the next frame handle it.
-        // The original code used a separate RAF to clear the flag.
-        // Let's use a timeout to be safe and simple.
-        setTimeout(() => {
-             syncingFromViewerRef.current = false
-        }, 50)
+
+        if (viewerClearSyncRafRef.current) cancelRafFn(viewerClearSyncRafRef.current)
+        viewerClearSyncRafRef.current = rafFn(() => {
+          syncingFromViewerRef.current = false
+          viewerClearSyncRafRef.current = 0
+        })
     })
   }, [editorLineCountRef, viewerRef, editorTextAreaRef])
 
@@ -432,6 +429,8 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
       const cancelRafFn = getCancelRaf()
       const raf = viewerSyncRafRef.current
       if (raf) cancelRafFn(raf)
+      const clearRaf = viewerClearSyncRafRef.current
+      if (clearRaf) cancelRafFn(clearRaf)
     }
   }, [])
 

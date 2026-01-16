@@ -5,8 +5,12 @@ import { renderInlineTokens } from './MarkdownInlineRenderer'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { RenderOpts } from './MarkdownRendererTypes'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, Link2 } from 'lucide-react'
 import { slugify } from '@/features/parsers/markdownJsonLd'
+import IconButton from '@/components/IconButton'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { getIconSizeClass } from '@/lib/ui'
+import { getStickyHeadingCascadeOffsets } from './markdownSectionUtils'
 
 type MarkdownHeadingBlockProps = {
   token: TokenWithLines
@@ -29,6 +33,9 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   fragmentClassNames,
   fragmentTags,
 }: MarkdownHeadingBlockProps) {
+  const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
+  const iconSizeClass = getIconSizeClass(uiIconScale)
   const h = t as unknown as TokensHeading
   const id = h.id || slugify(h.text || '')
   const depth = Math.min(6, Math.max(1, h.depth || 1))
@@ -57,7 +64,28 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
       : depth === 2
       ? UI_THEME_TOKENS.text.primary
       : UI_THEME_TOKENS.text.secondary
-  const cls = ['font-bold mt-6 mb-4', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
+  const stickyTopClass = opts.stickyHeadingTopClass || 'top-0'
+  const baseTopPx =
+    typeof opts.stickyHeadingTopPx === 'number' && Number.isFinite(opts.stickyHeadingTopPx)
+      ? opts.stickyHeadingTopPx
+      : 0
+  const cascadeBaseDepth =
+    typeof opts.stickyHeadingCascadeBaseDepth === 'number' && Number.isFinite(opts.stickyHeadingCascadeBaseDepth)
+      ? Math.min(6, Math.max(1, opts.stickyHeadingCascadeBaseDepth))
+      : 1
+  const { topPx, zIndex } = getStickyHeadingCascadeOffsets({
+    depth,
+    cascadeBaseDepth,
+    baseTopPx,
+    markdownPresentationMode: opts.markdownPresentationMode,
+  })
+
+  const stickyStyle = {
+    top: `${topPx}px`,
+    zIndex,
+  } as React.CSSProperties
+  const mergedStyle = { ...(highlightStyle || {}) } as React.CSSProperties
+  const cls = ['font-bold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const content = renderInlineTokens(h.tokens, {
     activeDocumentPath: opts.activeDocumentPath,
     uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
@@ -83,40 +111,61 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const canCollapse = !!opts.onToggleCollapse && !!id
 
   return (
-    <MarkdownBlockContainer
-      as={Tag}
-      className={`${cls} flex items-center justify-between group`}
-      highlightClass={highlightClass}
-      highlightStyle={highlightStyle}
-      startLine={startLine}
-      endLine={endLine}
-      id={id}
+    <header
+      className={[
+        'sticky',
+        stickyTopClass,
+        `${UI_THEME_TOKENS.panel.bg} backdrop-blur-sm py-1 mb-4 pt-1`,
+      ].join(' ')}
+      style={stickyStyle}
     >
-      <div className="flex-1 min-w-0 flex items-center">
-        {content}
-        {id && (
-          <a
-            href={`#${id}`}
-            className={`ml-2 opacity-0 group-hover:opacity-100 transition-opacity ${UI_THEME_TOKENS.text.tertiary} hover:${UI_THEME_TOKENS.text.primary} no-underline`}
-            aria-hidden="true"
-          >
-            #
-          </a>
-        )}
-      </div>
-      {canCollapse && (
-        <button
-          onClick={e => {
-            e.preventDefault()
-            e.stopPropagation()
-            opts.onToggleCollapse?.(id)
-          }}
-          className={`ml-2 inline-flex items-center justify-center p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 align-middle ${UI_THEME_TOKENS.text.secondary}`}
-          aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
-        >
-          {isCollapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
-        </button>
-      )}
-    </MarkdownBlockContainer>
+      <MarkdownBlockContainer
+        as={Tag}
+        className={`${cls} flex items-center gap-2 group min-w-0`}
+        highlightClass={highlightClass}
+        highlightStyle={mergedStyle}
+        startLine={startLine}
+        endLine={endLine}
+        id={id}
+      >
+        <bdi className="flex-1 min-w-0 overflow-hidden">{content}</bdi>
+        <span className="ml-auto flex items-center gap-1 shrink-0">
+          {id && (
+            <a
+              href={`#${id}`}
+              className={[
+                'opacity-0 group-hover:opacity-100 transition-opacity no-underline',
+                UI_THEME_TOKENS.text.tertiary,
+                'hover:text-gray-900 dark:hover:text-gray-100',
+              ].join(' ')}
+              aria-label="Permalink"
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation()
+              }}
+            >
+              <Link2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+            </a>
+          )}
+          {canCollapse && (
+            <IconButton
+              className="App-toolbar__btn flex items-center justify-center shrink-0"
+              title={isCollapsed ? 'Expand section' : 'Collapse section'}
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault()
+                e.stopPropagation()
+                opts.onToggleCollapse?.(id)
+              }}
+              showTooltip
+            >
+              <ChevronDown
+                className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary} transition-transform ${isCollapsed ? '' : 'rotate-180'}`}
+                strokeWidth={uiIconStrokeWidth}
+                aria-hidden="true"
+              />
+            </IconButton>
+          )}
+        </span>
+      </MarkdownBlockContainer>
+    </header>
   )
 })

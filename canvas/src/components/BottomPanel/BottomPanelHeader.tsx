@@ -24,6 +24,7 @@ function toBottomTabFromHeaderKey(key: string): BottomTab | null {
 
 type BottomPanelHeaderProps = {
   collapsed: boolean
+  bottomPanelHeightRatio?: number
   tab: BottomTab
   isGraphJsonView: boolean
   startTransition: (fn: () => void) => void
@@ -44,6 +45,7 @@ type BottomPanelHeaderProps = {
 
 export default function BottomPanelHeader({
   collapsed,
+  bottomPanelHeightRatio,
   tab,
   isGraphJsonView,
   startTransition,
@@ -97,8 +99,19 @@ export default function BottomPanelHeader({
         }
       }}
       onHeaderDoubleClick={() => {
-        setBottomPanelHeightRatio(PANEL_MAX_RATIO)
-        setCollapsed(false)
+        if (collapsed) {
+          setBottomPanelHeightRatio(PANEL_MAX_RATIO)
+          setCollapsed(false)
+        } else {
+          // If already near max, collapse
+          if (bottomPanelHeightRatio && bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.05) {
+            setCollapsed(true)
+          } else {
+            // Otherwise expand to max
+            setBottomPanelHeightRatio(PANEL_MAX_RATIO)
+            setCollapsed(false)
+          }
+        }
       }}
       tabs={[
         { key: 'curation', label: getBottomTabLabel('curation') },

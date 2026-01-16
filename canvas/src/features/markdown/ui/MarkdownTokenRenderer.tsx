@@ -21,6 +21,8 @@ type MarkdownTokenRendererProps = {
   markdownPresentationMode: boolean
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
+  stickyHeadingTopClass?: string
+  stickyHeadingTopPx?: number
   mermaidFrontmatterConfig: MermaidInitConfig | null
   rootThemeMode: 'light' | 'dark'
   previewOverlayScope: 'viewport' | 'container'
@@ -55,6 +57,8 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     markdownPresentationMode,
     uiPanelTextFontClass,
     uiPanelMonospaceTextClass,
+    stickyHeadingTopClass,
+    stickyHeadingTopPx,
     mermaidFrontmatterConfig,
     rootThemeMode,
     previewOverlayScope,
@@ -76,6 +80,15 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     flashLine,
   } = props
 
+  let stickyHeadingCascadeBaseDepth = 7
+  for (const t of tokens) {
+    if (t.type !== 'heading') continue
+    const depth = Math.min(6, Math.max(1, t.depth || 1))
+    stickyHeadingCascadeBaseDepth = Math.min(stickyHeadingCascadeBaseDepth, depth)
+    if (stickyHeadingCascadeBaseDepth === 1) break
+  }
+  if (stickyHeadingCascadeBaseDepth === 7) stickyHeadingCascadeBaseDepth = 1
+
   const opts: RenderOpts = {
     activeDocumentPath,
     highlightedLineRange,
@@ -83,6 +96,9 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     markdownPresentationMode,
     uiPanelTextFontClass,
     uiPanelMonospaceTextClass,
+    stickyHeadingTopClass,
+    stickyHeadingTopPx,
+    stickyHeadingCascadeBaseDepth,
     mermaidFrontmatterConfig,
     rootThemeMode,
     previewOverlayScope,

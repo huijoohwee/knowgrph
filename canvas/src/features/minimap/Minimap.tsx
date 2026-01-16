@@ -1,5 +1,8 @@
 import React from 'react';
+import { Map } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import usePersistedBoolean from '@/features/hooks/usePersistedBoolean';
+import { LS_KEYS } from '@/lib/config';
 import type { GraphNode, GraphEdge } from '@/lib/graph/types';
 import type { GraphState } from '@/hooks/useGraphStore';
 import { getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
@@ -29,6 +32,7 @@ const requestZoomTransform = (t: ZoomTransform) => {
 };
 
 function Minimap() {
+  const [minimapCollapsed, setMinimapCollapsed] = usePersistedBoolean(LS_KEYS.minimapCollapsed, false);
   const graphData = useGraphStore(s => s.graphData);
   const graphId = useGraphStore(s => s.graphId);
   const canvasDims = useGraphStore(s => s.canvasDims);
@@ -38,14 +42,14 @@ function Minimap() {
   const preview = useGraphStore(s => s.minimapPreview);
   const selectedNodeId = useGraphStore(s => s.selectedNodeId);
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId);
+  const uiPanelOpacity = useGraphStore(s => s.uiPanelOpacity);
 
   const schema = useGraphStore(s => s.schema);
-  const threeCfg = (schema?.three || {});
   const palette = getRendererPalette(schema || null);
   const highlightColor = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
     ? palette.nodes.idea
     : MVP_COLOR_PALETTE.nodes.idea;
-  const minimapOpacity = typeof threeCfg.minimapOpacity === 'number' ? Math.max(0.2, Math.min(1, threeCfg.minimapOpacity)) : 0.7;
+  const minimapOpacity = uiPanelOpacity ?? 0.7;
   const nodes = React.useMemo(
     () => (Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []),
     [graphData],
@@ -342,60 +346,83 @@ function Minimap() {
   };
   const onRectMouseLeave = () => setHoverCenter(false);
 
+  if (minimapCollapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setMinimapCollapsed(false)}
+        className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+        title="Show Minimap"
+        style={{ opacity: minimapOpacity }}
+      >
+        <Map size={14} />
+      </button>
+    )
+  }
+
   return (
-    <div className="rounded bg-white backdrop-blur-sm shadow border border-gray-200" style={{ opacity: minimapOpacity }}>
-      <svg width={miniW} height={miniH} onClick={onMinimapClick} onWheel={onMinimapWheel} className="block">
-        <rect x={0} y={0} width={miniW} height={miniH} fill="#f8fafc" />
-        {edgesPathD && (
-          <path d={edgesPathD} stroke="#94a3b8" strokeWidth={1} strokeOpacity={0.6} fill="none" pointerEvents="none" shapeRendering="crispEdges" />
-        )}
-        {nodesPathD && (
-          <path d={nodesPathD} fill="#334155" stroke="none" pointerEvents="none" />
-        )}
-        {selEdgesPathD && (
-          <path d={selEdgesPathD} stroke={highlightColor} strokeWidth={1.5} strokeOpacity={0.9} fill="none" pointerEvents="none" shapeRendering="crispEdges" />
-        )}
-        {nbrNodesPathD && (
-          <path d={nbrNodesPathD} fill={palette.nodes.execution} stroke="none" pointerEvents="none" />
-        )}
-        {selNodesPathD && (
-          <path d={selNodesPathD} fill={highlightColor} stroke="none" pointerEvents="none" />
-        )}
-        <rect
-          x={viewRect.x}
-          y={viewRect.y}
-          width={viewRect.w}
-          height={viewRect.h}
-          fill="none"
-          stroke={highlightColor}
-          strokeWidth={1}
-          style={{ cursor: dragRef.current ? 'grabbing' : (hoverCenter ? 'grab' : 'auto'), touchAction: 'none' }}
-          onPointerDown={onRectPointerDown}
-          onPointerMove={onRectPointerMove}
-          onPointerUp={onRectPointerUp}
-          onPointerCancel={onRectPointerCancel}
-          onLostPointerCapture={onRectLostCapture}
-          onPointerEnter={(e) => {
-            const r = (e.currentTarget as SVGRectElement).getBoundingClientRect();
-            const lx = e.clientX - r.left;
-            const ly = e.clientY - r.top;
-            const near = isNearCenter(lx, ly);
-            setHoverCenter(near);
-            if (!(e.buttons & 1) || dragRef.current || !near) return;
-            onRectPointerEnter(e);
-          }}
-          onPointerLeave={onRectPointerLeave}
-          onMouseMove={onRectMouseMove}
-          onMouseLeave={onRectMouseLeave}
-        />
-        {hoverCenter && (
-          <g transform={`translate(${viewRect.x + viewRect.w / 2}, ${viewRect.y + viewRect.h / 2})`}>
-            <line x1={-6} y1={0} x2={6} y2={0} stroke={highlightColor} strokeWidth={1} />
-            <line x1={0} y1={-6} x2={0} y2={6} stroke={highlightColor} strokeWidth={1} />
-          </g>
-        )}
-      </svg>
-    </div>
+    <aside className="relative group" aria-label="Minimap">
+      <div className="rounded bg-white backdrop-blur-sm shadow border border-gray-200" style={{ opacity: minimapOpacity }}>
+        <svg width={miniW} height={miniH} onClick={onMinimapClick} onWheel={onMinimapWheel} className="block">
+          <rect x={0} y={0} width={miniW} height={miniH} fill="#f8fafc" />
+          {edgesPathD && (
+            <path d={edgesPathD} stroke="#94a3b8" strokeWidth={1} strokeOpacity={0.6} fill="none" pointerEvents="none" shapeRendering="crispEdges" />
+          )}
+          {nodesPathD && (
+            <path d={nodesPathD} fill="#334155" stroke="none" pointerEvents="none" />
+          )}
+          {selEdgesPathD && (
+            <path d={selEdgesPathD} stroke={highlightColor} strokeWidth={1.5} strokeOpacity={0.9} fill="none" pointerEvents="none" shapeRendering="crispEdges" />
+          )}
+          {nbrNodesPathD && (
+            <path d={nbrNodesPathD} fill={palette.nodes.execution} stroke="none" pointerEvents="none" />
+          )}
+          {selNodesPathD && (
+            <path d={selNodesPathD} fill={highlightColor} stroke="none" pointerEvents="none" />
+          )}
+          <rect
+            x={viewRect.x}
+            y={viewRect.y}
+            width={viewRect.w}
+            height={viewRect.h}
+            fill="none"
+            stroke={highlightColor}
+            strokeWidth={1}
+            style={{ cursor: dragRef.current ? 'grabbing' : (hoverCenter ? 'grab' : 'auto'), touchAction: 'none' }}
+            onPointerDown={onRectPointerDown}
+            onPointerMove={onRectPointerMove}
+            onPointerUp={onRectPointerUp}
+            onPointerCancel={onRectPointerCancel}
+            onLostPointerCapture={onRectLostCapture}
+            onPointerEnter={(e) => {
+              const r = (e.currentTarget as SVGRectElement).getBoundingClientRect();
+              const lx = e.clientX - r.left;
+              const ly = e.clientY - r.top;
+              const near = isNearCenter(lx, ly);
+              setHoverCenter(near);
+              if (!(e.buttons & 1) || dragRef.current || !near) return;
+              onRectPointerEnter(e);
+            }}
+            onPointerLeave={onRectPointerLeave}
+            onMouseMove={onRectMouseMove}
+            onMouseLeave={onRectMouseLeave}
+          />
+          {hoverCenter && (
+            <g transform={`translate(${viewRect.x + viewRect.w / 2}, ${viewRect.y + viewRect.h / 2})`}>
+              <line x1={-6} y1={0} x2={6} y2={0} stroke={highlightColor} strokeWidth={1} />
+              <line x1={0} y1={-6} x2={0} y2={6} stroke={highlightColor} strokeWidth={1} />
+            </g>
+          )}
+        </svg>
+      </div>
+      <button
+        onClick={() => setMinimapCollapsed(true)}
+        className="absolute top-1 right-1 p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Hide Minimap"
+      >
+        <Map size={14} />
+      </button>
+    </aside>
   );
 }
 

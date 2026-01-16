@@ -41,6 +41,8 @@ export type MonacoTextEditorProps = {
   themeMode: 'light' | 'dark'
   wordWrap?: boolean
   readOnly?: boolean
+  paddingTopPx?: number
+  paddingBottomPx?: number
   className?: string
   onContextMenuSelection?: (args: { startLine: number; endLine: number; text: string; event: Monaco.editor.IEditorMouseEvent }) => void
   onContextMenu?: (args: { startLine: number; endLine: number; text?: string; event: Monaco.editor.IEditorMouseEvent }) => void
@@ -67,6 +69,8 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     themeMode,
     wordWrap,
     readOnly,
+    paddingTopPx,
+    paddingBottomPx,
     className,
     onContextMenuSelection,
     onContextMenu,
@@ -201,8 +205,10 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
 
     const start = async () => {
       const monaco = await import('monaco-editor/esm/vs/editor/editor.api')
+      await import('monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution')
       const { ensureMonacoEnvironment } = await import('./monacoEnvironment')
       const { acquireTextModel } = await import('./monacoModelRegistry')
+      await import('monaco-editor/esm/vs/editor/contrib/stickyScroll/browser/stickyScrollContribution')
       if (cancelled) return
 
       ensureMonacoEnvironment()
@@ -230,6 +236,20 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
         fontLigatures: false,
         automaticLayout: true,
         contextmenu: true,
+        padding: {
+          top:
+            typeof paddingTopPx === 'number' && Number.isFinite(paddingTopPx) && paddingTopPx > 0
+              ? Math.floor(paddingTopPx)
+              : 0,
+          bottom:
+            typeof paddingBottomPx === 'number' && Number.isFinite(paddingBottomPx) && paddingBottomPx > 0
+              ? Math.floor(paddingBottomPx)
+              : 0,
+        },
+        stickyScroll: {
+          enabled: true,
+          maxLineCount: 5,
+        },
       })
 
       editorInstanceRef.current = editor
@@ -428,6 +448,8 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     readOnly,
     uri,
     wordWrap,
+    paddingTopPx,
+    paddingBottomPx,
   ])
 
   React.useEffect(() => {

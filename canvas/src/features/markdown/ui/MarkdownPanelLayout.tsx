@@ -1,9 +1,13 @@
 import React from 'react'
 import { MarkdownTableOfContents } from '@/features/markdown/ui/MarkdownTableOfContents'
-import { PanelLeftClose, PanelLeftOpen, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import type { TokenWithLines } from './markdownPreviewLex'
+import { slugify } from '@/features/parsers/markdownJsonLd'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import IconButton from '@/components/IconButton'
+import { getIconSizeClass } from '@/lib/ui'
 
 export type MarkdownPanelLayoutProps = {
   children: React.ReactNode
@@ -25,6 +29,8 @@ export type MarkdownPanelLayoutProps = {
   allCollapsed?: boolean
 }
 
+export type MarkdownViewerWidthMode = 'standard' | 'wide'
+
 export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
   const {
     children,
@@ -33,7 +39,6 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
     uiPanelKeyValueTextSizeClass,
     uiPanelMicroLabelTextSizeClass,
     showSidebar,
-    setShowSidebar,
     onTocSelect,
     onTocDoubleClick,
     onTocReorder,
@@ -47,7 +52,34 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
   } = props
 
   const [localAllCollapsed, setLocalAllCollapsed] = React.useState(false)
-  const allCollapsed = propsAllCollapsed ?? localAllCollapsed
+  const hasHeadings = React.useMemo(() => {
+    if (!tokens || tokens.length === 0) return false
+    for (const t of tokens) {
+      if (t.type === 'heading') return true
+    }
+    return false
+  }, [tokens])
+
+  const derivedAllCollapsed = React.useMemo(() => {
+    if (!onExpandAll && !onCollapseAll) return undefined
+    if (!tokens || !collapsedIds) return undefined
+
+    const allHeadingIds = new Set<string>()
+    tokens.forEach(t => {
+      if (t.type !== 'heading') return
+      const rawId = typeof t.id === 'string' ? t.id.trim() : ''
+      const id = rawId || slugify(String(t.text || ''))
+      if (id) allHeadingIds.add(id)
+    })
+
+    if (allHeadingIds.size === 0) return false
+    for (const id of allHeadingIds) {
+      if (!collapsedIds.has(id)) return false
+    }
+    return true
+  }, [collapsedIds, onCollapseAll, onExpandAll, tokens])
+
+  const allCollapsed = propsAllCollapsed ?? derivedAllCollapsed ?? localAllCollapsed
 
   const handleToggleAll = () => {
     if (allCollapsed) {
@@ -58,6 +90,10 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
       else setLocalAllCollapsed(true)
     }
   }
+
+  const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
+  const iconSizeClass = getIconSizeClass(uiIconScale)
 
   return (
     <section className={`flex flex-1 min-h-0 relative h-full ${className || ''}`}>
@@ -79,23 +115,19 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
               {UI_COPY.markdownPreviewContentsLabel}
             </h2>
             <div className="flex items-center gap-1">
-              <button
-                onClick={handleToggleAll}
-                className={`p-1 ${UI_THEME_TOKENS.button.hoverBg} rounded transition-colors`}
-                title={allCollapsed ? 'Expand All' : 'Collapse All'}
-              >
-                <ChevronDown
-                  size={14}
-                  className={`transition-transform duration-200 ${allCollapsed ? '-rotate-90' : ''} ${UI_THEME_TOKENS.text.secondary}`}
-                />
-              </button>
-              <button
-                onClick={() => setShowSidebar(false)}
-                className={`p-1 ${UI_THEME_TOKENS.button.hoverBg} rounded transition-colors`}
-                title="Close Sidebar"
-              >
-                <PanelLeftClose size={14} className={UI_THEME_TOKENS.text.secondary} />
-              </button>
+              {hasHeadings && (onExpandAll || onCollapseAll) && (
+                <IconButton
+                  className="App-toolbar__btn flex items-center justify-center"
+                  title={allCollapsed ? 'Expand All' : 'Collapse All'}
+                  onClick={handleToggleAll}
+                  showTooltip
+                >
+                  <ChevronDown
+                    className={`${iconSizeClass} transition-transform ${allCollapsed ? '' : 'rotate-180'}`}
+                    strokeWidth={uiIconStrokeWidth}
+                  />
+                </IconButton>
+              )}
             </div>
           </header>
           {tokens && (
@@ -117,17 +149,6 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 relative">
-        {!showSidebar && (
-          <div className="absolute top-2 left-2 z-10">
-            <button
-              onClick={() => setShowSidebar(true)}
-              className={`p-1.5 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded-md shadow-sm ${UI_THEME_TOKENS.button.hoverBg} transition-colors`}
-              title="Open Sidebar"
-            >
-              <PanelLeftOpen size={16} className={UI_THEME_TOKENS.text.secondary} />
-            </button>
-          </div>
-        )}
         {children}
       </main>
     </section>

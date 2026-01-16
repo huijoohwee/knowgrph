@@ -11,6 +11,37 @@ export type TocItem = {
   children: TocItem[]
 }
 
+export function getMarkdownViewerWidthWrapperClassName(
+  mode: 'standard' | 'wide' = 'wide',
+): string {
+  if (mode === 'standard') return 'w-full max-w-4xl mx-auto min-w-0'
+  return 'w-full max-w-none min-w-0'
+}
+
+export function getDefaultStickyHeadingTopPx(providedTopPx: number | undefined): number {
+  if (typeof providedTopPx === 'number' && Number.isFinite(providedTopPx)) {
+    return Math.max(0, providedTopPx)
+  }
+  return 0
+}
+
+export function getStickyHeadingCascadeOffsets(args: {
+  depth: number
+  cascadeBaseDepth: number
+  baseTopPx: number
+  markdownPresentationMode: boolean
+}): { topPx: number; zIndex: number } {
+  const safeDepth = Math.min(6, Math.max(1, args.depth || 1))
+  const safeCascadeBaseDepth = Math.min(6, Math.max(1, args.cascadeBaseDepth || 1))
+  const cascadeStepPx = args.markdownPresentationMode ? 60 : 52
+  const effectiveDepthIndex = Math.max(0, safeDepth - safeCascadeBaseDepth)
+  const cascadeTopPx = effectiveDepthIndex * cascadeStepPx
+  return {
+    topPx: Math.max(0, (Number.isFinite(args.baseTopPx) ? args.baseTopPx : 0) + cascadeTopPx),
+    zIndex: 30 - safeDepth,
+  }
+}
+
 export function buildTocTree(tokens: TokenWithLines[]): TocItem[] {
   const root: TocItem[] = []
   const stack: TocItem[] = []

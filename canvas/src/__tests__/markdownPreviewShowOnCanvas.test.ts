@@ -7,6 +7,15 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import type { GraphData } from '@/lib/graph/types'
 
+const findButtonByExactText = (rootEl: HTMLElement, label: string): HTMLButtonElement | null => {
+  const buttons = Array.from(rootEl.querySelectorAll('button'))
+  for (const btn of buttons) {
+    const text = (btn.textContent || '').trim()
+    if (text === label) return btn as HTMLButtonElement
+  }
+  return null
+}
+
 export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -135,7 +144,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
     rootEl.dispatchEvent(contextMenuEvent)
     await tick()
 
-    const menuButton = rootEl.querySelector('button') as HTMLButtonElement | null
+    const menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
     if (!menuButton) {
       throw new Error('Show on Canvas menu button not found')
     }
@@ -245,7 +254,7 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
     rootEl.dispatchEvent(contextMenuEvent)
     await tick()
 
-    const menuButton = rootEl.querySelector('button') as HTMLButtonElement | null
+    const menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
     if (!menuButton) {
       throw new Error('context menu button not found inside markdown preview root')
     }

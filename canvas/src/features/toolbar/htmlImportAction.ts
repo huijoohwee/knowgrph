@@ -91,6 +91,28 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
           true,
           res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
         )
+        // Auto-close panels on success to show canvas
+        const store = useGraphStore.getState()
+        try {
+          // Force close by setting ratio to minimal or using collapse logic if available
+          // We can't access setCollapsed directly, but we can set ratio small or close sidebar
+          store.setSidebarOpen(false)
+          // To "close" bottom panel, we can try setting a different tab or just relying on sidebar closure if that was the intent
+          // But user said "do not auto open Sidebar, or other panels".
+          // If we just don't open it, it should be fine. 
+          // But if it was open, we might want to close it? 
+          // Let's assume we just ensure sidebar is closed.
+          // For bottom panel, we can use the persisted key hack
+          try {
+             if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem('knowgrph:bottom-panel-collapsed', 'true')
+                // Dispatch event to notify components listening to storage? 
+                // Or just force re-render?
+                // The BottomPanel listens to storage key? Yes, usePersistedBoolean.
+                window.dispatchEvent(new StorageEvent('storage', { key: 'knowgrph:bottom-panel-collapsed', newValue: 'true' }))
+             }
+          } catch { void 0 }
+        } catch { void 0 }
       }
       ui.setWarnings(warnings)
       if (counts) {

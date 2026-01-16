@@ -4,7 +4,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { TokenWithLines } from './markdownPreviewLex'
 import { buildTocTree, findParent, type TocItem } from './markdownSectionUtils'
 
-// Constants matching Slides Gallery styles
 const UI_COLOR_PRIMARY_BLUE_INDICATOR = '#2563EB' // blue-600
 const UI_COLOR_PRIMARY_BLUE_BG = 'bg-blue-50'
 
@@ -142,7 +141,7 @@ function TocItemRenderer({
       <div
         className={[
           'group flex items-center gap-1 py-1 pr-2 rounded cursor-pointer select-none transition-colors relative',
-          isDragging ? `${UI_COLOR_PRIMARY_BLUE_BG} opacity-50` : `hover:${UI_THEME_TOKENS.table.rowHoverAmber} ${UI_THEME_TOKENS.table.rowHover}`,
+          isDragging ? `${UI_COLOR_PRIMARY_BLUE_BG} opacity-50` : `${UI_THEME_TOKENS.table.rowHoverAmber} ${UI_THEME_TOKENS.table.rowHover}`,
           uiPanelTextFontClass,
           uiPanelKeyValueTextSizeClass || 'text-xs',
           'leading-5',
@@ -162,11 +161,15 @@ function TocItemRenderer({
         onDrop={handleDrop}
       >
         {onReorder && (
-          <div className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-0.5 ${UI_THEME_TOKENS.text.tertiary} hover:${UI_THEME_TOKENS.text.secondary}`}>
+          <div className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-0.5 ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-600 dark:hover:text-gray-400`}>
             <GripVertical size={12} />
           </div>
         )}
-        
+
+        <span className={`truncate flex-1 ${UI_THEME_TOKENS.text.primary}`}>
+          {item.text}
+        </span>
+
         {hasChildren ? (
           <button
             type="button"
@@ -174,17 +177,13 @@ function TocItemRenderer({
               e.stopPropagation()
               onToggleCollapse?.(item.id)
             }}
-            className={`p-0.5 rounded ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.tertiary}`}
+            className={`p-0.5 rounded shrink-0 ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.tertiary}`}
           >
             {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </button>
         ) : (
-          <div className="w-4" />
+          <div className="w-4 shrink-0" aria-hidden="true" />
         )}
-        
-        <span className={`truncate flex-1 ${UI_THEME_TOKENS.text.primary}`}>
-          {item.text}
-        </span>
       </div>
       
       {hasChildren && !isCollapsed && (

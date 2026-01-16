@@ -3,6 +3,7 @@ import type { MarkdownSelectionInfo } from './markdownUtils'
 import { computeHighlightedLineRange } from './markdownUtils'
 import { useMarkdownScrollSync } from './useMarkdownScrollSync'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
+import { UI_LAYOUT } from '@/lib/config'
 
 export function useBottomPanelMarkdownSplitView(args: {
   markdownText: string
@@ -62,7 +63,7 @@ export function useBottomPanelMarkdownSplitView(args: {
     const updateMeasures = () => {
         const lh = handle.getLineHeight() || 16
         setLineHeightPx(lh)
-        setEditorPaddingTopPx(0)
+        setEditorPaddingTopPx(UI_LAYOUT.toolbarOffsetPx)
         setEditorPaddingBottomPx(0)
     }
 

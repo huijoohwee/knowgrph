@@ -58,20 +58,16 @@ export function useMarkdownPreviewLexedMarkdown(
 
   React.useEffect(() => {
     if (!shouldUpdateStore) return
-    
-    // Strict check to prevent infinite loops:
-    // Only update if the content/key has actually changed OR if we have new lexed tokens that differ from store.
-    // If the keys match, we trust the store (unless forced).
+
     const keysMatch = storedTokensKey === currentTokensKey
     const pathMatches = storedTokensPath === activeDocumentPath
-    
+
     if (keysMatch && pathMatches && !providedTokens) return
 
     if (
       !providedTokens &&
       lexed.tokens &&
-      (lexed.tokens !== storedTokens ||
-        !keysMatch ||
+      (!keysMatch ||
         !pathMatches ||
         storedTokensMeta !== lexed.meta ||
         storedTokensStartLineOffset !== lexed.startLineOffset)

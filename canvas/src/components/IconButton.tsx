@@ -47,7 +47,7 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     const inner = hasMultipleChildren ? (
       <span className="inline-flex items-center justify-center gap-2">{children}</span>
     ) : (
-      <span className="inline-flex items-center justify-center">{children}</span>
+      children
     )
 
     const button = (

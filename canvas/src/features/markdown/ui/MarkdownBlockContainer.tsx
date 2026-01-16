@@ -22,10 +22,6 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   children,
 }, ref) => {
   const cls = [className, highlightClass].filter(Boolean).join(' ')
-  
-  if (startLine === undefined) {
-    console.log('[DEBUG] MarkdownBlockContainer missing startLine', { as: String(Tag), id })
-  }
 
   return (
     <Tag
@@ -40,4 +36,3 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     </Tag>
   )
 })
-

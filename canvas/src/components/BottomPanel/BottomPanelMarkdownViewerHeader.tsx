@@ -1,5 +1,15 @@
 import React from 'react'
-import { Check, Edit3, LayoutPanelTop, Maximize2, MonitorPlay, WrapText } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  Check,
+  ChevronDown,
+  Columns,
+  Edit3,
+  Eye,
+  LayoutPanelTop,
+  MonitorPlay,
+  WrapText,
+} from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
@@ -20,6 +30,8 @@ export type ViewerHeaderRowProps = {
   uiIconStrokeWidth: number
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
+  markdownViewerWidthMode?: 'standard' | 'wide'
+  setMarkdownViewerWidthMode?: (next: 'standard' | 'wide') => void
   markdownWordWrap: boolean
   setMarkdownWordWrap: (next: boolean) => void
   wordWrapToggleTitle: string
@@ -41,15 +53,17 @@ export type ViewerHeaderRowProps = {
   presentationModeToggleTitle: string
   presentationModeOnTooltip: string
   presentationModeOffTooltip: string
-  fullscreenToggleTitle: string
-  fullscreenOnTooltip: string
-  fullscreenOffTooltip: string
   editToggleTitle: string
   editOnTooltip: string
   editOffTooltip: string
   isEditing: boolean
   onToggleEdit: () => void
   onFullscreenToggleRequested?: () => void
+  onExpandAll?: () => void
+  onCollapseAll?: () => void
+  allCollapsed?: boolean
+  showSidebar?: boolean
+  onToggleSidebar?: () => void
 }
 
 export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
@@ -61,6 +75,8 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     uiIconStrokeWidth,
     markdownTextHighlight,
     setMarkdownTextHighlight,
+    markdownViewerWidthMode,
+    setMarkdownViewerWidthMode,
     markdownWordWrap,
     setMarkdownWordWrap,
     wordWrapToggleTitle,
@@ -69,10 +85,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     annotateDisplayMode,
     setAnnotateDisplayMode,
     setMarkdownPresentationMode,
-    presentationApiRef,
     presentationSlideState,
-    markdownPreviewPrevButtonLabel,
-    markdownPreviewNextButtonLabel,
     textHighlightToggleTitle,
     textHighlightOnTooltip,
     textHighlightOffTooltip,
@@ -81,73 +94,92 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     presentationModeToggleTitle,
     presentationModeOnTooltip,
     presentationModeOffTooltip,
-    fullscreenToggleTitle,
-    fullscreenOnTooltip,
-    fullscreenOffTooltip,
     editToggleTitle,
     editOnTooltip,
     editOffTooltip,
     isEditing,
     onToggleEdit,
     onFullscreenToggleRequested,
+    onExpandAll,
+    onCollapseAll,
+    allCollapsed,
+    showSidebar,
+    onToggleSidebar,
   } = props
 
   return (
     <div className={['flex items-center justify-between gap-2', uiPanelKeyValueTextSizeClass, uiPanelTextFontClass].join(' ')}>
       <div className="flex items-center gap-2 min-w-0">
         {!markdownPresentationMode && (
-          <span className={`font-medium ${UI_THEME_TOKENS.text.secondary} select-none truncate`}>
-            {isEditing && props.editorTitle ? props.editorTitle : props.viewerTitle}
-          </span>
-        )}
-        {markdownPresentationMode && (
-          <>
-            <button
-              type="button"
-              className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
-              onClick={() => {
-                emitMarkdownPanelMetric('markdownPresentationPrevClicked', {
-                  activeIndex: presentationSlideState?.activeSlideIndex ?? null,
-                  slideCount: presentationSlideState?.slideCount ?? null,
-                })
-                presentationApiRef.current?.prev()
-              }}
-              disabled={
-                !presentationSlideState || presentationSlideState.activeSlideIndex <= 0
-              }
-            >
-              {markdownPreviewPrevButtonLabel}
-            </button>
-            <button
-              type="button"
-              className={`px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
-              onClick={() => {
-                emitMarkdownPanelMetric('markdownPresentationNextClicked', {
-                  activeIndex: presentationSlideState?.activeSlideIndex ?? null,
-                  slideCount: presentationSlideState?.slideCount ?? null,
-                })
-                presentationApiRef.current?.next()
-              }}
-              disabled={
-                !presentationSlideState ||
-                presentationSlideState.activeSlideIndex >=
-                  presentationSlideState.slideCount - 1
-              }
-            >
-              {markdownPreviewNextButtonLabel}
-            </button>
-            <div className={`ml-1 ${UI_THEME_TOKENS.text.secondary}`}>
-              {Math.min(
-                presentationSlideState?.slideCount ?? 1,
-                (presentationSlideState?.activeSlideIndex ?? 0) + 1,
-              )}{' '}
-              / {presentationSlideState?.slideCount ?? 1}
-            </div>
-          </>
+          <div className={`flex items-center gap-1.5 ${UI_THEME_TOKENS.text.secondary} select-none`}>
+            {isEditing ? (
+              <>
+                {onToggleSidebar && (
+                  <IconButton
+                    className={`p-0.5 rounded-sm hover:bg-gray-200 dark:hover:bg-gray-700 ${showSidebar ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                    onClick={onToggleSidebar}
+                    title={showSidebar ? 'Close Sidebar' : 'Open Sidebar'}
+                  >
+                    <LayoutPanelTop className="w-3.5 h-3.5 rotate-90" strokeWidth={1.5} />
+                  </IconButton>
+                )}
+                <Edit3 className="w-4 h-4" strokeWidth={1.5} />
+                <span className="font-medium truncate">{props.editorTitle}</span>
+              </>
+            ) : (
+              <>
+                {onToggleSidebar && (
+                  <IconButton
+                    className={`p-0.5 rounded-sm hover:bg-gray-200 dark:hover:bg-gray-700 ${showSidebar ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                    onClick={onToggleSidebar}
+                    title={showSidebar ? 'Close Sidebar' : 'Open Sidebar'}
+                  >
+                    <LayoutPanelTop className="w-3.5 h-3.5 rotate-90" strokeWidth={1.5} />
+                  </IconButton>
+                )}
+                <Eye className="w-4 h-4" strokeWidth={1.5} />
+                <span className="font-medium truncate">{props.viewerTitle}</span>
+              </>
+            )}
+          </div>
         )}
       </div>
       <nav className="flex items-center gap-1" aria-label="Markdown Toolbar">
+        {!markdownPresentationMode && !isEditing && (
+          <div className={`flex items-center mr-1 ${UI_THEME_TOKENS.badge.chip} p-0.5`}>
+            <div className={`px-1 ${UI_THEME_TOKENS.text.tertiary}`}>
+               <ArrowLeftRight className="w-3 h-3" strokeWidth={1.5} />
+            </div>
+            <button
+              type="button"
+              className={[
+                'px-2 py-0.5 text-[10px] rounded-sm transition-colors',
+                markdownViewerWidthMode === 'standard'
+                  ? `${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.activeText}`
+                  : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+              ].join(' ')}
+              onClick={() => setMarkdownViewerWidthMode?.('standard')}
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              className={[
+                'px-2 py-0.5 text-[10px] rounded-sm transition-colors',
+                markdownViewerWidthMode === 'wide'
+                  ? `${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.activeText}`
+                  : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+              ].join(' ')}
+              onClick={() => setMarkdownViewerWidthMode?.('wide')}
+            >
+              Wide
+            </button>
+          </div>
+        )}
         <div className={`flex items-center mr-1 ${UI_THEME_TOKENS.badge.chip} p-0.5`}>
+          <div className={`px-1 ${UI_THEME_TOKENS.text.tertiary}`}>
+             <Columns className="w-3 h-3" strokeWidth={1.5} />
+          </div>
           <button
             type="button"
             name="annotate-display"
@@ -220,6 +252,26 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
         >
           <WrapText className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
+        {!markdownPresentationMode && (onExpandAll || onCollapseAll) && typeof allCollapsed === 'boolean' && (
+          <IconButton
+            className={`App-toolbar__btn flex items-center justify-center ${uiPrimaryIconInactiveClassName}`}
+            title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+            tooltipContent={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+            onClick={() => {
+              if (allCollapsed) {
+                onExpandAll?.()
+              } else {
+                onCollapseAll?.()
+              }
+            }}
+            showTooltip
+          >
+            <ChevronDown
+              className={`${iconSizeClass} transition-transform ${allCollapsed ? '' : 'rotate-180'}`}
+              strokeWidth={uiIconStrokeWidth}
+            />
+          </IconButton>
+        )}
         <IconButton
           className={`App-toolbar__btn flex items-center justify-center ${
             isEditing ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
@@ -243,7 +295,11 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           }
           onClick={() => {
             const next = !markdownPresentationMode
-            setMarkdownPresentationMode(next)
+            if (next && onFullscreenToggleRequested) {
+              onFullscreenToggleRequested()
+            } else {
+              setMarkdownPresentationMode(next)
+            }
             emitMarkdownPanelMetric('markdownPresentationModeToggled', {
               enabled: next,
               slideCount: presentationSlideState?.slideCount ?? null,
@@ -252,32 +308,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           showTooltip
         >
           <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-        </IconButton>
-        <IconButton
-          className="App-toolbar__btn flex items-center justify-center"
-          title={fullscreenToggleTitle}
-          tooltipContent={markdownPresentationMode ? fullscreenOnTooltip : fullscreenOffTooltip}
-          onClick={() => {
-            if (!markdownPresentationMode) {
-              if (onFullscreenToggleRequested) {
-                onFullscreenToggleRequested()
-              } else {
-                setMarkdownPresentationMode(true)
-              }
-              emitMarkdownPanelMetric('markdownPresentationModeToggled', {
-                enabled: true,
-                slideCount: presentationSlideState?.slideCount ?? null,
-              })
-            } else {
-              presentationApiRef.current?.enterFullscreen?.()
-            }
-            emitMarkdownPanelMetric('markdownFullscreenToggleRequested', {
-              enabled: true,
-            })
-          }}
-          showTooltip
-        >
-          <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
       </nav>
     </div>

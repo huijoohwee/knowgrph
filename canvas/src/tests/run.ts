@@ -446,7 +446,15 @@ export const runAllTests = async () => {
       modFrontmatterToggle.testFrontmatterModeCanvasToggleFiltersNodesAndEdgesFor2dAnd3d,
     )
 
-    if (typeof modFrontmatterToggle.testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo === 'function') {
+    const enableMicrobench =
+      process.env.KG_RUN_MICROBENCH === '1' ||
+      process.env.KG_RUN_MICROBENCH === 'true' ||
+      process.env.KG_RUN_MICROBENCH === 'yes'
+
+    if (
+      enableMicrobench &&
+      typeof modFrontmatterToggle.testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo === 'function'
+    ) {
       await exec(
         'graph.frontmatterMode.hullMicrobenchmark.markdownSlideDemo',
         modFrontmatterToggle.testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo,

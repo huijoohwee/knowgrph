@@ -18,8 +18,7 @@ import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/c
 import type { BottomTab } from '@/features/bottom-panel/open'
 import { useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { useMarkdownApply } from './hooks/useMarkdownApply'
-import { useJsonMarkdown, type JsonMarkdownMode } from './hooks/useJsonMarkdown'
-import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import { useJsonMarkdown } from './hooks/useJsonMarkdown'
 
 export type MarkdownLayoutMode = 'split' | 'editor' | 'viewer'
 
@@ -91,6 +90,18 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
   React.useEffect(() => {
     lsSetJson<MarkdownLayoutMode>(LS_KEYS.markdownLayoutMode, markdownLayoutMode)
   }, [markdownLayoutMode])
+
+  const [markdownViewerWidthMode, setMarkdownViewerWidthMode] = React.useState<'standard' | 'wide'>(() =>
+    lsJson<'standard' | 'wide'>(
+      LS_KEYS.markdownViewerWidthMode,
+      'standard',
+      value => (value === 'standard' || value === 'wide' ? value : 'standard'),
+    ),
+  )
+
+  React.useEffect(() => {
+    lsSetJson<'standard' | 'wide'>(LS_KEYS.markdownViewerWidthMode, markdownViewerWidthMode)
+  }, [markdownViewerWidthMode])
 
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
@@ -328,6 +339,8 @@ export function BottomPanelMarkdownSection(props: BottomPanelMarkdownSectionProp
       markdownPresentationMode={markdownPresentationMode}
       markdownLayoutMode={markdownLayoutMode}
       setMarkdownLayoutMode={setMarkdownLayoutMode}
+      markdownViewerWidthMode={markdownViewerWidthMode}
+      setMarkdownViewerWidthMode={setMarkdownViewerWidthMode}
       annotateDisplayMode={annotateDisplayMode}
       setAnnotateDisplayMode={setAnnotateDisplayMode}
       iconSizeClass={iconSizeClass}

@@ -27,9 +27,6 @@ type UseMarkdownSectionLogicProps = {
   setSelectionSource: (source: 'editor' | 'canvas' | 'table') => void
   setMarkdownText: (next: string) => void
   setMarkdownDocument: (name: string | null, text: string) => void
-  editorRowStartByLine: Record<number, number>
-  lineHeightPx: number
-  editorPaddingTopPx: number
 }
 
 export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
@@ -48,9 +45,6 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
     setSelectionSource,
     setMarkdownText,
     setMarkdownDocument,
-    editorRowStartByLine,
-    lineHeightPx,
-    editorPaddingTopPx,
   } = props
 
   const [showSidebar, setShowSidebar] = React.useState(true)
@@ -253,9 +247,7 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
       if (!handle) return
 
       const run = () => {
-        // Use handle method directly
-        const top = handle.getTopForLineNumber(pendingScrollLine)
-        handle.setScrollTop(top)
+        handle.revealLine(pendingScrollLine)
         setPendingScrollLine(null)
       }
 
@@ -326,7 +318,7 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
         }
       }
     }
-  }, [pendingScrollLine, editorRowStartByLine, lineHeightPx, editorPaddingTopPx, editorTextAreaRef, markdownLayoutMode, viewerRef])
+  }, [pendingScrollLine, editorTextAreaRef, markdownLayoutMode, viewerRef])
 
   React.useEffect(() => {
     try {
@@ -376,18 +368,29 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
     setCollapsedIds(new Set())
   }, [])
 
-  const handleCollapseAll = React.useCallback(() => {
+  const allHeadingIds = React.useMemo(() => {
     const allIds = new Set<string>()
     tokens.forEach(t => {
       if (t.type === 'heading') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const h = t as any
+        const h = t as unknown as { id?: string; text?: string }
         const id = h.id || slugify(h.text || '')
         if (id) allIds.add(id)
       }
     })
-    setCollapsedIds(allIds)
+    return allIds
   }, [tokens])
+
+  const handleCollapseAll = React.useCallback(() => {
+    setCollapsedIds(allHeadingIds)
+  }, [allHeadingIds])
+
+  const allCollapsed = React.useMemo(() => {
+    if (allHeadingIds.size === 0) return undefined
+    for (const id of allHeadingIds) {
+      if (!collapsedIds.has(id)) return false
+    }
+    return true
+  }, [allHeadingIds, collapsedIds])
 
   const handleTocSelect = React.useCallback(
     (id: string) => {
@@ -436,6 +439,7 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
     handleToggleCollapse,
     handleExpandAll,
     handleCollapseAll,
+    allCollapsed,
     handleTocSelect,
     handleTocReorder,
     handleClickFrontmatterMermaidHint,

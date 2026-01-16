@@ -431,6 +431,7 @@ export default function BottomPanel() {
         <div ref={headerRef}>
           <BottomPanelHeader
             collapsed={collapsed}
+            bottomPanelHeightRatio={bottomPanelHeightRatio}
             tab={tab}
             isGraphJsonView={isGraphJsonTab}
             startTransition={startTransition}

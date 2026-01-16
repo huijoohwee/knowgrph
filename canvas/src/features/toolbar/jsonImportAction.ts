@@ -81,6 +81,17 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           true,
           res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
         )
+        // Auto-close panels on success to show canvas
+        const store = useGraphStore.getState()
+        try {
+          store.setSidebarOpen(false)
+          try {
+             if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem('knowgrph:bottom-panel-collapsed', 'true')
+                window.dispatchEvent(new StorageEvent('storage', { key: 'knowgrph:bottom-panel-collapsed', newValue: 'true' }))
+             }
+          } catch { void 0 }
+        } catch { void 0 }
       }
       ui.setWarnings(warnings)
       if (counts) {

@@ -310,7 +310,7 @@ export async function testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo(
         `mode=${r.mode}, groups=${r.groupCount}, totalPoints=${r.totalPointCount}, maxPointsPerGroup=${r.maxPointsPerGroup}`,
     )
     .join(' | ')
-  console.log(`frontmatter markdown-slide-demo hull micro-benchmark: ${summary}`)
+  void summary
 }
 
 export async function testFrontmatterModeGraphLayersHideMermaidSubgraphNodesIn2dLayer() {

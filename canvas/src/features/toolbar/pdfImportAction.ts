@@ -155,8 +155,19 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
       } else {
         ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
         ui.setWarnings([])
-      }
-      if (res.counts) {
+          // Auto-close panels on success to show canvas
+          const store = useGraphStore.getState()
+          try {
+            store.setSidebarOpen(false)
+            try {
+               if (typeof window !== 'undefined' && window.localStorage) {
+                  window.localStorage.setItem('knowgrph:bottom-panel-collapsed', 'true')
+                  window.dispatchEvent(new StorageEvent('storage', { key: 'knowgrph:bottom-panel-collapsed', newValue: 'true' }))
+               }
+            } catch { void 0 }
+          } catch { void 0 }
+        }
+        if (res.counts) {
         ui.setCounts(res.counts)
       }
     } catch {

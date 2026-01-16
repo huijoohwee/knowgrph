@@ -5,6 +5,8 @@ export const execTest = async (
   name: string,
   fn: () => void | Promise<void>,
 ) => {
+  const filter = process.argv.slice(2).find(arg => !arg.startsWith('-'))
+  if (filter && !name.toLowerCase().includes(filter.toLowerCase())) return
   try {
     console.log(`RUN ${name}`)
     const timeoutMs = 120_000

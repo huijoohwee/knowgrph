@@ -124,7 +124,7 @@ const buildSlideFooter = (args: {
   if (meta.themeStyle === 'academic') {
     return (
       <div
-        className={`absolute bottom-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
+        className={`fixed bottom-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
       >
         <div className="min-w-0 flex items-center gap-4">
           {meta.meeting && (
@@ -152,24 +152,114 @@ const buildSlideFooter = (args: {
     )
   }
 
-  return (
-    <footer
-      className={`absolute bottom-0 left-0 w-full px-4 py-2 text-[10px] ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.panel.bg} border-t ${UI_THEME_TOKENS.panel.border} flex justify-between items-center z-10 ${uiPanelTextFontClass}`}
-    >
+  const footer = (
+    <footer className="fixed bottom-0 left-0 w-full px-4 py-2 text-[10px] text-gray-500 dark:text-gray-500 bg-white dark:bg-[#0d1117] border-t border-gray-200 dark:border-gray-700 flex justify-between items-center z-10 font-sans">
       <div className="flex gap-3">
-        {meta.meeting && <span className={`font-medium ${UI_THEME_TOKENS.text.secondary}`}>{meta.meeting}</span>}
-        {meta.venue && <span>{meta.venue}</span>}
-        {meta.institution && <span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>{meta.institution}</span>}
-        {meta.date && <span>{meta.date}</span>}
+        {!!meta.meeting && <span>{meta.meeting}</span>}
+        {!!meta.venue && <span>{meta.venue}</span>}
+        {!!meta.institution && <span>{meta.institution}</span>}
+        {!!meta.date && <span>{meta.date}</span>}
       </div>
       <div className="flex gap-3">
         {meta.authors.length > 0 && <span>{meta.authors.join(', ')}</span>}
-        {meta.url && <span className="opacity-75">{meta.url}</span>}
+        {!!meta.url && (
+          <a
+            href={meta.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline text-blue-600 dark:text-blue-400"
+          >
+            {meta.url.replace(/^https?:\/\//, '')}
+          </a>
+        )}
       </div>
       <div className="font-mono opacity-60">
         {page} / {total}
       </div>
     </footer>
+  )
+
+  return footer
+}
+
+const getSlidePrimaryHeading = (slideText: string): string => {
+  const lines = splitMarkdownLines(String(slideText || ''))
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = lines[i] || ''
+    const trimmed = raw.trim()
+    if (!trimmed.startsWith('#')) continue
+    const heading = trimmed.replace(/^#+\s*/, '').trim()
+    if (!heading) continue
+    if (heading.length <= 80) return heading
+    return `${heading.slice(0, 77)}...`
+  }
+  return ''
+}
+
+const buildSlideHeader = (args: {
+  meta: SlideVisualMeta
+  heading: string
+  page: number
+  total: number
+  uiPanelTextFontClass: string
+}): React.ReactNode => {
+  const { meta, heading, page, total, uiPanelTextFontClass } = args
+  if (
+    !heading &&
+    !meta.authors.length &&
+    !meta.meeting &&
+    !meta.date &&
+    !meta.venue &&
+    !meta.url &&
+    !meta.institution &&
+    meta.themeStyle !== 'academic'
+  )
+    return null
+
+  if (meta.layout === 'cover' || meta.layout === 'intro') return null
+
+  if (meta.themeStyle === 'academic') {
+    return (
+      <div
+        className={`absolute top-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs ${UI_THEME_TOKENS.panel.bg}/95 border-b ${UI_THEME_TOKENS.panel.border} z-20 ${uiPanelTextFontClass}`}
+      >
+        <div className="min-w-0 flex items-center gap-4">
+          {heading ? (
+            <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
+              {heading}
+            </span>
+          ) : meta.meeting ? (
+            <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
+              {meta.meeting}
+            </span>
+          ) : null}
+        </div>
+        <div className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
+          <span className={`font-mono ${UI_THEME_TOKENS.text.tertiary} tabular-nums`}>
+            {page} <span className={`mx-1 ${UI_THEME_TOKENS.text.tertiary}`}>/</span> {total}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <header
+      className={[
+        'fixed top-0 left-0 w-full px-4 py-2 text-[10px] border-b flex justify-between items-center z-20 font-sans',
+        UI_THEME_TOKENS.text.tertiary,
+        UI_THEME_TOKENS.panel.bg,
+        UI_THEME_TOKENS.panel.border,
+      ].join(' ')}
+    >
+      <div className="flex gap-3 min-w-0">
+        {heading ? <span className="truncate">{heading}</span> : null}
+        {!heading && meta.meeting ? <span className="truncate">{meta.meeting}</span> : null}
+      </div>
+      <div className="font-mono opacity-60">
+        {page} / {total}
+      </div>
+    </header>
   )
 }
 
@@ -180,7 +270,9 @@ const buildTokenRendererProps = (
     textColor: string | null
     underlineColor: string | null
     backgroundColor: string | null
-  }> | null
+  }> | null,
+  stickyHeadingTopClass?: string,
+  stickyHeadingTopPx?: number,
 ) => ({
   tokens,
   activeDocumentPath: common.activeDocumentPath,
@@ -203,6 +295,8 @@ const buildTokenRendererProps = (
   fragmentStep: common.activeFragmentStep,
   fragmentClassNames: common.activeFragmentConfig.classNames,
   fragmentTags: common.activeFragmentConfig.tags,
+  stickyHeadingTopClass,
+  stickyHeadingTopPx,
 })
 
 export const getSlideTextBodyAndNotes = (
@@ -416,6 +510,16 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   
   const visualMeta = getSlideVisualMeta(slideMeta, headMetaRecord, uiPanelTextFontClass)
   const { layout } = visualMeta
+  const stickyHeadingTopClass = 'top-[33px]'
+  const slideHeading = getSlidePrimaryHeading(currentSlide.text)
+  const headerNode = buildSlideHeader({
+    meta: visualMeta,
+    heading: slideHeading,
+    page: safeActiveSlideId + 1,
+    total: slides.length,
+    uiPanelTextFontClass,
+  })
+  const stickyHeadingTopPx = 33
 
   const slideMermaidConfig = parseMermaidConfigFromFrontmatter(currentSlide.meta || {})
   const effectiveMermaidConfig = slideMermaidConfig || mermaidFrontmatterConfig
@@ -428,26 +532,45 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
     
     content = (
       <div className="w-full h-full grid grid-cols-2 gap-8">
-        <div className="w-full h-full px-8 py-8 pb-14 overflow-auto">
+        <div className="w-full h-full px-8 pt-10 pb-14 overflow-auto">
           <MarkdownTokenRenderer
-            {...buildTokenRendererProps(twoColumnTokens.left, args, leftHighlights)}
+            {...buildTokenRendererProps(twoColumnTokens.left, args, leftHighlights, stickyHeadingTopClass, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </div>
-        <div className="w-full h-full px-8 py-8 pb-14 overflow-auto">
+        <div className="w-full h-full px-8 pt-10 pb-14 overflow-auto">
           <MarkdownTokenRenderer
-            {...buildTokenRendererProps(twoColumnTokens.right, args, rightHighlights)}
+            {...buildTokenRendererProps(twoColumnTokens.right, args, rightHighlights, stickyHeadingTopClass, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </div>
       </div>
     )
   } else if (slideTokens) {
+    const slideOuterClass =
+      layout === 'center'
+        ? 'w-full h-full flex flex-col items-center justify-center relative'
+        : 'w-full h-full flex flex-col relative'
+    const slideContentClass =
+      layout === 'center'
+        ? 'flex-1 min-h-0 w-full max-w-full overflow-y-auto px-16 py-12 mx-auto flex flex-col items-center justify-center pb-16'
+        : 'flex-1 min-h-0 w-full px-16 py-12 overflow-y-auto pb-16'
+
     content = (
-      <MarkdownTokenRenderer
-        {...buildTokenRendererProps(slideTokens, args, buildAlwaysOnTokenHighlights(slideTokens))}
-        mermaidFrontmatterConfig={effectiveMermaidConfig}
-      />
+      <div className={slideOuterClass}>
+        <div className={slideContentClass}>
+          <MarkdownTokenRenderer
+            {...buildTokenRendererProps(
+              slideTokens,
+              args,
+              buildAlwaysOnTokenHighlights(slideTokens),
+              stickyHeadingTopClass,
+              stickyHeadingTopPx,
+            )}
+            mermaidFrontmatterConfig={effectiveMermaidConfig}
+          />
+        </div>
+      </div>
     )
   }
 
@@ -455,6 +578,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
 
   return (
     <div className="w-full h-full relative pb-14">
+      {headerNode}
       {content}
       {buildSlideFooter({ meta: visualMeta, page: safeActiveSlideId + 1, total: slides.length, uiPanelTextFontClass })}
     </div>
@@ -501,6 +625,8 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     backgroundSize: backgroundSizePreview,
     backgroundPosition: backgroundPositionPreview,
   } = getSlideVisualMeta(slideMeta, headMetaRecord, uiPanelTextFontClass)
+  const stickyHeadingTopClass = 'top-0'
+  const stickyHeadingTopPx = 0
   const slideStylePreview = buildBackgroundStyle(
     backgroundRawPreview,
     backgroundSizePreview,
@@ -546,12 +672,12 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
         <div className="w-full h-full grid grid-cols-2 gap-2">
           <div className="w-full h-full px-2 py-2 overflow-hidden">
             <MarkdownTokenRenderer
-              {...buildTokenRendererProps(leftTokens, commonProps, null)}
+              {...buildTokenRendererProps(leftTokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}
             />
           </div>
           <div className="w-full h-full px-2 py-2 overflow-hidden">
             <MarkdownTokenRenderer
-              {...buildTokenRendererProps(rightTokens, commonProps, null)}
+              {...buildTokenRendererProps(rightTokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}
             />
           </div>
         </div>
@@ -564,10 +690,14 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
       : 'w-full h-full flex'
   const slideContentClassPreview =
     layoutPreview === 'center'
-      ? 'max-w-full max-h-full px-4 py-3 overflow-hidden mx-auto flex items-center justify-center'
-      : 'w-full h-full px-4 py-3 overflow-hidden'
+      ? 'max-w-full max-h-full px-4 py-3 overflow-hidden mx-auto flex items-center justify-center pb-8'
+      : 'w-full h-full px-4 py-3 overflow-hidden pb-8'
   const tokens = fullDocTokens
-    ? fullDocTokens.filter(t => t.startLine >= slide.startLine && t.endLine <= slide.endLine)
+    ? fullDocTokens.filter(t => {
+        const startLine = typeof t.startLine === 'number' ? t.startLine : 0
+        const endLine = typeof t.endLine === 'number' ? t.endLine : startLine
+        return startLine >= slide.startLine && endLine <= slide.endLine
+      })
     : lexMarkdownContent(text, Math.max(0, (slide.startLine || 1) - 1)).tokens
   if (!tokens || !tokens.length) return null
   return (
@@ -581,7 +711,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
       <div className={slideOuterClassPreview}>
         <div className={slideContentClassPreview}>
           <MarkdownTokenRenderer
-            {...buildTokenRendererProps(tokens, commonProps, null)}
+            {...buildTokenRendererProps(tokens, commonProps, null, stickyHeadingTopClass, stickyHeadingTopPx)}
           />
         </div>
       </div>

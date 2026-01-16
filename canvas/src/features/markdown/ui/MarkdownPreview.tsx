@@ -48,6 +48,8 @@ type MarkdownPreviewProps = {
   highlightBackgroundColor?: string | null
   highlightUnderlineColor?: string | null
   selectionId?: string | null
+  stickyHeadingTopClass?: string
+  stickyHeadingTopPx?: number
   alwaysOnHighlightMode?: boolean
   presentationApiRef?: React.MutableRefObject<MarkdownPreviewPresentationApi | null>
   onPresentationSlideStateChange?: (state: MarkdownPreviewPresentationSlideState) => void
@@ -77,6 +79,7 @@ type MarkdownPreviewProps = {
   onShowInGraphDataTable?: (line: number) => void
   annotateDisplayMode?: 'inline' | 'beside'
   flashLine?: number | null
+  markdownViewerWidthMode?: 'standard' | 'wide'
 }
 
 const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(function MarkdownPreview(
@@ -91,6 +94,8 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     highlightBackgroundColor,
     highlightUnderlineColor,
     selectionId,
+    stickyHeadingTopClass,
+    stickyHeadingTopPx,
     alwaysOnHighlightMode = false,
     presentationApiRef,
     onPresentationSlideStateChange,
@@ -120,6 +125,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     onShowInGraphDataTable,
     annotateDisplayMode,
     flashLine,
+    markdownViewerWidthMode,
   },
   ref,
 ) {
@@ -401,6 +407,8 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       selectionKind={selectionKind || null}
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+      stickyHeadingTopClass={stickyHeadingTopClass}
+      stickyHeadingTopPx={stickyHeadingTopPx}
       mermaidFrontmatterConfig={mermaidFrontmatterConfig as Record<string, unknown> | null}
       rootThemeMode={rootThemeMode}
       previewOverlayScope={previewOverlayScope}
@@ -430,6 +438,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       codeAnnotations={codeAnnotations}
       annotateDisplayMode={annotateDisplayMode}
       flashLine={flashLine}
+      markdownViewerWidthMode={markdownViewerWidthMode}
     />
   )
 })

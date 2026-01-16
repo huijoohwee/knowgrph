@@ -51,6 +51,13 @@ export default function PreviewGallery({
   const dragImageActiveBadgeRef = React.useRef<HTMLDivElement | null>(null)
 
   const ids = React.useMemo(() => items.map(i => i.id), [items])
+  const isDomNode = React.useCallback((v: unknown): v is Node => {
+    try {
+      return typeof Node !== 'undefined' && v instanceof Node
+    } catch {
+      return false
+    }
+  }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (!onSelectedIdsChange || !selectedIds) return
@@ -444,7 +451,8 @@ export default function PreviewGallery({
                   if (onHighlightChange) onHighlightChange(null)
                 }}
                 onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  const related = e.relatedTarget
+                  if (!isDomNode(related) || !e.currentTarget.contains(related)) {
                     setDragOverId(null)
                     setHighlightId(null)
                     if (onHighlightChange) onHighlightChange(null)
@@ -457,7 +465,8 @@ export default function PreviewGallery({
                 }}
                 onMouseLeave={(e) => {
                   if (draggingId) return
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  const related = e.relatedTarget
+                  if (!isDomNode(related) || !e.currentTarget.contains(related)) {
                     setHighlightId(null)
                     if (onHighlightChange) onHighlightChange(null)
                   }

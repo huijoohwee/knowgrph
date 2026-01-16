@@ -56,11 +56,14 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     if (tt.type === 'text') {
       const text = String((t as unknown as TokensText).text || '')
       if (insideLink) {
-        return <span key={key}>{text}</span>
+        return <React.Fragment key={key}>{text}</React.Fragment>
       }
       const parts = splitPlainUrls(text)
+      if (parts.length === 1 && parts[0]?.kind === 'text') {
+        return <React.Fragment key={key}>{parts[0].value}</React.Fragment>
+      }
       return (
-        <span key={key}>
+        <React.Fragment key={key}>
           {parts.map((p, j) => {
             const k = `${key}:${j}`
             if (p.kind !== 'url') return <React.Fragment key={k}>{p.value}</React.Fragment>
@@ -81,7 +84,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
               </a>
             )
           })}
-        </span>
+        </React.Fragment>
       )
     }
     if (tt.type === 'strong') {

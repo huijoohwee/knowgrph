@@ -8,11 +8,12 @@ type MarkdownEditorPaneProps = {
   markdownText: string
   markdownDocumentName: string | null
   markdownWordWrap: boolean
+  editorPaddingTopPx?: number
   setMarkdownText: (next: string) => void
   setMarkdownDocument: (name: string | null, text: string) => void
   onShowOnCanvas: (startLine: number, endLine: number) => void
   onShowInViewer: (line: number) => void
-  onShowInPresentation: () => void
+  onShowInPresentation: (line: number) => void
   onShowInSlidesGallery: (line: number) => void
   onShowInGraphDataTable: (line: number) => void
   triggerJump: (line: number) => void
@@ -26,6 +27,7 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
     markdownText,
     markdownDocumentName,
     markdownWordWrap,
+    editorPaddingTopPx,
     setMarkdownText,
     setMarkdownDocument,
     onShowOnCanvas,
@@ -107,6 +109,7 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
         uri={`file:///${markdownDocumentName || 'readme.md'}`}
         themeMode={themeMode}
         wordWrap={markdownWordWrap}
+        paddingTopPx={editorPaddingTopPx}
         className="flex-1 h-full min-w-0"
         onChange={next => {
           setMarkdownText(next)

@@ -1,4 +1,3 @@
-import { runAllTests } from '@/tests/run'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -95,6 +94,7 @@ if (!g.ResizeObserver) {
 }
 
 async function main() {
+  const { runAllTests } = await import('@/tests/run')
   const startedAt = Date.now()
   const results = await runAllTests()
   const finishedAt = Date.now()

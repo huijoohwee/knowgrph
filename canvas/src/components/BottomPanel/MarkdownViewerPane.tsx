@@ -17,6 +17,7 @@ type MarkdownViewerPaneProps = {
   markdownWordWrap: boolean
   markdownPresentationMode: boolean
   markdownTextHighlight: boolean
+  stickyHeadingTopPx?: number
   selectionInfo: MarkdownSelectionInfo | null
   flashSelectionId: string | null
   presentationApiRef: React.RefObject<MarkdownPreviewPresentationApi | null>
@@ -31,6 +32,16 @@ type MarkdownViewerPaneProps = {
   uiPanelKeyValueTextSizeClass: string
   flashLine?: number | null
   tokens?: TokenWithLines[]
+  markdownViewerWidthMode?: 'standard' | 'wide'
+  showSidebar?: boolean
+  onToggleSidebar?: (show: boolean) => void
+  collapsedIds?: Set<string>
+  onToggleCollapse?: (id: string) => void
+  onExpandAll?: () => void
+  onCollapseAll?: () => void
+  onTocSelect?: (id: string) => void
+  onTocDoubleClick?: (id: string) => void
+  onTocReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
 }
 
 export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
@@ -43,6 +54,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
     markdownWordWrap,
     markdownPresentationMode,
     markdownTextHighlight,
+    stickyHeadingTopPx,
     selectionInfo,
     flashSelectionId,
     presentationApiRef,
@@ -57,19 +69,30 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
     uiPanelKeyValueTextSizeClass,
     flashLine,
     tokens,
+    markdownViewerWidthMode,
+    showSidebar,
+    onToggleSidebar,
+    collapsedIds,
+    onToggleCollapse,
+    onExpandAll,
+    onCollapseAll,
+    onTocSelect,
+    onTocDoubleClick,
+    onTocReorder,
   } = props
 
   return (
     <article className="flex-1 min-h-0 flex flex-col w-full max-w-none">
       {isMarkdownPreviewTruncated && (
-        <div
+        <aside
           className={[
             uiPanelKeyValueTextSizeClass,
             `px-2 py-1 border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.headerBg} text-[10px] ${UI_THEME_TOKENS.text.tertiary}`,
           ].join(' ')}
+          role="note"
         >
           {UI_COPY.markdownPreviewTruncatedHelperText}
-        </div>
+        </aside>
       )}
       <MarkdownPreview
         ref={viewerRef}
@@ -79,6 +102,7 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
         markdownWordWrap={markdownWordWrap}
         markdownPresentationMode={markdownPresentationMode}
         markdownTextHighlight={markdownTextHighlight}
+        stickyHeadingTopPx={stickyHeadingTopPx}
         selectionKind={selectionInfo?.kind}
         highlightBackgroundColor={selectionInfo?.highlightBackgroundColor}
         highlightUnderlineColor={selectionInfo?.highlightUnderlineColor}
@@ -94,6 +118,16 @@ export function MarkdownViewerPane(props: MarkdownViewerPaneProps) {
         onScroll={handleViewerScroll}
         flashLine={flashLine}
         tokens={tokens}
+        markdownViewerWidthMode={markdownViewerWidthMode}
+        showSidebar={showSidebar}
+        onToggleSidebar={onToggleSidebar}
+        collapsedIds={collapsedIds}
+        onToggleCollapse={onToggleCollapse}
+        onExpandAll={onExpandAll}
+        onCollapseAll={onCollapseAll}
+        onTocSelect={onTocSelect}
+        onTocDoubleClick={onTocDoubleClick}
+        onTocReorder={onTocReorder}
       />
     </article>
   )

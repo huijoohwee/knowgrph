@@ -92,6 +92,13 @@ function TabHeaderImpl({
       window.clearTimeout(clickTimeoutRef.current)
       clickTimeoutRef.current = null
     }
+    try {
+      const sel = window.getSelection?.()
+      if (sel && sel.type === 'Range') sel.removeAllRanges()
+    } catch {
+      void 0
+    }
+    e.preventDefault()
     onHeaderDoubleClick()
   }, [onHeaderDoubleClick])
 
@@ -106,7 +113,8 @@ function TabHeaderImpl({
       className={
         [
           'HeaderBar',
-          onDragStart ? 'cursor-move select-none' : '',
+          'select-none',
+          onDragStart ? 'cursor-move' : '',
           onToggle ? 'cursor-pointer' : '',
           uiHeaderRowHeightClass,
           uiHeaderRowPaddingClass,
@@ -173,7 +181,7 @@ function TabHeaderImpl({
               value={searchQuery || ''}
               onChange={e => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder || 'Search'}
-              className={`h-7 w-72 px-2 text-xs border border-gray-300 rounded-lg bg-white transition-opacity duration-150 ${
+              className={`h-7 w-72 px-2 text-xs border border-gray-300 rounded-lg bg-white transition-opacity duration-150 select-text ${
                 searchVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             />

@@ -1,21 +1,48 @@
 # todo
 
-## P0-Critical
+## RULES
 
-### 2026-01-15
+- [] Maintain the `UI_THEME_TOKENS` styling for consistency
+- [] 1920 by 1080 (Fit to View/Screen support 16:9, centroid centering)
+- [] when in full-screen mode, canvas inactive, forbid recompute
+
+
+## FEATURES & FUNCTIONALITIES
+
+### P0-Critical
+
+#### 2026-01-16
+
+Markdown Editor syntax highlight for Markdown
+
+codeblock in table rendering;
+
+auto-aware, heuristic, auto-adjust subgraph, nodes, text, `<br/>`, 
+1920 by 1080 (Fit to View/Screen support 16:9, centroid centering),
+subgraph/graph layers centroid nodes, 95%;
+
+presentation framework that supports fragment stepping:
+`<v-mark color="yellow">`
+
+Markdown Viewer/Markdown Presentation inline content yellow sticky note box;
+example:
+```
+<h2>Speaker Notes (partially supported)</h2>
+<div class="sticky-note">NOTE: Renderer partially supports this section</div>
+```
+
+#### 2026-01-15
 
 - npm run lint/ npm run check/ npm test: non-interactive, auto-exit; FIX test hang;
-- [x] 1920 by 1080 (Fit to View/Screen support 16:9, centroid centering)
 - [x] FIX "Mermaid Layout" rectangular nodes (consistency, text wrap) & subgraph auto-sizing
 - [x] Cleanup duplicate/unused logic
 - [x] Update system-design-guidelines.md (OOM/hang prevention)
 
-### 2026-01-14
+#### 2026-01-14
 - https://github.com/haroldjcastillo/mermaid-land, https://haroldjcastillo.github.io/mermaid-land/,
 
 
-### 2026-01-13
-- [] when in full-screen mode, canvas inactive, forbid recompute
+#### 2026-01-13
 - code block
   - syntax highlighting
   - [layout](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/automating-projects-using-actions)
@@ -23,23 +50,23 @@
 https://cs.brown.edu/people/jcmace/d3/graph.html?id=small.json
 
 
-### 2026-01-10
+#### 2026-01-10
 - Enforce public version max 20 kb; pay to unlock to 100 kb;
 - https://youtube-to-markdown.streamlit.app
 
-### 2026-01-07
+#### 2026-01-07
 - Add semantic parsing mode as default; provide document‑structure parsing mode as fallback.
 
-### 2026-01-06
+#### 2026-01-06
 - Showcase public demo repo; keep implementation private.  
   - Evaluate Git subtree split/CI/CD automation.  
   - Provide demo repo with simplified interactive version; enable instant run on FOSS hosting without installation.  
 
 - Unify multiple documents at orchestration stage; current markdown import supports single document only.
 
-## P1‑High
+### P1‑High
 
-### 2026-01-06
+#### 2026-01-06
 - Support HTML import for extended format coverage.  
 
 - Render images as panel‑like rectangular media panel nodes (default if available); link images as fallback.

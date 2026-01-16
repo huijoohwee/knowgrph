@@ -335,7 +335,7 @@ export default function CanvasPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 relative overflow-hidden">
             <>
-              <div className="absolute top-2 inset-x-0 z-50 flex items-center justify-center">
+              <header className="absolute top-2 inset-x-0 z-[200] flex items-center justify-center" aria-label="Canvas Toolbar">
                 <React.Suspense fallback={null}>
                   <ToolbarLazy
                     onZoomIn={handleZoomIn}
@@ -345,17 +345,17 @@ export default function CanvasPage() {
                   />
                   <SidebarTriggerLazy ref={sidebarToggleRef} className="absolute right-3" />
                 </React.Suspense>
-              </div>
+              </header>
               <>
                 <React.Suspense fallback={null}>
                   {canvasRenderMode === '2d' ? <GraphCanvasLazy /> : <ThreeGraphLazy />}
                   <LaunchSpotlight />
-                  <div
-                    className="absolute left-3 z-20 pointer-events-auto"
-                    style={{ bottom: 'calc(var(--bottom-panel-height-px, 40px) + 12px)' }}
+                  <section
+                    className="absolute left-3 bottom-3 z-[150] pointer-events-auto"
+                    aria-label="Minimap Overlay"
                   >
                     <MinimapLazy />
-                  </div>
+                  </section>
                   <BottomPanelLazy />
                   <MarkdownMetricsDevOverlay />
                 </React.Suspense>

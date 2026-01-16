@@ -3,6 +3,7 @@ import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { TokenWithLines } from './markdownPreviewLex'
 import { MarkdownPanelLayout } from './MarkdownPanelLayout'
+import { getDefaultStickyHeadingTopPx, getMarkdownViewerWidthWrapperClassName } from './markdownSectionUtils'
 import { slugify } from '@/features/parsers/markdownJsonLd'
 import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -18,6 +19,8 @@ export type MarkdownPreviewViewerProps = {
   selectionKind: 'node' | 'edge' | null
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
+  stickyHeadingTopClass?: string
+  stickyHeadingTopPx?: number
   mermaidFrontmatterConfig: Record<string, unknown> | null
   rootThemeMode: 'light' | 'dark'
   previewOverlayScope: 'viewport' | 'container'
@@ -51,6 +54,8 @@ export type MarkdownPreviewViewerProps = {
   onDoubleClick?: (event: React.MouseEvent<HTMLDivElement>) => void
   annotateDisplayMode?: 'inline' | 'beside'
   flashLine?: number | null
+  contentClassName?: string
+  markdownViewerWidthMode?: 'standard' | 'wide'
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -65,6 +70,8 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     selectionKind,
     uiPanelTextFontClass,
     uiPanelMonospaceTextClass,
+    stickyHeadingTopClass,
+    stickyHeadingTopPx,
     mermaidFrontmatterConfig,
     rootThemeMode,
     previewOverlayScope,
@@ -94,10 +101,23 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     codeAnnotations,
     annotateDisplayMode,
     flashLine,
+    contentClassName,
+    markdownViewerWidthMode,
   } = props
+
+  const scrollRootRef = React.useRef<HTMLDivElement | null>(null)
+  const handleScrollRootRef = React.useCallback(
+    (el: HTMLDivElement | null) => {
+      scrollRootRef.current = el
+      rootRef(el)
+    },
+    [rootRef],
+  )
 
   const [localShowSidebar, setLocalShowSidebar] = React.useState(true)
   const effectiveShowSidebar = showSidebar ?? localShowSidebar
+  const [localCollapsedIds, setLocalCollapsedIds] = React.useState<Set<string>>(() => new Set())
+  const effectiveCollapsedIds = collapsedIds ?? localCollapsedIds
 
   React.useEffect(() => {
     if (showSidebar === undefined) {
@@ -111,6 +131,23 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       }
     }
   }, [showSidebar])
+
+  React.useEffect(() => {
+    if (collapsedIds !== undefined) return
+    try {
+      const raw = localStorage.getItem('markdownPreviewCollapsedIds')
+      if (!raw) return
+      const parsed = JSON.parse(raw) as unknown
+      if (!Array.isArray(parsed)) return
+      const next = new Set<string>()
+      parsed.forEach(v => {
+        if (typeof v === 'string' && v.trim()) next.add(v)
+      })
+      setLocalCollapsedIds(next)
+    } catch {
+      void 0
+    }
+  }, [collapsedIds])
 
   const handleToggleSidebar = React.useCallback(
     (show: boolean) => {
@@ -128,6 +165,63 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     [onToggleSidebar],
   )
 
+  const handleToggleCollapse = React.useCallback(
+    (id: string) => {
+      if (onToggleCollapse) {
+        onToggleCollapse(id)
+        return
+      }
+      setLocalCollapsedIds(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        try {
+          localStorage.setItem('markdownPreviewCollapsedIds', JSON.stringify(Array.from(next)))
+        } catch {
+          void 0
+        }
+        return next
+      })
+    },
+    [onToggleCollapse],
+  )
+
+  const allHeadingIds = React.useMemo(() => {
+    const out = new Set<string>()
+    for (const t of tokens) {
+      if (t.type !== 'heading') continue
+      const id = t.id || slugify(t.text || '')
+      if (id) out.add(id)
+    }
+    return out
+  }, [tokens])
+
+  const handleExpandAll = React.useCallback(() => {
+    if (onExpandAll) {
+      onExpandAll()
+      return
+    }
+    setLocalCollapsedIds(new Set())
+    try {
+      localStorage.setItem('markdownPreviewCollapsedIds', JSON.stringify([]))
+    } catch {
+      void 0
+    }
+  }, [onExpandAll])
+
+  const handleCollapseAll = React.useCallback(() => {
+    if (onCollapseAll) {
+      onCollapseAll()
+      return
+    }
+    setLocalCollapsedIds(allHeadingIds)
+    try {
+      localStorage.setItem('markdownPreviewCollapsedIds', JSON.stringify(Array.from(allHeadingIds)))
+    } catch {
+      void 0
+    }
+  }, [allHeadingIds, onCollapseAll])
+
   const handleTocSelect = React.useCallback((id: string) => {
     if (onTocSelect) {
       onTocSelect(id)
@@ -140,10 +234,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
   }, [onTocSelect])
 
   const visibleTokens = React.useMemo(() => {
-    if (!collapsedIds || collapsedIds.size === 0) {
-      if (tokens.length > 0) {
-        console.log('[DEBUG] visibleTokens raw tokens count:', tokens.length, 'first:', tokens[0].startLine)
-      }
+    if (!effectiveCollapsedIds || effectiveCollapsedIds.size === 0) {
       return tokens
     }
 
@@ -161,7 +252,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
 
         if (skipUntilDepth === null) {
           result.push(t)
-          if (collapsedIds.has(id)) {
+          if (effectiveCollapsedIds.has(id)) {
             skipUntilDepth = depth
           }
         }
@@ -172,7 +263,28 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       }
     }
     return result
-  }, [tokens, collapsedIds])
+  }, [tokens, effectiveCollapsedIds])
+
+  const effectiveStickyHeadingTopPx = React.useMemo(
+    () => {
+      const provided = getDefaultStickyHeadingTopPx(stickyHeadingTopPx)
+      if (provided > 0) return provided
+      if (typeof document === 'undefined') return 0
+
+      const rootEl = scrollRootRef.current
+      if (!rootEl) return 0
+
+      const toolbar = document.querySelector('.App-toolbar')
+      if (!(toolbar instanceof HTMLElement)) return 0
+
+      const toolbarBottom = toolbar.getBoundingClientRect().bottom
+      const rootTop = rootEl.getBoundingClientRect().top
+      if (!Number.isFinite(toolbarBottom) || !Number.isFinite(rootTop)) return 0
+
+      return Math.max(0, Math.round(toolbarBottom - rootTop))
+    },
+    [stickyHeadingTopPx],
+  )
 
   const body = React.useMemo(
     () => (
@@ -184,6 +296,8 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         markdownPresentationMode={false}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        stickyHeadingTopClass={stickyHeadingTopClass}
+        stickyHeadingTopPx={effectiveStickyHeadingTopPx}
         mermaidFrontmatterConfig={mermaidFrontmatterConfig}
         rootThemeMode={rootThemeMode}
         previewOverlayScope={previewOverlayScope}
@@ -196,8 +310,8 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         selectionKind={selectionKind}
         highlightBackgroundColor={effectiveHighlightBackgroundColor}
         highlightUnderlineColor={effectiveHighlightUnderlineColor}
-        collapsedIds={collapsedIds}
-        onToggleCollapse={onToggleCollapse}
+        collapsedIds={effectiveCollapsedIds}
+        onToggleCollapse={handleToggleCollapse}
         flashLine={flashLine}
       />
     ),
@@ -216,12 +330,14 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       previewOverlayScope,
       rootThemeMode,
       codeAnnotations,
+      stickyHeadingTopClass,
+      effectiveStickyHeadingTopPx,
       selectionKind,
       visibleTokens,
       uiPanelMonospaceTextClass,
       uiPanelTextFontClass,
-      collapsedIds,
-      onToggleCollapse,
+      effectiveCollapsedIds,
+      handleToggleCollapse,
       flashLine,
     ],
   )
@@ -236,13 +352,13 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       onTocSelect={handleTocSelect}
       onTocDoubleClick={onTocDoubleClick}
       onTocReorder={onTocReorder}
-      collapsedIds={collapsedIds}
-      onToggleCollapse={onToggleCollapse}
-      onExpandAll={onExpandAll}
-      onCollapseAll={onCollapseAll}
+      collapsedIds={effectiveCollapsedIds}
+      onToggleCollapse={handleToggleCollapse}
+      onExpandAll={onExpandAll ?? handleExpandAll}
+      onCollapseAll={onCollapseAll ?? handleCollapseAll}
     >
       <section
-        ref={rootRef}
+        ref={handleScrollRootRef}
         onScroll={onScroll}
         onContextMenu={onContextMenu}
         onClick={onClick}
@@ -275,10 +391,16 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
             />
           </figure>
         )}
-        <article className="max-w-4xl mx-auto">
+        <article
+          className={
+            contentClassName ||
+            getMarkdownViewerWidthWrapperClassName(markdownViewerWidthMode || 'standard')
+          }
+        >
            {body}
         </article>
         {selectionToolbar}
-      </section> </MarkdownPanelLayout>
+      </section>
+    </MarkdownPanelLayout>
   )
 }

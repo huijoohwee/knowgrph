@@ -321,7 +321,12 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
     const { useGraphStore } = await import('@/hooks/useGraphStore')
     const store = useGraphStore.getState()
     store.setMarkdownDocument('mixed.md', mixedMarkdown)
+
+    textarea.value = mixedMarkdown
+    textarea.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+    textarea.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
     await waitDebounce()
+    await tick()
     await tick()
 
     const viewer = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
@@ -342,7 +347,6 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
       viewer.querySelectorAll<HTMLElement>('[data-start-line]'),
     )
     if (blocks.length === 0) {
-      console.log('[DEBUG] viewer innerHTML:', viewer.innerHTML)
       throw new Error('expected markdown preview to render blocks with data-start-line')
     }
 
