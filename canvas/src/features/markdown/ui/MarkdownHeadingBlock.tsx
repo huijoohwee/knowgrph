@@ -115,7 +115,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
       className={[
         'sticky',
         stickyTopClass,
-        `${UI_THEME_TOKENS.panel.bg} backdrop-blur-md py-1 mb-4 pt-2 border-b-0`, // Enhanced backdrop blur for better sticky visibility
+        `${UI_THEME_TOKENS.panel.bg} backdrop-blur-md py-1 mb-4 border-b-0`, // Enhanced backdrop blur for better sticky visibility
       ].join(' ')}
       style={stickyStyle}
     >

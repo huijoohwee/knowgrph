@@ -35,9 +35,9 @@ export function getStickyHeadingCascadeOffsets(args: {
   const safeCascadeBaseDepth = Math.min(6, Math.max(1, args.cascadeBaseDepth || 1))
   
   // Measured heights for headings including padding/border (approximate)
-  // H1: ~53px, H2: ~45px, H3: ~40px, H4: ~36px, H5: ~32px, H6: ~28px
+  // H1: ~56px (text-5xl + py-1), H2: ~48px (text-4xl + py-1), H3: ~44px (text-3xl + py-1), H4: ~40px (text-2xl + py-1)
   const heightByDepth = args.markdownPresentationMode
-    ? [0, 60, 60, 50, 40, 40, 40] // Presentation mode tends to have larger headers
+    ? [0, 56, 48, 44, 40, 40, 40] // Presentation mode tends to have larger headers
     : [0, 53, 45, 40, 36, 32, 28] // Viewer mode
 
   let cascadeOffset = 0

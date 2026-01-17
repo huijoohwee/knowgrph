@@ -134,6 +134,6 @@ To avoid redundant lexing and improve performance:
 - **Store**: `GraphState` in `useGraphStore` holds `markdownTokens`, plus integrity metadata (`markdownTokensKey`, `markdownTokensPath`).
 - **Key**: `buildMarkdownTokensKey(markdownText)` uses length + hash to bind tokens to exact content.
 - **Hook**: `useMarkdownPreviewTokens` encapsulates the logic for retrieving, calculating, and caching tokens. It should be used by all consumers (Viewer, Editor, TOC) to ensure consistent token sharing.
-- **Set**: `BottomPanelMarkdownSection` computes tokens via `useMarkdownPreviewTokens` and passes them to `MarkdownViewerPane` (for preview) and `MarkdownPanelLayout` (for TOC) via props, ensuring a single source of truth.
+- **Set**: `BottomPanelMarkdownSection` computes tokens via `useMarkdownPreviewTokens` and passes them to `MarkdownViewerPane` (for preview), `MarkdownPreviewPresentation` (for slides), and `MarkdownPanelLayout` (for TOC) via props, ensuring a single source of truth.
 - **Invalidate**: `setMarkdownDocument` in `graphDataSlice` clears `markdownTokens`, `markdownTokensPath`, and `markdownTokensKey` when text changes.
 - **Read**: Components reuse stored tokens only when `storedTokensKey === buildMarkdownTokensKey(currentText)`.

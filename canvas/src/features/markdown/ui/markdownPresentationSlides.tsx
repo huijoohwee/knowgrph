@@ -138,7 +138,7 @@ const buildSlideFooter = (args: {
   if (meta.themeStyle === 'academic') {
     return (
       <footer
-        className={`fixed bottom-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
+        className={`fixed bottom-0 left-0 w-full h-8 px-4 flex justify-between items-center text-[10px] ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
       >
         <div className="min-w-0 flex items-center gap-4">
           {meta.meeting && (
@@ -166,34 +166,39 @@ const buildSlideFooter = (args: {
     )
   }
 
-  const footer = (
-    <footer className="fixed bottom-0 left-0 w-full px-4 py-2 text-[10px] text-gray-500 dark:text-gray-500 bg-white dark:bg-[#0d1117] border-t border-gray-200 dark:border-gray-700 flex justify-between items-center z-10 font-sans">
-      <div className="flex gap-3">
-        {!!meta.meeting && <span>{meta.meeting}</span>}
-        {!!meta.venue && <span>{meta.venue}</span>}
-        {!!meta.institution && <span>{meta.institution}</span>}
-        {!!meta.date && <span>{meta.date}</span>}
+  return (
+    <footer
+      className={[
+        'fixed bottom-0 left-0 w-full h-8 px-4 text-[10px] border-t flex justify-between items-center z-10 font-sans',
+        UI_THEME_TOKENS.text.tertiary,
+        UI_THEME_TOKENS.panel.bg,
+        UI_THEME_TOKENS.panel.border,
+      ].join(' ')}
+    >
+      <div className="flex gap-3 min-w-0">
+        {!!meta.meeting && <span className="truncate">{meta.meeting}</span>}
+        {!!meta.venue && <span className="truncate">{meta.venue}</span>}
+        {!!meta.institution && <span className="truncate">{meta.institution}</span>}
+        {!!meta.date && <span className="truncate">{meta.date}</span>}
       </div>
-      <div className="flex gap-3">
-        {meta.authors.length > 0 && <span>{meta.authors.join(', ')}</span>}
+      <div className="flex gap-3 min-w-0">
+        {meta.authors.length > 0 && <span className="truncate">{meta.authors.join(', ')}</span>}
         {!!meta.url && (
           <a
             href={meta.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:underline text-blue-600 dark:text-blue-400"
+            className="hover:underline text-blue-600 dark:text-blue-400 truncate"
           >
             {meta.url.replace(/^https?:\/\//, '')}
           </a>
         )}
       </div>
-      <div className="font-mono opacity-60">
+      <div className="font-mono opacity-60 shrink-0">
         {page} / {total}
       </div>
     </footer>
   )
-
-  return footer
 }
 
 const getSlidePrimaryHeading = (slideText: string): string => {
@@ -536,12 +541,11 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   let stickyHeadingTopPx = 0
   if (headerNode) {
     if (visualMeta.themeStyle === 'academic') {
-      stickyHeadingTopPx = 41 // 40px + 1px border
+      stickyHeadingTopPx = 40 // 40px (h-10)
     } else {
-      stickyHeadingTopPx = 33 // 32px + 1px border
+      stickyHeadingTopPx = 32 // 32px (h-8)
     }
   }
-  const stickyHeadingTopClass = `top-[${stickyHeadingTopPx}px]`
 
   const slideMermaidConfig = parseMermaidConfigFromFrontmatter(currentSlide.meta || {})
   const effectiveMermaidConfig = slideMermaidConfig || mermaidFrontmatterConfig
@@ -556,13 +560,13 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
       <section className="w-full h-full grid grid-cols-2 gap-8" aria-label="Slide Columns">
         <section className="w-full h-full px-8 pt-10 pb-14 overflow-auto" aria-label="Slide Left Column">
           <MarkdownTokenRenderer
-            {...buildTokenRendererProps(twoColumnTokens.left, args, leftHighlights, stickyHeadingTopClass, stickyHeadingTopPx)}
+            {...buildTokenRendererProps(twoColumnTokens.left, args, leftHighlights, undefined, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </section>
         <section className="w-full h-full px-8 pt-10 pb-14 overflow-auto" aria-label="Slide Right Column">
           <MarkdownTokenRenderer
-            {...buildTokenRendererProps(twoColumnTokens.right, args, rightHighlights, stickyHeadingTopClass, stickyHeadingTopPx)}
+            {...buildTokenRendererProps(twoColumnTokens.right, args, rightHighlights, undefined, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </section>
@@ -586,7 +590,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
               slideTokens,
               args,
               buildAlwaysOnTokenHighlights(slideTokens),
-              stickyHeadingTopClass,
+              undefined,
               stickyHeadingTopPx,
             )}
             mermaidFrontmatterConfig={effectiveMermaidConfig}

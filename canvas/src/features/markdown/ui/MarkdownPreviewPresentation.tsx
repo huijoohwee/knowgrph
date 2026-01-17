@@ -539,20 +539,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   )
   const layout = layoutRaw
   const isAcademicTheme = themeStyle === 'academic'
-  const slideOuterClass =
-    layout === 'center'
-      ? 'w-full h-full flex items-center justify-center'
-      : 'w-full h-full flex'
-  const slideContentClass =
-    layout === 'center'
-      ? [
-          'max-h-full overflow-hidden mx-auto flex items-center justify-center',
-          isAcademicTheme ? 'max-w-5xl px-16 py-14' : 'max-w-4xl px-12 py-10',
-        ].join(' ')
-      : [
-          'w-full h-full overflow-hidden',
-          isAcademicTheme ? 'px-16 py-14' : 'px-12 py-10',
-        ].join(' ')
   const slideContent = slideBody
 
   let slideFramePaddingPx: number | undefined
@@ -757,10 +743,8 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
               slideFramePaddingPx={slideFramePaddingPx}
               baseFrameClass={baseFrameClass}
               slideClass={slideClass}
-              slideOuterClass={slideOuterClass}
               slideStyle={slideStyle}
               slideTransitionStyle={slideTransitionStyle}
-              slideContentClass={slideContentClass}
               onDoubleClick={handleDoubleClick}
               disablePan={false}
               showControls={false}
@@ -786,7 +770,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
             onMouseLeave={handleSidebarMouseLeave}
           />
           <section className="w-full h-full flex" onContextMenu={onContextMenu}>
-            <div
+            <aside
               className={`absolute left-0 top-0 h-full z-[50] transition-transform duration-300 ease-in-out bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-xl ${
                 showSidebar || isSidebarHovered ? 'translate-x-0' : '-translate-x-full'
               }`}
@@ -810,7 +794,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
                   width="w-full"
                 />
               </div>
-            </div>
+            </aside>
             <main className="flex-1 min-w-0 flex flex-col">
             <MarkdownPresentationViewport
               isOpen={isSlidesFullscreenOpen}
@@ -819,10 +803,8 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
               slideFramePaddingPx={slideFramePaddingPx}
               baseFrameClass={baseFrameClass}
               slideClass={slideClass}
-              slideOuterClass={slideOuterClass}
               slideStyle={slideStyle}
               slideTransitionStyle={slideTransitionStyle}
-              slideContentClass={slideContentClass}
               onDoubleClick={handleDoubleClick}
               disablePan={true}
               showControls={false}

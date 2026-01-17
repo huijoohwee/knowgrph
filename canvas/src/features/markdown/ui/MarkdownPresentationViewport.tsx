@@ -12,10 +12,8 @@ type MarkdownPresentationViewportProps = {
   slideFramePaddingPx?: number
   baseFrameClass: string
   slideClass: string
-  slideOuterClass: string
   slideStyle: React.CSSProperties
   slideTransitionStyle: React.CSSProperties
-  slideContentClass: string
   onDoubleClick: (e: React.MouseEvent) => void
   children: React.ReactNode
   showSpeakerNotes?: boolean
@@ -40,10 +38,8 @@ export function MarkdownPresentationViewport(props: MarkdownPresentationViewport
     slideFramePaddingPx,
     baseFrameClass,
     slideClass,
-    slideOuterClass,
     slideStyle,
     slideTransitionStyle,
-    slideContentClass,
     onDoubleClick,
     children,
     showSpeakerNotes,
@@ -83,10 +79,7 @@ export function MarkdownPresentationViewport(props: MarkdownPresentationViewport
             frameClassName="w-full h-full"
             slideStyle={slideStyle}
             slideTransitionStyle={slideTransitionStyle}
-            slideOuterClass={slideOuterClass}
-            slideContentClass={slideContentClass}
             onDoubleClick={onDoubleClick}
-            autoScaleContent
           >
             {children}
           </SlideFrame>

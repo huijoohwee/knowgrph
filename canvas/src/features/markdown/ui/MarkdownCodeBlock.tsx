@@ -126,7 +126,7 @@ const HighlightedCode = React.memo(({ code, lang, highlightLines }: { code: stri
   )
 })
 
-const AnnotatedRow = React.memo(({ row, lang, wrapClass, isBeside }: { row: AnnotatedCodeRow; lang: string; wrapClass: string; isBeside: boolean }) => {
+const AnnotatedRow = React.memo(({ row, lang, wrapClass, isBeside, textSizeClass }: { row: AnnotatedCodeRow; lang: string; wrapClass: string; isBeside: boolean; textSizeClass: string }) => {
   if (!row.code.trim() && !row.annotation) return null
 
   // For Inline mode (!isBeside), we want to show Annotation then Code to match source order if that's preferred,
@@ -141,7 +141,7 @@ const AnnotatedRow = React.memo(({ row, lang, wrapClass, isBeside }: { row: Anno
   
   const codeBlock = (
     <div className={`annotate-code flex-1 min-w-0 p-4 bg-white dark:bg-[#0d1117] overflow-x-auto ${!isBeside && row.annotation ? 'border-b border-dashed border-gray-200 dark:border-gray-800' : ''}`}>
-      <pre className={`m-0 p-0 bg-transparent ${wrapClass} font-mono text-sm`}>
+      <pre className={`m-0 p-0 bg-transparent ${wrapClass} font-mono ${textSizeClass}`}>
         <HighlightedCode code={row.code} lang={lang} highlightLines={null} />
       </pre>
     </div>
@@ -218,6 +218,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   }, [c.info])
   const effectiveViewMode = localViewMode ?? annotateDisplayMode ?? 'inline'
   const isBeside = effectiveViewMode === 'beside'
+  const textSizeClass = opts.markdownPresentationMode ? 'text-xl' : 'text-sm'
 
   const handleToggleMode = (mode: 'inline' | 'beside') => {
     if (mode === effectiveViewMode) return
@@ -256,7 +257,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   }, [c.text, isMermaidLang, lang, t.startLine])
 
   const containerClassName = [
-    `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm text-sm my-4 group highlight highlight-source-${lang} transition-shadow duration-200`,
+    `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm ${textSizeClass} my-4 group highlight highlight-source-${lang} transition-shadow duration-200`,
   ]
     .filter(Boolean)
     .join(' ')
@@ -328,12 +329,12 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
       {annotatedRows ? (
          <div className="flex flex-col bg-white dark:bg-[#0d1117]">
              {annotatedRows.map(row => (
-                 <AnnotatedRow key={row.id} row={row} lang={lang} wrapClass={wrapClass} isBeside={isBeside} />
+                 <AnnotatedRow key={row.id} row={row} lang={lang} wrapClass={wrapClass} isBeside={isBeside} textSizeClass={textSizeClass} />
              ))}
          </div>
       ) : (
         <div className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
-          <pre className={`m-0 p-0 bg-transparent ${wrapClass} font-mono text-sm`}>
+          <pre className={`m-0 p-0 bg-transparent ${wrapClass} font-mono ${textSizeClass}`}>
             <HighlightedCode code={c.text} lang={lang} highlightLines={highlightLines} />
           </pre>
         </div>

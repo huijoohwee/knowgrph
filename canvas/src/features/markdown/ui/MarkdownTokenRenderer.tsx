@@ -108,8 +108,13 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     onToggleCollapse,
   }
 
-  const baseTextClass = markdownPresentationMode ? 'text-lg leading-relaxed' : 'text-sm leading-normal'
-  const commonBlockClass = uiPanelTextFontClass
+  const baseTextClass = markdownPresentationMode ? 'text-2xl leading-relaxed' : 'text-sm leading-normal'
+  
+  // In presentation mode, we want to override the default panel text size (usually text-xs/text-sm)
+  // but keep the font family.
+  const commonBlockClass = markdownPresentationMode 
+    ? uiPanelTextFontClass.replace(/text-(xs|sm|base|lg|xl)/g, '').trim() 
+    : uiPanelTextFontClass
 
   const renderBlockTokens = (list: TokenWithLines[]) => {
     return list.map((t, i) => {
