@@ -153,14 +153,16 @@ export function filterGraphToFrontmatterMermaid(
   const nodesRaw = Array.isArray(graphData.nodes) ? graphData.nodes : []
   const edgesRaw = Array.isArray(graphData.edges) ? graphData.edges : []
 
-  const docBaseName = (() => {
+  const docBaseNameRaw = (() => {
     const raw = String(activeDocumentPath || '').trim()
     if (!raw) return ''
     const norm = raw.replace(/\\/g, '/')
-    const parts = norm.split('/')
+    const sansQuery = norm.split(/[?#]/)[0] || ''
+    const parts = sansQuery.split('/')
     const last = parts[parts.length - 1] || ''
     return last
   })()
+  const docBaseNameLower = docBaseNameRaw.toLowerCase()
 
   const filteredNodes: GraphNode[] = []
   for (let i = 0; i < nodesRaw.length; i += 1) {
@@ -170,10 +172,11 @@ export function filterGraphToFrontmatterMermaid(
     const meta = node.metadata || {}
     const docPathRaw = meta.documentPath
     const docPath = typeof docPathRaw === 'string' ? docPathRaw.trim() : ''
-    if (docBaseName && docPath && docPath !== docBaseName) continue
+    if (docBaseNameLower && docPath && docPath.toLowerCase() !== docBaseNameLower) continue
+
     const nextMeta: Record<string, GraphNode['metadata'][string]> = {
       ...meta,
-      documentPath: docBaseName || docPath || '',
+      documentPath: docBaseNameRaw || docPath || '',
       lineStart: 1,
       lineEnd: 1,
     }

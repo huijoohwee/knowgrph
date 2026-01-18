@@ -21,7 +21,7 @@ const markdownSpec: ParserSpec = {
   },
   parse: (name, text) => {
     const raw = String(text || '')
-    const maxChars = 120000
+    const maxChars = 500000
     if (raw.length > maxChars) {
       const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
       const stem = baseName.replace(/\.(md|markdown)$/i, '') || 'markdown'

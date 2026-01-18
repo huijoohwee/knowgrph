@@ -67,12 +67,12 @@ export class MarkdownGraphBuilder {
     })
   }
 
-  createMermaidNode(id: string, code: string, meta: Record<string, unknown>) {
+  createMermaidNode(id: string, code: string, meta: Record<string, unknown>, name?: string) {
     this.ensureNode({
       '@id': id,
       '@type': 'MermaidDiagram',
       labels: ['MermaidDiagram'],
-      name: 'Frontmatter Mermaid Diagram',
+      name: name || 'Mermaid Diagram',
       chunk_text: code.slice(0, 800),
       properties: { code, format: 'graph' },
       metadata: meta,

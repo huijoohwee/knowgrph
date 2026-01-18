@@ -364,6 +364,8 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const previewOverlayContainerRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (typeof document === 'undefined') return
     if (isSlidesFullscreenOpen && previewOverlayContainerRef.current) {
       const el = previewOverlayContainerRef.current as unknown as { requestFullscreen?: () => Promise<void> }
       const fn = el?.requestFullscreen
@@ -380,6 +382,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   }, [isSlidesFullscreenOpen])
 
   React.useEffect(() => {
+    if (typeof document === 'undefined') return
     const onFullscreenChange = () => {
       if (!document.fullscreenElement && isSlidesFullscreenOpen) {
         setIsSlidesFullscreenOpen(false)

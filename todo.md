@@ -11,13 +11,25 @@
 - [] Use feature‑scoped modules that follow the Single Responsibility Principle, and forbid cross‑cutting generic modules.
 - [] During refactoring, cleanup duplicate, conflicting, stale, and legacy logic to maintain clarity and consistency.
 - [] Apply memoization to cache results and forbid expensive recalculation or unnecessary rerendering.
-
+- [] Update `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents`
 
 ## FEATURES & FUNCTIONALITIES
 
 ### P0-Critical
 
+#### 2026-01-18
+
+- [] support PDF-to-markdown parsing & rendering
+
+- [] support html url rendering
+  - https://substack.com/home/post/p-154650527
+  - https://docs.trae.ai/ide/memories?_lang=en
+
+- [] Magnify node/edge/label on hover
+
 #### 2026-01-16
+
+
 
 Markdown Editor syntax highlight for Markdown
 
@@ -88,3 +100,14 @@ https://cs.brown.edu/people/jcmace/d3/graph.html?id=small.json
 ---
 
 - Refactor remote URL rewriting logic for media from nodes.ts into helper function in helpers.ts.
+
+---
+
+### P2-Medium
+
+#### 2026-01-18
+
+- [] integrate https://github.com/HeyPuter/puter.git
+
+- [] support OCR
+

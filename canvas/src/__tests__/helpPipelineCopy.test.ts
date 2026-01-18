@@ -19,7 +19,7 @@ export async function testHelpPipelineCopyMatchesCommandConstant() {
 export function testMarkdownParserMetadataAnchorsAreAgenticRagCompatible() {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))
-  const markdown = [
+  const base = [
     '# Title',
     '',
     'Paragraph with a [link](https://example.com).',
@@ -36,6 +36,8 @@ export function testMarkdownParserMetadataAnchorsAreAgenticRagCompatible() {
     '```',
     '',
   ].join('\n')
+  const filler = `\n\n${'filler '.repeat(25000)}\n`
+  const markdown = `${base}${filler}`
   const res = applyParser(toParserId('markdown'), { name: 'doc.md', text: markdown })
   if (!res) throw new Error('markdown parse returned null')
   if (res.warnings && res.warnings.length > 0) throw new Error(`markdown parse warnings: ${res.warnings.join('; ')}`)

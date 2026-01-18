@@ -75,9 +75,34 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       : typeof mermaidAnchorsOnlyRaw === 'string'
       ? mermaidAnchorsOnlyRaw.trim().toLowerCase() === 'true'
       : false
+  
+  const splitMermaidIntoDiagrams = (code: string): Array<{ code: string; offset: number }> => {
+    const lines = String(code || '').split('\n')
+    const indices: number[] = []
+    for (let i = 0; i < lines.length; i += 1) {
+      const t = (lines[i] || '').trim()
+      if (!t) continue
+      if (t.startsWith('graph ') || t.startsWith('flowchart ')) {
+        indices.push(i)
+      }
+    }
+    if (indices.length <= 1) {
+      return [{ code: String(code || ''), offset: 0 }]
+    }
+    const out: Array<{ code: string; offset: number }> = []
+    for (let k = 0; k < indices.length; k += 1) {
+      const start = indices[k]!
+      const end = k + 1 < indices.length ? indices[k + 1]! : lines.length
+      const slice = lines.slice(start, end).join('\n')
+      if (!slice.trim()) continue
+      out.push({ code: slice, offset: start })
+    }
+    return out.length > 0 ? out : [{ code: String(code || ''), offset: 0 }]
+  }
 
   if (mermaidCode) {
-    const firstLine = mermaidCode.split('\n')[0]?.trim() || ''
+    const diagrams = splitMermaidIntoDiagrams(mermaidCode)
+    const firstLine = (diagrams[0]?.code || mermaidCode).split('\n')[0]?.trim() || ''
     if (firstLine.startsWith('graph ') || firstLine.startsWith('flowchart ')) {
       const parts = firstLine.split(/\s+/)
       const dir = parts[1]?.toUpperCase()
@@ -91,9 +116,6 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         mermaidTreeLayout = { orientation: 'horizontal', direction: 'target-source' }
       }
     }
-
-    const mermaidId = `mermaid:${gid}:frontmatter`
-    builder.createMermaidNode(mermaidId, mermaidCode, mkMeta(1, Math.max(1, startIndex - 1)))
 
     let mermaidStartLine = 1
     for (let i = 0; i < startIndex; i++) {
@@ -113,25 +135,81 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       }
     }
 
-    const parserCtx: MermaidParserContext = {
-      gid,
-      docId,
-      startIndex: mermaidStartLine,
-      ensureNode: (n) => builder.ensureNode(n),
-      addRel: (s, k, t) => builder.addRel(s, k, t),
-      mkMeta,
+    for (let idx = 0; idx < diagrams.length; idx += 1) {
+      const diagram = diagrams[idx]!
+      const diagramStart = Math.max(1, mermaidStartLine + diagram.offset)
+      const diagramLineCount = Math.max(1, diagram.code.split('\n').length)
+      const diagramEnd = Math.max(diagramStart, diagramStart + diagramLineCount - 1)
+      const mermaidId = idx === 0 ? `mermaid:${gid}:frontmatter` : `mermaid:${gid}:frontmatter:${idx + 1}`
+      const mermaidName = idx === 0 ? 'Frontmatter Mermaid Diagram' : `Frontmatter Mermaid Diagram ${idx + 1}`
+      builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), mermaidName)
+
+      const parserCtx: MermaidParserContext = {
+        gid,
+        docId,
+        startIndex: diagramStart,
+        ensureNode: (n) => builder.ensureNode(n),
+        addRel: (s, k, t) => builder.addRel(s, k, t),
+        mkMeta,
+      }
+      parseMermaidFrontmatter(diagram.code, parserCtx)
     }
-    parseMermaidFrontmatter(mermaidCode, parserCtx)
   }
 
   const sectionStack: Array<{ level: number; id: string }> = []
   let currentSectionId: string = docId
   let lastBlockId: string | null = null
   const indexByParent = new Map<string, number>()
+  let anchorsOnlyParagraphEmitted = false
 
-  if (!mermaidAnchorsOnly) {
-    for (const b of blocks) {
-      if (b.kind === 'heading') {
+  for (const b of blocks) {
+    const isMermaidBlock =
+      b.kind === 'code' &&
+      (b.language === 'mermaid' ||
+        b.language === 'mmd' ||
+        b.language === 'graph' ||
+        (String(b.language || '').trim() === '' &&
+          (() => {
+            const firstLine = String(b.text || '').split('\n')[0]?.trim() || ''
+            return firstLine.startsWith('graph ') || firstLine.startsWith('flowchart ')
+          })()))
+
+    if (mermaidAnchorsOnly && !isMermaidBlock) {
+      if (b.kind !== 'paragraph' || anchorsOnlyParagraphEmitted) continue
+    }
+
+    // Process Mermaid blocks to extract graph nodes
+    if (isMermaidBlock) {
+      const diagrams = splitMermaidIntoDiagrams(b.text)
+      for (let idx = 0; idx < diagrams.length; idx += 1) {
+        const diagram = diagrams[idx]!
+        const diagramStart = Math.max(1, b.startLine + 1 + diagram.offset)
+        const diagramLineCount = Math.max(1, diagram.code.split('\n').length)
+        const diagramEnd = Math.max(diagramStart, diagramStart + diagramLineCount - 1)
+        const mermaidId = `mermaid:${gid}:code:${b.startLine}:${idx + 1}`
+        builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), `Mermaid Diagram L${diagramStart}`)
+
+        const parserCtx: MermaidParserContext = {
+          gid,
+          docId,
+          startIndex: diagramStart,
+          ensureNode: (n) => builder.ensureNode(n),
+          addRel: (s, k, t) => builder.addRel(s, k, t),
+          mkMeta,
+        }
+        parseMermaidFrontmatter(diagram.code, parserCtx)
+      }
+      
+      // If we are in anchors-only mode, we might want to skip creating the CodeBlock node itself
+      // to keep the graph clean (only semantic nodes).
+      // However, if we want the "source" to be visible as a node, we should keep it.
+      // Given "Anchors Only" usually means "Concept Map", we probably skip the container block.
+      if (mermaidAnchorsOnly) {
+        continue
+      }
+    }
+
+    if (b.kind === 'heading') {
         while (sectionStack.length > 0 && sectionStack[sectionStack.length - 1]!.level >= b.level) {
           sectionStack.pop()
         }
@@ -160,6 +238,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         
         builder.setNext(lastBlockId, id)
         lastBlockId = id
+        if (mermaidAnchorsOnly) anchorsOnlyParagraphEmitted = true
         const refs = extractMarkdownInlineRefs(b.text || '', { baseUrl: sourceUrl || undefined })
         for (const link of refs.links) {
           builder.createLinkNode(link.url, link.label, mkMeta(b.startLine, b.endLine), id)
@@ -216,7 +295,26 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         }
         continue
       }
-    }
+  }
+
+  if (mermaidAnchorsOnly && !anchorsOnlyParagraphEmitted) {
+    const bodyText = rawLines.slice(startIndex).join('\n').trim()
+    const paragraphText = bodyText || title || baseName || 'Mermaid Diagram'
+    const parentId = docId
+    const order = 1
+    const safeLine = rawLines.length > 0 ? rawLines.length : 1
+    const startLine = Math.min(safeLine, Math.max(1, startIndex + 1))
+    const endLine = startLine
+    const id = `blk:${gid}:p:${startLine}:${order}`
+    builder.createParagraphNode(
+      id,
+      paragraphText,
+      { text: paragraphText, order, charCount: paragraphText.length, name: `Paragraph ${order}` },
+      mkMeta(startLine, endLine),
+      parentId,
+    )
+    builder.setNext(lastBlockId, id)
+    lastBlockId = id
   }
 
   for (let i = startIndex; i < rawLines.length; i += 1) {

@@ -27,6 +27,7 @@ Narrative text here.
 
 - `title` is treated as the Document name when no H1 heading is present.
 - `mermaid` is parsed as a multi-line string; its contents are attached as a `MermaidDiagram` node and also parsed into `MermaidNode` graph nodes and `pointsTo` edges between them. The parser supports standard YAML block scalar behavior, stripping common indentation from the block content.
+- `mermaid` code blocks in the markdown body are also parsed into `MermaidNode` graph nodes and `pointsTo` edges, allowing multiple diagrams to contribute to the document's graph topology.
 - `classDef` and `class` statements are parsed to apply custom styles (fill, stroke, stroke-width, color) to nodes, overriding default schema colors.
 
 ## Parser behavior (markdown → JSON-LD → GraphData)
@@ -45,24 +46,31 @@ Narrative text here.
     - For `click` directives of the form `click Retrieval "#agent"`, adds a `pointsTo` edge from the `MermaidNode` to the corresponding `Anchor` node (created from `<a id="agent"></a>`), when present.
     - For `classDef` statements, stores style definitions.
     - For `class` statements, applies defined styles to matching nodes and subgraphs as `visual:*` properties (fill, stroke, strokeWidth, strokeDasharray, color). Styles are merged with any existing class assignments.
+  - Scans body code blocks (language `mermaid`, `mmd`, or `graph`) and parses them into `MermaidNode` and `MermaidSubgraph` nodes, linking them to the document via `hasMermaidNode`.
+    - Also creates a `MermaidDiagram` node for each body block (e.g. `@id: mermaid:<graphId>:code:<line>:<index>`), allowing individual body diagrams to be rendered as distinct visual groups if desired.
   - Scans markdown body lines for:
     - HTML anchors of the form `<a id="..."></a>` and emits `Anchor` nodes linked from the `Document` via `hasAnchor`.
     - Internal hash links of the form `[Label](#anchor-id)` and emits `InternalLink` nodes linked from the `Document` via `hasInternalLink`, with optional `pointsTo` edges when the referenced anchor exists.
     - Regular markdown/HTML links and images, emitting `Link` and media-capable nodes.
 
 - When frontmatter includes `mermaidAnchorsOnly: true`:
-  - `buildMarkdownJsonLd` omits structural block nodes such as `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, and `Table`.
+  - `buildMarkdownJsonLd` omits structural block nodes such as `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, and `Table` (except for a single `Paragraph` containing the full body text if needed for search indexing, though primarily for semantic connectivity).
+  - It still processes Mermaid code blocks from the body, emitting `MermaidNode` and `MermaidSubgraph` nodes, AND their container `MermaidDiagram` nodes. This ensures all diagrams in the file (frontmatter and body) contribute to the graph topology and are visible in Mermaid layout mode.
   - It still scans body lines for:
     - HTML anchors `<a id="..."></a>`, emitting `Anchor` nodes linked from the `Document` via `hasAnchor`.
     - Internal hash links `[Label](#anchor-id)`, emitting `InternalLink` nodes linked from the `Document` via `hasInternalLink` (and `pointsTo` when the anchor exists).
   - External links and images from the body are not converted into graph nodes in this mode.
   - The resulting graph for that markdown document contains:
     - One `Document` node.
-    - One `MermaidDiagram` node for the frontmatter `mermaid:` block (when present).
-    - Any `MermaidNode` nodes derived from the diagram.
+    - `MermaidDiagram` nodes for the frontmatter and any body code blocks.
+    - Any `MermaidNode` nodes derived from these diagrams.
     - Any `pointsTo` edges between `MermaidNode` nodes and between `MermaidNode` and `Anchor` nodes (when `click` directives target anchors).
     - Any `Anchor` and `InternalLink` nodes discovered from the body.
   - The full markdown text (frontmatter + body) is still preserved for the Bottom Panel Markdown editor/viewer; the `mermaidAnchorsOnly` flag affects only which nodes are emitted into Canvas graph data, not what text is displayed.
+
+- Large markdown ingestion:
+  - Markdown files up to 500,000 characters are ingested normally (full Markdown → JSON‑LD → GraphData pipeline).
+  - Markdown files larger than that are ingested as a summary-only graph (a single `Document` node with a preview) for performance.
 
 No additional `Entity`, `Mention`, or `semanticRelation` objects are created directly from Mermaid frontmatter. All higher‑level graph semantics come from the neutral markdown ingestion pipeline (anchors, links, media) and any downstream semantic layers that operate on that structure plus the `MermaidNode` topology defined by the diagram.
 
@@ -112,7 +120,7 @@ In the graph produced by `buildMarkdownJsonLd`, these map to neutral node and ed
 
 ## EDA→MLP interview markdown example
 
-The EDA interview markdown used in local workflows (for example, `/Users/huijoohwee/Documents/GitHub/joohwee/aisg-aiap22/eda-mlp-interview-session-max-lod-table-v0-ideal.md`) follows the same frontmatter pattern: a `mermaid:` block with `subgraph` declarations such as `P0[...]` through `P8[...]`, plus neutral bands like `CROSS` and `INTERVIEW`. When this markdown is ingested:
+The EDA interview markdown used in local workflows follows the same frontmatter pattern: a `mermaid:` block with `subgraph` declarations such as `P0[...]` through `P8[...]`, plus neutral bands like `CROSS` and `INTERVIEW`. When this markdown is ingested:
 
 - The frontmatter diagram is parsed into `MermaidDiagram`, `MermaidSubgraph`, and `MermaidNode` nodes as described above.
 - `Pk` subgraphs and the `CROSS` / `INTERVIEW` bands are mapped to numeric `visual:layer` indices so the Graph Layer tab can dim or emphasize one phase at a time while keeping the underlying markdown-derived structure neutral.

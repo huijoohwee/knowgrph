@@ -248,10 +248,24 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
     // --- Subgraph Start ---
     if (trimmed.toLowerCase().startsWith('subgraph ')) {
-      const m = /^subgraph\s+([A-Za-z0-9_]+)(?:\s*\[([^\]]+)\]|\s+"([^"]+)")?/.exec(trimmed)
+      const unquote = (raw: string): string => {
+        const v = String(raw || '').trim()
+        if (v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))) {
+          return v.slice(1, -1)
+        }
+        return v
+      }
+
+      const m =
+        /^subgraph\s+([A-Za-z0-9_.-]+)(?:\s*\[([^\]]+)\]|\s+"([^"]+)")?/.exec(trimmed) ||
+        /^subgraph\s+"([^"]+)"$/.exec(trimmed) ||
+        /^subgraph\s+(.+)$/.exec(trimmed)
+
       if (m) {
-        const id = m[1]
-        const label = m[3] || m[2] || id
+        const hasExplicitId = m.length > 1 && /^[A-Za-z0-9_.-]+$/.test(String(m[1] || '').trim())
+        const id = hasExplicitId ? String(m[1] || '').trim() : slugify(String(m[1] || '').trim() || `subgraph-${i + 1}`)
+        const labelRaw = hasExplicitId ? String(m[3] || m[2] || m[1] || '') : String(m[1] || '')
+        const label = unquote(labelRaw) || id
         const subgraphId = ensureSubgraph(id, label, i)
         subgraphStack.push({ name: id, id: subgraphId })
       }
