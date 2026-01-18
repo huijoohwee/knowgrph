@@ -8,6 +8,7 @@ import { normalizeEdgesForSim } from '@/components/GraphCanvas/utils'
 import { applyMermaidLayout } from '@/components/GraphCanvas/layout/mermaid'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { defaultSchema } from '@/lib/graph/schema'
+import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -63,13 +64,13 @@ export async function testMermaidLayoutDoesNotFailOnMarkdownSlideDemo() {
 
 export async function testMermaidComplexSubgraphEdges() {
   // Mock graph with edges connecting to subgraphs (which causes Dagre network-simplex to crash if not handled)
-  const nodes = [
+  const nodes: GraphNode[] = [
     { id: 'Start', type: 'MermaidNode', label: 'Start', properties: {} },
     { id: 'Container', type: 'MermaidSubgraph', label: 'Container', properties: { subgraphName: 'Container' } },
     { id: 'Inside', type: 'MermaidNode', label: 'Inside', properties: { mermaidSubgraphName: 'Container' } },
     { id: 'End', type: 'MermaidNode', label: 'End', properties: {} },
   ]
-  const edges = [
+  const edges: GraphEdge[] = [
     { id: 'e1', source: 'Start', target: 'Container', label: 'pointsTo', properties: {} },
     { id: 'e2', source: 'Container', target: 'End', label: 'pointsTo', properties: {} },
   ]
@@ -83,7 +84,7 @@ export async function testMermaidComplexSubgraphEdges() {
   }
 
   // Should not throw
-  applyMermaidLayout(nodes as any[], edges as any[], 1000, 1000, schema)
+  applyMermaidLayout(nodes, edges, 1000, 1000, schema)
   
   // Verify edges have points
   const e1 = edges.find(e => e.id === 'e1')
@@ -169,8 +170,8 @@ export async function testMermaidExternalMarkdownDemoFits1920x1080() {
     const pts = props['visual:points']
     if (!Array.isArray(pts)) continue
     for (const p of pts) {
-      const px = (p as any)?.x
-      const py = (p as any)?.y
+      const px = typeof p === 'object' && p !== null && 'x' in p ? (p as { x?: unknown }).x : undefined
+      const py = typeof p === 'object' && p !== null && 'y' in p ? (p as { y?: unknown }).y : undefined
       if (typeof px !== 'number' || typeof py !== 'number') continue
       const sx = clampToViewport(t.k * px + t.x)
       const sy = clampToViewport(t.k * py + t.y)

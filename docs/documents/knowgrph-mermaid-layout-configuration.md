@@ -25,8 +25,8 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
 
 ### Layout Engine & Robustness
 - **Algorithm**: Uses Dagre's `network-simplex` ranker (switched from `tight-tree`) for enhanced stability and reduced layout failures.
-- **Spacing**: Increased default separation (`nodesep: 80 * separation`, `rankSep: 100 * separation`) and margins (`marginx: 120`, `marginy: 120`) to better utilize the 16:9 canvas aspect ratio and prevent crowding.
-- **Centering**: The graph centroid is always centered in the Infinite Canvas viewport upon layout application.
+- **Spacing**: Applies schema-configured separation with an internal clamp (`nodesep: 40 * clamp(separation, ≤ 0.8)`, `ranksep: 40 * clamp(separation, ≤ 0.8)`), and uses compact margins (`marginx: 20`, `marginy: 20`) to reduce unnecessary whitespace.
+- **Centering**: View centering and fit-to-view are applied by the Canvas fit logic (schema-driven) after layout, rather than being enforced inside Dagre.
 - **Compound Layout**: Natively supports **rectangular subgraphs** and nested node hierarchies by enabling Dagre's `compound` mode. It correctly maps parent-child relationships between subgraphs and nodes.
 - **Node Sizing**: Uses shared `calculateNodeDimensions` utility to ensure consistent text measurement across layout engines (Mermaid, Tree) and renderer.
 - **Performance**: 
@@ -37,8 +37,7 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
     - Filters out edges pointing to non-existent nodes.
     - Filters out self-loops (A -> A) which destabilize the ranker.
     - Ensures all nodes are registered before edge definition.
-    - **Cluster Robustness**: Configures compound nodes (subgraphs) without explicit dimensions (`width: 0`, `height: 0`) to prevent Dagre's ranker from treating them as point nodes, resolving "rank undefined" errors in complex hierarchies.
-    - **Edge Safety**: Filters out edges that connect directly to or from a subgraph/cluster node, as Dagre's `network-simplex` ranker can fail ("rank undefined") in certain topologies involving cluster edges.
+    - **Compound Safety**: Uses Dagre `compound` mode and assigns parent-child relationships for subgraphs and nodes to keep nested hierarchies stable.
 
 ### Mermaid.js Compliance
 - **Markdown Strings**: Supports **Markdown formatting** in node labels (e.g., `id["**Bold** and *Italic*"]`).
@@ -62,12 +61,22 @@ These settings can be configured in the **Settings** panel under `Layout > Merma
 ### Separation
 - **Key**: `layout.mermaid.separation`
 - **Type**: `number` (multiplier)
-- **Default**: `1.0`
+- **Default**: `1.0` (UI); layout clamps to `≤ 0.8` internally.
 
 ### Fit Padding
 - **Key**: `layout.fitPadding`
 - **Type**: `number` (pixels)
 - **Default**: `80`
+
+### Fit-to-View (16:9)
+- **Keys**:
+  - `layout.fitUseCentroid`
+  - `layout.fitDetectClusters`
+  - `layout.fitTargetAspectRatio`
+  - `layout.fitEnforceAspectRatio`
+- **Defaults**: `true`, `true`, `1.777` (16:9), `true`
+
+These settings control how the Canvas computes the initial “fit to view” transform (including 1920×1080 presentation framing) after the Mermaid layout has assigned node positions.
 
 ### Render Order
 - **Key**: `layout.mermaid.renderOrder`

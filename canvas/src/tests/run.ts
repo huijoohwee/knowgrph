@@ -15,6 +15,8 @@ import {
   testSelectionZoomNodeSelectionUsesNodeAndNeighbors,
   testSelectionZoomEdgeSelectionUsesEndpointsAndNeighbors,
   testSelectionZoomNoSelectionReturnsEmptySubset,
+  testFitAllTransformRespectsCollisionPaddingInViewportFit,
+  testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
 import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
@@ -282,6 +284,14 @@ export const runAllTests = async () => {
     testSelectionZoomEdgeSelectionUsesEndpointsAndNeighbors,
   )
   await exec('graph.selectionZoom.noSelectionSubset', testSelectionZoomNoSelectionReturnsEmptySubset)
+  await exec(
+    'graph.fitAllTransform.respectsCollisionPadding',
+    testFitAllTransformRespectsCollisionPaddingInViewportFit,
+  )
+  await exec(
+    'graph.simulation.forceSeedsClusterAwarePositions',
+    testForceSimulationSeedsClusterAwarePositionsWhenMissing,
+  )
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)

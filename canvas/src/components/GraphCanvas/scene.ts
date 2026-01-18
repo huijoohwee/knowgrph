@@ -175,37 +175,34 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   // Fit to screen logic for clean slate
   if (!initialZoomTransform) {
-      const isStructured = schema.layout?.mode === 'tree' || schema.layout?.mode === 'radial' || schema.layout?.mode === 'mermaid'
-      // If structured, positions are final. If force, they are initial/random/centered.
-      // For force, we default to centered identity.
-      // For structured, we fit to screen.
-      if (isStructured) {
-          // fitAllTransform uses current node.x/y and scales to viewport
-          const mode = schema.layout?.mode
-          const padding = schema.layout?.fitPadding
-          const t =
-            mode === 'mermaid'
-              ? fitAllTransform(graphData.nodes, width, height, {
-                  pad:
-                    typeof padding === 'number' && Number.isFinite(padding)
-                      ? Math.max(20, Math.min(48, Math.floor(padding)))
-                      : 48,
-                  enforceAspectRatio: false,
-                  maxScale: 6,
-                  maxScaleHardCap: 6,
-                })
-              : fitAllTransform(graphData.nodes, width, height, padding)
-          svg.call(zoom.transform as unknown as (
-            sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
-            t: d3.ZoomTransform,
-          ) => void, t)
-      } else {
-          // Force layout: center camera (identity) which aligns with d3.forceCenter(w/2, h/2)
-          svg.call(zoom.transform as unknown as (
-            sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
-            t: d3.ZoomTransform,
-          ) => void, d3.zoomIdentity)
-      }
+    const mode = schema.layout?.mode
+    const padding = schema.layout?.fitPadding
+    const useCentroid = schema.layout?.fitUseCentroid
+    const detectClusters = schema.layout?.fitDetectClusters
+    const targetAspectRatio = schema.layout?.fitTargetAspectRatio
+    const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
+
+    const commonOpts = {
+      pad: typeof padding === 'number' && Number.isFinite(padding) ? Math.max(20, Math.min(48, Math.floor(padding))) : 48,
+      useCentroidCentering: useCentroid !== false,
+      detectClusters: detectClusters !== false,
+      targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
+      enforceAspectRatio: enforceAspectRatio !== false,
+    }
+
+    const t =
+      mode === 'mermaid'
+        ? fitAllTransform(graphData.nodes, width, height, {
+            ...commonOpts,
+            maxScale: 6,
+            maxScaleHardCap: 6,
+          })
+        : fitAllTransform(graphData.nodes, width, height, commonOpts)
+
+    svg.call(zoom.transform as unknown as (
+      sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+      t: d3.ZoomTransform,
+    ) => void, t)
   }
 
   if (layoutCacheKey && typeof setLayoutPositionsForMode === 'function') {

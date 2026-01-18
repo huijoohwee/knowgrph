@@ -523,7 +523,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const headMetaRecord = headMeta as Record<string, unknown>
   const {
     slideClass,
-    layout: layoutRaw,
     backgroundRaw,
     backgroundSize,
     backgroundPosition,
@@ -537,7 +536,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     () => buildSlideTransitionStyle(activeTransitionKey, slideTransitionPhase),
     [activeTransitionKey, slideTransitionPhase],
   )
-  const layout = layoutRaw
   const isAcademicTheme = themeStyle === 'academic'
   const slideContent = slideBody
 

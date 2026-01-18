@@ -1,9 +1,12 @@
 import type { GraphData } from '@/lib/graph/types'
 import { computeZoomTargetNodeIds, computeZoomSubset } from '@/components/GraphCanvas/selectionZoom'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
+import { buildSimulation } from '@/components/GraphCanvas/utils'
 import { createCanvasSlice } from '@/hooks/store/canvasSlice'
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
+import { defaultSchema } from '@/lib/graph/schema'
+import type { GraphNode } from '@/lib/graph/types'
 
 const makeZoomGraph = (): GraphData => ({
   type: 'Graph',
@@ -145,5 +148,157 @@ export function testFitToScreenCentersSingleNodeGraph() {
   const targetY = height / 2
   if (Math.abs(screenX - targetX) > 1e-6 || Math.abs(screenY - targetY) > 1e-6) {
     throw new Error('fitAllTransform should center a single node graph in the viewport')
+  }
+}
+
+export function testFitAllTransformRespectsCollisionPaddingInViewportFit() {
+  const width = 1920
+  const height = 1080
+  const pad = 20
+  const nodePadding = 12
+  const nodes: GraphNode[] = [
+    {
+      id: 'n1',
+      label: 'N1',
+      type: 'Entity',
+      properties: { 'visual:width': 320, 'visual:height': 180 },
+      x: -800,
+      y: -400,
+    },
+    {
+      id: 'n2',
+      label: 'N2',
+      type: 'Entity',
+      properties: { 'visual:width': 240, 'visual:height': 160 },
+      x: 900,
+      y: 500,
+    },
+    {
+      id: 'n3',
+      label: 'N3',
+      type: 'Entity',
+      properties: { 'visual:width': 200, 'visual:height': 120 },
+      x: 0,
+      y: 0,
+    },
+  ]
+
+  const t = fitAllTransform(nodes, width, height, { pad, nodePadding })
+
+  let minScreenX = Infinity
+  let maxScreenX = -Infinity
+  let minScreenY = Infinity
+  let maxScreenY = -Infinity
+
+  for (const n of nodes) {
+    const x = n.x
+    const y = n.y
+    if (typeof x !== 'number' || !Number.isFinite(x) || typeof y !== 'number' || !Number.isFinite(y)) {
+      throw new Error('expected all nodes to have finite positions for collision padding test')
+    }
+    const vw = Number((n.properties || {})['visual:width']) || 0
+    const vh = Number((n.properties || {})['visual:height']) || 0
+    const halfW = (vw > 0 ? vw / 2 : 24) + nodePadding
+    const halfH = (vh > 0 ? vh / 2 : 24) + nodePadding
+    const sx = t.k * x + t.x
+    const sy = t.k * y + t.y
+    minScreenX = Math.min(minScreenX, sx - t.k * halfW)
+    maxScreenX = Math.max(maxScreenX, sx + t.k * halfW)
+    minScreenY = Math.min(minScreenY, sy - t.k * halfH)
+    maxScreenY = Math.max(maxScreenY, sy + t.k * halfH)
+  }
+
+  if (minScreenX < pad - 1e-3) throw new Error('expected fitted graph to respect left viewport padding')
+  if (maxScreenX > width - pad + 1e-3) throw new Error('expected fitted graph to respect right viewport padding')
+  if (minScreenY < pad - 1e-3) throw new Error('expected fitted graph to respect top viewport padding')
+  if (maxScreenY > height - pad + 1e-3) throw new Error('expected fitted graph to respect bottom viewport padding')
+
+  let sumX = 0
+  let sumY = 0
+  for (const n of nodes) {
+    sumX += n.x || 0
+    sumY += n.y || 0
+  }
+  const centroidX = sumX / nodes.length
+  const centroidY = sumY / nodes.length
+  const screenCentroidX = t.k * centroidX + t.x
+  const screenCentroidY = t.k * centroidY + t.y
+  if (Math.abs(screenCentroidX - width / 2) > 1) {
+    throw new Error('expected fitAllTransform to center by centroid X')
+  }
+  if (Math.abs(screenCentroidY - height / 2) > 1) {
+    throw new Error('expected fitAllTransform to center by centroid Y')
+  }
+}
+
+export function testForceSimulationSeedsClusterAwarePositionsWhenMissing() {
+  const width = 1920
+  const height = 1080
+  const nodes: GraphNode[] = [
+    {
+      id: 'a1',
+      label: 'A1',
+      type: 'MermaidNode',
+      properties: { mermaidSubgraphName: 'ClusterA', 'visual:width': 180, 'visual:height': 120 },
+    },
+    {
+      id: 'a2',
+      label: 'A2',
+      type: 'MermaidNode',
+      properties: { mermaidSubgraphName: 'ClusterA', 'visual:width': 180, 'visual:height': 120 },
+    },
+    {
+      id: 'b1',
+      label: 'B1',
+      type: 'MermaidNode',
+      properties: { mermaidSubgraphName: 'ClusterB', 'visual:width': 180, 'visual:height': 120 },
+    },
+    {
+      id: 'b2',
+      label: 'B2',
+      type: 'MermaidNode',
+      properties: { mermaidSubgraphName: 'ClusterB', 'visual:width': 180, 'visual:height': 120 },
+    },
+    { id: 'u1', label: 'U1', type: 'Entity', properties: { 'visual:width': 120, 'visual:height': 80 } },
+    { id: 'u2', label: 'U2', type: 'Entity', properties: { 'visual:width': 120, 'visual:height': 80 } },
+  ]
+
+  const schema = {
+    ...defaultSchema,
+    layout: {
+      ...(defaultSchema.layout || {}),
+      mode: 'force' as const,
+    },
+  }
+
+  const sim = buildSimulation(nodes, [], width, height, schema)
+  sim.stop()
+
+  for (const n of nodes) {
+    const x = n.x
+    const y = n.y
+    if (typeof x !== 'number' || !Number.isFinite(x) || typeof y !== 'number' || !Number.isFinite(y)) {
+      throw new Error('expected cluster-aware seed layout to assign finite node positions')
+    }
+  }
+
+  const groupA = nodes.filter(n => (n.properties || {}).mermaidSubgraphName === 'ClusterA')
+  const groupB = nodes.filter(n => (n.properties || {}).mermaidSubgraphName === 'ClusterB')
+  const mean = (arr: GraphNode[]) => {
+    let sx = 0
+    let sy = 0
+    for (const n of arr) {
+      sx += n.x || 0
+      sy += n.y || 0
+    }
+    return { x: sx / Math.max(1, arr.length), y: sy / Math.max(1, arr.length) }
+  }
+  const a = mean(groupA)
+  const b = mean(groupB)
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  if (dist < 20) {
+    throw new Error('expected different clusters to seed to distinct regions')
   }
 }

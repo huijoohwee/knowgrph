@@ -106,18 +106,18 @@ export const applyMermaidLayout = (
   else rankdir = direction === 'target-source' ? 'RL' : 'LR'
 
   const separation = typeof mermaidConfig?.separation === 'number' ? Math.min(mermaidConfig.separation, 0.8) : 0.8
-  // ENHANCE: Adjusted separation defaults to be more compact by default, but scalable
-  // Cap separation at 0.8 to prevent extreme spread for dense graphs
   const nodeSep = 40 * separation
   const rankSep = 40 * separation
 
   const g = new dagre.graphlib.Graph({ multigraph: false, compound: true })
+  type DagreCompoundGraph = dagre.graphlib.Graph & { setParent: (v: string, parent: string) => void }
+  const compoundGraph = g as unknown as DagreCompoundGraph
   g.setGraph({
     rankdir,
     nodesep: nodeSep,
     ranksep: rankSep,
-    marginx: 20, // ENHANCE: Reduced margin to prevent huge bounding boxes
-    marginy: 20, // ENHANCE: Reduced margin
+    marginx: 20,
+    marginy: 20,
     ranker: 'network-simplex',
   })
   g.setDefaultEdgeLabel(() => ({}))
@@ -134,7 +134,7 @@ export const applyMermaidLayout = (
     const dummyId = `${id}__dummy`
     subgraphDummyId.set(id, dummyId)
     g.setNode(dummyId, { width: 1, height: 1, label: '' })
-    ;(g as any).setParent(dummyId, id)
+    compoundGraph.setParent(dummyId, id)
   }
 
   // 2. Add Regular Nodes
@@ -211,9 +211,7 @@ export const applyMermaidLayout = (
     if (parentName) {
       const parentId = subgraphIdByName.get(parentName)
       if (parentId && parentId !== id) {
-        // dagre.graphlib.Graph definition is missing setParent in @types/dagre
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(g as any).setParent(id, parentId)
+        compoundGraph.setParent(id, parentId)
       }
     }
   }

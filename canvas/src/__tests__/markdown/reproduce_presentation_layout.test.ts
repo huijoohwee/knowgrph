@@ -1,23 +1,29 @@
 
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { applyParser, builtInParsers, registerParser, resetParsers, toParserId } from '@/features/parsers'
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { normalizeEdgesForSim } from '@/components/GraphCanvas/utils'
 import { applyMermaidLayout } from '@/components/GraphCanvas/layout/mermaid'
 import { defaultSchema } from '@/lib/graph/schema'
+import type { GraphNode } from '@/lib/graph/types'
 
 export async function testMermaidLayoutForPresentationSlides() {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))
 
   // 1. Load the specific markdown file
-  const mdPath = '/Users/huijoohwee/Documents/GitHub/joohwee/aisg-aiap22/eda-mlp-interview-prep-5-3-presentation-slides.md'
+  const mdPathRaw =
+    typeof process !== 'undefined' ? process.env.KG_PRESENTATION_SLIDES_MD_PATH : null
+  const mdPath = typeof mdPathRaw === 'string' ? mdPathRaw.trim() : ''
+  if (!mdPath) {
+    await Promise.resolve()
+    return
+  }
   let markdown = ''
   try {
     markdown = readFileSync(mdPath, 'utf8')
-  } catch (e) {
+  } catch {
     console.warn('Could not read presentation slides file locally, skipping test payload verification.')
     return
   }
@@ -25,12 +31,10 @@ export async function testMermaidLayoutForPresentationSlides() {
   // 2. Parse it
   const jsonld = buildMarkdownJsonLd('file://presentation.md', markdown)
   // console.log('JSONLD Metadata:', JSON.stringify(jsonld.metadata, null, 2))
-  const meta = jsonld.metadata as any
-  if (meta?.mermaid) {
-      // Valid metadata
-  } else {
-      console.log('No mermaid metadata found')
-  }
+  const meta = jsonld.metadata as unknown
+  const hasMermaidMeta =
+    typeof meta === 'object' && meta !== null && 'mermaid' in meta && (meta as { mermaid?: unknown }).mermaid != null
+  if (!hasMermaidMeta) console.log('No mermaid metadata found')
   
   const res = applyParser(toParserId('jsonld'), {
     name: 'presentation.jsonld',
@@ -47,13 +51,13 @@ export async function testMermaidLayoutForPresentationSlides() {
   // 3. Filter to Frontmatter Mermaid
   const scoped = filterGraphToFrontmatterMermaid(res.graphData, 'presentation.md')
   if (!scoped || !scoped.nodes || scoped.nodes.length === 0) {
-     const nodes = (res.graphData.nodes || []) as any[]
-     const mermaidNodes = nodes.filter(n => n.type === 'MermaidNode' || n.type === 'MermaidSubgraph')
-     console.log(`Debug: Total Nodes: ${nodes.length}, Mermaid Nodes: ${mermaidNodes.length}`)
-     if (mermaidNodes.length > 0) {
-         console.log('Sample Mermaid Node:', JSON.stringify(mermaidNodes[0], null, 2))
-     }
-     throw new Error('No Mermaid nodes found in frontmatter')
+    const nodes = (res.graphData.nodes || []) as GraphNode[]
+    const mermaidNodes = nodes.filter(n => n.type === 'MermaidNode' || n.type === 'MermaidSubgraph')
+    console.log(`Debug: Total Nodes: ${nodes.length}, Mermaid Nodes: ${mermaidNodes.length}`)
+    if (mermaidNodes.length > 0) {
+      console.log('Sample Mermaid Node:', JSON.stringify(mermaidNodes[0], null, 2))
+    }
+    throw new Error('No Mermaid nodes found in frontmatter')
   }
 
   console.log(`Found ${scoped.nodes.length} nodes and ${scoped.edges?.length} edges`)

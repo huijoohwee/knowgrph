@@ -2,9 +2,15 @@
 
 ## RULES
 
+### Universal, neutral, project‑agnostic one‑liner in context–intent–directive
+- [] For consistent functionality, reuse the shared utils module across components to centralize common logic and reduce duplication
 - [] Maintain the `UI_THEME_TOKENS` styling for consistency
 - [] 1920 by 1080 (Fit to View/Screen support 16:9, centroid centering)
 - [] when in full-screen mode, canvas inactive, forbid recompute
+- [] In markup, use semantic HTML elements and forbid generic div for structural meaning.
+- [] Use feature‑scoped modules that follow the Single Responsibility Principle, and forbid cross‑cutting generic modules.
+- [] During refactoring, cleanup duplicate, conflicting, stale, and legacy logic to maintain clarity and consistency.
+- [] Apply memoization to cache results and forbid expensive recalculation or unnecessary rerendering.
 
 
 ## FEATURES & FUNCTIONALITIES
@@ -17,8 +23,10 @@ Markdown Editor syntax highlight for Markdown
 
 codeblock in table rendering;
 
-auto-aware, heuristic, auto-adjust subgraph, nodes, text, `<br/>`, 
-1920 by 1080 (Fit to View/Screen support 16:9, centroid centering),
+- [] Initialize GRAPH (nodes, edges, graph layers/subgraph) with cluster‑aware heuristic layout, auto‑scale to 1920×1080 (16:9), center by centroid, and apply bounding‑box fit with collision padding
+  - [] 
+
+text, `<br/>`, 
 subgraph/graph layers centroid nodes, 95%;
 
 presentation framework that supports fragment stepping:

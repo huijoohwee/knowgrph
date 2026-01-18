@@ -86,6 +86,10 @@ export interface GraphSchema {
       boxForceStrength?: number;
     };
     fitPadding?: number;
+    fitUseCentroid?: boolean;
+    fitDetectClusters?: boolean;
+    fitTargetAspectRatio?: number;
+    fitEnforceAspectRatio?: boolean;
     mermaid?: {
       edgeLabels?: string[];
       direction?: 'auto' | 'source-target' | 'target-source';

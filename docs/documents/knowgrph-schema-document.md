@@ -15,6 +15,12 @@
 
 - Layout modes:
   - `schema.layout.mode` supports `"force"`, `"radial"`, and `"tree"` layouts.
+  - `schema.layout` supports advanced fit-to-view configuration:
+    - `fitPadding`: Padding around the graph (default: 80).
+    - `fitUseCentroid`: Uses centroid centering (average of node positions) blended with bounding box center for better visual balance (default: true).
+    - `fitDetectClusters`: Enables outlier rejection to focus the view on the main cluster of nodes (default: true).
+    - `fitTargetAspectRatio`: Target aspect ratio for the view (default: 1.777 for 16:9).
+    - `fitEnforceAspectRatio`: Enforces the target aspect ratio by adjusting the bounding box (default: true).
   - Structured layouts (`"radial"`, `"tree"`) cache node positions per `(schema.layers.mode, schema.layout.mode)` key so switching layers or layout modes does not corrupt other combinations.
   - Layout caches are cleared when graph data is replaced or reset so memory usage stays bounded per dataset and does not leak across imports.
 - Semantic layer behavior:

@@ -78,18 +78,27 @@ export const applyZoomRequest = (
     const schema = useGraphStore.getState().schema
     const mode = schema.layout?.mode
     const padding = schema.layout?.fitPadding
+    const useCentroid = schema.layout?.fitUseCentroid
+    const detectClusters = schema.layout?.fitDetectClusters
+    const targetAspectRatio = schema.layout?.fitTargetAspectRatio
+    const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
+
+    const commonOpts = {
+       pad: typeof padding === 'number' && Number.isFinite(padding) ? Math.max(20, Math.min(48, Math.floor(padding))) : 48,
+       useCentroidCentering: useCentroid !== false,
+       detectClusters: detectClusters !== false,
+       targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
+       enforceAspectRatio: enforceAspectRatio !== false,
+    }
+
     const next =
       mode === 'mermaid'
         ? fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), {
-            pad:
-              typeof padding === 'number' && Number.isFinite(padding)
-                ? Math.max(20, Math.min(48, Math.floor(padding)))
-                : 48,
-            enforceAspectRatio: false,
+            ...commonOpts,
             maxScale: 6,
             maxScaleHardCap: 6,
           })
-        : fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), padding);
+        : fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), commonOpts);
     applyTransform(svg, zoom, next, 300);
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
     return;
@@ -144,18 +153,27 @@ export const applyZoomRequest = (
       const schema = useGraphStore.getState().schema
       const mode = schema.layout?.mode
       const padding = schema.layout?.fitPadding
+      const useCentroid = schema.layout?.fitUseCentroid
+      const detectClusters = schema.layout?.fitDetectClusters
+      const targetAspectRatio = schema.layout?.fitTargetAspectRatio
+      const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
+  
+      const commonOpts = {
+         pad: typeof padding === 'number' && Number.isFinite(padding) ? Math.max(20, Math.min(48, Math.floor(padding))) : 48,
+         useCentroidCentering: useCentroid !== false,
+         detectClusters: detectClusters !== false,
+         targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
+         enforceAspectRatio: enforceAspectRatio !== false,
+      }
+      
       const next =
         mode === 'mermaid'
           ? fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), {
-              pad:
-                typeof padding === 'number' && Number.isFinite(padding)
-                  ? Math.max(20, Math.min(48, Math.floor(padding)))
-                  : 48,
-              enforceAspectRatio: false,
+              ...commonOpts,
               maxScale: 6,
               maxScaleHardCap: 6,
             })
-          : fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), padding);
+          : fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), commonOpts);
       applyTransform(svg, zoom, next, 300);
     }
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }

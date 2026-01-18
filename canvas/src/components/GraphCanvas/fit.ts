@@ -25,10 +25,14 @@ export const fitEdgeTransform = (src: GraphNode, tgt: GraphNode, width: number, 
 export type FitAllTransformOptions = {
   pad?: number
   enforceAspectRatio?: boolean
+  targetAspectRatio?: number
   minScale?: number
   maxScale?: number
   maxScaleHardCap?: number
   minBBoxSize?: number
+  useCentroidCentering?: boolean
+  detectClusters?: boolean
+  nodePadding?: number
 }
 
 export const fitAllTransform = (
@@ -47,42 +51,94 @@ export const fitAllTransform = (
       : (padOrOptions || {})
 
   const enforceAspectRatio = opts.enforceAspectRatio !== false
+  const targetAspectRatio =
+    typeof opts.targetAspectRatio === 'number' && Number.isFinite(opts.targetAspectRatio) && opts.targetAspectRatio > 0
+      ? opts.targetAspectRatio
+      : (1920 / 1080)
   const minScale = typeof opts.minScale === 'number' && Number.isFinite(opts.minScale) ? opts.minScale : 0.1
   const maxScale = typeof opts.maxScale === 'number' && Number.isFinite(opts.maxScale) ? opts.maxScale : 4
   const maxScaleHardCap =
     typeof opts.maxScaleHardCap === 'number' && Number.isFinite(opts.maxScaleHardCap) ? opts.maxScaleHardCap : 6
   const minBBoxSize = typeof opts.minBBoxSize === 'number' && Number.isFinite(opts.minBBoxSize) ? opts.minBBoxSize : 100
+  const useCentroidCentering = opts.useCentroidCentering !== false
+  const detectClusters = opts.detectClusters === true
+  const nodePaddingRaw = typeof opts.nodePadding === 'number' && Number.isFinite(opts.nodePadding) ? opts.nodePadding : 12
+  const nodePadding = Math.max(0, Math.min(64, nodePaddingRaw))
 
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  let hasValid = false;
   let sumX = 0;
   let sumY = 0;
   let validCount = 0;
+  const validNodes: GraphNode[] = [];
 
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i];
     const x = n.x;
     const y = n.y;
     if (typeof x !== 'number' || !Number.isFinite(x) || typeof y !== 'number' || !Number.isFinite(y)) continue;
-    
-    hasValid = true;
     sumX += x;
     sumY += y;
     validCount += 1;
+    validNodes.push(n);
+  }
+
+  if (validCount === 0) {
+    return d3.zoomIdentity;
+  }
+
+  let nodesToFit = validNodes;
+  if (detectClusters && validCount > 10) {
+    const meanX = sumX / validCount;
+    const meanY = sumY / validCount;
     
-    // Estimate node bounds to prevent edge clipping
-    let halfW = 20; // Default radius-ish
-    let halfH = 20;
+    let sumSqDiff = 0;
+    for (let i = 0; i < validNodes.length; i++) {
+        const dx = (validNodes[i].x || 0) - meanX;
+        const dy = (validNodes[i].y || 0) - meanY;
+        sumSqDiff += (dx * dx + dy * dy);
+    }
+    const stdDev = Math.sqrt(sumSqDiff / validCount);
+    
+    const threshold = stdDev * 2.5;
+    const candidate = validNodes.filter(n => {
+        const dx = (n.x || 0) - meanX;
+        const dy = (n.y || 0) - meanY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist <= threshold;
+    });
+
+    const minKeep = Math.max(3, Math.floor(validNodes.length * 0.2));
+    if (candidate.length >= minKeep) {
+      nodesToFit = candidate;
+      sumX = 0;
+      sumY = 0;
+      validCount = 0;
+      for (let i = 0; i < nodesToFit.length; i++) {
+          sumX += (nodesToFit[i].x || 0);
+          sumY += (nodesToFit[i].y || 0);
+          validCount++;
+      }
+    }
+  }
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (let i = 0; i < nodesToFit.length; i++) {
+    const n = nodesToFit[i];
+    const x = n.x || 0;
+    const y = n.y || 0;
+    
+    let halfW = 24 + nodePadding;
+    let halfH = 24 + nodePadding;
     
     const props = n.properties as Record<string, unknown> | undefined;
     if (props) {
         const vw = props['visual:width'];
         const vh = props['visual:height'];
-        if (typeof vw === 'number' && Number.isFinite(vw) && vw > 0) halfW = vw / 2;
-        if (typeof vh === 'number' && Number.isFinite(vh) && vh > 0) halfH = vh / 2;
+        if (typeof vw === 'number' && Number.isFinite(vw) && vw > 0) halfW = (vw / 2) + nodePadding;
+        if (typeof vh === 'number' && Number.isFinite(vh) && vh > 0) halfH = (vh / 2) + nodePadding;
     }
     
     if (x - halfW < minX) minX = x - halfW;
@@ -91,35 +147,37 @@ export const fitAllTransform = (
     if (y + halfH > maxY) maxY = y + halfH;
   }
 
-  if (!hasValid) {
-    return d3.zoomIdentity;
-  }
-
   const w = Math.max(1, width);
   const h = Math.max(1, height);
   const p = Math.max(20, (typeof opts.pad === 'number' && Number.isFinite(opts.pad) ? opts.pad : 80) ?? 80);
 
-  // Enforce minimum bounding box dimensions to prevent "one-line" infinite zoom
-  // or edge-hugging layouts.
   let bboxW = Math.max(maxX - minX, minBBoxSize);
   let bboxH = Math.max(maxY - minY, minBBoxSize);
 
   const viewW = Math.max(1, w - p * 2);
   const viewH = Math.max(1, h - p * 2);
+
   if (enforceAspectRatio) {
     const viewRatio = viewW / viewH;
+    const effectiveTargetRatio = Math.abs(viewRatio - targetAspectRatio) < 0.1 ? targetAspectRatio : viewRatio;
     const bboxRatio = bboxW / bboxH;
-    if (Number.isFinite(viewRatio) && Number.isFinite(bboxRatio) && viewRatio > 0 && bboxRatio > 0) {
-      if (bboxRatio > viewRatio) {
-        bboxH = Math.max(bboxH, bboxW / viewRatio);
+    
+    if (Number.isFinite(effectiveTargetRatio) && Number.isFinite(bboxRatio) && effectiveTargetRatio > 0 && bboxRatio > 0) {
+      if (bboxRatio > effectiveTargetRatio) {
+        bboxH = Math.max(bboxH, bboxW / effectiveTargetRatio);
       } else {
-        bboxW = Math.max(bboxW, bboxH * viewRatio);
+        bboxW = Math.max(bboxW, bboxH * effectiveTargetRatio);
       }
     }
   }
 
-  const cx = validCount > 0 ? sumX / validCount : minX + (maxX - minX) / 2;
-  const cy = validCount > 0 ? sumY / validCount : minY + (maxY - minY) / 2;
+  const centroidX = validCount > 0 ? sumX / validCount : minX + (maxX - minX) / 2;
+  const centroidY = validCount > 0 ? sumY / validCount : minY + (maxY - minY) / 2;
+  const bboxCenterX = minX + (maxX - minX) / 2;
+  const bboxCenterY = minY + (maxY - minY) / 2;
+
+  const cx = useCentroidCentering ? centroidX : bboxCenterX;
+  const cy = useCentroidCentering ? centroidY : bboxCenterY;
 
   const sX = viewW / bboxW;
   const sY = viewH / bboxH;
@@ -129,7 +187,6 @@ export const fitAllTransform = (
   const lower = Math.max(0.01, Math.min(minScale, upper))
   const s = Math.max(lower, Math.min(upper, unclamped))
 
-  // Center the bounding box in the viewport
   return d3.zoomIdentity
     .translate(w / 2 - s * cx, h / 2 - s * cy)
     .scale(s);
