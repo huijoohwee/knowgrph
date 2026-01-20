@@ -102,7 +102,10 @@
 
 - Render entrypoint: [GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
 - Scene orchestration: [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts)
-- Graph layers: [graphLayers.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/graphLayers.ts)
+- Scene layers barrel: [sceneLayers.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/sceneLayers.ts)
+- Presentation updates (no simulation rebuild): [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts)
+
+**Invariant**: UI toggles that affect presentation only (node shape, port handles, group overlay shape, media-as-nodes) update layers in-place and do not trigger re-layout or simulation rebuild.
 
 ---
 

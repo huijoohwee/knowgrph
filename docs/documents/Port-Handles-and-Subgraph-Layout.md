@@ -11,7 +11,7 @@
 ## Node Shape Mode
 
 - Toolbar toggle switches node rendering between circle (default) and rectangular shapes.
-- This is schema-driven (`behavior.nodeShapeMode`) and forces a single scene rebuild (no per-tick recomputation).
+- This is schema-driven (`behavior.nodeShapeMode`) and updates node/label layers in-place (no simulation rebuild / no re-layout).
 
 ## Frontmatter Mode
 
@@ -23,6 +23,7 @@
 - Port handles are rendered as four cardinal markers on each node when enabled in schema behavior.
 - Edge endpoints are projected onto the node boundary using the nearest cardinal side between source and target nodes.
 - This keeps edge attachment stable and consistent with node movement while avoiding extra per-edge recomputation or hidden port graphs.
+- Toggling port handles updates rendering only and preserves node positions.
 
 ## Graph Layers / Subgraphs
 
@@ -32,6 +33,7 @@
 - Group rendering supports `layout.groups.shape`:
   - `rect` (default): rectangular group containers.
   - `geo`: geometry-based outlines computed from member node extents (native implementation; no external geometry libraries).
+  - Switching group shape updates the groups overlay layer only (no simulation rebuild / no re-layout).
 
 ## Markdown Heading Layers
 

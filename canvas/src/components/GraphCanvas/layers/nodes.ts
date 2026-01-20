@@ -88,7 +88,7 @@ export const createNodesLayer = (args: {
     }
   }
 
-  const mediaLayer = g.append('g');
+  const mediaLayer = g.append('g').attr('data-kg-layer', 'media');
   let mediaPanelSel: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown> | null = null;
   if (renderMediaAsNodes && mediaByNodeId.size > 0) {
     const mediaNodes = nodes.filter(n => mediaByNodeId.has(String(n.id)));
@@ -264,7 +264,7 @@ export const createNodesLayer = (args: {
       ? (mediaPanelSel as unknown as d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown>)
       : null;
 
-  const nodeLayer = g.append('g');
+  const nodeLayer = g.append('g').attr('data-kg-layer', 'nodes');
 
   const rectNodes = nodes.filter(n => {
     if (renderMediaAsNodes && hasNodeMedia(n)) return false;

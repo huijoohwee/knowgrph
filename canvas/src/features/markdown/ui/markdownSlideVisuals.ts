@@ -1,5 +1,6 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { applyMediaProxySrc } from '@/lib/url'
 
 export type SlideVisualMeta = {
   slideClass: string
@@ -35,21 +36,8 @@ export const buildBackgroundStyle = (
   position: string,
 ): React.CSSProperties => {
   const style: React.CSSProperties = {}
-  let value = raw.trim()
+  const value = raw.trim()
   if (!value) return style
-
-  // Fix for deprecated source.unsplash.com triggering ORB errors
-  // Polyfill for deprecated service: replace with a reliable placeholder service
-  if (value.includes('source.unsplash.com')) {
-    // Replace with a reliable placeholder service that supports similar dimensions
-    // Attempt to preserve dimensions if present in URL
-    const match = /\/(\d+)x(\d+)/.exec(value)
-    if (match) {
-      value = `https://picsum.photos/${match[1]}/${match[2]}`
-    } else {
-      value = 'https://picsum.photos/1920/1080'
-    }
-  }
 
   const lower = value.toLowerCase()
   if (
@@ -60,7 +48,7 @@ export const buildBackgroundStyle = (
   ) {
     style.background = value
   } else {
-    style.backgroundImage = `url(${value})`
+    style.backgroundImage = `url(${applyMediaProxySrc(value)})`
     style.backgroundSize = size
     style.backgroundPosition = position
   }

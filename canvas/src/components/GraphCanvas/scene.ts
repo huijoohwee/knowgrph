@@ -11,6 +11,7 @@ import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight'
 import { createDefs, createGroupsLayer, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer } from '@/components/GraphCanvas/sceneLayers'
 import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCanvas/sceneHandlers'
+import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -33,11 +34,17 @@ type SetupGraphSceneArgs = {
   gRef: MutableRefObject<GSelection | null>
   nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
+  portHandlesSelRef: MutableRefObject<
+    d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null
+  >
   linksSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
   zoomRef: MutableRefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>
   tempLinkSelRef: MutableRefObject<TempLinkSelection>
   linkDragRef: MutableRefObject<PendingLink | null>
+  simulationRef: MutableRefObject<d3.Simulation<GraphNode, GraphEdge> | null>
+  sceneGraphDataRef: MutableRefObject<GraphData | null>
+  beforeRenderFrameRef: MutableRefObject<(() => void) | null>
   selectedEdgeIdRef: MutableRefObject<string | null>
   selectedNodeIdRef: MutableRefObject<string | null>
   selectedNodeIdsRef: MutableRefObject<string[] | undefined>
@@ -51,6 +58,8 @@ type SetupGraphSceneArgs = {
   setLifecycleStageRendering: () => void
   requestZoomSelection: () => void
   onZoomTransform: (t: { k: number; x: number; y: number }) => void
+  getSchema: () => GraphSchema
+  getRenderMediaAsNodes: () => boolean
   layoutCacheKey: string | null
   setLayoutPositionsForMode: ((key: string, positions: Record<string, { x: number; y: number }> | null) => void) | null
 }
@@ -75,11 +84,15 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     gRef,
     nodesSelRef,
     mediaSelRef,
+    portHandlesSelRef,
     linksSelRef,
     labelsSelRef,
     zoomRef,
     tempLinkSelRef,
     linkDragRef,
+    simulationRef,
+    sceneGraphDataRef,
+    beforeRenderFrameRef,
     selectedEdgeIdRef,
     selectedNodeIdRef,
     selectedNodeIdsRef,
@@ -91,6 +104,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     setLifecycleStageRendering,
     requestZoomSelection,
     onZoomTransform,
+    getSchema,
+    getRenderMediaAsNodes,
     layoutCacheKey,
     setLayoutPositionsForMode,
   } = args
@@ -121,21 +136,23 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     return true
   })
   const graphDataForDisplay: GraphData = { ...graphData, nodes: displayNodes, edges: edgesForDisplay }
+  sceneGraphDataRef.current = graphDataForDisplay
 
   const zoom = createZoom(svg, g, labelsSelRef, schema, onZoomTransform, () => {
     if (!nodesSelRef.current && !labelsSelRef.current && !linksSelRef.current && !mediaSelRef.current) return
+    const schemaValue = getSchema()
     applySelectionHighlight(
       nodesSelRef.current,
       mediaSelRef.current,
       labelsSelRef.current,
       linksSelRef.current,
           graphDataForDisplay,
-          schema,
+          schemaValue,
           selectedNodeIdRef.current,
           selectedEdgeIdRef.current,
           selectedNodeIdsRef.current,
           selectedEdgeIdsRef.current,
-          args.renderMediaAsNodes,
+          getRenderMediaAsNodes(),
         )
   })
   zoomRef.current = zoom
@@ -154,6 +171,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   }
 
   const groupsLayer = createGroupsLayer({ g, graphData, schema })
+  beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
 
   const applyCachedPositions = () => {
     const cached = layoutPositionsForMode && Object.keys(layoutPositionsForMode).length > 0 ? layoutPositionsForMode : null
@@ -189,6 +207,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const simulation = buildSimulation(displayNodes, edgesForDisplay, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
     skipInitialLayout: !!skipInitialLayout,
   })
+  simulationRef.current = simulation
 
   // Fit to screen logic for clean slate
   if (!initialZoomTransform) {
@@ -258,6 +277,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
   nodesSelRef.current = nodeSel
   mediaSelRef.current = mediaSel
+  portHandlesSelRef.current = portHandlesSel
 
   createTempLink(g, tempLinkSelRef)
 
@@ -276,17 +296,17 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     attachSimulationTick({
       svgEl,
       simulation,
-      nodeSel,
-      mediaSel,
-      portHandlesSel,
-      linkSel,
+      nodeSelRef: nodesSelRef,
+      mediaSelRef,
+      portHandlesSelRef,
+      linkSelRef: linksSelRef,
       edgeLabelSel,
-      labelsSel: labelsSelRef.current,
+      labelsSelRef,
       nodes: graphDataForDisplay.nodes,
-      schema,
+      getSchema,
       width,
       height,
-      beforeRenderFrame: groupsLayer?.update ? () => groupsLayer.update() : null,
+      beforeRenderFrameRef,
     })
   }
 
@@ -328,6 +348,89 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   return () => {
     storeLayoutPositions()
     simulation.stop()
+    simulationRef.current = null
+    sceneGraphDataRef.current = null
+    beforeRenderFrameRef.current = null
     cleanupHandlers()
   }
+}
+
+export const updateGraphSceneNodesPresentation = (args: {
+  gRef: MutableRefObject<GSelection | null>
+  schema: GraphSchema
+  hoverEnabled: boolean
+  zoomOnDoubleClick: boolean
+  renderMediaAsNodes: boolean
+  mediaPanelDensity: 'default' | 'compact'
+  tempLinkSelRef: MutableRefObject<TempLinkSelection>
+  linkDragRef: MutableRefObject<PendingLink | null>
+  simulationRef: MutableRefObject<d3.Simulation<GraphNode, GraphEdge> | null>
+  sceneGraphDataRef: MutableRefObject<GraphData | null>
+  nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
+  mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
+  portHandlesSelRef: MutableRefObject<
+    d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null
+  >
+  labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
+  setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void
+  selectNode: (id: string | null) => void
+  selectEdge: (id: string | null) => void
+  setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
+  requestZoomSelection: () => void
+}) => {
+  const g = args.gRef.current
+  const sim = args.simulationRef.current
+  const graphData = args.sceneGraphDataRef.current
+  if (!g || !sim || !graphData) return
+
+  g.selectAll('[data-kg-layer="media"]').remove()
+  g.selectAll('[data-kg-layer="nodes"]').remove()
+  g.selectAll('[data-kg-layer="port-handles"]').remove()
+  g.selectAll('[data-kg-layer="labels"]').remove()
+
+  const { nodeSel, mediaSel, portHandlesSel } = createNodesLayer({
+    g,
+    graphData,
+    schema: args.schema,
+    renderMediaAsNodes: args.renderMediaAsNodes,
+    mediaPanelDensity: args.mediaPanelDensity,
+    zoomOnDoubleClick: args.zoomOnDoubleClick,
+    tempLinkSelRef: args.tempLinkSelRef,
+    linkDragRef: args.linkDragRef,
+    simulation: sim,
+    hoverEnabled: args.hoverEnabled,
+    setHoverInfo: args.setHoverInfo,
+    selectNode: args.selectNode,
+    selectEdge: args.selectEdge,
+    setSelectionSource: args.setSelectionSource,
+    requestZoomSelection: args.requestZoomSelection,
+  })
+
+  args.nodesSelRef.current = nodeSel
+  args.mediaSelRef.current = mediaSel
+  args.portHandlesSelRef.current = portHandlesSel
+
+  createLabelsLayer({
+    g,
+    nodes: graphData.nodes,
+    schema: args.schema,
+    labelsSelRef: args.labelsSelRef,
+  })
+
+  g.selectAll('[data-kg-layer="temp-link"]').raise()
+  g.selectAll('[data-kg-layer="labels"]').raise()
+}
+
+export const updateGraphSceneGroupsPresentation = (args: {
+  gRef: MutableRefObject<GSelection | null>
+  schema: GraphSchema
+  graphData: GraphData
+  beforeRenderFrameRef: MutableRefObject<(() => void) | null>
+}) => {
+  const g = args.gRef.current
+  if (!g) return
+  g.selectAll('[data-kg-layer="groups"]').remove()
+  const groupsLayer = createGroupsLayer({ g, graphData: args.graphData, schema: args.schema })
+  args.beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
+  g.selectAll('[data-kg-layer="groups"]').lower()
 }

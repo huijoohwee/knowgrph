@@ -61,6 +61,11 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **Memoization**: `MarkdownCodeBlock` is wrapped in `React.memo` to prevent unnecessary re-renders when parent components update.
 - **Highlight Caching**: Syntax highlighting is memoized via `useMemo`, ensuring that `highlight.js` is only invoked when the code content or language changes.
 
+### Media Proxy Handling
+- **Background Sources**: Slide `background` URLs are normalized via [markdownSlideVisuals.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownSlideVisuals.ts#L1-L200) before render.
+- **Proxy Routing**: Cross-origin URLs are routed through `/__fetch_remote` by [applyMediaProxySrc](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/url.ts#L1-L200).
+- **Domain Neutrality**: No special-case domain rewrites; all remote backgrounds follow the same proxy path.
+
 ### Markdown → Graph → Canvas flow
 
 **Processing Flow**: Markdown input → Markdown parser → GraphData store → layer derivation → Canvas scene

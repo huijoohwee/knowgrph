@@ -14,32 +14,32 @@ type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 export const attachSimulationTick = (args: {
   svgEl: SVGSVGElement
   simulation: d3.Simulation<GraphNode, GraphEdge>
-  nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>
-  mediaSel?: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null
-  portHandlesSel?: d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null
-  linkSel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
+  nodeSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
+  mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
+  portHandlesSelRef: MutableRefObject<d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null>
+  linkSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
   edgeLabelSel?: d3.Selection<SVGTextElement, GraphEdge, SVGGElement, unknown> | null
-  labelsSel: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>
+  labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
   nodes: GraphNode[]
-  schema: GraphSchema
+  getSchema: () => GraphSchema
   width: number
   height: number
-  beforeRenderFrame?: (() => void) | null
+  beforeRenderFrameRef?: MutableRefObject<(() => void) | null>
 }) => {
   const {
     svgEl,
     simulation,
-    nodeSel,
-    mediaSel,
-    portHandlesSel,
-    linkSel,
+    nodeSelRef,
+    mediaSelRef,
+    portHandlesSelRef,
+    linkSelRef,
     edgeLabelSel,
-    labelsSel,
+    labelsSelRef,
     nodes,
-    schema,
+    getSchema,
     width,
     height,
-    beforeRenderFrame,
+    beforeRenderFrameRef,
   } = args
   const nodeById = new Map<string, GraphNode>()
   for (let i = 0; i < nodes.length; i += 1) {
@@ -64,14 +64,17 @@ export const attachSimulationTick = (args: {
     return null
   }
 
-  const portHandlesCfg = getPortHandlesConfig(schema)
-  const portHandlesEnabled = portHandlesCfg.enabled
-  const baseDxFallback = schema.labelStyles?.offset?.dx ?? 12
-  const baseDyFallback = schema.labelStyles?.offset?.dy ?? 4
-  const labelFontSize = schema.labelStyles?.fontSize ?? 12
-
   const renderFrame = () => {
+    const beforeRenderFrame = beforeRenderFrameRef ? beforeRenderFrameRef.current : null
     if (beforeRenderFrame) beforeRenderFrame()
+    const schema = getSchema()
+    const portHandlesCfg = getPortHandlesConfig(schema)
+    const portHandlesEnabled = portHandlesCfg.enabled
+    const baseDxFallback = schema.labelStyles?.offset?.dx ?? 12
+    const baseDyFallback = schema.labelStyles?.offset?.dy ?? 4
+    const labelFontSize = schema.labelStyles?.fontSize ?? 12
+    const linkSel = linkSelRef.current
+    if (!linkSel) return
     if (portHandlesEnabled) {
       ;(linkSel as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>)
         .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
@@ -98,31 +101,35 @@ export const attachSimulationTick = (args: {
         .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.y ?? 0)
     }
 
-    nodeSel
-      .attr('cx', (d: GraphNode) => d.x!)
-      .attr('cy', (d: GraphNode) => d.y!)
-      .attr('x', (d: GraphNode) => {
-        const { width } = getNodeRectDimensions2d(d, schema)
-        return (d.x ?? 0) - width / 2
-      })
-      .attr('y', (d: GraphNode) => {
-        const { height } = getNodeRectDimensions2d(d, schema)
-        return (d.y ?? 0) - height / 2
-      })
-      .attr('width', (d: GraphNode) => {
-        return getNodeRectDimensions2d(d, schema).width
-      })
-      .attr('height', (d: GraphNode) => {
-        return getNodeRectDimensions2d(d, schema).height
-      })
-      .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
-      .attr('rx', (d: GraphNode) => {
-        return getRenderNodeRadius2d(d, schema) * 0.22;
-      })
-      .attr('ry', (d: GraphNode) => {
-        return getRenderNodeRadius2d(d, schema) * 0.22;
-      })
+    const nodeSel = nodeSelRef.current
+    if (nodeSel) {
+      nodeSel
+        .attr('cx', (d: GraphNode) => d.x!)
+        .attr('cy', (d: GraphNode) => d.y!)
+        .attr('x', (d: GraphNode) => {
+          const { width } = getNodeRectDimensions2d(d, schema)
+          return (d.x ?? 0) - width / 2
+        })
+        .attr('y', (d: GraphNode) => {
+          const { height } = getNodeRectDimensions2d(d, schema)
+          return (d.y ?? 0) - height / 2
+        })
+        .attr('width', (d: GraphNode) => {
+          return getNodeRectDimensions2d(d, schema).width
+        })
+        .attr('height', (d: GraphNode) => {
+          return getNodeRectDimensions2d(d, schema).height
+        })
+        .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
+        .attr('rx', (d: GraphNode) => {
+          return getRenderNodeRadius2d(d, schema) * 0.22;
+        })
+        .attr('ry', (d: GraphNode) => {
+          return getRenderNodeRadius2d(d, schema) * 0.22;
+        })
+    }
 
+    const mediaSel = mediaSelRef.current
     if (mediaSel) {
       mediaSel.attr('transform', (d: GraphNode) => {
         const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
@@ -131,6 +138,7 @@ export const attachSimulationTick = (args: {
       })
     }
 
+    const portHandlesSel = portHandlesSelRef.current
     if (portHandlesSel && portHandlesEnabled) {
       portHandlesSel
         .attr('cx', d => {
@@ -145,6 +153,8 @@ export const attachSimulationTick = (args: {
         })
     }
 
+    const labelsSel = labelsSelRef.current
+    if (!labelsSel) return
     // Standard text positioning
     labelsSel.attr('x', (d: GraphNode) => d.x!).attr('y', (d: GraphNode) => d.y!)
     const t = d3.zoomTransform(svgEl)

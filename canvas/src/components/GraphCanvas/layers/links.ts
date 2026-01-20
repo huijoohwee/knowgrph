@@ -88,6 +88,7 @@ export const createLinksLayer = (args: {
 export const createTempLink = (g: GSelection, tempLinkSelRef: MutableRefObject<TempLinkSelection>) => {
   const tempLink = g
     .append('line')
+    .attr('data-kg-layer', 'temp-link')
     .attr('stroke', '#3B82F6')
     .attr('stroke-opacity', 0.6)
     .attr('stroke-width', 2)
