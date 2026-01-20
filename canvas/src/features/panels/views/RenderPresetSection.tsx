@@ -205,7 +205,7 @@ export default function RenderPresetSection({
           onClick={() => {
             const nodeTypes = schema.catalog?.nodeTypes || []
             const edgeLabels = schema.catalog?.edgeLabels || []
-            const nodePalette = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948']
+            const nodePalette = ['#007BFF', '#FFC107', '#28A745', '#FD7E14', '#DC3545']
             nodeTypes.forEach((type, index) => {
               const color = nodePalette[index % nodePalette.length]
               updateNodeStyle(type, { color })

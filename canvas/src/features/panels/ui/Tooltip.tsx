@@ -18,9 +18,12 @@ interface TooltipProps {
   contentClassName?: string
   open?: boolean
   anchorStyle?: React.CSSProperties
+  onContentMouseLeave?: () => void
 }
 
-export default function Tooltip({ content, className, children, maxWidthFromPrevSibling, maxWidthPx, contentClassName, open: controlledOpen, anchorStyle }: TooltipProps) {
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect
+
+export default function Tooltip({ content, className, children, maxWidthFromPrevSibling, maxWidthPx, contentClassName, open: controlledOpen, anchorStyle, onContentMouseLeave }: TooltipProps) {
   const anchorRef = React.useRef<HTMLSpanElement | null>(null)
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
   const open = typeof controlledOpen === 'boolean' ? controlledOpen : uncontrolledOpen
@@ -111,7 +114,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
     }
   }, [open, updatePosition])
 
-  React.useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!open) return
     if (!pos) return
     if (constrainedRef.current) return
@@ -163,6 +166,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
       {open && pos && createPortal(
         <div
           ref={scrollRef}
+          data-kg-tooltip-root="1"
           className={cn(`px-2 py-1 text-xs rounded ${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} whitespace-normal break-words overflow-hidden pointer-events-auto z-[10000]`, contentClassName)}
           style={{ position: 'fixed', top: pos.top, left: pos.left, transform: 'translateX(-50%)', maxWidth: maxW ? `${maxW}px` : '250px' }}
           onMouseEnter={() => {
@@ -177,6 +181,7 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
             }, 500)
           }}
           onMouseLeave={() => {
+            onContentMouseLeave?.()
             stopScroll()
           }}
           onMouseMove={e => {

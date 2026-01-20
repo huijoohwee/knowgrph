@@ -5,18 +5,22 @@ import type { GraphSchema } from '@/lib/graph/schema';
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation';
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
 import {
-  compareMermaidNodesForRender,
   getNodeBaseFill,
   getNodeMediaSpec,
   getRenderNodeRadius2d,
   hasNodeMedia,
 } from '@/components/GraphCanvas/helpers';
 import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
-import { type TreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers';
 import { applyMediaProxySrc } from '@/lib/url';
 import { MINIMAP_HEIGHT, ZOOM_MAX } from '@/features/minimap/math';
+import { getPortHandlePosition, getPortHandlesConfig, listPortHandlesForNodes, type PortHandleDatum } from '@/components/GraphCanvas/portHandles';
+import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
+import type { HoverInfo } from '@/components/GraphHoverTooltip'
+import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
+
+import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens';
 
 const MEDIA_PANEL_HEADER_AT_MAX_ZOOM = 36;
 const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT = 2;
@@ -25,39 +29,36 @@ const MEDIA_PANEL_ASPECT_WIDTH = 16;
 const MEDIA_PANEL_ASPECT_HEIGHT = 9;
 const MEDIA_PANEL_PADDING = 4;
 const MEDIA_PANEL_CORNER_AT_MAX_ZOOM = 8;
-const MEDIA_PANEL_BORDER_COLOR = '#e5e7eb';
-const MEDIA_PANEL_BG_COLOR = '#ffffff';
-const MEDIA_PANEL_HEADER_BG_COLOR = '#f9fafb';
+const MEDIA_PANEL_BORDER_COLOR = UI_THEME_COLORS.light.border;
+const MEDIA_PANEL_BG_COLOR = UI_THEME_COLORS.light.bg;
+const MEDIA_PANEL_HEADER_BG_COLOR = '#f9fafb'; // gray-50
 const MEDIA_PANEL_BORDER_WIDTH = 1 / ZOOM_MAX;
 
 export const createNodesLayer = (args: {
   g: GSelection;
   graphData: GraphData;
-  edgesForDisplay: GraphEdge[];
   schema: GraphSchema;
-  treeDerivation?: TreeDerivation | null;
   zoomOnDoubleClick: boolean;
   renderMediaAsNodes: boolean;
   mediaPanelDensity: 'default' | 'compact';
   tempLinkSelRef: MutableRefObject<TempLinkSelection>;
   linkDragRef: MutableRefObject<PendingLink | null>;
   simulation: d3.Simulation<GraphNode, GraphEdge>;
+  hoverEnabled?: boolean;
+  setHoverInfo?: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void;
   selectNode: (id: string | null) => void;
   selectEdge: (id: string | null) => void;
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void;
   requestZoomSelection: () => void;
-  graphLayersVisible: boolean;
 }): {
   nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>;
   mediaSel: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null;
+  portHandlesSel: d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null;
 } => {
   const {
     g,
     graphData,
-    edgesForDisplay,
     schema,
-    treeDerivation,
-    graphLayersVisible,
     renderMediaAsNodes,
     mediaPanelDensity,
     zoomOnDoubleClick,
@@ -66,77 +67,16 @@ export const createNodesLayer = (args: {
     setSelectionSource,
     requestZoomSelection,
     simulation,
+    hoverEnabled,
+    setHoverInfo,
   } = args;
 
-  const isTree = schema.layout?.mode === 'tree';
-  const isMermaid = schema.layout?.mode === 'mermaid';
-  const treeCfg = schema.layout?.tree || {};
-  const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
-  const direction = treeDerivation?.direction ?? treeCfg.direction ?? 'source-target';
-  const nodesWithChildren = new Set<string>();
-  if (isTree && treeColorMode === 'observable') {
-    for (let i = 0; i < edgesForDisplay.length; i += 1) {
-      const e = edgesForDisplay[i];
-      const src = String(e.source ?? '');
-      const tgt = String(e.target ?? '');
-      const parent = direction === 'source-target' ? src : tgt;
-      const child = direction === 'source-target' ? tgt : src;
-      if (!parent || !child || parent === child) continue;
-      nodesWithChildren.add(parent);
-    }
-  }
-  const internalFill = (() => {
-    const raw = typeof treeCfg.internalFill === 'string' ? treeCfg.internalFill.trim() : '';
-    if (raw) return raw;
-    const linkStroke = typeof treeCfg.linkStroke === 'string' ? treeCfg.linkStroke.trim() : '';
-    return linkStroke || '#555';
-  })();
-  const leafFill = (() => {
-    const raw = typeof treeCfg.leafFill === 'string' ? treeCfg.leafFill.trim() : '';
-    return raw || '#999';
-  })();
-
   const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
-  const layersCfg = schema.layers || {};
-  const layerMode = layersCfg.mode || 'property';
-  const semanticCfg = layersCfg.semantic || {};
-  const semanticHiddenTypes = Array.isArray(semanticCfg.hiddenNodeTypes)
-    ? semanticCfg.hiddenNodeTypes.map(t => String(t || '').trim()).filter(Boolean)
-    : [];
-  const hiddenTypeSet =
-    layerMode === 'semantic' && semanticHiddenTypes.length
-      ? new Set(semanticHiddenTypes)
-      : null;
-  const nodes = (() => {
-    const base = (() => {
-      if (!hiddenTypeSet) return rawNodes;
-      const filtered = rawNodes.filter(n => {
-        const t = String(n.type || '');
-        if (isMermaid && !graphLayersVisible && t === 'MermaidSubgraph') return true;
-        return !hiddenTypeSet.has(t);
-      });
-      return filtered.length > 0 ? filtered : rawNodes;
-    })();
-    if (!graphLayersVisible) return base;
-    const filtered = base.filter(n => String(n.type || '') !== 'MermaidSubgraph');
-    return filtered.length > 0 ? filtered : base;
-  })();
-  const getNodeShape = (n: GraphNode): 'circle' | 'rect' => {
-    const type = String(n.type || '');
-    if (type === 'MermaidNode' || type === 'MermaidSubgraph') return 'rect';
-    if (isTree || isMermaid) return 'rect';
-
-    const fromSchema = schema.nodeShapes?.[String(n.type || '')];
-    if (fromSchema === 'rect') return 'rect';
-    if (fromSchema === 'circle') return 'circle';
-    const raw = (n.properties || {})['visual:shape'];
-    const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
-    return v === 'rect' ? 'rect' : 'circle';
-  };
+  const nodes = rawNodes;
   const rectNodeIdSet = new Set<string>();
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i];
-    if (getNodeShape(n) === 'rect') rectNodeIdSet.add(String(n.id));
+    if (getNodeRenderShape2d(n, schema) === 'rect') rectNodeIdSet.add(String(n.id));
   }
   const mediaByNodeId = new Map<string, ReturnType<typeof getNodeMediaSpec>>();
   if (renderMediaAsNodes) {
@@ -325,29 +265,15 @@ export const createNodesLayer = (args: {
       : null;
 
   const nodeLayer = g.append('g');
+
   const rectNodes = nodes.filter(n => {
     if (renderMediaAsNodes && hasNodeMedia(n)) return false;
-    
-    if (String(n.type || '') === 'MermaidNode') return true;
-
-    if (isMermaid) {
-      if (String(n.type || '') === 'MermaidSubgraph') return !graphLayersVisible;
-      return true;
-    }
     return rectNodeIdSet.has(String(n.id));
   });
   const circleNodes = nodes.filter(n => {
     if (renderMediaAsNodes && hasNodeMedia(n)) return false;
-    
-    if (String(n.type || '') === 'MermaidNode') return false;
-
-    if (isMermaid) return false;
     return !rectNodeIdSet.has(String(n.id));
   });
-  if (isMermaid) {
-    rectNodes.sort((a, b) => compareMermaidNodesForRender(a, b, schema));
-    circleNodes.sort((a, b) => compareMermaidNodesForRender(a, b, schema));
-  }
 
   nodeLayer
     .selectAll('circle')
@@ -363,76 +289,32 @@ export const createNodesLayer = (args: {
     .enter()
     .append('rect')
     .attr('fill', 'transparent')
-    .attr('rx', (d: GraphNode) => {
-       if (d.type === 'MermaidSubgraph') return 0; // Subgraphs often square in Mermaid
-       if (isMermaid) return 4; // Mermaid Land style
-       return getRenderNodeRadius2d(d, schema) * 0.22;
-    })
-    .attr('ry', (d: GraphNode) => {
-       if (d.type === 'MermaidSubgraph') return 0;
-       if (isMermaid) return 4;
-       return getRenderNodeRadius2d(d, schema) * 0.22;
-    })
+    .attr('rx', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
+    .attr('ry', (d: GraphNode) => getRenderNodeRadius2d(d, schema) * 0.22)
     .attr('x', (d: GraphNode) => {
-        const props = (d.properties || {}) as Record<string, unknown>;
-        const w = typeof props['visual:width'] === 'number' ? props['visual:width'] : getRenderNodeRadius2d(d, schema) * 2;
-        return (d.x ?? 0) - w / 2;
+        const { width } = getNodeRectDimensions2d(d, schema)
+        return (d.x ?? 0) - width / 2;
     })
     .attr('y', (d: GraphNode) => {
-        const props = (d.properties || {}) as Record<string, unknown>;
-        const h = typeof props['visual:height'] === 'number' ? props['visual:height'] : getRenderNodeRadius2d(d, schema) * 2;
-        return (d.y ?? 0) - h / 2;
+        const { height } = getNodeRectDimensions2d(d, schema)
+        return (d.y ?? 0) - height / 2;
     })
     .attr('width', (d: GraphNode) => {
-        const props = (d.properties || {}) as Record<string, unknown>;
-        return typeof props['visual:width'] === 'number' ? props['visual:width'] : getRenderNodeRadius2d(d, schema) * 2;
+        return getNodeRectDimensions2d(d, schema).width
     })
     .attr('height', (d: GraphNode) => {
-        const props = (d.properties || {}) as Record<string, unknown>;
-        return typeof props['visual:height'] === 'number' ? props['visual:height'] : getRenderNodeRadius2d(d, schema) * 2;
+        return getNodeRectDimensions2d(d, schema).height
     })
 
   const node = nodeLayer.selectAll<SVGElement, GraphNode>('circle,rect')
   node
-     .attr('fill', (d: GraphNode) => {
-       if (isTree && treeColorMode === 'observable') {
-         return nodesWithChildren.has(String(d.id)) ? internalFill : leafFill;
-       }
-       return getNodeBaseFill(d, schema);
-     })
+     .attr('fill', (d: GraphNode) => getNodeBaseFill(d, schema))
     .attr('stroke', (d: GraphNode) => {
-      if (isTree && treeColorMode === 'observable') return 'none'
-      if (isMermaid) {
-        const props = (d.properties || {}) as Record<string, unknown>
-        const visualStroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke']).trim() : ''
-        const stroke = typeof props.stroke === 'string' ? String(props.stroke).trim() : ''
-        const override = visualStroke || stroke
-        if (override) return override
-        return schema.nodeStroke?.[d.type]?.color ?? '#333'
-      }
-      if (schema.layout?.mode === 'tree') return schema.nodeStroke?.[d.type]?.color ?? 'none'
-      return schema.nodeStroke?.[d.type]?.color ?? '#ffffff'
+      return schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS.light.nodeStroke
     })
     .attr('stroke-width', (d: GraphNode) => {
-      if (isTree && treeColorMode === 'observable') return 0
-      if (isMermaid) {
-        const props = (d.properties || {}) as Record<string, unknown>
-        const raw =
-          props['visual:strokeWidth'] ??
-          props['stroke-width'] ??
-          props.strokeWidth ??
-          props['visual:stroke-width']
-        if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) return raw
-        if (typeof raw === 'string') {
-          const parsed = parseFloat(raw)
-          if (Number.isFinite(parsed) && parsed >= 0) return parsed
-        }
-        const w = schema.nodeStroke?.[d.type]?.width
-        return typeof w === 'number' ? w : 1.5
-      }
       const w = schema.nodeStroke?.[d.type]?.width
       if (typeof w === 'number' && Number.isFinite(w) && w >= 0) return w
-      if (schema.layout?.mode === 'tree') return 0
       return 1.5
     })
     .attr('stroke-dasharray', () => null)
@@ -443,9 +325,8 @@ export const createNodesLayer = (args: {
 
   if (schema.behavior.allowNodeDrag) {
     const dragBehavior = nodeDragBehavior(simulation, schema);
-    ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).call(
-      dragBehavior as d3.DragBehavior<SVGElement, GraphNode, unknown>,
-    )
+    const draggable = (node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>)
+    draggable.call(dragBehavior as d3.DragBehavior<SVGElement, GraphNode, unknown>)
     if (mediaInteractiveSel) {
       mediaInteractiveSel.call(dragBehavior as d3.DragBehavior<SVGElement, GraphNode, unknown>)
     }
@@ -474,14 +355,78 @@ export const createNodesLayer = (args: {
     emitPropsPanelOpen();
   }
 
+  const onMouseOver = (event: MouseEvent, d: GraphNode) => {
+    if (!hoverEnabled || !setHoverInfo) return
+    const id = String(d.id)
+    if (!id) return
+    setHoverInfo(() => ({ kind: 'node', id, clientX: event.clientX, clientY: event.clientY }))
+  }
+
+  const onMouseMove = (event: MouseEvent, d: GraphNode) => {
+    if (!hoverEnabled || !setHoverInfo) return
+    const id = String(d.id)
+    if (!id) return
+    setHoverInfo(() => ({ kind: 'node', id, clientX: event.clientX, clientY: event.clientY }))
+  }
+
+  const onMouseOut = (event: MouseEvent, d: GraphNode) => {
+    if (!hoverEnabled || !setHoverInfo) return
+    const rt = (event as unknown as { relatedTarget?: unknown }).relatedTarget
+    if (isTooltipRelatedTarget(rt)) return
+    const id = String(d.id)
+    if (!id) return
+    setHoverInfo(prev => (prev && prev.kind === 'node' && prev.id === id ? null : prev))
+  }
+
   ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('contextmenu', onContextMenu)
   ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('click', onClick)
   ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('dblclick', onDblClick)
+  ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('mouseover', onMouseOver)
+  ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('mousemove', onMouseMove)
+  ;(node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>).on('mouseout', onMouseOut)
   if (mediaInteractiveSel) {
     mediaInteractiveSel.on('contextmenu', onContextMenu)
     mediaInteractiveSel.on('click', onClick)
     mediaInteractiveSel.on('dblclick', onDblClick)
+    mediaInteractiveSel.on('mouseover', onMouseOver)
+    mediaInteractiveSel.on('mousemove', onMouseMove)
+    mediaInteractiveSel.on('mouseout', onMouseOut)
   }
 
-  return { nodeSel: node, mediaSel };
+  const portHandlesCfg = getPortHandlesConfig(schema);
+  const portHandlesEnabled = portHandlesCfg.enabled;
+  const portHandlesSel = (() => {
+    if (!portHandlesEnabled) return null;
+    const portLayer = g.append('g').attr('data-kg-layer', 'port-handles');
+    const data = listPortHandlesForNodes(nodes);
+    if (!data.length) return null;
+    return (portLayer
+      .selectAll<SVGCircleElement, PortHandleDatum>('circle')
+      .data(data, d => `${d.nodeId}:${d.side}`)
+      .enter()
+      .append('circle')
+      .attr('r', portHandlesCfg.size)
+      .attr('fill', portHandlesCfg.fill)
+      .attr('stroke', portHandlesCfg.stroke)
+      .attr('stroke-width', portHandlesCfg.strokeWidth)
+      .style('pointer-events', 'none')) as d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown>;
+  })();
+
+  if (portHandlesSel) {
+    const nodeById = new Map<string, GraphNode>();
+    for (let i = 0; i < nodes.length; i += 1) nodeById.set(String(nodes[i].id), nodes[i]);
+    portHandlesSel
+      .attr('cx', d => {
+        const n = nodeById.get(d.nodeId);
+        if (!n) return 0;
+        return getPortHandlePosition({ datum: d, node: n, schema, cfg: portHandlesCfg }).x;
+      })
+      .attr('cy', d => {
+        const n = nodeById.get(d.nodeId);
+        if (!n) return 0;
+        return getPortHandlePosition({ datum: d, node: n, schema, cfg: portHandlesCfg }).y;
+      });
+  }
+
+  return { nodeSel: node, mediaSel, portHandlesSel };
 };

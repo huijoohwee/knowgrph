@@ -13,7 +13,7 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
 - **Frontmatter Styling**: Supports Mermaid `classDef` and `class` statements to apply custom styles (fill, stroke, width, color) directly from frontmatter.
 - **Schema-Driven Strokes**: Node borders (`stroke`) and widths (`stroke-width`) are controlled by the schema (`schema.nodeStroke`). If not defined, Mermaid nodes default to a subtle `#333` border.
 - **Subgraph Visualization via Hulls**: Mermaid subgraphs (`MermaidSubgraph`) are rendered as **rectangular hulls** with padding (12px), utilizing the `graphLayers` system. They render *below* nodes to ensure visibility and correct z-indexing.
-- **Node Shapes**: Nodes are rendered as **rectangular boxes** with rounded corners (`4px`), dynamically sized to their content. This applies to all Mermaid node types (including stadium `([...])`, cylinder `[(...)]`, etc.), which are normalized to rectangular nodes for visual consistency.
+- **Node Shapes**: Nodes are rendered as **rectangular boxes** with rounded corners (`4px`). Mermaid layout seeds `properties["visual:width"]`/`properties["visual:height"]` from a shared minimap-relative default sized for maximum zoom (**5× minimap width**, **2.5× minimap height**, fixed 2:1 aspect ratio; width ratio clamped to `1..50`, height ratio derived as `width/2`), ensuring stable sizing across Mermaid, Tree, and Port Handles. Override via `layout.rectNodes.maxZoomMinimapWidthRatio` / `layout.rectNodes.maxZoomMinimapHeightRatio` (Floating Panel keeps the aspect ratio locked).
 - **Edges**: Renders smooth B-spline curves initially. When dragging nodes, edges dynamically switch to direct lines to maintain connection.
 
 ### Interactive Dragging
@@ -25,10 +25,10 @@ The Mermaid Layout (`mode: 'mermaid'`) provides a high-fidelity, hierarchical fl
 
 ### Layout Engine & Robustness
 - **Algorithm**: Uses Dagre's `network-simplex` ranker (switched from `tight-tree`) for enhanced stability and reduced layout failures.
-- **Spacing**: Applies schema-configured separation with an internal clamp (`nodesep: 40 * clamp(separation, ≤ 0.8)`, `ranksep: 40 * clamp(separation, ≤ 0.8)`), and uses compact margins (`marginx: 20`, `marginy: 20`) to reduce unnecessary whitespace.
-- **Centering**: View centering and fit-to-view are applied by the Canvas fit logic (schema-driven) after layout, rather than being enforced inside Dagre.
+- **Spacing**: Uses schema-configured separation as a baseline, then increases `nodesep`/`ranksep` to avoid overlap (accounts for label padding) and maximizes spacing while still fitting a 1920×1080 (16:9) frame.
+- **Centering**: Applies 16:9-aware post-processing (centering and safe scaling) so Mermaid layouts remain well spread and centered in the frame.
 - **Compound Layout**: Natively supports **rectangular subgraphs** and nested node hierarchies by enabling Dagre's `compound` mode. It correctly maps parent-child relationships between subgraphs and nodes.
-- **Node Sizing**: Uses shared `calculateNodeDimensions` utility to ensure consistent text measurement across layout engines (Mermaid, Tree) and renderer.
+- **Node Sizing**: Uses a shared minimap-relative default sizing policy so Mermaid node boxes remain consistent across layouts, while labels continue to wrap using shared text-wrapping utilities.
 - **Performance**: 
   - **Revision-Aware Caching**: Uses a robust cache key including graph topology revision (`nodesRevision`, `edgesRevision`) to skip redundant Dagre calculations.
   - **Memoization**: Utility functions like text wrapping are memoized to reduce CPU usage.
@@ -61,7 +61,7 @@ These settings can be configured in the **Settings** panel under `Layout > Merma
 ### Separation
 - **Key**: `layout.mermaid.separation`
 - **Type**: `number` (multiplier)
-- **Default**: `1.0` (UI); layout clamps to `≤ 0.8` internally.
+- **Default**: `3.0`
 
 ### Fit Padding
 - **Key**: `layout.fitPadding`

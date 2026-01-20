@@ -16,7 +16,7 @@ export const testValidateSchemaFillsDefaults = () => {
   const s = validateSchema({})
   if (!s.labelStyles || s.labelStyles.fontSize !== defaultSchema.labelStyles!.fontSize) throw new Error('fontSize default missing')
   if (!s.layout || !s.layout.forces || typeof s.layout.forces.charge !== 'number') throw new Error('layout defaults missing')
-  if (!s.layout || s.layout.mode !== 'mermaid') throw new Error('layout mode default missing')
+  if (!s.layout || s.layout.mode !== 'force') throw new Error('layout mode default missing')
 }
 
 export const testValidateSchemaBehaviorDefaults = () => {
@@ -227,7 +227,6 @@ export const testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance = () => {
   const schema = validateSchema({
     ...defaultSchema,
     layout: { ...defaultSchema.layout, mode: 'force' },
-    layers: { mode: 'semantic' },
     three: { ...defaultSchema.three, nodeSizingFormula: 'schema' },
     nodeSizes: {
       ...defaultSchema.nodeSizes,
@@ -237,13 +236,13 @@ export const testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance = () => {
 
   const withNodeSize = { id: 'n1', type: 'Entity', label: 'A', properties: { 'visual:nodeSize': 22 } }
   const r1 = getRenderNodeRadius2d(withNodeSize, schema)
-  if (r1 !== 22) throw new Error(`semantic mode should respect visual:nodeSize; got ${r1}`)
+  if (r1 !== 22) throw new Error(`node sizing should respect visual:nodeSize; got ${r1}`)
 
   const withImportance = { id: 'n2', type: 'Entity', label: 'B', properties: { 'visual:importance': 100 } }
   const r2 = getRenderNodeRadius2d(withImportance, schema)
-  if (r2 < 10 || r2 > 40) throw new Error(`semantic mode importance should clamp to [10,40]; got ${r2}`)
+  if (r2 < 10 || r2 > 40) throw new Error(`importance sizing should clamp to [10,40]; got ${r2}`)
 
   const withFallback = { id: 'n3', type: 'Entity', label: 'C', properties: {} }
   const r3 = getRenderNodeRadius2d(withFallback, schema)
-  if (r3 !== 13) throw new Error(`semantic mode should fall back to schema radius when missing props; got ${r3}`)
+  if (r3 !== 13) throw new Error(`node sizing should fall back to schema radius when missing props; got ${r3}`)
 }

@@ -2,13 +2,10 @@ import { GraphNode } from '@/lib/graph/types';
 
 export interface LayoutPositionConfig {
   mode: string;
-  layerMode: string;
   frontmatterMode: boolean;
   prevMode: string | null;
-  prevLayerMode: string | null;
   prevFrontmatterMode: boolean | null;
   nodes: GraphNode[];
-  edgesRevision: number;
   layoutPositionCacheByMode: Record<string, Record<string, { x: number; y: number }>> | null;
 }
 
@@ -20,30 +17,16 @@ export interface LayoutPositionResult {
 
 export const determineLayoutPositions = ({
   mode,
-  layerMode,
   frontmatterMode,
   prevMode,
-  prevLayerMode,
   prevFrontmatterMode,
   nodes,
-  edgesRevision,
   layoutPositionCacheByMode,
 }: LayoutPositionConfig): LayoutPositionResult => {
   const isModeChange = prevMode !== mode;
-  const isLayerChange = prevLayerMode !== layerMode;
   const isFrontmatterChange = prevFrontmatterMode !== frontmatterMode;
-  const isStructuredMode = mode === 'radial' || mode === 'tree' || mode === 'mermaid';
-  const cacheKey = `${layerMode}:${mode}:${frontmatterMode ? 'fm' : 'full'}:${edgesRevision}`;
-
-  // If not structured, we don't use cache for *target* positions in the same way,
-  // though we might use prevPositions for stability (handled by caller).
-  if (!isStructuredMode) {
-    return {
-      layoutPositionsForMode: null,
-      skipInitialLayout: false,
-      cacheKey,
-    };
-  }
+  const isStructuredMode = mode === 'radial';
+  const cacheKey = `${mode}`;
 
   // Calculate coverage of current node positions (are they valid?)
   const coverageFromNodes = (() => {
@@ -59,6 +42,15 @@ export const determineLayoutPositions = ({
     }
     return matches / Math.max(1, nodes.length);
   })();
+
+  if (!isStructuredMode) {
+    return {
+      layoutPositionsForMode: null,
+      skipInitialLayout:
+        !isModeChange && !isFrontmatterChange && coverageFromNodes >= 0.95,
+      cacheKey,
+    };
+  }
 
   // Calculate coverage from cache
   const cachedPositions = layoutPositionCacheByMode ? (layoutPositionCacheByMode[cacheKey] ?? null) : null;
@@ -81,11 +73,11 @@ export const determineLayoutPositions = ({
   // Decision logic
   // We use cache if:
   // 1. We have a good cache (high coverage)
-  // 2. AND (We are changing modes OR the current nodes don't have good positions)
+  // 2. AND (We are using structured mode OR We are changing modes OR the current nodes don't have good positions)
   const shouldUseCache =
     !!cachedPositions &&
     coverageFromCache >= 0.95 &&
-    (isModeChange || isLayerChange || isFrontmatterChange || coverageFromNodes < 0.95);
+    (isStructuredMode || isModeChange || isFrontmatterChange || coverageFromNodes < 0.95);
 
   const layoutPositionsForMode = shouldUseCache ? cachedPositions : null;
 
@@ -94,7 +86,7 @@ export const determineLayoutPositions = ({
   // 2. OR We are not changing modes and current nodes are already positioned (e.g. minor updates)
   const skipInitialLayout =
     shouldUseCache ||
-    (!isModeChange && !isLayerChange && !isFrontmatterChange && coverageFromNodes >= 0.95);
+    (!isModeChange && !isFrontmatterChange && coverageFromNodes >= 0.95);
 
   return {
     layoutPositionsForMode,

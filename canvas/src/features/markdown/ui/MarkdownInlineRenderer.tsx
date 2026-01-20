@@ -17,7 +17,7 @@ import type {
   TokensMark,
   TokensFootnoteRef,
 } from './MarkdownTokens'
-import { isAbsoluteWebUrl, isSafeHref, resolveHref, buildAnchorAttrs } from '@/features/markdown/ui/markdownPreviewLinks'
+import { applyMediaProxySrc, isAbsoluteWebUrl, isSafeHref, resolveHref, buildAnchorAttrs } from '@/features/markdown/ui/markdownPreviewLinks'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { InlineRenderOpts } from './MarkdownRendererTypes'
 
@@ -142,7 +142,8 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     if (tt.type === 'image') {
       const img = t as unknown as TokensImage
-      const src = isSafeHref(img.href) ? resolveHref(img.href, activeDocumentPath) : ''
+      const resolved = isSafeHref(img.href) ? resolveHref(img.href, activeDocumentPath) : ''
+      const src = applyMediaProxySrc(resolved)
       const alt = String(img.text || '')
       return (
         <img

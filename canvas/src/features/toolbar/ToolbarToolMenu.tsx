@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { GitBranch, MonitorPlay, PanelsTopLeft, SlidersHorizontal, Shapes } from 'lucide-react'
+import { GitBranch, MonitorPlay, PanelsTopLeft, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorBottomPanelState } from '@/features/panels/hooks/useOrchestratorBottomPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -19,11 +19,9 @@ import {
 import { lsBool, lsSetBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
-import GraphLayerView from '@/features/panels/views/GraphLayerView'
-import { MermaidFocusPanel } from '@/features/toolbar/MermaidFocusPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 
-type FloatingPanelView = 'workspaceActions' | 'propsPanel' | 'graphLayer' | 'renderer' | 'graphTraversal' | 'mermaidFocus'
+type FloatingPanelView = 'workspaceActions' | 'propsPanel' | 'renderer' | 'graphTraversal'
 
 export function ToolbarToolMenu({
   dataLoadOk,
@@ -220,16 +218,6 @@ export function ToolbarToolMenu({
         <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
       <IconButton
-        title={UI_LABELS.graphLayersMode}
-        onClick={() => handleSelectView('graphLayer')}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'graphLayer' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <Shapes className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-      <IconButton
         title={UI_LABELS.renderer}
         onClick={() => handleSelectView('renderer')}
         className={`App-toolbar__btn ${
@@ -248,16 +236,6 @@ export function ToolbarToolMenu({
         showTooltip
       >
         <GitBranch className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-      <IconButton
-        title={UI_LABELS.mermaidFocus}
-        onClick={() => handleSelectView('mermaidFocus')}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'mermaidFocus' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
     </>
   )
@@ -452,9 +430,6 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'propsPanel' && (
               <FloatingPropsPanel />
             )}
-            {floatingPanelView === 'graphLayer' && (
-              <GraphLayerView />
-            )}
             {floatingPanelView === 'renderer' && (
               <ToolbarToolMenuRendererView />
             )}
@@ -474,9 +449,6 @@ export function ToolbarToolMenu({
                 tracingCollapsed={orchestratorWorkflowTracingCollapsed}
                 setTracingCollapsed={setOrchestratorWorkflowTracingCollapsed}
               />
-            )}
-            {floatingPanelView === 'mermaidFocus' && (
-              <MermaidFocusPanel />
             )}
           </div>
         </div>

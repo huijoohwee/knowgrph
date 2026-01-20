@@ -12,6 +12,10 @@ dist/
 build/
 coverage/
 
+data/outputs/
+logs/
+*.log
+
 .venv/
 venv/
 __pycache__/

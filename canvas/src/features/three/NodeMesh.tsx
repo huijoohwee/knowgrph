@@ -1,14 +1,120 @@
-import React, { useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
-import { getNodeRadiusFromSchema, getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
-import { getLayerOpacity, getNodeBaseFill } from '@/components/GraphCanvas/helpers'
-import type { Vec3 } from './layout'
+import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE, getNodeRadiusFromSchema } from '@/lib/graph/schema'
+import { getNodeMediaSpec, getLayerOpacity, getNodeBaseFill } from '@/components/GraphCanvas/helpers'
+import { applyMediaProxySrc } from '@/lib/url'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { NodeSelectionState, SelectionVisuals } from './selection'
+import type { Vec3 } from './layout'
+
+function MediaBillboard({ url, size, opacity, offsetZ }: { url: string; size: number; opacity: number; offsetZ: number }) {
+  const meshRef = useRef<THREE.Mesh>(null)
+  const textureRef = useRef<THREE.Texture | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [, bump] = useState(0)
+
+  useEffect(() => {
+    const prev = textureRef.current
+    if (prev) {
+      prev.dispose()
+      textureRef.current = null
+    }
+
+    let cancelled = false
+    setLoadError(false)
+    const loader = new THREE.TextureLoader()
+    try {
+      loader.setCrossOrigin('anonymous')
+    } catch {
+      void 0
+    }
+
+    const src = applyMediaProxySrc(url)
+    loader.load(
+      src,
+      tex => {
+        if (cancelled) {
+          try {
+            tex.dispose()
+          } catch {
+            void 0
+          }
+          return
+        }
+        try {
+          tex.colorSpace = THREE.SRGBColorSpace
+        } catch {
+          void 0
+        }
+        textureRef.current = tex
+        bump(x => x + 1)
+      },
+      undefined,
+      () => {
+        if (cancelled) return
+        textureRef.current = null
+        setLoadError(true)
+        bump(x => x + 1)
+      },
+    )
+
+    return () => {
+      cancelled = true
+      const t = textureRef.current
+      if (t) {
+        try {
+          t.dispose()
+        } catch {
+          void 0
+        }
+        textureRef.current = null
+      }
+    }
+  }, [url])
+
+  useFrame(state => {
+    if (!meshRef.current) return
+    meshRef.current.lookAt(state.camera.position)
+  })
+
+  const texture = textureRef.current
+  if (!texture) {
+    if (!loadError) return null
+    const o = Math.max(0, Math.min(1, opacity))
+    const s = Math.max(1, size)
+    return (
+      <mesh ref={meshRef} position={[0, 0, offsetZ]}>
+        <planeGeometry args={[s, s]} />
+        <meshBasicMaterial
+          color={MVP_COLOR_PALETTE.nodes.alert}
+          transparent
+          opacity={Math.max(0.25, Math.min(0.9, o))}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+    )
+  }
+
+  const o = Math.max(0, Math.min(1, opacity))
+  const s = Math.max(1, size)
+  return (
+    <mesh ref={meshRef} position={[0, 0, offsetZ]}>
+      <planeGeometry args={[s, s]} />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        opacity={o}
+        side={THREE.DoubleSide}
+        depthWrite={false}
+      />
+    </mesh>
+  )
+}
 
 export function NodeMesh({
   node,
@@ -39,6 +145,7 @@ export function NodeMesh({
   const sphereRef = useRef<THREE.Mesh>(null!)
   const draggingRef = useRef(false)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
+  const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const baseColor = getNodeBaseFill(node, schema)
   const props = node.properties || {}
   const baseRadius = getNodeRadiusFromSchema(node, schema)
@@ -46,6 +153,11 @@ export function NodeMesh({
   const deg = typeof props['degree'] === 'number' ? (props['degree'] as number) : undefined
   const scale = deg ? Math.max(0.9, Math.min(1.6, 0.95 + Math.sqrt(Math.max(1, deg)) * 0.15)) : 1
   const radius = baseRadius * scale
+
+  const mediaSpec = getNodeMediaSpec(node)
+  const hasImage = !!renderMediaAsNodes && !!mediaSpec && (mediaSpec.kind === 'image' || mediaSpec.kind === 'svg')
+  const imageUrl = hasImage ? mediaSpec.url : null
+
   let displayColor = baseColor
   let displayOpacity = baseLayerOpacity
   const mediaOpacity = mediaNodeOpacity
@@ -110,33 +222,43 @@ export function NodeMesh({
     draggingRef.current = false
   }
   return (
-    <mesh
-      ref={sphereRef}
-      onClick={() => onClick(node.id)}
-      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-        hoveredRef.current = true
-        if (onHoverChange) {
-          onHoverChange({ id: node.id, clientX: e.clientX, clientY: e.clientY })
-        }
-      }}
-      onPointerOut={() => {
-        handlePointerOut()
-        if (onHoverChange) {
-          onHoverChange(null)
-        }
-      }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-    >
-      <sphereGeometry args={[radius, 32, 32]} />
-      <meshLambertMaterial
-        color={displayColor}
-        transparent
-        opacity={displayOpacity}
-        emissive={emissiveColor}
-        emissiveIntensity={emissiveIntensity}
-      />
-    </mesh>
+    <group>
+      <mesh
+        ref={sphereRef}
+        onClick={() => onClick(node.id)}
+        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+          hoveredRef.current = true
+          if (onHoverChange) {
+            onHoverChange({ id: node.id, clientX: e.clientX, clientY: e.clientY })
+          }
+        }}
+        onPointerOut={() => {
+          handlePointerOut()
+          if (onHoverChange) {
+            onHoverChange(null)
+          }
+        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
+        <sphereGeometry args={[radius, 32, 32]} />
+        <meshLambertMaterial
+          color={displayColor}
+          transparent
+          opacity={hasImage ? Math.max(0.1, displayOpacity * 0.3) : displayOpacity}
+          emissive={emissiveColor}
+          emissiveIntensity={emissiveIntensity}
+        />
+        {hasImage && imageUrl && (
+          <MediaBillboard
+            url={imageUrl}
+            size={radius * 1.5}
+            opacity={displayOpacity}
+            offsetZ={radius + 0.1}
+          />
+        )}
+      </mesh>
+    </group>
   )
 }

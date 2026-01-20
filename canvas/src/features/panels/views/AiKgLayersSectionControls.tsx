@@ -1,6 +1,4 @@
 import type { GraphSchema } from '@/lib/graph/schema'
-import AiKgLayerModeControls from './AiKgLayers/AiKgLayerModeControls'
-import AiKgSemanticControls from './AiKgLayers/AiKgSemanticControls'
 import AiKgOpacityControls from './AiKgLayers/AiKgOpacityControls'
 import AiKgForceControls from './AiKgLayers/AiKgForceControls'
 import AiKgVisualControls from './AiKgLayers/AiKgVisualControls'
@@ -28,16 +26,6 @@ export default function AiKgLayersControls({
 }: AiKgLayersControlsProps) {
   return (
     <div className="mt-1 space-y-1">
-      <AiKgLayerModeControls
-        schema={schema}
-        setSchema={setSchema}
-        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
-      />
-      <AiKgSemanticControls
-        schema={schema}
-        setSchema={setSchema}
-        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
-      />
       <AiKgOpacityControls
         schema={schema}
         setThreeConfig={setThreeConfig}

@@ -8,288 +8,33 @@ import { selectTokensInLineRange } from './markdownPreviewLexUtils'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { MarkdownFragmentConfig } from './markdownPreviewFragments'
 import { parseMermaidConfigFromFrontmatter } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { SlideHeader, SlideFooter } from './SlideParts'
+import { 
+  getSlideVisualMeta, 
+  buildBackgroundStyle 
+} from './markdownSlideVisuals'
 
-type SlideVisualMeta = {
-  slideClass: string
-  layout: string
-  backgroundRaw: string
-  backgroundSize: string
-  backgroundPosition: string
-  authors: string[]
-  meeting: string
-  date: string
-  venue: string
-  url: string
-  themeStyle: string
-  institution: string
-}
-
-export const normalizeThemeStyle = (raw: string): 'default' | 'academic' => {
-  const t = raw.trim().toLowerCase()
-  if (t === 'academic') return 'academic'
-  return 'default'
-}
-
-const getThemeBaseSlideClass = (themeStyle: string) => {
-  if (themeStyle === 'academic') {
-    return `${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} tracking-tight`
-  }
-  return ''
-}
-
-export const buildBackgroundStyle = (
-  raw: string,
-  size: string,
-  position: string,
-): React.CSSProperties => {
-  const style: React.CSSProperties = {}
-  let value = raw.trim()
-  if (!value) return style
-
-  // Fix for deprecated source.unsplash.com triggering ORB errors
-  if (value.includes('source.unsplash.com')) {
-    // Replace with a reliable placeholder service that supports similar dimensions
-    // Attempt to preserve dimensions if present in URL
-    const match = /\/(\d+)x(\d+)/.exec(value)
-    if (match) {
-      value = `https://picsum.photos/${match[1]}/${match[2]}`
-    } else {
-      value = 'https://picsum.photos/1920/1080'
-    }
-  }
-
-  const lower = value.toLowerCase()
-  if (
-    value.startsWith('#') ||
-    lower.startsWith('rgb') ||
-    lower.startsWith('hsl') ||
-    lower.includes('gradient(')
-  ) {
-    style.background = value
-  } else {
-    style.backgroundImage = `url(${value})`
-    style.backgroundSize = size
-    style.backgroundPosition = position
-  }
-  return style
-}
-
-export const getSlideVisualMeta = (
-  slideMeta: Record<string, unknown>,
-  headMetaRecord: Record<string, unknown>,
-  uiPanelTextFontClass: string,
-): SlideVisualMeta => {
-  const slideClassRaw = String(slideMeta.class || headMetaRecord.class || '').trim()
-  const layout = String(slideMeta.layout || headMetaRecord.layout || '').trim().toLowerCase()
-  const backgroundRaw = String(slideMeta.background || headMetaRecord.background || '').trim()
-  const backgroundSize =
-    String(slideMeta.backgroundSize || headMetaRecord.backgroundSize || '').trim() || 'cover'
-  const backgroundPosition =
-    String(slideMeta.backgroundPosition || headMetaRecord.backgroundPosition || '').trim() || 'center'
-  
-  const authorsRaw = slideMeta.authors || headMetaRecord.authors || []
-  const authors = Array.isArray(authorsRaw) ? authorsRaw.map(String) : [String(authorsRaw)].filter(Boolean)
-  const meeting = String(slideMeta.meeting || headMetaRecord.meeting || '').trim()
-  const date = String(slideMeta.date || headMetaRecord.date || '').trim()
-  const venue = String(slideMeta.venue || headMetaRecord.venue || '').trim()
-  const url = String(slideMeta.url || headMetaRecord.url || '').trim()
-  const themeStyle = normalizeThemeStyle(String(slideMeta.theme || headMetaRecord.theme || ''))
-  const institution = String(slideMeta.institution || headMetaRecord.institution || '').trim()
-  const themeBaseClass = getThemeBaseSlideClass(themeStyle)
-  const slideClass = [themeBaseClass, uiPanelTextFontClass, slideClassRaw].filter(Boolean).join(' ')
-
-  return {
-    slideClass,
-    layout,
-    backgroundRaw,
-    backgroundSize,
-    backgroundPosition,
-    authors,
-    meeting,
-    date,
-    venue,
-    url,
-    themeStyle,
-    institution,
-  }
-}
-
-const buildSlideFooter = (args: {
-  meta: SlideVisualMeta
-  page: number
-  total: number
-  uiPanelTextFontClass: string
-}): React.ReactNode => {
-  const { meta, page, total, uiPanelTextFontClass } = args
-  if (
-    !meta.authors.length &&
-    !meta.meeting &&
-    !meta.date &&
-    !meta.venue &&
-    !meta.url &&
-    !meta.institution &&
-    meta.themeStyle !== 'academic'
-  )
-    return null
-
-  if (meta.layout === 'cover' || meta.layout === 'intro') return null
-
-  if (meta.themeStyle === 'academic') {
-    return (
-      <footer
-        className={`fixed bottom-0 left-0 w-full h-8 px-4 flex justify-between items-center text-[10px] ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
-      >
-        <div className="min-w-0 flex items-center gap-4">
-          {meta.meeting && (
-            <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
-              {meta.meeting}
-            </span>
-          )}
-          {meta.authors.length > 0 && (
-            <span className={`hidden sm:inline-block min-w-0 ${UI_THEME_TOKENS.text.secondary} truncate`}>
-              {meta.authors.join(', ')}
-            </span>
-          )}
-        </div>
-        <div className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
-          {(meta.institution || meta.venue) && (
-            <span className={`hidden md:inline-block font-medium ${UI_THEME_TOKENS.text.primary} truncate max-w-[28rem]`}>
-              {[meta.institution, meta.venue].filter(Boolean).join(' · ')}
-            </span>
-          )}
-          <span className={`font-mono ${UI_THEME_TOKENS.text.tertiary} tabular-nums`}>
-            {page} <span className={`mx-1 ${UI_THEME_TOKENS.text.tertiary}`}>/</span> {total}
-          </span>
-        </div>
-      </footer>
-    )
-  }
-
-  return (
-    <footer
-      className={[
-        'fixed bottom-0 left-0 w-full h-8 px-4 text-[10px] border-t flex justify-between items-center z-10 font-sans',
-        UI_THEME_TOKENS.text.tertiary,
-        UI_THEME_TOKENS.panel.bg,
-        UI_THEME_TOKENS.panel.border,
-      ].join(' ')}
-    >
-      <div className="flex gap-3 min-w-0">
-        {!!meta.meeting && <span className="truncate">{meta.meeting}</span>}
-        {!!meta.venue && <span className="truncate">{meta.venue}</span>}
-        {!!meta.institution && <span className="truncate">{meta.institution}</span>}
-        {!!meta.date && <span className="truncate">{meta.date}</span>}
-      </div>
-      <div className="flex gap-3 min-w-0">
-        {meta.authors.length > 0 && <span className="truncate">{meta.authors.join(', ')}</span>}
-        {!!meta.url && (
-          <a
-            href={meta.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline text-blue-600 dark:text-blue-400 truncate"
-          >
-            {meta.url.replace(/^https?:\/\//, '')}
-          </a>
-        )}
-      </div>
-      <div className="font-mono opacity-60 shrink-0">
-        {page} / {total}
-      </div>
-    </footer>
-  )
-}
+export { 
+  getSlideVisualMeta, 
+  buildBackgroundStyle, 
+  normalizeThemeStyle, 
+  type SlideVisualMeta 
+} from './markdownSlideVisuals'
 
 const getSlidePrimaryHeading = (slideText: string): string => {
-  const lines = splitMarkdownLines(String(slideText || ''))
-  for (let i = 0; i < lines.length; i += 1) {
-    const raw = lines[i] || ''
-    const trimmed = raw.trim()
-    if (!trimmed.startsWith('#')) continue
-    const heading = trimmed.replace(/^#+\s*/, '').trim()
-    if (!heading) continue
-    if (heading.length <= 80) return heading
-    return `${heading.slice(0, 77)}...`
+  const lines = splitMarkdownLines(slideText)
+  for (const line of lines) {
+    if (line.trim().startsWith('# ')) {
+      return line.trim().replace(/^#\s+/, '')
+    }
   }
   return ''
-}
-
-const buildSlideHeader = (args: {
-  meta: SlideVisualMeta
-  heading: string
-  page: number
-  total: number
-  uiPanelTextFontClass: string
-}): React.ReactNode => {
-  const { meta, heading, page, total, uiPanelTextFontClass } = args
-  if (
-    !heading &&
-    !meta.authors.length &&
-    !meta.meeting &&
-    !meta.date &&
-    !meta.venue &&
-    !meta.url &&
-    !meta.institution &&
-    meta.themeStyle !== 'academic'
-  )
-    return null
-
-  if (meta.layout === 'cover' || meta.layout === 'intro') return null
-
-  if (meta.themeStyle === 'academic') {
-    return (
-      <header
-        className={`absolute top-0 left-0 w-full h-10 px-8 flex justify-between items-center text-xs ${UI_THEME_TOKENS.panel.bg}/95 border-b ${UI_THEME_TOKENS.panel.border} z-20 ${uiPanelTextFontClass}`}
-      >
-        <div className="min-w-0 flex items-center gap-4">
-          {heading ? (
-            <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
-              {heading}
-            </span>
-          ) : meta.meeting ? (
-            <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
-              {meta.meeting}
-            </span>
-          ) : null}
-        </div>
-        <div className={`flex items-center gap-3 ${UI_THEME_TOKENS.text.secondary}`}>
-          <span className={`font-mono ${UI_THEME_TOKENS.text.tertiary} tabular-nums`}>
-            {page} <span className={`mx-1 ${UI_THEME_TOKENS.text.tertiary}`}>/</span> {total}
-          </span>
-        </div>
-      </header>
-    )
-  }
-
-  return (
-    <header
-      className={[
-        'fixed top-0 left-0 w-full h-8 px-4 text-[10px] border-b flex justify-between items-center z-20 font-sans',
-        UI_THEME_TOKENS.text.tertiary,
-        UI_THEME_TOKENS.panel.bg,
-        UI_THEME_TOKENS.panel.border,
-      ].join(' ')}
-    >
-      <div className="flex gap-3 min-w-0">
-        {heading ? <span className="truncate">{heading}</span> : null}
-        {!heading && meta.meeting ? <span className="truncate">{meta.meeting}</span> : null}
-      </div>
-      <div className="font-mono opacity-60">
-        {page} / {total}
-      </div>
-    </header>
-  )
 }
 
 const buildTokenRendererProps = (
   tokens: TokenWithLines[],
-  common: Omit<BuildSlideBodyArgs, 'twoColumnTokens' | 'slideTokens' | 'slides' | 'safeActiveSlideId' | 'hasSlides' | 'headMeta' | 'buildAlwaysOnTokenHighlights'>,
-  highlights: Array<{
-    textColor: string | null
-    underlineColor: string | null
-    backgroundColor: string | null
-  }> | null,
+  common: Omit<BuildSlideBodyArgs, 'twoColumnTokens' | 'slideTokens' | 'slides' | 'safeActiveSlideId' | 'hasSlides' | 'headMeta'>,
+  _highlights: unknown,
   stickyHeadingTopClass?: string,
   stickyHeadingTopPx?: number,
 ) => ({
@@ -304,8 +49,6 @@ const buildTokenRendererProps = (
   rootThemeMode: common.rootThemeMode,
   previewOverlayScope: common.previewOverlayScope,
   previewOverlayPortalTarget: common.previewOverlayPortalTarget,
-  alwaysOnHighlightMode: common.alwaysOnHighlightMode,
-  alwaysOnTokenHighlights: highlights,
   markdownTextHighlight: common.markdownTextHighlight,
   selectionKind: common.selectionKind,
   highlightBackgroundColor: common.effectiveHighlightBackgroundColor,
@@ -470,12 +213,6 @@ type BuildSlideBodyArgs = {
   uiPanelMonospaceTextClass: string
   previewOverlayScope: 'viewport' | 'container'
   previewOverlayPortalTarget: HTMLElement | null
-  alwaysOnHighlightMode: boolean
-  buildAlwaysOnTokenHighlights: (tokens: TokenWithLines[] | null) => Array<{
-    textColor: string | null
-    underlineColor: string | null
-    backgroundColor: string | null
-  }> | null
   activeFragmentConfig: MarkdownFragmentConfig
   activeFragmentStep: number
   mermaidFrontmatterConfig: Record<string, unknown> | null
@@ -493,7 +230,6 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
     slideTokens,
     headMeta,
     uiPanelTextFontClass,
-    buildAlwaysOnTokenHighlights,
     mermaidFrontmatterConfig,
   } = args
 
@@ -530,13 +266,15 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   const visualMeta = getSlideVisualMeta(slideMeta, headMetaRecord, uiPanelTextFontClass)
   const { layout } = visualMeta
   const slideHeading = getSlidePrimaryHeading(currentSlide.text)
-  const headerNode = buildSlideHeader({
-    meta: visualMeta,
-    heading: slideHeading,
-    page: safeActiveSlideId + 1,
-    total: slides.length,
-    uiPanelTextFontClass,
-  })
+  const headerNode = (
+    <SlideHeader
+      meta={visualMeta}
+      heading={slideHeading}
+      page={safeActiveSlideId + 1}
+      total={slides.length}
+      uiPanelTextFontClass={uiPanelTextFontClass}
+    />
+  )
   
   let stickyHeadingTopPx = 0
   if (headerNode) {
@@ -553,20 +291,17 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   let content: React.ReactNode = null
 
   if (layout === 'two-cols' && twoColumnTokens) {
-    const leftHighlights = buildAlwaysOnTokenHighlights(twoColumnTokens.left)
-    const rightHighlights = buildAlwaysOnTokenHighlights(twoColumnTokens.right)
-    
     content = (
       <section className="w-full h-full grid grid-cols-2 gap-8" aria-label="Slide Columns">
         <section className="w-full h-full px-8 pt-10 pb-14 overflow-auto" aria-label="Slide Left Column">
           <MarkdownTokenRenderer
-            {...buildTokenRendererProps(twoColumnTokens.left, args, leftHighlights, undefined, stickyHeadingTopPx)}
+            {...buildTokenRendererProps(twoColumnTokens.left, args, null, undefined, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </section>
         <section className="w-full h-full px-8 pt-10 pb-14 overflow-auto" aria-label="Slide Right Column">
           <MarkdownTokenRenderer
-            {...buildTokenRendererProps(twoColumnTokens.right, args, rightHighlights, undefined, stickyHeadingTopPx)}
+            {...buildTokenRendererProps(twoColumnTokens.right, args, null, undefined, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </section>
@@ -589,7 +324,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
             {...buildTokenRendererProps(
               slideTokens,
               args,
-              buildAlwaysOnTokenHighlights(slideTokens),
+              null,
               undefined,
               stickyHeadingTopPx,
             )}
@@ -606,7 +341,12 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
     <section className="w-full h-full relative pb-14" aria-label="Slide Document">
       {headerNode}
       {content}
-      {buildSlideFooter({ meta: visualMeta, page: safeActiveSlideId + 1, total: slides.length, uiPanelTextFontClass })}
+      <SlideFooter
+        meta={visualMeta}
+        page={safeActiveSlideId + 1}
+        total={slides.length}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+      />
     </section>
   )
 }
@@ -672,7 +412,6 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     rootThemeMode,
     previewOverlayScope,
     previewOverlayPortalTarget,
-    alwaysOnHighlightMode: false,
     markdownTextHighlight: false,
     selectionKind: null as 'node' | 'edge' | null,
     effectiveHighlightBackgroundColor: null,

@@ -1,3 +1,5 @@
+import { AGENTIC_RAG_SCHEMA_URL } from '@/lib/agenticrag'
+
 const COLLAPSE_SECTION_TITLE = 'Collapse section'
 const EXPAND_SECTION_TITLE = 'Expand section'
 const CLIPBOARD_NOT_AVAILABLE = 'Clipboard not available'
@@ -101,6 +103,11 @@ export const UI_COPY = {
   frontmatterModeTooltip: 'Frontmatter Mode: focus canvas and panels on Mermaid frontmatter graph',
   frontmatterModeToggleTooltip: 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph',
   mermaidLayoutTooltip: 'Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout.',
+  portHandlesTooltip:
+    'Port Handles: toggle to show node connection handles and route 2D edge endpoints to the nearest handle.',
+  fitToViewTooltip: 'Fit to View: automatically scale and center the graph to fill the viewport.',
+  pinToViewTooltip:
+    'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',
   zoomToSelectionTooltip: 'Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused.',
   renderMediaAsNodesTooltip: 'View-only: shows or hides media overlays on media-capable nodes without reloading.',
   launchTooltip: 'Launch',
@@ -284,7 +291,7 @@ export const UI_COPY = {
   graphFieldsVisibleTotalStatus: (visible: number, total: number) =>
     `Visible ${visible} · Total ${total}`,
   graphFieldsAgenticFieldSettingsDescription:
-    'Field Settings → map node and edge properties to AgenticRAG JSON-LD roles (see https://huijoohwee.github.io/schema/AgenticRAG node-schema.jsonld and edge-schema.jsonld) so Graph Data Table, schema docs, and workflows share a single field interpretation.',
+    `Field Settings → map node and edge properties to AgenticRAG JSON-LD roles (see ${AGENTIC_RAG_SCHEMA_URL}/node-schema.jsonld and ${AGENTIC_RAG_SCHEMA_URL}/edge-schema.jsonld) so Graph Data Table, schema docs, and workflows share a single field interpretation.`,
   graphFieldsAgenticLegendChipLabel: 'AgenticRAG node fields',
   graphFieldsIconLegendHeaderLabel: 'Graph Fields icon legend',
   validationRequiredFieldsTitle: 'Required fields',
@@ -444,4 +451,17 @@ export const UI_COPY = {
    markdownMediaErrorPrefix: 'Media failed to load',
   markdownPresentationEmptyTitle: 'Presentation mode is ready.',
   markdownPresentationEmptyBody: 'Add markdown with --- separators to define slides.',
+  
+  // Field Endpoints & Cardinality
+  endpointsAndCardinalityHeader: 'Endpoints & Cardinality',
+  selectScopeToEditConstraints: (scope: 'node' | 'edge') => 
+    `Select a ${scope === 'node' ? 'node type' : 'edge label'} to edit constraints`,
+  endpointMatrixHeader: 'Endpoint matrix',
+  edgesPerNodeTypeHeader: 'Edges per node type',
+  edgesPerLabelPerNodeHeader: 'Edges per label (per node)',
+  sourcesPlaceholder: 'Sources (comma)',
+  targetsPlaceholder: 'Targets (comma)',
+  minPlaceholder: 'min',
+  maxPlaceholder: 'max',
+  maxPerNodePlaceholder: 'max per node',
 } as const;

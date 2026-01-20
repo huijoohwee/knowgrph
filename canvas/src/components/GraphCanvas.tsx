@@ -1,33 +1,31 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as d3 from 'd3';
-import { useGraphStore } from '@/hooks/useGraphStore';
-import { useShallow } from 'zustand/react/shallow';
-import { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types';
-import { type GraphSchema } from '@/lib/graph/schema';
-import { useContainerDims } from '@/hooks/useContainerDims';
-import { normalizeEdgesForSim } from '@/components/GraphCanvas/utils';
-import type { PendingLink, TempLinkSelection } from '@/features/edge-creation';
-import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip';
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import * as d3 from 'd3'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { useShallow } from 'zustand/react/shallow'
+import { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
+import { type GraphSchema } from '@/lib/graph/schema'
+import { useContainerDims } from '@/hooks/useContainerDims'
+import { normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
+import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
+import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import {
   create2dSvgSnapshotFns,
   computeFlowState,
-} from '@/components/GraphCanvas/helpers';
-import { setupGraphScene } from '@/components/GraphCanvas/scene';
-import { applySelectionHighlight } from '@/components/GraphCanvas/highlight';
-import { emitPropsPanelOpen } from '@/features/canvas/utils';
-import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation';
-import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasStyles';
-import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects';
-import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect';
-import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight';
-import { determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning';
-import { useDebouncedValue } from '@/features/hooks/useDebouncedValue';
+} from '@/components/GraphCanvas/helpers'
+import { setupGraphScene } from '@/components/GraphCanvas/scene'
+import { emitPropsPanelOpen } from '@/features/canvas/utils'
+import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasStyles'
+import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
+import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect'
+import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight'
+import { determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
+import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 
 export default function GraphCanvas() {
   const containerRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'tree' | 'mermaid'>(null);
-  const lastLayerModeRef = useRef<null | string>(null);
+  const lastLayoutModeRef = useRef<null | 'force' | 'radial'>(null);
   const lastFrontmatterModeRef = useRef<boolean | null>(null);
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
   const nodesSelRef = useRef<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>(null);
@@ -38,141 +36,48 @@ export default function GraphCanvas() {
   const {
     graphData,
     graphDataRevision,
-    selectedNodeId,
-    selectedEdgeId,
-    selectedNodeIds,
-    selectedEdgeIds,
-    isEditMode,
-    selectNode,
-    selectEdge,
-    addEdge,
-    updateEdge,
     setCanvasDims,
     setCanvasPos,
     schema,
-    setZoomState,
-    zoomRequest,
-    setSelectionSource,
-    edgeCreationRequest,
-    clearEdgeCreationRequest,
-    requestZoom,
-    setLifecycleStage,
-    fitToScreenMode,
-    zoomToSelectionMode,
-    graphLayersVisible,
-    isSidebarOpen,
-    sidebarWidthRatio,
     renderMediaAsNodes,
-    mediaNodeOpacity,
     mediaPanelDensity,
     setLayoutPositionsForMode,
-    activeLayerBandIndex,
     frontmatterModeEnabled,
-    markdownDocumentName,
     themeMode,
   } = useGraphStore(
     useShallow((s) => ({
       graphData: s.graphData as GraphData | null,
       graphDataRevision: s.graphDataRevision,
-      selectedNodeId: s.selectedNodeId,
-      selectedEdgeId: s.selectedEdgeId,
-      selectedNodeIds: s.selectedNodeIds,
-      selectedEdgeIds: s.selectedEdgeIds,
-      isEditMode: s.isEditMode,
-      selectNode: s.selectNode,
-      selectEdge: s.selectEdge,
-      addEdge: s.addEdge,
-      updateEdge: s.updateEdge,
       setCanvasDims: s.setCanvasDims,
       setCanvasPos: s.setCanvasPos,
       schema: s.schema,
-      setZoomState: s.setZoomState,
-      zoomRequest: s.zoomRequest,
-      setSelectionSource: s.setSelectionSource,
-      edgeCreationRequest: s.edgeCreationRequest,
-      clearEdgeCreationRequest: s.clearEdgeCreationRequest,
-      requestZoom: s.requestZoom,
-      setLifecycleStage: s.setLifecycleStage,
-      fitToScreenMode: s.fitToScreenMode,
-      zoomToSelectionMode: s.zoomToSelectionMode,
-      graphLayersVisible: s.graphLayersVisible,
-      isSidebarOpen: s.isSidebarOpen,
-      sidebarWidthRatio: s.sidebarWidthRatio,
       renderMediaAsNodes: s.renderMediaAsNodes,
-      mediaNodeOpacity: s.mediaNodeOpacity,
       mediaPanelDensity: s.mediaPanelDensity,
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
-      activeLayerBandIndex: s.activeLayerBandIndex,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
-      markdownDocumentName: s.markdownDocumentName || '',
       themeMode: s.themeMode,
     })),
   );
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
-  const selectNodeRef = useRef(selectNode);
-  const setZoomStateRef = useRef(setZoomState);
-  const selectEdgeRef = useRef(selectEdge);
-  const setSelectionSourceRef = useRef(setSelectionSource);
-  const addEdgeRef = useRef(addEdge);
-  const updateEdgeRef = useRef(updateEdge);
-  const isEditModeRef = useRef(isEditMode);
-  const selectedNodeIdRef = useRef<string | null>(selectedNodeId);
-  const selectedEdgeIdRef = useRef<string | null>(selectedEdgeId);
-  const selectedNodeIdsRef = useRef<string[] | undefined>(selectedNodeIds);
-  const selectedEdgeIdsRef = useRef<string[] | undefined>(selectedEdgeIds);
-  const schemaRef = useRef(schema);
-  const clearEdgeCreationRequestRef = useRef(clearEdgeCreationRequest);
-  const setLifecycleStageRef = useRef(setLifecycleStage);
-  const requestZoomRef = useRef(requestZoom);
-  const graphDataRevisionRef = useRef(graphDataRevision);
-  const renderGraphData = useMemo(() => {
-    const base = graphData as GraphData | null;
-    const schemaObj = schema as GraphSchema;
-    const docName = (markdownDocumentName || '').trim() || null;
-    const frontmatterOnly = !!frontmatterModeEnabled;
-    const scopedGraph = frontmatterOnly ? filterGraphToFrontmatterMermaid(base, docName) : base;
-    const next = deriveGraphDataForLayers(scopedGraph as GraphData | null, schemaObj);
-    return next;
-  }, [graphData, schema, frontmatterModeEnabled, markdownDocumentName]);
+  const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
+  const selectedEdgeIdRef = useGraphStoreKeyRef('selectedEdgeId')
+  const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
+  const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
+  const graphDataRevisionRef = useGraphStoreKeyRef('graphDataRevision')
+  const schemaRef = useRef(schema)
+
+  const schemaLayoutJson = useMemo(() => JSON.stringify(schema?.layout), [schema?.layout]);
+
+  const renderGraphData = graphData as GraphData | null
 
   useEffect(() => {
-    selectNodeRef.current = selectNode;
-    setZoomStateRef.current = setZoomState;
-    selectEdgeRef.current = selectEdge;
-    setSelectionSourceRef.current = setSelectionSource;
-    addEdgeRef.current = addEdge;
-    updateEdgeRef.current = updateEdge;
-    isEditModeRef.current = isEditMode;
-    selectedNodeIdRef.current = selectedNodeId;
-    selectedEdgeIdRef.current = selectedEdgeId;
-    selectedNodeIdsRef.current = selectedNodeIds;
-    selectedEdgeIdsRef.current = selectedEdgeIds;
-    schemaRef.current = schema;
-    clearEdgeCreationRequestRef.current = clearEdgeCreationRequest;
-    setLifecycleStageRef.current = setLifecycleStage;
-    requestZoomRef.current = requestZoom;
-    graphDataRevisionRef.current = graphDataRevision;
-  }, [
-    addEdge,
-    clearEdgeCreationRequest,
-    graphDataRevision,
-    isEditMode,
-    requestZoom,
-    schema,
-    selectEdge,
-    selectNode,
-    selectedEdgeId,
-    selectedEdgeIds,
-    selectedNodeId,
-    selectedNodeIds,
-    setLifecycleStage,
-    setSelectionSource,
-    setZoomState,
-    updateEdge,
-  ]);
+    schemaRef.current = schema
+  }, [schema])
   const { width, height, left, top } = useContainerDims(containerRef);
   const debouncedWidth = useDebouncedValue(width, 100);
   const debouncedHeight = useDebouncedValue(height, 100);
+  const sceneWidth = useMemo(() => Math.max(1, Math.floor(debouncedWidth)), [debouncedWidth]);
+  const sceneHeight = useMemo(() => Math.max(1, Math.floor(debouncedHeight)), [debouncedHeight]);
   const tempLinkSelRef = useRef<TempLinkSelection>(null);
   const linkDragRef = useRef<PendingLink | null>(null);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
@@ -183,9 +88,10 @@ export default function GraphCanvas() {
     const onContextMenu = (ev: MouseEvent) => {
       if (ev.defaultPrevented) return;
       ev.preventDefault();
-      setSelectionSourceRef.current('menu');
-      selectNodeRef.current(null);
-      selectEdgeRef.current(null);
+      const state = useGraphStore.getState()
+      state.setSelectionSource('menu')
+      state.selectNode(null)
+      state.selectEdge(null)
       emitPropsPanelOpen({ clientX: ev.clientX, clientY: ev.clientY });
     };
     el.addEventListener('contextmenu', onContextMenu);
@@ -210,30 +116,11 @@ export default function GraphCanvas() {
     zoomRef,
     width,
     height,
-    isSidebarOpen,
-    sidebarWidthRatio,
-    graphData: graphData as GraphData | null,
-    renderGraphData: renderGraphData as GraphData | null,
-    schema: schema as GraphSchema,
-    zoomRequest,
-    fitToScreenMode,
-    zoomToSelectionMode,
-    selectedNodeId,
-    selectedEdgeId,
-    selectedNodeIds,
-    selectedEdgeIds,
-    requestZoom,
   });
 
   useEdgeCreationEffect({
-    edgeCreationRequest,
-    graphData: graphData as GraphData | null,
-    selectedEdgeId,
     tempLinkSelRef,
     linkDragRef,
-    clearEdgeCreationRequest,
-    selectEdge,
-    setSelectionSource,
   });
 
   useEffect(() => {
@@ -271,14 +158,13 @@ export default function GraphCanvas() {
       if (!svgRef.current) return;
       const z = useGraphStore.getState().zoomState;
       const layoutPositionCacheByMode = useGraphStore.getState().layoutPositionCacheByMode;
+      const isPinned = useGraphStore.getState().viewPinned === true;
       const initialZoomTransform =
-        z && (z.graphDataRevision == null || z.graphDataRevision === graphDataRevisionRef.current)
+        z && (isPinned || z.graphDataRevision == null || z.graphDataRevision === graphDataRevisionRef.current)
           ? { k: z.k, x: z.x, y: z.y }
           : null;
-      const mode = schemaValue.layout?.mode || 'force'
+      const mode = (schemaValue.layout?.mode || 'force') as 'force' | 'radial'
       const prevMode = lastLayoutModeRef.current
-      const layerMode = String(schemaValue.layers?.mode || 'property')
-      const prevLayerMode = lastLayerModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
 
       const {
@@ -287,13 +173,10 @@ export default function GraphCanvas() {
         cacheKey,
       } = determineLayoutPositions({
         mode,
-        layerMode,
         frontmatterMode: !!frontmatterModeEnabled,
         prevMode,
-        prevLayerMode,
         prevFrontmatterMode,
         nodes: Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes : [],
-        edgesRevision: graphDataRevisionRef.current,
         layoutPositionCacheByMode,
       });
       
@@ -307,7 +190,6 @@ export default function GraphCanvas() {
       }
 
       lastLayoutModeRef.current = mode
-      lastLayerModeRef.current = layerMode
       lastFrontmatterModeRef.current = !!frontmatterModeEnabled
       cleanupScene = setupGraphScene({
         svgEl: svgRef.current,
@@ -315,11 +197,10 @@ export default function GraphCanvas() {
         graphData: renderGraphData,
         schema: schemaValue,
         edgesForSim,
-        width: debouncedWidth,
-        height: debouncedHeight,
+        width: sceneWidth,
+        height: sceneHeight,
         hoverEnabled,
         zoomOnDoubleClick,
-        graphLayersVisible,
         renderMediaAsNodes,
         mediaPanelDensity,
         initialZoomTransform,
@@ -334,83 +215,58 @@ export default function GraphCanvas() {
         zoomRef,
         tempLinkSelRef,
         linkDragRef,
-        isEditModeRef,
         selectedEdgeIdRef,
         selectedNodeIdRef,
         selectedNodeIdsRef,
         selectedEdgeIdsRef,
-        selectNode: id => selectNodeRef.current(id),
-        selectEdge: id => selectEdgeRef.current(id),
-        setSelectionSource: src => setSelectionSourceRef.current(src),
-        addEdge: e => addEdgeRef.current(e),
-        updateEdge: (id, u) => updateEdgeRef.current(id, u),
+        selectNode: id => useGraphStore.getState().selectNode(id),
+        selectEdge: id => useGraphStore.getState().selectEdge(id),
+        setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
+        addEdge: e => useGraphStore.getState().addEdge(e),
+        updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
         setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
-        setLifecycleStageRendering: () => setLifecycleStageRef.current('rendering'),
-        requestZoomSelection: () => requestZoomRef.current('selection'),
-        onZoomTransform: t =>
-          setZoomStateRef.current({ ...t, graphDataRevision: graphDataRevisionRef.current }),
+        setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
+        requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
+        onZoomTransform: t => {
+          const pinned = useGraphStore.getState().viewPinned === true
+          useGraphStore.getState().setZoomState({
+            ...t,
+            graphDataRevision: pinned ? undefined : graphDataRevisionRef.current,
+          })
+        },
         layoutCacheKey: cacheKey,
         setLayoutPositionsForMode,
       });
-      applySelectionHighlight(
-        nodesSelRef.current,
-        mediaSelRef.current,
-        labelsSelRef.current,
-        linksSelRef.current,
-        renderGraphData as GraphData,
-        schemaValue,
-        selectedNodeIdRef.current,
-        selectedEdgeIdRef.current,
-        selectedNodeIdsRef.current,
-        selectedEdgeIdsRef.current,
-        renderMediaAsNodes,
-        { mediaNodeOpacity, activeLayerBandIndex },
-      );
     });
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
       if (cleanupScene) cleanupScene();
     };
   }, [
-    graphData,
     graphDataRevision,
-    debouncedWidth,
-    debouncedHeight,
+    sceneWidth,
+    sceneHeight,
     renderGraphData,
-    schema,
+    schemaLayoutJson,
     edgesForSim,
-    graphLayersVisible,
     renderMediaAsNodes,
-    mediaNodeOpacity,
     mediaPanelDensity,
     setLayoutPositionsForMode,
-    activeLayerBandIndex,
     frontmatterModeEnabled,
   ]);
 
 
   useSelectionHighlight({
-    renderGraphData: renderGraphData as GraphData | null,
-    graphData: graphData as GraphData | null,
-    schema: schema as GraphSchema,
-    themeMode,
-    selectedNodeId,
-    selectedEdgeId,
-    selectedNodeIds,
-    selectedEdgeIds,
-    setLifecycleStage,
     nodesSelRef,
     mediaSelRef,
     labelsSelRef,
     linksSelRef,
-    renderMediaAsNodes,
-    mediaNodeOpacity,
-    activeLayerBandIndex,
   });
 
   useEffect(() => {
     if (!labelsSelRef.current || !graphData) return;
     const { valuesByNodeId, kindsByNodeId } = flowState;
+    if (Object.keys(kindsByNodeId).length === 0) return;
     labelsSelRef.current
       .text((d: GraphNode) => {
         const kind = kindsByNodeId[d.id];
@@ -449,6 +305,7 @@ export default function GraphCanvas() {
         nodes={(renderGraphData as GraphData | null)?.nodes}
         edges={(renderGraphData as GraphData | null)?.edges}
         schema={schema as GraphSchema | null}
+        onRequestClose={() => setHoverInfo(null)}
       />
     </main>
   );

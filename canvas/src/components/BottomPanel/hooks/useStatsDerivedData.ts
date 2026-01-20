@@ -9,7 +9,6 @@ import {
   topTokenList,
   getStatsTokenizationConfig,
 } from '@/components/BottomPanel/BottomPanelStatsUtils'
-import { buildNodeGroupsFromSchema, getGraphLayerStyleForGroup } from '@/components/GraphCanvas/graphLayers'
 import { getNodeBaseFill } from '@/components/GraphCanvas/helpers'
 import type { TokensByGraphLayerRow, StatsCommunity, TokensForSelectedNode, TokensForSelectedNodes } from '@/components/BottomPanel/stats/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -68,9 +67,8 @@ export function useStatsDerivedData({
     [data],
   )
 
-  const semanticCfg = schema.layers?.semantic || {}
-  const similarityEdgeLabel = String(semanticCfg.similarityEdgeLabel || 'semanticSimilarity')
-  const similarityMetricLabel = semanticCfg.similarityMetric === 'pmi' ? 'PMI' : 'Cosine'
+  const similarityEdgeLabel = 'semanticSimilarity'
+  const similarityMetricLabel = 'Cosine'
 
   const allTokensForStats = React.useMemo(() => {
     const graph = data as GraphData | null
@@ -86,62 +84,7 @@ export function useStatsDerivedData({
     return topTokenList(freqByToken, freqByToken.size)
   }, [baseTokenCfg, data])
 
-  const tokensByGraphLayer = React.useMemo<TokensByGraphLayerRow[]>(() => {
-    const graphData = effectiveGraph as GraphData | null
-    if (!graphData || !Array.isArray(graphData.nodes)) return []
-    const nodes = graphData.nodes as GraphNode[]
-    const nodeById = new Map<string, GraphNode>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      nodeById.set(String(n.id), n)
-    }
-    const groups = buildNodeGroupsFromSchema(graphData, schema)
-    if (!groups.length) return []
-    const rows: TokensByGraphLayerRow[] = []
-    for (let i = 0; i < groups.length; i += 1) {
-      const group = groups[i]
-      const memberNodes: GraphNode[] = []
-      const memberIds: string[] = []
-      for (let j = 0; j < group.memberIds.length; j += 1) {
-        const id = String(group.memberIds[j])
-        const node = nodeById.get(id)
-        if (!node) continue
-        memberNodes.push(node)
-        memberIds.push(id)
-      }
-      if (!memberNodes.length) continue
-      const { totalTokens, freqByToken } = buildTokenFrequenciesForNodes(memberNodes, tokenCfg)
-      const topTokens = topTokenList(freqByToken, maxListItems)
-      const label = (() => {
-        const id = String(group.id || '')
-        const ownerId = group.meta && group.meta.ownerId ? String(group.meta.ownerId) : ''
-        const propertyKey = group.meta && group.meta.propertyKey ? String(group.meta.propertyKey) : ''
-        const ownerNode = ownerId ? nodeById.get(ownerId) || null : null
-        const ownerLabel = ownerNode && ownerNode.label ? String(ownerNode.label) : ''
-        if (ownerLabel && propertyKey) return `${ownerLabel} • ${propertyKey}`
-        if (ownerLabel) return ownerLabel
-        if (propertyKey) return propertyKey
-        if (id) return id
-        return `Graph layer ${rows.length + 1}`
-      })()
-      const fill = getGraphLayerStyleForGroup({ group, graphData, schema }).fill
-      rows.push({
-        graphLayerId: String(group.id || ''),
-        label,
-        fill: fill || getRendererPalette(schema).nodes.neutral,
-        nodeCount: memberNodes.length,
-        nodeIds: memberIds,
-        totalTokens,
-        topTokens,
-      })
-    }
-    rows.sort((a, b) => {
-      const diff = b.totalTokens - a.totalTokens
-      if (diff !== 0) return diff
-      return a.label.localeCompare(b.label)
-    })
-    return rows
-  }, [effectiveGraph, maxListItems, schema, tokenCfg])
+  const tokensByGraphLayer = React.useMemo<TokensByGraphLayerRow[]>(() => [], [])
 
   const graphLayerTokensForDropdown = React.useMemo(() => {
     let items = allTokensForStats

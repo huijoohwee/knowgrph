@@ -5,7 +5,8 @@ import type { GraphSchema } from '@/lib/graph/schema';
 import type { TempLinkSelection } from '@/features/edge-creation';
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
 import type { HoverInfo } from '@/components/GraphHoverTooltip';
-import { compareMermaidEdgesForRender, getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
+import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
+import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -29,39 +30,14 @@ export const createLinksLayer = (args: {
     selectNode,
     selectEdge,
   } = args;
-  const isTree = schema.layout?.mode === 'tree';
-  const isMermaid = schema.layout?.mode === 'mermaid';
-  const usePath = isTree || isMermaid;
-  const treeCfg = schema.layout?.tree || {};
-  const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
-  const edges = isMermaid ? [...edgesForDisplay].sort((a, b) => compareMermaidEdgesForRender(a, b, schema)) : edgesForDisplay;
+
   const linkRoot = g.append('g').attr('data-kg-layer', 'links');
-  const link = usePath
-    ? linkRoot.selectAll<SVGPathElement, GraphEdge>('path').data(edges).enter().append('path').attr('fill', 'none')
-    : linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edges).enter().append('line');
+  const link = linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edgesForDisplay).enter().append('line');
+
   (link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
-    .attr('stroke', (d: GraphEdge) => {
-      if (isTree) {
-        const override = typeof treeCfg.linkStroke === 'string' ? treeCfg.linkStroke.trim() : '';
-        if (override) return override;
-        if (treeColorMode === 'observable') return '#555';
-        return getEdgeBaseStroke(d, schema);
-      }
-      return getEdgeBaseStroke(d, schema);
-    })
-    .attr('stroke-opacity', () => {
-      if (!isTree) return 0.6;
-      const raw = treeCfg.linkOpacity;
-      if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
-      return 0.4;
-    })
-    .attr('stroke-width', (d: GraphEdge) => {
-      if (!isTree) return getEdgeStrokeWidth(d, schema);
-      const raw = treeCfg.linkWidth;
-      if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
-      if (treeColorMode === 'observable') return 1.5;
-      return getEdgeStrokeWidth(d, schema);
-    })
+    .attr('stroke', (d: GraphEdge) => getEdgeBaseStroke(d, schema))
+    .attr('stroke-opacity', 0.6)
+    .attr('stroke-width', (d: GraphEdge) => getEdgeStrokeWidth(d, schema))
     .style('cursor', 'pointer')
     .on('click', (event: MouseEvent, d: GraphEdge) => {
       event.stopPropagation();
@@ -86,8 +62,10 @@ export const createLinksLayer = (args: {
         clientY: event.clientY,
       }));
     })
-    .on('mouseout', () => {
+    .on('mouseout', (event: MouseEvent) => {
       if (!hoverEnabled) return;
+      const rt = (event as unknown as { relatedTarget?: unknown }).relatedTarget
+      if (isTooltipRelatedTarget(rt)) return
       setHoverInfo(prev => (prev && prev.kind === 'edge' ? null : prev));
     })
     .on('contextmenu', (event: MouseEvent, d: GraphEdge) => {
@@ -98,24 +76,12 @@ export const createLinksLayer = (args: {
       selectEdge(d.id);
       emitPropsPanelOpen({ clientX: event.clientX, clientY: event.clientY });
     });
-  if (!usePath) {
-    (link as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>).attr(
-      'marker-end',
-      (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow ? 'url(#arrowhead)' : null),
-    );
-  } else {
-    (link as d3.Selection<SVGPathElement, GraphEdge, SVGGElement, unknown>)
-      .attr('stroke-linecap', 'round')
-      .attr('stroke-linejoin', 'round');
-    
-    // Mermaid edges need arrows
-    if (isMermaid) {
-       (link as d3.Selection<SVGPathElement, GraphEdge, SVGGElement, unknown>).attr(
-        'marker-end',
-        (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow !== false ? 'url(#arrowhead)' : null), // Default to arrow for Mermaid
-      );
-    }
-  }
+
+  (link as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>).attr(
+    'marker-end',
+    (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow ? 'url(#arrowhead)' : null),
+  );
+
   return link as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>;
 };
 

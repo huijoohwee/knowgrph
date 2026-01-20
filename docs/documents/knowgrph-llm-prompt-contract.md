@@ -15,7 +15,7 @@
   - `metadata`: schema-level configuration, including:
     - `agenticRagSchema`, `generatedBy`.
     - `corpusSizePreset` and `corpusSizePresets`.
-    - `layers` (semantic and document-structure configuration).
+    - `layers` (semantic and documentStructure configuration; runtime renderer uses `schema.layers.mode`).
 
 ## System Prompt (LLM Editing Rules)
 

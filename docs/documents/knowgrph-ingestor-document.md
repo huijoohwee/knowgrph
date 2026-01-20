@@ -76,7 +76,7 @@ This section describes how each format enters the system, how it is converted, a
   - End‑to‑end coverage:
     - A dedicated test `ui.markdown.mediaToggleEndToEnd` (`canvas/src/__tests__/markdownMediaToggleE2e.test.ts`) exercises:
       - Local Markdown: `data/_tmp_md_smoke/markdown-html-img-smoke.md`.
-      - Remote Markdown: `https://github.com/chiphuyen/aie-book/blob/main/chapter-summaries.md` (GitHub blob URL).
+      - Remote Markdown: `https://example.com/docs/sample-summaries.md` (Mocked in test).
     - The test asserts that:
       - Media‑capable nodes are present in the graph regardless of the canvas media toggle.
       - The Bottom Panel Markdown viewer (`BottomPanelMarkdownSection`) renders the same Docusaurus-compatible Markdown with `<img>` tags in the preview, using the canvas markdown‑it pipeline for structure while the Docusaurus site provides the production theme.

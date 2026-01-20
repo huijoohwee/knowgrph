@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { useShallow } from 'zustand/react/shallow';
 import { UI_LABELS } from '@/lib/config';
 import IconButton from '@/components/IconButton';
 import { getIconSizeClass } from '@/lib/ui';
@@ -9,7 +10,13 @@ interface SidebarTriggerProps {
 }
 
 const SidebarTrigger = React.forwardRef<HTMLButtonElement, SidebarTriggerProps>(({ className = '' }, ref) => {
-  const { toggleSidebar, uiIconScale, uiIconStrokeWidth } = useGraphStore();
+  const { toggleSidebar, uiIconScale, uiIconStrokeWidth } = useGraphStore(
+    useShallow(s => ({
+      toggleSidebar: s.toggleSidebar,
+      uiIconScale: s.uiIconScale,
+      uiIconStrokeWidth: s.uiIconStrokeWidth,
+    })),
+  );
   const iconSizeClass = getIconSizeClass(uiIconScale);
 
   return (

@@ -25,12 +25,6 @@ export type MarkdownPreviewViewerProps = {
   rootThemeMode: 'light' | 'dark'
   previewOverlayScope: 'viewport' | 'container'
   previewOverlayPortalTarget: HTMLElement | null
-  alwaysOnHighlightMode: boolean
-  alwaysOnTokenHighlights: Array<{
-    textColor: string | null
-    underlineColor: string | null
-    backgroundColor: string | null
-  }> | null
   effectiveHighlightBackgroundColor: string | null
   effectiveHighlightUnderlineColor: string | null
   scrollClass: string
@@ -76,8 +70,6 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     rootThemeMode,
     previewOverlayScope,
     previewOverlayPortalTarget,
-    alwaysOnHighlightMode,
-    alwaysOnTokenHighlights,
     effectiveHighlightBackgroundColor,
     effectiveHighlightUnderlineColor,
     scrollClass,
@@ -288,8 +280,6 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         rootThemeMode={rootThemeMode}
         previewOverlayScope={previewOverlayScope}
         previewOverlayPortalTarget={previewOverlayPortalTarget}
-        alwaysOnHighlightMode={alwaysOnHighlightMode}
-        alwaysOnTokenHighlights={alwaysOnTokenHighlights}
         markdownTextHighlight={markdownTextHighlight}
         codeAnnotations={codeAnnotations}
         annotateDisplayMode={annotateDisplayMode}
@@ -303,8 +293,6 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     ),
     [
       activeDocumentPath,
-      alwaysOnHighlightMode,
-      alwaysOnTokenHighlights,
       effectiveHighlightBackgroundColor,
       effectiveHighlightUnderlineColor,
       highlightedLineRange,

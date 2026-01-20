@@ -1,9 +1,10 @@
 import * as d3 from 'd3'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/utils'
+import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation'
 import { fitSubsetTransform } from '@/components/GraphCanvas/fit'
 import { callZoomTransform } from '@/components/GraphCanvas/helpers'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 type ZoomOnSelectionParams = {
   graphData: GraphData
@@ -95,6 +96,7 @@ export const applyZoomOnSelection = ({
   selectedNodeIds,
   selectedEdgeIds,
 }: ZoomOnSelectionParams) => {
+  if (useGraphStore.getState().viewPinned === true) return
   if (!graphData) return
   const subset = computeZoomSubset({ graphData, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds })
   if (subset.length === 0) return

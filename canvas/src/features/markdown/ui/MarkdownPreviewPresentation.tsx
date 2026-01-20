@@ -1,8 +1,6 @@
 import React from 'react'
 import { MarkdownPanelLayout } from '@/features/markdown/ui/MarkdownPanelLayout'
-import { LayoutList, LayoutPanelTop } from 'lucide-react'
-import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
-import { LS_KEYS, UI_COPY } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { splitMarkdownLines } from '@/lib/markdown'
@@ -10,7 +8,6 @@ import { lexMarkdownContent, type TokenWithLines } from './markdownPreviewLex'
 import { selectTokensInLineRange } from './markdownPreviewLexUtils'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import type { MarkdownFragmentConfig } from './markdownPreviewFragments'
-import { lsBool, lsSetBool } from '@/lib/persistence'
 import {
   buildBackgroundStyle,
   buildSlideBody,
@@ -21,178 +18,12 @@ import {
   getSlideVisualMeta,
 } from './markdownPresentationSlides'
 import { findLineRangeFromTarget } from '@/features/markdown/ui/markdownPreviewContextMenuUtils'
-import IconButton from '@/components/IconButton'
 import { MarkdownPresentationViewport } from './MarkdownPresentationViewport'
+import { SlidesSidebar } from './SlidesSidebar'
 
-type SlidesSidebarProps = {
-  as?: 'aside' | 'section'
-  embedded?: boolean
-  orderedSlideIndices: number[]
-  activeSlideId: number
-  slideOrder: number[]
-  slideCount: number
-  activeSlideHeading: string
-  showSlideThumbnails: boolean
-  onToggleShowSlideThumbnails: () => void
-  onSidebarFocusSlideIdChange: (id: number | null) => void
-  onActiveSlideIndexChange: (index: number) => void
-  onSlideOrderChange: (nextOrder: number[]) => void
-  renderSlidePreview: (slideIdx: number) => React.ReactNode
-  onSlideDoubleClick?: (slideIdx: number) => void
-  onSlideContextMenu?: (slideIdx: number, e: React.MouseEvent) => void
-  width?: string
-  layout?: 'list' | 'grid'
-}
+import { usePresentationEffects } from './usePresentationEffects'
 
-export function SlidesSidebar(props: SlidesSidebarProps) {
-  const {
-    as: Tag = 'aside',
-    embedded = false,
-    orderedSlideIndices,
-    activeSlideId,
-    slideOrder,
-    slideCount,
-    activeSlideHeading,
-    showSlideThumbnails,
-    onToggleShowSlideThumbnails,
-    onSidebarFocusSlideIdChange,
-    onActiveSlideIndexChange,
-    onSlideOrderChange,
-    renderSlidePreview,
-    onSlideDoubleClick,
-    onSlideContextMenu,
-    width = 'w-64',
-    layout = 'list',
-  } = props
-
-  const [selectedSlideIds, setSelectedSlideIds] = React.useState<string[]>([])
-
-  React.useEffect(() => {
-    if (!selectedSlideIds.length) return
-    const idSet = new Set(orderedSlideIndices.map(id => String(id)))
-    setSelectedSlideIds((prev) => {
-      if (!prev.length) return prev
-      const next = prev.filter(id => idSet.has(id))
-      return next.length === prev.length ? prev : next
-    })
-  }, [orderedSlideIndices, selectedSlideIds.length])
-
-  const items = React.useMemo(
-    () =>
-      orderedSlideIndices.map((slideIdx, i) => ({
-        id: String(slideIdx),
-        label: UI_COPY.markdownSlideIndexLabel(i + 1),
-        preview: renderSlidePreview(slideIdx),
-      })),
-    [orderedSlideIndices, renderSlidePreview],
-  )
-
-  const containerClassName =
-    layout === 'grid'
-      ? `${width} border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} flex flex-col rounded`
-      : `${width} shrink-0 border-r ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} flex flex-col`
-
-  // When embedded in MarkdownPanelLayout, we let the layout handle the container.
-  // But we might want to customize the header.
-  // If embedded, we assume the parent provides the outer structure (aside),
-  // but we still render our header because it has specific controls (thumbnails toggle, selection clear).
-  
-  const content = (
-    <>
-      <header
-        className={`flex items-center justify-between p-2 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}
-      >
-        <div className="min-w-0">
-          <h2
-            className={[
-              'text-xs font-semibold uppercase truncate',
-              UI_THEME_TOKENS.text.tertiary,
-            ].join(' ')}
-          >
-            {UI_COPY.markdownSlidesSidebarViewTitle}
-          </h2>
-          <div className={`mt-0.5 text-[10px] ${UI_THEME_TOKENS.text.secondary} truncate`}>
-            {slideCount} {UI_COPY.markdownSlidesSidebarSlidesSuffix}
-            {activeSlideHeading ? ` · ${activeSlideHeading}` : ''}
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          {selectedSlideIds.length > 0 ? (
-            <button
-              type="button"
-              className={`text-[10px] mr-1 ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-900 dark:hover:text-gray-100`}
-              onClick={() => setSelectedSlideIds([])}
-            >
-              {UI_COPY.markdownSlidesSidebarClearSelectionLabel}
-            </button>
-          ) : null}
-          <IconButton
-            className="App-toolbar__btn flex items-center justify-center"
-            onClick={onToggleShowSlideThumbnails}
-            title={showSlideThumbnails ? 'Hide Thumbnails' : 'Show Thumbnails'}
-            showTooltip
-          >
-            {showSlideThumbnails ? (
-              <LayoutPanelTop className="w-4 h-4" strokeWidth={1.5} aria-hidden={true} />
-            ) : (
-              <LayoutList className="w-4 h-4" strokeWidth={1.5} aria-hidden={true} />
-            )}
-          </IconButton>
-        </div>
-      </header>
-      <nav className="flex-1 min-h-0 overflow-auto" aria-label="Slides Gallery">
-        <PreviewGallery
-          items={items}
-          activeId={String(activeSlideId)}
-          selectedIds={selectedSlideIds}
-          onSelectedIdsChange={setSelectedSlideIds}
-          showPreview={showSlideThumbnails}
-          onHighlightChange={(id) => {
-            if (id === null) {
-              onSidebarFocusSlideIdChange(null)
-              return
-            }
-            const idx = Number.parseInt(id, 10)
-            if (!Number.isFinite(idx)) return
-            onSidebarFocusSlideIdChange(idx)
-          }}
-          onSelect={(id) => {
-            const idx = Number.parseInt(id, 10)
-            if (!Number.isFinite(idx)) return
-            const pos = orderedSlideIndices.indexOf(idx)
-            if (pos < 0) return
-            onActiveSlideIndexChange(pos)
-          }}
-          onReorder={(nextIds) => {
-            const next = nextIds.map(x => Number.parseInt(x, 10)).filter(n => Number.isFinite(n))
-            const nextOrder = next.length ? next : slideOrder
-            onSlideOrderChange(nextOrder)
-            const nextPos = nextOrder.indexOf(activeSlideId)
-            if (nextPos >= 0) onActiveSlideIndexChange(nextPos)
-          }}
-          onDoubleClick={(id) => {
-            const idx = Number.parseInt(id, 10)
-            if (!Number.isFinite(idx)) return
-            if (onSlideDoubleClick) onSlideDoubleClick(idx)
-          }}
-          onContextMenu={(id, e) => {
-            const idx = Number.parseInt(id, 10)
-            if (!Number.isFinite(idx)) return
-            if (onSlideContextMenu) onSlideContextMenu(idx, e)
-          }}
-        />
-      </nav>
-    </>
-  )
-
-  if (embedded) {
-    // When embedded, we return just the content (header + nav)
-    // The parent MarkdownPanelLayout provides the container.
-    return content
-  }
-
-  return <Tag className={containerClassName}>{content}</Tag>
-}
+export { SlidesSidebar }
 
 type MarkdownPreviewPresentationProps = {
   rootRef: (el: HTMLDivElement | null) => void
@@ -222,12 +53,6 @@ type MarkdownPreviewPresentationProps = {
   uiPanelMonospaceTextClass: string
   previewOverlayScope: 'viewport' | 'container'
   previewOverlayPortalTarget: HTMLElement | null
-  alwaysOnHighlightMode: boolean
-  buildAlwaysOnTokenHighlights: (tokens: TokenWithLines[] | null) => Array<{
-    textColor: string | null
-    underlineColor: string | null
-    backgroundColor: string | null
-  }> | null
   highlightedLineRange: HighlightedLineRange
   activeDocumentPath: string
   mermaidFrontmatterConfig: Record<string, unknown> | null
@@ -266,8 +91,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     uiPanelMonospaceTextClass,
     previewOverlayScope,
     previewOverlayPortalTarget,
-    alwaysOnHighlightMode,
-    buildAlwaysOnTokenHighlights,
     highlightedLineRange,
     activeDocumentPath,
     mermaidFrontmatterConfig,
@@ -283,116 +106,24 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     setShowSidebar,
   } = props
 
-  const [isSlidesFullscreenOpen, setIsSlidesFullscreenOpen] = React.useState(false)
-  const [showSpeakerNotes, setShowSpeakerNotes] = React.useState<boolean>(() =>
-    lsBool(LS_KEYS.previewSlidesShowNotes, false),
-  )
-  const [slideTransitionPhase, setSlideTransitionPhase] = React.useState<'from' | 'to'>('to')
-  const [isSidebarHovered, setIsSidebarHovered] = React.useState(false)
-
-  const sidebarHoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
-
-  const handleSidebarMouseEnter = React.useCallback(() => {
-    if (sidebarHoverTimeoutRef.current) {
-      clearTimeout(sidebarHoverTimeoutRef.current)
-      sidebarHoverTimeoutRef.current = null
-    }
-    setIsSidebarHovered(true)
-  }, [])
-
-  const handleSidebarMouseLeave = React.useCallback(() => {
-    sidebarHoverTimeoutRef.current = setTimeout(() => {
-      setIsSidebarHovered(false)
-    }, 300) // 300ms grace period for scrollbar interaction
-  }, [])
-
-  React.useEffect(() => {
-    return () => {
-      if (sidebarHoverTimeoutRef.current) {
-        clearTimeout(sidebarHoverTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  const activeTransitionKey = React.useMemo(() => {
-    const currentSlide = slides[activeSlideId]
-    if (!currentSlide) return ''
-    const slideMeta = (currentSlide.meta || {}) as Record<string, unknown>
-    const headMetaRecord = headMeta as Record<string, unknown>
-    const raw = String(slideMeta.transition || headMetaRecord.transition || '').trim().toLowerCase()
-    return raw
-  }, [activeSlideId, headMeta, slides])
-
-  React.useEffect(() => {
-    if (isSlidesFullscreenOpen) {
-      setShowSidebar(false)
-    }
-  }, [isSlidesFullscreenOpen, setShowSidebar])
-
-  React.useEffect(() => {
-    if (!isSlidesFullscreenOpen) return
-    if (!activeTransitionKey || activeTransitionKey === 'none') {
-      setSlideTransitionPhase('to')
-      return
-    }
-    setSlideTransitionPhase('from')
-    if (typeof window === 'undefined') {
-      setSlideTransitionPhase('to')
-      return
-    }
-    let frame = 0
-    frame = window.requestAnimationFrame(() => {
-      setSlideTransitionPhase('to')
-    })
-    return () => {
-      if (frame) {
-        window.cancelAnimationFrame(frame)
-      }
-    }
-  }, [activeTransitionKey, isSlidesFullscreenOpen])
-
-  React.useEffect(() => {
-    if (!onRegisterFullscreenHandler) return
-    onRegisterFullscreenHandler(() => {
-      setIsSlidesFullscreenOpen(true)
-    })
-    return () => {
-      onRegisterFullscreenHandler(null)
-    }
-  }, [onRegisterFullscreenHandler])
-
-  const previewOverlayContainerRef = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (typeof document === 'undefined') return
-    if (isSlidesFullscreenOpen && previewOverlayContainerRef.current) {
-      const el = previewOverlayContainerRef.current as unknown as { requestFullscreen?: () => Promise<void> }
-      const fn = el?.requestFullscreen
-      if (typeof fn !== 'function') return
-      try {
-        const p = fn.call(el)
-        if (p && typeof (p as Promise<void>).catch === 'function') {
-          ;(p as Promise<void>).catch(() => void 0)
-        }
-      } catch {
-        void 0
-      }
-    }
-  }, [isSlidesFullscreenOpen])
-
-  React.useEffect(() => {
-    if (typeof document === 'undefined') return
-    const onFullscreenChange = () => {
-      if (!document.fullscreenElement && isSlidesFullscreenOpen) {
-        setIsSlidesFullscreenOpen(false)
-      }
-    }
-    document.addEventListener('fullscreenchange', onFullscreenChange)
-    return () => {
-      document.removeEventListener('fullscreenchange', onFullscreenChange)
-    }
-  }, [isSlidesFullscreenOpen])
+  const {
+    isSlidesFullscreenOpen,
+    setIsSlidesFullscreenOpen,
+    showSpeakerNotes,
+    slideTransitionPhase,
+    isSidebarHovered,
+    handleSidebarMouseEnter,
+    handleSidebarMouseLeave,
+    activeTransitionKey,
+    previewOverlayContainerRef,
+  } = usePresentationEffects({
+    slides,
+    activeSlideId,
+    headMeta,
+    onRegisterFullscreenHandler,
+    setShowSidebar,
+    showSidebar,
+  })
 
   const baseSlideSize = React.useMemo(() => {
     const meta = headMeta
@@ -486,8 +217,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
         uiPanelMonospaceTextClass,
         previewOverlayScope,
         previewOverlayPortalTarget,
-        alwaysOnHighlightMode,
-        buildAlwaysOnTokenHighlights,
         activeFragmentConfig,
         activeFragmentStep,
         mermaidFrontmatterConfig,
@@ -511,8 +240,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
       uiPanelMonospaceTextClass,
       previewOverlayScope,
       previewOverlayPortalTarget,
-      alwaysOnHighlightMode,
-      buildAlwaysOnTokenHighlights,
       activeFragmentConfig,
       activeFragmentStep,
       mermaidFrontmatterConfig,
@@ -569,28 +296,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   } else if (frameVariant === 'auto') {
     baseFrameClass = `rounded border ${UI_THEME_TOKENS.panel.border} shadow ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
   }
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.previewSlidesShowThumbnails, showSidebar)
-  }, [showSidebar])
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.previewSlidesShowNotes, showSpeakerNotes)
-  }, [showSpeakerNotes])
-
-  React.useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault()
-        setShowSpeakerNotes(prev => !prev)
-      } else if (e.key === 'o' || e.key === 'O') {
-        e.preventDefault()
-        setShowSidebar(!showSidebar)
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showSidebar, setShowSidebar])
 
   const [sidebarFocusSlideId, setSidebarFocusSlideId] = React.useState<number | null>(null)
 

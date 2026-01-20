@@ -10,22 +10,14 @@ import { buildSlidePreview } from '@/features/markdown/ui/markdownPresentationSl
 import { splitMarkdownLines } from '@/lib/markdown'
 import type { HighlightedLineRange } from './MarkdownRendererTypes'
 import { useMarkdownPresentation } from './useMarkdownPresentation'
-import type { GraphSchema } from '@/lib/graph/schema'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
 import { MarkdownPreviewPresentation, SlidesSidebar } from '@/features/markdown/ui/MarkdownPreviewPresentation'
 import { MarkdownSelectionToolbar, type MarkdownSelectionToolbarState } from '@/features/markdown/ui/MarkdownSelectionToolbar'
-import {
-  ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET,
-  buildAlwaysOnTokenHighlights as computeAlwaysOnTokenHighlights,
-  type TokenHighlightSpec,
-} from '@/features/markdown/ui/markdownPreviewAlwaysOnHighlights'
 import { findSelectionTarget } from '@/features/markdown/ui/markdownPreviewSelection'
 import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import { useSelectionFlash } from '@/features/markdown/ui/useSelectionFlash'
 import { useMarkdownPreviewEvents } from '@/features/markdown/ui/useMarkdownPreviewEvents'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
-
-export { ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET }
 
 export type MarkdownPreviewPresentationApi = {
   prev: () => void
@@ -53,7 +45,6 @@ type MarkdownPreviewProps = {
   selectionId?: string | null
   stickyHeadingTopClass?: string
   stickyHeadingTopPx?: number
-  alwaysOnHighlightMode?: boolean
   presentationApiRef?: React.MutableRefObject<MarkdownPreviewPresentationApi | null>
   onPresentationSlideStateChange?: (state: MarkdownPreviewPresentationSlideState) => void
   uiPanelTextFontClass: string
@@ -100,7 +91,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     selectionId,
     stickyHeadingTopClass,
     stickyHeadingTopPx,
-    alwaysOnHighlightMode = false,
     presentationApiRef,
     onPresentationSlideStateChange,
     uiPanelTextFontClass,
@@ -234,10 +224,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
   }, [presentationApiRef, goPrev, goNext, enterFullscreen, onToggleSidebar])
 
   const graphData = useGraphStore(s => s.graphData)
-  const markdownAlwaysOnHighlightComplexityBudget = useGraphStore(
-    s => s.markdownAlwaysOnHighlightComplexityBudget ?? null,
-  )
-  const schema = useGraphStore(s => s.schema as GraphSchema | null)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
@@ -260,30 +246,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       window.removeEventListener('scroll', handler, true)
     }
   }, [selectionToolbar, closeSelectionToolbar])
-
-  const buildAlwaysOnTokenHighlights = React.useCallback(
-    (sourceTokens: TokenWithLines[] | null): TokenHighlightSpec[] | null =>
-      computeAlwaysOnTokenHighlights({
-        tokens: sourceTokens,
-        alwaysOnHighlightMode,
-        activeDocumentPath,
-        graphData: graphData as GraphData | null,
-        schema,
-        markdownAlwaysOnHighlightComplexityBudget,
-      }),
-    [
-      activeDocumentPath,
-      alwaysOnHighlightMode,
-      graphData,
-      markdownAlwaysOnHighlightComplexityBudget,
-      schema,
-    ],
-  )
-
-  const alwaysOnTokenHighlights = React.useMemo(
-    () => buildAlwaysOnTokenHighlights(tokens),
-    [buildAlwaysOnTokenHighlights, tokens],
-  )
 
   const handleShowOnCanvas = React.useCallback(
     (startLine: number, endLine: number) => {
@@ -449,8 +411,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
           uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
           previewOverlayScope={previewOverlayScope}
           previewOverlayPortalTarget={previewOverlayPortalTarget || null}
-          alwaysOnHighlightMode={alwaysOnHighlightMode}
-          buildAlwaysOnTokenHighlights={buildAlwaysOnTokenHighlights}
           highlightedLineRange={highlightedLineRange}
           activeDocumentPath={activeDocumentPath}
           mermaidFrontmatterConfig={mermaidFrontmatterConfig as Record<string, unknown> | null}
@@ -486,8 +446,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       rootThemeMode={rootThemeMode}
       previewOverlayScope={previewOverlayScope}
       previewOverlayPortalTarget={previewOverlayPortalTarget || null}
-      alwaysOnHighlightMode={alwaysOnHighlightMode}
-      alwaysOnTokenHighlights={alwaysOnTokenHighlights}
       effectiveHighlightBackgroundColor={effectiveHighlightBackgroundColor}
       effectiveHighlightUnderlineColor={effectiveHighlightUnderlineColor}
       scrollClass={scrollClass}

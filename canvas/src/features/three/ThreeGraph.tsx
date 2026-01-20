@@ -3,7 +3,6 @@ import { Canvas } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
-import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import { PANEL_MAX_RATIO } from '@/features/panels/config'
@@ -27,8 +26,6 @@ export default function ThreeGraph() {
     selectNode,
     selectEdge,
     setSelectionSource,
-    frontmatterModeEnabled,
-    markdownDocumentName,
   } = useGraphStore()
   const bottomPanelHeightRatio = useGraphStore(s => s.bottomPanelHeightRatio)
   const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
@@ -38,19 +35,12 @@ export default function ThreeGraph() {
   const graph = data as GraphData | null
   const s = schema as GraphSchema | null
   const effectiveSchema = useMemo<GraphSchema>(() => s || defaultSchema, [s])
-  const docName = typeof markdownDocumentName === 'string' ? markdownDocumentName.trim() || null : null
-  const frontmatterOnly = !!frontmatterModeEnabled
-  const scopedGraph = useMemo(
-    () => (frontmatterOnly ? filterGraphToFrontmatterMermaid(graph, docName) : graph),
-    [frontmatterOnly, graph, docName],
-  )
   const renderGraphRef = useRef<GraphData | null>(null)
   const renderGraph = useMemo(() => {
     if (paused && renderGraphRef.current) return renderGraphRef.current
-    const next = deriveGraphDataForLayers(scopedGraph as GraphData | null, effectiveSchema as GraphSchema)
-    renderGraphRef.current = next as GraphData | null
-    return next
-  }, [paused, scopedGraph, effectiveSchema])
+    renderGraphRef.current = graph
+    return graph
+  }, [paused, graph])
   const hasGraph = !!(renderGraph && Array.isArray(renderGraph.nodes) && Array.isArray(renderGraph.edges))
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(hasGraph ? (renderGraph as GraphData).nodes : [], hasGraph ? (effectiveSchema as GraphSchema) : null)

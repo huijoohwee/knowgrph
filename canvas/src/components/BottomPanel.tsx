@@ -22,7 +22,7 @@ import { useParserEditor } from '@/features/parsers/useParserEditor'
 import { useBottomPanelSchema } from '@/features/schema-editor/useBottomPanelSchema'
 import BottomPanelHeader from '@/components/BottomPanel/BottomPanelHeader'
 import BottomPanelBody from '@/components/BottomPanel/BottomPanelBody'
-import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, COLLAPSE_STORAGE_LEGACY_KEYS, DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO, PARSER_UI_EDITOR_OPEN_STORAGE_KEY } from '@/features/bottom-panel/constants'
+import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO, PARSER_UI_EDITOR_OPEN_STORAGE_KEY } from '@/features/bottom-panel/constants'
 import { PANEL_MAX_RATIO } from '@/features/panels/config'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -47,7 +47,7 @@ export default function BottomPanel() {
   const bottomPanelHeightRatio = useGraphStore(s => s.bottomPanelHeightRatio)
   const setBottomPanelHeightRatio = useGraphStore(s => s.setBottomPanelHeightRatio)
   const setBottomPanelCollapsed = useGraphStore(s => s.setBottomPanelCollapsed)
-  const [collapsed, setCollapsed] = usePersistedBoolean(COLLAPSE_STORAGE_KEY, true, COLLAPSE_STORAGE_LEGACY_KEYS)
+  const [collapsed, setCollapsed] = usePersistedBoolean(COLLAPSE_STORAGE_KEY, true)
   const rawTab = useGraphStore(s => s.bottomPanelTab)
   const setTabStore = useGraphStore(s => s.setBottomPanelTab)
   const bottomPanelCurationView = useGraphStore(s => s.bottomPanelCurationView)

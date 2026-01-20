@@ -49,11 +49,59 @@ export const applyZoomRequest = (
   const node = svg.node();
   const t = node ? d3.zoomTransform(node) : d3.zoomIdentity;
   const type: ZoomType = zoomRequest.type;
+  const clear = () => {
+    try {
+      useGraphStore.getState().clearZoomRequest()
+    } catch {
+      void 0
+    }
+  }
+  const pinned = useGraphStore.getState().viewPinned === true
+  if (pinned && type !== 'in' && type !== 'out') {
+    clear()
+    return
+  }
+  if (type === 'selection') {
+    if (pinned) {
+      clear()
+      return
+    }
+  }
+
+  const computeFitTransform = () => {
+    if (!graphData) return null;
+    const schema = useGraphStore.getState().schema
+    const padding = schema.layout?.fitPadding
+    const useCentroid = schema.layout?.fitUseCentroid
+    const detectClusters = schema.layout?.fitDetectClusters
+    const targetAspectRatio = schema.layout?.fitTargetAspectRatio
+    const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
+
+    const pad =
+      typeof padding === 'number' && Number.isFinite(padding)
+        ? Math.max(20, Math.min(160, Math.floor(padding)))
+        : 80
+
+    const commonOpts = {
+      pad,
+      useCentroidCentering: useCentroid !== false,
+      detectClusters: detectClusters !== false,
+      targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
+      enforceAspectRatio: enforceAspectRatio !== false,
+      schema,
+    }
+
+    const w = Math.max(1, Math.floor(width))
+    const h = Math.max(1, Math.floor(height))
+    return fitAllTransform(graphData.nodes, w, h, commonOpts)
+  }
+
   if (type === 'in') {
     const [, maxK] = zoom.scaleExtent();
     const k2 = Math.min(maxK, t.k * 1.2);
     applyScaleTo(svg, zoom, k2);
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
+    clear()
     return;
   }
   if (type === 'out') {
@@ -61,6 +109,7 @@ export const applyZoomRequest = (
     const k2 = Math.max(minK, t.k / 1.2);
     applyScaleTo(svg, zoom, k2);
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
+    clear()
     return;
   }
   if (type === 'reset') {
@@ -71,40 +120,25 @@ export const applyZoomRequest = (
       applyTransform(svg, zoom, d3.zoomIdentity);
     }
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
+    clear()
     return;
   }
   if (type === 'fit') {
-    if (!graphData) return;
-    const schema = useGraphStore.getState().schema
-    const mode = schema.layout?.mode
-    const padding = schema.layout?.fitPadding
-    const useCentroid = schema.layout?.fitUseCentroid
-    const detectClusters = schema.layout?.fitDetectClusters
-    const targetAspectRatio = schema.layout?.fitTargetAspectRatio
-    const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
-
-    const commonOpts = {
-       pad: typeof padding === 'number' && Number.isFinite(padding) ? Math.max(20, Math.min(48, Math.floor(padding))) : 48,
-       useCentroidCentering: useCentroid !== false,
-       detectClusters: detectClusters !== false,
-       targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
-       enforceAspectRatio: enforceAspectRatio !== false,
+    const next = computeFitTransform()
+    if (!next) {
+      clear()
+      return
     }
-
-    const next =
-      mode === 'mermaid'
-        ? fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), {
-            ...commonOpts,
-            maxScale: 6,
-            maxScaleHardCap: 6,
-          })
-        : fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), commonOpts);
-    applyTransform(svg, zoom, next, 300);
+    applyTransform(svg, zoom, next, 300)
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
+    clear()
     return;
   }
   if (type === 'selection') {
-    if (!graphData) return;
+    if (!graphData) {
+      clear()
+      return
+    }
     const nodeIds =
       Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
         ? selectedNodeIds
@@ -141,42 +175,19 @@ export const applyZoomRequest = (
       }
     }
     if (ids.size > 0) {
-      const subset = graphData.nodes.filter(n => ids.has(n.id));
+      const subset = graphData.nodes.filter(n => ids.has(String(n.id)));
       if (subset.length > 0) {
         const next = fitSubsetTransform(subset, width, height);
         applyTransform(svg, zoom, next, 300);
         try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
+        clear()
         return;
       }
     }
-    if (graphData) {
-      const schema = useGraphStore.getState().schema
-      const mode = schema.layout?.mode
-      const padding = schema.layout?.fitPadding
-      const useCentroid = schema.layout?.fitUseCentroid
-      const detectClusters = schema.layout?.fitDetectClusters
-      const targetAspectRatio = schema.layout?.fitTargetAspectRatio
-      const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
-  
-      const commonOpts = {
-         pad: typeof padding === 'number' && Number.isFinite(padding) ? Math.max(20, Math.min(48, Math.floor(padding))) : 48,
-         useCentroidCentering: useCentroid !== false,
-         detectClusters: detectClusters !== false,
-         targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
-         enforceAspectRatio: enforceAspectRatio !== false,
-      }
-      
-      const next =
-        mode === 'mermaid'
-          ? fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), {
-              ...commonOpts,
-              maxScale: 6,
-              maxScaleHardCap: 6,
-            })
-          : fitAllTransform(graphData.nodes, Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)), commonOpts);
-      applyTransform(svg, zoom, next, 300);
-    }
+    const fallback = computeFitTransform()
+    if (fallback) applyTransform(svg, zoom, fallback, 300)
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
+    clear()
     return;
   }
   if (type === 'transform') {
@@ -186,6 +197,8 @@ export const applyZoomRequest = (
       applyTransform(svg, zoom, next, 0);
     }
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
+    clear()
     return;
   }
+  clear()
 };

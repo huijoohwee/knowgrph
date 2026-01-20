@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { useShallow } from 'zustand/react/shallow';
 import { uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import {
   type SelectionPerfSubscriber,
@@ -8,7 +9,12 @@ import {
 import { UI_LABELS } from '@/lib/config';
 
 export default function StatusBar() {
-  const { graphData, selectedNodeId } = useGraphStore();
+  const { graphData, selectedNodeId } = useGraphStore(
+    useShallow(s => ({
+      graphData: s.graphData,
+      selectedNodeId: s.selectedNodeId,
+    })),
+  );
   const [perfEnabled, setPerfEnabled] = React.useState(false);
   const [samples, setSamples] = React.useState<
     { subscriber: SelectionPerfSubscriber; durationMs: number; ts: number }[]

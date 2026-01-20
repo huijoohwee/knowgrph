@@ -1,16 +1,7 @@
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { getNodeBaseFill, getEdgeBaseStroke } from '@/components/GraphCanvas/helpers'
-import { getDocumentPathFromMetadata } from '@/features/graph-data-table/graphDataTable'
-
-export type GraphMetadataRecord = Record<string, unknown>
-
-export const toMetadataRecord = (meta: unknown): GraphMetadataRecord => {
-  if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
-    return meta as GraphMetadataRecord
-  }
-  return {}
-}
+import { getDocumentPathFromMetadata, toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { getEdgeBaseStroke, getNodeBaseFill } from '@/lib/graph/visualStyles'
 
 export const parseLineNumber = (raw: unknown): number | null => {
   if (typeof raw === 'number') return Number.isFinite(raw) ? Math.floor(raw) : null
@@ -77,7 +68,7 @@ export const getDocumentLocationFromMetadata = (
 ): DocumentLocationWithRange | null => {
   const record = toMetadataRecord(meta)
   const documentPath = getDocumentPathFromMetadata(record)
-  if (documentPath == null) return null
+  if (!documentPath) return null
   const range = getLineRangeFromMetadata(record)
   if (!range) return null
   return {
@@ -104,12 +95,12 @@ export const computeHighlightedRangeFromLines = (
 
 export const getDocumentPathForNode = (node: GraphNode): string => {
   const record = toMetadataRecord(node.metadata as unknown)
-  return getDocumentPathFromMetadata(record)
+  return getDocumentPathFromMetadata(record) || ''
 }
 
 export const getDocumentPathForEdge = (edge: GraphEdge): string => {
   const record = toMetadataRecord(edge.metadata as unknown)
-  return getDocumentPathFromMetadata(record)
+  return getDocumentPathFromMetadata(record) || ''
 }
 
 export const getNodeBaseColor = (node: GraphNode, schema: GraphSchema | null): string => {

@@ -7,7 +7,6 @@ import { LS_KEYS } from '@/lib/config'
 import CommunitiesStatsSection from '@/components/BottomPanel/stats/CommunitiesStatsSection'
 import EdgesStatsSection from '@/components/BottomPanel/stats/EdgesStatsSection'
 import NodeWordFrequenciesSection from '@/components/BottomPanel/stats/NodeWordFrequenciesSection'
-import GraphLayerWordFrequenciesSection from '@/components/BottomPanel/stats/GraphLayerWordFrequenciesSection'
 import type { StatsUiClasses } from '@/components/BottomPanel/stats/types'
 import { useStatsSelection } from '@/components/BottomPanel/hooks/useStatsSelection'
 import { useStatsTokens } from '@/components/BottomPanel/hooks/useStatsTokens'
@@ -23,13 +22,10 @@ export default function BottomPanelStatsTab() {
     statsLod,
     setStatsLod,
     effectiveLod,
-    pinnedGraphLayerId,
-    setPinnedGraphLayerId,
     pinnedEdgeId,
     setPinnedEdgeId,
     pinnedCommunityId,
     setPinnedCommunityId,
-    graphLayerSelectionSnapshotRef,
     edgeSelectionSnapshotRef,
     communitySelectionSnapshotRef,
     captureSelectionSnapshot,
@@ -56,12 +52,6 @@ export default function BottomPanelStatsTab() {
     datasetStats,
     agenticContext,
     datasetIgnoreFilters,
-    tokensByGraphLayer,
-    graphLayerTokensForDropdown,
-    graphLayerTokenFilter,
-    setGraphLayerTokenFilter,
-    graphLayerTokenSort,
-    setGraphLayerTokenSort,
     communityTokensForDropdown,
     communityTokenFilter,
     setCommunityTokenFilter,
@@ -117,10 +107,6 @@ export default function BottomPanelStatsTab() {
       uiPanelTextFontClass,
     }
   }, [uiPanelKeyValueTextSizeClass, uiPanelMicroLabelTextSizeClass, uiPanelMonospaceTextClass, uiPanelTextFontClass])
-
-  const clearPinnedGraphLayerState = React.useCallback(() => {
-    setPinnedGraphLayerId(null)
-  }, [setPinnedGraphLayerId])
 
   const clearPinnedEdgeState = React.useCallback(() => {
     setPinnedEdgeId(null)
@@ -192,36 +178,6 @@ export default function BottomPanelStatsTab() {
         ui={ui}
       />
 
-      <GraphLayerWordFrequenciesSection
-        tokensByGraphLayer={tokensByGraphLayer}
-        pinnedGraphLayerId={pinnedGraphLayerId}
-        setPinnedGraphLayerId={setPinnedGraphLayerId}
-        graphLayerSelectionSnapshotRef={graphLayerSelectionSnapshotRef}
-        edgeSelectionSnapshotRef={edgeSelectionSnapshotRef}
-        communitySelectionSnapshotRef={communitySelectionSnapshotRef}
-        captureSelectionSnapshot={captureSelectionSnapshot}
-        restoreSelectionSnapshot={restoreSelectionSnapshot}
-        clearPinnedEdgeState={clearPinnedEdgeState}
-        clearPinnedCommunityState={clearPinnedCommunityState}
-        selectNodeIds={selectNodeIds}
-        selectedNodeIdSet={selectedNodeIdSet}
-        getStatsChartWidthPx={getStatsChartWidthPx}
-        graphLayerTokensForDropdown={graphLayerTokensForDropdown}
-        graphLayerTokenFilter={graphLayerTokenFilter}
-        setGraphLayerTokenFilter={setGraphLayerTokenFilter}
-        graphLayerTokenSort={graphLayerTokenSort}
-        setGraphLayerTokenSort={setGraphLayerTokenSort}
-        toggleStatsToken={toggleStatsStopword}
-        statsExcludeTokens={statsExcludeTokens}
-        setStatsExcludeTokens={setStatsExcludeTokens}
-        statsIncludeTokens={statsIncludeTokens}
-        setStatsIncludeTokens={setStatsIncludeTokens}
-        statsFilterMode={statsFilterMode}
-        setStatsFilterMode={setStatsFilterMode}
-        neutralBarColor={neutralBarColor}
-        ui={ui}
-      />
-
       <CommunitiesStatsSection
         communities={communities}
         communityTokensForDropdown={communityTokensForDropdown}
@@ -238,10 +194,8 @@ export default function BottomPanelStatsTab() {
         toggleStatsToken={toggleStatsStopword}
         pinnedCommunityId={pinnedCommunityId}
         setPinnedCommunityId={setPinnedCommunityId}
-        clearPinnedGraphLayerState={clearPinnedGraphLayerState}
         clearPinnedEdgeState={clearPinnedEdgeState}
         communitySelectionSnapshotRef={communitySelectionSnapshotRef}
-        graphLayerSelectionSnapshotRef={graphLayerSelectionSnapshotRef}
         edgeSelectionSnapshotRef={edgeSelectionSnapshotRef}
         captureSelectionSnapshot={captureSelectionSnapshot}
         restoreSelectionSnapshot={restoreSelectionSnapshot}
@@ -261,10 +215,8 @@ export default function BottomPanelStatsTab() {
         neutralBarColor={neutralBarColor}
         pinnedEdgeId={pinnedEdgeId}
         setPinnedEdgeId={setPinnedEdgeId}
-        clearPinnedGraphLayerState={clearPinnedGraphLayerState}
         clearPinnedCommunityState={clearPinnedCommunityState}
         edgeSelectionSnapshotRef={edgeSelectionSnapshotRef}
-        graphLayerSelectionSnapshotRef={graphLayerSelectionSnapshotRef}
         communitySelectionSnapshotRef={communitySelectionSnapshotRef}
         captureSelectionSnapshot={captureSelectionSnapshot}
         restoreSelectionSnapshot={restoreSelectionSnapshot}

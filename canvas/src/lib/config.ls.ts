@@ -137,27 +137,6 @@ export const STORAGE_CHANNELS = {
   tabSync: 'kg:session:tabSync',
 } as const;
 
-export const LS_LEGACY_KEYS = {
-  parserInputCollapsed: 'parser.inputCollapsed',
-  parserParsersCollapsed: 'parser.parsersCollapsed',
-  bottomPanelCollapsed: 'bottom.collapsed',
-  launchSpotlightDismissed: 'kgLaunchSpotlightDismissed',
-  parserTreeSitterEnabled: 'parser.useTreeSitter',
-  schemaSubsectionPrefix: 'schema.subsection.',
-  floatingPanelPinned: 'kg:ui:propsPanel:pinned',
-  graphDataTableVisibleColumns: 'kg:curation:spreadsheet:visibleColumns',
-  graphDataTableColumnOrder: 'kg:curation:spreadsheet:columnOrder',
-  graphDataTableAggregateKeys: 'kg:curation:spreadsheet:aggregateKeys',
-  graphDataTableFilterState: 'kg:curation:spreadsheet:filterState',
-  graphDataTableSortRules: 'kg:curation:spreadsheet:sortRules',
-  graphDataTableGroupKey: 'kg:curation:spreadsheet:groupKey',
-  graphDataTableAutoSortEnabled: 'kg:curation:spreadsheet:autoSortEnabled',
-  graphDataTableRowDensity: 'kg:curation:spreadsheet:rowDensity',
-  graphDataTableDisableAutoScroll: 'kg:curation:spreadsheet:disableAutoScroll',
-  graphDataTableFreezeFirstDataColumn: 'kg:curation:spreadsheet:freezeFirstDataColumn',
-  graphDataTableFreezeFirstDataColumnByScope: 'kg:curation:spreadsheet:freezeFirstDataColumnByScope',
-} as const;
-
 export type LsKeyId = keyof typeof LS_KEYS;
 export type LsStorageKey = (typeof LS_KEYS)[LsKeyId];
 
@@ -166,9 +145,6 @@ export type SchemaSubsectionStorageKey = `${SchemaSubsectionStorageKeyPrefix}${s
 
 export const getSchemaSubsectionStorageKey = (slug: string): SchemaSubsectionStorageKey =>
   `${LS_KEYS.schemaSubsectionPrefix}${String(slug ?? '')}` as SchemaSubsectionStorageKey;
-
-export const getSchemaSubsectionLegacyStorageKey = (slug: string): string =>
-  `${LS_LEGACY_KEYS.schemaSubsectionPrefix}${String(slug ?? '')}`;
 
 export type ChatHistoryStorageKeyPrefix = (typeof LS_KEYS)['chatHistoryPrefix'];
 export type ChatHistoryStorageKey = `${ChatHistoryStorageKeyPrefix}${string}`;

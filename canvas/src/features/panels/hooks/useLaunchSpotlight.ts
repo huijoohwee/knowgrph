@@ -1,14 +1,14 @@
 import { useCallback } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import { LS_KEYS, LS_LEGACY_KEYS } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config'
 import { useParserUIState } from '@/features/parsers/uiState'
 
 export function useLaunchSpotlight() {
   const setEnableLaunchSpotlight = useGraphStore(s => s.setEnableLaunchSpotlight)
   const setLaunchSpotlightMode = useGraphStore(s => s.setLaunchSpotlightMode)
   const setStatusPanelPinned = useGraphStore(s => s.setStatusPanelPinned)
-  const [spotlightDismissed, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false, [LS_LEGACY_KEYS.launchSpotlightDismissed])
+  const [spotlightDismissed, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false)
   return useCallback(
     (mode: 'tour' | 'stats' = 'tour') => {
       const { enableLaunchSpotlight, launchSpotlightMode, statusPanelPinned, schemaOpOk, schemaLintCount } = useGraphStore.getState()

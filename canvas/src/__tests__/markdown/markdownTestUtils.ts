@@ -19,28 +19,28 @@ export const buildTestMarkdownFromFile = (): string => {
 
 export const buildTestMarkdownFromGithub = (): string =>
   [
-    '# Chapter Summaries',
+    '# Sample Summaries',
     '',
-    'These are the summaries of each chapter taken from the book.',
+    'These are sample summaries from a generic document.',
     '',
-    '![AI Engineering Book Cover](https://github.com/chiphuyen/aie-book/raw/main/assets/ai-judge.png)',
+    '![Sample Cover](https://example.com/assets/sample-cover.png)',
     '',
   ].join('\n')
 
 export const buildTestMarkdownFromAieHtml = (): string =>
   [
-    '# Chapter Summaries (HTML)',
+    '# Sample Summaries (HTML)',
     '',
-    '<center><img src="assets/rlhf.png" width="800"><br>',
-    '<i>RLHF diagram from AI Engineering book</i></center>',
+    '<center><img src="assets/sample.png" width="800"><br>',
+    '<i>Sample diagram from a neutral reference</i></center>',
     '',
   ].join('\n')
 
 export const buildTestMarkdownFromMlflow = (): string =>
   [
-    '# MLflow',
+    '# Sample Tooling',
     '',
-    '![MLflow logo](docs/source/_static/MLflow-logo-final-white.png)',
+    '![Sample logo](docs/source/_static/sample-logo.png)',
     '',
   ].join('\n')
 

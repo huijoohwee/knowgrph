@@ -1,45 +1,7 @@
-
-import { GraphNode } from '@/lib/graph/types';
-
-export const calculateNodeDimensions = (
-  node: GraphNode,
-  options: {
-    charWidth?: number;
-    lineHeight?: number;
-    paddingX?: number;
-    paddingY?: number;
-    minWidth?: number;
-    minHeight?: number;
-  } = {}
-): { width: number; height: number } => {
-  const {
-    charWidth = 9,
-    lineHeight = 20,
-    paddingX = 32,
-    paddingY = 20,
-    minWidth = 40,
-    minHeight = 20,
-  } = options;
-
-  const label = String(node.label || node.id || '');
-  const lines = label.split('\n');
-  const maxLineLength = Math.max(...lines.map(l => l.length));
-
-  const isMarkdown = /[*_[\]]/.test(label);
-  const widthMultiplier = isMarkdown ? 1.1 : 1.0;
-
-  const textWidth = Math.max(minWidth, maxLineLength * charWidth * widthMultiplier);
-  const textHeight = Math.max(minHeight, lines.length * lineHeight);
-
-  return {
-    width: textWidth + paddingX,
-    height: textHeight + paddingY,
-  };
-};
-
 export const isRecordType = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 const wrapCache = new Map<string, string>();
+const truncateCache = new Map<string, string>();
 
 export const wrapTextByMaxChars = (raw: string, maxCharsPerLine: number): string => {
   const key = `${raw}:${maxCharsPerLine}`;
@@ -103,3 +65,28 @@ export const wrapTextByMaxChars = (raw: string, maxCharsPerLine: number): string
   wrapCache.set(key, result);
   return result;
 };
+
+export const truncateTextWithEllipsis = (raw: string, maxChars: number): string => {
+  const max = Number.isFinite(maxChars) && maxChars > 0 ? Math.floor(maxChars) : 0
+  const input = String(raw || '')
+  if (max <= 0) return ''
+  if (input.length <= max) return input
+  if (max <= 1) return '…'
+  const key = `${input}:${max}`
+  const cached = truncateCache.get(key)
+  if (cached) return cached
+  const out = `${input.slice(0, Math.max(0, max - 1))}…`
+  truncateCache.set(key, out)
+  return out
+}
+
+export const estimateLabelCharWidthPx = (fontSizePx: number): number => {
+  const fs = typeof fontSizePx === 'number' && Number.isFinite(fontSizePx) ? fontSizePx : 12
+  return Math.max(4, Math.min(14, fs * 0.6))
+}
+
+export const estimateMaxCharsForWidthPx = (widthPx: number, fontSizePx: number): number => {
+  const w = typeof widthPx === 'number' && Number.isFinite(widthPx) ? widthPx : 0
+  const charW = estimateLabelCharWidthPx(fontSizePx)
+  return Math.max(1, Math.floor(Math.max(0, w) / Math.max(1, charW)))
+}

@@ -22,6 +22,7 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
   const data = useGraphStore(s => s.graphData)
   const fitToScreenMode = useGraphStore(s => s.fitToScreenMode)
   const requestThreeCamera = useGraphStore(s => s.requestThreeCamera)
+  const viewPinned = useGraphStore(s => s.viewPinned)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const zoomToSelectionMode = useGraphStore(s => s.zoomToSelectionMode)
@@ -33,7 +34,7 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
   })
   const lastFitDepsRef = React.useRef<{ nodesCount: number } | null>(null)
   React.useEffect(() => {
-    if (paused) return
+    if (paused || viewPinned) return
     if (!fitToScreenMode) {
       lastFitDepsRef.current = null
       return
@@ -51,10 +52,10 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
     } catch {
       void 0
     }
-  }, [paused, fitToScreenMode, data, requestThreeCamera])
+  }, [paused, viewPinned, fitToScreenMode, data, requestThreeCamera])
   const lastSelectionRef = React.useRef<{ nodeId: string | null; edgeId: string | null } | null>(null)
   React.useEffect(() => {
-    if (paused) return
+    if (paused || viewPinned) return
     if (!zoomToSelectionMode || !zoomOnSelectionEnabled) {
       lastSelectionRef.current = { nodeId: selectedNodeId, edgeId: selectedEdgeId }
       return
@@ -70,16 +71,16 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
     } catch {
       void 0
     }
-  }, [paused, zoomToSelectionMode, zoomOnSelectionEnabled, selectedNodeId, selectedEdgeId, requestThreeCamera])
+  }, [paused, viewPinned, zoomToSelectionMode, zoomOnSelectionEnabled, selectedNodeId, selectedEdgeId, requestThreeCamera])
   React.useEffect(() => {
     const cfg = getCameraConfig(schema)
     controls.dampingFactor = cfg.dampingFactor
     controls.rotateSpeed = cfg.rotateSpeed
     controls.zoomSpeed = cfg.zoomSpeed
     controls.panSpeed = cfg.panSpeed
-    controls.autoRotate = cfg.autoRotate
+    controls.autoRotate = cfg.autoRotate && !viewPinned
     controls.autoRotateSpeed = cfg.autoRotateSpeed
-  }, [controls, schema])
+  }, [controls, schema, viewPinned])
   React.useEffect(() => {
     controls.enabled = !paused
   }, [controls, paused])
@@ -87,6 +88,10 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
     if (paused) return
     const req = threeCameraRequest
     if (!req) return
+    if (viewPinned && req.type !== 'in' && req.type !== 'out') {
+      useGraphStore.getState().clearThreeCameraRequest()
+      return
+    }
     const enabled =
       typeof window !== 'undefined' &&
       (window as SelectionPerfWindow).__KG_SELECTION_PERF_ENABLED__ === true;
@@ -145,7 +150,7 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
         void 0;
       }
     }
-  }, [paused, threeCameraRequest, data, selectedNodeId, selectedEdgeId, positions, perspectiveCamera, controls, zoomOnSelectionEnabled])
+  }, [paused, viewPinned, threeCameraRequest, data, selectedNodeId, selectedEdgeId, positions, perspectiveCamera, controls, zoomOnSelectionEnabled])
   React.useEffect(() => {
     return () => {
       try { controls.dispose() } catch { void 0 }

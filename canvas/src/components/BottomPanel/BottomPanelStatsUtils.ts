@@ -34,21 +34,8 @@ export type StatsTokenizationConfig = {
 }
 
 export function getStatsTokenizationConfig(schema: GraphSchema): StatsTokenizationConfig {
-  const cfg = schema.layers?.semantic || {}
-  const textKeys = Array.isArray(cfg.textKeys) && cfg.textKeys.length > 0 ? cfg.textKeys.map(s => String(s || '').trim()).filter(Boolean) : []
-  const minTokenLengthRaw = cfg.minTokenLength
-  const minTokenLength =
-    typeof minTokenLengthRaw === 'number' && Number.isFinite(minTokenLengthRaw)
-      ? Math.max(1, Math.floor(minTokenLengthRaw))
-      : 3
-  const maxTokensRaw = cfg.maxTokensPerNode
-  const maxTokensPerNode =
-    typeof maxTokensRaw === 'number' && Number.isFinite(maxTokensRaw)
-      ? Math.max(0, Math.floor(maxTokensRaw))
-      : 2000
-  const stopwordsArr = Array.isArray(cfg.stopwords) ? cfg.stopwords : []
-  const stopwords = new Set<string>(stopwordsArr.map(s => String(s || '').toLowerCase()).filter(Boolean))
-  return { textKeys, minTokenLength, maxTokensPerNode, stopwords }
+  void schema
+  return { textKeys: [], minTokenLength: 3, maxTokensPerNode: 2000, stopwords: new Set<string>() }
 }
 
 export function buildTokenFrequenciesForNodes(

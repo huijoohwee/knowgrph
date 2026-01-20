@@ -24,7 +24,7 @@ export type GraphDataTableScope = 'all' | 'nodes' | 'edges';
 
 export type GraphDataTableFreezeMode = 'none' | 'label' | 'id';
 
-export type LayoutMode = 'force' | 'radial' | 'tree';
+export type LayoutMode = 'force' | 'radial';
 export type NodePosition2d = { x: number; y: number };
 export type LayoutPositionCacheKey = `${string}:${LayoutMode}`;
 
@@ -199,7 +199,6 @@ export interface GraphState {
   graphDataTableNumericSampleMinRatio: number;
   spotlightMargin: number;
   spotlightNearTopThreshold: number;
-  markdownAlwaysOnHighlightComplexityBudget: number | null;
   graphDataTableFrozenDragStepNoneLabelPx: number;
   graphDataTableFrozenDragStepLabelIdPx: number;
   graphDataTableVirtualOverscanRows: number;
@@ -278,7 +277,6 @@ export interface GraphState {
   setGraphDataTableNumericSampleMinRatio: (v: number) => void;
   setSpotlightMargin: (v: number) => void;
   setSpotlightNearTopThreshold: (v: number) => void;
-  setMarkdownAlwaysOnHighlightComplexityBudget: (v: number | null) => void;
   setGraphDataTableFrozenDragStepNoneLabelPx: (v: number) => void;
   setGraphDataTableFrozenDragStepLabelIdPx: (v: number) => void;
   setGraphDataTableVirtualOverscanRows: (v: number) => void;
@@ -321,11 +319,9 @@ export interface GraphState {
   canvasPos: { x: number; y: number };
   setCanvasDims: (d: { w: number; h: number }) => void;
   setCanvasPos: (p: { x: number; y: number }) => void;
-  graphLayersVisible: boolean;
-  setGraphLayersVisible: (v: boolean) => void;
-  toggleGraphLayersVisible: () => void;
-  activeLayerBandIndex: number | null;
-  setActiveLayerBandIndex: (v: number | null) => void;
+  viewPinned: boolean;
+  setViewPinned: (v: boolean) => void;
+  toggleViewPinned: () => void;
   fitToScreenMode: boolean;
   setFitToScreenMode: (v: boolean) => void;
   toggleFitToScreenMode: () => void;
@@ -335,6 +331,7 @@ export interface GraphState {
   zoomRequest: null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection' | 'transform'; at: number; payload?: { k: number; x: number; y: number } };
   requestZoom: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => void;
   requestZoomTransform: (payload: { k: number; x: number; y: number }) => void;
+  clearZoomRequest: () => void;
   zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number };
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number }) => void;
   threeCameraRequest: null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number };
@@ -408,6 +405,8 @@ export interface GraphState {
   setSchemaLintActivePath: (examplePath: string | null) => void;
   clearSchemaLintSummary: () => void;
   canvasRenderMode: '2d' | '3d';
+  canvasRenderModeLastFree: '2d' | '3d';
+  canvasRenderModeIsAuto: boolean;
   setCanvasRenderMode: (m: '2d' | '3d') => void;
   resetAll: () => void;
   canvasSnapshotFns: { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns };

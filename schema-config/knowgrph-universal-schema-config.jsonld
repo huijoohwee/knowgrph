@@ -77,7 +77,7 @@
     "edge": {}
   },
   "metadata": {
-    "agenticRagSchema": "https://huijoohwee.github.io/schema/AgenticRAG",
+    "agenticRagSchema": "/schema/AgenticRAG",
     "generatedBy": "schema-config/knowgrph-universal-schema-config.jsonld",
     "fixtures": {
       "graphFieldSettings": {
@@ -144,7 +144,7 @@
       },
       "roleActionOutcomes": {
         "orchestrator": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Orchestrator",
           "actions": [
@@ -157,7 +157,7 @@
           "raci_role": "Orchestrator"
         },
         "graph-fields-icon-legend-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Graph Fields icon legend",
           "actions": [
@@ -166,7 +166,7 @@
           "outcome": "keep schema design, curation flows, and Graph Data Table behavior grounded in the same JSON-LD-backed graph schema."
         },
         "graph-fields-table-mapping-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Graph Fields",
           "actions": [
@@ -176,7 +176,7 @@
           "outcome": "see docs/knowgrph-schema-document.md for AgenticRAG JSON-LD table mapping examples."
         },
         "graph-data-table-curation-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Graph Data Table",
           "actions": [
@@ -185,7 +185,7 @@
           "outcome": "produce JSON (default), AgenticRAG JSON-LD, or CSV snapshots aligned with schema and codebase index."
         },
         "workflow-links-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Workflow links",
           "actions": [
@@ -194,7 +194,7 @@
           "outcome": "keep Schema, Curation, Index, and Agentic reasoning steps aligned with AgenticRAG JSON-LD exports."
         },
         "agentic-reasoning-labels-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Agentic reasoning labels",
           "actions": [
@@ -203,7 +203,7 @@
           "outcome": "keep Workflow, Orchestrator, and Renderer steps aligned with the same end-to-end AgenticRAG graph pipeline."
         },
         "graphrag-path-metadata-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "graphRAGPath metadata",
           "actions": [
@@ -212,7 +212,7 @@
           "outcome": "trace how AgenticRAG pipelines move from Canvas, through parser scripts, into a GraphRAG-ready JSON-LD index."
         },
         "workflow-step3-parser-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Parser tab",
           "actions": [
@@ -221,7 +221,7 @@
           "outcome": "keep CSV/JSON inputs mapped predictably into AgenticRAG GraphData."
         },
         "workflow-step6-orchestrator-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Orchestrator presets",
           "actions": [
@@ -230,7 +230,7 @@
           "outcome": "keep traversal docs and behavior aligned with the Graph Traversal floating panel."
         },
         "workflow-step8-bottom-tabs-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Bottom panel tabs",
           "actions": [
@@ -239,7 +239,7 @@
           "outcome": "validate, visualize, and export layouts with consistent AgenticRAG semantics."
         },
         "traversal-preset-ui-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Traversal controls",
           "actions": [
@@ -248,7 +248,7 @@
           "outcome": "drive Agentic GraphRAG traversals from the renderer."
         },
         "help-cheatsheet-alignment-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Canvas cheatsheet",
           "actions": [
@@ -257,7 +257,7 @@
           "outcome": "keep Orchestrator traversal and AgenticRAG node inspector aligned with current Canvas focus."
         },
         "help-codebase-index-entry-points-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Markdown pipeline entry points",
           "actions": [
@@ -266,7 +266,7 @@
           "outcome": "run the markdown \u2192 JSON-LD graph and schema pipeline from your terminal."
         },
         "workflow-indexing-parameters-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "GraphRAG workflow indexing",
           "actions": [
@@ -276,7 +276,7 @@
           "outcome": "keep indexing configuration and semantic similarity pruning thresholds consistent across AgenticRAG workflows, traversals, and exports"
         },
         "traversal-presets-section-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Traversal presets and helpers",
           "actions": [
@@ -286,7 +286,7 @@
           "outcome": "keep AgenticRAG graphRAGPath presets reproducible across sessions and shared between Orchestrator and Renderer."
         },
         "traversal-editor-and-layers-section-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Traversal editor and layers",
           "actions": [
@@ -296,7 +296,7 @@
           "outcome": "produce readable, repeatable graph navigation tuned to current AgenticRAG graph state."
         },
         "workflow-tab-header-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Workflow tab",
           "actions": [
@@ -306,7 +306,7 @@
           "outcome": "keep step ordering and workflow JSON-LD exports reproducible across AgenticRAG runs."
         },
         "help-tab-header-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Help tab",
           "actions": [
@@ -316,7 +316,7 @@
           "outcome": "keep panel usage aligned with GraphRAG workflow stages and AgenticRAG graph navigation."
         },
         "settings-tab-header-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Settings tab",
           "actions": [
@@ -326,7 +326,7 @@
           "outcome": "keep AgenticRAG graph navigation, rendering, and panel behavior consistent across sessions."
         },
         "graphrag-workflow-summary-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "GraphRAG workflow summary",
           "actions": [
@@ -336,7 +336,7 @@
           "outcome": "keep traversal presets, traces, and exports anchored to a single AgenticRAG workflow document."
         },
         "agenticrag-context-iri-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "AgenticRAG context IRI",
           "actions": [
@@ -346,7 +346,7 @@
           "outcome": "keep reasoning, tracing, and exports aligned around a single AgenticRAG context URL."
         },
         "orchestrator-tracing-options-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Orchestrator tracing options",
           "actions": [
@@ -356,12 +356,12 @@
           "outcome": "keep AgenticRAG graph navigation timing and tracing controls consistent across runs and workflows."
         },
         "ai-kg-layer-mode-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "AI‑KG layer mode",
           "actions": [
-            "toggle schema.layers.mode between property, document-structure, and semantic in the Render tab and FloatingPanel Renderer view",
-            "use document-structure and semantic modes to drive convex hull polygons instead of rendering Document, Section, Paragraph, CodeBlock, List, ListItem, and Table as standalone nodes"
+            "toggle schema.layers.mode between document, schema, and semantic in the Render tab and FloatingPanel Renderer view",
+            "use document and semantic modes to drive convex hull polygons instead of rendering Document, Section, Paragraph, CodeBlock, List, ListItem, and Table as standalone nodes"
           ],
           "outcome": "align AI‑KG canvas layering with AgenticRAG-friendly document and semantic group surfaces so exported JSON-LD graphs, polygons, and traversal overlays share the same schema.layers contract.",
           "pipeline_phase": "Schema",
@@ -369,7 +369,7 @@
           "raci_role": "Schema"
         },
         "ai-kg-semantic-metric-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Semantic similarity metric",
           "actions": [
@@ -382,7 +382,7 @@
           "raci_role": "Schema"
         },
         "ai-kg-semantic-similarity-edge-label-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Semantic similarity label",
           "actions": [
@@ -395,7 +395,7 @@
           "raci_role": "Schema"
         },
         "ai-kg-semantic-topk-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Semantic edge sparsity",
           "actions": [
@@ -408,7 +408,7 @@
           "raci_role": "Schema"
         },
         "ai-kg-semantic-minsimilarity-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Semantic similarity threshold",
           "actions": [
@@ -421,7 +421,7 @@
           "raci_role": "Schema"
         },
         "traversal-sequence-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "Traversal sequence",
           "actions": [
@@ -430,7 +430,7 @@
           "outcome": "debug AgenticRAG graphRAGPath IRI steps for GraphRAG and generic queries without leaving Orchestrator playback."
         },
         "duckdb-sql-field-role-action-outcome": {
-          "@context": "https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld",
+          "@context": "/schema/AgenticRAG/v1/context.jsonld",
           "@type": "rag:RoleActionOutcome",
           "role": "DuckDB SQL field",
           "actions": [
@@ -443,7 +443,7 @@
   },
   "serialization": {
     "context": {
-      "@vocab": "https://huijoohwee.github.io/knowgrph#",
+      "@vocab": "https://example.org/graph#",
       "schema": "https://schema.org/",
       "name": "schema:name",
       "path": "schema:path",

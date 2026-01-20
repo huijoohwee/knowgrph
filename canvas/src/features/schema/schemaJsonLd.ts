@@ -1,4 +1,4 @@
-import { GraphSchema, PropertySpec, defaultSchema } from '@/lib/graph/schema'
+import { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
 import {
   KG_CLASS_PREFIX,
@@ -16,7 +16,6 @@ export function schemaToJsonLd(schema: GraphSchema): {
   '@context': Record<string, unknown>
   '@graph': Array<Record<string, unknown>>
   metadata?: Record<string, unknown>
-  layers?: GraphSchema['layers']
 } {
   const ctx: Record<string, unknown> = { kg: 'http://example.org/kg#' }
   const schemaContext = schema.serialization?.context
@@ -53,14 +52,9 @@ export function schemaToJsonLd(schema: GraphSchema): {
     '@context': Record<string, unknown>
     '@graph': Array<Record<string, unknown>>
     metadata?: Record<string, unknown>
-    layers?: GraphSchema['layers']
   } = { '@context': ctx, '@graph': graph }
   if (metadata && typeof metadata === 'object' && !Array.isArray(metadata) && Object.keys(metadata).length > 0) {
     doc.metadata = metadata as unknown as Record<string, unknown>
-  }
-  const layers = schema.layers
-  if (layers && typeof layers === 'object' && !Array.isArray(layers) && Object.keys(layers).length > 0) {
-    doc.layers = layers
   }
   return doc
 }
@@ -112,39 +106,6 @@ export function schemaFromJsonLd(jsonld: unknown): GraphSchema {
   const rawMetadata = root ? root.metadata : null
   if (rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)) {
     base.metadata = rawMetadata as unknown as Record<string, JSONValue>
-  }
-  const rawLayers = root ? root.layers : null
-  if (rawLayers && typeof rawLayers === 'object' && !Array.isArray(rawLayers)) {
-    const baseLayers = defaultSchema.layers ?? {}
-    const layersObj = rawLayers as Record<string, unknown>
-    const semanticObj = isRecord(layersObj.semantic) ? (layersObj.semantic as Record<string, unknown>) : {}
-    const semanticBase = baseLayers.semantic ?? {}
-    const docStructureObj = isRecord(layersObj.documentStructure)
-      ? (layersObj.documentStructure as Record<string, unknown>)
-      : {}
-    const docStructureBase = baseLayers.documentStructure ?? {}
-    const communityObj = isRecord(semanticObj.communityDetection)
-      ? (semanticObj.communityDetection as Record<string, unknown>)
-      : {}
-    const communityBase = semanticBase.communityDetection ?? {}
-    base.layers = {
-      ...baseLayers,
-      ...(layersObj as Partial<GraphSchema['layers']>),
-      documentStructure: {
-        ...docStructureBase,
-        ...(docStructureObj as Partial<NonNullable<GraphSchema['layers']>['documentStructure']>),
-      },
-      semantic: {
-        ...semanticBase,
-        ...(semanticObj as Partial<NonNullable<GraphSchema['layers']>['semantic']>),
-        communityDetection: {
-          ...communityBase,
-          ...(communityObj as Partial<
-            NonNullable<NonNullable<GraphSchema['layers']>['semantic']>['communityDetection']
-          >),
-        },
-      },
-    }
   }
 
   const nodeSchemas = base.propertySchemas?.node || {}

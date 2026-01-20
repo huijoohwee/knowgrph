@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Scan } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { getIconSizeClass } from '@/lib/ui';
+import { UI_COPY, UI_LABELS } from '@/lib/config';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useGraphStore } from '@/hooks/useGraphStore';
 
@@ -24,8 +25,8 @@ export const FitToViewButton = () => {
   return (
     <IconButton
       className="App-toolbar__btn"
-      title="Fit to View"
-      tooltipContent="Fit to View: automatically scale and center the graph to fill the viewport."
+      title={UI_LABELS.fitToView}
+      tooltipContent={UI_COPY.fitToViewTooltip}
       onClick={handleFitToView}
       showTooltip
     >

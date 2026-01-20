@@ -7,6 +7,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { EXAMPLES_BY_ID } from '@/features/parsers/examplesCatalog'
 import { LS_KEYS, PUBLIC_FALLBACK_JSON } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
+import { DATASET_FALLBACK_MAPPINGS } from '@/features/parsers/config/fallbackMappings'
 
 declare const workflowPresetIdBrand: unique symbol
 
@@ -342,11 +343,7 @@ export async function loadExampleDatasetTextInBrowser(datasetPath: string): Prom
   })()
   if (inlineJsonLd) return inlineJsonLd
 
-  const fallbackPath = (() => {
-    if (normalized === 'data/test-data/graph_202512091600.json') return 'public/unicorn-investors-top-3-3d.json'
-    if (normalized === 'data/test-data/ai-customer-voice-management.graph.json') return 'public/unicorn-investors-test.json'
-    return null
-  })()
+  const fallbackPath = DATASET_FALLBACK_MAPPINGS[normalized] || null
 
   if (fallbackPath) {
     const fallbackLoader = findLoader(loaders, fallbackPath)

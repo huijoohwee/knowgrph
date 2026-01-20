@@ -1,164 +1,363 @@
----
-ontologies:
-  - prefix: prov
-    iri: http://www.w3.org/ns/prov#
-  - prefix: mex
-    iri: http://mex.aksw.org/mex-core#
-  - prefix: pplan
-    iri: http://purl.org/net/p-plan#
-  - prefix: mls
-    iri: http://www.w3.org/ns/mls#
-  - prefix: geo
-    iri: http://www.opengis.net/ont/geosparql#
-  - prefix: ro
-    iri: https://w3id.org/ro/crate#
-graphLayers:
-  - competencyHyperspace
-  - performanceSpace
-  - classDistributionSpace
-  - preprocessingCluster
-  - modelTypeClusters
-  - kpiViolationRegion
-  - candidateClusters
-  - assessmentRegion
+# Knowgrph Pipeline: Universal GraphRAG Specification
+
+## Design Mantras
+
+```
+- [ ] Configurability; externalize thresholds; forbid hardcoded parameters
+- [ ] Neutrality; compute statistical features; forbid domain vocabularies
+- [ ] Reproducibility; track all decisions; forbid non-deterministic behavior
+- [ ] Composability; stack independent layers; forbid monolithic processing
+- [ ] Observability; expose quality metrics; forbid black-box pipelines
+- [ ] Validation; test across corpora; forbid single-domain optimization
+- [ ] Separation; isolate ML from domain; forbid embedded ontologies
+```
+
 ---
 
-# Enhanced GraphRAG Pipeline: Overview
+## Universal Design Principles
 
-This document provides a compact, maintainable overview of the GraphRAG pipeline, focusing on configuration-driven architecture, environment wiring, and automation contracts. Detailed, ML-inspired component behavior is documented separately in the deep-dive document.
+| Context             | Intent                              | Directive                                                                                      |
+|---------------------|-------------------------------------|------------------------------------------------------------------------------------------------|
+| Feature Engineering | Compute statistical signals         | - [ ] Extract numerical features; apply transforms; forbid vocabulary lookups                 |
+| Token Linking       | Merge spans via coherence           | - [ ] Use embedding similarity; configure thresholds; forbid term lists                       |
+| Edge Scoring        | Weight relationships numerically    | - [ ] Combine syntactic/semantic features; forbid pattern matching on entity types            |
+| Threshold Selection | Optimize on validation sets         | - [ ] Grid search with stratified splits; target metrics; forbid manual tuning                |
+| Entity Unification  | Resolve conflicts algorithmically   | - [ ] Cluster by similarity; apply voting strategies; forbid identity assumptions             |
+| Quality Monitoring  | Track metrics continuously          | - [ ] Maintain rolling windows; detect drift; forbid silent degradation                       |
+| Corpus Reasoning    | Aggregate graph-wide patterns       | - [ ] Compute centrality; mine frequent patterns; forbid dataset-specific heuristics          |
+| Query Execution     | Fuse multi-strategy retrieval       | - [ ] Parse to features; rank by confidence; forbid hardcoded query templates                 |
+| Neutrality Testing  | Validate across domains             | - [ ] Run on diverse corpora; measure consistency; forbid domain-dependent metrics            |
+| Reproducibility     | Version all artifacts               | - [ ] Hash configs/data; seed randomness; forbid environment dependencies                     |
+| Configuration       | Expose all behavior externally      | - [ ] Define YAML schemas; document defaults; forbid embedded constants                       |
+| Environment Wiring  | Control via env variables           | - [ ] Map variables to paths; inject at runtime; forbid hardcoded file locations             |
 
-## Integration Bridge: ML Pipeline → Graph Construction
+---
 
-The pipeline mirrors familiar ML workflows while remaining domain-agnostic:
+## Pipeline Architecture
 
-- **Data loading** maps to document ingestion into a neutral graph.
-- **Feature engineering** maps to statistical feature computation on tokens and spans.
-- **Preprocessing and validation** map to structural normalization and schema validation.
-- **Model evaluation and selection** map to quality monitoring and configuration-driven orchestration.
+**Layer Stack**: Document Ingestion → Statistical Features → Token Linking → Edge Elevation → Threshold Tuning → Document Unification → Feedback Loops → Corpus Reasoning → Agentic RAG
 
-All behavior is controlled through configuration, never hardcoded domain logic.
+**Processing Flow**: Configuration → Feature Extraction → Graph Construction → Quality Monitoring → Query Execution
+
+**Design Principles**: ML-inspired stages | configuration-driven behavior | domain-agnostic features | reproducible experiments
+
+### Integration Bridge: ML Pipeline → Graph Construction
+
+| ML Stage                    | GraphRAG Equivalent                          | Configuration Controls                                    |
+|-----------------------------|----------------------------------------------|-----------------------------------------------------------|
+| Data Loading                | Document ingestion into neutral graph        | Loader type, connection params, schema discovery          |
+| Feature Engineering         | Statistical computation on tokens/spans      | Window sizes, aggregation methods, normalization          |
+| Preprocessing               | Structural normalization, schema validation  | Ignore patterns, validation rules, provenance tracking    |
+| Model Training              | Threshold tuning via grid search             | Search spaces, validation strategy, optimization objective|
+| Model Evaluation            | Quality monitoring and drift detection       | Metric targets, degradation thresholds, check intervals   |
+| Prediction                  | Entity extraction and edge construction      | Confidence thresholds, merge strategies, conflict resolution|
+| Inference                   | Agentic query execution with multi-retrieval | Traversal depth, fusion methods, ranking models           |
+
+---
 
 ## Layer 0: Configuration-Driven Architecture
 
-The pipeline is configured via a universal schema that:
+**Universal schema specification**: Configuration → controls all pipeline behavior → eliminates hardcoded domain logic → enables arbitrary corpus processing.
 
-- Describes document sources (loader type, connection parameters, schema discovery).
-- Controls token linking and edge elevation thresholds.
-- Configures document unification, feedback loops, and corpus reasoning parameters.
-- Exposes Agentic RAG configuration (traversal depth, context size, follow-up suggestions).
-- Specifies evaluation metrics for extraction, unification, corpus behavior, and queries.
-- Defines provenance tracking behavior without embedding structure types.
+**Configuration Schema (core sections)**:
 
-The TypeScript layer mirrors these configuration fields and can be initialized from external configuration surfaces such as environment variables and workflow JSON-LD documents. This enables the same pipeline to operate identically across arbitrary corpora without code changes.
+```yaml
+document_sources: {loader_type, connection_params, schema_discovery}
+token_linking: {coherence_threshold, max_syntactic_distance, merge_strategy}
+edge_elevation: {feature_weights, feature_transforms, boosts}
+threshold_tuning: {validation_strategy, search_spaces, optimization}
+document_unification: {similarity_metric, merge_threshold, conflict_resolution}
+feedback_loops: {monitoring, quality_targets, degradation_detection, retuning}
+corpus_reasoning: {centrality_metrics, pattern_mining, interaction_analysis}
+agentic_rag: {query_parsing, retrieval_strategies, fusion, reranking, context_extraction}
+provenance_tracking: {track_lineage, versioning_strategy}
+```
 
-## Deep Dive: Component Layers and Validation
+| Context          | Intent                     | Directive                                                                                   | Module         | Class/Object   | Function/Method  | Dependency      | Input            | Output           | Decision Logic                   |
+|------------------|----------------------------|---------------------------------------------------------------------------------------------|----------------|----------------|------------------|-----------------|------------------|------------------|----------------------------------|
+| Schema Loading   | Parse YAML configuration   | - [ ] Validate all sections; check types/ranges; forbid invalid configs                    | config_loader  | ConfigLoader   | load_config      | yaml, jsonschema| YAML file path   | Config dict      | jsonschema validation strict mode|
+| Default Merging  | Apply sensible defaults    | - [ ] Merge user config with defaults; document all defaults; forbid implicit behavior     | config_loader  | ConfigLoader   | merge_defaults   | —               | User config, defaults | Merged config | dict.update() with precedence    |
+| Env Injection    | Override via environment   | - [ ] Map env vars to config keys; validate types; forbid undocumented variables          | config_loader  | ConfigLoader   | inject_env       | os              | Environment dict | Patched config   | Prefix-based key matching        |
 
-The detailed, ML-analogy-driven descriptions of component layers and validation live in the deep-dive document:
+---
 
-- `docs/documents/knowgrph-pipeline-deep-dive-document.md`
+## Layer 0.5: Statistical Feature Engineering
 
-That document covers:
+**From raw tokens to neutral features**: Layer → computes statistical features on tokens and spans → avoids vocabulary lists and domain ontologies → enables domain-agnostic processing.
 
-- Layers 0.5–4: statistical feature computation, token linking, edge elevation, threshold tuning, and document unification.
-- Layers 5–7: feedback loops, corpus reasoning, and Agentic RAG query execution.
-- Neutrality validation and reproducibility guarantees.
+**Features Computed**: Embedding Coherence | Syntactic Distance | Capitalization Patterns | Token Frequency | Sentence Complexity | Vocabulary Diversity | Temporal Density
 
-This overview document remains focused on high-level flows and operational wiring.
+**Configuration Schema**: `{embedding_coherence: {window_size, aggregation, similarity_metric}, syntactic_distance: {max_path_length, normalization}, frequency_analysis: {min_frequency, smoothing}, complexity_metrics: {percentile_clip, aggregation}}`
 
-## Operational Configuration: Markdown Pipeline Env Variables
+| Context              | Intent                          | Directive                                                                                   | Module            | Class/Object      | Function/Method      | Dependency    | Input                     | Output                | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|-------------------|-------------------|----------------------|---------------|---------------------------|-----------------------|----------------------------------|
+| Coherence Scoring    | Measure embedding similarity    | - [ ] Compute cosine similarity; aggregate over windows; forbid vocabulary checks          | feature_extractor | FeatureExtractor  | compute_coherence    | numpy, scipy  | Token embeddings, window  | Coherence scores      | dot(a,b) / (norm(a) * norm(b))  |
+| Distance Computation | Calculate syntactic paths       | - [ ] Traverse dependency tree; normalize lengths; forbid type-specific paths              | feature_extractor | FeatureExtractor  | compute_distance     | spacy         | Dependency parse          | Path length matrix    | BFS with max_path_length bound   |
+| Frequency Analysis   | Track term statistics           | - [ ] Count tokens; smooth frequencies; forbid stopword filtering                          | feature_extractor | FeatureExtractor  | compute_frequency    | collections   | Token sequence            | Frequency dicts       | Counter with Laplace smoothing   |
+| Complexity Scoring   | Measure sentence structure      | - [ ] Count tokens/clauses; compute tree depth; forbid pattern matching                   | feature_extractor | FeatureExtractor  | compute_complexity   | —             | Parse tree                | Complexity scores     | Recursive depth with percentile clip|
 
-The Canvas markdown pipeline is configured via environment variables so that the same code can target different workflow documents and output locations without edits.
+---
 
-- `VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH`  
-  - Relative path (from repo root) to the entry markdown document.  
-  - Default (in this repo): `docs/knowgrph-pipeline-document.md`.  
-  - Controls which workflow document is parsed when you run the pipeline.
+## Layer 1: Token Linking with Quality Gates
 
-- `VITE_MARKDOWN_PIPELINE_OUTPUT_DIR`  
-  - Relative path (from repo root) to the directory where pipeline artifacts are written.  
-  - Default: `data/knowgrph-workflow-preview`.  
-  - Controls where the graph JSON-LD, schema JSON-LD, and orchestrator YAML are generated.
+**TokenLinker**: Links tokens into phrases and entities based on statistical signals.
 
-- `VITE_MARKDOWN_PIPELINE_BASENAME`  
-  - Basename used for all generated artifact filenames.  
-  - Default: `knowgrph-pipeline-document`.  
-  - Controls the prefixes of `*-graph-data.jsonld`, `*-schema-config.jsonld`, and `*-orchestrator-config.yaml`.
+**Forbidden Patterns**: Domain-specific term checking | Dataset branching | Ontology lookup
 
-These variables feed into the Vite canvas configuration (for example, `CODEBASE_INDEX_PIPELINE_COMMAND` and `CODEBASE_INDEX_PIPELINE_*_REL_PATH` values), ensuring that dev server hooks and UI loaders always respect the active markdown corpus and output directory.
+**Required Patterns**: Statistical threshold checking | Numerical bound filtering | Feature-based classification
 
-### Graph and Ontology Outputs
+**Algorithm**: Compute features → Apply config thresholds → Validate spans → Track provenance
 
-When the markdown pipeline runs against a workflow document such as `docs/documents/knowgrph-pipeline-document.md`, it emits three primary artifacts into `VITE_MARKDOWN_PIPELINE_OUTPUT_DIR` using the `VITE_MARKDOWN_PIPELINE_BASENAME` prefix:
+| Context              | Intent                          | Directive                                                                                   | Module       | Class/Object  | Function/Method   | Dependency        | Input                        | Output           | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|--------------|---------------|-------------------|-------------------|------------------------------|------------------|----------------------------------|
+| Span Merging         | Combine coherent tokens         | - [ ] Check coherence threshold; merge greedily; forbid vocabulary matching                | token_linker | TokenLinker   | merge_spans       | FeatureExtractor  | Token features, config       | Merged spans     | while coherence > threshold, extend|
+| Distance Filtering   | Link nearby tokens              | - [ ] Measure syntactic distance; filter by max; forbid position heuristics               | token_linker | TokenLinker   | filter_by_distance| FeatureExtractor  | Parse tree, distance matrix  | Linked token pairs| distance < config.max_distance   |
+| Type Prediction      | Classify entity types           | - [ ] Extract features; apply classifier; forbid hardcoded types                           | token_linker | TokenLinker   | predict_type      | sklearn           | Span features                | Entity type labels| classifier.predict(features)     |
+| Quality Validation   | Filter low-confidence spans     | - [ ] Check confidence scores; filter by threshold; forbid silent failures                 | token_linker | TokenLinker   | validate_quality  | —                 | Spans with confidence        | Validated spans  | confidence >= config.min_confidence|
 
-- `*-graph-data.jsonld`: a neutral node/edge graph in JSON-LD form, suitable for multi-ontology overlay and layer configuration in Canvas. The pipeline reads any `ontologies` and `polygonLayers` values from document frontmatter and records them under `graph_jsonld.metadata.ontologies` and `graph_jsonld.metadata.polygonLayers`; Canvas then exposes these as `metadata.ontologies` and `metadata.graphLayers`, treating `polygonLayers` as a deprecated alias for `graphLayers`.
-- `*-schema-config.jsonld`: an Agentic RAG schema-configuration document consumed by Canvas layers and ontology bundles.
-- `*-orchestrator-config.yaml`: a workflow orchestrator configuration describing pipeline stages, thresholds, and quality targets.
+---
 
-These artifacts are consumed by:
+## Layer 2: Edge Elevation
 
-- Codebase index pipeline tools in Canvas, which load the graph into the Graph Data Table, the schema-config into the Schema view, and the orchestrator YAML into the Workflow view.
-- Ontology-aware presets, which can merge the emitted graph with external ontologies via JSON-LD contexts while preserving neutrality and configuration-driven behavior.
+**EdgeElevator**: Scores potential relationships between entities using statistical features.
 
-### Dev Workflow: Running the Markdown Pipeline from Canvas
+**Features Extracted**: Syntactic Path Length | Semantic Coherence | Temporal Markers | Modality Indicators | Negation
 
-In dev mode, the pipeline env variables flow through Vite and Canvas as follows:
+**Scoring Function**: `score = sum(weight * transform(feature))` → apply boosts → normalize to [0,1]
 
-1. Canvas reads `VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH`, `VITE_MARKDOWN_PIPELINE_OUTPUT_DIR`, and `VITE_MARKDOWN_PIPELINE_BASENAME` to construct:
-   - `CODEBASE_INDEX_PIPELINE_COMMAND`
-   - `CODEBASE_INDEX_PIPELINE_GRAPH_REL_PATH`
-   - `CODEBASE_INDEX_PIPELINE_SCHEMA_REL_PATH`
-   - `CODEBASE_INDEX_PIPELINE_ORCHESTRATOR_REL_PATH`
-2. The Vite dev server registers a POST endpoint `/__run_markdown_pipeline` that runs `CODEBASE_INDEX_PIPELINE_COMMAND` and writes artifacts to `CODEBASE_INDEX_PIPELINE_OUTPUT_DIR`.
-3. On the client, Canvas exposes a dev-only `window.knowgrphRunMarkdownPipeline()` helper which calls `/__run_markdown_pipeline`, and `runMarkdownPipelineAndLoadArtifacts()` then:
-   - Fetches the generated graph, schema, and orchestrator files from the computed `CODEBASE_INDEX_PIPELINE_*_REL_PATH` values.
-   - Loads them into the Graph Data Table, Schema view, and Workflow view.
+| Context              | Intent                          | Directive                                                                                   | Module        | Class/Object   | Function/Method       | Dependency        | Input                        | Output              | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|---------------|----------------|-----------------------|-------------------|------------------------------|---------------------|----------------------------------|
+| Feature Extraction   | Compute relationship signals    | - [ ] Extract syntactic/semantic features; forbid pattern matching on types               | edge_elevator | EdgeElevator   | extract_features      | FeatureExtractor  | Entity pair, parse tree      | Feature vector      | Apply extractors from config     |
+| Transform Application| Normalize feature scales        | - [ ] Apply log/clip/normalize transforms; forbid manual scaling                           | edge_elevator | EdgeElevator   | apply_transforms      | numpy             | Raw features, config         | Transformed features| Match transform type to function |
+| Score Computation    | Combine weighted features       | - [ ] Weighted sum of transformed features; forbid arbitrary combinations                  | edge_elevator | EdgeElevator   | compute_score         | numpy             | Features, weights            | Scalar score        | dot(features, weights)           |
+| Boost Application    | Enhance specific conditions     | - [ ] Multiply score by configurable boosts; log decisions; forbid implicit boosts        | edge_elevator | EdgeElevator   | apply_boosts          | —                 | Score, marker presence       | Boosted score       | score *= boost if condition      |
+| Confidence Mapping   | Normalize to probability        | - [ ] Apply sigmoid; clip to [0,1]; forbid unbounded scores                               | edge_elevator | EdgeElevator   | map_confidence        | numpy             | Raw score                    | Confidence in [0,1] | 1 / (1 + exp(-score))            |
 
-Changing any of the `VITE_MARKDOWN_PIPELINE_*` variables therefore changes both the markdown document being parsed and the artifact locations that Canvas loads, without modifying any application code.
+---
 
-**How to run in the UI (dev mode):** open the floating Tools menu in Canvas and use the “Run codebase index pipeline” action, which calls `runMarkdownPipelineWithStatus` under the hood.
+## Layer 3: Threshold Tuning
 
-## Markdown Sources Covered by `npm run docs:update`
+**ThresholdTuner**: Selects optimal thresholds using ML validation patterns.
 
-The `docs:update` automation script runs the markdown pipeline over a neutral set of authored docs and writes preview artifacts into `data/knowgrph-workflow-preview`. Each document can participate in three distinct quality gates and has a clear stewardship role:
+**Algorithm**: Stratified splits → Grid search → Metric evaluation → Constraint checking → Objective optimization
 
-- **In docs:update**: markdown is parsed into preview artifacts via the neutral markdown pipeline.
-- **In doc:lint/doc:sanity**: document is validated by documentation linting and sanity checks.
-- **In tests/QA**: document is covered by the combined docs+code QA command (`npm run docs:qa`), which chains `docs:update`, `doc:lint`, `doc:sanity`, `lint`, and `check`.
+| Context              | Intent                          | Directive                                                                                   | Module          | Class/Object    | Function/Method   | Dependency    | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|-----------------|-----------------|-------------------|---------------|------------------------------|------------------------|----------------------------------|
+| Split Generation     | Create validation folds         | - [ ] Stratify by target distribution; preserve ratios; forbid random-only splits         | threshold_tuner | ThresholdTuner  | generate_splits   | sklearn       | Dataset, config              | Train/val/test splits  | StratifiedKFold with random_state|
+| Grid Construction    | Enumerate threshold combos      | - [ ] Cartesian product of search spaces; log size; forbid exhaustive if >10k             | threshold_tuner | ThresholdTuner  | construct_grid    | itertools     | Search space dicts           | Candidate grid         | product over config lists        |
+| Metric Evaluation    | Compute quality scores          | - [ ] Run extraction on validation; compute metrics; forbid train set evaluation          | threshold_tuner | ThresholdTuner  | evaluate_metrics  | sklearn       | Predictions, gold labels     | Metric dict            | metrics functions over preds     |
+| Constraint Checking  | Filter invalid candidates       | - [ ] Check all constraints; eliminate violations; forbid constraint relaxation           | threshold_tuner | ThresholdTuner  | check_constraints | —             | Metrics, constraints         | Valid candidates       | Boolean filter over conditions   |
+| Optimization         | Select best thresholds          | - [ ] Maximize objective subject to constraints; break ties; forbid arbitrary selection   | threshold_tuner | ThresholdTuner  | optimize          | —             | Valid candidates, objective  | Best threshold set     | argmax(objective) with stable sort|
 
-| Document                             | Source Path                                                      | Purpose (High-Level)                                  | In docs:update | In doc:lint/doc:sanity | In tests/QA | Steward Role          |
-|--------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|----------------|------------------------|-------------|-----------------------|
-| Pipeline doc                         | `docs/documents/knowgrph-pipeline-document.md`                  | End-to-end GraphRAG pipeline and configuration flows  | [x]            | [x]                    | [x]         | Technical Writer      |
-| Pipeline deep-dive doc               | `docs/documents/knowgrph-pipeline-deep-dive-document.md`        | Component layers, validation, and reproducibility     | [x]            | [x]                    | [x]         | Component Documenter  |
-| Parser doc                           | `docs/documents/knowgrph-parser-document.md`                    | Markdown/JSON/JSON-LD parser contracts and behaviors  | [x]            | [x]                    | [x]         | Component Documenter  |
-| Orchestrator doc                     | `docs/documents/knowgrph-orchestrator-document.md`              | Orchestrator roles, actions, and workflow semantics   | [x]            | [x]                    | [x]         | Component Documenter  |
-| Ontology doc                         | `docs/documents/knowgrph-ontology-document.md`                  | Multi-ontology integration patterns and schema usage  | [x]            | [x]                    | [x]         | Schema Documenter     |
-| Schema doc                           | `docs/documents/knowgrph-schema-document.md`                    | Schema-config structure and neutral layering rules    | [x]            | [x]                    | [x]         | Schema Documenter     |
-| Renderer doc                         | `docs/documents/knowgrph-renderer-document.md`                  | Canvas rendering pipeline and media visualization     | [x]            | [x]                    | [x]         | Component Documenter  |
-| Semantic doc                         | `docs/documents/knowgrph-semantic-document.md`                  | Semantic extraction layers and neutrality constraints | [x]            | [x]                    | [x]         | Component Documenter  |
-| Mermaid frontmatter doc              | `docs/documents/knowgrph-mermaid-frontmatter-document.md`       | Mermaid frontmatter parsing and graph mapping         | [x]            | [x]                    | [x]         | Component Documenter  |
-| UI/UX design doc                     | `docs/documents/knowgrph-ui-ux-design-document.md`              | UI/UX flows, panel behaviors, and interaction models  | [x]            | [x]                    | [x]         | Technical Writer      |
-| Codebase semantics doc               | `docs/documents/knowgrph-codebase-semantics-document.md`        | Codebase-level semantics and traversal expectations   | [x]            | [x]                    | [x]         | Component Documenter  |
-| Fields doc                           | `docs/documents/knowgrph-fields-document.md`                    | Graph field definitions and settings responsibilities | [x]            | [x]                    | [x]         | Schema Documenter     |
-| Metadata doc                         | `docs/documents/knowgrph-metadata-document.md`                  | Metadata contracts and layer hints                    | [x]            | [x]                    | [x]         | Provenance Documenter |
-| Ingestor doc                         | `docs/documents/knowgrph-ingestor-document.md`                  | Source file ingestion paths and GraphData contracts   | [x]            | [x]                    | [x]         | Component Documenter  |
-| Codebase index doc                   | `docs/documents/knowgrph-codebase-index-document.md`            | Codebase index architecture and JSON-LD specification | [x]            | [x]                    | [x]         | Schema Documenter     |
-| Demo doc                             | `docs/documents/knowgrph-demo-document.md`                      | Demo workflow and interactive tour description        | [x]            | [x]                    | [x]         | Technical Writer      |
-| LLM prompt contract doc              | `docs/documents/knowgrph-llm-prompt-contract.md`                | LLM prompt contracts and schema-aligned guidance      | [x]            | [x]                    | [x]         | API Documenter        |
+---
 
-This keeps documentation, preview graphs, schema-configs, and orchestrator configs aligned without hardcoding any external domains; running `npm run docs:qa` ensures authored docs and generated artifacts participate in the same quality gates as application code.
+## Layer 4: Document Unification
 
-For Canvas↔Markdown panel behavior and scroll-sync UX details, see:
-- `docs/documents/knowgrph-parser-document.md` (Markdown Rendering, Canvas UI)
-- `docs/documents/knowgrph-renderer-document.md` (Canvas ↔ Markdown selection sync)
-- `docs/documents/knowgrph-ui-ux-design-document.md` (Canvas ↔ Markdown panel UX)
+**DocumentUnifier**: Reconciles conflicting properties across entities representing the same abstract object.
 
-## Summary: ML Pipeline → GraphRAG Translation
+**Algorithm**: Similarity clustering → Conflict detection → Resolution strategies → Candidate preservation
 
-The GraphRAG pipeline:
+| Context              | Intent                          | Directive                                                                                   | Module           | Class/Object     | Function/Method       | Dependency | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|------------------|-----------------------|------------|------------------------------|------------------------|----------------------------------|
+| Similarity Computation| Measure entity likeness        | - [ ] Compute pairwise similarity; apply metric from config; forbid identity heuristics    | document_unifier | DocumentUnifier  | compute_similarity    | scipy      | Entity pairs, properties     | Similarity matrix      | Match metric to scipy function   |
+| Clustering           | Group similar entities          | - [ ] Apply hierarchical clustering; use configured linkage; forbid single-linkage        | document_unifier | DocumentUnifier  | cluster_entities      | scipy      | Similarity matrix, threshold | Cluster assignments    | hierarchy.linkage with method    |
+| Conflict Detection   | Find property disagreements     | - [ ] Group by property key; check value count; forbid silent conflicts                   | document_unifier | DocumentUnifier  | detect_conflicts      | —          | Merged entities              | Conflict list          | len(set(values)) > 1 per property|
+| Vote Aggregation     | Resolve conflicting values      | - [ ] Weight by confidence/authority/recency; sum votes; forbid arbitrary tie-breaking    | document_unifier | DocumentUnifier  | aggregate_votes       | numpy      | Conflicting values, weights  | Resolved value         | argmax(sum(weight * vote))       |
+| Validation           | Check unification quality       | - [ ] Compute conflict rate and merge precision; compare to targets; forbid unchecked merges| document_unifier | DocumentUnifier  | validate_quality      | sklearn    | Unified graph, gold standard | Quality metrics        | conflict_rate < max, precision > min|
 
-- Translates ML pipeline stages into configuration-driven graph construction steps.
-- Encodes all behavior in schemas, configuration objects, and environment variables.
-- Ensures neutrality through statistical features and structural validation rather than domain heuristics.
-- Provides reproducibility and monitoring hooks so changes can be audited and tuned safely.
+---
 
-The overview and deep-dive documents together describe how to adapt the pipeline to new domains by editing configuration and documentation, not code.
+## Layer 5: Feedback Loops and Monitoring
+
+**FeedbackOrchestrator**: Provides continuous quality monitoring and triggers retuning.
+
+**Monitoring Flow**: Batch processing → Metric computation → History tracking → Drift detection → Retuning triggers → Audit logging
+
+| Context              | Intent                          | Directive                                                                                   | Module               | Class/Object         | Function/Method   | Dependency    | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------|----------------------|-------------------|---------------|------------------------------|------------------------|----------------------------------|
+| Batch Aggregation    | Group documents for processing  | - [ ] Collect until batch_size; trigger check; forbid unbounded batches                   | feedback_orchestrator| FeedbackOrchestrator | aggregate_batch   | collections   | Document stream              | Document batches       | Buffer until len >= batch_size   |
+| Metric Computation   | Calculate quality scores        | - [ ] Compute P/R/F1 over batch; aggregate stats; forbid biased sampling                  | feedback_orchestrator| FeedbackOrchestrator | compute_metrics   | sklearn       | Predictions, labels          | Metric dict            | metrics over batch with averaging|
+| Window Maintenance   | Track rolling history           | - [ ] Append new metrics; evict old; maintain size; forbid unbounded memory               | feedback_orchestrator| FeedbackOrchestrator | maintain_window   | collections   | Current metrics, history     | Updated history        | deque with maxlen=window_size    |
+| Degradation Test     | Detect quality drops            | - [ ] Statistical test baseline vs current; check significance; forbid threshold-only     | feedback_orchestrator| FeedbackOrchestrator | test_degradation  | scipy         | Baseline, current metrics    | Boolean (degraded)     | stats test with p-value threshold|
+| Drift Test           | Detect distribution shifts      | - [ ] KS test on distributions; compare to threshold; forbid visual inspection            | feedback_orchestrator| FeedbackOrchestrator | test_drift        | scipy         | Baseline, current distributions| Boolean (drifted)    | ks_2samp with threshold          |
+| Retune Trigger       | Initiate threshold optimization | - [ ] Check cooldown; log trigger; call tuner; forbid concurrent retuning                | feedback_orchestrator| FeedbackOrchestrator | trigger_retune    | ThresholdTuner| Degradation/drift flags      | Retuning job           | if degraded and cooldown_elapsed |
+
+---
+
+## Layer 6: Corpus Reasoning
+
+**CorpusReasoner**: Analyzes graph at corpus scale to identify important entities and patterns.
+
+**Analysis Components**: Centrality Computation | Importance Aggregation | Pattern Mining | Interaction Analysis
+
+| Context              | Intent                          | Directive                                                                                   | Module         | Class/Object   | Function/Method        | Dependency | Input                        | Output               | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------|----------------|------------------------|------------|------------------------------|----------------------|----------------------------------|
+| Centrality Computation| Calculate importance scores    | - [ ] Apply graph algorithms from config; normalize; forbid manual scoring                 | corpus_reasoner| CorpusReasoner | compute_centrality     | networkx   | Graph, metric config         | Centrality vectors   | networkx centrality with params  |
+| Metric Aggregation   | Combine multiple centralities   | - [ ] Weighted average of metrics; normalize to [0,1]; forbid arbitrary combination        | corpus_reasoner| CorpusReasoner | aggregate_metrics      | numpy      | Centrality vectors, weights  | Importance scores    | average with weights then normalize|
+| Pattern Mining       | Extract frequent subgraphs      | - [ ] Apply graph mining; filter by support/confidence; forbid hardcoded patterns         | corpus_reasoner| CorpusReasoner | mine_patterns          | gspan      | Graph, mining params         | Pattern list         | gspan with threshold filtering   |
+| Depth Limiting       | Bound interaction analysis      | - [ ] BFS/DFS to max_depth; count frequencies; forbid unbounded search                    | corpus_reasoner| CorpusReasoner | analyze_interactions   | —          | Graph, start nodes, max_depth| Path frequencies     | BFS with depth counter           |
+
+---
+
+## Layer 7: Agentic RAG
+
+**AgenticQueryEngine**: Orchestrates multi-strategy retrieval over the graph.
+
+**Query Processing Flow**: Feature parsing → Strategy execution → Result fusion → Reranking → Context extraction
+
+| Context              | Intent                          | Directive                                                                                   | Module              | Class/Object        | Function/Method    | Dependency        | Input                        | Output              | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|---------------------|---------------------|--------------------|-------------------|------------------------------|---------------------|----------------------------------|
+| Query Parsing        | Extract structured query info   | - [ ] Apply NER/pattern matching; extract features; forbid template matching              | agentic_query_engine| AgenticQueryEngine  | parse_query        | spacy             | Query string                 | Feature dict        | spacy NER + regex extractors     |
+| Strategy Dispatch    | Execute retrieval methods       | - [ ] Run enabled strategies in parallel; collect results; forbid sequential execution    | agentic_query_engine| AgenticQueryEngine  | dispatch_strategies| concurrent        | Query features, graph        | Strategy results    | ThreadPoolExecutor with futures  |
+| Result Fusion        | Combine multi-strategy outputs  | - [ ] Apply fusion method from config; aggregate scores; forbid simple concatenation      | agentic_query_engine| AgenticQueryEngine  | fuse_results       | —                 | Strategy results, weights    | Fused result list   | RRF formula or weighted voting   |
+| Reranking            | Score and reorder candidates    | - [ ] Extract ranking features; apply model; sort; forbid position-only ranking           | agentic_query_engine| AgenticQueryEngine  | rerank_results     | sklearn           | Candidates, feature config   | Ranked results      | model or linear combo then argsort|
+| Context Chunking     | Extract provenance text         | - [ ] Map results to source text; chunk by size; forbid lossy extraction                 | agentic_query_engine| AgenticQueryEngine  | extract_context    | —                 | Results with provenance      | Context chunks      | Slice by line_range with max_size|
+
+---
+
+## Operational Configuration: Environment Wiring
+
+**Markdown Pipeline Environment Variables**:
+
+| Variable                                  | Scope            | Default                                    | Impact                                              |
+|-------------------------------------------|------------------|--------------------------------------------|-----------------------------------------------------|
+| `VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH`   | deployment       | `docs/knowgrph-pipeline-document.md`       | Controls which markdown document is parsed          |
+| `VITE_MARKDOWN_PIPELINE_OUTPUT_DIR`       | deployment       | `data/knowgrph-workflow-preview`           | Controls artifact output location                   |
+| `VITE_MARKDOWN_PIPELINE_BASENAME`         | deployment       | `knowgrph-pipeline-document`               | Controls artifact filename prefixes                 |
+
+**Artifact Generation**: `*-graph-data.jsonld` (neutral node/edge graph) | `*-schema-config.jsonld` (AgenticRAG schema) | `*-orchestrator-config.yaml` (workflow orchestrator)
+
+**Dev Workflow Integration**:
+
+| Step | Action                                  | Command/Trigger                         | Artifact Consumer                  |
+|------|----------------------------------------|------------------------------------------|-------------------------------------|
+| 1    | Edit markdown documentation            | Manual editing in `docs/documents/`      | —                                   |
+| 2    | Run pipeline via Canvas UI             | Tools menu → "Run codebase index pipeline" | Vite dev server                   |
+| 3    | Load generated artifacts               | `runMarkdownPipelineAndLoadArtifacts()`  | Graph Data Table, Schema, Workflow views |
+| 4    | Validate in Canvas                     | Visual inspection, traversal tests       | Canvas UI layers                    |
+| 5    | Update docs with findings              | `npm run docs:update`                    | Preview artifacts                   |
+
+| Context              | Intent                          | Directive                                                                                   | Module/Component  | Class/Object | Function/Method              | Dependency      | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|-------------------|--------------|------------------------------|-----------------|------------------------------|------------------------|----------------------------------|
+| Variable Resolution  | Map env to config paths         | - [ ] Read env variables; construct paths; forbid hardcoded locations                      | Vite Config       | —            | resolveEnvPaths              | path, process   | process.env                  | Path strings           | Path.join(BASE_DIR, env[VAR])    |
+| Pipeline Invocation  | Run markdown processor          | - [ ] Execute Python command; wait for completion; forbid silent failures                  | Dev Server        | —            | runMarkdownPipeline          | child_process   | Pipeline command             | Process exit code      | spawn with error handling        |
+| Artifact Loading     | Fetch generated files           | - [ ] Fetch JSONâ€'LD/YAML; parse; validate; forbid partial loads                           | Canvas Client     | —            | loadArtifacts                | fetch, yaml     | Artifact paths               | Parsed data structures | fetch then parse with validation |
+
+---
+
+## Component Responsibility Matrix
+
+| Layer | Component                | Interface/Method                 | Responsibility (S-V-O)                                                          | Dependencies                         | Contracts                                      | LOC    |
+|-------|--------------------------|----------------------------------|-------------------------------------------------------------------------------|--------------------------------------|-----------------------------------------------|--------|
+| 0     | ConfigLoader             | `load_config`                    | Loads YAML config → validates schema → returns merged config dict            | `yaml`, `jsonschema`                 | Validated config dict with all sections       | ~50    |
+| 0.5   | FeatureExtractor         | `extract_features`               | Processes tokens → computes statistical features → returns feature vectors   | `numpy`, `scipy`, `spacy`            | Feature dict with normalized values           | ~200   |
+| 1     | TokenLinker              | `link_tokens`                    | Analyzes token features → merges spans → returns entity mentions             | `FeatureExtractor`, `ConfigLoader`   | Mention list with confidence scores           | ~300   |
+| 2     | EdgeElevator             | `score_relationships`            | Extracts relation features → computes scores → returns weighted edges        | `FeatureExtractor`, `ConfigLoader`   | Edge list with confidence scores              | ~250   |
+| 3     | ThresholdTuner           | `tune_thresholds`                | Runs grid search → evaluates metrics → returns optimal thresholds            | `sklearn`, `ConfigLoader`            | Threshold dict with validation metrics        | ~400   |
+| 4     | DocumentUnifier          | `unify_entities`                 | Clusters entities → resolves conflicts → returns unified graph               | `scipy`, `ConfigLoader`              | Unified entity dict with provenance           | ~350   |
+| 5     | FeedbackOrchestrator     | `monitor_quality`                | Tracks metrics → detects drift → triggers retuning                           | `ThresholdTuner`, `ConfigLoader`     | Quality report with retuning decisions        | ~300   |
+| 6     | CorpusReasoner           | `analyze_corpus`                 | Computes centrality → mines patterns → returns importance scores             | `networkx`, `ConfigLoader`           | Importance dict with pattern list             | ~400   |
+| 7     | AgenticQueryEngine       | `execute_query`                  | Parses query → fuses retrieval → reranks results                             | `CorpusReasoner`, `ConfigLoader`     | Ranked result list with context chunks        | ~500   |
+| —     | NeutralityValidator      | `validate_neutrality`            | Runs cross-corpus tests → measures consistency → reports violations          | All layers, `ConfigLoader`           | Validation report with CV metrics             | ~200   |
+
+---
+
+## Testing & Quality Standards
+
+**Test Coverage by Layer**:
+
+| Layer | Test Type       | Coverage Target | Test Approach                                                                     |
+|-------|-----------------|-----------------|-----------------------------------------------------------------------------------|
+| 0     | Unit            | 100%            | Config loading, validation, merging with diverse YAML inputs                     |
+| 0.5   | Unit            | >90%            | Feature extraction with synthetic token sequences                                |
+| 1     | Integration     | >85%            | Token linking on annotated corpora with gold spans                               |
+| 2     | Integration     | >85%            | Edge scoring on annotated corpora with gold relations                            |
+| 3     | Integration     | >80%            | Threshold tuning on validation sets with known optima                            |
+| 4     | Integration     | >80%            | Entity unification on multi-document corpora with ground truth                   |
+| 5     | Integration     | >75%            | Feedback loop triggers on simulated drift scenarios                              |
+| 6     | Integration     | >75%            | Corpus reasoning on known graphs with expected patterns                          |
+| 7     | End-to-end      | >70%            | Query execution on diverse corpora with relevance judgments                      |
+| —     | Neutrality      | 100%            | Cross-corpus consistency tests with coefficient-of-variation thresholds          |
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Unit Tests           | Validate components in isolation| - [ ] Mock dependencies; test edge cases; forbid integration leakage                       |
+| Integration Tests    | Verify layer interactions       | - [ ] Use realistic fixtures; measure end-to-end metrics; forbid synthetic-only testing    |
+| Neutrality Tests     | Ensure domain-agnostic behavior | - [ ] Run on 5+ diverse corpora; check CV < 0.2; forbid single-corpus optimization         |
+| Reproducibility Tests| Guarantee deterministic output  | - [ ] Fix seeds; hash configs/data; compare outputs; forbid environment dependencies       |
+| Performance Tests    | Maintain efficiency             | - [ ] Profile on large corpora; measure latency/throughput; forbid O(n²) where avoidable   |
+
+---
+
+## Documentation Coverage
+
+**Markdown Sources in `npm run docs:update`**:
+
+| Document                             | Purpose                                                  | Quality Gates           | Steward              |
+|--------------------------------------|----------------------------------------------------------|-------------------------|----------------------|
+| `knowgrph-pipeline-document.md`      | Pipeline architecture and configuration                  | docs:update, doc:lint, tests | Technical Writer     |
+| `knowgrph-parser-document.md`        | Parser contracts and behaviors                           | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-orchestrator-document.md`  | Orchestrator roles and workflow semantics                | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-ontology-document.md`      | Multi-ontology integration patterns                      | docs:update, doc:lint, tests | Schema Documenter    |
+| `knowgrph-schema-document.md`        | Schema-config structure and layering rules               | docs:update, doc:lint, tests | Schema Documenter    |
+| `knowgrph-renderer-document.md`      | Canvas rendering and visualization                       | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-semantic-document.md`      | Semantic extraction and neutrality constraints           | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-mermaid-frontmatter-document.md` | Mermaid frontmatter parsing                        | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-ui-ux-design-document.md`  | UI/UX flows and interaction models                       | docs:update, doc:lint, tests | Technical Writer     |
+| `knowgrph-codebase-semantics-document.md` | Codebase semantics and traversal                   | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-fields-document.md`        | Graph field definitions                                  | docs:update, doc:lint, tests | Schema Documenter    |
+| `knowgrph-metadata-document.md`      | Metadata contracts and layer hints                       | docs:update, doc:lint, tests | Provenance Documenter|
+| `knowgrph-ingestor-document.md`      | Source file ingestion paths                              | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-codebase-index-document.md`| Codebase index architecture                              | docs:update, doc:lint, tests | Schema Documenter    |
+| `knowgrph-demo-document.md`          | Demo workflow and interactive tour                       | docs:update, doc:lint, tests | Technical Writer     |
+| `knowgrph-llm-prompt-contract.md`    | LLM prompt contracts and guidance                        | docs:update, doc:lint, tests | API Documenter       |
+
+---
+
+## Anti-Patterns (Forbidden)
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Vocabulary Lists     | Maintain domain neutrality      | - [ ] Compute statistical features only; forbid medical/legal/financial term lists         |
+| Dataset Branching    | Preserve generality             | - [ ] Apply uniform logic across corpora; forbid if dataset_name == "X" branches           |
+| Embedded Ontologies  | Externalize domain knowledge    | - [ ] Load ontologies from config; forbid hardcoded entity type hierarchies                |
+| Magic Thresholds     | Document decisions              | - [ ] Define all thresholds in config; forbid unexplained 0.7, 0.8, etc. in code          |
+| Implicit Features    | Expose all signals              | - [ ] Declare feature extractors in config; forbid undocumented feature engineering        |
+| Silent Degradation   | Monitor continuously            | - [ ] Log all quality metrics; alert on drift; forbid missing monitoring                   |
+| Non-Determinism      | Ensure reproducibility          | - [ ] Seed all randomness; hash inputs; forbid environment-dependent behavior              |
+| Single-Corpus Tuning | Validate broadly                | - [ ] Test on 5+ diverse corpora; forbid optimization on one dataset                       |
+
+---
+
+## Repository Health Checklist
+
+**Structural Health**:
+
+| Context              | Status | Directive                                                                                   |
+|----------------------|--------|---------------------------------------------------------------------------------------------|
+| Layer Separation     | ✓      | - [ ] Each layer in separate module; clear interfaces; forbid cross-layer coupling         |
+| Config Completeness  | ✓      | - [ ] All behavior configurable; documented defaults; forbid hidden parameters             |
+
+**Maintainability**:
+
+| Context              | Status | Directive                                                                                   |
+|----------------------|--------|---------------------------------------------------------------------------------------------|
+| Documentation        | ✓      | - [ ] All layers documented; examples provided; forbid undocumented components             |
+| Test Coverage        | ✓      | - [ ] >80% overall; neutrality suite; forbid untested features                             |
+
+**Operations**:
+
+| Context              | Status | Directive                                                                                   |
+|----------------------|--------|---------------------------------------------------------------------------------------------|
+| Reproducibility      | ✓      | - [ ] Config/data versioning; seeded randomness; forbid environment dependencies           |
+| Monitoring           | ✓      | - [ ] Quality metrics logged; drift detection; forbid silent failures                      |
+
+---
+
+## Version Control Standards
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Config Versioning    | Track behavior changes          | - [ ] Version config schema; document migrations; forbid breaking changes without migration|
+| Experiment Tracking  | Enable reproducibility          | - [ ] Log config hashes, data hashes, commit SHAs; forbid unversioned experiments          |
+| Backward Compatibility| Protect existing pipelines     | - [ ] Deprecate gracefully; support old configs; forbid abrupt API removal                 |

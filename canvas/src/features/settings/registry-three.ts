@@ -360,40 +360,6 @@ export const threeSettingsRegistry: SettingMeta[] = [
     default: () => 0.7,
   },
   {
-    key: 'three.graph.polygons.elevationOffset',
-    type: 'number',
-    source: 'store',
-    read: () => {
-      const schema = s().schema
-      const raw = schema.three?.polygons?.elevationOffset
-      return typeof raw === 'number' ? raw : -0.1
-    },
-    write: (v) => {
-      const schema = s().schema
-      const prev = schema.three?.polygons || {}
-      s().setThreeConfig({ polygons: { ...prev, elevationOffset: Number(v) } })
-    },
-    docKey: 'three.graph.polygons.elevationOffset',
-    default: () => -0.1,
-  },
-  {
-    key: 'three.graph.polygons.opacityMultiplier',
-    type: 'number',
-    source: 'store',
-    read: () => {
-      const schema = s().schema
-      const raw = schema.three?.polygons?.opacityMultiplier
-      return typeof raw === 'number' ? raw : 1
-    },
-    write: (v) => {
-      const schema = s().schema
-      const prev = schema.three?.polygons || {}
-      s().setThreeConfig({ polygons: { ...prev, opacityMultiplier: Number(v) } })
-    },
-    docKey: 'three.graph.polygons.opacityMultiplier',
-    default: () => 1,
-  },
-  {
     key: 'three.graph.starfieldEnabled',
     type: 'boolean',
     source: 'store',

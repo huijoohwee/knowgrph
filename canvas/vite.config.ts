@@ -465,11 +465,7 @@ export default defineConfig(({ command }) => ({
     }
   },
   plugins: [
-    react({
-      babel: {
-        plugins: ['react-dev-locator'],
-      },
-    }),
+    react(),
     ...(command === 'build'
       ? []
       : [

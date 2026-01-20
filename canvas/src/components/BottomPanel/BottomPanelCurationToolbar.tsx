@@ -2,9 +2,6 @@ import React from 'react'
 import ActionsRow from '@/features/panels/ui/ActionsRow'
 import type { CodeAction } from '@/features/code-editor/actions'
 import type { BottomTab } from '@/features/bottom-panel/open'
-import type { GraphSchema } from '@/lib/graph/schema'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { useShallow } from 'zustand/react/shallow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type BottomPanelCurationView = 'grid' | 'json' | 'markdown'
@@ -30,17 +27,6 @@ export default function BottomPanelCurationToolbar({
   setBottomPanelCurationView,
   onValidateGraph,
 }: BottomPanelCurationToolbarProps) {
-  const { schema, setSchema } = useGraphStore(
-    useShallow(s => ({
-      schema: s.schema,
-      setSchema: s.setSchema,
-    })),
-  )
-  const layers = (schema as GraphSchema).layers || {}
-  const layerMode: 'property' | 'document-structure' | 'semantic' =
-    layers.mode === 'document-structure' || layers.mode === 'semantic'
-      ? layers.mode
-      : 'property'
   const isTextEditorActive = isGraphJsonView
   const isMarkdownActive = tab === 'curation' && bottomPanelCurationView === 'markdown'
 
@@ -86,31 +72,6 @@ export default function BottomPanelCurationToolbar({
           )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 mb-0">
-          <select
-            className={`h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
-            value={layerMode}
-            onChange={e => {
-              const raw = String(e.target.value || '')
-              const nextMode: 'property' | 'document-structure' | 'semantic' =
-                raw === 'document-structure' || raw === 'semantic'
-                  ? (raw as 'document-structure' | 'semantic')
-                  : 'property'
-              const current = schema as GraphSchema
-              const nextLayers = current.layers || {}
-              const next: GraphSchema = {
-                ...current,
-                layers: {
-                  ...nextLayers,
-                  mode: nextMode,
-                },
-              }
-              setSchema(next)
-            }}
-          >
-            <option value="property">property</option>
-            <option value="document-structure">document-structure</option>
-            <option value="semantic">semantic</option>
-          </select>
           <button
             type="button"
             className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}

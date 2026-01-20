@@ -21,8 +21,8 @@ export async function testMarkdownMediaToggleEndToEnd() {
     const markdownAieHtml = buildTestMarkdownFromAieHtml()
     const markdownMlflow = buildTestMarkdownFromMlflow()
 
-    const githubSourceUrl = 'https://github.com/chiphuyen/aie-book/blob/main/chapter-summaries.md'
-    const mlflowSourceUrl = 'https://github.com/mlflow/mlflow/blob/master/README.md'
+    const githubSourceUrl = 'https://example.com/docs/sample-summaries.md'
+    const mlflowSourceUrl = 'https://example.com/docs/sample-tooling.md'
 
     const enabledLocal = runMarkdownToGraphWithToggle('file://markdown-html-img-smoke.md', markdownLocal, true)
     const enabledGithub = runMarkdownToGraphWithToggle(
@@ -41,7 +41,7 @@ export async function testMarkdownMediaToggleEndToEnd() {
     const enabledMediaUrlsMlflow = collectMediaNodeUrls(enabledMlflow.nodes)
     assertArrayNonEmpty(enabledMediaUrlsLocal, 'media node urls (local markdown)')
     assertArrayNonEmpty(enabledMediaUrlsGithub, 'media node urls (github markdown)')
-    assertArrayNonEmpty(enabledMediaUrlsMlflow, 'media node urls (mlflow markdown)')
+    assertArrayNonEmpty(enabledMediaUrlsMlflow, 'media node urls (sample tooling markdown)')
 
     const disabledLocal = runMarkdownToGraphWithToggle('file://markdown-html-img-smoke.md', markdownLocal, false)
     const disabledGithub = runMarkdownToGraphWithToggle(
@@ -87,16 +87,16 @@ export async function testMarkdownMediaToggleEndToEnd() {
     }
 
     const hasAieHtmlImg = aieHtmlImgSrcs.some(src => {
-      if (src.includes('assets/rlhf.png')) return true
+      if (src.includes('assets/sample.png')) return true
       try {
         const decoded = decodeURIComponent(src)
-        return decoded.includes('assets/rlhf.png')
+        return decoded.includes('assets/sample.png')
       } catch {
         return false
       }
     })
     if (!hasAieHtmlImg) {
-      throw new Error('expected HTML img src to resolve assets/rlhf.png')
+      throw new Error('expected HTML img src to resolve assets/sample.png')
     }
   } finally {
     restoreDom()

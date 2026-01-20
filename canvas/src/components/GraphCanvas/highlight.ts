@@ -1,7 +1,7 @@
 import { Selection } from 'd3-selection';
 import { GraphNode, GraphEdge, GraphData, type SelectionAnchorIds } from '@/lib/graph/types';
 import { GraphSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
-import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
+import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation';
 import { getEdgeBaseStroke, getLayerOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 import { UI_THEME_COLORS, type ThemeColors } from '@/lib/ui/theme-tokens';
 
@@ -14,7 +14,6 @@ export type SelectionHighlightParams = {
   selectedEdgeIds?: string[]
   renderMediaAsNodes: boolean
   mediaNodeOpacity?: number
-  activeLayerBandIndex?: number | null
   themeColors?: ThemeColors
 }
 
@@ -105,73 +104,6 @@ export const computeNeighborIds = (params?: SelectionHighlightParams | null): Se
         neighbors.forEach(id => neighborIds.add(id))
       }
     }
-    const nodeById = new Map<string, GraphNode>()
-    for (let i = 0; i < data.nodes.length; i += 1) {
-      const n = data.nodes[i]
-      const id = String(n.id || '')
-      if (!id) continue
-      nodeById.set(id, n)
-    }
-    const selectedMermaidIds: string[] = []
-    selectedNodeIdSet.forEach(id => {
-      const node = nodeById.get(id)
-      if (node && node.type === 'MermaidNode') {
-        selectedMermaidIds.push(id)
-      }
-    })
-    if (selectedMermaidIds.length > 0) {
-      const forward = new Map<string, string[]>()
-      const backward = new Map<string, string[]>()
-      for (let i = 0; i < data.edges.length; i += 1) {
-        const e = data.edges[i]
-        const label = String(e.label || '').trim()
-        if (label !== 'pointsTo') continue
-        const src = String(e.source || '')
-        const tgt = String(e.target || '')
-        if (!src || !tgt) continue
-        const srcNode = nodeById.get(src)
-        const tgtNode = nodeById.get(tgt)
-        if (!srcNode || !tgtNode) continue
-        if (srcNode.type !== 'MermaidNode' || tgtNode.type !== 'MermaidNode') continue
-        const fArr = forward.get(src)
-        if (fArr) fArr.push(tgt)
-        else forward.set(src, [tgt])
-        const bArr = backward.get(tgt)
-        if (bArr) bArr.push(src)
-        else backward.set(tgt, [src])
-      }
-      const visited = new Set<string>()
-      const queue: string[] = []
-      for (let i = 0; i < selectedMermaidIds.length; i += 1) {
-        const id = selectedMermaidIds[i]
-        if (!id || visited.has(id)) continue
-        visited.add(id)
-        queue.push(id)
-      }
-      while (queue.length > 0) {
-        const current = queue.shift() as string
-        const nextIds: string[] = []
-        const f = forward.get(current)
-        if (f) {
-          for (let i = 0; i < f.length; i += 1) {
-            nextIds.push(f[i])
-          }
-        }
-        const b = backward.get(current)
-        if (b) {
-          for (let i = 0; i < b.length; i += 1) {
-            nextIds.push(b[i])
-          }
-        }
-        for (let i = 0; i < nextIds.length; i += 1) {
-          const nid = nextIds[i]
-          if (!nid || visited.has(nid)) continue
-          visited.add(nid)
-          queue.push(nid)
-          neighborIds.add(nid)
-        }
-      }
-    }
   }
   return neighborIds
 }
@@ -180,7 +112,7 @@ export const computeNodeVisual = (
   node: GraphNode,
   params: SelectionHighlightParams & { neighborIds: Set<string>; selectionSets?: ReturnType<typeof deriveSelectionSets> },
 ): NodeVisual => {
-  const { schema, neighborIds, selectionSets, activeLayerBandIndex } = params
+  const { schema, neighborIds, selectionSets } = params
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
   const palette = getRendererPalette(schema)
@@ -202,20 +134,7 @@ export const computeNodeVisual = (
     }
     return 0.9
   })()
-  const layerBandIndex = (() => {
-    if (typeof activeLayerBandIndex !== 'number') return null
-    if (!Number.isFinite(activeLayerBandIndex)) return null
-    if (activeLayerBandIndex <= 0) return null
-    return activeLayerBandIndex
-  })()
-  const nodeLayer = (() => {
-    const props = (node.properties || {}) as Record<string, unknown>
-    const raw = props['visual:layer']
-    if (typeof raw !== 'number') return null
-    if (!Number.isFinite(raw)) return null
-    return raw
-  })()
-  const shouldDimForLayerBand = !!layerBandIndex && nodeLayer != null && nodeLayer !== layerBandIndex
+  
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
       return {
@@ -227,32 +146,22 @@ export const computeNodeVisual = (
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
     const fill = isEndpoint ? getNodeBaseFill(node, schema) : dimmedFill
-    let opacity = isMediaNode ? mediaOpacity : isEndpoint ? 1 : 0.2
-    if (shouldDimForLayerBand && opacity > 0) {
-      opacity *= 0.2
-    }
+    const opacity = isMediaNode ? mediaOpacity : isEndpoint ? 1 : 0.2
     const stroke = isEndpoint ? baseStroke : dimmedFill
     const strokeWidth = isEndpoint ? baseStrokeWidth : baseStrokeWidth
     return { fill, opacity, stroke, strokeWidth }
   }
   if (selectedNodeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
-      let opacity = isMediaNode ? mediaOpacity : 1
-      if (shouldDimForLayerBand && opacity > 0) {
-        opacity *= 0.2
-      }
       return {
         fill: highlightFill,
-        opacity,
+        opacity: isMediaNode ? mediaOpacity : 1,
         stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
     if (neighborIds.has(node.id)) {
-      let opacity = isMediaNode ? mediaOpacity : 1
-      if (shouldDimForLayerBand && opacity > 0) {
-        opacity *= 0.2
-      }
+      const opacity = isMediaNode ? mediaOpacity : 1
       return {
         fill: getNodeBaseFill(node, schema),
         opacity,
@@ -260,10 +169,7 @@ export const computeNodeVisual = (
         strokeWidth: baseStrokeWidth,
       }
     }
-    let opacity = isMediaNode ? mediaOpacity : 0.2
-    if (shouldDimForLayerBand && opacity > 0) {
-      opacity *= 0.2
-    }
+    const opacity = isMediaNode ? mediaOpacity : 0.2
     return {
       fill: dimmedFill,
       opacity,
@@ -272,10 +178,7 @@ export const computeNodeVisual = (
     }
   }
   const baseOpacity = getLayerOpacity(node, schema)
-  let opacity = isMediaNode ? mediaOpacity : baseOpacity
-  if (shouldDimForLayerBand && opacity > 0) {
-    opacity *= 0.2
-  }
+  const opacity = isMediaNode ? mediaOpacity : baseOpacity
   return { fill: getNodeBaseFill(node, schema), opacity, stroke: baseStroke, strokeWidth: baseStrokeWidth }
 }
 
@@ -283,41 +186,24 @@ export const computeLabelVisual = (
   node: GraphNode,
   params: SelectionHighlightParams & { neighborIds: Set<string>; selectionSets?: ReturnType<typeof deriveSelectionSets> },
 ): LabelVisual => {
-  const { schema, neighborIds, selectionSets, activeLayerBandIndex } = params
+  const { schema, neighborIds, selectionSets } = params
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
-  const layerBandIndex = (() => {
-    if (typeof activeLayerBandIndex !== 'number') return null
-    if (!Number.isFinite(activeLayerBandIndex)) return null
-    if (activeLayerBandIndex <= 0) return null
-    return activeLayerBandIndex
-  })()
-  const nodeLayer = (() => {
-    const props = (node.properties || {}) as Record<string, unknown>
-    const raw = props['visual:layer']
-    if (typeof raw !== 'number') return null
-    if (!Number.isFinite(raw)) return null
-    return raw
-  })()
-  const shouldDimForLayerBand = !!layerBandIndex && nodeLayer != null && nodeLayer !== layerBandIndex
+  
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
-      const opacity = shouldDimForLayerBand ? 0.2 : 1
-      return { opacity }
+      return { opacity: 1 }
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
-    const baseOpacity = isEndpoint ? 1 : 0.2
-    const opacity = shouldDimForLayerBand && baseOpacity > 0 ? baseOpacity * 0.2 : baseOpacity
+    const opacity = isEndpoint ? 1 : 0.2
     return { opacity }
   }
   if (selectedNodeIdSet.size === 0) {
-    const baseOpacity = getLayerOpacity(node, schema)
-    const opacity = shouldDimForLayerBand && baseOpacity > 0 ? baseOpacity * 0.2 : baseOpacity
+    const opacity = getLayerOpacity(node, schema)
     return { opacity }
   }
   const isHighlighted = selectedNodeIdSet.has(node.id) || neighborIds.has(node.id)
-  const baseOpacity = isHighlighted ? 1 : 0.2
-  const opacity = shouldDimForLayerBand && baseOpacity > 0 ? baseOpacity * 0.2 : baseOpacity
+  const opacity = isHighlighted ? 1 : 0.2
   return { opacity }
 }
 
@@ -329,7 +215,7 @@ export const computeEdgeVisual = (
   },
 ): EdgeVisual => {
   const { schema, selectionSets } = params
-  const { selectedNodeIdSet, selectedEdgeIdSet } =
+  const { selectedEdgeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
   const palette = getRendererPalette(schema)
   const highlightStroke = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
@@ -343,24 +229,18 @@ export const computeEdgeVisual = (
     return { stroke, opacity, width }
   }
   const { src, tgt } = getEdgeEndpoints(edge)
-  const neighborIds = params.neighborIds
-  const hasNeighborPath = neighborIds && neighborIds.size > 0
+  const { selectedNodeIdSet } = selectionSets ?? deriveSelectionSets(params)
+  
   const isEndpointSelected =
     selectedNodeIdSet.size > 0 &&
     ((typeof src === 'string' && selectedNodeIdSet.has(src)) ||
       (typeof tgt === 'string' && selectedNodeIdSet.has(tgt)))
-  const isMermaidPathEdge =
-    !!hasNeighborPath &&
-    String(edge.label || '').trim() === 'pointsTo' &&
-    typeof src === 'string' &&
-    typeof tgt === 'string' &&
-    neighborIds!.has(src) &&
-    neighborIds!.has(tgt)
-  const isHighlighted = isEndpointSelected || isMermaidPathEdge
+  
+  const isHighlighted = isEndpointSelected
   const baseStroke = getEdgeBaseStroke(edge, schema)
   const baseWidth = getEdgeStrokeWidth(edge, schema)
   if (selectedNodeIdSet.size === 0) {
-    const baseOpacity = schema.layout?.mode === 'tree' ? 0.4 : 0.6
+    const baseOpacity = 0.6
     return { stroke: baseStroke, opacity: baseOpacity, width: baseWidth }
   }
   if (isHighlighted) {
@@ -383,7 +263,6 @@ export const applySelectionHighlight = (
   renderMediaAsNodes: boolean = true,
   extra?: {
     mediaNodeOpacity?: number
-    activeLayerBandIndex?: number | null
     themeColors?: typeof UI_THEME_COLORS.light
   },
 ): void => {
@@ -396,12 +275,11 @@ export const applySelectionHighlight = (
     selectedEdgeIds,
     renderMediaAsNodes,
     mediaNodeOpacity: extra?.mediaNodeOpacity,
-    activeLayerBandIndex: extra?.activeLayerBandIndex,
     themeColors: extra?.themeColors,
   }
   const neighborIds = computeNeighborIds(params)
   const selectionSets = deriveSelectionSets(params)
-  const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } = selectionSets
+  const { selectedEdgeIdSet, selectedNodeIdSet, selectedEdgeEndpointNodeIdSet } = selectionSets
   const nodeParams = { ...params, neighborIds, selectionSets }
   const labelParams = { ...params, neighborIds, selectionSets }
   const edgeParams = { ...params, selectionSets, neighborIds }

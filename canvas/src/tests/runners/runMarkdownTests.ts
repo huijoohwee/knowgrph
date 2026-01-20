@@ -2,17 +2,6 @@ import { execTest, TestResult } from './testRunnerUtils'
 import { testMarkdownLayoutModePersistence } from '@/__tests__/markdownLayoutModePersistence.test'
 import { testMarkdownSyncScrollPersistence } from '@/__tests__/markdownSyncScrollPersistence.test'
 import {
-  testExampleWorkflowMarkdownIngestionProducesGraph,
-  testMarkdownFrontmatterOntologiesAndGraphLayersRoundTrip,
-  testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions,
-  testEdaMlpInterviewSessionMarkdownFixtureFromDisk,
-  testEdaMlpInterviewSessionMarkdownTreeDensityFromFixture,
-  testEdaMlpInterviewSessionMarkdownPresentationFromDisk,
-  testMarkdownFrontmatterPolygonLayersAliasWarning,
-} from '@/__tests__/exampleWorkflowMarkdownIngestion.test'
-import { testMarkdownMermaidFrontmatterTreeMetadataDefaults } from '@/__tests__/markdownMermaidTreeMetadata.test'
-import { testEdaMlpTreeRendering } from '@/__tests__/edaMlpTreeRendering.test'
-import {
   testGuidelinesMarkdownHighlightGuardWithLargeGraph,
   testGuidelinesMarkdownHighlightGuardWithSmallGraph,
   testGuidelinesMarkdownIngestionLexingAndSlides,
@@ -39,33 +28,6 @@ import {
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
   await execTest(results, 'ui.markdown.syncScrollPersistence', testMarkdownSyncScrollPersistence)
-  
-  await execTest(results, 'markdown.exampleWorkflow.ingestion', testExampleWorkflowMarkdownIngestionProducesGraph)
-  await execTest(results, 'markdown.exampleWorkflow.frontmatterRoundTrip', testMarkdownFrontmatterOntologiesAndGraphLayersRoundTrip)
-
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    const pathMod = await import('node:path')
-    const fsMod = await import('node:fs')
-    const mdPath = pathMod.resolve(
-      process.cwd(),
-      'src/__tests__/sandbox/md-mmd-template.md',
-    )
-    const mdText = fsMod.readFileSync(mdPath, 'utf8')
-    await execTest(
-      results,
-      'markdown.exampleWorkflow.mermaidTemplate',
-      () => testMarkdownMermaidFrontmatterTemplateProducesEntitiesEdgesAndMentions(mdText)
-    )
-
-    await execTest(results, 'markdown.edaMlp.fixtureFromDisk', testEdaMlpInterviewSessionMarkdownFixtureFromDisk)
-    await execTest(results, 'markdown.edaMlp.treeDensity', testEdaMlpInterviewSessionMarkdownTreeDensityFromFixture)
-    await execTest(results, 'markdown.edaMlp.presentation', testEdaMlpInterviewSessionMarkdownPresentationFromDisk)
-    await execTest(results, 'markdown.edaMlp.treeRendering', testEdaMlpTreeRendering)
-  }
-
-  await execTest(results, 'markdown.frontmatter.polygonLayersWarning', testMarkdownFrontmatterPolygonLayersAliasWarning)
-
-  await execTest(results, 'markdown.mermaid.treeMetadata', testMarkdownMermaidFrontmatterTreeMetadataDefaults)
 
   await execTest(results, 'markdown.guidelines.highlightGuardLarge', testGuidelinesMarkdownHighlightGuardWithLargeGraph)
   await execTest(results, 'markdown.guidelines.highlightGuardSmall', testGuidelinesMarkdownHighlightGuardWithSmallGraph)

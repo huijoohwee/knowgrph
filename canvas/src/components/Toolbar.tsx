@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, TreePine, Plus, MessageCircle, Image as ImageIcon, Layers, Shapes, GitMerge } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2 } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -23,6 +23,7 @@ import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
 
 import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
 import { FitToViewButton } from '@/features/toolbar/ui/FitToViewButton';
+import { PinToViewButton } from '@/features/toolbar/ui/PinToViewButton';
 
 interface ToolbarProps {
   onZoomIn?: () => void;
@@ -37,8 +38,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setCanvasRenderMode,
     schema,
     setSchema,
-    graphLayersVisible,
-    toggleGraphLayersVisible,
     fitToScreenMode,
     toggleFitToScreenMode,
     zoomToSelectionMode,
@@ -88,20 +87,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const layoutMode = schema.layout?.mode || 'force';
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false);
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
-  const rawLayerMode = schema.layers?.mode;
-  const layerMode: 'property' | 'document-structure' | 'semantic' =
-    rawLayerMode === 'property' || rawLayerMode === 'document-structure' || rawLayerMode === 'semantic'
-      ? rawLayerMode
-      : 'semantic';
-  const layerModeDescriptor =
-    layerMode === 'property'
-      ? UI_LABELS.layerModeDescriptorProperty
-      : layerMode === 'document-structure'
-        ? UI_LABELS.layerModeDescriptorDocument
-        : UI_LABELS.layerModeDescriptorSemantic;
-  const layerModeTitle = `${UI_LABELS.layerMode}: ${layerModeDescriptor}`;
-  const LayerModeIcon =
-    layerMode === 'property' ? PanelsTopLeft : layerMode === 'document-structure' ? Layers : CircleDot;
+  const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
 
   const actions = useToolbarActions(
     schema,
@@ -146,7 +132,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       const detailTab = e.detail && e.detail.tab;
       const tab: MainPanelTabKey =
         detailTab === 'graphFields'
-          || detailTab === 'graphLayer'
           || detailTab === 'workflow'
           || detailTab === 'help'
           || detailTab === 'preview'
@@ -198,19 +183,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
-          canvasRenderMode === '2d' && layoutMode === 'mermaid'
-            ? uiPrimaryIconActiveClassName
-            : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.mermaidLayout}
-        tooltipContent={UI_COPY.mermaidLayoutTooltip}
-        onClick={actions.handleToggleMermaidLayout}
-        showTooltip
-      >
-        <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
           selectMode === 'multi' || selectMode === 'lasso'
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
@@ -226,38 +198,14 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
-          layerMode !== 'property' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+          portHandlesEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title={layerModeTitle}
-        tooltipContent={layerModeTitle}
-        onClick={actions.handleToggleLayerMode}
+        title={UI_LABELS.portHandles}
+        tooltipContent={UI_COPY.portHandlesTooltip}
+        onClick={actions.handleTogglePortHandles}
         showTooltip
       >
-        <LayerModeIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          graphLayersVisible ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.graphLayersMode}
-        tooltipContent={UI_LABELS.graphLayersMode}
-        onClick={toggleGraphLayersVisible}
-        showTooltip
-      >
-        <Shapes className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          canvasRenderMode === '2d' && layoutMode === 'tree'
-            ? uiPrimaryIconActiveClassName
-            : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.treeLayoutMode}
-        tooltipContent={UI_LABELS.treeLayoutMode}
-        onClick={actions.handleToggleTreeLayout}
-        showTooltip
-      >
-        <TreePine className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        <Share2 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
@@ -370,6 +318,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       <IconButton className="App-toolbar__btn" title={UI_LABELS.zoomOut} onClick={onZoomOut} showTooltip>
         <ZoomOut className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
+      <PinToViewButton />
       <FitToViewButton />
       <FitToScreenButton />
       <IconButton

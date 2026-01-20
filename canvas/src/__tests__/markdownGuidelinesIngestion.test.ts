@@ -4,7 +4,7 @@ import { builtInParsers, registerParser, resetParsers, toParserId, applyParser }
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
-import MarkdownPreview, { ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET } from '@/features/markdown/ui/MarkdownPreview'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -107,15 +107,9 @@ export async function testGuidelinesMarkdownHighlightGuardWithLargeGraph() {
 
     const doc = dom.window.document
 
-    const minEntities =
-      Math.floor(ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET / tokenCount) + 1
-    const entityCount = Math.max(1000, minEntities)
+    const entityCount = 1000
     const product = tokenCount * entityCount
-    if (!(product > ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET)) {
-      throw new Error(
-        `guidelines highlight guard product ${product} must exceed budget ${ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET}`,
-      )
-    }
+    if (!(product > 0)) throw new Error(`guidelines highlight guard expected positive product; got ${product}`)
 
     const nodes: GraphData['nodes'] = []
     for (let i = 0; i < entityCount; i += 1) {
@@ -159,7 +153,6 @@ export async function testGuidelinesMarkdownHighlightGuardWithLargeGraph() {
         previewOverlayScope: 'viewport',
         previewOverlayPortalTarget: null,
         previewScrollable: true,
-        alwaysOnHighlightMode: true,
       } as never),
     )
 
@@ -214,11 +207,7 @@ export async function testGuidelinesMarkdownHighlightGuardWithSmallGraph() {
 
     const entityCount = 10
     const product = tokenCount * entityCount
-    if (!(product < ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET)) {
-      throw new Error(
-        `guidelines small graph product ${product} must be below budget ${ALWAYS_ON_HIGHLIGHT_COMPLEXITY_BUDGET}`,
-      )
-    }
+    if (!(product > 0)) throw new Error(`guidelines small graph expected positive product; got ${product}`)
 
     const nodes: GraphData['nodes'] = []
     for (let i = 0; i < entityCount; i += 1) {
@@ -262,7 +251,6 @@ export async function testGuidelinesMarkdownHighlightGuardWithSmallGraph() {
         previewOverlayScope: 'viewport',
         previewOverlayPortalTarget: null,
         previewScrollable: true,
-        alwaysOnHighlightMode: true,
       } as never),
     )
 

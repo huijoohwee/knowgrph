@@ -73,6 +73,20 @@ function checkRenderSectionsDocTable(): string {
   return formatCountRow('Render sections', registryCount, tableCount)
 }
 
+const resolveGuidelinesPath = (): string => {
+  const workspaceRoot = path.resolve(process.cwd(), '..', '..')
+  const target = path.join('guidelines', 'codebase-maintainability-cid-guidelines.md')
+  const direct = path.join(workspaceRoot, target)
+  if (fs.existsSync(direct)) return direct
+  const entries = fs.readdirSync(workspaceRoot, { withFileTypes: true })
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const candidate = path.join(workspaceRoot, entry.name, target)
+    if (fs.existsSync(candidate)) return candidate
+  }
+  return direct
+}
+
 function checkDocsMaintainability(): string {
   const docsDir = path.resolve(process.cwd(), '..', 'docs', 'documents')
   const entries = fs.readdirSync(docsDir, { withFileTypes: true })
@@ -88,14 +102,7 @@ function checkDocsMaintainability(): string {
     }
   }
   if (violations.length > 0) {
-    const guidelinesPath = path.resolve(
-      process.cwd(),
-      '..',
-      '..',
-      'huijoohwee.github.io',
-      'guidelines',
-      'codebase-maintainability-guidelines.md',
-    )
+    const guidelinesPath = resolveGuidelinesPath()
     throw new Error(
       `Documentation maintainability violation: docs/documents files exceed 600 lines per guidelines at ${guidelinesPath}: ${violations.join(
         ', ',

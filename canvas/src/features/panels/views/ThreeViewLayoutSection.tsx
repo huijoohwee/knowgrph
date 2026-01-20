@@ -9,8 +9,6 @@ import {
   SPHERE_RADIUS_TOOLTIP,
   MIN_SPACING_TOOLTIP,
   LAYOUT_SEED_TOOLTIP,
-  POLYGON_ELEVATION_TOOLTIP,
-  POLYGON_OPACITY_MULTIPLIER_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
 
 interface ThreeViewLayoutSectionProps {
@@ -267,60 +265,6 @@ export default function ThreeViewLayoutSection({
               <span className="text-gray-600">
                 {String(layer3)}
               </span>
-            </>
-          )}
-        />
-        <KeyTypeValueRow
-          layout="keyValue"
-          keyNode={<span className="text-gray-700">Graph Layer Elevation</span>}
-          valueNode={(
-            <>
-              <input
-                type="range"
-                min={-5}
-                max={5}
-                step={0.1}
-                value={Number(schema.three?.polygons?.elevationOffset ?? -0.1)}
-                onChange={e =>
-                  setThreeConfig({ polygons: { ...(schema.three?.polygons || {}), elevationOffset: Number(e.target.value) } })
-                }
-              />
-              <Tooltip
-                content={POLYGON_ELEVATION_TOOLTIP}
-                maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
-              >
-                <span className="text-gray-600">
-                  {String(schema.three?.polygons?.elevationOffset ?? -0.1)}
-                </span>
-              </Tooltip>
-            </>
-          )}
-        />
-        <KeyTypeValueRow
-          layout="keyValue"
-          keyNode={<span className="text-gray-700">Graph Layer Opacity ×</span>}
-          valueNode={(
-            <>
-              <input
-                type="range"
-                min={0}
-                max={2}
-                step={0.05}
-                value={Number(schema.three?.polygons?.opacityMultiplier ?? 1)}
-                onChange={e =>
-                  setThreeConfig({ polygons: { ...(schema.three?.polygons || {}), opacityMultiplier: Number(e.target.value) } })
-                }
-              />
-              <Tooltip
-                content={POLYGON_OPACITY_MULTIPLIER_TOOLTIP}
-                maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
-              >
-                <span className="text-gray-600">
-                  {String(schema.three?.polygons?.opacityMultiplier ?? 1)}
-                </span>
-              </Tooltip>
             </>
           )}
         />

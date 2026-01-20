@@ -163,7 +163,6 @@ export const createUiSlice = (set: SetGraph) => {
       return getInitialLaunchSpotlightEnabled(storage, true);
     })(),
     statusPanelPinned: lsBool(LS_KEYS.statusPanelPinned, false),
-    frontmatterModeEnabled: false,
 
     setEditMode: (mode: boolean) => set({ isEditMode: mode }),
 
@@ -370,9 +369,5 @@ export const createUiSlice = (set: SetGraph) => {
       set({ enableLaunchSpotlight: next });
     },
     setStatusPanelPinned: (v: boolean) => set({ statusPanelPinned: lsSetBool(LS_KEYS.statusPanelPinned, v) }),
-    setFrontmatterModeEnabled: (enabled: boolean) =>
-      set({
-        frontmatterModeEnabled: !!enabled,
-      }),
   }
 }

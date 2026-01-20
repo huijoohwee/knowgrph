@@ -16,8 +16,11 @@ venue: "GitHub"
 institution: "Huijoohwee"
 url: "https://huijoohwee.github.io"
 mermaid: |
-  graph LR
-    A[Start] --> B[End]
+  graph TB
+    A[Start] --> B[Left Path]
+    A --> C[Right Path]
+    B --> D[End]
+    C --> D
 ---
 
 # Markdown Slide Styling Guidelines
@@ -40,8 +43,11 @@ layout: cover
 aspectRatio: '16/9'
 lang: en-US
 mermaid: |
-  graph LR
-    A[Start] --> B[End]
+  graph TB
+    A[Start] --> B[Left Path]
+    A --> C[Right Path]
+    B --> D[End]
+    C --> D
 ---
 ```
 

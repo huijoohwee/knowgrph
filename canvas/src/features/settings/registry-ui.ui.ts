@@ -349,22 +349,6 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     default: () => 96,
   },
   {
-    key: 'markdownAlwaysOnHighlightComplexityBudget',
-    type: 'number',
-    source: 'store',
-    read: () => s().markdownAlwaysOnHighlightComplexityBudget ?? 500000,
-    write: (v) => {
-      const n = Number(v);
-      if (!Number.isFinite(n) || n <= 0) {
-        s().setMarkdownAlwaysOnHighlightComplexityBudget(null);
-        return;
-      }
-      s().setMarkdownAlwaysOnHighlightComplexityBudget(n);
-    },
-    docKey: 'markdownAlwaysOnHighlightComplexityBudget',
-    default: () => 500000,
-  },
-  {
     key: 'chatEndpointUrl',
     type: 'string',
     source: 'localStorage',

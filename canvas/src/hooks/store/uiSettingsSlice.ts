@@ -14,18 +14,10 @@ import type { TraversalSummary } from '@/features/panels/utils/orchestratorTrave
 import { SESSION_KEYS } from '@/lib/config';
 import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
 import { ThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode } from '@/lib/ui/theme';
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 type SetGraph = StoreApi<GraphState>['setState'];
 
 export const createUiSettingsSlice = (set: SetGraph) => ({
-  uiPanelKeyValueTextSizeClass: 'text-xs',
-  uiPanelTextFontClass: 'font-sans',
-  uiPanelKeyValueInputClass: 'h-6 text-xs px-1 py-0',
-  uiPanelRowDensityDefaultClass: 'py-2',
-  uiPanelRowDensityCompactClass: 'py-1',
-  uiPanelMonospaceTextClass: 'font-mono text-[10px]',
-  uiPanelMicroLabelTextSizeClass: 'text-[10px]',
   renderMediaAsNodes: true,
   setRenderMediaAsNodes: (v: boolean) => set({ renderMediaAsNodes: v }),
   mediaNodeOpacity: 0.9,
@@ -36,22 +28,6 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   },
   mediaPanelDensity: 'default' as const,
   setMediaPanelDensity: (v: 'default' | 'compact') => set({ mediaPanelDensity: v }),
-  uiHeaderRowHeightClass: 'h-8',
-  uiHeaderRowPaddingClass: 'px-2',
-  uiSectionHeaderRowHeightClass: 'h-6',
-  uiSectionHeaderRowPaddingClass: 'px-2',
-  uiIconScale: 'default' as const,
-  uiIconFormat: 'default' as const,
-  uiIconStrokeWidth: 1.5,
-  uiIconColorClass: UI_THEME_TOKENS.icon.color,
-  uiIconHoverBgClass: UI_THEME_TOKENS.button.hoverBg,
-  uiIconButtonPaddingClass: UI_THEME_TOKENS.button.padding,
-  uiIconPillClass: UI_THEME_TOKENS.pill.base,
-  uiIconPillLegendTextSizeClass: UI_THEME_TOKENS.pill.text,
-  uiIconPillBadgeTextSizeClass: UI_THEME_TOKENS.pill.badgeText,
-  uiIconBadgeChipClass: UI_THEME_TOKENS.badge.chip,
-  uiIconBadgeChipTextSizeClass: UI_THEME_TOKENS.badge.text,
-  uiIconAnimationEnabled: true,
   themeMode: getInitialThemeMode(getLocalStorage()),
   setThemeMode: (mode: ThemeMode) => {
     persistThemeMode(getLocalStorage(), mode);
@@ -61,13 +37,6 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   selectionFlashDurationMs: 500,
   selectionFlashOpacity: 0.18,
   markdownSelectionFlashMode: 'auto' as const,
-  uiOverlayOpacity: 0.9,
-  uiPanelOpacity: 0.95,
-  uiToolbarOpacity: 0.95,
-  chatEndpointUrl: null as string | null,
-  chatModel: null as string | null,
-  chatTemperature: 0.7,
-  chatSystemPrompt: null as string | null,
   bottomPanelHeightRatio: 0.35,
   floatingPanelWidthRatio: 0.25,
   floatingPanelHeightRatio: 0.5,
@@ -76,10 +45,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   bottomPanelTab: 'graph-data' as BottomTab,
   bottomPanelCurationView: 'grid' as const,
   bottomPanelCodeSource: 'graph-json' as const,
-  launchSpotlightMode: 'tour' as const,
-  enableLaunchSpotlight: true,
-  statusPanelPinned: false,
-  frontmatterModeEnabled: true,
+  frontmatterModeEnabled: false,
   schemaDeriveCacheCapacity: 50,
   graphFieldSettingsById: {} as GraphFieldSettingsById,
   selectedGraphFieldId: null as GraphFieldId | null,
@@ -133,7 +99,6 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
       graphHoverPreviewConfig: { ...state.graphHoverPreviewConfig, ...config },
     })),
   graphId: 'default',
-  markdownAlwaysOnHighlightComplexityBudget: null as number | null,
   tabId: (() => {
     try {
       const existing = ssString(SESSION_KEYS.tabId, '');
@@ -155,14 +120,6 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   schemaLintExamplePaths: null as string[] | null,
   lastTraversalSummary: null as TraversalSummary | null,
 
-  setUiIconScale: (scale: 'compact' | 'default') => set({ uiIconScale: scale }),
-  setUiOverlayOpacity: (v: number) => set({ uiOverlayOpacity: v }),
-  setUiPanelOpacity: (v: number) => set({ uiPanelOpacity: v }),
-  setUiToolbarOpacity: (v: number) => set({ uiToolbarOpacity: v }),
-  setChatEndpointUrl: (url: string | null) => set({ chatEndpointUrl: url }),
-  setChatModel: (model: string | null) => set({ chatModel: model }),
-  setChatTemperature: (v: number) => set({ chatTemperature: v }),
-  setChatSystemPrompt: (v: string | null) => set({ chatSystemPrompt: v }),
   setBottomPanelHeightRatio: (v: number) => set({ bottomPanelHeightRatio: v }),
   setFloatingPanelWidthRatio: (v: number) => set({ floatingPanelWidthRatio: v }),
   setFloatingPanelHeightRatio: (v: number) => set({ floatingPanelHeightRatio: v }),
@@ -170,9 +127,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   setSidebarWidthRatio: (v: number) => set({ sidebarWidthRatio: v }),
   setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
   setBottomPanelCurationView: (view: 'grid' | 'json' | 'markdown') => set({ bottomPanelCurationView: view }),
-  setLaunchSpotlightMode: (mode: 'tour' | 'stats') => set({ launchSpotlightMode: mode }),
-  setEnableLaunchSpotlight: (v: boolean) => set({ enableLaunchSpotlight: v }),
-  setStatusPanelPinned: (v: boolean) => set({ statusPanelPinned: v }),
+  setFrontmatterModeEnabled: (v: boolean) => set({ frontmatterModeEnabled: v }),
   setSchemaDeriveCacheCapacity: (n: number) => set({ schemaDeriveCacheCapacity: n }),
   setGraphFieldSettingsById: (next: GraphFieldSettingsById) => set({ graphFieldSettingsById: next }),
   setSelectedGraphFieldId: (id: GraphFieldId | null) => set({ selectedGraphFieldId: id }),
@@ -219,28 +174,6 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   setGraphDataTableOverscanMultiplier: (v: number) => set({ graphDataTableOverscanMultiplier: v }),
   setGraphDataTableVirtualMinRows: (v: number) => set({ graphDataTableVirtualMinRows: v }),
   setGraphDataTableVirtualDebugLogRanges: (v: boolean) => set({ graphDataTableVirtualDebugLogRanges: v }),
-  setUiPanelKeyValueTextSizeClass: (className: string) => set({ uiPanelKeyValueTextSizeClass: className }),
-  setUiPanelTextFontClass: (className: string) => set({ uiPanelTextFontClass: className }),
-  setUiPanelKeyValueInputClass: (className: string) => set({ uiPanelKeyValueInputClass: className }),
-  setUiPanelRowDensityDefaultClass: (className: string) => set({ uiPanelRowDensityDefaultClass: className }),
-  setUiPanelRowDensityCompactClass: (className: string) => set({ uiPanelRowDensityCompactClass: className }),
-  setUiPanelMonospaceTextClass: (className: string) => set({ uiPanelMonospaceTextClass: className }),
-  setUiPanelMicroLabelTextSizeClass: (className: string) => set({ uiPanelMicroLabelTextSizeClass: className }),
-  setUiHeaderRowHeightClass: (className: string) => set({ uiHeaderRowHeightClass: className }),
-  setUiHeaderRowPaddingClass: (className: string) => set({ uiHeaderRowPaddingClass: className }),
-  setUiSectionHeaderRowHeightClass: (className: string) => set({ uiSectionHeaderRowHeightClass: className }),
-  setUiSectionHeaderRowPaddingClass: (className: string) => set({ uiSectionHeaderRowPaddingClass: className }),
-  setUiIconFormat: (format: 'default' | 'minimal' | '1') => set({ uiIconFormat: format }),
-  setUiIconStrokeWidth: (width: number) => set({ uiIconStrokeWidth: width }),
-  setUiIconColorClass: (className: string) => set({ uiIconColorClass: className }),
-  setUiIconHoverBgClass: (className: string) => set({ uiIconHoverBgClass: className }),
-  setUiIconButtonPaddingClass: (className: string) => set({ uiIconButtonPaddingClass: className }),
-  setUiIconPillClass: (className: string) => set({ uiIconPillClass: className }),
-  setUiIconPillLegendTextSizeClass: (className: string) => set({ uiIconPillLegendTextSizeClass: className }),
-  setUiIconPillBadgeTextSizeClass: (className: string) => set({ uiIconPillBadgeTextSizeClass: className }),
-  setUiIconBadgeChipClass: (className: string) => set({ uiIconBadgeChipClass: className }),
-  setUiIconBadgeChipTextSizeClass: (className: string) => set({ uiIconBadgeChipTextSizeClass: className }),
-  setUiIconAnimationEnabled: (v: boolean) => set({ uiIconAnimationEnabled: v }),
   setSelectionFlashDurationMs: (v: number) => {
     const n = Number.isFinite(v) ? Number(v) : 500;
     const clamped = n < 100 ? 100 : n > 2000 ? 2000 : n;
@@ -260,15 +193,6 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   setSpotlightNearTopThreshold: (v: number) => {
     const n = Number.isFinite(v) ? Number(v) : 96;
     set({ spotlightNearTopThreshold: n >= 0 ? n : 0 });
-  },
-  setMarkdownAlwaysOnHighlightComplexityBudget: (v: number | null) => {
-    if (v == null) {
-      set({ markdownAlwaysOnHighlightComplexityBudget: null });
-      return;
-    }
-    const n = Number.isFinite(v) ? Number(v) : 0;
-    const clamped = n < 0 ? 0 : n;
-    set({ markdownAlwaysOnHighlightComplexityBudget: clamped });
   },
   setGraphId: (id: string) => set({ graphId: id }),
   setEnableTabSync: (v: boolean) => set({ enableTabSync: v }),

@@ -18,7 +18,7 @@ import { GraphSchema, defaultSchema } from '@/lib/graph/schema'
 import { validateGraphDataWithSchema } from '@/lib/graph/validation'
 import { validateSchema } from '@/features/schema/validation'
 import { EXAMPLES_BY_ID, type ExampleId } from '@/features/parsers/examplesCatalog'
-import { LS_KEYS, LS_LEGACY_KEYS, UI_COPY } from '@/lib/config'
+import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import {
   WORKFLOW_PRESETS,
@@ -63,8 +63,8 @@ export function useParserWorkflowState() {
   const [selectedId, setSelectedId] = useState<string>('')
   const [warnings, setWarnings] = useState<string[]>([])
 
-  const [inputCollapsed, setInputCollapsed] = usePersistedBoolean(LS_KEYS.parserInputCollapsed, true, [LS_LEGACY_KEYS.parserInputCollapsed])
-  const [parsersCollapsed, setParsersCollapsed] = usePersistedBoolean(LS_KEYS.parserParsersCollapsed, true, [LS_LEGACY_KEYS.parserParsersCollapsed])
+  const [inputCollapsed, setInputCollapsed] = usePersistedBoolean(LS_KEYS.parserInputCollapsed, true)
+  const [parsersCollapsed, setParsersCollapsed] = usePersistedBoolean(LS_KEYS.parserParsersCollapsed, true)
 
   const [attemptedAutoDetect, setAttemptedAutoDetect] = useState(false)
 

@@ -1,5 +1,4 @@
-import { LS_KEYS, LS_LEGACY_KEYS } from '@/lib/config'
-import type { LsKeyId, LsStorageKey, SessionStorageKey, StorageChannelKey } from '@/lib/config'
+import type { LsStorageKey, SessionStorageKey, StorageChannelKey } from '@/lib/config'
 
 export function readNumFromStorage(storage: Storage | null, key: string, fallback: number): number {
   if (!storage) return fallback
@@ -111,40 +110,9 @@ export const getLocalStorage = (): Storage | null => {
   }
 }
 
-const legacyKeyByStorageKey: Record<string, string> = (() => {
-  const map: Record<string, string> = {}
-  const ids = Object.keys(LS_KEYS) as LsKeyId[]
-  const legacy = LS_LEGACY_KEYS as Record<string, string | undefined>
-  for (const id of ids) {
-    const legacyKey = legacy[id]
-    if (!legacyKey) continue
-    const storageKey = LS_KEYS[id]
-    map[storageKey] = legacyKey
-  }
-  return map
-})()
-
-const ensureMigratedKey = (storage: Storage | null, key: LsStorageKey): { storage: Storage | null; key: LsStorageKey } => {
-  if (!storage) return { storage, key }
-  try {
-    const legacyKey = legacyKeyByStorageKey[key]
-    if (!legacyKey) return { storage, key }
-    const existing = storage.getItem(key)
-    if (existing !== null) return { storage, key }
-    const legacyValue = storage.getItem(legacyKey)
-    if (legacyValue === null) return { storage, key }
-    storage.setItem(key, legacyValue)
-    storage.removeItem(legacyKey)
-    return { storage, key }
-  } catch {
-    return { storage, key }
-  }
-}
-
 export const lsNum = (key: LsStorageKey, fallback: number) => {
   const storage = getLocalStorage()
-  const normalized = ensureMigratedKey(storage, key)
-  return readNumFromStorage(normalized.storage, normalized.key, fallback)
+  return readNumFromStorage(storage, key, fallback)
 };
 
 export const lsSetNum = (key: LsStorageKey, value: number) => {
@@ -154,8 +122,7 @@ export const lsSetNum = (key: LsStorageKey, value: number) => {
 
 export const lsBool = (key: LsStorageKey, fallback: boolean) => {
   const storage = getLocalStorage()
-  const normalized = ensureMigratedKey(storage, key)
-  return readBoolFromStorage(normalized.storage, normalized.key, fallback)
+  return readBoolFromStorage(storage, key, fallback)
 };
 
 export const lsSetBool = (key: LsStorageKey, value: boolean) => {
@@ -165,8 +132,7 @@ export const lsSetBool = (key: LsStorageKey, value: boolean) => {
 
 export const lsInt = (key: LsStorageKey, fallback: number) => {
   const storage = getLocalStorage()
-  const normalized = ensureMigratedKey(storage, key)
-  return readIntFromStorage(normalized.storage, normalized.key, fallback)
+  return readIntFromStorage(storage, key, fallback)
 };
 
 export const lsSetInt = (key: LsStorageKey, value: number, opts?: { min?: number; max?: number }) => {
@@ -176,8 +142,7 @@ export const lsSetInt = (key: LsStorageKey, value: number, opts?: { min?: number
 
 export const lsJson = <T>(key: LsStorageKey, fallback: T, parse: (raw: unknown) => T | null) => {
   const storage = getLocalStorage()
-  const normalized = ensureMigratedKey(storage, key)
-  return readJsonFromStorage(normalized.storage, normalized.key, fallback, parse)
+  return readJsonFromStorage(storage, key, fallback, parse)
 };
 
 export const lsSetJson = <T>(key: LsStorageKey, value: T) => {
@@ -222,7 +187,7 @@ export const ssString = (
 export const ssSetString = (
   key: SessionStorageKey | StorageChannelKey,
   value: string,
-): string => {
+  ): string => {
   const storage = getSessionStorage()
   const next = String(value ?? '')
   if (!storage) return next

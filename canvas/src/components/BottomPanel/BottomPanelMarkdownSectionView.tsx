@@ -264,8 +264,8 @@ export function BottomPanelMarkdownSectionView(
             onToggleSidebar={() => handleToggleSidebar(!showSidebar)}
             onToggleEdit={() => {
               const nextIsEditing = !isEditing
-              setMarkdownLayoutMode(nextIsEditing ? 'editor' : 'viewer')
               if (nextIsEditing) {
+                setMarkdownLayoutMode('editor')
                 // When toggling to editor, try to sync scroll to current viewer position
                 // We can use the start line of the visible range
                 const targetLine =
@@ -281,9 +281,54 @@ export function BottomPanelMarkdownSectionView(
                   } as React.UIEvent<HTMLDivElement>)
                 }
               } else {
+                const editorHandle = editorTextAreaRef.current
+                const fallbackTextarea =
+                  !editorHandle && typeof document !== 'undefined'
+                    ? (document.querySelector('textarea') as HTMLTextAreaElement | null)
+                    : null
+                const editorScrollable = editorHandle
+                  ? Math.max(0, editorHandle.getScrollHeight() - editorHandle.getClientHeight())
+                  : fallbackTextarea
+                    ? Math.max(0, fallbackTextarea.scrollHeight - fallbackTextarea.clientHeight)
+                    : 0
+                const scrollRatio =
+                  editorHandle && editorScrollable > 0
+                    ? editorHandle.getScrollTop() / editorScrollable
+                    : fallbackTextarea && editorScrollable > 0
+                      ? fallbackTextarea.scrollTop / editorScrollable
+                      : null
+
+                setMarkdownLayoutMode('viewer')
                 // Trigger sync from editor to viewer
                 if (syncViewerFromEditor) {
+                    const raf =
+                      typeof window !== 'undefined' && window.requestAnimationFrame
+                        ? window.requestAnimationFrame.bind(window)
+                        : (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+                  let attempts = 0
+                  const apply = () => {
+                    attempts += 1
+                    const viewerEl =
+                      viewerRef.current ||
+                      (typeof document !== 'undefined'
+                        ? (document.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null)
+                        : null)
+                    if (viewerEl && scrollRatio != null) {
+                      const viewerScrollable = Math.max(0, viewerEl.scrollHeight - viewerEl.clientHeight)
+                      const clamped = Math.min(1, Math.max(0, scrollRatio))
+                      if (viewerScrollable > 0) {
+                        viewerEl.scrollTop = clamped * viewerScrollable
+                        syncViewerFromEditor()
+                        return
+                      }
+                    }
+                    if (attempts < 8) {
+                      raf(() => apply())
+                      return
+                    }
                     syncViewerFromEditor()
+                  }
+                  raf(() => apply())
                 }
               }
             }}

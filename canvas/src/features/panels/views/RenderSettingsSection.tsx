@@ -5,14 +5,11 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphBehavior, GraphSchema } from '@/lib/graph/schema'
-import type { GraphData } from '@/lib/graph/types'
 import { RUN_CODEBASE_INDEX_PIPELINE_LABEL } from '@/lib/config'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
 import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSection'
-import RenderTreeSettingsRows from '@/features/panels/views/RenderTreeSettingsRows'
-import { type TreeLod } from '@/features/panels/views/RenderTreeSettingsRowsTypes'
 import MediaNodesSection from '@/features/panels/views/MediaNodesSection'
 
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>
@@ -56,7 +53,6 @@ export default function RenderSettingsSection({
   const setEdgeArrow = useGraphStore(s => s.setEdgeArrow)
   const setSelectMode = useGraphStore(s => s.setSelectMode)
   const setCreateMode = useGraphStore(s => s.setCreateMode)
-  const data = useGraphStore(s => s.graphData)
 
   const [pipelineStatus, setPipelineStatus] = React.useState<string | null>(null)
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -78,35 +74,7 @@ export default function RenderSettingsSection({
   )
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-    schema.layout?.mode === 'radial' || schema.layout?.mode === 'tree' ? schema.layout.mode : 'force'
-  const treeCfg = schema.layout?.tree || {}
-  const treeLod = (schema.performance?.lod?.tree || {}) as TreeLod
-  const treeEdgeLabelsText = React.useMemo(() => (treeCfg.edgeLabels || []).join(', '), [treeCfg.edgeLabels])
-  const treeEdgeLabelSuggestion = React.useMemo(() => {
-    const graph = data as GraphData | null
-    const edges = Array.isArray(graph?.edges) ? graph!.edges : []
-    if (!edges.length) return null
-    const counts = new Map<string, number>()
-    for (let i = 0; i < edges.length; i += 1) {
-      const l = String(edges[i].label ?? '').trim()
-      if (!l) continue
-      counts.set(l, (counts.get(l) || 0) + 1)
-    }
-    if (counts.size === 0) return null
-    let bestLabel: string | null = null
-    let bestCount = -1
-    counts.forEach((count, label) => {
-      if (count > bestCount) {
-        bestLabel = label
-        bestCount = count
-        return
-      }
-      if (count === bestCount && bestLabel && label.localeCompare(bestLabel) < 0) {
-        bestLabel = label
-      }
-    })
-    return bestLabel ? { label: bestLabel, count: bestCount } : null
-  }, [data])
+    schema.layout?.mode === 'radial' ? schema.layout.mode : 'force'
 
   const setLayoutMode = React.useCallback(
     (mode: NonNullable<NonNullable<GraphSchema['layout']>['mode']>) => {
@@ -117,24 +85,6 @@ export default function RenderSettingsSection({
     [schema, setSchema],
   )
 
-  const updateTree = React.useCallback(
-    (patch: Partial<typeof treeCfg>) => {
-      const currentLayout = schema.layout || {}
-      const currentTree = currentLayout.tree || {}
-      const next = {
-        ...schema,
-        layout: {
-          ...currentLayout,
-          tree: {
-            ...currentTree,
-            ...patch,
-          },
-        },
-      }
-      setSchema(next as GraphSchema)
-    },
-    [schema, setSchema],
-  )
 
   const setHideLabelsBelowScale = React.useCallback(
     (scale: number) => {
@@ -150,26 +100,6 @@ export default function RenderSettingsSection({
     [schema, setSchema],
   )
 
-  const updateTreeLod = React.useCallback(
-    (updater: (cur: TreeLod) => TreeLod | null) => {
-      const currentLod = schema.performance?.lod || {}
-      const currentTree = (currentLod.tree || {}) as TreeLod
-      const nextTree = updater(currentTree)
-      const nextLod = {
-        ...currentLod,
-        tree: nextTree || undefined,
-      }
-      const next = {
-        ...schema,
-        performance: {
-          ...schema.performance,
-          lod: nextLod,
-        },
-      }
-      setSchema(next as GraphSchema)
-    },
-    [schema, setSchema],
-  )
 
   const setFitPadding = React.useCallback(
     (value: number) => {
@@ -177,6 +107,76 @@ export default function RenderSettingsSection({
       const curLayout = current.layout || {}
       const next = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : (curLayout.fitPadding ?? 80)
       setSchema({ ...current, layout: { ...curLayout, fitPadding: next } })
+    },
+    [schema, setSchema],
+  )
+
+  const setRectNodeMaxZoomMinimapWidthRatio = React.useCallback(
+    (value: number | null) => {
+      const current = schema
+      const curLayout = current.layout || {}
+      const curRect = curLayout.rectNodes || {}
+      if (value === null) {
+        const nextRect = { ...curRect } as { maxZoomMinimapWidthRatio?: number; maxZoomMinimapHeightRatio?: number }
+        delete nextRect.maxZoomMinimapWidthRatio
+        delete nextRect.maxZoomMinimapHeightRatio
+        const hasAny = Object.values(nextRect).some(v => v !== undefined)
+        setSchema({
+          ...current,
+          layout: {
+            ...curLayout,
+            rectNodes: hasAny ? nextRect : undefined,
+          },
+        })
+        return
+      }
+      const widthRatio = Math.max(1, Math.min(50, value))
+      const heightRatio = widthRatio / 2
+      const nextRect = { ...curRect, maxZoomMinimapWidthRatio: widthRatio, maxZoomMinimapHeightRatio: heightRatio }
+      const hasAny = Object.values(nextRect).some(v => v !== undefined)
+      setSchema({
+        ...current,
+        layout: {
+          ...curLayout,
+          rectNodes: hasAny ? nextRect : undefined,
+        },
+      })
+    },
+    [schema, setSchema],
+  )
+
+  const setRectNodeMaxZoomMinimapHeightRatio = React.useCallback(
+    (value: number | null) => {
+      const current = schema
+      const curLayout = current.layout || {}
+      const curRect = curLayout.rectNodes || {}
+      if (value === null) {
+        const nextRect = { ...curRect } as { maxZoomMinimapWidthRatio?: number; maxZoomMinimapHeightRatio?: number }
+        delete nextRect.maxZoomMinimapWidthRatio
+        delete nextRect.maxZoomMinimapHeightRatio
+        const hasAny = Object.values(nextRect).some(v => v !== undefined)
+        setSchema({
+          ...current,
+          layout: {
+            ...curLayout,
+            rectNodes: hasAny ? nextRect : undefined,
+          },
+        })
+        return
+      }
+      const rawHeight = Math.max(0.5, Math.min(25, value))
+      const rawWidth = rawHeight * 2
+      const widthRatio = Math.max(1, Math.min(50, rawWidth))
+      const heightRatio = widthRatio / 2
+      const nextRect = { ...curRect, maxZoomMinimapWidthRatio: widthRatio, maxZoomMinimapHeightRatio: heightRatio }
+      const hasAny = Object.values(nextRect).some(v => v !== undefined)
+      setSchema({
+        ...current,
+        layout: {
+          ...curLayout,
+          rectNodes: hasAny ? nextRect : undefined,
+        },
+      })
     },
     [schema, setSchema],
   )
@@ -398,16 +398,15 @@ export default function RenderSettingsSection({
                       onChange={e => {
                         const raw = e.target.value
                         const next: typeof layoutMode =
-                          raw === 'radial' || raw === 'tree' ? raw : 'force'
+                          raw === 'radial' ? 'radial' : 'force'
                         setLayoutMode(next)
-                        if (next === 'radial' || next === 'tree') {
+                        if (next === 'radial') {
                           setCanvasRenderMode('2d')
                         }
                       }}
                     >
                       <option value="force">force</option>
                       <option value="radial">radial</option>
-                      <option value="tree">tree</option>
                     </select>
                   </RightAlignedValueCell>
                 )}
@@ -432,6 +431,74 @@ export default function RenderSettingsSection({
               <KeyTypeValueRow
                 layout="keyValue"
                 density="compact"
+                keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.rectNodes.maxZoomMinimapWidthRatio</span>}
+                valueNode={(
+                  <RightAlignedValueCell>
+                    <input
+                      type="number"
+                      step={0.5}
+                      min={1}
+                      max={50}
+                      className={uiPanelKeyValueInputClass}
+                      value={
+                        typeof schema.layout?.rectNodes?.maxZoomMinimapWidthRatio === 'number'
+                          ? schema.layout.rectNodes.maxZoomMinimapWidthRatio
+                          : typeof schema.layout?.rectNodes?.maxZoomMinimapHeightRatio === 'number'
+                              ? schema.layout.rectNodes.maxZoomMinimapHeightRatio * 2
+                              : ''
+                      }
+                      placeholder="5"
+                      onChange={e => {
+                        const rawText = String(e.target.value || '')
+                        if (!rawText.trim()) {
+                          setRectNodeMaxZoomMinimapWidthRatio(null)
+                          return
+                        }
+                        const raw = parseFloat(rawText)
+                        if (!Number.isFinite(raw)) return
+                        setRectNodeMaxZoomMinimapWidthRatio(raw)
+                      }}
+                    />
+                  </RightAlignedValueCell>
+                )}
+              />
+              <KeyTypeValueRow
+                layout="keyValue"
+                density="compact"
+                keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.rectNodes.maxZoomMinimapHeightRatio</span>}
+                valueNode={(
+                  <RightAlignedValueCell>
+                    <input
+                      type="number"
+                      step={0.5}
+                      min={0.5}
+                      max={25}
+                      className={uiPanelKeyValueInputClass}
+                      value={
+                        typeof schema.layout?.rectNodes?.maxZoomMinimapWidthRatio === 'number'
+                          ? schema.layout.rectNodes.maxZoomMinimapWidthRatio / 2
+                          : typeof schema.layout?.rectNodes?.maxZoomMinimapHeightRatio === 'number'
+                              ? schema.layout.rectNodes.maxZoomMinimapHeightRatio
+                              : ''
+                      }
+                      placeholder="2.5"
+                      onChange={e => {
+                        const rawText = String(e.target.value || '')
+                        if (!rawText.trim()) {
+                          setRectNodeMaxZoomMinimapHeightRatio(null)
+                          return
+                        }
+                        const raw = parseFloat(rawText)
+                        if (!Number.isFinite(raw)) return
+                        setRectNodeMaxZoomMinimapHeightRatio(raw)
+                      }}
+                    />
+                  </RightAlignedValueCell>
+                )}
+              />
+              <KeyTypeValueRow
+                layout="keyValue"
+                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.lod.hideLabelsBelowScale</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -446,20 +513,6 @@ export default function RenderSettingsSection({
                   </RightAlignedValueCell>
                 )}
               />
-              {layoutMode === 'tree' ? (
-        <RenderTreeSettingsRows
-          treeCfg={treeCfg}
-          treeLod={treeLod}
-          treeEdgeLabelsText={treeEdgeLabelsText}
-          treeEdgeLabelSuggestion={treeEdgeLabelSuggestion}
-          updateTree={updateTree}
-          updateTreeLod={updateTreeLod}
-          uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
-          uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
-          uiPanelTextFontClass={uiPanelTextFontClass}
-        />
-      ) : null}
             </div>
           </div>
         </div>

@@ -1,4 +1,6 @@
 import React from 'react'
+import { readFileSync } from 'node:fs'
+import { basename, resolve } from 'node:path'
 import { createRoot } from 'react-dom/client'
 import { LS_KEYS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -201,11 +203,7 @@ export async function testJsonMarkdownModeWithExternalJsonFiles() {
       })
 
     const paths: string[] = [
-      '/Users/huijoohwee/Documents/GitHub/joohwee/aisg-aiap22/eda-mlp-extended-path-v2.1.json',
-      '/Users/huijoohwee/Documents/GitHub/joohwee/aisg-aiap22/eda-mlp-extended-path.json',
-      '/Users/huijoohwee/Documents/GitHub/joohwee/aisg-aiap22/eda-mlp-interview-session.json',
-      '/Users/huijoohwee/Documents/GitHub/joohwee/aisg-aiap22/eda-mlp-path.json',
-      '/Users/huijoohwee/Documents/GitHub/joohwee/aisg-aiap22/interviewer-v1.jsonld',
+      resolve(process.cwd(), '..', 'data', 'test-data', 'eda-mlp-path.json'),
     ]
 
     const initialMode: JsonToMarkdownMode = 'table'
@@ -217,8 +215,8 @@ export async function testJsonMarkdownModeWithExternalJsonFiles() {
     await tick()
 
     for (const path of paths) {
-      const name = path.split('/').pop() || path
-      const text = await fetch(path).then(r => r.text())
+      const name = basename(path)
+      const text = readFileSync(path, 'utf8')
       if (!text.trim()) {
         continue
       }

@@ -4,6 +4,7 @@ import {
   splitMarkdownLines,
 } from '@/lib/markdown'
 import { normalizeGitHubBlobLikeUrl } from '@/lib/url'
+import { AGENTIC_RAG_SCHEMA_URL } from '@/lib/agenticrag'
 import {
   slugify,
   extractMarkdownInlineRefs,
@@ -376,8 +377,8 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     '@version': 1.1,
     '@language': 'en-us',
     rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
-    kg: 'https://huijoohwee.github.io/schema/AgenticRAG/v1/kg#',
-    rag: 'https://huijoohwee.github.io/schema/AgenticRAG/v1/rag#',
+    kg: `${AGENTIC_RAG_SCHEMA_URL}/v1/kg#`,
+    rag: `${AGENTIC_RAG_SCHEMA_URL}/v1/rag#`,
     prov: 'http://www.w3.org/ns/prov#',
     name: 'rdfs:label',
     chunk_text: 'rag:chunk_text',

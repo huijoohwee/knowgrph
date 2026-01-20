@@ -1,5 +1,9 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
+import {
+  getCodebasePathFromMetadata as getCodebasePathFromMetadataRaw,
+  getDocumentPathFromMetadata as getDocumentPathFromMetadataRaw,
+} from '@/lib/graph/documentMetadata'
 
 export type GraphDataTableBaseColumnKey =
   | 'kind'
@@ -164,32 +168,11 @@ export function stringifyPreview(value: unknown): string {
 }
 
 export function getCodebasePathFromMetadata(metadata: unknown): string {
-  if (!metadata || typeof metadata !== 'object') return ''
-  const value = (metadata as Record<string, unknown>)['codebasePath']
-  if (typeof value !== 'string') return ''
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  return trimmed
-}
-
-const stripLineFragment = (value: string): string => {
-  const raw = String(value || '').trim()
-  if (!raw) return ''
-  const hashIndex = raw.indexOf('#')
-  if (hashIndex < 0) return raw
-  return raw.slice(0, hashIndex).trim() || ''
+  return getCodebasePathFromMetadataRaw(metadata) || ''
 }
 
 export function getDocumentPathFromMetadata(metadata: unknown): string {
-  if (!metadata || typeof metadata !== 'object') return ''
-  const record = metadata as Record<string, unknown>
-  const primaryRaw = typeof record.documentPath === 'string' ? record.documentPath.trim() : ''
-  const primary = primaryRaw ? stripLineFragment(primaryRaw) : ''
-  if (primary) return primary
-  const fallbackRaw = typeof record.codebaseRelPath === 'string' ? record.codebaseRelPath.trim() : ''
-  const fallback = fallbackRaw ? stripLineFragment(fallbackRaw) : ''
-  if (fallback) return fallback
-  return ''
+  return getDocumentPathFromMetadataRaw(metadata) || ''
 }
 
 export function getRowFieldText(row: UnifiedRow, key: GraphDataTableColumnKey): string {

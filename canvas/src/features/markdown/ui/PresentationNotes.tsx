@@ -32,8 +32,6 @@ export function PresentationNotes(props: PresentationNotesProps) {
                 highlightedLineRange={null}
                 markdownWordWrap={true}
                 markdownPresentationMode={false}
-                alwaysOnHighlightMode={false}
-                alwaysOnTokenHighlights={null}
                 markdownTextHighlight={false}
                 selectionKind={null}
                 previewOverlayScope={previewOverlayScope ?? 'viewport'}

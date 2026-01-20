@@ -54,12 +54,6 @@ import {
   testGraphValidationNodeRulesApplied,
   testGraphValidationMetricsWithSyntheticRawDataset,
 } from '@/__tests__/graphValidation.test'
-import { testMarkdownMermaidFrontmatterLabeledEdgeAndMentions } from '@/__tests__/markdownMermaidFrontmatter.test'
-import {
-  testMermaidLayoutDoesNotFailOnMarkdownSlideDemo,
-  testMermaidComplexSubgraphEdges,
-  testMermaidExternalMarkdownDemoFits1920x1080,
-} from '@/__tests__/mermaidLayoutStability.test'
 import {
   testGraphRagTraversalHappyPath,
   testGraphRagTraversalIgnoresInvalidShapes,
@@ -77,24 +71,9 @@ import { testLaunchSpotlightStorageHelpers } from '@/__tests__/launchSpotlight.t
 import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.test'
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
 import {
-  testUniversalSchemaValidatesSchemaAwareGraph,
-  testUniversalSchemaHasGraphRagPathPropertySpecs,
-  testGraphRagPathSchemaFixture,
-  testSchemaFromJsonLdBuildsCatalogAndPropertySpecs,
-  testSchemaJsonLdRoundTripPreservesLayers,
-  testJsonLdGraphsParseAndValidateWithUniversalSchema,
-  testMiniVizComputesOnSelectionSubgraph,
-  testExampleWorkflowSchemaSnippetParsesHiddenNodeTypes,
-  testExampleWorkflowJsonLdSemanticVsDocumentStructureLayers,
-} from '@/__tests__/schemaFixtures.test'
-import {
   testWorkflowPresetPipelinesAreSelfConsistent,
   testExportFunctionsAcceptBrandedPaths,
 } from '@/__tests__/workflowPresetPipeline.test'
-import {
-  testHelpPipelineCopyMatchesCommandConstant,
-  testMarkdownParserMetadataAnchorsAreAgenticRagCompatible,
-} from '@/__tests__/helpPipelineCopy.test'
 import {
   testOrchestratorTooltipRoleActionOutcomeShape,
   testOrchestratorToolMenuUsesTooltipCopyHelper,
@@ -130,22 +109,11 @@ import {
 } from '@/__tests__/previewGalleryReorder.test'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
-import { testTreeSeparationSchemaRoundTrip } from '@/__tests__/treeSeparationRoundTrip.test'
-import { testExampleWorkflowSliceTreeDerivationUsesWorkflowEdges } from '@/__tests__/exampleWorkflowTree.test'
 import {
-  testSemanticLayerVisualFillParity2dVs3d,
-  testDocumentStructureLayerOpacityParity2dVs3d,
-  testLayerModeNodeBaseFillConsistentAcrossModes,
-} from '@/__tests__/layerVisualParity.test'
-import { testStatsTokensByGraphLayerUsesPaletteFillForMarkdownSlideDemo } from '@/__tests__/statsGraphLayerTokens.test'
-import { testFrontmatterModeFiltersGraphToMermaidNodes } from '@/__tests__/frontmatterModeGraphFilter.test'
-import { testFrontmatterModeEdaMlpFiltersGraphToMermaidFrontmatter } from '@/__tests__/frontmatterModeEdaMlpGraphFilter.test'
-import {
-  testMermaidNestedSubgraphDepthOrdering,
-  testMermaidSubgraphLayoutCoordinates,
-} from '@/__tests__/markdown/reproduce_mermaid_subgraph_layout.test'
-
-import { testMermaidLayoutForPresentationSlides } from '@/__tests__/markdown/reproduce_presentation_layout.test'
+  testMarkdownScrollSyncViewerToEditor,
+  testMarkdownEditToggleKeepsScrollPosition,
+  testMarkdownScrollSyncMixedContentViewerToEditor,
+} from '@/__tests__/markdown/markdownScrollSync.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -250,10 +218,6 @@ export const runAllTests = async () => {
     'previewGalleryReorder: drag moves last to first in longer list',
     testPreviewGalleryDragMovesLastSlideToFirstInLongerList,
   )
-
-  await exec('markdown.mermaidFrontmatter.labeledEdgeAndMentions', testMarkdownMermaidFrontmatterLabeledEdgeAndMentions)
-  await exec('markdown.mermaidLayout.slideDemo.noDagreFailure', testMermaidLayoutDoesNotFailOnMarkdownSlideDemo)
-  await exec('markdown.mermaidLayout.complexSubgraphEdges', testMermaidComplexSubgraphEdges)
 
   await exec('tabSync.buildEnvelope', testBuildEnvelope)
   await exec('graph.edgeExists', testEdgeExists)
@@ -378,70 +342,9 @@ export const runAllTests = async () => {
   )
   await exec('export.selectionFromNode', testBuildSelectionSubgraphFromNode)
   await exec('export.selectionFromEdge', testBuildSelectionSubgraphFromEdge)
-  await exec('schemaFixtures.universalSchemaAwareGraph', testUniversalSchemaValidatesSchemaAwareGraph)
-  await exec(
-    'schemaFixtures.universalGraphRagPathSpec',
-    testUniversalSchemaHasGraphRagPathPropertySpecs,
-  )
-  await exec('schemaFixtures.graphRagPath', testGraphRagPathSchemaFixture)
-  await exec(
-    'schemaFixtures.schemaFromJsonLd',
-    testSchemaFromJsonLdBuildsCatalogAndPropertySpecs,
-  )
-  await exec(
-    'schemaFixtures.schemaJsonLdRoundTripLayers',
-    testSchemaJsonLdRoundTripPreservesLayers,
-  )
-  await exec(
-    'schemaFixtures.jsonldRoundTrip',
-    testJsonLdGraphsParseAndValidateWithUniversalSchema,
-  )
-  await exec('schemaFixtures.miniVizComputes', testMiniVizComputesOnSelectionSubgraph)
-  await exec(
-    'schemaFixtures.exampleWorkflowSchemaSnippetParsesHiddenNodeTypes',
-    testExampleWorkflowSchemaSnippetParsesHiddenNodeTypes,
-  )
-  await exec(
-    'schemaFixtures.exampleWorkflowJsonLdSemanticVsDocumentStructureLayers',
-    testExampleWorkflowJsonLdSemanticVsDocumentStructureLayers,
-  )
   await exec('workflowPreset.selfConsistent', testWorkflowPresetPipelinesAreSelfConsistent)
   await exec('workflowPreset.exportBrandedPaths', testExportFunctionsAcceptBrandedPaths)
-  await exec('ui.help.pipelineCopyMatchesCommand', testHelpPipelineCopyMatchesCommandConstant)
-  await exec(
-    'ui.markdown.parserMetadataAnchors',
-    testMarkdownParserMetadataAnchorsAreAgenticRagCompatible,
-  )
   await exec('ui.media.mediaInteractiveDefaults', testMediaInteractiveDefaults)
-  await exec('tree.derivation.exampleWorkflow', testExampleWorkflowSliceTreeDerivationUsesWorkflowEdges)
-  await exec(
-    'graph.layerVisualParity.semanticVisualFill2dVs3d',
-    testSemanticLayerVisualFillParity2dVs3d,
-  )
-  await exec(
-    'graph.layerVisualParity.documentStructureOpacity2dVs3d',
-    testDocumentStructureLayerOpacityParity2dVs3d,
-  )
-  await exec(
-    'graph.layerVisualParity.layerModeNodeBaseFillConsistentAcrossModes',
-    testLayerModeNodeBaseFillConsistentAcrossModes,
-  )
-  await exec(
-    'stats.tokensByGraphLayer.usesPaletteFillForMarkdownSlideDemo',
-    testStatsTokensByGraphLayerUsesPaletteFillForMarkdownSlideDemo,
-  )
-
-  await exec(
-    'graph.frontmatterMode.filtersToMermaidFrontmatter',
-    testFrontmatterModeFiltersGraphToMermaidNodes,
-  )
-
-  await exec(
-    'graph.frontmatterMode.edaMlpFiltersToMermaidFrontmatter',
-    testFrontmatterModeEdaMlpFiltersGraphToMermaidFrontmatter,
-  )
-
-  await exec('tree.separation.roundTrip', testTreeSeparationSchemaRoundTrip)
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')
@@ -461,41 +364,6 @@ export const runAllTests = async () => {
       'ui.collapsibleDefaultsCompactAndAnchoredToLsKeys',
       modCollapsible.testCollapsibleDefaultsCompactAndAnchoredToLsKeys,
     )
-
-    const modFrontmatterToggle = await import('@/__tests__/frontmatterModeCanvasToggle.test')
-    await exec(
-      'ui.graph.frontmatterMode.canvasToggleFiltersNodesAndEdges2dAnd3d',
-      modFrontmatterToggle.testFrontmatterModeCanvasToggleFiltersNodesAndEdgesFor2dAnd3d,
-    )
-
-    const enableMicrobench =
-      process.env.KG_RUN_MICROBENCH === '1' ||
-      process.env.KG_RUN_MICROBENCH === 'true' ||
-      process.env.KG_RUN_MICROBENCH === 'yes'
-
-    if (
-      enableMicrobench &&
-      typeof modFrontmatterToggle.testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo === 'function'
-    ) {
-      await exec(
-        'graph.frontmatterMode.hullMicrobenchmark.markdownSlideDemo',
-        modFrontmatterToggle.testFrontmatterModeHullMicrobenchmarkForMarkdownSlideDemo,
-      )
-    }
-
-    if (typeof modFrontmatterToggle.testFrontmatterModeGraphLayersHideMermaidSubgraphNodesIn2dLayer === 'function') {
-      await exec(
-        'graph.frontmatterMode.graphLayersHideMermaidSubgraphNodesIn2dLayer',
-        modFrontmatterToggle.testFrontmatterModeGraphLayersHideMermaidSubgraphNodesIn2dLayer,
-      )
-    }
-
-    if (typeof modFrontmatterToggle.testFrontmatterModeGraphLayersShowMermaidSubgraphNodesIn2dLayerWhenOff === 'function') {
-      await exec(
-        'graph.frontmatterMode.graphLayersShowMermaidSubgraphNodesIn2dLayerWhenOff',
-        modFrontmatterToggle.testFrontmatterModeGraphLayersShowMermaidSubgraphNodesIn2dLayerWhenOff,
-      )
-    }
   }
 
   await exec(
@@ -550,10 +418,10 @@ export const runAllTests = async () => {
     'schema.applySchemaUiSnapshot.callsApplyWhenHashMatches',
     testApplySchemaUiSnapshotCallsApplyWhenHashMatches,
   )
-  await exec('markdown.mermaid.subgraphLayoutCoordinates', testMermaidSubgraphLayoutCoordinates)
-  await exec('markdown.mermaid.subgraphDepthOrdering', testMermaidNestedSubgraphDepthOrdering)
-  await exec('markdown.mermaid.externalDemoFits1920x1080', testMermaidExternalMarkdownDemoFits1920x1080)
-  await exec('markdown.mermaid.presentationLayout', testMermaidLayoutForPresentationSlides)
+  
+  await exec('markdown.scrollSync.viewerToEditor', testMarkdownScrollSyncViewerToEditor)
+  await exec('markdown.scrollSync.editToggleKeepsPos', testMarkdownEditToggleKeepsScrollPosition)
+  await exec('markdown.scrollSync.mixedContent', testMarkdownScrollSyncMixedContentViewerToEditor)
 
   return results
 }

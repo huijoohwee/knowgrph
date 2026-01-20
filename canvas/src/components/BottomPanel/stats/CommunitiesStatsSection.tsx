@@ -26,10 +26,8 @@ export default function CommunitiesStatsSection({
   toggleStatsToken,
   pinnedCommunityId,
   setPinnedCommunityId,
-  clearPinnedGraphLayerState,
   clearPinnedEdgeState,
   communitySelectionSnapshotRef,
-  graphLayerSelectionSnapshotRef,
   edgeSelectionSnapshotRef,
   captureSelectionSnapshot,
   restoreSelectionSnapshot,
@@ -54,10 +52,8 @@ export default function CommunitiesStatsSection({
   toggleStatsToken: (token: string) => void
   pinnedCommunityId: number | null
   setPinnedCommunityId: (next: number | null) => void
-  clearPinnedGraphLayerState: () => void
   clearPinnedEdgeState: () => void
   communitySelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
-  graphLayerSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   edgeSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   captureSelectionSnapshot: () => SelectionSnapshot
   restoreSelectionSnapshot: (snap: SelectionSnapshot | null) => void
@@ -99,7 +95,7 @@ export default function CommunitiesStatsSection({
     <CollapsibleSection title="Communities (Louvain)">
       {communities.length === 0 ? (
         <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-600'].join(' ')}>
-          No communities detected. Enable schema.layers.mode=semantic and communityDetection.
+          No communities detected.
         </div>
       ) : (
         <div className="rounded border border-gray-200 bg-white overflow-hidden">
@@ -317,9 +313,7 @@ export default function CommunitiesStatsSection({
                       communitySelectionSnapshotRef.current = null
                       return
                     }
-                    clearPinnedGraphLayerState()
                     clearPinnedEdgeState()
-                    graphLayerSelectionSnapshotRef.current = null
                     edgeSelectionSnapshotRef.current = null
                     if (!communitySelectionSnapshotRef.current) {
                       communitySelectionSnapshotRef.current = captureSelectionSnapshot()

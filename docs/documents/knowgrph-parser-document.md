@@ -10,15 +10,15 @@
 - Entry: [default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts)
 - Output: JSON‑LD graph materialized into `GraphData` via `parseJsonLd`.
 - Layer metadata:
-  - When JSON‑LD originates from the markdown CLI (`knowgrph_parser.markdown_cmd` / `graph_builder.parse_markdown_to_graph_jsonld`), `metadata.layers` declares three neutral layer modes for downstream rendering:
+  - When JSON‑LD originates from the markdown CLI (`knowgrph_parser.markdown_cmd` / `graph_builder.parse_markdown_to_graph_jsonld`), `graph_jsonld.metadata.layers` provides neutral hints that downstream tools can map into renderer behavior:
     - `semantic`: treats `Entity` nodes with co-occurrence edges (for example, `coOccursWith`) as a semantic similarity graph using PMI-derived weights and community identifiers.
-    - `documentStructure`: surfaces structural node types (`Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, `Table`) and structural edge labels (`hasSection`, `hasBlock`, `hasItem`, `next`, `linksTo`) for layout-aware views.
-    - `property`: keeps nodes and edges as emitted by the parser, using `properties` as the container for node and edge attributes without additional semantic derivations.
-  - `metadata.defaultLayer` is set to `"semantic"` for markdown graphs so canvas layer toggles can treat semantic mode as the default without hardcoding per dataset.
+    - `documentStructure`: lists structural node types (`Document`, `Section`, `Paragraph`, `List`, `ListItem`, `CodeBlock`, `Table`) and structural edge labels (`hasSection`, `hasBlock`, `hasItem`, `next`, `linksTo`) for document-centric views.
+  - Canvas rendering uses `schema.layers.mode` (`document` | `schema` | `semantic`) to choose the active layer mode. Legacy graph metadata values such as `defaultLayer = "document-structure"` or `"property"` are normalized by the client into the current contract.
+  - `metadata.defaultLayer` is typically set to `"semantic"` for markdown graphs so canvas defaults can remain dataset-agnostic.
   - Schema-config generation (`build_schema_config_jsonld`) reads these hints and copies them into `schema-config.metadata.layersFromGraph` and `schema-config.metadata.defaultLayerFromGraph`, then uses them to seed `schema-config.metadata.layers`:
     - `layers.semantic.similarityMetric` defaults to `"pmi"` and `layers.semantic.similarityEdgeLabel` adopts the parser’s `semantic.edgeLabel` (for example, `"coOccursWith"`).
-    - `layers.semantic.hiddenNodeTypes` can be initialized from `metadata.layers.semantic.nodeTypes` so semantic mode can downweight or hide structural types while leaving document-structure and property layers neutral.
-    - `layers.documentStructure.structuralNodeTypes` and `layers.documentStructure.structuralEdgeLabels` are initialized from `metadata.layers.documentStructure` node/edge lists, keeping document-structure mode aligned with parser-emitted structure.
+    - `layers.semantic.hiddenNodeTypes` can be initialized from `metadata.layers.semantic.nodeTypes` so semantic mode can downweight or hide structural types while leaving other layer modes neutral.
+    - `layers.documentStructure.structuralNodeTypes` and `layers.documentStructure.structuralEdgeLabels` are initialized from `metadata.layers.documentStructure` node/edge lists.
   - For quick inspection without writing artifacts, the markdown CLI exposes:
     - `python -m knowgrph_parser markdown --input docs/documents/knowgrph-parser-document.md --print-schema-layers`
     - This command prints only `schema-config.metadata.layers` derived from the parser-emitted graph metadata and exits.
@@ -77,6 +77,9 @@
 ## JSON‑LD and JSON Parsers (Client-Side)
 
 - Entry: [default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts)
+- Unified parse entrypoint:
+  - `parseGraph(name, text)` is the single parsing surface for `.csv`, graph-shaped `.json`, JSON‑LD, n8n workflows, and GraphRAG bundles ([adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)).
+  - `parseTextToGraph(name, text)` remains as a compatibility wrapper and delegates to `parseGraph` so worker and non-worker paths cannot drift.
 - JSON‑LD parser spec (`jsonldSpec`):
   - Uses `parseJsonLd` to turn any structurally valid JSON‑LD document into `GraphData`.
   - Treats `@graph` as the node/edge universe, applies AgenticRAG context handling when `@context` matches the canonical URL, and preserves all node and edge properties without dataset‑specific assumptions.

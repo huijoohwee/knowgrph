@@ -58,12 +58,20 @@ export const applyRadialClusterLayout = (
   if (!components.length) return
   const treeRoot: RadialClusterNode =
     components.length === 1 ? components[0] : { id: '__root__', children: components }
-  const size = Math.max(1, Math.min(width, height))
-  const padding = schema.layout?.fitPadding ?? 80
+  const viewW = Math.max(1, width)
+  const viewH = Math.max(1, height)
+  const frameW = Math.min(1920, viewW)
+  const frameH = Math.min(1080, viewH)
+  const size = Math.max(1, Math.min(frameW, frameH))
+  const paddingRaw = schema.layout?.fitPadding
+  const padding =
+    typeof paddingRaw === 'number' && Number.isFinite(paddingRaw)
+      ? Math.max(20, Math.min(160, paddingRaw))
+      : 80
   const maxRadius = Math.max(10, size / 2 - Math.max(0, padding))
   if (!Number.isFinite(maxRadius) || maxRadius <= 0) return
-  const centerX = Math.max(1, width) / 2
-  const centerY = Math.max(1, height) / 2
+  const centerX = viewW / 2
+  const centerY = viewH / 2
   const root = d3.hierarchy<RadialClusterNode>(treeRoot)
   const cluster = d3.cluster<RadialClusterNode>().size([2 * Math.PI, maxRadius])
   cluster(root)

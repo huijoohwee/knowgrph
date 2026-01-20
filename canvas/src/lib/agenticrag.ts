@@ -8,9 +8,17 @@ const readViteEnvString = (key: string): string => {
 
 const normalizeUrlBase = (value: string): string => value.replace(/\/+$/, '')
 
-const agenticRagSchemaBase = normalizeUrlBase(
-  readViteEnvString('VITE_AGENTIC_RAG_SCHEMA_URL') || 'https://huijoohwee.github.io/schema/AgenticRAG',
-)
+const resolveAgenticRagSchemaBase = (): string => {
+  const envValue = readViteEnvString('VITE_AGENTIC_RAG_SCHEMA_URL')
+  if (envValue) return envValue
+  const maybeLocation = (globalThis as { location?: { origin?: string } }).location
+  if (maybeLocation && typeof maybeLocation.origin === 'string' && maybeLocation.origin) {
+    return `${maybeLocation.origin}/schema/AgenticRAG`
+  }
+  return '/schema/AgenticRAG'
+}
+
+const agenticRagSchemaBase = normalizeUrlBase(resolveAgenticRagSchemaBase())
 
 export const AGENTIC_RAG_SCHEMA_URL = agenticRagSchemaBase
 
@@ -22,7 +30,7 @@ export const AGENTIC_RAG_EDGE_SCHEMA_URL = `${agenticRagSchemaBase}/edge-schema.
 
 export const AGENTIC_RAG_GRAPH_SCHEMA_URL = `${agenticRagSchemaBase}/graph-schema.jsonld`
 
-export const AGENTIC_RAG_GRAPH_RAG_PATH_IRI = 'https://huijoohwee.github.io/schema/AgenticRAG/v1/rag#graphRAGPath'
+export const AGENTIC_RAG_GRAPH_RAG_PATH_IRI = `${agenticRagSchemaBase}/v1/rag#graphRAGPath`
 
 export const AGENTIC_RAG_NODE_TYPE_IRI = 'kg:Node'
 

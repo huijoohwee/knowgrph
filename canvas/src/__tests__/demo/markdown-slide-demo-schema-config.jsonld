@@ -1,6 +1,6 @@
 {
   "@context": {
-    "@vocab": "https://huijoohwee.github.io/knowgrph#",
+    "@vocab": "https://example.org/graph#",
     "kg": "http://example.org/kg#",
     "schema": "https://schema.org/",
     "name": "schema:name",
@@ -9,7 +9,7 @@
   },
   "@type": "kg:SchemaConfig",
   "metadata": {
-    "agenticRagSchema": "https://huijoohwee.github.io/schema/AgenticRAG",
+    "agenticRagSchema": "/schema/AgenticRAG",
     "renderer:palette": {
       "nodes": {
         "idea": "#2563EB",
@@ -50,10 +50,9 @@
     }
   },
   "layers": {
-    "mode": "document-structure",
+    "mode": "document",
     "documentStructure": {
       "minGroupSize": 2
     }
   }
 }
-

@@ -1,10 +1,11 @@
 import * as d3 from 'd3'
 import type { RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
-import { type GraphSchema, getNodeRadiusFromSchema, getThreeConfig, getRendererPalette, getAgenticRagTagColor } from '@/lib/graph/schema'
+import { type GraphSchema, getNodeRadiusFromSchema, getThreeConfig } from '@/lib/graph/schema'
 import { getAdjacencyMap } from '@/components/GraphCanvas/utils'
 import { coerceMediaUrl } from '@/lib/url'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
+import { getEdgeBaseStroke as getEdgeBaseStrokeRaw, getNodeBaseFill as getNodeBaseFillRaw } from '@/lib/graph/visualStyles'
 
 function getBottomPanelHeightPx(): number {
   if (typeof window === 'undefined') return 0
@@ -124,7 +125,6 @@ export function getNodeRadius(d: GraphNode, schema: GraphSchema): number {
 }
 
 export function getRenderNodeRadius2d(node: GraphNode, schema: GraphSchema): number {
-  const isTree = schema.layout?.mode === 'tree'
   const props = (node.properties || {}) as Record<string, unknown>
   const rawSize = props['visual:nodeSize']
   if (typeof rawSize === 'number' && Number.isFinite(rawSize) && rawSize > 0) {
@@ -140,21 +140,7 @@ export function getRenderNodeRadius2d(node: GraphNode, schema: GraphSchema): num
       if (Number.isFinite(clamped) && clamped > 0) return clamped
     }
   }
-
-  if (!isTree) return getNodeRadiusFromSchema(node, schema)
-
-  const configured = schema.layout?.tree?.nodeRadius
-  if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) {
-    return configured
-  }
-
-  const fallbackRadius = schema.nodeSizes?.[node.type]?.radius
-  if (typeof fallbackRadius === 'number' && Number.isFinite(fallbackRadius) && fallbackRadius > 0) {
-    return fallbackRadius
-  }
-
-  if (sizingFormula === 'importance') return getNodeRadiusFromSchema(node, schema)
-  return 2.5
+  return getNodeRadiusFromSchema(node, schema)
 }
 
 export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number {
@@ -162,7 +148,7 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
   const baseFromSchema =
     typeof styles.width === 'number' && Number.isFinite(styles.width) && styles.width > 0
       ? styles.width
-      : (schema.layout?.mode === 'tree' || schema.layout?.mode === 'mermaid' ? 1.5 : 2)
+      : 2
   const props = edge.properties || {}
   const threeCfg = getThreeConfig(schema)
   const formula = threeCfg.edgeWidthFormula || 'schema'
@@ -191,110 +177,7 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
 }
 
 export function getEdgeBaseStroke(edge: GraphEdge, schema: GraphSchema): string {
-  const props = (edge.properties || {}) as Record<string, unknown>
-  const visualStroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke']).trim() : ''
-  if (visualStroke) return visualStroke
-  const visualColor = typeof props['visual:color'] === 'string' ? String(props['visual:color']).trim() : ''
-  if (visualColor) return visualColor
-  const byLabel = schema.edgeStyles?.[edge.label]?.color
-  const c = typeof byLabel === 'string' ? byLabel.trim() : ''
-  if (c) return c
-  return getRendererPalette(schema).edges.neutral
-}
-
-function getMermaidRenderCoord(node: GraphNode, axis: 'x' | 'y'): number {
-  const v = axis === 'x' ? node.x : node.y
-  if (typeof v === 'number' && Number.isFinite(v)) return v
-  const props = (node.properties || {}) as Record<string, unknown>
-  const visual = props[`visual:${axis}`]
-  if (typeof visual === 'number' && Number.isFinite(visual)) return visual
-  return 0
-}
-
-export function compareMermaidNodesForRender(a: GraphNode, b: GraphNode, schema: GraphSchema): number {
-  const renderOrder = schema.layout?.mermaid?.renderOrder?.nodes ?? 'yx'
-  const ta = String(a.type || '')
-  const tb = String(b.type || '')
-  const pa = ta === 'MermaidSubgraph' ? 0 : ta === 'MermaidNode' ? 1 : 2
-  const pb = tb === 'MermaidSubgraph' ? 0 : tb === 'MermaidNode' ? 1 : 2
-  if (pa !== pb) return pa - pb
-  if (ta === 'MermaidSubgraph' && tb === 'MermaidSubgraph') {
-    const getDepth = (n: GraphNode): number => {
-      const props = (n.properties || {}) as Record<string, unknown>
-      const raw = props['visual:subgraphDepth']
-      if (typeof raw === 'number' && Number.isFinite(raw)) return raw
-      if (typeof raw === 'string') {
-        const v = Number(raw)
-        if (Number.isFinite(v)) return v
-      }
-      return 0
-    }
-    const da = getDepth(a)
-    const db = getDepth(b)
-    if (da !== db) return da - db
-  }
-  if (renderOrder === 'id') return String(a.id).localeCompare(String(b.id))
-  const ay = getMermaidRenderCoord(a, 'y')
-  const by = getMermaidRenderCoord(b, 'y')
-  if (ay !== by) return ay - by
-  const ax = getMermaidRenderCoord(a, 'x')
-  const bx = getMermaidRenderCoord(b, 'x')
-  if (ax !== bx) return ax - bx
-  return String(a.id).localeCompare(String(b.id))
-}
-
-function getEdgeEndpointId(v: unknown): string {
-  if (typeof v === 'string' || typeof v === 'number') return String(v)
-  if (v && typeof v === 'object' && 'id' in v) {
-    const id = (v as { id?: unknown }).id
-    if (typeof id === 'string' || typeof id === 'number') return String(id)
-  }
-  return ''
-}
-
-export function compareMermaidEdgesForRender(a: GraphEdge, b: GraphEdge, schema: GraphSchema): number {
-  const renderOrder = String(schema.layout?.mermaid?.renderOrder?.edges ?? 'endpoints')
-  if (renderOrder === 'id') return String(a.id).localeCompare(String(b.id))
-  if (renderOrder === 'yx' || renderOrder === 'xy') {
-    const getEdgeCoord = (edge: GraphEdge): { x: number; y: number } => {
-      const props = (edge.properties || {}) as Record<string, unknown>
-      const points = props['visual:points'] as Array<{ x: number; y: number }> | undefined
-      if (!Array.isArray(points) || points.length === 0) return { x: 0, y: 0 }
-      let sx = 0
-      let sy = 0
-      let count = 0
-      for (let i = 0; i < points.length; i += 1) {
-        const p = points[i]
-        const x = typeof p?.x === 'number' ? p.x : null
-        const y = typeof p?.y === 'number' ? p.y : null
-        if (x == null || y == null) continue
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-        sx += x
-        sy += y
-        count += 1
-      }
-      if (count <= 0) return { x: 0, y: 0 }
-      return { x: sx / count, y: sy / count }
-    }
-    const ca = getEdgeCoord(a)
-    const cb = getEdgeCoord(b)
-    if (renderOrder === 'yx') {
-      if (ca.y !== cb.y) return ca.y - cb.y
-      if (ca.x !== cb.x) return ca.x - cb.x
-      return String(a.id).localeCompare(String(b.id))
-    }
-    if (ca.x !== cb.x) return ca.x - cb.x
-    if (ca.y !== cb.y) return ca.y - cb.y
-    return String(a.id).localeCompare(String(b.id))
-  }
-  const as = getEdgeEndpointId(a.source)
-  const at = getEdgeEndpointId(a.target)
-  const bs = getEdgeEndpointId(b.source)
-  const bt = getEdgeEndpointId(b.target)
-  const ka = `${as}->${at}`
-  const kb = `${bs}->${bt}`
-  if (ka !== kb) return ka.localeCompare(kb)
-  return String(a.id).localeCompare(String(b.id))
+  return getEdgeBaseStrokeRaw(edge, schema)
 }
 
 export function getLayerOpacity(d: GraphNode, schema: GraphSchema): number {
@@ -320,25 +203,7 @@ export function getLayerOpacity(d: GraphNode, schema: GraphSchema): number {
 }
 
 export function getNodeBaseFill(d: GraphNode, schema: GraphSchema): string {
-  const props = (d.properties || {}) as Record<string, unknown>
-  const isMermaidNode = schema.layout?.mode === 'mermaid' && String(d.type || '') === 'MermaidNode'
-  const isTransparentish = (v: string): boolean => {
-    const s = v.trim().toLowerCase().replace(/\s+/g, '')
-    if (!s) return false
-    if (s === 'transparent' || s === 'none') return true
-    if (s === 'rgba(0,0,0,0)' || s === 'rgb(0,0,0,0)') return true
-    return false
-  }
-  const visualFill = typeof props['visual:fill'] === 'string' ? String(props['visual:fill']).trim() : ''
-  if (visualFill && !(isMermaidNode && isTransparentish(visualFill))) return visualFill
-  const fill = typeof props['fill'] === 'string' ? String(props['fill']).trim() : ''
-  if (fill && !(isMermaidNode && isTransparentish(fill))) return fill
-  const tagColor = getAgenticRagTagColor(d, schema)
-  if (tagColor) return tagColor
-  const byType = schema.nodeStyles[d.type]?.color
-  if (typeof byType === 'string' && byType.trim()) return byType
-  const palette = getRendererPalette(schema)
-  return palette.nodes.execution
+  return getNodeBaseFillRaw(d, schema)
 }
 
 export type NodeMediaKind = 'image' | 'svg' | 'video' | 'iframe'

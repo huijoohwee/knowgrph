@@ -66,3 +66,6 @@ export const getTooltipPortalTarget = (anchorEl: HTMLElement | null): HTMLElemen
   return doc.body
 }
 
+export const isTooltipRelatedTarget = (value: unknown): boolean => {
+  return value instanceof Element && Boolean(value.closest('[data-kg-tooltip-root="1"]'))
+}

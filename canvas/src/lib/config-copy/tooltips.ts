@@ -85,73 +85,13 @@ export const TRAVERSAL_PRESETS_SECTION_TOOLTIP = buildRoleActionOutcomeTooltip({
 });
 
 export const TRAVERSAL_EDITOR_AND_LAYERS_SECTION_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Traversal editor and Graph Layer',
+  role: 'Traversal editor',
   actions: [
-    'edit traversal delay and traversal helpers over AgenticRAG GraphData while keeping layer mode and graph layers centralized in the Graph Layer tab',
-    'coordinate Orchestrator playback, tracing overlays, and 2D/3D Renderer appearance with schema.layers and graph layer defaults configured from the Graph Layer view',
+    'edit traversal delay and traversal helpers over AgenticRAG GraphData',
+    'coordinate Orchestrator playback with 2D/3D Renderer appearance',
   ],
   outcome:
     'produce readable, repeatable graph navigation tuned to current AgenticRAG graph state.',
-});
-
-export const AI_KG_LAYER_MODE_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'AI‑KG layer mode',
-  actions: [
-    'toggle schema.layers.mode between property, document-structure, and semantic in the Render tab and FloatingPanel Renderer view',
-    'use document-structure and semantic modes to drive convex hull graph layers instead of rendering Document, Section, Paragraph, CodeBlock, List, ListItem, and Table as standalone nodes',
-  ],
-  outcome:
-    'align AI‑KG canvas layering with AgenticRAG-friendly document and semantic group surfaces so exported JSON-LD graphs, graph layers, and traversal overlays share the same schema.layers contract.',
-});
-
-export const AI_KG_SEMANTIC_METRIC_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Semantic similarity metric',
-  actions: [
-    'switch schema.layers.semantic.similarityMetric between cosine similarity and PMI for semantic edges',
-    'make the chosen similarity metric explicit in traversal tooling so semantic overlays remain reproducible and explainable',
-  ],
-  outcome:
-    'keep semantic layer edges grounded in a clearly documented similarity metric so AgenticRAG workflows can reason over PMI- or cosine-based neighborhoods without relying on dataset-specific presets.',
-});
-
-export const AI_KG_SEMANTIC_TOPK_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Semantic edge sparsity',
-  actions: [
-    'tune schema.layers.semantic.topKEdgesPerNode to control how many strongest PMI/cosine neighbors each node keeps in the semantic layer',
-    'balance cluster readability and coverage by limiting edges per node before community detection and graph layer generation',
-  ],
-  outcome:
-    'let curators tighten or relax semantic edge density in a dataset-agnostic way so communities, traversal overlays, and graph layers stay legible without hard-coding graph-specific thresholds.',
-});
-
-export const AI_KG_SEMANTIC_MIN_SIMILARITY_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Semantic similarity threshold',
-  actions: [
-    'adjust schema.layers.semantic.minSimilarity to drop low-signal PMI/cosine edges before Louvain community detection',
-    'shape semantic bands and convex hulls by enforcing a minimum similarity level instead of relying on raw co-occurrence counts',
-  ],
-  outcome:
-    'give AgenticRAG workflows a single, schema-driven similarity cutoff that filters noisy semantic edges across datasets while preserving meaningful neighborhoods for traversal and visualization.',
-});
-
-export const AI_KG_SEMANTIC_EDGE_LABEL_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Semantic similarity label',
-  actions: [
-    'choose schema.layers.semantic.similarityEdgeLabel for derived semantic similarity edges',
-    'separate semantic similarity edges from structural and traversal edges across renderers and exports',
-  ],
-  outcome:
-    'keep semantic layer edges queryable under a single label so AgenticRAG workflows can filter, replay, and export similarity graphs without embedding dataset-specific labels.',
-});
-
-export const AI_KG_SEMANTIC_MERMAID_FILTER_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Mermaid subgraph filter',
-  actions: [
-    'toggle schema.layers.semantic.hiddenNodeTypes to include or exclude MermaidNode in semantic layer views',
-    'treat MermaidNode and pointsTo as a dedicated canvased subgraph derived from markdown frontmatter mermaid blocks',
-  ],
-  outcome:
-    'let curators quickly show or hide Mermaid-derived nodes and pointsTo edges when inspecting semantic overlays without changing core markdown ingestion behavior.',
 });
 
 export const TRAVERSAL_SEQUENCE_TOOLTIP = buildRoleActionOutcomeTooltip({

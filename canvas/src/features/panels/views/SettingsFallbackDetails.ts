@@ -160,12 +160,6 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Launch Spotlight Layout',
     responsibility: 'Top threshold before anchored card flips below target',
   },
-  markdownAlwaysOnHighlightComplexityBudget: {
-    area: 'Markdown Viewer',
-    responsibility: 'Token×entity complexity budget before disabling always-on markdown text highlights',
-    notes:
-      'Units: tokens×(nodes+edges). Higher values keep highlights enabled for larger graphs; lower values disable always-on highlights sooner on large documents or graphs.',
-  },
   chatEndpointUrl: { area: 'Chat', responsibility: 'Chat endpoint URL (OpenAI-compatible)' },
   chatModel: { area: 'Chat', responsibility: 'Chat model name (OpenAI-compatible)' },
   chatTemperature: { area: 'Chat', responsibility: 'Chat completion temperature' },

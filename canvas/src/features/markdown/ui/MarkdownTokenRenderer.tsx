@@ -31,12 +31,6 @@ type MarkdownTokenRendererProps = {
   selectionKind?: 'node' | 'edge' | null
   highlightBackgroundColor?: string | null
   highlightUnderlineColor?: string | null
-  alwaysOnHighlightMode?: boolean
-  alwaysOnTokenHighlights?: {
-    textColor: string | null
-    underlineColor: string | null
-    backgroundColor: string | null
-  }[] | null
   fragmentsEnabled?: boolean
   fragmentStep?: number
   fragmentClassNames?: string[]
@@ -67,8 +61,6 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     selectionKind,
     highlightBackgroundColor,
     highlightUnderlineColor,
-    alwaysOnHighlightMode,
-    alwaysOnTokenHighlights,
     fragmentsEnabled,
     fragmentStep,
     fragmentClassNames,
@@ -123,28 +115,6 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
 
       let highlightClass = ''
       let highlightStyle: React.CSSProperties | undefined
-
-      const alwaysOnSpec =
-        alwaysOnHighlightMode &&
-        Array.isArray(alwaysOnTokenHighlights) &&
-        alwaysOnTokenHighlights[i]
-          ? alwaysOnTokenHighlights[i] || null
-          : null
-
-      if (alwaysOnSpec && (alwaysOnSpec.textColor || alwaysOnSpec.underlineColor || alwaysOnSpec.backgroundColor)) {
-        highlightClass = '-mx-1 px-1 rounded transition-colors duration-300'
-        const bg = alwaysOnSpec.backgroundColor || null
-        const textColor = alwaysOnSpec.textColor || null
-        const underlineColor = alwaysOnSpec.underlineColor || null
-        highlightStyle = {
-          backgroundColor: bg || undefined,
-          color: textColor || undefined,
-          textDecorationLine: underlineColor ? 'underline' : undefined,
-          textDecorationColor: underlineColor || undefined,
-          textDecorationThickness: underlineColor ? '1px' : undefined,
-          textUnderlineOffset: underlineColor ? '1px' : undefined,
-        }
-      }
 
       if (markdownTextHighlight && highlightedLineRange) {
         const tStart = t.startLine

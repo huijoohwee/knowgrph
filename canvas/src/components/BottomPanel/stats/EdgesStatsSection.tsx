@@ -18,10 +18,8 @@ export default function EdgesStatsSection({
   selectedEdgeTokenCounts,
   pinnedEdgeId,
   setPinnedEdgeId,
-  clearPinnedGraphLayerState,
   clearPinnedCommunityState,
   edgeSelectionSnapshotRef,
-  graphLayerSelectionSnapshotRef,
   communitySelectionSnapshotRef,
   captureSelectionSnapshot,
   restoreSelectionSnapshot,
@@ -38,10 +36,8 @@ export default function EdgesStatsSection({
   selectedEdgeTokenCounts: TokenCount[] | null
   pinnedEdgeId: string | null
   setPinnedEdgeId: (next: string | null) => void
-  clearPinnedGraphLayerState: () => void
   clearPinnedCommunityState: () => void
   edgeSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
-  graphLayerSelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   communitySelectionSnapshotRef: React.MutableRefObject<SelectionSnapshot | null>
   captureSelectionSnapshot: () => SelectionSnapshot
   restoreSelectionSnapshot: (snap: SelectionSnapshot | null) => void
@@ -167,9 +163,7 @@ export default function EdgesStatsSection({
                         edgeSelectionSnapshotRef.current = null
                         return
                       }
-                      clearPinnedGraphLayerState()
                       clearPinnedCommunityState()
-                      graphLayerSelectionSnapshotRef.current = null
                       communitySelectionSnapshotRef.current = null
                       if (!edgeSelectionSnapshotRef.current) {
                         edgeSelectionSnapshotRef.current = captureSelectionSnapshot()

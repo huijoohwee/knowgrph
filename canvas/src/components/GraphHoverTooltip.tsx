@@ -9,6 +9,7 @@ import type { GraphFieldKind } from '@/features/graph-fields/graphFields'
 import { FieldTypeBadgeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphHoverPreviewConfig } from '@/hooks/store/types'
+import { truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
 
 export type HoverKind = 'node' | 'edge'
 
@@ -64,12 +65,16 @@ function buildNodeContent(
   uiIconBadgeChipTextSizeClass: string,
   uiPanelMicroLabelTextSizeClass: string,
   config: GraphHoverPreviewConfig,
+  expanded: boolean,
+  onToggleExpanded: (() => void) | null,
 ): React.ReactNode {
   const sorted = sortProps(node.properties || {}, 'node')
   const contentCfg = schema?.behavior?.hover?.content;
   const showProps = contentCfg?.showProps !== false && config.showNodeProperties;
   const showType = contentCfg?.showType !== false && config.showNodeLabel;
   const showId = contentCfg?.showId !== false && config.showNodeId;
+  const desc = config.showNodeDescription && node.properties?.description ? String(node.properties.description) : ''
+  const descText = expanded ? desc : truncateTextWithEllipsis(desc, 280)
 
   return (
     <div>
@@ -86,11 +91,17 @@ function buildNodeContent(
           {node.id}
         </div>
       )}
-      {config.showNodeDescription && node.properties?.description && (
-        <div className={`mt-1 text-xs ${UI_THEME_TOKENS.tooltip.text} break-normal leading-tight max-w-xs`}>
-           {String(node.properties.description)}
-        </div>
-      )}
+      {desc ? (
+        <button
+          type="button"
+          className={`mt-1 text-left ${UI_THEME_TOKENS.tooltip.text} break-words leading-tight w-full`}
+          onClick={onToggleExpanded ?? undefined}
+        >
+          <div className={`${expanded ? 'max-h-[220px] overflow-auto pr-1' : ''} text-xs`}>
+            {descText}
+          </div>
+        </button>
+      ) : null}
       {showProps && sorted.length > 0 && (
         <div className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
@@ -151,6 +162,8 @@ function buildEdgeContent(
   uiIconBadgeChipTextSizeClass: string,
   uiPanelMicroLabelTextSizeClass: string,
   config: GraphHoverPreviewConfig,
+  expanded: boolean,
+  onToggleExpanded: (() => void) | null,
 ): React.ReactNode {
   const sorted = sortProps(edge.properties || {}, 'edge')
   const schemaBadges = buildEdgeSchemaBadges(
@@ -161,14 +174,23 @@ function buildEdgeContent(
   const contentCfg = schema?.behavior?.hover?.content;
   const showProps = contentCfg?.showProps !== false && config.showEdgeProperties;
   const showId = contentCfg?.showId !== false && config.showEdgeId;
+  const descRaw = typeof (edge.properties as Record<string, unknown> | null | undefined)?.description === 'string'
+    ? String((edge.properties as Record<string, unknown>).description || '')
+    : ''
+  const desc = showProps ? descRaw : ''
+  const descText = expanded ? desc : truncateTextWithEllipsis(desc, 280)
 
   return (
     <div>
       <div className="font-semibold">
-        {config.showEdgeLabel && edge.label}
+        {config.showEdgeLabel && (
+          <span className="block truncate hover:whitespace-normal hover:break-words">
+            {edge.label}
+          </span>
+        )}
       </div>
       {config.showEdgeLabel && (
-        <div className="text-xs text-gray-300 break-all">
+        <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
           {String(edge.source)} → {String(edge.target)}
         </div>
       )}
@@ -188,10 +210,21 @@ function buildEdgeContent(
         </div>
       )}
       {showId && (
-        <div className="text-xs text-gray-400 break-all">
+        <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>
           {edge.id}
         </div>
       )}
+      {desc ? (
+        <button
+          type="button"
+          className={`mt-1 text-left ${UI_THEME_TOKENS.tooltip.text} break-words leading-tight w-full`}
+          onClick={onToggleExpanded ?? undefined}
+        >
+          <div className={`${expanded ? 'max-h-[220px] overflow-auto pr-1' : ''} text-xs`}>
+            {descText}
+          </div>
+        </button>
+      ) : null}
       {showProps && sorted.length > 0 && (
         <div className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
@@ -207,15 +240,15 @@ function buildEdgeContent(
                       className={iconClassName}
                     />
                   ) : null}
-                  <span className="text-xs text-gray-300 truncate max-w-[80px]">
+                  <span className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} truncate max-w-[80px]`}>
                     {k}:
                   </span>
-                  <span className="text-xs text-gray-100 break-all">
+                  <span className={`text-xs ${UI_THEME_TOKENS.tooltip.text} break-all`}>
                     {formatPropValue(v)}
                   </span>
                 </div>
                 {description && (
-                  <div className={`${uiPanelMicroLabelTextSizeClass} text-gray-400 leading-tight break-normal`}>
+                  <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.tooltip.textTertiary} leading-tight break-normal`}>
                     {description}
                   </div>
                 )}
@@ -249,9 +282,10 @@ export type GraphHoverTooltipProps = {
   nodes: GraphNode[] | null | undefined;
   edges: GraphEdge[] | null | undefined;
   schema: GraphSchema | null | undefined;
+  onRequestClose?: () => void;
 }
 
-export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schema }: GraphHoverTooltipProps) {
+export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schema, onRequestClose }: GraphHoverTooltipProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconBadgeChipClass = useGraphStore(s => s.uiIconBadgeChipClass)
   const uiIconBadgeChipTextSizeClass = useGraphStore(s => s.uiIconBadgeChipTextSizeClass)
@@ -281,6 +315,15 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
   }, [edges])
   const hoverKind = hoverInfo?.kind
   const hoverId = hoverInfo?.id
+  const [expanded, setExpanded] = React.useState(false)
+  const expandedKeyRef = React.useRef<string | null>(null)
+  React.useEffect(() => {
+    const nextKey = hoverKind && hoverId ? `${hoverKind}:${hoverId}` : null
+    if (expandedKeyRef.current !== nextKey) {
+      expandedKeyRef.current = nextKey
+      setExpanded(false)
+    }
+  }, [hoverKind, hoverId])
   const node = React.useMemo(() => {
     if (hoverKind !== 'node' || !hoverId || !nodeMap) return null
     return nodeMap.get(String(hoverId)) || null
@@ -290,6 +333,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     return edgeMap.get(String(hoverId)) || null
   }, [hoverKind, hoverId, edgeMap])
   const content = React.useMemo(() => {
+    const onToggleExpanded = () => setExpanded(v => !v)
     if (node) {
       return buildNodeContent(
         node,
@@ -299,6 +343,8 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
         uiIconBadgeChipTextSizeClass,
         uiPanelMicroLabelTextSizeClass,
         graphHoverPreviewConfig,
+        expanded,
+        onToggleExpanded,
       )
     }
     if (edge) {
@@ -310,6 +356,8 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
         uiIconBadgeChipTextSizeClass,
         uiPanelMicroLabelTextSizeClass,
         graphHoverPreviewConfig,
+        expanded,
+        onToggleExpanded,
       )
     }
     return null
@@ -322,6 +370,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     uiIconBadgeChipTextSizeClass,
     uiPanelMicroLabelTextSizeClass,
     graphHoverPreviewConfig,
+    expanded,
   ])
   if (!hoverInfo || !container || !content) return null
   const rect = container.getBoundingClientRect()
@@ -331,10 +380,11 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     <Tooltip
       content={content}
       open
-      className="absolute z-50 pointer-events-none"
+      className="absolute z-50 pointer-events-auto"
       anchorStyle={{ left: hoverX, top: hoverY, width: 0, height: 0 }}
       maxWidthPx={260}
       contentClassName="shadow-md max-w-xs text-xs"
+      onContentMouseLeave={onRequestClose}
     >
       <span />
     </Tooltip>

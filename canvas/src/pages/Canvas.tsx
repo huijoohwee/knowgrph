@@ -1,11 +1,12 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { clearCustomParsers } from '@/features/parsers/persistence'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import { LS_KEYS, LS_LEGACY_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/config'
+import { LS_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/config'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
@@ -137,11 +138,28 @@ export default function CanvasPage() {
     schema,
     setSchema,
     setEnableLaunchSpotlight,
-  } = useGraphStore()
-  const { setLifecycleStage } = useGraphStore()
-  const [, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false, [
-    LS_LEGACY_KEYS.launchSpotlightDismissed,
-  ])
+  } = useGraphStore(
+    useShallow(s => ({
+      isSidebarOpen: s.isSidebarOpen,
+      setSidebarOpen: s.setSidebarOpen,
+      sidebarWidthRatio: s.sidebarWidthRatio,
+      uiOverlayOpacity: s.uiOverlayOpacity,
+      uiPanelOpacity: s.uiPanelOpacity,
+      uiToolbarOpacity: s.uiToolbarOpacity,
+      graphId: s.graphId,
+      tabId: s.tabId,
+      enableTabSync: s.enableTabSync,
+      selectedNodeId: s.selectedNodeId,
+      selectedEdgeId: s.selectedEdgeId,
+      selectNode: s.selectNode,
+      selectEdge: s.selectEdge,
+      schema: s.schema as GraphSchema,
+      setSchema: s.setSchema,
+      setEnableLaunchSpotlight: s.setEnableLaunchSpotlight,
+    })),
+  )
+  const setLifecycleStage = useGraphStore(s => s.setLifecycleStage)
+  const [, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false)
   const asideRef = React.useRef<HTMLDivElement | null>(null)
   const sidebarToggleRef = React.useRef<HTMLButtonElement | null>(null)
   const syncRef = React.useRef<ReturnType<typeof createTabSync> | null>(null)
@@ -295,7 +313,13 @@ export default function CanvasPage() {
     }
   }, [enableTabSync, graphId, tabId, schema])
 
-  const { requestZoom, canvasRenderMode, requestThreeCamera } = useGraphStore()
+  const { requestZoom, canvasRenderMode, requestThreeCamera } = useGraphStore(
+    useShallow(s => ({
+      requestZoom: s.requestZoom,
+      canvasRenderMode: s.canvasRenderMode,
+      requestThreeCamera: s.requestThreeCamera,
+    })),
+  )
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat'>('node')
   React.useEffect(() => {
     if (typeof window === 'undefined') return

@@ -20,12 +20,6 @@ export default function AiKgVisualControls({
   const threeCfg = getThreeConfig(schema)
   const nodeSizingFormula: 'schema' | 'importance' = threeCfg.nodeSizingFormula || 'schema'
   const edgeWidthFormula: 'schema' | 'weight' = threeCfg.edgeWidthFormula || 'schema'
-  const defaultMarkdownAlpha = 0.08
-  const rawMarkdownAlpha = threeCfg.markdownAlwaysOnAlpha
-  const markdownAlpha =
-    typeof rawMarkdownAlpha === 'number' && Number.isFinite(rawMarkdownAlpha)
-      ? rawMarkdownAlpha
-      : defaultMarkdownAlpha
   const hoverContent = schema.behavior?.hover?.content || { showProps: true, showType: true, showId: true }
 
   return (
@@ -124,66 +118,6 @@ export default function AiKgVisualControls({
               </select>
             </Tooltip>
           </RightAlignedValueCell>
-        )}
-      />
-      <KeyTypeValueRow
-        density="compact"
-        layout="keyIconSliderInput"
-        keyNode={(
-          <Tooltip
-            content="Markdown viewer → adjust three.markdownAlwaysOnAlpha for always-on text highlights → lower values keep background subtle while preserving semantic context."
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="text-gray-700 break-words"
-          >
-            schema.three.markdownAlwaysOnAlpha
-          </Tooltip>
-        )}
-        typeNode={(
-          <Tooltip
-            content="Default: 0.08; Impact: controls background alpha for always-on markdown text highlights derived from graph layer color."
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="w-full"
-          >
-            <input
-              type="range"
-              min={0}
-              max={0.4}
-              step={0.01}
-              value={Number(markdownAlpha)}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw) ? Math.max(0, Math.min(0.4, raw)) : defaultMarkdownAlpha
-                const quantized = Math.round(clamped * 100) / 100
-                setThreeConfig({ markdownAlwaysOnAlpha: quantized })
-              }}
-              className="w-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content="Default: 0.08; Impact: controls background alpha for always-on markdown text highlights derived from graph layer color."
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="w-full"
-          >
-            <input
-              type="number"
-              min={0}
-              max={0.4}
-              step={0.01}
-              value={Number(markdownAlpha.toFixed(2))}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const clamped = Number.isFinite(raw) ? Math.max(0, Math.min(0.4, raw)) : defaultMarkdownAlpha
-                const quantized = Math.round(clamped * 100) / 100
-                setThreeConfig({ markdownAlwaysOnAlpha: quantized })
-              }}
-              className={uiPanelKeyValueInputClass}
-            />
-          </Tooltip>
         )}
       />
       <KeyTypeValueRow

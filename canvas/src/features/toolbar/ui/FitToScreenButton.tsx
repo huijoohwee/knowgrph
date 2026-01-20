@@ -14,6 +14,7 @@ export const FitToScreenButton = () => {
     fitToScreenMode,
     toggleFitToScreenMode,
     setZoomToSelectionMode,
+    setViewPinned,
     uiIconScale,
     uiIconStrokeWidth,
   } = useToolbarState();
@@ -24,8 +25,9 @@ export const FitToScreenButton = () => {
     // When enabling Fit to Screen, we must disable Zoom to Selection to avoid conflict
     if (next) {
       setZoomToSelectionMode(false);
+      setViewPinned(false);
     }
-  }, [fitToScreenMode, toggleFitToScreenMode, setZoomToSelectionMode]);
+  }, [fitToScreenMode, toggleFitToScreenMode, setZoomToSelectionMode, setViewPinned]);
 
   const iconSizeClass = getIconSizeClass(uiIconScale);
 

@@ -1,5 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, COLLAPSE_STORAGE_LEGACY_KEYS, DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO } from '@/features/bottom-panel/constants'
+import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO } from '@/features/bottom-panel/constants'
 import { getLocalStorage, readBoolFromStorage, writeBoolToStorage } from '@/lib/persistence'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 
@@ -19,30 +19,7 @@ export type BottomTab =
 
 export type BottomTabId = BottomTab
 
-function tryMigrateLegacyKeys(storage: Storage | null, key: string, legacyKeys?: string[]) {
-  if (!storage) return
-  if (!Array.isArray(legacyKeys) || legacyKeys.length === 0) return
-  try {
-    const existing = storage.getItem(key)
-    if (existing !== null) return
-    for (const legacyKey of legacyKeys) {
-      const raw = storage.getItem(legacyKey)
-      if (raw === null) continue
-      try {
-        storage.setItem(key, raw)
-        storage.removeItem(legacyKey)
-      } catch {
-        void 0
-      }
-      return
-    }
-  } catch {
-    void 0
-  }
-}
-
 function readBottomPanelCollapsed(storage: Storage | null): boolean {
-  tryMigrateLegacyKeys(storage, COLLAPSE_STORAGE_KEY, COLLAPSE_STORAGE_LEGACY_KEYS)
   return readBoolFromStorage(storage, COLLAPSE_STORAGE_KEY, false)
 }
 

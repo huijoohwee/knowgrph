@@ -9,44 +9,45 @@ layout: cover
 aspectRatio: 16/9
 lang: en-US
 authors:
-  - A. Researcher
-  - B. Scientist
-meeting: "Example Research Meeting"
+  - A. Author 1
+  - B. Author 2
+meeting: "Example Meeting"
 date: "2026-01-12"
 venue: "Example City"
 institution: "Example Research Group"
 url: "https://example.com"
 mermaid: |
-  graph LR
-    subgraph L0["L0: BUSINESS OUTCOMES"]
-      L0A[Grow Revenue]
-      L0B[Reduce Risk]
-      L0A --> L0B
+  graph TB
+    subgraph S1["Phase 1: Input"]
+      S1_A[Source A]
+      S1_B[Source B]
+      S1_Port[Aggregator]
+      S1_A --> S1_Port
+      S1_B --> S1_Port
     end
-    subgraph L1["L1: PIPELINE"]
-      L1A[Ingest]
-      L1B[Profile]
-      L1C[Train]
-      L1D[Deploy]
-      L1A --> L1B
-      L1B --> L1C
-      L1C --> L1D
+    subgraph S2["Phase 2A: Processing"]
+      S2_In[Ingest A]
+      S2_Proc[Work A]
+      S2_Out[Result A]
+      S2_In --> S2_Proc --> S2_Out
     end
-    subgraph Phase0["Phase 0"]
-      S0.1.0[Step 0.1.0]
-      S0.2.0[Step 0.2.0]
-      S0.1.0 --> S0.2.0
-      click S0.1.0 "#step-0-1-0"
+    subgraph S3["Phase 2B: Analysis"]
+      S3_In[Ingest B]
+      S3_Proc[Work B]
+      S3_Out[Result B]
+      S3_In --> S3_Proc --> S3_Out
     end
-    subgraph L2["L2: OPERATIONS"]
-      L2A[Monitor]
-      L2B[Alert]
-      L2C[Iterate]
-      L2A --> L2B
-      L2B --> L2C
+    subgraph S4["Phase 3: Output"]
+      S4_In[Finalize]
+      S4_D1[Dest 1]
+      S4_D2[Dest 2]
+      S4_In --> S4_D1
+      S4_In --> S4_D2
     end
-    L0B --> L1A
-    L1D --> L2A
+    S1_Port --> S2_In
+    S1_Port --> S3_In
+    S2_Out --> S4_In
+    S3_Out --> S4_In
 ---
 
 # Markdown Slide Styling Guidelines

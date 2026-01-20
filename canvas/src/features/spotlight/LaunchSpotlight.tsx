@@ -2,7 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useParserUIState } from '@/features/parsers/uiState'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import { LS_KEYS, LS_LEGACY_KEYS } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config'
 import { LaunchSpotlightStatusCard } from '@/features/spotlight/LaunchSpotlightStatusCard'
 import { LaunchSpotlightTourCard } from '@/features/spotlight/LaunchSpotlightTourCard'
 
@@ -25,9 +25,7 @@ export default function LaunchSpotlight() {
   const parserLoadMsg = useParserUIState(s => s.parserLoadMsg)
   const dataLoadOk = useParserUIState(s => s.dataLoadOk)
   const dataLoadMsg = useParserUIState(s => s.dataLoadMsg)
-  const [dismissed, setDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false, [
-    LS_LEGACY_KEYS.launchSpotlightDismissed,
-  ])
+  const [dismissed, setDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false)
   const [step, setStep] = React.useState(0)
   const [ready, setReady] = React.useState(false)
   const [minimized, setMinimized] = React.useState(false)

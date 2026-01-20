@@ -147,6 +147,8 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
   const viewerClearSyncRafRef = React.useRef(0)
   const viewerDebugElRef = React.useRef<HTMLElement | null>(null)
   const syncScrollRef = React.useRef(syncScroll)
+  const lastViewerSetEditorScrollTopRef = React.useRef<number | null>(null)
+  const lastEditorSetViewerScrollTopRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
     syncScrollRef.current = syncScroll
@@ -201,7 +203,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
               typeof container.getBoundingClientRect === 'function'
               ? container.getBoundingClientRect()
               : null
-            if (containerRect) {
+            if (containerRect && containerRect.height > 1 && containerRect.width > 1) {
               const bias = getViewportBias()
               const anchor = containerRect.top + containerRect.height * bias
               const nodes = container.querySelectorAll<HTMLElement>('[data-start-line]')
@@ -268,7 +270,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
                   typeof best.getBoundingClientRect === 'function'
                     ? best.getBoundingClientRect()
                     : null
-                if (elRect) {
+                if (elRect && elRect.height > 1 && elRect.width > 1) {
                   const bias = getViewportBias()
                   const anchorOffset = containerRect.height * bias
                   const offset =
@@ -294,8 +296,12 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
             const editorScrollable = Math.max(0, handle.getScrollHeight() - handle.getClientHeight())
             const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
             const ratio = editorScrollable > 0 ? nextScrollTop / editorScrollable : 0
-            viewer.scrollTop = viewerScrollable > 0 ? ratio * viewerScrollable : 0
+            const clamped = Math.min(1, Math.max(0, ratio))
+            const nextViewerTop = viewerScrollable > 0 ? clamped * viewerScrollable : 0
+            lastEditorSetViewerScrollTopRef.current = nextViewerTop
+            viewer.scrollTop = nextViewerTop
         } else {
+            lastEditorSetViewerScrollTopRef.current = viewerTargetTop
             viewer.scrollTop = viewerTargetTop
         }
 
@@ -332,8 +338,14 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
 
     return () => {
       if (readyRafId != null) cancelRafFn(readyRafId)
-      if (editorSyncRafRef.current) cancelRafFn(editorSyncRafRef.current)
-      if (editorClearSyncRafRef.current) cancelRafFn(editorClearSyncRafRef.current)
+      if (editorSyncRafRef.current) {
+          cancelRafFn(editorSyncRafRef.current)
+          editorSyncRafRef.current = 0
+      }
+      if (editorClearSyncRafRef.current) {
+          cancelRafFn(editorClearSyncRafRef.current)
+          editorClearSyncRafRef.current = 0
+      }
       if (scrollSub) scrollSub.dispose()
       if (layoutSub) layoutSub.dispose()
       window.removeEventListener('resize', onWindowResize)
@@ -353,7 +365,10 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
         
         const viewer = viewerFromEvent || viewerRef.current
         const handle = editorTextAreaRef.current
-        if (syncingFromEditorRef.current) return
+        if (syncingFromEditorRef.current) {
+          const last = lastEditorSetViewerScrollTopRef.current
+          if (viewer && last != null && Math.abs(viewer.scrollTop - last) <= 1) return
+        }
         if (!viewer || !handle) return
         if (!syncScrollRef.current) return
     
@@ -408,12 +423,16 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
     
         if (targetLine != null) {
           const desiredTop = handle.getTopForLineNumber(targetLine)
+          lastViewerSetEditorScrollTopRef.current = desiredTop
           handle.setScrollTop(desiredTop)
         } else {
           const viewerScrollable = Math.max(0, viewer.scrollHeight - viewer.clientHeight)
           const ratio = viewerScrollable > 0 ? viewer.scrollTop / Math.max(1, viewerScrollable) : 0
+          const clamped = Math.min(1, Math.max(0, ratio))
           const editorScrollable = Math.max(0, handle.getScrollHeight() - handle.getClientHeight())
-          handle.setScrollTop(editorScrollable > 0 ? ratio * editorScrollable : 0)
+          const desiredTop = editorScrollable > 0 ? clamped * editorScrollable : 0
+          lastViewerSetEditorScrollTopRef.current = desiredTop
+          handle.setScrollTop(desiredTop)
         }
 
         if (viewerClearSyncRafRef.current) cancelRafFn(viewerClearSyncRafRef.current)

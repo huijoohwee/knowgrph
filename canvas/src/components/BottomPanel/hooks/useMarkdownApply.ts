@@ -2,8 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
-import { toMetadataRecord } from '@/lib/graph/markdownMetadata'
-import { getDocumentPathFromMetadata } from '@/features/graph-data-table/graphDataTable'
+import { getDocumentPathFromMetadata, toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 
 type UseMarkdownApplyProps = {

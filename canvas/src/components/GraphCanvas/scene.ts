@@ -2,15 +2,14 @@ import * as d3 from 'd3'
 import type { MutableRefObject, RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { createZoom, buildSimulation } from '@/components/GraphCanvas/utils'
+import { createZoom } from '@/components/GraphCanvas/zoom'
+import { buildSimulation } from '@/components/GraphCanvas/simulation'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
-import { deriveTreeDerivation } from '@/components/GraphCanvas/layout/treeHelpers'
-import { buildNodeGroupsFromSchema, createGraphLayersLayer } from '@/components/GraphCanvas/graphLayers'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight'
-import { createDefs, createLinksLayer, createNodesLayer, createTempLink, createLabelsLayer } from '@/components/GraphCanvas/sceneLayers'
+import { createDefs, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer } from '@/components/GraphCanvas/sceneLayers'
 import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCanvas/sceneHandlers'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
@@ -25,7 +24,6 @@ type SetupGraphSceneArgs = {
   height: number
   hoverEnabled: boolean
   zoomOnDoubleClick: boolean
-  graphLayersVisible: boolean
   renderMediaAsNodes: boolean
   mediaPanelDensity: 'default' | 'compact'
   initialZoomTransform?: { k: number; x: number; y: number } | null
@@ -40,7 +38,6 @@ type SetupGraphSceneArgs = {
   zoomRef: MutableRefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>
   tempLinkSelRef: MutableRefObject<TempLinkSelection>
   linkDragRef: MutableRefObject<PendingLink | null>
-  isEditModeRef: MutableRefObject<boolean>
   selectedEdgeIdRef: MutableRefObject<string | null>
   selectedNodeIdRef: MutableRefObject<string | null>
   selectedNodeIdsRef: MutableRefObject<string[] | undefined>
@@ -69,7 +66,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     height,
     hoverEnabled,
     zoomOnDoubleClick,
-    graphLayersVisible,
     renderMediaAsNodes,
     mediaPanelDensity,
     initialZoomTransform,
@@ -175,7 +171,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   // Fit to screen logic for clean slate
   if (!initialZoomTransform) {
-    const mode = schema.layout?.mode
     const padding = schema.layout?.fitPadding
     const useCentroid = schema.layout?.fitUseCentroid
     const detectClusters = schema.layout?.fitDetectClusters
@@ -183,21 +178,15 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
 
     const commonOpts = {
-      pad: typeof padding === 'number' && Number.isFinite(padding) ? Math.max(20, Math.min(48, Math.floor(padding))) : 48,
+      pad: typeof padding === 'number' && Number.isFinite(padding) ? Math.max(20, Math.min(160, Math.floor(padding))) : 80,
       useCentroidCentering: useCentroid !== false,
       detectClusters: detectClusters !== false,
       targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
       enforceAspectRatio: enforceAspectRatio !== false,
+      schema,
     }
 
-    const t =
-      mode === 'mermaid'
-        ? fitAllTransform(graphData.nodes, width, height, {
-            ...commonOpts,
-            maxScale: 6,
-            maxScaleHardCap: 6,
-          })
-        : fitAllTransform(graphData.nodes, width, height, commonOpts)
+    const t = fitAllTransform(graphData.nodes, width, height, commonOpts)
 
     svg.call(zoom.transform as unknown as (
       sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
@@ -205,90 +194,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     ) => void, t)
   }
 
-  if (layoutCacheKey && typeof setLayoutPositionsForMode === 'function') {
-    simulation.on('end', () => {
-      if (!graphData.nodes || !graphData.nodes.length) {
-        setLayoutPositionsForMode(layoutCacheKey, null)
-        return
-      }
-      const positions: Record<string, { x: number; y: number }> = {}
-      for (let i = 0; i < graphData.nodes.length; i += 1) {
-        const node = graphData.nodes[i]
-        const id = String(node.id)
-        if (!id) continue
-        const x = typeof node.x === 'number' ? node.x : null
-        const y = typeof node.y === 'number' ? node.y : null
-        if (x == null || y == null) continue
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-        positions[id] = { x, y }
-      }
-      if (Object.keys(positions).length === 0) {
-        setLayoutPositionsForMode(layoutCacheKey, null)
-      } else {
-        setLayoutPositionsForMode(layoutCacheKey, positions)
-      }
-    })
-  }
+  // Legacy layout sync removed to prevent infinite re-render loop in Force layout mode.
 
-  const nodeGroups = buildNodeGroupsFromSchema(graphData, schema)
-
-  const nodeIds = new Set<string>()
-  for (let i = 0; i < graphData.nodes.length; i += 1) {
-    nodeIds.add(String(graphData.nodes[i].id))
-  }
-
-  const treeDerivation =
-    schema.layout?.mode === 'tree' ? deriveTreeDerivation(edgesForSim, schema, nodeIds) : null
-
-  const edgesForDisplayBase = (() => {
-    const layersCfg = schema.layers || {}
-    const layerMode = layersCfg.mode || 'property'
-    if (schema.layout?.mode !== 'tree' || !treeDerivation || !treeDerivation.candidateEdges.length) {
-      return edgesForSim
-    }
-    if (layerMode === 'property') return edgesForSim
-    return treeDerivation.candidateEdges
-  })()
-
-  const edgesForDisplayRaw = (() => {
-    const layersCfg = schema.layers || {}
-    const mode = layersCfg.mode || 'property'
-    const semanticCfg = layersCfg.semantic || {}
-    const semanticHiddenTypes = Array.isArray(semanticCfg.hiddenNodeTypes)
-      ? semanticCfg.hiddenNodeTypes.map(t => String(t || '').trim()).filter(Boolean)
-      : []
-    if (mode !== 'semantic' || !semanticHiddenTypes.length) return edgesForDisplayBase
-    const hiddenTypeSet = new Set(semanticHiddenTypes)
-    const hiddenNodeIds = new Set<string>()
-    for (let i = 0; i < graphData.nodes.length; i += 1) {
-      const n = graphData.nodes[i]
-      const t = String(n.type || '')
-      if (!t) continue
-      if (hiddenTypeSet.has(t)) hiddenNodeIds.add(String(n.id))
-    }
-    if (!hiddenNodeIds.size) return edgesForDisplayBase
-    return edgesForDisplayBase.filter((e) => {
-      const src = String(e.source ?? '')
-      const tgt = String(e.target ?? '')
-      if (!src || !tgt) return false
-      if (hiddenNodeIds.has(src) || hiddenNodeIds.has(tgt)) return false
-      return true
-    })
-  })()
-
-  const edgesForDisplay = edgesForDisplayRaw
-
-  const { hullSel: graphLayersHullSel, centroidSel: graphLayerCentroidSel, labelSel: graphLayerLabelSel } =
-    createGraphLayersLayer({
-      g,
-      nodeGroups,
-      graphData,
-      schema,
-      graphLayersVisible,
-      hoverEnabled,
-      setHoverInfo,
-      simulation,
-    })
+  const edgesForDisplay = edgesForSim
 
   const linkSel = createLinksLayer({
     g,
@@ -302,12 +210,21 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
   linksSelRef.current = linkSel
 
+  const edgeLabelSel = createEdgeLabelsLayer({
+    g,
+    edgesForDisplay,
+    schema,
+    hoverEnabled,
+    setHoverInfo,
+    setSelectionSource,
+    selectEdge,
+  })
+
   const graphDataForDisplay = graphData
 
-  const { nodeSel, mediaSel } = createNodesLayer({
+  const { nodeSel, mediaSel, portHandlesSel } = createNodesLayer({
     g,
     graphData: graphDataForDisplay,
-    edgesForDisplay,
     schema,
     renderMediaAsNodes,
     mediaPanelDensity,
@@ -315,11 +232,12 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     tempLinkSelRef,
     linkDragRef,
     simulation,
+    hoverEnabled,
+    setHoverInfo,
     selectNode,
     selectEdge,
     setSelectionSource,
     requestZoomSelection,
-    graphLayersVisible,
   })
   nodesSelRef.current = nodeSel
   mediaSelRef.current = mediaSel
@@ -328,12 +246,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   createLabelsLayer({
     g,
-    graphData: graphDataForDisplay,
+    nodes: graphData.nodes,
     schema,
-    edgesForDisplay,
     labelsSelRef,
-    renderMediaAsNodes,
-    graphLayersVisible,
   })
 
   if (labelsSelRef.current) {
@@ -346,21 +261,18 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       simulation,
       nodeSel,
       mediaSel,
+      portHandlesSel,
       linkSel,
+      edgeLabelSel,
       labelsSel: labelsSelRef.current,
-      graphLayersHullSel,
-      graphLayerCentroidSel,
-      graphLayerLabelSel,
-      nodeGroups,
       nodes: graphData.nodes,
       schema,
-      treeDerivation,
       width,
       height,
     })
   }
 
-  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'tree' || schema.layout?.mode === 'mermaid') {
+  if (schema.layout?.mode === 'radial') {
     simulation.stop()
     if (layoutCacheKey && typeof setLayoutPositionsForMode === 'function') {
       const positions: Record<string, { x: number; y: number }> = {}

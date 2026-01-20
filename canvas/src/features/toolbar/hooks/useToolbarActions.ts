@@ -2,8 +2,7 @@ import { useCallback } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
 import { getNextThemeMode, type ThemeMode } from '@/lib/ui/theme'
-import type { GraphSchema } from '@/lib/graph/schema'
-import { computeNextSchemaForTreePreset } from '../treePreset'
+import { type GraphSchema } from '@/lib/graph/schema'
 
 export function useToolbarActions(
   schema: GraphSchema,
@@ -11,7 +10,7 @@ export function useToolbarActions(
   setCanvasRenderMode: (m: '2d' | '3d') => void,
   setThemeMode: React.Dispatch<React.SetStateAction<ThemeMode>>,
   launchSpotlight: (mode?: string) => void,
-  openMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'graphLayer' | 'preview' | 'settings') => void,
+  openMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings') => void,
   onZoomIn?: () => void,
   onZoomOut?: () => void,
   onReset?: () => void,
@@ -33,33 +32,23 @@ export function useToolbarActions(
     launchSpotlight()
   }, [launchSpotlight])
 
-  const handleToggleLayerMode = useCallback(() => {
-    const currentLayers = schema.layers || {}
-    const currentMode = (currentLayers.mode || 'semantic') as NonNullable<NonNullable<GraphSchema['layers']>['mode']>
-    const nextMode: NonNullable<NonNullable<GraphSchema['layers']>['mode']> =
-      currentMode === 'semantic'
-        ? 'document-structure'
-        : currentMode === 'document-structure'
-          ? 'property'
-          : 'semantic'
+  const handleTogglePortHandles = useCallback(() => {
+    const current = schema
+    const behavior = current.behavior
+    const portHandles = behavior.portHandles || {}
+    const enabled = Boolean(portHandles.enabled)
     const next = {
-      ...schema,
-      layers: {
-        ...currentLayers,
-        mode: nextMode,
+      ...current,
+      behavior: {
+        ...behavior,
+        portHandles: {
+          ...portHandles,
+          enabled: !enabled,
+        },
       },
     }
     setSchema(next as GraphSchema)
   }, [schema, setSchema])
-
-  const handleToggleTreeLayout = useCallback(() => {
-    const graphData = useGraphStore.getState().graphData
-    const next = computeNextSchemaForTreePreset(schema, graphData)
-    setSchema(next)
-    if (next.layout?.mode === 'tree') {
-      setCanvasRenderMode('2d')
-    }
-  }, [schema, setSchema, setCanvasRenderMode])
 
   const handleToggleRadialLayout = useCallback(() => {
     const current = schema
@@ -72,21 +61,6 @@ export function useToolbarActions(
     }
     setSchema(next as GraphSchema)
     if (nextMode === 'radial') {
-      setCanvasRenderMode('2d')
-    }
-  }, [schema, setSchema, setCanvasRenderMode])
-
-  const handleToggleMermaidLayout = useCallback(() => {
-    const current = schema
-    const layout = current.layout || {}
-    const nextMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-      layout.mode === 'mermaid' ? 'force' : 'mermaid'
-    const next = {
-      ...current,
-      layout: { ...layout, mode: nextMode },
-    }
-    setSchema(next as GraphSchema)
-    if (nextMode === 'mermaid') {
       setCanvasRenderMode('2d')
     }
   }, [schema, setSchema, setCanvasRenderMode])
@@ -129,6 +103,7 @@ export function useToolbarActions(
     toggleFitToScreenMode()
     if (next) {
       setZoomToSelectionMode(false)
+      try { useGraphStore.getState().setViewPinned(false) } catch { void 0 }
     }
   }, [fitToScreenMode, toggleFitToScreenMode, setZoomToSelectionMode])
 
@@ -138,6 +113,7 @@ export function useToolbarActions(
     setZoomToSelectionMode(next)
     if (next) {
       setFitToScreenMode(false)
+      try { useGraphStore.getState().setViewPinned(false) } catch { void 0 }
       if (onZoomSelection) {
         onZoomSelection()
       }
@@ -163,10 +139,8 @@ export function useToolbarActions(
   return {
     handleLaunchStats,
     handleLaunch,
-    handleToggleLayerMode,
-    handleToggleTreeLayout,
+    handleTogglePortHandles,
     handleToggleRadialLayout,
-    handleToggleMermaidLayout,
     handleOpenGraphFields,
     handleOpenSettings,
     handleOpenHistory,

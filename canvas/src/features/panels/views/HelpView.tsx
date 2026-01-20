@@ -125,31 +125,6 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                 <p>
                   A Louvain‑style pass assigns communities over this similarity graph by moving nodes between communities when modularity gain is positive at a configurable resolution. Node importance is derived from token counts or incident similarity weights, mapped into a clamped radius band, and stored as visual:importance and visual:nodeSize alongside visual:community and a deterministic community color.
                 </p>
-                <p>
-                  Semantic layer knobs in Settings and the AI‑KG Layers section expose `schema.layers.semantic.similarityEdgeLabel`, `similarityMetric`, `topKEdgesPerNode`, and `minSimilarity`: the label chooses which derived edges count as semantic similarity edges, the metric switches between cosine and PMI, `topKEdgesPerNode` controls per‑node sparsity (defaults to 3, minimum 0), and `minSimilarity` sets a non‑negative threshold where higher values prune weaker edges and emphasize tighter communities. The AI‑KG Layers semantic controls reuse Role → Actions → Outcome tooltips backed by `rag:RoleActionOutcome` fixtures in `schema-config/knowgrph-universal-schema-config.jsonld` so Help copy, Renderer settings, and AgenticRAG JSON‑LD stay aligned.
-                </p>
-              </div>
-            </div>
-            <div>
-              <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
-                Layer order and graph layers (semantic → document‑structure → property: “Similarity clusters (semantic)” → “Layered structure (document)” → “Raw data (schema)”)
-              </div>
-              <div className={`text-[11px] ${UI_THEME_TOKENS.text.secondary} leading-snug space-y-1`}>
-                <p>
-                  The Graph Layer tab controls the same schema.layers.mode cycle (semantic → document‑structure → property) and drives how a single GraphData snapshot is filtered and decorated for rendering. Semantic is the default and adds similarity edges, Louvain communities, and importance‑based node sizing on top of the imported graph without mutating the source JSON‑LD.
-                </p>
-                <p>
-                  Document‑structure mode keeps all nodes and edges visible but assigns a `visual:layer` to structural block types such as Document, Section, Paragraph, List, ListItem, CodeBlock, and Table so 2D/3D renderers can apply per‑layer opacity while preserving the original layout. Property mode leaves nodes and edges unchanged and derives groups only from array‑valued properties (for example owner→items lists) without semantic overlays.
-                </p>
-                <p>
-                  When Graph Layers are enabled from the Graph Layer view, semantic mode uses `visual:community` and `visual:fill` from the similarity graph to draw convex hull overlays around community clusters so regions approximate semantic neighborhoods rather than raw layout. Document‑structure and property modes continue to respect the same underlying node positions but graph layer overlays fall back to array‑based membership, keeping hulls tightly aligned with the active layer semantics.
-                </p>
-                <p>
-                  The Graph Layer view also exposes a small “Lifecycle tags for layers” helper that writes lifecycle tags such as idea, hypothesis, execution, pivot, and alert into the selected owner node&apos;s properties.tags so graph layer hull colors and node palette colors stay aligned with the renderer lifecycle legend.
-                </p>
-                <p>
-                  The top‑bar Graph Layer button (Shapes icon) is a view‑only toggle for graph layer hull overlays on the canvas; it flips the same graphLayersVisible flag without changing schema.layers.mode or opening the Graph Layer panel.
-                </p>
               </div>
             </div>
           </section>

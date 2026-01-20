@@ -96,19 +96,7 @@ export function Scene({
   const selectionVisuals = getSelectionVisuals(schema)
   const cameraConfig = getCameraConfig(schema)
   const threeCfg: ThreeConfig = getThreeConfig(schema)
-  const layerMode = schema.layers?.mode || 'property'
-  const hiddenNodeIds = React.useMemo(() => {
-    if (layerMode !== 'semantic') return new Set<string>()
-    const hiddenTypes = new Set(['Document', 'Section', 'Paragraph', 'CodeBlock', 'Table', 'List', 'ListItem'])
-    const ids = new Set<string>()
-    for (let i = 0; i < data.nodes.length; i += 1) {
-      const n = data.nodes[i]
-      const t = String(n.type || '')
-      if (!t) continue
-      if (hiddenTypes.has(t)) ids.add(String(n.id))
-    }
-    return ids
-  }, [data.nodes, layerMode])
+  const hiddenNodeIds = React.useMemo(() => new Set<string>(), [])
   React.useEffect(() => {
     const threeCfgLocal: ThreeConfig = getThreeConfig(schema)
     const raw = threeCfgLocal.backgroundColor
@@ -157,7 +145,10 @@ export function Scene({
   const starfieldRadius = Math.max(40, Math.min(1200, starfieldRadiusRaw))
   const starfieldOpacityRaw = typeof threeCfg.starfieldOpacity === 'number' ? threeCfg.starfieldOpacity : 0.9
   const starfieldOpacity = Math.max(0, Math.min(1, starfieldOpacityRaw))
-  const starfieldColorRaw = typeof threeCfg.starfieldColor === 'string' && threeCfg.starfieldColor.trim() !== '' ? threeCfg.starfieldColor : '#facc15'
+  const starfieldColorRaw =
+    typeof threeCfg.starfieldColor === 'string' && threeCfg.starfieldColor.trim() !== ''
+      ? threeCfg.starfieldColor
+      : (palette.nodes.hypothesis || MVP_COLOR_PALETTE.nodes.hypothesis)
   const dragOverridesRef = React.useRef<Record<string, Vec3>>({})
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()

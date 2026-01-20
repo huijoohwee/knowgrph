@@ -9,6 +9,13 @@ export interface GraphBehavior {
   preventSelfLoopsGlobal?: boolean;
   selectMode?: 'single' | 'multi' | 'lasso';
   createMode?: 'shift-drag' | 'click-source-target' | 'panel-only';
+  portHandles?: {
+    enabled?: boolean;
+    placement?: 'cardinal';
+    size?: number;
+    offset?: number;
+    strokeWidth?: number;
+  };
   hover?: {
     enabled?: boolean;
     intensity?: number;
@@ -75,7 +82,7 @@ export interface GraphSchema {
     }>;
   };
   layout?: {
-    mode?: 'force' | 'radial' | 'tree' | 'mermaid';
+    mode?: 'force' | 'radial';
     forces?: {
       linkDistanceByLabel?: Record<string, number>;
       charge?: number;
@@ -84,58 +91,21 @@ export interface GraphSchema {
       alphaDecay?: number;
       boxForce?: boolean;
       boxForceStrength?: number;
+      disjointComponents?: boolean;
+      disjointStrength?: number;
+      bboxCollide?: boolean;
+      bboxCollideStrength?: number;
+      bboxCollidePadding?: number;
+      bboxCollideIterations?: number;
     };
     fitPadding?: number;
     fitUseCentroid?: boolean;
     fitDetectClusters?: boolean;
     fitTargetAspectRatio?: number;
     fitEnforceAspectRatio?: boolean;
-    mermaid?: {
-      edgeLabels?: string[];
-      direction?: 'auto' | 'source-target' | 'target-source';
-      orientation?: 'vertical' | 'horizontal';
-      nodeSize?: { x?: number; y?: number };
-      separation?: number;
-      sortBy?: 'none' | 'label' | 'id' | 'type';
-      curve?: 'bump' | 'linear' | 'step';
-      linkStroke?: string;
-      linkOpacity?: number;
-      linkWidth?: number;
-      nodeRadius?: number;
-      colorMode?: 'observable' | 'schema';
-      internalFill?: string;
-      leafFill?: string;
-      labelFontSize?: number;
-      labelFontFamily?: string;
-      labelCharWidth?: number;
-      labelLineHeight?: number;
-      labelPaddingX?: number;
-      labelPaddingY?: number;
-      labelMinWidth?: number;
-      labelMinHeight?: number;
-      maxNodeWidth?: number;
-      renderOrder?: {
-        nodes?: 'yx' | 'id';
-        edges?: 'endpoints' | 'id';
-      };
-    };
-    tree?: {
-      edgeLabels?: string[];
-      direction?: 'auto' | 'source-target' | 'target-source';
-      orientation?: 'vertical' | 'horizontal';
-      nodeSize?: { x?: number; y?: number };
-      separation?: number;
-      sortBy?: 'none' | 'label' | 'id' | 'type';
-      curve?: 'bump' | 'linear' | 'step';
-      linkStroke?: string;
-      linkOpacity?: number;
-      linkWidth?: number;
-      nodeRadius?: number;
-      colorMode?: 'observable' | 'schema';
-      internalFill?: string;
-      leafFill?: string;
-      labelFontSize?: number;
-      labelFontFamily?: string;
+    rectNodes?: {
+      maxZoomMinimapWidthRatio?: number;
+      maxZoomMinimapHeightRatio?: number;
     };
   };
   endpointMatrix?: Record<string, { sources: string[]; targets: string[] }>;
@@ -150,13 +120,6 @@ export interface GraphSchema {
   performance?: {
     lod?: {
       hideLabelsBelowScale?: number;
-      tree?: {
-        labelMode?: 'auto' | 'all' | 'internal' | 'none';
-        maxLabels?: number;
-        maxLeafLabels?: number;
-        collapseMode?: 'none' | 'depth';
-        maxDepth?: number;
-      };
     };
     caps?: { maxNodes?: number; maxEdges?: number };
   };
@@ -179,7 +142,6 @@ export interface GraphSchema {
     linkOpacity?: number;
     edgeOpacityByLabel?: Record<string, number>;
     layerOpacityByLayer?: Record<string, number>;
-    markdownAlwaysOnAlpha?: number;
     linkCurvature?: number;
     linkCurveRotation?: number;
     linkDirectionalArrowRelPos?: number;
@@ -208,39 +170,12 @@ export interface GraphSchema {
     nodeSizingFormula?: 'schema' | 'importance';
     nodeImportanceSources?: string[];
     edgeWidthFormula?: 'schema' | 'weight';
-    polygons?: {
-      elevationOffset?: number;
-      opacityMultiplier?: number;
-    };
     selection?: {
       selectedNodeGlowIntensity?: number;
       dimmedNodeOpacity?: number;
       dimmedEdgeOpacity?: number;
       selectedEdgeWidth?: number;
       selectedEdgeColor?: string;
-    };
-  };
-  layers?: {
-    mode?: 'property' | 'document-structure' | 'semantic';
-    documentStructure?: {
-      minGroupSize?: number;
-    };
-    semantic?: {
-      textKeys?: string[];
-      minTokenLength?: number;
-      maxTokensPerNode?: number;
-      stopwords?: string[];
-      hiddenNodeTypes?: string[];
-      similarityMetric?: 'cosine' | 'pmi';
-      similarityEdgeLabel?: string;
-      topKEdgesPerNode?: number;
-      minSimilarity?: number;
-      communityDetection?: {
-        enabled?: boolean;
-        resolution?: number;
-        maxPasses?: number;
-        maxMovesPerPass?: number;
-      };
     };
   };
 }

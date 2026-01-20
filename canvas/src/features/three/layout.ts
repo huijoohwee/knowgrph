@@ -79,11 +79,14 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
   const velZ = useRef<Float32Array>(new Float32Array(Math.max(1, n)))
   const threeCfg = (schema as unknown as { three?: Record<string, number> }).three || {}
   const chargeVal = (schema.layout && schema.layout.forces && typeof schema.layout.forces.charge === 'number') ? schema.layout.forces.charge! : -300
+  // Stronger repulsion for 3D to avoid clustering
+  const effectiveCharge = chargeVal * 2.0
   const radiusCfg = typeof threeCfg['sphereRadius'] === 'number' ? threeCfg['sphereRadius'] : undefined
   const radiusAuto = Math.max(60, Math.min(140, n * 2.2))
   const sphereRadius = radiusCfg && radiusCfg > 0 ? radiusCfg : radiusAuto
-  const repelRadius = Math.max(10, Math.min(sphereRadius, (typeof threeCfg['minSpacing'] === 'number' ? Math.max(threeCfg['minSpacing'], 18) : 24)))
-  const repelStrength = Math.max(10, Math.abs(chargeVal))
+  // Increase minimum spacing
+  const repelRadius = Math.max(10, Math.min(sphereRadius, (typeof threeCfg['minSpacing'] === 'number' ? Math.max(threeCfg['minSpacing'], 24) : 48)))
+  const repelStrength = Math.max(10, Math.abs(effectiveCharge)) * 1.5
   const springStrength = 0.06
   const sphereStrength = 0.12
   const damping = 0.85
@@ -204,15 +207,34 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
       vx[si] += fx; vy[si] += fy; vz[si] += fz
       vx[ti] -= fx; vy[ti] -= fy; vz[ti] -= fz
     }
+    
+    // 16:9 Ellipsoid Constraint
+    // Target ratio: X=1.6, Y=0.9 (1.6/0.9 ~= 1.77)
+    const radX = sphereRadius * 1.6
+    const radY = sphereRadius * 0.9
+    const radZ = sphereRadius
+    const radX2 = radX * radX
+    const radY2 = radY * radY
+    const radZ2 = radZ * radZ
+
     for (let i = 0; i < n; i++) {
       const rx = px[i], ry = py[i], rz = pz[i]
       const rlen = Math.sqrt(rx * rx + ry * ry + rz * rz) || 1
-      const diff = rlen - sphereRadius
+      const nx = rx / rlen
+      const ny = ry / rlen
+      const nz = rz / rlen
+
+      // Calculate distance to ellipsoid surface in this direction
+      // r = 1 / sqrt(nx^2/a^2 + ny^2/b^2 + nz^2/c^2)
+      const term = (nx * nx) / radX2 + (ny * ny) / radY2 + (nz * nz) / radZ2
+      const targetR = 1 / Math.sqrt(term)
+
+      const diff = rlen - targetR
       const f = sphereStrength * diff * dt
-      const inv = 1 / rlen
-      vx[i] -= rx * inv * f
-      vy[i] -= ry * inv * f
-      vz[i] -= rz * inv * f
+      
+      vx[i] -= nx * f
+      vy[i] -= ny * f
+      vz[i] -= nz * f
     }
     for (let i = 0; i < n; i++) {
       vx[i] *= damping; vy[i] *= damping; vz[i] *= damping

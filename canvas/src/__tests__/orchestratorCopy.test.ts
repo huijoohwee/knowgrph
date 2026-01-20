@@ -2,6 +2,7 @@ import {
   ORCHESTRATOR_TRAVERSAL_TOOLTIP,
   GRAPH_DATA_TABLE_CURATION_TOOLTIP,
 } from '@/lib/config'
+import { AGENTIC_RAG_CONTEXT_URL } from '@/lib/agenticrag'
 import { TOOL_MENU_AREAS } from '@/features/toolbar/toolMenu'
 import { getOrchestratorSectionListLabel, ORCHESTRATOR_AGENTIC_COPY } from '@/features/panels/config'
 
@@ -149,7 +150,7 @@ export async function testOrchestratorRoleActionOutcomeJsonLdFixtureMatchesToolt
   if (fixture['@type'] !== 'rag:RoleActionOutcome') {
     throw new Error('RoleActionOutcome JSON-LD fixture must use rag:RoleActionOutcome type')
   }
-  if (fixture['@context'] !== 'https://huijoohwee.github.io/schema/AgenticRAG/v1/context.jsonld') {
+  if (fixture['@context'] !== AGENTIC_RAG_CONTEXT_URL) {
     throw new Error('RoleActionOutcome JSON-LD fixture must use AgenticRAG v1 context')
   }
   if (!text.startsWith(fixture.role)) {

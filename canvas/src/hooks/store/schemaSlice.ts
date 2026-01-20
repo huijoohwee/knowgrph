@@ -48,15 +48,12 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
 }
 
 export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
-  type LayoutMode = 'force' | 'radial' | 'tree'
-  type LayerMode = 'property' | 'document-structure' | 'semantic'
+  type LayoutMode = 'force' | 'radial'
   const setSchemaState = (schema: GraphSchema) => {
     const next = { ...schema }
     const prevMode = (get().schema.layout?.mode || 'force') as LayoutMode
     const nextMode = (next.layout?.mode || 'force') as LayoutMode
-    const prevLayerMode = (get().schema.layers?.mode || 'property') as LayerMode
-    const nextLayerMode = (next.layers?.mode || 'property') as LayerMode
-    if (prevMode !== nextMode || prevLayerMode !== nextLayerMode) {
+    if (prevMode !== nextMode) {
       try {
         const graphData = get().graphData
         const nodes = graphData?.nodes || []
@@ -71,7 +68,7 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
             pos[String(n.id)] = { x, y }
           }
           if (Object.keys(pos).length > 0) {
-            const prevCacheKey = `${prevLayerMode}:${prevMode}` as const
+            const prevCacheKey = `${prevMode}` as const
             set(s => ({
               layoutPositionCacheByMode: {
                 ...(s.layoutPositionCacheByMode || {}),
@@ -82,6 +79,22 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
         }
       } catch {
         void 0
+      }
+    }
+    const prevRequires2d = prevMode === 'radial'
+    const nextRequires2d = nextMode === 'radial'
+    const canvasRenderMode = get().canvasRenderMode
+    const lastFree = get().canvasRenderModeLastFree
+    const isAuto = get().canvasRenderModeIsAuto
+    if (nextRequires2d) {
+      if (canvasRenderMode === '3d') {
+        set({ canvasRenderMode: '2d', canvasRenderModeLastFree: '3d', canvasRenderModeIsAuto: true })
+      }
+    } else if (prevRequires2d && !nextRequires2d) {
+      if (isAuto && lastFree === '3d') {
+        set({ canvasRenderMode: '3d', canvasRenderModeIsAuto: false })
+      } else if (isAuto) {
+        set({ canvasRenderModeIsAuto: false })
       }
     }
     set({ schema: next })

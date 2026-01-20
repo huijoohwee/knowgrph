@@ -73,7 +73,7 @@ export interface ToolbarToolMenuProps {
   toolMenuCardRef: React.RefObject<HTMLDivElement>
   toolMenuCardStyle: React.CSSProperties
   onHeaderPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
-  requestedFloatingPanelView?: 'workspaceActions' | 'propsPanel' | 'graphLayer' | 'renderer' | 'graphTraversal' | 'mermaidFocus'
+  requestedFloatingPanelView?: 'workspaceActions' | 'propsPanel' | 'renderer' | 'graphTraversal'
   requestedFloatingPanelViewSeq?: number
   onOpenData: () => void
   onRunPipeline: () => void

@@ -92,8 +92,8 @@ def parse_frontmatter(lines: List[str]) -> Tuple[Dict[str, Any], int]:
             items = []
             i += 1
             continue
-        if raw == "polygonLayers:":
-            current_list_key = "polygonLayers"
+        if raw == "graphLayers:":
+            current_list_key = "graphLayers"
             current_item = None
             items = []
             i += 1
@@ -112,9 +112,9 @@ def parse_frontmatter(lines: List[str]) -> Tuple[Dict[str, Any], int]:
             items.append(current_item)
         if "ontologies" not in meta:
             meta["ontologies"] = items
-    elif current_list_key == "polygonLayers":
-        if "polygonLayers" not in meta:
-            meta["polygonLayers"] = items
+    elif current_list_key == "graphLayers":
+        if "graphLayers" not in meta:
+            meta["graphLayers"] = items
     return meta, end_index
 
 

@@ -1,6 +1,7 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_COPY } from '@/lib/config-copy/uiCopy'
 
 type FieldEndpointsAndCardinalitySectionProps = {
   schema: GraphSchema
@@ -74,24 +75,24 @@ export default function FieldEndpointsAndCardinalitySection({
   return (
     <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
       <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
-        Endpoints & Cardinality
+        {UI_COPY.endpointsAndCardinalityHeader}
       </div>
 
       {!hasOwner ? (
         <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
-          Select a {scope === 'node' ? 'node type' : 'edge label'} to edit constraints
+          {UI_COPY.selectScopeToEditConstraints(scope)}
         </div>
       ) : (
         <div className="space-y-3">
           {scope === 'edge' ? (
             <div className="space-y-2">
               <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
-                Endpoint matrix
+                {UI_COPY.endpointMatrixHeader}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="min-w-0">
                   <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-600`} htmlFor="graph-fields-endpoint-sources">
-                    Sources (comma)
+                    {UI_COPY.sourcesPlaceholder}
                   </label>
                   <input
                     id="graph-fields-endpoint-sources"
@@ -107,7 +108,7 @@ export default function FieldEndpointsAndCardinalitySection({
                 </div>
                 <div className="min-w-0">
                   <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-600`} htmlFor="graph-fields-endpoint-targets">
-                    Targets (comma)
+                    {UI_COPY.targetsPlaceholder}
                   </label>
                   <input
                     id="graph-fields-endpoint-targets"
@@ -128,14 +129,14 @@ export default function FieldEndpointsAndCardinalitySection({
           {scope === 'node' ? (
             <div className="space-y-2">
               <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
-                Edges per node type
+                {UI_COPY.edgesPerNodeTypeHeader}
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-40 truncate text-xs text-gray-700">{ownerKey}</div>
                 <input
                   type="number"
                   min={0}
-                  placeholder="min"
+                  placeholder={UI_COPY.minPlaceholder}
                   value={minEdgesText}
                   onChange={e => setMinEdgesText(e.target.value)}
                   onBlur={() => {
@@ -146,7 +147,7 @@ export default function FieldEndpointsAndCardinalitySection({
                 <input
                   type="number"
                   min={0}
-                  placeholder="max"
+                  placeholder={UI_COPY.maxPlaceholder}
                   value={maxEdgesText}
                   onChange={e => setMaxEdgesText(e.target.value)}
                   onBlur={() => {
@@ -159,14 +160,14 @@ export default function FieldEndpointsAndCardinalitySection({
           ) : (
             <div className="space-y-2">
               <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
-                Edges per label (per node)
+                {UI_COPY.edgesPerLabelPerNodeHeader}
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-40 truncate text-xs text-gray-700">{ownerKey}</div>
                 <input
                   type="number"
                   min={0}
-                  placeholder="max per node"
+                  placeholder={UI_COPY.maxPerNodePlaceholder}
                   value={maxPerNodeText}
                   onChange={e => setMaxPerNodeText(e.target.value)}
                   onBlur={() => {
@@ -182,4 +183,3 @@ export default function FieldEndpointsAndCardinalitySection({
     </div>
   )
 }
-

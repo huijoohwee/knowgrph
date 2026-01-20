@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config';
 import { lsBool, lsNum, lsSetBool, lsSetNum } from '@/lib/persistence';
 
-export type MainPanelTabKey = 'workflow' | 'help' | 'graphFields' | 'graphLayer' | 'preview' | 'settings';
+export type MainPanelTabKey = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings';
 
 export function useMainPanelDrag() {
   const [isMainPanelOpen, setIsMainPanelOpen] = useState(false);

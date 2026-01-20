@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware'
 import { defaultSchema } from '@/lib/graph/schema';
 import { createGraphDataSlice } from '@/hooks/store/graphDataSlice';
 import { createMinimapSlice } from '@/features/minimap/store';
@@ -10,16 +11,46 @@ import { createSchemaSlice, readSchemaFromStorage } from '@/hooks/store/schemaSl
 import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
 import { getLocalStorage } from '@/lib/persistence';
 import type { GraphState, LayoutPositionCacheKey, NodePosition2d } from '@/hooks/store/types';
+import type { GraphSchema } from '@/lib/graph/schema'
+
+const positionsMatch = (
+  a: Record<string, NodePosition2d> | null | undefined,
+  b: Record<string, NodePosition2d> | null | undefined,
+): boolean => {
+  if (a === b) return true
+  if (!a || !b) return false
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (let i = 0; i < aKeys.length; i += 1) {
+    const key = aKeys[i]
+    const aPos = a[key]
+    const bPos = b[key]
+    if (!bPos) return false
+    if (aPos.x !== bPos.x || aPos.y !== bPos.y) return false
+  }
+  return true
+}
 
 export type { GraphState } from '@/hooks/store/types';
 
-export const useGraphStore = create<GraphState>((set, get) => ({
+const applyCanvasDefaultInitSchema = (schema: GraphSchema): GraphSchema => {
+  const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
+  const portHandles = { ...(behavior.portHandles || {}), enabled: true }
+  const nextBehavior = { ...behavior, portHandles }
+  const nextLayout = { ...(schema.layout || {}), mode: 'force' as const }
+  return { ...schema, behavior: nextBehavior, layout: nextLayout }
+}
+
+export const useGraphStore = create<GraphState>()(
+  subscribeWithSelector((set, get) => ({
   schema: (() => {
     try {
       const storage = getLocalStorage();
-      return readSchemaFromStorage(storage) || defaultSchema;
+      const fromStorage = readSchemaFromStorage(storage)
+      return applyCanvasDefaultInitSchema(fromStorage || defaultSchema);
     } catch {
-      return defaultSchema;
+      return applyCanvasDefaultInitSchema(defaultSchema);
     }
   })(),
   layoutPositionCacheByMode: {},
@@ -38,17 +69,17 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     })
   },
   setLayoutPositionsForMode: (key: LayoutPositionCacheKey, positions: Record<string, NodePosition2d> | null) => {
-    set(s => {
-      const prev = s.layoutPositionCacheByMode || {}
-      if (!positions || Object.keys(positions).length === 0) {
-        if (!prev || !prev[key]) return { layoutPositionCacheByMode: prev }
-        const next: typeof prev = { ...prev }
-        delete next[key]
-        return { layoutPositionCacheByMode: next }
-      }
-      const next: typeof prev = { ...prev, [key]: positions }
-      return { layoutPositionCacheByMode: next }
-    })
+    const prev = get().layoutPositionCacheByMode || {}
+    const prevEntry = prev[key] || null
+    if (!positions || Object.keys(positions).length === 0) {
+      if (!prevEntry) return
+      const next: typeof prev = { ...prev }
+      delete next[key]
+      set({ layoutPositionCacheByMode: next })
+      return
+    }
+    if (positionsMatch(prevEntry, positions)) return
+    set({ layoutPositionCacheByMode: { ...prev, [key]: positions } })
   },
   setGraphFieldsOpStatus: (ok, msg) => {
     set({ graphFieldsOpOk: ok, graphFieldsOpMsg: String(msg || '') })
@@ -64,7 +95,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   resetAll: () => {
     set({
       graphData: { nodes: [], edges: [], type: 'application/json' },
-      schema: defaultSchema,
+      schema: applyCanvasDefaultInitSchema(defaultSchema),
       layoutPositionCacheByMode: {},
       history: [],
       historyIndex: -1,
@@ -79,6 +110,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       renderOpOk: null,
       renderOpMsg: '',
       lifecycleStage: 'idle',
+      frontmatterModeEnabled: false,
     });
   },
   ...createUiSettingsSlice(set),
@@ -89,4 +121,5 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   ...createUiSlice(set),
   ...createCanvasSlice(set, get),
   ...createSchemaSlice(set, get),
-}));
+})),
+)

@@ -28,7 +28,7 @@ export type GraphSizePresetCatalogEntry = {
   layoutOverrides: GraphSizePresetLayoutOverrides
 }
 
-export const threePresetNodePalette = ['#ef4444', '#3b82f6', '#facc15', '#22c55e', '#a855f7', '#fb923c']
+export const threePresetNodePalette = ['#007BFF', '#FFC107', '#28A745', '#FD7E14', '#DC3545']
 
 export const threePresetCatalog: ThreePresetCatalogEntry[] = [
   {
@@ -89,7 +89,7 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
       starfieldCount: 2000,
       starfieldRadius: 520,
       starfieldOpacity: 0.85,
-      starfieldColor: '#facc15',
+      starfieldColor: '#FFC107',
       backgroundColor: '#020617',
       fogColor: '#020617',
       fogNear: 60,
@@ -107,7 +107,7 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
         dimmedNodeOpacity: 0.18,
         dimmedEdgeOpacity: 0.18,
         selectedEdgeWidth: 3.2,
-        selectedEdgeColor: '#facc15',
+        selectedEdgeColor: '#FFC107',
       },
     },
   },

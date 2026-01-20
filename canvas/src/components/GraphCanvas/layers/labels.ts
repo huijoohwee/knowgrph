@@ -1,201 +1,129 @@
 import * as d3 from 'd3';
 import type { MutableRefObject } from 'react';
-import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types';
+import type { GraphNode } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
-import { compareMermaidNodesForRender, getRenderNodeRadius2d, hasNodeMedia } from '@/components/GraphCanvas/helpers';
+import { wrapTextByMaxChars, truncateTextWithEllipsis, estimateMaxCharsForWidthPx } from '@/components/GraphCanvas/layout/utils'
+import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
 export const createLabelsLayer = (args: {
   g: GSelection;
-  graphData: GraphData;
+  nodes: GraphNode[];
   schema: GraphSchema;
-  edgesForDisplay: GraphEdge[];
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
-  renderMediaAsNodes: boolean;
-  graphLayersVisible: boolean;
 }) => {
-  const {
-    g,
-    graphData,
-    schema,
-    edgesForDisplay,
-    labelsSelRef,
-    renderMediaAsNodes,
-    graphLayersVisible,
-  } = args;
-  const isTree = schema.layout?.mode === 'tree';
-  const isMermaid = schema.layout?.mode === 'mermaid';
-  const treeCfg = schema.layout?.tree || {};
-  const treeColorMode = treeCfg.colorMode === 'schema' ? 'schema' : 'observable';
-  const direction = treeCfg.direction ?? 'source-target';
-  const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
-  const layersCfg = schema.layers || {};
-  const layerMode = layersCfg.mode || 'property';
-  const semanticCfg = layersCfg.semantic || {};
-  const semanticHiddenTypes = Array.isArray(semanticCfg.hiddenNodeTypes)
-    ? semanticCfg.hiddenNodeTypes.map(t => String(t || '').trim()).filter(Boolean)
-    : [];
-  const hiddenTypeSet =
-    layerMode === 'semantic' && semanticHiddenTypes.length
-      ? new Set(semanticHiddenTypes)
-      : null;
-  const nodes = (() => {
-    const base = (() => {
-      if (!hiddenTypeSet) return rawNodes;
-      const filtered = rawNodes.filter(n => !hiddenTypeSet.has(String(n.type || '')));
-      return filtered.length > 0 ? filtered : rawNodes;
-    })();
-    const withoutMedia = (() => {
-      if (!renderMediaAsNodes) return base;
-      return base.filter(n => !hasNodeMedia(n));
-    })();
-    if (!graphLayersVisible) return withoutMedia;
-    const filtered = withoutMedia.filter(n => String(n.type || '') !== 'MermaidSubgraph');
-    return filtered.length > 0 ? filtered : withoutMedia;
-  })();
-  const nodesForLabels = isMermaid ? [...nodes].sort((a, b) => compareMermaidNodesForRender(a, b, schema)) : nodes;
+  const { g, nodes: rawNodes, schema, labelsSelRef } = args;
+
+  const nodes = rawNodes;
+
+  const labelLayer = g.append('g').attr('data-kg-layer', 'labels');
   
-  const nodesWithChildren = new Set<string>();
-  if (isTree) {
-    for (let i = 0; i < edgesForDisplay.length; i += 1) {
-      const e = edgesForDisplay[i];
-      const src = String(e.source ?? '');
-      const tgt = String(e.target ?? '');
-      const parent = direction === 'source-target' ? src : tgt;
-      const child = direction === 'source-target' ? tgt : src;
-      if (!parent || !child || parent === child) continue;
-      nodesWithChildren.add(parent);
-    }
-  }
+  const labelFontSize = schema.labelStyles?.fontSize ?? 12;
+  const labelFontFamily = 'Inter, sans-serif';
+  const labelFill = schema.labelStyles?.color || '#111111';
   const haloColor = schema.labelStyles?.halo?.color ?? '#ffffff';
   const haloWidthRaw = schema.labelStyles?.halo?.width;
-  const haloWidth =
-    typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3;
-  const labelFontSize = (() => {
-    if (!isTree) return schema.labelStyles?.fontSize ?? 12;
-    const raw = treeCfg.labelFontSize;
-    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
-    const fromLabelStyles = schema.labelStyles?.fontSize;
-    if (typeof fromLabelStyles === 'number' && Number.isFinite(fromLabelStyles) && fromLabelStyles > 0) return fromLabelStyles;
-    return 10;
-  })();
-  const labelFontFamily = (() => {
-    if (!isTree) return null;
-    const raw = typeof treeCfg.labelFontFamily === 'string' ? treeCfg.labelFontFamily.trim() : '';
-    return raw ? raw : 'sans-serif';
-  })();
-  const mermaidLabelFontSize = (() => {
-    const raw = (schema.layout?.mermaid || {}).labelFontSize
-    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
-    const fromLabelStyles = schema.labelStyles?.fontSize
-    if (typeof fromLabelStyles === 'number' && Number.isFinite(fromLabelStyles) && fromLabelStyles > 0) return fromLabelStyles
-    return 12
-  })()
-  const mermaidLabelFontFamily = (() => {
-    const raw = typeof (schema.layout?.mermaid || {}).labelFontFamily === 'string'
-      ? String((schema.layout?.mermaid || {}).labelFontFamily).trim()
-      : ''
-    return raw ? raw : 'sans-serif'
-  })()
-  const labelFill = (() => {
-    if (!isTree) return schema.labelStyles?.color ?? '#111';
-    if (treeColorMode === 'schema') return schema.labelStyles?.color ?? '#111';
-    const override = typeof treeCfg.linkStroke === 'string' ? treeCfg.linkStroke.trim() : '';
-    return override || '#555';
-  })();
+  const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3;
   const baseDx = schema.labelStyles?.offset?.dx ?? 12;
+  const lineHeightPx = labelFontSize * 1.2;
 
-  const labelsGroup = g.append('g').attr('class', 'labels-layer');
+  const label = labelLayer
+    .selectAll<SVGTextElement, GraphNode>('text')
+    .data(nodes)
+    .enter()
+    .append('text')
+    .attr('class', 'node-label')
+    .attr('font-size', labelFontSize)
+    .attr('font-family', labelFontFamily)
+    .attr('fill', labelFill)
+    .attr('data-lod-hidden', '0')
+    .attr('data-zoom-lod-hidden', '0')
+    .attr('dx', (d: GraphNode) => {
+       if (getNodeRenderShape2d(d, schema) === 'rect') return 0
+       return schema.labelStyles?.offset?.dx ?? 12
+    })
+    .attr('dy', (d: GraphNode) => {
+        if (getNodeRenderShape2d(d, schema) === 'rect') return 0
+        return schema.labelStyles?.offset?.dy ?? 4
+    })
+    .attr('data-base-anchor', 'middle')
+    .attr('data-base-dx', (d: GraphNode) => {
+       if (getNodeRenderShape2d(d, schema) === 'rect') return '0'
+       return String(baseDx)
+    })
+    .attr('data-base-dy', (d: GraphNode) => {
+        if (getNodeRenderShape2d(d, schema) === 'rect') return '0'
+        return String(schema.labelStyles?.offset?.dy ?? 4);
+    })
+    .attr('dominant-baseline', (d: GraphNode) => {
+         if (getNodeRenderShape2d(d, schema) === 'rect') return 'middle'
+         return null
+    })
+    .attr('text-anchor', 'middle')
+    .attr('paint-order', 'stroke')
+    .attr('stroke', haloColor)
+    .attr('stroke-width', haloWidth)
+    .attr('stroke-linejoin', 'round')
+    .style('pointer-events', 'none');
 
-  let label: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>;
-
-  if (isMermaid) {
-    label = labelsGroup
-      .selectAll<SVGTextElement, GraphNode>('text')
-      .data(nodesForLabels)
-      .enter()
-      .append('text')
-      .attr('font-size', mermaidLabelFontSize)
-      .attr('font-family', mermaidLabelFontFamily)
-      .attr('fill', schema.labelStyles?.color ?? '#111')
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'middle')
-      .attr('dx', 0)
-      .attr('dy', 0)
-      .style('pointer-events', 'none');
+    const maxCharsPerLine = Math.max(8, Math.min(34, estimateMaxCharsForWidthPx(180, labelFontSize)));
+    const compactChars = Math.max(6, Math.min(18, Math.floor(maxCharsPerLine * 0.55)));
     
-    const lineHeightPx = mermaidLabelFontSize * 1.2
     label.each(function (d: GraphNode) {
       const el = d3.select(this)
-      const props = (d.properties || {}) as Record<string, unknown>
-      const raw =
-        typeof props['visual:label'] === 'string'
-          ? String(props['visual:label'] || '')
-          : String(d.label || d.id || '')
-      const lines = String(raw).replace(/\r\n?/g, '\n').split('\n')
-      const dy0 = -((Math.max(1, lines.length) - 1) / 2) * lineHeightPx
+      const baseLabel = String(d.label || d.id || '')
+      const isRect = getNodeRenderShape2d(d, schema) === 'rect'
+      
+      let wrapped = ''
+      let visibleLines: string[] = []
+      
+      if (isRect) {
+         const { width, height } = getNodeRectDimensions2d(d, schema)
+         const padX = 8
+         const padY = 4
+         const availW = Math.max(8, width - padX * 2)
+         const availH = Math.max(8, height - padY * 2)
+         const maxChars = Math.max(4, Math.min(80, estimateMaxCharsForWidthPx(availW, labelFontSize)))
+         
+         wrapped = wrapTextByMaxChars(baseLabel, maxChars)
+         const lines = String(wrapped).replace(/\r\n?/g, '\n').split('\n')
+         const maxLines = Math.floor(availH / lineHeightPx)
+         
+         if (lines.length > maxLines) {
+           visibleLines = lines.slice(0, Math.max(1, maxLines))
+           const last = visibleLines[visibleLines.length - 1]
+           visibleLines[visibleLines.length - 1] = last.endsWith('…') ? last : last + '…'
+         } else {
+           visibleLines = lines
+         }
+      } else {
+         wrapped = wrapTextByMaxChars(baseLabel, maxCharsPerLine)
+         visibleLines = String(wrapped).replace(/\r\n?/g, '\n').split('\n')
+      }
+
+      const compact = truncateTextWithEllipsis(baseLabel, compactChars)
+      const lineCount = Math.max(1, visibleLines.length)
+      let maxLen = 0
+      for (let i = 0; i < visibleLines.length; i += 1) {
+        const len = visibleLines[i].length
+        if (len > maxLen) maxLen = len
+      }
+
+      const dy0 = -((Math.max(1, lineCount) - 1) / 2) * lineHeightPx
+      
+      el
+        .attr('data-label-mode', 'wrap')
+        .attr('data-label-full', baseLabel)
+        .attr('data-label-wrap', wrapped)
+        .attr('data-label-compact', compact)
+        .attr('data-label-linecount', String(lineCount))
+        .attr('data-label-maxlen', String(maxLen))
       el.text(null)
-      for (let i = 0; i < lines.length; i += 1) {
-        el.append('tspan').attr('x', 0).attr('dy', i === 0 ? `${dy0}px` : `${lineHeightPx}px`).text(lines[i])
+      for (let i = 0; i < visibleLines.length; i += 1) {
+        el.append('tspan').attr('x', isRect ? 0 : null).attr('dy', i === 0 ? `${dy0}px` : `${lineHeightPx}px`).text(visibleLines[i])
       }
     })
-  } else {
-    // Standard Text Rendering
-    label = labelsGroup
-      .selectAll<SVGTextElement, GraphNode>('text')
-      .data(nodes)
-      .enter()
-      .append('text')
-      .text((d: GraphNode) => d.label)
-      .attr('font-size', labelFontSize)
-      .attr('font-family', labelFontFamily)
-      .attr('data-lod-hidden', '0')
-      .attr('data-zoom-lod-hidden', '0')
-      .attr('dx', (d: GraphNode) => {
-        if (!isTree) return schema.labelStyles?.offset?.dx ?? 12;
-        const id = String(d.id);
-        const r = getRenderNodeRadius2d(d, schema);
-        const pad = 6;
-        if (treeColorMode === 'observable') {
-          const delta = Math.max(pad, r + 3);
-          return nodesWithChildren.has(id) ? -delta : delta;
-        }
-        return nodesWithChildren.has(id) ? -(r + pad) : r + pad;
-      })
-      .attr('dy', () => (isTree ? '0.32em' : (schema.labelStyles?.offset?.dy ?? 4)))
-      .attr('data-base-anchor', (d: GraphNode) => {
-        if (!isTree) return 'start';
-        const id = String(d.id);
-        return nodesWithChildren.has(id) ? 'end' : 'start';
-      })
-      .attr('data-base-dx', (d: GraphNode) => {
-        if (!isTree) return String(baseDx);
-        const id = String(d.id);
-        const r = getRenderNodeRadius2d(d, schema);
-        const pad = 6;
-        if (treeColorMode === 'observable') {
-          const delta = Math.max(pad, r + 3);
-          return String(nodesWithChildren.has(id) ? -delta : delta);
-        }
-        return String(nodesWithChildren.has(id) ? -(r + pad) : r + pad);
-      })
-      .attr('data-base-dy', () => {
-        if (isTree) return '';
-        return String(schema.labelStyles?.offset?.dy ?? 4);
-      })
-      .attr('fill', labelFill)
-      .attr('text-anchor', (d: GraphNode) => {
-        if (!isTree) return null;
-        const id = String(d.id);
-        return nodesWithChildren.has(id) ? 'end' : 'start';
-      })
-      .attr('paint-order', isTree && treeColorMode === 'observable' ? 'stroke' : null)
-      .attr('stroke', isTree && treeColorMode === 'observable' ? haloColor : null)
-      .attr('stroke-width', isTree && treeColorMode === 'observable' ? haloWidth : null)
-      .attr('stroke-linejoin', isTree && treeColorMode === 'observable' ? 'round' : null)
-      .style('pointer-events', 'none');
-  }
 
   labelsSelRef.current = label;
 };

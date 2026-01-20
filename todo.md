@@ -3,19 +3,34 @@
 ## RULES
 
 ### Universal, neutral, project‑agnostic one‑liner in context–intent–directive
-- [] For consistent functionality, reuse the shared utils module across components to centralize common logic and reduce duplication
-- [] Maintain the `UI_THEME_TOKENS` styling for consistency
-- [] 1920 by 1080 (Fit to View/Screen support 16:9, centroid centering)
-- [] when in full-screen mode, canvas inactive, forbid recompute
-- [] In markup, use semantic HTML elements and forbid generic div for structural meaning.
-- [] Use feature‑scoped modules that follow the Single Responsibility Principle, and forbid cross‑cutting generic modules.
-- [] During refactoring, cleanup duplicate, conflicting, stale, and legacy logic to maintain clarity and consistency.
-- [] Apply memoization to cache results and forbid expensive recalculation or unnecessary rerendering.
-- [] Update `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents`
+
+- [x] Full‑screen; preserve inactive canvas; forbid unnecessary recompute
+- [x] Markup; apply semantic elements; forbid generic `div` misuse
+- [x] Modules; follow single responsibility; forbid cross‑cutting sprawl
+- [x] Performance; apply memoization/cache results; forbid costly rerendering/recalculation
+- [x] Refactoring; remove stale logic; forbid conflicting duplication
+- [x] Resolution; support 16:9 centering; forbid fixed non‑scalable layouts
+- [x] Store; centralize shared state; forbid direct mutation
+- [x] Store; short‑circuit unchanged layout caches and canvas dimensions/positions; forbid redundant updates that trigger render/recalc loops
+- [x] Styling; enforce theme tokens; forbid inconsistent overrides
+- [x] Test; unit test all components; forbid regression
+- [x] Test; ensure close-loop test; forbid hang or infinite loop
+- [x] Utilities; centralize shared logic; forbid duplication across components
+- [x] Document structure; adhere to `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/docs/document-template.md`; forbid inconsistent structure
+
+- [x] Post-task completion; update `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents`
+
+---
 
 ## FEATURES & FUNCTIONALITIES
 
 ### P0-Critical
+
+- [] minimap 100% fidelity with canvas
+
+#### 2026-01-19
+
+- [] during initialization, on Canvas, GRAPH (nodes, edges, graph layers/subgraph) exhibits cluster‑aware heuristic layout, auto‑scale to 1920×1080 (16:9), center by centroid, apply bounding‑box fit with collision padding; forbid unbalanced cluster concentration/one long horizontal/vertical/diagonal line
 
 #### 2026-01-18
 
@@ -31,11 +46,11 @@
 
 
 
-Markdown Editor syntax highlight for Markdown
+- [x] Markdown Editor syntax highlight for Markdown
 
 codeblock in table rendering;
 
-- [] Initialize GRAPH (nodes, edges, graph layers/subgraph) with cluster‑aware heuristic layout, auto‑scale to 1920×1080 (16:9), center by centroid, and apply bounding‑box fit with collision padding
+
   - [] 
 
 text, `<br/>`, 
@@ -110,4 +125,3 @@ https://cs.brown.edu/people/jcmace/d3/graph.html?id=small.json
 - [] integrate https://github.com/HeyPuter/puter.git
 
 - [] support OCR
-

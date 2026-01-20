@@ -1,4 +1,4 @@
-# Knowgrph Token Management and Markdown Highlight Budget
+# Knowgrph Token and Budget Management
 
 This document summarizes how Knowgrph manages token-related limits in the markdown viewer, with a focus on the always-on highlight complexity budget.
 

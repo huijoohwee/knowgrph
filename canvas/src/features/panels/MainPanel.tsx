@@ -12,16 +12,14 @@ import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { HelpCircle, MonitorPlay, Settings, Workflow } from 'lucide-react'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
-import GraphLayerView from '@/features/panels/views/GraphLayerView'
 
-type MainPanelTab = 'workflow' | 'help' | 'graphFields' | 'graphLayer' | 'preview' | 'settings'
+type MainPanelTab = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings'
 
 function isMainPanelTab(key: string): key is MainPanelTab {
   return (
     key === 'workflow' ||
     key === 'help' ||
     key === 'graphFields' ||
-    key === 'graphLayer' ||
     key === 'preview' ||
     key === 'settings'
   )
@@ -132,7 +130,6 @@ export default function MainPanel({
       tabs={[
         { key: 'workflow', label: 'Workflow' },
         { key: 'graphFields', label: UI_LABELS.graphFields },
-        { key: 'graphLayer', label: UI_LABELS.graphLayersMode },
         { key: 'preview', label: UI_LABELS.previewPanel },
         { key: 'settings', label: UI_LABELS.settings },
         { key: 'help', label: UI_LABELS.help },
@@ -155,7 +152,6 @@ export default function MainPanel({
             />
           )
         },
-        graphLayer: MonitorPlay,
         preview: MonitorPlay,
         settings: Settings,
         help: HelpCircle,
@@ -199,8 +195,6 @@ export default function MainPanel({
               ? graphFieldsStatus
               : tab === 'workflow'
               ? UI_LABELS.ragGraphRAGWorkflow
-              : tab === 'graphLayer'
-              ? UI_LABELS.graphLayersMode
               : tab === 'preview'
               ? UI_LABELS.previewPanel
               : tab === 'settings'
@@ -237,7 +231,6 @@ export default function MainPanel({
         {tab === 'graphFields' && (
           <GraphFieldsView onStatusChange={setGraphFieldsStatus} searchQuery={search} />
         )}
-        {tab === 'graphLayer' && <GraphLayerView />}
         {tab === 'preview' && <PreviewPanelView />}
         {tab === 'settings' && (
           <MainPanelBody header={<MainPanelSettingsHeader settingsActions={settingsActions} />}>

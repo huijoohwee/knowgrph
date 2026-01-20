@@ -1,6 +1,5 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { deriveGraphDataForLayers, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
 import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
 import type { GraphData } from '@/lib/graph/types'
@@ -15,40 +14,24 @@ export function useStatsSelection() {
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
-  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
-  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || '')
+  const derivedGraph = data as GraphData | null
 
-  const derivedGraph = React.useMemo(
-    () => {
-      const base = data as GraphData | null
-      const docName = (markdownDocumentName || '').trim() || null
-      const frontmatterOnly = !!frontmatterModeEnabled
-      const scopedGraph = frontmatterOnly ? filterGraphToFrontmatterMermaid(base, docName) : base
-      return deriveGraphDataForLayers(scopedGraph as GraphData | null, schema)
-    },
-    [data, schema, frontmatterModeEnabled, markdownDocumentName],
-  )
-
-  const graphLayerSelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)
   const edgeSelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)
   const communitySelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)
 
-  const [pinnedGraphLayerId, setPinnedGraphLayerId] = React.useState<string | null>(null)
   const [pinnedEdgeId, setPinnedEdgeId] = React.useState<string | null>(null)
   const [pinnedCommunityId, setPinnedCommunityId] = React.useState<number | null>(null)
 
   const selectionInputsForStats = React.useMemo(() => {
     const snap =
-      pinnedGraphLayerId != null
-        ? graphLayerSelectionSnapshotRef.current
-        : pinnedEdgeId != null
-          ? edgeSelectionSnapshotRef.current
-          : pinnedCommunityId != null
-            ? communitySelectionSnapshotRef.current
-            : null
+      pinnedEdgeId != null
+        ? edgeSelectionSnapshotRef.current
+        : pinnedCommunityId != null
+          ? communitySelectionSnapshotRef.current
+          : null
     if (snap) return snap
     return { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds }
-  }, [pinnedCommunityId, pinnedEdgeId, pinnedGraphLayerId, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+  }, [pinnedCommunityId, pinnedEdgeId, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
 
   const selectionSubgraph = React.useMemo<GraphData | null>(() => {
     const graph = derivedGraph as GraphData | null
@@ -146,13 +129,10 @@ export function useStatsSelection() {
     statsLod,
     setStatsLod,
     effectiveLod,
-    pinnedGraphLayerId,
-    setPinnedGraphLayerId,
     pinnedEdgeId,
     setPinnedEdgeId,
     pinnedCommunityId,
     setPinnedCommunityId,
-    graphLayerSelectionSnapshotRef,
     edgeSelectionSnapshotRef,
     communitySelectionSnapshotRef,
     captureSelectionSnapshot,

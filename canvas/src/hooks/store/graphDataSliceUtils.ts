@@ -1,7 +1,6 @@
 import type { GetGraph } from '@/hooks/store/graphDataSlice'
-import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
-import { parseLayoutMode, parseTreeMetadata } from './graphDataSliceParsers'
+import { parseLayoutMode } from './graphDataSliceParsers'
 import { computeDerivedFields, parseGraphFieldId } from '@/features/graph-fields/graphFields'
 import {
   buildDefaultVisibleColumns,
@@ -23,125 +22,16 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
     (isRecord(metadata['canvas:layout']) ? metadata['canvas:layout'].mode : undefined)
 
   const modeSuggestion = parseLayoutMode(rawMode)
-
-  const treeRaw = metadata['canvas:tree'] ?? metadata['tree']
-  const treeSuggestion = parseTreeMetadata(treeRaw)
-
-  if (!modeSuggestion && !treeSuggestion) return
+  if (!modeSuggestion) return
 
   const schema = get().schema
   const curLayout = schema.layout || {}
-  let nextLayout = curLayout
-  const curPerformance = schema.performance || {}
-  let nextPerformance = curPerformance
-  let changed = false
+  if ((curLayout.mode || 'force') !== 'force') return
+  if (modeSuggestion === 'force') return
 
-  if (modeSuggestion && (curLayout.mode || 'force') === 'force' && modeSuggestion !== 'force') {
-    nextLayout = { ...nextLayout, mode: modeSuggestion }
-    changed = true
-  }
-
-  if (treeSuggestion && !modeSuggestion && (curLayout.mode || 'force') === 'force') {
-    nextLayout = { ...nextLayout, mode: 'tree' }
-    changed = true
-  }
-
-  if (treeSuggestion) {
-    const curTree = curLayout.tree || {}
-    const nextTree: typeof curTree = { ...curTree }
-    if ((curTree.edgeLabels || []).length === 0 && (treeSuggestion.edgeLabels || []).length > 0) {
-      nextTree.edgeLabels = treeSuggestion.edgeLabels
-    }
-    if (curTree.direction == null && treeSuggestion.direction != null) nextTree.direction = treeSuggestion.direction
-    if (curTree.orientation == null && treeSuggestion.orientation != null) nextTree.orientation = treeSuggestion.orientation
-    if (curTree.nodeSize == null && treeSuggestion.nodeSize != null) nextTree.nodeSize = treeSuggestion.nodeSize
-    if (curTree.separation == null && treeSuggestion.separation != null) nextTree.separation = treeSuggestion.separation
-    if (curTree.sortBy == null && treeSuggestion.sortBy != null) nextTree.sortBy = treeSuggestion.sortBy
-    if (curTree.curve == null && treeSuggestion.curve != null) nextTree.curve = treeSuggestion.curve
-    if (curTree.colorMode == null && treeSuggestion.colorMode != null) nextTree.colorMode = treeSuggestion.colorMode
-    if (!String(curTree.linkStroke || '').trim() && treeSuggestion.linkStroke != null) nextTree.linkStroke = treeSuggestion.linkStroke
-    if (curTree.linkOpacity == null && treeSuggestion.linkOpacity != null) nextTree.linkOpacity = treeSuggestion.linkOpacity
-    if (curTree.linkWidth == null && treeSuggestion.linkWidth != null) nextTree.linkWidth = treeSuggestion.linkWidth
-    if (curTree.nodeRadius == null && treeSuggestion.nodeRadius != null) nextTree.nodeRadius = treeSuggestion.nodeRadius
-    if (!String(curTree.internalFill || '').trim() && treeSuggestion.internalFill != null) nextTree.internalFill = treeSuggestion.internalFill
-    if (!String(curTree.leafFill || '').trim() && treeSuggestion.leafFill != null) nextTree.leafFill = treeSuggestion.leafFill
-    if (curTree.labelFontSize == null && treeSuggestion.labelFontSize != null) nextTree.labelFontSize = treeSuggestion.labelFontSize
-    if (!String(curTree.labelFontFamily || '').trim() && treeSuggestion.labelFontFamily != null) {
-      nextTree.labelFontFamily = treeSuggestion.labelFontFamily
-    }
-    const treeChanged = JSON.stringify(curTree) !== JSON.stringify(nextTree)
-    if (treeChanged) {
-      nextLayout = { ...nextLayout, tree: nextTree }
-      changed = true
-    }
-  }
-
-  const treeMeta = isRecord(treeRaw) ? treeRaw : null
-  if (treeMeta && isRecord(treeMeta.mermaidDensity)) {
-    const mermaidDensity = treeMeta.mermaidDensity as Record<string, unknown>
-    const densityLabelRaw = typeof mermaidDensity.density === 'string' ? mermaidDensity.density.trim() : ''
-    const densityLabel =
-      densityLabelRaw === 'none' || densityLabelRaw === 'sparse' || densityLabelRaw === 'medium' || densityLabelRaw === 'dense'
-        ? densityLabelRaw
-        : ''
-    const statementCount =
-      typeof mermaidDensity.statementCount === 'number' && Number.isFinite(mermaidDensity.statementCount) && mermaidDensity.statementCount > 0
-        ? mermaidDensity.statementCount
-        : null
-
-    if (statementCount != null && (densityLabel === 'medium' || densityLabel === 'dense')) {
-      const curLod = curPerformance.lod || {}
-      const curTreeLod = (curLod.tree || {}) as NonNullable<NonNullable<GraphSchema['performance']>['lod']>['tree']
-      const nextTreeLod = { ...curTreeLod }
-
-      if (curTreeLod.collapseMode == null) {
-        nextTreeLod.collapseMode = 'depth'
-      }
-      const maxDepthRaw = typeof curTreeLod.maxDepth === 'number' && Number.isFinite(curTreeLod.maxDepth) ? curTreeLod.maxDepth : null
-      if (maxDepthRaw == null || maxDepthRaw <= 0) {
-        let maxDepth = densityLabel === 'dense' ? 2 : 3
-        const configRaw = mermaidDensity.config
-        let isVeryDense = false
-        if (densityLabel === 'dense' && configRaw && isRecord(configRaw)) {
-          const denseMaxRaw = (configRaw.denseMaxStatements as unknown)
-          const denseMax =
-            typeof denseMaxRaw === 'number' && Number.isFinite(denseMaxRaw) && denseMaxRaw > 0 ? denseMaxRaw : null
-          if (denseMax != null && statementCount >= denseMax * 2) {
-            maxDepth = 1
-            isVeryDense = true
-          }
-        }
-        nextTreeLod.maxDepth = maxDepth
-
-        if (isVeryDense) {
-          const curLayoutTree = (nextLayout.tree || {}) as NonNullable<NonNullable<GraphSchema['layout']>['tree']>
-          const sepRaw =
-            typeof curLayoutTree.separation === 'number' &&
-            Number.isFinite(curLayoutTree.separation) &&
-            curLayoutTree.separation > 0
-              ? curLayoutTree.separation
-              : null
-          if (sepRaw != null) {
-            const boosted = sepRaw * 1.1
-            const nextTreeLayout = { ...curLayoutTree, separation: boosted }
-            nextLayout = { ...nextLayout, tree: nextTreeLayout }
-            changed = true
-          }
-        }
-      }
-
-      const treeLodChanged = JSON.stringify(curTreeLod) !== JSON.stringify(nextTreeLod)
-      if (treeLodChanged) {
-        const nextLod = { ...curLod, tree: nextTreeLod }
-        nextPerformance = { ...curPerformance, lod: nextLod }
-        changed = true
-      }
-    }
-  }
-
-  if (!changed) return
-  get().setSchema({ ...schema, layout: nextLayout, performance: nextPerformance })
-  if ((nextLayout.mode || schema.layout?.mode) === 'radial' || (nextLayout.mode || schema.layout?.mode) === 'tree') {
+  const nextLayout = { ...curLayout, mode: modeSuggestion }
+  get().setSchema({ ...schema, layout: nextLayout })
+  if ((nextLayout.mode || schema.layout?.mode) === 'radial') {
     const setCanvasRenderMode = get().setCanvasRenderMode
     if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
   }
