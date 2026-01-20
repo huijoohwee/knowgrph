@@ -103,6 +103,7 @@ export const UI_COPY = {
   frontmatterModeTooltip: 'Frontmatter Mode: focus canvas and panels on Mermaid frontmatter graph',
   frontmatterModeToggleTooltip: 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph',
   mermaidLayoutTooltip: 'Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout.',
+  nodeShapeModeTooltip: 'Node Shape: toggle between circle (default) and rectangular nodes.',
   portHandlesTooltip:
     'Port Handles: toggle to show node connection handles and route 2D edge endpoints to the nearest handle.',
   fitToViewTooltip: 'Fit to View: automatically scale and center the graph to fill the viewport.',

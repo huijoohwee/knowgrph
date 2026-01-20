@@ -15,6 +15,7 @@ import {
   testClampCollisionRadiusUsesSharedBounds,
   testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance,
 } from '@/__tests__/schema.test'
+import { testLayoutPositioningSkipsReseedOnToggle } from '@/__tests__/layoutPositioning.test'
 
 export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'schema.validateDefaults', testValidateSchemaFillsDefaults)
@@ -24,6 +25,7 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'schema.alphaDecayClamp', testClampAlphaDecay)
   await execTest(results, 'schema.collisionRadiusClamp', testClampCollisionRadiusUsesSharedBounds)
   await execTest(results, 'schema.semanticNodeRadiusUsesProps', testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance)
+  await execTest(results, 'layout.positioning.cacheKeyAndSkip', testLayoutPositioningSkipsReseedOnToggle)
   await execTest(results, 'schema.tabEnterText', testSchemaTabEnterText)
   await execTest(results, 'schema.persistenceWrites', testSchemaPersistenceWrites)
   await execTest(results, 'schema.resetImportTextSync', testResetImportSchemaTabTextSync)

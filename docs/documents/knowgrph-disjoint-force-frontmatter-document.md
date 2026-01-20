@@ -37,6 +37,7 @@
 - Disjoint component anchors: [disjoint.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/disjoint.ts)
 - Overlap resolution (native broadphase): [overlap.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/overlap.ts)
 - Simulation orchestration: [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
+- Heuristic Clustering (Seed): [heuristic-cluster.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/heuristic-cluster.ts)
 - Frontmatter scoping: [layerDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts)
 
 ---
@@ -54,6 +55,7 @@
 - Component detection: undirected connectivity over `edges` (BFS/DFS).
 - Deterministic ordering: sort by `(size desc, minId asc)`.
 - Anchor placement: deterministic spiral search with overlap rejection; larger components placed earlier.
+- Enhancement: Aligned with [D3 Disjoint Force](https://observablehq.com/@d3/disjoint-force-directed-graph/2) principles but adds deterministic anchoring for stability.
 
 **Implementation**: [computeDisjointComponentTargets](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/disjoint.ts)
 
@@ -66,7 +68,7 @@
 - Link cohesion: `d3.forceLink`
 - Repulsion: `d3.forceManyBody`
 - Positioning: `d3.forceX` + `d3.forceY` targeting component anchors when `disjointComponents` is enabled
-- Overlap: `d3.forceCollide` (radius) + native `bboxCollide` (label-aware AABB)
+- Overlap: `d3.forceCollide` (radius) + native `bboxCollide` (label-aware AABB with Quadtree acceleration)
 
 **Implementation**: [buildSimulation](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
 

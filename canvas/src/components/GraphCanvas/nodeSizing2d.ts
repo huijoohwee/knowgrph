@@ -7,9 +7,13 @@ export type NodeRenderShape2d = 'circle' | 'rect'
 
 export function getNodeRenderShape2d(node: GraphNode, schema: GraphSchema): NodeRenderShape2d {
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
+  if (String(node.type || '') === 'Image') return 'rect'
   const fromSchema = schema.nodeShapes?.[String(node.type || '')]
   if (fromSchema === 'rect') return 'rect'
   if (fromSchema === 'circle') return 'circle'
+  const mode = schema.behavior?.nodeShapeMode
+  if (mode === 'rect') return 'rect'
+  if (mode === 'circle') return 'circle'
   const raw = (node.properties || {})['visual:shape']
   const v = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
   if (v === 'rect') return 'rect'

@@ -57,6 +57,15 @@
 - Edit interactions: `canvas/src/features/*`
 - Visual highlight: `canvas/src/components/GraphCanvas/highlight.ts`
 
+### Group Shape Toggle
+- **Toggle**: Button with Square/Hexagon icon next to Frontmatter Mode.
+- **Function**: Switches `schema.layout.groups.shape` between `rect` (default) and `geo`.
+- **Visuals**:
+  - `rect`: Renders groups as rectangular bounding boxes.
+  - `geo`: Renders groups as native convex rings around member nodes.
+
+### Frontmatter Mode
+
 ---
 
 ## Interaction Contracts
@@ -67,4 +76,3 @@
 | Select edge | Click edge | Store selection updates | Must not invalidate layout caches |
 | Context menu | Right click canvas | Open props/actions | Must cleanup listeners on close/unmount |
 | Pan/zoom | Drag/scroll | Update viewport transform | Must keep updates throttled and stable |
-

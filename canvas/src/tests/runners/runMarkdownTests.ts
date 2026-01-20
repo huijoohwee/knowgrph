@@ -24,6 +24,8 @@ import {
   testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine,
   testMarkdownViewerDoubleClickScrollsEditor,
 } from '@/__tests__/markdown/markdownDoubleClick.test'
+import { testFrontmatterModeFiltersToFrontmatterMermaidOnly } from '@/__tests__/frontmatterModeFilter.test'
+import { testMarkdownHeadingGroupsDerivation } from '@/__tests__/markdownHeadingGroups.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -43,4 +45,6 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.scrollSync.mixedContent', testMarkdownScrollSyncMixedContentViewerToEditor)
   await execTest(results, 'markdown.scrollSync.editorDblClick', testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine)
   await execTest(results, 'markdown.scrollSync.viewerDblClick', testMarkdownViewerDoubleClickScrollsEditor)
+  await execTest(results, 'markdown.frontmatterMode.filtersMermaidOnly', testFrontmatterModeFiltersToFrontmatterMermaidOnly)
+  await execTest(results, 'markdown.headingGroups.derivation', testMarkdownHeadingGroupsDerivation)
 }

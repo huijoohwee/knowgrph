@@ -50,6 +50,41 @@ export function useToolbarActions(
     setSchema(next as GraphSchema)
   }, [schema, setSchema])
 
+  const handleToggleNodeShapeMode = useCallback(() => {
+    const current = schema
+    const behavior = current.behavior
+    const cur = behavior.nodeShapeMode === 'rect' ? 'rect' : 'circle'
+    const nextMode: NonNullable<NonNullable<GraphSchema['behavior']>['nodeShapeMode']> =
+      cur === 'rect' ? 'circle' : 'rect'
+    const next = {
+      ...current,
+      behavior: {
+        ...behavior,
+        nodeShapeMode: nextMode,
+      },
+    }
+    setSchema(next as GraphSchema)
+  }, [schema, setSchema])
+
+  const handleToggleGroupShapeMode = useCallback(() => {
+    const current = schema
+    const layout = current.layout || {}
+    const groups = layout.groups || {}
+    const cur = groups.shape === 'rect' ? 'rect' : 'geo'
+    const nextShape = cur === 'rect' ? 'geo' : 'rect'
+    const next = {
+      ...current,
+      layout: {
+        ...layout,
+        groups: {
+          ...groups,
+          shape: nextShape,
+        },
+      },
+    }
+    setSchema(next as GraphSchema)
+  }, [schema, setSchema])
+
   const handleToggleRadialLayout = useCallback(() => {
     const current = schema
     const layout = current.layout || {}
@@ -139,6 +174,8 @@ export function useToolbarActions(
   return {
     handleLaunchStats,
     handleLaunch,
+    handleToggleNodeShapeMode,
+    handleToggleGroupShapeMode,
     handleTogglePortHandles,
     handleToggleRadialLayout,
     handleOpenGraphFields,

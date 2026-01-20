@@ -9,7 +9,7 @@ import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight'
-import { createDefs, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer } from '@/components/GraphCanvas/sceneLayers'
+import { createDefs, createGroupsLayer, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer } from '@/components/GraphCanvas/sceneLayers'
 import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCanvas/sceneHandlers'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
@@ -103,6 +103,25 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   createDefs(svg)
 
+  const displayNodes = Array.isArray(graphData.nodes)
+    ? graphData.nodes.filter(n => {
+        if (String(n.type || '') === 'MermaidSubgraph') return false
+        const props = (n.properties || {}) as Record<string, unknown>
+        const isHeadingSection = String(n.type || '') === 'Section' && typeof props.level === 'number'
+        return !isHeadingSection
+      })
+    : []
+  const displayNodeIdSet = new Set<string>(displayNodes.map(n => String(n.id)))
+  const edgesForDisplay = (edgesForSim || []).filter(e => {
+    const s = String(e.source || '')
+    const t = String(e.target || '')
+    if (!s || !t) return false
+    if (!displayNodeIdSet.has(s) || !displayNodeIdSet.has(t)) return false
+    if (e.label === 'hasMermaidNode' || e.label === 'hasMermaidSubgraph' || e.label === 'hasMermaid') return false
+    return true
+  })
+  const graphDataForDisplay: GraphData = { ...graphData, nodes: displayNodes, edges: edgesForDisplay }
+
   const zoom = createZoom(svg, g, labelsSelRef, schema, onZoomTransform, () => {
     if (!nodesSelRef.current && !labelsSelRef.current && !linksSelRef.current && !mediaSelRef.current) return
     applySelectionHighlight(
@@ -110,7 +129,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       mediaSelRef.current,
       labelsSelRef.current,
       linksSelRef.current,
-          graphData,
+          graphDataForDisplay,
           schema,
           selectedNodeIdRef.current,
           selectedEdgeIdRef.current,
@@ -134,14 +153,16 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     )
   }
 
+  const groupsLayer = createGroupsLayer({ g, graphData, schema })
+
   const applyCachedPositions = () => {
     const cached = layoutPositionsForMode && Object.keys(layoutPositionsForMode).length > 0 ? layoutPositionsForMode : null
     const prev = prevPositions && Object.keys(prevPositions).length > 0 ? prevPositions : null
     const source = cached || prev
 
     if (!source) return
-    for (let i = 0; i < graphData.nodes.length; i += 1) {
-      const node = graphData.nodes[i]
+    for (let i = 0; i < displayNodes.length; i += 1) {
+      const node = displayNodes[i]
       const p = source[String(node.id)]
       if (!p) continue
       const x = typeof p.x === 'number' ? p.x : null
@@ -165,7 +186,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyCachedPositions()
   }
 
-  const simulation = buildSimulation(graphData.nodes, edgesForSim, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
+  const simulation = buildSimulation(displayNodes, edgesForDisplay, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
     skipInitialLayout: !!skipInitialLayout,
   })
 
@@ -186,7 +207,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       schema,
     }
 
-    const t = fitAllTransform(graphData.nodes, width, height, commonOpts)
+    const t = fitAllTransform(graphDataForDisplay.nodes, width, height, commonOpts)
 
     svg.call(zoom.transform as unknown as (
       sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
@@ -195,8 +216,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   }
 
   // Legacy layout sync removed to prevent infinite re-render loop in Force layout mode.
-
-  const edgesForDisplay = edgesForSim
 
   const linkSel = createLinksLayer({
     g,
@@ -219,8 +238,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     setSelectionSource,
     selectEdge,
   })
-
-  const graphDataForDisplay = graphData
 
   const { nodeSel, mediaSel, portHandlesSel } = createNodesLayer({
     g,
@@ -246,7 +263,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   createLabelsLayer({
     g,
-    nodes: graphData.nodes,
+    nodes: graphDataForDisplay.nodes,
     schema,
     labelsSelRef,
   })
@@ -265,31 +282,35 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       linkSel,
       edgeLabelSel,
       labelsSel: labelsSelRef.current,
-      nodes: graphData.nodes,
+      nodes: graphDataForDisplay.nodes,
       schema,
       width,
       height,
+      beforeRenderFrame: groupsLayer?.update ? () => groupsLayer.update() : null,
     })
+  }
+
+  const storeLayoutPositions = () => {
+    if (!layoutCacheKey || typeof setLayoutPositionsForMode !== 'function') return
+    const positions: Record<string, { x: number; y: number }> = {}
+    for (let i = 0; i < graphDataForDisplay.nodes.length; i += 1) {
+      const node = graphDataForDisplay.nodes[i]
+      const id = String(node.id)
+      if (!id) continue
+      const x = typeof node.x === 'number' ? node.x : null
+      const y = typeof node.y === 'number' ? node.y : null
+      if (x == null || y == null) continue
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      positions[id] = { x, y }
+    }
+    if (Object.keys(positions).length > 0) {
+      setLayoutPositionsForMode(layoutCacheKey, positions)
+    }
   }
 
   if (schema.layout?.mode === 'radial') {
     simulation.stop()
-    if (layoutCacheKey && typeof setLayoutPositionsForMode === 'function') {
-      const positions: Record<string, { x: number; y: number }> = {}
-      for (let i = 0; i < graphData.nodes.length; i += 1) {
-        const node = graphData.nodes[i]
-        const id = String(node.id)
-        if (!id) continue
-        const x = typeof node.x === 'number' ? node.x : null
-        const y = typeof node.y === 'number' ? node.y : null
-        if (x == null || y == null) continue
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-        positions[id] = { x, y }
-      }
-      if (Object.keys(positions).length > 0) {
-        setLayoutPositionsForMode(layoutCacheKey, positions)
-      }
-    }
+    storeLayoutPositions()
   }
 
   setLifecycleStageRendering()
@@ -305,6 +326,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
 
   return () => {
+    storeLayoutPositions()
     simulation.stop()
     cleanupHandlers()
   }

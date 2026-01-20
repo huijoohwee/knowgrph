@@ -143,11 +143,13 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       const diagramEnd = Math.max(diagramStart, diagramStart + diagramLineCount - 1)
       const mermaidId = idx === 0 ? `mermaid:${gid}:frontmatter` : `mermaid:${gid}:frontmatter:${idx + 1}`
       const mermaidName = idx === 0 ? 'Frontmatter Mermaid Diagram' : `Frontmatter Mermaid Diagram ${idx + 1}`
-      builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), mermaidName)
+      builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), mermaidName, { scope: 'frontmatter' })
 
       const parserCtx: MermaidParserContext = {
         gid,
         docId,
+        diagramId: mermaidId,
+        diagramScope: 'frontmatter',
         startIndex: diagramStart,
         ensureNode: (n) => builder.ensureNode(n),
         addRel: (s, k, t) => builder.addRel(s, k, t),
@@ -188,11 +190,13 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         const diagramLineCount = Math.max(1, diagram.code.split('\n').length)
         const diagramEnd = Math.max(diagramStart, diagramStart + diagramLineCount - 1)
         const mermaidId = `mermaid:${gid}:code:${b.startLine}:${idx + 1}`
-        builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), `Mermaid Diagram L${diagramStart}`)
+        builder.createMermaidNode(mermaidId, diagram.code, mkMeta(diagramStart, diagramEnd), `Mermaid Diagram L${diagramStart}`, { scope: 'block' })
 
         const parserCtx: MermaidParserContext = {
           gid,
           docId,
+          diagramId: mermaidId,
+          diagramScope: 'block',
           startIndex: diagramStart,
           ensureNode: (n) => builder.ensureNode(n),
           addRel: (s, k, t) => builder.addRel(s, k, t),

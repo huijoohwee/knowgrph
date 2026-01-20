@@ -1,9 +1,13 @@
 import * as d3 from 'd3';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
-import { GraphSchema, getNodeRadiusFromSchema } from '@/lib/graph/schema';
+import { GraphSchema } from '@/lib/graph/schema';
 import { applyRadialClusterLayout } from './layout/radial';
-import { getNodeHalfExtents2d, getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
+import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { computeDisjointComponentTargets } from './layout/disjoint';
+import { applyClusterAwareHeuristicSeedLayout } from './layout/heuristic-cluster';
+import { applyMermaidSeedLayout } from './layout/mermaidSeed';
+import { applyMarkdownHeadingSeedLayout } from './layout/markdownHeadingSeed';
+import { readMermaidAxisFromNodes } from './layout/mermaidDirection';
 import { createBboxCollideForce, getNodeCollisionRadius } from './layout/overlap';
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined;
@@ -41,149 +45,6 @@ export const normalizeEdgesForSim = (nodes: GraphNode[], edges: GraphEdge[]): Gr
 
 type GraphLike = { nodes: GraphNode[]; edges: GraphEdge[] };
 
-const applyClusterAwareHeuristicSeedLayout = (args: {
-  nodes: GraphNode[]
-  width: number
-  height: number
-  schema: GraphSchema
-}): void => {
-  const { nodes, width, height, schema } = args
-  if (!nodes.length) return
-
-  let valid = 0
-  for (let i = 0; i < nodes.length; i += 1) {
-    const x = nodes[i].x
-    const y = nodes[i].y
-    if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) valid += 1
-  }
-  if (valid / Math.max(1, nodes.length) >= 0.2) return
-
-  const estimateRadius = (n: GraphNode): number => {
-    const props = (n.properties || {}) as Record<string, unknown>
-    const vw = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : 0
-    const vh = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : 0
-    const fromVisual = Math.max(vw, vh) > 0 ? Math.max(vw, vh) / 2 : 0
-    const fromSchema = getNodeRadiusFromSchema(n, schema) || 20
-    if (fromVisual > 0) return Math.max(10, fromVisual)
-    if (getNodeRenderShape2d(n, schema) === 'rect') {
-      const { width, height } = getNodeRectDimensions2d(n, schema)
-      return Math.max(10, Math.max(width, height) / 2)
-    }
-    return Math.max(10, fromSchema)
-  }
-
-  const normalizeCommunityKey = (raw: unknown): string => {
-    if (typeof raw === 'number') return Number.isFinite(raw) ? String(raw) : ''
-    if (typeof raw === 'string') return raw.trim()
-    return ''
-  }
-
-  const clusters = new Map<string, GraphNode[]>()
-  const unclustered: GraphNode[] = []
-
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    const props = (n.properties || {}) as Record<string, unknown>
-    const community = normalizeCommunityKey(props['visual:community'])
-    const key = community ? `community:${community}` : ''
-    if (!key) {
-      unclustered.push(n)
-      continue
-    }
-    const arr = clusters.get(key) || []
-    arr.push(n)
-    clusters.set(key, arr)
-  }
-
-  const unclusteredByType = new Map<string, GraphNode[]>()
-  for (let i = 0; i < unclustered.length; i += 1) {
-    const n = unclustered[i]
-    const key = String(n.type || 'unknown') || 'unknown'
-    const arr = unclusteredByType.get(key) || []
-    arr.push(n)
-    unclusteredByType.set(key, arr)
-  }
-
-  const entries: Array<{ key: string; nodes: GraphNode[] }> = []
-  clusters.forEach((value, key) => {
-    entries.push({ key, nodes: value })
-  })
-  unclusteredByType.forEach((value, key) => {
-    entries.push({ key: `type:${key}`, nodes: value })
-  })
-  entries.sort((a, b) => a.key.localeCompare(b.key))
-
-  if (!entries.length) return
-
-  let sumR = 0
-  let countR = 0
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    sumR += estimateRadius(n)
-    countR += 1
-  }
-  const meanR = countR > 0 ? sumR / countR : 20
-  const nodePadding = 12
-  const nodeSpacing = Math.max(40, (meanR + nodePadding) * 2)
-
-  const clusterRadius = (n: number): number => nodeSpacing * (0.5 + Math.sqrt(Math.max(1, n)))
-  let maxClusterR = 0
-  for (let i = 0; i < entries.length; i += 1) {
-    const r = clusterRadius(entries[i].nodes.length)
-    if (r > maxClusterR) maxClusterR = r
-  }
-
-  const w = Math.max(1, width)
-  const h = Math.max(1, height)
-  const aspect = w / h
-  const cols = Math.max(1, Math.ceil(Math.sqrt(entries.length * Math.max(0.2, aspect))))
-  const rows = Math.max(1, Math.ceil(entries.length / cols))
-  const cellW = maxClusterR * 2 + nodeSpacing
-  const cellH = maxClusterR * 2 + nodeSpacing
-  const startX = w / 2 - ((cols - 1) * cellW) / 2
-  const startY = h / 2 - ((rows - 1) * cellH) / 2
-
-  const placeCluster = (clusterNodes: GraphNode[], cx: number, cy: number) => {
-    const sorted = [...clusterNodes].sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    if (!sorted.length) return
-
-    const setNode = (n: GraphNode, x: number, y: number) => {
-      n.x = x
-      n.y = y
-      n.vx = 0
-      n.vy = 0
-      n.fx = null
-      n.fy = null
-    }
-
-    setNode(sorted[0], cx, cy)
-    if (sorted.length === 1) return
-
-    let placed = 1
-    let ring = 0
-    while (placed < sorted.length) {
-      ring += 1
-      const ringRadius = ring * nodeSpacing * 0.75
-      const slots = Math.max(6, Math.floor((2 * Math.PI * ringRadius) / nodeSpacing))
-      for (let s = 0; s < slots && placed < sorted.length; s += 1) {
-        const angle = (s / slots) * Math.PI * 2
-        const x = cx + ringRadius * Math.cos(angle)
-        const y = cy + ringRadius * Math.sin(angle)
-        setNode(sorted[placed], x, y)
-        placed += 1
-      }
-    }
-  }
-
-  for (let idx = 0; idx < entries.length; idx += 1) {
-    const col = idx % cols
-    const row = Math.floor(idx / cols)
-    const cx = startX + col * cellW
-    const cy = startY + row * cellH
-    placeCluster(entries[idx].nodes, cx, cy)
-  }
-}
-
 export const buildSimulation = (
   nodes: GraphNode[],
   edgesForSim: GraphEdge[],
@@ -192,44 +53,23 @@ export const buildSimulation = (
   schema: GraphSchema,
   options?: { skipInitialLayout?: boolean }
 ) => {
-  const frameW = 1920
-  const frameH = 1080
+  const frameW = width > 0 ? width : 1920
+  const frameH = height > 0 ? height : 1080
 
-  const recenterNodesToFrame = () => {
-    if (!nodes.length) return
-    let sumX = 0
-    let sumY = 0
-    let count = 0
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-      if (x == null || y == null) continue
-      sumX += x
-      sumY += y
-      count += 1
-    }
-    if (count <= 0) return
-    const cx = sumX / count
-    const cy = sumY / count
-    if (!Number.isFinite(cx) || !Number.isFinite(cy)) return
-    const dx = frameW / 2 - cx
-    const dy = frameH / 2 - cy
-    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return
-    if (Math.abs(dx) + Math.abs(dy) < 1) return
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-      if (x == null || y == null) continue
-      const nx = x + dx
-      const ny = y + dy
-      if (!Number.isFinite(nx) || !Number.isFinite(ny)) continue
-      n.x = nx
-      n.y = ny
-      if (typeof n.fx === 'number' && Number.isFinite(n.fx)) n.fx = n.fx + dx
-      if (typeof n.fy === 'number' && Number.isFinite(n.fy)) n.fy = n.fy + dy
-    }
+  const computeTopology = (ns: GraphNode[], es: GraphEdge[]) => {
+    const inDegree = new Map<string, number>()
+    const outDegree = new Map<string, number>()
+    ns.forEach(n => {
+      inDegree.set(String(n.id), 0)
+      outDegree.set(String(n.id), 0)
+    })
+    es.forEach(e => {
+      const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
+      const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+      if (s && outDegree.has(String(s))) outDegree.set(String(s), (outDegree.get(String(s)) || 0) + 1)
+      if (t && inDegree.has(String(t))) inDegree.set(String(t), (inDegree.get(String(t)) || 0) + 1)
+    })
+    return { inDegree, outDegree }
   }
 
   const linkDist = (e: GraphEdge) => schema.layout?.forces?.linkDistanceByLabel?.[e.label] ?? 120;
@@ -257,10 +97,11 @@ export const buildSimulation = (
       applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema);
     }
     if (mode === 'force') {
+      applyMermaidSeedLayout({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
+      applyMarkdownHeadingSeedLayout({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
       applyClusterAwareHeuristicSeedLayout({ nodes, width: frameW, height: frameH, schema })
     }
   }
-  recenterNodesToFrame()
 
   const linkForce = d3
     .forceLink<GraphNode, GraphEdge>(edgesForSim)
@@ -296,7 +137,124 @@ export const buildSimulation = (
         ? forces.bboxCollideIterations
         : 1
 
+    const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
+    const hasMermaidNodes = portHandlesEnabled && nodes.some(n => String(n.type || '') === 'MermaidNode')
+    const topologyNodes = hasMermaidNodes ? nodes.filter(n => String(n.type || '') === 'MermaidNode') : nodes
+    const topologyNodeIds = hasMermaidNodes ? new Set(topologyNodes.map(n => String(n.id))) : null
+    const topologyEdges = hasMermaidNodes
+      ? edgesForSim.filter(e => {
+          if (String(e.label || '') !== 'pointsTo') return false
+          const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
+          const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+          return !!s && !!t && topologyNodeIds?.has(String(s)) && topologyNodeIds?.has(String(t))
+        })
+      : edgesForSim
+    const { inDegree, outDegree } = portHandlesEnabled ? computeTopology(topologyNodes, topologyEdges) : { inDegree: new Map(), outDegree: new Map() }
+    const portAxis = portHandlesEnabled ? readMermaidAxisFromNodes(nodes) : null
+
+    const computeGroupTargets = () => {
+      const sectionIds = new Set<string>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        if (String(n.type || '') !== 'Section') continue
+        const props = (n.properties || {}) as Record<string, unknown>
+        if (typeof props.level !== 'number' || !Number.isFinite(props.level)) continue
+        sectionIds.add(String(n.id))
+      }
+
+      const parentOf = new Map<string, string>()
+      for (let i = 0; i < edgesForSim.length; i += 1) {
+        const e = edgesForSim[i]
+        const lbl = String(e.label || '')
+        if (lbl !== 'hasSection' && lbl !== 'hasBlock' && lbl !== 'hasItem' && lbl !== 'embedsImage') continue
+        const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
+        const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+        const src = String(s || '')
+        const tgt = String(t || '')
+        if (!src || !tgt) continue
+        if (!parentOf.has(tgt)) parentOf.set(tgt, src)
+      }
+
+      const topSectionOf = (nodeId: string): string | null => {
+        const seen = new Set<string>()
+        let cur: string | null = nodeId
+        let section: string | null = null
+        while (cur && !seen.has(cur)) {
+          seen.add(cur)
+          if (sectionIds.has(cur)) section = cur
+          cur = parentOf.get(cur) || null
+        }
+        if (!section) return null
+        cur = section
+        while (cur) {
+          const p = parentOf.get(cur)
+          if (!p || !sectionIds.has(p)) break
+          cur = p
+        }
+        return cur || section
+      }
+
+      const groupAcc = new Map<string, { sx: number; sy: number; n: number }>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const id = String(n.id)
+        if (!id || sectionIds.has(id)) continue
+        const gid = topSectionOf(id)
+        if (!gid) continue
+        const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+        const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+        if (x == null || y == null) continue
+        const prev = groupAcc.get(gid) || { sx: 0, sy: 0, n: 0 }
+        groupAcc.set(gid, { sx: prev.sx + x, sy: prev.sy + y, n: prev.n + 1 })
+      }
+
+      const groupTarget = new Map<string, { x: number; y: number }>()
+      groupAcc.forEach((v, gid) => {
+        if (v.n <= 0) return
+        groupTarget.set(gid, { x: v.sx / v.n, y: v.sy / v.n })
+      })
+
+      const groupKeyOf = (n: GraphNode): string | null => {
+        const p = (n.properties || {}) as Record<string, unknown>
+        const top = typeof p['visual:topParentId'] === 'string' ? (p['visual:topParentId'] as string).trim() : ''
+        if (top) return top
+        const parent = typeof p['visual:parentId'] === 'string' ? (p['visual:parentId'] as string).trim() : ''
+        if (parent) return parent
+        const nid = String(n.id)
+        return topSectionOf(nid)
+      }
+
+      const readGroupTarget = (n: GraphNode): { x: number; y: number } | null => {
+        const gid = groupKeyOf(n)
+        if (!gid) return null
+        return groupTarget.get(gid) || null
+      }
+
+      return { readGroupTarget }
+    }
+
+    const { readGroupTarget } = computeGroupTargets()
+
     const xTarget = (n: GraphNode) => {
+      if (portHandlesEnabled) {
+        const nid = String(n.id)
+        const ind = inDegree.get(nid) || 0
+        const outd = outDegree.get(nid) || 0
+        const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : ind > 0 || outd > 0 ? 'process' : ''
+        if (role) {
+          try { (n.properties as Record<string, unknown>)['visual:portRole'] = role } catch { void 0 }
+        }
+        if (portAxis?.axis === 'x') {
+          if (role === 'input') return portAxis.forward > 0 ? 40 : frameW - 40
+          if (role === 'output') return portAxis.forward > 0 ? frameW - 40 : 40
+        }
+        const gt = readGroupTarget(n)
+        if (gt) return gt.x
+      }
+
+      const gt = readGroupTarget(n)
+      if (gt) return gt.x
+      
       if (!disjointLayout) return frameW / 2
       const comp = disjointLayout.componentByNodeId.get(String(n.id))
       if (comp == null) return frameW / 2
@@ -304,6 +262,20 @@ export const buildSimulation = (
       return t ? t.x : frameW / 2
     }
     const yTarget = (n: GraphNode) => {
+      if (portHandlesEnabled) {
+        const nid = String(n.id)
+        const ind = inDegree.get(nid) || 0
+        const outd = outDegree.get(nid) || 0
+        const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : null
+        if (portAxis?.axis === 'y') {
+          if (role === 'input') return portAxis.forward > 0 ? 40 : frameH - 40
+          if (role === 'output') return portAxis.forward > 0 ? frameH - 40 : 40
+        }
+        const gt = readGroupTarget(n)
+        if (gt) return gt.y
+      }
+      const gt = readGroupTarget(n)
+      if (gt) return gt.y
       if (!disjointLayout) return frameH / 2
       const comp = disjointLayout.componentByNodeId.get(String(n.id))
       if (comp == null) return frameH / 2

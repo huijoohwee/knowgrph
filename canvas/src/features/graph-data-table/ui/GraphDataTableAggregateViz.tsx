@@ -2,6 +2,7 @@ import React from 'react'
 import * as d3 from 'd3'
 import type { GraphDataTableAggregateNumericSummary } from '@/features/graph-data-table/graphDataTable'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { buildClosedPathD, computeConvexRing } from '@/lib/geometry/convexRing'
 
 interface AggregateRowVisualizationProps {
   numericSummaries: GraphDataTableAggregateNumericSummary[]
@@ -61,18 +62,8 @@ export function AggregateRowVisualization({
       points.push([x, y])
     }
 
-    const hull = d3.polygonHull(points) ?? points
-    if (!hull || hull.length === 0) return null
-
-    const path = d3.path()
-    const [firstX, firstY] = hull[0]
-    path.moveTo(firstX, firstY)
-    for (let i = 1; i < hull.length; i += 1) {
-      const [x, y] = hull[i]
-      path.lineTo(x, y)
-    }
-    path.closePath()
-    return path.toString()
+    const ring = computeConvexRing(points.map(([x, y]) => ({ x, y })))
+    return buildClosedPathD(ring)
   }, [numericSummaries, width, height])
 
   if (!pathData) return null

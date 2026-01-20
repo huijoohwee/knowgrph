@@ -42,8 +42,10 @@
 
 **From/To**: User input → Loader → raw text/bytes → enables parser selection.
 
-- Primary entrypoint: [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
-- Responsibility (S-V-O): Loader resolves input → reads content → returns parse-ready payload.
+- Primary entrypoint (UI action): [markdownImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/markdownImportAction.ts)
+- Local/URL loader bridge (Bottom Panel): [useMarkdownLoader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/BottomPanel/useMarkdownLoader.ts)
+- Parser loader (text → GraphData): [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+- Responsibility (S-V-O): Import action reads source → resolves text → hands off to parser loader → updates store.
 
 ### Stage 2: Parse
 
@@ -74,6 +76,7 @@
   - `document`: assigns `properties["visual:layer"]` for structural layering
   - `schema`: filters out `Document` nodes to focus on entity/schema nodes
   - `semantic`: enriches with derived similarity edges and `properties["visual:community"]`
+  - `frontmatter mode` (UI flag): filters to Mermaid nodes tagged as frontmatter (`mermaidScope` / `isMermaidFrontmatter`)
 
 **Stability directives**:
 
@@ -88,6 +91,9 @@
 **From/To**: Derived render graph → layout engine → node positions → enables stable viewing.
 
 - Layout selection and caching: [positioning.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/positioning.ts)
+- Layout execution (seed + forces): [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
+- Mermaid seeded placement (subgraph spread + centroid recenter): [mermaidSeed.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/mermaidSeed.ts)
+- Mermaid direction parsing (LR/RL/TB/BT): [mermaidDirection.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/mermaidDirection.ts)
 - Cache surface: `layoutPositionCacheByMode` keyed by `(layerMode, layoutMode)`
 
 ### Stage 7: Render
@@ -110,4 +116,3 @@
 | 5 | `canvas/src/lib/graph/layerDerivation.ts` | Deriver | Deriver filters/enriches graph → returns render graph | State + schema | Render graph |
 | 6 | `canvas/src/components/GraphCanvas/layout/positioning.ts` | Layout | Layout computes/reuses positions → returns cache decision | Render graph | Positions |
 | 7 | `canvas/src/components/GraphCanvas/scene.ts` | Renderer | Renderer builds scene → updates SVG | Render graph + positions | Visual output |
-

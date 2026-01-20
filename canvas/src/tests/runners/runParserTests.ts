@@ -20,6 +20,11 @@ import {
   testRawJsonExtendedNodesIngestion,
 } from '@/__tests__/rawJsonIngestion.test'
 import { testRawJsonWorkflowShapeIngestion } from '@/__tests__/rawJsonWorkflowShapeIngestion.test'
+import {
+  testMermaidSubgraphParsingAddsParentId,
+  testMermaidSubgraphDerivationBuildsGroups,
+} from '@/__tests__/mermaidSubgraphGroups.test'
+import { testMermaidSeedLayoutSpreadsGroupsAndCenters } from '@/__tests__/mermaidSeedLayout.test'
 
 export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.registryCrud', testParserRegistryCrud)
@@ -41,4 +46,7 @@ export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.rawJson.nodesArrayIngestion', testRawJsonNodesArrayIngestion)
   await execTest(results, 'parser.rawJson.extendedNodesIngestion', testRawJsonExtendedNodesIngestion)
   await execTest(results, 'parser.rawJson.workflowShapeIngestion', testRawJsonWorkflowShapeIngestion)
+  await execTest(results, 'parser.mermaid.subgraphParentId', testMermaidSubgraphParsingAddsParentId)
+  await execTest(results, 'parser.mermaid.subgraphGroupDerivation', testMermaidSubgraphDerivationBuildsGroups)
+  await execTest(results, 'parser.mermaid.seedLayoutSpreadAndCenter', testMermaidSeedLayoutSpreadsGroupsAndCenters)
 }

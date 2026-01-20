@@ -3,6 +3,8 @@ import { slugify } from './markdownJsonLdUtils'
 export interface MermaidParserContext {
   gid: string
   docId: string
+  diagramId?: string
+  diagramScope?: 'frontmatter' | 'block'
   startIndex: number
   ensureNode: (node: Record<string, unknown>) => void
   addRel: (src: string, key: string, tgt: string) => void
@@ -22,11 +24,15 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
   const {
     gid,
     docId,
+    diagramId,
+    diagramScope,
     startIndex,
     ensureNode,
     addRel,
     mkMeta,
   } = ctx
+  const scope: 'frontmatter' | 'block' = diagramScope === 'frontmatter' ? 'frontmatter' : 'block'
+  const isFrontmatter = scope === 'frontmatter'
 
   const lines = String(code || '').split('\n')
   if (lines.length === 0) return
@@ -152,19 +158,18 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     const nodeProps: Record<string, unknown> = {
       nodeName: safeName,
       label: label ?? safeName, // Use name as label if no label provided
-      'visual:layer': 1,
+      'visual:layer': Math.max(1, subgraphStack.length + 1),
+      mermaidScope: scope,
+      ...(isFrontmatter ? { isMermaidFrontmatter: true } : {}),
+      ...(diagramId ? { mermaidDiagramId: diagramId } : {}),
     }
 
     if (currentSubgraph) {
       nodeProps.mermaidSubgraphName = currentSubgraph.name
+      nodeProps['visual:parentId'] = currentSubgraph.id
+      nodeProps['visual:topParentId'] = subgraphStack.length > 0 ? subgraphStack[0]!.id : currentSubgraph.id
       // Also link the node to the subgraph
       addRel(currentSubgraph.id, 'hasMermaidNode', nodeId)
-      
-      // Attempt to infer tags from subgraph name (heuristic for schema-driven colors)
-      const tags = inferTagsFromSubgraphName(currentSubgraph.name)
-      if (tags.length > 0) {
-        nodeProps.tags = tags
-      }
     }
 
     let classStyles = getMergedClassStyles(safeName)
@@ -217,8 +222,13 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       properties: {
         subgraphName: safeName,
         nodeName: safeName,
-        'visual:layer': 1,
+        'visual:layer': Math.max(1, subgraphStack.length + 1),
+        mermaidScope: scope,
+        ...(isFrontmatter ? { isMermaidFrontmatter: true } : {}),
+        ...(diagramId ? { mermaidDiagramId: diagramId } : {}),
+        'visual:topParentId': subgraphStack.length > 0 ? subgraphStack[0]!.id : subgraphId,
         ...(parent ? { mermaidSubgraphName: parent.name } : {}),
+        ...(parent ? { 'visual:parentId': parent.id } : {}),
         ...classStyles,
       },
       metadata: mkMeta(startIndex + lineIndex, startIndex + lineIndex),
@@ -273,7 +283,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     }
 
     // --- Subgraph End ---
-    if (trimmed === 'end') {
+    if (trimmed.toLowerCase() === 'end') {
       subgraphStack.pop()
       continue
     }
@@ -442,12 +452,4 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       }
     }
   }
-}
-
-function inferTagsFromSubgraphName(name: string): string[] {
-  const n = name.toUpperCase()
-  if (n.includes('L0') || n.includes('OUTCOME')) return ['idea']
-  if (n.includes('L1') || n.includes('PIPELINE')) return ['execution']
-  if (n.includes('L2') || n.includes('OPERATION')) return ['pivot']
-  return []
 }

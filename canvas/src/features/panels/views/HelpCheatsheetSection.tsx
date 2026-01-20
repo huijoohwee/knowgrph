@@ -59,11 +59,11 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
       },
       {
         mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.graphLayersMode}`,
-        gesture: 'Toggle graph layers to show or hide convex hull outlines around related nodes',
+        gesture: 'Toggle graph layers to show or hide layer outlines around related nodes',
         zoomDrag:
           'Zoom and node drag behave normally; graph layers follow the same simulation tick as nodes',
         tools:
-          'Canvas graph layers → toggle the toolbar button to render or hide convex hulls around nodes linked by JSON-LD array properties (for example, steps/contains lists) → styling comes from schema.metadata["canvas:graphLayers"] (defaultStyle, byOwnerType, byPropertyKey) or falls back to the owner node type color for domain-agnostic grouping.',
+          'Canvas graph layers → toggle the toolbar button to render or hide group outlines around nodes linked by document/subgraph structure → styling comes from schema.metadata["canvas:graphLayers"] (defaultStyle, byOwnerType, byPropertyKey) or falls back to the owner node type color for domain-agnostic grouping.',
       },
       {
         mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.treeLayoutMode}`,

@@ -39,6 +39,7 @@ export const buildBackgroundStyle = (
   if (!value) return style
 
   // Fix for deprecated source.unsplash.com triggering ORB errors
+  // Polyfill for deprecated service: replace with a reliable placeholder service
   if (value.includes('source.unsplash.com')) {
     // Replace with a reliable placeholder service that supports similar dimensions
     // Attempt to preserve dimensions if present in URL

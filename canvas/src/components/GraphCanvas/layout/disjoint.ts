@@ -123,6 +123,10 @@ export const computeDisjointComponentTargets = (args: {
       continue
     }
 
+    const aspect = width / height
+    const scaleX = Math.sqrt(Math.max(0.1, aspect))
+    const scaleY = 1 / scaleX
+
     const baseAngle = hash01(comp.minId) * Math.PI * 2
     let angle = baseAngle
     let spiralR = r + spacing * 0.5
@@ -132,8 +136,8 @@ export const computeDisjointComponentTargets = (args: {
     let chosen: { x: number; y: number } | null = null
 
     for (let it = 0; it < maxIter; it += 1) {
-      const x = cx + Math.cos(angle) * spiralR
-      const y = cy + Math.sin(angle) * spiralR
+      const x = cx + Math.cos(angle) * spiralR * scaleX
+      const y = cy + Math.sin(angle) * spiralR * scaleY
       if (!overlaps(x, y, r)) {
         chosen = { x, y }
         break
@@ -142,7 +146,7 @@ export const computeDisjointComponentTargets = (args: {
       spiralR += radialStep
     }
 
-    const finalPos = chosen || { x: cx + (idx % 2 === 0 ? 1 : -1) * spiralR, y: cy + (idx % 3 - 1) * spiralR }
+    const finalPos = chosen || { x: cx + (idx % 2 === 0 ? 1 : -1) * spiralR * scaleX, y: cy + (idx % 3 - 1) * spiralR * scaleY }
     targetsByComponent.set(comp.index, finalPos)
     placed.push({ x: finalPos.x, y: finalPos.y, r })
   }

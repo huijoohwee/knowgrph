@@ -61,10 +61,10 @@
 
 | Context          | Intent                          | Directive                                                                 | Module/Component | Function/Method                   | Input               | Output              | Decision Logic |
 |-----------------|----------------------------------|---------------------------------------------------------------------------|------------------|-----------------------------------|---------------------|---------------------|----------------|
-| Defaults        | Stable startup                   | - [ ] Normalize init schema; forbid inconsistent initial toggles          | useGraphStore.ts | applyCanvasDefaultInitSchema       | GraphSchema         | GraphSchema         | force + document + portHandles |
+| Defaults        | Stable startup                   | - [ ] Normalize init schema; forbid inconsistent initial toggles          | useGraphStore.ts | applyCanvasDefaultInitSchema       | GraphSchema         | GraphSchema         | force + document + portHandles (default off) |
 | Frontmatter     | Disable by default               | - [ ] Default OFF; forbid frontmatter-only rendering at init              | uiSettingsSlice.ts | frontmatterModeEnabled default   | —                   | boolean             | default false |
 | Layer Mode      | Prefer document structure        | - [ ] Default document mode; forbid semantic-first default                | schema.ts        | defaultSchema.layers.mode         | —                   | 'document'          | constant |
-| Port Handles    | Enable by default                | - [ ] Enable port handles; forbid hidden disabled state                   | schema.ts        | defaultSchema.behavior.portHandles | —                   | enabled true        | constant |
+| Port Handles    | Disable by default               | - [ ] Default OFF; forbid implicit border anchoring at init               | schema.ts        | defaultSchema.behavior.portHandles | —                   | enabled false       | constant |
 
 ---
 

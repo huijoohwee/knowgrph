@@ -19,7 +19,7 @@ export const computeMermaidTreeSeparation = (
     if (line.startsWith('%%')) continue
     if (line.startsWith('graph ')) continue
     if (line.startsWith('subgraph ')) continue
-    if (line === 'end') continue
+    if (line.toLowerCase() === 'end') continue
     statementCount += 1
   }
   if (statementCount <= 0) {

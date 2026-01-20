@@ -361,7 +361,7 @@
           "role": "AI‑KG layer mode",
           "actions": [
             "toggle schema.layers.mode between document, schema, and semantic in the Render tab and FloatingPanel Renderer view",
-            "use document and semantic modes to drive convex hull polygons instead of rendering Document, Section, Paragraph, CodeBlock, List, ListItem, and Table as standalone nodes"
+            "use document and semantic modes to drive convex outline polygons instead of rendering Document, Section, Paragraph, CodeBlock, List, ListItem, and Table as standalone nodes"
           ],
           "outcome": "align AI‑KG canvas layering with AgenticRAG-friendly document and semantic group surfaces so exported JSON-LD graphs, polygons, and traversal overlays share the same schema.layers contract.",
           "pipeline_phase": "Schema",

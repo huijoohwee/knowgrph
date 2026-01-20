@@ -42,6 +42,7 @@
 
 **Algorithm Summary**
 
+- **Enhanced Spatial Indexing**: Uses `d3.quadtree` (O(n log n)) to efficiently query potential collisions, inspired by [xyflow/node-collision-algorithms](https://github.com/xyflow/node-collision-algorithms) benchmarks.
 - Build a `d3.quadtree` every iteration over current node positions.
 - For each node `a`, visit quadtree nodes that intersect `a`’s expanded bounds.
 - For each neighbor `b` in intersecting leaves, compute overlap `(ox, oy)`:
@@ -95,4 +96,3 @@ layout:
 | Copying repos | Original implementation | - [ ] Forbid copying code from collision benchmarks/playgrounds |
 | Global n² loops | Performance | - [ ] Forbid checking every pair on every tick in production mode |
 | Ignoring labels | UX | - [ ] Forbid collision models that only consider node cores when labels render |
-

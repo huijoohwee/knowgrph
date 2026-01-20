@@ -36,8 +36,11 @@ export type { GraphState } from '@/hooks/store/types';
 
 const applyCanvasDefaultInitSchema = (schema: GraphSchema): GraphSchema => {
   const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
-  const portHandles = { ...(behavior.portHandles || {}), enabled: true }
-  const nextBehavior = { ...behavior, portHandles }
+  const portHandles = behavior.portHandles
+    ? { ...behavior.portHandles }
+    : { enabled: false, placement: 'cardinal' as const, size: 4, offset: 2, strokeWidth: 1.5 }
+  const nodeShapeMode: 'circle' | 'rect' = behavior.nodeShapeMode === 'rect' ? 'rect' : 'circle'
+  const nextBehavior = { ...behavior, nodeShapeMode, portHandles }
   const nextLayout = { ...(schema.layout || {}), mode: 'force' as const }
   return { ...schema, behavior: nextBehavior, layout: nextLayout }
 }

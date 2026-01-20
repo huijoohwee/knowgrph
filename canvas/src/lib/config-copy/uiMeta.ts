@@ -125,6 +125,7 @@ export const UI_LABELS = {
   localSchemaLocalRules: 'Local schema · Local rules',
   mermaidFocus: 'Mermaid Focus',
   status: 'Status',
+  nodeShapeMode: 'Node Shape',
   frontmatterMode: 'Frontmatter Mode',
   frontmatterModeMermaidFocus: 'Frontmatter Mode (Mermaid focus)',
   mermaidLayout: 'Mermaid Layout',

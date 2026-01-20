@@ -1,6 +1,7 @@
 import React from 'react'
 import * as d3 from 'd3'
 import type { GraphData } from '@/lib/graph/types'
+import { buildClosedPathD, computeConvexRing } from '@/lib/geometry/convexRing'
 
 export interface DatasetMiniVizProps {
   graph: GraphData | null
@@ -374,16 +375,8 @@ export function DatasetPolygonViz({ graph }: DatasetMiniVizProps) {
 
     if (!points.length) return null
 
-    const hull = d3.polygonHull(points) ?? points
-    if (!hull.length) return null
-
-    const path = d3.path()
-    path.moveTo(hull[0][0], hull[0][1])
-    for (let i = 1; i < hull.length; i += 1) {
-      path.lineTo(hull[i][0], hull[i][1])
-    }
-    path.closePath()
-    return path.toString()
+    const ring = computeConvexRing(points.map(([x, y]) => ({ x, y })))
+    return buildClosedPathD(ring)
   }, [graph])
 
   if (!pathData) return null

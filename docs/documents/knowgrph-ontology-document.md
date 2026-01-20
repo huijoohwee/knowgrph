@@ -34,7 +34,7 @@
 | Ontology Context Declaration    | `@context` mapping in JSON-LD                 | `metadata.ontologies` array with `{prefix, iri}` objects  |
 | Type-Based Node Styling         | Node visual properties via schema-config      | `nodeShapes`, `nodeColors`, `nodeSizes` by `rdf:type`     |
 | Layer-Based Filtering           | Semantic/Document/Schema layer modes          | `layers.mode`, `layers.semantic.hiddenNodeTypes`          |
-| Spatial Clustering              | Graph-layer hulls over communities            | `geo:Polygon` nodes, `layers.semantic.communityDetection` |
+| Spatial Clustering              | Graph-layer outlines over communities         | `geo:Geometry` nodes, `layers.semantic.communityDetection` |
 | Provenance Chains               | Edge rendering of PROV-O relationships        | `prov:wasAttributedTo`, `prov:wasGeneratedBy` styling     |
 
 ---

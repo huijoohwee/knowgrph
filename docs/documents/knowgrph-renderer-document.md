@@ -39,7 +39,7 @@
   - `canvas/src/components/GraphCanvas.tsx` coordinates the rendering lifecycle.
   - Manages D3 simulation, event listeners, and interaction state.
 - **Layer Derivation**:
-  - `canvas/src/lib/graph/layerDerivation.ts` transforms canonical graph data into visual structures (hulls, layers).
+  - `canvas/src/lib/graph/layerDerivation.ts` transforms canonical graph data into visual structures (groups, layers).
   - **CRITICAL**: Enforces deep/shallow copies of nodes to prevent D3 from mutating the store.
 - **Layout Engine**:
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
@@ -91,7 +91,7 @@
 - **Behavior**:
   - Forces **Rectangular Box** shape.
   - Uses Dagre layout engine.
-  - **Subgraphs**: Rendered as hulls with auto-sizing padding.
+  - **Subgraphs**: Rendered as group outlines with auto-sizing padding.
   - **Port Handles**:
     - **Border**: Inputs/Outputs clamped to border.
     - **Intermediate**: Clamped to inner padding.
@@ -105,7 +105,7 @@
   - `idea` (Blue), `hypothesis` (Yellow), `execution` (Green), `pivot` (Orange), `alert` (Red).
 - **Lifecycle Mapping**:
   - Nodes with `properties.tags` including these keywords automatically adopt the color.
-  - Graph Layer hulls adopt the color of their owner node or property key.
+  - Graph Layer outlines adopt the color of their owner node or property key.
 
 ---
 

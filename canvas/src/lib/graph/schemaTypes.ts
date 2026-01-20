@@ -3,6 +3,7 @@ import type { JSONValue } from './types';
 export interface GraphBehavior {
   allowEdgeCreation: boolean;
   allowNodeDrag: boolean;
+  nodeShapeMode?: 'circle' | 'rect';
   dragConstraint?: 'free' | 'axis-x' | 'axis-y' | 'none';
   snapGrid?: { enabled: boolean; size: number };
   preventDuplicatesGlobal?: boolean;
@@ -106,6 +107,15 @@ export interface GraphSchema {
     rectNodes?: {
       maxZoomMinimapWidthRatio?: number;
       maxZoomMinimapHeightRatio?: number;
+    };
+    groups?: {
+      enabled?: boolean;
+      shape?: 'rect' | 'geo';
+      padding?: number;
+      cornerRadius?: number;
+      labelPadding?: number;
+      strokeWidth?: number;
+      fillOpacity?: number;
     };
   };
   endpointMatrix?: Record<string, { sources: string[]; targets: string[] }>;

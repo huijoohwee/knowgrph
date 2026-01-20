@@ -24,6 +24,7 @@ export const attachSimulationTick = (args: {
   schema: GraphSchema
   width: number
   height: number
+  beforeRenderFrame?: (() => void) | null
 }) => {
   const {
     svgEl,
@@ -38,6 +39,7 @@ export const attachSimulationTick = (args: {
     schema,
     width,
     height,
+    beforeRenderFrame,
   } = args
   const nodeById = new Map<string, GraphNode>()
   for (let i = 0; i < nodes.length; i += 1) {
@@ -69,6 +71,7 @@ export const attachSimulationTick = (args: {
   const labelFontSize = schema.labelStyles?.fontSize ?? 12
 
   const renderFrame = () => {
+    if (beforeRenderFrame) beforeRenderFrame()
     if (portHandlesEnabled) {
       ;(linkSel as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>)
         .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {

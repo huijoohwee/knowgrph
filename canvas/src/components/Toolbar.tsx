@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -88,6 +88,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false);
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
+  const nodeShapeMode = schema.behavior?.nodeShapeMode === 'rect' ? 'rect' : 'circle'
+  const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'geo' : 'rect'
 
   const actions = useToolbarActions(
     schema,
@@ -165,6 +167,21 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
+          nodeShapeMode === 'rect' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={UI_LABELS.nodeShapeMode}
+        tooltipContent={UI_COPY.nodeShapeModeTooltip}
+        onClick={actions.handleToggleNodeShapeMode}
+        showTooltip
+      >
+        {nodeShapeMode === 'rect' ? (
+          <Square className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        ) : (
+          <Circle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        )}
+      </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${
           frontmatterModeEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
         title={frontmatterModeEnabled ? UI_LABELS.frontmatterModeMermaidFocus : UI_LABELS.frontmatterMode}
@@ -180,6 +197,21 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${
+          groupShapeMode === 'rect' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={groupShapeMode === 'rect' ? 'Group Shape: Rect' : 'Group Shape: Geo'}
+        tooltipContent={groupShapeMode === 'rect' ? 'Switch to Geo shape' : 'Switch to Rect shape'}
+        onClick={actions.handleToggleGroupShapeMode}
+        showTooltip
+      >
+        {groupShapeMode === 'rect' ? (
+          <Square className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        ) : (
+          <Hexagon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        )}
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${

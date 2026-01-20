@@ -67,14 +67,26 @@ export class MarkdownGraphBuilder {
     })
   }
 
-  createMermaidNode(id: string, code: string, meta: Record<string, unknown>, name?: string) {
+  createMermaidNode(
+    id: string,
+    code: string,
+    meta: Record<string, unknown>,
+    name?: string,
+    opts?: { scope?: 'frontmatter' | 'block' },
+  ) {
+    const scope: 'frontmatter' | 'block' = opts?.scope === 'frontmatter' ? 'frontmatter' : 'block'
     this.ensureNode({
       '@id': id,
       '@type': 'MermaidDiagram',
       labels: ['MermaidDiagram'],
       name: name || 'Mermaid Diagram',
       chunk_text: code.slice(0, 800),
-      properties: { code, format: 'graph' },
+      properties: {
+        code,
+        format: 'graph',
+        mermaidScope: scope,
+        ...(scope === 'frontmatter' ? { isMermaidFrontmatter: true } : {}),
+      },
       metadata: meta,
     })
     this.addRel(this.ctx.docId, 'hasMermaid', id)

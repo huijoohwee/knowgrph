@@ -1,308 +1,475 @@
-# Knowgrph Source File Ingestor (Markdown, HTML, PDF, JSON, JSON‑LD, CSV)
+# Knowgrph Source File Ingestor: Universal Import Specification
 
-## End‑to‑End Flow (Source Files → Graph → Canvas)
+## Design Mantras
 
-- Entry: Canvas toolbar **Source Files** area (tool menu `area: "sourceFiles"`).
-6→- Action: User chooses **Import** / **Import (Local)** / **Import (URL)** plus a format:
-7→  - `markdown`
-8→  - `html`
-9→  - `pdf`
-10→  - `jsonld`
-11→  - `json`
-12→  - `csv`
-- Orchestration: `useToolbarMenuAction` routes the action to the appropriate import function:
-  - Markdown: `performMarkdownImport`
-  - HTML: `performHtmlImport`
-  - PDF: `performPdfImport`
-  - JSON / JSON‑LD: `performJsonImport`
-- Parsing: All content that becomes Markdown flows through the client‑side parser registry in `canvas/src/features/parsers/default.ts`:
-  - Markdown → JSON‑LD → `GraphData`
-  - JSON‑LD → `GraphData`
-  - JSON (nodes/edges or raw) → `GraphData`
-- Rendering: `loadGraphDataFromTextViaParser` sets `graphData` in the store and opens the Curation tab so the imported graph appears on the canvas.
-- Media: Image/video/iframe URLs are normalized into node properties (`media_url`, `media_kind`, `image`, `video`, `iframe_url`) during ingestion; rendering is controlled later by a view‑only canvas toggle.
+```
+- [ ] Consistency; unify import paths; forbid format-specific UIs
+- [ ] Extensibility; support new formats; forbid hardcoded parsers
+- [ ] Neutrality; preserve source structure; forbid format assumptions
+- [ ] Normalization; canonicalize URLs; forbid broken references
+- [ ] Preservation; maintain media properties; forbid data loss
+- [ ] Transparency; expose conversion modes; forbid hidden transformations
+- [ ] Validation; verify all inputs; forbid silent parse failures
+```
 
-This section describes how each format enters the system, how it is converted, and how media is propagated from the original source into the graph.
+---
 
-## Source Files Tool Menu
+## Universal Design Principles
 
-- Configuration:
-  - Defined in `canvas/src/features/toolbar/toolMenu.ts` as `ToolMenuArea = "sourceFiles"`.
-  - Supported actions: `new`, `import`, `importLocal`, `importUrl`, `export`, `clear`.
-- Behavior:
-  - `import` chooses between URL or local file at runtime via prompt.
-  - `importLocal` opens a file picker constrained to the format’s extensions.
-  - `importUrl` uses a provided URL payload (bypassing the prompt).
-  - `export` writes the current document/graph back out as Markdown/HTML/PDF/JSON/JSON‑LD.
-- Integration:
-37→  - All import actions end by calling `loadGraphDataFromTextViaParser` (for text formats, CSV/JSON/JSON‑LD) or `loadGraphDataViaParser` (for generic parser loads).
-  - Import status is tracked in `useParserUIState` (last input, warnings, counts, status message).
+| Context             | Intent                              | Directive                                                                                      |
+|---------------------|-------------------------------------|------------------------------------------------------------------------------------------------|
+| Content Fetching    | Retrieve remote sources             | - [ ] Use proxy for CORS; normalize URLs; forbid direct fetch without fallback               |
+| Format Detection    | Route to correct parser             | - [ ] Detect by extension/MIME; dispatch appropriately; forbid ambiguous routing             |
+| Media Extraction    | Preserve multimedia references      | - [ ] Extract URLs; resolve relative paths; forbid broken media links                        |
+| Mode Selection      | Enable user control                 | - [ ] Expose conversion modes; persist preferences; forbid forced transformations             |
+| Parser Routing      | Dispatch to specialized handlers    | - [ ] Match by capability; fallback gracefully; forbid parser crashes                        |
+| Property Preservation| Maintain source metadata           | - [ ] Copy all properties; normalize keys; forbid metadata loss                              |
+| Source Tracking     | Record document origins             | - [ ] Store document paths; track lineage; forbid orphaned content                           |
+| URL Resolution      | Handle relative references          | - [ ] Resolve against base URL; normalize protocols; forbid malformed URLs                   |
+| Validation          | Verify structure early              | - [ ] Parse before store; validate schema; forbid late-stage errors                          |
 
-## Markdown Ingestion (Local Files and URLs)
+---
 
-- Entry points:
-  - `Source Files` → `Import` / `Import (Local)` / `Import (URL)` with `format: "markdown"`.
-  - Implementation: `canvas/src/features/toolbar/markdownImportAction.ts`.
-- URL handling:
-  - URLs are normalized via `coerceHttpUrl`.
-  - `fetchRemoteMarkdownText` (`ingestUtils.ts`) fetches content via:
-    - Same-origin proxy (`/__fetch_remote`) when origins differ or when running under dev server.
-    - Direct `fetch` fallback when proxy is unavailable.
-    - Git hosting URLs that use a `blob` path segment are normalized to their raw content endpoint before fetch, so Markdown and media are ingested from the underlying source file instead of the viewer HTML.
-  - The fetched payload is passed through a light HTML detector:
-    - If it looks like HTML, it is converted with `parseHtmlToMarkdown`.
-    - Otherwise it is treated as raw Markdown.
-- Local files:
-  - Imported via `pickTextFileWithExtensions(['.md', '.markdown'])`.
-- Parsing:
-  - The Markdown text is passed to the parser registry (`default.ts`), which:
-    - Splits blocks (`parseMarkdownBlocks`).
-    - Builds JSON‑LD via `buildMarkdownJsonLd`.
-    - Converts JSON‑LD into `GraphData` via `parseJsonLd`.
-    - Records ingestion timing metrics under `graphData.metadata.ingestionMetrics`, including:
-      - `totalMs`: end‑to‑end time from Markdown text to `GraphData`.
-      - `buildMarkdownJsonLdMs`: time spent building JSON‑LD from Markdown.
-      - `parseJsonLdMs`: time spent turning JSON‑LD into `GraphData`.
-    - The Canvas Bottom Panel **Curation** tab reads `metadata.ingestionMetrics` and surfaces these timings in the “Ingestion metrics” header so large documents (for example, long slide decks) expose parse performance without additional logging.
-- Media:
-  - Inline refs are extracted from paragraph text:
-    - `![alt](url)` for images/media.
-    - `[label](url)` for links.
-    - `<img ...>` tags embedded directly in Markdown paragraphs (including simple wrappers such as `<center>...</center>`).
-  - URLs are resolved against the document URL when the source `name` is `http(s)`.
-  - A minimal smoke file for HTML image ingestion lives at:
-    - `data/_tmp_md_smoke/markdown-html-img-smoke.md`
-    - Load it via **Source Files → Import (Local)** with `format: "markdown"` to verify that HTML `<img>` content produces media-capable nodes and, when enabled, panel-like media nodes on the canvas.
-  - End‑to‑end coverage:
-    - A dedicated test `ui.markdown.mediaToggleEndToEnd` (`canvas/src/__tests__/markdownMediaToggleE2e.test.ts`) exercises:
-      - Local Markdown: `data/_tmp_md_smoke/markdown-html-img-smoke.md`.
-      - Remote Markdown: `https://example.com/docs/sample-summaries.md` (Mocked in test).
-    - The test asserts that:
-      - Media‑capable nodes are present in the graph regardless of the canvas media toggle.
-      - The Bottom Panel Markdown viewer (`BottomPanelMarkdownSection`) renders the same Docusaurus-compatible Markdown with `<img>` tags in the preview, using the canvas markdown‑it pipeline for structure while the Docusaurus site provides the production theme.
-  - The global **Render Media as Nodes** canvas toggle:
-    - Is available in the main toolbar (image icon, left of the 3D Mode button).
-    - Is mirrored in the floating properties panel Media section and the toolbar settings export menu.
-    - Is view‑only: it never changes ingestion or graph data; it only decides whether media properties are rendered as overlaid media panels on top of nodes in the 2D canvas.
-  - Remote Markdown served through HTML viewers is handled by the same path:
-    - The HTML response is converted to Markdown via `parseHtmlToMarkdown`.
-    - Image, video, and iframe tags are lowered to the same `![alt](url)` markers.
-  - When “Render Media as Nodes” is enabled:
-    - Each distinct image/video/iframe becomes its own node (`Image`, `Video`, `IFrame`).
-    - The node properties include:
-      - `media_url` and `media` (canonical media URL).
-      - `media_kind` in `{"image", "video", "iframe"}`.
-      - `image` or `video` or `iframe_url` depending on type.
-      - `visual:shape = "rect"` for panel‑like rendering.
-    - Paragraphs link to media via `embedsImage` edges.
-  - When “Render Media as Nodes” is disabled:
-    - Images are preserved as `Link` nodes with `properties.url`.
-    - Paragraphs use `linksTo` edges instead of `embedsImage`.
+## Ingestor Architecture
 
-## HTML Ingestion (Local Files and URLs)
+**Import Flow**: Source Selection → Format Detection → Content Fetch → Parser Dispatch → Graph Construction → Store Update → UI Refresh
 
-- Entry points:
-  - `Source Files` → `Import` / `Import (Local)` / `Import (URL)` with `format: "html"`.
-  - Implementation: `canvas/src/features/toolbar/htmlImportAction.ts`.
-- Fetch and validation:
-  - HTML is fetched via `fetchRemoteHtmlText`, which:
-    - Uses the same proxy logic as Markdown ingestion.
-    - Rejects dev‑server fallback HTML (`looksLikeViteDevIndexHtml`) to avoid importing the application shell.
-  - Local HTML files are loaded via `pickTextFileWithExtensions(['.html', '.htm'])`.
-- Conversion pipeline:
-  - `parseHtmlToMarkdown` (`html-parser.ts`) turns the HTML into Markdown:
-    - Preserves document structure (headings, paragraphs, lists, tables, code blocks, blockquotes).
-    - Treats `main`, `article`, `section`, `nav`, `aside`, etc. as structural wrappers.
-    - Handles feeds (RSS/Atom/XML) as Markdown sections when applicable.
-  - Embedded JSON‑LD is extracted by `extractJsonLd` and optionally appended as a JSON block for inspection.
-- Media mapping:
-  - `<img>` → `![alt](resolvedUrl)`.
-  - `<video>`:
-    - Uses the first non‑empty `src` from the tag or descendants.
-    - Emits `![Video](resolvedUrl)`.
-  - `<iframe>` → `![IFrame](resolvedUrl)`.
-  - All URLs are resolved against the page URL so relative paths remain valid.
-  - These Markdown media markers are then treated by the Markdown parser as described above, producing rectangular media nodes or link fallbacks.
-- Result:
-  - The combined Markdown (plus optional JSON‑LD block) is ingested with the Markdown parser.
-  - The resulting graph is immediately available in the Canvas Curation view.
+**Processing Pipeline**: URL Normalization → Content Retrieval → Format Conversion → Media Extraction → Property Mapping → Graph Integration
 
-## PDF Ingestion (Local Files and URLs)
+**Design Principles**: Format-agnostic routing | Media-aware parsing | URL-safe resolution | Mode-driven conversion
 
-- Entry points:
-  - `Source Files` → `Import` / `Import (Local)` / `Import (URL)` with `format: "pdf"`.
-  - Implementation: `canvas/src/features/toolbar/pdfImportAction.ts`.
-- Conversion:
-  - PDFs are posted to `/__convert_pdf`:
-    - URL import: `POST /__convert_pdf?url=<encoded>` with the remote URL.
-    - Local import: `POST /__convert_pdf` with raw PDF bytes and `Content-Type: application/pdf`.
-  - The dev server routes requests to the Python backend (`knowgrph_parser`) which:
-    - Parses the PDF into Markdown (using `pypdf`).
-    - Emits a Markdown string plus an inferred display name.
-  - The client receives `{ ok, markdown, name }` on success.
-- Ingestion:
-  - The converted Markdown is passed to `loadGraphDataFromTextViaParser`.
-  - The Markdown parser path is identical to the native Markdown flow (blocks → JSON‑LD → `GraphData`).
-- Media:
-  - Extracted images are exposed as image URLs in the converted Markdown.
-  - The Markdown parser turns them into `Image` nodes connected via `embedsImage` edges, honoring the global “Render Media as Nodes” setting.
+### Supported Source Formats
 
-## JSON‑LD, JSON, and CSV Ingestion
+| Format      | Extensions          | Entry Point Mechanism              | Intermediate Representation    | Media Handling                        |
+|-------------|---------------------|------------------------------------|---------------------------------|---------------------------------------|
+| Markdown    | .md, .markdown      | Toolbar Source Files menu          | Direct Markdown                 | Inline refs, HTML tags                |
+| HTML        | .html, .htm         | Toolbar Source Files menu          | Converted to Markdown           | Tag extraction, URL resolution        |
+| PDF         | .pdf                | Toolbar Source Files menu          | Server-converted to Markdown    | Embedded image URLs                   |
+| JSON-LD     | .jsonld             | Toolbar Source Files menu          | Direct JSON-LD                  | Property preservation                 |
+| JSON        | .json               | Toolbar Source Files menu          | Normalized to GraphData         | Property preservation                 |
+| CSV         | .csv                | Toolbar Source Files menu          | Tabular to GraphData            | N/A                                   |
 
-- Entry points:
-  - `Source Files` → `Import` / `Import (Local)` / `Import (URL)` with `format: "jsonld"` or `format: "json"`.
-  - `Source Files` → `Import` / `Import (Local)` with `format: "csv"`.
-  - Implementation: `canvas/src/features/toolbar/jsonImportAction.ts` plus the parser registry in `default.ts`.
-- JSON‑LD:
-  - If the top‑level object has `@context`, JSON‑LD import is used.
-  - `parseJsonLd`:
-    - Interprets `@graph` as nodes and edges.
-    - Applies AgenticRAG context rules when `@context` references the canonical URL.
-    - Preserves all non‑structural properties (including `media_url`, `media_kind`, `image`, `video`, `iframe_url`, `media`) on nodes.
-  - Media URLs:
-    - Remain as node properties.
-    - Are interpreted by the renderer via `getNodeMediaSpec`, which normalizes GitHub `blob` URLs to their `raw.githubusercontent.com` equivalents and uses the same `/__fetch_remote?url=…` proxy endpoint that the ingestor uses when rendering media inside the canvas.
-- JSON:
-  - If the JSON has `nodes` and `edges` arrays, they are used as‑is.
-  - Otherwise, `rawToGraphData` wraps the data into a `GraphData` object:
-    - Top‑level objects that expose arrays named `nodes`, `edges`, `links`, or suffix‑matched keys such as `extended_nodes` and `extended_nodes_v2` are treated as generic graph containers.
-    - Node entries keep `id`, `name`, `label`, and `type` while merging all other fields into `GraphNode.properties` so workflow‑style shapes remain dataset‑agnostic.
-    - Edge entries accept `source`/`target` or `from`/`to` and preserve additional attributes in `GraphEdge.properties` with a neutral default label when no type is provided.
-    - Any media‑related fields present (`media_url`, `media_kind`, etc.) remain available to the renderer.
-- CSV:
-  - Ingestion uses the CSV parser spec in `default.ts` (`csvSpec`).
-  - Tabular rows are mapped into nodes and edges based on column semantics.
-  - The imported CSV is also wrapped in a fenced Markdown block and stored as the active Markdown document so it appears in the Markdown preview bottom panel.
+### Integration Bridge: Source Formats → Graph Construction
 
-### Auxiliary JSON / JSON‑LD → Markdown Utility
+| Source Format       | Conversion Stage                     | Parser Component                             | Graph Output                    |
+|---------------------|--------------------------------------|----------------------------------------------|---------------------------------|
+| Markdown            | Block parsing → JSON-LD              | Markdown Parser                              | Structural + Semantic nodes     |
+| HTML                | HTML → Markdown → JSON-LD            | HTML Parser → Markdown Parser                | Structural nodes with media     |
+| PDF                 | PDF → Markdown → JSON-LD             | Server PDF Parser → Markdown Parser          | Extracted text + images         |
+| JSON-LD             | Direct interpretation                | JSON-LD Parser                               | Nodes/edges from @graph         |
+| JSON                | Normalization → GraphData            | JSON Parser (rawToGraphData)                 | Nodes/edges from arrays         |
+| CSV                 | Tabular mapping → GraphData          | CSV Parser                                   | Row-based nodes/edges           |
 
-- Backend utility:
-  - The Python helper `json_to_markdown_cmd` in `knowgrph_parser` converts JSON and JSON‑LD payloads into Markdown for inspection and documentation.
-  - This utility does not participate in canvas ingestion; it operates on files before or alongside ingestion to produce human‑readable views.
-- Modes:
-  - Defaults to a mode based on structure:
-    - Arrays of uniform scalar objects → Markdown tables.
-    - Flat objects → key‑value bullet lists.
-    - Nested or mixed structures → hierarchical lists with indentation.
-  - Supports explicit mode selection and basic layout configuration (maximum table rows/columns, indentation, and bullet markers).
-- Typical usage:
-  - Inspecting JSON/JSON‑LD fixtures during parser development.
-  - Producing Markdown snippets for architecture documents in `docs/documents/` from existing JSON graph exports without adding dataset‑specific formatting logic.
-  - Kept deliberately separate from the canvas pipeline so it remains a pure command‑line helper; the canvas uses a client‑side `jsonToMarkdown` helper with the same structural behavior but wires it into JSON import and the Markdown bottom panel instead of relying on pre‑generated Markdown files.
+---
 
-### Canvas JSON / JSON‑LD → Markdown Mode Selector
+## Component Specifications
 
-- Location:
-  - The Markdown bottom panel header shows:
-    - A **JSON-backed preview** badge whenever the active Markdown is derived from a JSON/JSON‑LD import. Hovering the badge reveals a tooltip: the panel is a preview of the last JSON/JSON‑LD import, graph structure should be edited via the JSON Editor or UI Editor, and Apply from Markdown is disabled for this mode. The Markdown **Apply** button is hard-disabled (greyed out with a tooltip) whenever the view is JSON-backed so users cannot accidentally mutate `graphData` from this preview.
-    - A **JSON → Markdown mode** selector next to the Markdown status badge.
-- Modes:
-  - `Auto`: lets the converter choose a mode from structure (table, key‑value, or hierarchical).
-  - `Table`: prefers Markdown tables when the JSON is an array of uniform objects without nested structures.
-  - `Key‑value`: emits bullet lists of key‑value pairs for flat objects, with nested structures delegated to a hierarchical view.
-  - `Hierarchical`: always renders nested bullet lists with indentation, regardless of the input shape.
-- Behavior on JSON import:
-  - When JSON or JSON‑LD is imported through the toolbar and parses successfully:
-    - The raw JSON text is stored as the current JSON source document in the graph store under the derived base name (for example, `graph.json` or `graph.jsonld`).
-    - The client‑side `jsonToMarkdown` helper renders Markdown from that JSON using the last chosen mode (persisted in `LS_KEYS.jsonMarkdownMode`) so the Markdown Section shows a human‑readable view instead of raw JSON.
-    - The imported graph is stored as `graphData` and drives the Canvas, Graph Data Table, and JSON Editor views; changing the JSON → Markdown mode never mutates `graphData` or re‑runs the parser.
-- Behavior on mode changes:
-  - Changing the selector re‑runs JSON → Markdown conversion against the stored JSON source while the graph and Graph Data Table remain unchanged, so users can flip between table/key‑value/hierarchical views without re‑ingesting.
-  - The selector also shows a **Suggested:** hint derived from the combination of the current Markdown content and the JSON structure so users can see which mode best matches the existing view while retaining full control over future conversions.
+### Component: Source File Import Orchestration
 
-### JSON Import → Graph Data Table → JSON Editor → Markdown Workflow
+**Responsibility**: Routes import actions to format-specific handlers based on user selection.
 
-1. JSON import:
-   - Use **Source Files → Import** (URL or Local) with `format: "json"` or `format: "jsonld"` to load a JSON or JSON‑LD file into the canvas.
-   - The parser normalizes the payload into `GraphData` and, when parsing succeeds, stores the raw text as the current JSON source document for the Markdown Section (or clears it when the payload is not valid JSON).
-   - The initial Markdown in the bottom panel is derived from the stored JSON using the last chosen JSON → Markdown mode; when parsing fails, the raw JSON is shown inside a fenced code block instead of a rendered table or hierarchy.
-2. Graph Data Table:
-   - Open the **Curation** tab and switch to the Graph Data Table view to inspect nodes and edges derived from the imported JSON.
-   - Changing the JSON → Markdown mode does not mutate `GraphData` or re‑run the parser, so table contents remain stable while the Markdown view changes.
-3. JSON Editor:
-   - In the Curation toolbar, click **JSON Editor** to view and edit the JSON representation that backs the current `GraphData` state.
-   - Edits that apply back to `GraphData` update the graph store and keep the Graph Data Table and canvas views aligned with the same underlying dataset.
-   - The JSON Editor apply path also updates the stored JSON source document when the active Markdown document represents a JSON or JSON‑LD file, keeping the JSON source, Markdown view, and graph in sync.
-4. Markdown view with live modes:
-   - Switch to the **Markdown Section** and use the JSON → Markdown mode selector to flip between Auto/Table/Key‑value/Hierarchical views.
-   - The Markdown bottom panel re‑renders from the stored JSON source whenever the mode changes or the JSON source is updated (for example, after applying changes in the JSON Editor), while leaving `GraphData` unchanged so users can iterate on Markdown presentations independently of ingestion.
-   - When the active Markdown document is associated with a `documentPath` in the graph (for example, repo documentation opened from Workspace Actions), clicking **Apply** re‑parses only that document and merges the result back into the existing `graphData`: nodes and edges whose metadata `documentPath` matches the active document are replaced, all other nodes, edges, and graph‑level metadata are preserved so Canvas structure for unrelated content is not disturbed.
+**Configuration**: Toolbar menu actions with format parameter (markdown, html, pdf, jsonld, json, csv).
 
-#### Example: Workspace Actions → Markdown → Apply
+**Interface Pattern**: `performImport(format, source)` → validates format → fetches content → dispatches to parser → updates store
 
-1. In Canvas, open the **Workflow** tab and the **Workspace Actions** floating panel, then run the codebase indexing pipeline so markdown files under `docs/documents/` are ingested into `graphData` with `metadata.documentPath` pointing at their repo paths.
-2. On the Canvas, click a node that came from one of those markdown files (for example, `docs/documents/knowgrph-ingestor-document.md`); the Bottom Panel opens the **Curation → Markdown Section** view for the selected document.
-3. In the Markdown editor, update the text for that document and click **Apply**:
-   - The markdown parser runs only on the active document.
-   - The resulting nodes and edges are tagged with the same `documentPath` as the original document.
-   - The graph store replaces nodes and edges whose `metadata.documentPath` matches that path and leaves all other nodes, edges, and graph‑level metadata unchanged.
-   - The Canvas and Graph Data Table update to reflect the new structure for that document while the rest of the workspace graph remains intact.
+| Context              | Intent                          | Directive                                                                                   | Module                | Class/Object       | Function/Method         | Dependency        | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------|--------------------|-------------------------|-------------------|------------------------------|------------------------|----------------------------------|
+| Action Dispatch      | Route toolbar actions           | - [ ] Match action to format; call handler; forbid unmapped actions                        | toolbarMenuAction    | ActionDispatcher   | handleImportAction      | —                 | Action type, format          | Handler function       | Switch on format string          |
+| Format Validation    | Verify supported format         | - [ ] Check format enum; reject invalid; forbid silent failures                            | importValidator      | FormatValidator    | validateFormat          | —                 | Format string                | Boolean (valid)        | Set membership check             |
+| Source Selection     | Choose local or remote          | - [ ] Prompt for URL or open picker; validate source; forbid ambiguous sources            | sourceSelector       | SourceSelector     | selectSource            | UI prompts        | Import mode                  | Source (URL or File)   | Conditional on import mode       |
 
-- Gotchas:
-  - When there is no `documentPath` for the active Markdown (for example, ad‑hoc Markdown that is not associated with a repo file), **Apply** falls back to treating the Markdown as a standalone dataset: the parser replaces the entire `graphData` with the parsed result instead of doing a per‑document merge, so use Workspace Actions and repo‑backed docs when you need scoped updates.
+---
 
-### Store Keys for JSON ↔ Markdown Sync
+### Component: URL Fetching and Normalization
 
-- `graphData`:
-  - Canonical graph payload produced by the parser or JSON Editor.
-  - Drives the Canvas, Graph Data Table, and JSON Editor views.
-- `markdownDocumentName`:
-  - Logical name of the active Markdown document (for example, `graph.json`, `graph.jsonld`, `document.md`).
-  - Used by the Markdown Section to decide when JSON → Markdown conversion should run (only when the name ends in `.json` or `.jsonld`).
-- `markdownDocumentText`:
-  - Current Markdown content shown in the bottom panel editor/viewer.
-  - Initialized from imports (Markdown/HTML/PDF/CSV/JSON/JSON‑LD) and overwritten when JSON → Markdown conversion runs.
-- `jsonSourceDocumentText`:
-  - Raw JSON text associated with the current JSON/JSON‑LD document.
-  - Set on JSON/JSON‑LD import and updated when JSON Editor apply commits graph changes.
-  - When non‑empty, the Markdown Section re‑renders `markdownDocumentText` from this JSON using the active JSON → Markdown mode; when empty or when the active document is not a JSON/JSON‑LD file, the Markdown Section leaves the existing Markdown unchanged.
+**Responsibility**: Retrieves remote content with CORS proxy support and normalizes Git hosting URLs.
 
-## Media Rendering Across Formats
+**Algorithm**: Detect origin mismatch → route to proxy endpoint → normalize blob URLs to raw → fetch with error handling
 
-- Canonical media properties:
-  - `media_url`: canonical URL used to render media.
-  - `media_kind`: `"image"`, `"svg"`, `"video"`, or `"iframe"`.
-  - `image`, `video`, `iframe_url`, `media`: format‑specific helpers.
-  - `media_interactive`: when explicitly `true` or `false`, overrides default interactivity for the media surface.
-  - Renderer behavior:
-  - `getNodeMediaSpec` (`GraphCanvas/helpers.ts`) inspects node properties and:
-    - Chooses a single URL using the priority: `iframe_url` → `media_url` → `image` → `video` → `media`.
-    - Infers the `kind` if `media_kind` is not explicitly set.
-    - Normalizes and validates iframe URLs against an allowlist and drops unsafe iframe URLs.
-    - Defaults `interactive` based on kind when `media_interactive` is not set:
-      - `video` and `iframe` kinds are interactive by default so users can click play/pause and use native controls inside Media Node panels.
-      - `image` and `svg` kinds are non‑interactive by default so clicks continue to select nodes on the canvas.
-  - `createNodesLayer` (`GraphCanvas/layers/nodes.ts`) renders media in 2D as Media Node panels when `renderMediaAsNodes` is enabled:
-    - Each media-capable node gets a dedicated panel with a rounded rectangle frame.
-    - Each panel includes a header strip that displays the node label and type
-      inline as `Label (Type)` so the panel is self-describing without relying
-      on the default node label glyphs.
-    - The media region renders:
-      - Image/SVG media via `<image>` elements inside the panel bounds.
-      - Video/IFrame media via `<foreignObject>` containers that host `<video>` or `<iframe>` elements. Pointer events are passed through to the embedded content when `interactive` is `true`, while canvas selection and drag handlers continue to ignore those events.
-    - An SVG `<title>` element exposes the full node label and type as browser‑native hover text to match default circle node hover behavior.
-    - In panel‑only mode, base circle/rect glyphs and separate text labels are suppressed for media‑capable nodes.
-- User control:
-  - Global toggle (view‑only):
-    - `renderMediaAsNodes` (graph store UI slice) controls only whether Media Node panels are drawn for media‑capable nodes.
-    - Toggling does not mutate `graphData`, re‑ingest sources, or re‑run parsers.
-    - Exposed in:
-      - Toolbar main bar (“Render Media as Nodes” button).
-      - Toolbar Settings area.
-      - Floating Properties Panel (Media section).
-  - Per‑node media editing:
-    - Floating panel model (`useFloatingPropsPanelModel`) allows editing:
-      - `media_kind`
-      - `media_url`
-      - `media_interactive`
-    - Updates propagate to the graph store and are immediately reflected on the canvas without re‑parsing the source file.
+| Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
+| URL Normalization    | Convert to canonical form       | - [ ] Detect Git hosting; transform blob to raw; forbid malformed URLs                    | ingestUtils      | URLNormalizer   | normalizeGitUrl         | URL parser     | Source URL                   | Normalized URL         | Regex match and replace          |
+| CORS Handling        | Route through proxy             | - [ ] Check same-origin; use proxy if needed; forbid CORS errors                          | ingestUtils      | FetchManager    | fetchRemoteContent      | fetch          | URL, proxy endpoint          | Content text           | Origin comparison                |
+| Protocol Validation  | Ensure HTTPS                    | - [ ] Coerce http to https; validate protocol; forbid insecure URLs                       | ingestUtils      | URLValidator    | coerceHttpUrl           | —              | URL string                   | HTTPS URL              | Protocol replacement             |
+| Fallback Strategy    | Handle proxy failures           | - [ ] Try proxy first; fallback to direct; forbid giving up early                         | ingestUtils      | FetchManager    | fetchWithFallback       | fetch          | URL, options                 | Content or error       | Try-catch with fallback          |
 
-## End‑to‑End Source File Ingestion Summary
+---
 
-- All supported formats (Markdown, HTML, PDF, JSON‑LD, JSON) enter through a single **Source Files** entry point in the toolbar.
-- URL and local file imports share consistent fetch, validation, and conversion behavior, with proxy support for remote content.
-- Markdown is the common intermediate representation for text‑based sources (Markdown, HTML, PDF), ensuring consistent parsing and media extraction.
-- JSON‑LD and JSON paths preserve existing graph structures and media properties without additional assumptions.
-  - Media ingestion is format‑agnostic:
-    - URLs are normalized into a shared node property schema.
-    - The renderer uses these properties to optionally show media as panel‑like overlays in the canvas, controlled by the view‑only **Render Media as Nodes** toggle.
+### Component: Markdown Ingestion
+
+**Responsibility**: Imports Markdown from local files or URLs, resolves media references, and parses to graph.
+
+**Media Handling**: Extracts inline image/video/iframe markers → resolves URLs → creates media-capable nodes → preserves properties
+
+| Context              | Intent                          | Directive                                                                                   | Module                | Class/Object      | Function/Method         | Dependency        | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------|-------------------|-------------------------|-------------------|------------------------------|------------------------|----------------------------------|
+| Local File Selection | Open file picker                | - [ ] Filter by .md/.markdown; read content; forbid other extensions                      | markdownImport       | FilePicker        | pickMarkdownFile        | file API          | —                            | File object            | Extension filter                 |
+| URL Fetch            | Retrieve remote Markdown        | - [ ] Normalize URL; fetch via proxy; detect HTML wrapper; forbid raw HTML as Markdown    | markdownImport       | ContentFetcher    | fetchRemoteMarkdown     | ingestUtils       | URL                          | Markdown text          | Content-type detection           |
+| HTML Detection       | Convert wrapped content         | - [ ] Check for HTML tags; convert to Markdown; forbid malformed HTML                     | markdownImport       | HTMLDetector      | detectAndConvert        | html-parser       | Content text                 | Markdown text          | Regex HTML tag detection         |
+| Media Extraction     | Parse inline references         | - [ ] Extract ![](url), <img>, <video>, <iframe>; resolve relative; forbid broken refs   | markdownParser       | MediaExtractor    | extractMediaRefs        | URL resolver      | Markdown text, base URL      | Media node list        | Regex extraction and resolution  |
+| Parser Dispatch      | Convert to graph                | - [ ] Parse blocks; build JSON-LD; convert to GraphData; forbid parse failures            | parserRegistry       | MarkdownParser    | parseMarkdown           | graph_builder     | Markdown text                | GraphData              | Block tokenization → JSON-LD     |
+| Metrics Tracking     | Record ingestion timing         | - [ ] Measure parse duration; store in metadata; forbid unmeasured operations             | markdownParser       | MetricsTracker    | trackIngestionMetrics   | performance       | Start/end timestamps         | Metrics object         | Delta calculation                |
+
+---
+
+### Component: HTML Ingestion
+
+**Responsibility**: Imports HTML from local files or URLs and converts to Markdown for parsing.
+
+**Conversion Strategy**: Extract structure → preserve media tags → resolve relative URLs → emit Markdown
+
+| Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
+| Dev HTML Detection   | Reject dev server pages         | - [ ] Check for Vite dev markers; reject if found; forbid importing app shell             | htmlImport       | HTMLValidator   | rejectDevHTML           | —              | HTML text                    | Boolean (valid)        | String match for Vite markers    |
+| Structure Extraction | Convert HTML to Markdown        | - [ ] Parse DOM; map tags to Markdown; preserve hierarchy; forbid lossy conversion        | html-parser      | HTMLConverter   | parseHtmlToMarkdown     | DOMParser      | HTML text                    | Markdown text          | DOM traversal with tag mapping   |
+| Media Tag Mapping    | Transform media elements        | - [ ] Convert <img> to ![](url); <video> to ![Video](url); forbid unsafe sources         | html-parser      | MediaMapper     | mapMediaTags            | URL resolver   | DOM nodes, base URL          | Markdown markers       | Tag type switch with URL resolution|
+| JSON-LD Extraction   | Extract embedded metadata       | - [ ] Find script[type=application/ld+json]; parse JSON; forbid malformed JSON            | html-parser      | JSONLDExtractor | extractJsonLd           | JSON parser    | HTML document                | JSON-LD object         | Script tag query and parse       |
+
+---
+
+### Component: PDF Ingestion
+
+**Responsibility**: Imports PDF from local files or URLs via server-side conversion to Markdown.
+
+**Processing Flow**: Upload to server → pypdf conversion → Markdown response → parse as Markdown
+
+| Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
+| Local Upload         | Send PDF to server              | - [ ] Read file as bytes; POST to endpoint; forbid oversized files                        | pdfImport        | PDFUploader     | uploadLocalPDF          | fetch          | File object                  | Markdown text          | File size check then POST        |
+| URL Conversion       | Request server conversion       | - [ ] Encode URL; POST to endpoint; forbid malformed URLs                                 | pdfImport        | PDFConverter    | convertRemotePDF        | fetch          | PDF URL                      | Markdown text          | URL validation then POST         |
+| Server Response      | Parse conversion result         | - [ ] Check ok flag; extract markdown/name; forbid ignoring errors                        | pdfImport        | ResponseParser  | parseConversionResult   | —              | Server JSON response         | {markdown, name}       | ok check then field extraction   |
+| Image Extraction     | Preserve embedded images        | - [ ] Extract image URLs; embed in Markdown; forbid image loss                            | server (pypdf)   | ImageExtractor  | extractImages           | pypdf          | PDF bytes                    | Image URL list         | pypdf image enumeration          |
+
+---
+
+### Component: JSON-LD Ingestion
+
+**Responsibility**: Imports JSON-LD documents and interprets @graph as nodes/edges with AgenticRAG context handling.
+
+**Schema Interpretation**: Detect @context → apply AgenticRAG rules if canonical → preserve all properties
+
+| Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
+| Context Detection    | Identify JSON-LD format         | - [ ] Check for @context field; validate structure; forbid ambiguous formats              | jsonImport       | FormatDetector  | isJsonLd                | —              | Parsed JSON                  | Boolean (is JSON-LD)   | @context field existence         |
+| AgenticRAG Context   | Apply specialized rules         | - [ ] Match context URL; apply AgenticRAG handling; forbid hardcoded context logic        | parseJsonLd      | ContextHandler  | applyAgenticRAG         | —              | @context value               | Context config         | URL string comparison            |
+| Graph Extraction     | Parse @graph array              | - [ ] Extract nodes/edges from @graph; validate IDs; forbid malformed entries             | parseJsonLd      | GraphExtractor  | extractGraph            | —              | @graph array                 | Nodes/edges lists      | Array iteration with validation  |
+| Property Preservation| Copy all node properties        | - [ ] Transfer all fields to properties; preserve media; forbid property loss             | parseJsonLd      | PropertyMapper  | mapProperties           | —              | JSON-LD node                 | GraphNode              | Field-by-field copy              |
+
+---
+
+### Component: JSON Ingestion
+
+**Responsibility**: Imports generic JSON and normalizes to GraphData via structure detection.
+
+**Normalization Strategy**: Detect nodes/edges arrays → extract if present → otherwise wrap with rawToGraphData
+
+| Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
+| Structure Detection  | Identify graph shape            | - [ ] Check for nodes/edges fields; detect variants; forbid format assumptions            | rawJsonSpec      | StructureDetector| detectGraphShape       | —              | Parsed JSON                  | Boolean (is graph)     | Field name matching              |
+| Direct Extraction    | Use existing nodes/edges        | - [ ] Copy arrays as-is; validate entries; forbid malformed data                          | rawJsonSpec      | DirectExtractor | extractDirectGraph      | —              | JSON object                  | GraphData              | Array existence check            |
+| Normalization        | Wrap arbitrary JSON             | - [ ] Merge non-structural to properties; assign defaults; forbid data loss               | rawToGraphData   | JSONNormalizer  | normalizeToGraph        | —              | JSON object                  | GraphData              | Field mapping with defaults      |
+| Edge Endpoint Mapping| Support multiple formats        | - [ ] Accept source/target or from/to; normalize; forbid unmapped endpoints               | rawToGraphData   | EdgeMapper      | mapEdgeEndpoints        | —              | Edge object                  | Normalized edge        | Field name aliases               |
+| Default Label        | Assign neutral edge types       | - [ ] Use "relatedTo" when no type; document default; forbid empty labels                 | rawToGraphData   | LabelAssigner   | assignDefaultLabel      | —              | Edge without type            | Edge with label        | Fallback to constant             |
+
+---
+
+### Component: JSON → Markdown Conversion
+
+**Responsibility**: Converts JSON/JSON-LD to human-readable Markdown with configurable modes.
+
+**Mode Strategy**: Auto-detect structure → choose table/keyvalue/hierarchical → allow user override
+
+| Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
+| Mode Detection       | Choose conversion strategy      | - [ ] Analyze structure; select mode; forbid arbitrary choice                              | jsonToMarkdown   | ModeDetector    | detectMode              | —              | JSON object                  | Mode string            | Structure heuristics             |
+| Table Conversion     | Render as Markdown table        | - [ ] Generate headers; emit rows; forbid non-uniform arrays                               | jsonToMarkdown   | TableRenderer   | renderTable             | —              | JSON array                   | Markdown table         | Header extraction, row iteration |
+| Keyvalue Conversion  | Render as bullet list           | - [ ] Emit key: value pairs; bold keys; forbid nested objects                              | jsonToMarkdown   | KeyValueRenderer| renderKeyValue          | —              | JSON object                  | Markdown bullets       | Object.entries iteration         |
+| Hierarchical Conversion| Render nested structure       | - [ ] Indent by depth; preserve nesting; forbid flattening                                 | jsonToMarkdown   | TreeRenderer    | renderHierarchical      | —              | JSON object                  | Indented Markdown      | Recursive descent with indentation|
+| Mode Persistence     | Remember user preference        | - [ ] Save mode to localStorage; restore on load; forbid session-only settings            | jsonMarkdownMode | PreferenceManager| persistMode            | localStorage   | Mode string                  | Stored preference      | LS_KEYS.jsonMarkdownMode         |
+| Suggested Mode       | Hint best mode                  | - [ ] Analyze content; suggest mode; forbid forcing mode                                   | jsonToMarkdown   | SuggestionEngine| suggestMode             | —              | JSON, current Markdown       | Suggested mode         | Structure match heuristic        |
+
+---
+
+### Component: Media Property Handling
+
+**Responsibility**: Normalizes media URLs and properties for consistent rendering across formats.
+
+**Canonical Properties**: media_url, media_kind, image, video, iframe_url, media, media_interactive
+
+| Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
+| Media Spec Extraction| Identify media properties       | - [ ] Check media fields; infer kind; forbid ambiguous media                               | GraphCanvas      | MediaSpecGetter | getNodeMediaSpec        | —              | Node properties              | MediaSpec object       | Field priority: iframe_url > media_url > image > video|
+| URL Priority         | Select canonical URL            | - [ ] Apply field priority; normalize; forbid multiple URLs                                | GraphCanvas      | URLSelector     | selectCanonicalURL      | —              | Media properties             | Single URL             | Ordered field check              |
+| Kind Inference       | Determine media type            | - [ ] Infer from URL or field; validate; forbid unknown kinds                              | GraphCanvas      | KindInferrer    | inferMediaKind          | —              | URL, properties              | Media kind             | Extension/field-based inference  |
+| GitHub URL Transform | Normalize blob URLs             | - [ ] Transform blob to raw; preserve query; forbid broken GitHub links                   | GraphCanvas      | GitHubTransform | normalizeGitHubURL      | —              | GitHub URL                   | Raw content URL        | Regex replace blob with raw      |
+| Iframe Validation    | Check allowed domains           | - [ ] Match against allowlist; reject unsafe; forbid arbitrary iframes                    | GraphCanvas      | IframeValidator | validateIframeURL       | —              | Iframe URL                   | Boolean (safe)         | Domain allowlist check           |
+| Interactivity Default| Set default interaction         | - [ ] Video/iframe interactive; image/svg not; forbid forcing interactivity               | GraphCanvas      | InteractionMgr  | defaultInteractive      | —              | Media kind                   | Boolean                | Switch on kind                   |
+
+---
+
+## Component Responsibility Matrix
+
+| Subsystem        | Module                    | Component              | Interface/Method                 | Responsibility (S-V-O)                                                          | Dependencies                         | Contracts                                      | LOC    |
+|------------------|---------------------------|------------------------|----------------------------------|-------------------------------------------------------------------------------|--------------------------------------|-----------------------------------------------|--------|
+| Import           | toolbarMenuAction         | ActionDispatcher       | `handleImportAction`             | Dispatcher routes toolbar import actions → calls format handlers               | Toolbar UI, Parser Registry          | Format string, source specification           | ~100   |
+| Fetching         | ingestUtils               | FetchManager           | `fetchRemoteContent`             | Manager retrieves remote content → handles CORS via proxy                     | fetch, URL parser                    | URL string, proxy endpoint                    | ~150   |
+| Markdown         | markdownImport            | MarkdownImporter       | `performMarkdownImport`          | Importer fetches/parses Markdown → extracts media → stores graph              | Parser Registry, ingestUtils         | Markdown text, GraphData                      | ~200   |
+| HTML             | htmlImport                | HTMLImporter           | `performHtmlImport`              | Importer fetches HTML → converts to Markdown → parses to graph                | html-parser, Parser Registry         | HTML text, Markdown, GraphData                | ~150   |
+| PDF              | pdfImport                 | PDFImporter            | `performPdfImport`               | Importer uploads PDF → receives Markdown → parses to graph                    | Server endpoint, Parser Registry     | PDF bytes/URL, Markdown, GraphData            | ~100   |
+| JSON-LD          | jsonImport                | JSONLDImporter         | `parseJsonLd`                    | Importer interprets @graph → applies AgenticRAG → builds GraphData            | —                                    | JSON-LD object, GraphData                     | ~250   |
+| JSON             | jsonImport                | JSONImporter           | `rawToGraphData`                 | Importer normalizes JSON → extracts nodes/edges → wraps as GraphData          | —                                    | JSON object, GraphData                        | ~200   |
+| Conversion       | jsonToMarkdown            | JSONMarkdownConverter  | `convertToMarkdown`              | Converter analyzes JSON → selects mode → renders Markdown                     | —                                    | JSON object, mode string, Markdown text       | ~300   |
+| Media            | GraphCanvas/helpers       | MediaSpecExtractor     | `getNodeMediaSpec`               | Extractor reads node properties → infers kind → normalizes URL                | —                                    | Node properties, MediaSpec                    | ~150   |
+
+---
+
+## Dependency & Integration Standards
+
+**Dependency Declaration**
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Parser Registry      | Centralize format handling      | - [ ] Register all parsers; dispatch by capability; forbid scattered parser logic         |
+| Proxy Endpoint       | Enable CORS-free fetching       | - [ ] Use /__fetch_remote for cross-origin; forbid direct fetch failures                 |
+| Server Conversion    | Delegate PDF processing         | - [ ] POST to /__convert_pdf; handle server errors; forbid client-side PDF parsing       |
+
+**Integration Contracts**
+
+- **Import Actions**:
+  - Must specify format parameter (markdown, html, pdf, jsonld, json, csv).
+  - Return GraphData or error with descriptive message.
+- **Media Properties**:
+  - Canonical fields: `media_url`, `media_kind`, `image`, `video`, `iframe_url`, `media`.
+  - Renderer inspects these fields in priority order.
+- **JSON → Markdown Modes**:
+  - Modes: auto, table, keyvalue, hierarchical.
+  - User preference persisted in localStorage.
+
+**Coupling Metrics**
+
+- Ingestor is decoupled from specific parsers:
+  - Parser selection via registry, not hardcoded imports.
+  - Format-specific logic isolated in dedicated modules.
+- Media rendering decoupled from ingestion:
+  - Ingestion always creates media-capable nodes.
+  - Rendering controlled by view-only toggle.
+
+---
+
+## Code Organization Framework
+
+**Directory Structure (relevant subset)**:
+
+```text
+canvas/
+├── src/
+│   ├── features/
+│   │   ├── toolbar/
+│   │   │   ├── markdownImportAction.ts
+│   │   │   ├── htmlImportAction.ts
+│   │   │   ├── pdfImportAction.ts
+│   │   │   ├── jsonImportAction.ts
+│   │   │   └── toolMenu.ts
+│   │   ├── parsers/
+│   │   │   ├── default.ts
+│   │   │   ├── html-parser.ts
+│   │   │   └── jsonToMarkdown.ts
+│   │   └── markdown/
+│   │       └── ui/
+│   │           └── MarkdownHtmlBlock.tsx
+│   └── lib/
+│       └── graph/
+│           └── io/
+│               ├── ingestUtils.ts
+│               └── adapter.ts
+knowgrph_parser/
+└── json_to_markdown_cmd.py
+```
+
+**Naming Conventions**
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Import Actions       | Verb-noun pattern               | - [ ] Use performXImport; be descriptive; forbid generic names                            |
+| Parser Specs         | Suffix with Spec                | - [ ] Name xxxSpec for registry; document capability; forbid ambiguous specs              |
+| Conversion Functions | Verb-oriented names             | - [ ] Use convertTo, parseTo patterns; forbid noun-only names                             |
+| Media Properties     | Snake_case for graph fields     | - [ ] Use media_url, media_kind; forbid camelCase in properties                           |
+
+**File Organization**
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Module Size          | Keep focused                    | - [ ] Limit to single format or concern; split >400 LOC; forbid multi-format modules     |
+| Import Grouping      | Organize by source              | - [ ] Group stdlib, external, local; sort; forbid mixed imports                           |
+| Function Extraction  | Share common logic              | - [ ] Extract URL normalization, fetching; forbid duplication                             |
+
+---
+
+## Testing & Quality Standards
+
+**Test Coverage Metrics**
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Format Ingestion     | Validate each format            | - [ ] Test MD/HTML/PDF/JSON/JSONLD/CSV; verify GraphData; forbid untested formats        |
+| URL Normalization    | Test Git hosting URLs           | - [ ] Verify blob→raw transform; check relative resolution; forbid broken links          |
+| Media Extraction     | Cover all media types           | - [ ] Test image/video/iframe; verify properties; forbid missing media                   |
+| Mode Conversion      | Test JSON→MD modes              | - [ ] Exercise auto/table/keyvalue/hierarchical; forbid mode-specific bugs               |
+
+**Test Categories**
+
+- **Unit**:
+  - URL normalization functions with various Git hosting patterns.
+  - JSON structure detection for graph shape.
+- **Integration**:
+  - End-to-end import from local files and URLs.
+  - Media toggle behavior (view-only, no re-parse).
+- **E2E**:
+  - Markdown media toggle test (markdownMediaToggleE2e.test.ts).
+  - Smoke test with markdown-html-img-smoke.md.
+
+**Quality Gates**
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Import Validation    | Ensure valid GraphData          | - [ ] Validate nodes/edges arrays; check referential integrity; forbid malformed graphs   |
+| URL Safety           | Prevent unsafe URLs             | - [ ] Validate protocols; check allowlists; forbid XSS vectors                            |
+| Parser Errors        | Surface failures clearly        | - [ ] Return descriptive errors; log parse failures; forbid silent drops                  |
+
+---
+
+## Operational Configuration: Environment Wiring
+
+**Import Endpoint Variables**:
+
+| Variable                          | Scope            | Default                            | Impact                                              |
+|-----------------------------------|------------------|------------------------------------|-----------------------------------------------------|
+| `PROXY_FETCH_ENDPOINT`            | client           | `/__fetch_remote`                  | Controls CORS proxy route for remote content        |
+| `PDF_CONVERT_ENDPOINT`            | client           | `/__convert_pdf`                   | Controls server-side PDF conversion route           |
+| `VITE_DEV_SERVER_PORT`            | dev              | `5173`                             | Controls dev server port for proxy detection        |
+
+**Import Workflow**:
+
+| Step | Action                                  | Command/Trigger                         | Artifact Consumer                  |
+|------|----------------------------------------|------------------------------------------|-------------------------------------|
+| 1    | Select format and source               | Toolbar Source Files menu                | Import action dispatcher            |
+| 2    | Fetch/upload content                   | FetchManager or file picker              | Content bytes/text                  |
+| 3    | Convert format                         | Parser registry or server endpoint       | Markdown or GraphData               |
+| 4    | Parse to graph                         | Parser dispatch                          | GraphData object                    |
+| 5    | Update store and UI                    | loadGraphDataFromTextViaParser           | Canvas, Graph Data Table, Markdown Section |
+
+| Context              | Intent                          | Directive                                                                                   | Module/Component  | Class/Object | Function/Method              | Dependency      | Input                        | Output                 | Decision Logic                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|-------------------|--------------|------------------------------|-----------------|------------------------------|------------------------|----------------------------------|
+| Endpoint Resolution  | Build fetch URLs                | - [ ] Construct endpoint from config; validate; forbid hardcoded URLs                      | ingestUtils       | EndpointBuilder| buildFetchURL              | —               | Base URL, endpoint config    | Full URL               | Template substitution            |
+| Import Orchestration | Coordinate workflow             | - [ ] Chain fetch→convert→parse→store; handle errors; forbid incomplete imports           | toolbarMenuAction | ImportCoordinator| orchestrateImport       | All import modules| Format, source             | GraphData or error     | Sequential async calls           |
+
+---
+
+## Data Flow
+
+**Pipeline**: Source Selection → Content Retrieval → Format Detection → Conversion → Parsing → Media Extraction → Graph Construction → Store Update → UI Rendering
+
+| Stage             | Input                          | Output                         | Responsibility                                              | Performance Consideration                    |
+|-------------------|--------------------------------|--------------------------------|-------------------------------------------------------------|----------------------------------------------|
+| Source Selection  | User action, format            | Source (URL or File)           | Toolbar menu determines import mode and format              | Immediate UI response                        |
+| Content Retrieval | URL or File                    | Raw bytes/text                 | FetchManager retrieves content with proxy fallback          | Network latency for remote sources           |
+| Format Detection  | File extension, MIME type      | Format identifier              | Parser registry identifies appropriate parser               | O(1) lookup                                  |
+| Conversion        | Raw content                    | Normalized format              | HTML→MD, PDF→MD conversions                                 | Server-side for PDF, client-side for HTML    |
+| Parsing           | Normalized content             | JSON-LD or GraphData           | Parser builds structured graph representation               | Debounced for large inputs                   |
+| Media Extraction  | Parsed content                 | Media node properties          | Extract URLs, resolve relative paths                        | Regex-based, O(n) in content length          |
+| Graph Construction| JSON-LD or raw nodes/edges     | GraphData                      | Normalize to canonical GraphData structure                  | Structural sharing for efficiency            |
+| Store Update      | GraphData                      | Updated store state            | Zustand store sets graphData and derived state              | Immutable updates                            |
+| UI Rendering      | Store state                    | Visual display                 | Canvas, tables, panels react to store changes               | Memoized selectors, virtualization           |
+
+---
+
+## Design Decisions & Trade-offs
+
+| Decision             | Rationale                          | Pros                                                  | Cons                                      | Mitigation                                    |
+|----------------------|------------------------------------|-------------------------------------------------------|-------------------------------------------|-----------------------------------------------|
+| Markdown as Intermediate| Unify text-based formats        | Consistent parsing, media extraction                  | Lossy for complex HTML                    | Preserve JSON-LD blocks, safe HTML rendering  |
+| CORS Proxy           | Enable remote content              | Bypass same-origin policy, support any URL            | Dev server dependency                     | Fallback to direct fetch                      |
+| Server PDF Conversion| Leverage pypdf                     | Robust text extraction, image support                 | Network round-trip                        | Async upload, progress indication             |
+| JSON → MD Modes      | User control over presentation     | Flexible inspection, persistent preference            | Mode selection burden                     | Auto mode, suggested mode hints               |
+| Media View Toggle    | Decouple rendering from ingestion  | No re-parse, instant toggle                           | User confusion about data vs. view        | Clear UI labeling, tooltips                   |
+| Property Preservation| Support arbitrary workflows        | Any JSON field becomes node property                  | Potential namespace collisions            | Document canonical fields, prefix conventions |
+
+---
+
+## Import Directives
+
+### Content Fetching Directives
+
+| Context              | Intent                          | Directive                                                                                   | Enforcement Mechanism                        |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------------------------------|
+| URL Normalization    | Ensure valid URLs               | - [ ] Coerce protocols; normalize paths; forbid malformed URLs                             | Validation before fetch                      |
+| Proxy Usage          | Handle CORS consistently        | - [ ] Route through proxy when needed; forbid direct cross-origin                          | Origin comparison in fetchRemoteContent      |
+| Error Handling       | Surface fetch failures          | - [ ] Log errors; show user message; forbid silent failures                                | Try-catch with error display                 |
+
+### Format Conversion Directives
+
+| Context              | Intent                          | Directive                                                                                   | Enforcement Mechanism                        |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------------------------------|
+| Structure Preservation| Maintain document hierarchy    | - [ ] Map headings, lists, tables; forbid flattening                                       | Parser structure mapping                     |
+| Media Conversion     | Preserve multimedia             | - [ ] Extract and resolve all media; forbid media loss                                     | Comprehensive tag extraction                 |
+| Lossy Warning        | Inform of conversions           | - [ ] Show conversion mode; log transformations; forbid hidden changes                     | UI badges, status messages                   |
+
+---
+
+## Documentation Coverage
+
+**Source File Ingestion Documents**:
+
+| Document                             | Purpose                                                  | Quality Gates           | Steward              |
+|--------------------------------------|----------------------------------------------------------|-------------------------|----------------------|
+| `knowgrph-ingestor-document.md`      | Import flows, media handling, format conversion          | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-parser-document.md`        | Parser registry, format specifications, line mapping     | docs:update, doc:lint, tests | Component Documenter |
+| `markdown-html-img-smoke.md`         | Smoke test for HTML image ingestion                      | manual testing          | QA Engineer          |
+
+---
+
+## Anti-Patterns (Forbidden)
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Hardcoded Endpoints  | Support any environment         | - [ ] Use config for endpoints; forbid hardcoded URLs                                     |
+| Format Assumptions   | Preserve flexibility            | - [ ] Detect format dynamically; forbid assuming format from source                       |
+| Direct Fetch Only    | Handle CORS                     | - [ ] Always use proxy fallback; forbid CORS failures                                     |
+| Silent Conversions   | Inform users                    | - [ ] Show conversion mode/status; forbid hidden transformations                          |
+| Media Loss           | Preserve all references         | - [ ] Extract all media types; forbid dropping video/iframe                               |
+| Re-ingestion         | Avoid redundant parsing         | - [ ] Store parsed graph; toggle view only; forbid re-parse on view change                |
+
+---
+
+## Repository Health Checklist
+
+**Structural Health**:
+
+| Context              | Status | Directive                                                                                   |
+|----------------------|--------|---------------------------------------------------------------------------------------------|
+| Parser Isolation     | ✓      | - [ ] Each format in separate module; registry dispatch; forbid mixed format logic        |
+| Media Abstraction    | ✓      | - [ ] Canonical properties defined; renderer agnostic; forbid format-specific rendering   |
+
+**Maintainability**:
+
+| Context              | Status | Directive                                                                                   |
+|----------------------|--------|---------------------------------------------------------------------------------------------|
+| Test Coverage        | ✓      | - [ ] All formats covered; E2E smoke tests; forbid untested imports                        |
+| Error Messages       | ✓      | - [ ] Descriptive parse errors; user-facing messages; forbid cryptic failures             |
+
+**Operations**:
+
+| Context              | Status | Directive                                                                                   |
+|----------------------|--------|---------------------------------------------------------------------------------------------|
+| Proxy Fallback       | ✓      | - [ ] CORS proxy with direct fallback; forbid single-path fetching                        |
+| Server Dependency    | ✓      | - [ ] PDF conversion via server; graceful degradation; forbid client-side PDF parsing     |
+
+---
+
+## Version Control Standards
+
+| Context              | Intent                          | Directive                                                                                   |
+|----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
+| Format Support       | Track new formats               | - [ ] Document format additions; version parser specs; forbid undocumented formats        |
+| Media Property Schema| Maintain compatibility          | - [ ] Version canonical properties; migrate gracefully; forbid breaking property changes  |
+| Conversion Modes     | Track mode behavior             | - [ ] Document mode semantics; version mode strings; forbid silent mode changes           |

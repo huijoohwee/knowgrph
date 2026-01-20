@@ -26,6 +26,20 @@
 
 ### P0-Critical
 
+#### 2026-01-20
+
+- [] ADD universal diff
+
+- [] ENHANCE "Graph Layer" functionality for the parsing & rendering of mermaid.js subgraph, refer to & natively develop & implement, FORBID copy
+  - https://mermaid.ai/open-source/syntax/flowchart.html
+  - https://reactflow.dev/examples/grouping/sub-flows
+  - https://reactflow.dev/learn/layouting/sub-flows
+
+- [] Enhance Disjoint Force Directed Graph, Node Collision Algorithms
+  - [] https://github.com/xyflow/node-collision-algorithms
+  - [] https://observablehq.com/@d3/disjoint-force-directed-graph/2
+  - [] https://reactflow.dev/examples/layout/node-collisions
+
 - [] minimap 100% fidelity with canvas
 
 #### 2026-01-19

@@ -84,6 +84,7 @@ export function getEdgeEndpointFromPorts(args: {
 }): { x: number; y: number } {
   const { from, to, schema } = args
   const cfg = getPortHandlesConfig(schema)
+
   const side = getNearestCardinalSide(from, to)
   return getPortHandlePosition({ datum: { nodeId: String(from.id), side }, node: from, schema, cfg })
 }

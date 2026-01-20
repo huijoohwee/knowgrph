@@ -281,7 +281,7 @@ export default function DatasetInspectorSection({
                     'text-gray-600',
                   ].join(' ')}
                 >
-                  Degree hull (nodes)
+                  Degree outline (nodes)
                 </span>
                 <DatasetPolygonViz graph={effectiveGraph} />
               </div>

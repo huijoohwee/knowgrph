@@ -12,6 +12,7 @@ import {
   create2dSvgSnapshotFns,
   computeFlowState,
 } from '@/components/GraphCanvas/helpers'
+import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { setupGraphScene } from '@/components/GraphCanvas/scene'
 import { emitPropsPanelOpen } from '@/features/canvas/utils'
 import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasStyles'
@@ -66,9 +67,24 @@ export default function GraphCanvas() {
   const graphDataRevisionRef = useGraphStoreKeyRef('graphDataRevision')
   const schemaRef = useRef(schema)
 
-  const schemaLayoutJson = useMemo(() => JSON.stringify(schema?.layout), [schema?.layout]);
+  const schemaLayoutJson = useMemo(
+    () =>
+      JSON.stringify({
+        layout: schema?.layout,
+        portHandlesEnabled: Boolean(schema?.behavior?.portHandles?.enabled),
+        nodeShapeMode: schema?.behavior?.nodeShapeMode === 'rect' ? 'rect' : 'circle',
+      }),
+    [schema?.layout, schema?.behavior?.portHandles?.enabled, schema?.behavior?.nodeShapeMode],
+  );
 
-  const renderGraphData = graphData as GraphData | null
+  const rawGraphData = graphData as GraphData | null
+  const renderGraphData = useMemo(() => {
+    if (!rawGraphData) return null
+    if (frontmatterModeEnabled) {
+      return filterGraphToFrontmatterMermaid(rawGraphData)
+    }
+    return rawGraphData
+  }, [rawGraphData, frontmatterModeEnabled])
 
   useEffect(() => {
     schemaRef.current = schema
@@ -166,7 +182,6 @@ export default function GraphCanvas() {
       const mode = (schemaValue.layout?.mode || 'force') as 'force' | 'radial'
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
-
       const {
         layoutPositionsForMode,
         skipInitialLayout,
