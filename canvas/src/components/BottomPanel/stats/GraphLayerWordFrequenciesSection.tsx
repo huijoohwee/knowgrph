@@ -4,7 +4,7 @@ import { AutoHeightMiniBarChart } from '@/features/panels/views/DatasetInspector
 import IconButton from '@/components/IconButton'
 import { SlidersHorizontal } from 'lucide-react'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
-import { UI_COPY } from '@/lib/config-copy/uiCopy'
+import { UI_COPY } from '@/lib/config'
 import type { SelectionSnapshot, StatsUiClasses, TokenCount, TokensByGraphLayerRow } from '@/components/BottomPanel/stats/types'
 
 export default function GraphLayerWordFrequenciesSection({
@@ -416,4 +416,3 @@ export default function GraphLayerWordFrequenciesSection({
     </CollapsibleSection>
   )
 }
-

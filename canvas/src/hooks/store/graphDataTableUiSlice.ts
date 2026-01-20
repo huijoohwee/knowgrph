@@ -1,6 +1,6 @@
 import { lsNum, lsSetNum, lsInt, lsSetInt, lsBool, lsSetBool, lsJson, lsSetJson } from '@/lib/persistence';
 import { LS_KEYS } from '@/lib/config';
-import type { GraphState } from '@/hooks/useGraphStore';
+import type { GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import {
   buildDefaultVisibleColumns,

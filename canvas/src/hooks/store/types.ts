@@ -55,8 +55,10 @@ export interface GraphState {
   graphDataRevision: number;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
+  selectedGroupId: string | null;
   selectedNodeIds: string[];
   selectedEdgeIds: string[];
+  selectedGroupIds: string[];
   graphFieldsOpOk: boolean | null;
   graphFieldsOpMsg: string;
   orchestratorOpOk: boolean | null;
@@ -99,6 +101,8 @@ export interface GraphState {
   removeEdge: (id: string) => void;
   selectNode: (id: string | null) => void;
   selectEdge: (id: string | null) => void;
+  selectGroup: (id: string | null) => void;
+  selectGroupExpanded: (args: { id: string; nodeIds: string[]; edgeIds: string[] }) => void;
   setEditMode: (mode: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;

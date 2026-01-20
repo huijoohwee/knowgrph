@@ -12,9 +12,11 @@ export const computeConvexRing = (raw: Point2d[]): Point2d[] => {
     if (!isFiniteNumber(p.x) || !isFiniteNumber(p.y)) continue
     pts.push({ x: p.x, y: p.y })
   }
+  
   if (pts.length <= 2) return pts
 
   pts.sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x))
+
   const unique: Point2d[] = []
   for (let i = 0; i < pts.length; i += 1) {
     const p = pts[i]!
@@ -60,4 +62,3 @@ export const buildClosedPathD = (ring: Point2d[]): string | null => {
   d += 'Z'
   return d
 }
-

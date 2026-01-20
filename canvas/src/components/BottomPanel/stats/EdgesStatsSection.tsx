@@ -4,7 +4,7 @@ import { AutoHeightMiniBarChart } from '@/features/panels/views/DatasetInspector
 import IconButton from '@/components/IconButton'
 import { SlidersHorizontal } from 'lucide-react'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
-import { UI_COPY } from '@/lib/config-copy/uiCopy'
+import { UI_COPY } from '@/lib/config'
 import { formatNumber, getEdgeCooccurrenceForStats, getEdgeWeightForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
 import type { SelectionSnapshot, StatsEdge, StatsUiClasses, TokenCount } from '@/components/BottomPanel/stats/types'
 

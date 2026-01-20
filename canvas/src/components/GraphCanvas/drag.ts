@@ -5,7 +5,6 @@ import { GraphSchema } from '@/lib/graph/schema';
 export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>, schema: GraphSchema) =>
   d3.drag<SVGElement, GraphNode>()
     .on('start', function (event, d) {
-      d3.select(this).raise()
       const mode = schema.layout?.mode || 'force'
       const structured = mode === 'radial'
       if (!structured && !event.active) {

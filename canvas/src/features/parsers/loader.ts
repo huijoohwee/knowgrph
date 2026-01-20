@@ -4,7 +4,6 @@ import { getCachedParse, setCachedParse } from '@/features/parsers/cache'
 import { toParserId } from '@/features/parsers'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
-import { parseGraph } from '@/lib/graph/io/adapter'
 import {
   type DbConnectorKind,
   type RelationalConnectorConfig,
@@ -157,25 +156,7 @@ export async function loadGraphDataFromBackendViaParser(): Promise<LoaderResult 
 
 export async function loadGraphDataFromTextViaParser(name: string, text: string): Promise<LoaderResult | null> {
   const bm = bestMatch({ name, text })
-  if (!bm) {
-    try {
-      const parsed = parseGraph(name, text)
-      const data = parsed.data
-      try { useGraphStore.getState().setGraphData(data) } catch { void 0 }
-      return {
-        name,
-        counts: { n: data.nodes.length, e: data.edges.length },
-        warnings: parsed.diag.warnings || [],
-        input: { name, text },
-      }
-    } catch {
-      return {
-        input: { name, text },
-        warnings: ['No matching parser found'],
-        counts: { n: 0, e: 0 },
-      }
-    }
-  }
+  if (!bm) return { input: { name, text }, warnings: ['No matching parser found'], counts: { n: 0, e: 0 } }
   const parserId = toParserId(bm.id)
   const cached = getCachedParse(parserId, name, text)
   const res = cached || await applyParserAsync(parserId, { name, text })

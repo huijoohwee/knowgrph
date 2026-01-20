@@ -17,6 +17,7 @@ export const attachSimulationTick = (args: {
   nodeSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
   portHandlesSelRef: MutableRefObject<d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null>
+  linkHitSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
   linkSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
   edgeLabelSel?: d3.Selection<SVGTextElement, GraphEdge, SVGGElement, unknown> | null
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
@@ -32,6 +33,7 @@ export const attachSimulationTick = (args: {
     nodeSelRef,
     mediaSelRef,
     portHandlesSelRef,
+    linkHitSelRef,
     linkSelRef,
     edgeLabelSel,
     labelsSelRef,
@@ -73,33 +75,44 @@ export const attachSimulationTick = (args: {
     const baseDxFallback = schema.labelStyles?.offset?.dx ?? 12
     const baseDyFallback = schema.labelStyles?.offset?.dy ?? 4
     const labelFontSize = schema.labelStyles?.fontSize ?? 12
-    const linkSel = linkSelRef.current
-    if (!linkSel) return
-    if (portHandlesEnabled) {
-      ;(linkSel as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>)
-        .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-          const p = getEdgeEndpointFromPorts({ from: d.source, to: d.target, schema })
-          return p.x
-        })
-        .attr('y1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-          const p = getEdgeEndpointFromPorts({ from: d.source, to: d.target, schema })
-          return p.y
-        })
-        .attr('x2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-          const p = getEdgeEndpointFromPorts({ from: d.target, to: d.source, schema })
-          return p.x
-        })
-        .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-          const p = getEdgeEndpointFromPorts({ from: d.target, to: d.source, schema })
-          return p.y
-        })
-    } else {
-      ;(linkSel as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>)
-        .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.source.x ?? 0)
-        .attr('y1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.source.y ?? 0)
-        .attr('x2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.x ?? 0)
-        .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.y ?? 0)
+    const updateLinkEndpoints = (
+      sel: d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown> | null,
+    ) => {
+      if (!sel) return
+      if (portHandlesEnabled) {
+        sel
+          .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+            const p = getEdgeEndpointFromPorts({ from: d.source, to: d.target, schema })
+            return p.x
+          })
+          .attr('y1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+            const p = getEdgeEndpointFromPorts({ from: d.source, to: d.target, schema })
+            return p.y
+          })
+          .attr('x2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+            const p = getEdgeEndpointFromPorts({ from: d.target, to: d.source, schema })
+            return p.x
+          })
+          .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+            const p = getEdgeEndpointFromPorts({ from: d.target, to: d.source, schema })
+            return p.y
+          })
+      } else {
+        sel
+          .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.source.x ?? 0)
+          .attr('y1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.source.y ?? 0)
+          .attr('x2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.x ?? 0)
+          .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.y ?? 0)
+      }
     }
+
+    updateLinkEndpoints(
+      (linkHitSelRef.current as unknown as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown> | null) ??
+        null,
+    )
+    updateLinkEndpoints(
+      (linkSelRef.current as unknown as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown> | null) ?? null,
+    )
 
     const nodeSel = nodeSelRef.current
     if (nodeSel) {
@@ -156,12 +169,22 @@ export const attachSimulationTick = (args: {
     const labelsSel = labelsSelRef.current
     if (!labelsSel) return
     // Standard text positioning
-    labelsSel.attr('x', (d: GraphNode) => d.x!).attr('y', (d: GraphNode) => d.y!)
+    labelsSel
+      .attr('x', (d: GraphNode) => (typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0))
+      .attr('y', (d: GraphNode) => (typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0))
     const t = d3.zoomTransform(svgEl)
     const k = t.k || 1
     const padPx = 8
     labelsSel.each(function (d: GraphNode) {
       const el = this as unknown as SVGTextElement
+
+      const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : null
+      const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : null
+      if (x == null || y == null) {
+        el.style.display = 'none'
+        return
+      }
+      el.style.display = ''
       
       const desiredMode = k < 0.55 ? 'compact' : 'wrap'
       const currentMode = (el.getAttribute('data-label-mode') as 'compact' | 'wrap' | null) ?? 'wrap'
@@ -201,8 +224,8 @@ export const attachSimulationTick = (args: {
         return Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 1
       })()
       const estWidthPx = Math.max(0, charCount) * labelFontSize * k * 0.6
-      const sx = t.applyX(d.x ?? 0)
-      const sy = t.applyY(d.y ?? 0)
+      const sx = t.applyX(x)
+      const sy = t.applyY(y)
       const baseDxAttr = el.getAttribute('data-base-dx')
       const baseDx = (() => {
         const parsed = baseDxAttr != null ? Number(baseDxAttr) : Number.NaN
@@ -215,6 +238,18 @@ export const attachSimulationTick = (args: {
         if (Number.isFinite(parsed)) return parsed
         return baseDyFallback
       })()
+      const farPad = 240
+      const isNearViewport =
+        sx > -farPad &&
+        sx < width + farPad &&
+        sy > -farPad &&
+        sy < height + farPad
+      if (!isNearViewport) {
+        el.setAttribute('text-anchor', String(el.getAttribute('data-base-anchor') || 'middle'))
+        el.setAttribute('dx', String(baseDx))
+        el.setAttribute('dy', String(baseDy))
+        return
+      }
       const candidates: Array<{ anchor: 'start' | 'end' | 'middle'; dx: number }> = []
       
       const abs = Math.abs(baseDx)
@@ -260,7 +295,9 @@ export const attachSimulationTick = (args: {
             : sx + best.dx * k + estWidthPx / 2
       const overflowLeft0 = Math.max(0, padPx - left0)
       const overflowRight0 = Math.max(0, right0 - (width - padPx))
-      const shiftPx = overflowLeft0 - overflowRight0
+      const shiftPxRaw = overflowLeft0 - overflowRight0
+      const maxShiftPx = 96
+      const shiftPx = Math.max(-maxShiftPx, Math.min(maxShiftPx, shiftPxRaw))
       const dxAdjusted = best.dx + (k > 0 ? shiftPx / k : 0)
       el.setAttribute('text-anchor', best.anchor)
       el.setAttribute('dx', String(dxAdjusted))
@@ -270,7 +307,8 @@ export const attachSimulationTick = (args: {
       const bottom = sy + baseDy * k + estHalfHeightPx
       const overflowTop = Math.max(0, padPx - top)
       const overflowBottom = Math.max(0, bottom - (height - padPx))
-      const shiftYPx = overflowTop - overflowBottom
+      const shiftYPxRaw = overflowTop - overflowBottom
+      const shiftYPx = Math.max(-maxShiftPx, Math.min(maxShiftPx, shiftYPxRaw))
       const dyAdjusted = baseDy + (k > 0 ? shiftYPx / k : 0)
       el.setAttribute('dy', String(dyAdjusted))
     })
@@ -282,25 +320,51 @@ export const attachSimulationTick = (args: {
         edgeLabelSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
       } else {
         edgeLabelSel.attr('data-zoom-lod-hidden', '0').style('display', null)
-        edgeLabelSel
-          .attr('x', (d: GraphEdge) => {
-            const edge = d as unknown as EdgeWithRuntime
-            const srcNode = resolveNode(edge.source)
-            const tgtNode = resolveNode(edge.target)
-            if (!srcNode || !tgtNode) return 0
-            const sx = srcNode.x ?? 0
-            const tx = tgtNode.x ?? 0
-            return (sx + tx) / 2
-          })
-          .attr('y', (d: GraphEdge) => {
-            const edge = d as unknown as EdgeWithRuntime
-            const srcNode = resolveNode(edge.source)
-            const tgtNode = resolveNode(edge.target)
-            if (!srcNode || !tgtNode) return 0
-            const sy = srcNode.y ?? 0
-            const ty = tgtNode.y ?? 0
-            return (sy + ty) / 2 - labelFontSize * 0.9
-          })
+        edgeLabelSel.each(function (d: GraphEdge) {
+          const el = this as unknown as SVGTextElement
+          const edge = d as unknown as EdgeWithRuntime
+          const srcNode = resolveNode(edge.source)
+          const tgtNode = resolveNode(edge.target)
+          if (!srcNode || !tgtNode) {
+            el.style.display = 'none'
+            return
+          }
+          const sx = typeof srcNode.x === 'number' && Number.isFinite(srcNode.x) ? srcNode.x : 0
+          const sy = typeof srcNode.y === 'number' && Number.isFinite(srcNode.y) ? srcNode.y : 0
+          const tx = typeof tgtNode.x === 'number' && Number.isFinite(tgtNode.x) ? tgtNode.x : 0
+          const ty = typeof tgtNode.y === 'number' && Number.isFinite(tgtNode.y) ? tgtNode.y : 0
+          const p1 = portHandlesEnabled ? getEdgeEndpointFromPorts({ from: srcNode, to: tgtNode, schema }) : { x: sx, y: sy }
+          const p2 = portHandlesEnabled ? getEdgeEndpointFromPorts({ from: tgtNode, to: srcNode, schema }) : { x: tx, y: ty }
+          const mx = (p1.x + p2.x) / 2
+          const my = (p1.y + p2.y) / 2
+          const dx = p2.x - p1.x
+          const dy = p2.y - p1.y
+          const len = Math.hypot(dx, dy)
+          if (!Number.isFinite(len) || len < 1e-6) {
+            el.style.display = 'none'
+            return
+          }
+          const nx = -dy / len
+          const ny = dx / len
+          const offset = labelFontSize * 0.9
+          const x = mx + nx * offset
+          const y = my + ny * offset
+          const sx2 = t.applyX(x)
+          const sy2 = t.applyY(y)
+          const farPad = 240
+          const isNearViewport =
+            sx2 > -farPad &&
+            sx2 < width + farPad &&
+            sy2 > -farPad &&
+            sy2 < height + farPad
+          if (!isNearViewport) {
+            el.style.display = 'none'
+            return
+          }
+          el.style.display = ''
+          el.setAttribute('x', String(x))
+          el.setAttribute('y', String(y))
+        })
       }
     }
   }

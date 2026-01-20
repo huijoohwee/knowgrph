@@ -23,8 +23,8 @@ type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens';
 
 const MEDIA_PANEL_HEADER_AT_MAX_ZOOM = 36;
-const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT = 2;
-const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_COMPACT = 1;
+const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT = 5.0; // Aligned with Rect Nodes maxZoomMinimapWidthRatio=5.0
+const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_COMPACT = 2.5; // Aligned with ~half size
 const MEDIA_PANEL_ASPECT_WIDTH = 16;
 const MEDIA_PANEL_ASPECT_HEIGHT = 9;
 const MEDIA_PANEL_PADDING = 4;
@@ -318,6 +318,7 @@ export const createNodesLayer = (args: {
       return 1.5
     })
     .attr('stroke-dasharray', () => null)
+    .style('user-select', 'none')
     .style('cursor', 'pointer')
     .style('pointer-events', 'all');
 
@@ -398,7 +399,7 @@ export const createNodesLayer = (args: {
   const portHandlesSel = (() => {
     if (!portHandlesEnabled) return null;
     const portLayer = g.append('g').attr('data-kg-layer', 'port-handles');
-    const data = listPortHandlesForNodes(nodes);
+    const data = listPortHandlesForNodes(nodes, graphData.edges);
     if (!data.length) return null;
     return (portLayer
       .selectAll<SVGCircleElement, PortHandleDatum>('circle')

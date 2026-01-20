@@ -10,8 +10,10 @@ import { FieldTypeBadgeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphHoverPreviewConfig } from '@/hooks/store/types'
 import { truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
-export type HoverKind = 'node' | 'edge'
+export type HoverKind = 'node' | 'edge' | 'group'
 
 
 export type HoverInfo = {
@@ -184,7 +186,7 @@ function buildEdgeContent(
     <div>
       <div className="font-semibold">
         {config.showEdgeLabel && (
-          <span className="block truncate hover:whitespace-normal hover:break-words">
+          <span className="block whitespace-normal break-words">
             {edge.label}
           </span>
         )}
@@ -276,6 +278,23 @@ function buildEdgeContent(
   )
 }
 
+function buildGroupContent(
+  group: GraphGroup,
+): React.ReactNode {
+  const label = String(group.label || '').trim()
+  const memberCount = Array.isArray(group.memberNodeIds) ? group.memberNodeIds.length : 0
+  const id = String(group.id || '')
+  return (
+    <div>
+      <div className="font-semibold break-words">{label || id}</div>
+      <div className={`text-xs ${UI_THEME_TOKENS.tooltip.textSecondary} break-all`}>{id}</div>
+      <div className={`mt-1 text-xs ${UI_THEME_TOKENS.tooltip.text}`}>
+        <span className="font-medium">{memberCount}</span> nodes
+      </div>
+    </div>
+  )
+}
+
 export type GraphHoverTooltipProps = {
   hoverInfo: HoverInfo | null;
   containerRef: React.RefObject<HTMLElement | null>;
@@ -313,6 +332,18 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     }
     return m
   }, [edges])
+  const groupMap = React.useMemo(() => {
+    if (!nodes || !Array.isArray(nodes)) return null
+    const graphData = { type: 'GraphData', nodes, edges: edges && Array.isArray(edges) ? edges : [] }
+    const groups = deriveGraphGroups(graphData)
+    if (!groups || groups.length === 0) return null
+    const m = new Map<string, GraphGroup>()
+    for (let i = 0; i < groups.length; i += 1) {
+      const g = groups[i]
+      m.set(String(g.id || ''), g)
+    }
+    return m
+  }, [nodes, edges])
   const hoverKind = hoverInfo?.kind
   const hoverId = hoverInfo?.id
   const [expanded, setExpanded] = React.useState(false)
@@ -332,6 +363,10 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     if (hoverKind !== 'edge' || !hoverId || !edgeMap) return null
     return edgeMap.get(String(hoverId)) || null
   }, [hoverKind, hoverId, edgeMap])
+  const group = React.useMemo(() => {
+    if (hoverKind !== 'group' || !hoverId || !groupMap) return null
+    return groupMap.get(String(hoverId)) || null
+  }, [hoverKind, hoverId, groupMap])
   const content = React.useMemo(() => {
     const onToggleExpanded = () => setExpanded(v => !v)
     if (node) {
@@ -360,9 +395,13 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
         onToggleExpanded,
       )
     }
+    if (group) {
+      return buildGroupContent(group)
+    }
     return null
   }, [
     edge,
+    group,
     iconSizeClass,
     node,
     schema,

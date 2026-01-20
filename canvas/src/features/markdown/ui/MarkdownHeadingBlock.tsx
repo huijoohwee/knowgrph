@@ -11,6 +11,7 @@ import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { getStickyHeadingCascadeOffsets } from './markdownSectionUtils'
+import { getMarkdownHeadingTextSizeClass } from '@/features/markdown/ui/markdownTypography'
 
 type MarkdownHeadingBlockProps = {
   token: TokenWithLines
@@ -41,22 +42,13 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const depth = Math.min(6, Math.max(1, h.depth || 1))
   const startLine = t.startLine
   const endLine = t.endLine || t.startLine
+  const baseSize = getMarkdownHeadingTextSizeClass({ depth, presentation: opts.markdownPresentationMode })
   const size =
-    depth === 1
-      ? opts.markdownPresentationMode
-        ? 'text-5xl'
-        : `text-3xl pb-2 border-b ${UI_THEME_TOKENS.panel.border}`
-      : depth === 2
-      ? opts.markdownPresentationMode
-        ? 'text-4xl'
-        : `text-2xl pb-1 border-b ${UI_THEME_TOKENS.panel.divider}`
-      : depth === 3
-      ? opts.markdownPresentationMode
-        ? 'text-3xl'
-        : 'text-xl'
-      : opts.markdownPresentationMode
-      ? 'text-2xl'
-      : 'text-lg'
+    depth === 1 && !opts.markdownPresentationMode
+      ? `${baseSize} pb-2 border-b ${UI_THEME_TOKENS.panel.border}`
+      : depth === 2 && !opts.markdownPresentationMode
+      ? `${baseSize} pb-1 border-b ${UI_THEME_TOKENS.panel.divider}`
+      : baseSize
   
   const color =
     depth === 1

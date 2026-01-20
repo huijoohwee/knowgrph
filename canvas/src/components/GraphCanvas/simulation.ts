@@ -95,6 +95,11 @@ export const buildSimulation = (
   if (!options?.skipInitialLayout) {
     if (mode === 'radial') {
       applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema);
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        n.vx = 0
+        n.vy = 0
+      }
     }
     if (mode === 'force') {
       applyMermaidSeedLayout({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
@@ -107,10 +112,15 @@ export const buildSimulation = (
     .forceLink<GraphNode, GraphEdge>(edgesForSim)
     .id(d => d.id)
     .distance(linkDist);
-  const simulation = d3.forceSimulation<GraphNode>(nodes).force('link', linkForce);
+  
   if (mode === 'radial') {
-    linkForce.strength(0);
-  } else {
+    const simulation = d3.forceSimulation<GraphNode>(nodes)
+    simulation.stop()
+    return simulation
+  }
+
+  const simulation = d3.forceSimulation<GraphNode>(nodes).force('link', linkForce);
+
     const collideRadiusFn = (d: GraphNode) => {
       const configured = collisionRadiusByType[d.type];
       if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return configured;
@@ -151,6 +161,32 @@ export const buildSimulation = (
       : edgesForSim
     const { inDegree, outDegree } = portHandlesEnabled ? computeTopology(topologyNodes, topologyEdges) : { inDegree: new Map(), outDegree: new Map() }
     const portAxis = portHandlesEnabled ? readMermaidAxisFromNodes(nodes) : null
+    if (portHandlesEnabled && portAxis) {
+      for (let i = 0; i < topologyNodes.length; i += 1) {
+        const n = topologyNodes[i]
+        try {
+          ;(n.properties as Record<string, unknown>)['visual:portAxis'] = portAxis.axis
+          ;(n.properties as Record<string, unknown>)['visual:portForward'] = portAxis.forward
+        } catch {
+          void 0
+        }
+      }
+    }
+    if (portHandlesEnabled) {
+      for (let i = 0; i < topologyNodes.length; i += 1) {
+        const n = topologyNodes[i]
+        const nid = String(n.id)
+        const ind = inDegree.get(nid) || 0
+        const outd = outDegree.get(nid) || 0
+        const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : ind > 0 || outd > 0 ? 'process' : ''
+        if (!role) continue
+        try {
+          ;(n.properties as Record<string, unknown>)['visual:portRole'] = role
+        } catch {
+          void 0
+        }
+      }
+    }
 
     const computeGroupTargets = () => {
       const sectionIds = new Set<string>()
@@ -194,12 +230,22 @@ export const buildSimulation = (
         return cur || section
       }
 
+      const groupKeyOf = (n: GraphNode): string | null => {
+        const p = (n.properties || {}) as Record<string, unknown>
+        const top = typeof p['visual:topParentId'] === 'string' ? (p['visual:topParentId'] as string).trim() : ''
+        if (top) return top
+        const parent = typeof p['visual:parentId'] === 'string' ? (p['visual:parentId'] as string).trim() : ''
+        if (parent) return parent
+        const nid = String(n.id)
+        return topSectionOf(nid)
+      }
+
       const groupAcc = new Map<string, { sx: number; sy: number; n: number }>()
       for (let i = 0; i < nodes.length; i += 1) {
         const n = nodes[i]
         const id = String(n.id)
         if (!id || sectionIds.has(id)) continue
-        const gid = topSectionOf(id)
+        const gid = groupKeyOf(n)
         if (!gid) continue
         const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
         const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
@@ -213,16 +259,6 @@ export const buildSimulation = (
         if (v.n <= 0) return
         groupTarget.set(gid, { x: v.sx / v.n, y: v.sy / v.n })
       })
-
-      const groupKeyOf = (n: GraphNode): string | null => {
-        const p = (n.properties || {}) as Record<string, unknown>
-        const top = typeof p['visual:topParentId'] === 'string' ? (p['visual:topParentId'] as string).trim() : ''
-        if (top) return top
-        const parent = typeof p['visual:parentId'] === 'string' ? (p['visual:parentId'] as string).trim() : ''
-        if (parent) return parent
-        const nid = String(n.id)
-        return topSectionOf(nid)
-      }
 
       const readGroupTarget = (n: GraphNode): { x: number; y: number } | null => {
         const gid = groupKeyOf(n)
@@ -241,9 +277,6 @@ export const buildSimulation = (
         const ind = inDegree.get(nid) || 0
         const outd = outDegree.get(nid) || 0
         const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : ind > 0 || outd > 0 ? 'process' : ''
-        if (role) {
-          try { (n.properties as Record<string, unknown>)['visual:portRole'] = role } catch { void 0 }
-        }
         if (portAxis?.axis === 'x') {
           if (role === 'input') return portAxis.forward > 0 ? 40 : frameW - 40
           if (role === 'output') return portAxis.forward > 0 ? frameW - 40 : 40
@@ -424,12 +457,85 @@ export const buildSimulation = (
            }
          }
        })
-  }
+
   if (schema.layout?.forces?.alphaDecay != null) {
     simulation.alphaDecay(schema.layout.forces.alphaDecay!);
   }
   return simulation;
 };
+
+export const updateForceSimulationPresentation = (args: {
+  simulation: d3.Simulation<GraphNode, GraphEdge>
+  nodes: GraphNode[]
+  width: number
+  height: number
+  schema: GraphSchema
+}) => {
+  const { simulation, nodes, width, height, schema } = args
+  if (schema.layout?.mode === 'radial') return
+
+  const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
+  const collideRadiusFn = (d: GraphNode) => {
+    const configured = collisionRadiusByType[d.type]
+    if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return configured
+    return getNodeCollisionRadius(d, schema)
+  }
+
+  const forces = (schema.layout?.forces || {}) as GraphSchema['layout']['forces'] & {
+    bboxCollide?: boolean
+    bboxCollideStrength?: number
+    bboxCollidePadding?: number
+    bboxCollideIterations?: number
+  }
+  const bboxCollideEnabled = forces.bboxCollide !== false
+  const bboxPadding =
+    typeof forces.bboxCollidePadding === 'number' && Number.isFinite(forces.bboxCollidePadding)
+      ? forces.bboxCollidePadding
+      : 10
+  const bboxStrength =
+    typeof forces.bboxCollideStrength === 'number' && Number.isFinite(forces.bboxCollideStrength)
+      ? forces.bboxCollideStrength
+      : 0.7
+  const bboxIterations =
+    typeof forces.bboxCollideIterations === 'number' && Number.isFinite(forces.bboxCollideIterations)
+      ? forces.bboxCollideIterations
+      : 1
+
+  simulation.force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(2))
+  simulation.force(
+    'bboxCollide',
+    bboxCollideEnabled
+      ? createBboxCollideForce({ schema, padding: bboxPadding, strength: bboxStrength, iterations: bboxIterations })
+      : null,
+  )
+  simulation.force('box', () => {
+    const enabled = schema.layout?.forces?.boxForce !== false
+    if (!enabled) return
+    const strength = schema.layout?.forces?.boxForceStrength ?? 0.05
+    const alpha = simulation.alpha()
+    const k = alpha * strength
+    const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
+    const pad = portHandlesEnabled ? 20 : 28
+    const minX = pad
+    const minY = pad
+    const maxX = Math.max(minX + 1, width - pad)
+    const maxY = Math.max(minY + 1, height - pad)
+    for (const d of nodes) {
+      if (d.x == null || d.y == null) continue
+      const { halfW, halfH } = getNodeHalfExtents2d(d, schema)
+      const loX = minX + halfW
+      const hiX = maxX - halfW
+      const loY = minY + halfH
+      const hiY = maxY - halfH
+      if (d.x < loX) d.vx = (d.vx ?? 0) + (loX - d.x) * k * 2.2
+      if (d.x > hiX) d.vx = (d.vx ?? 0) - (d.x - hiX) * k * 2.2
+      if (d.y < loY) d.vy = (d.vy ?? 0) + (loY - d.y) * k * 2.2
+      if (d.y > hiY) d.vy = (d.vy ?? 0) - (d.y - hiY) * k * 2.2
+    }
+  })
+
+  simulation.alphaTarget(0.18).restart()
+}
 
 export const buildNeighborIds = (data: { nodes: GraphNode[]; edges: GraphEdge[] }, selectedNodeId?: string | null) => {
   const neighborIds = new Set<string>();

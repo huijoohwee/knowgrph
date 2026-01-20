@@ -2,6 +2,7 @@ export const isRecordType = (v: unknown): v is Record<string, unknown> => !!v &&
 
 const wrapCache = new Map<string, string>();
 const truncateCache = new Map<string, string>();
+const truncateWordCache = new Map<string, string>()
 
 export const wrapTextByMaxChars = (raw: string, maxCharsPerLine: number): string => {
   const key = `${raw}:${maxCharsPerLine}`;
@@ -77,6 +78,21 @@ export const truncateTextWithEllipsis = (raw: string, maxChars: number): string 
   if (cached) return cached
   const out = `${input.slice(0, Math.max(0, max - 1))}…`
   truncateCache.set(key, out)
+  return out
+}
+
+export const truncateTextWithWordEllipsis = (raw: string, maxWords: number): string => {
+  const max = Number.isFinite(maxWords) && maxWords > 0 ? Math.floor(maxWords) : 0
+  const input = String(raw || '').trim()
+  if (max <= 0) return ''
+  if (!input) return ''
+  const words = input.split(/\s+/).filter(Boolean)
+  if (words.length <= max) return input
+  const key = `${input}:${max}`
+  const cached = truncateWordCache.get(key)
+  if (cached) return cached
+  const out = `${words.slice(0, max).join(' ')}…`
+  truncateWordCache.set(key, out)
   return out
 }
 

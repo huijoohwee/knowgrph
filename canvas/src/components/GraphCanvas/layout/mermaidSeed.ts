@@ -253,14 +253,39 @@ export const applyMermaidSeedLayout = (args: {
     layoutInsideBox(ns, { x0, x1, y0, y1 })
   }
 
+  const groupCenters: Array<{ x: number; y: number }> = []
+  for (let i = 0; i < items.length; i += 1) {
+    const ns = items[i]!.nodes
+    if (!ns.length) continue
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    let valid = 0
+    for (let j = 0; j < ns.length; j += 1) {
+      const n = ns[j]!
+      if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue
+      minX = Math.min(minX, n.x)
+      maxX = Math.max(maxX, n.x)
+      minY = Math.min(minY, n.y)
+      maxY = Math.max(maxY, n.y)
+      valid += 1
+    }
+    if (valid === 0 || minX === Infinity) continue
+    groupCenters.push({ x: (minX + maxX) / 2, y: (minY + maxY) / 2 })
+  }
+
   let sumX = 0
   let sumY = 0
+  const centers = groupCenters.length > 0 ? groupCenters : mermaidNodes
   let count = 0
-  for (let i = 0; i < mermaidNodes.length; i += 1) {
-    const n = mermaidNodes[i]
-    if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue
-    sumX += n.x
-    sumY += n.y
+  for (let i = 0; i < centers.length; i += 1) {
+    const n = centers[i] as unknown as { x?: number; y?: number }
+    const x = n && typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+    const y = n && typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+    if (x == null || y == null) continue
+    sumX += x
+    sumY += y
     count += 1
   }
   if (count > 0) {

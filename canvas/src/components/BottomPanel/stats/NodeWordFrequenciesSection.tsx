@@ -1,6 +1,6 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { UI_COPY } from '@/lib/config-copy/uiCopy'
+import { UI_COPY } from '@/lib/config'
 import type { StatsUiClasses, TokensForSelectedNode, TokensForSelectedNodes } from '@/components/BottomPanel/stats/types'
 
 export default function NodeWordFrequenciesSection({

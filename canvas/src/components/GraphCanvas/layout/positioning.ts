@@ -66,7 +66,7 @@ export const determineLayoutPositions = ({
 
   const layoutPositionsForMode = shouldUseCache ? cachedPositions : null;
 
-  const skipInitialLayout = shouldUseCache || coverageFromNodes >= 0.95;
+  const skipInitialLayout = shouldUseCache || (!isModeChange && mode !== 'radial' && coverageFromNodes >= 0.95);
 
   return {
     layoutPositionsForMode,

@@ -1,5 +1,5 @@
 import { isGraphRagBundle, parseGraphRagBundle } from '@/lib/graph/graphrag'
-import { graphRagSpec } from '@/features/parsers/graphrag'
+import { parseGraph } from '@/lib/graph/io/adapter'
 
 const sample = {
   entities: [
@@ -28,8 +28,6 @@ export function testGraphRagParseBundle() {
 
 export function testGraphRagParserSpec() {
   const text = JSON.stringify(sample)
-  const match = graphRagSpec.match('graph.json', text)
-  if (!match) throw new Error('ParserSpec match failed')
-  const { graphData } = graphRagSpec.parse('graph.json', text)
-  if (graphData.nodes.length !== 3) throw new Error('Parsed node count mismatch')
+  const parsed = parseGraph('graph.json', text)
+  if (parsed.data.nodes.length !== 3) throw new Error('Parsed node count mismatch')
 }

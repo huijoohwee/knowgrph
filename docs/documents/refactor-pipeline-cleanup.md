@@ -1,0 +1,47 @@
+# Pipeline Refactor & Cleanup Log
+
+## Pipeline Traversal
+Mapped the end-to-end pipeline:
+1. **Importing**: `loader.ts` -> `registry.ts`
+2. **Parsing**: `agenticRag.ts`, `workflowPresets.ts`, etc.
+3. **Derivation**: `layerDerivation.ts` (filtering)
+4. **Layout**: `positioning.ts` -> `radial.ts` / `simulation.ts`
+5. **Render**: `GraphCanvas.tsx` -> `scene.ts` -> `sceneLayers.ts`
+
+## Fixes Implemented
+
+### 1. Circular Dependencies & Cleanups
+- **`workflowPresets.ts`**: Fixed circular import from `@/features/parsers` (barrel file) to specific `./registry` and `./types` imports.
+- **`radial.ts`**: Refactored to use shared `getAdjacencyMap` from `simulation.ts` instead of recalculating it (reusing cache).
+- **`simulation.ts`**: Exported `getAdjacencyMap` for reuse.
+
+### 2. Layout & Performance
+- **Radial Layout**:
+  - Fixed "drift/fly-away" issue by explicitly disabling force simulation forces (charge, collide, x/y positioning) when in `radial` mode.
+  - Previously, `radial` mode calculated positions but the force simulation continued to apply forces, disturbing the layout.
+- **Layout Toggle Visibility**:
+  - When switching layout modes (Force ↔ Radial) and the view is not pinned, the zoom transform is no longer reused across modes; the scene refits to prevent “blank / offscreen” toggles.
+- **Cache Contamination**:
+  - Unified adjacency map caching.
+  - Ensured `GraphCanvas` correctly determines layout positions based on mode switching.
+
+### 3. UI/UX & Theme
+- **Dark Mode Labels**:
+  - Fixed an issue where labels appeared black in dark mode or didn't update correctly.
+  - Root cause: schema defaults and persisted schemas could lock `labelStyles.color` to black (`#111111`), preventing theme token fallbacks; additionally, style application needed to re-run when scenes rebuild.
+  - Fix:
+    - Removed hardcoded label colors from schema defaults and schema-editor “clean schema” defaults.
+    - Added a storage migration that strips legacy default label colors (`#111111` / `#111`) and halo colors (`#ffffff` / `#fff`) so theme token colors apply.
+    - Ensured styles re-apply on data/scene changes.
+- **Radial Layout Visuals**:
+  - Improved stability by disabling conflicting forces.
+
+## Files Modified
+- `canvas/src/features/parsers/workflowPresets.ts`
+- `canvas/src/components/GraphCanvas/simulation.ts`
+- `canvas/src/components/GraphCanvas/layout/radial.ts`
+- `canvas/src/components/GraphCanvas/useGraphCanvasStyles.ts`
+- `canvas/src/components/GraphCanvas.tsx`
+- `canvas/src/lib/graph/schema.ts`
+- `canvas/src/features/schema-editor/utils.ts`
+- `canvas/src/hooks/store/schemaSlice.ts`

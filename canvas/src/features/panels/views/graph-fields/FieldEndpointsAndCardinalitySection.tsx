@@ -1,7 +1,7 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { UI_COPY } from '@/lib/config-copy/uiCopy'
+import { UI_COPY } from '@/lib/config'
 
 type FieldEndpointsAndCardinalitySectionProps = {
   schema: GraphSchema

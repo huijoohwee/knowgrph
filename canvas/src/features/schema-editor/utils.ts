@@ -35,7 +35,7 @@ export const buildCleanSchema = (): GraphSchema => ({
   edgeStyles: {},
   nodeSizes: {},
   nodeStroke: {},
-  labelStyles: { fontSize: 12, color: '#111111', offset: { dx: 12, dy: 4 } },
+  labelStyles: { fontSize: 12, offset: { dx: 12, dy: 4 } },
   nodeShapes: {},
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {

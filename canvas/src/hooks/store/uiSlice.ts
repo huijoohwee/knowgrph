@@ -1,6 +1,6 @@
 import { lsNum, lsSetNum, lsBool, lsSetBool, lsJson, lsSetJson, getLocalStorage } from '@/lib/persistence';
 import { LS_KEYS } from '@/lib/config';
-import type { GraphState } from '@/hooks/useGraphStore';
+import type { GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage';
 import { createGraphDataTableUiSlice } from '@/hooks/store/graphDataTableUiSlice';

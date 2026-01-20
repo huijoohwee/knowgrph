@@ -6,12 +6,17 @@
 - Parse: Markdown → JSON-LD (`buildMarkdownJsonLd`) including Mermaid parsing for nodes/subgraphs.
 - Derive: JSON-LD → GraphData (`parseJsonLd`).
 - Layout: seeded Mermaid layout + force simulation constraints (16:9 centering, no-overlap forces).
-- Render: SVG layers (links, nodes, labels, groups, port handles) update on simulation ticks.
+- Render: SVG layers update on simulation ticks with stable X/Y/Z ordering (Groups < Links < Nodes < Port Handles < Labels).
+- Parse (non-markdown): the auto parser attempts a worker-based parse first (when available), then falls back to synchronous parsing.
 
 ## Node Shape Mode
 
 - Toolbar toggle switches node rendering between circle (default) and rectangular shapes.
-- This is schema-driven (`behavior.nodeShapeMode`) and updates node/label layers in-place (no simulation rebuild / no re-layout).
+- This is schema-driven (`behavior.nodeShapeMode`) and triggers a simulation update to adjust collision boundaries, preventing drift/overlap.
+- Node labels remain anchored to node positions across toggles (multi-line labels do not override the parent text anchor).
+- Rich Media panels (images/video/iframe) are sized consistently with Rect Nodes (using the same ~5.0x minimap ratio) to prevent disproportionate scaling.
+- Label viewport adjustment is bounded and only applies near the viewport to prevent “fly-away” offsets when nodes are far offscreen.
+- Node/group labels with more than 20 words (excluding markdown heading layers `hn`) are clamped (ellipsis) in-canvas and expanded via the shared hover tooltip on hover. Labels are interactive (hover/click) even when truncated.
 
 ## Frontmatter Mode
 
@@ -20,23 +25,39 @@
 
 ## Port Handles
 
-- Port handles are rendered as four cardinal markers on each node when enabled in schema behavior.
-- Edge endpoints are projected onto the node boundary using the nearest cardinal side between source and target nodes.
-- This keeps edge attachment stable and consistent with node movement while avoiding extra per-edge recomputation or hidden port graphs.
+- Port handles are rendered as cardinal markers when enabled in schema behavior.
+- Border nodes (topology-derived input/output) render handles on border-facing sides (Input: left/top, Output: right/bottom, direction-aware).
+- Edge endpoints respect the same role/direction rules so the visible handle placement matches the rendered attachment point.
 - Toggling port handles updates rendering only and preserves node positions.
+- Group bounds account for port handle extents so handle markers do not protrude beyond their containing group.
 
 ## Graph Layers / Subgraphs
 
-- Mermaid subgraphs are parsed and rendered as non-interactive group containers.
-- Seed layout distributes top-level subgraphs across the available 16:9 space using a grid placement strategy.
-- Simulation anchoring respects the seeded subgraph targets, helping prevent subgraph overlap and avoiding single-axis “long line” clustering.
+- Mermaid subgraphs are parsed and rendered as group containers with an interactive text label.
+- Seed layout distributes top-level subgraphs across the available 16:9 space using a grid placement strategy, then recenters the collective subgraph centroid to the canvas center.
+- Simulation anchoring respects subgraph membership targets, helping prevent overlap and avoiding single-axis “long line” clustering.
 - Group rendering supports `layout.groups.shape`:
   - `rect` (default): rectangular group containers.
   - `geo`: geometry-based outlines computed from member node extents (native implementation; no external geometry libraries).
   - Switching group shape updates the groups overlay layer only (no simulation rebuild / no re-layout).
 
+### Group Label Interactions
+
+- Single-click group label: selects the group only.
+- Double-click group label: selects the group plus its member nodes and member-to-member edges.
+- Drag group label: drags the entire group by moving all member nodes together.
+- Group label positioning uses per-group font sizing and top-left anchoring inside the group container.
+- Group labels with more than 20 words (excluding markdown heading layers `hn`) are clamped (ellipsis) in-canvas and expanded via the shared hover tooltip on hover.
+
+## Performance
+
+- Presentation toggles update layers in place; schema dependency keys are narrowed to leaf fields to avoid unrelated schema edits triggering a full scene rebuild.
+- Radial layout is structured; entering radial recomputes its layout unless a valid radial cache exists, preventing cross-mode cache contamination.
+- Group and edge labels follow the same zoom LOD hide threshold as node labels to reduce clutter when zoomed out.
+
 ## Markdown Heading Layers
 
 - Markdown headings (`Section` nodes with `properties.level`) are rendered as nested graph layers (H2 inside H1, H3 inside H2, etc).
 - Heading layers are visual-only containers: heading nodes are not rendered as normal nodes on the canvas.
+- Heading layer labels never ellipsize (no truncation); hover tooltip still exposes the full text consistently.
 - Membership is derived from existing document structure edges (`hasSection`, `hasBlock`, `hasItem`, `embedsImage`) to avoid duplicated parsing logic.

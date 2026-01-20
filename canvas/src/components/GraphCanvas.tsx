@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import { type GraphSchema } from '@/lib/graph/schema'
 import { useContainerDims } from '@/hooks/useContainerDims'
-import { normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
+import { normalizeEdgesForSim, updateForceSimulationPresentation } from '@/components/GraphCanvas/simulation'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import {
@@ -19,6 +19,7 @@ import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasSty
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
 import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect'
 import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight'
+import { useGroupSelectionHighlight } from '@/components/GraphCanvas/hooks/useGroupSelectionHighlight'
 import { determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
@@ -34,6 +35,7 @@ export default function GraphCanvas() {
   const mediaSelRef = useRef<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>(null);
   const portHandlesSelRef =
     useRef<d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null>(null);
+  const linksHitSelRef = useRef<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>(null);
   const linksSelRef = useRef<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>(null);
   const labelsSelRef = useRef<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -94,14 +96,30 @@ export default function GraphCanvas() {
       renderMediaAsNodes,
       mediaPanelDensity,
     })
-  }, [schema, renderMediaAsNodes, mediaPanelDensity])
+  }, [
+    schema?.behavior?.nodeShapeMode,
+    schema?.behavior?.portHandles,
+    schema?.nodeShapes,
+    schema?.behavior?.allowNodeDrag,
+    schema?.behavior?.hover?.enabled,
+    schema?.behavior?.expansion,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+  ])
 
   const schemaGroupsPresentationJson = useMemo(() => {
     return JSON.stringify({
       groups: schema?.layout?.groups || null,
       labelStyles: schema?.labelStyles || null,
+      nodeShapeMode: schema?.behavior?.nodeShapeMode || 'auto',
+      portHandles: schema?.behavior?.portHandles || null,
     })
-  }, [schema])
+  }, [
+    schema?.layout?.groups,
+    schema?.labelStyles,
+    schema?.behavior?.nodeShapeMode,
+    schema?.behavior?.portHandles,
+  ])
 
   const rawGraphData = graphData as GraphData | null
   const renderGraphData = useMemo(() => {
@@ -203,13 +221,14 @@ export default function GraphCanvas() {
       const z = useGraphStore.getState().zoomState;
       const layoutPositionCacheByMode = useGraphStore.getState().layoutPositionCacheByMode;
       const isPinned = useGraphStore.getState().viewPinned === true;
-      const initialZoomTransform =
-        z && (isPinned || z.graphDataRevision == null || z.graphDataRevision === graphDataRevisionRef.current)
-          ? { k: z.k, x: z.x, y: z.y }
-          : null;
       const mode = (schemaValue.layout?.mode || 'force') as 'force' | 'radial'
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
+      const canReuseZoom = prevMode === mode && prevFrontmatterMode === !!frontmatterModeEnabled
+      const initialZoomTransform =
+        z && (isPinned || (canReuseZoom && (z.graphDataRevision == null || z.graphDataRevision === graphDataRevisionRef.current)))
+          ? { k: z.k, x: z.x, y: z.y }
+          : null;
       const {
         layoutPositionsForMode,
         skipInitialLayout,
@@ -254,6 +273,7 @@ export default function GraphCanvas() {
         nodesSelRef,
         mediaSelRef,
         portHandlesSelRef,
+        linksHitSelRef,
         linksSelRef,
         labelsSelRef,
         zoomRef,
@@ -268,6 +288,9 @@ export default function GraphCanvas() {
         selectedEdgeIdsRef,
         selectNode: id => useGraphStore.getState().selectNode(id),
         selectEdge: id => useGraphStore.getState().selectEdge(id),
+        selectGroup: id => useGraphStore.getState().selectGroup(id),
+        selectGroupExpanded: x =>
+          useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
         setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
         addEdge: e => useGraphStore.getState().addEdge(e),
         updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
@@ -286,6 +309,7 @@ export default function GraphCanvas() {
         layoutCacheKey: cacheKey,
         setLayoutPositionsForMode,
       });
+
     });
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
@@ -313,6 +337,13 @@ export default function GraphCanvas() {
     const expansionCfg = schemaValue.behavior?.expansion || {}
     const expansionEnabled = expansionCfg.enabled !== false
     const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false
+    updateForceSimulationPresentation({
+      simulation: simulationRef.current,
+      nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
+      width: sceneWidth,
+      height: sceneHeight,
+      schema: schemaValue,
+    })
     updateGraphSceneNodesPresentation({
       gRef,
       schema: schemaValue,
@@ -335,7 +366,7 @@ export default function GraphCanvas() {
       requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
     })
     nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
-  }, [schemaNodesPresentationJson])
+  }, [schemaNodesPresentationJson, sceneWidth, sceneHeight])
 
   useEffect(() => {
     const g = gRef.current
@@ -343,11 +374,19 @@ export default function GraphCanvas() {
     if (groupsPresentationAppliedKeyRef.current === schemaGroupsPresentationJson) return
     const schemaValue = schemaRef.current
     if (!renderGraphData) return
+    const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false
     updateGraphSceneGroupsPresentation({
       gRef,
       schema: schemaValue,
       graphData: renderGraphData,
       beforeRenderFrameRef,
+      simulationRef,
+      hoverEnabled,
+      setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
+      setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
+      selectGroup: id => useGraphStore.getState().selectGroup(id),
+      selectGroupExpanded: x =>
+        useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
     })
     groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
   }, [schemaGroupsPresentationJson])
@@ -359,6 +398,7 @@ export default function GraphCanvas() {
     labelsSelRef,
     linksSelRef,
   });
+  useGroupSelectionHighlight({ gRef })
 
   useEffect(() => {
     if (!labelsSelRef.current || !graphData) return;
@@ -376,11 +416,13 @@ export default function GraphCanvas() {
   }, [flowState, graphData, schemaNodesPresentationJson]);
 
   useGraphCanvasStyles({
+    gRef,
     nodesSelRef,
     linksSelRef,
     labelsSelRef,
     schema,
     themeMode,
+    graphDataRevision: graphDataRevisionRef.current ?? 0,
   });
 
   return (

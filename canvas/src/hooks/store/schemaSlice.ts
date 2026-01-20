@@ -2,7 +2,7 @@ import { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import { validateSchema } from '@/features/schema/validation'
 import { LS_KEYS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
-import type { GraphState } from '@/hooks/useGraphStore'
+import type { GraphState } from '@/hooks/store/types'
 import type { JSONValue } from '@/lib/graph/types'
 import type { StoreApi } from 'zustand';
 
@@ -41,7 +41,26 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
     if (!raw) return null
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object') return null
-    return validateSchema(parsed as Partial<GraphSchema>)
+    const validated = validateSchema(parsed as Partial<GraphSchema>)
+    const normalizeHex = (v: unknown): string => (typeof v === 'string' ? v.trim().toLowerCase() : '')
+    const labelStyles = validated.labelStyles || null
+    if (!labelStyles) return validated
+    const color = normalizeHex((labelStyles as { color?: unknown }).color)
+    const halo = (labelStyles as { halo?: unknown }).halo
+    const haloColor =
+      halo && typeof halo === 'object' && !Array.isArray(halo) ? normalizeHex((halo as { color?: unknown }).color) : ''
+    const shouldStripColor = color === '#111111' || color === '#111'
+    const shouldStripHaloColor = haloColor === '#ffffff' || haloColor === '#fff'
+    if (!shouldStripColor && !shouldStripHaloColor) return validated
+    const nextLabelStyles: Record<string, unknown> = { ...(labelStyles as Record<string, unknown>) }
+    if (shouldStripColor) delete nextLabelStyles.color
+    if (shouldStripHaloColor) {
+      const nextHalo: Record<string, unknown> =
+        halo && typeof halo === 'object' && !Array.isArray(halo) ? { ...(halo as Record<string, unknown>) } : {}
+      delete nextHalo.color
+      nextLabelStyles.halo = nextHalo
+    }
+    return { ...validated, labelStyles: nextLabelStyles as GraphSchema['labelStyles'] }
   } catch {
     return null
   }
@@ -53,34 +72,6 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     const next = { ...schema }
     const prevMode = (get().schema.layout?.mode || 'force') as LayoutMode
     const nextMode = (next.layout?.mode || 'force') as LayoutMode
-    if (prevMode !== nextMode) {
-      try {
-        const graphData = get().graphData
-        const nodes = graphData?.nodes || []
-        if (nodes.length > 0) {
-          const pos: Record<string, { x: number; y: number }> = {}
-          for (let i = 0; i < nodes.length; i += 1) {
-            const n = nodes[i]
-            const x = typeof n.x === 'number' ? n.x : null
-            const y = typeof n.y === 'number' ? n.y : null
-            if (x == null || y == null) continue
-            if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-            pos[String(n.id)] = { x, y }
-          }
-          if (Object.keys(pos).length > 0) {
-            const prevCacheKey = `${prevMode}` as const
-            set(s => ({
-              layoutPositionCacheByMode: {
-                ...(s.layoutPositionCacheByMode || {}),
-                [prevCacheKey]: pos,
-              },
-            }))
-          }
-        }
-      } catch {
-        void 0
-      }
-    }
     const prevRequires2d = prevMode === 'radial'
     const nextRequires2d = nextMode === 'radial'
     const canvasRenderMode = get().canvasRenderMode

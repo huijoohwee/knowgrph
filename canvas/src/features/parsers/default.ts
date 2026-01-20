@@ -1,12 +1,10 @@
-import { parseCsvToGraph } from '@/lib/graph/csv'
-import { rawToGraphData } from '@/lib/graph/rawToGraph'
 import { parseJsonLd } from '@/lib/graph/jsonld/index'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
-import { isN8nWorkflow, parseN8nWorkflow } from '@/lib/graph/n8n'
+import { parseGraph } from '@/lib/graph/io/adapter'
+import { parseGraphInWorker } from '@/lib/graph/parseWorker'
 import type { ParserSpec } from './types'
 import { toParserId } from './types'
 import { pythonSpec } from './python'
-import { graphRagSpec } from './graphrag'
 import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
 
 export { buildMarkdownJsonLd } from './markdownJsonLd'
@@ -89,44 +87,20 @@ const markdownSpec: ParserSpec = {
   },
 }
 
-const csvSpec: ParserSpec = {
-  id: toParserId('csv'),
-  name: 'CSV',
-  match: (name) => (name || '').toLowerCase().endsWith('.csv'),
-  parse: (_, text) => ({ graphData: parseCsvToGraph(text), warnings: [] })
-}
-
-const jsonldSpec: ParserSpec = {
-  id: toParserId('jsonld'),
-  name: 'JSON‑LD',
-  match: (name, text) => {
-    const lower = (name || '').toLowerCase()
-    if (lower.endsWith('.jsonld')) return true
-    try { const obj = JSON.parse(text); return !!obj['@context'] } catch { return false }
+const autoGraphSpec: ParserSpec = {
+  id: toParserId('auto'),
+  name: 'Auto (CSV/JSON/JSON‑LD)',
+  match: () => true,
+  parseAsync: async (name, text) => {
+    const workerData = await parseGraphInWorker(name, text)
+    if (workerData) return { graphData: workerData, warnings: [] }
+    const parsed = parseGraph(name, text)
+    return { graphData: parsed.data, warnings: parsed.diag.warnings || [] }
   },
-  parse: (_, text) => ({ graphData: parseJsonLd(JSON.parse(text)), warnings: [] })
-}
-
-const rawJsonSpec: ParserSpec = {
-  id: toParserId('json'),
-  name: 'Raw JSON',
-  match: (name, text) => {
-    const lower = (name || '').toLowerCase()
-    if (lower.endsWith('.json')) return true
-    try { JSON.parse(text); return true } catch { return false }
+  parse: (name, text) => {
+    const parsed = parseGraph(name, text)
+    return { graphData: parsed.data, warnings: parsed.diag.warnings || [] }
   },
-  parse: (_, text) => {
-    const obj = JSON.parse(text)
-    if (obj && Array.isArray(obj.nodes) && Array.isArray(obj.edges)) return { graphData: obj, warnings: [] }
-    return { graphData: rawToGraphData(obj), warnings: [] }
-  }
 }
 
-const n8nSpec: ParserSpec = {
-  id: toParserId('n8n'),
-  name: 'N8n Workflow',
-  match: (_, text) => { try { const obj = JSON.parse(text); return isN8nWorkflow(obj) } catch { return false } },
-  parse: (_, text) => parseN8nWorkflow(JSON.parse(text))
-}
-
-export const builtInParsers: ParserSpec[] = [csvSpec, jsonldSpec, rawJsonSpec, n8nSpec, markdownSpec, pythonSpec, graphRagSpec]
+export const builtInParsers: ParserSpec[] = [markdownSpec, pythonSpec, autoGraphSpec]

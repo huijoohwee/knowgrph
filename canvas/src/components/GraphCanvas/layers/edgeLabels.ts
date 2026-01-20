@@ -36,6 +36,7 @@ export const createEdgeLabelsLayer = (args: {
     .attr('dominant-baseline', 'middle')
     .attr('font-size', Math.max(9, fontSize * 0.9))
     .attr('fill', schema.labelStyles?.color ?? '#111')
+    .style('user-select', 'none')
     .style('pointer-events', 'all')
     .style('cursor', 'pointer')
     .text(d => truncateTextWithEllipsis(String(d.label || ''), maxChars))

@@ -360,7 +360,7 @@ layout.groups.strokeWidth:
 | Member Identification    | Subgraph nodes, relationships  | Member node sets               | Extract nodes with matching `visual:parentId`               | O(n) node iteration                          |
 | Bounds Calculation       | Member node positions          | Bounding rectangles            | Compute min/max X/Y with padding                            | O(m) where m = members per subgraph          |
 | Z-Order Sorting          | Subgraph nesting levels        | Render order                   | Sort by nesting depth (outermost first)                     | O(k log k) where k = subgraphs               |
-| Hull Rendering           | Bounding rectangles, styles    | Canvas rectangles              | Draw filled/stroked rectangles behind nodes                 | O(k) subgraph drawing                        |
+| Outline Rendering        | Bounding rectangles, styles    | Canvas rectangles              | Draw filled/stroked rectangles behind nodes                 | O(k) subgraph drawing                        |
 
 **Design Compliance**:
 
@@ -369,7 +369,7 @@ layout.groups.strokeWidth:
 | Member Extraction     | Find subgraph children        | - [ ] Filter nodes by `visual:parentId`; forbid missing member detection                   | Subgraph renderer         | `extractMembers`     | subgraph ID, nodes        | member nodes          | nodes.filter(n => n.visual:parentId === id)|
 | Bounds Computation    | Calculate container bounds    | - [ ] Compute min/max X/Y; add padding; forbid zero-size containers                         | Group renderer            | `computeGroupBounds`  | member positions, padding | {x, y, w, h} rect     | Math.min/max + padding addition         |
 | Nesting Level Calculation | Determine z-order          | - [ ] Count ancestor subgraphs; assign render order; forbid incorrect layering             | Subgraph renderer         | `computeNestingLevel` | subgraph, hierarchy      | nesting depth         | recursive parent traversal + count      |
-| Outline Drawing       | Render group boxes/outlines   | - [ ] Draw rectangles with opacity/stroke; forbid rendering above nodes                    | Subgraph renderer         | `drawHull`           | bounds, style config      | canvas drawing        | ctx.fillRect + ctx.strokeRect with alpha|
+| Outline Drawing       | Render group boxes/outlines   | - [ ] Draw rectangles with opacity/stroke; forbid rendering above nodes                    | Subgraph renderer         | `drawGroupOutline`   | bounds, style config      | canvas drawing        | ctx.fillRect + ctx.strokeRect with alpha|
 
 ---
 

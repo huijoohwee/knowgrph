@@ -1,6 +1,6 @@
 import type { GraphData } from '@/lib/graph/types'
 import { parseJsonLd, toJsonLd } from '@/lib/graph/jsonld'
-import { parseTextToGraph } from '@/lib/graph/parseTextToGraph'
+import { parseGraph } from '@/lib/graph/io/adapter'
 
 export function testJsonLdRoundTrip() {
   const g: GraphData = {
@@ -411,7 +411,7 @@ export function testJsonLdWorkerPipelineParsesExpectedEdges() {
   }
 
   const text = JSON.stringify(jsonld)
-  const g = parseTextToGraph('synthetic.jsonld', text)
+  const g = parseGraph('synthetic.jsonld', text).data
   if (!g) throw new Error('worker pipeline returned null graph')
   if (g.nodes.length !== 4) throw new Error(`worker nodes mismatch: ${g.nodes.length}`)
   if (g.edges.length !== 3) throw new Error(`worker edges mismatch: ${g.edges.length}`)
@@ -444,7 +444,7 @@ export function testJsonLdTriplesMatchExpectedSet() {
     { source: 'air:A', label: 'relates', target: 'air:C' },
   ]
 
-  const g = parseTextToGraph('synthetic.jsonld', JSON.stringify(jsonld))
+  const g = parseGraph('synthetic.jsonld', JSON.stringify(jsonld)).data
   if (!g) throw new Error('triples graph is null')
   const edges = g.edges || []
   if (edges.length === 0) throw new Error('triples graph has no edges')

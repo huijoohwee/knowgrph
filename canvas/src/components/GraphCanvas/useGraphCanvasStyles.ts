@@ -9,26 +9,34 @@ import type { ThemeMode } from '@/lib/ui/theme';
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d';
 
 type UseGraphCanvasStylesProps = {
+  gRef?: MutableRefObject<d3.Selection<SVGGElement, unknown, null, undefined> | null>;
   nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>;
   linksSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>;
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   schema: GraphSchema;
   themeMode: ThemeMode;
   paused?: boolean;
+  graphDataRevision?: number;
 };
 
 export function useGraphCanvasStyles({
+  gRef,
   nodesSelRef,
   linksSelRef,
   labelsSelRef,
   schema,
   themeMode,
   paused,
+  graphDataRevision,
 }: UseGraphCanvasStylesProps) {
   useEffect(() => {
     if (paused) return;
     const isDark = themeMode === 'dark' || (themeMode === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const colors = isDark ? UI_THEME_COLORS.dark : UI_THEME_COLORS.light;
+    const labelFill = schema.labelStyles?.color ?? colors.labelFill
+    const haloColor = schema.labelStyles?.halo?.color ?? colors.labelHalo
+    const haloWidthRaw = schema.labelStyles?.halo?.width
+    const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3
 
     if (nodesSelRef.current) {
       nodesSelRef.current.each(function (d: GraphNode) {
@@ -78,7 +86,26 @@ export function useGraphCanvasStyles({
     if (labelsSelRef.current) {
       labelsSelRef.current
         .attr('font-size', schema.labelStyles?.fontSize ?? 12)
-        .attr('fill', schema.labelStyles?.color ?? colors.labelFill)
+        .attr('fill', labelFill)
+        .attr('stroke', haloColor)
+        .attr('stroke-width', haloWidth)
+        .attr('stroke-linejoin', 'round')
+        .attr('paint-order', 'stroke')
     }
-  }, [paused, nodesSelRef, linksSelRef, labelsSelRef, schema, themeMode]);
+
+    const root = gRef?.current ?? null
+    if (root) {
+      const styleTextSel = (sel: d3.Selection<SVGTextElement, unknown, SVGGElement, unknown>) => {
+        sel
+          .attr('fill', labelFill)
+          .attr('stroke', haloColor)
+          .attr('stroke-width', Math.max(2, haloWidth * 0.85))
+          .attr('stroke-linejoin', 'round')
+          .attr('paint-order', 'stroke')
+      }
+
+      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'))
+      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'))
+    }
+  }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, themeMode, graphDataRevision]);
 }

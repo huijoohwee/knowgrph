@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
 import {
-  buildAdjacencyMap,
+  getAdjacencyMap,
 } from '../simulation'
 
 type RadialClusterNode = {
@@ -19,7 +19,7 @@ export const applyRadialClusterLayout = (
 ) => {
   if (!nodes.length) return
   const graphLike = { nodes, edges: edgesForSim }
-  const adj = buildAdjacencyMap(graphLike)
+  const adj = getAdjacencyMap(graphLike)
   const idToNode = new Map<string, GraphNode>()
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]

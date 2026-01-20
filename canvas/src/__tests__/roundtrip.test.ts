@@ -1,8 +1,7 @@
 import type { GraphData } from '@/lib/graph/types'
 import { graphToCombinedCsv, parseCsvToGraph } from '@/lib/graph/csv'
 import { parseJsonLd } from '@/lib/graph/jsonld'
-import { parseTextToGraph } from '@/lib/graph/parseTextToGraph'
-import { graphToGraphML, graphToCypher } from '@/lib/graph/io/adapter'
+import { graphToGraphML, graphToCypher, parseGraph } from '@/lib/graph/io/adapter'
 import { computeDerivedFields } from '@/features/graph-fields/graphFields'
 
 export function testCsvRoundTrip() {
@@ -89,8 +88,7 @@ export function testGraphFieldsDerivedFromCsvJsonJsonLd() {
     nodes: [{ id: 'j1', label: 'Json Node', type: 'Entity', properties: { score: 42 } }],
     edges: [],
   })
-  const jsonGraph = parseTextToGraph('graph.json', jsonText)
-  if (!jsonGraph) throw new Error('parseTextToGraph returned null for json graph')
+  const jsonGraph = parseGraph('graph.json', jsonText).data
   const jsonFields = computeDerivedFields(jsonGraph)
   if (!jsonFields.some(f => f.id === 'node:score')) {
     throw new Error('json graph fields missing node:score')

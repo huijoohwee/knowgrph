@@ -1,7 +1,7 @@
 import { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types';
 import { validateNodeProperties, validateEdgeProperties, canAddEdge } from '@/features/schema/validation';
 import type { StoreApi } from 'zustand';
-import type { GraphState } from '@/hooks/useGraphStore'
+import type { GraphState } from '@/hooks/store/types'
 import { LS_KEYS } from '@/lib/config'
 import { lsSetJson, lsRemove } from '@/lib/persistence'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'

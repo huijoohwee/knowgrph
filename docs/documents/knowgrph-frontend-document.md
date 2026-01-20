@@ -613,7 +613,9 @@ ZOOM_MAX: number
 
 **Compact Mode**: Truncate with ellipsis at low zoom to reduce clutter
 
-**Mermaid Layout & Port Handles Mode**: Rectangular node labels forbid overflow by default (ellipsis truncation), full text revealed via hover tooltip
+**Word-Based Clamping**: Labels with >20 words (excluding markdown heading layers `hn`) are clamped with ellipsis; full text is revealed via the shared hover tooltip.
+
+**Theme Safety**: Label fill + halo follow theme tokens (System/Light/Dark) to prevent “invisible text” in dark mode.
 
 ### Edge Labels
 
@@ -687,7 +689,7 @@ ZOOM_MAX: number
 
 | Context              | Intent                          | Directive                                                                                   | Module/Component | Function/Method | Input                | Output              | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|----------------------|---------------------|----------------------------------|
-| Label Truncation     | Reduce visual clutter           | - [ ] Apply ellipsis at low zoom; full text in tooltip; forbid text overflow              | NodeLabel        | renderLabel     | zoom level + text    | styled label        | Zoom threshold + text measurement|
+| Label Truncation     | Reduce visual clutter           | - [ ] Clamp labels with >20 words (excluding heading layers `hn`); full text in tooltip; forbid overflow | NodeLabel        | renderLabel     | zoom level + text    | styled label        | Word threshold + zoom threshold  |
 | Tooltip Content      | Show configurable details       | - [ ] Read settings; include enabled fields; forbid unconfigured display                  | HoverTooltip     | buildContent    | node/edge + settings | tooltip HTML        | Settings flags + field inclusion |
 | Fit to Screen        | Center visible graph            | - [ ] Compute bbox; center with margin; account for labels; forbid origin-centric fit     | ZoomEffects      | fitAll          | nodes + labels       | zoom transform      | Bbox calculation + viewport fit  |
 | Pin to View          | Preserve camera position        | - [ ] Lock transform; disable auto-fit; disable selection zoom; forbid unexpected movement| CameraControl    | togglePin       | void                 | pinned state        | Boolean flag + event blocking    |

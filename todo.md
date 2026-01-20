@@ -26,7 +26,13 @@
 
 ### P0-Critical
 
+#### 2026-01-21
+
 #### 2026-01-20
+
+- [] Plug-in: Geo 
+
+- [] Trip planning use case
 
 - [] ADD universal diff
 

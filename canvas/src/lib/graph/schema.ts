@@ -126,7 +126,7 @@ export const defaultSchema: GraphSchema = {
   },
   nodeSizes: {},
   nodeStroke: {},
-  labelStyles: { fontSize: 12, color: '#111111', offset: { dx: 12, dy: 4 }, halo: { color: '#ffffff', width: 3 } },
+  labelStyles: { fontSize: 14, offset: { dx: 12, dy: 4 }, halo: { width: 3 } },
   nodeShapes: { Image: 'rect' },
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {
