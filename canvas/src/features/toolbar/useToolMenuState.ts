@@ -18,6 +18,7 @@ export function useToolMenuState() {
   const [isMarkdownImportMenuOpen, setIsMarkdownImportMenuOpen] = useState(false)
   const [isHtmlImportMenuOpen, setIsHtmlImportMenuOpen] = useState(false)
   const [isPdfImportMenuOpen, setIsPdfImportMenuOpen] = useState(false)
+  const [isYouTubeImportMenuOpen, setIsYouTubeImportMenuOpen] = useState(false)
   const [isJsonImportMenuOpen, setIsJsonImportMenuOpen] = useState(false)
   const [isJsonLdImportMenuOpen, setIsJsonLdImportMenuOpen] = useState(false)
   const [isSchemaExportMenuOpen, setIsSchemaExportMenuOpen] = useState(false)
@@ -161,6 +162,7 @@ export function useToolMenuState() {
     setIsMarkdownImportMenuOpen(false)
     setIsHtmlImportMenuOpen(false)
     setIsPdfImportMenuOpen(false)
+    setIsYouTubeImportMenuOpen(false)
     setIsJsonImportMenuOpen(false)
     setIsJsonLdImportMenuOpen(false)
     setIsSchemaExportMenuOpen(false)
@@ -183,6 +185,7 @@ export function useToolMenuState() {
         setIsMarkdownImportMenuOpen(false)
         setIsHtmlImportMenuOpen(false)
         setIsPdfImportMenuOpen(false)
+        setIsYouTubeImportMenuOpen(false)
         setIsJsonImportMenuOpen(false)
         setIsJsonLdImportMenuOpen(false)
         setIsSchemaExportMenuOpen(false)
@@ -214,6 +217,8 @@ export function useToolMenuState() {
     setIsHtmlImportMenuOpen,
     isPdfImportMenuOpen,
     setIsPdfImportMenuOpen,
+    isYouTubeImportMenuOpen,
+    setIsYouTubeImportMenuOpen,
     isJsonImportMenuOpen,
     setIsJsonImportMenuOpen,
     isJsonLdImportMenuOpen,

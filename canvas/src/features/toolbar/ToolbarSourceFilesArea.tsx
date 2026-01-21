@@ -6,6 +6,7 @@ import type { ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMe
 import { ToolbarMarkdownArea } from './ToolbarMarkdownArea'
 import { ToolbarHtmlArea } from './ToolbarHtmlArea'
 import { ToolbarPdfArea } from './ToolbarPdfArea'
+import { ToolbarYouTubeArea } from './ToolbarYouTubeArea'
 
 type JsonImportAreaProps = {
   format: 'json' | 'jsonld'
@@ -113,6 +114,8 @@ export function ToolbarSourceFilesArea(props: ToolbarToolMenuAreasProps) {
     setIsHtmlImportMenuOpen,
     isPdfImportMenuOpen,
     setIsPdfImportMenuOpen,
+    isYouTubeImportMenuOpen,
+    setIsYouTubeImportMenuOpen,
     isJsonImportMenuOpen,
     setIsJsonImportMenuOpen,
     isJsonLdImportMenuOpen,
@@ -124,6 +127,7 @@ export function ToolbarSourceFilesArea(props: ToolbarToolMenuAreasProps) {
     setIsMarkdownImportMenuOpen(false)
     setIsHtmlImportMenuOpen(false)
     setIsPdfImportMenuOpen(false)
+    setIsYouTubeImportMenuOpen(false)
     setIsJsonImportMenuOpen(false)
     setIsJsonLdImportMenuOpen(false)
   }
@@ -169,6 +173,17 @@ export function ToolbarSourceFilesArea(props: ToolbarToolMenuAreasProps) {
             </button>
             <button
               type="button"
+              className={isYouTubeImportMenuOpen ? activeClassName : buttonClassName}
+              onClick={() => {
+                const wasOpen = isYouTubeImportMenuOpen
+                closeAllImportMenus()
+                if (!wasOpen) setIsYouTubeImportMenuOpen(true)
+              }}
+            >
+              {UI_LABELS.youtube}
+            </button>
+            <button
+              type="button"
               className={isJsonLdImportMenuOpen ? activeClassName : buttonClassName}
               onClick={() => {
                 const wasOpen = isJsonLdImportMenuOpen
@@ -205,6 +220,7 @@ export function ToolbarSourceFilesArea(props: ToolbarToolMenuAreasProps) {
           {isMarkdownImportMenuOpen && <ToolbarMarkdownArea {...props} />}
           {isHtmlImportMenuOpen && <ToolbarHtmlArea {...props} />}
           {isPdfImportMenuOpen && <ToolbarPdfArea {...props} />}
+          {isYouTubeImportMenuOpen && <ToolbarYouTubeArea {...props} />}
           {isJsonLdImportMenuOpen && (
             <JsonImportArea
               format="jsonld"

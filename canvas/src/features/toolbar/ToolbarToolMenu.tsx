@@ -53,6 +53,8 @@ export function ToolbarToolMenu({
   setIsHtmlImportMenuOpen,
   isPdfImportMenuOpen,
   setIsPdfImportMenuOpen,
+  isYouTubeImportMenuOpen,
+  setIsYouTubeImportMenuOpen,
   isJsonImportMenuOpen,
   setIsJsonImportMenuOpen,
   isJsonLdImportMenuOpen,
@@ -380,6 +382,8 @@ export function ToolbarToolMenu({
                 setIsHtmlImportMenuOpen={setIsHtmlImportMenuOpen}
                 isPdfImportMenuOpen={isPdfImportMenuOpen}
                 setIsPdfImportMenuOpen={setIsPdfImportMenuOpen}
+                isYouTubeImportMenuOpen={isYouTubeImportMenuOpen}
+                setIsYouTubeImportMenuOpen={setIsYouTubeImportMenuOpen}
                 isJsonImportMenuOpen={isJsonImportMenuOpen}
                 setIsJsonImportMenuOpen={setIsJsonImportMenuOpen}
                 isJsonLdImportMenuOpen={isJsonLdImportMenuOpen}

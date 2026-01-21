@@ -14,6 +14,7 @@ import { performMarkdownImport } from './markdownImportAction'
 import { performHtmlImport } from './htmlImportAction'
 import { performPdfImport } from './pdfImportAction'
 import { performJsonImport, performCsvImport } from './jsonImportAction'
+import { performYouTubeImport } from './youtubeImportAction'
 import { promptForUrl } from './ingestUtils'
 
 export function useToolbarMenuAction(args: {
@@ -321,6 +322,10 @@ export function useToolbarMenuAction(args: {
           }
           if (format === 'pdf') {
             void performPdfImport('url', url)
+            return
+          }
+          if (format === 'youtube') {
+            void performYouTubeImport('url', url)
             return
           }
           if (format === 'jsonld' || format === 'json') {

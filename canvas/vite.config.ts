@@ -9,13 +9,15 @@ import { randomUUID } from 'node:crypto'
 import os from 'node:os'
 import fs from 'node:fs/promises'
 import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
+import { slugify } from './src/features/parsers/markdownJsonLdUtils'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
+const pythonBin = String(process.env.KNOWGRPH_PYTHON_BIN || 'python3').trim() || 'python3'
 
 function runMarkdownPipelineOnce(): Promise<void> {
   const parts = CODEBASE_INDEX_PIPELINE_COMMAND.split(/\s+/).filter(Boolean)
-  const cmd = parts[0]
+  const cmd = parts[0] === 'python' ? pythonBin : parts[0]
   const args = parts.slice(1)
   return new Promise((resolve, reject) => {
     const result = spawnSync(cmd, args, {
@@ -152,7 +154,7 @@ async function runKnowgrphParserConvertPdfToMarkdown(opts: {
     if (opts.title && opts.title.trim()) {
       args.push('--title', opts.title.trim())
     }
-    const res = spawnSync('python', args, {
+    const res = spawnSync(pythonBin, args, {
       cwd: repoRoot,
       encoding: 'utf8',
       maxBuffer: 20 * 1024 * 1024,
@@ -274,6 +276,124 @@ const pdfConvertDevPlugin = {
     server.middlewares.use('/__convert_pdf', createPdfConvertHandler())
     server.middlewares.use('/__pdf_assets', createPdfAssetsHandler())
   },
+}
+
+type YouTubeTranscriptResult =
+  | { ok: true; markdown: string; name: string; sourceUrl: string }
+  | { ok: false; error: string }
+
+function coerceYouTubeVideoId(raw: string): string | null {
+  const input = String(raw || '').trim()
+  if (!input) return null
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input
+  const withProtocol = /^https?:\/\//i.test(input) ? input : `https://${input}`
+  try {
+    const url = new URL(withProtocol)
+    const host = url.hostname.replace(/^www\./i, '').toLowerCase()
+    if (host === 'youtu.be') {
+      const id = url.pathname.split('/').filter(Boolean)[0] || ''
+      return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null
+    }
+    if (host.endsWith('youtube.com')) {
+      const v = url.searchParams.get('v') || ''
+      if (/^[a-zA-Z0-9_-]{11}$/.test(v)) return v
+      const parts = url.pathname.split('/').filter(Boolean)
+      const prefix = parts[0] || ''
+      const maybe = parts[1] || ''
+      if ((prefix === 'shorts' || prefix === 'embed') && /^[a-zA-Z0-9_-]{11}$/.test(maybe)) {
+        return maybe
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function runKnowgrphParserConvertYouTubeToMarkdown(opts: {
+  videoId: string
+  language?: string
+}): string | null {
+  try {
+    const args = ['-m', 'knowgrph_parser', 'youtube', '--id', opts.videoId]
+    if (opts.language && opts.language.trim()) {
+      args.push('--lang', opts.language.trim())
+    }
+    const res = spawnSync(pythonBin, args, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      maxBuffer: 20 * 1024 * 1024,
+    })
+    if (res.status === 0 && typeof res.stdout === 'string' && res.stdout.trim()) {
+      return res.stdout
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+async function convertYouTubeToMarkdown(opts: {
+  urlOrId: string
+  language?: string
+}): Promise<YouTubeTranscriptResult> {
+  const id = coerceYouTubeVideoId(opts.urlOrId)
+  if (!id) return { ok: false, error: 'Invalid YouTube URL or video ID' }
+  const sourceUrl = `https://www.youtube.com/watch?v=${id}`
+  const markdown = runKnowgrphParserConvertYouTubeToMarkdown({ videoId: id, language: opts.language })
+  if (!markdown) {
+    return {
+      ok: false,
+      error:
+        'YouTube transcript conversion failed. Ensure the Python parser environment is set up correctly (pip install -r requirements.txt).',
+    }
+  }
+  const titleLine = String(markdown.split('\n')[0] || '').replace(/^#\s+/, '').trim()
+  const nameBase = slugify(titleLine || `youtube-${id}`)
+  const name = `${nameBase}.md`
+  return { ok: true, markdown, name, sourceUrl }
+}
+
+const youtubeTranscriptDevPlugin = {
+  name: 'knowgrph-youtube-transcript-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use('/__youtube_transcript', createYouTubeTranscriptHandler())
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use('/__youtube_transcript', createYouTubeTranscriptHandler())
+  },
+}
+
+function createYouTubeTranscriptHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+    try {
+      const parsed = new URL(req.url || '', `http://${req.headers.host}`)
+      const urlOrId = parsed.searchParams.get('url') || ''
+      const language = parsed.searchParams.get('lang') || undefined
+      if (!urlOrId.trim()) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Missing url' } satisfies YouTubeTranscriptResult))
+        return
+      }
+      const result = await convertYouTubeToMarkdown({ urlOrId, language })
+      res.statusCode = result.ok ? 200 : 400
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify(result))
+    } catch (error) {
+      const msg =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message?: unknown }).message || '')
+          : ''
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify({ ok: false, error: msg || 'YouTube transcript conversion failed' } satisfies YouTubeTranscriptResult))
+    }
+  }
 }
 
 function createPdfConvertHandler(): import('vite').Connect.NextHandleFunction {
@@ -481,6 +601,7 @@ export default defineConfig(({ command }) => ({
           markdownPipelineDevPlugin,
           remoteFetchProxyDevPlugin,
           pdfConvertDevPlugin,
+          youtubeTranscriptDevPlugin,
         ]),
     tsconfigPaths(),
   ],

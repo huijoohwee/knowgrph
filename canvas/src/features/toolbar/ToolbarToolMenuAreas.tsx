@@ -17,6 +17,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
     setIsMarkdownImportMenuOpen,
     setIsHtmlImportMenuOpen,
     setIsPdfImportMenuOpen,
+    setIsYouTubeImportMenuOpen,
     setIsJsonImportMenuOpen,
     setIsJsonLdImportMenuOpen,
     setIsSchemaExportMenuOpen,
@@ -107,6 +108,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsSchemaExportMenuOpen(false)
@@ -123,6 +125,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                           setIsMarkdownImportMenuOpen(false)
                           setIsHtmlImportMenuOpen(false)
                           setIsPdfImportMenuOpen(false)
+                          setIsYouTubeImportMenuOpen(false)
                           setIsJsonImportMenuOpen(false)
                           setIsJsonLdImportMenuOpen(false)
                           setIsSchemaExportMenuOpen(false)
@@ -140,6 +143,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsParserExportMenuOpen(v => !v)
@@ -150,6 +154,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsSourceFilesExportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(v => !v)
@@ -160,6 +165,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsSourceFilesExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(v => !v)
@@ -172,6 +178,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                           setIsHtmlImportMenuOpen(false)
                           setIsJsonImportMenuOpen(false)
                           setIsJsonLdImportMenuOpen(false)
+                          setIsYouTubeImportMenuOpen(false)
                           setIsPdfImportMenuOpen(v => !v)
                         }
                     : area.key === 'schemaConfig' && action === 'export'
@@ -181,6 +188,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsSchemaExportMenuOpen(v => !v)
@@ -192,6 +200,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsGraphFieldsExportMenuOpen(v => !v)
@@ -203,6 +212,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsSettingsExportMenuOpen(v => !v)
@@ -214,6 +224,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsHistoryExportMenuOpen(v => !v)
@@ -225,6 +236,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)
                         setIsPdfImportMenuOpen(false)
+                        setIsYouTubeImportMenuOpen(false)
                         setIsJsonImportMenuOpen(false)
                         setIsJsonLdImportMenuOpen(false)
                         setIsValidationExportMenuOpen(v => !v)

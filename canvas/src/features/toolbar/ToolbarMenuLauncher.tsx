@@ -77,6 +77,8 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     setIsHtmlImportMenuOpen,
     isPdfImportMenuOpen,
     setIsPdfImportMenuOpen,
+    isYouTubeImportMenuOpen,
+    setIsYouTubeImportMenuOpen,
     isJsonImportMenuOpen,
     setIsJsonImportMenuOpen,
     isJsonLdImportMenuOpen,
@@ -351,6 +353,8 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
           setIsHtmlImportMenuOpen={setIsHtmlImportMenuOpen}
           isPdfImportMenuOpen={isPdfImportMenuOpen}
           setIsPdfImportMenuOpen={setIsPdfImportMenuOpen}
+          isYouTubeImportMenuOpen={isYouTubeImportMenuOpen}
+          setIsYouTubeImportMenuOpen={setIsYouTubeImportMenuOpen}
           isJsonImportMenuOpen={isJsonImportMenuOpen}
           setIsJsonImportMenuOpen={setIsJsonImportMenuOpen}
           isJsonLdImportMenuOpen={isJsonLdImportMenuOpen}

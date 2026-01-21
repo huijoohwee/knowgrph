@@ -56,6 +56,16 @@
 
 ---
 
+## Video Analyzer: YouTube Transcript → Markdown (Dev/Preview)
+
+Canvas provides a dev/preview-only YouTube transcript import that converts a YouTube URL/ID into Markdown and then feeds the existing Markdown→Graph pipeline.
+
+| Surface | Responsibility (S-V-O) | Implementation |
+|---------|-------------------------|----------------|
+| Toolbar (Canvas) | User selects YouTube → submits URL → triggers import | [ToolbarYouTubeArea](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/ToolbarYouTubeArea.tsx) → [performYouTubeImport](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts) |
+| Dev Hook (Vite) | Server receives URL/ID → runs converter → returns Markdown | [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts) (`/__youtube_transcript`) |
+| Python CLI | Converter fetches transcript → formats Slidev-friendly Markdown | `python3 -m knowgrph_parser youtube --id <videoId>`: [youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py) |
+
 ## Component Specifications
 
 ### Component: Parser Registry

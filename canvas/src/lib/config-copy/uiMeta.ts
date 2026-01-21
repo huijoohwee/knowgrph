@@ -46,6 +46,7 @@ export const UI_LABELS = {
   markdown: 'Markdown',
   html: 'HTML',
   pdf: 'PDF',
+  youtube: 'YouTube',
   jsonLd: 'JSON-LD',
   json: 'JSON',
   openData: 'Open Data',

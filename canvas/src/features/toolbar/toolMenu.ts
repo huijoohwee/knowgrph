@@ -15,7 +15,7 @@ export type ToolMenuAction = 'new' | 'import' | 'importLocal' | 'importUrl' | 'e
 
 export type ToolMenuPayload = {
   url?: string
-  format?: 'markdown' | 'html' | 'pdf' | 'jsonld' | 'json' | 'csv'
+  format?: 'markdown' | 'html' | 'pdf' | 'youtube' | 'jsonld' | 'json' | 'csv'
 }
 
 export type ToolMenuArea =

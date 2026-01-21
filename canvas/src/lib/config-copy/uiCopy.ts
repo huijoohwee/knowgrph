@@ -344,6 +344,12 @@ export const UI_COPY = {
   pdfImportConvertFailedStatus: 'Data load failed: Failed to convert PDF to Markdown',
   pdfImportConvertFailedStatusWithError: (error: string) =>
     `Data load failed: Failed to convert PDF to Markdown (${error})`,
+  youtubeImportUrlPrompt: 'Enter YouTube URL or ID',
+  toolbarYouTubeImportUrlButtonLabel: 'URL',
+  youtubeImportFetchFailedStatus: (urlOrId: string) =>
+    `Data load failed: Failed to fetch transcript for ${urlOrId}`,
+  youtubeImportConvertFailedStatusWithError: (error: string) =>
+    `Data load failed: Failed to convert YouTube transcript to Markdown (${error})`,
   jsonImportUrlPrompt: 'Enter JSON/JSON-LD URL',
   jsonImportFetchFailedStatus: (url: string) => `Data load failed: Failed to fetch JSON from ${url}`,
   parserDataLoadSuccess: 'Success',

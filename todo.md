@@ -33,6 +33,8 @@ single “pipeline map” diagram (nodes = modules/functions, edges = calls/arti
 
 surveyed the knowgrph repo end-to-end (Python parser + Canvas UI) and the pipeline is fully traceable from entrypoints through import → parse → derive → layout → render.
 
+added a YouTube transcript import (YouTube URL/ID → Markdown → same Markdown viewer/presentation pipeline) with a dev/preview Vite endpoint backed by `knowgrph_parser`.
+
 
 
 #### 2026-01-20

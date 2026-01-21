@@ -37,6 +37,8 @@ export function ToolbarToolMenuAreasInspector() {
     setIsHtmlImportMenuOpen: () => {},
     isPdfImportMenuOpen: false,
     setIsPdfImportMenuOpen: () => {},
+    isYouTubeImportMenuOpen: false,
+    setIsYouTubeImportMenuOpen: () => {},
     isJsonImportMenuOpen: false,
     setIsJsonImportMenuOpen: () => {},
     isJsonLdImportMenuOpen: false,

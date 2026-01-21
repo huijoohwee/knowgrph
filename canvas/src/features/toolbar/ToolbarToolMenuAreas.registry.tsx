@@ -43,6 +43,8 @@ export interface ToolbarToolMenuAreasProps {
   setIsHtmlImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isPdfImportMenuOpen: boolean
   setIsPdfImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+  isYouTubeImportMenuOpen: boolean
+  setIsYouTubeImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isJsonImportMenuOpen: boolean
   setIsJsonImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isJsonLdImportMenuOpen: boolean

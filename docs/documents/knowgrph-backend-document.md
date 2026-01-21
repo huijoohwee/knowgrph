@@ -25,6 +25,18 @@ Implementation:
 Implementation:
 - Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
 
+### YouTube transcript → Markdown (dev/preview)
+
+- Path: `/__youtube_transcript` (POST)
+- Purpose: convert a YouTube URL/ID into Markdown (Slidev-compatible `---` splits) so Canvas can ingest it like any Markdown document.
+- Used by:
+  - Source Files → YouTube import button
+- Policy: dev/preview only; the server runs `python3 -m knowgrph_parser youtube` and returns Markdown.
+
+Implementation:
+- Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
+- Python command: [youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py)
+
 ## Production note
 
 These middleware endpoints exist for local development and preview builds. For production deployments, mirror the same routes in a real server (or replace them with a dedicated service) so the UI can continue to:
