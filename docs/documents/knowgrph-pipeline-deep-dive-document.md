@@ -109,7 +109,7 @@
 - Derivation: [layerDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts)
 - Layer modes:
   - `document`: assigns `properties["visual:layer"]` for structural layering
-  - `keyword` (semantic mode): derives a keyword graph from active document text (or node labels as fallback) where Subject/Object/Entity keywords become nodes and Verb/Predicate/Relationship keywords become edges; caches derived graphs by stable text hash; sets `properties["visual:nodeSize"]` by keyword frequency and `properties["visual:width"]` by edge strength for renderer reuse
+  - `keyword` (semantic mode): derives a keyword graph from active document text (or node labels as fallback) where Subject/Object/Entity keywords become nodes and Verb/Predicate/Relationship keywords become edges; removes common stopwords using the NLTK English stopword list; caches derived graphs by stable text hash; sets `properties["visual:nodeSize"]` by keyword frequency and `properties["visual:width"]` by edge strength for renderer reuse; supports runtime scaling via `schema.three.keywordNodeSizeScale` / `schema.three.keywordEdgeWidthScale`; maps `visual:community` → `visual:layer` so 2D groups and 3D Z-layering can stay consistent; merges media-capable nodes from the base graph so the media overlay toggle remains effective
   - `schema`: filters out `Document` nodes to focus on entity/schema nodes
   - `semantic`: enriches with derived similarity edges and `properties["visual:community"]`
   - `frontmatter mode` (UI flag): filters to Mermaid nodes tagged as frontmatter (`mermaidScope` / `isMermaidFrontmatter`)

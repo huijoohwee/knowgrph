@@ -106,7 +106,7 @@ In `metadata.layers.semantic`, you MAY adjust:
 - `similarityEdgeLabel`
 - `topKEdgesPerNode`
 - `minSimilarity`
-- Fields under `communityDetection` (for example `enabled`, `resolution`, `maxPasses`, `maxMovesPerPass`)
+- Fields under `communityDetection` (for example `enabled`, `algorithm`, `weightProperty`)
 
 In `metadata.layers.documentStructure`, you MAY:
 

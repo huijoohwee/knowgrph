@@ -386,7 +386,7 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
     parser_entrypoint = (
         os.path.abspath(parser_script_path)
         if parser_script_path and parser_script_path.strip()
-        else "python -m knowgrph_parser"
+        else f"{sys.executable} -m knowgrph_parser"
     )
     orch_text = build_orchestrator_config_yaml(
         repo_root=root,

@@ -118,7 +118,7 @@ import {
   testMarkdownEditToggleKeepsScrollPosition,
   testMarkdownScrollSyncMixedContentViewerToEditor,
 } from '@/__tests__/markdown/markdownScrollSync.test'
-import { testKeywordModeDerivesEntitiesAndPredicates } from '@/__tests__/keywordMode.test'
+import { testKeywordModeDerivesEntitiesAndPredicates, testKeywordModeMergesMediaNodesForOverlays } from '@/__tests__/keywordMode.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -307,6 +307,7 @@ export const runAllTests = async () => {
   await exec('ui.themeModePersistence', testThemeModePersistence)
   await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
   await exec('keywordMode.derivesEntitiesAndPredicates', testKeywordModeDerivesEntitiesAndPredicates)
+  await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)
   
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)
   await exec('persistence.storagePrimitives', testPersistencePrimitives)

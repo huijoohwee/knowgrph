@@ -2,3 +2,5 @@ rdflib==7.0.0
 pyyaml==6.0.2
 duckdb==1.1.1
 pypdf==3.17.1
+networkx==2.8.8
+nltk==3.9.2

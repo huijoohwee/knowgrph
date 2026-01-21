@@ -3,6 +3,7 @@ import csv
 import json
 import os
 import subprocess
+import sys
 import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -10,6 +11,7 @@ from .common import DEFAULT_TERM_IRI_BASE
 from .example_duckdb_queries import run_example_duckdb_query_cli
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PYTHON_BIN = sys.executable
 DEFAULT_INPUT_PATH = os.getenv("KG_INPUT_PATH", "").strip()
 DEFAULT_OUTPUT_DIR = os.getenv(
     "KG_OUTPUT_DIR",
@@ -217,7 +219,7 @@ def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str) -
     try:
         subprocess.run(
             [
-                "python",
+                PYTHON_BIN,
                 "-m",
                 "knowgrph_parser",
                 "parse-codebase-index",
@@ -242,7 +244,7 @@ def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str) -
         )
     subprocess.run(
         [
-            "python",
+            PYTHON_BIN,
             "-m",
             "knowgrph_parser",
             "embed-codebase-index",
@@ -257,7 +259,7 @@ def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str) -
     )
     subprocess.run(
         [
-            "python",
+            PYTHON_BIN,
             "-m",
             "knowgrph_parser",
             "test-embedding-sanity",

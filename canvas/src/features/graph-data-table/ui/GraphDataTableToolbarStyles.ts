@@ -36,7 +36,7 @@ export const uiPrimaryPillActiveClassName = `${UI_COLOR_PRIMARY_BLUE_BG} ${UI_TH
 
 export const uiPrimaryChipActiveClassName = `${UI_COLOR_PRIMARY_BLUE_BG} ${UI_THEME_TOKENS.button.activeText} border border-blue-200 dark:border-blue-800`
 
-export const uiPrimaryIconActiveClassName = UI_COLOR_PRIMARY_BLUE
+export const uiPrimaryIconActiveClassName = `${UI_COLOR_PRIMARY_BLUE} ${UI_COLOR_PRIMARY_BLUE_BG}`
 
 export const uiPrimaryIconInactiveClassName = UI_THEME_TOKENS.icon.color
 

@@ -1,11 +1,14 @@
 import math
 import re
-from typing import Any, Dict, List, Optional, Tuple, Set
+from typing import Any, Dict, List, Tuple, Set
+
+import networkx as nx
 
 from .config_utils import clamp01
 from .token_linker import tokenize_with_offsets, merge_tokens_to_spans, detect_inline_code_spans
 from .edge_elevator import extract_sentence_features
 from .common import sha256_text
+from .stopwords import stopwords_en
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 
@@ -36,41 +39,38 @@ def _compute_ppmi(
         scores[pair] = pmi
     return scores
 
-def _run_label_propagation(
-    neighbors: Dict[str, List[str]],
-    max_iter: int = 20,
+def _run_networkx_connected_components(
+    *,
+    node_ids: List[str],
+    edges: List[Dict[str, Any]],
 ) -> Dict[str, int]:
-    labels: Dict[str, int] = {}
-    nodes = list(neighbors.keys())
-    for idx, nid in enumerate(nodes):
-        labels[nid] = idx
-    if not nodes:
-        return labels
-    for _ in range(max_iter):
-        changed = False
-        for nid in nodes:
-            nbs = neighbors.get(nid) or []
-            if not nbs:
-                continue
-            counts: Dict[int, int] = {}
-            for nb in nbs:
-                lid = labels.get(nb)
-                if lid is None:
-                    continue
-                counts[lid] = counts.get(lid, 0) + 1
-            if not counts:
-                continue
-            best_label = max(counts.items(), key=lambda x: x[1])[0]
-            if labels.get(nid) != best_label:
-                labels[nid] = best_label
-                changed = True
-        if not changed:
-            break
-    label_ids = sorted(set(labels.values()))
-    remap: Dict[int, int] = {lid: i for i, lid in enumerate(label_ids)}
+    g = nx.Graph()
+    g.add_nodes_from(node_ids)
+    node_set = set(node_ids)
+
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        if e.get("relation") != "coOccursWith":
+            continue
+        s = str(e.get("source") or e.get("source_node") or "")
+        t = str(e.get("target") or e.get("target_node") or "")
+        if not s or not t or s == t:
+            continue
+        if s not in node_set or t not in node_set:
+            continue
+        if g.has_edge(s, t):
+            continue
+        g.add_edge(s, t)
+
+    comms = list(nx.connected_components(g))
+    comms_sorted = sorted(comms, key=lambda c: sorted([str(n) for n in c])[0] if c else "")
     out: Dict[str, int] = {}
-    for nid, lid in labels.items():
-        out[nid] = remap.get(lid, 0)
+    for idx, c in enumerate(comms_sorted):
+        for nid in c:
+            out[str(nid)] = idx
+    for nid in node_ids:
+        out.setdefault(str(nid), 0)
     return out
 
 def process_semantics(
@@ -95,6 +95,7 @@ def process_semantics(
 
     phrase_boundary_threshold = float(sem_defaults.get("phrase_boundary_threshold") or 0.75)
     max_entity_span_tokens = int(sem_defaults.get("max_entity_span_tokens") or 8)
+    stopwords = stopwords_en()
     
     for src in semantic_sources:
         block_id = str(src.get("blockId") or "")
@@ -127,6 +128,9 @@ def process_semantics(
             entity_type = "Entity"
             if span in code_spans:
                 entity_type = "CodeSpan"
+            norm = span_text.strip().lower()
+            if entity_type == "Entity" and " " not in norm and norm in stopwords:
+                continue
             ek = f"{entity_type}:{span_text.strip().lower()}"
             ent_id = entity_by_key.get(ek)
             if not ent_id:
@@ -355,18 +359,7 @@ def process_semantics(
 
     entity_ids = list(entity_props_by_id.keys())
     if entity_ids:
-        neighbors: Dict[str, List[str]] = {eid: [] for eid in entity_ids}
-        for e in edges:
-            if not isinstance(e, dict):
-                continue
-            if e.get("relation") != "coOccursWith":
-                continue
-            s = str(e.get("source") or e.get("source_node") or "")
-            t = str(e.get("target") or e.get("target_node") or "")
-            if s in neighbors and t in neighbors and s != t:
-                neighbors[s].append(t)
-                neighbors[t].append(s)
-        community_labels = _run_label_propagation(neighbors, max_iter=20)
+        community_labels = _run_networkx_connected_components(node_ids=entity_ids, edges=edges)
         for eid, ent_obj in entity_props_by_id.items():
             cid = int(community_labels.get(eid, 0))
             props = ent_obj.get("properties")

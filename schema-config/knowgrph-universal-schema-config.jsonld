@@ -412,7 +412,7 @@
           "@type": "rag:RoleActionOutcome",
           "role": "Semantic similarity threshold",
           "actions": [
-            "adjust schema.layers.semantic.minSimilarity to drop low-signal PMI/cosine edges before Louvain community detection",
+            "adjust schema.layers.semantic.minSimilarity to drop low-signal PMI/cosine edges before community detection",
             "shape semantic bands and convex hulls by enforcing a minimum similarity level instead of relying on raw co-occurrence counts"
           ],
           "outcome": "give AgenticRAG workflows a single, schema-driven similarity cutoff that filters noisy semantic edges across datasets while preserving meaningful neighborhoods for traversal and visualization.",

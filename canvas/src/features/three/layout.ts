@@ -53,12 +53,43 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null): Re
     const radiusAuto = Math.max(60, Math.min(140, n * 2.2))
     const radius = radiusCfg && radiusCfg > 0 ? radiusCfg : radiusAuto
     const sphere = fibSphere(n, radius, seedCfg, minSpacingCfg)
+    const layerValues = (() => {
+      const vals: number[] = []
+      for (let i = 0; i < nodes.length; i += 1) {
+        const raw = (nodes[i]?.properties || {})['visual:layer']
+        if (typeof raw === 'number' && Number.isFinite(raw)) vals.push(raw)
+        else if (typeof raw === 'string') {
+          const parsed = Number(raw.trim())
+          if (Number.isFinite(parsed)) vals.push(parsed)
+        }
+      }
+      const unique = Array.from(new Set(vals)).sort((a, b) => a - b)
+      const map = new Map<number, number>()
+      const mid = (unique.length - 1) / 2
+      for (let i = 0; i < unique.length; i += 1) {
+        map.set(unique[i]!, i - mid)
+      }
+      return map
+    })()
+    const layerSpacing = 20
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i]
       const p = asVec3((node.properties || {})['pos3d'])
       if (p) { out[node.id] = p; continue }
       const s = sphere[i] || [0, 0, 0]
-      out[node.id] = s
+      const rawLayer = (node.properties || {})['visual:layer']
+      const layerVal =
+        typeof rawLayer === 'number'
+          ? rawLayer
+          : typeof rawLayer === 'string'
+            ? Number(rawLayer.trim())
+            : null
+      const offsetIndex =
+        typeof layerVal === 'number' && Number.isFinite(layerVal)
+          ? (layerValues.get(layerVal) ?? 0)
+          : 0
+      const z = s[2] + offsetIndex * layerSpacing
+      out[node.id] = [s[0], s[1], z]
     }
     return out
   }, [nodes, schema])

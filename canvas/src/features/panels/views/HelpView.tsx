@@ -123,7 +123,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                   For each node, neighbor candidates are sorted by similarity; up to top‑K neighbors above the global similarity threshold are kept, and undirected pairs are stored symmetrically. Derived edges receive similarity‑based weights and co‑occurrence‑based widths so renderers can map weight to thickness and count to width.
                 </p>
                 <p>
-                  A Louvain‑style pass assigns communities over this similarity graph by moving nodes between communities when modularity gain is positive at a configurable resolution. Node importance is derived from token counts or incident similarity weights, mapped into a clamped radius band, and stored as visual:importance and visual:nodeSize alongside visual:community and a deterministic community color.
+                  A NetworkX connected-components pass assigns communities over this similarity graph. Node importance is derived from token counts or incident similarity weights, mapped into a clamped radius band, and stored as visual:importance and visual:nodeSize alongside visual:community and a deterministic community color.
                 </p>
               </div>
             </div>

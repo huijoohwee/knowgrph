@@ -132,9 +132,8 @@ def build_schema_config_jsonld(
             "hiddenNodeTypes": [],
             "communityDetection": {
                 "enabled": True,
-                "resolution": 1.0,
-                "maxPasses": 10,
-                "maxMovesPerPass": 20000,
+                "algorithm": "connected_components",
+                "weightProperty": "pmi",
             },
         },
         "documentStructure": {

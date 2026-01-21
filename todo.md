@@ -33,6 +33,8 @@ single “pipeline map” diagram (nodes = modules/functions, edges = calls/arti
 
 surveyed the knowgrph repo end-to-end (Python parser + Canvas UI) and the pipeline is fully traceable from entrypoints through import → parse → derive → layout → render.
 
+
+
 #### 2026-01-20
 
 - [] Plug-in: Geo 
@@ -126,6 +128,10 @@ https://cs.brown.edu/people/jcmace/d3/graph.html?id=small.json
 - Unify multiple documents at orchestration stage; current markdown import supports single document only.
 
 ### P1‑High
+
+#### 2026-01-21
+
+- [] implement FOSS alternative to https://github.com/hoochanlon/awesome_cn_stopwords.git
 
 #### 2026-01-06
 - Support HTML import for extended format coverage.  

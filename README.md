@@ -104,6 +104,13 @@ Navigate to canvas directory, install dependencies, start development server. Ac
 **Parser Scripts**
 Create virtual environment, install Python requirements, run transformation scripts from repository root.
 
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install --upgrade pip
+./.venv/bin/python -m pip install -r requirements.txt
+./.venv/bin/python -m knowgrph_parser smoke --timeout-seconds 20
+```
+
 ### Documentation Automation
 
 - From code registries to consistent docs: CLI tooling → regenerates markdown tables and registries → keeps UI, schema fixtures, and documentation aligned.

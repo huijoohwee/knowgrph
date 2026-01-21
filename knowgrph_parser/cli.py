@@ -11,6 +11,7 @@ from . import markdown_cmd
 from . import pipeline_cmd
 from . import pdf_cmd
 from . import python_codebase_index_cmd
+from . import smoke_cmd
 from . import test_embedding_sanity_cmd
 from . import workflow_artifacts_cmd
 
@@ -18,7 +19,7 @@ from . import workflow_artifacts_cmd
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = list(argv) if argv is not None else sys.argv[1:]
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    entrypoint = "python -m knowgrph_parser"
+    entrypoint = f"{sys.executable} -m knowgrph_parser"
 
     if args:
         cmd = args[0].strip().lower()
@@ -41,6 +42,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return python_codebase_index_cmd.main(rest, base_dir=base_dir, parser_script_path=entrypoint)
         if cmd in {"pipeline"}:
             return pipeline_cmd.main(list(rest))
+        if cmd in {"smoke"}:
+            return smoke_cmd.main(rest, base_dir=base_dir)
         if cmd in {"graphrag-workflow"}:
             return graphrag_workflow_cmd.main(rest, base_dir=base_dir)
         if cmd in {"graphrag-pipeline"}:

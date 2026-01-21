@@ -4,8 +4,8 @@ import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
-import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE, getNodeRadiusFromSchema } from '@/lib/graph/schema'
-import { getNodeMediaSpec, getLayerOpacity, getNodeBaseFill } from '@/components/GraphCanvas/helpers'
+import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
+import { getNodeMediaSpec, getLayerOpacity, getNodeBaseFill, getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import { applyMediaProxySrc } from '@/lib/url'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { NodeSelectionState, SelectionVisuals } from './selection'
@@ -148,7 +148,7 @@ export function NodeMesh({
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const baseColor = getNodeBaseFill(node, schema)
   const props = node.properties || {}
-  const baseRadius = getNodeRadiusFromSchema(node, schema)
+  const baseRadius = getRenderNodeRadius2d(node, schema)
   const baseLayerOpacity = getLayerOpacity(node, schema)
   const deg = typeof props['degree'] === 'number' ? (props['degree'] as number) : undefined
   const scale = deg ? Math.max(0.9, Math.min(1.6, 0.95 + Math.sqrt(Math.max(1, deg)) * 0.15)) : 1

@@ -1,7 +1,8 @@
 import * as d3 from 'd3'
 import type { RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
-import { type GraphSchema, getNodeRadiusFromSchema, getThreeConfig } from '@/lib/graph/schema'
+import { getNodeRadiusFromSchema, getThreeConfig } from '@/lib/graph/schema'
+import type { GraphSchema } from '@/lib/graph/schemaTypes'
 import { getAdjacencyMap } from '@/components/GraphCanvas/simulation'
 import { coerceMediaUrl } from '@/lib/url'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
@@ -124,11 +125,29 @@ export function getNodeRadius(d: GraphNode, schema: GraphSchema): number {
   return getNodeRadiusFromSchema(d, schema)
 }
 
+function isKeywordItem(props: Record<string, unknown> | null | undefined): boolean {
+  const kind = props ? props['keyword:kind'] : undefined
+  return typeof kind === 'string' && kind.trim() !== ''
+}
+
+function getKeywordNodeSizeScale(schema: GraphSchema): number {
+  const v = schema.three?.keywordNodeSizeScale
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 1
+  return Math.max(0.2, Math.min(5, v))
+}
+
+function getKeywordEdgeWidthScale(schema: GraphSchema): number {
+  const v = schema.three?.keywordEdgeWidthScale
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 1
+  return Math.max(0.2, Math.min(5, v))
+}
+
 export function getRenderNodeRadius2d(node: GraphNode, schema: GraphSchema): number {
   const props = (node.properties || {}) as Record<string, unknown>
   const rawSize = props['visual:nodeSize']
+  const scale = isKeywordItem(props) ? getKeywordNodeSizeScale(schema) : 1
   if (typeof rawSize === 'number' && Number.isFinite(rawSize) && rawSize > 0) {
-    return rawSize
+    return rawSize * scale
   }
 
   const sizingFormula = schema.three?.nodeSizingFormula ?? 'schema'
@@ -137,10 +156,10 @@ export function getRenderNodeRadius2d(node: GraphNode, schema: GraphSchema): num
     if (typeof importance === 'number' && Number.isFinite(importance) && importance > 0) {
       const radius = Math.sqrt(importance) * 2
       const clamped = Math.max(10, Math.min(40, radius))
-      if (Number.isFinite(clamped) && clamped > 0) return clamped
+      if (Number.isFinite(clamped) && clamped > 0) return clamped * scale
     }
   }
-  return getNodeRadiusFromSchema(node, schema)
+  return getNodeRadiusFromSchema(node, schema) * scale
 }
 
 export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number {
@@ -150,13 +169,14 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
       ? styles.width
       : 2
   const props = edge.properties || {}
+  const scale = isKeywordItem(props as Record<string, unknown>) ? getKeywordEdgeWidthScale(schema) : 1
   const threeCfg = getThreeConfig(schema)
   const formula = threeCfg.edgeWidthFormula || 'schema'
   const propWidth = props['visual:width']
+  let width = baseFromSchema
   if (formula !== 'weight' && typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
-    return propWidth
-  }
-  if (formula === 'weight') {
+    width = propWidth
+  } else if (formula === 'weight') {
     const rawWeight = (() => {
       const w1 = props['weight']
       const w2 = props['visual:weight']
@@ -165,15 +185,16 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
       return null
     })()
     if (rawWeight != null && rawWeight > 0) {
-      const width = rawWeight / 3
-      const clamped = Math.max(1, Math.min(5, width))
-      return clamped
+      const computed = rawWeight / 3
+      const clamped = Math.max(1, Math.min(5, computed))
+      width = clamped
+    } else if (typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
+      width = propWidth
     }
+  } else if (typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
+    width = propWidth
   }
-  if (typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
-    return propWidth
-  }
-  return baseFromSchema
+  return width * scale
 }
 
 export function getEdgeBaseStroke(edge: GraphEdge, schema: GraphSchema): string {

@@ -2,6 +2,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashText } from '@/features/parsers/hash'
 import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
+import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
 
 export type KeywordGraphSource = {
   documentId: string
@@ -14,9 +15,7 @@ export type KeywordGraphResult = {
   nodeCountsById: Map<string, number>
 }
 
-const DEFAULT_STOPWORDS = new Set<string>([
-  'a','an','and','are','as','at','be','because','been','but','by','can','could','did','do','does','for','from','had','has','have','he','her','hers','him','his','how','i','if','in','into','is','it','its','just','may','might','more','most','must','my','no','not','of','on','or','our','ours','she','should','so','some','such','than','that','the','their','theirs','them','then','there','these','they','this','those','to','too','us','was','we','were','what','when','where','which','who','why','will','with','would','you','your','yours',
-])
+const DEFAULT_STOPWORDS = NLTK_STOPWORDS_EN_SET
 
 const VERB_HINTS = new Set<string>([
   'is','are','was','were','be','been','being',
@@ -184,55 +183,35 @@ const inferRelationshipKeyword = (args: {
   return 'relates_to'
 }
 
-const buildLabelPropagationCommunities = (args: {
+const buildConnectedComponentCommunities = (args: {
   nodeIds: string[]
   undirectedNeighbors: Map<string, string[]>
-  maxIter?: number
 }): Map<string, number> => {
-  const maxIter = Number.isFinite(args.maxIter) ? Math.max(1, Math.floor(args.maxIter as number)) : 20
   const nodes = [...args.nodeIds].sort((a, b) => a.localeCompare(b))
-  const labelById = new Map<string, number>()
-  for (let i = 0; i < nodes.length; i += 1) labelById.set(nodes[i]!, i)
-  if (nodes.length === 0) return labelById
+  const visited = new Set<string>()
+  const out = new Map<string, number>()
+  let communityId = 0
 
-  for (let iter = 0; iter < maxIter; iter += 1) {
-    let changed = false
-    for (let i = 0; i < nodes.length; i += 1) {
-      const nid = nodes[i]!
-      const nbs = args.undirectedNeighbors.get(nid) || []
-      if (!nbs.length) continue
-      const counts = new Map<number, number>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const start = nodes[i]!
+    if (visited.has(start)) continue
+    const queue: string[] = [start]
+    visited.add(start)
+    out.set(start, communityId)
+    for (let qi = 0; qi < queue.length; qi += 1) {
+      const cur = queue[qi]!
+      const nbs = (args.undirectedNeighbors.get(cur) || []).slice().sort((a, b) => a.localeCompare(b))
       for (let j = 0; j < nbs.length; j += 1) {
         const nb = nbs[j]!
-        const lbl = labelById.get(nb)
-        if (lbl == null) continue
-        counts.set(lbl, (counts.get(lbl) || 0) + 1)
-      }
-      if (counts.size === 0) continue
-      let bestLabel: number | null = null
-      let bestCount = -1
-      counts.forEach((count, label) => {
-        if (count > bestCount) {
-          bestCount = count
-          bestLabel = label
-        } else if (count === bestCount && bestLabel != null && label < bestLabel) {
-          bestLabel = label
-        }
-      })
-      if (bestLabel == null) continue
-      if (labelById.get(nid) !== bestLabel) {
-        labelById.set(nid, bestLabel)
-        changed = true
+        if (visited.has(nb)) continue
+        visited.add(nb)
+        out.set(nb, communityId)
+        queue.push(nb)
       }
     }
-    if (!changed) break
+    communityId += 1
   }
 
-  const unique = Array.from(new Set(Array.from(labelById.values()))).sort((a, b) => a - b)
-  const remap = new Map<number, number>()
-  for (let i = 0; i < unique.length; i += 1) remap.set(unique[i]!, i)
-  const out = new Map<string, number>()
-  labelById.forEach((label, id) => out.set(id, remap.get(label) ?? 0))
   return out
 }
 
@@ -422,6 +401,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         count: count as unknown as JSONValue,
         'visual:importance': count as unknown as JSONValue,
         'visual:nodeSize': nodeSize as unknown as JSONValue,
+        tags: ['idea'] as unknown as JSONValue,
       },
       metadata: {
         derived: true,
@@ -490,16 +470,19 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     undirectedNeighbors.set(t, tArr)
   }
 
-  const communities = buildLabelPropagationCommunities({
+  const communities = buildConnectedComponentCommunities({
     nodeIds: nodes.map(n => String(n.id)),
     undirectedNeighbors,
-    maxIter: 20,
   })
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]!
     const cid = communities.get(String(n.id))
     if (cid == null) continue
-    n.properties = { ...(n.properties || {}), 'visual:community': cid as unknown as JSONValue }
+    n.properties = {
+      ...(n.properties || {}),
+      'visual:community': cid as unknown as JSONValue,
+      'visual:layer': cid as unknown as JSONValue,
+    }
   }
 
   const graph: GraphData = {

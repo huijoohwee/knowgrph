@@ -10,6 +10,7 @@ import {
   MIN_SPACING_TOOLTIP,
   LAYOUT_SEED_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
+import ThreeSizingAndWidthControls from '@/features/panels/views/shared/ThreeSizingAndWidthControls'
 
 interface ThreeViewLayoutSectionProps {
   schema: GraphSchema
@@ -26,10 +27,6 @@ export default function ThreeViewLayoutSection({
   onToggle,
   uiPanelKeyValueInputClass,
 }: ThreeViewLayoutSectionProps) {
-  const nodeSizingFormula: 'schema' | 'importance' =
-    schema.three?.nodeSizingFormula === 'importance' ? 'importance' : 'schema'
-  const edgeWidthFormula: 'schema' | 'weight' =
-    schema.three?.edgeWidthFormula === 'weight' ? 'weight' : 'schema'
   const layerOpacityByLayer = schema.three?.layerOpacityByLayer || {}
   const layer1 = typeof layerOpacityByLayer['1'] === 'number' ? layerOpacityByLayer['1'] : 1.0
   const layer2 = typeof layerOpacityByLayer['2'] === 'number' ? layerOpacityByLayer['2'] : 0.9
@@ -168,39 +165,11 @@ export default function ThreeViewLayoutSection({
             </Tooltip>
           )}
         />
-        <KeyTypeValueRow
-          layout="keyValue"
-          keyNode={<span className="text-gray-700">Node Sizing</span>}
-          valueNode={(
-            <select
-              className={uiPanelKeyValueInputClass}
-              value={nodeSizingFormula}
-              onChange={e => {
-                const next: 'schema' | 'importance' = e.target.value === 'importance' ? 'importance' : 'schema'
-                setThreeConfig({ nodeSizingFormula: next })
-              }}
-            >
-              <option value="schema">schema</option>
-              <option value="importance">importance</option>
-            </select>
-          )}
-        />
-        <KeyTypeValueRow
-          layout="keyValue"
-          keyNode={<span className="text-gray-700">Edge Width</span>}
-          valueNode={(
-            <select
-              className={uiPanelKeyValueInputClass}
-              value={edgeWidthFormula}
-              onChange={e => {
-                const next: 'schema' | 'weight' = e.target.value === 'weight' ? 'weight' : 'schema'
-                setThreeConfig({ edgeWidthFormula: next })
-              }}
-            >
-              <option value="schema">schema</option>
-              <option value="weight">weight</option>
-            </select>
-          )}
+        <ThreeSizingAndWidthControls
+          schema={schema}
+          setThreeConfig={setThreeConfig}
+          uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
+          variant="simple"
         />
         <KeyTypeValueRow
           layout="keyValue"

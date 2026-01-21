@@ -92,7 +92,7 @@ export default function CommunitiesStatsSection({
   }, [communities, pinnedCommunityId, selectedCommunityIdSet])
 
   return (
-    <CollapsibleSection title="Communities (Louvain)">
+    <CollapsibleSection title="Communities">
       {communities.length === 0 ? (
         <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-600'].join(' ')}>
           No communities detected.

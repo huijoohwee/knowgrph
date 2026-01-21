@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import type { GraphData } from '@/lib/graph/types'
 import { keywordGraphCache, deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
 import { hashText } from '@/features/parsers/hash'
+import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 
 const buildKeywordSourceTextFromGraph = (graph: GraphData): string => {
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
@@ -14,6 +15,35 @@ const buildKeywordSourceTextFromGraph = (graph: GraphData): string => {
     parts.push(label)
   }
   return parts.join('\n')
+}
+
+export const mergeKeywordGraphWithMediaNodes = (args: {
+  baseGraphData: GraphData
+  keywordGraph: GraphData
+  sourceId: string
+}): GraphData => {
+  const mediaNodes = (() => {
+    const nodes = Array.isArray(args.baseGraphData.nodes) ? args.baseGraphData.nodes : []
+    const out: typeof nodes = []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      if (!n) continue
+      if (!hasNodeMedia(n)) continue
+      out.push(n)
+    }
+    return out
+  })()
+  if (mediaNodes.length === 0) return args.keywordGraph
+  const existingIds = new Set<string>((args.keywordGraph.nodes || []).map(n => String(n.id)))
+  const mergedMedia = mediaNodes
+    .filter(n => !existingIds.has(String(n.id)))
+    .map(n => ({
+      ...n,
+      properties: { ...(n.properties || {}) },
+      metadata: { ...(n.metadata || {}), derived: true, kind: 'keyword:media', source: args.sourceId },
+    }))
+  if (mergedMedia.length === 0) return args.keywordGraph
+  return { ...args.keywordGraph, nodes: [...(args.keywordGraph.nodes || []), ...mergedMedia] }
 }
 
 export function useActiveGraphData(): GraphData | null {
@@ -38,9 +68,12 @@ export function useActiveGraphData(): GraphData | null {
       : `graph:${hashText(String(revision))}`
     const cacheKey = `keyword:${docId}:${hashText(sourceText)}`
     const cached = keywordGraphCache.get(cacheKey)
-    if (cached) return cached.graph
+    if (cached) {
+      return mergeKeywordGraphWithMediaNodes({ baseGraphData, keywordGraph: cached.graph, sourceId: docId })
+    }
     const derived = deriveKeywordGraphFromText({ documentId: docId, documentText: sourceText, sourceLabel: markdownName || undefined })
-    keywordGraphCache.set(cacheKey, derived)
-    return derived.graph
+    const graph = mergeKeywordGraphWithMediaNodes({ baseGraphData, keywordGraph: derived.graph, sourceId: docId })
+    keywordGraphCache.set(cacheKey, { ...derived, graph })
+    return graph
   }, [baseGraphData, markdownName, markdownText, mode, revision])
 }

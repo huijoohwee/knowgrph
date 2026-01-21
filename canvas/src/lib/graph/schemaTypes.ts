@@ -180,6 +180,8 @@ export interface GraphSchema {
     nodeSizingFormula?: 'schema' | 'importance';
     nodeImportanceSources?: string[];
     edgeWidthFormula?: 'schema' | 'weight';
+    keywordNodeSizeScale?: number;
+    keywordEdgeWidthScale?: number;
     selection?: {
       selectedNodeGlowIntensity?: number;
       dimmedNodeOpacity?: number;

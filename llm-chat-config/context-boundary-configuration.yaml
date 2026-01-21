@@ -105,7 +105,7 @@ retrieval_strategies:
           direction: "both"
           
       - community_based:
-          algorithm: "louvain"
+          algorithm: "connected_components"
           min_community_size: 3
           
       - path_based:

@@ -427,8 +427,8 @@ layers.semantic.communityDetection:
   scope: layer_specific
   type: object
   mutability: deployment_configurable
-  validation: must define resolution, passes, moves
-  impact: configures Louvain community detection
+  validation: must define enabled and algorithm
+  impact: configures NetworkX community detection for graph layers/subgraphs
 
 layers.documentStructure.structuralNodeTypes:
   scope: layer_specific

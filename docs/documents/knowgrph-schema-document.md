@@ -286,7 +286,7 @@ schema.layout.rectNodes.maxZoomMinimapHeightRatio:
 | Tokenization             | Node text fields               | Token arrays per node          | Tokenize labels and properties                              | O(n * avg_text_length)                       |
 | Similarity Calculation   | Token arrays                   | Pairwise similarity scores     | Compute cosine similarity or PMI                            | O(n²) for dense, O(nk) for sparse (k=topK)   |
 | Edge Sparsification      | Similarity scores              | Filtered edges                 | Apply `topKEdgesPerNode` and `minSimilarity` thresholds     | O(n log k) per node with heap                |
-| Community Detection      | Sparse similarity graph        | Community assignments          | Louvain-style algorithm assigns `visual:community`          | O(m) where m = semantic edges                |
+| Community Detection      | Sparse similarity graph        | Community assignments          | NetworkX connected components assign `visual:community` | O(m) where m = semantic edges                |
 
 **Configuration Schema**:
 
