@@ -12,37 +12,37 @@
     "agenticRagSchema": "/schema/AgenticRAG",
     "renderer:palette": {
       "nodes": {
-        "idea": "#2563EB",
-        "hypothesis": "#EAB308",
-        "execution": "#22C55E",
-        "pivot": "#F97316",
-        "alert": "#EF4444"
+        "idea": "#007BFF",
+        "hypothesis": "#FFC107",
+        "execution": "#28A745",
+        "pivot": "#FD7E14",
+        "alert": "#DC3545"
       },
       "edges": {
-        "critical": "#DC2626",
-        "neutral": "#64748B"
+        "critical": "#DC3545",
+        "neutral": "#9CA3AF"
       }
     },
     "canvas:graphLayers": {
       "defaultStyle": {
-        "fill": "#2563EB",
+        "fill": "#007BFF",
         "fillOpacity": 0.16,
-        "stroke": "#2563EB",
+        "stroke": "#007BFF",
         "strokeWidth": 1.5,
         "dash": "4,2"
       },
       "byPropertyKey": {
         "contains": {
-          "fill": "#22C55E",
+          "fill": "#28A745",
           "fillOpacity": 0.14,
-          "stroke": "#16A34A",
+          "stroke": "#28A745",
           "strokeWidth": 1.4,
           "dash": "6,3"
         },
         "steps": {
-          "fill": "#F97316",
+          "fill": "#FD7E14",
           "fillOpacity": 0.18,
-          "stroke": "#EA580C",
+          "stroke": "#FD7E14",
           "strokeWidth": 1.6,
           "dash": "2,2"
         }

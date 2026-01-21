@@ -96,7 +96,7 @@ export default function GraphLayerWordFrequenciesSection({
   }, [pinnedGraphLayerId, selectedGraphLayerIdSet, tokensByGraphLayer])
 
   return (
-    <CollapsibleSection title="Word frequencies by graph layer">
+    <CollapsibleSection title="Word frequencies by cluster layer">
       {tokensByGraphLayer.length === 0 ? (
         <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-600'].join(' ')}>
           {UI_COPY.statsNoNodesAvailableLabel}
@@ -107,7 +107,7 @@ export default function GraphLayerWordFrequenciesSection({
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-1">
                 <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
-                  Graph layer
+                  Cluster layer
                 </div>
                 <IconButton
                   className="App-toolbar__btn"
@@ -313,7 +313,7 @@ export default function GraphLayerWordFrequenciesSection({
                     key: row.graphLayerId,
                     value: row.totalTokens,
                     color: row.fill || undefined,
-                    label: `Graph layer ${row.label} • ${row.nodeCount} nodes • ${row.totalTokens} tokens`,
+                    label: `Cluster layer ${row.label} • ${row.nodeCount} nodes • ${row.totalTokens} tokens`,
                     active: pinnedGraphLayerId === row.graphLayerId || selectedGraphLayerIdSet.has(row.graphLayerId),
                     onClick: () => {
                       if (pinnedGraphLayerId === row.graphLayerId) {
@@ -372,7 +372,7 @@ export default function GraphLayerWordFrequenciesSection({
             <div key={row.graphLayerId} className="rounded border border-gray-200 bg-white p-3">
               <div className="flex items-center justify_between gap-2">
                 <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
-                  Graph layer {row.label}
+                  Cluster layer {row.label}
                 </div>
                 <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-500'].join(' ')}>
                   {row.nodeCount} nodes, {row.totalTokens} tokens

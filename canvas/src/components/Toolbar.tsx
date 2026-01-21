@@ -86,7 +86,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
   const nodeShapeMode = schema.behavior?.nodeShapeMode === 'rect' ? 'rect' : 'circle'
-  const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'geo' : 'rect'
+  const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'polygon' : 'rect'
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode || 'document')
   const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
 
@@ -202,8 +202,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className={`App-toolbar__btn ${
           groupShapeMode === 'rect' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title={groupShapeMode === 'rect' ? 'Group Shape: Rect' : 'Group Shape: Geo'}
-        tooltipContent={groupShapeMode === 'rect' ? 'Switch to Geo shape' : 'Switch to Rect shape'}
+        title={groupShapeMode === 'rect' ? UI_LABELS.groupShapeRect : UI_LABELS.groupShapePolygon}
+        tooltipContent={groupShapeMode === 'rect' ? UI_COPY.groupShapeRectTooltip : UI_COPY.groupShapePolygonTooltip}
         onClick={actions.handleToggleGroupShapeMode}
         showTooltip
       >

@@ -188,7 +188,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Canvas Interaction',
     responsibility: 'Edge creation mode (shift-drag, click, panel-only)',
     notes:
-      'Edge creator → choose shift-drag, click-source-target, or panel-only edge creation → align edge gestures with selection-aware overlays so you can inspect distributions, hierarchies, graph layers, and paths without losing predictable zoom and node-drag behavior.',
+      'Edge creator → choose shift-drag, click-source-target, or panel-only edge creation → align edge gestures with selection-aware overlays so you can inspect distributions, hierarchies, clusters, and paths without losing predictable zoom and node-drag behavior.',
   },
   'three.selection.selectedNodeGlowIntensity': { area: '3D Selection', responsibility: 'Selected node emissive glow intensity' },
   'three.selection.dimmedNodeOpacity': { area: '3D Selection', responsibility: 'Dimmed unselected node opacity' },
@@ -219,10 +219,10 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   'three.camera.backgroundColor': { area: 'Canvas Rendering', responsibility: '3D canvas background color' },
   'three.graph.polygons.elevationOffset': {
     area: '3D Group Surfaces',
-    responsibility: 'Vertical offset for 3D graph layer surfaces relative to nodes',
+    responsibility: 'Vertical offset for 3D cluster surfaces (graph layers) relative to nodes',
   },
   'three.graph.polygons.opacityMultiplier': {
     area: '3D Group Surfaces',
-    responsibility: 'Global multiplier for 3D graph layer surface fill opacity',
+    responsibility: 'Global multiplier for 3D cluster surface (graph layers) fill opacity',
   },
 }

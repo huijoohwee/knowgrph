@@ -110,7 +110,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
             </div>
             <div>
               <div className="text-xs font-semibold text-gray-500 mb-1">
-                Semantic layer derivation (cosine / PMI, top‑K, communities)
+                Semantic layer derivation (cosine / PMI, top‑K, clusters)
               </div>
               <div className="text-[11px] text-gray-600 leading-snug space-y-1">
                 <p>
@@ -123,7 +123,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                   For each node, neighbor candidates are sorted by similarity; up to top‑K neighbors above the global similarity threshold are kept, and undirected pairs are stored symmetrically. Derived edges receive similarity‑based weights and co‑occurrence‑based widths so renderers can map weight to thickness and count to width.
                 </p>
                 <p>
-                  A NetworkX connected-components pass assigns communities over this similarity graph. Node importance is derived from token counts or incident similarity weights, mapped into a clamped radius band, and stored as visual:importance and visual:nodeSize alongside visual:community and a deterministic community color.
+                  A NetworkX connected-components pass assigns clusters over this similarity graph. Node importance is derived from token counts or incident similarity weights, mapped into a clamped radius band, and stored as visual:importance and visual:nodeSize alongside visual:community and a deterministic cluster color.
                 </p>
               </div>
             </div>

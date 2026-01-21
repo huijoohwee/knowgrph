@@ -120,11 +120,11 @@ export function FieldGraphLayersSection({
   return (
     <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
       <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
-        Graph layer styling
+        Cluster layer styling
       </div>
       {disabled ? (
         <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
-          Select a node property field to configure graph layer styling.
+          Select a node property field to configure cluster layer styling.
         </div>
       ) : (
         <div className="space-y-2">
@@ -305,10 +305,10 @@ export function GraphLayerMetadataPresetsSection({
   return (
     <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
       <div className={`${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`}>
-        Graph layer defaults
+        Cluster layer defaults
       </div>
       <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
-        Configure default fill, stroke, opacity, and dash used by graph layers in both 2D and 3D views. Field-level overrides live in the schema extras panel.
+        Configure default fill, stroke, opacity, and dash used by cluster layers in both 2D and 3D views. Field-level overrides live in the schema extras panel.
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0">
@@ -468,4 +468,3 @@ export function GraphLayerMetadataPresetsSection({
     </div>
   )
 }
-

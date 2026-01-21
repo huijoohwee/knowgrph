@@ -11,9 +11,11 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
     mode: 'force',
     frontmatterMode: false,
     semanticMode: 'document',
+    renderMode: '2d',
     prevMode: 'force',
     prevFrontmatterMode: true,
     prevSemanticMode: 'document',
+    prevRenderMode: '2d',
     nodes,
     layoutPositionCacheByMode: {},
   })
@@ -25,7 +27,7 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
   }
 
   const cache = {
-    'document:default:force': {
+    'document:default:force:2d': {
       a: { x: 1, y: 2 },
       b: { x: 3, y: 4 },
     },
@@ -34,14 +36,16 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
     mode: 'force',
     frontmatterMode: false,
     semanticMode: 'document',
+    renderMode: '2d',
     prevMode: 'force',
     prevFrontmatterMode: true,
     prevSemanticMode: 'document',
+    prevRenderMode: '3d',
     nodes,
     layoutPositionCacheByMode: cache,
   })
-  if (resWithCache.cacheKey !== 'document:default:force') {
-    throw new Error(`expected cacheKey document:default:force, got ${resWithCache.cacheKey}`)
+  if (resWithCache.cacheKey !== 'document:default:force:2d') {
+    throw new Error(`expected cacheKey document:default:force:2d, got ${resWithCache.cacheKey}`)
   }
   if (!resWithCache.layoutPositionsForMode) {
     throw new Error('expected cache positions to be selected on view toggle when coverage is high')

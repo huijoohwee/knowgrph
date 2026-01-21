@@ -249,7 +249,7 @@ export function WorkflowSteps({
           </button>
         </div>
         <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500 mt-1`}>
-          After loading the graph, use the toolbar Radial Layout and Graph Layers toggles to orbit nodes in 2D and outline related phases, datasets, and artifacts using schema.metadata["canvas:graphLayers"].
+          After loading the graph, use the toolbar Radial Layout and Clusters toggles to orbit nodes in 2D and outline related phases, datasets, and artifacts using schema.metadata["canvas:graphLayers"].
         </div>
       </CollapsibleSection>
 

@@ -49,7 +49,7 @@ This file demonstrates **CommonMark + Mermaid integration** with anchors and lin
 
 - **Nodes (labels):** `"User Query"`, `"Context Retrieval"`, etc. → defined in Mermaid as `Input[User Query]`, `Retrieval[Context Retrieval]`.
 - **Edges:** `"Retrieval"`, `"Augmentation"`, etc. → defined in Mermaid with arrows (`-->`).
-- **Graph Layers:** `"Core pipeline"`, `"Agents hierarchy"`, etc. → represented with `%% comments` or `subgraph` blocks in Mermaid.
+- **Cluster Layers:** `"Core pipeline"`, `"Agents hierarchy"`, etc. → represented with `%% comments` or `subgraph` blocks in Mermaid.
 - **Anchors:** `<a id="agent"></a>` in Markdown body → target for Mermaid `click AgentNode "#agent"`.
 - **Links:** `[Agents](#agent)` in tables or lists → clickable references to anchors.
 

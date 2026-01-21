@@ -60,6 +60,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     setLayoutPositionsForMode,
     frontmatterModeEnabled,
     documentSemanticMode,
+    canvasRenderMode,
   } = useGraphStore(
     useShallow((s) => ({
       graphDataRevision: s.graphDataRevision,
@@ -71,8 +72,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+      canvasRenderMode: s.canvasRenderMode,
     })),
   );
+  const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
+  const prevCanvasRenderMode = prevCanvasRenderModeRef.current
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
   const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
   const selectedEdgeIdRef = useGraphStoreKeyRef('selectedEdgeId')
@@ -217,6 +221,19 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     };
   }, [registerCanvasSnapshotFns]);
 
+  useEffect(() => {
+    if (active) return
+    if (!sceneCleanupRef.current) return
+    try {
+      sceneCleanupRef.current()
+    } catch {
+      void 0
+    } finally {
+      sceneCleanupRef.current = null
+      sceneBuildKeyRef.current = null
+    }
+  }, [active])
+
   const edgesForSim = useMemo(
     () =>
       normalizeEdgesForSim(
@@ -301,9 +318,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         mode,
         frontmatterMode: !!effectiveFrontmatterModeEnabled,
         semanticMode: documentSemanticMode,
+        renderMode: canvasRenderMode,
         prevMode,
         prevFrontmatterMode,
         prevSemanticMode,
+        prevRenderMode: prevCanvasRenderMode,
         nodes: Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes : [],
         layoutPositionCacheByMode,
       });
@@ -393,7 +412,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     setLayoutPositionsForMode,
     effectiveFrontmatterModeEnabled,
     documentSemanticMode,
+    canvasRenderMode,
   ]);
+
+  useEffect(() => {
+    prevCanvasRenderModeRef.current = canvasRenderMode
+  }, [canvasRenderMode])
 
   useEffect(() => {
     const g = gRef.current

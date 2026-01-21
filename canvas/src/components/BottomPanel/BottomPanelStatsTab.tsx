@@ -12,6 +12,7 @@ import type { StatsUiClasses } from '@/components/BottomPanel/stats/types'
 import { useStatsSelection } from '@/components/BottomPanel/hooks/useStatsSelection'
 import { useStatsTokens } from '@/components/BottomPanel/hooks/useStatsTokens'
 import { useStatsDerivedData } from '@/components/BottomPanel/hooks/useStatsDerivedData'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export default function BottomPanelStatsTab() {
   const semanticMode = useGraphStore(s => (s.documentSemanticMode || 'document') as 'document' | 'keyword')
@@ -137,9 +138,12 @@ export default function BottomPanelStatsTab() {
         if (kind && kind !== 'entity') return null
         const rawCount = props.count
         const count = typeof rawCount === 'number' && Number.isFinite(rawCount) ? rawCount : 0
-        return { id: String(n.id), label: String(n.label || n.id), count }
+        const vf = typeof props['visual:fill'] === 'string' ? props['visual:fill'].trim() : ''
+        const f = typeof props['fill'] === 'string' ? props['fill'].trim() : ''
+        const color = vf || f || ''
+        return { id: String(n.id), label: String(n.label || n.id), count, color }
       })
-      .filter((x): x is { id: string; label: string; count: number } => !!x && !!x.id)
+      .filter((x): x is { id: string; label: string; count: number; color: string } => !!x && !!x.id)
     out.sort((a, b) => {
       const diff = b.count - a.count
       if (diff !== 0) return diff
@@ -155,7 +159,7 @@ export default function BottomPanelStatsTab() {
         className="mt-0 border-t-0 pt-0"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="inline-flex rounded-md border border-gray-200 bg-white overflow-hidden">
+          <div className={`inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}>
             {(['auto', 'dataset', 'selection'] as const).map(key => (
               <button
                 key={key}
@@ -164,7 +168,7 @@ export default function BottomPanelStatsTab() {
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
                   'px-2 py-[2px]',
-                  statsScope === key ? 'bg-gray-200 text-gray-800' : 'text-gray-500',
+                  statsScope === key ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : UI_THEME_TOKENS.button.text,
                 ].join(' ')}
                 onClick={() => setStatsScope(key)}
               >
@@ -172,7 +176,7 @@ export default function BottomPanelStatsTab() {
               </button>
             ))}
           </div>
-          <div className="inline-flex rounded-md border border-gray-200 bg-white overflow-hidden">
+          <div className={`inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}>
             {(['auto', 'low', 'medium', 'high'] as const).map(key => (
               <button
                 key={key}
@@ -181,7 +185,7 @@ export default function BottomPanelStatsTab() {
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
                   'px-2 py-[2px]',
-                  statsLod === key ? 'bg-gray-200 text-gray-800' : 'text-gray-500',
+                  statsLod === key ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : UI_THEME_TOKENS.button.text,
                 ].join(' ')}
                 onClick={() => setStatsLod(key)}
               >

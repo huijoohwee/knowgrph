@@ -114,7 +114,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     descriptionShort:
       'Render graphs in 2D/3D or maps, or feed exports into indexers and visualization stacks so appearance stays a late, replaceable decision on top of stable GraphData.',
     descriptionLong:
-      'Render graphs in 2D/3D or map views, or feed exports into indexers, dashboards, and downstream RAG pipelines so appearance and retrieval strategies remain late, replaceable decisions on top of stable GraphData. Visual mappings, level-of-detail, canvas Embed/Overlay mini-visualizations, and schema-driven graph layers (controlled by the Graph Layers toolbar toggle and `schema.metadata["canvas:graphLayers"]`) happen here without altering the canonical store, keeping phase/step-style outlines and overlays domain-agnostic.',
+      'Render graphs in 2D/3D or map views, or feed exports into indexers, dashboards, and downstream RAG pipelines so appearance and retrieval strategies remain late, replaceable decisions on top of stable GraphData. Visual mappings, level-of-detail, canvas Embed/Overlay mini-visualizations, and schema-driven clusters (controlled by the Clusters toolbar toggle and `schema.metadata["canvas:graphLayers"]`) happen here without altering the canonical store, keeping phase/step-style outlines and overlays domain-agnostic.',
   },
 }
 
@@ -279,7 +279,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     descriptionShort:
       'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-based D3 visualizations work together.',
     descriptionLong:
-      'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-driven D3 visualizations work together. The cheatsheet pairs canvas gestures with bottom panel behavior and selection-aware mini‑charts (Graph Data Table aggregates, dataset inspector distributions, hierarchy, graph layer, and path visualizations) so selections and creation flows stay predictable as you switch between modes.',
+      'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-driven D3 visualizations work together. The cheatsheet pairs canvas gestures with bottom panel behavior and selection-aware mini‑charts (Graph Data Table aggregates, dataset inspector distributions, hierarchy, cluster layers, and path visualizations) so selections and creation flows stay predictable as you switch between modes.',
   },
   panelTour: {
     id: 'panelTour',

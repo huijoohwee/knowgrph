@@ -212,12 +212,12 @@ export default function SchemaSummary({
       parts.push(`Ontologies: ${ontologiesCount}`)
     }
     if (graphLayersCount > 0) {
-      parts.push(`Graph layers: ${graphLayersCount}`)
+      parts.push(`Cluster layers: ${graphLayersCount}`)
     }
     sections.push(
       <Tooltip
         key="ontologies"
-        content="Counts come from markdown frontmatter ontologies/graphLayers (polygonLayers alias) or GraphData metadata. Click to open Help on multi-ontology graphs and graph layers."
+        content="Counts come from markdown frontmatter ontologies/graphLayers (polygonLayers alias) or GraphData metadata. Click to open Help on multi-ontology graphs and cluster layers."
         maxWidthPx={260}
         contentClassName="bg-gray-800/90"
       >

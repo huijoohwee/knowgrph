@@ -250,10 +250,24 @@ export function GraphDataTableRows({
         const rowIndex = dataRowIndexByItemIndex[itemIndex]
 
         const scopeBorderColor =
-          isNodeRow && nodeScopeBorderColor
-            ? nodeScopeBorderColor
-            : isEdgeRow && edgeScopeBorderColor
-              ? edgeScopeBorderColor
+          isNodeRow
+            ? (() => {
+                const props = (activeNode?.properties || {}) as Record<string, unknown>
+                const vf = typeof props['visual:fill'] === 'string' ? props['visual:fill'].trim() : ''
+                if (vf) return vf
+                const f = typeof props['fill'] === 'string' ? props['fill'].trim() : ''
+                if (f) return f
+                return nodeScopeBorderColor || null
+              })()
+            : isEdgeRow
+              ? (() => {
+                  const props = (activeEdge?.properties || {}) as Record<string, unknown>
+                  const vs = typeof props['visual:stroke'] === 'string' ? props['visual:stroke'].trim() : ''
+                  if (vs) return vs
+                  const vc = typeof props['visual:color'] === 'string' ? props['visual:color'].trim() : ''
+                  if (vc) return vc
+                  return edgeScopeBorderColor || null
+                })()
               : null
 
         const selectionClassName = isActive

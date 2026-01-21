@@ -4,9 +4,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { TokenWithLines } from './markdownPreviewLex'
 import { buildTocTree, findParent, type TocItem } from './markdownSectionUtils'
 
-const UI_COLOR_PRIMARY_BLUE_INDICATOR = '#2563EB' // blue-600
-const UI_COLOR_PRIMARY_BLUE_BG = 'bg-blue-50'
-
 export type MarkdownTableOfContentsProps = {
   tokens: TokenWithLines[]
   onSelect?: (id: string) => void
@@ -118,34 +115,30 @@ function TocItemRenderer({
     <li className="relative">
       {dragState === 'top' && (
         <div
-          className="absolute left-0 right-0 -top-1 h-2 bg-blue-50 border-t-2 z-10 pointer-events-none"
-          style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+          className={`absolute left-0 right-0 -top-1 h-2 ${UI_THEME_TOKENS.button.activeBg} border-t-2 ${UI_THEME_TOKENS.button.activeBorder} z-10 pointer-events-none`}
         >
           <div
-            className="absolute left-0 -top-1 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent"
-            style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+            className={`absolute left-0 -top-1 w-0 h-0 border-l-4 border-r-4 border-b-4 ${UI_THEME_TOKENS.button.activeBorder} border-l-transparent border-r-transparent`}
           />
         </div>
       )}
       {dragState === 'bottom' && (
         <div
-          className="absolute left-0 right-0 -bottom-1 h-2 bg-blue-50 border-b-2 z-10 pointer-events-none"
-          style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+          className={`absolute left-0 right-0 -bottom-1 h-2 ${UI_THEME_TOKENS.button.activeBg} border-b-2 ${UI_THEME_TOKENS.button.activeBorder} z-10 pointer-events-none`}
         >
           <div
-            className="absolute left-0 -bottom-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent"
-            style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
+            className={`absolute left-0 -bottom-1 w-0 h-0 border-l-4 border-r-4 border-t-4 ${UI_THEME_TOKENS.button.activeBorder} border-l-transparent border-r-transparent`}
           />
         </div>
       )}
       <div
         className={[
           'group flex items-center gap-1 py-1 pr-2 rounded cursor-pointer select-none transition-colors relative',
-          isDragging ? `${UI_COLOR_PRIMARY_BLUE_BG} opacity-50` : `${UI_THEME_TOKENS.table.rowHoverAmber} ${UI_THEME_TOKENS.table.rowHover}`,
+          isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-50` : `${UI_THEME_TOKENS.table.rowHoverAmber} ${UI_THEME_TOKENS.table.rowHover}`,
           uiPanelTextFontClass,
           uiPanelKeyValueTextSizeClass || 'text-xs',
           'leading-5',
-          dragState !== 'none' ? `${UI_COLOR_PRIMARY_BLUE_BG}` : '',
+          dragState !== 'none' ? `${UI_THEME_TOKENS.button.activeBg}` : '',
         ].join(' ')}
         style={{ paddingLeft: `${(depth - 1) * 12 + 4}px` }}
         onClick={() => onSelect?.(item.id)}

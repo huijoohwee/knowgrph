@@ -92,16 +92,16 @@ export default function CommunitiesStatsSection({
   }, [communities, pinnedCommunityId, selectedCommunityIdSet])
 
   return (
-    <CollapsibleSection title="Communities">
+    <CollapsibleSection title="Clusters">
       {communities.length === 0 ? (
         <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-600'].join(' ')}>
-          No communities detected.
+          No clusters detected.
         </div>
       ) : (
         <div className="rounded border border-gray-200 bg-white overflow-hidden">
           <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'px-3 py-2 font-semibold text-gray-800 border-b border-gray-200 flex items-center justify-between gap-3'].join(' ')}>
             <div className="flex items-center gap-1">
-              <span>Community sizes</span>
+              <span>Cluster sizes</span>
               <IconButton
                 className="App-toolbar__btn"
                 title={UI_COPY.statsOpenRendererSettingsForCommunitiesTitle}

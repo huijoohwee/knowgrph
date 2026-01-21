@@ -1,13 +1,13 @@
 {
   "nodeStyles": {
-    "prov:Agent": { "color": "#2563EB" },
-    "prov:Entity": { "color": "#22C55E" },
+    "prov:Agent": { "color": "#007BFF" },
+    "prov:Entity": { "color": "#28A745" },
     "prov:Activity": { "color": "#0EA5E9" },
     "mex:Experiment": { "color": "#A855F7" },
     "mex:Execution": { "color": "#6366F1" },
     "mex:Performance": { "color": "#EC4899" },
-    "mls:Dataset": { "color": "#22C55E" },
-    "mls:Model": { "color": "#F97316" },
+    "mls:Dataset": { "color": "#28A745" },
+    "mls:Model": { "color": "#FD7E14" },
     "pplan:Step": { "color": "#10B981" },
     "geo:Polygon": { "color": "#FBBF24" },
     "geo:Geometry": { "color": "#E11D48" },

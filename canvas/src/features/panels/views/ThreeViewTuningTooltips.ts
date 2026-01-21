@@ -106,7 +106,7 @@ export const POLYGON_ELEVATION_TOOLTIP = buildNumericTooltip({
   min: -5,
   max: 5,
   interval: 0.1,
-  impact: 'Negative values sink graph layers slightly under nodes; positive values lift them above.',
+  impact: 'Negative values sink cluster layers slightly under nodes; positive values lift them above.',
 })
 
 export const POLYGON_OPACITY_MULTIPLIER_TOOLTIP = buildNumericTooltip({
@@ -114,7 +114,7 @@ export const POLYGON_OPACITY_MULTIPLIER_TOOLTIP = buildNumericTooltip({
   min: 0,
   max: 2,
   interval: 0.05,
-  impact: 'Higher values make 3D graph layer surfaces denser; lower values keep them faint and subtle.',
+  impact: 'Higher values make 3D cluster layer surfaces denser; lower values keep them faint and subtle.',
 })
 
 export const FOG_NEAR_TOOLTIP = buildNumericTooltip({

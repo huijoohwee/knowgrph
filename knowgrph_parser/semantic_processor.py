@@ -321,42 +321,75 @@ def process_semantics(
         props_dict["blockFrequency"] = int(entity_block_counts.get(eid) or 0)
         ent_obj["properties"] = props_dict
 
-    if sem_defaults.get("corpus_centrality_algorithm") == "pagerank":
-        entity_ids = list(entity_props_by_id.keys())
-        neighbors: Dict[str, List[str]] = {eid: [] for eid in entity_ids}
+    entity_ids = list(entity_props_by_id.keys())
+    if entity_ids:
+        role_counts: Dict[str, Dict[str, int]] = {eid: {"subject": 0, "object": 0} for eid in entity_ids}
         for e in edges:
             if not isinstance(e, dict):
                 continue
-            if e.get("relation") not in {"semanticRelation", "coOccursWith"}:
+            if e.get("relation") != "semanticRelation":
                 continue
             s = str(e.get("source") or e.get("source_node") or "")
             t = str(e.get("target") or e.get("target_node") or "")
-            if s in neighbors and t in neighbors and s != t:
-                neighbors[s].append(t)
-                neighbors[t].append(s)
-        n = len(entity_ids)
-        if n > 0:
-            pr = {eid: 1.0 / n for eid in entity_ids}
-            damping = clamp01(float(sem_defaults.get("pagerank_damping") or 0.85))
-            iterations = int(sem_defaults.get("pagerank_iterations") or 20)
-            iterations = max(1, min(200, iterations))
-            for _ in range(iterations):
-                nxt = {eid: (1.0 - damping) / n for eid in entity_ids}
-                for eid in entity_ids:
-                    outs = neighbors.get(eid) or []
-                    if not outs:
-                        continue
-                    share = pr[eid] / len(outs)
-                    for nb in outs:
-                        nxt[nb] = nxt.get(nb, 0.0) + damping * share
-                pr = nxt
-            for eid in entity_ids:
-                ent_obj = entity_props_by_id.get(eid)
-                if not ent_obj:
+            if s in role_counts:
+                role_counts[s]["subject"] = int(role_counts[s].get("subject") or 0) + 1
+            if t in role_counts:
+                role_counts[t]["object"] = int(role_counts[t].get("object") or 0) + 1
+        for eid, ent_obj in entity_props_by_id.items():
+            counts = role_counts.get(eid) or {"subject": 0, "object": 0}
+            subj = int(counts.get("subject") or 0)
+            obj = int(counts.get("object") or 0)
+            role = "subject" if subj > obj else "object" if obj > subj else "entity"
+            props = ent_obj.get("properties")
+            props_dict = props if isinstance(props, dict) else {}
+            props_dict["semanticRole"] = role
+            props_dict["roleSubjectCount"] = subj
+            props_dict["roleObjectCount"] = obj
+            ent_obj["properties"] = props_dict
+
+    if sem_defaults.get("corpus_centrality_algorithm") == "pagerank":
+        entity_ids = list(entity_props_by_id.keys())
+        if entity_ids:
+            g = nx.Graph()
+            g.add_nodes_from(entity_ids)
+            node_set = set(entity_ids)
+            for e in edges:
+                if not isinstance(e, dict):
                     continue
+                rel = str(e.get("relation") or "")
+                if rel not in {"semanticRelation", "coOccursWith"}:
+                    continue
+                s = str(e.get("source") or e.get("source_node") or "")
+                t = str(e.get("target") or e.get("target_node") or "")
+                if not s or not t or s == t:
+                    continue
+                if s not in node_set or t not in node_set:
+                    continue
+                props = e.get("properties") if isinstance(e.get("properties"), dict) else {}
+                w_raw = None
+                if isinstance(props, dict):
+                    if isinstance(props.get("similarity"), (int, float)):
+                        w_raw = float(props.get("similarity") or 0.0)
+                    elif isinstance(props.get("confidence"), (int, float)):
+                        w_raw = float(props.get("confidence") or 0.0)
+                w = float(w_raw) if isinstance(w_raw, (int, float)) else 1.0
+                w = 1.0 if not (w > 0.0 and math.isfinite(w)) else w
+                if g.has_edge(s, t):
+                    try:
+                        g[s][t]["weight"] = float(g[s][t].get("weight") or 0.0) + w
+                    except Exception:
+                        pass
+                    continue
+                g.add_edge(s, t, weight=w)
+            pr_scores: Dict[str, float] = {}
+            try:
+                pr_scores = nx.pagerank(g, alpha=0.85, weight="weight", max_iter=100, tol=1e-6)  # type: ignore
+            except Exception:
+                pr_scores = {}
+            for eid, ent_obj in entity_props_by_id.items():
                 props = ent_obj.get("properties")
                 props_dict = props if isinstance(props, dict) else {}
-                props_dict["centrality"] = float(pr.get(eid) or 0.0)
+                props_dict["centrality"] = float(pr_scores.get(eid) or 0.0)
                 ent_obj["properties"] = props_dict
 
     entity_ids = list(entity_props_by_id.keys())

@@ -104,14 +104,10 @@ export const defaultSchema: GraphSchema = {
     Entity: { color: MVP_COLOR_PALETTE.nodes.idea },
     Chunk: { color: MVP_COLOR_PALETTE.nodes.execution },
     EmbeddingMeta: { color: '#6B7280' },
-    KeywordEntity: { color: MVP_COLOR_PALETTE.nodes.idea },
-    KeywordPredicate: { color: MVP_COLOR_PALETTE.nodes.execution },
   },
   edgeStyles: {
     relatedTo: { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.5 },
     pointsTo: { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.5, arrow: true },
-    'keyword:subject': { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.2, arrow: true },
-    'keyword:object': { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.2, arrow: true },
   },
   metadata: {
     'renderer:palette': {

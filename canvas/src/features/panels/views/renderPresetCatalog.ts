@@ -184,7 +184,7 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
   },
   {
     id: 'demo-3d-group-graph-layers',
-    label: 'Demo 3D Group Graph Layers',
+    label: 'Demo 3D Cluster Layers',
     layoutOverrides: { charge: -350, collisionRadius: 16, applyGraphLayerDefaults: true },
     threeConfig: {
       linkDirectionalArrowLength: 8,

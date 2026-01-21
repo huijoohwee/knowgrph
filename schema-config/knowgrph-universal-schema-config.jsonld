@@ -1,14 +1,14 @@
 {
   "nodeStyles": {
-    "Document": { "color": "#2563EB" },
-    "Section": { "color": "#EAB308" },
-    "Block": { "color": "#22C55E" },
-    "Item": { "color": "#F97316" },
-    "File": { "color": "#2563EB" },
-    "Module": { "color": "#22C55E" },
-    "Class": { "color": "#22C55E" },
-    "Function": { "color": "#22C55E" },
-    "RuntimeEvent": { "color": "#EF4444" }
+    "Document": { "color": "#007BFF" },
+    "Section": { "color": "#FFC107" },
+    "Block": { "color": "#28A745" },
+    "Item": { "color": "#FD7E14" },
+    "File": { "color": "#007BFF" },
+    "Module": { "color": "#28A745" },
+    "Class": { "color": "#28A745" },
+    "Function": { "color": "#28A745" },
+    "RuntimeEvent": { "color": "#DC3545" }
   },
   "edgeStyles": {
     "hasSection": { "color": "#9CA3AF", "width": 1.8, "arrow": true },
@@ -18,10 +18,10 @@
     "next": { "color": "#9CA3AF", "width": 1.2, "arrow": true },
     "imports": { "color": "#9CA3AF", "width": 1.8, "arrow": true },
     "contains": { "color": "#9CA3AF", "width": 1.6, "arrow": true },
-    "calls": { "color": "#EF4444", "width": 1.6, "arrow": true },
-    "invokes": { "color": "#EF4444", "width": 1.6, "arrow": true },
-    "hasRuntimeEvent": { "color": "#EF4444", "width": 1.4, "arrow": true },
-    "runtimeOf": { "color": "#EF4444", "width": 1.2, "arrow": true }
+    "calls": { "color": "#DC3545", "width": 1.6, "arrow": true },
+    "invokes": { "color": "#DC3545", "width": 1.6, "arrow": true },
+    "hasRuntimeEvent": { "color": "#DC3545", "width": 1.4, "arrow": true },
+    "runtimeOf": { "color": "#DC3545", "width": 1.2, "arrow": true }
   },
   "nodeSizes": {},
   "nodeStroke": {},

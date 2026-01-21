@@ -1,4 +1,5 @@
 import { ExtractedEdge, PipelineResult } from './types'
+import { computePageRank } from '@/features/semantic-mode/graphAlgorithms'
 
 export class CorpusReasoner {
   
@@ -10,14 +11,27 @@ export class CorpusReasoner {
     // In a real corpus, this aggregates across docs. Here we look at the unified graph.
     
     // 2. Corpus-Wide Influence Ranking (PageRank)
-    const scores = this.computePageRank(unifiedResult)
+    const scores = (() => {
+      const nodeIds = unifiedResult.entities.map(e => e.id).filter(Boolean)
+      const neighbors = new Map<string, string[]>()
+      for (let i = 0; i < unifiedResult.edges.length; i += 1) {
+        const e = unifiedResult.edges[i]!
+        const s = e.sourceId
+        const t = e.targetId
+        if (!s || !t || s === t) continue
+        const arr = neighbors.get(s) || []
+        arr.push(t)
+        neighbors.set(s, arr)
+      }
+      return computePageRank({ nodeIds, neighbors, iterations: 20, damping: 0.85 })
+    })()
     
     // Annotate entities with centrality scores
     const enrichedEntities = unifiedResult.entities.map(e => ({
       ...e,
       properties: {
-        ...e.provenance, // Mix provenance into properties for now or extend type
-        centrality: scores.get(e.id) || 0
+        ...(e.properties || {}),
+        centrality: scores.get(e.id) || 0,
       }
     }))
 
@@ -33,42 +47,16 @@ export class CorpusReasoner {
     }
   }
 
-  private computePageRank(graph: PipelineResult): Map<string, number> {
-    const scores = new Map<string, number>()
-    const damping = 0.85
-    const nodes = graph.entities.map(e => e.id)
-    
-    // Initialize
-    nodes.forEach(id => scores.set(id, 1 / nodes.length))
-    
-    // Iteration (simplified 1 pass for MVP)
-    const newScores = new Map<string, number>()
-    nodes.forEach(nodeId => {
-      let rank = (1 - damping)
-      
-      // Find incoming edges
-      const incoming = graph.edges.filter(e => e.targetId === nodeId)
-      
-      incoming.forEach(edge => {
-        const sourceId = edge.sourceId
-        const sourceOutDegree = graph.edges.filter(e => e.sourceId === sourceId).length
-        rank += damping * ((scores.get(sourceId) || 0) / sourceOutDegree)
-      })
-      
-      newScores.set(nodeId, rank)
-    })
-    
-    return newScores
-  }
-
   private inferEdges(edges: ExtractedEdge[]): ExtractedEdge[] {
     const inferred: ExtractedEdge[] = []
     const adj = new Map<string, string[]>()
+    const existing = new Set<string>()
     
     // Build adj list
     edges.forEach(e => {
       if (!adj.has(e.sourceId)) adj.set(e.sourceId, [])
       adj.get(e.sourceId)!.push(e.targetId)
+      existing.add(`${e.sourceId}|${e.targetId}`)
     })
     
     // Triangle closure: A->B, B->C => Infer A->C
@@ -78,9 +66,7 @@ export class CorpusReasoner {
         if (cList) {
           cList.forEach(c => {
             if (a !== c && !neighbors.includes(c)) {
-              // Check if edge already exists
-              const exists = edges.some(e => e.sourceId === a && e.targetId === c)
-              if (!exists) {
+              if (!existing.has(`${a}|${c}`)) {
                 inferred.push({
                   sourceId: a,
                   targetId: c,
@@ -90,6 +76,7 @@ export class CorpusReasoner {
                     sourceSentence: 'Inferred by CorpusReasoner'
                   }
                 })
+                existing.add(`${a}|${c}`)
               }
             }
           })

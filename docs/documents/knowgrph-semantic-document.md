@@ -37,7 +37,7 @@
 
 ## Semantic Layer Architecture
 
-**Processing Stack**: Markdown Blocks → TokenLinker → EdgeElevator → PatternMiner → Centrality/Communities
+**Processing Stack**: Markdown Blocks → TokenLinker → EdgeElevator → PatternMiner → Centrality/Clusters (Communities)
 
 **Data Flow**: Structural Parsing → Mention Extraction → Entity Unification → Relation Extraction → Co-occurrence Mining → Graph Metrics
 
@@ -61,7 +61,7 @@
 | `process_semantics` extraction  | `metadata.layers.semantic` hints         | `sem_defaults`, frontmatter `semanticConfig`              |
 | Entity/Mention emission         | `schema.layers.semantic.nodeTypes`       | `nodeMetrics`, `communityProperty`                        |
 | `coOccursWith` edge mining      | `schema.layers.semantic.edgeLabel`       | `similarityEdgeLabel`, `edgeMetric`                       |
-| Centrality/Community computation| `schema.layers.semantic.communityDetection`| `corpusSizePreset`, `topKEdgesPerNode`, `minSimilarity` |
+| Centrality/Cluster computation| `schema.layers.semantic.communityDetection`| `corpusSizePreset`, `topKEdgesPerNode`, `minSimilarity` |
 
 ---
 
@@ -190,8 +190,8 @@ pattern_miner_config:
     impact: filters low-frequency pairs
   corpus_centrality_algorithm:
     type: string
-    validation: "pagerank" | "none"
-    impact: determines whether PageRank centrality is computed
+    validation: "pagerank" | "betweenness" | "none"
+    impact: determines centrality metric computation
 ```
 
 **Interface Pattern**: `_mine_cooccurrence(entity_block_counts, pair_counts, block_count, sem_defaults, add_edge_callback)` → PPMI computation → support filtering → similarity transform → edge emission → O(p) where p=unique_entity_pairs
@@ -211,7 +211,7 @@ pattern_miner_config:
 
 **From**: Semantic graph (entities + relations/co-occurrences) → **To**: Centrality scores + community IDs on entities → **Enables**: Graph-level semantic summaries.
 
-**Algorithm**: Optionally compute PageRank centrality on an undirected graph built from `semanticRelation` + `coOccursWith` edges. Compute deterministic communities by running NetworkX connected components over the `coOccursWith` graph and assigning stable community IDs based on sorted component minima.
+**Algorithm**: Build an undirected weighted graph from `semanticRelation` + `coOccursWith` edges, run NetworkX PageRank for centrality, run NetworkX connected components over `coOccursWith` edges for deterministic community IDs, augment entity properties with metrics.
 
 **Configuration Schema**:
 
@@ -219,28 +219,25 @@ pattern_miner_config:
 graph_metrics_config:
   corpus_centrality_algorithm:
     type: string
-    validation: "pagerank" | "none"
+    validation: "pagerank" | "betweenness" | "none"
     impact: which centrality metric to compute
-  pagerank_iterations:
-    type: int
-    validation: 1 ≤ x ≤ 200
-    impact: number of power-iteration steps when PageRank is enabled
-  pagerank_damping:
-    type: float
-    validation: 0.0 ≤ x ≤ 1.0
-    impact: damping factor for PageRank updates
+  community_detection:
+    algorithm:
+      type: string
+      validation: "connected_components"
+      impact: deterministic community labeling
 ```
 
-**Interface Pattern**: `process_semantics(...)` → edge mining → optional PageRank centrality → connected-components communities → property augmentation → O(n·e) where n=entities, e=edges
+**Interface Pattern**: `_compute_centrality_communities(entities, semantic_edges, cooccurrence_edges, sem_defaults)` → graph construction → PageRank → connected components → property augmentation → O(n·e) where n=entities, e=edges
 
 **Design Compliance**:
 
 | Context          | Intent                     | Directive                                                                                   | Module/Component | Function/Method | Input                | Output              | Decision Logic                   |
 |------------------|----------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|----------------------|---------------------|----------------------------------|
-| Graph Construction| Build semantic graph      | - [ ] Combine semanticRelation + coOccursWith; forbid isolated nodes without edges        | semantic_processor| `process_semantics`| edges          | adjacency list      | undirected edge aggregation      |
-| PageRank         | Compute centrality         | - [ ] Use bounded iterations; normalize scores; forbid unbounded loops                     | semantic_processor| `process_semantics`| graph, damping   | centrality dict     | power iteration                  |
-| Connected Components| Detect communities      | - [ ] Use deterministic connected components over coOccursWith; forbid non-deterministic IDs | semantic_processor| `_run_networkx_connected_components`| cooccurrence edges | community_ids dict | sort components by min node id   |
-| Property Augmentation| Write metrics to entities| - [ ] Set mentionCount, blockFrequency, centrality, communityId; forbid overwrite         | semantic_processor| `process_semantics`| entities, metrics| updated entities   | properties dict merge            |
+| Graph Construction| Build semantic graph      | - [ ] Combine semanticRelation + coOccursWith; forbid isolated nodes without edges        | semantic_processor| `_build_semantic_graph`| edges          | adjacency list      | undirected edge aggregation      |
+| PageRank         | Compute centrality         | - [ ] Iterate until convergence; normalize scores; forbid unnormalized ranks              | semantic_processor| `_compute_pagerank`| graph, damping   | centrality dict     | power iteration                  |
+| Connected Components| Detect communities      | - [ ] Use NetworkX connected components over `coOccursWith`; forbid nondeterministic ids  | semantic_processor| `_run_networkx_connected_components`| cooccurrence_edges| community_ids dict | stable sort by min-node          |
+| Property Augmentation| Write metrics to entities| - [ ] Set mentionCount, blockFrequency, centrality, communityId; forbid overwrite         | semantic_processor| `_augment_entities`| entities, metrics| updated entities   | properties dict merge            |
 
 ---
 
@@ -248,12 +245,12 @@ graph_metrics_config:
 
 | Layer/Subsystem | Path/Module                    | Component           | Interface/Method        | Responsibility (S-V-O)                                                | Dependencies                    | Contracts                             | LOC    |
 |-----------------|--------------------------------|---------------------|-------------------------|-----------------------------------------------------------------------|---------------------------------|---------------------------------------|--------|
-| Profiling       | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `process_semantics`     | Profile → tokenizes → sources → computes token/sentence stats         | `tokenize_with_offsets`         | Returns `semantic_doc_profile` with corpus stats             | ~30    |
-| Auto-tuning     | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `process_semantics`     | Tuner → adjusts → sem_defaults → adapts path length heuristics        | doc_profile                     | Updates sem_defaults when auto_tune_enabled is true          | ~25    |
-| TokenLinker     | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `process_semantics`     | Extractor → emits → Mention/Entity nodes with provenance              | `tokenize_with_offsets`, `merge_tokens_to_spans`, `detect_inline_code_spans` | Adds mention/entity nodes and mention edges                 | ~160   |
-| EdgeElevator    | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `process_semantics`     | Elevator → emits → semanticRelation edges within sentences            | `extract_sentence_features`     | Adds semanticRelation edges with confidence/features         | ~100   |
-| PatternMiner    | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `process_semantics`     | Miner → emits → coOccursWith edges using PPMI-derived similarity      | `_compute_ppmi`                 | Adds coOccursWith edges with support/pmi/similarity          | ~80    |
-| Graph Metrics   | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `process_semantics`     | Analyzer → augments → entities with centrality/communityId            | `_run_networkx_connected_components` | Adds centrality + deterministic connected-components ids | ~80    |
+| Profiling       | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_profile_text`         | Profile → tokenizes → text → produces doc_profile with stats          | `tokenize_with_offsets`         | Returns dict with tokenCount, sentenceCount, avgSentenceTokens| ~30    |
+| Auto-tuning     | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_auto_tune`            | Tuner → adjusts → thresholds → produces adapted sem_defaults          | doc_profile                     | Modifies sem_defaults in-place based on avgSentenceTokens| ~25    |
+| TokenLinker     | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_extract_mentions`     | Extractor → tokenizes → blocks → emits Mention/Entity nodes           | `tokenize_with_offsets`, `merge_tokens_to_spans`| Creates nodes with @id, @type, properties, metadata; emits hasMention/refersTo edges| ~120   |
+| EdgeElevator    | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_elevate_edges`        | Elevator → analyzes → sentences → emits semanticRelation edges        | `_split_sentences`, `extract_sentence_features`| Creates edges with relation, confidence, sourceSentence, temporal/modality/negation| ~90    |
+| PatternMiner    | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_mine_cooccurrence`    | Miner → counts → pairs → emits coOccursWith edges with PPMI           | `_compute_ppmi`, `_pmi_to_similarity`| Creates edges with support, pmi, similarity, confidence| ~70    |
+| Graph Metrics   | `knowgrph_parser/semantic_processor.py`| SemanticProcessor| `_compute_centrality_communities`| Analyzer → computes → metrics → augments entities with centrality/communities| `nx.pagerank`, `_run_networkx_connected_components`| Adds properties: mentionCount, blockFrequency, centrality, communityId| ~60    |
 | Schema Builder  | `schema-config/build_schema_config_jsonld.py`| SchemaConfigBuilder| `build_schema_config_jsonld`| Builder → reads → graph metadata → produces schema-config JSONâ€'LD     | `graph_jsonld.metadata`         | Populates metadata.layersFromGraph, metadata.layers, corpusSizePresets| ~200   |
 | Canvas Controls | `src/components/controls/AiKgSemanticControls.tsx`| AiKgSemanticControls| Component           | UI → exposes → semantic config → enables runtime tuning of similarity | `GraphSchema`                   | Updates schema.layers.semantic via user input| ~150   |
 
@@ -385,8 +382,6 @@ knowgrph/
 | `KG_MAX_SYNTACTIC_PATH_LENGTH`    | deployment       | `5`                                | Caps EdgeElevator entity pair distance in sentence  |
 | `KG_MIN_PATTERN_SUPPORT`          | deployment       | `0.01`                             | Filters PatternMiner low-frequency co-occurrences   |
 | `KG_CORPUS_CENTRALITY_ALGORITHM`  | deployment       | `"pagerank"`                       | Selects centrality computation algorithm            |
-| `KG_PAGERANK_ITERATIONS`          | deployment       | `20`                               | Bounds PageRank power-iteration steps               |
-| `KG_PAGERANK_DAMPING`             | deployment       | `0.85`                             | Sets PageRank damping factor                        |
 | `KG_AUTO_TUNE_ENABLED`            | deployment       | `true`                             | Enables/disables document-profile-based auto-tuning |
 
 **Artifact Generation**: `graph.jsonld` (with semantic nodes/edges) | `schema-config.jsonld` (with layer hints) | `semantic_doc_profile` (extraction metrics)
@@ -396,13 +391,13 @@ knowgrph/
 | Step | Action                                  | Command/Trigger                         | Artifact Consumer                  |
 |------|----------------------------------------|------------------------------------------|-------------------------------------|
 | 1    | Parse markdown to structural graph     | `graph_builder.parse_markdown_to_graph_jsonld`| Internal nodes/edges lists          |
-| 2    | Aggregate semantic sources             | `graph_builder._process_blocks`         | `semantic_sources` list             |
-| 3    | Profile document and auto-tune         | `semantic_processor.process_semantics`  | Updated `sem_defaults`             |
-| 4    | Extract mentions and entities          | `semantic_processor.process_semantics`  | JSONâ€'LD nodes, provenance edges    |
-| 5    | Elevate sentence-level relations       | `semantic_processor.process_semantics`  | `semanticRelation` edges            |
-| 6    | Mine co-occurrences and PPMI           | `semantic_processor.process_semantics`  | `coOccursWith` edges                |
-| 7    | Compute centrality and communities     | `semantic_processor.process_semantics`  | Entity properties: centrality, communityId|
-| 8    | Emit graph metadata with layer hints   | `graph_builder.parse_markdown_to_graph_jsonld` | `graph.jsonld.metadata.layers.semantic`|
+| 2    | Aggregate semantic sources             | `graph_builder._collect_semantic_sources`| `semantic_processor.process_semantics`|
+| 3    | Profile document and auto-tune         | `semantic_processor._profile_text`, `_auto_tune`| Updated `sem_defaults`             |
+| 4    | Extract mentions and entities          | `semantic_processor._extract_mentions` | JSONâ€'LD nodes, provenance edges    |
+| 5    | Elevate sentence-level relations       | `semantic_processor._elevate_edges`    | `semanticRelation` edges            |
+| 6    | Mine co-occurrences and PPMI           | `semantic_processor._mine_cooccurrence`| `coOccursWith` edges                |
+| 7    | Compute centrality and communities     | `semantic_processor._compute_centrality_communities`| Entity properties: centrality, communityId|
+| 8    | Emit graph metadata with layer hints   | `graph_builder._build_metadata`        | `graph.jsonld.metadata.layers.semantic`|
 | 9    | Generate schema-config                 | `build_schema_config_jsonld`           | `schema-config.jsonld`              |
 | 10   | Load in canvas and render semantic mode| Canvas initialization + `AiKgSemanticControls`| Interactive graph view             |
 
@@ -426,18 +421,18 @@ knowgrph/
 | Mention/Entity| `semantic_sources`        | Mention/Entity nodes, edges    | `semantic_processor` tokenizes, merges spans, unifies entities| O(b·t²) for span merging per block          |
 | Relation Extraction| Mentions, blocks        | `semanticRelation` edges       | `semantic_processor` splits sentences, extracts features, emits edges| O(s·e²) where s = sentences, e = entities/sentence|
 | Co-occurrence| Entity-block frequencies   | `coOccursWith` edges           | `semantic_processor` counts pairs, computes PPMI, emits edges| O(p) where p = unique entity pairs          |
-| Centrality/Community| Semantic graph         | Centrality scores, community IDs| `semantic_processor` runs optional PageRank + connected components | O(n·e·i) where n = entities, e = edges, i = iterations|
+| Centrality/Community| Semantic graph         | Centrality scores, community IDs| `semantic_processor` runs PageRank, connected components  | O(n·e·i) where n = entities, e = edges, i = iterations|
 | Metadata Emission| Graph + metrics          | `metadata.layers.semantic`     | `graph_builder` summarizes extraction, stores semanticConfig| O(1)                                         |
 | Schema Config| Graph metadata             | `schema-config.jsonld`         | `build_schema_config_jsonld` maps hints, applies presets    | O(1)                                         |
 | Canvas Rendering| Graph + schema-config    | Interactive semantic view      | Canvas builds semantic subgraph, applies filters, renders   | O(n+e) for graph construction + filtering    |
 
 | Context              | Intent                          | Directive                                                                                   | Module           | Function/Method              | Input                | Output                  | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|------------------------------|----------------------|-------------------------|----------------------------------|
-| Block Collection     | Aggregate semantic text         | - [ ] Traverse blocks; collect semantic text; forbid non-semantic node types               | graph_builder    | `_process_blocks`            | blocks               | semantic_sources list   | Block type whitelist             |
-| Token Linking        | Extract mentions from text      | - [ ] Tokenize; merge spans; detect code; forbid lossy offsets                             | semantic_processor| `process_semantics`         | semantic_sources     | Mention/Entity nodes    | Span heuristics + stopwords      |
-| Edge Elevation       | Elevate sentence relations      | - [ ] Split sentences; extract features; compute confidence; forbid arbitrary pairs        | semantic_processor| `process_semantics`         | semantic_sources     | semanticRelation edges  | Threshold + max path length      |
-| Pattern Mining       | Mine document co-occurrences    | - [ ] Count pairs; compute PPMI; filter by support; forbid negative similarities           | semantic_processor| `process_semantics`         | semantic_sources     | coOccursWith edges      | Support threshold + PPMI > 0     |
-| Graph Metrics        | Compute centrality/communities  | - [ ] Run bounded PageRank; assign deterministic connected components; forbid unbounded loops | semantic_processor| `process_semantics`      | entities, edges      | augmented entities      | config-driven iterations         |
+| Block Collection     | Aggregate semantic text         | - [ ] Traverse AST; collect text blocks; forbid non-semantic node types                    | graph_builder    | `_collect_semantic_sources`  | ast_nodes            | semantic_sources list   | Block type whitelist             |
+| Token Linking        | Extract mentions from text      | - [ ] Tokenize; merge spans; detect code; forbid lossy offsets                             | semantic_processor| `_extract_mentions`         | block, tokens        | Mention/Entity nodes    | Span confidence thresholding     |
+| Edge Elevation       | Elevate sentence relations      | - [ ] Split sentences; extract features; compute confidence; forbid arbitrary pairs        | semantic_processor| `_elevate_edges`            | mentions_by_block    | semanticRelation edges  | Confidence threshold + path length|
+| Pattern Mining       | Mine document co-occurrences    | - [ ] Count pairs; compute PPMI; filter by support; forbid negative similarities          | semantic_processor| `_mine_cooccurrence`        | entity_frequencies   | coOccursWith edges      | Support threshold + PPMI > 0     |
+| Graph Metrics        | Compute centrality/communities  | - [ ] Build graph; run PageRank; propagate labels; forbid disconnected components         | semantic_processor| `_compute_centrality_communities`| entities, edges | augmented entities     | Iterative algorithms             |
 
 ---
 
@@ -449,7 +444,7 @@ knowgrph/
 | Token-level provenance| Enable fine-grained inspection    | Mentions track char/token offsets, block IDs          | Increases node/edge count                 | Canvas can hide mentions in semantic mode     |
 | Auto-tuning          | Adapt to corpus style              | No manual threshold tuning per document               | Heuristic-based, may not fit all corpora  | Allow frontmatter overrides for experts       |
 | Sentence-level relations| Balance precision and recall    | Captures directional relations within sentences       | Misses cross-sentence relations           | Add optional cross-sentence relation extractor|
-| Connected components for communities| Deterministic + simple default| Stable community ids, fast, and explainable           | Misses higher-resolution clustering        | Keep semantic edge sparsity schema-driven     |
+| Connected components for communities| Deterministic, stable ids | Fast, deterministic across datasets                  | Can over-fragment sparse graphs           | Tune similarity/edge thresholds upstream      |
 | Separate semantic/structural layers| Maintain clear responsibilities| Parser focuses on extraction, canvas on rendering     | Requires schema-config propagation layer  | Schema-config serves as explicit bridge       |
 
 ---

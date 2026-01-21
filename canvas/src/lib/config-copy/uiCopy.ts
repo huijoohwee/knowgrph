@@ -104,6 +104,8 @@ export const UI_COPY = {
   frontmatterModeToggleTooltip: 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph',
   mermaidLayoutTooltip: 'Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout.',
   nodeShapeModeTooltip: 'Node Shape: toggle between circle (default) and rectangular nodes.',
+  groupShapeRectTooltip: 'Cluster Shape: switch to Polygon shape.',
+  groupShapePolygonTooltip: 'Cluster Shape: switch to Rect shape.',
   documentStructureModeTooltip: 'Document Structure Mode (default): render document sections/blocks/links as graph.',
   keywordModeTooltip:
     'Keyword Mode: subject/object/entity keywords as nodes; verb/predicate/relationship keywords as edges.',
@@ -371,13 +373,13 @@ export const UI_COPY = {
   statsHideChartLabel: 'Hide chart',
   statsSelectAllLabel: 'Select all',
   statsNoNodesAvailableLabel: 'No nodes available.',
-  statsNoTokensFoundForGraphLayerLabel: 'No tokens found for this graph layer.',
+  statsNoTokensFoundForGraphLayerLabel: 'No tokens found for this cluster layer.',
   statsSelectNodesToSeeTokenFrequenciesLabel: 'Select one or more nodes to see token frequencies.',
   statsSelectEdgeToSeeValuesLabel: 'Select an edge to see similarity/co-occurrence values.',
-  statsOpenRendererSettingsForGraphLayersTitle: 'Open renderer settings for graph layers',
-  statsOpenRendererSettingsForCommunitiesTitle: 'Open renderer settings for communities',
+  statsOpenRendererSettingsForGraphLayersTitle: 'Open renderer settings for cluster layers',
+  statsOpenRendererSettingsForCommunitiesTitle: 'Open renderer settings for clusters',
   statsOpenRendererSettingsForSemanticEdgesTitle: 'Open renderer settings for semantic edges',
-  statsBarHeightTotalTokensHint: 'Bar height: total tokens (hover/click to highlight graph layer nodes)',
+  statsBarHeightTotalTokensHint: 'Bar height: total tokens (hover/click to highlight cluster layer nodes)',
   statsBarHeightSimilarityWeightHint: (metricLabel: string) =>
     `Bar height: ${metricLabel} weight (click to highlight edges)`,
   bottomPanelExternalPreviewMissingCodebasePathLabel:

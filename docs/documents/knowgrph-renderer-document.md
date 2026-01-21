@@ -91,13 +91,22 @@
 
 ## Layout Specifications
 
+## Cluster Terminology (SSOT)
+
+- **Cluster (SSOT)**: umbrella term for “a set of nodes treated as a unit” across derivation, layout, and rendering.
+- **Cluster Layer (Canvas)**: renderer outline surfaces configured by `schema.metadata["canvas:graphLayers"]` and driven by GraphData metadata or frontmatter (aka “graph layers” in schema/config keys).
+- **Community (Semantic)**: similarity-based cluster id (`visual:community`) derived from connected components over `coOccursWith` (used by BottomPanel stats + layered layouts).
+- **Subgraph (Mermaid)**: Mermaid `subgraph` blocks that materialize as cluster layers during frontmatter/document derivation.
+- **Cluster Shape (UI)**: the outline shape toggle (Rect/Polygon) for cluster layers; it does not change the underlying clustering rule.
+
 ### 2D Layout Caching
 - **Structured Layouts** (`radial`, `tree`, `mermaid`) cache positions in `layoutPositionCacheByMode`.
 - **Cache Reuse**:
   - `determineLayoutPositions` checks coverage (>95% matched nodes).
   - Reuses cached positions to skip expensive layout calculations on re-visits.
 - **Continuity**:
-  - Switching modes (e.g. Tree -> Force) preserves positions to prevent visual chaos.
+  - Cache keys include semantic mode + frontmatter mode + layout mode + render mode to prevent 2D/3D drift.
+  - Switching modes (e.g. Tree -> Force, 2D -> 3D -> 2D) restores cached positions to prevent visual chaos.
   - Centroid recentering ensures the graph stays visible.
 
 ### Mermaid Layout Mode

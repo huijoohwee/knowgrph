@@ -55,22 +55,22 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
         gesture: 'Toggle radial cluster layout to arrange nodes in a circular tree',
         zoomDrag: 'Zoom and node drag behave normally; positions remain stable and translate as a group',
         tools:
-          'Radial cluster layout → toggle the toolbar button to switch schema.layout.mode between force and radial so 2D canvas nodes use a hierarchy-derived circular layout (per-mode cached) while preserving node styles, labels, and selection-aware overlays across graph layer toggles and other UI re-renders.',
+          'Radial cluster layout → toggle the toolbar button to switch schema.layout.mode between force and radial so 2D canvas nodes use a hierarchy-derived circular layout (per-mode cached) while preserving node styles, labels, and selection-aware overlays across cluster toggles and other UI re-renders.',
       },
       {
         mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.graphLayersMode}`,
-        gesture: 'Toggle graph layers to show or hide layer outlines around related nodes',
+        gesture: 'Toggle clusters to show or hide cluster outlines around related nodes',
         zoomDrag:
-          'Zoom and node drag behave normally; graph layers follow the same simulation tick as nodes',
+          'Zoom and node drag behave normally; cluster outlines follow the same simulation tick as nodes',
         tools:
-          'Canvas graph layers → toggle the toolbar button to render or hide group outlines around nodes linked by document/subgraph structure → styling comes from schema.metadata["canvas:graphLayers"] (defaultStyle, byOwnerType, byPropertyKey) or falls back to the owner node type color for domain-agnostic grouping.',
+          'Canvas clusters → toggle the toolbar button to render or hide outline clusters around nodes linked by document/subgraph structure → styling comes from schema.metadata["canvas:graphLayers"] (defaultStyle, byOwnerType, byPropertyKey) or falls back to the owner node type color for domain-agnostic grouping.',
       },
       {
         mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.treeLayoutMode}`,
         gesture: 'Toggle tree layout to arrange nodes into a hierarchical tree',
         zoomDrag: 'Zoom and node drag behave normally; positions remain stable and translate as a group',
         tools:
-          'Tree layout → toggle the toolbar button (or use FloatingPanel → Render → Layout mode) to switch schema.layout.mode between force and tree; tree uses a Dagre-based layered layout to derive a single parent→child tree from the configured edge labels (or an auto-picked most-common label) and renders only those tree edges so the view stays uncluttered. Links and labels follow an Observable-style default (curved links, stroke #555 @ 0.4, width 1.5, small node radius, internal fill #555, leaf fill #999, haloed labels) while remaining schema-driven. The tree layout is preserved across graph layer toggles, UI re-renders, and mode switches via per-mode caching. Refine Settings → 2D layout → tree (edgeLabels, direction, orientation left-to-right/top-to-bottom, nodeSize, separation, sortBy, curve, colorMode, linkStroke/linkOpacity/linkWidth, nodeRadius, internalFill/leafFill, labelFontSize/labelFontFamily) so layout and styling stay reproducible and domain-agnostic.',
+          'Tree layout → toggle the toolbar button (or use FloatingPanel → Render → Layout mode) to switch schema.layout.mode between force and tree; tree uses a Dagre-based layered layout to derive a single parent→child tree from the configured edge labels (or an auto-picked most-common label) and renders only those tree edges so the view stays uncluttered. Links and labels follow an Observable-style default (curved links, stroke #555 @ 0.4, width 1.5, small node radius, internal fill #555, leaf fill #999, haloed labels) while remaining schema-driven. The tree layout is preserved across cluster toggles, UI re-renders, and mode switches via per-mode caching. Refine Settings → 2D layout → tree (edgeLabels, direction, orientation left-to-right/top-to-bottom, nodeSize, separation, sortBy, curve, colorMode, linkStroke/linkOpacity/linkWidth, nodeRadius, internalFill/leafFill, labelFontSize/labelFontFamily) so layout and styling stay reproducible and domain-agnostic.',
       },
       {
         mode: 'Create: shift-drag',
