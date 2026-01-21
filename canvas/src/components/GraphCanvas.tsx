@@ -24,12 +24,16 @@ import { determineLayoutPositions } from '@/components/GraphCanvas/layout/positi
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
+import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
-export default function GraphCanvas() {
+export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const lastLayoutModeRef = useRef<null | 'force' | 'radial'>(null);
   const lastFrontmatterModeRef = useRef<boolean | null>(null);
+  const lastSemanticModeRef = useRef<'document' | 'keyword' | null>(null)
+  const activeRef = useRef<boolean>(true)
+  activeRef.current = !!active
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
   const nodesSelRef = useRef<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>(null);
   const mediaSelRef = useRef<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>(null);
@@ -44,8 +48,9 @@ export default function GraphCanvas() {
   const beforeRenderFrameRef = useRef<(() => void) | null>(null);
   const nodesPresentationAppliedKeyRef = useRef<string | null>(null);
   const groupsPresentationAppliedKeyRef = useRef<string | null>(null);
+  const sceneCleanupRef = useRef<null | (() => void)>(null)
+  const sceneBuildKeyRef = useRef<string | null>(null)
   const {
-    graphData,
     graphDataRevision,
     setCanvasDims,
     setCanvasPos,
@@ -54,10 +59,9 @@ export default function GraphCanvas() {
     mediaPanelDensity,
     setLayoutPositionsForMode,
     frontmatterModeEnabled,
-    themeMode,
+    documentSemanticMode,
   } = useGraphStore(
     useShallow((s) => ({
-      graphData: s.graphData as GraphData | null,
       graphDataRevision: s.graphDataRevision,
       setCanvasDims: s.setCanvasDims,
       setCanvasPos: s.setCanvasPos,
@@ -66,7 +70,7 @@ export default function GraphCanvas() {
       mediaPanelDensity: s.mediaPanelDensity,
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
-      themeMode: s.themeMode,
+      documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
     })),
   );
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
@@ -121,14 +125,15 @@ export default function GraphCanvas() {
     schema?.behavior?.portHandles,
   ])
 
-  const rawGraphData = graphData as GraphData | null
+  const rawGraphData = useActiveGraphData()
+  const effectiveFrontmatterModeEnabled = !!frontmatterModeEnabled && documentSemanticMode !== 'keyword'
   const renderGraphData = useMemo(() => {
     if (!rawGraphData) return null
-    if (frontmatterModeEnabled) {
+    if (effectiveFrontmatterModeEnabled) {
       return filterGraphToFrontmatterMermaid(rawGraphData)
     }
     return rawGraphData
-  }, [rawGraphData, frontmatterModeEnabled])
+  }, [rawGraphData, effectiveFrontmatterModeEnabled])
 
   useEffect(() => {
     schemaRef.current = schema
@@ -171,6 +176,28 @@ export default function GraphCanvas() {
     setCanvasPos({ x: left, y: top });
   }, [width, height, left, top, setCanvasDims, setCanvasPos]);
 
+  useEffect(() => {
+    if (active) return
+    try {
+      simulationRef.current?.stop()
+    } catch {
+      void 0
+    }
+  }, [active])
+
+  useEffect(() => {
+    return () => {
+      try {
+        sceneCleanupRef.current?.()
+      } catch {
+        void 0
+      } finally {
+        sceneCleanupRef.current = null
+        sceneBuildKeyRef.current = null
+      }
+    }
+  }, [])
+
   useZoomEffects({
     svgRef,
     zoomRef,
@@ -205,6 +232,7 @@ export default function GraphCanvas() {
   );
 
   useEffect(() => {
+    if (!active) return;
     if (!renderGraphData || !svgRef.current) return;
     const schemaValue = schemaRef.current;
     if (!schemaValue) return;
@@ -213,9 +241,44 @@ export default function GraphCanvas() {
     const expansionEnabled = expansionCfg.enabled !== false;
     const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false;
     let rafId: number | null = null;
-    let cleanupScene: (() => void) | null = null;
     rafId = requestAnimationFrame(() => {
       if (!svgRef.current) return;
+      const buildKey = [
+        String(graphDataRevisionRef.current ?? graphDataRevision),
+        `${sceneWidth}x${sceneHeight}`,
+        schemaLayoutEngineJson,
+        String(effectiveFrontmatterModeEnabled ? 1 : 0),
+        String(documentSemanticMode),
+        String(renderGraphData?.metadata && typeof renderGraphData.metadata === 'object'
+          ? `${String((renderGraphData.metadata as Record<string, unknown>).kind ?? '')}:${String((renderGraphData.metadata as Record<string, unknown>).source ?? '')}`
+          : ''),
+        `${String(renderGraphData?.nodes?.length ?? 0)}:${String(renderGraphData?.edges?.length ?? 0)}`,
+        String(renderMediaAsNodes ? 1 : 0),
+        String(mediaPanelDensity),
+      ].join('|')
+
+      if (sceneCleanupRef.current && sceneBuildKeyRef.current === buildKey) {
+        const sim = simulationRef.current
+        if (sim && schemaValue.layout?.mode !== 'radial') {
+          try {
+            sim.alphaTarget(0.08).restart()
+          } catch {
+            void 0
+          }
+        }
+        return
+      }
+
+      if (sceneCleanupRef.current) {
+        try {
+          sceneCleanupRef.current()
+        } catch {
+          void 0
+        } finally {
+          sceneCleanupRef.current = null
+          sceneBuildKeyRef.current = null
+        }
+      }
       nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
       groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
       const z = useGraphStore.getState().zoomState;
@@ -224,7 +287,8 @@ export default function GraphCanvas() {
       const mode = (schemaValue.layout?.mode || 'force') as 'force' | 'radial'
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
-      const canReuseZoom = prevMode === mode && prevFrontmatterMode === !!frontmatterModeEnabled
+      const prevSemanticMode = lastSemanticModeRef.current
+      const canReuseZoom = prevMode === mode && prevFrontmatterMode === !!effectiveFrontmatterModeEnabled && prevSemanticMode === documentSemanticMode
       const initialZoomTransform =
         z && (isPinned || (canReuseZoom && (z.graphDataRevision == null || z.graphDataRevision === graphDataRevisionRef.current)))
           ? { k: z.k, x: z.x, y: z.y }
@@ -235,9 +299,11 @@ export default function GraphCanvas() {
         cacheKey,
       } = determineLayoutPositions({
         mode,
-        frontmatterMode: !!frontmatterModeEnabled,
+        frontmatterMode: !!effectiveFrontmatterModeEnabled,
+        semanticMode: documentSemanticMode,
         prevMode,
         prevFrontmatterMode,
+        prevSemanticMode,
         nodes: Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes : [],
         layoutPositionCacheByMode,
       });
@@ -252,8 +318,9 @@ export default function GraphCanvas() {
       }
 
       lastLayoutModeRef.current = mode
-      lastFrontmatterModeRef.current = !!frontmatterModeEnabled
-      cleanupScene = setupGraphScene({
+      lastFrontmatterModeRef.current = !!effectiveFrontmatterModeEnabled
+      lastSemanticModeRef.current = documentSemanticMode
+      sceneCleanupRef.current = setupGraphScene({
         svgEl: svgRef.current,
         svgRef,
         graphData: renderGraphData,
@@ -309,13 +376,14 @@ export default function GraphCanvas() {
         layoutCacheKey: cacheKey,
         setLayoutPositionsForMode,
       });
+      sceneBuildKeyRef.current = buildKey
 
     });
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
-      if (cleanupScene) cleanupScene();
     };
   }, [
+    active,
     graphDataRevision,
     sceneWidth,
     sceneHeight,
@@ -323,7 +391,8 @@ export default function GraphCanvas() {
     schemaLayoutEngineJson,
     edgesForSim,
     setLayoutPositionsForMode,
-    frontmatterModeEnabled,
+    effectiveFrontmatterModeEnabled,
+    documentSemanticMode,
   ]);
 
   useEffect(() => {
@@ -401,7 +470,7 @@ export default function GraphCanvas() {
   useGroupSelectionHighlight({ gRef })
 
   useEffect(() => {
-    if (!labelsSelRef.current || !graphData) return;
+    if (!labelsSelRef.current || !renderGraphData) return;
     const { valuesByNodeId, kindsByNodeId } = flowState;
     if (Object.keys(kindsByNodeId).length === 0) return;
     labelsSelRef.current
@@ -413,7 +482,7 @@ export default function GraphCanvas() {
         const rounded = Math.round(rawValue * 100) / 100;
         return `${d.label} (${rounded})`;
       });
-  }, [flowState, graphData, schemaNodesPresentationJson]);
+  }, [flowState, renderGraphData, schemaNodesPresentationJson]);
 
   useGraphCanvasStyles({
     gRef,
@@ -421,7 +490,6 @@ export default function GraphCanvas() {
     linksSelRef,
     labelsSelRef,
     schema,
-    themeMode,
     graphDataRevision: graphDataRevisionRef.current ?? 0,
   });
 

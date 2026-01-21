@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, FileText, Tags } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -10,9 +10,7 @@ import { getIconSizeClass } from '@/lib/ui';
 import SearchPanel from '@/components/SearchPanel';
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
-import { ThemeMode, applyThemeMode, getInitialThemeMode, persistThemeMode } from '@/lib/ui/theme';
 import { UI_LABELS, UI_COPY } from '@/lib/config';
-import { getLocalStorage } from '@/lib/persistence';
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import { ToolbarMenuLauncher } from '@/features/toolbar/ToolbarMenuLauncher';
 import {
@@ -75,9 +73,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
 
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    return getInitialThemeMode(getLocalStorage());
-  });
+  const themeMode = useGraphStore(s => s.themeMode)
+  const setThemeMode = useGraphStore(s => s.setThemeMode)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
   const launchSpotlight = useLaunchSpotlight();
@@ -90,11 +87,14 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
   const nodeShapeMode = schema.behavior?.nodeShapeMode === 'rect' ? 'rect' : 'circle'
   const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'geo' : 'rect'
+  const documentSemanticMode = useGraphStore(s => s.documentSemanticMode || 'document')
+  const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
 
   const actions = useToolbarActions(
     schema,
     setSchema,
     setCanvasRenderMode,
+    themeMode,
     setThemeMode,
     launchSpotlight,
     openMainPanel,
@@ -111,21 +111,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setRenderMediaAsNodes,
     canvasRenderMode
   );
-
-  React.useEffect(() => {
-    applyThemeMode(themeMode);
-    if (typeof window === 'undefined') return;
-    persistThemeMode(getLocalStorage(), themeMode);
-
-    if (themeMode !== 'system') return;
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => applyThemeMode('system');
-    if (typeof mq.addEventListener === 'function') {
-      mq.addEventListener('change', handler);
-      return () => mq.removeEventListener('change', handler);
-    }
-  }, [themeMode]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -164,6 +149,21 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <BarChart3 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${
+          documentSemanticMode === 'keyword' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={documentSemanticMode === 'keyword' ? UI_LABELS.keywordMode : UI_LABELS.documentStructureMode}
+        tooltipContent={documentSemanticMode === 'keyword' ? UI_COPY.keywordModeTooltip : UI_COPY.documentStructureModeTooltip}
+        onClick={() => setDocumentSemanticMode(documentSemanticMode === 'keyword' ? 'document' : 'keyword')}
+        showTooltip
+      >
+        {documentSemanticMode === 'keyword' ? (
+          <Tags className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        ) : (
+          <FileText className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        )}
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${

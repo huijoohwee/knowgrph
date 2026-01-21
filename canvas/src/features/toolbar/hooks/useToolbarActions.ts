@@ -8,7 +8,8 @@ export function useToolbarActions(
   schema: GraphSchema,
   setSchema: (s: GraphSchema) => void,
   setCanvasRenderMode: (m: '2d' | '3d') => void,
-  setThemeMode: React.Dispatch<React.SetStateAction<ThemeMode>>,
+  themeMode: ThemeMode,
+  setThemeMode: (mode: ThemeMode) => void,
   launchSpotlight: (mode?: string) => void,
   openMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings') => void,
   onZoomIn?: () => void,
@@ -168,8 +169,8 @@ export function useToolbarActions(
   }, [])
 
   const handleToggleTheme = useCallback(() => {
-    setThemeMode(prev => getNextThemeMode(prev))
-  }, [setThemeMode])
+    setThemeMode(getNextThemeMode(themeMode))
+  }, [setThemeMode, themeMode])
 
   return {
     handleLaunchStats,

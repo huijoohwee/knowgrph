@@ -20,6 +20,7 @@ type UseStatsDerivedDataProps = {
   tokenCfg: ReturnType<typeof getStatsTokenizationConfig>
   effectiveLod: 'low' | 'medium' | 'high'
   baseTokenCfg: ReturnType<typeof getStatsTokenizationConfig>
+  semanticMode: 'document' | 'keyword'
 }
 
 export function useStatsDerivedData({
@@ -29,6 +30,7 @@ export function useStatsDerivedData({
   tokenCfg,
   effectiveLod,
   baseTokenCfg,
+  semanticMode,
 }: UseStatsDerivedDataProps) {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
@@ -68,10 +70,10 @@ export function useStatsDerivedData({
   )
 
   const similarityEdgeLabel = 'semanticSimilarity'
-  const similarityMetricLabel = 'Cosine'
+  const similarityMetricLabel = semanticMode === 'keyword' ? 'PPMI' : 'Cosine'
 
   const allTokensForStats = React.useMemo(() => {
-    const graph = data as GraphData | null
+    const graph = (effectiveGraph || data) as GraphData | null
     if (!graph || !Array.isArray(graph.nodes)) return []
     const nodes = graph.nodes as GraphNode[]
     const cfgNoStopwords: ReturnType<typeof getStatsTokenizationConfig> = {
@@ -82,7 +84,7 @@ export function useStatsDerivedData({
     }
     const { freqByToken } = buildTokenFrequenciesForNodes(nodes, cfgNoStopwords)
     return topTokenList(freqByToken, freqByToken.size)
-  }, [baseTokenCfg, data])
+  }, [baseTokenCfg, data, effectiveGraph])
 
   const tokensByGraphLayer = React.useMemo<TokensByGraphLayerRow[]>(() => [], [])
 
@@ -138,12 +140,13 @@ export function useStatsDerivedData({
     const graph = effectiveGraph as GraphData | null
     if (!graph || !Array.isArray(graph.edges)) return []
     const edges = graph.edges as GraphEdge[]
+    if (semanticMode === 'keyword') return edges
     return edges.filter((e) => {
       if (String(e.label ?? '') !== similarityEdgeLabel) return false
       const meta = (e.metadata || {}) as Record<string, unknown>
       return meta.derived === true && meta.kind === 'semantic'
     })
-  }, [effectiveGraph, similarityEdgeLabel])
+  }, [effectiveGraph, semanticMode, similarityEdgeLabel])
 
   const selectedEdge = React.useMemo(() => {
     const graph = effectiveGraph as GraphData | null

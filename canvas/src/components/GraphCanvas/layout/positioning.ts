@@ -3,8 +3,10 @@ import { GraphNode } from '@/lib/graph/types';
 export interface LayoutPositionConfig {
   mode: string;
   frontmatterMode: boolean;
+  semanticMode: string;
   prevMode: string | null;
   prevFrontmatterMode: boolean | null;
+  prevSemanticMode: string | null;
   nodes: GraphNode[];
   layoutPositionCacheByMode: Record<string, Record<string, { x: number; y: number }>> | null;
 }
@@ -18,14 +20,17 @@ export interface LayoutPositionResult {
 export const determineLayoutPositions = ({
   mode,
   frontmatterMode,
+  semanticMode,
   prevMode,
   prevFrontmatterMode,
+  prevSemanticMode,
   nodes,
   layoutPositionCacheByMode,
 }: LayoutPositionConfig): LayoutPositionResult => {
   const isModeChange = prevMode !== mode;
   const isFrontmatterChange = prevFrontmatterMode !== frontmatterMode;
-  const cacheKey = `${frontmatterMode ? 'frontmatter' : 'default'}:${mode}`;
+  const isSemanticChange = prevSemanticMode !== semanticMode;
+  const cacheKey = `${String(semanticMode || 'document')}:${frontmatterMode ? 'frontmatter' : 'default'}:${mode}`;
 
   // Calculate coverage of current node positions (are they valid?)
   const coverageFromNodes = (() => {
@@ -62,7 +67,7 @@ export const determineLayoutPositions = ({
   const shouldUseCache =
     !!cachedPositions &&
     coverageFromCache >= 0.95 &&
-    (isModeChange || isFrontmatterChange || coverageFromNodes < 0.95);
+    (isModeChange || isFrontmatterChange || isSemanticChange || coverageFromNodes < 0.95);
 
   const layoutPositionsForMode = shouldUseCache ? cachedPositions : null;
 

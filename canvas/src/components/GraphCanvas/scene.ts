@@ -368,6 +368,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     }
   }
 
+  simulation.on('end.layoutCache', storeLayoutPositions)
+
   if (schema.layout?.mode === 'radial') {
     simulation.stop()
     storeLayoutPositions()
@@ -387,6 +389,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   return () => {
     storeLayoutPositions()
+    simulation.on('end.layoutCache', null)
     simulation.stop()
     simulationRef.current = null
     sceneGraphDataRef.current = null

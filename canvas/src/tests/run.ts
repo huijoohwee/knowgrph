@@ -62,7 +62,7 @@ import {
   testFindGraphRagOwnerNodePrefersOwnerWithSelectedInTraverse,
 } from '@/__tests__/graphRagTraversal.test'
 import { testGraphTraversalFloatingPanelGenericDepthClamp } from '@/__tests__/graphTraversalFloatingPanel.test'
-import { testThemeModePersistence } from '@/__tests__/theme.test'
+import { testThemeModePersistence, testThemeSystemModeApplyAndSubscribe } from '@/__tests__/theme.test'
 import { runMarkdownTests } from '@/tests/runners/runMarkdownTests'
 import { runSchemaTests } from '@/tests/runners/runSchemaTests'
 import { runJsonLdTests } from '@/tests/runners/runJsonLdTests'
@@ -94,6 +94,10 @@ import {
   testApplySchemaUiSnapshotCallsApplyWhenHashMatches,
 } from '@/__tests__/schemaSnapshot.test'
 import {
+  testAgenticRagContextComparisonMatchesCanonical,
+  testAgenticRagJsonLdStripsKgPrefixForLabelsAndEdgeLabels,
+} from '@/__tests__/jsonldSemanticAlignment.test'
+import {
   testSpreadsheetFiltersFallbackOnLastRemoval,
   testSpreadsheetFiltersRemoveChildFromOnlyGroup,
   testSpreadsheetSortsRemoveLastRuleKeepsFallback,
@@ -114,6 +118,7 @@ import {
   testMarkdownEditToggleKeepsScrollPosition,
   testMarkdownScrollSyncMixedContentViewerToEditor,
 } from '@/__tests__/markdown/markdownScrollSync.test'
+import { testKeywordModeDerivesEntitiesAndPredicates } from '@/__tests__/keywordMode.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -300,6 +305,8 @@ export const runAllTests = async () => {
   )
   await exec('ui.graphFieldsSyncOnHistoryUndoRedo', testGraphFieldsSyncOnHistoryUndoRedo)
   await exec('ui.themeModePersistence', testThemeModePersistence)
+  await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
+  await exec('keywordMode.derivesEntitiesAndPredicates', testKeywordModeDerivesEntitiesAndPredicates)
   
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)
   await exec('persistence.storagePrimitives', testPersistencePrimitives)
@@ -393,6 +400,14 @@ export const runAllTests = async () => {
   await exec(
     'ui.graphDataTable.toolMenuUsesCurationCopyHelper',
     testGraphDataTableToolMenuUsesCurationCopyHelper,
+  )
+  await exec(
+    'jsonld.semanticAlignment.agenticRagContextMatches',
+    testAgenticRagContextComparisonMatchesCanonical,
+  )
+  await exec(
+    'jsonld.semanticAlignment.stripsKgPrefix',
+    testAgenticRagJsonLdStripsKgPrefixForLabelsAndEdgeLabels,
   )
   await exec(
     'agenticRag.ignoreFilters.invalidPrefixes',

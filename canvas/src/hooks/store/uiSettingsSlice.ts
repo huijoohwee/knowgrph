@@ -1,5 +1,5 @@
 import type { StoreApi } from 'zustand';
-import type { GraphState, GraphDataTableScope, GraphDataTableFreezeMode, GraphHoverPreviewConfig } from './types';
+import type { GraphState, GraphDataTableScope, GraphDataTableFreezeMode, GraphHoverPreviewConfig, DocumentSemanticMode } from './types';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
 import type { BottomTab } from '@/features/bottom-panel/open';
 import type {
@@ -13,11 +13,15 @@ import type {
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
 import { SESSION_KEYS } from '@/lib/config';
 import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
-import { ThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode } from '@/lib/ui/theme';
+import { ThemeMode, ResolvedThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode, resolveThemeMode, getSystemTheme } from '@/lib/ui/theme';
 
 type SetGraph = StoreApi<GraphState>['setState'];
 
-export const createUiSettingsSlice = (set: SetGraph) => ({
+export const createUiSettingsSlice = (set: SetGraph) => {
+  const themeMode = getInitialThemeMode(getLocalStorage())
+  applyThemeMode(themeMode)
+  const resolvedThemeMode: ResolvedThemeMode = resolveThemeMode(themeMode)
+  return ({
   renderMediaAsNodes: true,
   setRenderMediaAsNodes: (v: boolean) => set({ renderMediaAsNodes: v }),
   mediaNodeOpacity: 0.9,
@@ -28,11 +32,21 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   },
   mediaPanelDensity: 'default' as const,
   setMediaPanelDensity: (v: 'default' | 'compact') => set({ mediaPanelDensity: v }),
-  themeMode: getInitialThemeMode(getLocalStorage()),
+  themeMode,
+  resolvedThemeMode,
   setThemeMode: (mode: ThemeMode) => {
     persistThemeMode(getLocalStorage(), mode);
     applyThemeMode(mode);
-    set({ themeMode: mode });
+    set({ themeMode: mode, resolvedThemeMode: resolveThemeMode(mode) });
+  },
+  refreshResolvedThemeModeFromSystem: () => {
+    set((state) => {
+      if (state.themeMode !== 'system') return {} as Partial<GraphState>;
+      const next = getSystemTheme();
+      applyThemeMode('system');
+      if (state.resolvedThemeMode === next) return {} as Partial<GraphState>;
+      return { resolvedThemeMode: next };
+    });
   },
   selectionFlashDurationMs: 500,
   selectionFlashOpacity: 0.18,
@@ -46,6 +60,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   bottomPanelCurationView: 'grid' as const,
   bottomPanelCodeSource: 'graph-json' as const,
   frontmatterModeEnabled: false,
+  documentSemanticMode: 'document' as DocumentSemanticMode,
   schemaDeriveCacheCapacity: 50,
   graphFieldSettingsById: {} as GraphFieldSettingsById,
   selectedGraphFieldId: null as GraphFieldId | null,
@@ -128,6 +143,7 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
   setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
   setBottomPanelCurationView: (view: 'grid' | 'json' | 'markdown') => set({ bottomPanelCurationView: view }),
   setFrontmatterModeEnabled: (v: boolean) => set({ frontmatterModeEnabled: v }),
+  setDocumentSemanticMode: (v: DocumentSemanticMode) => set({ documentSemanticMode: v }),
   setSchemaDeriveCacheCapacity: (n: number) => set({ schemaDeriveCacheCapacity: n }),
   setGraphFieldSettingsById: (next: GraphFieldSettingsById) => set({ graphFieldSettingsById: next }),
   setSelectedGraphFieldId: (id: GraphFieldId | null) => set({ selectedGraphFieldId: id }),
@@ -204,3 +220,4 @@ export const createUiSettingsSlice = (set: SetGraph) => ({
     set({ lastTraversalSummary: next });
   },
 });
+}

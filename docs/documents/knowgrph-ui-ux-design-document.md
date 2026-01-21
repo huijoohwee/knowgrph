@@ -76,3 +76,18 @@
 | Select edge | Click edge | Store selection updates | Must not invalidate layout caches |
 | Context menu | Right click canvas | Open props/actions | Must cleanup listeners on close/unmount |
 | Pan/zoom | Drag/scroll | Update viewport transform | Must keep updates throttled and stable |
+
+---
+
+## Typography & Icon Alignment
+
+| Context | Intent | Directive |
+|---------|--------|-----------|
+| UI Controls | Keep icon+text rows visually stable | - [ ] Use `inline-flex items-center` for icon+text; forbid baseline drift from mixed inline layout |
+| Icons (Lucide) | Align icon glyphs with text | - [ ] Apply shared icon baseline alignment; forbid per-component ad-hoc offsets |
+| SVG Labels | Keep label center alignment consistent | - [ ] Anchor and baseline-align SVG text; forbid default-anchor mismatches that overlap nodes |
+
+**Reference implementations**
+- Global Lucide icon alignment: [index.css](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/index.css)
+- Icon+text combobox controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
+- Canvas node label anchoring/baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)

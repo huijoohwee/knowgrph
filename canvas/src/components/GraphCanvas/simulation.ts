@@ -321,6 +321,7 @@ export const buildSimulation = (
         ? schema.layout.forces.centerStrength
         : 1
     const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.06
+    let antiLineTick = 0
     simulation
       .force('charge', d3.forceManyBody().strength(baseChargeVal))
       .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(2))
@@ -332,6 +333,12 @@ export const buildSimulation = (
          if (!enabled) return;
          const strength = schema.layout?.forces?.boxForceStrength ?? 0.05;
          const alpha = simulation.alpha();
+         const alphaMinRaw = (schema.layout?.forces as unknown as { boxForceAlphaMin?: number } | undefined)?.boxForceAlphaMin
+         const alphaMin =
+           typeof alphaMinRaw === 'number' && Number.isFinite(alphaMinRaw)
+             ? Math.max(0.0, Math.min(1.0, alphaMinRaw))
+             : 0.12
+         if (alpha < alphaMin) return
          const k = alpha * strength;
          const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
          const pad = portHandlesEnabled ? 20 : 28;
@@ -358,6 +365,13 @@ export const buildSimulation = (
          const strengthRaw = (schema.layout as unknown as { forces?: { antiLineStrength?: number } })?.forces?.antiLineStrength
          const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? strengthRaw : 0.04
          const alpha = simulation.alpha()
+         antiLineTick += 1
+         const alphaMinRaw = (schema.layout as unknown as { forces?: { antiLineAlphaMin?: number } })?.forces?.antiLineAlphaMin
+         const alphaMin = typeof alphaMinRaw === 'number' && Number.isFinite(alphaMinRaw) ? Math.max(0.0, Math.min(1.0, alphaMinRaw)) : 0.14
+         if (alpha < alphaMin) return
+         const intervalRaw = (schema.layout as unknown as { forces?: { antiLineTickInterval?: number } })?.forces?.antiLineTickInterval
+         const interval = typeof intervalRaw === 'number' && Number.isFinite(intervalRaw) ? Math.max(1, Math.floor(intervalRaw)) : 2
+         if (antiLineTick % interval !== 0) return
          const k = alpha * strength
          if (k <= 0) return
 

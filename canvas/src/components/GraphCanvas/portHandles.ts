@@ -1,7 +1,7 @@
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeSelectionConfig } from '@/lib/graph/schema'
-import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens'
+import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 
 export type PortHandleSide = 'left' | 'right' | 'top' | 'bottom'
@@ -32,7 +32,7 @@ export function getPortHandlesConfig(schema: GraphSchema): PortHandlesConfig {
       ? raw.strokeWidth
       : 1.5
   const stroke = getThreeSelectionConfig(schema).selectedEdgeColor
-  const fill = UI_THEME_COLORS.light.bg
+  const fill = UI_THEME_COLORS_CSS.bg
   return { enabled, placement, size, offset, strokeWidth, stroke, fill }
 }
 

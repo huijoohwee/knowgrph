@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import * as d3 from 'd3'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { ThemeMode } from '@/lib/ui/theme'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 
@@ -29,14 +28,6 @@ export function useGroupSelectionHighlight(args: {
         const id = String(many[i] || '')
         if (id) selected.add(id)
       }
-
-      const themeMode = state.themeMode as ThemeMode
-      const isDark =
-        themeMode === 'dark' ||
-        (themeMode === 'system' &&
-          typeof window !== 'undefined' &&
-          window.matchMedia('(prefers-color-scheme: dark)').matches)
-      void isDark
 
       const groupsCfg = schema.layout?.groups || {}
       const baseStrokeWidth =
@@ -81,7 +72,6 @@ export function useGroupSelectionHighlight(args: {
       s => ({
         selectedGroupId: (s as unknown as { selectedGroupId?: string | null }).selectedGroupId ?? null,
         selectedGroupIds: (s as unknown as { selectedGroupIds?: string[] }).selectedGroupIds ?? [],
-        themeMode: s.themeMode,
         graphDataRevision: s.graphDataRevision,
         schema: s.schema,
       }),

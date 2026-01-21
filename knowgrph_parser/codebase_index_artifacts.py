@@ -1,7 +1,7 @@
 import os
 from typing import Any, Dict, List
 
-from .codebase_index_config import load_yaml, should_ignore_path
+from .codebase_index_config import load_yaml, build_ignore_matcher
 
 
 def normalize_rel_path(path: str) -> str:
@@ -45,6 +45,7 @@ def append_orchestrator_config(
 ) -> str:
     if not config_path or not os.path.exists(config_path):
         return ""
+    ignore_match = build_ignore_matcher(ignored_paths)
     config = load_yaml(config_path)
     if not config:
         return ""
@@ -82,13 +83,13 @@ def append_orchestrator_config(
     if isinstance(summary_json_value, str) and summary_json_value:
         summary_json_rel = normalize_rel_path(summary_json_value)
     config_rel = normalize_rel_path(os.path.relpath(config_path, base_dir))
-    allow_config = bool(config_rel and not should_ignore_path(config_rel, ignored_paths))
-    allow_workflow = bool(workflow_rel and not should_ignore_path(workflow_rel, ignored_paths))
-    allow_index = bool(index_rel and not should_ignore_path(index_rel, ignored_paths))
-    allow_nodes_csv = bool(nodes_csv_rel and not should_ignore_path(nodes_csv_rel, ignored_paths))
-    allow_edges_csv = bool(edges_csv_rel and not should_ignore_path(edges_csv_rel, ignored_paths))
-    allow_summary_json = bool(summary_json_rel and not should_ignore_path(summary_json_rel, ignored_paths))
-    allow_parser_script = bool(parser_script_rel and not should_ignore_path(parser_script_rel, ignored_paths))
+    allow_config = bool(config_rel and not ignore_match(config_rel))
+    allow_workflow = bool(workflow_rel and not ignore_match(workflow_rel))
+    allow_index = bool(index_rel and not ignore_match(index_rel))
+    allow_nodes_csv = bool(nodes_csv_rel and not ignore_match(nodes_csv_rel))
+    allow_edges_csv = bool(edges_csv_rel and not ignore_match(edges_csv_rel))
+    allow_summary_json = bool(summary_json_rel and not ignore_match(summary_json_rel))
+    allow_parser_script = bool(parser_script_rel and not ignore_match(parser_script_rel))
     if allow_config:
         ensure_node(document, config_rel, "Artifact")
     if allow_workflow:
@@ -103,7 +104,7 @@ def append_orchestrator_config(
         ensure_node(document, summary_json_rel, "Artifact")
     if allow_parser_script:
         script_rel = normalize_rel_path(os.path.relpath(parser_script_path, base_dir))
-        if script_rel and not should_ignore_path(script_rel, ignored_paths):
+        if script_rel and not ignore_match(script_rel):
             parser_node = ensure_node(document, script_rel, "File")
             if allow_workflow:
                 append_relation(parser_node, "consumesInput", f"kg:{workflow_rel}")
@@ -122,13 +123,14 @@ def append_graphrag_workflow(
     workflow_rel: str,
     ignored_paths: List[str],
 ) -> None:
+    ignore_match = build_ignore_matcher(ignored_paths)
     if not workflow_rel:
         return
-    if should_ignore_path(workflow_rel, ignored_paths):
+    if ignore_match(workflow_rel):
         return
     config_node = ensure_node(document, workflow_rel, "Artifact")
     output_rel = normalize_rel_path("data/graphrag/graphrag-workflow.jsonld")
-    if should_ignore_path(output_rel, ignored_paths):
+    if ignore_match(output_rel):
         return
     output_node = ensure_node(document, output_rel, "Artifact")
     pipeline_node = ensure_node(document, "knowgrph_parser/graphrag_pipeline_cmd.py", "File")

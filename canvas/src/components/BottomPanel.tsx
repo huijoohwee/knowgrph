@@ -26,9 +26,11 @@ import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, DEFAULT_BOTTOM_PANEL_HEI
 import { PANEL_MAX_RATIO } from '@/features/panels/config'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 export default function BottomPanel() {
   const graphData = useGraphStore(s => s.graphData)
+  const activeGraphData = useActiveGraphData()
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectionSource = useGraphStore(s => s.selectionSource)
@@ -173,8 +175,8 @@ export default function BottomPanel() {
     setParserUiEditorOpen(true)
   }, [setParserErrorHook, setParserError, setParserUiEditorOpen])
 
-  const nodes = useMemo(() => graphData?.nodes ?? [], [graphData])
-  const edges = useMemo(() => graphData?.edges ?? [], [graphData])
+  const nodes = useMemo(() => activeGraphData?.nodes ?? [], [activeGraphData])
+  const edges = useMemo(() => activeGraphData?.edges ?? [], [activeGraphData])
   const nodeIdSet = useMemo<Set<string>>(() => new Set(nodes.map(n => n.id)), [nodes])
   const edgeIdSet = useMemo<Set<string>>(() => new Set(edges.map(e => e.id)), [edges])
   const isGraphJsonView = tab === 'curation' && bottomPanelCurationView === 'json'

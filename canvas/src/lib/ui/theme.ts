@@ -1,6 +1,7 @@
 import { LS_KEYS } from '@/lib/config'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
+export type ResolvedThemeMode = Exclude<ThemeMode, 'system'>
 
 export function getInitialThemeMode(storage: Storage | null, fallback: ThemeMode = 'system'): ThemeMode {
   if (!storage) return fallback
@@ -28,7 +29,7 @@ export function getNextThemeMode(mode: ThemeMode): ThemeMode {
   return 'system'
 }
 
-export function getSystemTheme(): Exclude<ThemeMode, 'system'> {
+export function getSystemTheme(): ResolvedThemeMode {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light'
   const mq = window.matchMedia('(prefers-color-scheme: dark)')
   return mq.matches ? 'dark' : 'light'
@@ -44,4 +45,20 @@ export function applyThemeMode(mode: ThemeMode): void {
   } else {
     root.classList.remove('dark')
   }
+}
+
+export function resolveThemeMode(mode: ThemeMode): ResolvedThemeMode {
+  return mode === 'system' ? getSystemTheme() : mode
+}
+
+export function subscribeToSystemThemeChanges(onChange: (resolved: ResolvedThemeMode) => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => void 0
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  const handler = () => onChange(mq.matches ? 'dark' : 'light')
+  if (typeof mq.addEventListener === 'function') {
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }
+  mq.addListener(handler)
+  return () => mq.removeListener(handler)
 }

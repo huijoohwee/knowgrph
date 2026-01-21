@@ -6,6 +6,7 @@ export function testJsonLdInferredEdgesFromCompactIriArrays() {
       '@vocab': 'https://example.org/schema/AgenticRAG/v1/',
       ex: 'https://example.org/pipeline/',
       rag: 'https://example.org/schema/AgenticRAG/v1/',
+      steps: { '@type': '@id' },
     },
     '@graph': [
       {

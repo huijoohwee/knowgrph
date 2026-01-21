@@ -65,7 +65,17 @@ export function scrollToLineInViewer(
     }
 
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const fn = (el as unknown as { scrollIntoView?: unknown }).scrollIntoView
+      if (typeof fn === 'function') {
+        fn.call(el, { behavior: 'smooth', block: 'start' })
+      } else {
+        const proto = (typeof HTMLElement !== 'undefined'
+          ? (HTMLElement.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView
+          : null)
+        if (typeof proto === 'function') {
+          proto.call(el, { behavior: 'smooth', block: 'start' })
+        }
+      }
     }
   }
 

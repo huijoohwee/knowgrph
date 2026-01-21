@@ -29,6 +29,27 @@
   --panel-bg: #ffffff;
   --island-bg-rgb: 255, 255, 255;
   --panel-bg-rgb: 255, 255, 255;
+  --kg-app-bg: var(--app-bg);
+  --kg-surface-bg: var(--island-bg);
+  --kg-panel-bg: var(--panel-bg);
+  --kg-border: var(--island-border-color);
+  --kg-divider: var(--divider-color);
+  --kg-text-primary: #111827;
+  --kg-text-secondary: #4b5563;
+  --kg-text-tertiary: #6b7280;
+  --kg-tooltip-bg: #111827;
+  --kg-tooltip-text: #ffffff;
+  --kg-code-bg: #f8fafc;
+  --kg-code-border: #e2e8f0;
+  --kg-code-text: #0f172a;
+  --kg-canvas-bg: var(--app-bg);
+  --kg-canvas-node-stroke: #ffffff;
+  --kg-canvas-edge-stroke: #9ca3af;
+  --kg-canvas-label-halo: var(--app-bg);
+  --kg-canvas-label-fill: #111827;
+  --kg-media-panel-header-bg: #f9fafb;
+  --kg-statusbar-bg: #f9fafb;
+  --kg-statusbar-text: #4b5563;
 }
 
 :root[data-theme='light'] {
@@ -48,6 +69,20 @@
   --island-bg: #0b1220;
   --panel-bg-rgb: 2, 11, 42;
   --island-bg-rgb: 11, 18, 32;
+  --kg-text-primary: #f3f4f6;
+  --kg-text-secondary: #9ca3af;
+  --kg-text-tertiary: #6b7280;
+  --kg-tooltip-bg: #0b1220;
+  --kg-tooltip-text: #f3f4f6;
+  --kg-code-bg: rgba(2, 6, 23, 0.6);
+  --kg-code-border: #1e293b;
+  --kg-code-text: #e2e8f0;
+  --kg-canvas-node-stroke: #0b1220;
+  --kg-canvas-edge-stroke: #4b5563;
+  --kg-canvas-label-fill: #e5e7eb;
+  --kg-media-panel-header-bg: rgba(11, 18, 32, 0.75);
+  --kg-statusbar-bg: rgba(11, 18, 32, 0.85);
+  --kg-statusbar-text: #9ca3af;
 }
 
 body {
@@ -75,6 +110,13 @@ body {
   }
   100% {
     transform: translateY(0) rotate(0deg);
+  }
+}
+
+@layer base {
+  .lucide {
+    flex-shrink: 0;
+    vertical-align: -0.125em;
   }
 }
 
@@ -188,7 +230,7 @@ body {
     top: 0;
     z-index: 20;
     background-color: rgba(var(--panel-bg-rgb), var(--panel-opacity));
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--island-border-color);
     min-height: 36px;
   }
   .MainPanelContainer .FooterBar {
@@ -202,14 +244,14 @@ body {
     justify-content: space-between;
     padding: 0.5rem 1rem;
     font-size: 0.75rem;
-    color: #4b5563;
-    background-color: #f9fafb;
-    border-top: 1px solid #e5e7eb;
+    color: var(--kg-statusbar-text);
+    background-color: var(--kg-statusbar-bg);
+    border-top: 1px solid var(--island-border-color);
   }
   .MenuPopover {
     position: absolute;
-    background-color: #ffffff;
-    border: 1px solid #e5e7eb;
+    background-color: rgba(var(--panel-bg-rgb), var(--panel-opacity));
+    border: 1px solid var(--island-border-color);
     border-radius: 0.5rem;
     box-shadow: 0 1px 2px rgba(0,0,0,0.08);
     font-size: 0.875rem;

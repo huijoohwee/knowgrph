@@ -73,6 +73,20 @@
 ### 4. Stats Derivation Optimization
 - **Optimization**: `useStatsSelection` uses the same memoized schema JSON technique to prevent expensive stats re-calculation when irrelevant schema parts (like colors) change.
 
+### 5. Preserve Inactive Renderers
+- **Issue**: Switching 2D↔3D previously unmounted the inactive renderer and forced a full scene rebuild on return.
+- **Solution**: Canvas keeps both renderers mounted and toggles visibility while passing an `active` flag to pause work and preserve state.
+  - UI container: `canvas/src/pages/Canvas.tsx`
+  - 2D renderer entry: `canvas/src/components/GraphCanvas.tsx`
+  - 3D renderer entry: `canvas/src/features/three/ThreeGraph.tsx`
+
+### 6. Tick-Path Caching + Force Gating
+- **Issue**: D3 simulation ticks are O(nodes + edges) and can become CPU-bound due to repeated geometry computations and custom-force passes.
+- **Solution**:
+  - Cache node geometry per tick keyed by node id and schema reference (avoids repeated dimension/radius recomputation).
+  - Gate heavy custom forces at low alpha and reduce anti-line work frequency.
+  - Persist layout positions when the simulation ends to improve reuse on mode switches and rebuild boundaries.
+
 ---
 
 ## Layout Specifications

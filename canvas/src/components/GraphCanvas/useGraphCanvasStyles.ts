@@ -4,8 +4,7 @@ import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { type GraphSchema } from '@/lib/graph/schema';
 import { getRenderNodeRadius2d, getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
 import { type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
-import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens';
-import type { ThemeMode } from '@/lib/ui/theme';
+import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d';
 
 type UseGraphCanvasStylesProps = {
@@ -14,7 +13,6 @@ type UseGraphCanvasStylesProps = {
   linksSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>;
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   schema: GraphSchema;
-  themeMode: ThemeMode;
   paused?: boolean;
   graphDataRevision?: number;
 };
@@ -25,14 +23,12 @@ export function useGraphCanvasStyles({
   linksSelRef,
   labelsSelRef,
   schema,
-  themeMode,
   paused,
   graphDataRevision,
 }: UseGraphCanvasStylesProps) {
   useEffect(() => {
     if (paused) return;
-    const isDark = themeMode === 'dark' || (themeMode === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    const colors = isDark ? UI_THEME_COLORS.dark : UI_THEME_COLORS.light;
+    const colors = UI_THEME_COLORS_CSS;
     const labelFill = schema.labelStyles?.color ?? colors.labelFill
     const haloColor = schema.labelStyles?.halo?.color ?? colors.labelHalo
     const haloWidthRaw = schema.labelStyles?.halo?.width
@@ -107,5 +103,5 @@ export function useGraphCanvasStyles({
       styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'))
       styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'))
     }
-  }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, themeMode, graphDataRevision]);
+  }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, graphDataRevision]);
 }

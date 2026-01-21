@@ -48,6 +48,8 @@ export const attachSimulationTick = (args: {
     const n = nodes[i]
     nodeById.set(String(n.id), n)
   }
+  let lastSchema: GraphSchema | null = null
+  const nodeMetricsCache = new Map<string, { width: number; height: number; r: number }>()
 
   const resolveNode = (endpoint: unknown): GraphNode | null => {
     if (endpoint && typeof endpoint === 'object') {
@@ -70,11 +72,26 @@ export const attachSimulationTick = (args: {
     const beforeRenderFrame = beforeRenderFrameRef ? beforeRenderFrameRef.current : null
     if (beforeRenderFrame) beforeRenderFrame()
     const schema = getSchema()
+    if (schema !== lastSchema) {
+      nodeMetricsCache.clear()
+      lastSchema = schema
+    }
     const portHandlesCfg = getPortHandlesConfig(schema)
     const portHandlesEnabled = portHandlesCfg.enabled
     const baseDxFallback = schema.labelStyles?.offset?.dx ?? 12
     const baseDyFallback = schema.labelStyles?.offset?.dy ?? 4
     const labelFontSize = schema.labelStyles?.fontSize ?? 12
+    const getNodeMetrics = (d: GraphNode): { width: number; height: number; r: number } => {
+      const id = String(d.id)
+      const cached = nodeMetricsCache.get(id)
+      if (cached) return cached
+      const { width, height } = getNodeRectDimensions2d(d, schema)
+      const r0 = getRenderNodeRadius2d(d, schema)
+      const r = typeof r0 === 'number' && Number.isFinite(r0) && r0 > 0 ? r0 : 10
+      const next = { width, height, r }
+      nodeMetricsCache.set(id, next)
+      return next
+    }
     const updateLinkEndpoints = (
       sel: d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown> | null,
     ) => {
@@ -120,25 +137,25 @@ export const attachSimulationTick = (args: {
         .attr('cx', (d: GraphNode) => d.x!)
         .attr('cy', (d: GraphNode) => d.y!)
         .attr('x', (d: GraphNode) => {
-          const { width } = getNodeRectDimensions2d(d, schema)
+          const { width } = getNodeMetrics(d)
           return (d.x ?? 0) - width / 2
         })
         .attr('y', (d: GraphNode) => {
-          const { height } = getNodeRectDimensions2d(d, schema)
+          const { height } = getNodeMetrics(d)
           return (d.y ?? 0) - height / 2
         })
         .attr('width', (d: GraphNode) => {
-          return getNodeRectDimensions2d(d, schema).width
+          return getNodeMetrics(d).width
         })
         .attr('height', (d: GraphNode) => {
-          return getNodeRectDimensions2d(d, schema).height
+          return getNodeMetrics(d).height
         })
-        .attr('r', (d: GraphNode) => getRenderNodeRadius2d(d, schema))
+        .attr('r', (d: GraphNode) => getNodeMetrics(d).r)
         .attr('rx', (d: GraphNode) => {
-          return getRenderNodeRadius2d(d, schema) * 0.22;
+          return getNodeMetrics(d).r * 0.22;
         })
         .attr('ry', (d: GraphNode) => {
-          return getRenderNodeRadius2d(d, schema) * 0.22;
+          return getNodeMetrics(d).r * 0.22;
         })
     }
 

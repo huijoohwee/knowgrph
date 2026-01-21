@@ -7,12 +7,14 @@ import { LS_KEYS } from '@/lib/config'
 import CommunitiesStatsSection from '@/components/BottomPanel/stats/CommunitiesStatsSection'
 import EdgesStatsSection from '@/components/BottomPanel/stats/EdgesStatsSection'
 import NodeWordFrequenciesSection from '@/components/BottomPanel/stats/NodeWordFrequenciesSection'
+import KeywordEntitiesSection from '@/components/BottomPanel/stats/KeywordEntitiesSection'
 import type { StatsUiClasses } from '@/components/BottomPanel/stats/types'
 import { useStatsSelection } from '@/components/BottomPanel/hooks/useStatsSelection'
 import { useStatsTokens } from '@/components/BottomPanel/hooks/useStatsTokens'
 import { useStatsDerivedData } from '@/components/BottomPanel/hooks/useStatsDerivedData'
 
 export default function BottomPanelStatsTab() {
+  const semanticMode = useGraphStore(s => (s.documentSemanticMode || 'document') as 'document' | 'keyword')
   const {
     data,
     schema,
@@ -35,6 +37,12 @@ export default function BottomPanelStatsTab() {
     selectedNodeIdSet,
     selectedEdgeIdSet,
   } = useStatsSelection()
+
+  React.useEffect(() => {
+    if (semanticMode !== 'keyword') return
+    if (statsScope === 'dataset') return
+    setStatsScope('dataset')
+  }, [semanticMode, setStatsScope, statsScope])
 
   const {
     baseTokenCfg,
@@ -73,6 +81,7 @@ export default function BottomPanelStatsTab() {
     tokenCfg,
     effectiveLod,
     baseTokenCfg,
+    semanticMode,
   })
 
   const uiPanelMonospaceTextClass = useGraphStore(
@@ -115,6 +124,29 @@ export default function BottomPanelStatsTab() {
   const clearPinnedCommunityState = React.useCallback(() => {
     setPinnedCommunityId(null)
   }, [setPinnedCommunityId])
+
+  const keywordNodes = React.useMemo(() => {
+    if (semanticMode !== 'keyword') return []
+    const graph = effectiveGraph
+    if (!graph || !Array.isArray(graph.nodes)) return []
+    const maxListItems = effectiveLod === 'low' ? 10 : effectiveLod === 'medium' ? 20 : 50
+    const out = graph.nodes
+      .map(n => {
+        const props = (n.properties || {}) as Record<string, unknown>
+        const kind = String(props['keyword:kind'] || '')
+        if (kind && kind !== 'entity') return null
+        const rawCount = props.count
+        const count = typeof rawCount === 'number' && Number.isFinite(rawCount) ? rawCount : 0
+        return { id: String(n.id), label: String(n.label || n.id), count }
+      })
+      .filter((x): x is { id: string; label: string; count: number } => !!x && !!x.id)
+    out.sort((a, b) => {
+      const diff = b.count - a.count
+      if (diff !== 0) return diff
+      return a.label.localeCompare(b.label)
+    })
+    return out.slice(0, Math.max(0, maxListItems))
+  }, [effectiveGraph, effectiveLod, semanticMode])
 
   return (
     <div className="h-full min-h-0 flex flex-col overflow-auto px-3">
@@ -168,15 +200,24 @@ export default function BottomPanelStatsTab() {
         ignoreFilters={datasetIgnoreFilters}
       />
 
-      <NodeWordFrequenciesSection
-        tokensForSelectedNode={tokensForSelectedNode}
-        tokensForSelectedNodes={tokensForSelectedNodes}
-        statsFilterMode={statsFilterMode}
-        statsExcludeTokens={statsExcludeTokens}
-        statsIncludeTokens={statsIncludeTokens}
-        toggleStatsToken={toggleStatsStopword}
-        ui={ui}
-      />
+      {semanticMode === 'keyword' ? (
+        <KeywordEntitiesSection
+          keywordNodes={keywordNodes}
+          selectedNodeIdSet={selectedNodeIdSet}
+          selectNodeIds={selectNodeIds}
+          ui={ui}
+        />
+      ) : (
+        <NodeWordFrequenciesSection
+          tokensForSelectedNode={tokensForSelectedNode}
+          tokensForSelectedNodes={tokensForSelectedNodes}
+          statsFilterMode={statsFilterMode}
+          statsExcludeTokens={statsExcludeTokens}
+          statsIncludeTokens={statsIncludeTokens}
+          toggleStatsToken={toggleStatsStopword}
+          ui={ui}
+        />
+      )}
 
       <CommunitiesStatsSection
         communities={communities}
@@ -213,6 +254,7 @@ export default function BottomPanelStatsTab() {
         similarityMetricLabel={similarityMetricLabel}
         semanticEdgeColor={semanticEdgeColor}
         neutralBarColor={neutralBarColor}
+        semanticMode={semanticMode}
         pinnedEdgeId={pinnedEdgeId}
         setPinnedEdgeId={setPinnedEdgeId}
         clearPinnedCommunityState={clearPinnedCommunityState}

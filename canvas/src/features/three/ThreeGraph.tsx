@@ -19,7 +19,7 @@ const ControlsLazy = React.lazy(() =>
   })),
 )
 
-export default function ThreeGraph() {
+export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const {
     graphData: data,
     schema,
@@ -31,7 +31,7 @@ export default function ThreeGraph() {
   const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const glCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
-  const paused = !bottomPanelCollapsed && bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.001
+  const paused = !active || (!bottomPanelCollapsed && bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.001)
   const graph = data as GraphData | null
   const s = schema as GraphSchema | null
   const effectiveSchema = useMemo<GraphSchema>(() => s || defaultSchema, [s])

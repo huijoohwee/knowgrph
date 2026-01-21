@@ -10,7 +10,6 @@ import {
   fetchRemoteMarkdownText,
   promptForUrl,
   deriveMarkdownNameFromUrl,
-  isMarkdownUrlPath,
 } from './ingestUtils'
 
 export type MarkdownImportType = 'url' | 'local'
@@ -89,20 +88,17 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
       if (res.input && res.input.text.trim()) {
         const rawName = String(res.input.name || '')
         const isHttp = /^https?:\/\//i.test(rawName)
-        if (isHttp && isMarkdownUrlPath(rawName)) {
+        if (isHttp) {
           const baseName = deriveMarkdownNameFromUrl(rawName)
           state.setJsonSourceDocument(baseName, null)
           state.setMarkdownDocument(baseName, res.input.text)
           state.setMarkdownDocumentSourceUrl(rawName)
-          state.addRecentFile({
-            name: baseName,
-            url: rawName,
-            type: 'url',
-          })
+          state.addRecentFile({ name: baseName, url: rawName, type: 'url' })
         } else {
           const name = res.input.name
           state.setJsonSourceDocument(name, null)
           state.setMarkdownDocument(name, res.input.text)
+          state.setMarkdownDocumentSourceUrl(null)
           state.addRecentFile({
             name,
             path: type === 'local' ? name : undefined,

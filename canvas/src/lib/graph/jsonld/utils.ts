@@ -34,6 +34,7 @@ export const AGENTIC_RAG_MINIMAL_CONTEXT: Record<string, unknown> = {
   media_url: { '@type': '@id' },
   provenance: { '@type': '@id' },
   documentUrl: { '@type': '@id' },
+  reference: { '@type': '@id' },
 }
 
 export function isIdPropertyKey(ctx: Record<string, unknown>, key: string): boolean {

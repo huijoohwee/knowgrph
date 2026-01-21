@@ -363,12 +363,17 @@ export function BottomPanelMarkdownSectionView(
               setMarkdownLayoutMode('viewer')
               setMarkdownPresentationMode(false)
               triggerJump(line)
-              if (viewerRef.current) {
-                  setTimeout(() => {
-                      if (!viewerRef.current) return
-                      scrollToLineInViewer(viewerRef.current, line)
-                  }, 50)
-              }
+              const viewer = viewerRef.current
+              if (!viewer) return
+              const raf =
+                typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+                  ? window.requestAnimationFrame
+                  : (cb: FrameRequestCallback) => window.setTimeout(() => cb(Date.now()), 0) as unknown as number
+              raf(() => {
+                raf(() => {
+                  scrollToLineInViewer(viewerRef.current, line)
+                })
+              })
             }}
             onShowInPresentation={(line) => {
               setMarkdownLayoutMode('presentation')

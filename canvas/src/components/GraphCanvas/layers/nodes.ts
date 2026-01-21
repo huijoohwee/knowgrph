@@ -20,7 +20,7 @@ import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
-import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens';
+import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
 
 const MEDIA_PANEL_HEADER_AT_MAX_ZOOM = 36;
 const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT = 5.0; // Aligned with Rect Nodes maxZoomMinimapWidthRatio=5.0
@@ -29,9 +29,9 @@ const MEDIA_PANEL_ASPECT_WIDTH = 16;
 const MEDIA_PANEL_ASPECT_HEIGHT = 9;
 const MEDIA_PANEL_PADDING = 4;
 const MEDIA_PANEL_CORNER_AT_MAX_ZOOM = 8;
-const MEDIA_PANEL_BORDER_COLOR = UI_THEME_COLORS.light.border;
-const MEDIA_PANEL_BG_COLOR = UI_THEME_COLORS.light.bg;
-const MEDIA_PANEL_HEADER_BG_COLOR = '#f9fafb'; // gray-50
+const MEDIA_PANEL_BORDER_COLOR = UI_THEME_COLORS_CSS.border;
+const MEDIA_PANEL_BG_COLOR = UI_THEME_COLORS_CSS.bg;
+const MEDIA_PANEL_HEADER_BG_COLOR = 'var(--kg-media-panel-header-bg)';
 const MEDIA_PANEL_BORDER_WIDTH = 1 / ZOOM_MAX;
 
 export const createNodesLayer = (args: {
@@ -310,7 +310,7 @@ export const createNodesLayer = (args: {
   node
      .attr('fill', (d: GraphNode) => getNodeBaseFill(d, schema))
     .attr('stroke', (d: GraphNode) => {
-      return schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS.light.nodeStroke
+      return schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS_CSS.nodeStroke
     })
     .attr('stroke-width', (d: GraphNode) => {
       const w = schema.nodeStroke?.[d.type]?.width

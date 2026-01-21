@@ -5,6 +5,7 @@ import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SelectionSnapshot } from '@/components/BottomPanel/stats/types'
+import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 export function useStatsSelection() {
   const data = useGraphStore(s => s.graphData)
@@ -14,7 +15,7 @@ export function useStatsSelection() {
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
-  const derivedGraph = data as GraphData | null
+  const derivedGraph = useActiveGraphData()
 
   const edgeSelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)
   const communitySelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)

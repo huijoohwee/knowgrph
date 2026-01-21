@@ -638,6 +638,22 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
           value={value}
           readOnly={!!readOnly}
           onChange={e => onChange(e.target.value)}
+          onSelect={e => {
+            const el = e.currentTarget
+            const startOffset = typeof el.selectionStart === 'number' ? el.selectionStart : 0
+            const endOffset = typeof el.selectionEnd === 'number' ? el.selectionEnd : startOffset
+            if (onSelectionChangeOffsetsRef.current) {
+              onSelectionChangeOffsetsRef.current({ startOffset, endOffset })
+            }
+          }}
+          onDoubleClick={e => {
+            const el = e.currentTarget
+            const startOffset = typeof el.selectionStart === 'number' ? el.selectionStart : 0
+            const endOffset = typeof el.selectionEnd === 'number' ? el.selectionEnd : startOffset
+            if (onDoubleClickSelectionOffsetsRef.current) {
+              onDoubleClickSelectionOffsetsRef.current({ startOffset, endOffset })
+            }
+          }}
           onBlur={onBlur}
           className={[
             'h-full w-full resize-none outline-none p-2',

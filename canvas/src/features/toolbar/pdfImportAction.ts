@@ -74,7 +74,7 @@ export type PdfImportType = 'url' | 'local'
 
 export async function performPdfImport(type: PdfImportType, providedUrl?: string) {
   try {
-    const picked = await (async (): Promise<{ name: string; markdown: string } | null> => {
+    const picked = await (async (): Promise<{ name: string; markdown: string; sourceUrl: string | null } | null> => {
       if (type === 'url') {
         const rawUrl = (() => {
           const v = typeof providedUrl === 'string' ? providedUrl.trim() : ''
@@ -102,7 +102,7 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
           }
           return null
         }
-        return { name: converted.displayName, markdown: converted.markdown }
+        return { name: converted.displayName, markdown: converted.markdown, sourceUrl: url }
       }
       if (type === 'local') {
         const file = await pickFileWithExtensions(['.pdf'])
@@ -126,7 +126,7 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
           }
           return null
         }
-        return { name: converted.displayName, markdown: converted.markdown }
+        return { name: converted.displayName, markdown: converted.markdown, sourceUrl: null }
       }
       return null
     })()
@@ -155,20 +155,9 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
       } else {
         ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
         ui.setWarnings([])
-          // Auto-close panels on success to show canvas
-          const store = useGraphStore.getState()
-          try {
-            store.setSidebarOpen(false)
-            try {
-               if (typeof window !== 'undefined' && window.localStorage) {
-                  window.localStorage.setItem('knowgrph:bottom-panel-collapsed', 'true')
-                  window.dispatchEvent(new StorageEvent('storage', { key: 'knowgrph:bottom-panel-collapsed', newValue: 'true' }))
-               }
-            } catch { void 0 }
-          } catch { void 0 }
-        }
         if (res.counts) {
-        ui.setCounts(res.counts)
+          ui.setCounts(res.counts)
+        }
       }
     } catch {
       void 0
@@ -180,7 +169,14 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
         const name = res.input.name
         state.setJsonSourceDocument(name, null)
         state.setMarkdownDocument(name, res.input.text)
+        state.setMarkdownDocumentSourceUrl(picked.sourceUrl)
         state.setBottomPanelCurationView('grid')
+        state.addRecentFile({
+          name,
+          path: type === 'local' ? name : undefined,
+          url: type === 'url' ? (picked.sourceUrl || undefined) : undefined,
+          type: 'markdown',
+        })
       }
     } catch {
       void 0

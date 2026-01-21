@@ -1,0 +1,21 @@
+{
+  "uiOverlayOpacity": {
+    "area": "Global Translucency",
+    "modules": [
+      "canvas/src/pages/Canvas.tsx"
+    ],
+    "classes": [
+      "window.document.documentElement"
+    ],
+    "functions": [
+      "useEffect"
+    ],
+    "responsibility": "Canvas writes CSS variables to :root",
+    "imports": [
+      "React",
+      "zustand"
+    ],
+    "notes": "persisted kg:ui:overlayOpacity; clamps to [0,1]",
+    "lineRange": "canvas/src/pages/Canvas.tsx:22–27"
+  }
+}

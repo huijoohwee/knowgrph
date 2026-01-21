@@ -18,6 +18,7 @@ import FieldSettingsPanel from '@/features/panels/views/graph-fields/FieldSettin
 import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamplesPanel'
 import { normalized } from '@/features/panels/utils/json'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -36,7 +37,7 @@ type GraphFieldsViewProps = {
 }
 
 export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFieldsViewProps) {
-  const graphData = useGraphStore(s => s.graphData)
+  const graphData = useActiveGraphData()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const settingsById = useGraphStore(s => s.graphFieldSettingsById)
   const setGraphFieldSettingsById = useGraphStore(s => s.setGraphFieldSettingsById)

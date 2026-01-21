@@ -376,7 +376,18 @@ export default function CanvasPage() {
               </nav>
               <>
                 <React.Suspense fallback={null}>
-                  {canvasRenderMode === '2d' ? <GraphCanvasLazy /> : <ThreeGraphLazy />}
+                  <div
+                    className={`absolute inset-0 ${canvasRenderMode === '2d' ? 'visible' : 'invisible pointer-events-none'}`}
+                    aria-hidden={canvasRenderMode !== '2d'}
+                  >
+                    <GraphCanvasLazy active={canvasRenderMode === '2d'} />
+                  </div>
+                  <div
+                    className={`absolute inset-0 ${canvasRenderMode === '3d' ? 'visible' : 'invisible pointer-events-none'}`}
+                    aria-hidden={canvasRenderMode !== '3d'}
+                  >
+                    <ThreeGraphLazy active={canvasRenderMode === '3d'} />
+                  </div>
                   <LaunchSpotlight />
                   <section
         className="fixed left-3 z-[201] pointer-events-auto"

@@ -1,7 +1,7 @@
 import fnmatch
 import json
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 try:
     import yaml  # type: ignore
@@ -205,6 +205,74 @@ def should_ignore_path(path: str, ignored_paths: List[str]) -> bool:
             if normalized_pattern in segments:
                 return True
     return False
+
+
+def build_ignore_matcher(ignored_paths: List[str]) -> Callable[[str], bool]:
+    compiled: List[Tuple[str, str]] = []
+    for raw_pattern in ignored_paths or []:
+        pattern = raw_pattern.strip() if isinstance(raw_pattern, str) else ""
+        if not pattern:
+            continue
+        normalized_pattern = normalize_rel_path(pattern)
+        if normalized_pattern.startswith("./"):
+            normalized_pattern = normalized_pattern[2:]
+        if not normalized_pattern:
+            continue
+        if normalized_pattern.endswith("/"):
+            compiled.append(("dir", normalized_pattern.rstrip("/")))
+        elif any(ch in normalized_pattern for ch in "*?[]"):
+            compiled.append(("glob", normalized_pattern))
+        elif "/" in normalized_pattern:
+            compiled.append(("path", normalized_pattern))
+        else:
+            compiled.append(("segment", normalized_pattern))
+
+    cache: Dict[str, bool] = {}
+
+    def matcher(path: str) -> bool:
+        if not compiled:
+            return False
+        normalized_path = normalize_rel_path(path).lstrip("./")
+        cached = cache.get(normalized_path)
+        if cached is not None:
+            return bool(cached)
+        segments = normalized_path.split("/") if normalized_path else []
+        ignored = False
+        for kind, value in compiled:
+            if kind == "dir":
+                if "/" in value:
+                    if normalized_path == value or normalized_path.startswith(value + "/"):
+                        ignored = True
+                        break
+                else:
+                    if value in segments:
+                        ignored = True
+                        break
+                continue
+            if kind == "glob":
+                if fnmatch.fnmatch(normalized_path, value):
+                    ignored = True
+                    break
+                if segments and fnmatch.fnmatch(segments[-1], value):
+                    ignored = True
+                    break
+                continue
+            if kind == "path":
+                if normalized_path == value or normalized_path.startswith(value + "/"):
+                    ignored = True
+                    break
+                continue
+            if kind == "segment":
+                if value in segments:
+                    ignored = True
+                    break
+                continue
+        cache[normalized_path] = ignored
+        if len(cache) > 50000:
+            cache.clear()
+        return ignored
+
+    return matcher
 
 
 def extract_graphrag_workflow_config(config: Dict[str, Any]) -> str:

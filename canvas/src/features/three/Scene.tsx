@@ -4,7 +4,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
-import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens'
+import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { computeNeighborIds } from '@/components/GraphCanvas/highlight'
 import { getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
@@ -104,19 +104,7 @@ export function Scene({
     if (typeof raw === 'string' && raw.trim() !== '') {
       color = raw
     } else {
-      let theme: string | null = null
-      try {
-        if (typeof document !== 'undefined') {
-          theme = document.documentElement.getAttribute('data-theme')
-        }
-      } catch {
-        theme = null
-      }
-      if (theme === 'dark') {
-        color = UI_THEME_COLORS.dark.bg
-      } else {
-        color = UI_THEME_COLORS.light.bg
-      }
+      color = resolveCssVar('--kg-canvas-bg', '#ffffff')
     }
     try {
       gl.setClearColor(color)

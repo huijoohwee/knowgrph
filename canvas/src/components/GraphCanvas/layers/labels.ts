@@ -32,8 +32,16 @@ export const createLabelsLayer = (args: {
   const haloColor = schema.labelStyles?.halo?.color ?? '#ffffff';
   const haloWidthRaw = schema.labelStyles?.halo?.width;
   const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3;
-  const baseDx = schema.labelStyles?.offset?.dx ?? 12;
   const lineHeightPx = labelFontSize * 1.2;
+  const getBaseDxForNode = (d: GraphNode) => {
+    if (getNodeRenderShape2d(d, schema) === 'rect') return 0
+    return schema.labelStyles?.offset?.dx ?? 12
+  }
+  const getBaseAnchorForNode = (d: GraphNode) => {
+    if (getNodeRenderShape2d(d, schema) === 'rect') return 'middle'
+    const dx = getBaseDxForNode(d)
+    return dx >= 0 ? 'start' : 'end'
+  }
 
   const label = labelLayer
     .selectAll<SVGTextElement, GraphNode>('text')
@@ -47,27 +55,23 @@ export const createLabelsLayer = (args: {
     .attr('data-lod-hidden', '0')
     .attr('data-zoom-lod-hidden', '0')
     .attr('dx', (d: GraphNode) => {
-       if (getNodeRenderShape2d(d, schema) === 'rect') return 0
-       return schema.labelStyles?.offset?.dx ?? 12
+       return getBaseDxForNode(d)
     })
     .attr('dy', (d: GraphNode) => {
         if (getNodeRenderShape2d(d, schema) === 'rect') return 0
         return schema.labelStyles?.offset?.dy ?? 4
     })
-    .attr('data-base-anchor', 'middle')
+    .attr('data-base-anchor', (d: GraphNode) => getBaseAnchorForNode(d))
     .attr('data-base-dx', (d: GraphNode) => {
-       if (getNodeRenderShape2d(d, schema) === 'rect') return '0'
-       return String(baseDx)
+       return String(getBaseDxForNode(d))
     })
     .attr('data-base-dy', (d: GraphNode) => {
         if (getNodeRenderShape2d(d, schema) === 'rect') return '0'
         return String(schema.labelStyles?.offset?.dy ?? 4);
     })
-    .attr('dominant-baseline', (d: GraphNode) => {
-         if (getNodeRenderShape2d(d, schema) === 'rect') return 'middle'
-         return null
-    })
-    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .attr('alignment-baseline', 'middle')
+    .attr('text-anchor', (d: GraphNode) => getBaseAnchorForNode(d))
     .attr('paint-order', 'stroke')
     .attr('stroke', haloColor)
     .attr('stroke-width', haloWidth)

@@ -5,8 +5,7 @@ import { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { selectionPerfEnd, selectionPerfStart } from '@/lib/selectionPerf'
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight'
-import { UI_THEME_COLORS } from '@/lib/ui/theme-tokens'
-import type { ThemeMode } from '@/lib/ui/theme'
+import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
 
 interface UseSelectionHighlightProps {
   paused?: boolean
@@ -31,13 +30,7 @@ export function useSelectionHighlight({
       const graphData = state.graphData as GraphData | null
       const schema = state.schema as GraphSchema | null
       if (!graphData || !schema) return
-      const themeMode = state.themeMode as ThemeMode
-      const isDark =
-        themeMode === 'dark' ||
-        (themeMode === 'system' &&
-          typeof window !== 'undefined' &&
-          window.matchMedia('(prefers-color-scheme: dark)').matches)
-      const themeColors = isDark ? UI_THEME_COLORS.dark : UI_THEME_COLORS.light
+      const themeColors = UI_THEME_COLORS_CSS
       const t0 = selectionPerfStart()
       state.setLifecycleStage('selectionUpdate')
       applySelectionHighlight(
@@ -71,7 +64,6 @@ export function useSelectionHighlight({
         selectedEdgeIds: s.selectedEdgeIds,
         mediaNodeOpacity: s.mediaNodeOpacity,
         renderMediaAsNodes: s.renderMediaAsNodes,
-        themeMode: s.themeMode,
         graphDataRevision: s.graphDataRevision,
       }),
       () => schedule(),

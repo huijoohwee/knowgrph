@@ -104,6 +104,15 @@ export const UI_COPY = {
   frontmatterModeToggleTooltip: 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph',
   mermaidLayoutTooltip: 'Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout.',
   nodeShapeModeTooltip: 'Node Shape: toggle between circle (default) and rectangular nodes.',
+  documentStructureModeTooltip: 'Document Structure Mode (default): render document sections/blocks/links as graph.',
+  keywordModeTooltip:
+    'Keyword Mode: subject/object/entity keywords as nodes; verb/predicate/relationship keywords as edges.',
+  statsKeywordNodesSectionTitle: 'Nodes (Subject/Object/Entity Keywords)',
+  statsNoKeywordNodesLabel: 'No keyword nodes available for this dataset.',
+  statsKeywordNodesTitle: 'Keyword nodes',
+  statsKeywordNodesBarHeightHint: 'Bar height = keyword mention count',
+  statsEdgesSectionTitle: 'Edges (co-occurrence + similarity)',
+  statsEdgesKeywordSectionTitle: 'Edges (Verb/Predicate/Relationship Keywords)',
   portHandlesTooltip:
     'Port Handles: toggle to show node connection handles and route 2D edge endpoints to the nearest handle.',
   fitToViewTooltip: 'Fit to View: automatically scale and center the graph to fill the viewport.',

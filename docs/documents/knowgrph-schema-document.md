@@ -98,20 +98,18 @@ layers.schema:
 ```yaml
 schema.layout.mode:
   scope: schema_global
-  type: string (enum: "force" | "radial" | "tree" | "mermaid")
+  type: string (enum: "force" | "radial")
   mutability: runtime_configurable
   validation: must be valid layout algorithm
-  impact: selects graph layout algorithm (force-directed, radial, hierarchical tree, Mermaid diagram)
+  impact: selects 2D graph layout algorithm (force-directed vs radial)
 ```
 
 **Layout Mode Descriptions**:
 
-| Mode      | Algorithm                  | Use Case                              | Complexity      |
-|-----------|----------------------------|---------------------------------------|-----------------|
-| `force`   | Force-directed simulation  | General-purpose graph layout          | O(n²) per tick  |
-| `radial`  | Circular hierarchy         | Emphasize centrality                  | O(n log n)      |
-| `tree`    | Hierarchical (Dagre)       | Document structures, DAGs             | O(n + m)        |
-| `mermaid` | Mermaid-specific tree      | Mermaid frontmatter diagram rendering | O(n + m)        |
+| Mode      | Algorithm                  | Use Case                     | Complexity     |
+|-----------|----------------------------|------------------------------|----------------|
+| `force`   | Force-directed simulation  | General-purpose graph layout | O(n²) per tick |
+| `radial`  | Circular hierarchy         | Emphasize centrality         | O(n log n)     |
 
 ---
 
@@ -168,15 +166,15 @@ schema.layout.fitEnforceAspectRatio:
 
 ### Structured Layout Position Caching
 
-**Cache Key Pattern**: `(schema.layers.mode, schema.layout.mode)` → node position map
+**Cache Key Pattern**: `(frontmatterMode, schema.layout.mode)` → node position map
 
 **Caching Behavior**:
 
 | Scenario                              | Cache Action                                              | Rationale                                                    |
 |---------------------------------------|-----------------------------------------------------------|--------------------------------------------------------------|
-| Switch from force to radial           | Save force positions under `(semantic, force)` key        | Preserves force layout when switching to radial              |
-| Switch back to force                  | Restore positions from `(semantic, force)` key            | Avoids recomputation of stable force layout                  |
-| Switch from semantic to document layer| Save positions under `(semantic, radial)` key             | Isolates layer-specific layouts                              |
+| Switch from force to radial           | Save force positions under `default:force` (or `frontmatter:force`) key | Preserves force layout when switching to radial              |
+| Switch back to force                  | Restore positions from `default:force` (or `frontmatter:force`) key     | Avoids recomputation of stable force layout                  |
+| Toggle frontmatter mode               | Restore positions from `frontmatter:*` vs `default:*` key | Prevents cross-mode contamination                             |
 | Replace graph data                    | Clear all layout caches                                   | Prevents memory leak and stale position application          |
 
 **Configuration Schema**:

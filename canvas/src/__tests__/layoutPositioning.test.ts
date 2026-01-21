@@ -10,8 +10,10 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
   const resNoCache = determineLayoutPositions({
     mode: 'force',
     frontmatterMode: false,
+    semanticMode: 'document',
     prevMode: 'force',
     prevFrontmatterMode: true,
+    prevSemanticMode: 'document',
     nodes,
     layoutPositionCacheByMode: {},
   })
@@ -23,7 +25,7 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
   }
 
   const cache = {
-    'default:force': {
+    'document:default:force': {
       a: { x: 1, y: 2 },
       b: { x: 3, y: 4 },
     },
@@ -31,13 +33,15 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
   const resWithCache = determineLayoutPositions({
     mode: 'force',
     frontmatterMode: false,
+    semanticMode: 'document',
     prevMode: 'force',
     prevFrontmatterMode: true,
+    prevSemanticMode: 'document',
     nodes,
     layoutPositionCacheByMode: cache,
   })
-  if (resWithCache.cacheKey !== 'default:force') {
-    throw new Error(`expected cacheKey default:force, got ${resWithCache.cacheKey}`)
+  if (resWithCache.cacheKey !== 'document:default:force') {
+    throw new Error(`expected cacheKey document:default:force, got ${resWithCache.cacheKey}`)
   }
   if (!resWithCache.layoutPositionsForMode) {
     throw new Error('expected cache positions to be selected on view toggle when coverage is high')
@@ -46,4 +50,3 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
     throw new Error('expected cached force layout to skip initial layout')
   }
 }
-

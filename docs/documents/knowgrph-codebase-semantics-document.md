@@ -34,6 +34,17 @@
 
 ---
 
+## Performance Safeguards
+
+| Context     | Intent                      | Directive |
+|------------|-----------------------------|----------|
+| Semantics  | Bound sentence pair growth  | - [ ] Cap per-sentence entity pairing by `max_syntactic_path_length`; forbid O(m²) explosions |
+| Patterns   | Bound block co-occurrences  | - [ ] Cap per-block entity set size for pattern mining; forbid O(k²) scans on large blocks |
+| Counting   | Avoid repeated full scans    | - [ ] Compute mention counts in one pass; forbid O(E·M) rescans |
+| Ignore     | Avoid repeated path checks   | - [ ] Precompile ignore matcher + cache per-path results; forbid repeated per-node pattern normalization |
+
+---
+
 ## Import-to-Render Bridge
 
 | Stage | Input | Output | Contract |
@@ -43,6 +54,9 @@
 | Derive | `GraphData` + schema | Render graph | Layer-mode specific filtering/enrichment |
 | Render | Render graph | Canvas scene | No mutation of store graph data |
 
+**Context alignment rule**:
+- When a graph declares the AgenticRAG context IRI, Canvas materializes `GraphData.context` as an object with `@vocab` + minimal `@type:@id` terms (e.g., `source/target/documentUrl/reference`) so edge inference and UI diagnostics stay schema-aligned.
+
 ---
 
 ## Primary References
@@ -50,4 +64,3 @@
 - Codebase index architecture: [knowgrph-codebase-index-document.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-codebase-index-document.md)
 - Pipeline overview: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-pipeline-document.md)
 - Renderer behavior: [knowgrph-renderer-document.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-renderer-document.md)
-

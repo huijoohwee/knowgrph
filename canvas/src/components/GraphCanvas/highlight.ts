@@ -3,7 +3,7 @@ import { GraphNode, GraphEdge, GraphData, type SelectionAnchorIds } from '@/lib/
 import { GraphSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
 import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation';
 import { getEdgeBaseStroke, getLayerOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
-import { UI_THEME_COLORS, type ThemeColors } from '@/lib/ui/theme-tokens';
+import { UI_THEME_COLORS_CSS, type ThemeColors } from '@/lib/ui/theme-tokens';
 
 export type SelectionHighlightParams = {
   data: GraphData
@@ -263,7 +263,7 @@ export const applySelectionHighlight = (
   renderMediaAsNodes: boolean = true,
   extra?: {
     mediaNodeOpacity?: number
-    themeColors?: typeof UI_THEME_COLORS.light
+    themeColors?: ThemeColors
   },
 ): void => {
   const params: SelectionHighlightParams = {
@@ -275,7 +275,7 @@ export const applySelectionHighlight = (
     selectedEdgeIds,
     renderMediaAsNodes,
     mediaNodeOpacity: extra?.mediaNodeOpacity,
-    themeColors: extra?.themeColors,
+    themeColors: extra?.themeColors ?? UI_THEME_COLORS_CSS,
   }
   const neighborIds = computeNeighborIds(params)
   const selectionSets = deriveSelectionSets(params)
@@ -285,23 +285,18 @@ export const applySelectionHighlight = (
   const edgeParams = { ...params, selectionSets, neighborIds }
 
   if (nodesSel) {
-    nodesSel
-      .attr('fill', (d: GraphNode) => {
-        const v = computeNodeVisual(d, nodeParams)
-        return v.fill
-      })
-      .attr('stroke', (d: GraphNode) => {
-        const v = computeNodeVisual(d, nodeParams)
-        return v.stroke
-      })
-      .attr('stroke-width', (d: GraphNode) => {
-        const v = computeNodeVisual(d, nodeParams)
-        return v.strokeWidth
-      })
-      .style('opacity', (d: GraphNode) => {
-        const v = computeNodeVisual(d, nodeParams)
-        return v.opacity
-      });
+    nodesSel.each(function (d: GraphNode) {
+      const v = computeNodeVisual(d, nodeParams)
+      const el = this as unknown as SVGElement
+      el.setAttribute('fill', v.fill)
+      el.setAttribute('stroke', v.stroke)
+      el.setAttribute('stroke-width', String(v.strokeWidth))
+      try {
+        ;(el.style as CSSStyleDeclaration).opacity = String(v.opacity)
+      } catch {
+        void 0
+      }
+    })
   }
 
   if (mediaSel) {
@@ -334,18 +329,12 @@ export const applySelectionHighlight = (
   }
 
   if (linksSel) {
-    linksSel
-      .attr('stroke', d => {
-        const v = computeEdgeVisual(d as EdgeWithRuntime, edgeParams)
-        return v.stroke
-      })
-      .attr('stroke-opacity', d => {
-        const v = computeEdgeVisual(d as EdgeWithRuntime, edgeParams)
-        return v.opacity
-      })
-      .attr('stroke-width', d => {
-        const v = computeEdgeVisual(d as EdgeWithRuntime, edgeParams)
-        return v.width
-      });
+    linksSel.each(function (d) {
+      const v = computeEdgeVisual(d as EdgeWithRuntime, edgeParams)
+      const el = this as unknown as SVGElement
+      el.setAttribute('stroke', v.stroke)
+      el.setAttribute('stroke-opacity', String(v.opacity))
+      el.setAttribute('stroke-width', String(v.width))
+    })
   }
 };

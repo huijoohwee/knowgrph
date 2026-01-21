@@ -7,7 +7,7 @@ from .common import (
     KG_PREFIX,
 )
 from .codebase_index_artifacts import normalize_rel_path
-from .codebase_index_config import should_ignore_path
+from .codebase_index_config import build_ignore_matcher
 from .runtime_events import add_runtime_events
 
 
@@ -24,6 +24,7 @@ def build_jsonld(
     raw_ignored_patterns: List[str],
     runtime_event_specs: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
+    ignore_match = build_ignore_matcher(ignored_paths)
     nodes_value = graph.get("nodes") or []
     edges_value = graph.get("edges") or []
     if not isinstance(nodes_value, list):
@@ -53,7 +54,7 @@ def build_jsonld(
         }
         raw_path = raw_data.get("path")
         if isinstance(raw_path, str) and raw_path:
-            if should_ignore_path(raw_path, ignored_paths):
+            if ignore_match(raw_path):
                 continue
             node_obj["path"] = normalize_rel_path(raw_path).lstrip("./")
         node_id = original_node_id

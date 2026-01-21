@@ -119,7 +119,7 @@ config:
 
 Key behaviors:
 
-- Normalizes file paths and ignores configured paths via `should_ignore_path` and `normalize_rel_path`.
+- Normalizes file paths and ignores configured paths via a compiled ignore matcher (`build_ignore_matcher`) and `normalize_rel_path`.
 - Canonicalizes `File` node IDs to the normalized path and tracks `metadata.aliases` for original IDs.
 - Maps edges into adjacency lists on source nodes (`node[label] = ["kg:targetId", …]`).
 - Populates `metadata.layers.indexing`, `metadata.layers.traversal`, and `metadata.layers.tracing`.
@@ -133,7 +133,7 @@ Key behaviors:
 | Context              | Intent                          | Directive                                                                                   | Module                     | Function/Method         | Input                                          | Output                           | Decision Logic                                    |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------------|-------------------------|------------------------------------------------|----------------------------------|---------------------------------------------------|
 | Path Normalization   | Ensure consistent identifiers   | - [ ] Apply POSIX normalization; resolve relatives; forbid platform-specific paths         | codebase_index_jsonld      | normalize_rel_path      | Path string, base_path                         | Normalized relative path         | Path.resolve().relative_to() with as_posix()      |
-| Ignore Filtering     | Respect exclusion patterns      | - [ ] Match glob patterns; skip hidden files; forbid inclusion of ignored paths            | codebase_index_jsonld      | should_ignore_path      | Path string, patterns list                     | Boolean (ignore/include)         | fnmatch.fnmatch() over compiled patterns          |
+| Ignore Filtering     | Respect exclusion patterns      | - [ ] Match glob patterns; skip hidden files; forbid inclusion of ignored paths            | codebase_index_jsonld      | build_ignore_matcher    | Path string, patterns list                     | Callable path matcher             | Pre-normalize patterns + cache per-path decisions |
 | ID Canonicalization  | Unify File node identifiers     | - [ ] Remap to normalized path; store aliases; forbid duplicate IDs                        | codebase_index_jsonld      | build_jsonld            | Graph nodes dict                               | Canonical node dict              | Single File node per normalized path              |
 | Edge Adjacency       | Build traversal lists           | - [ ] Group edges by source/label; append targets; forbid duplicate edges                  | codebase_index_jsonld      | build_jsonld            | Graph edges list                               | node[label] = [targets]          | Dict accumulation with label keys                 |
 | Metadata Layers      | Encode provenance lineage       | - [ ] Populate indexing/traversal/tracing layers; timestamp; forbid missing metadata       | codebase_index_jsonld      | build_jsonld            | Runtime events, traversal edges                | metadata.layers dict             | Structured dict with schema URLs                  |

@@ -36,13 +36,29 @@
 
 ---
 
+## Pipeline Map (Loadable Graph)
+
+**Artifact**: `docs/assets/knowgrph-canvas-import-parse-derive-layout-render-pipeline-map.jsonld`
+
+**Goal**: Load the repo’s own pipeline map into Canvas (nodes=modules/functions; edges=calls/artifacts) and use node `reference/documentUrl` links to jump to source.
+
+**Load steps**:
+- Toolbar → Source Files → Import → JSON‑LD → Local → select the JSON‑LD file above
+- Optional: apply `schema-config/knowgrph-universal-schema-config.jsonld` to get pipeline-friendly styles (`contains/calls/invokes/next`)
+
+---
+
 ## Stage Specifications
 
 ### Stage 1: Import
 
 **From/To**: User input → Loader → raw text/bytes → enables parser selection.
 
-- Primary entrypoint (UI action): [markdownImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/markdownImportAction.ts)
+- UI import entrypoints (format-specific):
+  - Markdown: [markdownImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/markdownImportAction.ts)
+  - HTML → Markdown: [htmlImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/htmlImportAction.ts)
+  - PDF → Markdown: [pdfImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/pdfImportAction.ts)
+  - JSON/JSON-LD/CSV: [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
 - Local/URL loader bridge (Bottom Panel): [useMarkdownLoader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/BottomPanel/useMarkdownLoader.ts)
 - Parser loader (text → GraphData): [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
 - Responsibility (S-V-O): Import action reads source → resolves text → hands off to parser loader → updates store.
@@ -51,8 +67,21 @@
 
 **From/To**: Raw source → Parser registry → `GraphData` → enables store ingestion.
 
-- Parser registry: `canvas/src/features/parsers/*`
-- Output contract: `GraphData { nodes, edges, metadata }` (JSON-LD compatible)
+- Parser registry and execution:
+  - Registry: [registry.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/registry.ts)
+  - Built-in parser specs: [default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts)
+  - Loader entry: [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+- Worker fast-path (for production/off-main-thread):
+  - Client: [parseWorker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/parseWorker.ts)
+  - Worker: [graphParser.worker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/workers/graphParser.worker.ts)
+- Format adapter for `.csv/.json/.jsonld` and workflow bundles:
+  - Adapter: [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
+- JSON-LD edge inference alignment (no surprise edges):
+  - `@context` keys with `{"@type":"@id"}` are eligible to become edges
+  - `metadata.jsonLdMapping.contextEdgeProperties` can be used as an explicit allow-list for relation keys when the context is incomplete
+  - Implementation: [parseJsonLd](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/jsonld/parse.ts)
+- Output contract (render + storage):
+  - `GraphData { type, context?, metadata?, nodes, edges }`: [types.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/types.ts)
 
 ### Stage 3: Normalize
 
@@ -65,7 +94,13 @@
 **From/To**: `GraphData` → Zustand store → canonical application state → enables coordinated UI state.
 
 - Store: `canvas/src/hooks/useGraphStore.ts`
-- Responsibility (S-V-O): Store accepts graph data → updates state immutably → notifies subscribers.
+- Canonical commit point:
+  - Store slice: [graphDataSlice.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSlice.ts)
+  - `setGraphData` enforces invariants (e.g. filters dangling edges) and bumps `graphDataRevision`.
+- Derivations coupled to commit:
+  - Derived field discovery: [graphFields.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/graph-fields/graphFields.ts)
+  - Sync visible columns and custom fields: [graphDataSliceUtils.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSliceUtils.ts)
+- Responsibility (S-V-O): Store accepts graph data → validates edges → syncs derived fields → notifies subscribers.
 
 ### Stage 5: Derive (Layer Mode)
 
@@ -74,6 +109,7 @@
 - Derivation: [layerDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts)
 - Layer modes:
   - `document`: assigns `properties["visual:layer"]` for structural layering
+  - `keyword` (semantic mode): derives a keyword graph from active document text (or node labels as fallback) where Subject/Object/Entity keywords become nodes and Verb/Predicate/Relationship keywords become edges; caches derived graphs by stable text hash; sets `properties["visual:nodeSize"]` by keyword frequency and `properties["visual:width"]` by edge strength for renderer reuse
   - `schema`: filters out `Document` nodes to focus on entity/schema nodes
   - `semantic`: enriches with derived similarity edges and `properties["visual:community"]`
   - `frontmatter mode` (UI flag): filters to Mermaid nodes tagged as frontmatter (`mermaidScope` / `isMermaidFrontmatter`)
@@ -94,16 +130,22 @@
 - Layout execution (seed + forces): [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
 - Mermaid seeded placement (subgraph spread + centroid recenter): [mermaidSeed.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/mermaidSeed.ts)
 - Mermaid direction parsing (LR/RL/TB/BT): [mermaidDirection.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/mermaidDirection.ts)
-- Cache surface: `layoutPositionCacheByMode` keyed by `(layerMode, layoutMode)`
+- Cache surface: `layoutPositionCacheByMode` keyed by `(semanticMode, frontmatterMode, layoutMode)` (e.g. `document:default:force`, `keyword:frontmatter:radial`)
 
 ### Stage 7: Render
 
 **From/To**: Positioned render graph → scene builder → DOM/SVG updates → enables interaction.
 
 - Render entrypoint: [GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
+- 3D render entrypoint: [ThreeGraph.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/three/ThreeGraph.tsx)
 - Scene orchestration: [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts)
 - Scene layers barrel: [sceneLayers.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/sceneLayers.ts)
 - Presentation updates (no simulation rebuild): [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts)
+- Typography and icon alignment (render fidelity + UI consistency):
+  - Node label anchoring and baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)
+  - Edge label baseline: [edgeLabels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/edgeLabels.ts)
+  - UI icon baseline alignment (Lucide): [index.css](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/index.css)
+  - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 
 **Invariant**: UI toggles that affect presentation only (node shape, port handles, group overlay shape, media-as-nodes) update layers in-place and do not trigger re-layout or simulation rebuild.
 
@@ -116,6 +158,6 @@
 | 1 | `canvas/src/features/parsers/loader.ts` | Loader | Loader reads input → returns parse payload | Source path/bytes | Raw content |
 | 2 | `canvas/src/features/parsers/*` | Parser | Parser transforms content → emits graph | Raw content | `GraphData` |
 | 4 | `canvas/src/hooks/useGraphStore.ts` | Store | Store persists graph → exposes selectors | `GraphData` | State |
-| 5 | `canvas/src/lib/graph/layerDerivation.ts` | Deriver | Deriver filters/enriches graph → returns render graph | State + schema | Render graph |
+| 5 | `canvas/src/hooks/useActiveGraphData.ts`, `canvas/src/features/semantic-mode/keywordGraph.ts`, `canvas/src/lib/graph/layerDerivation.ts` | Deriver | Deriver selects/derives graph → returns render graph | State + schema | Render graph |
 | 6 | `canvas/src/components/GraphCanvas/layout/positioning.ts` | Layout | Layout computes/reuses positions → returns cache decision | Render graph | Positions |
 | 7 | `canvas/src/components/GraphCanvas/scene.ts` | Renderer | Renderer builds scene → updates SVG | Render graph + positions | Visual output |

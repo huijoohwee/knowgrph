@@ -70,7 +70,7 @@
 
 **Configuration**: Toolbar menu actions with format parameter (markdown, html, pdf, jsonld, json, csv).
 
-**Interface Pattern**: `performImport(format, source)` → validates format → fetches content → dispatches to parser → updates store
+**Interface Pattern**: `perform{Format}Import(type, providedUrl?)` → validates source → fetches/converts content → dispatches to parser → updates store using a canonical document name + optional `markdownDocumentSourceUrl`.
 
 | Context              | Intent                          | Directive                                                                                   | Module                | Class/Object       | Function/Method         | Dependency        | Input                        | Output                 | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------|--------------------|-------------------------|-------------------|------------------------------|------------------------|----------------------------------|
@@ -153,6 +153,7 @@
 | Context Detection    | Identify JSON-LD format         | - [ ] Check for @context field; validate structure; forbid ambiguous formats              | jsonImport       | FormatDetector  | isJsonLd                | —              | Parsed JSON                  | Boolean (is JSON-LD)   | @context field existence         |
 | AgenticRAG Context   | Apply specialized rules         | - [ ] Match context URL; apply AgenticRAG handling; forbid hardcoded context logic        | parseJsonLd      | ContextHandler  | applyAgenticRAG         | —              | @context value               | Context config         | URL string comparison            |
 | Graph Extraction     | Parse @graph array              | - [ ] Extract nodes/edges from @graph; validate IDs; forbid malformed entries             | parseJsonLd      | GraphExtractor  | extractGraph            | —              | @graph array                 | Nodes/edges lists      | Array iteration with validation  |
+| Edge Inference Gating| Avoid surprise implicit edges   | - [ ] Only infer edges from allow-listed relation keys; forbid guessing edges from any array | parseJsonLd    | RelationMapper  | inferEdgesFromContext   | metadata/context | Node object properties     | Derived edges          | allow if @context @type=@id OR metadata.jsonLdMapping.contextEdgeProperties |
 | Property Preservation| Copy all node properties        | - [ ] Transfer all fields to properties; preserve media; forbid property loss             | parseJsonLd      | PropertyMapper  | mapProperties           | —              | JSON-LD node                 | GraphNode              | Field-by-field copy              |
 
 ---

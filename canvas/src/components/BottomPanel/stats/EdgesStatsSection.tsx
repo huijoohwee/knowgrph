@@ -16,6 +16,7 @@ export default function EdgesStatsSection({
   selectedEdge,
   topSemanticEdges,
   selectedEdgeTokenCounts,
+  semanticMode,
   pinnedEdgeId,
   setPinnedEdgeId,
   clearPinnedCommunityState,
@@ -34,6 +35,7 @@ export default function EdgesStatsSection({
   selectedEdge: StatsEdge | null
   topSemanticEdges: StatsEdge[]
   selectedEdgeTokenCounts: TokenCount[] | null
+  semanticMode: 'document' | 'keyword'
   pinnedEdgeId: string | null
   setPinnedEdgeId: (next: string | null) => void
   clearPinnedCommunityState: () => void
@@ -63,7 +65,9 @@ export default function EdgesStatsSection({
   }, [pinnedEdgeId, selectedEdge, selectedEdgeIdSet])
 
   return (
-    <CollapsibleSection title="Edges (co-occurrence + similarity)">
+    <CollapsibleSection
+      title={semanticMode === 'keyword' ? UI_COPY.statsEdgesKeywordSectionTitle : UI_COPY.statsEdgesSectionTitle}
+    >
       {selectedEdge ? (
         <div className="rounded border border-gray-200 bg-white p-3">
           <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
@@ -103,7 +107,7 @@ export default function EdgesStatsSection({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1">
               <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
-                Top semantic edges ({similarityMetricLabel})
+                {semanticMode === 'keyword' ? `Relationship edges (${similarityMetricLabel})` : `Top semantic edges (${similarityMetricLabel})`}
               </div>
               <IconButton
                 className="App-toolbar__btn"

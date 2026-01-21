@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphEdge, GraphNode, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getRendererPalette } from '@/lib/graph/schema'
+import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 import {
   type GraphDataTableColumnKey,
   type GraphDataTableAggregateVizMode,
@@ -150,7 +151,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const graphDataTableVirtualDebugLogRanges = useGraphStore(s => s.graphDataTableVirtualDebugLogRanges)
   const selectionSource = useGraphStore(s => s.selectionSource)
   const selectionFlashDurationMs = useGraphStore(s => s.selectionFlashDurationMs || 500)
-  const graphData = useGraphStore(s => s.graphData) as GraphData | null
+  const graphData = useActiveGraphData() as GraphData | null
   const schema = useGraphStore(s => s.schema) as GraphSchema | null
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const columnWidths = useGraphStore(s => s.graphDataTableColumnWidths)

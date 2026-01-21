@@ -1,6 +1,6 @@
 import { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types';
 import { GraphSchema, GraphBehavior, PropertySpec } from '@/lib/graph/schema';
-import { ThemeMode } from '@/lib/ui/theme';
+import { ThemeMode, ResolvedThemeMode } from '@/lib/ui/theme';
 import type { BottomTab } from '@/features/bottom-panel/open';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
 import type {
@@ -28,6 +28,8 @@ export type LayoutMode = 'force' | 'radial';
 export type NodePosition2d = { x: number; y: number };
 export type LayoutPositionCacheKey = `${string}:${LayoutMode}`;
 
+export type DocumentSemanticMode = 'document' | 'keyword'
+
 export type GraphHoverPreviewConfig = {
   showNodeId: boolean;
   showNodeName: boolean;
@@ -53,6 +55,8 @@ export interface GraphState {
   graphData: GraphData | null;
 
   graphDataRevision: number;
+  documentSemanticMode: DocumentSemanticMode;
+  setDocumentSemanticMode: (mode: DocumentSemanticMode) => void;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   selectedGroupId: string | null;
@@ -152,6 +156,8 @@ export interface GraphState {
   uiIconAnimationEnabled: boolean;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  resolvedThemeMode: ResolvedThemeMode;
+  refreshResolvedThemeModeFromSystem: () => void;
   selectionFlashDurationMs: number;
   selectionFlashOpacity: number;
   markdownSelectionFlashMode: 'auto' | 'manual';

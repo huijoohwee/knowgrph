@@ -29,7 +29,7 @@
 | Settings Extraction   | `scripts/buildSettings.ts`                    | Settings Builder            | `extractSettingsFromMarkdown` | Script → reads markdown table → parses settings flow → generates JSON schema                | `knowgrph-codebase-responsibility-flow.md` | Outputs `settings-flow.json`, `settings-flow.schema.json` | ~300 |
 | Settings Store        | `canvas/src/store/settingsStore.ts`           | Settings Zustand Store      | `useSettings`               | Store → manages runtime settings → validates updates → persists to localStorage              | Zustand, JSON schema                  | Type-safe settings state with validation          | ~200   |
 | Settings UI           | `canvas/src/features/settings/SettingsPanel.tsx` | Settings Panel           | `render`                    | Panel → displays settings controls → handles user input → updates store                      | `useSettings` hook                    | React component with form controls                | ~400   |
-| Theme Manager         | `canvas/src/lib/theme/themeManager.ts`        | Theme Manager               | `applyTheme`                | Manager → reads `themeMode` setting → applies CSS classes → handles system sync              | Settings store                        | Theme application with OS sync                    | ~150   |
+| Theme Mode             | `canvas/src/hooks/store/uiSettingsSlice.ts`, `canvas/src/lib/ui/theme.ts`, `canvas/src/App.tsx` | Theme Mode Sync | `setThemeMode`, `applyThemeMode`, `subscribeToSystemThemeChanges` | Store → persists `themeMode` → applies `data-theme` + `.dark` → syncs with OS when mode=system | Zustand, localStorage, matchMedia | DOM theme aligned for CSS vars + Tailwind `dark:` | ~120 |
 
 ---
 
@@ -112,22 +112,19 @@ themeMode:
   type: string (enum: "light" | "dark" | "system")
   mutability: runtime_configurable
   validation: must be valid theme mode
-  impact: controls application color palette with accessibility-focused themes
+  impact: controls `data-theme` ("light" | "dark") and `.dark` class for Tailwind variants
 
 themeMode.light:
-  palette: GitHub Light Tritanopia
-  background: bg-white (panels)
-  text: text-gray-900 (primary)
-  
+  css: :root[data-theme='light']
+  tokens: --kg-* CSS variables resolve to light palette
+
 themeMode.dark:
-  palette: GitHub Dark Tritanopia
-  background: bg-[#0d1117] (panels)
-  text: text-gray-100 (primary)
-  
+  css: :root[data-theme='dark']
+  tokens: --kg-* CSS variables resolve to dark palette
+
 themeMode.system:
-  palette: Auto-sync with OS preference
-  background: Follows system theme
-  text: Follows system theme
+  css: resolved via matchMedia('(prefers-color-scheme: dark)')
+  tokens: updates by listening to matchMedia "change" events (no polling)
 ```
 
 **UI Control**: "Theme Mode" preset buttons in Settings panel
@@ -136,8 +133,8 @@ themeMode.system:
 
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
-| Theme Application     | Apply color palette           | - [ ] Read `themeMode` from settings; apply CSS classes; forbid inline styles              | Theme manager             | `applyTheme`         | theme mode string         | void (DOM update)     | conditional class application           |
-| System Sync           | Match OS preference           | - [ ] Listen for OS theme changes; update when `system` mode active; forbid polling        | Theme manager             | `syncWithSystem`     | OS theme change event     | void (theme update)   | matchMedia listener + conditional update|
+| Theme Application     | Apply color palette           | - [ ] Read `themeMode`; apply `data-theme` + `.dark`; forbid per-component overrides      | Theme utilities + store   | `applyThemeMode`, `setThemeMode` | theme mode string | DOM + store update  | `data-theme` drives CSS vars + Tailwind `dark:` |
+| System Sync           | Match OS preference           | - [ ] Listen for OS theme changes; update when `system` active; forbid polling            | App bootstrap             | `subscribeToSystemThemeChanges` | media query change | theme refresh | `matchMedia` change → re-apply system theme |
 
 ---
 

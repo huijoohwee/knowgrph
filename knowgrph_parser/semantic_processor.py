@@ -84,30 +84,14 @@ def process_semantics(
     
     # 1. Profile
     semantic_doc_profile: Dict[str, Any] = {}
-    if semantic_sources:
-        joined_text = "\n".join([str(s.get("text") or "") for s in semantic_sources])
-        toks = tokenize_with_offsets(joined_text)
-        token_count = len(toks)
-        sentence_count = len([s for s in _SENTENCE_SPLIT_RE.split(joined_text) if s.strip()])
-        avg_sentence_tokens = (token_count / sentence_count) if sentence_count else 0.0
-        semantic_doc_profile = {
-            "tokenCount": token_count,
-            "sentenceCount": sentence_count,
-            "avgSentenceTokens": avg_sentence_tokens,
-        }
-
-        if bool(sem_defaults.get("auto_tune_enabled")):
-            sensitivity = float(sem_defaults.get("tuning_sensitivity") or 0.1)
-            if avg_sentence_tokens > 20:
-                sem_defaults["max_syntactic_path_length"] = max(2, int(sem_defaults.get("max_syntactic_path_length") or 4) - 1)
-            if avg_sentence_tokens < 8:
-                sem_defaults["max_syntactic_path_length"] = min(8, int(sem_defaults.get("max_syntactic_path_length") or 4) + 1)
-            sem_defaults["phrase_boundary_threshold"] = clamp01(float(sem_defaults.get("phrase_boundary_threshold") or 0.75) + (sensitivity * 0.0))
+    token_count_total = 0
+    sentence_count_total = 0
 
     # 2. Entity/Mention Extraction
     entity_by_key: Dict[str, str] = {}
     entity_props_by_id: Dict[str, Dict[str, Any]] = {}
     mentions: List[Dict[str, Any]] = []
+    mention_count_by_entity: Dict[str, int] = {}
 
     phrase_boundary_threshold = float(sem_defaults.get("phrase_boundary_threshold") or 0.75)
     max_entity_span_tokens = int(sem_defaults.get("max_entity_span_tokens") or 8)
@@ -120,6 +104,8 @@ def process_semantics(
         meta_block = meta if isinstance(meta, dict) else {}
 
         tokens = tokenize_with_offsets(text)
+        token_count_total += len(tokens)
+        sentence_count_total += len([s for s in _SENTENCE_SPLIT_RE.split(text) if s.strip()])
         token_spans = merge_tokens_to_spans(
             tokens,
             phrase_boundary_threshold=phrase_boundary_threshold,
@@ -179,10 +165,26 @@ def process_semantics(
             }
             nodes.append(mention_node)
             mentions.append({"mentionId": mention_id, "entityId": ent_id, "blockId": block_id, "charStart": start_char, "charEnd": end_char})
+            mention_count_by_entity[ent_id] = int(mention_count_by_entity.get(ent_id) or 0) + 1
             add_edge_callback(edges, block_id, "hasMention", mention_id, props={"confidence": clamp01(conf)}, meta=meta_block)
             add_edge_callback(edges, mention_id, "mentionOf", block_id, props={"blockType": block_type}, meta=meta_block)
             add_edge_callback(edges, mention_id, "refersTo", ent_id, props={"confidence": clamp01(conf)}, meta=meta_block)
             add_edge_callback(edges, ent_id, "hasMention", mention_id, props={"confidence": clamp01(conf)}, meta=meta_block)
+
+    if token_count_total or sentence_count_total:
+        token_count = int(token_count_total)
+        sentence_count = int(sentence_count_total)
+        avg_sentence_tokens = (float(token_count_total) / float(sentence_count_total)) if sentence_count_total else 0.0
+        semantic_doc_profile = {
+            "tokenCount": token_count,
+            "sentenceCount": sentence_count,
+            "avgSentenceTokens": avg_sentence_tokens,
+        }
+        if bool(sem_defaults.get("auto_tune_enabled")):
+            if avg_sentence_tokens > 20:
+                sem_defaults["max_syntactic_path_length"] = max(2, int(sem_defaults.get("max_syntactic_path_length") or 4) - 1)
+            if avg_sentence_tokens < 8:
+                sem_defaults["max_syntactic_path_length"] = min(8, int(sem_defaults.get("max_syntactic_path_length") or 4) + 1)
 
     for ent in entity_props_by_id.values():
         nodes.append(ent)
@@ -204,14 +206,16 @@ def process_semantics(
         if len(block_mentions) < 2:
             continue
         sentences = [s for s in _SENTENCE_SPLIT_RE.split(block_text) if s.strip()]
+        search_from = 0
         for sent in sentences:
             s0 = sent.strip()
             if not s0:
                 continue
-            span_start = block_text.find(s0)
+            span_start = block_text.find(s0, search_from)
             if span_start < 0:
                 span_start = 0
             span_end = span_start + len(s0)
+            search_from = span_end
             local = [
                 m for m in block_mentions if int(m.get("charStart") or 0) >= span_start and int(m.get("charEnd") or 0) <= span_end
             ]
@@ -220,6 +224,8 @@ def process_semantics(
                 eid = str(m.get("entityId") or "")
                 if eid and eid not in ent_ids:
                     ent_ids.append(eid)
+            if max_path_len and len(ent_ids) > max_path_len:
+                ent_ids = ent_ids[:max_path_len]
             if len(ent_ids) < 2:
                 continue
             features = extract_sentence_features(s0)
@@ -239,8 +245,6 @@ def process_semantics(
                         between_conf -= 0.05
                     conf = clamp01(between_conf)
                     if conf < edge_threshold:
-                        continue
-                    if max_path_len and len(ent_ids) > max_path_len:
                         continue
                     key = f"{src_e}:{tgt_e}:{block_id}:{rel_text}"
                     if key in seen_semantic_edges:
@@ -272,9 +276,12 @@ def process_semantics(
                 entity_block_counts[eid] = entity_block_counts.get(eid, 0) + 1
     block_count = len(blocks_with_entities)
     pair_counts: Dict[Tuple[str, str], int] = {}
+    max_pattern_entities = max(2, int(sem_defaults.get("max_pattern_entities_per_block") or 40))
     if block_count > 0:
         for ent_set in blocks_with_entities:
             ids = sorted(ent_set)
+            if len(ids) > max_pattern_entities:
+                ids = ids[:max_pattern_entities]
             for i in range(len(ids)):
                 for j in range(i + 1, len(ids)):
                     k = (ids[i], ids[j])
@@ -306,11 +313,7 @@ def process_semantics(
     for eid, ent_obj in entity_props_by_id.items():
         props = ent_obj.get("properties")
         props_dict = props if isinstance(props, dict) else {}
-        mention_total = 0
-        for m in mentions:
-            if str(m.get("entityId") or "") == eid:
-                mention_total += 1
-        props_dict["mentionCount"] = mention_total
+        props_dict["mentionCount"] = int(mention_count_by_entity.get(eid) or 0)
         props_dict["blockFrequency"] = int(entity_block_counts.get(eid) or 0)
         ent_obj["properties"] = props_dict
 

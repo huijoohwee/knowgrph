@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .codebase_index_artifacts import normalize_rel_path
-from .codebase_index_config import should_ignore_path
+from .codebase_index_config import build_ignore_matcher
 
 
 @dataclass
@@ -20,6 +20,7 @@ class GraphNodeRecord:
 
 def iter_python_files(codebase_root: str, ignored_paths: List[str]) -> List[Tuple[str, str]]:
     files: List[Tuple[str, str]] = []
+    ignore_match = build_ignore_matcher(ignored_paths)
     for root, dirs, filenames in os.walk(codebase_root):
         rel_dir = os.path.relpath(root, codebase_root)
         if rel_dir == ".":
@@ -31,7 +32,7 @@ def iter_python_files(codebase_root: str, ignored_paths: List[str]) -> List[Tupl
             if dirname in (".git", ".venv", "__pycache__"):
                 continue
             rel_path = dir_prefix + dirname + "/"
-            if should_ignore_path(rel_path, ignored_paths):
+            if ignore_match(rel_path):
                 continue
             kept_dirs.append(dirname)
         dirs[:] = kept_dirs
@@ -41,7 +42,7 @@ def iter_python_files(codebase_root: str, ignored_paths: List[str]) -> List[Tupl
             full_path = os.path.join(root, filename)
             rel_path = os.path.relpath(full_path, codebase_root)
             rel_path_norm = normalize_rel_path(rel_path)
-            if should_ignore_path(rel_path_norm, ignored_paths):
+            if ignore_match(rel_path_norm):
                 continue
             files.append((full_path, rel_path_norm))
     return files
@@ -233,4 +234,3 @@ def build_code_graph(codebase_root: str, ignored_paths: List[str]) -> Dict[str, 
                             if target_node_id:
                                 add_relation(nodes_by_id, fn_id, "calls", target_node_id)
     return nodes_by_id
-

@@ -47,6 +47,16 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
     setSelectionToolbar(null)
   }, [])
 
+  const offsetToLine = React.useCallback((text: string, offset: number) => {
+    const safeOffset = Math.max(0, Math.floor(offset || 0))
+    const prefix = text.slice(0, safeOffset)
+    let line = 1
+    for (let i = 0; i < prefix.length; i += 1) {
+      if (prefix.charCodeAt(i) === 10) line += 1
+    }
+    return line
+  }, [])
+
   React.useEffect(() => {
     if (!selectionToolbar) return
     const handler = () => closeSelectionToolbar()
@@ -117,6 +127,10 @@ export function MarkdownEditorPane(props: MarkdownEditorPaneProps) {
         }}
         onContextMenuSelection={handleEditorSelection}
         onDoubleClickSelection={handleEditorSelection}
+        onDoubleClickSelectionOffsets={({ startOffset }) => {
+          const line = offsetToLine(markdownText, startOffset)
+          onShowInViewer(line)
+        }}
         onContextMenu={handleEditorContextMenu}
         flashLine={flashLine}
       />

@@ -4,21 +4,22 @@
 
 ### Universal, neutral, project‑agnostic one‑liner in context–intent–directive
 
-- [x] Full‑screen; preserve inactive canvas; forbid unnecessary recompute
-- [x] Markup; apply semantic elements; forbid generic `div` misuse
-- [x] Modules; follow single responsibility; forbid cross‑cutting sprawl
-- [x] Performance; apply memoization/cache results; forbid costly rerendering/recalculation
-- [x] Refactoring; remove stale logic; forbid conflicting duplication
-- [x] Resolution; support 16:9 centering; forbid fixed non‑scalable layouts
-- [x] Store; centralize shared state; forbid direct mutation
-- [x] Store; short‑circuit unchanged layout caches and canvas dimensions/positions; forbid redundant updates that trigger render/recalc loops
-- [x] Styling; enforce theme tokens; forbid inconsistent overrides
-- [x] Test; unit test all components; forbid regression
-- [x] Test; ensure close-loop test; forbid hang or infinite loop
-- [x] Utilities; centralize shared logic; forbid duplication across components
-- [x] Document structure; adhere to `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/docs/document-template.md`; forbid inconsistent structure
+- [ ] Cross-mode; maintain separate layout caches; forbid cross-mode cache contamination
+- [ ] Full‑screen; preserve inactive canvas; forbid unnecessary recompute
+- [ ] Markup; apply semantic elements; forbid generic `div` misuse
+- [ ] Modules; follow single responsibility; forbid cross‑cutting sprawl
+- [ ] Performance; apply memoization/cache results; forbid costly rerendering/recalculation
+- [ ] Refactoring; remove stale logic; forbid conflicting duplication
+- [ ] Resolution; support 16:9 centering; forbid fixed non‑scalable layouts
+- [ ] Store; centralize shared state; forbid direct mutation
+- [ ] Store; short‑circuit unchanged layout caches and canvas dimensions/positions; forbid redundant updates that trigger render/recalc loops
+- [ ] Styling; enforce theme tokens; forbid inconsistent overrides
+- [ ] Test; unit test all components; forbid regression
+- [ ] Test; ensure close-loop test; forbid hang or infinite loop
+- [ ] Utilities; centralize shared logic; forbid duplication across components
+- [ ] Document structure; adhere to `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/docs/document-template.md`; forbid inconsistent structure
 
-- [x] Post-task completion; update `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents`
+- [ ] Post-task completion; update `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents`
 
 ---
 
@@ -28,9 +29,14 @@
 
 #### 2026-01-21
 
+single “pipeline map” diagram (nodes = modules/functions, edges = calls/artifacts) using the repo’s own graph format (GraphData/JSON-LD) so you can load it into Canvas and click through to source locations
+
+surveyed the knowgrph repo end-to-end (Python parser + Canvas UI) and the pipeline is fully traceable from entrypoints through import → parse → derive → layout → render.
+
 #### 2026-01-20
 
 - [] Plug-in: Geo 
+modular, plug-in
 
 - [] Trip planning use case
 

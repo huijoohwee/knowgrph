@@ -9,8 +9,10 @@
 - [x] Anti-Line Force; apply perpendicular jitter to linear clusters; forbid long unbalanced concentrations
 - [x] Centering; center by centroid (schema.layout.fitUseCentroid); forbid skew from bounding box bias
 - [x] Clusters; filter outliers when fitting (schema.layout.fitDetectClusters); forbid distortion from distant nodes
+- [x] Cross-mode Cache; key layout caches by semanticMode+frontmatter+layoutMode; forbid cross-mode contamination
 - [x] Documentation; keep schema options discoverable; forbid undocumented behaviors or hidden defaults
 - [x] Integration; use schema-driven fit + mermaid layout paths; forbid bypass of configuration flow
+- [x] Keyword Mode; derive keyword nodes/edges from document text and map frequency/strength to sizes; forbid stopword noise and selection-only dashboards
 - [x] Padding; apply fitPadding + node padding; forbid edge clipping or truncation
 - [x] Port Handles; route 2D edge endpoints via schema.behavior.portHandles.*; forbid interference with tree or mermaid layouts
 - [x] Rectangular Nodes; size via minimap-relative defaults (tree and port handles); forbid drift across layouts

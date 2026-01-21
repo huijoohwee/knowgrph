@@ -86,6 +86,8 @@ export const UI_LABELS = {
   expandAll: 'Expand all',
   view: 'View',
   menu: 'Menu',
+  documentStructureMode: 'Document Structure Mode',
+  keywordMode: 'Keyword Mode',
   name: 'Name',
   scope: 'Scope',
   type: 'Type',

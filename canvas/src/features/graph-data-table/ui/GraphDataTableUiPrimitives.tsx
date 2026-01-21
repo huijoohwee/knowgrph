@@ -34,7 +34,7 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
       <button
         ref={buttonRef}
         type="button"
-        className={className}
+        className={`inline-flex items-center justify-between gap-2 leading-none ${className}`}
         onClick={() => setIsOpen(open => !open)}
       >
         <span className="truncate">{selectedLabel}</span>

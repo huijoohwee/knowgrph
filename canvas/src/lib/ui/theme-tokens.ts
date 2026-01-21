@@ -9,82 +9,93 @@ export type ThemeColors = {
   labelFill: string;
 };
 
-export const UI_THEME_COLORS: { light: ThemeColors; dark: ThemeColors } = {
-  light: {
-    bg: '#ffffff',
-    text: '#111827', // gray-900
-    textSecondary: '#4b5563', // gray-600
-    border: '#e5e7eb', // gray-200
-    nodeStroke: '#ffffff',
-    edgeStroke: '#9ca3af', // gray-400
-    labelHalo: '#ffffff',
-    labelFill: '#111827',
-  },
-  dark: {
-    bg: '#0d1117',
-    text: '#f3f4f6', // gray-100
-    textSecondary: '#9ca3af', // gray-400
-    border: '#374151', // gray-700
-    nodeStroke: '#1f2937', // gray-800
-    edgeStroke: '#4b5563', // gray-600
-    labelHalo: '#0d1117',
-    labelFill: '#e5e7eb',
-  },
+export const UI_THEME_COLORS_CSS: ThemeColors = {
+  bg: 'var(--kg-panel-bg)',
+  text: 'var(--kg-text-primary)',
+  textSecondary: 'var(--kg-text-secondary)',
+  border: 'var(--kg-border)',
+  nodeStroke: 'var(--kg-canvas-node-stroke)',
+  edgeStroke: 'var(--kg-canvas-edge-stroke)',
+  labelHalo: 'var(--kg-canvas-label-halo)',
+  labelFill: 'var(--kg-canvas-label-fill)',
 } as const;
+
+export function resolveCssVar(name: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function resolveThemeColors(): ThemeColors {
+  return {
+    bg: resolveCssVar('--kg-panel-bg', '#ffffff'),
+    text: resolveCssVar('--kg-text-primary', '#111827'),
+    textSecondary: resolveCssVar('--kg-text-secondary', '#4b5563'),
+    border: resolveCssVar('--kg-border', '#e5e7eb'),
+    nodeStroke: resolveCssVar('--kg-canvas-node-stroke', '#ffffff'),
+    edgeStroke: resolveCssVar('--kg-canvas-edge-stroke', '#9ca3af'),
+    labelHalo: resolveCssVar('--kg-canvas-label-halo', '#ffffff'),
+    labelFill: resolveCssVar('--kg-canvas-label-fill', '#111827'),
+  };
+}
 
 export const UI_THEME_TOKENS = {
   button: {
-    text: 'text-gray-600 dark:text-gray-300',
-    hoverBg: 'hover:bg-gray-100 dark:hover:bg-gray-800',
+    text: 'text-[color:var(--kg-text-secondary)]',
+    hoverBg: 'hover:bg-black/5 dark:hover:bg-white/5',
     ring: 'ring-blue-500 dark:ring-blue-400',
     padding: 'p-2',
     activeText: 'text-blue-600 dark:text-blue-400',
     activeBg: 'bg-blue-50 dark:bg-blue-900/20',
     activeBorder: 'border-blue-500 dark:border-blue-400',
-    disabledText: 'text-gray-400 dark:text-gray-600',
+    disabledText: 'text-black/40 dark:text-white/30',
   },
   pill: {
-    base: 'rounded-full px-2 py-0.5 border border-gray-200 dark:border-gray-700',
-    text: 'text-[10px] font-medium text-gray-500 dark:text-gray-400',
+    base: 'rounded-full px-2 py-0.5 border border-[color:var(--kg-border)]',
+    text: 'text-[10px] font-medium text-[color:var(--kg-text-secondary)]',
     badgeText: 'text-[10px] font-bold',
   },
   badge: {
-    chip: 'rounded px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800',
+    chip: 'rounded px-1.5 py-0.5 bg-black/5 dark:bg-white/5',
     text: 'text-[10px] font-mono',
   },
   icon: {
-    color: 'text-gray-600 dark:text-gray-300',
+    color: 'text-[color:var(--kg-text-secondary)]',
     active: 'text-blue-600 dark:text-blue-400',
   },
   panel: {
-    bg: 'bg-white dark:bg-[#0d1117]',
-    border: 'border-gray-200 dark:border-gray-700',
-    headerBg: 'bg-gray-50 dark:bg-gray-800/50',
-    divider: 'border-gray-200 dark:border-gray-700',
+    bg: 'bg-[var(--kg-panel-bg)]',
+    border: 'border-[color:var(--kg-border)]',
+    headerBg: 'bg-[rgba(var(--panel-bg-rgb),0.75)]',
+    divider: 'border-[color:var(--kg-divider)]',
   },
   text: {
-    primary: 'text-gray-900 dark:text-gray-100',
-    secondary: 'text-gray-600 dark:text-gray-400',
-    tertiary: 'text-gray-500 dark:text-gray-500',
+    primary: 'text-[color:var(--kg-text-primary)]',
+    secondary: 'text-[color:var(--kg-text-secondary)]',
+    tertiary: 'text-[color:var(--kg-text-tertiary)]',
   },
   table: {
     headerBg: 'bg-gray-50 dark:bg-gray-800',
     rowHover: 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
     rowHoverAmber: 'hover:bg-amber-50 dark:hover:bg-amber-900/20',
-    cellBorder: 'border-gray-200 dark:border-gray-700',
-    text: 'text-gray-700 dark:text-gray-300',
-    textSecondary: 'text-gray-500 dark:text-gray-500',
-    rowBg: 'bg-white dark:bg-[#0d1117]',
-    rowBgAlt: 'bg-white dark:bg-[#0d1117]',
+    cellBorder: 'border-[color:var(--kg-border)]',
+    text: 'text-[color:var(--kg-text-primary)]',
+    textSecondary: 'text-[color:var(--kg-text-secondary)]',
+    rowBg: 'bg-[var(--kg-panel-bg)]',
+    rowBgAlt: 'bg-[var(--kg-panel-bg)]',
     rowSelected: 'bg-blue-50 dark:bg-blue-900/20',
     rowSelectedBorder: 'ring-1 ring-inset ring-blue-500 dark:ring-blue-400',
     rowRelated: 'bg-blue-50/50 dark:bg-blue-900/10',
-    rowOutside: 'bg-white dark:bg-[#0d1117]',
+    rowOutside: 'bg-[var(--kg-panel-bg)]',
   },
   input: {
-    bg: 'bg-white dark:bg-[#0d1117]',
-    border: 'border-gray-300 dark:border-gray-600',
-    text: 'text-gray-900 dark:text-gray-100',
+    bg: 'bg-[var(--kg-panel-bg)]',
+    border: 'border-[color:var(--kg-border)]',
+    text: 'text-[color:var(--kg-text-primary)]',
   },
   status: {
     success: 'text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30',
@@ -93,14 +104,14 @@ export const UI_THEME_TOKENS = {
     neutral: 'text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800',
   },
   tooltip: {
-    bg: 'bg-gray-800 dark:bg-gray-700',
-    text: 'text-white dark:text-gray-100',
-    textSecondary: 'text-gray-300 dark:text-gray-300',
-    textTertiary: 'text-gray-400 dark:text-gray-400',
+    bg: 'bg-[var(--kg-tooltip-bg)]',
+    text: 'text-[color:var(--kg-tooltip-text)]',
+    textSecondary: 'text-[color:var(--kg-tooltip-text)] opacity-80',
+    textTertiary: 'text-[color:var(--kg-tooltip-text)] opacity-70',
   },
   code: {
-    bg: 'bg-slate-50 dark:bg-slate-900/50',
-    border: 'border-slate-200 dark:border-slate-800',
-    text: 'text-slate-900 dark:text-slate-200',
+    bg: 'bg-[color:var(--kg-code-bg)]',
+    border: 'border-[color:var(--kg-code-border)]',
+    text: 'text-[color:var(--kg-code-text)]',
   },
 } as const;
