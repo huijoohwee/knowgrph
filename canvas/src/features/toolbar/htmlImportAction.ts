@@ -8,8 +8,6 @@ import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { deriveMarkdownNameFromUrl, fetchRemoteHtmlText as fetchRemoteHtmlTextUtil, promptForUrl } from './ingestUtils'
 
-export const fetchRemoteHtmlText = fetchRemoteHtmlTextUtil
-
 export type HtmlImportType = 'url' | 'local'
 
 export async function performHtmlImport(type: HtmlImportType, providedUrl?: string) {
@@ -23,7 +21,7 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
         })()
         const url = coerceHttpUrl(rawUrl)
         if (!url) return null
-        const text = await fetchRemoteHtmlText(url)
+        const text = await fetchRemoteHtmlTextUtil(url)
         if (!text) {
           try {
             const ui = useParserUIState.getState()

@@ -33,8 +33,6 @@ export interface ToolbarToolMenuAreasProps {
   setIsSourceFilesImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isSourceFilesExportMenuOpen: boolean
   setIsSourceFilesExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
-  isCuratorExportMenuOpen: boolean
-  setIsCuratorExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isParserExportMenuOpen: boolean
   setIsParserExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isMarkdownImportMenuOpen: boolean
@@ -100,11 +98,6 @@ export type ToolbarAreaRenderer = (props: ToolbarToolMenuAreasProps) => React.Re
 
 export const TOOLBAR_AREA_RENDERERS: Partial<Record<ToolMenuArea, ToolbarAreaRenderer>> = {
   sourceFiles: (props) => <ToolbarSourceFilesArea {...props} />,
-  curator: (props) => (
-    <div className="flex items-center justify-end gap-2">
-      <StatusBadge label={UI_LABELS.loadStatus} ok={props.dataLoadOk} msg={props.dataLoadMsg} />
-    </div>
-  ),
   parser: (props) => (
     <ToolbarParserArea
       parserLoadOk={props.parserLoadOk}

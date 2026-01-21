@@ -29,11 +29,10 @@
 
 #### 2026-01-21
 
-single “pipeline map” diagram (nodes = modules/functions, edges = calls/artifacts) using the repo’s own graph format (GraphData/JSON-LD) so you can load it into Canvas and click through to source locations
+- [x] Remove YouTube transcript functionality; keep YouTube import UI placeholder only
+- [x] single “pipeline map” diagram (nodes = modules/functions, edges = calls/artifacts) using the repo’s own graph format (GraphData/JSON-LD) so you can load it into Canvas and click through to source locations
 
 surveyed the knowgrph repo end-to-end (Python parser + Canvas UI) and the pipeline is fully traceable from entrypoints through import → parse → derive → layout → render.
-
-added a YouTube transcript import (YouTube URL/ID → Markdown → same Markdown viewer/presentation pipeline) with a dev/preview Vite endpoint backed by `knowgrph_parser`.
 
 
 

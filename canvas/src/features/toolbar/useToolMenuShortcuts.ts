@@ -15,22 +15,22 @@ export function useToolMenuShortcuts(handleAction: (area: ToolMenuArea, action: 
       if (!metaOrCtrl || !alt) return
       if (key === 'n') {
         ev.preventDefault()
-        handleAction('curator', 'new')
+        handleAction('sourceFiles', 'new')
         return
       }
       if (key === 'i') {
         ev.preventDefault()
-        handleAction('curator', 'import')
+        handleAction('sourceFiles', 'import')
         return
       }
       if (key === 'e') {
         ev.preventDefault()
-        handleAction('curator', 'export')
+        handleAction('sourceFiles', 'export')
         return
       }
       if (key === 'backspace' || key === 'delete') {
         ev.preventDefault()
-        handleAction('curator', 'clear')
+        handleAction('sourceFiles', 'clear')
       }
     }
     window.addEventListener('keydown', handler)
@@ -39,4 +39,3 @@ export function useToolMenuShortcuts(handleAction: (area: ToolMenuArea, action: 
     }
   }, [handleAction])
 }
-

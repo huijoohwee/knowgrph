@@ -347,9 +347,9 @@ export const UI_COPY = {
   youtubeImportUrlPrompt: 'Enter YouTube URL or ID',
   toolbarYouTubeImportUrlButtonLabel: 'URL',
   youtubeImportFetchFailedStatus: (urlOrId: string) =>
-    `Data load failed: Failed to fetch transcript for ${urlOrId}`,
+    `YouTube import: transcript fetch failed for ${urlOrId}`,
   youtubeImportConvertFailedStatusWithError: (error: string) =>
-    `Data load failed: Failed to convert YouTube transcript to Markdown (${error})`,
+    `YouTube import: transcript-to-Markdown failed (${error})`,
   jsonImportUrlPrompt: 'Enter JSON/JSON-LD URL',
   jsonImportFetchFailedStatus: (url: string) => `Data load failed: Failed to fetch JSON from ${url}`,
   parserDataLoadSuccess: 'Success',

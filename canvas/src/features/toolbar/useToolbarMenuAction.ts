@@ -1,10 +1,6 @@
 import { useCallback, useMemo, type RefObject } from 'react'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useParserUIState } from '@/features/parsers/uiState'
-import {
-  loadGraphDataViaParser,
-  type LoaderResult,
-} from '@/features/parsers/loader'
 import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
@@ -58,34 +54,6 @@ export function useToolbarMenuAction(args: {
   return useCallback(
     (area: ToolMenuArea, action: ToolMenuAction, payload?: ToolMenuPayload) => {
       closeToolMenu()
-      const applyLoaderResultToUi = (res: LoaderResult) => {
-        try {
-          const ui = useParserUIState.getState()
-          if (res.input) {
-            ui.setLastInput(res.input.name, res.input.text)
-          }
-          if (res.warnings && res.warnings.length > 0) {
-            ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
-            ui.setWarnings(res.warnings)
-          } else {
-            ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
-            ui.setWarnings([])
-          }
-          if (res.counts) {
-            ui.setCounts(res.counts)
-          }
-        } catch {
-          void 0
-        }
-      }
-      const clearLoaderStatusIfNoInput = () => {
-        try {
-          const ui = useParserUIState.getState()
-          ui.setDataLoadStatus(null, '')
-        } catch {
-          void 0
-        }
-      }
       const setLoaderFailedStatus = () => {
         try {
           const ui = useParserUIState.getState()
@@ -403,48 +371,6 @@ export function useToolbarMenuAction(args: {
           } catch {
             void 0
           }
-          return
-        }
-      }
-      if (area === 'curator') {
-        if (action === 'new') {
-          try {
-            useGraphStore.getState().clearGraphData()
-          } catch {
-            void 0
-          }
-          openBottomPanel('curation')
-          return
-        }
-        if (action === 'clear') {
-          try {
-            useGraphStore.getState().clearGraphData()
-          } catch {
-            void 0
-          }
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(null, '')
-            ui.setWarnings([])
-            ui.setCounts({ n: 0, e: 0 })
-          } catch {
-            void 0
-          }
-          return
-        }
-        if (action === 'import') {
-          void (async () => {
-            try {
-              const res = await loadGraphDataViaParser()
-              if (!res) {
-                clearLoaderStatusIfNoInput()
-                return
-              }
-              applyLoaderResultToUi(res)
-            } catch {
-              setLoaderFailedStatus()
-            }
-          })()
           return
         }
       }

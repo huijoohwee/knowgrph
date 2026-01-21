@@ -12,7 +12,6 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
     dataLoadOk,
     setIsSourceFilesImportMenuOpen,
     setIsSourceFilesExportMenuOpen,
-    setIsCuratorExportMenuOpen,
     setIsParserExportMenuOpen,
     setIsMarkdownImportMenuOpen,
     setIsHtmlImportMenuOpen,
@@ -103,7 +102,6 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                 const handleClick =
                   area.key === 'sourceFiles' && action === 'import'
                     ? () => {
-                        setIsCuratorExportMenuOpen(false)
                         setIsParserExportMenuOpen(false)
                         setIsMarkdownImportMenuOpen(false)
                         setIsHtmlImportMenuOpen(false)

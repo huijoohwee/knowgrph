@@ -97,12 +97,28 @@
       "documentUrl": "https://github.com/huijoohwee/knowgrph/blob/main/canvas/src/features/toolbar/pdfImportAction.ts"
     },
     {
+      "@id": "kg:file/youtubeImportAction.ts",
+      "@type": "kg:Node",
+      "labels": ["File"],
+      "name": "toolbar/youtubeImportAction.ts (YouTube import → Markdown)",
+      "documentPath": "canvas/src/features/toolbar/youtubeImportAction.ts",
+      "documentUrl": "https://github.com/huijoohwee/knowgrph/blob/main/canvas/src/features/toolbar/youtubeImportAction.ts"
+    },
+    {
       "@id": "kg:file/jsonImportAction.ts",
       "@type": "kg:Node",
       "labels": ["File"],
       "name": "toolbar/jsonImportAction.ts (JSON/JSON-LD/CSV import)",
       "documentPath": "canvas/src/features/toolbar/jsonImportAction.ts",
       "documentUrl": "https://github.com/huijoohwee/knowgrph/blob/main/canvas/src/features/toolbar/jsonImportAction.ts"
+    },
+    {
+      "@id": "kg:file/vite.config.ts",
+      "@type": "kg:Node",
+      "labels": ["File"],
+      "name": "vite.config.ts (Dev backend bridges)",
+      "documentPath": "canvas/vite.config.ts",
+      "documentUrl": "https://github.com/huijoohwee/knowgrph/blob/main/canvas/vite.config.ts"
     },
     {
       "@id": "kg:file/ingestUtils.ts",
@@ -252,6 +268,14 @@
       "documentUrl": "https://github.com/huijoohwee/knowgrph/blob/main/canvas/src/features/toolbar/pdfImportAction.ts"
     },
     {
+      "@id": "kg:fn/performYouTubeImport",
+      "@type": "kg:Node",
+      "labels": ["Function"],
+      "name": "performYouTubeImport(type, providedUrlOrId?)",
+      "documentPath": "canvas/src/features/toolbar/youtubeImportAction.ts",
+      "documentUrl": "https://github.com/huijoohwee/knowgrph/blob/main/canvas/src/features/toolbar/youtubeImportAction.ts"
+    },
+    {
       "@id": "kg:fn/loadGraphDataFromTextViaParser",
       "@type": "kg:Node",
       "labels": ["Function"],
@@ -308,12 +332,15 @@
     { "@id": "kg:edge/import-contains-markdownImportAction", "@type": "kg:Edge", "source": "kg:stage/import", "target": "kg:file/markdownImportAction.ts", "label": "contains" },
     { "@id": "kg:edge/import-contains-htmlImportAction", "@type": "kg:Edge", "source": "kg:stage/import", "target": "kg:file/htmlImportAction.ts", "label": "contains" },
     { "@id": "kg:edge/import-contains-pdfImportAction", "@type": "kg:Edge", "source": "kg:stage/import", "target": "kg:file/pdfImportAction.ts", "label": "contains" },
+    { "@id": "kg:edge/import-contains-youtubeImportAction", "@type": "kg:Edge", "source": "kg:stage/import", "target": "kg:file/youtubeImportAction.ts", "label": "contains" },
     { "@id": "kg:edge/import-contains-jsonImportAction", "@type": "kg:Edge", "source": "kg:stage/import", "target": "kg:file/jsonImportAction.ts", "label": "contains" },
     { "@id": "kg:edge/import-contains-ingestUtils", "@type": "kg:Edge", "source": "kg:stage/import", "target": "kg:file/ingestUtils.ts", "label": "contains" },
+    { "@id": "kg:edge/import-contains-viteConfig", "@type": "kg:Edge", "source": "kg:stage/import", "target": "kg:file/vite.config.ts", "label": "contains" },
 
     { "@id": "kg:edge/markdownImportAction-contains-performMarkdownImport", "@type": "kg:Edge", "source": "kg:file/markdownImportAction.ts", "target": "kg:fn/performMarkdownImport", "label": "contains" },
     { "@id": "kg:edge/htmlImportAction-contains-performHtmlImport", "@type": "kg:Edge", "source": "kg:file/htmlImportAction.ts", "target": "kg:fn/performHtmlImport", "label": "contains" },
     { "@id": "kg:edge/pdfImportAction-contains-performPdfImport", "@type": "kg:Edge", "source": "kg:file/pdfImportAction.ts", "target": "kg:fn/performPdfImport", "label": "contains" },
+    { "@id": "kg:edge/youtubeImportAction-contains-performYouTubeImport", "@type": "kg:Edge", "source": "kg:file/youtubeImportAction.ts", "target": "kg:fn/performYouTubeImport", "label": "contains" },
 
     { "@id": "kg:edge/performMarkdownImport-calls-loader", "@type": "kg:Edge", "source": "kg:fn/performMarkdownImport", "target": "kg:fn/loadGraphDataFromTextViaParser", "label": "calls" },
     { "@id": "kg:edge/performHtmlImport-calls-loader", "@type": "kg:Edge", "source": "kg:fn/performHtmlImport", "target": "kg:fn/loadGraphDataFromTextViaParser", "label": "calls" },

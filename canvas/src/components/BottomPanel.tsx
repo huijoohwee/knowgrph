@@ -22,6 +22,7 @@ import { useParserEditor } from '@/features/parsers/useParserEditor'
 import { useBottomPanelSchema } from '@/features/schema-editor/useBottomPanelSchema'
 import BottomPanelHeader from '@/components/BottomPanel/BottomPanelHeader'
 import BottomPanelBody from '@/components/BottomPanel/BottomPanelBody'
+import { resolveCurationJsonViewText } from '@/components/BottomPanel/bottomPanelJsonView'
 import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO, PARSER_UI_EDITOR_OPEN_STORAGE_KEY } from '@/features/bottom-panel/constants'
 import { PANEL_MAX_RATIO } from '@/features/panels/config'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
@@ -159,7 +160,22 @@ export default function BottomPanel() {
 
   const onApply = useCallback(() => { applyJson() }, [applyJson])
   const onRevert = useCallback(() => {
-    setCodeText(JSON.stringify(graphData ?? DEFAULT_GRAPH_JSON, null, 2))
+    try {
+      const s = useGraphStore.getState()
+      const src =
+        typeof s.jsonSourceDocumentText === 'string' && s.jsonSourceDocumentText.trim()
+          ? s.jsonSourceDocumentText
+          : ''
+      const shouldUseSource =
+        s.bottomPanelTab === 'curation' && s.bottomPanelCurationView === 'json' && !!src
+      if (shouldUseSource) {
+        setCodeText(src)
+      } else {
+        setCodeText(JSON.stringify(graphData ?? DEFAULT_GRAPH_JSON, null, 2))
+      }
+    } catch {
+      setCodeText(JSON.stringify(graphData ?? DEFAULT_GRAPH_JSON, null, 2))
+    }
     setCodeError('')
   }, [graphData])
   const onResetParser = useCallback(() => {
@@ -179,33 +195,44 @@ export default function BottomPanel() {
   const edges = useMemo(() => activeGraphData?.edges ?? [], [activeGraphData])
   const nodeIdSet = useMemo<Set<string>>(() => new Set(nodes.map(n => n.id)), [nodes])
   const edgeIdSet = useMemo<Set<string>>(() => new Set(edges.map(e => e.id)), [edges])
+  const jsonSourceDocumentText = useGraphStore(s => s.jsonSourceDocumentText)
   const isGraphJsonView = tab === 'curation' && bottomPanelCurationView === 'json'
   const isGraphJsonTab = tab === 'code' || isGraphJsonView
   const shouldMirrorGraphJson = isGraphJsonTab
   const graphJsonText = useMemo(() => JSON.stringify(graphData ?? DEFAULT_GRAPH_JSON, null, 2), [graphData])
+  const jsonViewText = useMemo(
+    () =>
+      resolveCurationJsonViewText({
+        tab,
+        curationView: bottomPanelCurationView,
+        jsonSourceDocumentText,
+        graphJsonText,
+      }).text,
+    [bottomPanelCurationView, graphJsonText, jsonSourceDocumentText, tab],
+  )
   const lastSyncedGraphJsonRef = useRef<string>('')
 
   useEffect(() => {
     if (!shouldMirrorGraphJson) return
-    if (codeText === graphJsonText && !codeError) {
-      lastSyncedGraphJsonRef.current = graphJsonText
+    if (codeText === jsonViewText && !codeError) {
+      lastSyncedGraphJsonRef.current = jsonViewText
       return
     }
 
     if (!isGraphJsonTab) {
-      if (codeText !== graphJsonText) setCodeText(graphJsonText)
+      if (codeText !== jsonViewText) setCodeText(jsonViewText)
       if (codeError) setCodeError('')
-      lastSyncedGraphJsonRef.current = graphJsonText
+      lastSyncedGraphJsonRef.current = jsonViewText
       return
     }
 
     const isDirty = codeText !== lastSyncedGraphJsonRef.current
     if (!isDirty) {
-      setCodeText(graphJsonText)
+      setCodeText(jsonViewText)
       if (codeError) setCodeError('')
-      lastSyncedGraphJsonRef.current = graphJsonText
+      lastSyncedGraphJsonRef.current = jsonViewText
     }
-  }, [codeError, codeText, graphJsonText, isGraphJsonTab, shouldMirrorGraphJson])
+  }, [codeError, codeText, isGraphJsonTab, jsonViewText, shouldMirrorGraphJson])
 
   const centerNodeRow = useCallback((id: string) => {
     if (!id) return

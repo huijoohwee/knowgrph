@@ -7,16 +7,6 @@ export function promptForUrl(message: string): string | null {
   return raw.trim() || null
 }
 
-export function isMarkdownUrlPath(rawUrl: string): boolean {
-  try {
-    const url = new URL(rawUrl)
-    const path = url.pathname.toLowerCase()
-    return path.endsWith('.md') || path.endsWith('.markdown')
-  } catch {
-    return false
-  }
-}
-
 export function deriveMarkdownNameFromUrl(rawUrl: string): string {
   try {
     const url = new URL(rawUrl)
@@ -35,6 +25,58 @@ export function deriveMarkdownNameFromPdfFilename(name: string): string {
   if (!raw) return 'document.md'
   const base = raw.replace(/\.pdf$/i, '') || 'document'
   return `${base}.md`
+}
+
+async function fetchTextWithLimit(
+  url: string,
+  opts: { timeoutMs: number; maxBytes: number; validate?: (text: string) => boolean },
+): Promise<string | null> {
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timeoutId =
+    controller && typeof window !== 'undefined'
+      ? window.setTimeout(() => controller.abort(), Math.max(0, opts.timeoutMs))
+      : null
+  try {
+    const res = await fetch(url, { signal: controller?.signal })
+    if (!res.ok) return null
+    const reader = res.body?.getReader()
+    if (!reader) {
+      const textFallback = await res.text()
+      if (opts.validate && !opts.validate(textFallback)) return null
+      return textFallback
+    }
+    const decoder = new TextDecoder('utf-8')
+    let total = 0
+    let text = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value || value.byteLength === 0) continue
+      total += value.byteLength
+      if (total > opts.maxBytes) {
+        try {
+          await reader.cancel()
+        } catch {
+          void 0
+        }
+        return null
+      }
+      text += decoder.decode(value, { stream: true })
+    }
+    text += decoder.decode()
+    if (opts.validate && !opts.validate(text)) return null
+    return text
+  } catch {
+    return null
+  } finally {
+    if (timeoutId != null) {
+      try {
+        window.clearTimeout(timeoutId)
+      } catch {
+        void 0
+      }
+    }
+  }
 }
 
 export async function fetchRemoteText(
@@ -64,15 +106,11 @@ export async function fetchRemoteText(
   })()
 
   const attempt = async (targetUrl: string): Promise<string | null> => {
-    try {
-      const res = await fetch(targetUrl)
-      if (!res.ok) return null
-      const text = await res.text()
-      if (options?.validate && !options.validate(text)) return null
-      return text
-    } catch {
-      return null
-    }
+    return fetchTextWithLimit(targetUrl, {
+      timeoutMs: 15_000,
+      maxBytes: 8 * 1024 * 1024,
+      validate: options?.validate,
+    })
   }
 
   const proxyUrl = `${proxyEndpoint}?url=${encodeURIComponent(url)}`

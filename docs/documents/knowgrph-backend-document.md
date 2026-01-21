@@ -11,7 +11,7 @@ Knowgrph is primarily a client-side app (Vite + React). “Backend” functional
 - Used by:
   - Node media panels (remote `image/video/iframe` sources)
   - Markdown slide backgrounds via `applyMediaProxySrc(...)`
-- Policy: apply proxy to any remote URL; forbid hardcoded domain rewrites
+- Policy: apply proxy to any remote URL; forbid hardcoded domain rewrites; enforce bounded upstream time and size
 
 Implementation:
 - Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
@@ -25,17 +25,15 @@ Implementation:
 Implementation:
 - Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
 
-### YouTube transcript → Markdown (dev/preview)
+### YouTube transcript → Markdown (+ JSON source)
 
-- Path: `/__youtube_transcript` (POST)
-- Purpose: convert a YouTube URL/ID into Markdown (Slidev-compatible `---` splits) so Canvas can ingest it like any Markdown document.
-- Used by:
-  - Source Files → YouTube import button
-- Policy: dev/preview only; the server runs `python3 -m knowgrph_parser youtube` and returns Markdown.
+- Path: `/__youtube_transcript?url=<encoded>[&lang=<code>]` (POST)
+- Purpose: fetch YouTube transcripts/subtitles/captions (manual or generated) and convert into Markdown for the Markdown Editor/Preview/Slides, while also returning a JSON source payload suitable for the Bottom Panel JSON Editor.
+- Runtime constraints: bounded Python subprocess execution (timeout) to forbid hanging imports.
 
 Implementation:
 - Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
-- Python command: [youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py)
+- Python command: `python3 -m knowgrph_parser youtube --emit json --url ... [--lang ...]` ([youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py))
 
 ## Production note
 

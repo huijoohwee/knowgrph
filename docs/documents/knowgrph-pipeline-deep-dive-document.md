@@ -58,10 +58,16 @@
   - Markdown: [markdownImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/markdownImportAction.ts)
   - HTML → Markdown: [htmlImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/htmlImportAction.ts)
   - PDF → Markdown: [pdfImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/pdfImportAction.ts)
+  - YouTube → Markdown (+ transcript JSON): [youtubeImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts) (Source Files → YouTube)
   - JSON/JSON-LD/CSV: [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
 - Local/URL loader bridge (Bottom Panel): [useMarkdownLoader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/BottomPanel/useMarkdownLoader.ts)
 - Parser loader (text → GraphData): [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
 - Responsibility (S-V-O): Import action reads source → resolves text → hands off to parser loader → updates store.
+
+**YouTube import**:
+- Status: Active. The import action calls `/__youtube_transcript` (Vite middleware) which runs `python3 -m knowgrph_parser youtube --emit json` to produce:
+  - Markdown for Markdown Editor/Preview/Slides
+  - Transcript JSON for Bottom Panel JSON Editor (`jsonSourceDocumentText`)
 
 ### Stage 2: Parse
 

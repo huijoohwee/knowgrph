@@ -134,12 +134,9 @@ export async function testAgenticRagContextTooltipUsesCopyHelper() {
 }
 
 export async function testGraphDataTableToolMenuUsesCurationCopyHelper() {
-  const curatorArea = TOOL_MENU_AREAS.find(area => area.key === 'curator')
-  if (!curatorArea) {
-    throw new Error('Tool menu curator area configuration missing')
-  }
-  if (curatorArea.description !== GRAPH_DATA_TABLE_CURATION_TOOLTIP) {
-    throw new Error('Tool menu Graph Data Table description does not match GRAPH_DATA_TABLE_CURATION_TOOLTIP')
+  const curatorArea = TOOL_MENU_AREAS.find(area => area.key === ('curator' as never))
+  if (curatorArea) {
+    throw new Error('Tool menu must not expose Curator area; Source Files provides imports')
   }
   await Promise.resolve()
 }

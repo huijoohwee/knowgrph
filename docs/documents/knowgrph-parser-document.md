@@ -56,15 +56,20 @@
 
 ---
 
-## Video Analyzer: YouTube Transcript → Markdown (Dev/Preview)
+## Video Analyzer: YouTube Import
 
-Canvas provides a dev/preview-only YouTube transcript import that converts a YouTube URL/ID into Markdown and then feeds the existing Markdown→Graph pipeline.
+Canvas supports YouTube import via the `/__youtube_transcript` endpoint and `python3 -m knowgrph_parser youtube --emit json`. It extracts transcripts/subtitles/captions (manual or generated), groups them into paragraphs, and emits:
+- Markdown for Markdown Editor/Preview/Slides
+- Transcript JSON for the Bottom Panel JSON Editor (`jsonSourceDocumentText`)
+
+Implementation note: `knowgrph_parser youtube` supports youtube-transcript-api variants where transcript selection is accessed via either class-level helpers or an instance (`YouTubeTranscriptApi().list(...)`).
 
 | Surface | Responsibility (S-V-O) | Implementation |
 |---------|-------------------------|----------------|
-| Toolbar (Canvas) | User selects YouTube → submits URL → triggers import | [ToolbarYouTubeArea](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/ToolbarYouTubeArea.tsx) → [performYouTubeImport](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts) |
-| Dev Hook (Vite) | Server receives URL/ID → runs converter → returns Markdown | [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts) (`/__youtube_transcript`) |
-| Python CLI | Converter fetches transcript → formats Slidev-friendly Markdown | `python3 -m knowgrph_parser youtube --id <videoId>`: [youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py) |
+| Toolbar (Canvas) | User opens YouTube import UI → enters URL/ID → fetches transcript JSON → loads Markdown view | [ToolbarYouTubeArea](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/ToolbarYouTubeArea.tsx) → [performYouTubeImport](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts) |
+
+Pipeline map:
+- Import [knowgrph-pipeline-map.graph.json](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-pipeline-map.graph.json) into Canvas (as JSON) to visualize the runtime + Python pipeline call graph.
 
 ## Component Specifications
 

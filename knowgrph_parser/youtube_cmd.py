@@ -1,170 +1,229 @@
 import argparse
 import json
-import re
 import sys
-import urllib.parse
-import urllib.request
-from typing import Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+from urllib.parse import parse_qs, urlparse
+
+from .common import slugify
 
 
-def _coerce_youtube_video_id(raw: str) -> Optional[str]:
-    text = str(raw or "").strip()
-    if not text:
+def _extract_youtube_video_id(url_or_id: str) -> Optional[str]:
+    raw = str(url_or_id or "").strip()
+    if not raw:
         return None
-    if re.fullmatch(r"[a-zA-Z0-9_-]{11}", text):
-        return text
-    candidate = text
-    if not re.match(r"^https?://", candidate, flags=re.IGNORECASE):
-        candidate = "https://" + candidate
+    if len(raw) == 11 and all(c.isalnum() or c in "_-" for c in raw):
+        return raw
     try:
-        url = urllib.parse.urlsplit(candidate)
+        parsed = urlparse(raw)
     except Exception:
         return None
-    host = (url.hostname or "").lower().lstrip("www.")
-    if host == "youtu.be":
-        parts = [p for p in (url.path or "").split("/") if p]
-        vid = parts[0] if parts else ""
-        return vid if re.fullmatch(r"[a-zA-Z0-9_-]{11}", vid) else None
-    if host.endswith("youtube.com"):
-        qs = urllib.parse.parse_qs(url.query or "")
-        v = (qs.get("v") or [""])[0]
-        if re.fullmatch(r"[a-zA-Z0-9_-]{11}", v):
-            return v
-        parts = [p for p in (url.path or "").split("/") if p]
-        if parts and parts[0] in {"shorts", "embed"} and len(parts) > 1:
-            vid = parts[1]
-            return vid if re.fullmatch(r"[a-zA-Z0-9_-]{11}", vid) else None
+    if not parsed.scheme and not parsed.netloc:
+        return None
+    host = (parsed.netloc or "").lower()
+    path = parsed.path or ""
+    query = parse_qs(parsed.query or "")
+    if "v" in query and query["v"]:
+        candidate = str(query["v"][0] or "").strip()
+        if len(candidate) == 11:
+            return candidate
+    if host.endswith("youtu.be"):
+        candidate = path.strip("/").split("/")[0] if path else ""
+        if len(candidate) == 11:
+            return candidate
+    parts = [p for p in path.split("/") if p]
+    for idx, part in enumerate(parts):
+        if part in {"embed", "shorts"} and idx + 1 < len(parts):
+            candidate = parts[idx + 1]
+            if len(candidate) == 11:
+                return candidate
+    for part in parts:
+        if len(part) == 11:
+            return part
     return None
 
 
-def _fetch_youtube_title(video_id: str) -> str:
-    source = f"https://www.youtube.com/watch?v={video_id}"
-    url = "https://www.youtube.com/oembed?" + urllib.parse.urlencode(
-        {"url": source, "format": "json"}
-    )
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = resp.read().decode("utf-8", errors="ignore")
-        parsed = json.loads(data)
-        title = str(parsed.get("title") or "").strip()
-        return title or "YouTube Transcript"
-    except Exception:
-        return "YouTube Transcript"
+def _format_transcript_paragraphs(snippets: List[Dict[str, Any]]) -> str:
+    if not snippets:
+        return ""
+    paragraphs: List[str] = []
+    current: List[str] = []
+    last_end = 0.0
+    gap_threshold_s = 2.0
+    max_chars = 700
 
-
-def _group_paragraphs(segments: Sequence[dict]) -> list[str]:
-    paragraphs: list[str] = []
-    current: list[str] = []
-    current_len = 0
-    last_end_s: Optional[float] = None
-    for seg in segments:
-        text = str(seg.get("text") or "").strip()
+    for entry in snippets:
+        text = str(entry.get("text", "") or "").strip()
         if not text:
             continue
-        text = re.sub(r"\s+", " ", text).strip()
-        start = seg.get("start")
-        dur = seg.get("duration")
-        try:
-            start_s = float(start)
-        except Exception:
-            start_s = 0.0
-        try:
-            dur_s = float(dur)
-        except Exception:
-            dur_s = 0.0
-        end_s = start_s + dur_s
-        gap_s = (start_s - last_end_s) if last_end_s is not None else 0.0
-        if gap_s >= 1.5 or current_len >= 700:
-            if current:
-                paragraphs.append(" ".join(current).strip())
-                current = []
-                current_len = 0
-        current.append(text)
-        current_len += len(text) + 1
-        last_end_s = end_s
-        if re.search(r"[.?!]$", text) and current_len >= 420:
+        start = float(entry.get("start", 0.0) or 0.0)
+        duration = float(entry.get("duration", 0.0) or 0.0)
+        end = start + duration
+        gap = start - last_end
+        cur_len = sum(len(t) for t in current)
+        if current and (gap > gap_threshold_s or cur_len >= max_chars):
             paragraphs.append(" ".join(current).strip())
             current = []
-            current_len = 0
+        current.append(text)
+        last_end = end
     if current:
         paragraphs.append(" ".join(current).strip())
-    return [p for p in paragraphs if p]
+    return "\n\n".join([p for p in paragraphs if p])
 
 
-def _render_markdown(title: str, source_url: str, lang: Optional[str], segments: Sequence[dict]) -> str:
-    paragraphs = _group_paragraphs(segments)
-    slide_every = 8 if len(paragraphs) > 18 else 6 if len(paragraphs) > 10 else 0
-    out: list[str] = []
-    out.append(f"# {title.strip() or 'YouTube Transcript'}")
-    out.append(f"Source: {source_url}")
-    if lang:
-        out.append(f"Language: {lang}")
-    out.append("")
-    out.append("---")
-    out.append("")
-    out.append("## Transcript")
-    out.append("")
-    for idx, para in enumerate(paragraphs):
-        out.append(para)
-        out.append("")
-        if slide_every and (idx + 1) % slide_every == 0 and (idx + 1) < len(paragraphs):
-            out.append("---")
-            out.append("")
-    return "\n".join(out).rstrip() + "\n"
+def _build_markdown(video_id: str, url: str, paragraphs: str) -> str:
+    lines = [f"# YouTube Transcript: {video_id}", "", f"Source: {url}", ""]
+    if paragraphs.strip():
+        lines.append(paragraphs.strip())
+    else:
+        lines.append("(No transcript text returned.)")
+    return "\n".join(lines).rstrip() + "\n"
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="youtube")
-    parser.add_argument("--id", dest="video_id", type=str, default="")
-    parser.add_argument("--url", dest="video_url", type=str, default="")
-    parser.add_argument("--lang", dest="language", type=str, default="")
-    args = parser.parse_args(list(argv) if argv is not None else None)
-
-    raw = (args.video_id or "").strip() or (args.video_url or "").strip()
-    video_id = _coerce_youtube_video_id(raw)
-    if not video_id:
-        print("Invalid YouTube URL or video ID", file=sys.stderr)
-        return 2
+def _select_transcript(
+    transcript_list: Any, *, languages: List[str]
+) -> Tuple[Any, bool]:
+    from youtube_transcript_api import NoTranscriptFound
 
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-    except Exception:
-        print(
-            "Missing dependency: youtube-transcript-api. Install requirements.txt to enable YouTube transcript import.",
-            file=sys.stderr,
-        )
-        return 3
+        return transcript_list.find_manually_created_transcript(languages), False
+    except NoTranscriptFound:
+        try:
+            return transcript_list.find_generated_transcript(languages), True
+        except NoTranscriptFound:
+            return transcript_list.find_transcript(languages), True
 
-    lang = (args.language or "").strip()
-    source_url = f"https://www.youtube.com/watch?v={video_id}"
-    title = _fetch_youtube_title(video_id)
+
+def _fetch_transcript_snippets(video_id: str, *, languages: List[str]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    from youtube_transcript_api import YouTubeTranscriptApi
+
+    meta: Dict[str, Any] = {}
+    list_fn = getattr(YouTubeTranscriptApi, "list_transcripts", None)
+    if callable(list_fn):
+        transcript_list = list_fn(video_id)
+        transcript, is_generated = _select_transcript(transcript_list, languages=languages)
+        fetched = transcript.fetch()
+        snippets = [dict(s) if isinstance(s, dict) else {"text": getattr(s, "text", "")} for s in fetched]
+        meta = {
+            "languageCode": getattr(transcript, "language_code", None),
+            "language": getattr(transcript, "language", None),
+            "isGenerated": bool(is_generated),
+        }
+        return snippets, meta
+
     try:
         api = YouTubeTranscriptApi()
-        transcripts = api.list(video_id)
-        if lang:
-            transcript = transcripts.find_transcript([lang])
-        else:
-            try:
-                transcript = transcripts.find_manually_created_transcript(["en", "en-US", "en-GB"])
-            except Exception:
-                try:
-                    transcript = transcripts.find_generated_transcript(["en", "en-US", "en-GB"])
-                except Exception:
-                    transcript = next(iter(transcripts))
-        fetched = transcript.fetch(preserve_formatting=False)
-        segments = fetched.to_raw_data()
-    except Exception as e:
-        msg = str(e or "").strip() or "Failed to fetch transcript"
-        print(msg, file=sys.stderr)
-        return 4
+    except Exception:
+        api = None
 
-    markdown = _render_markdown(title=title, source_url=source_url, lang=lang or None, segments=segments)
-    sys.stdout.write(markdown)
-    return 0
+    if api is not None:
+        list_method = getattr(api, "list", None)
+        if callable(list_method):
+            transcript_list = list_method(video_id)
+            transcript, is_generated = _select_transcript(transcript_list, languages=languages)
+            fetched = transcript.fetch()
+            snippets = [dict(s) if isinstance(s, dict) else {"text": getattr(s, "text", "")} for s in fetched]
+            meta = {
+                "languageCode": getattr(transcript, "language_code", None),
+                "language": getattr(transcript, "language", None),
+                "isGenerated": bool(is_generated),
+            }
+            return snippets, meta
+        fetch_method = getattr(api, "fetch", None)
+        if callable(fetch_method):
+            fetched = fetch_method(video_id, languages=languages)
+            snippets = [dict(s) if isinstance(s, dict) else {"text": getattr(s, "text", "")} for s in fetched]
+            meta = {
+                "languageCode": None,
+                "language": None,
+                "isGenerated": None,
+            }
+            return snippets, meta
+
+    get_fn = getattr(YouTubeTranscriptApi, "get_transcript", None)
+    if callable(get_fn):
+        try:
+            snippets = get_fn(video_id, languages=languages)
+        except TypeError:
+            snippets = get_fn(video_id)
+        meta = {
+            "languageCode": None,
+            "language": None,
+            "isGenerated": None,
+        }
+        return [dict(s) for s in (snippets or [])], meta
+
+    raise AttributeError("youtube-transcript-api does not expose list_transcripts or get_transcript")
+
+
+def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[str] = None) -> int:
+    parser = argparse.ArgumentParser(description="Extract YouTube transcript to Markdown or JSON")
+    parser.add_argument("--url", required=True, help="YouTube video URL or ID")
+    parser.add_argument("--lang", default="en", help="Language code priority (default: en)")
+    parser.add_argument("--emit", choices=["markdown", "json"], default="markdown")
+    args = parser.parse_args(list(argv) if argv is not None else None)
+
+    video_id = _extract_youtube_video_id(args.url)
+    if not video_id:
+        message = f"Could not extract video ID from '{args.url}'"
+        if args.emit == "json":
+            print(json.dumps({"ok": False, "error": message}, ensure_ascii=False))
+            return 1
+        print(f"Error: {message}", file=sys.stderr)
+        return 1
+
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+    except ImportError:
+        message = "youtube-transcript-api is required. Install with python3 -m pip install youtube-transcript-api."
+        if args.emit == "json":
+            print(json.dumps({"ok": False, "error": message}, ensure_ascii=False))
+            return 1
+        print(f"Error: {message}", file=sys.stderr)
+        return 1
+
+    source_url = f"https://www.youtube.com/watch?v={video_id}"
+    try:
+        language = str(getattr(args, "lang", "") or "en").strip() or "en"
+        languages = [language]
+        if language != "en":
+            languages.append("en")
+
+        snippets, meta = _fetch_transcript_snippets(video_id, languages=languages)
+
+        paragraphs = _format_transcript_paragraphs(snippets)
+        markdown = _build_markdown(video_id, source_url, paragraphs)
+        display_name = f"youtube-{slugify(video_id)}.md"
+
+        if args.emit == "json":
+            payload: Dict[str, Any] = {
+                "ok": True,
+                "type": "rag:YouTubeTranscript",
+                "videoId": video_id,
+                "url": source_url,
+                "languageCode": meta.get("languageCode"),
+                "language": meta.get("language"),
+                "isGenerated": meta.get("isGenerated"),
+                "snippets": snippets,
+                "markdown": markdown,
+                "name": display_name,
+            }
+            print(json.dumps(payload, ensure_ascii=False))
+            return 0
+
+        print(markdown, end="")
+        return 0
+
+    except (TranscriptsDisabled, NoTranscriptFound) as e:
+        message = f"Transcript not available for video {video_id}. {str(e)}"
+        if args.emit == "json":
+            print(json.dumps({"ok": False, "error": message}, ensure_ascii=False))
+            return 1
+        print(f"Error: {message}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        message = f"Error processing YouTube video: {e}"
+        if args.emit == "json":
+            print(json.dumps({"ok": False, "error": message}, ensure_ascii=False))
+            return 1
+        print(message, file=sys.stderr)
+        return 1

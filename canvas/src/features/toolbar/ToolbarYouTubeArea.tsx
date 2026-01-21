@@ -31,7 +31,7 @@ export function ToolbarYouTubeArea(props: ToolbarToolMenuAreasProps) {
   return (
     <div className="flex flex-col gap-1">
       {props.isYouTubeImportMenuOpen && (
-        <div className="flex flex-col gap-1 px-1">
+        <div className="flex flex-col gap-1 px-1" data-floating-panel-no-drag="true">
           <div className="flex items-center justify-end gap-1">
             <button
               type="button"
@@ -46,6 +46,7 @@ export function ToolbarYouTubeArea(props: ToolbarToolMenuAreasProps) {
           {isUrlInputOpen && (
             <form
               className="flex items-center justify-end"
+              data-floating-panel-no-drag="true"
               onSubmit={(e) => {
                 e.preventDefault()
                 const url = urlInputValue.trim()
@@ -56,13 +57,15 @@ export function ToolbarYouTubeArea(props: ToolbarToolMenuAreasProps) {
                 props.onToolMenuAction('sourceFiles', 'importUrl', { format: 'youtube', url })
               }}
             >
-              <input
-                ref={urlInputRef}
-                value={urlInputValue}
-                onChange={e => setUrlInputValue(e.target.value)}
-                placeholder={UI_COPY.youtubeImportUrlPrompt}
-                className={`w-full h-7 px-2 border border-gray-300 rounded bg-white text-gray-700 text-left ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}
-              />
+              <div className="flex w-full flex-col gap-1">
+                <input
+                  ref={urlInputRef}
+                  value={urlInputValue}
+                  onChange={e => setUrlInputValue(e.target.value)}
+                  placeholder={UI_COPY.youtubeImportUrlPrompt}
+                  className={`w-full h-7 px-2 border border-gray-300 rounded bg-white text-gray-700 text-left ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}
+                />
+              </div>
             </form>
           )}
         </div>

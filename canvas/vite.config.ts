@@ -7,13 +7,37 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import os from 'node:os'
+import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
-import { slugify } from './src/features/parsers/markdownJsonLdUtils'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
-const pythonBin = String(process.env.KNOWGRPH_PYTHON_BIN || 'python3').trim() || 'python3'
+
+function resolvePythonBin(): string {
+  const fromEnv = String(process.env.KNOWGRPH_PYTHON_BIN || '').trim()
+  if (fromEnv) return fromEnv
+  const candidates = [
+    'python3',
+    path.join(repoRoot, '.venv', 'bin', 'python3'),
+    path.join(repoRoot, '.venv', 'bin', 'python'),
+    path.join(repoRoot, 'venv', 'bin', 'python3'),
+    path.join(repoRoot, 'venv', 'bin', 'python'),
+    '/opt/homebrew/bin/python3',
+    '/usr/local/bin/python3',
+  ]
+  for (const candidate of candidates) {
+    try {
+      if (candidate === 'python3') return candidate
+      if (existsSync(candidate)) return candidate
+    } catch {
+      void 0
+    }
+  }
+  return 'python3'
+}
+
+const pythonBin = resolvePythonBin()
 
 function runMarkdownPipelineOnce(): Promise<void> {
   const parts = CODEBASE_INDEX_PIPELINE_COMMAND.split(/\s+/).filter(Boolean)
@@ -278,124 +302,6 @@ const pdfConvertDevPlugin = {
   },
 }
 
-type YouTubeTranscriptResult =
-  | { ok: true; markdown: string; name: string; sourceUrl: string }
-  | { ok: false; error: string }
-
-function coerceYouTubeVideoId(raw: string): string | null {
-  const input = String(raw || '').trim()
-  if (!input) return null
-  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input
-  const withProtocol = /^https?:\/\//i.test(input) ? input : `https://${input}`
-  try {
-    const url = new URL(withProtocol)
-    const host = url.hostname.replace(/^www\./i, '').toLowerCase()
-    if (host === 'youtu.be') {
-      const id = url.pathname.split('/').filter(Boolean)[0] || ''
-      return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null
-    }
-    if (host.endsWith('youtube.com')) {
-      const v = url.searchParams.get('v') || ''
-      if (/^[a-zA-Z0-9_-]{11}$/.test(v)) return v
-      const parts = url.pathname.split('/').filter(Boolean)
-      const prefix = parts[0] || ''
-      const maybe = parts[1] || ''
-      if ((prefix === 'shorts' || prefix === 'embed') && /^[a-zA-Z0-9_-]{11}$/.test(maybe)) {
-        return maybe
-      }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-function runKnowgrphParserConvertYouTubeToMarkdown(opts: {
-  videoId: string
-  language?: string
-}): string | null {
-  try {
-    const args = ['-m', 'knowgrph_parser', 'youtube', '--id', opts.videoId]
-    if (opts.language && opts.language.trim()) {
-      args.push('--lang', opts.language.trim())
-    }
-    const res = spawnSync(pythonBin, args, {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      maxBuffer: 20 * 1024 * 1024,
-    })
-    if (res.status === 0 && typeof res.stdout === 'string' && res.stdout.trim()) {
-      return res.stdout
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-async function convertYouTubeToMarkdown(opts: {
-  urlOrId: string
-  language?: string
-}): Promise<YouTubeTranscriptResult> {
-  const id = coerceYouTubeVideoId(opts.urlOrId)
-  if (!id) return { ok: false, error: 'Invalid YouTube URL or video ID' }
-  const sourceUrl = `https://www.youtube.com/watch?v=${id}`
-  const markdown = runKnowgrphParserConvertYouTubeToMarkdown({ videoId: id, language: opts.language })
-  if (!markdown) {
-    return {
-      ok: false,
-      error:
-        'YouTube transcript conversion failed. Ensure the Python parser environment is set up correctly (pip install -r requirements.txt).',
-    }
-  }
-  const titleLine = String(markdown.split('\n')[0] || '').replace(/^#\s+/, '').trim()
-  const nameBase = slugify(titleLine || `youtube-${id}`)
-  const name = `${nameBase}.md`
-  return { ok: true, markdown, name, sourceUrl }
-}
-
-const youtubeTranscriptDevPlugin = {
-  name: 'knowgrph-youtube-transcript-dev',
-  configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use('/__youtube_transcript', createYouTubeTranscriptHandler())
-  },
-  configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use('/__youtube_transcript', createYouTubeTranscriptHandler())
-  },
-}
-
-function createYouTubeTranscriptHandler(): import('vite').Connect.NextHandleFunction {
-  return async (req, res, next) => {
-    if (req.method !== 'POST') {
-      next()
-      return
-    }
-    try {
-      const parsed = new URL(req.url || '', `http://${req.headers.host}`)
-      const urlOrId = parsed.searchParams.get('url') || ''
-      const language = parsed.searchParams.get('lang') || undefined
-      if (!urlOrId.trim()) {
-        res.statusCode = 400
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'Missing url' } satisfies YouTubeTranscriptResult))
-        return
-      }
-      const result = await convertYouTubeToMarkdown({ urlOrId, language })
-      res.statusCode = result.ok ? 200 : 400
-      res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify(result))
-    } catch (error) {
-      const msg =
-        error && typeof error === 'object' && 'message' in error
-          ? String((error as { message?: unknown }).message || '')
-          : ''
-      res.statusCode = 500
-      res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify({ ok: false, error: msg || 'YouTube transcript conversion failed' } satisfies YouTubeTranscriptResult))
-    }
-  }
-}
-
 function createPdfConvertHandler(): import('vite').Connect.NextHandleFunction {
   return async (req, res, next) => {
     if (req.method !== 'POST') {
@@ -522,38 +428,198 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     try {
-      const upstream = await fetch(urlParam, {
-        redirect: 'follow',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'none',
-          'Sec-Fetch-User': '?1',
-          'Upgrade-Insecure-Requests': '1',
-        },
-      })
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15_000)
+      const upstream = await (async () => {
+        try {
+          return await fetch(urlParam, {
+            redirect: 'follow',
+            signal: controller.signal,
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              Accept:
+                'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Sec-Fetch-Dest': 'document',
+              'Sec-Fetch-Mode': 'navigate',
+              'Sec-Fetch-Site': 'none',
+              'Sec-Fetch-User': '?1',
+              'Upgrade-Insecure-Requests': '1',
+            },
+          })
+        } finally {
+          clearTimeout(timeoutId)
+        }
+      })()
       res.statusCode = upstream.status
       const contentType = upstream.headers.get('content-type')
       if (contentType) {
         res.setHeader('Content-Type', contentType)
       }
-      const buf = Buffer.from(await upstream.arrayBuffer())
+      const maxBytes = 8 * 1024 * 1024
+      const readWithLimit = async (): Promise<Buffer> => {
+        const reader = upstream.body?.getReader()
+        if (!reader) {
+          const contentLengthRaw = upstream.headers.get('content-length')
+          const len = contentLengthRaw ? Number(contentLengthRaw) : NaN
+          if (Number.isFinite(len) && len > maxBytes) {
+            throw new Error('Upstream response too large')
+          }
+          return Buffer.from(await upstream.arrayBuffer())
+        }
+        const chunks: Buffer[] = []
+        let total = 0
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (!value || value.byteLength === 0) continue
+          total += value.byteLength
+          if (total > maxBytes) {
+            try {
+              await reader.cancel()
+            } catch {
+              void 0
+            }
+            throw new Error('Upstream response too large')
+          }
+          chunks.push(Buffer.from(value))
+        }
+        return Buffer.concat(chunks)
+      }
+      const buf = await readWithLimit()
       res.end(buf)
     } catch (error) {
-      res.statusCode = 502
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       const msg =
         error && typeof error === 'object' && 'message' in error
           ? String((error as { message?: unknown }).message || '')
           : 'Upstream fetch failed'
-      res.end(msg || 'Upstream fetch failed')
+      const message = msg || 'Upstream fetch failed'
+      if (/aborted/i.test(message) || /timeout/i.test(message)) {
+        res.statusCode = 504
+      } else if (/too large/i.test(message)) {
+        res.statusCode = 413
+      } else {
+        res.statusCode = 502
+      }
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end(message)
     }
   }
+}
+
+type YoutubeConvertResult =
+  | { ok: true; markdown: string; name: string; transcript: Record<string, unknown> }
+  | { ok: false; error: string }
+
+async function runKnowgrphParserConvertYoutubeToPayload(opts: {
+  url: string
+  lang?: string
+}): Promise<YoutubeConvertResult> {
+  try {
+    const args = ['-m', 'knowgrph_parser', 'youtube', '--emit', 'json', '--url', opts.url]
+    if (opts.lang && opts.lang.trim()) {
+      args.push('--lang', opts.lang.trim())
+    }
+    const res = spawnSync(pythonBin, args, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      maxBuffer: 20 * 1024 * 1024,
+      timeout: 60_000,
+    })
+    if (res.error) {
+      const msg =
+        typeof (res.error as { message?: unknown } | null)?.message === 'string'
+          ? String((res.error as { message?: unknown }).message || '')
+          : ''
+      return { ok: false, error: msg || 'YouTube conversion failed' }
+    }
+    if (res.status !== 0) {
+      const stderr = typeof res.stderr === 'string' ? res.stderr.trim() : ''
+      const stdout = typeof res.stdout === 'string' ? res.stdout.trim() : ''
+      if (stdout) {
+        try {
+          const parsed = JSON.parse(stdout) as unknown
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            const obj = parsed as Record<string, unknown>
+            if (obj.ok === false && typeof obj.error === 'string' && obj.error.trim()) {
+              return { ok: false, error: obj.error.trim() }
+            }
+          }
+        } catch {
+          void 0
+        }
+      }
+      const msg = stderr || stdout || `YouTube conversion failed (exit ${res.status ?? 'unknown'})`
+      return { ok: false, error: msg }
+    }
+    const stdout = typeof res.stdout === 'string' ? res.stdout.trim() : ''
+    if (!stdout) return { ok: false, error: 'YouTube conversion returned empty output' }
+    const parsed = JSON.parse(stdout) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { ok: false, error: 'YouTube conversion returned invalid JSON' }
+    }
+    const obj = parsed as Record<string, unknown>
+    if (obj.ok !== true) {
+      const err = typeof obj.error === 'string' && obj.error.trim() ? obj.error.trim() : 'YouTube conversion failed'
+      return { ok: false, error: err }
+    }
+    const markdown = typeof obj.markdown === 'string' ? obj.markdown : ''
+    const name = typeof obj.name === 'string' && obj.name.trim() ? obj.name.trim() : 'youtube-transcript.md'
+    const transcript: Record<string, unknown> = { ...obj }
+    delete transcript.markdown
+    delete transcript.name
+    return { ok: true, markdown, name, transcript }
+  } catch (error) {
+    const msg =
+      error && typeof error === 'object' && 'message' in error
+        ? String((error as { message?: unknown }).message || '')
+        : ''
+    return { ok: false, error: msg || 'YouTube conversion failed' }
+  }
+}
+
+function createYoutubeConvertHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+    try {
+      const parsed = new URL(req.url || '', `http://${req.headers.host}`)
+      const urlParam = parsed.searchParams.get('url') || undefined
+      const langParam = parsed.searchParams.get('lang') || undefined
+      
+      if (!urlParam) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: false, error: 'Missing url parameter' }))
+          return
+      }
+
+      const payload = await runKnowgrphParserConvertYoutubeToPayload({
+        url: urlParam,
+        lang: langParam || undefined,
+      })
+      res.statusCode = payload.ok ? 200 : 400
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify(payload))
+    } catch (error) {
+       res.statusCode = 500
+       res.setHeader('Content-Type', 'application/json')
+       res.end(JSON.stringify({ ok: false, error: String(error) }))
+    }
+  }
+}
+
+const youtubeConvertDevPlugin = {
+  name: 'knowgrph-youtube-convert-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler())
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler())
+  },
 }
 
 
@@ -601,7 +667,7 @@ export default defineConfig(({ command }) => ({
           markdownPipelineDevPlugin,
           remoteFetchProxyDevPlugin,
           pdfConvertDevPlugin,
-          youtubeTranscriptDevPlugin,
+          youtubeConvertDevPlugin,
         ]),
     tsconfigPaths(),
   ],

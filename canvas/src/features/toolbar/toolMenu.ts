@@ -1,6 +1,5 @@
 import {
   ORCHESTRATOR_TRAVERSAL_TOOLTIP,
-  GRAPH_DATA_TABLE_CURATION_TOOLTIP,
   TOOL_MENU_SOURCE_FILES_DESCRIPTION,
   TOOL_MENU_PARSER_DESCRIPTION,
   TOOL_MENU_SCHEMA_CONFIG_DESCRIPTION,
@@ -20,7 +19,6 @@ export type ToolMenuPayload = {
 
 export type ToolMenuArea =
   | 'sourceFiles'
-  | 'curator'
   | 'validation'
   | 'markdown'
   | 'html'
@@ -55,12 +53,6 @@ export const TOOL_MENU_AREAS: ToolMenuAreaConfig[] = [
     label: 'Source Files',
     description: TOOL_MENU_SOURCE_FILES_DESCRIPTION,
     actions: ['new', 'import', 'export', 'clear'],
-  },
-  {
-    key: 'curator',
-    label: 'Curator',
-    description: GRAPH_DATA_TABLE_CURATION_TOOLTIP,
-    actions: ['new', 'import', 'clear'],
   },
   {
     key: 'validation',

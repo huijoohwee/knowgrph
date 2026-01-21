@@ -67,8 +67,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     setIsSourceFilesImportMenuOpen,
     isSourceFilesExportMenuOpen,
     setIsSourceFilesExportMenuOpen,
-    isCuratorExportMenuOpen,
-    setIsCuratorExportMenuOpen,
     isParserExportMenuOpen,
     setIsParserExportMenuOpen,
     isMarkdownImportMenuOpen,
@@ -343,8 +341,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
           setIsSourceFilesImportMenuOpen={setIsSourceFilesImportMenuOpen}
           isSourceFilesExportMenuOpen={isSourceFilesExportMenuOpen}
           setIsSourceFilesExportMenuOpen={setIsSourceFilesExportMenuOpen}
-          isCuratorExportMenuOpen={isCuratorExportMenuOpen}
-          setIsCuratorExportMenuOpen={setIsCuratorExportMenuOpen}
           isParserExportMenuOpen={isParserExportMenuOpen}
           setIsParserExportMenuOpen={setIsParserExportMenuOpen}
           isMarkdownImportMenuOpen={isMarkdownImportMenuOpen}

@@ -43,8 +43,6 @@ export function ToolbarToolMenu({
   setIsSourceFilesImportMenuOpen,
   isSourceFilesExportMenuOpen,
   setIsSourceFilesExportMenuOpen,
-  isCuratorExportMenuOpen,
-  setIsCuratorExportMenuOpen,
   isParserExportMenuOpen,
   setIsParserExportMenuOpen,
   isMarkdownImportMenuOpen,
@@ -372,8 +370,6 @@ export function ToolbarToolMenu({
                 setIsSourceFilesImportMenuOpen={setIsSourceFilesImportMenuOpen}
                 isSourceFilesExportMenuOpen={isSourceFilesExportMenuOpen}
                 setIsSourceFilesExportMenuOpen={setIsSourceFilesExportMenuOpen}
-                isCuratorExportMenuOpen={isCuratorExportMenuOpen}
-                setIsCuratorExportMenuOpen={setIsCuratorExportMenuOpen}
                 isParserExportMenuOpen={isParserExportMenuOpen}
                 setIsParserExportMenuOpen={setIsParserExportMenuOpen}
                 isMarkdownImportMenuOpen={isMarkdownImportMenuOpen}

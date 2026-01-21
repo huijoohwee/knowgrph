@@ -13,7 +13,6 @@ export function useToolMenuState() {
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false)
   const [isSourceFilesImportMenuOpen, setIsSourceFilesImportMenuOpen] = useState(false)
   const [isSourceFilesExportMenuOpen, setIsSourceFilesExportMenuOpen] = useState(false)
-  const [isCuratorExportMenuOpen, setIsCuratorExportMenuOpen] = useState(false)
   const [isParserExportMenuOpen, setIsParserExportMenuOpen] = useState(false)
   const [isMarkdownImportMenuOpen, setIsMarkdownImportMenuOpen] = useState(false)
   const [isHtmlImportMenuOpen, setIsHtmlImportMenuOpen] = useState(false)
@@ -157,7 +156,6 @@ export function useToolMenuState() {
     setIsToolMenuOpen(false)
     setIsSourceFilesImportMenuOpen(false)
     setIsSourceFilesExportMenuOpen(false)
-    setIsCuratorExportMenuOpen(false)
     setIsParserExportMenuOpen(false)
     setIsMarkdownImportMenuOpen(false)
     setIsHtmlImportMenuOpen(false)
@@ -180,7 +178,6 @@ export function useToolMenuState() {
       if (!next) {
         setIsSourceFilesImportMenuOpen(false)
         setIsSourceFilesExportMenuOpen(false)
-        setIsCuratorExportMenuOpen(false)
         setIsParserExportMenuOpen(false)
         setIsMarkdownImportMenuOpen(false)
         setIsHtmlImportMenuOpen(false)
@@ -207,8 +204,6 @@ export function useToolMenuState() {
     setIsSourceFilesImportMenuOpen,
     isSourceFilesExportMenuOpen,
     setIsSourceFilesExportMenuOpen,
-    isCuratorExportMenuOpen,
-    setIsCuratorExportMenuOpen,
     isParserExportMenuOpen,
     setIsParserExportMenuOpen,
     isMarkdownImportMenuOpen,

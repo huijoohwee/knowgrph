@@ -27,8 +27,6 @@ export function ToolbarToolMenuAreasInspector() {
     setIsSourceFilesImportMenuOpen: () => {},
     isSourceFilesExportMenuOpen: false,
     setIsSourceFilesExportMenuOpen: () => {},
-    isCuratorExportMenuOpen: false,
-    setIsCuratorExportMenuOpen: () => {},
     isParserExportMenuOpen: false,
     setIsParserExportMenuOpen: () => {},
     isMarkdownImportMenuOpen: false,

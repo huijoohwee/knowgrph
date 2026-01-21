@@ -17,9 +17,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if cmd in {"pdf"}:
             from . import pdf_cmd
             return pdf_cmd.main(rest, parser_script_path=entrypoint)
-        if cmd in {"youtube"}:
-            from . import youtube_cmd
-            return youtube_cmd.main(rest)
         if cmd in {"codebase-index", "parse-codebase-index"}:
             from . import codebase_index_cmd
             return codebase_index_cmd.main(rest, base_dir=base_dir, parser_script_path=entrypoint)
@@ -50,5 +47,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if cmd in {"graphrag-pipeline"}:
             from . import graphrag_pipeline_cmd
             return graphrag_pipeline_cmd.main(rest)
+        if cmd in {"youtube"}:
+            from . import youtube_cmd
+            return youtube_cmd.main(rest, parser_script_path=entrypoint)
     from . import markdown_cmd
     return markdown_cmd.main(args, parser_script_path=entrypoint)

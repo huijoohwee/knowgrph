@@ -8,6 +8,7 @@ Knowgrph Canvas is primarily a client-side app. Local “API” surfaces used by
 
 - Path: `/__fetch_remote?url=<encoded>`
 - Purpose: serve remote images/media through same-origin to reduce CORS/ORB issues.
+- Limits: bounded upstream timeout and max response size (prevents hanging requests and unbounded memory).
 - Used by:
   - Node media panels (remote `image/video/iframe` sources)
   - Markdown slide backgrounds via `applyMediaProxySrc(...)`
@@ -19,15 +20,11 @@ Knowgrph Canvas is primarily a client-side app. Local “API” surfaces used by
 - Purpose: allow the UI/dev workflow to trigger the repo-level markdown pipeline once.
 - Implementation: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
 
-### YouTube transcript → Markdown (dev/preview)
+### YouTube transcript conversion
 
-- Path: `/__youtube_transcript` (POST)
-- Purpose: convert a YouTube URL/ID into Markdown (Slidev-compatible `---` splits) so Canvas can ingest it like any Markdown document.
-- Used by:
-  - Source Files → YouTube import button
-- Implementation:
-  - Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
-  - Python command: [youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py)
+- Path: `/__youtube_transcript?url=<encoded>[&lang=<code>]` (POST)
+- Purpose: convert YouTube transcripts/subtitles/captions into Markdown for the Markdown Editor/Preview/Slides and return a transcript JSON payload for the Bottom Panel JSON Editor.
+- Implementation: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
 
 ## Production note
 

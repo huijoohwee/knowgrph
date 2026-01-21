@@ -5,14 +5,16 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { promptForUrl } from './ingestUtils'
 
-type YouTubeMarkdownConversionOk = { markdown: string; displayName: string; sourceUrl: string }
-type YouTubeMarkdownConversionResult = YouTubeMarkdownConversionOk | { error: string }
+export type YouTubeImportType = 'url'
 
-async function convertYouTubeToMarkdown(rawUrlOrId: string): Promise<YouTubeMarkdownConversionResult | null> {
-  const input = String(rawUrlOrId || '').trim()
-  if (!input) return null
+type YouTubeMarkdownConversionResult =
+  | { markdown: string; displayName: string; transcriptJsonText: string | null }
+  | { error: string }
+
+async function convertYouTubeUrlToMarkdown(rawUrl: string): Promise<YouTubeMarkdownConversionResult | null> {
+  if (!rawUrl) return null
   try {
-    const res = await fetch(`/__youtube_transcript?url=${encodeURIComponent(input)}`, {
+    const res = await fetch(`/__youtube_transcript?url=${encodeURIComponent(rawUrl)}`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -23,118 +25,87 @@ async function convertYouTubeToMarkdown(rawUrlOrId: string): Promise<YouTubeMark
       markdown?: unknown
       error?: unknown
       name?: unknown
-      sourceUrl?: unknown
+      transcript?: unknown
     }
     if (json && json.ok === true && typeof json.markdown === 'string') {
-      const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : 'youtube.md'
-      const sourceUrl =
-        typeof json.sourceUrl === 'string' && json.sourceUrl.trim()
-          ? json.sourceUrl.trim()
-          : input
-      return { markdown: json.markdown, displayName: name, sourceUrl }
+      const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : 'youtube-transcript.md'
+      const transcriptJsonText = (() => {
+        if (!json.transcript || typeof json.transcript !== 'object' || Array.isArray(json.transcript)) return null
+        try {
+          return JSON.stringify(json.transcript, null, 2)
+        } catch {
+          return null
+        }
+      })()
+      return { markdown: json.markdown, displayName: name, transcriptJsonText }
     }
     const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
     if (err) return { error: err }
     if (!res.ok) return { error: `HTTP ${res.status}` }
-    return { error: 'YouTube transcript conversion failed' }
+    return { error: 'YouTube conversion failed' }
   } catch {
     return null
   }
 }
 
-export type YouTubeImportType = 'url'
-
 export async function performYouTubeImport(type: YouTubeImportType, providedUrlOrId?: string) {
+  if (type !== 'url') return
+  const raw = (() => {
+    const v = typeof providedUrlOrId === 'string' ? providedUrlOrId.trim() : ''
+    if (v) return v
+    return promptForUrl(UI_COPY.youtubeImportUrlPrompt) || ''
+  })()
+  if (!raw) return
+
   try {
-    const picked = await (async (): Promise<{ name: string; markdown: string; sourceUrl: string } | null> => {
-      if (type === 'url') {
-        const raw = (() => {
-          const v = typeof providedUrlOrId === 'string' ? providedUrlOrId.trim() : ''
-          if (v) return v
-          return promptForUrl(UI_COPY.youtubeImportUrlPrompt) || ''
-        })()
-        if (!raw) return null
-        const converted = await convertYouTubeToMarkdown(raw)
-        if (!converted) {
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.youtubeImportFetchFailedStatus(raw))
-          } catch {
-            void 0
-          }
-          return null
-        }
-        if ('error' in converted) {
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.youtubeImportConvertFailedStatusWithError(converted.error))
-          } catch {
-            void 0
-          }
-          return null
-        }
-        return { name: converted.displayName, markdown: converted.markdown, sourceUrl: converted.sourceUrl }
-      }
-      return null
-    })()
-
-    if (!picked) return
-
-    const res = await loadGraphDataFromTextViaParser(picked.name, picked.markdown)
-    if (!res) {
-      try {
-        const ui = useParserUIState.getState()
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-      } catch {
-        void 0
-      }
+    const converted = await convertYouTubeUrlToMarkdown(raw)
+    if (!converted) {
+      const ui = useParserUIState.getState()
+      ui.setDataLoadStatus(false, UI_COPY.youtubeImportFetchFailedStatus(raw))
+      return
+    }
+    if ('error' in converted) {
+      const ui = useParserUIState.getState()
+      ui.setDataLoadStatus(false, UI_COPY.youtubeImportConvertFailedStatusWithError(converted.error))
       return
     }
 
-    try {
+    const res = await loadGraphDataFromTextViaParser(converted.displayName, converted.markdown)
+    if (!res) {
       const ui = useParserUIState.getState()
-      if (res.input) {
-        ui.setLastInput(res.input.name, res.input.text)
-      }
-      if (res.warnings && res.warnings.length > 0) {
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
-        ui.setWarnings(res.warnings)
-      } else {
-        ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
-        ui.setWarnings([])
-        if (res.counts) {
-          ui.setCounts(res.counts)
-        }
-      }
-    } catch {
-      void 0
+      ui.setDataLoadStatus(false, UI_COPY.youtubeImportConvertFailedStatusWithError(UI_COPY.parserDataLoadFailed))
+      return
     }
 
-    try {
-      const state = useGraphStore.getState()
-      if (res.input && res.input.text.trim()) {
-        const name = res.input.name
-        state.setJsonSourceDocument(name, null)
-        state.setMarkdownDocument(name, res.input.text)
-        state.setMarkdownDocumentSourceUrl(picked.sourceUrl)
-        state.setBottomPanelCurationView('grid')
-        state.addRecentFile({
-          name,
-          url: picked.sourceUrl,
-          type: 'markdown',
-        })
-      }
-    } catch {
-      void 0
+    const ui = useParserUIState.getState()
+    if (res.input) {
+      ui.setLastInput(res.input.name, res.input.text)
+    }
+    if (res.warnings && res.warnings.length > 0) {
+      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
+      ui.setWarnings(res.warnings)
+    } else {
+      ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
+      ui.setWarnings([])
+      if (res.counts) ui.setCounts(res.counts)
+    }
+
+    const state = useGraphStore.getState()
+    if (res.input && res.input.text.trim()) {
+      const name = res.input.name
+      state.setMarkdownDocument(name, res.input.text)
+      state.setMarkdownDocumentSourceUrl(raw)
+      state.setJsonSourceDocument(name, converted.transcriptJsonText)
+      state.setBottomPanelCurationView('markdown')
+      state.addRecentFile({
+        name,
+        url: raw,
+        type: 'markdown',
+      })
     }
     openBottomPanel('curation')
   } catch {
-    try {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-    } catch {
-      void 0
-    }
+    const ui = useParserUIState.getState()
+    ui.setDataLoadStatus(false, UI_COPY.youtubeImportConvertFailedStatusWithError(UI_COPY.parserDataLoadFailed))
   }
 }
-

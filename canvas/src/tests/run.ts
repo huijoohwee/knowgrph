@@ -40,6 +40,7 @@ import {
   testGraphFieldsSyncOnHistoryUndoRedo,
   testGraphFieldsSyncOnNodeAndEdgeMutations,
 } from '@/__tests__/bottomPanelPersistence.test'
+import { testBottomPanelCurationJsonEditorPrefersSourceJson } from '@/__tests__/bottomPanelJsonView.test'
 import { testBottomPanelMarkdownFullscreenOpensOverlay } from '@/__tests__/bottomPanelFullscreenUi.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
@@ -119,6 +120,8 @@ import {
   testMarkdownScrollSyncMixedContentViewerToEditor,
 } from '@/__tests__/markdown/markdownScrollSync.test'
 import { testKeywordModeDerivesEntitiesAndPredicates, testKeywordModeMergesMediaNodesForOverlays } from '@/__tests__/keywordMode.test'
+import { testToolMenuDoesNotExposeCuratorArea } from '@/__tests__/toolMenuCuratorActions.test'
+import { testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -211,6 +214,7 @@ export const runAllTests = async () => {
   await runParserTests(results)
 
   // Remaining tests
+  await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
   
   await exec('previewGalleryReorder: arrow moves third above second', testPreviewGalleryArrowMovesThirdSlideAboveSecond)
   await exec('previewGalleryReorder: drag moves third above second', testPreviewGalleryDragMovesThirdSlideAboveSecond)
@@ -315,6 +319,8 @@ export const runAllTests = async () => {
   await exec('n8n.parseWorkflow', testN8nParsingBasic)
   
   await exec('jsonEditor.lineHeightConstant', testJsonEditorLineHeightConstant)
+  await exec('ui.bottomPanel.curationJsonPrefersSource', testBottomPanelCurationJsonEditorPrefersSourceJson)
+  await exec('ui.toolMenu.noCuratorArea', testToolMenuDoesNotExposeCuratorArea)
   
   await exec(
     'spreadsheet.filtersFallbackOnLastRemoval',

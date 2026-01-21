@@ -21,8 +21,6 @@ export interface ToolbarToolMenuProps {
   setIsSourceFilesImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isSourceFilesExportMenuOpen: boolean
   setIsSourceFilesExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
-  isCuratorExportMenuOpen: boolean
-  setIsCuratorExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isParserExportMenuOpen: boolean
   setIsParserExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isMarkdownImportMenuOpen: boolean
