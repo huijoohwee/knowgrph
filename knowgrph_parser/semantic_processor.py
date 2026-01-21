@@ -337,8 +337,10 @@ def process_semantics(
         n = len(entity_ids)
         if n > 0:
             pr = {eid: 1.0 / n for eid in entity_ids}
-            damping = 0.85
-            for _ in range(20):
+            damping = clamp01(float(sem_defaults.get("pagerank_damping") or 0.85))
+            iterations = int(sem_defaults.get("pagerank_iterations") or 20)
+            iterations = max(1, min(200, iterations))
+            for _ in range(iterations):
                 nxt = {eid: (1.0 - damping) / n for eid in entity_ids}
                 for eid in entity_ids:
                     outs = neighbors.get(eid) or []

@@ -18,22 +18,11 @@ export type KeywordGraphResult = {
 const DEFAULT_STOPWORDS = NLTK_STOPWORDS_EN_SET
 
 const VERB_HINTS = new Set<string>([
-  'is','are','was','were','be','been','being',
-  'has','have','had',
-  'use','uses','used','using',
-  'make','makes','made','making',
-  'build','builds','built','building',
-  'create','creates','created','creating',
-  'parse','parses','parsed','parsing',
-  'derive','derives','derived','deriving',
-  'render','renders','rendered','rendering',
-  'layout','layouts','laid','laying',
-  'link','links','linked','linking',
-  'connect','connects','connected','connecting',
-  'enable','enables','enabled','enabling',
-  'disable','disables','disabled','disabling',
-  'support','supports','supported','supporting',
-  'cause','causes','caused','causing',
+  'is','are','was','were','be','been','being','has','have','had','use','uses','used','using','make','makes','made','making',
+  'build','builds','built','building','create','creates','created','creating','parse','parses','parsed','parsing',
+  'derive','derives','derived','deriving','render','renders','rendered','rendering','layout','layouts','laid','laying',
+  'link','links','linked','linking','connect','connects','connected','connecting','enable','enables','enabled','enabling',
+  'disable','disables','disabled','disabling','support','supports','supported','supporting','cause','causes','caused','causing',
   'lead','leads','led','leading',
 ])
 
@@ -58,6 +47,12 @@ const keywordNodeSizeFromCount = (count: number): number => {
   const c = Number.isFinite(count) ? Math.max(0, count) : 0
   const radius = 8 + Math.sqrt(c) * 4
   return clampNumber(radius, 10, 40)
+}
+
+const keywordPredicateNodeSizeFromCount = (count: number): number => {
+  const c = Number.isFinite(count) ? Math.max(0, count) : 0
+  const radius = 7 + Math.sqrt(c) * 3
+  return clampNumber(radius, 8, 28)
 }
 
 const keywordEdgeWidthFromStrength = (args: { count: number; weight: number }): number => {
@@ -296,6 +291,9 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
   const entityBlockCounts = new Map<string, number>()
   const relationCountsByPair = new Map<string, Map<string, number>>()
   const predicateKeys = new Set<string>()
+  const predicateCountsByKey = new Map<string, number>()
+  const subjectCountsByKey = new Map<string, number>()
+  const objectCountsByKey = new Map<string, number>()
 
   for (let sIdx = 0; sIdx < mentionsBySentence.length; sIdx += 1) {
     const list = mentionsBySentence[sIdx] || []
@@ -354,7 +352,15 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         const between = left < right ? sentence.slice(left, right) : ''
         const disallow = new Set<string>([a, b])
         const verb = inferRelationshipKeyword({ betweenText: between, stopwords: DEFAULT_STOPWORDS, disallow })
-        predicateKeys.add(String(verb || '').toLowerCase())
+        const verbKey = normalizeEntityKey(String(verb || ''))
+        if (verbKey) {
+          predicateKeys.add(verbKey)
+          predicateCountsByKey.set(verbKey, (predicateCountsByKey.get(verbKey) || 0) + 1)
+        }
+        const subjectKey = leftMention.key
+        const objectKey = rightMention.key
+        subjectCountsByKey.set(subjectKey, (subjectCountsByKey.get(subjectKey) || 0) + 1)
+        objectCountsByKey.set(objectKey, (objectCountsByKey.get(objectKey) || 0) + 1)
         const pairKey = `${a}|${b}`
         const relMap = relationCountsByPair.get(pairKey) || new Map<string, number>()
         relMap.set(verb, (relMap.get(verb) || 0) + 1)
@@ -391,17 +397,54 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     const count = v.count
     nodeCountsById.set(v.id, count)
     const nodeSize = keywordNodeSizeFromCount(count)
+    const subjectCount = subjectCountsByKey.get(key) || 0
+    const objectCount = objectCountsByKey.get(key) || 0
     nodes.push({
       id: v.id,
       label: v.label,
-      type: 'Keyword',
+      type: 'KeywordEntity',
       properties: {
         'keyword:key': key as unknown as JSONValue,
         'keyword:kind': 'entity',
         count: count as unknown as JSONValue,
+        'keyword:subjectCount': subjectCount as unknown as JSONValue,
+        'keyword:objectCount': objectCount as unknown as JSONValue,
         'visual:importance': count as unknown as JSONValue,
         'visual:nodeSize': nodeSize as unknown as JSONValue,
         tags: ['idea'] as unknown as JSONValue,
+      },
+      metadata: {
+        derived: true,
+        kind: 'keyword',
+        source: docId,
+      },
+    })
+  })
+
+  const predicateByKey = new Map<string, { id: string; label: string; count: number }>()
+  predicateKeys.forEach((rawKey) => {
+    const key = normalizeEntityKey(rawKey)
+    if (!key) return
+    if (DEFAULT_STOPWORDS.has(key)) return
+    if (key.length < 2) return
+    const count = predicateCountsByKey.get(key) || 1
+    const id = `kw:predicate:${hashText(key)}`
+    predicateByKey.set(key, { id, label: prettyLabel(key) || key, count })
+  })
+  predicateByKey.forEach((v, key) => {
+    nodeCountsById.set(v.id, v.count)
+    const nodeSize = keywordPredicateNodeSizeFromCount(v.count)
+    nodes.push({
+      id: v.id,
+      label: v.label,
+      type: 'KeywordPredicate',
+      properties: {
+        'keyword:key': key as unknown as JSONValue,
+        'keyword:kind': 'predicate',
+        count: v.count as unknown as JSONValue,
+        'visual:importance': v.count as unknown as JSONValue,
+        'visual:nodeSize': nodeSize as unknown as JSONValue,
+        tags: ['execution'] as unknown as JSONValue,
       },
       metadata: {
         derived: true,
@@ -446,6 +489,54 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         'visual:weight': w as unknown as JSONValue,
         'visual:width': width as unknown as JSONValue,
         'keyword:kind': 'relation',
+        'keyword:predicate': String(bestRel || '').toLowerCase() as unknown as JSONValue,
+      },
+      metadata: {
+        derived: true,
+        kind: 'keyword',
+        source: docId,
+      },
+    })
+
+    const predicateKey = normalizeEntityKey(bestRel)
+    const predicateNodeId = predicateByKey.get(predicateKey)?.id || ''
+    if (!predicateNodeId) return
+
+    const subjectId = src
+    const objectId = tgt
+    const subjectEdgeId = `kw:edge:${hashText(`${subjectId}|keyword:subject|${predicateNodeId}`)}`
+    edges.push({
+      id: subjectEdgeId,
+      source: subjectId,
+      target: predicateNodeId,
+      label: 'keyword:subject',
+      properties: {
+        count: count as unknown as JSONValue,
+        weight: w as unknown as JSONValue,
+        'visual:weight': w as unknown as JSONValue,
+        'visual:width': clampNumber(width * 0.7, 1, 6) as unknown as JSONValue,
+        'keyword:kind': 'subject',
+        'keyword:predicate': predicateKey as unknown as JSONValue,
+      },
+      metadata: {
+        derived: true,
+        kind: 'keyword',
+        source: docId,
+      },
+    })
+    const objectEdgeId = `kw:edge:${hashText(`${predicateNodeId}|keyword:object|${objectId}`)}`
+    edges.push({
+      id: objectEdgeId,
+      source: predicateNodeId,
+      target: objectId,
+      label: 'keyword:object',
+      properties: {
+        count: count as unknown as JSONValue,
+        weight: w as unknown as JSONValue,
+        'visual:weight': w as unknown as JSONValue,
+        'visual:width': clampNumber(width * 0.7, 1, 6) as unknown as JSONValue,
+        'keyword:kind': 'object',
+        'keyword:predicate': predicateKey as unknown as JSONValue,
       },
       metadata: {
         derived: true,

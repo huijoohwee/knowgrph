@@ -384,6 +384,8 @@ def parse_markdown_text_to_graph_jsonld(
         "min_pattern_support": env_float("KG_MIN_PATTERN_SUPPORT", 0.05),
         "emergent_relationship_threshold": env_float("KG_EMERGENT_RELATIONSHIP_THRESHOLD", 0.7),
         "corpus_centrality_algorithm": os.getenv("KG_CORPUS_CENTRALITY_ALGORITHM", "pagerank").strip() or "pagerank",
+        "pagerank_iterations": env_int("KG_PAGERANK_ITERATIONS", 20),
+        "pagerank_damping": env_float("KG_PAGERANK_DAMPING", 0.85),
     }
 
     # Override defaults with frontmatter
@@ -400,6 +402,8 @@ def parse_markdown_text_to_graph_jsonld(
         "min_pattern_support": fm.get("minPatternSupport"),
         "emergent_relationship_threshold": fm.get("emergentRelationshipThreshold"),
         "corpus_centrality_algorithm": fm.get("corpusCentralityAlgorithm"),
+        "pagerank_iterations": fm.get("pagerankIterations"),
+        "pagerank_damping": fm.get("pagerankDamping"),
     }.items():
         if v is None:
             continue
@@ -413,7 +417,7 @@ def parse_markdown_text_to_graph_jsonld(
             if b is not None:
                 sem_defaults[k] = bool(b)
             continue
-        if k in {"max_entity_span_tokens", "max_syntactic_path_length", "coreference_distance_limit", "feedback_window_size"}:
+        if k in {"max_entity_span_tokens", "max_syntactic_path_length", "coreference_distance_limit", "feedback_window_size", "pagerank_iterations"}:
             iv = parse_int(v)
             if iv is not None:
                 sem_defaults[k] = int(iv)

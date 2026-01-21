@@ -12,7 +12,7 @@
 - [x] Cross-mode Cache; key layout caches by semanticMode+frontmatter+layoutMode; forbid cross-mode contamination
 - [x] Documentation; keep schema options discoverable; forbid undocumented behaviors or hidden defaults
 - [x] Integration; use schema-driven fit + mermaid layout paths; forbid bypass of configuration flow
-- [x] Keyword Mode; derive keyword nodes/edges from document text, remove NLTK stopwords, map frequency/strength to sizes with user-tunable scaling, preserve media overlays, and align communities with layers; forbid stopword noise and selection-only dashboards
+- [x] Keyword Mode; derive keyword nodes/edges from document text, remove NLTK stopwords, infer subject/predicate/object relations, set `visual:community`/`visual:layer`, and use schema palette tags + node/edge styles so canvas/tables/panels stay in sync, preserve media overlays, and map frequency/strength to sizes with user-tunable scaling; forbid stopword noise and selection-only dashboards
 - [x] Padding; apply fitPadding + node padding; forbid edge clipping or truncation
 - [x] Port Handles; route 2D edge endpoints via schema.behavior.portHandles.*; forbid interference with tree or mermaid layouts
 - [x] Rectangular Nodes; size via minimap-relative defaults (tree and port handles); forbid drift across layouts
