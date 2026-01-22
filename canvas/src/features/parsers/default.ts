@@ -2,6 +2,7 @@ import { parseJsonLd } from '@/lib/graph/jsonld/index'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { parseGraph } from '@/lib/graph/io/adapter'
 import { parseGraphInWorker } from '@/lib/graph/parseWorker'
+import { runGraphRagTextPipeline } from '@/lib/graph/graphragTextPipeline'
 import type { ParserSpec } from './types'
 import { toParserId } from './types'
 import { pythonSpec } from './python'
@@ -103,4 +104,26 @@ const autoGraphSpec: ParserSpec = {
   },
 }
 
-export const builtInParsers: ParserSpec[] = [markdownSpec, pythonSpec, autoGraphSpec]
+const graphragTextSpec: ParserSpec = {
+  id: toParserId('graphrag-text'),
+  name: 'GraphRAG Text (Heuristic)',
+  match: (name, text) => {
+    const lower = String(name || '').toLowerCase()
+    if (lower.endsWith('.txt')) return true
+    if (lower.endsWith('.text')) return true
+    const raw = String(text || '').trim()
+    if (!raw) return false
+    if (lower.endsWith('.md') || lower.endsWith('.markdown')) return false
+    if (lower.endsWith('.json') || lower.endsWith('.jsonld') || lower.endsWith('.csv')) return false
+    if (raw.startsWith('{') || raw.startsWith('[')) return false
+    const alphaCount = raw.slice(0, 512).replace(/[^a-zA-Z]/g, '').length
+    return alphaCount >= 40
+  },
+  parse: (name, text) => {
+    void name
+    const res = runGraphRagTextPipeline(text)
+    return { graphData: res.graphData, warnings: res.warnings }
+  },
+}
+
+export const builtInParsers: ParserSpec[] = [markdownSpec, graphragTextSpec, pythonSpec, autoGraphSpec]

@@ -87,12 +87,9 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
         const store = useGraphStore.getState()
         try {
           store.setSidebarOpen(false)
-          try {
-             if (typeof window !== 'undefined' && window.localStorage) {
-                window.localStorage.setItem('knowgrph:bottom-panel-collapsed', 'true')
-                window.dispatchEvent(new StorageEvent('storage', { key: 'knowgrph:bottom-panel-collapsed', newValue: 'true' }))
-             }
-          } catch { void 0 }
+          if (store.setBottomPanelCollapsed) {
+            store.setBottomPanelCollapsed(true)
+          }
         } catch { void 0 }
       }
       ui.setWarnings(warnings)

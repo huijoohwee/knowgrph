@@ -4,4 +4,3 @@ export * from './file';
 export * from './csv';
 export * from './jsonld/index';
 export * from './rawToGraph';
-export * from './layout';

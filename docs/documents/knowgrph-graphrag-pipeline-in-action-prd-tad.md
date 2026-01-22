@@ -1,3 +1,100 @@
+---
+title: "Knowledge Graph GraphRAG Pipeline - PRD & TAD"
+author: "joohwee"
+tags: [EDA, MLP, Test]
+date: 2026-01-13
+mermaidAnchorsOnly: true
+mermaid: |
+  graph TD
+    Start([Input Text]) --> Input["Singapore is a city-state in Southeast Asia.<br/>It has a population of about 5.9 million and is<br/>known for its financial hub, Changi Airport,<br/>and future development projects."]
+    
+    Input --> NLTK_Stage[NLTK Preprocessing]
+    
+    subgraph NLTK["Stage 1: NLTK Preprocessing"]
+        NLTK_Stage --> NLTK_Tokenize[Tokenization]
+        NLTK_Tokenize --> NLTK_Tokens["Tokens: Singapore, city-state, Southeast,<br/>Asia, population, about, 5.9, million,<br/>known, financial, hub, Changi,<br/>Airport, future, development, projects"]
+        
+        NLTK_Tokens --> NLTK_Stopwords[Remove Stopwords]
+        NLTK_Stopwords --> NLTK_Clean["Filtered: Singapore, city-state,<br/>Southeast, Asia, population,<br/>5.9, million, known, financial,<br/>hub, Changi, Airport, future,<br/>development, projects"]
+        
+        NLTK_Clean --> NLTK_Lemma[Lemmatization]
+        NLTK_Lemma --> NLTK_Output["Lemmas: singapore, city-state,<br/>southeast, asia, population,<br/>million, know, financial, hub,<br/>changi, airport, future,<br/>development, project"]
+    end
+    
+    NLTK_Output --> HF_Stage[HuggingFace Tokenizers]
+    
+    subgraph HF["Stage 2: HuggingFace Tokenization"]
+        HF_Stage --> HF_BPE[Byte-Pair Encoding]
+        HF_BPE --> HF_Subwords["Subword Tokens:<br/>Sing|apore|is|a|city|-|state|in<br/>South|east|Asia|.|It|has|a<br/>population|of|about|5|.|9<br/>million|and|is|known|for|its<br/>financial|hub|,|Changi|Airport"]
+        
+        HF_Subwords --> HF_Count[Token Count]
+        HF_Count --> HF_Output["Word tokens: 29<br/>Subword tokens: 35<br/>Compression ratio: 1.21"]
+    end
+    
+    HF_Output --> spaCy_Stage[spaCy Processing]
+    
+    subgraph spaCy["Stage 3: spaCy NER & POS"]
+        spaCy_Stage --> spaCy_NER[Named Entity Recognition]
+        spaCy_NER --> spaCy_Entities["Entities Extracted:<br/>━━━━━━━━━━━━━━━<br/>Singapore → GPE<br/>Southeast Asia → LOC<br/>5.9 million → QUANTITY<br/>Changi Airport → FAC"]
+        
+        spaCy_Entities --> spaCy_POS[Part-of-Speech Tagging]
+        spaCy_POS --> spaCy_Tags["POS Tags:<br/>Singapore/PROPN is/AUX a/DET<br/>city-state/NOUN in/ADP<br/>Southeast/PROPN Asia/PROPN"]
+        
+        spaCy_Tags --> spaCy_Dep[Dependency Parsing]
+        spaCy_Dep --> spaCy_Output["Dependencies:<br/>Singapore ← nsubj → is<br/>city-state ← attr → is<br/>Asia ← pobj → in"]
+    end
+    
+    spaCy_Output --> Triple_Stage[Triple Extraction]
+    
+    subgraph Triple["Stage 4: Semantic Triple Extraction"]
+        Triple_Stage --> Triple_Parse[Analyze Dependencies]
+        Triple_Parse --> Triple_Pattern[Pattern Matching:<br/>nsubj-ROOT-attr<br/>nsubj-ROOT-prep-pobj]
+        
+        Triple_Pattern --> Triple_Extract[Extract Relationships]
+        Triple_Extract --> Triple_Output["Triples Generated:<br/>━━━━━━━━━━━━━━━━━━━<br/>subject, predicate, object<br/>━━━━━━━━━━━━━━━━━━━<br/>Singapore, is-a, city-state<br/>Singapore, located-in, Southeast Asia<br/>Singapore, has-population, 5.9 million<br/>Singapore, known-for, financial hub<br/>Singapore, known-for, Changi Airport<br/>Singapore, has, development projects"]
+    end
+    
+    Triple_Output --> Graph_Stage[Graph Construction]
+    
+    subgraph Graph["Stage 5: NetworkX Graph"]
+        Graph_Stage --> Graph_Nodes[Create Nodes]
+        Graph_Nodes --> Graph_NodeList["Nodes 6:<br/>━━━━━━━━<br/>N1: Singapore<br/>N2: city-state<br/>N3: Southeast Asia<br/>N4: 5.9 million<br/>N5: Changi Airport<br/>N6: financial hub"]
+        
+        Graph_NodeList --> Graph_Edges[Create Edges]
+        Graph_Edges --> Graph_EdgeList["Edges 6:<br/>━━━━━━━━━━━━━━━━<br/>N1 →is-a→ N2<br/>N1 →located-in→ N3<br/>N1 →has-population→ N4<br/>N1 →known-for→ N5<br/>N1 →known-for→ N6<br/>N1 →has→ projects"]
+        
+        Graph_EdgeList --> Graph_Community[Community Detection]
+        Graph_Community --> Graph_Output["Communities: 2<br/>━━━━━━━━━━━━━<br/>C1: Location cluster<br/>Singapore, Southeast Asia,<br/>city-state<br/><br/>C2: Features cluster<br/>financial hub, Changi Airport,<br/>5.9 million, projects"]
+    end
+    
+    Graph_Output --> Final[Knowledge Graph]
+    
+    subgraph Final_Graph["Final Output: Knowledge Graph"]
+        Final --> Metrics["Graph Metrics:<br/>━━━━━━━━━━━<br/>Nodes: 6<br/>Edges: 6<br/>Density: 0.20<br/>Communities: 2<br/>Avg Degree: 2.0"]
+        
+        Metrics --> Visualization["Graph Structure:<br/>┌─────────────┐<br/>│  Singapore  │──is-a──→ city-state<br/>└─────────────┘<br/>       │<br/>       ├──located-in──→ Southeast Asia<br/>       ├──has-population──→ 5.9 million<br/>       ├──known-for──→ financial hub<br/>       ├──known-for──→ Changi Airport<br/>       └──has──→ projects"]
+    end
+    
+    %% Library annotations
+    NLTK_Stage -.->|nltk.tokenize| NLTK_Lib[NLTK Library]
+    HF_Stage -.->|tokenizers| HF_Lib[HuggingFace]
+    spaCy_Stage -.->|spacy.load| spaCy_Lib[spaCy en_core_web_sm]
+    Triple_Stage -.->|dependency parser| Triple_Lib[spaCy Dependencies]
+    Graph_Stage -.->|nx.Graph| Graph_Lib[NetworkX]
+    
+    classDef inputStyle fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef processStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef outputStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef dataStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef libStyle fill:#fce4ec,stroke:#c2185b,stroke-width:1px,stroke-dasharray: 5 5
+    
+    class Start,Input inputStyle
+    class NLTK_Stage,HF_Stage,spaCy_Stage,Triple_Stage,Graph_Stage processStyle
+    class NLTK_Output,HF_Output,spaCy_Output,Triple_Output,Graph_Output outputStyle
+    class NLTK_Tokens,NLTK_Clean,NLTK_Lemma,HF_Subwords,HF_Count,spaCy_Entities,spaCy_Tags,spaCy_Dep,Triple_Pattern,Triple_Extract,Graph_NodeList,Graph_EdgeList,Graph_Community,Metrics,Visualization dataStyle
+    class NLTK_Lib,HF_Lib,spaCy_Lib,Triple_Lib,Graph_Lib libStyle
+---
+
 # Knowledge Graph GraphRAG Pipeline - PRD & TAD
 
 **Version**: 1.0.0  
@@ -699,3 +796,19 @@ I've created an **interactive demo** that shows your minimum viable FOSS GraphRA
 
 The demo shows how your text flows through each component and what gets extracted at each stage—from raw text to a structured knowledge graph ready for LLM retrieval.
 ```
+
+## Implementation (Canvas)
+
+This PRD/TAD is implemented in the `knowgrph/canvas` pipeline as a domain-agnostic, client-side demo that produces canonical `GraphData` plus inspectable intermediate outputs.
+
+### Where It Lives
+
+- Pipeline (sequential stages, metrics, FOSS attribution): `canvas/src/lib/graph/graphragTextPipeline.ts`
+- Parser integration (auto-detect `.txt` / plain text): `canvas/src/features/parsers/default.ts` (`graphrag-text`)
+- UI visualization (stage-by-stage inspector): `canvas/src/features/panels/views/GraphRagTextPipelineSection.tsx` (Parser tab)
+- Tests (neutral fixtures across multiple domains): `canvas/src/__tests__/graphragTextPipeline.test.ts`
+
+### Scope Notes
+
+- The Canvas demo remains extraction-only (no LLM API integration) and runs without server dependencies.
+- Library references and code snippets are shown for transparency; the demo pipeline itself uses heuristic implementations to stay portable.

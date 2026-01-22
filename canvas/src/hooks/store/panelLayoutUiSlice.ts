@@ -1,4 +1,4 @@
-import { lsNum, lsSetNum, lsInt, lsSetInt, lsJson, lsSetJson, lsBool } from '@/lib/persistence';
+import { lsNum, lsSetNum, lsInt, lsSetInt, lsJson, lsSetJson, lsBool, lsSetBool } from '@/lib/persistence';
 import { LS_KEYS } from '@/lib/config';
 import type { BottomTab } from '@/features/bottom-panel/open';
 import type { GraphState } from '@/hooks/store/types';
@@ -86,8 +86,10 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     setSidebarOpen: (open: boolean) => set({ isSidebarOpen: open }),
     toggleSidebar: () => set(s => ({ isSidebarOpen: !s.isSidebarOpen })),
 
-    setBottomPanelHeightRatio: (v: number) => set({ bottomPanelHeightRatio: lsSetNum(LS_KEYS.bottomPanelHeight, v) }),
-    setBottomPanelCollapsed: (v: boolean) => set({ bottomPanelCollapsed: !!v }),
+    setBottomPanelHeightRatio: (v: number) =>
+      set({ bottomPanelHeightRatio: lsSetNum(LS_KEYS.bottomPanelHeight, v) }),
+    setBottomPanelCollapsed: (v: boolean) =>
+      set({ bottomPanelCollapsed: lsSetBool(LS_KEYS.bottomPanelCollapsed, !!v) }),
     setFloatingPanelWidthRatio: (v: number) =>
       set({
         floatingPanelWidthRatio: lsSetNum(LS_KEYS.floatingPanelWidthRatio, v),

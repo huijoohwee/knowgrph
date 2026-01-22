@@ -1,5 +1,11 @@
 # todo-log
 
+## 2026-01-22
+
+| Context          | Intent                     | Directive                                                                                   | Module                     | Function/Method | Input                                          | Output                      | Decision Logic                                    | Updated Date |
+|------------------|----------------------------|---------------------------------------------------------------------------------------------|----------------------------|-----------------|------------------------------------------------|-----------------------------|---------------------------------------------------|--------------|
+| Ingestor/Parser  | GraphRAG text-to-graph demo | Implement sequential, inspectable text→entities→triples→GraphData pipeline with FOSS attribution; forbid test-only demo components and hardcoded storage keys | `graphragTextPipeline.ts`, `default.ts`, `GraphRagTextPipelineSection.tsx`, `panelLayoutUiSlice.ts`, `jsonImportAction.ts` | `runGraphRagTextPipeline`, `graphrag-text.parse`, `GraphRagTextPipelineSection`, `setBottomPanelCollapsed`, `performJsonImport` | Plain text (`.txt` / freeform), parser selection, UI state | Canonical `GraphData` + stage outputs + metrics | Heuristic pipeline emits `metadata.graphragTextPipeline.stages[]` (SVO stages + latency/output size) and builds nodes from entities + edges from extracted triples; persist bottom-panel collapse via `LS_KEYS.bottomPanelCollapsed` | 2026-01-22 |
+
 ## 2026-01-21
 
 | Context          | Intent                     | Directive                                                                                   | Module                     | Function/Method | Input                                          | Output                      | Decision Logic                                    | Updated Date |

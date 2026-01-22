@@ -5,6 +5,7 @@ import {
   ParserSelectionSection,
   ParserDataSection,
 } from '@/features/panels/views/ParserSections'
+import GraphRagTextPipelineSection from '@/features/panels/views/GraphRagTextPipelineSection'
 import type {
   ParserSelectionSectionProps,
   ParserDataSectionProps,
@@ -53,6 +54,7 @@ export default function BottomPanelParserTab({
             <div className={`py-1 ${uiPanelKeyValueTextSizeClass} text-gray-600 space-y-3`}>
               <ParserSelectionSection {...parserSelectionProps} />
               <ParserDataSection {...parserDataProps} />
+              <GraphRagTextPipelineSection />
             </div>
           </div>
         ) : (

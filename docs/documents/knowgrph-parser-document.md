@@ -40,19 +40,16 @@
 
 ### Parser Registry
 
-**Registration Order** (first-match precedence): CSV → JSON-LD → JSON → n8n → Markdown → Python → GraphRAG
+**Registration Order** (first-match precedence): Markdown → GraphRAG Text (heuristic) → Python → Auto (CSV/JSON/JSON-LD + GraphRAG bundle + n8n)
 
 **Selection Algorithm**: Iterate registered parsers → test canParse predicate → return first match → fallback to error
 
 | Parser Type  | Capability Predicate                     | Output Format           | Typical Extensions        |
 |--------------|------------------------------------------|-------------------------|---------------------------|
-| CSV          | Text contains comma-delimited rows       | GraphData (tabular)     | .csv                      |
-| JSON-LD      | Has @context field                       | GraphData (from @graph) | .jsonld                   |
-| JSON         | Has nodes/edges or valid JSON structure  | GraphData (normalized)  | .json                     |
-| n8n          | Has workflowInfo field                   | GraphData (workflow)    | .json (n8n export)        |
-| Markdown     | Markdown blocks detected                 | JSON-LD → GraphData     | .md, .markdown            |
-| Python       | Python AST parseable                     | GraphData (code graph)  | .py                       |
-| GraphRAG     | Has graphRAG workflow structure          | GraphData (workflow)    | .json (GraphRAG export)   |
+| Markdown     | URL or `.md` / `.markdown`               | JSON-LD → GraphData     | .md, .markdown, URL text  |
+| GraphRAG Text| `.txt` or plain-text heuristics          | GraphData               | .txt, plain text          |
+| Python       | Parser spec selects Python               | GraphData (code graph)  | .py                       |
+| Auto         | Always matches (fallback)                | GraphData               | .csv, .json, .jsonld      |
 
 ---
 

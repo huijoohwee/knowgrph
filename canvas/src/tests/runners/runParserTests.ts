@@ -25,6 +25,10 @@ import {
   testMermaidSubgraphDerivationBuildsGroups,
 } from '@/__tests__/mermaidSubgraphGroups.test'
 import { testMermaidSeedLayoutSpreadsGroupsAndCenters } from '@/__tests__/mermaidSeedLayout.test'
+import {
+  testGraphRagTextPipelineBuildsGraphAcrossDomains,
+  testGraphRagTextParserSpecMatchesTxt,
+} from '@/__tests__/graphragTextPipeline.test'
 
 export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.registryCrud', testParserRegistryCrud)
@@ -49,4 +53,6 @@ export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.mermaid.subgraphParentId', testMermaidSubgraphParsingAddsParentId)
   await execTest(results, 'parser.mermaid.subgraphGroupDerivation', testMermaidSubgraphDerivationBuildsGroups)
   await execTest(results, 'parser.mermaid.seedLayoutSpreadAndCenter', testMermaidSeedLayoutSpreadsGroupsAndCenters)
+  await execTest(results, 'parser.graphragText.pipelineBuildsGraphAcrossDomains', testGraphRagTextPipelineBuildsGraphAcrossDomains)
+  await execTest(results, 'parser.graphragText.parserSpecMatchesTxt', testGraphRagTextParserSpecMatchesTxt)
 }

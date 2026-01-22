@@ -368,6 +368,11 @@ export const UI_COPY = {
   parserImportInvalidItem: 'Invalid item',
   parserImportMissingFieldsStatus: (id: string) => `Missing fields for ${id}`,
   parserImportFailedStatus: (id: string) => `Failed to import ${id}`,
+  graphragTextPipelineBadge: 'GraphRAG',
+  graphragTextPipelineTitle: 'GraphRAG Text-to-Graph pipeline (demo)',
+  graphragTextPipelineTooltip:
+    'GraphRAG text pipeline → preprocess tokens, infer entities, extract triples, and construct GraphData → inspect each stage output and FOSS library attribution → keep processing domain-agnostic and configuration-friendly.',
+  graphragTextPipelineLibraryLinkLabel: 'Repo',
   bottomPanelViewingGraphJsonLabel: 'Viewing graph JSON',
   statsFilterTokensPlaceholder: 'Filter tokens',
   statsSortByCountLabel: 'Sort by count',
