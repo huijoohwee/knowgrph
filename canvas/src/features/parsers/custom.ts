@@ -6,6 +6,15 @@ import { applyTransforms, type TransformConfig, type PropsTransform } from './tr
 
 const byId = new Map<ParserId, ParserSpec>(builtInParsers.map(p => [p.id, p]))
 
+const resolveBaseParser = (baseId: string): ParserSpec | null => {
+  const direct = byId.get(toParserId(baseId))
+  if (direct) return direct
+  if (baseId === 'json' || baseId === 'csv' || baseId === 'jsonld' || baseId === 'n8n') {
+    return byId.get(toParserId('auto')) || null
+  }
+  return null
+}
+
 const buildMatcher = (mode: 'endsWith' | 'contains' | 'regex', value: string) => {
   const v = String(value || '')
   if (mode === 'endsWith') return (name: string) => (name || '').toLowerCase().endsWith(v.toLowerCase())
@@ -19,7 +28,7 @@ const buildMatcher = (mode: 'endsWith' | 'contains' | 'regex', value: string) =>
 }
 
 export const toParserSpec = (cfg: CustomParserConfig): ParserSpec | null => {
-  const base = byId.get(toParserId(cfg.base))
+  const base = resolveBaseParser(cfg.base)
   if (!base) return null
   const matchFn = buildMatcher(cfg.match.mode, cfg.match.value)
   const transforms = cfg.transforms || {}

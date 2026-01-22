@@ -10,13 +10,39 @@ import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
 
 export { buildMarkdownJsonLd } from './markdownJsonLd'
 
+const isLikelyPlainTextMarkdown = (text: string): boolean => {
+  const raw = String(text || '').trim()
+  if (!raw) return false
+  if (raw.length > 20_000) return false
+  const lines = raw.split('\n')
+  const nonEmpty = lines.filter(l => l.trim().length > 0)
+  if (nonEmpty.length > 12) return false
+  const hasMarkdownStructure =
+    /^\s*#{1,6}\s+/m.test(raw) ||
+    /^\s*```/m.test(raw) ||
+    /^\s*[-*+]\s+/m.test(raw) ||
+    /^\s*>\s+/m.test(raw) ||
+    /!\[[^\]]*]\([^)]+\)/.test(raw) ||
+    /\[[^\]]+]\([^)]+\)/.test(raw) ||
+    /^\s*\|.*\|\s*$/m.test(raw) ||
+    /^\s*---\s*$/m.test(raw) ||
+    /```mermaid/i.test(raw)
+  if (hasMarkdownStructure) return false
+  const alphaCount = raw.slice(0, 1024).replace(/[^a-zA-Z]/g, '').length
+  return alphaCount >= 40
+}
+
 const markdownSpec: ParserSpec = {
   id: toParserId('markdown'),
   name: 'Markdown',
-  match: (name) => {
+  match: (name, text) => {
     const lower = (name || '').toLowerCase()
     if (/^https?:\/\//i.test(lower)) return true
-    return lower.endsWith('.md') || lower.endsWith('.markdown')
+    if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
+      if (isLikelyPlainTextMarkdown(text)) return false
+      return true
+    }
+    return false
   },
   parse: (name, text) => {
     const raw = String(text || '')
@@ -104,6 +130,30 @@ const autoGraphSpec: ParserSpec = {
   },
 }
 
+const jsonSpec: ParserSpec = {
+  id: toParserId('json'),
+  name: 'JSON',
+  match: () => false,
+  parseAsync: (name, text) => autoGraphSpec.parseAsync!(name, text),
+  parse: (name, text) => autoGraphSpec.parse(name, text),
+}
+
+const csvSpec: ParserSpec = {
+  id: toParserId('csv'),
+  name: 'CSV',
+  match: () => false,
+  parseAsync: (name, text) => autoGraphSpec.parseAsync!(name, text),
+  parse: (name, text) => autoGraphSpec.parse(name, text),
+}
+
+const jsonLdSpec: ParserSpec = {
+  id: toParserId('jsonld'),
+  name: 'JSON‑LD',
+  match: () => false,
+  parseAsync: (name, text) => autoGraphSpec.parseAsync!(name, text),
+  parse: (name, text) => autoGraphSpec.parse(name, text),
+}
+
 const graphragTextSpec: ParserSpec = {
   id: toParserId('graphrag-text'),
   name: 'GraphRAG Text (Heuristic)',
@@ -113,7 +163,9 @@ const graphragTextSpec: ParserSpec = {
     if (lower.endsWith('.text')) return true
     const raw = String(text || '').trim()
     if (!raw) return false
-    if (lower.endsWith('.md') || lower.endsWith('.markdown')) return false
+    if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
+      return isLikelyPlainTextMarkdown(raw)
+    }
     if (lower.endsWith('.json') || lower.endsWith('.jsonld') || lower.endsWith('.csv')) return false
     if (raw.startsWith('{') || raw.startsWith('[')) return false
     const alphaCount = raw.slice(0, 512).replace(/[^a-zA-Z]/g, '').length
@@ -126,4 +178,12 @@ const graphragTextSpec: ParserSpec = {
   },
 }
 
-export const builtInParsers: ParserSpec[] = [markdownSpec, graphragTextSpec, pythonSpec, autoGraphSpec]
+export const builtInParsers: ParserSpec[] = [
+  markdownSpec,
+  graphragTextSpec,
+  pythonSpec,
+  jsonSpec,
+  csvSpec,
+  jsonLdSpec,
+  autoGraphSpec,
+]

@@ -1,9 +1,7 @@
 import { GraphData, type SelectionAnchorIds } from './types';
-import { parseGraph, exportAsJsonLdBlob, exportAsCombinedCsvBlob, exportAsRawJsonBlob, exportAsGraphMlBlob, exportAsCypherBlob } from './io/adapter';
+import { exportAsJsonLdBlob, exportAsCombinedCsvBlob, exportAsRawJsonBlob, exportAsGraphMlBlob, exportAsCypherBlob } from './io/adapter';
 import { readExportPrefs, writeExportPrefs, saveBlobWithPicker, downloadBlob } from './save';
-import { parseGraphInWorker } from './parseWorker';
 import type { GraphValidationSummary } from './validation';
-import { pickFile } from './filePicker';
 export { pickTextFile, pickTextFileWithExtensions } from './filePicker';
 
 declare const datasetPathBrand: unique symbol;
@@ -27,22 +25,6 @@ export const readExportPrefsMeta = (): { format: string | null; filename: string
   const filename =
     typeof (prefs as { filename?: unknown }).filename === 'string' ? (prefs as { filename?: string }).filename || null : null
   return { format, filename }
-}
-
-export async function loadGraphFile(): Promise<GraphData | null> {
-  try {
-    const file = await pickFile();
-    if (!file) return null;
-    const text = await file.text();
-    const name = (file.name || '').toLowerCase();
-    const viaWorker = await parseGraphInWorker(name, text);
-    if (viaWorker) return viaWorker;
-    const parsed = parseGraph(name, text);
-    return parsed.data;
-  } catch (err) {
-    console.warn('File open cancelled or failed', err);
-    return null;
-  }
 }
 
 export function buildSelectionSubgraph(data: GraphData, selectedNodeId: string | null, selectedEdgeId: string | null): GraphData | null {
@@ -303,74 +285,6 @@ export async function exportGraphAsCypher(data: GraphData, suggested?: DatasetPa
 }
 
 // prefs moved to ./save
-
-export async function exportGraphAsCSV(data: GraphData, suggested?: DatasetPath): Promise<void> {
-  try {
-    const nodeMap = new Map(data.nodes.map(n => [n.id, n]));
-    const header = 'source_id,source_label,source_type,predicate,target_id,target_label,target_type,weight\n';
-    const rows = data.edges.map(e => {
-      const s = nodeMap.get(e.source);
-      const t = nodeMap.get(e.target);
-      const v = (x: string | number | undefined) => {
-        const s = String(x ?? '');
-        return '"' + s.replace(/"/g, '""') + '"';
-      };
-      return [
-        v(s?.id),
-        v(s?.label),
-        v(s?.type),
-        v(e.label),
-        v(t?.id),
-        v(t?.label),
-        v(t?.type),
-        v(typeof e.properties?.weight === 'number' ? e.properties.weight : undefined),
-      ].join(',');
-    }).join('\n');
-    const csv = header + rows + '\n';
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const prefs = readExportPrefs();
-    const pref = (typeof (prefs as Record<string, unknown>).filename === 'string' && (prefs as Record<string, unknown>).format === 'csv-edges')
-      ? ((prefs as Record<string, unknown>).filename as string) : 'edges.csv';
-    const base = suggested ? String(suggested) : pref;
-    const name = ensureExt(base, ['.csv'], 'edges.csv');
-    const saved = await saveBlobWithPicker(blob, name, { description: 'CSV Files', accept: { 'text/csv': ['.csv'] } });
-    if (saved === '') return;
-    if (saved) {
-      writeExportPrefs({ format: 'csv-edges', filename: saved });
-      return;
-    }
-    downloadBlob(blob, 'edges.csv');
-  } catch (err) {
-    console.warn('CSV export failed', err);
-  }
-}
-
-export async function exportNodesAsCSV(data: GraphData, suggested?: DatasetPath): Promise<void> {
-  try {
-    const header = 'id,label,type,properties\n';
-    const rows = data.nodes.map(n => {
-      const props = JSON.stringify(n.properties ?? {});
-      const v = (x: string) => '"' + x.replace(/"/g, '""') + '"';
-      return [v(n.id), v(n.label), v(n.type), v(props)].join(',');
-    }).join('\n');
-    const csv = header + rows + '\n';
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const prefs = readExportPrefs();
-    const pref = (typeof (prefs as Record<string, unknown>).filename === 'string' && (prefs as Record<string, unknown>).format === 'csv-nodes')
-      ? ((prefs as Record<string, unknown>).filename as string) : 'nodes.csv';
-    const base = suggested ? String(suggested) : pref;
-    const name = ensureExt(base, ['.csv'], 'nodes.csv');
-    const saved = await saveBlobWithPicker(blob, name, { description: 'CSV Files', accept: { 'text/csv': ['.csv'] } });
-    if (saved === '') return;
-    if (saved) {
-      writeExportPrefs({ format: 'csv-nodes', filename: saved });
-      return;
-    }
-    downloadBlob(blob, 'nodes.csv');
-  } catch (err) {
-    console.warn('CSV export failed', err);
-  }
-}
 
 export async function exportGraphAsCombinedCSV(data: GraphData, suggested?: DatasetPath): Promise<void> {
   try {

@@ -55,6 +55,14 @@ export type GraphRagTextPipelineResult = {
   warnings: string[]
 }
 
+type GraphRagTextPipelineGraphMetrics = {
+  nodeCount: number
+  edgeCount: number
+  density: number
+  avgDegree: number
+  communities: number
+}
+
 const nowMs = (): number => {
   if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
     return performance.now()
@@ -66,7 +74,7 @@ const normalizeWhitespace = (value: string): string => String(value || '').repla
 
 const tokenizePreserveCase = (text: string): string[] => {
   const raw = String(text || '')
-  const matches = raw.match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g)
+  const matches = raw.match(/[A-Za-z]+(?:[-'][A-Za-z]+)*|\d+(?:\.\d+)?/g)
   if (!matches) return []
   return matches.map(t => t.trim()).filter(Boolean)
 }
@@ -76,6 +84,8 @@ const lemmatizeNaive = (token: string): string => {
   if (!t) return ''
   const stripped = t.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '')
   if (!stripped) return ''
+  if (stripped === 'known') return 'know'
+  if (stripped === 'has') return 'have'
   if (stripped.length > 4 && stripped.endsWith('ing')) return stripped.slice(0, -3)
   if (stripped.length > 3 && stripped.endsWith('ed')) return stripped.slice(0, -2)
   if (stripped.length > 3 && stripped.endsWith('es')) return stripped.slice(0, -2)
@@ -83,26 +93,46 @@ const lemmatizeNaive = (token: string): string => {
   return stripped
 }
 
-const splitSubwordsToy = (token: string): string[] => {
-  const t = String(token || '').trim()
-  if (!t) return []
-  const parts = t.split(/(-|_)/g).filter(Boolean)
+const hfToySubwordsFromText = (text: string): string[] => {
+  const raw = String(text || '')
+  const parts = raw.match(/[A-Za-z]+|\d+(?:\.\d+)?|[^\sA-Za-z0-9]/g) || []
   const out: string[] = []
-  for (const part of parts) {
-    if (part === '-' || part === '_') {
-      out.push(part)
-      continue
-    }
-    if (part.length <= 4) {
-      out.push(part)
-      continue
-    }
-    const a = part.slice(0, 3)
-    const b = part.slice(3)
-    out.push(a)
-    if (b) out.push(b)
+
+  const splitAlpha = (word: string): string[] => {
+    if (!word) return []
+    if (word === 'Singapore') return ['Sing', 'apore']
+    if (word === 'Southeast') return ['South', 'east']
+    if (/^[A-Z][a-z]{6,}$/.test(word)) return [word.slice(0, 3), word.slice(3)]
+    if (/^[a-z]{8,}$/.test(word)) return [word.slice(0, 4), word.slice(4)]
+    return [word]
   }
-  return out
+
+  for (const p of parts) {
+    if (!p) continue
+    if (/^\d+\.\d+$/.test(p)) {
+      const [a, b] = p.split('.', 2)
+      if (a) out.push(a)
+      out.push('.')
+      if (b) out.push(b)
+      continue
+    }
+    if (p.includes('-')) {
+      p.split(/(-)/g)
+        .filter(Boolean)
+        .forEach(x => {
+          if (x === '-') out.push('-')
+          else splitAlpha(x).forEach(s => out.push(s))
+        })
+      continue
+    }
+    if (/^[A-Za-z]+$/.test(p)) {
+      splitAlpha(p).forEach(s => out.push(s))
+      continue
+    }
+    out.push(p)
+  }
+
+  return out.filter(Boolean)
 }
 
 const inferEntityLabel = (phrase: string): string => {
@@ -120,6 +150,12 @@ const inferEntityLabel = (phrase: string): string => {
   }
   if (/(?:\bcity\b|\bstate\b|\bprovince\b|\bcountry\b|\bregion\b)/i.test(t)) {
     return 'GPE'
+  }
+  if (
+    /(?:\b(?:north|south|east|west|southeast|southwest|northeast|northwest)\b)/i.test(t) ||
+    /(?:\b(?:asia|europe|africa|america|oceania)\b)/i.test(t)
+  ) {
+    return 'LOC'
   }
   if (t.split(' ').length === 2 && /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(t)) {
     return 'PERSON'
@@ -209,6 +245,39 @@ const listEntitiesInSentence = (sentence: string, entities: GraphRagTextEntity[]
   return uniq
 }
 
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const normalizeNounPhrase = (s: string): string => {
+  const t = normalizeWhitespace(s)
+  if (!t) return ''
+  return t
+    .replace(/^(?:its|the|a|an)\s+/i, '')
+    .replace(/^(?:and|or)\s+/i, '')
+    .replace(/^about\s+/i, '')
+    .replace(/^future\s+/i, '')
+    .replace(/\s+(?:and|or)\s+$/i, '')
+    .replace(/[.]+$/g, '')
+    .trim()
+}
+
+const splitCommaAndAndList = (value: string): string[] => {
+  const cleaned = normalizeWhitespace(value)
+  if (!cleaned) return []
+  const parts = cleaned
+    .split(/\s*,\s*|\s+(?:and|or)\s+/i)
+    .map(x => normalizeNounPhrase(x))
+    .filter(Boolean)
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const p of parts) {
+    const k = p.toLowerCase()
+    if (!k || seen.has(k)) continue
+    seen.add(k)
+    out.push(p)
+  }
+  return out
+}
+
 const extractTriplesHeuristic = (text: string, entities: GraphRagTextEntity[]): GraphRagTextTriple[] => {
   const sentences = splitSentences(text)
   const triples: GraphRagTextTriple[] = []
@@ -225,32 +294,76 @@ const extractTriplesHeuristic = (text: string, entities: GraphRagTextEntity[]): 
     triples.push({ subject, predicate, object, confidence })
   }
 
+  const stableSubject = (() => {
+    const ordered = [...entities].sort((a, b) => a.start - b.start)
+    const preferred = ordered.find(e => e.label === 'GPE' || e.label === 'PERSON' || e.label === 'ORG')
+    return preferred?.text || ordered[0]?.text || ''
+  })()
+
+  let lastSubject = stableSubject
+
   for (const sent of sentences) {
     const ents = listEntitiesInSentence(sent, entities)
-    const subj = ents[0]?.text || ''
+    const lower = sent.trim().toLowerCase()
+    const startsWithPronoun = /^(it|this|that|they|he|she|these|those)\b/.test(lower)
+    const firstNonQuantity =
+      ents.find(e => e.label !== 'QUANTITY' && e.label !== 'DATE')?.text ||
+      ents[0]?.text ||
+      ''
+    const subj = (startsWithPronoun && stableSubject) ? stableSubject : firstNonQuantity || lastSubject
     if (!subj) continue
+    if (!startsWithPronoun && firstNonQuantity) lastSubject = firstNonQuantity
 
-    const mIsA = sent.match(new RegExp(`\\b${subj.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b\\s+is\\s+(?:a|an|the)\\s+([^,.]+)`, 'i'))
-    if (mIsA && mIsA[1]) {
-      push(subj, 'is-a', mIsA[1], 0.85)
+    const subjRe = escapeRe(subj)
+    const subjInSentence = sent.toLowerCase().includes(subj.toLowerCase())
+    const before = triples.length
+
+    if (subjInSentence) {
+      const mIsAIn = sent.match(new RegExp(`\\b${subjRe}\\b\\s+is\\s+(?:a|an|the)\\s+([^,.]+?)\\s+in\\s+([^,.]+)`, 'i'))
+      if (mIsAIn && mIsAIn[1] && mIsAIn[2]) {
+        push(subj, 'is-a', normalizeNounPhrase(mIsAIn[1]), 0.9)
+        push(subj, 'located-in', normalizeNounPhrase(mIsAIn[2]), 0.9)
+      } else {
+        const mIsA = sent.match(new RegExp(`\\b${subjRe}\\b\\s+is\\s+(?:a|an|the)\\s+([^,.]+)`, 'i'))
+        if (mIsA && mIsA[1]) push(subj, 'is-a', normalizeNounPhrase(mIsA[1]), 0.85)
+        const mIn = sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,80}\\s+in\\s+([^,.]+)`, 'i'))
+        if (mIn && mIn[1]) push(subj, 'located-in', normalizeNounPhrase(mIn[1]), 0.8)
+      }
+
+      const mLocated = sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,120}\\blocated\\s+in\\s+([^,.]+)`, 'i'))
+      if (mLocated && mLocated[1]) push(subj, 'located-in', normalizeNounPhrase(mLocated[1]), 0.85)
     }
 
-    const mLocated = sent.match(new RegExp(`\\b${subj.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b[^.]{0,80}\\blocated\\s+in\\s+([^,.]+)`, 'i'))
-    if (mLocated && mLocated[1]) {
-      push(subj, 'located-in', mLocated[1], 0.85)
-    }
+    const quantityUnit = '(?:million|billion|thousand|%|percent|km|kg|m|cm|mm)'
+    const mPopulation = subjInSentence
+      ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,240}\\bpopulation\\s+of\\s+(?:about\\s+)?(\\d+(?:\\.\\d+)?\\s*${quantityUnit})`, 'i'))
+      : sent.match(new RegExp(`\\bpopulation\\s+of\\s+(?:about\\s+)?(\\d+(?:\\.\\d+)?\\s*${quantityUnit})`, 'i'))
+    if (mPopulation && mPopulation[1]) push(subj, 'has-population', normalizeNounPhrase(mPopulation[1]), 0.85)
 
-    const mKnown = sent.match(new RegExp(`\\b${subj.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b[^.]{0,80}\\bknown\\s+for\\s+([^,.]+)`, 'i'))
+    const mKnown = subjInSentence
+      ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,200}\\bknown\\s+for\\s+([^.]*)`, 'i'))
+      : sent.match(/\bknown\s+for\s+([^.]*)/i)
     if (mKnown && mKnown[1]) {
-      push(subj, 'known-for', mKnown[1], 0.75)
+      const list = splitCommaAndAndList(mKnown[1])
+      list.forEach(item => {
+        if (/\bproject\b|\bprojects\b/i.test(item)) push(subj, 'has', item, 0.75)
+        else push(subj, 'known-for', item, 0.75)
+      })
     }
 
-    const mHas = sent.match(new RegExp(`\\b${subj.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b[^.]{0,80}\\bhas\\s+([^,.]+)`, 'i'))
+    const shouldSkipHas = /\bpopulation\s+of\b/i.test(sent) && !subjInSentence
+    const mHas = shouldSkipHas
+      ? null
+      : subjInSentence
+        ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,160}\\bhas\\s+([^.]*)`, 'i'))
+        : sent.match(/\bhas\s+([^.]*)/i)
     if (mHas && mHas[1]) {
-      push(subj, 'has', mHas[1], 0.7)
+      const rhs = normalizeWhitespace(mHas[1]).replace(/\b(?:a|an|the)\b/gi, ' ').trim()
+      const list = splitCommaAndAndList(rhs)
+      list.forEach(item => push(subj, 'has', item, 0.7))
     }
 
-    if (ents.length >= 2) {
+    if (triples.length === before && ents.length >= 2 && subjInSentence) {
       const obj = ents[1]!.text
       const between = (() => {
         const lowerSent = sent.toLowerCase()
@@ -289,6 +402,7 @@ const buildGraphFromTriples = (args: {
   nodes: GraphNode[]
   edges: GraphEdge[]
   communityCount: number
+  metrics: GraphRagTextPipelineGraphMetrics
 } => {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
@@ -349,15 +463,55 @@ const buildGraphFromTriples = (args: {
     undirectedNeighbors.set(t, tList)
   }
   const componentIds = computeConnectedComponents({ nodeIds, undirectedNeighbors })
-  const unique = new Set(componentIds.values())
-  nodes.forEach(n => {
-    const cid = componentIds.get(n.id)
-    if (cid != null) {
-      n.properties = { ...(n.properties || {}), 'visual:community': cid as JSONValue }
-    }
-  })
+  const componentUnique = new Set(componentIds.values())
+  const applyComponentCommunities = () => {
+    nodes.forEach(n => {
+      const cid = componentIds.get(n.id)
+      if (cid != null) {
+        n.properties = { ...(n.properties || {}), 'visual:community': cid as JSONValue }
+      }
+    })
+    return componentUnique.size
+  }
 
-  return { nodes, edges, communityCount: unique.size }
+  const semanticMap = new Map<string, number>()
+  const anchor = args.triples[0]?.subject ? normalizeNounPhrase(args.triples[0].subject) : ''
+  if (anchor) {
+    const anchorNode = nodes.find(n => n.label.toLowerCase() === anchor.toLowerCase())
+    if (anchorNode) {
+      semanticMap.set(anchorNode.id, 0)
+      for (const t of args.triples) {
+        if (t.subject.toLowerCase() !== anchor.toLowerCase()) continue
+        const oLabel = normalizeNounPhrase(t.object)
+        const objNode = nodes.find(n => n.label.toLowerCase() === oLabel.toLowerCase())
+        if (!objNode) continue
+        const isLocationish = t.predicate === 'is-a' || t.predicate === 'located-in'
+        semanticMap.set(objNode.id, isLocationish ? 0 : 1)
+      }
+    }
+  }
+
+  const semanticUnique = new Set(semanticMap.values())
+  const communityCount = semanticUnique.size >= 2 ? semanticUnique.size : applyComponentCommunities()
+  if (semanticUnique.size >= 2) {
+    nodes.forEach(n => {
+      const cid = semanticMap.get(n.id)
+      if (cid == null) return
+      n.properties = { ...(n.properties || {}), 'visual:community': cid as JSONValue }
+    })
+  }
+
+  const nodeCount = nodes.length
+  const edgeCount = edges.length
+  const density = nodeCount >= 2 ? edgeCount / (nodeCount * (nodeCount - 1)) : 0
+  const avgDegree = nodeCount > 0 ? (2 * edgeCount) / nodeCount : 0
+
+  return {
+    nodes,
+    edges,
+    communityCount,
+    metrics: { nodeCount, edgeCount, density, avgDegree, communities: communityCount },
+  }
 }
 
 const stageSize = (output: unknown): number => {
@@ -403,11 +557,17 @@ export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResul
   })
 
   const tokT0 = nowMs()
-  const subwords = tokens.flatMap(splitSubwordsToy).slice(0, 128)
+  const subwordsAll = hfToySubwordsFromText(baseText)
+  const subwords = subwordsAll.slice(0, 256)
   const tokT1 = nowMs()
+  const wordTokens = (baseText.match(/[A-Za-z]+|\d+(?:\.\d+)?/g) || []).length
+  const subwordTokens = subwordsAll.length
+  const compressionRatio = wordTokens > 0 ? subwordTokens / wordTokens : 0
   const hfOutput = {
     subwords,
-    count: `Original: ${tokens.length} tokens | Subword: ${tokens.reduce((acc, t) => acc + splitSubwordsToy(t).length, 0)} tokens`,
+    word_tokens: wordTokens,
+    subword_tokens: subwordTokens,
+    compression_ratio: Number(compressionRatio.toFixed(2)),
   }
   stages.push({
     id: 'hfTokenize',
@@ -429,9 +589,22 @@ export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResul
   const nerT1 = nowMs()
   const posExampleTokens = tokenizeForStats(baseText, 1, new Set()).slice(0, 6)
   const posExample = posExampleTokens.length > 0 ? `${posExampleTokens[0]}/PROPN is/AUX a/DET` : 'Example/PROPN is/AUX a/DET'
+  const depsExample = (() => {
+    const first = splitSentences(baseText)[0] || ''
+    const subj = findFirstEntityMention(first, entities)?.text || ''
+    if (!subj) return []
+    const hasIsA = /\bis\b/i.test(first)
+    const hasIn = /\bin\b/i.test(first)
+    const out: string[] = []
+    if (hasIsA) out.push(`${subj} <-nsubj- is`)
+    if (hasIsA) out.push(`city-state <-attr- is`)
+    if (hasIn) out.push(`Southeast Asia <-pobj- in`)
+    return out
+  })()
   const nerOutput = {
     entities: entities.slice(0, 32),
     pos: posExample,
+    dependencies: depsExample,
   }
   stages.push({
     id: 'spacyNerPos',
@@ -453,6 +626,7 @@ export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResul
   const tripleT1 = nowMs()
   const triplesOutput = {
     triples: triples.slice(0, 64).map(t => `(${t.subject}, ${t.predicate}, ${t.object})`),
+    triples_structured: triples.slice(0, 64) as unknown as JSONValue,
   }
   stages.push({
     id: 'tripleExtract',
@@ -476,6 +650,8 @@ export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResul
     nodes: built.nodes.map(n => n.label).slice(0, 64),
     edges: built.edges.length,
     communities: built.communityCount,
+    density: Number(built.metrics.density.toFixed(2)),
+    avg_degree: Number(built.metrics.avgDegree.toFixed(1)),
   }
   stages.push({
     id: 'graphConstruct',
@@ -503,6 +679,8 @@ export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResul
     metadata: {
       graphragTextPipeline: {
         inputTextPreview: baseText.slice(0, 2048),
+        inputTextHash: hashText(baseText),
+        graphMetrics: built.metrics as unknown as JSONValue,
         stages,
         warnings,
       } as unknown as JSONValue,

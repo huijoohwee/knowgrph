@@ -35,6 +35,10 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
       const { graphData, warnings } = parseN8nWorkflow(json)
       return { data: graphData, diag: { format: 'json', warnings } }
     }
+    const raw = rawToGraphData(json)
+    if ((raw.nodes && raw.nodes.length > 0) || (raw.edges && raw.edges.length > 0)) {
+      return { data: raw, diag: { format: 'json', warnings: [] } }
+    }
     const data = parseJsonLd(json)
     return { data, diag: { format: 'jsonld', warnings: [] } }
   } catch {

@@ -792,7 +792,7 @@ I've created an **interactive demo** that shows your minimum viable FOSS GraphRA
 2. **HuggingFace Tokenizers** → Subword tokenization for LLM compatibility
 3. **spaCy** → NER (Singapore/GPE, Changi Airport/FAC) + POS tagging
 4. **Triple Extraction** → Semantic relationships like "(Singapore, located-in, Southeast Asia)"
-5. **NetworkX** → Graph construction with 6 nodes, 5 edges, 2 communities
+5. **NetworkX** → Graph construction with ~7 nodes, 6 edges, 2 communities (demo text)
 
 The demo shows how your text flows through each component and what gets extracted at each stage—from raw text to a structured knowledge graph ready for LLM retrieval.
 ```
@@ -804,9 +804,9 @@ This PRD/TAD is implemented in the `knowgrph/canvas` pipeline as a domain-agnost
 ### Where It Lives
 
 - Pipeline (sequential stages, metrics, FOSS attribution): `canvas/src/lib/graph/graphragTextPipeline.ts`
-- Parser integration (auto-detect `.txt` / plain text): `canvas/src/features/parsers/default.ts` (`graphrag-text`)
+- Parser integration (auto-detect `.txt` + plain-text `.md`): `canvas/src/features/parsers/default.ts` (`graphrag-text`)
 - UI visualization (stage-by-stage inspector): `canvas/src/features/panels/views/GraphRagTextPipelineSection.tsx` (Parser tab)
-- Tests (neutral fixtures across multiple domains): `canvas/src/__tests__/graphragTextPipeline.test.ts`
+- Tests (neutral fixtures + demo-fidelity fixture): `canvas/src/__tests__/graphragTextPipeline.test.ts`, `canvas/src/__tests__/demo/graphrag-pipeline-demo.md`
 
 ### Scope Notes
 

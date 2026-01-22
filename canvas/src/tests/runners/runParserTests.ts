@@ -27,7 +27,9 @@ import {
 import { testMermaidSeedLayoutSpreadsGroupsAndCenters } from '@/__tests__/mermaidSeedLayout.test'
 import {
   testGraphRagTextPipelineBuildsGraphAcrossDomains,
+  testGraphRagTextPipelineMatchesDemoFixture,
   testGraphRagTextParserSpecMatchesTxt,
+  testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd,
 } from '@/__tests__/graphragTextPipeline.test'
 
 export const runParserTests = async (results: TestResult[]) => {
@@ -54,5 +56,7 @@ export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.mermaid.subgraphGroupDerivation', testMermaidSubgraphDerivationBuildsGroups)
   await execTest(results, 'parser.mermaid.seedLayoutSpreadAndCenter', testMermaidSeedLayoutSpreadsGroupsAndCenters)
   await execTest(results, 'parser.graphragText.pipelineBuildsGraphAcrossDomains', testGraphRagTextPipelineBuildsGraphAcrossDomains)
+  await execTest(results, 'parser.graphragText.pipelineMatchesDemoFixture', testGraphRagTextPipelineMatchesDemoFixture)
   await execTest(results, 'parser.graphragText.parserSpecMatchesTxt', testGraphRagTextParserSpecMatchesTxt)
+  await execTest(results, 'parser.graphragText.bestMatchPrefersGraphRagOnPlainMd', testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd)
 }
