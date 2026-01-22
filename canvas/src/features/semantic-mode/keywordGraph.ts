@@ -51,7 +51,11 @@ const keywordEdgeWidthFromStrength = (args: { count: number; weight: number }): 
   return clampNumber(width, 1, 8)
 }
 
-const KEYWORD_ROLE_COLORS = { subject: MVP_COLOR_PALETTE.nodes.idea, object: MVP_COLOR_PALETTE.nodes.execution, entity: MVP_COLOR_PALETTE.nodes.idea, predicate: MVP_COLOR_PALETTE.nodes.hypothesis } as const
+const KEYWORD_ROLE_COLORS = {
+  subject: MVP_COLOR_PALETTE.nodes.idea,
+  object: MVP_COLOR_PALETTE.nodes.execution,
+  entity: MVP_COLOR_PALETTE.nodes.idea,
+} as const
 
 type Mention = {
   key: string
@@ -252,7 +256,6 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
   const entityBlockCounts = new Map<string, number>()
   const relationCountsByPair = new Map<string, Map<string, number>>()
   const predicateKeys = new Set<string>()
-  const predicateCounts = new Map<string, number>()
   const roleCountsByEntityKey = new Map<string, { subject: number; object: number }>()
   const directionCountsByPair = new Map<string, Map<string, number>>()
 
@@ -315,7 +318,6 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         const verb = inferRelationshipKeyword({ betweenText: between, stopwords: DEFAULT_STOPWORDS, disallow })
         const predKey = normalizeEntityKey(String(verb || '')) || 'relates_to'
         predicateKeys.add(predKey)
-        predicateCounts.set(predKey, (predicateCounts.get(predKey) || 0) + 1)
         const pairKey = `${a}|${b}`
         const relMap = relationCountsByPair.get(pairKey) || new Map<string, number>()
         relMap.set(predKey, (relMap.get(predKey) || 0) + 1)
@@ -456,7 +458,9 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         weight: w as unknown as JSONValue,
         'visual:weight': w as unknown as JSONValue,
         'visual:width': width as unknown as JSONValue,
-        'keyword:kind': 'relation',
+        'keyword:kind': 'predicate',
+        'keyword:predicate': bestRel as unknown as JSONValue,
+        'keyword:verbLike': (isVerbLike(bestRel) ? true : false) as unknown as JSONValue,
       },
       metadata: {
         derived: true,
@@ -501,79 +505,6 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
       ...(cid == null ? {} : { 'visual:community': cid as unknown as JSONValue, 'visual:layer': cid as unknown as JSONValue }),
     }
   })
-
-  const predicateNodes: GraphNode[] = []
-  const predicateByKey = new Map<string, { id: string; label: string; count: number }>()
-  const predicateEntries = Array.from(predicateCounts.entries())
-    .filter(([k]) => !!k && !DEFAULT_STOPWORDS.has(k) && k.length >= 3 && !k.includes(' '))
-    .sort((a, b) => {
-      const diff = b[1] - a[1]
-      if (diff !== 0) return diff
-      return a[0].localeCompare(b[0])
-    })
-    .slice(0, 24)
-  for (let i = 0; i < predicateEntries.length; i += 1) {
-    const [k, c] = predicateEntries[i]!
-    const id = `kw:predicate:${hashText(k)}`
-    predicateByKey.set(k, { id, label: prettyLabel(k), count: c })
-    const fill = KEYWORD_ROLE_COLORS.predicate
-    predicateNodes.push({
-      id,
-      label: prettyLabel(k),
-      type: 'Keyword',
-      properties: {
-        'keyword:key': k as unknown as JSONValue,
-        'keyword:kind': 'predicate',
-        count: c as unknown as JSONValue,
-        'visual:importance': (c + 1) as unknown as JSONValue,
-        'visual:nodeSize': keywordNodeSizeFromCount(Math.max(1, c)) as unknown as JSONValue,
-        'visual:fill': fill as unknown as JSONValue,
-        fill: fill as unknown as JSONValue,
-        tags: ['hypothesis'] as unknown as JSONValue,
-      },
-      metadata: {
-        derived: true,
-        kind: 'keyword',
-        source: docId,
-      },
-    })
-  }
-  if (predicateNodes.length > 0) {
-    predicateNodes.sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    nodes.push(...predicateNodes)
-    const predicateEdges: GraphEdge[] = []
-    for (let i = 0; i < edges.length; i += 1) {
-      const e = edges[i]!
-      const predKey = normalizeEntityKey(String(e.label || '')) || ''
-      const pred = predKey ? predicateByKey.get(predKey) : null
-      if (!pred) continue
-      const s = String(e.source || '')
-      const t = String(e.target || '')
-      if (!s || !t) continue
-      const id1 = `kw:edge:${hashText(`${s}|subject|${pred.id}`)}`
-      const id2 = `kw:edge:${hashText(`${pred.id}|object|${t}`)}`
-      predicateEdges.push({
-        id: id1,
-        source: s,
-        target: pred.id,
-        label: 'subject',
-        properties: { 'keyword:kind': 'role', 'keyword:role': 'subject' } as unknown as Record<string, JSONValue>,
-        metadata: { derived: true, kind: 'keyword', source: docId },
-      })
-      predicateEdges.push({
-        id: id2,
-        source: pred.id,
-        target: t,
-        label: 'object',
-        properties: { 'keyword:kind': 'role', 'keyword:role': 'object' } as unknown as Record<string, JSONValue>,
-        metadata: { derived: true, kind: 'keyword', source: docId },
-      })
-    }
-    if (predicateEdges.length > 0) {
-      predicateEdges.sort((a, b) => String(a.id).localeCompare(String(b.id)))
-      edges.push(...predicateEdges)
-    }
-  }
 
   const graph: GraphData = {
     type: 'Graph',

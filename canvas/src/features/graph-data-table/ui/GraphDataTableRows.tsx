@@ -18,6 +18,7 @@ import { BodyCell } from './GraphDataTableBody'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { uiPrimaryIconActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 
 type SelectionSets = {
   selectedNodeIdSet: Set<string>
@@ -116,6 +117,7 @@ export function GraphDataTableRows({
   const flashAlpha = Math.max(0, Math.min(1, selectionFlashOpacity * 1.7))
   const outlineThicknessClass =
     selectionFlashOpacity >= 0.8 ? 'ring-2' : selectionFlashOpacity >= 0.25 ? 'ring-1' : ''
+  const selectionFlashColor = MVP_COLOR_PALETTE.nodes.pivot
   return (
     <>
       {topSpacerHeight > 0 && (
@@ -277,11 +279,11 @@ export function GraphDataTableRows({
       : UI_THEME_TOKENS.table.rowBg
   const outlineClassName =
     useFlash && outlineThicknessClass
-      ? `${outlineThicknessClass} ring-orange-600 dark:ring-orange-300`
+      ? `${outlineThicknessClass} ring-[color:${selectionFlashColor}]`
       : ''
   const flashStyle = useFlash
     ? {
-        backgroundColor: `rgba(249,115,22,${flashAlpha})`,
+        backgroundColor: `rgba(253,126,20,${flashAlpha})`,
       }
     : undefined
   const borderClass = isActive ? '' : `border-b ${UI_THEME_TOKENS.table.cellBorder}`

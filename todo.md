@@ -27,6 +27,21 @@
 
 ### P0-Critical
 
+#### 2026-01-22
+
+**Recommended GraphRAG Stack:**
+```
+NLTK (preprocessing: stopwords, regex, lemmatization): https://github.com/nltk/nltk.git
+  ↓
+HuggingFace Tokenizers (primary tokenization interface): https://github.com/huggingface/tokenizers.git
+  ├─ SentencePiece (Unigram/BPE, multilingual): https://github.com/google/sentencepiece.git
+  ├─ BPE (minbpe, GPT-style): https://github.com/karpathy/minbpe.git
+  └─ WordPiece internally (via HF Tokenizers)
+  ↓
+LLM Inference
+```
+
+
 #### 2026-01-21
 
 - [x] Remove YouTube transcript functionality; keep YouTube import UI placeholder only

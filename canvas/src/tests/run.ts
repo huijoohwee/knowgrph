@@ -119,7 +119,7 @@ import {
   testMarkdownEditToggleKeepsScrollPosition,
   testMarkdownScrollSyncMixedContentViewerToEditor,
 } from '@/__tests__/markdown/markdownScrollSync.test'
-import { testKeywordModeDerivesEntitiesAndPredicates, testKeywordModeMergesMediaNodesForOverlays } from '@/__tests__/keywordMode.test'
+import { testKeywordModeDerivesEntitiesAndPredicateEdges, testKeywordModeMergesMediaNodesForOverlays } from '@/__tests__/keywordMode.test'
 import { testToolMenuDoesNotExposeCuratorArea } from '@/__tests__/toolMenuCuratorActions.test'
 import { testForbidHardcodedYouTubeUrlLiteral, testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
 
@@ -311,7 +311,7 @@ export const runAllTests = async () => {
   await exec('ui.graphFieldsSyncOnHistoryUndoRedo', testGraphFieldsSyncOnHistoryUndoRedo)
   await exec('ui.themeModePersistence', testThemeModePersistence)
   await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
-  await exec('keywordMode.derivesEntitiesAndPredicates', testKeywordModeDerivesEntitiesAndPredicates)
+  await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)
   await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)
   
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)

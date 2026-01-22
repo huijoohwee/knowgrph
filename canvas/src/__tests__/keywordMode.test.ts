@@ -1,7 +1,7 @@
 import { deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
 import { mergeKeywordGraphWithMediaNodes } from '@/hooks/useActiveGraphData'
 
-export const testKeywordModeDerivesEntitiesAndPredicates = () => {
+export const testKeywordModeDerivesEntitiesAndPredicateEdges = () => {
   const { graph } = deriveKeywordGraphFromText({
     documentId: 'doc:test',
     documentText: 'The cat eats fish.\nA cat likes fish.\nAbout the cat.',

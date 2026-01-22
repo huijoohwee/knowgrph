@@ -6,6 +6,7 @@ import { SlidersHorizontal } from 'lucide-react'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { UI_COPY } from '@/lib/config'
 import type { SelectionSnapshot, StatsCommunity, StatsUiClasses, TokenCount } from '@/components/BottomPanel/stats/types'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export default function CommunitiesStatsSection({
   ui,
@@ -94,12 +95,20 @@ export default function CommunitiesStatsSection({
   return (
     <CollapsibleSection title="Clusters">
       {communities.length === 0 ? (
-        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-600'].join(' ')}>
+        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           No clusters detected.
         </div>
       ) : (
-        <div className="rounded border border-gray-200 bg-white overflow-hidden">
-          <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'px-3 py-2 font-semibold text-gray-800 border-b border-gray-200 flex items-center justify-between gap-3'].join(' ')}>
+        <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}>
+          <div
+            className={[
+              uiPanelKeyValueTextSizeClass,
+              uiPanelTextFontClass,
+              'px-3 py-2 font-semibold flex items-center justify-between gap-3 border-b',
+              UI_THEME_TOKENS.panel.divider,
+              UI_THEME_TOKENS.text.primary,
+            ].join(' ')}
+          >
             <div className="flex items-center gap-1">
               <span>Cluster sizes</span>
               <IconButton
@@ -117,7 +126,7 @@ export default function CommunitiesStatsSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  'px-2 py-[2px] rounded border border-gray-200',
+                  `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
                 ].join(' ')}
                 placeholder={UI_COPY.statsFilterTokensPlaceholder}
                 value={communityTokenFilter}
@@ -127,7 +136,7 @@ export default function CommunitiesStatsSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  'px-2 py-[2px] rounded border border-gray-200 bg-white',
+                  `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
                 ].join(' ')}
                 value={communityTokenSort}
                 onChange={e => {
@@ -138,7 +147,7 @@ export default function CommunitiesStatsSection({
                 <option value="freq">{UI_COPY.statsSortByCountLabel}</option>
                 <option value="alpha">{UI_COPY.statsSortAzLabel}</option>
               </select>
-              <div className="inline-flex rounded border border-gray-200 overflow-hidden bg-white">
+              <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}>
                 <button
                   type="button"
                   className={[
@@ -146,8 +155,8 @@ export default function CommunitiesStatsSection({
                     uiPanelTextFontClass,
                     'px-2 py-[2px]',
                     statsFilterMode === 'exclude'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'bg-white text-gray-500 hover:bg-gray-50',
+                      ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                      : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
                   ].join(' ')}
                   onClick={() => setStatsFilterMode('exclude')}
                 >
@@ -158,10 +167,10 @@ export default function CommunitiesStatsSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'px-2 py-[2px] border-l border-gray-200',
+                    `px-2 py-[2px] border-l ${UI_THEME_TOKENS.panel.divider}`,
                     statsFilterMode === 'include'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'bg-white text-gray-500 hover:bg-gray-50',
+                      ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                      : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
                   ].join(' ')}
                   onClick={() => setStatsFilterMode('include')}
                 >
@@ -173,7 +182,9 @@ export default function CommunitiesStatsSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  'px-2 py-[2px] rounded border border-gray-200 bg-white',
+                  `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
+                  UI_THEME_TOKENS.button.text,
+                  UI_THEME_TOKENS.button.hoverBg,
                 ].join(' ')}
                 onClick={() => setTokensCollapsed(prev => !prev)}
               >
@@ -184,7 +195,9 @@ export default function CommunitiesStatsSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  'px-2 py-[2px] rounded border border-gray-200 bg-white',
+                  `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`,
+                  UI_THEME_TOKENS.button.text,
+                  UI_THEME_TOKENS.button.hoverBg,
                 ].join(' ')}
                 onClick={() => setChartCollapsed(prev => !prev)}
               >
@@ -193,12 +206,12 @@ export default function CommunitiesStatsSection({
             </div>
           </div>
           {!tokensCollapsed && (
-          <div className="px-3 py-2 border-b border-gray-100">
+          <div className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider}`}>
             <div
               className={[
                 uiPanelMicroLabelTextSizeClass,
                 uiPanelTextFontClass,
-                'w-full rounded border border-gray-200 bg-white max-h-40 overflow-y-auto',
+                `w-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-y-auto`,
               ].join(' ')}
             >
               {(() => {
@@ -211,7 +224,7 @@ export default function CommunitiesStatsSection({
                     ? all.every(t => statsIncludeTokens.includes(t))
                     : all.every(t => !statsExcludeTokens.includes(t)))
                 return (
-                  <label className="flex items-center justify-between gap-3 px-2 pt-2 pb-1 border-b border-gray-100 sticky top-0 z-10 bg-white">
+                  <label className={`flex items-center justify-between gap-3 px-2 pt-2 pb-1 border-b ${UI_THEME_TOKENS.panel.divider} sticky top-0 z-10 ${UI_THEME_TOKENS.panel.bg}`}>
                     <span className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -246,7 +259,7 @@ export default function CommunitiesStatsSection({
                       />
                       <span>{UI_COPY.statsSelectAllLabel}</span>
                     </span>
-                    <span className="text-gray-400">{String(all.length)}</span>
+                    <span className={UI_THEME_TOKENS.text.tertiary}>{String(all.length)}</span>
                   </label>
                 )
               })()}
@@ -284,7 +297,7 @@ export default function CommunitiesStatsSection({
                         />
                         <span className="truncate">{tok}</span>
                       </span>
-                      <span className="text-gray-500 shrink-0">{t.count}</span>
+                      <span className={`${UI_THEME_TOKENS.text.tertiary} shrink-0`}>{t.count}</span>
                     </label>
                   )
                 })}
@@ -331,7 +344,7 @@ export default function CommunitiesStatsSection({
                   const w = Math.max(140, c.topTokens.length * 12)
                   return (
                     <>
-                      <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-700 font-semibold'].join(' ')}>
+                      <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
                         Top tokens for {c.name}
                       </div>
                       <AutoHeightMiniBarChart
@@ -352,16 +365,16 @@ export default function CommunitiesStatsSection({
               </div>
             </div>
           )}
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-[color:var(--kg-divider)]">
             {communities.slice(0, Math.min(communities.length, 20)).map((c) => (
               <div key={String(c.id)} className="px-3 py-2 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 min-w-0">
                     <span
-                      className="inline-block w-3 h-3 rounded border border-gray-200"
+                      className={`inline-block w-3 h-3 rounded border ${UI_THEME_TOKENS.panel.border}`}
                       style={{ backgroundColor: c.fill }}
                     />
-                    <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-700 truncate'].join(' ')}>
+                    <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.primary, 'truncate'].join(' ')}>
                       {c.name}{' '}
                       <span className={uiPanelMonospaceTextClass}>
                         {String(c.id)}
@@ -369,7 +382,7 @@ export default function CommunitiesStatsSection({
                     </div>
                   </div>
                   {c.description ? (
-                    <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-0.5 text-gray-400 truncate'].join(' ')}>
+                    <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-0.5', UI_THEME_TOKENS.text.tertiary, 'truncate'].join(' ')}>
                       {c.description}
                     </div>
                   ) : null}
@@ -381,27 +394,31 @@ export default function CommunitiesStatsSection({
                           className={[
                             uiPanelMicroLabelTextSizeClass,
                             uiPanelTextFontClass,
-                            'inline-flex items-center gap-1 px-2 py-[2px] rounded border border-gray-200 cursor-pointer',
+                            `inline-flex items-center gap-1 px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} cursor-pointer`,
                             (() => {
                               const tok = String(t.token || '').toLowerCase()
                               const excluded = statsExcludeTokens.includes(tok)
                               const included = statsIncludeTokens.includes(tok)
                               if (statsFilterMode === 'include') {
-                                return included ? 'bg-blue-50 text-gray-700 border-blue-200' : 'bg-gray-50 text-gray-400'
+                                return included
+                                  ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.text.primary}`
+                                  : `${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.tertiary}`
                               }
-                              return excluded ? 'bg-red-50 text-gray-400 border-red-200 line-through' : 'bg-gray-50 text-gray-700'
+                              return excluded
+                                ? `bg-red-50 dark:bg-red-900/20 ${UI_THEME_TOKENS.text.tertiary} border-red-200 dark:border-red-800 line-through`
+                                : `${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary}`
                             })(),
                           ].join(' ')}
                           onClick={() => toggleStatsToken(t.token)}
                         >
                           <span className={uiPanelMonospaceTextClass}>{t.token}</span>
-                          <span className="text-gray-500">{t.count}</span>
+                          <span className={UI_THEME_TOKENS.text.tertiary}>{t.count}</span>
                         </span>
                       ))}
                     </div>
                   ) : null}
                 </div>
-                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
+                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>
                   {String(c.count)}
                 </div>
               </div>

@@ -16,14 +16,8 @@ export const deriveGraphGroups = (data: GraphData): GraphGroup[] => {
       const props = (n.properties || {}) as Record<string, unknown>
       const kind = typeof props['keyword:kind'] === 'string' ? props['keyword:kind'].trim() : ''
       const role = typeof props['keyword:role'] === 'string' ? props['keyword:role'].trim() : ''
-      if (role === 'subject' || role === 'object') {
+      if (kind === 'entity' && (role === 'subject' || role === 'object' || role === 'entity')) {
         const k = `keywordRole:${role}`
-        const arr = byKey.get(k) || []
-        arr.push(String(n.id))
-        byKey.set(k, arr)
-      }
-      if (kind === 'predicate') {
-        const k = 'keywordKind:predicate'
         const arr = byKey.get(k) || []
         arr.push(String(n.id))
         byKey.set(k, arr)
@@ -38,8 +32,8 @@ export const deriveGraphGroups = (data: GraphData): GraphGroup[] => {
           ? 'Subject'
           : key === 'keywordRole:object'
             ? 'Object'
-            : key === 'keywordKind:predicate'
-              ? 'Predicate'
+            : key === 'keywordRole:entity'
+              ? 'Entity'
               : key
       out.push({
         id: `keyword-layer:${key}`,
