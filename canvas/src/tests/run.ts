@@ -121,7 +121,7 @@ import {
 } from '@/__tests__/markdown/markdownScrollSync.test'
 import { testKeywordModeDerivesEntitiesAndPredicates, testKeywordModeMergesMediaNodesForOverlays } from '@/__tests__/keywordMode.test'
 import { testToolMenuDoesNotExposeCuratorArea } from '@/__tests__/toolMenuCuratorActions.test'
-import { testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
+import { testForbidHardcodedYouTubeUrlLiteral, testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -214,6 +214,7 @@ export const runAllTests = async () => {
   await runParserTests(results)
 
   // Remaining tests
+  await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
   
   await exec('previewGalleryReorder: arrow moves third above second', testPreviewGalleryArrowMovesThirdSlideAboveSecond)

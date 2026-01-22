@@ -10,9 +10,16 @@ import os from 'node:os'
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
+import { unwrapUserProvidedText } from './src/lib/url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
+
+function withRepoPythonPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const current = String(env.PYTHONPATH || '').trim()
+  const next = current ? `${repoRoot}${path.delimiter}${current}` : repoRoot
+  return { ...env, PYTHONPATH: next }
+}
 
 function resolvePythonBin(): string {
   const fromEnv = String(process.env.KNOWGRPH_PYTHON_BIN || '').trim()
@@ -26,10 +33,18 @@ function resolvePythonBin(): string {
     '/opt/homebrew/bin/python3',
     '/usr/local/bin/python3',
   ]
+  const canUse = (candidate: string) => {
+    if (candidate !== 'python3' && !existsSync(candidate)) return false
+    const probe = spawnSync(
+      candidate,
+      ['-c', 'import knowgrph_parser'],
+      { cwd: repoRoot, encoding: 'utf8', timeout: 2_000, env: withRepoPythonPath(process.env) },
+    )
+    return probe.status === 0
+  }
   for (const candidate of candidates) {
     try {
-      if (candidate === 'python3') return candidate
-      if (existsSync(candidate)) return candidate
+      if (canUse(candidate)) return candidate
     } catch {
       void 0
     }
@@ -47,6 +62,7 @@ function runMarkdownPipelineOnce(): Promise<void> {
     const result = spawnSync(cmd, args, {
       cwd: repoRoot,
       stdio: 'inherit',
+      env: withRepoPythonPath(process.env),
     })
     if (result.error) {
       reject(result.error)
@@ -182,6 +198,7 @@ async function runKnowgrphParserConvertPdfToMarkdown(opts: {
       cwd: repoRoot,
       encoding: 'utf8',
       maxBuffer: 20 * 1024 * 1024,
+      env: withRepoPythonPath(process.env),
     })
     if (res.status === 0 && typeof res.stdout === 'string' && res.stdout.trim()) {
       return res.stdout
@@ -517,6 +534,14 @@ async function runKnowgrphParserConvertYoutubeToPayload(opts: {
   lang?: string
 }): Promise<YoutubeConvertResult> {
   try {
+    const timeoutMs = (() => {
+      const raw = Number(process.env.KG_YOUTUBE_TRANSCRIPT_TIMEOUT_MS || '')
+      const fallback = 20 * 60_000
+      const min = 10_000
+      const max = 60 * 60_000
+      if (!Number.isFinite(raw)) return fallback
+      return Math.min(max, Math.max(min, Math.floor(raw)))
+    })()
     const args = ['-m', 'knowgrph_parser', 'youtube', '--emit', 'json', '--url', opts.url]
     if (opts.lang && opts.lang.trim()) {
       args.push('--lang', opts.lang.trim())
@@ -524,8 +549,9 @@ async function runKnowgrphParserConvertYoutubeToPayload(opts: {
     const res = spawnSync(pythonBin, args, {
       cwd: repoRoot,
       encoding: 'utf8',
-      maxBuffer: 20 * 1024 * 1024,
-      timeout: 60_000,
+      maxBuffer: 50 * 1024 * 1024,
+      timeout: timeoutMs,
+      env: withRepoPythonPath(process.env),
     })
     if (res.error) {
       const msg =
@@ -598,7 +624,7 @@ function createYoutubeConvertHandler(): import('vite').Connect.NextHandleFunctio
       }
 
       const payload = await runKnowgrphParserConvertYoutubeToPayload({
-        url: urlParam,
+        url: unwrapUserProvidedText(urlParam) || urlParam,
         lang: langParam || undefined,
       })
       res.statusCode = payload.ok ? 200 : 400

@@ -1,6 +1,5 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { getThreeConfig } from '@/lib/graph/schema'
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import ThreeSizingAndWidthControls from '@/features/panels/views/shared/ThreeSizingAndWidthControls'
@@ -18,7 +17,6 @@ export default function AiKgVisualControls({
   setThreeConfig,
   uiPanelKeyValueInputClass,
 }: AiKgVisualControlsProps) {
-  const threeCfg = getThreeConfig(schema)
   const hoverContent = schema.behavior?.hover?.content || { showProps: true, showType: true, showId: true }
 
   return (

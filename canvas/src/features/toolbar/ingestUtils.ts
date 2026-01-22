@@ -3,8 +3,13 @@ import { looksLikeViteDevIndexHtml } from '@/lib/config'
 
 export function promptForUrl(message: string): string | null {
   if (typeof window === 'undefined') return null
-  const raw = window.prompt(message, '') || ''
-  return raw.trim() || null
+  if (typeof window.prompt !== 'function') return null
+  try {
+    const raw = window.prompt(message, '') || ''
+    return raw.trim() || null
+  } catch {
+    return null
+  }
 }
 
 export function deriveMarkdownNameFromUrl(rawUrl: string): string {

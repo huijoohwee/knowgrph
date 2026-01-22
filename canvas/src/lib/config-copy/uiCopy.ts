@@ -345,6 +345,7 @@ export const UI_COPY = {
   pdfImportConvertFailedStatusWithError: (error: string) =>
     `Data load failed: Failed to convert PDF to Markdown (${error})`,
   youtubeImportUrlPrompt: 'Enter YouTube URL or ID',
+  youtubeImportLanguagePrompt: 'Enter transcript language code(s) (comma-separated, default: en)',
   toolbarYouTubeImportUrlButtonLabel: 'URL',
   youtubeImportFetchFailedStatus: (urlOrId: string) =>
     `YouTube import: transcript fetch failed for ${urlOrId}`,

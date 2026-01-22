@@ -3,6 +3,8 @@ import { bestMatch, applyParserAsync } from '@/features/parsers/registry'
 import { getCachedParse, setCachedParse } from '@/features/parsers/cache'
 import { toParserId } from '@/features/parsers'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { deriveFilenameFromUrl } from '@/lib/url'
+import { ensureBuiltInParsersRegistered } from '@/features/parsers/ensure'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import {
   type DbConnectorKind,
@@ -27,17 +29,6 @@ export async function loadGraphDataViaParser(): Promise<LoaderResult | null> {
   const name = f.name || ''
   const text = f.text || ''
   return loadGraphDataFromTextViaParser(name, text)
-}
-
-function deriveNameFromUrl(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl)
-    const parts = url.pathname.split('/').filter(Boolean)
-    const last = parts[parts.length - 1] || ''
-    return last || 'remote.json'
-  } catch {
-    return 'remote.json'
-  }
 }
 
 function ensureGraphData(input: unknown): GraphData | null {
@@ -113,7 +104,7 @@ async function fetchBackendGraphData(): Promise<{ name: string; data: GraphData;
     const url = raw.trim()
     if (!url) return null
     const res = await fetch(url)
-    const name = deriveNameFromUrl(url)
+    const name = deriveFilenameFromUrl(url, 'remote.json')
     if (!res.ok) {
       const data: GraphData = { context: 'backend-error', type: 'Graph', nodes: [], edges: [] }
       return { name, data, warnings: [`Request failed with status ${res.status}`] }
@@ -155,6 +146,7 @@ export async function loadGraphDataFromBackendViaParser(): Promise<LoaderResult 
 }
 
 export async function loadGraphDataFromTextViaParser(name: string, text: string): Promise<LoaderResult | null> {
+  ensureBuiltInParsersRegistered()
   const bm = bestMatch({ name, text })
   if (!bm) return { input: { name, text }, warnings: ['No matching parser found'], counts: { n: 0, e: 0 } }
   const parserId = toParserId(bm.id)

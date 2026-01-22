@@ -1,6 +1,5 @@
 import {
   ORCHESTRATOR_TRAVERSAL_TOOLTIP,
-  GRAPH_DATA_TABLE_CURATION_TOOLTIP,
 } from '@/lib/config'
 import { AGENTIC_RAG_CONTEXT_URL } from '@/lib/agenticrag'
 import { TOOL_MENU_AREAS } from '@/features/toolbar/toolMenu'

@@ -1,6 +1,5 @@
 import React from 'react'
 import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
-import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { ToolbarSourceFilesArea } from '@/features/toolbar/ToolbarSourceFilesArea'
 import { ToolbarParserArea } from '@/features/toolbar/ToolbarParserArea'
 import { ToolbarMarkdownArea } from '@/features/toolbar/ToolbarMarkdownArea'
@@ -13,7 +12,6 @@ import { ToolbarRenderArea } from '@/features/toolbar/ToolbarRenderArea'
 import { ToolbarSettingsArea } from '@/features/toolbar/ToolbarSettingsArea'
 import { ToolbarHistoryArea } from '@/features/toolbar/ToolbarHistoryArea'
 import { ToolbarValidationArea } from '@/features/toolbar/ToolbarValidationArea'
-import { UI_LABELS } from '@/lib/config'
 
 export interface ToolbarToolMenuAreasProps {
   dataLoadOk: boolean | null

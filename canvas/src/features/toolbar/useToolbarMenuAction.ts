@@ -1,5 +1,4 @@
 import { useCallback, useMemo, type RefObject } from 'react'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useParserUIState } from '@/features/parsers/uiState'
 import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'

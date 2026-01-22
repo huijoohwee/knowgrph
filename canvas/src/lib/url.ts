@@ -6,6 +6,26 @@ export function coerceHttpUrl(value: unknown): string | null {
   return raw
 }
 
+export function unwrapUserProvidedText(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  let raw = value.trim()
+  if (!raw) return null
+  raw = raw.replace(/[.,;:]+$/g, '').trim()
+  for (let i = 0; i < 5; i += 1) {
+    const first = raw[0]
+    const last = raw[raw.length - 1]
+    const isQuotePair = first === last && (first === '"' || first === "'" || first === '`')
+    const isAnglePair = first === '<' && last === '>'
+    const isParenPair = first === '(' && last === ')'
+    const isBracketPair = first === '[' && last === ']'
+    if (!isQuotePair && !isAnglePair && !isParenPair && !isBracketPair) break
+    raw = raw.slice(1, -1).trim()
+    raw = raw.replace(/[.,;:]+$/g, '').trim()
+    if (!raw) return null
+  }
+  return raw
+}
+
 export function coerceMediaUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const raw = value.trim()
@@ -38,6 +58,26 @@ export function normalizeGitHubBlobLikeUrl(rawUrl: string): string | null {
     void 0
   }
   return null
+}
+
+export function deriveFilenameFromUrl(rawUrl: string, fallback: string): string {
+  const fb = String(fallback || '').trim() || 'remote.txt'
+  const raw = String(rawUrl || '').trim()
+  if (!raw) return fb
+  try {
+    const url = new URL(raw)
+    const parts = String(url.pathname || '')
+      .split('/')
+      .map(p => p.trim())
+      .filter(Boolean)
+    const last = parts.length > 0 ? parts[parts.length - 1] : ''
+    if (last) return last
+    const host = String(url.hostname || '').trim()
+    if (host) return host
+    return fb
+  } catch {
+    return fb
+  }
 }
 
 export const MEDIA_PROXY_ENDPOINT = '/__fetch_remote'
