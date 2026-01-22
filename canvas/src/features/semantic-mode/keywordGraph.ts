@@ -5,6 +5,14 @@ import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils
 import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { computeConnectedComponents, computePageRank } from '@/features/semantic-mode/graphAlgorithms'
+import {
+  extractMentionsRobust,
+  extractTriplesHeuristic,
+  splitSentencesWithOffsets,
+  isVerbLike,
+  normalizeWhitespace,
+  type TextEntity,
+} from '@/lib/graph/textAnalysis'
 
 export type KeywordGraphSource = {
   documentId: string
@@ -18,20 +26,6 @@ export type KeywordGraphResult = {
 }
 
 const DEFAULT_STOPWORDS = NLTK_STOPWORDS_EN_SET
-
-const VERB_HINTS = new Set<string>(['is','are','was','were','be','been','being','has','have','had','use','uses','used','using','make','makes','made','making','build','builds','built','building','create','creates','created','creating','parse','parses','parsed','parsing','derive','derives','derived','deriving','render','renders','rendered','rendering','layout','layouts','laid','laying','link','links','linked','linking','connect','connects','connected','connecting','enable','enables','enabled','enabling','disable','disables','disabled','disabling','support','supports','supported','supporting','cause','causes','caused','causing','lead','leads','led','leading'])
-
-const isVerbLike = (token: string): boolean => {
-  const t = String(token || '').toLowerCase()
-  if (!t) return false
-  if (VERB_HINTS.has(t)) return true
-  if (t.length <= 2) return false
-  if (DEFAULT_STOPWORDS.has(t)) return false
-  if (t.endsWith('ed') || t.endsWith('ing')) return true
-  if (t.endsWith('ize') || t.endsWith('ise')) return true
-  if (t.endsWith('ify')) return true
-  return false
-}
 
 const clampNumber = (v: number, min: number, max: number): number => {
   if (!Number.isFinite(v)) return min
@@ -62,6 +56,7 @@ type Mention = {
   label: string
   start: number
   end: number
+  ner?: string
 }
 
 const normalizeEntityKey = (raw: string): string => {
@@ -79,85 +74,6 @@ const prettyLabel = (key: string): string => {
     .split(' ')
     .map(w => (w ? w[0].toUpperCase() + w.slice(1) : w))
     .join(' ')
-}
-
-const splitSentencesWithOffsets = (text: string): Array<{ start: number; end: number }> => {
-  const s = String(text || '')
-  const out: Array<{ start: number; end: number }> = []
-  let start = 0
-  for (let i = 0; i < s.length; i += 1) {
-    const ch = s[i]
-    const isEnd = ch === '.' || ch === '!' || ch === '?' || ch === '\n'
-    if (!isEnd) continue
-    const end = i + 1
-    if (end > start) out.push({ start, end })
-    start = end
-  }
-  if (start < s.length) out.push({ start, end: s.length })
-  return out.filter(r => r.end > r.start)
-}
-
-const extractEntityMentions = (text: string): Mention[] => {
-  const raw = String(text || '')
-  if (!raw.trim()) return []
-  const mentions: Mention[] = []
-  const push = (label: string, start: number, end: number) => {
-    const key = normalizeEntityKey(label)
-    if (!key) return
-    if (DEFAULT_STOPWORDS.has(key)) return
-    if (key.length < 3) return
-    if (/^\d+$/.test(key)) return
-    mentions.push({ key, label: label.trim(), start, end })
-  }
-
-  const codeRe = /`([^`\n]+)`/g
-  for (const m of raw.matchAll(codeRe)) {
-    const v = String(m[1] || '').trim()
-    if (!v) continue
-    const idx = m.index ?? -1
-    if (idx < 0) continue
-    push(v, idx, idx + m[0].length)
-  }
-
-  const capPhrase = /\b(?:[A-Z][a-z0-9]+)(?:\s+[A-Z][a-z0-9]+){0,5}\b/g
-  for (const m of raw.matchAll(capPhrase)) {
-    const v = String(m[0] || '').trim()
-    const idx = m.index ?? -1
-    if (!v || idx < 0) continue
-    push(v, idx, idx + v.length)
-  }
-
-  const identifier = /\b[a-zA-Z][a-zA-Z0-9_]*[A-Z][a-zA-Z0-9_]*\b/g
-  for (const m of raw.matchAll(identifier)) {
-    const v = String(m[0] || '').trim()
-    const idx = m.index ?? -1
-    if (!v || idx < 0) continue
-    push(v, idx, idx + v.length)
-  }
-
-  const snakeOrKebab = /\b[a-zA-Z][a-zA-Z0-9_]*_[a-zA-Z0-9_]+\b/g
-  for (const m of raw.matchAll(snakeOrKebab)) {
-    const v = String(m[0] || '').trim()
-    const idx = m.index ?? -1
-    if (!v || idx < 0) continue
-    push(v, idx, idx + v.length)
-  }
-
-  const word = /\b[a-zA-Z][a-zA-Z0-9_'-]{1,}\b/g
-  for (const m of raw.matchAll(word)) {
-    const v = String(m[0] || '').trim()
-    const idx = m.index ?? -1
-    if (!v || idx < 0) continue
-    const key = normalizeEntityKey(v)
-    if (!key) continue
-    if (DEFAULT_STOPWORDS.has(key)) continue
-    if (key.length < 3) continue
-    if (/^\d+$/.test(key)) continue
-    if (isVerbLike(key)) continue
-    push(v, idx, idx + v.length)
-  }
-
-  return mentions
 }
 
 const inferRelationshipKeyword = (args: {
@@ -207,7 +123,15 @@ const computePpmi = (args: {
 export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordGraphResult => {
   const docId = String(source.documentId || 'doc')
   const text = String(source.documentText || '')
-  const mentions = extractEntityMentions(text).slice().sort((a, b) => {
+  
+  const textEntities = extractMentionsRobust(text)
+  const mentions: Mention[] = textEntities.map(e => ({
+    key: normalizeEntityKey(e.text),
+    label: e.text,
+    start: e.start,
+    end: e.end,
+    ner: e.label
+  })).sort((a, b) => {
     const am = (a.start + a.end) / 2
     const bm = (b.start + b.end) / 2
     const diff = am - bm
@@ -215,7 +139,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     return a.key.localeCompare(b.key)
   })
 
-  const entityByKey = new Map<string, { id: string; label: string; count: number }>()
+  const entityByKey = new Map<string, { id: string; label: string; count: number; ner?: string }>()
   for (let i = 0; i < mentions.length; i += 1) {
     const m = mentions[i]!
     const key = m.key
@@ -225,9 +149,65 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
       continue
     }
     const id = `kw:entity:${hashText(key)}`
-    entityByKey.set(key, { id, label: m.label || prettyLabel(key) || key, count: 1 })
+    entityByKey.set(key, { id, label: m.label || prettyLabel(key) || key, count: 1, ner: m.ner })
   }
 
+  const pairCounts = new Map<string, number>()
+  const entityBlockCounts = new Map<string, number>()
+  const relationCountsByPair = new Map<string, Map<string, number>>()
+  const predicateKeys = new Set<string>()
+  const roleCountsByEntityKey = new Map<string, { subject: number; object: number }>()
+  const directionCountsByPair = new Map<string, Map<string, number>>()
+
+  // 1. Process explicit triples first for strong signals
+  const triples = extractTriplesHeuristic(text, textEntities)
+  for (const t of triples) {
+    const sKey = normalizeEntityKey(t.subject)
+    const oKey = normalizeEntityKey(t.object)
+    const pKey = normalizeEntityKey(t.predicate)
+    if (!sKey || !oKey || !pKey) continue
+    if (!entityByKey.has(sKey)) {
+        // Fallback: create node if missing (though extractTriples usually uses existing entities)
+        const id = `kw:entity:${hashText(sKey)}`
+        entityByKey.set(sKey, { id, label: t.subject, count: 1 })
+    }
+    if (!entityByKey.has(oKey)) {
+        const id = `kw:entity:${hashText(oKey)}`
+        entityByKey.set(oKey, { id, label: t.object, count: 1 })
+    }
+    
+    // Boost counts
+    const sNode = entityByKey.get(sKey)!
+    sNode.count += 2
+    const oNode = entityByKey.get(oKey)!
+    oNode.count += 2
+
+    // Record pair
+    const pairKey = sKey.localeCompare(oKey) < 0 ? `${sKey}|${oKey}` : `${oKey}|${sKey}`
+    pairCounts.set(pairKey, (pairCounts.get(pairKey) || 0) + 3) // Higher weight for explicit triples
+
+    // Record relation
+    const relMap = relationCountsByPair.get(pairKey) || new Map<string, number>()
+    relMap.set(pKey, (relMap.get(pKey) || 0) + 3)
+    relationCountsByPair.set(pairKey, relMap)
+    predicateKeys.add(pKey)
+
+    // Record roles
+    const sRole = roleCountsByEntityKey.get(sKey) || { subject: 0, object: 0 }
+    sRole.subject += 3
+    roleCountsByEntityKey.set(sKey, sRole)
+    const oRole = roleCountsByEntityKey.get(oKey) || { subject: 0, object: 0 }
+    oRole.object += 3
+    roleCountsByEntityKey.set(oKey, oRole)
+
+    // Record direction
+    const dirKey = `${sKey}|${oKey}`
+    const dirMap = directionCountsByPair.get(pairKey) || new Map<string, number>()
+    dirMap.set(dirKey, (dirMap.get(dirKey) || 0) + 3)
+    directionCountsByPair.set(pairKey, dirMap)
+  }
+
+  // 2. Process co-occurrence for implicit signals
   const sentenceRanges = splitSentencesWithOffsets(text)
   const mentionsBySentence: Mention[][] = []
   if (sentenceRanges.length > 0 && mentions.length > 0) {
@@ -251,13 +231,6 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
   } else {
     for (let i = 0; i < sentenceRanges.length; i += 1) mentionsBySentence.push([])
   }
-
-  const pairCounts = new Map<string, number>()
-  const entityBlockCounts = new Map<string, number>()
-  const relationCountsByPair = new Map<string, Map<string, number>>()
-  const predicateKeys = new Set<string>()
-  const roleCountsByEntityKey = new Map<string, { subject: number; object: number }>()
-  const directionCountsByPair = new Map<string, Map<string, number>>()
 
   for (let sIdx = 0; sIdx < mentionsBySentence.length; sIdx += 1) {
     const list = mentionsBySentence[sIdx] || []
@@ -286,7 +259,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
       for (let j = i + 1; j < uniqueKeys.length; j += 1) {
         const a = uniqueKeys[i]!
         const b = uniqueKeys[j]!
-        const key = `${a}|${b}`
+        const key = a.localeCompare(b) < 0 ? `${a}|${b}` : `${b}|${a}`
         pairCounts.set(key, (pairCounts.get(key) || 0) + 1)
       }
     }
@@ -318,7 +291,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         const verb = inferRelationshipKeyword({ betweenText: between, stopwords: DEFAULT_STOPWORDS, disallow })
         const predKey = normalizeEntityKey(String(verb || '')) || 'relates_to'
         predicateKeys.add(predKey)
-        const pairKey = `${a}|${b}`
+        const pairKey = a.localeCompare(b) < 0 ? `${a}|${b}` : `${b}|${a}`
         const relMap = relationCountsByPair.get(pairKey) || new Map<string, number>()
         relMap.set(predKey, (relMap.get(predKey) || 0) + 1)
         relationCountsByPair.set(pairKey, relMap)
@@ -387,6 +360,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         'keyword:key': key as unknown as JSONValue,
         'keyword:kind': 'entity',
         'keyword:role': role,
+        'keyword:ner': v.ner as unknown as JSONValue,
         count: count as unknown as JSONValue,
         'visual:importance': count as unknown as JSONValue,
         'visual:nodeSize': nodeSize as unknown as JSONValue,

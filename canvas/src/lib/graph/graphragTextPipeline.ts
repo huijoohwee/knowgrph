@@ -3,6 +3,16 @@ import { hashText } from '@/features/parsers/hash'
 import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
 import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
 import { computeConnectedComponents } from '@/features/semantic-mode/graphAlgorithms'
+import {
+  extractEntitiesHeuristic,
+  extractTriplesHeuristic,
+  findFirstEntityMention,
+  normalizeNounPhrase,
+  normalizeWhitespace,
+  splitSentences,
+  type TextEntity,
+  type TextTriple,
+} from '@/lib/graph/textAnalysis'
 
 export type GraphRagTextPipelineStageId =
   | 'nltkPreprocess'
@@ -35,19 +45,9 @@ export type GraphRagTextPipelineStage = {
   metrics: GraphRagTextPipelineStageMetrics
 }
 
-export type GraphRagTextEntity = {
-  text: string
-  label: string
-  start: number
-  end: number
-}
+export type GraphRagTextEntity = TextEntity
 
-export type GraphRagTextTriple = {
-  subject: string
-  predicate: string
-  object: string
-  confidence: number
-}
+export type GraphRagTextTriple = TextTriple
 
 export type GraphRagTextPipelineResult = {
   graphData: GraphData
@@ -69,8 +69,6 @@ const nowMs = (): number => {
   }
   return Date.now()
 }
-
-const normalizeWhitespace = (value: string): string => String(value || '').replace(/\s+/g, ' ').trim()
 
 const tokenizePreserveCase = (text: string): string[] => {
   const raw = String(text || '')
@@ -100,10 +98,17 @@ const hfToySubwordsFromText = (text: string): string[] => {
 
   const splitAlpha = (word: string): string[] => {
     if (!word) return []
-    if (word === 'Singapore') return ['Sing', 'apore']
-    if (word === 'Southeast') return ['South', 'east']
-    if (/^[A-Z][a-z]{6,}$/.test(word)) return [word.slice(0, 3), word.slice(3)]
-    if (/^[a-z]{8,}$/.test(word)) return [word.slice(0, 4), word.slice(4)]
+    // Generic compound word heuristic for demo purposes
+    // In a real implementation, this would use a BPE vocabulary
+    if (word.length > 8 && /^[A-Z]/.test(word)) {
+      // Split long capitalized words roughly in half
+      const mid = Math.floor(word.length / 2)
+      return [word.slice(0, mid), word.slice(mid)]
+    }
+    if (word.length > 10) {
+      const mid = Math.floor(word.length / 2)
+      return [word.slice(0, mid), word.slice(mid)]
+    }
     return [word]
   }
 
@@ -135,254 +140,6 @@ const hfToySubwordsFromText = (text: string): string[] => {
   return out.filter(Boolean)
 }
 
-const inferEntityLabel = (phrase: string): string => {
-  const t = normalizeWhitespace(phrase)
-  if (!t) return 'ENTITY'
-  const lower = t.toLowerCase()
-  if (/(?:\b\d{4}\b)|(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b)/i.test(t)) {
-    return 'DATE'
-  }
-  if (/(?:\binc\b|\bcorp\b|\bltd\b|\bllc\b|\buniversity\b|\bcommittee\b|\bcompany\b|\bgroup\b)/i.test(t)) {
-    return 'ORG'
-  }
-  if (/(?:\bairport\b|\bbridge\b|\bhospital\b|\bstation\b|\bterminal\b|\bport\b|\bplant\b)/i.test(t)) {
-    return 'FAC'
-  }
-  if (/(?:\bcity\b|\bstate\b|\bprovince\b|\bcountry\b|\bregion\b)/i.test(t)) {
-    return 'GPE'
-  }
-  if (
-    /(?:\b(?:north|south|east|west|southeast|southwest|northeast|northwest)\b)/i.test(t) ||
-    /(?:\b(?:asia|europe|africa|america|oceania)\b)/i.test(t)
-  ) {
-    return 'LOC'
-  }
-  if (t.split(' ').length === 2 && /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(t)) {
-    return 'PERSON'
-  }
-  if (/^[A-Z][a-z]+(?: [A-Z][a-z]+){0,3}$/.test(t)) {
-    return 'GPE'
-  }
-  return 'ENTITY'
-}
-
-const extractEntitiesHeuristic = (text: string): GraphRagTextEntity[] => {
-  const raw = String(text || '')
-  const out: GraphRagTextEntity[] = []
-  const seen = new Set<string>()
-
-  const push = (entityText: string, start: number, end: number, forcedLabel?: string) => {
-    const phrase = normalizeWhitespace(entityText)
-    if (!phrase) return
-    const key = phrase.toLowerCase()
-    if (seen.has(`${key}@${start}`)) return
-    if (NLTK_STOPWORDS_EN_SET.has(key)) return
-    const label = forcedLabel || inferEntityLabel(phrase)
-    out.push({ text: phrase, label, start, end })
-    seen.add(`${key}@${start}`)
-  }
-
-  const quantityRe = /\b(\d+(?:\.\d+)?)\s*(million|billion|thousand|%|percent|km|kg|m|cm|mm)\b/gi
-  for (const m of raw.matchAll(quantityRe)) {
-    const idx = m.index ?? -1
-    if (idx < 0) continue
-    push(m[0] || '', idx, idx + String(m[0] || '').length, 'QUANTITY')
-  }
-
-  const dateRe = /\b(?:\d{4}-\d{2}-\d{2}|\d{4})\b/g
-  for (const m of raw.matchAll(dateRe)) {
-    const idx = m.index ?? -1
-    if (idx < 0) continue
-    push(m[0] || '', idx, idx + String(m[0] || '').length, 'DATE')
-  }
-
-  const capPhrase = /\b(?:[A-Z][a-z0-9]+)(?:\s+[A-Z][a-z0-9]+){0,5}\b/g
-  for (const m of raw.matchAll(capPhrase)) {
-    const idx = m.index ?? -1
-    const v = String(m[0] || '').trim()
-    if (!v || idx < 0) continue
-    push(v, idx, idx + v.length)
-  }
-
-  return out
-}
-
-const splitSentences = (text: string): string[] => {
-  const raw = String(text || '').trim()
-  if (!raw) return []
-  return raw
-    .split(/(?<=[.!?])\s+|\n+/g)
-    .map(s => s.trim())
-    .filter(Boolean)
-}
-
-const findFirstEntityMention = (sentence: string, entities: GraphRagTextEntity[]): GraphRagTextEntity | null => {
-  const lower = sentence.toLowerCase()
-  for (const e of entities) {
-    const t = e.text.toLowerCase()
-    if (t && lower.includes(t)) return e
-  }
-  return null
-}
-
-const listEntitiesInSentence = (sentence: string, entities: GraphRagTextEntity[]): GraphRagTextEntity[] => {
-  const lower = sentence.toLowerCase()
-  const matches = entities
-    .filter(e => {
-      const t = e.text.toLowerCase()
-      return t && lower.includes(t)
-    })
-    .slice()
-    .sort((a, b) => a.start - b.start)
-  const uniq: GraphRagTextEntity[] = []
-  const seen = new Set<string>()
-  for (const e of matches) {
-    const k = e.text.toLowerCase()
-    if (seen.has(k)) continue
-    seen.add(k)
-    uniq.push(e)
-  }
-  return uniq
-}
-
-const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-const normalizeNounPhrase = (s: string): string => {
-  const t = normalizeWhitespace(s)
-  if (!t) return ''
-  return t
-    .replace(/^(?:its|the|a|an)\s+/i, '')
-    .replace(/^(?:and|or)\s+/i, '')
-    .replace(/^about\s+/i, '')
-    .replace(/^future\s+/i, '')
-    .replace(/\s+(?:and|or)\s+$/i, '')
-    .replace(/[.]+$/g, '')
-    .trim()
-}
-
-const splitCommaAndAndList = (value: string): string[] => {
-  const cleaned = normalizeWhitespace(value)
-  if (!cleaned) return []
-  const parts = cleaned
-    .split(/\s*,\s*|\s+(?:and|or)\s+/i)
-    .map(x => normalizeNounPhrase(x))
-    .filter(Boolean)
-  const out: string[] = []
-  const seen = new Set<string>()
-  for (const p of parts) {
-    const k = p.toLowerCase()
-    if (!k || seen.has(k)) continue
-    seen.add(k)
-    out.push(p)
-  }
-  return out
-}
-
-const extractTriplesHeuristic = (text: string, entities: GraphRagTextEntity[]): GraphRagTextTriple[] => {
-  const sentences = splitSentences(text)
-  const triples: GraphRagTextTriple[] = []
-  const seen = new Set<string>()
-
-  const push = (s: string, p: string, o: string, confidence: number) => {
-    const subject = normalizeWhitespace(s)
-    const predicate = normalizeWhitespace(p).replace(/\s+/g, '-').toLowerCase()
-    const object = normalizeWhitespace(o)
-    if (!subject || !predicate || !object) return
-    const key = `${subject.toLowerCase()}|${predicate}|${object.toLowerCase()}`
-    if (seen.has(key)) return
-    seen.add(key)
-    triples.push({ subject, predicate, object, confidence })
-  }
-
-  const stableSubject = (() => {
-    const ordered = [...entities].sort((a, b) => a.start - b.start)
-    const preferred = ordered.find(e => e.label === 'GPE' || e.label === 'PERSON' || e.label === 'ORG')
-    return preferred?.text || ordered[0]?.text || ''
-  })()
-
-  let lastSubject = stableSubject
-
-  for (const sent of sentences) {
-    const ents = listEntitiesInSentence(sent, entities)
-    const lower = sent.trim().toLowerCase()
-    const startsWithPronoun = /^(it|this|that|they|he|she|these|those)\b/.test(lower)
-    const firstNonQuantity =
-      ents.find(e => e.label !== 'QUANTITY' && e.label !== 'DATE')?.text ||
-      ents[0]?.text ||
-      ''
-    const subj = (startsWithPronoun && stableSubject) ? stableSubject : firstNonQuantity || lastSubject
-    if (!subj) continue
-    if (!startsWithPronoun && firstNonQuantity) lastSubject = firstNonQuantity
-
-    const subjRe = escapeRe(subj)
-    const subjInSentence = sent.toLowerCase().includes(subj.toLowerCase())
-    const before = triples.length
-
-    if (subjInSentence) {
-      const mIsAIn = sent.match(new RegExp(`\\b${subjRe}\\b\\s+is\\s+(?:a|an|the)\\s+([^,.]+?)\\s+in\\s+([^,.]+)`, 'i'))
-      if (mIsAIn && mIsAIn[1] && mIsAIn[2]) {
-        push(subj, 'is-a', normalizeNounPhrase(mIsAIn[1]), 0.9)
-        push(subj, 'located-in', normalizeNounPhrase(mIsAIn[2]), 0.9)
-      } else {
-        const mIsA = sent.match(new RegExp(`\\b${subjRe}\\b\\s+is\\s+(?:a|an|the)\\s+([^,.]+)`, 'i'))
-        if (mIsA && mIsA[1]) push(subj, 'is-a', normalizeNounPhrase(mIsA[1]), 0.85)
-        const mIn = sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,80}\\s+in\\s+([^,.]+)`, 'i'))
-        if (mIn && mIn[1]) push(subj, 'located-in', normalizeNounPhrase(mIn[1]), 0.8)
-      }
-
-      const mLocated = sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,120}\\blocated\\s+in\\s+([^,.]+)`, 'i'))
-      if (mLocated && mLocated[1]) push(subj, 'located-in', normalizeNounPhrase(mLocated[1]), 0.85)
-    }
-
-    const quantityUnit = '(?:million|billion|thousand|%|percent|km|kg|m|cm|mm)'
-    const mPopulation = subjInSentence
-      ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,240}\\bpopulation\\s+of\\s+(?:about\\s+)?(\\d+(?:\\.\\d+)?\\s*${quantityUnit})`, 'i'))
-      : sent.match(new RegExp(`\\bpopulation\\s+of\\s+(?:about\\s+)?(\\d+(?:\\.\\d+)?\\s*${quantityUnit})`, 'i'))
-    if (mPopulation && mPopulation[1]) push(subj, 'has-population', normalizeNounPhrase(mPopulation[1]), 0.85)
-
-    const mKnown = subjInSentence
-      ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,200}\\bknown\\s+for\\s+([^.]*)`, 'i'))
-      : sent.match(/\bknown\s+for\s+([^.]*)/i)
-    if (mKnown && mKnown[1]) {
-      const list = splitCommaAndAndList(mKnown[1])
-      list.forEach(item => {
-        if (/\bproject\b|\bprojects\b/i.test(item)) push(subj, 'has', item, 0.75)
-        else push(subj, 'known-for', item, 0.75)
-      })
-    }
-
-    const shouldSkipHas = /\bpopulation\s+of\b/i.test(sent) && !subjInSentence
-    const mHas = shouldSkipHas
-      ? null
-      : subjInSentence
-        ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,160}\\bhas\\s+([^.]*)`, 'i'))
-        : sent.match(/\bhas\s+([^.]*)/i)
-    if (mHas && mHas[1]) {
-      const rhs = normalizeWhitespace(mHas[1]).replace(/\b(?:a|an|the)\b/gi, ' ').trim()
-      const list = splitCommaAndAndList(rhs)
-      list.forEach(item => push(subj, 'has', item, 0.7))
-    }
-
-    if (triples.length === before && ents.length >= 2 && subjInSentence) {
-      const obj = ents[1]!.text
-      const between = (() => {
-        const lowerSent = sent.toLowerCase()
-        const a = lowerSent.indexOf(subj.toLowerCase())
-        const b = lowerSent.indexOf(obj.toLowerCase())
-        if (a < 0 || b < 0) return ''
-        const start = Math.min(a + subj.length, b + obj.length)
-        const end = Math.max(a, b)
-        if (start >= end) return ''
-        return sent.slice(start, end)
-      })()
-      const verbTokens = tokenizeForStats(between, 2, new Set())
-      const verb = verbTokens.find(t => t.length >= 2) || 'relates_to'
-      push(subj, verb, obj, 0.55)
-    }
-  }
-
-  return triples
-}
 
 const normalizeNodeKey = (value: string): string => {
   const t = normalizeWhitespace(value)

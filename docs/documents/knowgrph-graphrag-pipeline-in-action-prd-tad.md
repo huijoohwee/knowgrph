@@ -99,7 +99,7 @@ mermaid: |
 
 **Version**: 1.0.0  
 **Date**: 2026-01-22  
-**Status**: Draft
+**Status**: Implemented
 
 ---
 
@@ -806,7 +806,8 @@ This PRD/TAD is implemented in the `knowgrph/canvas` pipeline as a domain-agnost
 - Pipeline (sequential stages, metrics, FOSS attribution): `canvas/src/lib/graph/graphragTextPipeline.ts`
 - Parser integration (auto-detect `.txt` + plain-text `.md`): `canvas/src/features/parsers/default.ts` (`graphrag-text`)
 - UI visualization (stage-by-stage inspector): `canvas/src/features/panels/views/GraphRagTextPipelineSection.tsx` (Parser tab)
-- Tests (neutral fixtures + demo-fidelity fixture): `canvas/src/__tests__/graphragTextPipeline.test.ts`, `canvas/src/__tests__/demo/graphrag-pipeline-demo.md`
+- AIE book chapter snippet demo (multi-input, extraction fidelity): `canvas/src/features/demo/GraphRagAieBookChapterSummariesDemo.tsx`, `canvas/src/features/demo/aieBookChapterSnippets.ts`
+- Tests (neutral fixtures + demo-fidelity fixtures): `canvas/src/__tests__/graphragTextPipeline.test.ts`, `canvas/src/__tests__/aieBookGraphRagTextPipeline.test.ts`, `canvas/src/__tests__/demo/graphrag-pipeline-demo.md`
 
 ### Scope Notes
 

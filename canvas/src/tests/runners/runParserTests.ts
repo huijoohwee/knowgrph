@@ -31,6 +31,7 @@ import {
   testGraphRagTextParserSpecMatchesTxt,
   testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd,
 } from '@/__tests__/graphragTextPipeline.test'
+import { testGraphRagTextPipelineExtractsFromAieBookSnippets } from '@/__tests__/aieBookGraphRagTextPipeline.test'
 
 export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.registryCrud', testParserRegistryCrud)
@@ -57,6 +58,7 @@ export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.mermaid.seedLayoutSpreadAndCenter', testMermaidSeedLayoutSpreadsGroupsAndCenters)
   await execTest(results, 'parser.graphragText.pipelineBuildsGraphAcrossDomains', testGraphRagTextPipelineBuildsGraphAcrossDomains)
   await execTest(results, 'parser.graphragText.pipelineMatchesDemoFixture', testGraphRagTextPipelineMatchesDemoFixture)
+  await execTest(results, 'parser.graphragText.pipelineExtractsFromAieBookSnippets', testGraphRagTextPipelineExtractsFromAieBookSnippets)
   await execTest(results, 'parser.graphragText.parserSpecMatchesTxt', testGraphRagTextParserSpecMatchesTxt)
   await execTest(results, 'parser.graphragText.bestMatchPrefersGraphRagOnPlainMd', testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd)
 }
