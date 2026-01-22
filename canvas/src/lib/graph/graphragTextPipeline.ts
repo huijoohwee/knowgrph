@@ -202,7 +202,10 @@ const buildGraphFromTriples = (args: {
       source: s.id,
       target: o.id,
       label,
-      properties: { confidence: t.confidence as JSONValue },
+      properties: { 
+        confidence: t.confidence as JSONValue,
+        ...(t.properties || {}) as Record<string, JSONValue>
+      },
     })
   }
 

@@ -1,16 +1,17 @@
 import { LRUCache } from '@/lib/cache/LRUCache'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashText } from '@/features/parsers/hash'
-import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
 import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { computeConnectedComponents, computePageRank } from '@/features/semantic-mode/graphAlgorithms'
 import {
   extractMentionsRobust,
   extractTriplesHeuristic,
+  extractCooccurrencePairs,
   splitSentencesWithOffsets,
   isVerbLike,
   normalizeWhitespace,
+  normalizeEntityKey,
   type TextEntity,
 } from '@/lib/graph/textAnalysis'
 
@@ -59,14 +60,6 @@ type Mention = {
   ner?: string
 }
 
-const normalizeEntityKey = (raw: string): string => {
-  const t = String(raw || '').trim().replace(/\s+/g, ' ')
-  if (!t) return ''
-  const stripped = t.replace(/^[\s"'“”‘’()[\]{}]+|[\s"'“”‘’()[\]{}]+$/g, '').trim()
-  if (!stripped) return ''
-  return stripped.toLowerCase()
-}
-
 const prettyLabel = (key: string): string => {
   const t = String(key || '').trim()
   if (!t) return ''
@@ -74,21 +67,6 @@ const prettyLabel = (key: string): string => {
     .split(' ')
     .map(w => (w ? w[0].toUpperCase() + w.slice(1) : w))
     .join(' ')
-}
-
-const inferRelationshipKeyword = (args: {
-  betweenText: string
-  stopwords: ReadonlySet<string>
-  disallow: ReadonlySet<string>
-}): string => {
-  const tokens = tokenizeForStats(args.betweenText, 2, new Set())
-  const cleaned = tokens
-    .map(t => String(t || '').trim().toLowerCase())
-    .filter(t => !!t && !args.stopwords.has(t) && !args.disallow.has(t))
-  const verb = cleaned.find(t => isVerbLike(t))
-  if (verb) return verb
-  if (cleaned.length > 0) return cleaned[0]!
-  return 'relates_to'
 }
 
 const computePpmi = (args: {
@@ -160,14 +138,20 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
   const directionCountsByPair = new Map<string, Map<string, number>>()
 
   // 1. Process explicit triples first for strong signals
-  const triples = extractTriplesHeuristic(text, textEntities)
-  for (const t of triples) {
+  const explicitTriples = extractTriplesHeuristic(text, textEntities)
+  const cooccurrenceTriples = extractCooccurrencePairs(text, textEntities)
+  
+  // Merge all signals
+  const allTriples = [...explicitTriples.map(t => ({ ...t, weight: 3 })), ...cooccurrenceTriples.map(t => ({ ...t, weight: 1 }))]
+
+  for (const t of allTriples) {
     const sKey = normalizeEntityKey(t.subject)
     const oKey = normalizeEntityKey(t.object)
     const pKey = normalizeEntityKey(t.predicate)
     if (!sKey || !oKey || !pKey) continue
+    
+    // Ensure nodes exist
     if (!entityByKey.has(sKey)) {
-        // Fallback: create node if missing (though extractTriples usually uses existing entities)
         const id = `kw:entity:${hashText(sKey)}`
         entityByKey.set(sKey, { id, label: t.subject, count: 1 })
     }
@@ -176,141 +160,45 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         entityByKey.set(oKey, { id, label: t.object, count: 1 })
     }
     
-    // Boost counts
+    // Boost counts based on signal strength
     const sNode = entityByKey.get(sKey)!
-    sNode.count += 2
+    sNode.count += t.weight
     const oNode = entityByKey.get(oKey)!
-    oNode.count += 2
+    oNode.count += t.weight
 
     // Record pair
     const pairKey = sKey.localeCompare(oKey) < 0 ? `${sKey}|${oKey}` : `${oKey}|${sKey}`
-    pairCounts.set(pairKey, (pairCounts.get(pairKey) || 0) + 3) // Higher weight for explicit triples
+    pairCounts.set(pairKey, (pairCounts.get(pairKey) || 0) + t.weight)
 
     // Record relation
     const relMap = relationCountsByPair.get(pairKey) || new Map<string, number>()
-    relMap.set(pKey, (relMap.get(pKey) || 0) + 3)
+    relMap.set(pKey, (relMap.get(pKey) || 0) + t.weight)
     relationCountsByPair.set(pairKey, relMap)
     predicateKeys.add(pKey)
 
     // Record roles
     const sRole = roleCountsByEntityKey.get(sKey) || { subject: 0, object: 0 }
-    sRole.subject += 3
+    sRole.subject += t.weight
     roleCountsByEntityKey.set(sKey, sRole)
     const oRole = roleCountsByEntityKey.get(oKey) || { subject: 0, object: 0 }
-    oRole.object += 3
+    oRole.object += t.weight
     roleCountsByEntityKey.set(oKey, oRole)
 
     // Record direction
     const dirKey = `${sKey}|${oKey}`
     const dirMap = directionCountsByPair.get(pairKey) || new Map<string, number>()
-    dirMap.set(dirKey, (dirMap.get(dirKey) || 0) + 3)
+    dirMap.set(dirKey, (dirMap.get(dirKey) || 0) + t.weight)
     directionCountsByPair.set(pairKey, dirMap)
   }
 
-  // 2. Process co-occurrence for implicit signals
+  // Record block counts for PPMI
   const sentenceRanges = splitSentencesWithOffsets(text)
-  const mentionsBySentence: Mention[][] = []
-  if (sentenceRanges.length > 0 && mentions.length > 0) {
-    let mIdx = 0
-    for (let sIdx = 0; sIdx < sentenceRanges.length; sIdx += 1) {
-      const r = sentenceRanges[sIdx]!
-      const bucket: Mention[] = []
-      while (mIdx < mentions.length) {
-        const m = mentions[mIdx]!
-        const mid = (m.start + m.end) / 2
-        if (mid < r.start) {
-          mIdx += 1
-          continue
-        }
-        if (mid > r.end) break
-        bucket.push(m)
-        mIdx += 1
-      }
-      mentionsBySentence.push(bucket)
-    }
-  } else {
-    for (let i = 0; i < sentenceRanges.length; i += 1) mentionsBySentence.push([])
-  }
-
-  for (let sIdx = 0; sIdx < mentionsBySentence.length; sIdx += 1) {
-    const list = mentionsBySentence[sIdx] || []
-    if (list.length < 2) continue
-    const localCounts = new Map<string, number>()
-    for (let i = 0; i < list.length; i += 1) {
-      const k = list[i]?.key
-      if (!k) continue
-      localCounts.set(k, (localCounts.get(k) || 0) + 1)
-    }
-    const uniqueKeys = Array.from(localCounts.entries())
-      .sort((a, b) => {
-        const diff = b[1] - a[1]
-        if (diff !== 0) return diff
-        return a[0].localeCompare(b[0])
-      })
-      .map(([k]) => k)
-      .slice(0, 25)
-    if (uniqueKeys.length < 2) continue
-    const uniqueKeySet = new Set<string>(uniqueKeys)
-    for (let i = 0; i < uniqueKeys.length; i += 1) {
-      const k = uniqueKeys[i]!
+  for (const range of sentenceRanges) {
+    const sentenceEntities = textEntities.filter(e => e.start >= range.start && e.end <= range.end)
+    const uniqueKeys = new Set(sentenceEntities.map(e => normalizeEntityKey(e.text)).filter(Boolean))
+    uniqueKeys.forEach(k => {
       entityBlockCounts.set(k, (entityBlockCounts.get(k) || 0) + 1)
-    }
-    for (let i = 0; i < uniqueKeys.length; i += 1) {
-      for (let j = i + 1; j < uniqueKeys.length; j += 1) {
-        const a = uniqueKeys[i]!
-        const b = uniqueKeys[j]!
-        const key = a.localeCompare(b) < 0 ? `${a}|${b}` : `${b}|${a}`
-        pairCounts.set(key, (pairCounts.get(key) || 0) + 1)
-      }
-    }
-
-    const sentence = text.slice(sentenceRanges[sIdx]!.start, sentenceRanges[sIdx]!.end)
-    const earliestMentionByKey = new Map<string, Mention>()
-    for (let i = 0; i < list.length; i += 1) {
-      const m = list[i]!
-      if (!uniqueKeySet.has(m.key)) continue
-      const existing = earliestMentionByKey.get(m.key)
-      if (!existing || m.start < existing.start) {
-        earliestMentionByKey.set(m.key, m)
-      }
-    }
-    for (let i = 0; i < uniqueKeys.length; i += 1) {
-      for (let j = i + 1; j < uniqueKeys.length; j += 1) {
-        const a = uniqueKeys[i]!
-        const b = uniqueKeys[j]!
-        const aMention = earliestMentionByKey.get(a)
-        const bMention = earliestMentionByKey.get(b)
-        if (!aMention || !bMention) continue
-        const base = sentenceRanges[sIdx]!.start
-        const leftMention = aMention.start <= bMention.start ? aMention : bMention
-        const rightMention = aMention.start <= bMention.start ? bMention : aMention
-        const left = Math.max(0, leftMention.end - base)
-        const right = Math.max(0, rightMention.start - base)
-        const between = left < right ? sentence.slice(left, right) : ''
-        const disallow = new Set<string>([a, b])
-        const verb = inferRelationshipKeyword({ betweenText: between, stopwords: DEFAULT_STOPWORDS, disallow })
-        const predKey = normalizeEntityKey(String(verb || '')) || 'relates_to'
-        predicateKeys.add(predKey)
-        const pairKey = a.localeCompare(b) < 0 ? `${a}|${b}` : `${b}|${a}`
-        const relMap = relationCountsByPair.get(pairKey) || new Map<string, number>()
-        relMap.set(predKey, (relMap.get(predKey) || 0) + 1)
-        relationCountsByPair.set(pairKey, relMap)
-
-        const subjKey = leftMention.key
-        const objKey = rightMention.key
-        const subjCounts = roleCountsByEntityKey.get(subjKey) || { subject: 0, object: 0 }
-        subjCounts.subject += 1
-        roleCountsByEntityKey.set(subjKey, subjCounts)
-        const objCounts = roleCountsByEntityKey.get(objKey) || { subject: 0, object: 0 }
-        objCounts.object += 1
-        roleCountsByEntityKey.set(objKey, objCounts)
-
-        const dirKey = `${subjKey}|${objKey}`
-        const dirMap = directionCountsByPair.get(pairKey) || new Map<string, number>()
-        dirMap.set(dirKey, (dirMap.get(dirKey) || 0) + 1)
-        directionCountsByPair.set(pairKey, dirMap)
-      }
-    }
+    })
   }
 
   predicateKeys.forEach((p) => {
@@ -377,7 +265,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
   })
   nodes.sort((a, b) => String(a.id).localeCompare(String(b.id)))
 
-  const ppmi = computePpmi({ pairCounts, entityBlockCounts, blockCount: mentionsBySentence.length })
+  const ppmi = computePpmi({ pairCounts, entityBlockCounts, blockCount: sentenceRanges.length })
 
   const edges: GraphEdge[] = []
   pairCounts.forEach((count, pairKey) => {

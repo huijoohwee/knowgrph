@@ -99,7 +99,7 @@ mermaid: |
 
 **Version**: 1.0.0  
 **Date**: 2026-01-22  
-**Status**: Implemented
+**Status**: Implemented (Enhanced v1.1)
 
 ---
 
@@ -117,6 +117,8 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 - Existing solutions are proprietary, expensive, or vendor-locked
 - No visibility into processing stages makes debugging difficult
 - Integration with LLM workflows requires custom glue code
+- **Lack of rich semantic context**: Simple subject-verb-object triples miss temporal, modal, and causal nuances.
+- **Fragmented logic**: Legacy implementations scatter extraction logic across different modules.
 
 **Quantified Impact**: Users spend 15-20 hours per week on manual knowledge extraction that could be automated, representing 40-50% of research time.
 
@@ -149,6 +151,7 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 - **Given** text with entity relationships (e.g., "Singapore is located in Southeast Asia")  
 - **When** system processes entities  
 - **Then** system produces triples like "(Singapore, located-in, Southeast Asia)" with >75% accuracy
+- **Then** system captures rich properties: temporal markers, modality (certainty), and causality.
 
 **PRD-E001-S003: Interactive Processing Visualization**
 
@@ -160,6 +163,7 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 - **Given** text submitted for processing  
 - **When** pipeline executes  
 - **Then** user sees progressive results from each stage (tokenization → NER → triple extraction → graph construction) within 3 seconds
+- **Then** the visualization must strictly mirror the actual pipeline execution (no hardcoded demos).
 
 **PRD-E001-S004: Knowledge Graph Construction**
 
@@ -171,6 +175,7 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 - **Given** valid entity triples  
 - **When** graph construction completes  
 - **Then** system displays node count, edge count, and community clusters with interactive visualization
+- **Then** graph supports "Graph Layers/Subgraphs" (clusters, communities).
 
 ---
 

@@ -1,71 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Network, FileText, Sparkles, GitBranch, Database } from 'lucide-react';
+import { runGraphRagTextPipeline, type GraphRagTextPipelineResult } from '../../lib/graph/graphragTextPipeline';
 
 const GraphRAGParser = () => {
   const [step, setStep] = useState(0);
+  const [result, setResult] = useState<GraphRagTextPipelineResult | null>(null);
   const text = "Singapore is a city-state in Southeast Asia. It has a population of about 5.9 million and is known for its financial hub, Changi Airport, and future development projects.";
   
+  useEffect(() => {
+    const res = runGraphRagTextPipeline(text);
+    setResult(res);
+  }, [text]);
+
+  if (!result) return <div className="p-8 text-white">Loading pipeline...</div>;
+
   const steps = [
     {
       name: "NLTK Preprocessing",
       icon: FileText,
-      input: text,
-      output: {
-        tokens: ["Singapore", "city-state", "Southeast", "Asia", "population", "5.9", "million", "known", "financial", "hub", "Changi", "Airport", "future", "development", "projects"],
-        lemmas: ["singapore", "city-state", "southeast", "asia", "population", "million", "know", "financial", "hub", "changi", "airport", "future", "development", "project"]
-      },
-      code: "# stopwords removed, lemmatized\nfrom nltk.corpus import stopwords\nfrom nltk.stem import WordNetLemmatizer"
+      input: result.stages[0].input,
+      output: result.stages[0].output as any,
+      code: result.stages[0].code
     },
     {
       name: "HF Tokenizers",
       icon: Sparkles,
-      input: "Tokenization for LLM compatibility",
+      input: result.stages[1].input,
       output: {
-        subwords: ["Sing", "apore", "is", "a", "city", "-", "state", "in", "South", "east", "Asia"],
-        count: "Original: 29 tokens | Subword: 35 tokens"
+        ...(result.stages[1].output as any),
+        count: `Original: ${(result.stages[1].output as any).word_tokens} tokens | Subword: ${(result.stages[1].output as any).subword_tokens} tokens`
       },
-      code: "from tokenizers import Tokenizer\ntok = Tokenizer.from_pretrained('gpt2')"
+      code: result.stages[1].code
     },
     {
       name: "spaCy NER & POS",
       icon: Database,
-      input: text,
-      output: {
-        entities: [
-          { text: "Singapore", label: "GPE" },
-          { text: "Southeast Asia", label: "LOC" },
-          { text: "5.9 million", label: "QUANTITY" },
-          { text: "Changi Airport", label: "FAC" }
-        ],
-        pos: "Singapore/PROPN is/AUX a/DET city-state/NOUN"
-      },
-      code: "import spacy\nnlp = spacy.load('en_core_web_sm')\ndoc = nlp(text)"
+      input: result.stages[2].input,
+      output: result.stages[2].output as any,
+      code: result.stages[2].code
     },
     {
       name: "Triple Extraction",
       icon: GitBranch,
-      input: "Semantic relationships from text",
-      output: {
-        triples: [
-          "(Singapore, is-a, city-state)",
-          "(Singapore, located-in, Southeast Asia)",
-          "(Singapore, has-population, 5.9 million)",
-          "(Singapore, known-for, financial hub)",
-          "(Singapore, known-for, Changi Airport)"
-        ]
-      },
-      code: "# OpenIE or custom extraction\n(subject, relation, object)"
+      input: result.stages[3].input,
+      output: result.stages[3].output as any,
+      code: result.stages[3].code
     },
     {
       name: "Graph Construction",
       icon: Network,
-      input: "Build knowledge graph",
-      output: {
-        nodes: ["Singapore", "city-state", "Southeast Asia", "5.9M pop", "Changi Airport", "financial hub"],
-        edges: 5,
-        communities: 2
-      },
-      code: "import networkx as nx\nG = nx.Graph()\nG.add_edges_from(triples)"
+      input: result.stages[4].input,
+      output: result.stages[4].output as any,
+      code: result.stages[4].code
     }
   ];
 
@@ -121,7 +107,7 @@ const GraphRAGParser = () => {
                     <div>
                       <strong className="text-purple-300">Tokens:</strong>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {currentStep.output.tokens.map((t, i) => (
+                        {currentStep.output.tokens.map((t: string, i: number) => (
                           <span key={i} className="px-2 py-1 bg-blue-500/30 text-blue-200 rounded text-sm">{t}</span>
                         ))}
                       </div>
@@ -129,7 +115,7 @@ const GraphRAGParser = () => {
                     <div>
                       <strong className="text-purple-300">Lemmas:</strong>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {currentStep.output.lemmas.slice(0, 8).map((l, i) => (
+                        {currentStep.output.lemmas.slice(0, 8).map((l: string, i: number) => (
                           <span key={i} className="px-2 py-1 bg-green-500/30 text-green-200 rounded text-sm">{l}</span>
                         ))}
                       </div>
@@ -142,7 +128,7 @@ const GraphRAGParser = () => {
                     <div>
                       <strong className="text-purple-300">Subword Tokens:</strong>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {currentStep.output.subwords.map((s, i) => (
+                        {currentStep.output.subwords.map((s: string, i: number) => (
                           <span key={i} className="px-2 py-1 bg-orange-500/30 text-orange-200 rounded text-sm">{s}</span>
                         ))}
                       </div>
@@ -155,7 +141,7 @@ const GraphRAGParser = () => {
                   <>
                     <div>
                       <strong className="text-purple-300">Named Entities:</strong>
-                      {currentStep.output.entities.map((e, i) => (
+                      {currentStep.output.entities.map((e: any, i: number) => (
                         <div key={i} className="mt-2 flex items-center gap-2">
                           <span className="px-3 py-1 bg-pink-500/30 text-pink-200 rounded">{e.text}</span>
                           <span className="text-xs text-white/50">{e.label}</span>
@@ -172,7 +158,7 @@ const GraphRAGParser = () => {
                 {currentStep.name === "Triple Extraction" && (
                   <div>
                     <strong className="text-purple-300">Extracted Triples:</strong>
-                    {currentStep.output.triples.map((t, i) => (
+                    {currentStep.output.triples.map((t: string, i: number) => (
                       <div key={i} className="mt-2 text-sm text-cyan-200 font-mono bg-cyan-900/20 p-2 rounded">{t}</div>
                     ))}
                   </div>
@@ -195,7 +181,7 @@ const GraphRAGParser = () => {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {currentStep.output.nodes.map((n, i) => (
+                      {currentStep.output.nodes.map((n: string, i: number) => (
                         <span key={i} className="px-3 py-2 bg-indigo-500/30 text-indigo-200 rounded-lg text-sm">{n}</span>
                       ))}
                     </div>
