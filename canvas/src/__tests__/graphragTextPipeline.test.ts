@@ -97,3 +97,33 @@ export function testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd() {
   if (!spec) throw new Error('Expected bestMatch parser')
   if (String(spec.id) !== 'graphrag-text') throw new Error(`Expected graphrag-text, got ${String(spec.id)}`)
 }
+
+export function testGraphRagTextPipelineCentralityConfigDisablesMetrics() {
+  const demoText = readFixture('./fixtures/graphrag-text-demo.md').trim()
+  const res = runGraphRagTextPipeline(demoText, {
+    centrality: { pagerank: false, hits: false, betweenness: false, closeness: false },
+  })
+  const graph = res.graphData
+  if (graph.type !== 'Graph') throw new Error('Expected GraphData.type=Graph')
+  const anyHasCentrality = graph.nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return (
+      'graphrag:pagerank' in props ||
+      'graphrag:hubs' in props ||
+      'graphrag:authorities' in props ||
+      'graphrag:betweenness' in props ||
+      'graphrag:closeness' in props
+    )
+  })
+  if (anyHasCentrality) throw new Error('Expected centrality metrics to be omitted when disabled')
+
+  const meta = graph.metadata as unknown as Record<string, unknown>
+  const pipeline = meta?.graphragTextPipeline as unknown as Record<string, unknown>
+  const cfg = pipeline?.config as unknown as Record<string, unknown>
+  const centrality = cfg?.centrality as unknown as Record<string, unknown>
+  if (!centrality) throw new Error('Expected graphragTextPipeline.config.centrality metadata')
+  const keys = ['pagerank', 'hits', 'betweenness', 'closeness'] as const
+  for (const k of keys) {
+    if (centrality[k] !== false) throw new Error(`Expected centrality.${k}=false`)
+  }
+ }

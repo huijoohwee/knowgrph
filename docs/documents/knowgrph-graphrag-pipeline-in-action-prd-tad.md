@@ -1238,9 +1238,11 @@ interface AnalyticsStageMetrics {
 1. **Frequency**: Count of entity mentions in corpus
 2. **TF-IDF Score**: Term frequency × inverse document frequency (normalized [0,1])
 3. **PageRank**: Importance based on graph structure (normalized [0,1])
-4. **Degree Centrality**: Number of connections (normalized [0,1])
-5. **Betweenness Centrality**: Fraction of shortest paths through node (normalized [0,1])
-6. **Combined Score**: Weighted average `0.4×frequency + 0.3×tfidf + 0.3×pagerank`
+4. **HITS (Hubs & Authorities)**: Hub score (points to authorities) and Authority score (pointed to by hubs)
+5. **Degree Centrality**: Number of connections (normalized [0,1])
+6. **Betweenness Centrality**: Fraction of shortest paths through node (normalized [0,1])
+7. **Closeness Centrality**: Inverse sum of shortest paths to all other nodes (normalized [0,1])
+8. **Combined Score**: Weighted average `0.4×frequency + 0.3×tfidf + 0.3×pagerank`
 
 **Visual Encoding**:
 - Node radius: `baseRadius × (1 + combinedScore × 2)`
@@ -1433,3 +1435,4 @@ This PRD/TAD is implemented in the `knowgrph/canvas` pipeline as a domain-agnost
 
 - The Canvas demo remains extraction-only (no LLM API integration) and runs without server dependencies.
 - Library references and code snippets are shown for transparency; the demo pipeline itself uses heuristic implementations (bounded summarization + sentence-level evidence spans) to stay portable.
+- Context-Aware Analytics (PageRank / HITS / Betweenness / Closeness) can be toggled from BottomPanel (Parser/Stats); the effective settings are captured in `GraphData.metadata.graphragTextPipeline.config`.

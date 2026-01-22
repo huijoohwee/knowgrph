@@ -69,6 +69,7 @@ export const LS_KEYS = {
   renderThreeCameraCollapsed: 'kg:render:three:cameraCollapsed',
   renderThreeSelectionCollapsed: 'kg:render:three:selectionCollapsed',
   parserTreeSitterEnabled: 'kg:parsers:treeSitterEnabled',
+  graphragTextCentralityConfig: 'kg:graphragText:centralityConfig',
   graphData: 'kg:data',
   graphSchema: 'kg:schema',
   graphFieldSettingsById: 'kg:graphFields:settingsById',
@@ -163,6 +164,7 @@ export type LsKeyOwner =
   | 'ui.sidebar'
   | 'ui.preview'
   | 'parsers.treeSitter'
+  | 'graphragText.analytics'
   | 'data.graph'
   | 'schema.graph'
   | 'graphFields.settings'
@@ -258,6 +260,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   renderThreeCameraCollapsed: 'render.prefs',
   renderThreeSelectionCollapsed: 'render.prefs',
   parserTreeSitterEnabled: 'parsers.treeSitter',
+  graphragTextCentralityConfig: 'graphragText.analytics',
   graphData: 'data.graph',
   graphSchema: 'schema.graph',
   graphFieldSettingsById: 'graphFields.settings',

@@ -5,6 +5,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { isRecord } from '@/lib/graph/jsonld/utils'
 import type { JSONValue } from '@/lib/graph/types'
+import { runGraphRagTextPipeline } from '@/lib/graph/graphragTextPipeline'
+import { useGraphRagTextCentralityConfig } from '@/components/BottomPanel/hooks/useGraphRagTextCentralityConfig'
 
 type StageView = {
   id: string
@@ -44,12 +46,16 @@ const getStagesFromGraphMeta = (graphData: unknown): StageView[] => {
 
 export default function GraphRagTextPipelineSection() {
   const graphData = useGraphStore(s => s.graphData)
+  const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
+  const jsonSourceDocumentText = useGraphStore(s => s.jsonSourceDocumentText)
   const [collapsed, setCollapsed] = React.useState(true)
   const [step, setStep] = React.useState(0)
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
+  const { cfg, update, reset } = useGraphRagTextCentralityConfig()
 
   const stages = React.useMemo(() => getStagesFromGraphMeta(graphData), [graphData])
+  const isGraphRag = graphData?.context === 'graphrag-text'
 
   React.useEffect(() => {
     if (step < 0) setStep(0)
@@ -57,6 +63,13 @@ export default function GraphRagTextPipelineSection() {
   }, [step, stages.length])
 
   if (!stages.length) return null
+
+  const sourceText = (() => {
+    const a = typeof markdownDocumentText === 'string' ? markdownDocumentText : ''
+    const b = typeof jsonSourceDocumentText === 'string' ? jsonSourceDocumentText : ''
+    return a.trim() ? a : b
+  })()
+  const canRecompute = isGraphRag && sourceText.trim().length > 0
 
   const current = stages[Math.min(Math.max(step, 0), stages.length - 1)]!
 
@@ -181,6 +194,50 @@ export default function GraphRagTextPipelineSection() {
             </button>
           ))}
         </div>
+
+        {isGraphRag && (
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <span className="text-gray-500 font-semibold">Context-Aware Analytics</span>
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
+              <span>HITS</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={cfg.closeness} onChange={e => update({ closeness: e.target.checked })} />
+              <span>Closeness</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={cfg.pagerank} onChange={e => update({ pagerank: e.target.checked })} />
+              <span>PageRank</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={cfg.betweenness} onChange={e => update({ betweenness: e.target.checked })} />
+              <span>Betweenness</span>
+            </label>
+            <button
+              type="button"
+              className="px-2 py-0.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"
+              onClick={reset}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              disabled={!canRecompute}
+              className={[
+                'px-2 py-0.5 rounded border border-gray-200',
+                canRecompute ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-400',
+              ].join(' ')}
+              onClick={() => {
+                if (!canRecompute) return
+                const res = runGraphRagTextPipeline(sourceText, { centrality: cfg })
+                useGraphStore.getState().setGraphData(res.graphData)
+              }}
+            >
+              Recompute
+            </button>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-3">
           <div className="rounded border border-gray-200 bg-white p-3 space-y-2">

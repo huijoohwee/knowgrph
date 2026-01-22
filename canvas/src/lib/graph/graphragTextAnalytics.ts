@@ -2,19 +2,21 @@ import type { GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import type { TextEntity, TextTriple } from '@/lib/graph/textAnalysis'
 import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
 import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
-import { computeConnectedComponents, computePageRank } from '@/features/semantic-mode/graphAlgorithms'
+import { computeConnectedComponents, computePageRank, computeHITS } from '@/features/semantic-mode/graphAlgorithms'
 import { computePpmi, deriveEdgeWidthFromStrength } from '@/features/semantic-mode/association'
 import { computeDbscanCommunities } from '@/features/semantic-mode/densityClustering'
 import type { DensityClusteringConfig } from '@/features/semantic-mode/densityClustering'
 import {
   buildUndirectedNeighbors,
   computeBetweennessCentrality,
+  computeClosenessCentrality,
   computeClusteringCoefficient,
   computeGraphDensity,
   computeShortestPathStats,
 } from '@/features/semantic-mode/graphMetrics'
 import { nowMs } from '@/lib/graph/graphragTextToyStages'
 import { normalizeWhitespace, splitSentencesWithOffsets } from '@/lib/graph/textAnalysis'
+import { DEFAULT_GRAPHRAG_TEXT_CENTRALITY_CONFIG, type GraphRagTextCentralityConfig } from '@/lib/graph/graphragTextConfig'
 
 const clampNumber = (v: number, min: number, max: number): number => {
   if (!Number.isFinite(v)) return min
@@ -49,6 +51,7 @@ export function applyGraphRagTextAnalytics(args: {
   edges: GraphEdge[]
   nodeKeyById: Map<string, string>
   densityClustering?: Partial<DensityClusteringConfig>
+  centrality?: Partial<GraphRagTextCentralityConfig>
 }): GraphRagTextAnalyticsOutputs {
   const baseText = String(args.text || '')
   const sentenceRanges = splitSentencesWithOffsets(baseText)
@@ -118,13 +121,28 @@ export function applyGraphRagTextAnalytics(args: {
   const nodeIds = args.nodes.map(n => String(n.id)).filter(Boolean)
   const undirectedNeighbors = buildUndirectedNeighbors({ nodeIds, edges: args.edges })
 
+  const centralityCfg: GraphRagTextCentralityConfig = {
+    ...DEFAULT_GRAPHRAG_TEXT_CENTRALITY_CONFIG,
+    ...(args.centrality || {}),
+  }
+
   const entityT0 = nowMs()
-  const pr = computePageRank({ nodeIds, neighbors: undirectedNeighbors, iterations: 24, damping: 0.85 })
-  const bet = computeBetweennessCentrality({ nodeIds, undirectedNeighbors, maxNodes: 140, maxSteps: 200_000 })
+  const pr = centralityCfg.pagerank
+    ? computePageRank({ nodeIds, neighbors: undirectedNeighbors, iterations: 24, damping: 0.85 })
+    : new Map<string, number>()
+  const hits = centralityCfg.hits
+    ? computeHITS({ nodeIds, edges: args.edges, iterations: 24 })
+    : { hubs: new Map<string, number>(), authorities: new Map<string, number>() }
+  const bet = centralityCfg.betweenness
+    ? computeBetweennessCentrality({ nodeIds, undirectedNeighbors, maxNodes: 140, maxSteps: 200_000 })
+    : new Map<string, number>()
+  const close = centralityCfg.closeness
+    ? computeClosenessCentrality({ nodeIds, undirectedNeighbors, maxNodes: 140, maxSteps: 200_000 })
+    : new Map<string, number>()
   const entityT1 = nowMs()
 
   const docCount = Math.max(1, sentenceRanges.length)
-  const scoreRows: Array<{ label: string; freq: number; tfidf: number; pagerank: number }> = []
+  const scoreRows: Array<{ label: string; freq: number; tfidf: number; pagerank: number; hubs: number; authorities: number; closeness: number }> = []
   for (let i = 0; i < args.nodes.length; i += 1) {
     const n = args.nodes[i]!
     const id = String(n.id || '')
@@ -134,21 +152,30 @@ export function applyGraphRagTextAnalytics(args: {
     const idf = Math.log((docCount + 1) / (df + 1)) + 1
     const tfidf = freq * idf
     const rank = pr.get(id) || 0
+    const hub = hits.hubs.get(id) || 0
+    const auth = hits.authorities.get(id) || 0
     const betw = bet.get(id) || 0
+    const cls = close.get(id) || 0
     const degree = (undirectedNeighbors.get(id) || []).length
-    const importance = freq + tfidf * 0.25 + rank * 10 + betw * 4
+    const importance = freq + tfidf * 0.25 + rank * 10 + betw * 4 + auth * 5 + cls * 2
     const nodeSize = clampNumber(Math.sqrt(Math.max(0, importance)) * 2, 10, 40)
-    n.properties = {
-      ...(n.properties || {}),
+    const nextProps: Record<string, JSONValue> = {
+      ...((n.properties || {}) as Record<string, JSONValue>),
       'keyword:frequency': freq as unknown as JSONValue,
       'graphrag:tfidf': tfidf as unknown as JSONValue,
-      'graphrag:pagerank': rank as unknown as JSONValue,
-      'graphrag:betweenness': betw as unknown as JSONValue,
       'graphrag:degree': degree as unknown as JSONValue,
       'visual:importance': importance as unknown as JSONValue,
       'visual:nodeSize': nodeSize as unknown as JSONValue,
     }
-    scoreRows.push({ label: String(n.label || ''), freq, tfidf, pagerank: rank })
+    if (centralityCfg.pagerank) nextProps['graphrag:pagerank'] = rank as unknown as JSONValue
+    if (centralityCfg.hits) {
+      nextProps['graphrag:hubs'] = hub as unknown as JSONValue
+      nextProps['graphrag:authorities'] = auth as unknown as JSONValue
+    }
+    if (centralityCfg.betweenness) nextProps['graphrag:betweenness'] = betw as unknown as JSONValue
+    if (centralityCfg.closeness) nextProps['graphrag:closeness'] = cls as unknown as JSONValue
+    n.properties = nextProps
+    scoreRows.push({ label: String(n.label || ''), freq, tfidf, pagerank: rank, hubs: hub, authorities: auth, closeness: cls })
   }
 
   scoreRows.sort((a, b) => {
@@ -158,12 +185,21 @@ export function applyGraphRagTextAnalytics(args: {
     return a.label.localeCompare(b.label)
   })
   const entityOutput = {
-    keywords: scoreRows.slice(0, 10).map(r => ({
-      entity: r.label,
-      freq: r.freq,
-      tfidf: Number(r.tfidf.toFixed(3)),
-      pagerank: Number(r.pagerank.toFixed(3)),
-    })),
+    centrality: centralityCfg as unknown as JSONValue,
+    keywords: scoreRows.slice(0, 10).map(r => {
+      const row: Record<string, JSONValue> = {
+        entity: r.label,
+        freq: r.freq as unknown as JSONValue,
+        tfidf: Number(r.tfidf.toFixed(3)) as unknown as JSONValue,
+      }
+      if (centralityCfg.pagerank) row.pagerank = Number(r.pagerank.toFixed(3)) as unknown as JSONValue
+      if (centralityCfg.hits) {
+        row.hubs = Number(r.hubs.toFixed(3)) as unknown as JSONValue
+        row.authorities = Number(r.authorities.toFixed(3)) as unknown as JSONValue
+      }
+      if (centralityCfg.closeness) row.closeness = Number(r.closeness.toFixed(3)) as unknown as JSONValue
+      return row as unknown as JSONValue
+    }),
   } as unknown as JSONValue
 
   const relT0 = nowMs()

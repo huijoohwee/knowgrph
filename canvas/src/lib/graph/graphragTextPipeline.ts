@@ -6,6 +6,7 @@ import { nowMs, tokenizePreserveCase, lemmatizeNaive, hfToySubwordsFromText } fr
 import { applyGraphRagTextAnalytics, type GraphRagTextGraphMetrics } from '@/lib/graph/graphragTextAnalytics'
 import type { DensityClusteringConfig } from '@/features/semantic-mode/densityClustering'
 import { buildExtractiveSummary } from '@/lib/graph/extractiveSummarization'
+import type { GraphRagTextCentralityConfig } from '@/lib/graph/graphragTextConfig'
 import {
   extractEntitiesHeuristic,
   extractTriplesHeuristic,
@@ -64,6 +65,7 @@ export type GraphRagTextPipelineResult = {
 
 export type GraphRagTextPipelineOptions = {
   densityClustering?: Partial<DensityClusteringConfig>
+  centrality?: Partial<GraphRagTextCentralityConfig>
 }
 
 
@@ -347,13 +349,14 @@ export function runGraphRagTextPipeline(text: string, options?: GraphRagTextPipe
     edges: built.edges,
     nodeKeyById: built.nodeKeyById,
     densityClustering: options?.densityClustering,
+    centrality: options?.centrality,
   })
 
   stages.push({
     id: 'entityAnalytics',
     name: 'Entity Layer Analytics',
-    library: { name: 'TF‑IDF + PageRank', url: 'https://scikit-learn.org/', license: 'BSD-3-Clause' },
-    code: ['from sklearn.feature_extraction.text import TfidfVectorizer', 'nx.pagerank(G)'].join('\n'),
+    library: { name: 'TF‑IDF + PageRank + HITS + Centrality', url: 'https://networkx.org/documentation/stable/reference/algorithms/centrality.html', license: 'BSD-3-Clause' },
+    code: ['from sklearn.feature_extraction.text import TfidfVectorizer', 'nx.pagerank(G)', 'nx.hits(G)', 'nx.closeness_centrality(G)'].join('\n'),
     input: 'Entities + graph adjacency',
     output: analytics.entityOutput,
     metrics: {
@@ -444,6 +447,10 @@ export function runGraphRagTextPipeline(text: string, options?: GraphRagTextPipe
       graphragTextPipeline: {
         inputTextPreview: baseText.slice(0, 2048),
         inputTextHash: hashText(baseText),
+        config: {
+          densityClustering: (options?.densityClustering || {}) as unknown as JSONValue,
+          centrality: (options?.centrality || {}) as unknown as JSONValue,
+        } as unknown as JSONValue,
         summary: summaryOutput as unknown as JSONValue,
         graphMetrics: graphMetrics as unknown as JSONValue,
         stages,

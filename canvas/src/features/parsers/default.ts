@@ -3,10 +3,13 @@ import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { parseGraph } from '@/lib/graph/io/adapter'
 import { parseGraphInWorker } from '@/lib/graph/parseWorker'
 import { runGraphRagTextPipeline } from '@/lib/graph/graphragTextPipeline'
+import { DEFAULT_GRAPHRAG_TEXT_CENTRALITY_CONFIG, parseGraphRagTextCentralityConfig } from '@/lib/graph/graphragTextConfig'
 import type { ParserSpec } from './types'
 import { toParserId } from './types'
 import { pythonSpec } from './python'
 import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
+import { LS_KEYS } from '@/lib/config'
+import { lsJson } from '@/lib/persistence'
 
 export { buildMarkdownJsonLd } from './markdownJsonLd'
 
@@ -179,7 +182,12 @@ const graphragTextSpec: ParserSpec = {
   },
   parse: (name, text) => {
     void name
-    const res = runGraphRagTextPipeline(text)
+    const centrality = lsJson(
+      LS_KEYS.graphragTextCentralityConfig,
+      DEFAULT_GRAPHRAG_TEXT_CENTRALITY_CONFIG,
+      parseGraphRagTextCentralityConfig,
+    )
+    const res = runGraphRagTextPipeline(text, { centrality })
     return { graphData: res.graphData, warnings: res.warnings }
   },
 }

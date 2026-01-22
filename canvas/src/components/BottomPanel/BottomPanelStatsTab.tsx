@@ -8,6 +8,7 @@ import CommunitiesStatsSection from '@/components/BottomPanel/stats/CommunitiesS
 import EdgesStatsSection from '@/components/BottomPanel/stats/EdgesStatsSection'
 import NodeWordFrequenciesSection from '@/components/BottomPanel/stats/NodeWordFrequenciesSection'
 import KeywordEntitiesSection from '@/components/BottomPanel/stats/KeywordEntitiesSection'
+import GraphRagCentralityStatsSection from '@/components/BottomPanel/stats/GraphRagCentralityStatsSection'
 import type { StatsUiClasses } from '@/components/BottomPanel/stats/types'
 import { useStatsSelection } from '@/components/BottomPanel/hooks/useStatsSelection'
 import { useStatsTokens } from '@/components/BottomPanel/hooks/useStatsTokens'
@@ -202,6 +203,11 @@ export default function BottomPanelStatsTab() {
         datasetStats={datasetStats}
         contextComparison={agenticContext}
         ignoreFilters={datasetIgnoreFilters}
+      />
+
+      <GraphRagCentralityStatsSection
+        ui={ui}
+        neutralBarColor={neutralBarColor}
       />
 
       {semanticMode === 'keyword' ? (

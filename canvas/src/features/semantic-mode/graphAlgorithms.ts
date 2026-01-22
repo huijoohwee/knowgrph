@@ -30,6 +30,80 @@ export const computeConnectedComponents = (args: {
   return out
 }
 
+export const computeHITS = (args: {
+  nodeIds: string[]
+  edges: Array<{ source: unknown; target: unknown }>
+  iterations?: number
+}): { hubs: Map<string, number>; authorities: Map<string, number> } => {
+  const nodes = [...args.nodeIds].filter(Boolean).sort((a, b) => a.localeCompare(b))
+  const n = nodes.length
+  if (n === 0) return { hubs: new Map(), authorities: new Map() }
+
+  const iterations = typeof args.iterations === 'number' && Number.isFinite(args.iterations) ? Math.max(1, Math.min(100, Math.floor(args.iterations))) : 20
+
+  // Build directed adjacency
+  const inMap = new Map<string, string[]>() // u <- [v, ...]
+  const outMap = new Map<string, string[]>() // u -> [v, ...]
+  nodes.forEach(id => {
+    inMap.set(id, [])
+    outMap.set(id, [])
+  })
+
+  const nodeSet = new Set(nodes)
+  for (const e of args.edges) {
+    const s = String(e.source || '')
+    const t = String(e.target || '')
+    if (!s || !t || s === t) continue
+    if (!nodeSet.has(s) || !nodeSet.has(t)) continue
+    
+    outMap.get(s)?.push(t)
+    inMap.get(t)?.push(s)
+  }
+
+  let hubs = new Map<string, number>()
+  let auth = new Map<string, number>()
+  nodes.forEach(id => {
+    hubs.set(id, 1)
+    auth.set(id, 1)
+  })
+
+  for (let it = 0; it < iterations; it += 1) {
+    // Update authorities
+    let normAuth = 0
+    nodes.forEach(u => {
+      let a = 0
+      const incoming = inMap.get(u) || []
+      for (const v of incoming) {
+        a += hubs.get(v) || 0
+      }
+      auth.set(u, a)
+      normAuth += a * a
+    })
+    normAuth = Math.sqrt(normAuth)
+    if (normAuth > 0) {
+      nodes.forEach(u => auth.set(u, (auth.get(u) || 0) / normAuth))
+    }
+
+    // Update hubs
+    let normHubs = 0
+    nodes.forEach(u => {
+      let h = 0
+      const outgoing = outMap.get(u) || []
+      for (const v of outgoing) {
+        h += auth.get(v) || 0
+      }
+      hubs.set(u, h)
+      normHubs += h * h
+    })
+    normHubs = Math.sqrt(normHubs)
+    if (normHubs > 0) {
+      nodes.forEach(u => hubs.set(u, (hubs.get(u) || 0) / normHubs))
+    }
+  }
+
+  return { hubs, authorities: auth }
+}
+
 export const computePageRank = (args: {
   nodeIds: string[]
   neighbors: Map<string, string[]>

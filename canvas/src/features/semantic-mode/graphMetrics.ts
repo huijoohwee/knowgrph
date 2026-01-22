@@ -194,3 +194,56 @@ export const computeBetweennessCentrality = (args: {
   }
   return out
 }
+
+export const computeClosenessCentrality = (args: {
+  nodeIds: string[]
+  undirectedNeighbors: UndirectedNeighbors
+  maxNodes: number
+  maxSteps: number
+}): Map<string, number> => {
+  const nodes = args.nodeIds.slice().filter(Boolean).sort((a, b) => a.localeCompare(b))
+  const out = new Map<string, number>()
+  if (nodes.length === 0) return out
+  if (nodes.length > args.maxNodes) return out
+
+  let steps = 0
+  const N = nodes.length
+  
+  for (let i = 0; i < nodes.length; i += 1) {
+    if (steps > args.maxSteps) break
+    const s = nodes[i]!
+    const dist = new Map<string, number>()
+    const queue: string[] = [s]
+    dist.set(s, 0)
+    let sumDist = 0
+    let reachable = 0
+    
+    // BFS
+    for (let qi = 0; qi < queue.length; qi += 1) {
+      if (steps > args.maxSteps) break
+      const u = queue[qi]!
+      const d = dist.get(u) || 0
+      const nbs = args.undirectedNeighbors.get(u) || []
+      for (const v of nbs) {
+        steps += 1
+        if (steps > args.maxSteps) break
+        if (!dist.has(v)) {
+          dist.set(v, d + 1)
+          sumDist += d + 1
+          reachable += 1
+          queue.push(v)
+        }
+      }
+    }
+
+    if (sumDist > 0 && N > 1) {
+      // Wasserman and Faust formula for disconnected graphs
+      // C_WF(u) = (reachable / (N-1)) * (reachable / sumDist)
+      const val = (reachable / (N - 1)) * (reachable / sumDist)
+      out.set(s, val)
+    } else {
+      out.set(s, 0)
+    }
+  }
+  return out
+}
