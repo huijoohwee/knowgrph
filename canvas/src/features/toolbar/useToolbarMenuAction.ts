@@ -292,7 +292,8 @@ export function useToolbarMenuAction(args: {
             return
           }
           if (format === 'youtube') {
-            void performYouTubeImport('url', url)
+            const lang = typeof payload?.lang === 'string' ? payload.lang.trim() : ''
+            void performYouTubeImport('url', url, lang || undefined)
             return
           }
           if (format === 'jsonld' || format === 'json') {

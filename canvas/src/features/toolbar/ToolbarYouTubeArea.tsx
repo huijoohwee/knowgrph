@@ -13,12 +13,25 @@ export function ToolbarYouTubeArea(props: ToolbarToolMenuAreasProps) {
   const buttonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 px-1 py-0.5`
   const [isUrlInputOpen, setIsUrlInputOpen] = React.useState(false)
   const [urlInputValue, setUrlInputValue] = React.useState('')
+  const [langInputValue, setLangInputValue] = React.useState('')
   const urlInputRef = React.useRef<HTMLInputElement | null>(null)
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return
+    const form = e.currentTarget.form
+    if (!form) return
+    e.preventDefault()
+    if (typeof (form as HTMLFormElement).requestSubmit === 'function') {
+      ;(form as HTMLFormElement).requestSubmit()
+      return
+    }
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  }
 
   React.useEffect(() => {
     if (!props.isYouTubeImportMenuOpen) {
       setIsUrlInputOpen(false)
       setUrlInputValue('')
+      setLangInputValue('')
     }
   }, [props.isYouTubeImportMenuOpen])
 
@@ -51,10 +64,12 @@ export function ToolbarYouTubeArea(props: ToolbarToolMenuAreasProps) {
                 e.preventDefault()
                 const url = urlInputValue.trim()
                 if (!url) return
+                const lang = langInputValue.trim()
                 props.setIsYouTubeImportMenuOpen(false)
                 setIsUrlInputOpen(false)
                 setUrlInputValue('')
-                props.onToolMenuAction('sourceFiles', 'importUrl', { format: 'youtube', url })
+                setLangInputValue('')
+                props.onToolMenuAction('sourceFiles', 'importUrl', { format: 'youtube', url, lang: lang || undefined })
               }}
             >
               <div className="flex w-full flex-col gap-1">
@@ -62,9 +77,18 @@ export function ToolbarYouTubeArea(props: ToolbarToolMenuAreasProps) {
                   ref={urlInputRef}
                   value={urlInputValue}
                   onChange={e => setUrlInputValue(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
                   placeholder={UI_COPY.youtubeImportUrlPrompt}
                   className={`w-full h-7 px-2 border border-gray-300 rounded bg-white text-gray-700 text-left ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}
                 />
+                <input
+                  value={langInputValue}
+                  onChange={e => setLangInputValue(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
+                  placeholder={UI_COPY.youtubeImportLanguagePrompt}
+                  className={`w-full h-7 px-2 border border-gray-300 rounded bg-white text-gray-700 text-left ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}
+                />
+                <button type="submit" className="hidden" />
               </div>
             </form>
           )}

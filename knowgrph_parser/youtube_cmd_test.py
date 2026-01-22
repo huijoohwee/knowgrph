@@ -6,6 +6,7 @@ from .youtube_cmd import (
     _extract_youtube_video_id,
     _format_transcript_paragraphs,
     _normalize_segments,
+    _parse_language_codes,
     _parse_whisper_json_obj,
 )
 
@@ -33,6 +34,10 @@ def main() -> int:
         raise SystemExit("source url build (no t) failed")
     if _build_youtube_source_url(vid, 146) != f"https://youtu.be/{vid}?t=146":
         raise SystemExit("source url build (t) failed")
+
+    codes = _parse_language_codes("JA, en , ko, , EN")
+    if codes != ["ja", "en", "ko"]:
+        raise SystemExit(f"language code parse failed: {codes}")
 
     segs2 = [{"text": "Hello", "start": 0.0, "duration": 1.5}, {"text": "OK", "start": 2.0, "duration": 0.5}]
     timing = _compute_timing_metrics(segs2)

@@ -62,6 +62,10 @@ Canvas supports YouTube import via the `/__youtube_transcript` endpoint and `pyt
 - Markdown for Markdown Editor/Preview/Slides
 - Transcript JSON for the Bottom Panel JSON Editor (`jsonSourceDocumentText`)
 
+Transcript JSON payload (for Bottom Panel JSON Editor + UI Editor node properties) includes:
+- metadata: `title`, `video_id`, `source_url`, requested/selected language, `is_generated`, `is_translatable`, `translation_languages`, `oembed`, timing metrics (`start_s`/`end_s`/`duration_s`), `segment_count`, `generated_at_ms`
+- segments: `{text,start,duration}` entries (`segments`)
+
 Implementation note: `knowgrph_parser youtube` supports youtube-transcript-api variants where transcript selection is accessed via either class-level helpers or an instance (`YouTubeTranscriptApi().list(...)`).
 
 | Surface | Responsibility (S-V-O) | Implementation |

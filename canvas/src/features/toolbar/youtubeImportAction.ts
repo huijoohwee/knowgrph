@@ -3,7 +3,6 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
-import { promptForUrl } from './ingestUtils'
 import { unwrapUserProvidedText } from '@/lib/url'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { slugify } from '@/features/parsers/markdownJsonLd'
@@ -58,7 +57,7 @@ async function convertYouTubeUrlToMarkdown(rawUrl: string, opts?: { lang?: strin
     const cleaned = unwrapUserProvidedText(rawUrl) || rawUrl
     const lang = typeof opts?.lang === 'string' ? opts.lang.trim() : ''
     const qs = new URLSearchParams({ url: cleaned })
-    if (lang) qs.set('lang', lang)
+    if (lang && lang !== 'en') qs.set('lang', lang)
     const res = await fetch(`/__youtube_transcript?${qs.toString()}`, {
       method: 'POST',
       headers: {
@@ -110,19 +109,16 @@ async function convertYouTubeUrlToMarkdown(rawUrl: string, opts?: { lang?: strin
   }
 }
 
-export async function performYouTubeImport(type: YouTubeImportType, providedUrlOrId?: string) {
+export async function performYouTubeImport(type: YouTubeImportType, providedUrlOrId?: string, lang?: string) {
   if (type !== 'url') return
-  const raw = (() => {
-    const v = typeof providedUrlOrId === 'string' ? providedUrlOrId.trim() : ''
-    if (v) return v
-    return promptForUrl(UI_COPY.youtubeImportUrlPrompt) || ''
-  })()
+  const raw = typeof providedUrlOrId === 'string' ? providedUrlOrId.trim() : ''
+  if (!raw) return
   const cleaned = unwrapUserProvidedText(raw) || raw
   if (!cleaned) return
 
   try {
-    const lang = promptForUrl(UI_COPY.youtubeImportLanguagePrompt) || 'en'
-    const converted = await convertYouTubeUrlToMarkdown(cleaned, { lang })
+    const normalizedLang = typeof lang === 'string' ? lang.trim() : ''
+    const converted = await convertYouTubeUrlToMarkdown(cleaned, { lang: normalizedLang || undefined })
     if (!converted) {
       const ui = useParserUIState.getState()
       ui.setDataLoadStatus(false, UI_COPY.youtubeImportFetchFailedStatus(cleaned))
