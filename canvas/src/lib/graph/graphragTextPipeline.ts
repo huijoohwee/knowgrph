@@ -2,12 +2,13 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { hashText } from '@/features/parsers/hash'
 import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
 import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
-import { computeConnectedComponents } from '@/features/semantic-mode/graphAlgorithms'
+import { nowMs, tokenizePreserveCase, lemmatizeNaive, hfToySubwordsFromText } from '@/lib/graph/graphragTextToyStages'
+import { applyGraphRagTextAnalytics, type GraphRagTextGraphMetrics } from '@/lib/graph/graphragTextAnalytics'
+import type { DensityClusteringConfig } from '@/features/semantic-mode/densityClustering'
 import {
   extractEntitiesHeuristic,
   extractTriplesHeuristic,
   findFirstEntityMention,
-  normalizeNounPhrase,
   normalizeWhitespace,
   splitSentences,
   type TextEntity,
@@ -20,6 +21,10 @@ export type GraphRagTextPipelineStageId =
   | 'spacyNerPos'
   | 'tripleExtract'
   | 'graphConstruct'
+  | 'entityAnalytics'
+  | 'relationAnalytics'
+  | 'metadataAnalytics'
+  | 'clusterAnalytics'
 
 export type GraphRagPipelineLibraryRef = {
   name: string
@@ -55,89 +60,8 @@ export type GraphRagTextPipelineResult = {
   warnings: string[]
 }
 
-type GraphRagTextPipelineGraphMetrics = {
-  nodeCount: number
-  edgeCount: number
-  density: number
-  avgDegree: number
-  communities: number
-}
-
-const nowMs = (): number => {
-  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
-    return performance.now()
-  }
-  return Date.now()
-}
-
-const tokenizePreserveCase = (text: string): string[] => {
-  const raw = String(text || '')
-  const matches = raw.match(/[A-Za-z]+(?:[-'][A-Za-z]+)*|\d+(?:\.\d+)?/g)
-  if (!matches) return []
-  return matches.map(t => t.trim()).filter(Boolean)
-}
-
-const lemmatizeNaive = (token: string): string => {
-  const t = String(token || '').trim().toLowerCase()
-  if (!t) return ''
-  const stripped = t.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '')
-  if (!stripped) return ''
-  if (stripped === 'known') return 'know'
-  if (stripped === 'has') return 'have'
-  if (stripped.length > 4 && stripped.endsWith('ing')) return stripped.slice(0, -3)
-  if (stripped.length > 3 && stripped.endsWith('ed')) return stripped.slice(0, -2)
-  if (stripped.length > 3 && stripped.endsWith('es')) return stripped.slice(0, -2)
-  if (stripped.length > 3 && stripped.endsWith('s')) return stripped.slice(0, -1)
-  return stripped
-}
-
-const hfToySubwordsFromText = (text: string): string[] => {
-  const raw = String(text || '')
-  const parts = raw.match(/[A-Za-z]+|\d+(?:\.\d+)?|[^\sA-Za-z0-9]/g) || []
-  const out: string[] = []
-
-  const splitAlpha = (word: string): string[] => {
-    if (!word) return []
-    // Generic compound word heuristic for demo purposes
-    // In a real implementation, this would use a BPE vocabulary
-    if (word.length > 8 && /^[A-Z]/.test(word)) {
-      // Split long capitalized words roughly in half
-      const mid = Math.floor(word.length / 2)
-      return [word.slice(0, mid), word.slice(mid)]
-    }
-    if (word.length > 10) {
-      const mid = Math.floor(word.length / 2)
-      return [word.slice(0, mid), word.slice(mid)]
-    }
-    return [word]
-  }
-
-  for (const p of parts) {
-    if (!p) continue
-    if (/^\d+\.\d+$/.test(p)) {
-      const [a, b] = p.split('.', 2)
-      if (a) out.push(a)
-      out.push('.')
-      if (b) out.push(b)
-      continue
-    }
-    if (p.includes('-')) {
-      p.split(/(-)/g)
-        .filter(Boolean)
-        .forEach(x => {
-          if (x === '-') out.push('-')
-          else splitAlpha(x).forEach(s => out.push(s))
-        })
-      continue
-    }
-    if (/^[A-Za-z]+$/.test(p)) {
-      splitAlpha(p).forEach(s => out.push(s))
-      continue
-    }
-    out.push(p)
-  }
-
-  return out.filter(Boolean)
+export type GraphRagTextPipelineOptions = {
+  densityClustering?: Partial<DensityClusteringConfig>
 }
 
 
@@ -158,42 +82,54 @@ const buildGraphFromTriples = (args: {
 }): {
   nodes: GraphNode[]
   edges: GraphEdge[]
-  communityCount: number
-  metrics: GraphRagTextPipelineGraphMetrics
+  nodeKeyById: Map<string, string>
+  roleCountsByNodeId: Map<string, { subject: number; object: number }>
 } => {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
   const nodeByKey = new Map<string, GraphNode>()
+  const nodeKeyById = new Map<string, string>()
+  const roleCountsByNodeId = new Map<string, { subject: number; object: number }>()
 
-  const ensureNode = (label: string, type: string) => {
-    const k = `${type}:${normalizeNodeKey(label)}`
+  const ensureNode = (label: string) => {
+    const k = `Entity:${normalizeNodeKey(label)}`
     if (!k.trim()) return null
     const existing = nodeByKey.get(k)
     if (existing) return existing
-    const id = nodeIdFor(type, label)
+    const id = nodeIdFor('Entity', label)
+    const nodeKey = normalizeNodeKey(label)
     const node: GraphNode = {
       id,
       label: normalizeWhitespace(label),
-      type,
-      properties: {},
+      type: 'Entity',
+      properties: { 'graphrag:key': nodeKey as unknown as JSONValue },
     }
     nodeByKey.set(k, node)
+    nodeKeyById.set(id, nodeKey)
     nodes.push(node)
     return node
   }
 
   for (const e of args.entities) {
-    const node = ensureNode(e.text, 'Entity')
+    const node = ensureNode(e.text)
     if (!node) continue
     node.properties = { ...(node.properties || {}), nerLabel: e.label as JSONValue }
   }
 
   const edgeSeen = new Set<string>()
   for (const t of args.triples) {
-    const s = ensureNode(t.subject, 'Entity')
-    const o = ensureNode(t.object, 'Entity')
+    const s = ensureNode(t.subject)
+    const o = ensureNode(t.object)
     if (!s || !o) continue
     const label = normalizeWhitespace(t.predicate) || 'relatedTo'
+    roleCountsByNodeId.set(s.id, {
+      subject: (roleCountsByNodeId.get(s.id)?.subject || 0) + 1,
+      object: roleCountsByNodeId.get(s.id)?.object || 0,
+    })
+    roleCountsByNodeId.set(o.id, {
+      subject: roleCountsByNodeId.get(o.id)?.subject || 0,
+      object: (roleCountsByNodeId.get(o.id)?.object || 0) + 1,
+    })
     const edgeKey = `${s.id}|${label}|${o.id}`
     if (edgeSeen.has(edgeKey)) continue
     edgeSeen.add(edgeKey)
@@ -204,73 +140,30 @@ const buildGraphFromTriples = (args: {
       label,
       properties: { 
         confidence: t.confidence as JSONValue,
-        ...(t.properties || {}) as Record<string, JSONValue>
+        ...((t.properties || {}) as Record<string, JSONValue>),
       },
     })
   }
 
-  const nodeIds = nodes.map(n => n.id).filter(Boolean)
-  const undirectedNeighbors = new Map<string, string[]>()
-  for (const e of edges) {
-    const s = String(e.source || '')
-    const t = String(e.target || '')
-    if (!s || !t) continue
-    const sList = undirectedNeighbors.get(s) || []
-    sList.push(t)
-    undirectedNeighbors.set(s, sList)
-    const tList = undirectedNeighbors.get(t) || []
-    tList.push(s)
-    undirectedNeighbors.set(t, tList)
-  }
-  const componentIds = computeConnectedComponents({ nodeIds, undirectedNeighbors })
-  const componentUnique = new Set(componentIds.values())
-  const applyComponentCommunities = () => {
-    nodes.forEach(n => {
-      const cid = componentIds.get(n.id)
-      if (cid != null) {
-        n.properties = { ...(n.properties || {}), 'visual:community': cid as JSONValue }
-      }
-    })
-    return componentUnique.size
-  }
-
-  const semanticMap = new Map<string, number>()
-  const anchor = args.triples[0]?.subject ? normalizeNounPhrase(args.triples[0].subject) : ''
-  if (anchor) {
-    const anchorNode = nodes.find(n => n.label.toLowerCase() === anchor.toLowerCase())
-    if (anchorNode) {
-      semanticMap.set(anchorNode.id, 0)
-      for (const t of args.triples) {
-        if (t.subject.toLowerCase() !== anchor.toLowerCase()) continue
-        const oLabel = normalizeNounPhrase(t.object)
-        const objNode = nodes.find(n => n.label.toLowerCase() === oLabel.toLowerCase())
-        if (!objNode) continue
-        const isLocationish = t.predicate === 'is-a' || t.predicate === 'located-in'
-        semanticMap.set(objNode.id, isLocationish ? 0 : 1)
-      }
+  for (const n of nodes) {
+    const counts = roleCountsByNodeId.get(n.id) || { subject: 0, object: 0 }
+    const subjectCount = counts.subject
+    const objectCount = counts.object
+    const role = subjectCount > objectCount ? 'Subject' : objectCount > subjectCount ? 'Object' : 'Entity'
+    n.type = role
+    n.properties = {
+      ...(n.properties || {}),
+      'graphrag:role': role as unknown as JSONValue,
+      'graphrag:subjectCount': subjectCount as unknown as JSONValue,
+      'graphrag:objectCount': objectCount as unknown as JSONValue,
     }
   }
-
-  const semanticUnique = new Set(semanticMap.values())
-  const communityCount = semanticUnique.size >= 2 ? semanticUnique.size : applyComponentCommunities()
-  if (semanticUnique.size >= 2) {
-    nodes.forEach(n => {
-      const cid = semanticMap.get(n.id)
-      if (cid == null) return
-      n.properties = { ...(n.properties || {}), 'visual:community': cid as JSONValue }
-    })
-  }
-
-  const nodeCount = nodes.length
-  const edgeCount = edges.length
-  const density = nodeCount >= 2 ? edgeCount / (nodeCount * (nodeCount - 1)) : 0
-  const avgDegree = nodeCount > 0 ? (2 * edgeCount) / nodeCount : 0
 
   return {
     nodes,
     edges,
-    communityCount,
-    metrics: { nodeCount, edgeCount, density, avgDegree, communities: communityCount },
+    nodeKeyById,
+    roleCountsByNodeId,
   }
 }
 
@@ -282,12 +175,12 @@ const stageSize = (output: unknown): number => {
   }
 }
 
-export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResult {
+export function runGraphRagTextPipeline(text: string, options?: GraphRagTextPipelineOptions): GraphRagTextPipelineResult {
   const raw = String(text || '')
   const warnings: string[] = []
   const stages: GraphRagTextPipelineStage[] = []
 
-  const baseText = raw.trim()
+  const baseText = raw.replace(/(?:^|\n)\s*---+\s*(?:\n|$)/g, '\n').trim()
   if (!baseText) {
     return { graphData: { type: 'Graph', nodes: [], edges: [] }, stages: [], warnings: ['Empty text input'] }
   }
@@ -406,19 +299,60 @@ export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResul
   const graphT0 = nowMs()
   const built = buildGraphFromTriples({ triples, entities })
   const graphT1 = nowMs()
+  const analytics = applyGraphRagTextAnalytics({
+    text: baseText,
+    entities,
+    triples,
+    nodes: built.nodes,
+    edges: built.edges,
+    nodeKeyById: built.nodeKeyById,
+    densityClustering: options?.densityClustering,
+  })
+
+  stages.push({
+    id: 'entityAnalytics',
+    name: 'Entity Layer Analytics',
+    library: { name: 'TF‑IDF + PageRank', url: 'https://scikit-learn.org/', license: 'BSD-3-Clause' },
+    code: ['from sklearn.feature_extraction.text import TfidfVectorizer', 'nx.pagerank(G)'].join('\n'),
+    input: 'Entities + graph adjacency',
+    output: analytics.entityOutput,
+    metrics: {
+      stage: 'entityAnalytics',
+      status: 'success',
+      latency_ms: analytics.timings.entityMs,
+      output_size: stageSize(analytics.entityOutput),
+    },
+  })
+
+  stages.push({
+    id: 'relationAnalytics',
+    name: 'Relation Layer Analytics',
+    library: { name: 'Causality + PMI', url: 'https://en.wikipedia.org/wiki/Pointwise_mutual_information', license: 'CC-BY-SA' },
+    code: ['causality = f(temporal, modality, signal)', 'strength = PPMI(sentence_cooccurrence)'].join('\n'),
+    input: 'Triples + sentence co-occurrence',
+    output: analytics.relationOutput,
+    metrics: {
+      stage: 'relationAnalytics',
+      status: 'success',
+      latency_ms: analytics.timings.relationMs,
+      output_size: stageSize(analytics.relationOutput),
+    },
+  })
+
+  const graphMetrics: GraphRagTextGraphMetrics = analytics.graphMetrics
   const graphOutput = {
     nodes: built.nodes.map(n => n.label).slice(0, 64),
-    edges: built.edges.length,
-    communities: built.communityCount,
-    density: Number(built.metrics.density.toFixed(2)),
-    avg_degree: Number(built.metrics.avgDegree.toFixed(1)),
+    edges: graphMetrics.edgeCount,
+    communities: graphMetrics.communities,
+    density: Number(graphMetrics.density.toFixed(2)),
+    avg_degree: Number(graphMetrics.avgDegree.toFixed(1)),
   }
   stages.push({
     id: 'graphConstruct',
     name: 'Graph Construction',
     library: { name: 'NetworkX', url: 'https://github.com/networkx/networkx', license: 'BSD-3-Clause' },
     code: ['import networkx as nx', 'G = nx.Graph()', 'G.add_edges_from(triples)'].join('\n'),
-    input: 'Build knowledge graph',
+    input: 'Build weighted knowledge graph',
     output: graphOutput as unknown as JSONValue,
     metrics: {
       stage: 'graphConstruct',
@@ -428,8 +362,38 @@ export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResul
     },
   })
 
-  if (built.nodes.length === 0) warnings.push('No nodes extracted from text')
-  if (built.edges.length === 0) warnings.push('No relationships extracted from text')
+  stages.push({
+    id: 'metadataAnalytics',
+    name: 'Metadata Layer Analytics',
+    library: { name: 'Graph metrics', url: 'https://github.com/networkx/networkx', license: 'BSD-3-Clause' },
+    code: ['nx.density(G)', 'nx.diameter(G)', 'nx.average_shortest_path_length(G)'].join('\n'),
+    input: 'Graph structure',
+    output: analytics.metadataOutput,
+    metrics: {
+      stage: 'metadataAnalytics',
+      status: 'success',
+      latency_ms: analytics.timings.metadataMs,
+      output_size: stageSize(analytics.metadataOutput),
+    },
+  })
+
+  stages.push({
+    id: 'clusterAnalytics',
+    name: 'Cluster Layer Analytics',
+    library: { name: 'DBSCAN', url: 'https://en.wikipedia.org/wiki/DBSCAN', license: 'CC-BY-SA' },
+    code: ['cluster = DBSCAN(cosine(label+edge tokens))'].join('\n'),
+    input: 'Node/edge token vectors',
+    output: analytics.clusterOutput,
+    metrics: {
+      stage: 'clusterAnalytics',
+      status: 'success',
+      latency_ms: analytics.timings.clusterMs,
+      output_size: stageSize(analytics.clusterOutput),
+    },
+  })
+
+  if (graphMetrics.nodeCount === 0) warnings.push('No nodes extracted from text')
+  if (graphMetrics.edgeCount === 0) warnings.push('No relationships extracted from text')
 
   const graphData: GraphData = {
     type: 'Graph',
@@ -440,7 +404,7 @@ export function runGraphRagTextPipeline(text: string): GraphRagTextPipelineResul
       graphragTextPipeline: {
         inputTextPreview: baseText.slice(0, 2048),
         inputTextHash: hashText(baseText),
-        graphMetrics: built.metrics as unknown as JSONValue,
+        graphMetrics: graphMetrics as unknown as JSONValue,
         stages,
         warnings,
       } as unknown as JSONValue,

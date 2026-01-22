@@ -10,6 +10,17 @@ import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
 
 export { buildMarkdownJsonLd } from './markdownJsonLd'
 
+const hasMarkdownStructure = (raw: string): boolean =>
+  /^\s*#{1,6}\s+/m.test(raw) ||
+  /^\s*```/m.test(raw) ||
+  /^\s*[-*+]\s+/m.test(raw) ||
+  /^\s*>\s+/m.test(raw) ||
+  /!\[[^\]]*]\([^)]+\)/.test(raw) ||
+  /\[[^\]]+]\([^)]+\)/.test(raw) ||
+  /^\s*\|.*\|\s*$/m.test(raw) ||
+  /^\s*---\s*$/m.test(raw) ||
+  /```mermaid/i.test(raw)
+
 const isLikelyPlainTextMarkdown = (text: string): boolean => {
   const raw = String(text || '').trim()
   if (!raw) return false
@@ -17,17 +28,7 @@ const isLikelyPlainTextMarkdown = (text: string): boolean => {
   const lines = raw.split('\n')
   const nonEmpty = lines.filter(l => l.trim().length > 0)
   if (nonEmpty.length > 12) return false
-  const hasMarkdownStructure =
-    /^\s*#{1,6}\s+/m.test(raw) ||
-    /^\s*```/m.test(raw) ||
-    /^\s*[-*+]\s+/m.test(raw) ||
-    /^\s*>\s+/m.test(raw) ||
-    /!\[[^\]]*]\([^)]+\)/.test(raw) ||
-    /\[[^\]]+]\([^)]+\)/.test(raw) ||
-    /^\s*\|.*\|\s*$/m.test(raw) ||
-    /^\s*---\s*$/m.test(raw) ||
-    /```mermaid/i.test(raw)
-  if (hasMarkdownStructure) return false
+  if (hasMarkdownStructure(raw)) return false
   const alphaCount = raw.slice(0, 1024).replace(/[^a-zA-Z]/g, '').length
   return alphaCount >= 40
 }
@@ -37,7 +38,11 @@ const markdownSpec: ParserSpec = {
   name: 'Markdown',
   match: (name, text) => {
     const lower = (name || '').toLowerCase()
-    if (/^https?:\/\//i.test(lower)) return true
+    if (/^https?:\/\//i.test(lower)) {
+      const isMdByName = lower.endsWith('.md') || lower.endsWith('.markdown')
+      if (isMdByName) return !isLikelyPlainTextMarkdown(text)
+      return hasMarkdownStructure(String(text || ''))
+    }
     if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
       if (isLikelyPlainTextMarkdown(text)) return false
       return true
@@ -161,6 +166,7 @@ const graphragTextSpec: ParserSpec = {
     const lower = String(name || '').toLowerCase()
     if (lower.endsWith('.txt')) return true
     if (lower.endsWith('.text')) return true
+    if (/^https?:\/\//i.test(lower)) return false
     const raw = String(text || '').trim()
     if (!raw) return false
     if (lower.endsWith('.md') || lower.endsWith('.markdown')) {

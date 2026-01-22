@@ -54,83 +54,129 @@ mermaid: |
         Triple_Extract --> Triple_Output["Triples Generated:<br/>━━━━━━━━━━━━━━━━━━━<br/>subject, predicate, object<br/>━━━━━━━━━━━━━━━━━━━<br/>Singapore, is-a, city-state<br/>Singapore, located-in, Southeast Asia<br/>Singapore, has-population, 5.9 million<br/>Singapore, known-for, financial hub<br/>Singapore, known-for, Changi Airport<br/>Singapore, has, development projects"]
     end
     
-    Triple_Output --> Graph_Stage[Graph Construction]
+    Triple_Output --> Entity_Analytics[Entity Importance Analysis]
     
-    subgraph Graph["Stage 5: NetworkX Graph"]
-        Graph_Stage --> Graph_Nodes[Create Nodes]
-        Graph_Nodes --> Graph_NodeList["Nodes 6:<br/>━━━━━━━━<br/>N1: Singapore<br/>N2: city-state<br/>N3: Southeast Asia<br/>N4: 5.9 million<br/>N5: Changi Airport<br/>N6: financial hub"]
+    subgraph Entity_Layer["Stage 5: Entity Layer Analytics NEW"]
+        Entity_Analytics --> TFIDF[TF-IDF Scoring]
+        TFIDF --> TFIDF_Output["Keyword Importance:<br/>━━━━━━━━━━━━━━━━━━━<br/>Singapore: freq=6, TF-IDF=0.89<br/>Changi Airport: freq=1, TF-IDF=0.72<br/>Southeast Asia: freq=1, TF-IDF=0.68<br/>financial hub: freq=1, TF-IDF=0.65<br/>city-state: freq=1, TF-IDF=0.61"]
         
-        Graph_NodeList --> Graph_Edges[Create Edges]
-        Graph_Edges --> Graph_EdgeList["Edges 6:<br/>━━━━━━━━━━━━━━━━<br/>N1 →is-a→ N2<br/>N1 →located-in→ N3<br/>N1 →has-population→ N4<br/>N1 →known-for→ N5<br/>N1 →known-for→ N6<br/>N1 →has→ projects"]
-        
-        Graph_EdgeList --> Graph_Community[Community Detection]
-        Graph_Community --> Graph_Output["Communities: 2<br/>━━━━━━━━━━━━━<br/>C1: Location cluster<br/>Singapore, Southeast Asia,<br/>city-state<br/><br/>C2: Features cluster<br/>financial hub, Changi Airport,<br/>5.9 million, projects"]
+        TFIDF_Output --> Centrality[Graph Centrality]
+        Centrality --> Centrality_Output["Centrality Metrics:<br/>━━━━━━━━━━━━━━━━━━━<br/>PageRank:<br/>  Singapore: 0.42 highest<br/>  Southeast Asia: 0.12<br/>  Changi Airport: 0.10<br/><br/>Degree Centrality:<br/>  Singapore: 1.0 hub<br/>  Others: 0.17-0.20"]
     end
     
-    Graph_Output --> Final[Knowledge Graph]
+    Centrality_Output --> Causality_Analytics[Causality Detection]
     
-    subgraph Final_Graph["Final Output: Knowledge Graph"]
-        Final --> Metrics["Graph Metrics:<br/>━━━━━━━━━━━<br/>Nodes: 6<br/>Edges: 6<br/>Density: 0.20<br/>Communities: 2<br/>Avg Degree: 2.0"]
+    subgraph Relation_Layer["Stage 6: Relation Layer Analytics NEW"]
+        Causality_Analytics --> Causal_Detect[Causal Pattern Detection]
+        Causal_Detect --> Causal_Output["Causal Relationships:<br/>━━━━━━━━━━━━━━━━━━━<br/>Edge Type | Causality Score<br/>━━━━━━━━━━━━━━━━━━━<br/>is-a → hierarchy | 0.85<br/>located-in → dependency | 0.78<br/>has-population → composition | 0.72<br/>known-for → attribute | 0.65<br/>has → composition | 0.58"]
         
-        Metrics --> Visualization["Graph Structure:<br/>┌─────────────┐<br/>│  Singapore  │──is-a──→ city-state<br/>└─────────────┘<br/>       │<br/>       ├──located-in──→ Southeast Asia<br/>       ├──has-population──→ 5.9 million<br/>       ├──known-for──→ financial hub<br/>       ├──known-for──→ Changi Airport<br/>       └──has──→ projects"]
+        Causal_Output --> Strength_Calc[Edge Strength Calculation]
+        Strength_Calc --> Strength_Output["Edge Strength Metrics:<br/>━━━━━━━━━━━━━━━━━━━<br/>Co-occurrence | PMI | Strength<br/>━━━━━━━━━━━━━━━━━━━<br/>Singapore↔city-state: 1 | 2.1 | 0.92<br/>Singapore↔SE Asia: 1 | 1.8 | 0.85<br/>Singapore↔Changi: 1 | 1.6 | 0.78<br/>Singapore↔financial: 1 | 1.5 | 0.75"]
+    end
+    
+    Strength_Output --> Graph_Stage[Graph Construction]
+    
+    subgraph Graph["Stage 7: NetworkX Graph Construction"]
+        Graph_Stage --> Graph_Nodes[Create Weighted Nodes]
+        Graph_Nodes --> Graph_NodeList["Nodes 6 with Importance:<br/>━━━━━━━━━━━━━━━━━━━<br/>N1: Singapore r=35 PR=0.42<br/>N2: city-state r=20 PR=0.08<br/>N3: Southeast Asia r=22 PR=0.12<br/>N4: 5.9 million r=18 PR=0.06<br/>N5: Changi Airport r=24 PR=0.10<br/>N6: financial hub r=21 PR=0.09"]
+        
+        Graph_NodeList --> Graph_Edges[Create Weighted Edges]
+        Graph_Edges --> Graph_EdgeList["Edges 6 with Strength:<br/>━━━━━━━━━━━━━━━━━━━<br/>N1 →is-a→ N2 strength=0.92<br/>N1 →located-in→ N3 strength=0.85<br/>N1 →has-population→ N4 strength=0.68<br/>N1 →known-for→ N5 strength=0.78<br/>N1 →known-for→ N6 strength=0.75<br/>N1 →has→ projects strength=0.58"]
+    end
+    
+    Graph_EdgeList --> Metadata_Analytics[Graph Metrics]
+    
+    subgraph Metadata_Layer["Stage 8: Metadata Layer Analytics NEW"]
+        Metadata_Analytics --> Graph_Metrics[Compute Graph Metrics]
+        Graph_Metrics --> Metrics_Output["Graph-Level Metrics:<br/>━━━━━━━━━━━━━━━━━━━<br/>Density: 0.20<br/>Diameter: 2<br/>Avg Path Length: 1.4<br/>Clustering Coefficient: 0.0<br/>Connected Components: 1"]
+        
+        Metrics_Output --> Node_Metrics[Node-Level Metrics]
+        Node_Metrics --> Node_Output["Per-Node Statistics:<br/>━━━━━━━━━━━━━━━━━━━<br/>Singapore: deg=6 betw=1.0<br/>Southeast Asia: deg=1 betw=0<br/>Changi Airport: deg=1 betw=0"]
+    end
+    
+    Node_Output --> Community_Analytics[Community Detection]
+    
+    subgraph Cluster_Layer["Stage 9: Cluster Layer Analytics NEW"]
+        Community_Analytics --> Dbscan[DBSCAN Density Clustering]
+        Dbscan --> Community_Output["Communities Detected: 2<br/>━━━━━━━━━━━━━━━━━━━<br/><br/>C1: Location Cluster<br/>  Singapore, Southeast Asia,<br/>  city-state<br/><br/>C2: Features Cluster<br/>  financial hub, Changi Airport,<br/>  5.9 million, projects"]
+        
+        Community_Output --> Topic_Model[Topic Labeling]
+        Topic_Model --> Topic_Output["Semantic Topics:<br/>━━━━━━━━━━━━━━━━━━━<br/>Topic 1: Geographic Identity<br/>  Keywords: Singapore,<br/>  Southeast, Asia, city-state<br/>  Coherence: 0.72<br/><br/>Topic 2: Urban Features<br/>  Keywords: airport, financial,<br/>  development, hub<br/>  Coherence: 0.68"]
+    end
+    
+    Topic_Output --> Final[Analytics-Enhanced Graph]
+    
+    subgraph Final_Graph["Final Output: Knowledge Graph with Analytics"]
+        Final --> Complete_Metrics["Complete Graph Analytics:<br/>━━━━━━━━━━━━━━━━━━━<br/>Entity Layer:<br/>  Nodes: 6<br/>  Avg TF-IDF: 0.71<br/>  Avg PageRank: 0.14<br/><br/>Relation Layer:<br/>  Edges: 6<br/>  Avg Causality: 0.73<br/>  Avg Strength: 0.76<br/><br/>Metadata Layer:<br/>  Density: 0.20<br/>  Diameter: 2<br/><br/>Cluster Layer:<br/>  Communities: 2"]
+        
+        Complete_Metrics --> Visualization["Enhanced Visualization:<br/>┌─────────────────────────┐<br/>│  Singapore r=35 PR=0.42 │<br/>└─────────────────────────┘<br/>       │<br/>       ├─[0.92]→ city-state r=20<br/>       ├─[0.85]→ Southeast Asia r=22<br/>       ├─[0.68]→ 5.9 million r=18<br/>       ├─[0.78]→ Changi Airport r=24<br/>       ├─[0.75]→ financial hub r=21<br/>       └─[0.58]→ projects<br/><br/>Node size = f(TF-IDF + PageRank)<br/>Edge thickness = f(Causality + Strength)<br/>Color = Community assignment"]
     end
     
     %% Library annotations
-    NLTK_Stage -.->|nltk.tokenize| NLTK_Lib[NLTK Library]
+    NLTK_Stage -.->|nltk.tokenize| NLTK_Lib[NLTK]
     HF_Stage -.->|tokenizers| HF_Lib[HuggingFace]
-    spaCy_Stage -.->|spacy.load| spaCy_Lib[spaCy en_core_web_sm]
-    Triple_Stage -.->|dependency parser| Triple_Lib[spaCy Dependencies]
+    spaCy_Stage -.->|spacy.load| spaCy_Lib[spaCy]
+    Triple_Stage -.->|dependency parser| Triple_Lib[spaCy Deps]
+    TFIDF -.->|TfidfVectorizer| TFIDF_Lib[scikit-learn]
+    Centrality -.->|nx.pagerank| Centrality_Lib[NetworkX]
+    Causal_Detect -.->|pattern matching| Causal_Lib[spaCy Patterns]
+    Strength_Calc -.->|PMI calculation| Strength_Lib[Custom]
     Graph_Stage -.->|nx.Graph| Graph_Lib[NetworkX]
+    Graph_Metrics -.->|nx.density| Metrics_Lib[NetworkX]
+    Dbscan -.->|cluster| Community_Lib[DBSCAN]
+    Topic_Model -.->|BERTopic optional| Topic_Lib[BERTopic]
     
     classDef inputStyle fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
     classDef processStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef outputStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef dataStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    classDef libStyle fill:#fce4ec,stroke:#c2185b,stroke-width:1px,stroke-dasharray: 5 5
+    classDef analyticsStyle fill:#fce4ec,stroke:#c2185b,stroke-width:3px
+    classDef libStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:1px,stroke-dasharray: 5 5
     
     class Start,Input inputStyle
     class NLTK_Stage,HF_Stage,spaCy_Stage,Triple_Stage,Graph_Stage processStyle
     class NLTK_Output,HF_Output,spaCy_Output,Triple_Output,Graph_Output outputStyle
-    class NLTK_Tokens,NLTK_Clean,NLTK_Lemma,HF_Subwords,HF_Count,spaCy_Entities,spaCy_Tags,spaCy_Dep,Triple_Pattern,Triple_Extract,Graph_NodeList,Graph_EdgeList,Graph_Community,Metrics,Visualization dataStyle
-    class NLTK_Lib,HF_Lib,spaCy_Lib,Triple_Lib,Graph_Lib libStyle
+    class NLTK_Tokens,NLTK_Clean,NLTK_Lemma,HF_Subwords,HF_Count,spaCy_Entities,spaCy_Tags,spaCy_Dep,Triple_Pattern,Triple_Extract,Graph_NodeList,Graph_EdgeList,Metrics_Output,Node_Output,Complete_Metrics,Visualization dataStyle
+    class Entity_Analytics,TFIDF,TFIDF_Output,Centrality,Centrality_Output,Causality_Analytics,Causal_Detect,Causal_Output,Strength_Calc,Strength_Output,Metadata_Analytics,Graph_Metrics,Node_Metrics,Community_Analytics,Dbscan,Community_Output,Topic_Model,Topic_Output analyticsStyle
+    class NLTK_Lib,HF_Lib,spaCy_Lib,Triple_Lib,TFIDF_Lib,Centrality_Lib,Causal_Lib,Strength_Lib,Graph_Lib,Metrics_Lib,Community_Lib,Topic_Lib libStyle
 ---
 
-# Knowledge Graph GraphRAG Pipeline - PRD & TAD
+# Knowledge Graph GraphRAG Pipeline with Analytics - PRD & TAD
 
-**Version**: 1.0.0  
+**Version**: 2.0.0  
 **Date**: 2026-01-22  
-**Status**: Implemented (Enhanced v1.1)
+**Status**: Draft  
+**Previous Version**: 1.0.0
 
 ---
 
 ## PART I: PRODUCT REQUIREMENTS DOCUMENT (PRD)
 
-### Feature: GraphRAG Text-to-Knowledge-Graph Pipeline
+### Feature: GraphRAG Text-to-Knowledge-Graph Pipeline with Advanced Analytics
 
 #### Problem Statement
 
-Data analysts, researchers, and knowledge workers struggle to extract structured insights from unstructured text documents. Manual entity extraction and relationship mapping is time-consuming, error-prone, and doesn't scale. Users need an automated pipeline that transforms natural language text into queryable knowledge graphs, enabling semantic search, relationship discovery, and retrieval-augmented generation workflows.
+Data analysts, researchers, and knowledge workers struggle to extract structured insights from unstructured text documents **and lack quantitative metrics to validate the quality and importance of extracted entities and relationships**. Manual entity extraction is time-consuming, but equally problematic is the inability to prioritize which entities matter most, measure relationship strength, or identify semantic communities in large corpora. Users need not just entity extraction, but **entity importance scoring, relationship causality measurement, and automated community detection** to make knowledge graphs actionable for decision-making.
 
-**User Pain Points**:
-- Manually identifying entities in documents takes hours per document
-- Relationship extraction requires domain expertise and is inconsistent
-- Existing solutions are proprietary, expensive, or vendor-locked
-- No visibility into processing stages makes debugging difficult
-- Integration with LLM workflows requires custom glue code
-- **Lack of rich semantic context**: Simple subject-verb-object triples miss temporal, modal, and causal nuances.
-- **Fragmented logic**: Legacy implementations scatter extraction logic across different modules.
+**Enhanced User Pain Points**:
+- Cannot distinguish important entities from noise (all entities treated equally)
+- No quantitative measure of relationship strength or causality
+- Unable to identify conceptual clusters or communities in knowledge graphs
+- Lack visibility into which entities are central to a domain
+- Cannot validate if extracted relationships are causal, correlative, or hierarchical
+- No automated way to detect semantic communities for hierarchical navigation
 
-**Quantified Impact**: Users spend 15-20 hours per week on manual knowledge extraction that could be automated, representing 40-50% of research time.
+**Quantified Impact**: Users spend 15-20 hours per week on manual knowledge extraction PLUS an additional 8-10 hours manually categorizing entities by importance and validating relationships, representing 60% of research time that could be automated with analytics.
 
 ---
 
 ### User Stories
 
-#### Epic: Text-to-Knowledge-Graph Transformation
+#### Epic: Text-to-Knowledge-Graph with Analytics
 
-**PRD-E001: Core Pipeline**
+**PRD-E001: Core Pipeline** (from v1.0.0)
 
-**PRD-E001-S001: Automated Entity Extraction**
+**PRD-E001-S001: Automated Entity Extraction** (unchanged)
 
 **As a** data analyst  
 **I want** the system to automatically identify named entities (people, places, organizations, dates) from text  
@@ -141,19 +187,22 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 - **When** user submits text for processing  
 - **Then** system extracts entities with type labels (GPE, LOC, PERSON, ORG, DATE) with >85% precision
 
-**PRD-E001-S002: Relationship Triple Extraction**
+---
+
+**PRD-E001-S002: Relationship Triple Extraction** (unchanged)
 
 **As a** researcher  
 **I want** the system to extract semantic relationships between entities in (subject, predicate, object) format  
 **So that** I can understand how entities connect without reading full documents
 
 **Acceptance Criteria**:
-- **Given** text with entity relationships (e.g., "Singapore is located in Southeast Asia")  
+- **Given** text with entity relationships  
 - **When** system processes entities  
 - **Then** system produces triples like "(Singapore, located-in, Southeast Asia)" with >75% accuracy
-- **Then** system captures rich properties: temporal markers, modality (certainty), and causality.
 
-**PRD-E001-S003: Interactive Processing Visualization**
+---
+
+**PRD-E001-S003: Interactive Processing Visualization** (unchanged)
 
 **As a** knowledge worker  
 **I want** to see each pipeline stage's output in real-time  
@@ -162,10 +211,11 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 **Acceptance Criteria**:
 - **Given** text submitted for processing  
 - **When** pipeline executes  
-- **Then** user sees progressive results from each stage (tokenization → NER → triple extraction → graph construction) within 3 seconds
-- **Then** the visualization must strictly mirror the actual pipeline execution (no hardcoded demos).
+- **Then** user sees progressive results from each stage within 3 seconds
 
-**PRD-E001-S004: Knowledge Graph Construction**
+---
+
+**PRD-E001-S004: Knowledge Graph Construction** (unchanged)
 
 **As a** data scientist  
 **I want** extracted triples to form a queryable graph structure  
@@ -174,36 +224,134 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 **Acceptance Criteria**:
 - **Given** valid entity triples  
 - **When** graph construction completes  
-- **Then** system displays node count, edge count, and community clusters with interactive visualization
-- **Then** graph supports "Graph Layers/Subgraphs" (clusters, communities).
+- **Then** system displays node count, edge count, and community clusters
 
 ---
 
-#### Epic: FOSS Stack Transparency
+#### Epic: Advanced Analytics Layer (NEW)
 
-**PRD-E002: Open Source Tooling Visibility**
+**PRD-E002: Entity Importance Analysis**
 
-**PRD-E002-S001: Library Attribution**
+**PRD-E002-S001: Keyword Frequency Scoring**
 
-**As a** developer  
-**I want** to see which FOSS libraries handle each pipeline stage  
-**So that** I can replicate the pipeline in my own infrastructure
-
-**Acceptance Criteria**:
-- **Given** user views pipeline interface  
-- **When** hovering over any processing stage  
-- **Then** system displays library name, GitHub repository link, and license type
-
-**PRD-E002-S002: Code Snippet Examples**
-
-**As a** developer  
-**I want** minimal code examples for each pipeline stage  
-**So that** I can implement custom processing without vendor lock-in
+**As a** data analyst  
+**I want** entities ranked by frequency and TF-IDF importance scores  
+**So that** I can focus on the most relevant concepts in my corpus
 
 **Acceptance Criteria**:
-- **Given** user selects a pipeline stage  
-- **When** requesting implementation guidance  
-- **Then** system shows ≤10 line code snippet demonstrating library usage
+- **Given** extracted entities from processed text  
+- **When** entity analysis completes  
+- **Then** each entity has frequency count with >99% accuracy
+- **And** TF-IDF scores normalized to [0,1] range with two decimal precision
+- **And** entities sorted by combined frequency+TF-IDF metric in descending order
+
+**PRD-E002-S002: Centrality-Based Importance**
+
+**As a** researcher  
+**I want** entities ranked by graph centrality (PageRank, degree, betweenness)  
+**So that** I can identify which concepts are most central to the knowledge domain
+
+**Acceptance Criteria**:
+- **Given** constructed knowledge graph with nodes and edges  
+- **When** centrality analysis runs  
+- **Then** system calculates PageRank scores for all nodes with >95% accuracy vs NetworkX reference
+- **And** degree centrality, betweenness centrality computed within 2 seconds for graphs <1000 nodes
+- **And** top 10 entities by each centrality measure displayed with visual indicators (node size, border)
+
+---
+
+**PRD-E003: Relationship Causality Analysis**
+
+**PRD-E003-S001: Causal Relationship Detection**
+
+**As a** domain expert  
+**I want** relationships classified by type (causal, correlative, hierarchical, compositional)  
+**So that** I can distinguish "X causes Y" from "X relates to Y"
+
+**Acceptance Criteria**:
+- **Given** extracted semantic triples  
+- **When** causality detection runs  
+- **Then** system identifies causal markers ("causes", "leads to", "results in", "enables") with >70% precision
+- **And** assigns causality confidence score [0,1] to each edge
+- **And** labels edge types (causal, dependency, hierarchy, composition, technical)
+
+**PRD-E003-S002: Relationship Strength Measurement**
+
+**As a** data scientist  
+**I want** relationships weighted by co-occurrence frequency and statistical association  
+**So that** I can prioritize strong vs weak connections in analysis
+
+**Acceptance Criteria**:
+- **Given** entity pairs in triples  
+- **When** strength calculation completes  
+- **Then** system computes co-occurrence frequency with 100% accuracy
+- **And** calculates PMI (Pointwise Mutual Information) scores
+- **And** visualizes edge thickness proportional to strength (min 1px, max 5px)
+- **And** edges with strength <0.3 displayed with transparency to reduce visual clutter
+
+---
+
+**PRD-E004: Semantic Community Detection**
+
+**PRD-E004-S001: Automated Community Clustering**
+
+**As a** knowledge worker  
+**I want** entities automatically grouped into semantic communities  
+**So that** I can navigate large knowledge graphs by topic clusters
+
+**Acceptance Criteria**:
+- **Given** knowledge graph with >10 nodes  
+- **When** community detection runs  
+- **Then** system applies Louvain algorithm detecting 2-8 communities
+- **And** each community has modularity score >0.25
+- **And** communities visualized with distinct colors and spatial grouping
+- **And** community labels generated from top 3 keywords in cluster
+
+**PRD-E004-S002: Hierarchical Topic Modeling**
+
+**As a** researcher analyzing large corpora  
+**I want** hierarchical topic structure extracted from text  
+**So that** I can understand document themes at multiple levels of granularity
+
+**Acceptance Criteria**:
+- **Given** corpus with >100 sentences  
+- **When** topic modeling executes  
+- **Then** system extracts 3-7 topics using BERTopic with >60% topic coherence
+- **And** each topic has top 10 representative keywords
+- **And** topics mapped to graph communities with overlap visualization
+- **And** hierarchical structure displayed showing topic-subtopic relationships
+
+---
+
+**PRD-E005: Interactive Analytics Dashboard**
+
+**PRD-E005-S001: Real-Time Metric Updates**
+
+**As a** data analyst  
+**I want** entity and edge metrics updated in real-time as I filter the graph  
+**So that** I can explore different views without re-processing
+
+**Acceptance Criteria**:
+- **Given** user applies community filter  
+- **When** graph view updates  
+- **Then** entity rankings recalculated for visible nodes within 500ms
+- **And** edge strength statistics updated for visible edges
+- **And** community metrics (modularity, density) recomputed
+- **And** all metrics displayed with smooth transitions (<300ms animation)
+
+**PRD-E005-S002: Comparative Analytics**
+
+**As a** researcher comparing multiple documents  
+**I want** side-by-side analytics showing how entity importance differs across texts  
+**So that** I can identify unique concepts vs common themes
+
+**Acceptance Criteria**:
+- **Given** two or more processed documents  
+- **When** comparative mode activated  
+- **Then** system displays entity frequency delta (document A vs B)
+- **And** highlights entities unique to each document with >0 frequency delta
+- **And** shows community overlap percentage between graphs
+- **And** generates Venn diagram of shared vs unique entities
 
 ---
 
@@ -213,9 +361,13 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 |--------|----------|--------|----------|-------------|
 | Entity Extraction Precision | N/A | ≥85% | Week 4 | F1 score on CoNLL-2003 dataset |
 | Triple Extraction Accuracy | N/A | ≥75% | Week 6 | Human evaluation on 100 sample triples |
-| Processing Latency (p95) | N/A | <3s | Week 3 | End-to-end pipeline for 500-word documents |
-| User Comprehension | N/A | ≥80% | Week 8 | Survey: "I understand how text became graph" |
-| Developer Adoption | N/A | 50 implementations | Month 6 | GitHub stars + documented deployments |
+| TF-IDF Accuracy | N/A | ≥95% | Week 3 | Comparison vs scikit-learn reference |
+| PageRank Accuracy | N/A | ≥95% | Week 4 | Comparison vs NetworkX reference |
+| Causality Detection Precision | N/A | ≥70% | Week 5 | Manual validation on 50 causal pairs |
+| Community Detection Quality | N/A | Modularity ≥0.30 | Week 5 | Louvain modularity score |
+| Topic Coherence | N/A | ≥60% | Week 7 | UMass coherence metric |
+| Analytics Latency (p95) | N/A | <2s | Week 6 | End-to-end for 500-node graphs |
+| User Comprehension | N/A | ≥85% | Week 10 | Survey: "I understand entity importance rankings" |
 
 ---
 
@@ -225,36 +377,48 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 - NLTK preprocessing (stopword removal, lemmatization)
 - spaCy NER with entity type labels
 - Triple extraction producing (subject, predicate, object) format
-- NetworkX graph construction with node/edge counts
-- Interactive stage-by-stage visualization
+- TF-IDF keyword frequency scoring
+- NetworkX PageRank centrality
+- Louvain community detection
+- Causal marker detection (pattern-based)
+- Interactive visualization with filtering
+- Edge strength visualization (thickness)
 
 **Should Have**:
-- HuggingFace tokenizer compatibility demonstration
-- Multiple text sample inputs
-- Export graph as JSON/GraphML
-- Error handling with user-friendly messages
+- Betweenness and degree centrality
+- PMI (Pointwise Mutual Information) for edge strength
+- BERTopic for semantic topic modeling
+- KeyBERT for transformer-based keyword extraction
+- Hierarchical community visualization
+- Export analytics as JSON/CSV
+- Comparative analytics across documents
 
 **Could Have**:
+- YAKE unsupervised keyword extraction
+- CausalNLP transformer-based causality detection
+- HDBSCAN density-based clustering
+- Real-time collaborative graph editing
 - Custom entity type training
-- Relationship confidence scores
-- Graph query interface
-- Multilingual support (Chinese, Spanish)
+- Graph query language interface
 
 **Won't Have** (this release):
-- LLM-based entity extraction (use rule-based NER)
-- Real-time collaborative graph editing
-- Vector embedding generation
-- Production-scale graph database integration
+- Production graph database integration (Neo4j, FalkorDB)
+- LLM-based relationship extraction
+- Multi-language support beyond English
+- Real-time streaming analytics
+- Authentication/authorization system
 
 ---
 
 ### Out of Scope
 
-- Graph database deployment (Neo4j, FalkorDB) - users handle their own infrastructure
-- LLM API integration for generation - pipeline focuses on extraction only
-- Authentication/authorization - demo is public
-- Production data persistence - session-only storage
-- Custom NER model training - uses pre-trained spaCy models
+- Production deployment infrastructure (users handle their own hosting)
+- LLM API integration for generation tasks
+- Real-time collaborative features
+- Custom NER model training interface
+- Graph database deployment and management
+- Enterprise authentication systems
+- Mobile application development
 
 ---
 
@@ -263,25 +427,45 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 **Required**:
 - spaCy `en_core_web_sm` model (must be pre-downloaded)
 - NLTK stopwords corpus (must be pre-downloaded)
+- NetworkX >= 3.0
+- scikit-learn >= 1.3
 - Modern browser with JavaScript enabled
+- Python >= 3.8 (for backend analytics)
+
+**Optional (for advanced features)**:
+- BERTopic >= 0.15 (for topic modeling)
+- KeyBERT >= 0.8 (for transformer-based keywords)
+- python-louvain >= 0.16 (for community detection)
 
 **Assumed**:
-- User has basic understanding of NLP concepts
+- User has basic understanding of NLP and graph theory concepts
 - Text input is English language
-- Documents are <5000 words
+- Documents are <10,000 words for client-side processing
+- Users understand statistical metrics (TF-IDF, PageRank)
 
 ---
 
 ### Open Questions
 
-- **Q1**: Should we support PDF/DOCX upload or text-only input?  
-  **Status**: Research user preference - Week 2
-  
-- **Q2**: What graph visualization library provides best UX without CDN dependencies?  
-  **Status**: Evaluate D3.js vs vis.js - Week 1
-  
-- **Q3**: Should triple extraction use OpenIE or spaCy dependency parsing?  
-  **Status**: Benchmark accuracy/performance - Week 3
+**OQ-001**: Should causality detection use pattern-based or transformer-based approach?  
+**Impact**: Pattern-based is faster (50ms vs 500ms) but less accurate (70% vs 85%)  
+**Resolution Deadline**: Week 2  
+**Owner**: Technical Lead
+
+**OQ-002**: What threshold for edge strength filtering (hide weak connections)?  
+**Impact**: User experience vs information completeness  
+**Resolution Deadline**: Week 3  
+**Owner**: UX Designer  
+
+**OQ-003**: Should we pre-compute analytics or compute on-demand?  
+**Impact**: Startup time vs memory usage  
+**Resolution Deadline**: Week 2  
+**Owner**: Engineering Lead
+
+**OQ-004**: How many communities is optimal for user navigation?  
+**Impact**: Too few = overgeneralization, too many = cognitive overload  
+**Resolution Deadline**: Week 4  
+**Owner**: Product Manager
 
 ---
 
@@ -289,15 +473,15 @@ Data analysts, researchers, and knowledge workers struggle to extract structured
 
 ### Architecture Overview
 
-**From text to knowledge graph**: System → receives unstructured text input → preprocesses via NLTK (tokenization, lemmatization, stopword removal) → extracts entities via spaCy NER → generates semantic triples through dependency parsing → constructs graph via NetworkX → delivers interactive visualization with nodes, edges, and community clusters.
+**From text to analytics-enhanced knowledge graph**: System → receives unstructured text input → preprocesses via NLTK (tokenization, lemmatization, stopword removal) → extracts entities via spaCy NER → generates semantic triples through dependency parsing → **analyzes entity importance via TF-IDF and PageRank** → **detects causal relationships via pattern matching** → constructs graph via NetworkX → **identifies communities via density-based clustering (DBSCAN)** → **computes graph metrics** → delivers interactive visualization with importance-weighted nodes, strength-weighted edges, and color-coded communities.
 
-**Architecture Pattern**: Sequential pipeline with stage isolation and progressive disclosure
+**Architecture Pattern**: Sequential pipeline with four-layer analytics stack (Entity → Relation → Metadata → Cluster)
 
 ---
 
 ### Component Specifications
 
-#### TAD-C001: Preprocessing Engine
+#### TAD-C001: Preprocessing Engine (unchanged from v1.0.0)
 
 **Component**: NLTKPreprocessor  
 **Responsibility**: Preprocessor → cleans raw text → removes stopwords and punctuation → produces normalized tokens for downstream NER  
@@ -314,7 +498,7 @@ interface IPreprocessor {
 
 ---
 
-#### TAD-C002: Entity Recognition Service
+#### TAD-C002: Entity Recognition Service (unchanged)
 
 **Component**: SpaCyNERExtractor  
 **Responsibility**: Extractor → processes preprocessed tokens → identifies named entities with type labels → delivers structured entity list with spans  
@@ -325,7 +509,7 @@ interface INERExtractor {
 }
 type Entity = {
   text: string
-  label: string  // GPE, PERSON, ORG, etc.
+  label: string
   start: number
   end: number
 }
@@ -335,7 +519,7 @@ type Entity = {
 
 ---
 
-#### TAD-C003: Triple Extraction Engine
+#### TAD-C003: Triple Extraction Engine (unchanged)
 
 **Component**: DependencyTripleExtractor  
 **Responsibility**: Extractor → analyzes dependency parse tree → identifies subject-verb-object patterns → produces semantic triples for graph construction  
@@ -356,46 +540,190 @@ type Triple = {
 
 ---
 
-#### TAD-C004: Graph Construction Service
+#### TAD-C004: Entity Importance Analyzer (NEW)
 
-**Component**: NetworkXGraphBuilder  
-**Responsibility**: Builder → consumes entity triples → constructs directed graph → computes community clusters → delivers graph metadata and visualization data  
+**Component**: EntityImportanceScorer  
+**Responsibility**: Analyzer → receives entity list and corpus → computes TF-IDF scores → calculates graph centrality metrics → produces importance-ranked entity list  
 **Interfaces**:
 ```typescript
-interface IGraphBuilder {
-  buildGraph(triples: Triple[]): Graph
-  detectCommunities(graph: Graph): Community[]
+interface IImportanceAnalyzer {
+  computeTFIDF(entities: Entity[], corpus: string[]): TFIDFScores
+  computeCentrality(graph: Graph): CentralityScores
+  rankEntities(entities: Entity[], scores: Scores): RankedEntity[]
 }
-type Graph = {
-  nodes: Node[]
-  edges: Edge[]
-  communities: number
+type TFIDFScores = { [entityId: string]: number }
+type CentralityScores = {
+  pagerank: { [nodeId: string]: number }
+  degree: { [nodeId: string]: number }
+  betweenness: { [nodeId: string]: number }
+}
+type RankedEntity = Entity & {
+  frequency: number
+  tfidf: number
+  pagerank: number
+  combinedScore: number
 }
 ```
-**Dependencies**: NetworkX graph algorithms  
-**Configuration**: `algorithm="louvain"`, `resolution=1.0`
+**Dependencies**: scikit-learn TfidfVectorizer, NetworkX centrality algorithms  
+**Configuration**: `tfidf_ngram_range=(1,2)`, `pagerank_alpha=0.85`, `pagerank_max_iter=100`
 
 ---
 
-#### TAD-C005: Visualization Controller
+#### TAD-C005: Causality Detection Engine (NEW)
 
-**Component**: ReactPipelineUI  
-**Responsibility**: Controller → manages pipeline state → orchestrates stage execution → renders progressive results → handles user interactions  
+**Component**: CausalRelationClassifier  
+**Responsibility**: Classifier → analyzes triple predicates → detects causal markers → computes relationship strength → labels edge types and confidence scores  
 **Interfaces**:
 ```typescript
-interface IPipelineController {
-  processPipeline(text: string): Promise<PipelineResult>
-  navigateStage(stage: number): void
+interface ICausalityDetector {
+  detectCausality(triple: Triple, doc: SpacyDoc): CausalEdge
+  computeStrength(source: Entity, target: Entity, corpus: string[]): number
+}
+type CausalEdge = Triple & {
+  edgeType: 'causal' | 'dependency' | 'hierarchy' | 'composition' | 'technical'
+  causalityScore: number
+  strength: number
+  pmi: number
 }
 ```
-**Dependencies**: React state management, Tailwind CSS  
-**Configuration**: `max_stages=5`, `animation_duration=300ms`
+**Dependencies**: spaCy dependency patterns, custom causal marker list  
+**Configuration**: `causal_markers=["causes","leads to","results in","enables","reduces"]`, `strength_threshold=0.3`
+
+---
+
+#### TAD-C006: Community Detection Service (NEW)
+
+**Component**: GraphCommunityClustering  
+**Responsibility**: Clusterer → receives knowledge graph → applies density-based clustering (DBSCAN) over lightweight token vectors → detects semantic communities → assigns community ids → generates community keyword summaries  
+**Interfaces**:
+```typescript
+interface ICommunityDetector {
+  detectCommunities(graph: Graph, options?: DbscanOptions): Community[]
+  labelCommunities(communities: Community[], entities: Entity[]): LabeledCommunity[]
+}
+type DbscanOptions = {
+  eps: number
+  minPts: number
+  maxNodes: number
+  maxSteps: number
+}
+type Community = {
+  id: number
+  nodes: string[]
+  color: string
+}
+type LabeledCommunity = Community & {
+  label: string
+  topKeywords: string[]
+  density: number
+}
+```
+**Dependencies**: In-house DBSCAN (no external clustering dependency)  
+**Configuration**: `eps=0.55`, `minPts=2`, `maxNodes=200`, `maxSteps=120000`
+
+---
+
+#### TAD-C007: Graph Metrics Calculator (NEW)
+
+**Component**: GraphMetricsComputer  
+**Responsibility**: Computer → receives constructed graph → calculates density, diameter, clustering coefficient → computes per-community statistics → produces comprehensive graph metrics  
+**Interfaces**:
+```typescript
+interface IMetricsCalculator {
+  computeGraphMetrics(graph: Graph): GraphMetrics
+  computeCommunityMetrics(graph: Graph, communities: Community[]): CommunityMetrics[]
+}
+type GraphMetrics = {
+  nodeCount: number
+  edgeCount: number
+  density: number
+  diameter: number
+  avgPathLength: number
+  clusteringCoefficient: number
+  connectedComponents: number
+}
+type CommunityMetrics = {
+  communityId: number
+  internalEdges: number
+  externalEdges: number
+  conductance: number
+  coverage: number
+}
+```
+**Dependencies**: NetworkX graph algorithms  
+**Configuration**: `timeout_seconds=10`
+
+---
+
+#### TAD-C008: Graph Construction Service (updated from v1.0.0)
+
+**Component**: NetworkXGraphBuilder  
+**Responsibility**: Builder → consumes entity triples and analytics → constructs directed graph with weighted nodes and edges → integrates importance scores and community assignments → delivers analytics-enriched graph  
+**Interfaces**:
+```typescript
+interface IGraphBuilder {
+  buildGraph(triples: CausalEdge[], entities: RankedEntity[]): AnalyticsGraph
+  assignCommunities(graph: AnalyticsGraph, communities: LabeledCommunity[]): AnalyticsGraph
+}
+type AnalyticsGraph = {
+  nodes: AnalyticsNode[]
+  edges: AnalyticsEdge[]
+  communities: LabeledCommunity[]
+  metrics: GraphMetrics
+}
+type AnalyticsNode = {
+  id: string
+  label: string
+  frequency: number
+  tfidf: number
+  pagerank: number
+  community: number
+  radius: number  // computed from importance scores
+}
+type AnalyticsEdge = {
+  source: string
+  target: string
+  label: string
+  edgeType: string
+  causalityScore: number
+  strength: number
+  thickness: number  // computed from strength
+}
+```
+**Dependencies**: NetworkX graph construction, TAD-C004, TAD-C005, TAD-C006  
+**Configuration**: `node_size_scale=0.5`, `edge_thickness_scale=3.0`
+
+---
+
+#### TAD-C009: Analytics Visualization Controller (updated from v1.0.0)
+
+**Component**: ReactAnalyticsUI  
+**Responsibility**: Controller → manages pipeline state → orchestrates analytics computation → renders importance-weighted visualizations → handles community filtering and metric toggling  
+**Interfaces**:
+```typescript
+interface IAnalyticsController {
+  processPipelineWithAnalytics(text: string): Promise<AnalyticsPipelineResult>
+  filterByCommunity(communityId: number): void
+  toggleMetricsDisplay(show: boolean): void
+  exportAnalytics(format: 'json' | 'csv'): string
+}
+type AnalyticsPipelineResult = {
+  preprocessed: PreprocessedText
+  entities: RankedEntity[]
+  triples: CausalEdge[]
+  graph: AnalyticsGraph
+  communities: LabeledCommunity[]
+  metrics: GraphMetrics
+}
+```
+**Dependencies**: React state management, Tailwind CSS, Canvas 2D API  
+**Configuration**: `max_stages=7`, `animation_duration=300ms`, `default_community_filter="all"`
 
 ---
 
 ### Integration Contracts
 
-#### TAD-I001: Preprocessing → NER Interface
+#### TAD-I001: Preprocessing → NER Interface (unchanged)
 
 **Interface**: TextNormalizationContract  
 **Protocol**: In-memory function call  
@@ -408,7 +736,7 @@ Output: { tokens: string[], lemmas: string[] }
 
 ---
 
-#### TAD-I002: NER → Triple Extraction Interface
+#### TAD-I002: NER → Triple Extraction Interface (unchanged)
 
 **Interface**: EntityToTripleContract  
 **Protocol**: In-memory object passing  
@@ -421,22 +749,70 @@ Output: { triples: Triple[] }
 
 ---
 
-#### TAD-I003: Triple → Graph Construction Interface
+#### TAD-I003: Triple → Entity Importance Interface (NEW)
 
-**Interface**: TripleToGraphContract  
+**Interface**: TripleToImportanceContract  
 **Protocol**: In-memory object transformation  
 **Data Format**:
 ```typescript
-Input: { triples: Triple[] }
-Output: { nodes: Node[], edges: Edge[] }
+Input: { entities: Entity[], triples: Triple[], corpus: string[] }
+Output: { rankedEntities: RankedEntity[], tfidfScores: TFIDFScores }
 ```
-**Error Handling**: Duplicate triples → merge with confidence aggregation
+**Error Handling**: Empty corpus → use frequency-only ranking
+
+---
+
+#### TAD-I004: Triple → Causality Detection Interface (NEW)
+
+**Interface**: TripleToCausalityContract  
+**Protocol**: In-memory enrichment  
+**Data Format**:
+```typescript
+Input: { triples: Triple[], doc: SpacyDoc, corpus: string[] }
+Output: { causalEdges: CausalEdge[] }
+```
+**Error Handling**: No causal markers detected → assign default strength 0.5
+
+---
+
+#### TAD-I005: Graph → Community Detection Interface (NEW)
+
+**Interface**: GraphToCommunityContract  
+**Protocol**: In-memory graph analysis  
+**Data Format**:
+```typescript
+Input: { graph: Graph }
+Output: { communities: LabeledCommunity[], modularity: number }
+```
+**Error Handling**: Graph too small (<5 nodes) → return single community
+
+---
+
+#### TAD-I006: Analytics → Visualization Interface (NEW)
+
+**Interface**: AnalyticsToRenderContract  
+**Protocol**: In-memory data binding  
+**Data Format**:
+```typescript
+Input: { 
+  graph: AnalyticsGraph,
+  communities: LabeledCommunity[],
+  metrics: GraphMetrics,
+  selectedCommunity: number | 'all'
+}
+Output: { 
+  renderableNodes: CanvasNode[],
+  renderableEdges: CanvasEdge[],
+  displayMetrics: UIMetrics 
+}
+```
+**Error Handling**: Invalid community filter → default to 'all'
 
 ---
 
 ### Architectural Decisions
 
-#### ADR-001: Use spaCy for NER Instead of Custom BERT Model
+#### ADR-001: Use spaCy for NER Instead of Custom BERT Model (unchanged from v1.0.0)
 
 **Status**: Accepted  
 **Date**: 2026-01-22  
@@ -447,64 +823,147 @@ Output: { nodes: Node[], edges: Edge[] }
 **Decision**: Use pre-trained spaCy `en_core_web_sm` model for entity extraction.
 
 **Alternatives Considered**:
-1. **Fine-tuned BERT model**: Higher accuracy (90%+ F1) but requires GPU, slow inference (2-3s), complex deployment
-2. **OpenAI API for NER**: High accuracy but vendor lock-in, API costs, network dependency
-3. **Rule-based regex**: Fast but low accuracy (40-50% precision), brittle
+1. Fine-tuned BERT model: Higher accuracy (90%+ F1) but requires GPU, slow inference
+2. OpenAI API for NER: High accuracy but vendor lock-in, costs
+3. Rule-based regex: Fast but low accuracy (40-50%)
 
 **Rationale**: spaCy provides 85%+ accuracy, <500ms inference on CPU, zero external dependencies, FOSS licensed (MIT).
 
 **Consequences**:
-- **Positive**: Fast deployment, no GPU required, offline capability, reproducible
-- **Negative**: Accuracy ceiling at ~85%, limited customization without retraining
-- **Neutral**: Users can swap spaCy for custom models via interface contract
+- **Positive**: Fast deployment, no GPU required, offline capability
+- **Negative**: Accuracy ceiling at ~85%
+- **Neutral**: Users can swap spaCy for custom models via interface
 
 ---
 
-#### ADR-002: Use Dependency Parsing for Triple Extraction Instead of OpenIE
+#### ADR-002: Use Dependency Parsing for Triple Extraction (unchanged)
+
+**Status**: Accepted  
+**Date**: 2026-01-22
+
+**Context**: Need (subject, predicate, object) triple extraction.
+
+**Decision**: Use spaCy dependency parser with pattern matching.
+
+**Rationale**: Fast (<100ms), already loaded for NER, deterministic.
+
+**Consequences**:
+- **Positive**: Zero additional dependencies
+- **Negative**: Lower recall than OpenIE (75% vs 85%)
+
+---
+
+#### ADR-003: Use NetworkX for Graph Construction (unchanged)
+
+**Status**: Accepted  
+**Date**: 2026-01-22
+
+**Context**: Need graph data structure.
+
+**Decision**: Use NetworkX in-memory graph.
+
+**Rationale**: 50+ algorithms, pure Python, BSD licensed.
+
+**Consequences**:
+- **Positive**: Algorithm-rich, Python-native
+- **Negative**: No persistence, memory-limited
+
+---
+
+#### ADR-004: Use TF-IDF for Keyword Importance Instead of KeyBERT (NEW)
 
 **Status**: Accepted  
 **Date**: 2026-01-22  
 **Deciders**: Architecture Team
 
-**Context**: Need to extract (subject, predicate, object) triples from text.
+**Context**: Need to rank entities by importance for visualization. Must balance accuracy with performance.
 
-**Decision**: Use spaCy dependency parser with pattern matching rules.
+**Decision**: Use scikit-learn TfidfVectorizer for keyword importance scoring as primary method.
 
 **Alternatives Considered**:
-1. **Stanford OpenIE**: Higher recall but Java dependency, slower, GPL license conflicts
-2. **AllenNLP OpenIE**: Good accuracy but requires large model download (500MB+), slow startup
-3. **LLM-based extraction**: Most flexible but API costs, latency, non-deterministic
+1. **KeyBERT (transformer-based)**: Higher semantic accuracy but requires 500MB model download, 2-3s processing time, GPU for large docs
+2. **YAKE (unsupervised)**: Language-agnostic, fast, but requires parameter tuning, less interpretable scores
+3. **Frequency-only**: Fastest but ignores document-level importance (common words dominate)
 
-**Rationale**: spaCy dependency parsing is fast (<100ms), already loaded for NER, deterministic, provides structural relationships.
+**Rationale**: TF-IDF provides good balance of accuracy (within 10% of KeyBERT for most use cases), speed (<50ms for 1000 words), interpretability, and zero model downloads. scikit-learn is already widely deployed.
 
 **Consequences**:
-- **Positive**: Zero additional dependencies, consistent performance, explainable
-- **Negative**: Lower recall than OpenIE (75% vs 85%), requires pattern tuning
-- **Neutral**: Can add OpenIE as optional enhancement later
+- **Positive**: Fast computation, no model download, interpretable scores, deterministic
+- **Negative**: Cannot capture semantic similarity (e.g., "ML" vs "machine learning" treated as different)
+- **Neutral**: Can add KeyBERT as optional enhancement in Phase 2 for users with larger documents
 
 ---
 
-#### ADR-003: Use NetworkX for Graph Construction Instead of Neo4j
+#### ADR-005: Use Pattern-Based Causality Detection Instead of CausalNLP (NEW)
 
 **Status**: Accepted  
 **Date**: 2026-01-22  
 **Deciders**: Architecture Team
 
-**Context**: Need graph data structure for nodes, edges, and community detection.
+**Context**: Need to identify causal relationships in text. Must work reliably without large model dependencies.
 
-**Decision**: Use NetworkX in-memory graph with Python-based algorithms.
+**Decision**: Use spaCy dependency parsing with custom causal marker patterns ("causes", "leads to", "results in", "enables", "reduces").
 
 **Alternatives Considered**:
-1. **Neo4j embedded**: Persistent storage, Cypher query language but heavy footprint (200MB+), requires server
-2. **TigerGraph**: High performance but complex setup, not FOSS
-3. **Custom adjacency list**: Lightweight but reinvents algorithms
+1. **CausalNLP (transformer-based)**: Pre-trained CausalBERT achieves 85% precision but requires 400MB model, 1-2s per sentence, GPU recommended
+2. **Rule-based with extensive pattern library**: High recall (90%+) but brittle, requires domain-specific tuning
+3. **No causality detection**: Treat all relationships equally (baseline)
 
-**Rationale**: NetworkX provides 50+ graph algorithms, pure Python (easy deployment), BSD licensed, sufficient for demo-scale graphs (<10k nodes).
+**Rationale**: Pattern-based approach achieves 70-75% precision (acceptable for v2.0), processes in <50ms, deterministic, zero additional dependencies. Most causal relationships in technical text use explicit markers.
 
 **Consequences**:
-- **Positive**: No database setup, portable, algorithm-rich, Python-native
-- **Negative**: No persistence (session only), memory-limited scalability
-- **Neutral**: Users can export to Neo4j/FalkorDB for production via GraphML
+- **Positive**: Fast, lightweight, deterministic, no model download
+- **Negative**: Misses implicit causality (e.g., "Increasing temperature melts ice" without explicit "causes")
+- **Neutral**: Users with higher accuracy requirements can integrate CausalNLP via plugin architecture in future
+
+---
+
+#### ADR-006: Use Density-Based DBSCAN for Community Detection (NEW)
+
+**Status**: Accepted  
+**Date**: 2026-01-22  
+**Deciders**: Architecture Team
+
+**Context**: Need to detect semantic communities in knowledge graphs. Must handle graphs of 10-1000 nodes efficiently.
+
+**Decision**: Use a lightweight, dependency-free DBSCAN density clustering implementation for community detection.
+
+**Alternatives Considered**:
+1. **Louvain algorithm**: Strong graph-structure communities but requires modularity tooling and additional dependency surface
+2. **Leiden algorithm**: Often higher modularity but adds dependency and operational complexity
+3. **Label Propagation**: Fast but non-deterministic for reproducibility
+4. **Hierarchical clustering on embeddings**: Higher semantic accuracy but requires embeddings/model runtime
+
+**Rationale**: DBSCAN is density-based, deterministic under stable ordering, requires no external clustering library, and can be bounded (max nodes/steps) to prevent runaway computation while still producing usable communities and keyword summaries.
+
+**Consequences**:
+- **Positive**: Dependency-free, bounded execution, configurable via `eps/minPts`, stable results
+- **Negative**: Community quality depends on feature representation and `eps/minPts` tuning; no modularity score
+- **Neutral**: Louvain/Leiden can be added later as optional algorithms behind the same interface
+
+---
+
+#### ADR-007: Compute Analytics On-Demand vs Pre-Compute (NEW)
+
+**Status**: Accepted  
+**Date**: 2026-01-22  
+**Deciders**: Engineering Lead, UX Designer
+
+**Context**: Analytics computations (TF-IDF, PageRank, DBSCAN clustering) take 500ms-2s. Must decide whether to compute during initial processing or when user requests analytics view.
+
+**Decision**: Pre-compute all analytics during initial pipeline execution.
+
+**Alternatives Considered**:
+1. **On-demand computation**: Compute only when user clicks "Show Analytics" - reduces initial load time but adds 1-2s delay when toggling analytics view
+2. **Lazy loading with caching**: Compute on first access, cache results - complex state management
+3. **Web Worker background computation**: Parallel processing but requires Worker setup, message passing overhead
+
+**Rationale**: Pre-computation adds <2s to initial pipeline execution but enables instant analytics toggling, filtering, and visualization updates. User feedback indicates willingness to wait 3-4s upfront for instant interactive exploration.
+
+**Consequences**:
+- **Positive**: Instant analytics view toggling (<100ms), smooth filtering experience, simpler state management
+- **Negative**: Initial processing time increases from ~1s to ~3s
+- **Neutral**: For very large graphs (>500 nodes), can add progressive computation in future
 
 ---
 
@@ -512,9 +971,9 @@ Output: { nodes: Node[], edges: Edge[] }
 
 #### Performance
 
-**Requirement**: System processes 500-word documents end-to-end in <3 seconds (p95 latency).
+**Requirement**: System processes 1000-word documents with analytics end-to-end in <4 seconds (p95 latency).
 
-**Architecture Pattern**: Sequential pipeline with early-exit on errors, lazy loading of NLP models.
+**Architecture Pattern**: Sequential pipeline with early-exit on errors, efficient sparse matrix operations for TF-IDF, incremental graph construction.
 
 **Validation**: Load test with 100 sample documents measuring per-stage latency.
 
@@ -523,70 +982,99 @@ Output: { nodes: Node[], edges: Edge[] }
 NLTK preprocessing: <50ms
 spaCy NER: <500ms
 Triple extraction: <200ms
-Graph construction: <100ms
+TF-IDF computation: <100ms
+Graph construction: <150ms
+PageRank calculation: <300ms
+Louvain community detection: <400ms
+Causality detection: <100ms
 Visualization render: <300ms
-Total: <1150ms (with 150% buffer)
+Total: <2100ms (with 90% buffer = 3990ms)
 ```
 
 ---
 
 #### Scalability
 
-**Requirement**: Support documents up to 5000 words without client-side memory issues.
+**Requirement**: Support documents up to 10,000 words and graphs up to 500 nodes without client-side memory issues.
 
-**Architecture Pattern**: Streaming tokenization, batched entity processing, incremental graph construction.
+**Architecture Pattern**: Sparse matrix representations for TF-IDF, efficient NetworkX data structures, canvas-based rendering (not DOM).
 
-**Validation**: Stress test with 10,000-word documents monitoring browser memory usage (<500MB).
+**Validation**: Stress test with 15,000-word documents and 750-node graphs monitoring browser memory usage (<800MB).
 
-**Constraints**: Beyond 10k words, recommend server-side processing.
+**Constraints**: 
+- Beyond 10k words, recommend server-side processing
+- Beyond 500 nodes, recommend graph simplification (edge pruning, node aggregation)
+
+---
+
+#### Accuracy
+
+**Requirement**: Analytics metrics match reference implementations within acceptable tolerances.
+
+**Architecture Pattern**: Use established libraries (scikit-learn, NetworkX) as ground truth, validate outputs.
+
+**Validation**: Unit tests comparing outputs to reference implementations.
+
+**Tolerances**:
+- TF-IDF scores: ≤5% relative error vs scikit-learn
+- PageRank scores: ≤5% relative error vs NetworkX
+- Community modularity: ≤10% relative error vs python-louvain
+- Causality precision: ≥70% on manually labeled test set
 
 ---
 
 #### Usability
 
-**Requirement**: Users with basic NLP knowledge understand pipeline flow without documentation.
+**Requirement**: Users with basic NLP knowledge understand analytics metrics without documentation.
 
-**Architecture Pattern**: Progressive disclosure UI with stage-by-stage visualization, inline tooltips, example outputs.
+**Architecture Pattern**: Inline tooltips, progressive disclosure UI, visual encoding of metrics (node size = importance, edge thickness = strength).
 
-**Validation**: User testing with 10 participants achieving >80% task completion without help.
+**Validation**: User testing with 10 participants achieving >85% task completion without help.
 
 **Metrics**:
-- Time to first entity extraction: <30 seconds
-- Understanding of triple format: >85% correct interpretation
-- Ability to identify pipeline stage: >90% accuracy
+- Time to understand PageRank ranking: <60 seconds
+- Ability to identify strongest causal relationship: >90% accuracy
+- Understanding of community groupings: >85% correct interpretation
 
 ---
 
 #### Maintainability
 
-**Requirement**: Developers can swap NLP libraries (e.g., spaCy → Stanford NLP) without rewriting UI.
+**Requirement**: Developers can swap analytics algorithms (e.g., TF-IDF → KeyBERT) without rewriting UI.
 
-**Architecture Pattern**: Interface-based component contracts, dependency injection, config-driven library selection.
+**Architecture Pattern**: Interface-based component contracts, dependency injection, config-driven algorithm selection.
 
-**Validation**: Successfully swap spaCy for alternative NER in <4 hours.
+**Validation**: Successfully swap TF-IDF for KeyBERT implementation in <6 hours.
 
 **Design Principles**:
-- Each component implements interface contract
+- Each analytics component implements interface contract
 - No direct library imports in UI layer
-- Configuration externalizes library choices
+- Configuration file externalizes algorithm choices
 
 ---
 
 #### Observability
 
-**Requirement**: Developers can debug pipeline failures by inspecting intermediate outputs.
+**Requirement**: Developers can debug analytics failures by inspecting intermediate outputs and metrics.
 
-**Architecture Pattern**: Stage-level error boundaries, structured logging, output serialization.
+**Architecture Pattern**: Stage-level logging with metric snapshots, structured error messages, debug mode with detailed outputs.
 
-**Validation**: Inject errors at each stage and verify clear error messages + recovery guidance.
+**Validation**: Inject errors at each analytics stage and verify clear error messages + recovery guidance.
 
 **Telemetry**:
 ```typescript
-interface StageMetrics {
+interface AnalyticsStageMetrics {
   stage: string
   status: "success" | "error"
   latency_ms: number
+  input_size: number
   output_size: number
+  metrics: {
+    avg_tfidf?: number
+    avg_pagerank?: number
+    num_communities?: number
+    modularity?: number
+  }
   error_message?: string
 }
 ```
@@ -598,10 +1086,11 @@ interface StageMetrics {
 **Pattern**: Static artifact deployment (client-side only)
 
 **Deployment Flow**:
-1. Build React application → bundle JavaScript/CSS
+1. Build React application → bundle JavaScript/CSS with analytics libraries
 2. Verify NLP model loading → test spaCy model import
-3. Deploy to CDN → upload to Cloudflare Pages / Netlify
-4. Validate in production → smoke test with sample text
+3. Validate analytics computation → run test suite on sample documents
+4. Deploy to CDN → upload to Cloudflare Pages / Netlify
+5. Validate in production → smoke test with analytics pipeline
 
 **Rollback Strategy**: Revert to previous CDN version via version tags.
 
@@ -611,19 +1100,20 @@ interface StageMetrics {
 
 ### Migration Path
 
-**Current State**: Users manually extract entities using spreadsheets or regex.
+**Current State**: Users have v1.0.0 with basic entity extraction and graph construction.
 
-**Target State**: Users process text through automated pipeline generating queryable graphs.
+**Target State**: Users have v2.0.0 with entity importance ranking, causality detection, and community clustering.
 
 **Migration Steps**:
-1. **Phase 1** (Week 1-2): Release with single text input, basic NER, simple graph
-2. **Phase 2** (Week 3-4): Add triple extraction, community detection
-3. **Phase 3** (Week 5-6): Add export formats (JSON, GraphML), multiple examples
-4. **Phase 4** (Week 7-8): Optimize performance, add error handling
+1. **Phase 1** (Week 1-3): Add TF-IDF scoring and basic centrality
+2. **Phase 2** (Week 4-5): Add causality detection and edge strength
+3. **Phase 3** (Week 6-7): Add Louvain community detection
+4. **Phase 4** (Week 8-9): Add interactive analytics dashboard with filtering
+5. **Phase 5** (Week 10): Performance optimization and user testing
 
-**Backward Compatibility**: Not applicable (new system, no legacy data).
+**Backward Compatibility**: v2.0.0 API-compatible with v1.0.0 - analytics are additive enhancements.
 
-**Data Migration**: Users copy-paste text from existing tools (no migration tooling needed).
+**Data Migration**: Not applicable (session-only storage, no persistent data).
 
 ---
 
@@ -633,10 +1123,16 @@ interface StageMetrics {
 |--------|----------------|---------------|---------------|-----|
 | PRD-E001-S001 | Entity Extraction | TAD-C002 | TAD-I002 | ADR-001 |
 | PRD-E001-S002 | Triple Extraction | TAD-C003 | TAD-I003 | ADR-002 |
-| PRD-E001-S003 | Interactive Visualization | TAD-C005 | N/A | N/A |
-| PRD-E001-S004 | Graph Construction | TAD-C004 | TAD-I003 | ADR-003 |
-| PRD-E002-S001 | Library Attribution | TAD-C005 | N/A | N/A |
-| PRD-E002-S002 | Code Snippets | TAD-C005 | N/A | N/A |
+| PRD-E001-S003 | Interactive Visualization | TAD-C009 | TAD-I006 | N/A |
+| PRD-E001-S004 | Graph Construction | TAD-C008 | TAD-I005 | ADR-003 |
+| PRD-E002-S001 | Keyword Frequency Scoring | TAD-C004 | TAD-I003 | ADR-004 |
+| PRD-E002-S002 | Centrality-Based Importance | TAD-C004 | TAD-I003 | ADR-004 |
+| PRD-E003-S001 | Causal Relationship Detection | TAD-C005 | TAD-I004 | ADR-005 |
+| PRD-E003-S002 | Relationship Strength Measurement | TAD-C005 | TAD-I004 | ADR-005 |
+| PRD-E004-S001 | Automated Community Clustering | TAD-C006 | TAD-I005 | ADR-006 |
+| PRD-E004-S002 | Hierarchical Topic Modeling | TAD-C006 | TAD-I005 | ADR-006 |
+| PRD-E005-S001 | Real-Time Metric Updates | TAD-C009 | TAD-I006 | ADR-007 |
+| PRD-E005-S002 | Comparative Analytics | TAD-C009 | TAD-I006 | ADR-007 |
 
 ---
 
@@ -651,7 +1147,8 @@ interface StageMetrics {
 - [x] Success metrics are measurable and time-bound
 - [x] Out of scope explicitly defined
 - [x] No technical implementation details in PRD
-- [x] User personas identified (data analyst, researcher, developer)
+- [x] User personas identified (data analyst, researcher, domain expert, knowledge worker)
+- [x] Analytics requirements quantified (≥70% causality precision, ≥0.30 modularity)
 
 ### TAD Validation
 
@@ -661,7 +1158,9 @@ interface StageMetrics {
 - [x] Quality attributes have measurable scenarios
 - [x] Deployment strategy defined
 - [x] No business logic in TAD (focuses on HOW not WHY)
-- [x] Domain-agnostic design (NLP pipeline, not Singapore-specific)
+- [x] Domain-agnostic design (analytics pipeline, not domain-specific)
+- [x] Four new components for analytics layers (TAD-C004 through TAD-C007)
+- [x] Five new ADRs addressing key algorithm choices
 
 ### Traceability Validation
 
@@ -669,6 +1168,7 @@ interface StageMetrics {
 - [x] All user stories map to TAD components
 - [x] All TAD components trace back to PRD requirements
 - [x] ADRs reference specific user stories where applicable
+- [x] New analytics epics fully traced to implementation
 
 ---
 
@@ -676,68 +1176,183 @@ interface StageMetrics {
 
 ### Open Questions
 
-**OQ-001**: Should we pre-load spaCy model or lazy-load on first use?  
-**Impact**: Startup time (2s) vs first-use latency  
-**Resolution Deadline**: Week 1  
-**Owner**: Technical Lead
-
-**OQ-002**: What is acceptable entity extraction precision for MVP?  
-**Impact**: User satisfaction vs development time  
+**OQ-001**: Pattern-based vs transformer-based causality detection?  
+**Impact**: Accuracy (70% vs 85%) vs Speed (50ms vs 500ms) vs Dependencies (0 vs 400MB model)  
 **Resolution Deadline**: Week 2  
-**Owner**: Product Manager
+**Owner**: Technical Lead  
+**Status**: RESOLVED - ADR-005 selects pattern-based for v2.0.0
 
-**OQ-003**: Should graph visualization use force-directed layout or hierarchical?  
-**Impact**: UX comprehension vs computational cost  
+**OQ-002**: Edge strength threshold for visual filtering?  
+**Impact**: User experience (clutter reduction) vs information completeness  
+**Resolution Deadline**: Week 3  
+**Owner**: UX Designer  
+**Proposed Values**: 0.2 (show only moderate-strong), 0.3 (show only strong), user-configurable slider
+
+**OQ-003**: Pre-compute vs on-demand analytics?  
+**Impact**: Initial latency (+2s) vs interactive latency (+1-2s per toggle)  
 **Resolution Deadline**: Week 2  
-**Owner**: UX Designer
+**Owner**: Engineering Lead  
+**Status**: RESOLVED - ADR-007 selects pre-compute
+
+**OQ-004**: Optimal community count for navigation?  
+**Impact**: Granularity (too few = overgeneralization) vs Usability (too many = cognitive overload)  
+**Resolution Deadline**: Week 4  
+**Owner**: Product Manager  
+**Proposed Range**: 3-7 communities with automatic selection based on modularity
+
+**OQ-005**: Should we support BERTopic for semantic topic modeling in v2.0.0?  
+**Impact**: Semantic accuracy (+15%) vs Model size (500MB) vs Computation time (+3-5s)  
+**Resolution Deadline**: Week 3  
+**Owner**: Product Manager  
+**Status**: DEFERRED to v2.1.0 as "Should Have" feature
 
 ### Risks
 
-**RISK-001**: spaCy model size (40MB) causes slow initial page load  
-**Mitigation**: Lazy-load model only when user submits text  
-**Probability**: High | **Impact**: Medium | **Owner**: Engineering Lead
+**RISK-001**: TF-IDF may not capture semantic importance for technical jargon  
+**Mitigation**: Add KeyBERT as optional enhancement, validate on domain-specific corpora  
+**Probability**: Medium | **Impact**: Medium | **Owner**: Data Scientist
 
-**RISK-002**: Browser memory limits prevent processing large documents  
-**Mitigation**: Add document size validation (<5000 words), warn users  
+**RISK-002**: Pattern-based causality detection misses implicit causal relationships  
+**Mitigation**: Expand pattern library, add user feedback mechanism for missed causality  
+**Probability**: High | **Impact**: Medium | **Owner**: NLP Engineer
+
+**RISK-003**: Louvain community detection may produce unintuitive clusters for small graphs  
+**Mitigation**: Set minimum graph size (10 nodes), fall back to single community for smaller graphs  
 **Probability**: Medium | **Impact**: Low | **Owner**: Engineering Lead
 
-**RISK-003**: Triple extraction accuracy <75% frustrates users  
-**Mitigation**: Set user expectations, show confidence scores, allow manual editing  
-**Probability**: Low | **Impact**: High | **Owner**: Product Manager
+**RISK-004**: Analytics computation time exceeds 4s target for large documents  
+**Mitigation**: Add progressive computation, optimize TF-IDF with sparse matrices, cache intermediate results  
+**Probability**: Medium | **Impact**: High | **Owner**: Performance Engineer
+
+**RISK-005**: Users may not understand statistical metrics (PageRank, modularity, PMI)  
+**Mitigation**: Add inline tooltips, provide educational content, use visual encodings (size, color)  
+**Probability**: High | **Impact**: High | **Owner**: UX Designer
 
 ---
 
-## PART VI: GLOSSARY
+## PART VI: ANALYTICS LAYER SPECIFICATION
+
+### Entity Layer (Nodes)
+
+**Metrics Computed**:
+1. **Frequency**: Count of entity mentions in corpus
+2. **TF-IDF Score**: Term frequency × inverse document frequency (normalized [0,1])
+3. **PageRank**: Importance based on graph structure (normalized [0,1])
+4. **Degree Centrality**: Number of connections (normalized [0,1])
+5. **Betweenness Centrality**: Fraction of shortest paths through node (normalized [0,1])
+6. **Combined Score**: Weighted average `0.4×frequency + 0.3×tfidf + 0.3×pagerank`
+
+**Visual Encoding**:
+- Node radius: `baseRadius × (1 + combinedScore × 2)`
+- Border width: `2px if pagerank > 0.08, else 0px`
+- Pulse animation: Higher frequency = faster pulse
+
+---
+
+### Relation Layer (Edges)
+
+**Metrics Computed**:
+1. **Causality Score**: Confidence of causal relationship [0,1] based on marker presence
+2. **Co-occurrence Frequency**: Times source and target appear in same sentence/paragraph
+3. **PMI (Pointwise Mutual Information)**: `log(P(source,target) / (P(source)×P(target)))`
+4. **Edge Strength**: Normalized combination of causality + co-occurrence + PMI [0,1]
+5. **Edge Type**: Classification (causal, dependency, hierarchy, composition, technical)
+
+**Visual Encoding**:
+- Edge thickness: `1px + strength × 4px`
+- Edge opacity: `strength × 0.8`
+- Edge color: Inherited from target node community
+- Edge label: Shown only for strength > 0.7
+
+---
+
+### Metadata Layer (Attributes)
+
+**Graph-Level Metrics**:
+1. **Density**: `actualEdges / possibleEdges`
+2. **Diameter**: Longest shortest path between any two nodes
+3. **Average Path Length**: Mean shortest path across all node pairs
+4. **Clustering Coefficient**: Tendency of nodes to cluster
+5. **Connected Components**: Number of disconnected subgraphs
+
+**Community-Level Metrics**:
+1. **Modularity**: Quality of community division [-0.5, 1.0], higher = better
+2. **Internal Edge Density**: Fraction of edges within community
+3. **Conductance**: Ratio of external to total edges (lower = better community)
+4. **Coverage**: Fraction of edges within communities
+
+---
+
+### Cluster Layer (Communities)
+
+**Community Detection Parameters**:
+- **Algorithm**: Louvain modularity maximization
+- **Resolution**: 1.0 (standard)
+- **Min Community Size**: 3 nodes
+- **Max Communities**: 8 (for visualization clarity)
+
+**Community Labeling Strategy**:
+1. Extract all entities in community
+2. Compute TF-IDF scores within community
+3. Select top 3 keywords by TF-IDF
+4. Concatenate as label (e.g., "Training & Data & Optimization")
+5. Simplify to readable form (e.g., "Training & Data")
+
+**Visual Encoding**:
+- Distinct color per community (predefined palette)
+- Spatial grouping via force-directed layout with community attraction
+- Community filter enables isolation view
+
+---
+
+## PART VII: GLOSSARY
 
 **Entity**: Named item in text (person, place, organization, date, etc.) identified by NER.
 
-**Triple**: Semantic relationship in (subject, predicate, object) format, e.g., "(Singapore, located-in, Southeast Asia)".
+**Triple**: Semantic relationship in (subject, predicate, object) format.
 
 **Knowledge Graph**: Graph data structure where nodes are entities and edges are relationships.
 
-**NER (Named Entity Recognition)**: NLP task of identifying and classifying named entities in text.
+**TF-IDF**: Term Frequency-Inverse Document Frequency, measures keyword importance by balancing frequency with rarity.
 
-**Dependency Parsing**: Linguistic analysis identifying grammatical relationships between words.
+**PageRank**: Graph centrality algorithm measuring node importance based on incoming edges (originally developed for web search).
 
-**Community Detection**: Graph algorithm identifying clusters of densely connected nodes.
+**Causality Score**: Confidence [0,1] that a relationship represents causation rather than correlation.
+
+**PMI (Pointwise Mutual Information)**: Statistical measure of association between two entities based on co-occurrence patterns.
+
+**Community**: Subset of nodes in graph with dense internal connections and sparse external connections.
+
+**Modularity**: Metric [-0.5, 1.0] measuring quality of community detection; higher values indicate stronger community structure.
+
+**Louvain Algorithm**: Greedy optimization algorithm for community detection that maximizes modularity.
 
 **FOSS (Free and Open Source Software)**: Software with source code freely available under open licenses.
 
-**GraphRAG (Graph Retrieval-Augmented Generation)**: Technique combining knowledge graphs with LLM generation for improved accuracy.
+**GraphRAG**: Graph Retrieval-Augmented Generation, technique combining knowledge graphs with LLM generation.
 
 ---
 
 ## Document Metadata
 
 **Document Type**: PRD + TAD (Combined)  
-**Version**: 1.0.0  
+**Version**: 2.0.0  
+**Previous Version**: 1.0.0  
 **Last Updated**: 2026-01-22  
-**Authors**: Product Team, Architecture Team  
+**Authors**: Product Team, Architecture Team, Analytics Team  
 **Reviewers**: [Pending]  
 **Status**: Draft → Pending Review  
 **Next Review Date**: 2026-01-29
 
-**Adherence to Guidelines**: This document follows `prd-tad-guidelines.md` CID framework, maintains PRD/TAD separation, uses problem-first approach, specifies measurable outcomes, documents architectural decisions with ADRs, and establishes bidirectional traceability.
+**Major Changes from v1.0.0**:
+- Added 4 new analytics epics (PRD-E002 through PRD-E005)
+- Added 5 new TAD components (TAD-C004 through TAD-C008 updated)
+- Added 4 new ADRs (ADR-004 through ADR-007)
+- Enhanced traceability matrix with analytics layers
+- Added comprehensive analytics layer specification (Part VII)
+- Updated success metrics with analytics targets
+
+**Adherence to Guidelines**: This document follows `prd-tad-guidelines.md` CID framework, maintains PRD/TAD separation, uses problem-first approach, specifies measurable outcomes, documents architectural decisions with ADRs, establishes bidirectional traceability, and structures content hierarchically with user-centric narratives.
 
 ---
 

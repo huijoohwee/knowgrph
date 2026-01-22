@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type RefObject } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useParserUIState } from '@/features/parsers/uiState'
 import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -16,7 +16,6 @@ export function useToolbarMenuAction(args: {
   closeToolMenu: () => void
   openWorkflowTab: () => void
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
-  orchestratorImportInputRef: RefObject<HTMLInputElement | null>
   setIsMarkdownImportMenuOpen: (open: boolean) => void
   setIsHtmlImportMenuOpen: (open: boolean) => void
   setIsPdfImportMenuOpen: (open: boolean) => void

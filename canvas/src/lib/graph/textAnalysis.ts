@@ -15,9 +15,13 @@ export type TextTriple = {
   confidence: number
   properties?: {
     temporal?: string
+    temporalStrength?: number
     modality?: string
+    modalityStrength?: number
+    certainty?: number
     negation?: boolean
-    causality?: 'high'
+    causalityStrength?: number
+    causalitySignal?: string
   }
 }
 
@@ -90,7 +94,6 @@ export const splitSentencesWithOffsets = (text: string): Array<{ start: number; 
 export const inferEntityLabel = (phrase: string): string => {
   const t = normalizeWhitespace(phrase)
   if (!t) return 'ENTITY'
-  const lower = t.toLowerCase()
   if (/^[A-Z0-9]{2,8}$/.test(t)) return 'PRODUCT'
   if (/^[A-Z]{2,6}\d{1,4}$/.test(t)) return 'PRODUCT'
   if (/^[A-Za-z]+-\w+/.test(t) && /[A-Z]/.test(t[0] || '')) return 'PRODUCT'
@@ -170,11 +173,89 @@ export const normalizeEntityKey = (raw: string): string => {
   return stripped.toLowerCase()
 }
 
+const extractRichProperties = (
+  context: string,
+): Partial<{
+  temporal: string
+  temporalStrength: number
+  modality: string
+  modalityStrength: number
+  certainty: number
+  negation: boolean
+  causalityStrength: number
+  causalitySignal: string
+}> => {
+  const props: Partial<{
+    temporal: string
+    temporalStrength: number
+    modality: string
+    modalityStrength: number
+    certainty: number
+    negation: boolean
+    causalityStrength: number
+    causalitySignal: string
+  }> = {}
+  const raw = String(context || '')
+
+  const temporalMatch = raw.match(/\b(before|after|during|while|then)\b/i)
+  if (temporalMatch && temporalMatch[0]) {
+    const token = temporalMatch[0].toLowerCase()
+    props.temporal = token
+    props.temporalStrength =
+      token === 'before' || token === 'after' || token === 'during'
+        ? 0.7
+        : token === 'while' || token === 'then'
+          ? 0.5
+          : 0.4
+  }
+
+  const modalityMatch = raw.match(/\b(may|must|should|could|might)\b/i)
+  if (modalityMatch && modalityMatch[0]) {
+    const token = modalityMatch[0].toLowerCase()
+    props.modality = token
+    const strength =
+      token === 'must'
+        ? 0.95
+        : token === 'should'
+          ? 0.75
+          : token === 'may' || token === 'might'
+            ? 0.45
+            : token === 'could'
+              ? 0.55
+              : 0.5
+    props.modalityStrength = strength
+    props.certainty = strength
+  }
+
+  if (/\b(not|never|no)\b/i.test(raw)) props.negation = true
+  const causalSignal = (() => {
+    const patterns: Array<{ re: RegExp; signal: string; strength: number }> = [
+      { re: /\b(because)\b/i, signal: 'because', strength: 0.9 },
+      { re: /\b(due to)\b/i, signal: 'due-to', strength: 0.85 },
+      { re: /\b(therefore)\b/i, signal: 'therefore', strength: 0.8 },
+      { re: /\b(results in)\b/i, signal: 'results-in', strength: 0.95 },
+      { re: /\b(leads to)\b/i, signal: 'leads-to', strength: 0.95 },
+      { re: /\b(causes)\b/i, signal: 'causes', strength: 0.95 },
+    ]
+    for (let i = 0; i < patterns.length; i += 1) {
+      const p = patterns[i]!
+      if (p.re.test(raw)) return { signal: p.signal, strength: p.strength }
+    }
+    return null
+  })()
+  if (causalSignal) {
+    props.causalitySignal = causalSignal.signal
+    props.causalityStrength = causalSignal.strength
+  }
+
+  return props
+}
+
 export const extractCooccurrencePairs = (text: string, entities: TextEntity[]): TextTriple[] => {
   const triples: TextTriple[] = []
   const sentenceRanges = splitSentencesWithOffsets(text)
   const mentionsBySentence: TextEntity[][] = []
-  
+
   if (sentenceRanges.length > 0 && entities.length > 0) {
     let mIdx = 0
     const sortedEntities = [...entities].sort((a, b) => a.start - b.start)
@@ -199,8 +280,7 @@ export const extractCooccurrencePairs = (text: string, entities: TextEntity[]): 
   for (let sIdx = 0; sIdx < mentionsBySentence.length; sIdx += 1) {
     const list = mentionsBySentence[sIdx] || []
     if (list.length < 2) continue
-    
-    // De-duplicate entities in sentence by key
+
     const uniqueMap = new Map<string, TextEntity>()
     for (const e of list) {
       const key = normalizeEntityKey(e.text)
@@ -217,29 +297,22 @@ export const extractCooccurrencePairs = (text: string, entities: TextEntity[]): 
       for (let j = i + 1; j < uniqueEntities.length; j += 1) {
         const a = uniqueEntities[i]!
         const b = uniqueEntities[j]!
-        
-        // Find relation text between them
+
         const left = Math.min(a.end, b.end) - base
         const right = Math.max(a.start, b.start) - base
         const between = left < right ? sentence.slice(left, right) : ''
-        
-        // Infer relation
-        // We import tokenizeForStats but it is in BottomPanelStatsUtils which might be circular.
-        // Let's use simple split for now to avoid circular dependency if possible, 
-        // or just use regex since we are in textAnalysis.
+
         const tokens = between.match(/[A-Za-z]+(?:[-'][A-Za-z]+)*/g) || []
-        const cleaned = tokens
-           .map(t => t.toLowerCase())
-           .filter(t => !NLTK_STOPWORDS_EN_SET.has(t))
-        
+        const cleaned = tokens.map(t => t.toLowerCase()).filter(t => !NLTK_STOPWORDS_EN_SET.has(t))
+
         const verb = cleaned.find(t => isVerbLike(t)) || (cleaned.length > 0 ? cleaned[0] : 'relates_to')
-        
+
         triples.push({
-            subject: a.text,
-            predicate: verb || 'relates_to',
-            object: b.text,
-            confidence: 0.4, // Lower confidence for co-occurrence
-            properties: extractRichProperties(between)
+          subject: a.text,
+          predicate: verb || 'relates_to',
+          object: b.text,
+          confidence: 0.4,
+          properties: extractRichProperties(between),
         })
       }
     }
@@ -260,7 +333,7 @@ export const extractMentionsRobust = (text: string): TextEntity[] => {
     if (NLTK_STOPWORDS_EN_SET.has(key)) return
     if (key.length < 3) return
     if (/^\d+$/.test(key)) return
-    
+
     out.push({ text: label.trim(), label: inferEntityLabel(label), start, end })
     seen.add(`${key}@${start}`)
   }
@@ -358,42 +431,6 @@ export const findFirstEntityMention = (sentence: string, entities: TextEntity[])
   return list[0] || null
 }
 
-const extractRichProperties = (context: string): Partial<{
-  temporal: string
-  modality: string
-  negation: boolean
-  causality: 'high'
-}> => {
-  const props: Partial<{
-    temporal: string
-    modality: string
-    negation: boolean
-    causality: 'high'
-  }> = {}
-  
-  // Temporal
-  if (/\b(before|after|during|while|then)\b/i.test(context)) {
-    props.temporal = context.match(/\b(before|after|during|while|then)\b/i)![0]
-  }
-  
-  // Modality
-  if (/\b(may|must|should|could|might)\b/i.test(context)) {
-    props.modality = context.match(/\b(may|must|should|could|might)\b/i)![0]
-  }
-  
-  // Negation
-  if (/\b(not|never|no)\b/i.test(context)) {
-    props.negation = true
-  }
-  
-  // Causality
-  if (/\b(causes|leads to|results in|because)\b/i.test(context)) {
-    props.causality = 'high'
-  }
-
-  return props
-}
-
 export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): TextTriple[] => {
   const sentences = splitSentences(text)
   const triples: TextTriple[] = []
@@ -428,7 +465,7 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
       ents.find(e => e.label !== 'QUANTITY' && e.label !== 'DATE')?.text ||
       ents[0]?.text ||
       ''
-    const subj = (startsWithPronoun && stableSubject) ? stableSubject : firstNonQuantity || lastSubject
+    const subj = startsWithPronoun ? (lastSubject || stableSubject) : (firstNonQuantity || lastSubject)
     if (!subj) continue
     if (!startsWithPronoun && firstNonQuantity) lastSubject = firstNonQuantity
 
@@ -467,6 +504,21 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
     const mEasyTo = sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,80}\\bis\\s+easy\\s+to\\s+([^,.]+)`, 'i'))
     if (mEasyTo && mEasyTo[1] && subjForSentence) {
       applyVerbObject('is-easy-to', mEasyTo[1], 0.6, mEasyTo[0])
+    }
+
+    const leadingIsAIn = sent.match(
+      /^([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+){0,5})\s+is\s+(?:a|an|the)\s+([^,.]+?)\s+in\s+([^,.]+)[,.]?/i,
+    )
+    if (leadingIsAIn && leadingIsAIn[1] && leadingIsAIn[2] && leadingIsAIn[3]) {
+      push(leadingIsAIn[1], 'is-a', normalizeNounPhrase(leadingIsAIn[2]), 0.92, leadingIsAIn[0])
+      push(leadingIsAIn[1], 'located-in', normalizeNounPhrase(leadingIsAIn[3]), 0.92, leadingIsAIn[0])
+    } else {
+      const leadingIsA = sent.match(
+        /^([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+){0,5})\s+is\s+(?:a|an|the)\s+([^,.]+)[,.]?/i,
+      )
+      if (leadingIsA && leadingIsA[1] && leadingIsA[2]) {
+        push(leadingIsA[1], 'is-a', normalizeNounPhrase(leadingIsA[2]), 0.9, leadingIsA[0])
+      }
     }
 
     if (subjInSentence || (subjForSentence && sent.toLowerCase().includes(subjForSentence.toLowerCase()))) {
@@ -509,7 +561,7 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
       if (mOut && mOut[1]) applyVerbObject('outperforms', mOut[1], 0.6, mOut[0])
     }
 
-    const quantityUnit = '(?:million|billion|thousand|%|percent|km|kg|m|cm|mm)'
+    const quantityUnit = '(?:million|billion|thousand|%|percent|km|kg|m|cm|mm)(?:\\s+people)?'
     const mPopulation = subjInSentence
       ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,240}\\bpopulation\\s+of\\s+(?:about\\s+)?(\\d+(?:\\.\\d+)?\\s*${quantityUnit})`, 'i'))
       : sent.match(new RegExp(`\\bpopulation\\s+of\\s+(?:about\\s+)?(\\d+(?:\\.\\d+)?\\s*${quantityUnit})`, 'i'))

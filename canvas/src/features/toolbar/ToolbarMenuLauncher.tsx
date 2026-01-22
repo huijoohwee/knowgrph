@@ -17,7 +17,7 @@ import {
   RENDERER_PANEL_OPEN_EVENT,
   type PropsPanelOpenEventDetail,
 } from '@/features/canvas/utils'
-import { IMPORT_EXPORT_STATUS_COPY, LS_KEYS, UI_LABELS } from '@/lib/config'
+import { LS_KEYS, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
@@ -155,8 +155,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     }
   }, [setIsToolMenuOpen, setToolMenuDragPos])
 
-  const orchestratorImportInputRef = useRef<HTMLInputElement | null>(null)
-
   const {
     exportStatus,
     hasSelection,
@@ -187,7 +185,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     exportSelectionCypher,
     importSchemaJsonOrJsonLd,
     importGraphRagWorkflowJsonLd,
-    importGraphRagWorkflowFromText,
     importSettingsJsonLd,
     importHistoryJsonLd,
     importGraphFieldSettingsJsonLd,
@@ -213,38 +210,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
-  const handleImportGraphRagConfigToolbar: React.ChangeEventHandler<HTMLInputElement> = useCallback(
-    event => {
-      const fileList = event.target.files
-      const file = fileList && fileList[0]
-      if (!file) {
-        return
-      }
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result
-        const text = typeof result === 'string' ? result : ''
-        importGraphRagWorkflowFromText(file.name, text)
-      }
-      reader.onerror = () => {
-        try {
-          const state = useGraphStore.getState()
-          state.setOrchestratorOpStatus(false, IMPORT_EXPORT_STATUS_COPY.importReadFileFailed)
-          try {
-            state.setRenderOpStatus(false, IMPORT_EXPORT_STATUS_COPY.importReadFileFailed)
-          } catch {
-            void 0
-          }
-        } catch {
-          void 0
-        }
-      }
-      reader.readAsText(file)
-      event.target.value = ''
-    },
-    [importGraphRagWorkflowFromText],
-  )
-
   const openWorkflowTab = useCallback(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -259,7 +224,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     closeToolMenu,
     openWorkflowTab,
     onOpenMainPanel,
-    orchestratorImportInputRef,
     setIsMarkdownImportMenuOpen,
     setIsHtmlImportMenuOpen,
     setIsPdfImportMenuOpen,
@@ -313,13 +277,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
           </div>
         )}
       </IconButton>
-      <input
-        ref={orchestratorImportInputRef}
-        type="file"
-        accept=".json,.jsonld,.json-ld,.yaml,.yml"
-        className="hidden"
-        onChange={handleImportGraphRagConfigToolbar}
-      />
       {isToolMenuOpen && (
         <ToolbarToolMenu
           dataLoadOk={dataLoadOk}

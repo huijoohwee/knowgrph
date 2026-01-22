@@ -3,6 +3,7 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
+import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { unwrapUserProvidedText } from '@/lib/url'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { slugify } from '@/features/parsers/markdownJsonLd'
@@ -234,23 +235,10 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
       return loadGraphDataFromTextViaParser(converted.displayName, converted.markdown)
     })()
     if (!res) {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.youtubeImportConvertFailedStatusWithError(UI_COPY.parserDataLoadFailed))
+      applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.youtubeImportConvertFailedStatusWithError(UI_COPY.parserDataLoadFailed) })
       return
     }
-
-    const ui = useParserUIState.getState()
-    if (res.input) {
-      ui.setLastInput(res.input.name, res.input.text)
-    }
-    if (res.warnings && res.warnings.length > 0) {
-      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
-      ui.setWarnings(res.warnings)
-    } else {
-      ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
-      ui.setWarnings([])
-      if (res.counts) ui.setCounts(res.counts)
-    }
+    applyLoaderResultToParserUi(res)
 
     const state = useGraphStore.getState()
     state.setMarkdownDocument(converted.displayName, markdownForEditors)
@@ -268,10 +256,6 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
       error && typeof error === 'object' && 'message' in error
         ? String((error as { message?: unknown }).message || '')
         : String(error || '')
-    const ui = useParserUIState.getState()
-    ui.setDataLoadStatus(
-      false,
-      UI_COPY.youtubeImportConvertFailedStatusWithError(msg.trim() ? msg.trim() : UI_COPY.parserDataLoadFailed),
-    )
+    applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.youtubeImportConvertFailedStatusWithError(msg.trim() ? msg.trim() : UI_COPY.parserDataLoadFailed) })
   }
 }

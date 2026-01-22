@@ -56,7 +56,7 @@ export interface ExtractedEdge {
     temporal?: string
     modality?: string
     negation?: boolean
-    causality?: string
+    causalityStrength?: number
     sourceSentence?: string
   }
 }

@@ -5,6 +5,7 @@ import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickFileWithExtensions } from '@/lib/graph/filePicker'
+import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { deriveMarkdownNameFromPdfFilename, promptForUrl } from './ingestUtils'
 
 type PdfMarkdownConversionOk = { markdown: string; displayName: string }
@@ -134,34 +135,8 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
     if (!picked) return
 
     const res = await loadGraphDataFromTextViaParser(picked.name, picked.markdown)
-    if (!res) {
-      try {
-        const ui = useParserUIState.getState()
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-      } catch {
-        void 0
-      }
-      return
-    }
-
-    try {
-      const ui = useParserUIState.getState()
-      if (res.input) {
-        ui.setLastInput(res.input.name, res.input.text)
-      }
-      if (res.warnings && res.warnings.length > 0) {
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(res.warnings[0] || ''))
-        ui.setWarnings(res.warnings)
-      } else {
-        ui.setDataLoadStatus(true, res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess)
-        ui.setWarnings([])
-        if (res.counts) {
-          ui.setCounts(res.counts)
-        }
-      }
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(res)
+    if (!res) return
 
     try {
       const state = useGraphStore.getState()
@@ -183,11 +158,6 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
     }
     openBottomPanel('curation')
   } catch {
-    try {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(null)
   }
 }

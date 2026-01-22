@@ -1,11 +1,11 @@
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
-import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { parseHtmlToMarkdown } from '@/features/parsers/html-parser'
 import { coerceHttpUrl } from '@/lib/url'
+import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -46,54 +46,22 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
       return parseHtmlToMarkdown(raw, baseUrl)
     })()
 
-    const res = await loadGraphDataFromTextViaParser(picked.name, text)
-    if (!res) {
-      try {
-        const ui = useParserUIState.getState()
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-      } catch {
-        void 0
-      }
-      return
-    }
-
-    try {
-      const ui = useParserUIState.getState()
-      if (res.input) {
-        ui.setLastInput(res.input.name, res.input.text)
-      }
-      const warnings = res.warnings || []
-      const counts = res.counts
-      const nodeCount = counts ? Number(counts.n || 0) : 0
-      const edgeCount = counts ? Number(counts.e || 0) : 0
-      const hasGraph = nodeCount > 0 || edgeCount > 0
-      if (warnings.length > 0 && !hasGraph) {
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(warnings[0] || ''))
-      } else {
-        ui.setDataLoadStatus(
-          true,
-          res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
-        )
-      }
-      ui.setWarnings(warnings)
-      if (counts) {
-        ui.setCounts(counts)
-      }
-    } catch {
-      void 0
-    }
+    const nameForParse = picked.displayName || picked.name
+    const res = await loadGraphDataFromTextViaParser(nameForParse, text)
+    applyLoaderResultToParserUi(res)
+    if (!res) return
 
     try {
       const state = useGraphStore.getState()
       if (res.input && res.input.text.trim()) {
-        const rawName = String(res.input.name || '')
-        const isHttp = /^https?:\/\//i.test(rawName)
+        const rawSourceName = String(picked.name || '')
+        const isHttp = /^https?:\/\//i.test(rawSourceName)
         if (isHttp) {
-          const baseName = deriveMarkdownNameFromUrl(rawName)
+          const baseName = deriveMarkdownNameFromUrl(rawSourceName)
           state.setJsonSourceDocument(baseName, null)
           state.setMarkdownDocument(baseName, res.input.text)
-          state.setMarkdownDocumentSourceUrl(rawName)
-          state.addRecentFile({ name: baseName, url: rawName, type: 'url' })
+          state.setMarkdownDocumentSourceUrl(rawSourceName)
+          state.addRecentFile({ name: baseName, url: rawSourceName, type: 'url' })
         } else {
           const name = res.input.name
           state.setJsonSourceDocument(name, null)
@@ -101,8 +69,7 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
           state.setMarkdownDocumentSourceUrl(null)
           state.addRecentFile({
             name,
-            path: type === 'local' ? name : undefined,
-            url: type === 'url' ? name : undefined,
+            path: type === 'local' ? picked.name : undefined,
             type: 'markdown',
           })
         }
@@ -113,11 +80,6 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
     }
     openBottomPanel('curation')
   } catch {
-    try {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(null)
   }
 }

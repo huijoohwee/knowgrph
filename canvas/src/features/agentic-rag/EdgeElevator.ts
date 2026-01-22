@@ -11,7 +11,7 @@ export class EdgeElevator {
   process(entities: EntitySpan[], text: string): ExtractedEdge[] {
     const textEntities: TextEntity[] = entities.map(e => ({
       text: e.text,
-      label: e.label,
+      label: e.type,
       start: e.startIndex,
       end: e.endIndex
     }))
@@ -36,7 +36,7 @@ export class EdgeElevator {
           confidence,
           properties: {
             ...triple.properties,
-            sourceSentence: text // We could refine this to finding the specific sentence
+            sourceSentence: text,
           }
         })
       }

@@ -91,16 +91,16 @@ export default function GraphRagTextPipelineSection() {
       )
     }
     if (Array.isArray(rec.entities)) {
-      const entities = rec.entities.filter(isRecord).slice(0, 32)
+      const entities = rec.entities.filter(isRecord).slice(0, 32) as Array<Record<string, unknown>>
       return (
         <div className="space-y-1">
           {entities.map((e, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 text-xs">
-                {String(e.text ?? '')}
+                {String((e as { text?: unknown }).text ?? '')}
               </span>
               <span className="text-[10px] font-mono text-gray-500">
-                {String(e.label ?? '')}
+                {String((e as { label?: unknown }).label ?? '')}
               </span>
             </div>
           ))}
@@ -231,4 +231,3 @@ export default function GraphRagTextPipelineSection() {
     </CollapsibleSection>
   )
 }
-

@@ -1,62 +1,95 @@
-import React, { useState, useEffect } from 'react';
-import { Network, FileText, Sparkles, GitBranch, Database } from 'lucide-react';
-import { runGraphRagTextPipeline, type GraphRagTextPipelineResult } from '../../lib/graph/graphragTextPipeline';
+import React, { useEffect, useState } from 'react'
+import { Database, FileText, GitBranch, Network, Sparkles } from 'lucide-react'
+import { runGraphRagTextPipeline, type GraphRagTextPipelineResult } from '@/lib/graph/graphragTextPipeline'
 
 const GraphRAGParser = () => {
-  const [step, setStep] = useState(0);
-  const [result, setResult] = useState<GraphRagTextPipelineResult | null>(null);
-  const text = "Singapore is a city-state in Southeast Asia. It has a population of about 5.9 million and is known for its financial hub, Changi Airport, and future development projects.";
+  const [step, setStep] = useState(0)
+  const [result, setResult] = useState<GraphRagTextPipelineResult | null>(null)
+  const text =
+    'Singapore is a city-state in Southeast Asia. It has a population of about 5.9 million and is known for its financial hub, Changi Airport, and future development projects.'
+
+  const getRecord = (value: unknown): Record<string, unknown> =>
+    value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+  const getArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
   
   useEffect(() => {
-    const res = runGraphRagTextPipeline(text);
-    setResult(res);
-  }, [text]);
+    setResult(runGraphRagTextPipeline(text))
+  }, [text])
 
-  if (!result) return <div className="p-8 text-white">Loading pipeline...</div>;
+  if (!result) return <div className="p-8 text-white">Loading pipeline...</div>
+
+  const s0 = result.stages[0]
+  const s1 = result.stages[1]
+  const s2 = result.stages[2]
+  const s3 = result.stages[3]
+  const s4 = result.stages[4]
+
+  const o0 = getRecord(s0?.output)
+  const o1 = getRecord(s1?.output)
+  const o2 = getRecord(s2?.output)
+  const o3 = getRecord(s3?.output)
+  const o4 = getRecord(s4?.output)
+
+  const preprocessTokens = getArray(o0.tokens).map(String)
+  const preprocessLemmas = getArray(o0.lemmas).map(String)
+
+  const hfSubwords = getArray(o1.subwords).map(String)
+  const hfWordTokens = typeof o1.word_tokens === 'number' ? o1.word_tokens : null
+  const hfSubwordTokens = typeof o1.subword_tokens === 'number' ? o1.subword_tokens : null
+  const hfCount =
+    hfWordTokens != null && hfSubwordTokens != null
+      ? `Original: ${hfWordTokens} tokens | Subword: ${hfSubwordTokens} tokens`
+      : ''
+
+  const nerEntities = getArray(o2.entities).map(v => getRecord(v))
+  const nerPos = typeof o2.pos === 'string' ? o2.pos : ''
+
+  const tripleStrings = getArray(o3.triples).map(String)
+
+  const graphNodes = getArray(o4.nodes).map(String)
+  const graphEdgeCount = typeof o4.edges === 'number' ? o4.edges : 0
+  const graphCommunityCount = typeof o4.communities === 'number' ? o4.communities : 0
 
   const steps = [
     {
-      name: "NLTK Preprocessing",
+      name: 'NLTK Preprocessing',
       icon: FileText,
-      input: result.stages[0].input,
-      output: result.stages[0].output as any,
-      code: result.stages[0].code
+      input: s0?.input || text,
+      output: { tokens: preprocessTokens, lemmas: preprocessLemmas },
+      code: s0?.code || '',
     },
     {
-      name: "HF Tokenizers",
+      name: 'HF Tokenizers',
       icon: Sparkles,
-      input: result.stages[1].input,
-      output: {
-        ...(result.stages[1].output as any),
-        count: `Original: ${(result.stages[1].output as any).word_tokens} tokens | Subword: ${(result.stages[1].output as any).subword_tokens} tokens`
-      },
-      code: result.stages[1].code
+      input: s1?.input || '',
+      output: { subwords: hfSubwords, count: hfCount },
+      code: s1?.code || '',
     },
     {
-      name: "spaCy NER & POS",
+      name: 'spaCy NER & POS',
       icon: Database,
-      input: result.stages[2].input,
-      output: result.stages[2].output as any,
-      code: result.stages[2].code
+      input: s2?.input || text,
+      output: { entities: nerEntities, pos: nerPos },
+      code: s2?.code || '',
     },
     {
-      name: "Triple Extraction",
+      name: 'Triple Extraction',
       icon: GitBranch,
-      input: result.stages[3].input,
-      output: result.stages[3].output as any,
-      code: result.stages[3].code
+      input: s3?.input || '',
+      output: { triples: tripleStrings },
+      code: s3?.code || '',
     },
     {
-      name: "Graph Construction",
+      name: 'Graph Construction',
       icon: Network,
-      input: result.stages[4].input,
-      output: result.stages[4].output as any,
-      code: result.stages[4].code
-    }
-  ];
+      input: s4?.input || '',
+      output: { nodes: graphNodes, edges: graphEdgeCount, communities: graphCommunityCount },
+      code: s4?.code || '',
+    },
+  ]
 
-  const currentStep = steps[step];
-  const Icon = currentStep.icon;
+  const currentStep = steps[step]
+  const Icon = currentStep.icon
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
@@ -102,7 +135,7 @@ const GraphRAGParser = () => {
             <div className="bg-black/30 rounded-xl p-6 border border-white/10">
               <h3 className="text-xl font-bold text-white mb-4">Output</h3>
               <div className="space-y-3">
-                {currentStep.name === "NLTK Preprocessing" && (
+                {currentStep.name === 'NLTK Preprocessing' && (
                   <>
                     <div>
                       <strong className="text-purple-300">Tokens:</strong>
@@ -123,7 +156,7 @@ const GraphRAGParser = () => {
                   </>
                 )}
                 
-                {currentStep.name === "HF Tokenizers" && (
+                {currentStep.name === 'HF Tokenizers' && (
                   <>
                     <div>
                       <strong className="text-purple-300">Subword Tokens:</strong>
@@ -137,14 +170,16 @@ const GraphRAGParser = () => {
                   </>
                 )}
 
-                {currentStep.name === "spaCy NER & POS" && (
+                {currentStep.name === 'spaCy NER & POS' && (
                   <>
                     <div>
                       <strong className="text-purple-300">Named Entities:</strong>
-                      {currentStep.output.entities.map((e: any, i: number) => (
+                      {currentStep.output.entities.map((e: Record<string, unknown>, i: number) => (
                         <div key={i} className="mt-2 flex items-center gap-2">
-                          <span className="px-3 py-1 bg-pink-500/30 text-pink-200 rounded">{e.text}</span>
-                          <span className="text-xs text-white/50">{e.label}</span>
+                          <span className="px-3 py-1 bg-pink-500/30 text-pink-200 rounded">
+                            {String((e as { text?: unknown }).text || '')}
+                          </span>
+                          <span className="text-xs text-white/50">{String((e as { label?: unknown }).label || '')}</span>
                         </div>
                       ))}
                     </div>
@@ -155,7 +190,7 @@ const GraphRAGParser = () => {
                   </>
                 )}
 
-                {currentStep.name === "Triple Extraction" && (
+                {currentStep.name === 'Triple Extraction' && (
                   <div>
                     <strong className="text-purple-300">Extracted Triples:</strong>
                     {currentStep.output.triples.map((t: string, i: number) => (
@@ -164,7 +199,7 @@ const GraphRAGParser = () => {
                   </div>
                 )}
 
-                {currentStep.name === "Graph Construction" && (
+                {currentStep.name === 'Graph Construction' && (
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-3 text-center">
                       <div className="bg-purple-500/20 p-3 rounded-lg">
@@ -205,7 +240,7 @@ const GraphRAGParser = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default GraphRAGParser;
+export default GraphRAGParser

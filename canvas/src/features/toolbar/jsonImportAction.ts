@@ -7,6 +7,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { fetchRemoteText, promptForUrl } from './ingestUtils'
 import { jsonToMarkdown, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 
 export type JsonImportFormat = 'jsonld' | 'json'
 export type JsonImportType = 'url' | 'local'
@@ -56,49 +57,8 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
     if (!picked) return
 
     const res = await loadGraphDataFromTextViaParser(picked.name, picked.text)
-    if (!res) {
-      try {
-        const ui = useParserUIState.getState()
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-      } catch {
-        void 0
-      }
-      return
-    }
-
-    try {
-      const ui = useParserUIState.getState()
-      if (res.input) {
-        ui.setLastInput(res.input.name, res.input.text)
-      }
-      const warnings = res.warnings || []
-      const counts = res.counts
-      const nodeCount = counts ? Number(counts.n || 0) : 0
-      const edgeCount = counts ? Number(counts.e || 0) : 0
-      const hasGraph = nodeCount > 0 || edgeCount > 0
-      if (warnings.length > 0 && !hasGraph) {
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(warnings[0] || ''))
-      } else {
-        ui.setDataLoadStatus(
-          true,
-          res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
-        )
-        // Auto-close panels on success to show canvas
-        const store = useGraphStore.getState()
-        try {
-          store.setSidebarOpen(false)
-          if (store.setBottomPanelCollapsed) {
-            store.setBottomPanelCollapsed(true)
-          }
-        } catch { void 0 }
-      }
-      ui.setWarnings(warnings)
-      if (counts) {
-        ui.setCounts(counts)
-      }
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(res, { collapsePanelsOnSuccess: true })
+    if (!res) return
 
     try {
       const state = useGraphStore.getState()
@@ -142,12 +102,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
 
     openBottomPanel('data')
   } catch {
-    try {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(null)
   }
 }
 
@@ -157,41 +112,8 @@ export async function performCsvImport() {
     if (!picked) return
 
     const res = await loadGraphDataFromTextViaParser(picked.name, picked.text)
-    if (!res) {
-      try {
-        const ui = useParserUIState.getState()
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-      } catch {
-        void 0
-      }
-      return
-    }
-
-    try {
-      const ui = useParserUIState.getState()
-      if (res.input) {
-        ui.setLastInput(res.input.name, res.input.text)
-      }
-      const warnings = res.warnings || []
-      const counts = res.counts
-      const nodeCount = counts ? Number(counts.n || 0) : 0
-      const edgeCount = counts ? Number(counts.e || 0) : 0
-      const hasGraph = nodeCount > 0 || edgeCount > 0
-      if (warnings.length > 0 && !hasGraph) {
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(warnings[0] || ''))
-      } else {
-        ui.setDataLoadStatus(
-          true,
-          res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
-        )
-      }
-      ui.setWarnings(warnings)
-      if (counts) {
-        ui.setCounts(counts)
-      }
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(res)
+    if (!res) return
 
     try {
       const state = useGraphStore.getState()
@@ -212,11 +134,6 @@ export async function performCsvImport() {
 
     openBottomPanel('data')
   } catch {
-    try {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(null)
   }
 }

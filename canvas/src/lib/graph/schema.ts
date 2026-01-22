@@ -101,6 +101,8 @@ export function getRendererPalette(schema: GraphSchema | null | undefined): Rend
 
 export const defaultSchema: GraphSchema = {
   nodeStyles: {
+    Subject: { color: MVP_COLOR_PALETTE.nodes.idea },
+    Object: { color: MVP_COLOR_PALETTE.nodes.execution },
     Entity: { color: MVP_COLOR_PALETTE.nodes.idea },
     Chunk: { color: MVP_COLOR_PALETTE.nodes.execution },
     EmbeddingMeta: { color: '#6B7280' },

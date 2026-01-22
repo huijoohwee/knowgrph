@@ -6,6 +6,7 @@ import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
+import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { deriveMarkdownNameFromUrl, fetchRemoteHtmlText as fetchRemoteHtmlTextUtil, promptForUrl } from './ingestUtils'
 
 export type HtmlImportType = 'url' | 'local'
@@ -63,40 +64,8 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
       picked.displayName || 'imported.md',
       finalContent,
     )
-    if (!res) {
-      try {
-        const ui = useParserUIState.getState()
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-      } catch {
-        void 0
-      }
-      return
-    }
-    try {
-      const ui = useParserUIState.getState()
-      if (res.input) {
-        ui.setLastInput(res.input.name, res.input.text)
-      }
-      const warnings = res.warnings || []
-      const counts = res.counts
-      const nodeCount = counts ? Number(counts.n || 0) : 0
-      const edgeCount = counts ? Number(counts.e || 0) : 0
-      const hasGraph = nodeCount > 0 || edgeCount > 0
-      if (warnings.length > 0 && !hasGraph) {
-        ui.setDataLoadStatus(false, UI_COPY.parserDataLoadSyntaxErrorStatus(warnings[0] || ''))
-      } else {
-        ui.setDataLoadStatus(
-          true,
-          res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
-        )
-      }
-      ui.setWarnings(warnings)
-      if (counts) {
-        ui.setCounts(counts)
-      }
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(res)
+    if (!res) return
     try {
       const state = useGraphStore.getState()
       if (res.input && res.input.text.trim()) {
@@ -117,11 +86,6 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
     }
     openBottomPanel('curation')
   } catch {
-    try {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.parserDataLoadFailed)
-    } catch {
-      void 0
-    }
+    applyLoaderResultToParserUi(null)
   }
 }
