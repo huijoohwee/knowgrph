@@ -7,6 +7,7 @@ import { createSelectionSlice } from '@/hooks/store/selectionSlice';
 import { createHistorySlice } from '@/hooks/store/historySlice';
 import { createUiSlice } from '@/hooks/store/uiSlice';
 import { createCanvasSlice } from '@/hooks/store/canvasSlice';
+import { createGraphViewSlice } from '@/hooks/store/graphViewSlice';
 import { createSchemaSlice, readSchemaFromStorage } from '@/hooks/store/schemaSlice';
 import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
 import { getLocalStorage } from '@/lib/persistence';
@@ -108,6 +109,7 @@ export const useGraphStore = create<GraphState>()(
       selectedNodeIds: [],
       selectedEdgeIds: [],
       selectedGroupIds: [],
+      collapsedGroupIds: [],
       graphFieldsOpOk: null,
       graphFieldsOpMsg: '',
       orchestratorOpOk: null,
@@ -122,6 +124,7 @@ export const useGraphStore = create<GraphState>()(
   ...createGraphDataSlice(set, get),
   ...createMinimapSlice(set, get),
   ...createSelectionSlice(set, get),
+  ...createGraphViewSlice(set, get),
   ...createHistorySlice(set, get),
   ...createUiSlice(set),
   ...createCanvasSlice(set, get),

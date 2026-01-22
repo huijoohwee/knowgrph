@@ -34,7 +34,8 @@ export function coerceMediaUrl(value: unknown): string | null {
   if (/^data:image\//i.test(raw)) return raw
   if (/^blob:/i.test(raw)) return raw
   if (raw.startsWith('/')) return raw
-  return null
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return null
+  return raw
 }
 
 export function normalizeGitHubBlobLikeUrl(rawUrl: string): string | null {
@@ -87,7 +88,10 @@ export function applyMediaProxySrc(src: string): string {
   if (!raw) return ''
   if (typeof window === 'undefined') return raw
   try {
-    const u = new URL(raw, window.location.origin)
+    const base = window.location.origin
+    const initial = new URL(raw, base)
+    const normalized = normalizeGitHubBlobLikeUrl(initial.toString()) || initial.toString()
+    const u = new URL(normalized, base)
     if (!/^https?:$/i.test(u.protocol)) return raw
     if (u.origin === window.location.origin) return raw
     return `${MEDIA_PROXY_ENDPOINT}?url=${encodeURIComponent(u.toString())}`

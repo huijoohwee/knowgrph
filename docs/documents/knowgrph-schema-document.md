@@ -286,7 +286,29 @@ schema.layout.rectNodes.maxZoomMinimapHeightRatio:
 | Tokenization             | Node text fields               | Token arrays per node          | Tokenize labels and properties                              | O(n * avg_text_length)                       |
 | Similarity Calculation   | Token arrays                   | Pairwise similarity scores     | Compute cosine similarity or PMI                            | O(n²) for dense, O(nk) for sparse (k=topK)   |
 | Edge Sparsification      | Similarity scores              | Filtered edges                 | Apply `topKEdgesPerNode` and `minSimilarity` thresholds     | O(n log k) per node with heap                |
-| Community Detection      | Sparse similarity graph        | Community assignments          | NetworkX connected components assign `visual:community` | O(m) where m = semantic edges                |
+| Community Detection      | Sparse similarity graph        | Community assignments          | Density-based clustering (DBSCAN) assigns `visual:community` with connected-components fallback for robustness | Bounded (maxNodes/maxSteps) + O(m) fallback  |
+
+---
+
+### Metrics and Property Keys (Canonical)
+
+**Nodes (Entity layer)**:
+
+- `type`: `Subject` | `Object` | `Entity` (GraphRAG text pipeline) and `Keyword` (keyword semantic mode).
+- `properties["keyword:frequency"]`: mention count for keyword/entity nodes.
+- `properties["visual:importance"]` / `properties["visual:nodeSize"]`: renderer sizing inputs derived from frequency + centrality.
+- `properties["visual:community"]` / `properties["visual:layer"]`: cluster/community assignment used for layered layouts and group derivation.
+
+**Edges (Relation/Predicate layer)**:
+
+- `properties["strength:count"]`, `properties["strength:ppmi"]`, `properties["strength:score"]`: relation strength metrics.
+- `properties["causality:why"]`, `properties["causality:temporal"]`, `properties["causality:modality"]`, `properties["causality:negation"]`, `properties["causality:score"]`: causality components and composite score.
+- `properties["visual:width"]`: renderer stroke width derived from strength and causality.
+
+**Clusters/Subgraphs (Graph layers)**:
+
+- Group identity is derived from Mermaid subgraphs, markdown heading sections, keyword role layers, or `visual:community` communities.
+- Collapsed group nodes use `properties["kg:groupId"]`, `properties["kg:groupMemberCount"]`, `properties["kg:collapsed"]`.
 
 **Configuration Schema**:
 

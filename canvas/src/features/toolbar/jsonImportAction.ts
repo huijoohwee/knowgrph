@@ -8,21 +8,10 @@ import { lsJson, lsSetJson } from '@/lib/persistence'
 import { fetchRemoteText, promptForUrl } from './ingestUtils'
 import { jsonToMarkdown, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
+import { deriveFilenameFromUrl } from '@/lib/url'
 
 export type JsonImportFormat = 'jsonld' | 'json'
 export type JsonImportType = 'url' | 'local'
-
-function deriveNameFromUrl(rawUrl: string, format: JsonImportFormat): string {
-  const fallback = format === 'jsonld' ? 'remote.jsonld' : 'remote.json'
-  try {
-    const url = new URL(rawUrl)
-    const parts = url.pathname.split('/').filter(Boolean)
-    const last = parts[parts.length - 1] || ''
-    return last || fallback
-  } catch {
-    return fallback
-  }
-}
 
 export async function performJsonImport(type: JsonImportType, format: JsonImportFormat, providedUrl?: string) {
   try {
@@ -44,7 +33,8 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           }
           return null
         }
-        return { name: deriveNameFromUrl(rawUrl, format), text, sourceUrl: rawUrl }
+        const fallback = format === 'jsonld' ? 'remote.jsonld' : 'remote.json'
+        return { name: deriveFilenameFromUrl(rawUrl, fallback), text, sourceUrl: rawUrl }
       }
       if (type === 'local') {
         const p = await pickTextFileWithExtensions(['.json', '.jsonld'])

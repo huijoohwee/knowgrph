@@ -45,8 +45,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
     }),
   requestZoomTransform: (payload: { k: number; x: number; y: number }) => set({ zoomRequest: { type: 'transform', at: Date.now(), payload } }),
   clearZoomRequest: () => set({ zoomRequest: null }),
-  zoomState: null as null | { k: number; x: number; y: number; graphDataRevision?: number },
-  setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number }) => set({ zoomState: z }),
+  zoomState: null as null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number },
+  setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => set({ zoomState: z }),
   threeCameraRequest: null as null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number },
   requestThreeCamera: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') =>
     set(state => {

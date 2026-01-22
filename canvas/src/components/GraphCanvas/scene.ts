@@ -12,6 +12,7 @@ import { applySelectionHighlight } from '@/components/GraphCanvas/highlight'
 import { createDefs, createGroupsLayer, createLinksHitLayer, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer } from '@/components/GraphCanvas/sceneLayers'
 import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCanvas/sceneHandlers'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
+import { getDisplayEdges, getDisplayNodes } from '@/components/GraphCanvas/displayFilter'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -33,6 +34,7 @@ type SetupGraphSceneArgs = {
   skipInitialLayout?: boolean
   gRef: MutableRefObject<GSelection | null>
   nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
+  groupChevronSelRef: MutableRefObject<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
   portHandlesSelRef: MutableRefObject<
     d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null
@@ -54,6 +56,7 @@ type SetupGraphSceneArgs = {
   selectEdge: (id: string | null) => void
   selectGroup: (id: string | null) => void
   selectGroupExpanded: (args: { id: string; nodeIds: string[]; edgeIds: string[] }) => void
+  toggleGroupCollapsed: (id: string) => void
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
   addEdge: (e: GraphEdge) => void
   updateEdge: (id: string, u: Partial<GraphEdge>) => void
@@ -86,6 +89,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     skipInitialLayout,
     gRef,
     nodesSelRef,
+    groupChevronSelRef,
     mediaSelRef,
     portHandlesSelRef,
     linksHitSelRef,
@@ -105,6 +109,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     selectEdge,
     selectGroup,
     selectGroupExpanded,
+    toggleGroupCollapsed,
     setSelectionSource,
     setHoverInfo,
     setLifecycleStageRendering,
@@ -124,23 +129,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   createDefs(svg)
 
-  const displayNodes = Array.isArray(graphData.nodes)
-    ? graphData.nodes.filter(n => {
-        if (String(n.type || '') === 'MermaidSubgraph') return false
-        const props = (n.properties || {}) as Record<string, unknown>
-        const isHeadingSection = String(n.type || '') === 'Section' && typeof props.level === 'number'
-        return !isHeadingSection
-      })
-    : []
+  const displayNodes = getDisplayNodes(graphData)
   const displayNodeIdSet = new Set<string>(displayNodes.map(n => String(n.id)))
-  const edgesForDisplay = (edgesForSim || []).filter(e => {
-    const s = String(e.source || '')
-    const t = String(e.target || '')
-    if (!s || !t) return false
-    if (!displayNodeIdSet.has(s) || !displayNodeIdSet.has(t)) return false
-    if (e.label === 'hasMermaidNode' || e.label === 'hasMermaidSubgraph' || e.label === 'hasMermaid') return false
-    return true
-  })
+  const edgesForDisplay = getDisplayEdges({ edges: edgesForSim || [], displayNodeIdSet })
   const graphDataForDisplay: GraphData = { ...graphData, nodes: displayNodes, edges: edgesForDisplay }
   sceneGraphDataRef.current = graphDataForDisplay
 
@@ -221,8 +212,10 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     hoverEnabled,
     setHoverInfo,
     setSelectionSource,
+    selectNode,
     selectGroup,
     selectGroupExpanded,
+    toggleGroupCollapsed,
   })
   beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
 
@@ -265,7 +258,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
   linksHitSelRef.current = linkHitSel
 
-  const { nodeSel, mediaSel, portHandlesSel } = createNodesLayer({
+  const { nodeSel, mediaSel, portHandlesSel, groupChevronSel } = createNodesLayer({
     g,
     graphData: graphDataForDisplay,
     schema,
@@ -281,8 +274,10 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     selectEdge,
     setSelectionSource,
     requestZoomSelection,
+    toggleGroupCollapsed,
   })
   nodesSelRef.current = nodeSel
+  groupChevronSelRef.current = groupChevronSel
   mediaSelRef.current = mediaSel
   portHandlesSelRef.current = portHandlesSel
 
@@ -325,6 +320,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       svgEl,
       simulation,
       nodeSelRef: nodesSelRef,
+      groupChevronSelRef,
       mediaSelRef,
       portHandlesSelRef,
       linkHitSelRef: linksHitSelRef,
@@ -345,6 +341,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   g.selectAll('[data-kg-layer="edge-labels"]').raise()
   g.selectAll('[data-kg-layer="temp-link"]').raise()
   g.selectAll('[data-kg-layer="nodes"]').raise()
+  g.selectAll('[data-kg-layer="node-chevrons"]').raise()
   g.selectAll('[data-kg-layer="media"]').raise()
   g.selectAll('[data-kg-layer="port-handles"]').raise()
   g.selectAll('[data-kg-layer="labels"]').raise()
@@ -410,6 +407,7 @@ export const updateGraphSceneNodesPresentation = (args: {
   simulationRef: MutableRefObject<d3.Simulation<GraphNode, GraphEdge> | null>
   sceneGraphDataRef: MutableRefObject<GraphData | null>
   nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
+  groupChevronSelRef: MutableRefObject<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
   portHandlesSelRef: MutableRefObject<
     d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null
@@ -420,6 +418,7 @@ export const updateGraphSceneNodesPresentation = (args: {
   selectEdge: (id: string | null) => void
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
   requestZoomSelection: () => void
+  toggleGroupCollapsed: (id: string) => void
 }) => {
   const g = args.gRef.current
   const sim = args.simulationRef.current
@@ -428,10 +427,11 @@ export const updateGraphSceneNodesPresentation = (args: {
 
   g.selectAll('[data-kg-layer="media"]').remove()
   g.selectAll('[data-kg-layer="nodes"]').remove()
+  g.selectAll('[data-kg-layer="node-chevrons"]').remove()
   g.selectAll('[data-kg-layer="port-handles"]').remove()
   g.selectAll('[data-kg-layer="labels"]').remove()
 
-  const { nodeSel, mediaSel, portHandlesSel } = createNodesLayer({
+  const { nodeSel, mediaSel, portHandlesSel, groupChevronSel } = createNodesLayer({
     g,
     graphData,
     schema: args.schema,
@@ -447,9 +447,11 @@ export const updateGraphSceneNodesPresentation = (args: {
     selectEdge: args.selectEdge,
     setSelectionSource: args.setSelectionSource,
     requestZoomSelection: args.requestZoomSelection,
+    toggleGroupCollapsed: args.toggleGroupCollapsed,
   })
 
   args.nodesSelRef.current = nodeSel
+  args.groupChevronSelRef.current = groupChevronSel
   args.mediaSelRef.current = mediaSel
   args.portHandlesSelRef.current = portHandlesSel
 
@@ -471,6 +473,7 @@ export const updateGraphSceneNodesPresentation = (args: {
   g.selectAll('[data-kg-layer="edge-labels"]').raise()
   g.selectAll('[data-kg-layer="temp-link"]').raise()
   g.selectAll('[data-kg-layer="nodes"]').raise()
+  g.selectAll('[data-kg-layer="node-chevrons"]').raise()
   g.selectAll('[data-kg-layer="media"]').raise()
   g.selectAll('[data-kg-layer="port-handles"]').raise()
   g.selectAll('[data-kg-layer="labels"]').raise()
@@ -486,32 +489,21 @@ export const updateGraphSceneGroupsPresentation = (args: {
   hoverEnabled: boolean
   setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
+  selectNode: (id: string | null) => void
   selectGroup: (id: string | null) => void
   selectGroupExpanded: (args: { id: string; nodeIds: string[]; edgeIds: string[] }) => void
+  toggleGroupCollapsed: (id: string) => void
 }) => {
   const g = args.gRef.current
   if (!g) return
   g.selectAll('[data-kg-layer="groups"]').remove()
   g.selectAll('[data-kg-layer="group-labels"]').remove()
-  const displayNodes = Array.isArray(args.graphData.nodes)
-    ? args.graphData.nodes.filter(n => {
-        if (String(n.type || '') === 'MermaidSubgraph') return false
-        const props = (n.properties || {}) as Record<string, unknown>
-        const isHeadingSection = String(n.type || '') === 'Section' && typeof props.level === 'number'
-        return !isHeadingSection
-      })
-    : []
+  const displayNodes = getDisplayNodes(args.graphData)
   const displayNodeIdSet = new Set<string>(displayNodes.map(n => String(n.id)))
-  const edgesForDisplay = Array.isArray(args.graphData.edges)
-    ? args.graphData.edges.filter(e => {
-        const s = String(e.source || '')
-        const t = String(e.target || '')
-        if (!s || !t) return false
-        if (!displayNodeIdSet.has(s) || !displayNodeIdSet.has(t)) return false
-        if (e.label === 'hasMermaidNode' || e.label === 'hasMermaidSubgraph' || e.label === 'hasMermaid') return false
-        return true
-      })
-    : []
+  const edgesForDisplay = getDisplayEdges({
+    edges: Array.isArray(args.graphData.edges) ? (args.graphData.edges as GraphEdge[]) : [],
+    displayNodeIdSet,
+  })
 
   const sim = args.simulationRef.current
   const groupsLayer = createGroupsLayer({
@@ -523,8 +515,10 @@ export const updateGraphSceneGroupsPresentation = (args: {
     hoverEnabled: args.hoverEnabled,
     setHoverInfo: args.setHoverInfo,
     setSelectionSource: args.setSelectionSource,
+    selectNode: args.selectNode,
     selectGroup: args.selectGroup,
     selectGroupExpanded: args.selectGroupExpanded,
+    toggleGroupCollapsed: args.toggleGroupCollapsed,
   })
   args.beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
   

@@ -300,7 +300,9 @@ export function useParserWorkflowState() {
   }, [loadWithStatus])
 
   const onLoadBackendWithStatus = React.useCallback(async () => {
-    await loadWithStatus(loadGraphDataFromBackendViaParser)
+    const rawUrl = promptForUrl(UI_COPY.parserBackendUrlPrompt)
+    if (!rawUrl) return
+    await loadWithStatus(() => loadGraphDataFromBackendViaParser(rawUrl))
   }, [loadWithStatus])
 
   const onApplyWorkflowPresetWithLoad = useCallback(

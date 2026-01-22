@@ -11,6 +11,9 @@ import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandles'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
+import { isDisplayNode } from '@/components/GraphCanvas/displayFilter'
+import { collapsedGroupNodeIdFor } from '@/components/GraphCanvas/viewDerivation'
+import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 
 type GroupDatum = GraphGroup
 
@@ -29,10 +32,12 @@ export const createGroupsLayer = (args: {
   hoverEnabled?: boolean
   setHoverInfo?: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
+  selectNode: (id: string | null) => void
   selectGroup: (id: string | null) => void
   selectGroupExpanded: (args: { id: string; nodeIds: string[]; edgeIds: string[] }) => void
+  toggleGroupCollapsed: (id: string) => void
 }): GroupsLayer => {
-  const { g, graphData, edgesForDisplay, schema, simulation, hoverEnabled, setHoverInfo, setSelectionSource, selectGroup, selectGroupExpanded } = args
+  const { g, graphData, edgesForDisplay, schema, simulation, hoverEnabled, setHoverInfo, setSelectionSource, selectNode, selectGroup, selectGroupExpanded, toggleGroupCollapsed } = args
   const cfg = schema.layout?.groups || {}
   const enabled = cfg.enabled !== false
   if (!enabled) return { update: () => {} }
@@ -52,7 +57,7 @@ export const createGroupsLayer = (args: {
       headingLevelByGroupId.set(`md:${String(n.id)}`, Math.min(6, Math.max(1, Math.floor(props.level as number))))
       continue
     }
-    if (String(n.type || '') === 'MermaidSubgraph') continue
+    if (!isDisplayNode(n)) continue
     nodeById.set(String(n.id), n)
   }
 
@@ -144,6 +149,28 @@ export const createGroupsLayer = (args: {
       return `${getGroupLabelFontSizePx(d)}px`
     })
 
+  const collapsedSet = (() => {
+    const meta = (graphData.metadata || {}) as Record<string, unknown>
+    const view = (meta['kg:view'] || null) as Record<string, unknown> | null
+    const ids = view && Array.isArray(view.collapsedGroupIds) ? (view.collapsedGroupIds as unknown[]) : []
+    return new Set<string>(ids.map(x => String(x || '').trim()).filter(Boolean))
+  })()
+  const chevronSizePx = 12
+  const chevronGapPx = 6
+  const chevronSel = labelsLayer
+    .selectAll<SVGPathElement, GroupDatum>('path[data-kg-group-chevron]')
+    .data(groups, d => d.id)
+    .join('path')
+    .attr('data-kg-group-chevron', '1')
+    .attr('data-kg-group-id', d => d.id)
+    .attr('fill', 'none')
+    .attr('stroke', schema.labelStyles?.color ?? '#111111')
+    .attr('stroke-width', 1.75)
+    .attr('stroke-linecap', 'round')
+    .attr('stroke-linejoin', 'round')
+    .style('pointer-events', 'all')
+    .style('cursor', 'pointer')
+
   const clickTimerById = new Map<string, number>()
   const clearClickTimer = (id: string) => {
     const t = clickTimerById.get(id)
@@ -195,11 +222,25 @@ export const createGroupsLayer = (args: {
       event.stopPropagation()
       clearClickTimer(d.id)
       setSelectionSource('canvas')
-      const members = d.memberNodeIds.map(x => String(x)).filter(Boolean)
-      const memberSet = memberIdSetOf(d)
-      const edgeIds = edgeIdsWithinMembers(memberSet)
-      selectGroupExpanded({ id: d.id, nodeIds: members, edgeIds })
+      const isAlt = (event as unknown as { altKey?: unknown }).altKey === true
+      if (isAlt) {
+        const members = d.memberNodeIds.map(x => String(x)).filter(Boolean)
+        const memberSet = memberIdSetOf(d)
+        const edgeIds = edgeIdsWithinMembers(memberSet)
+        selectGroupExpanded({ id: d.id, nodeIds: members, edgeIds })
+        return
+      }
+      toggleGroupCollapsed(d.id)
+      selectNode(collapsedGroupNodeIdFor(d.id))
     })
+
+  chevronSel.on('click', (event: MouseEvent, d: GroupDatum) => {
+    event.stopPropagation()
+    clearClickTimer(d.id)
+    setSelectionSource('canvas')
+    toggleGroupCollapsed(d.id)
+    selectNode(collapsedGroupNodeIdFor(d.id))
+  })
 
   const allowDrag = schema.behavior?.allowNodeDrag !== false
   if (allowDrag) {
@@ -277,7 +318,7 @@ export const createGroupsLayer = (args: {
 
   const layoutCache = new Map<
     string,
-    { x: number; y: number; w: number; h: number; labelX: number; labelY: number; d: string | null }
+    { x: number; y: number; w: number; h: number; labelX: number; labelY: number; chevronCx: number; chevronCy: number; d: string | null }
   >()
   const eps = 0.5
 
@@ -313,7 +354,7 @@ export const createGroupsLayer = (args: {
       valid += 1
     }
     if (valid === 0 || minX === Infinity) {
-      return { x: 0, y: 0, w: 0, h: 0, labelX: 0, labelY: 0, d: null }
+      return { x: 0, y: 0, w: 0, h: 0, labelX: 0, labelY: 0, chevronCx: 0, chevronCy: 0, d: null }
     }
     const fontSize = getGroupLabelFontSizePx(d)
     const topPad = padding + labelPadding + fontSize * 1.25
@@ -321,15 +362,17 @@ export const createGroupsLayer = (args: {
     const y = minY - topPad
     const w = Math.max(1, maxX - minX + padding * 2)
     const h = Math.max(1, maxY - minY + padding + topPad)
-    const labelX = x + labelPadding
+    const chevronCx = x + labelPadding + chevronSizePx * 0.5
+    const chevronCy = y + labelPadding + fontSize * 0.55
+    const labelX = x + labelPadding + chevronSizePx + chevronGapPx
     const labelY = y + labelPadding
 
     if (shape === 'geo') {
       const ring = computeConvexRing(geoPoints)
       const dPath = buildClosedPathD(ring)
-      return { x, y, w, h, labelX, labelY, d: dPath }
+      return { x, y, w, h, labelX, labelY, chevronCx, chevronCy, d: dPath }
     }
-    return { x, y, w, h, labelX, labelY, d: null }
+    return { x, y, w, h, labelX, labelY, chevronCx, chevronCy, d: null }
   }
 
   const update = () => {
@@ -344,6 +387,8 @@ export const createGroupsLayer = (args: {
         Math.abs(prev.h - computed.h) < eps &&
         Math.abs(prev.labelX - computed.labelX) < eps &&
         Math.abs(prev.labelY - computed.labelY) < eps &&
+        Math.abs(prev.chevronCx - computed.chevronCx) < eps &&
+        Math.abs(prev.chevronCy - computed.chevronCy) < eps &&
         prev.d === computed.d
       ) {
         return
@@ -365,6 +410,10 @@ export const createGroupsLayer = (args: {
         .filter(x => x.id === d.id)
         .attr('x', computed.labelX)
         .attr('y', computed.labelY)
+      const dir = collapsedSet.has(String(d.id)) ? 'right' : 'down'
+      chevronSel
+        .filter(x => x.id === d.id)
+        .attr('d', buildChevronPathD({ cx: computed.chevronCx, cy: computed.chevronCy, size: chevronSizePx, direction: dir }))
     })
   }
 

@@ -29,6 +29,17 @@
 
 #### 2026-01-22
 
+- [] Export/Import Markdown fidelity, achieved through YAML Frontmatter, e.g. nodes/edges/graph layers attributes, annotations, html, etc.
+
+https://github.com/niieani/gpt-tokenizer.git
+https://github.com/openai/tiktoken.git
+https://github.com/Comfy-Org/ComfyUI.git
+
+https://reactflow.dev/examples/nodes/shapes
+https://mermaid.js.org/syntax/flowchart.html
+https://tiptap.dev/docs/editor/markdown
+
+
 - [] Collective sites https://bytebytego.com/guides/api-web-development/
   - https://roadmap.sh/frontend?r=frontend-beginner
   - "Extracted JSON-LD" not in Markdown Editor

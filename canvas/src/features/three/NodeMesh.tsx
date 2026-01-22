@@ -158,29 +158,31 @@ export function NodeMesh({
   const hasImage = !!renderMediaAsNodes && !!mediaSpec && (mediaSpec.kind === 'image' || mediaSpec.kind === 'svg')
   const imageUrl = hasImage ? mediaSpec.url : null
 
+  const isMediaNode = !!renderMediaAsNodes && !!mediaSpec
+  const mediaLayerOpacity = Math.max(0, Math.min(1, mediaNodeOpacity * baseLayerOpacity))
+
   let displayColor = baseColor
   let displayOpacity = baseLayerOpacity
-  const mediaOpacity = mediaNodeOpacity
   const palette = getRendererPalette(schema)
   const dimmedColor = palette.edges.neutral || MVP_COLOR_PALETTE.edges.neutral
   if (selection.mode === 'edge') {
     if (selection.isEdgeEndpoint) {
       displayColor = baseColor
-      displayOpacity = mediaOpacity
+      displayOpacity = isMediaNode ? mediaLayerOpacity : 1
     } else {
       displayColor = dimmedColor
-      displayOpacity = mediaOpacity * visuals.dimmedNodeOpacity
+      displayOpacity = isMediaNode ? mediaLayerOpacity : visuals.dimmedNodeOpacity
     }
   } else if (selection.mode === 'node') {
     if (selection.isSelected) {
       displayColor = visuals.selectedEdgeColor
-      displayOpacity = mediaOpacity
+      displayOpacity = isMediaNode ? mediaLayerOpacity : 1
     } else if (selection.isNeighbor) {
       displayColor = baseColor
-      displayOpacity = mediaOpacity
+      displayOpacity = isMediaNode ? mediaLayerOpacity : 1
     } else {
       displayColor = dimmedColor
-      displayOpacity = mediaOpacity * visuals.dimmedNodeOpacity
+      displayOpacity = isMediaNode ? mediaLayerOpacity : visuals.dimmedNodeOpacity
     }
   }
   const isSelectedNode = selection.isSelected

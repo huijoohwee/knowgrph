@@ -63,6 +63,7 @@ export interface GraphState {
   selectedNodeIds: string[];
   selectedEdgeIds: string[];
   selectedGroupIds: string[];
+  collapsedGroupIds: string[];
   graphFieldsOpOk: boolean | null;
   graphFieldsOpMsg: string;
   orchestratorOpOk: boolean | null;
@@ -107,6 +108,9 @@ export interface GraphState {
   selectEdge: (id: string | null) => void;
   selectGroup: (id: string | null) => void;
   selectGroupExpanded: (args: { id: string; nodeIds: string[]; edgeIds: string[] }) => void;
+  setCollapsedGroupIds: (ids: string[]) => void;
+  clearCollapsedGroups: () => void;
+  toggleGroupCollapsed: (id: string) => void;
   setEditMode: (mode: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
@@ -342,8 +346,8 @@ export interface GraphState {
   requestZoom: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => void;
   requestZoomTransform: (payload: { k: number; x: number; y: number }) => void;
   clearZoomRequest: () => void;
-  zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number };
-  setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number }) => void;
+  zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number };
+  setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => void;
   threeCameraRequest: null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number };
   requestThreeCamera: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => void;
   clearThreeCameraRequest: () => void;

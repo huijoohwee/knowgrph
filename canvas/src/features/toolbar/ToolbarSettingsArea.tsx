@@ -31,10 +31,10 @@ export function ToolbarSettingsArea({
             onChange={e => setRenderMediaAsNodes(e.target.checked)}
             className={`w-3 h-3 rounded border-gray-300 ${uiPrimaryIconActiveClassName} focus:ring-blue-500`}
           />
-          Render Media as Nodes
+          Rich Media
         </label>
         <span className="text-[10px] text-gray-500">
-          View-only: shows or hides media overlays on media-capable nodes without reloading.
+          Rich Media: shows or hides media overlays on media-capable nodes without reloading.
         </span>
         <button
           type="button"

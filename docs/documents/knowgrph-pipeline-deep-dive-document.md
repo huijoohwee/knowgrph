@@ -80,6 +80,7 @@
 - Worker fast-path (for production/off-main-thread):
   - Client: [parseWorker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/parseWorker.ts)
   - Worker: [graphParser.worker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/workers/graphParser.worker.ts)
+  - Bounded execution: worker requests are guarded by a hard timeout; the worker is terminated on completion, error, or timeout (no indefinite hangs).
 - Format adapter for `.csv/.json/.jsonld` and workflow bundles:
   - Adapter: [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
 - JSON-LD edge inference alignment (no surprise edges):

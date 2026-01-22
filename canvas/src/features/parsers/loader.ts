@@ -6,6 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveFilenameFromUrl } from '@/lib/url'
 import { ensureBuiltInParsersRegistered } from '@/features/parsers/ensure'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
+import { fetchRemoteText } from '@/features/toolbar/ingestUtils'
 import {
   type DbConnectorKind,
   type RelationalConnectorConfig,
@@ -97,19 +98,22 @@ function normalizeBackendResponse(json: unknown): { graphData: GraphData | null;
   return { graphData: null, warnings: [] }
 }
 
-async function fetchBackendGraphData(): Promise<{ name: string; data: GraphData; warnings: string[] } | null> {
+async function fetchBackendGraphData(url: string): Promise<{ name: string; data: GraphData; warnings: string[]; inputText: string } | null> {
   try {
     if (typeof window === 'undefined') return null
-    const raw = window.prompt('Enter backend URL that returns GraphData JSON', '') || ''
-    const url = raw.trim()
-    if (!url) return null
-    const res = await fetch(url)
     const name = deriveFilenameFromUrl(url, 'remote.json')
-    if (!res.ok) {
+    const inputText = await fetchRemoteText(url, { useProxy: true })
+    if (!inputText) {
       const data: GraphData = { context: 'backend-error', type: 'Graph', nodes: [], edges: [] }
-      return { name, data, warnings: [`Request failed with status ${res.status}`] }
+      return { name, data, warnings: [`Request failed for ${url}`], inputText: '' }
     }
-    const json = await res.json()
+    let json: unknown = null
+    try {
+      json = JSON.parse(inputText) as unknown
+    } catch {
+      const data: GraphData = { context: 'backend-error', type: 'Graph', nodes: [], edges: [] }
+      return { name, data, warnings: ['Backend response was not valid JSON'], inputText }
+    }
     const normalized = normalizeBackendResponse(json)
     if (!normalized.graphData) {
       const empty: GraphData = { context: 'backend-empty', type: 'Graph', nodes: [], edges: [] }
@@ -117,26 +121,20 @@ async function fetchBackendGraphData(): Promise<{ name: string; data: GraphData;
         normalized.warnings && normalized.warnings.length > 0
           ? normalized.warnings
           : ['Backend response did not contain GraphData or database payload']
-      return { name, data: empty, warnings }
+      return { name, data: empty, warnings, inputText }
     }
-    return { name, data: normalized.graphData, warnings: normalized.warnings || [] }
+    return { name, data: normalized.graphData, warnings: normalized.warnings || [], inputText }
   } catch {
     return null
   }
 }
 
-export async function loadGraphDataFromBackendViaParser(): Promise<LoaderResult | null> {
+export async function loadGraphDataFromBackendViaParser(url: string): Promise<LoaderResult | null> {
   try { useGraphStore.getState().clearGraphData() } catch { void 0 }
-  const fetched = await fetchBackendGraphData()
+  const fetched = await fetchBackendGraphData(url)
   if (!fetched) return null
   try { useGraphStore.getState().setGraphData(fetched.data) } catch { void 0 }
-  const text = (() => {
-    try {
-      return JSON.stringify(fetched.data)
-    } catch {
-      return ''
-    }
-  })()
+  const text = fetched.inputText || ''
   return {
     name: fetched.name,
     counts: { n: fetched.data.nodes.length, e: fetched.data.edges.length },

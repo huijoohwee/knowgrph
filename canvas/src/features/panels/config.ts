@@ -168,6 +168,9 @@ export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   'Canvas: Shift + drag from one node to another creates an edge (createMode: shift-drag).',
   'Canvas: Use edge tools in the toolbar to click a source node then a target node (createMode: click-source-target).',
   'Canvas: Prefer creating edges from side panels or context menus when createMode is panel-only.',
+  'Canvas: Click the chevron on a group label to collapse/expand the group (clusters/communities/subgraphs).',
+  'Canvas: Alt + double-click a group label expand-selects member nodes/edges.',
+  'Canvas: Click the chevron on a collapsed group node to expand the group.',
   'Help: Launch re-opens the launch spotlight.',
   'Canvas: Cmd/Ctrl + Shift + G replays the launch spotlight.',
   'Settings: uiIconScale under “UI Density: Icons” controls compact vs default icon size across toolbars and panels.',
@@ -569,11 +572,11 @@ export const RENDER_PANEL_SECTION_COPY: Record<RenderPanelSectionKey, RenderPane
     badge: 'Media',
     title: 'Media nodes',
     descriptionShort:
-      'Summarize media-capable nodes and control Render Media as Nodes and opacity.',
+      'Summarize media-capable nodes and control Rich Media and opacity.',
     descriptionLong:
-      'Media nodes are created during ingest based on media_url, media_kind, iframe_url, video, image, and related properties. This section summarizes media-capable nodes and exposes Render Media as Nodes and opacity controls so renderer decisions stay view-only while media metadata remains attached to GraphData.',
+      'Media nodes are created during ingest based on media_url, media_kind, iframe_url, video, image, and related properties. This section summarizes media-capable nodes and exposes Rich Media and opacity controls so renderer decisions stay view-only while media metadata remains attached to GraphData.',
     tooltip:
-      'Media nodes → list nodes with media_url and media_kind inferred from ingestion → treat Render Media as Nodes and opacity as view-level toggles without mutating GraphData so media overlays remain a replaceable renderer choice.',
+      'Media nodes → list nodes with media_url and media_kind inferred from ingestion → treat Rich Media and opacity as view-level toggles without mutating GraphData so media overlays remain a replaceable renderer choice.',
     viewToggleHelper:
       'Circle-only: highlight media-capable nodes. Panel-only: render media panels without mutating GraphData.',
   },

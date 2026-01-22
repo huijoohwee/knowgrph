@@ -121,7 +121,7 @@ export const UI_COPY = {
   pinToViewTooltip:
     'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',
   zoomToSelectionTooltip: 'Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused.',
-  renderMediaAsNodesTooltip: 'View-only: shows or hides media overlays on media-capable nodes without reloading.',
+  renderMediaAsNodesTooltip: 'Rich Media: shows or hides media overlays on media-capable nodes without reloading.',
   launchTooltip: 'Launch',
   threeDModeOnTitle: '3D Mode (On)',
   threeDModeOffTitle: '3D Mode (Off)',
@@ -352,6 +352,7 @@ export const UI_COPY = {
   youtubeImportConvertFailedStatusWithError: (error: string) =>
     `YouTube import: transcript-to-Markdown failed (${error})`,
   jsonImportUrlPrompt: 'Enter JSON/JSON-LD URL',
+  parserBackendUrlPrompt: 'Enter backend URL that returns GraphData JSON',
   jsonImportFetchFailedStatus: (url: string) => `Data load failed: Failed to fetch JSON from ${url}`,
   parserDataLoadSuccess: 'Success',
   parserDataLoadSyntaxErrorStatus: (warning: string) => `Syntax/format error — ${warning}`,

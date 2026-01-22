@@ -30,8 +30,8 @@ const MEDIA_PANEL_ASPECT_HEIGHT = 9;
 const MEDIA_PANEL_PADDING = 4;
 const MEDIA_PANEL_CORNER_AT_MAX_ZOOM = 8;
 const MEDIA_PANEL_BORDER_COLOR = UI_THEME_COLORS_CSS.border;
-const MEDIA_PANEL_BG_COLOR = UI_THEME_COLORS_CSS.bg;
-const MEDIA_PANEL_HEADER_BG_COLOR = 'var(--kg-media-panel-header-bg)';
+const MEDIA_PANEL_BG_FILL_OPACITY = 0.14;
+const MEDIA_PANEL_HEADER_FILL_OPACITY = 0.22;
 const MEDIA_PANEL_BORDER_WIDTH = 1 / ZOOM_MAX;
 
 export const createNodesLayer = (args: {
@@ -50,10 +50,12 @@ export const createNodesLayer = (args: {
   selectEdge: (id: string | null) => void;
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void;
   requestZoomSelection: () => void;
+  toggleGroupCollapsed: (id: string) => void;
 }): {
   nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>;
   mediaSel: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null;
   portHandlesSel: d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null;
+  groupChevronSel: d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null;
 } => {
   const {
     g,
@@ -69,6 +71,7 @@ export const createNodesLayer = (args: {
     simulation,
     hoverEnabled,
     setHoverInfo,
+    toggleGroupCollapsed,
   } = args;
 
   const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
@@ -127,6 +130,8 @@ export const createNodesLayer = (args: {
         const panelHeight = bodyHeight + headerHeight;
         const panelWidth = (bodyHeight * MEDIA_PANEL_ASPECT_WIDTH) / MEDIA_PANEL_ASPECT_HEIGHT;
         const corner = MEDIA_PANEL_CORNER_AT_MAX_ZOOM / ZOOM_MAX;
+        const baseFill = getNodeBaseFill(d, schema)
+        const baseStroke = schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS_CSS.nodeStroke
         const bg = panel
           .append('rect')
           .attr('data-role', 'media-panel-bg')
@@ -136,8 +141,9 @@ export const createNodesLayer = (args: {
           .attr('height', panelHeight)
           .attr('rx', corner)
           .attr('ry', corner)
-          .attr('fill', MEDIA_PANEL_BG_COLOR)
-          .attr('stroke', MEDIA_PANEL_BORDER_COLOR)
+          .attr('fill', baseFill)
+          .attr('fill-opacity', MEDIA_PANEL_BG_FILL_OPACITY)
+          .attr('stroke', baseStroke || MEDIA_PANEL_BORDER_COLOR)
           .attr('stroke-width', MEDIA_PANEL_BORDER_WIDTH);
         const header = panel
           .append('g')
@@ -149,7 +155,8 @@ export const createNodesLayer = (args: {
           .attr('y', -panelHeight / 2)
           .attr('width', panelWidth)
           .attr('height', headerHeight)
-          .attr('fill', MEDIA_PANEL_HEADER_BG_COLOR);
+          .attr('fill', baseFill)
+          .attr('fill-opacity', MEDIA_PANEL_HEADER_FILL_OPACITY);
         header
           .append('text')
           .attr('x', 0)
@@ -157,6 +164,7 @@ export const createNodesLayer = (args: {
           .attr('text-anchor', 'middle')
           .attr('dominant-baseline', 'middle')
           .attr('font-size', 10)
+          .attr('fill', UI_THEME_COLORS_CSS.text)
           .text(fullTitle);
         const contentX = -panelWidth / 2 + padding;
         const contentY = -panelHeight / 2 + headerHeight + padding;
@@ -324,6 +332,29 @@ export const createNodesLayer = (args: {
 
   const mediaInteractiveSel = mediaPanelSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null
 
+  const groupChevronSel = (() => {
+    const groupNodes = nodes.filter((n) => {
+      const props = (n.properties || {}) as Record<string, unknown>
+      const groupId = typeof props['kg:groupId'] === 'string' ? String(props['kg:groupId'] || '').trim() : ''
+      return !!groupId
+    })
+    if (groupNodes.length === 0) return null
+    const layer = g.append('g').attr('data-kg-layer', 'node-chevrons')
+    return layer
+      .selectAll<SVGPathElement, GraphNode>('path[data-kg-node-chevron]')
+      .data(groupNodes, (d: unknown) => String((d as GraphNode).id))
+      .enter()
+      .append('path')
+      .attr('data-kg-node-chevron', '1')
+      .attr('fill', 'none')
+      .attr('stroke', UI_THEME_COLORS_CSS.textSecondary)
+      .attr('stroke-width', 1.75)
+      .attr('stroke-linecap', 'round')
+      .attr('stroke-linejoin', 'round')
+      .style('pointer-events', 'all')
+      .style('cursor', 'pointer') as unknown as d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown>
+  })()
+
   if (schema.behavior.allowNodeDrag) {
     const dragBehavior = nodeDragBehavior(simulation, schema);
     const draggable = (node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>)
@@ -348,12 +379,32 @@ export const createNodesLayer = (args: {
     selectNode(String(d.id));
   }
 
-  const onDblClick = (event: MouseEvent) => {
+  const onDblClick = (event: MouseEvent, d: GraphNode) => {
     event.stopPropagation();
+    const props = (d.properties || {}) as Record<string, unknown>
+    const groupId = typeof props['kg:groupId'] === 'string' ? String(props['kg:groupId'] || '').trim() : ''
+    if (groupId) {
+      setSelectionSource('canvas');
+      selectEdge(null);
+      selectNode(String(d.id));
+      toggleGroupCollapsed(groupId)
+      return
+    }
     if (zoomOnDoubleClick) {
       requestZoomSelection();
     }
     emitPropsPanelOpen();
+  }
+
+  const onGroupChevronClick = (event: MouseEvent, d: GraphNode) => {
+    event.stopPropagation()
+    const props = (d.properties || {}) as Record<string, unknown>
+    const groupId = typeof props['kg:groupId'] === 'string' ? String(props['kg:groupId'] || '').trim() : ''
+    if (!groupId) return
+    setSelectionSource('canvas')
+    selectEdge(null)
+    selectNode(String(d.id))
+    toggleGroupCollapsed(groupId)
   }
 
   const onMouseOver = (event: MouseEvent, d: GraphNode) => {
@@ -393,6 +444,9 @@ export const createNodesLayer = (args: {
     mediaInteractiveSel.on('mousemove', onMouseMove)
     mediaInteractiveSel.on('mouseout', onMouseOut)
   }
+  if (groupChevronSel) {
+    groupChevronSel.on('click', onGroupChevronClick)
+  }
 
   const portHandlesCfg = getPortHandlesConfig(schema);
   const portHandlesEnabled = portHandlesCfg.enabled;
@@ -429,5 +483,5 @@ export const createNodesLayer = (args: {
       });
   }
 
-  return { nodeSel: node, mediaSel, portHandlesSel };
+  return { nodeSel: node, mediaSel, portHandlesSel, groupChevronSel };
 };

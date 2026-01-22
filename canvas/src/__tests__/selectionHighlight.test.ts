@@ -116,3 +116,38 @@ export function testSelectionHighlightEdgeSelectionEndpointsAndEdges() {
     throw new Error('non-selected edges should be gray and dimmed')
   }
 }
+
+export function testSelectionHighlightMediaOpacityRespectsRenderToggleAndLayerOpacity() {
+  const schema = makeSchema()
+  const data: GraphData = {
+    type: 'Graph',
+    nodes: [
+      {
+        id: 'm',
+        label: 'Media',
+        type: 'Entity',
+        properties: { media_kind: 'image', media_url: 'https://example.com/a.png', 'visual:layer': 3 },
+      },
+    ],
+    edges: [],
+  }
+
+  const baseParams: SelectionHighlightParams = {
+    data,
+    schema,
+    selectedNodeId: null,
+    selectedEdgeId: null,
+    renderMediaAsNodes: true,
+    mediaNodeOpacity: 0.5,
+  }
+  const neighborIds = computeNeighborIds(baseParams)
+  const v = computeNodeVisual(data.nodes[0], { ...baseParams, neighborIds })
+  if (Math.abs(v.opacity - 0.4) > 1e-6) {
+    throw new Error(`expected media opacity to respect layer opacity (got ${v.opacity})`)
+  }
+
+  const vOff = computeNodeVisual(data.nodes[0], { ...baseParams, renderMediaAsNodes: false, neighborIds })
+  if (Math.abs(vOff.opacity - 0.8) > 1e-6) {
+    throw new Error(`expected media node to use layer opacity when Rich Media is off (got ${vOff.opacity})`)
+  }
+}

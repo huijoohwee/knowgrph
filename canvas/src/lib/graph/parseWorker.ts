@@ -10,18 +10,27 @@ export function parseGraphInWorker(name: string, text: string): Promise<GraphDat
     }
     const worker = new Worker(new URL('../../workers/graphParser.worker.ts', import.meta.url), { type: 'module' })
     return new Promise((resolve) => {
+      let settled = false
+      const settle = (value: GraphData | null) => {
+        if (settled) return
+        settled = true
+        cleanup()
+        resolve(value)
+      }
       const cleanup = () => {
+        if (timeoutId != null) {
+          try { clearTimeout(timeoutId) } catch (err) { void err }
+        }
         try { worker.terminate() } catch (err) { void err }
       }
+      const timeoutId = setTimeout(() => settle(null), 20_000) as unknown as number
       type ParseResponse = { ok: boolean; data: GraphData | null };
       worker.onmessage = (e: MessageEvent<ParseResponse>) => {
         const { ok, data } = e.data || { ok: false, data: null }
-        cleanup()
-        resolve(ok ? data : null)
+        settle(ok ? data : null)
       }
       worker.onerror = () => {
-        cleanup()
-        resolve(null)
+        settle(null)
       }
       worker.postMessage({ type: 'parse', name, text })
     })

@@ -124,7 +124,8 @@ export const computeNodeVisual = (
     : MVP_COLOR_PALETTE.edges.neutral
   const baseStroke = schema.nodeStroke?.[node.type]?.color ?? params.themeColors?.nodeStroke ?? '#ffffff'
   const baseStrokeWidth = schema.nodeStroke?.[node.type]?.width ?? 1.5
-  const isMediaNode = hasNodeMedia(node)
+  const baseLayerOpacity = getLayerOpacity(node, schema)
+  const isMediaNode = params.renderMediaAsNodes && hasNodeMedia(node)
   const mediaOpacity = (() => {
     const raw = params.mediaNodeOpacity
     if (typeof raw === 'number' && Number.isFinite(raw)) {
@@ -134,19 +135,20 @@ export const computeNodeVisual = (
     }
     return 0.9
   })()
+  const mediaLayerOpacity = Math.max(0, Math.min(1, mediaOpacity * baseLayerOpacity))
   
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
       return {
         fill: highlightFill,
-        opacity: isMediaNode ? mediaOpacity : 1,
+        opacity: isMediaNode ? mediaLayerOpacity : 1,
         stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
     const fill = isEndpoint ? getNodeBaseFill(node, schema) : dimmedFill
-    const opacity = isMediaNode ? mediaOpacity : isEndpoint ? 1 : 0.2
+    const opacity = isMediaNode ? mediaLayerOpacity : isEndpoint ? 1 : 0.2
     const stroke = isEndpoint ? baseStroke : dimmedFill
     const strokeWidth = isEndpoint ? baseStrokeWidth : baseStrokeWidth
     return { fill, opacity, stroke, strokeWidth }
@@ -155,13 +157,13 @@ export const computeNodeVisual = (
     if (selectedNodeIdSet.has(node.id)) {
       return {
         fill: highlightFill,
-        opacity: isMediaNode ? mediaOpacity : 1,
+        opacity: isMediaNode ? mediaLayerOpacity : 1,
         stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
     if (neighborIds.has(node.id)) {
-      const opacity = isMediaNode ? mediaOpacity : 1
+      const opacity = isMediaNode ? mediaLayerOpacity : 1
       return {
         fill: getNodeBaseFill(node, schema),
         opacity,
@@ -169,7 +171,7 @@ export const computeNodeVisual = (
         strokeWidth: baseStrokeWidth,
       }
     }
-    const opacity = isMediaNode ? mediaOpacity : 0.2
+    const opacity = isMediaNode ? mediaLayerOpacity : 0.2
     return {
       fill: dimmedFill,
       opacity,
@@ -177,8 +179,7 @@ export const computeNodeVisual = (
       strokeWidth: baseStrokeWidth,
     }
   }
-  const baseOpacity = getLayerOpacity(node, schema)
-  const opacity = isMediaNode ? mediaOpacity : baseOpacity
+  const opacity = isMediaNode ? mediaLayerOpacity : baseLayerOpacity
   return { fill: getNodeBaseFill(node, schema), opacity, stroke: baseStroke, strokeWidth: baseStrokeWidth }
 }
 

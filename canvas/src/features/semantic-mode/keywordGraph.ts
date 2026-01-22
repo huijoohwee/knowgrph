@@ -210,6 +210,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         'keyword:kind': 'entity',
         'keyword:role': role,
         'keyword:ner': v.ner as unknown as JSONValue,
+        'keyword:frequency': count as unknown as JSONValue,
         count: count as unknown as JSONValue,
         'visual:importance': count as unknown as JSONValue,
         'visual:nodeSize': nodeSize as unknown as JSONValue,
@@ -270,6 +271,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     }
     const w = ppmi.get(pairKey) || 0
     const width = deriveEdgeWidthFromStrength({ count, weight: w })
+    const strengthScore = Math.max(0, Math.min(1, w / 3))
     const id = `kw:edge:${hashText(`${src}|${bestRel}|${tgt}`)}`
     edges.push({
       id,
@@ -279,6 +281,9 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
       properties: {
         count: count as unknown as JSONValue,
         weight: w as unknown as JSONValue,
+        'strength:count': count as unknown as JSONValue,
+        'strength:ppmi': w as unknown as JSONValue,
+        'strength:score': strengthScore as unknown as JSONValue,
         'visual:weight': w as unknown as JSONValue,
         'visual:width': width as unknown as JSONValue,
         'keyword:kind': 'predicate',

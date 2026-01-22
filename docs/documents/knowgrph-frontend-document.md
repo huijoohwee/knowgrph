@@ -660,13 +660,18 @@ ZOOM_MAX: number
 
 **Label Bounds**: Fit calculations account for node labels (estimated width/height from `schema.labelStyles.*`)
 
-**Pin to View**: Toolbar toggle that preserves camera transform across graph updates
+**Pin to View**: Toolbar toggle that preserves camera transform across graph updates and viewport resizes (no jump when side panels open/close)
 
 **While Pinned**:
 - Disables Fit to Screen
 - Disables Zoom to Selection
 - Selection (nodes, edges, graph layers) never triggers zoom/fit/camera moves
 - In 3D: Also disables auto-rotate for visual stability
+
+**View-only Toggle**:
+- Rich Media (Render Media as Nodes) is a presentation-only switch and must not trigger zoom/fit/camera moves.
+- Rich Media sources are sanitized and normalized (e.g. GitHub blob URLs resolve to raw) before proxying to avoid broken media placeholders.
+- Rich Media opacity composes with graph layer opacity: `effectiveOpacity = mediaNodeOpacity × layerOpacity`, and media-specific opacity rules only apply while Rich Media is enabled.
 
 **Safety Forces**:
 - Box Force: Soft constraint around centered 16:9 frame capped at 1920×1080

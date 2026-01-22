@@ -10,6 +10,7 @@ import { testComputeViewRect } from '@/__tests__/minimap.test'
 import {
   testSelectionHighlightNeighborsFromNodeSelection,
   testSelectionHighlightEdgeSelectionEndpointsAndEdges,
+  testSelectionHighlightMediaOpacityRespectsRenderToggleAndLayerOpacity,
 } from '@/__tests__/selectionHighlight.test'
 import {
   testSelectionZoomNodeSelectionUsesNodeAndNeighbors,
@@ -122,6 +123,22 @@ import {
 import { testKeywordModeDerivesEntitiesAndPredicateEdges, testKeywordModeMergesMediaNodesForOverlays } from '@/__tests__/keywordMode.test'
 import { testToolMenuDoesNotExposeCuratorArea } from '@/__tests__/toolMenuCuratorActions.test'
 import { testForbidHardcodedYouTubeUrlLiteral, testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
+import { testGroupCollapseDerivationCollapsesCommunityIntoGroupNode } from '@/__tests__/groupCollapse.test'
+import {
+  testGraphRagAnalyticsWritesNamespacedCausalityComponents,
+  testKeywordGraphWritesKeywordFrequencyAndStrengthScore,
+} from '@/__tests__/metricsProperties.test'
+import {
+  testDensityClusteringReturnsEmptyWhenMaxNodesExceeded,
+  testDensityClusteringRespectsMaxSteps,
+} from '@/__tests__/densityClusteringBounded.test'
+import { testPinnedZoomAdjustKeepsWorldCenter } from '@/__tests__/pinnedZoomNoJump.test'
+import {
+  testPickInitialZoomTransformReusesZoomAcrossPresentationChanges,
+  testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned,
+} from '@/__tests__/zoomStatePick.test'
+import { testCoerceMediaUrlAcceptsSafeRelative, testCoerceMediaUrlRejectsExplicitScheme } from '@/__tests__/mediaUrlCoercion.test'
+import { testApplyMediaProxyNormalizesGithubBlobUrl } from '@/__tests__/mediaProxySrc.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -250,6 +267,10 @@ export const runAllTests = async () => {
     testSelectionHighlightEdgeSelectionEndpointsAndEdges,
   )
   await exec(
+    'graph.selectionHighlight.mediaOpacity.respectsToggleAndLayer',
+    testSelectionHighlightMediaOpacityRespectsRenderToggleAndLayerOpacity,
+  )
+  await exec(
     'graph.selectionZoom.nodeSelectionSubset',
     testSelectionZoomNodeSelectionUsesNodeAndNeighbors,
   )
@@ -313,6 +334,17 @@ export const runAllTests = async () => {
   await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
   await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)
   await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)
+  await exec('groupCollapse.derivation.collapsesCommunityIntoGroupNode', testGroupCollapseDerivationCollapsesCommunityIntoGroupNode)
+  await exec('metrics.graphrag.writesNamespacedCausalityComponents', testGraphRagAnalyticsWritesNamespacedCausalityComponents)
+  await exec('metrics.keywordGraph.writesKeywordFrequencyAndStrengthScore', testKeywordGraphWritesKeywordFrequencyAndStrengthScore)
+  await exec('densityClustering.maxNodesExceededReturnsEmpty', testDensityClusteringReturnsEmptyWhenMaxNodesExceeded)
+  await exec('densityClustering.respectsMaxSteps', testDensityClusteringRespectsMaxSteps)
+  await exec('zoom.pinned.adjustKeepsWorldCenterOnResize', testPinnedZoomAdjustKeepsWorldCenter)
+  await exec('zoom.pick.reusesAcrossPresentationChanges', testPickInitialZoomTransformReusesZoomAcrossPresentationChanges)
+  await exec('zoom.pick.rejectsStaleWhenNotPinned', testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned)
+  await exec('url.coerceMediaUrl.acceptsSafeRelative', testCoerceMediaUrlAcceptsSafeRelative)
+  await exec('url.coerceMediaUrl.rejectsExplicitScheme', testCoerceMediaUrlRejectsExplicitScheme)
+  await exec('url.applyMediaProxySrc.normalizesGithubBlob', testApplyMediaProxyNormalizesGithubBlobUrl)
   
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)
   await exec('persistence.storagePrimitives', testPersistencePrimitives)

@@ -25,6 +25,9 @@ import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { useActiveGraphData } from '@/hooks/useActiveGraphData'
+import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
+import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
+import { pickInitialZoomTransform } from '@/components/GraphCanvas/zoomState'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -36,6 +39,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   activeRef.current = !!active
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
   const nodesSelRef = useRef<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>(null);
+  const groupChevronSelRef = useRef<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>(null)
   const mediaSelRef = useRef<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>(null);
   const portHandlesSelRef =
     useRef<d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null>(null);
@@ -61,6 +65,9 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     frontmatterModeEnabled,
     documentSemanticMode,
     canvasRenderMode,
+    collapsedGroupIds,
+    viewPinned,
+    zoomState,
   } = useGraphStore(
     useShallow((s) => ({
       graphDataRevision: s.graphDataRevision,
@@ -73,6 +80,9 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
       canvasRenderMode: s.canvasRenderMode,
+      collapsedGroupIds: s.collapsedGroupIds || [],
+      viewPinned: s.viewPinned === true,
+      zoomState: s.zoomState || null,
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
@@ -139,6 +149,22 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     return rawGraphData
   }, [rawGraphData, effectiveFrontmatterModeEnabled])
 
+  const collapsedGroupIdsKey = useMemo(() => {
+    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
+    return ids.length > 0 ? ids.join('|') : ''
+  }, [collapsedGroupIds])
+
+  const effectiveRenderGraphData = useMemo(() => {
+    if (!renderGraphData) return null
+    if (!collapsedGroupIdsKey) return renderGraphData
+    return deriveGraphDataWithGroupCollapse({ graphData: renderGraphData, collapsedGroupIds })
+  }, [renderGraphData, collapsedGroupIdsKey, collapsedGroupIds])
+
+  const sceneGraphData = useMemo(() => {
+    if (!effectiveRenderGraphData) return null
+    return cloneGraphDataForRender(effectiveRenderGraphData)
+  }, [effectiveRenderGraphData])
+
   useEffect(() => {
     schemaRef.current = schema
   }, [schema])
@@ -179,6 +205,27 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     setCanvasDims({ w: Math.max(1, Math.floor(width)), h: Math.max(1, Math.floor(height)) });
     setCanvasPos({ x: left, y: top });
   }, [width, height, left, top, setCanvasDims, setCanvasPos]);
+
+  useEffect(() => {
+    if (!viewPinned) return
+    if (zoomState) return
+    if (!svgRef.current) return
+    if (!gRef.current) return
+    if (!zoomRef.current) return
+    try {
+      const t = d3.zoomTransform(svgRef.current)
+      useGraphStore.getState().setZoomState({
+        k: t.k,
+        x: t.x,
+        y: t.y,
+        graphDataRevision: undefined,
+        viewportW: sceneWidth,
+        viewportH: sceneHeight,
+      })
+    } catch {
+      void 0
+    }
+  }, [viewPinned, zoomState, sceneWidth, sceneHeight])
 
   useEffect(() => {
     if (active) return
@@ -237,20 +284,20 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const edgesForSim = useMemo(
     () =>
       normalizeEdgesForSim(
-        (renderGraphData?.nodes ?? []) as GraphNode[],
-        (renderGraphData?.edges ?? []) as GraphEdge[],
+        (sceneGraphData?.nodes ?? []) as GraphNode[],
+        (sceneGraphData?.edges ?? []) as GraphEdge[],
       ),
-    [renderGraphData],
+    [sceneGraphData],
   );
 
   const flowState = useMemo(
-    () => computeFlowState(renderGraphData as GraphData | null),
-    [renderGraphData],
+    () => computeFlowState(sceneGraphData as GraphData | null),
+    [sceneGraphData],
   );
 
   useEffect(() => {
     if (!active) return;
-    if (!renderGraphData || !svgRef.current) return;
+    if (!sceneGraphData || !svgRef.current) return;
     const schemaValue = schemaRef.current;
     if (!schemaValue) return;
     const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false;
@@ -266,12 +313,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         schemaLayoutEngineJson,
         String(effectiveFrontmatterModeEnabled ? 1 : 0),
         String(documentSemanticMode),
-        String(renderGraphData?.metadata && typeof renderGraphData.metadata === 'object'
-          ? `${String((renderGraphData.metadata as Record<string, unknown>).kind ?? '')}:${String((renderGraphData.metadata as Record<string, unknown>).source ?? '')}`
+        String(sceneGraphData?.metadata && typeof sceneGraphData.metadata === 'object'
+          ? `${String((sceneGraphData.metadata as Record<string, unknown>).kind ?? '')}:${String((sceneGraphData.metadata as Record<string, unknown>).source ?? '')}`
           : ''),
-        `${String(renderGraphData?.nodes?.length ?? 0)}:${String(renderGraphData?.edges?.length ?? 0)}`,
+        `${String(sceneGraphData?.nodes?.length ?? 0)}:${String(sceneGraphData?.edges?.length ?? 0)}`,
         String(renderMediaAsNodes ? 1 : 0),
         String(mediaPanelDensity),
+        collapsedGroupIdsKey,
       ].join('|')
 
       if (sceneCleanupRef.current && sceneBuildKeyRef.current === buildKey) {
@@ -305,11 +353,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
       const prevSemanticMode = lastSemanticModeRef.current
-      const canReuseZoom = prevMode === mode && prevFrontmatterMode === !!effectiveFrontmatterModeEnabled && prevSemanticMode === documentSemanticMode
-      const initialZoomTransform =
-        z && (isPinned || (canReuseZoom && (z.graphDataRevision == null || z.graphDataRevision === graphDataRevisionRef.current)))
-          ? { k: z.k, x: z.x, y: z.y }
-          : null;
+      const initialZoomTransform = pickInitialZoomTransform({
+        zoomState: z,
+        pinned: isPinned,
+        graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
+        nextViewportW: sceneWidth,
+        nextViewportH: sceneHeight,
+      })
       const {
         layoutPositionsForMode,
         skipInitialLayout,
@@ -323,7 +373,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         prevFrontmatterMode,
         prevSemanticMode,
         prevRenderMode: prevCanvasRenderMode,
-        nodes: Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes : [],
+        nodes: Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes : [],
         layoutPositionCacheByMode,
       });
       
@@ -342,7 +392,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       sceneCleanupRef.current = setupGraphScene({
         svgEl: svgRef.current,
         svgRef,
-        graphData: renderGraphData,
+        graphData: sceneGraphData,
         schema: schemaValue,
         edgesForSim,
         width: sceneWidth,
@@ -357,6 +407,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         skipInitialLayout,
         gRef,
         nodesSelRef,
+        groupChevronSelRef,
         mediaSelRef,
         portHandlesSelRef,
         linksHitSelRef,
@@ -377,6 +428,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         selectGroup: id => useGraphStore.getState().selectGroup(id),
         selectGroupExpanded: x =>
           useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
+        toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
         setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
         addEdge: e => useGraphStore.getState().addEdge(e),
         updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
@@ -388,6 +440,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           useGraphStore.getState().setZoomState({
             ...t,
             graphDataRevision: pinned ? undefined : graphDataRevisionRef.current,
+            viewportW: sceneWidth,
+            viewportH: sceneHeight,
           })
         },
         getSchema: () => schemaRef.current,
@@ -406,13 +460,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     graphDataRevision,
     sceneWidth,
     sceneHeight,
-    renderGraphData,
+    sceneGraphData,
     schemaLayoutEngineJson,
     edgesForSim,
     setLayoutPositionsForMode,
     effectiveFrontmatterModeEnabled,
     documentSemanticMode,
     canvasRenderMode,
+    collapsedGroupIdsKey,
   ]);
 
   useEffect(() => {
@@ -449,6 +504,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       simulationRef,
       sceneGraphDataRef,
       nodesSelRef,
+      groupChevronSelRef,
       mediaSelRef,
       portHandlesSelRef,
       labelsSelRef,
@@ -457,6 +513,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       selectEdge: id => useGraphStore.getState().selectEdge(id),
       setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
       requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
+      toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
     })
     nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
   }, [schemaNodesPresentationJson, sceneWidth, sceneHeight])
@@ -466,23 +523,25 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     if (!g) return
     if (groupsPresentationAppliedKeyRef.current === schemaGroupsPresentationJson) return
     const schemaValue = schemaRef.current
-    if (!renderGraphData) return
+    if (!sceneGraphData) return
     const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false
     updateGraphSceneGroupsPresentation({
       gRef,
       schema: schemaValue,
-      graphData: renderGraphData,
+      graphData: sceneGraphData,
       beforeRenderFrameRef,
       simulationRef,
       hoverEnabled,
       setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
       setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
+      selectNode: id => useGraphStore.getState().selectNode(id),
       selectGroup: id => useGraphStore.getState().selectGroup(id),
       selectGroupExpanded: x =>
         useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
+      toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
     })
     groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
-  }, [schemaGroupsPresentationJson])
+  }, [schemaGroupsPresentationJson, sceneGraphData])
 
 
   useSelectionHighlight({
@@ -494,7 +553,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   useGroupSelectionHighlight({ gRef })
 
   useEffect(() => {
-    if (!labelsSelRef.current || !renderGraphData) return;
+    if (!labelsSelRef.current || !sceneGraphData) return;
     const { valuesByNodeId, kindsByNodeId } = flowState;
     if (Object.keys(kindsByNodeId).length === 0) return;
     labelsSelRef.current
@@ -506,7 +565,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         const rounded = Math.round(rawValue * 100) / 100;
         return `${d.label} (${rounded})`;
       });
-  }, [flowState, renderGraphData, schemaNodesPresentationJson]);
+  }, [flowState, sceneGraphData, schemaNodesPresentationJson]);
 
   useGraphCanvasStyles({
     gRef,
@@ -533,8 +592,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       <GraphHoverTooltip
         hoverInfo={hoverInfo}
         containerRef={containerRef as unknown as React.RefObject<HTMLElement | null>}
-        nodes={(renderGraphData as GraphData | null)?.nodes}
-        edges={(renderGraphData as GraphData | null)?.edges}
+        nodes={(sceneGraphData as GraphData | null)?.nodes}
+        edges={(sceneGraphData as GraphData | null)?.edges}
         schema={schema as GraphSchema | null}
         onRequestClose={() => setHoverInfo(null)}
       />

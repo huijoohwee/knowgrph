@@ -8,6 +8,7 @@ import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import type { EdgeWithRuntime } from '@/components/GraphCanvas/utils'
 import { getEdgeEndpointFromPorts, getPortHandlePosition, getPortHandlesConfig, type PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 
 type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 
@@ -15,6 +16,7 @@ export const attachSimulationTick = (args: {
   svgEl: SVGSVGElement
   simulation: d3.Simulation<GraphNode, GraphEdge>
   nodeSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
+  groupChevronSelRef: MutableRefObject<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
   portHandlesSelRef: MutableRefObject<d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null>
   linkHitSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
@@ -31,6 +33,7 @@ export const attachSimulationTick = (args: {
     svgEl,
     simulation,
     nodeSelRef,
+    groupChevronSelRef,
     mediaSelRef,
     portHandlesSelRef,
     linkHitSelRef,
@@ -157,6 +160,23 @@ export const attachSimulationTick = (args: {
         .attr('ry', (d: GraphNode) => {
           return getNodeMetrics(d).r * 0.22;
         })
+    }
+
+    const groupChevronSel = groupChevronSelRef.current
+    if (groupChevronSel) {
+      groupChevronSel.attr('d', (d: GraphNode) => {
+        const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
+        const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
+        const props = (d.properties || {}) as Record<string, unknown>
+        const groupId = typeof props['kg:groupId'] === 'string' ? String(props['kg:groupId'] || '').trim() : ''
+        if (!groupId) return ''
+        const { width, height, r } = getNodeMetrics(d)
+        const pad = Math.max(6, Math.min(12, r * 0.35))
+        const cx = x + width / 2 - pad
+        const cy = y - height / 2 + pad
+        const size = Math.max(8, Math.min(14, r * 0.9))
+        return buildChevronPathD({ cx, cy, size, direction: 'right' })
+      })
     }
 
     const mediaSel = mediaSelRef.current

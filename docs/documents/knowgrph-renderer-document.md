@@ -29,7 +29,7 @@
 
 **Layer Stack**: Store (Zustand) → Derivation (Memoized) → GraphCanvas (React) → D3 Simulation → SVG/Canvas
 
-**Processing Flow**: `graphData` (Store) → `deriveGraphDataForLayers` (Immutability Barrier) → `renderGraphData` (Visual Model) → `D3 Force/Layout` → `DOM`
+**Processing Flow**: `graphData` (Store) → view derivation (`useActiveGraphData` + filters + collapse) → `cloneGraphDataForRender` (Immutability Barrier) → `D3 Force/Layout` → `DOM`
 
 **Design Principles**: Unidirectional Flow | Visual Isolation | Configurable Layouts
 
@@ -38,9 +38,11 @@
 - **GraphCanvas**:
   - `canvas/src/components/GraphCanvas.tsx` coordinates the rendering lifecycle.
   - Manages D3 simulation, event listeners, and interaction state.
-- **Layer Derivation**:
-  - `canvas/src/lib/graph/layerDerivation.ts` transforms canonical graph data into visual structures (groups, layers).
-  - **CRITICAL**: Enforces deep/shallow copies of nodes to prevent D3 from mutating the store.
+- **View Derivation**:
+  - `canvas/src/hooks/useActiveGraphData.ts` selects Document vs Keyword mode.
+  - `canvas/src/lib/graph/layerDerivation.ts` applies frontmatter filtering.
+  - `canvas/src/components/GraphCanvas/viewDerivation.ts` collapses groups into derived group-nodes when requested.
+  - `canvas/src/components/GraphCanvas/renderClone.ts` clones nodes/edges to prevent D3 from mutating store state.
 - **Layout Engine**:
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
   - Uses `layoutPositionCacheByMode` to persist stable layouts across re-renders.
@@ -58,10 +60,10 @@
 
 ### 2. Store Immutability & D3 Isolation
 - **Issue**: D3's force simulation directly mutates node objects (`x`, `y`, `vx`, `vy`). If these objects are shared references to the Zustand store, it violates unidirectional flow and causes side-effects.
-- **Solution**: `deriveGraphDataForLayers` enforces **render-only clones** of nodes and edges before passing them to the renderer.
+- **Solution**: `cloneGraphDataForRender` enforces **render-only clones** of nodes and edges before passing them to the renderer.
   - Nodes are cloned so D3 can freely mutate `x/y/vx/vy` without touching canonical store state.
   - Edges are cloned because D3 force-link mutates `edge.source`/`edge.target` from ids to node objects; cloning prevents store contamination and downstream churn.
-  - This decoupling breaks "render → simulate → store update → render" loops and prevents force layout “jumping” caused by repeated reinitialization.
+-    - This decoupling breaks "render → simulate → store update → render" loops and prevents force layout “jumping” caused by repeated reinitialization.
 
 ### 3. Loop Prevention
 - **Mechanism**:
@@ -160,3 +162,16 @@
   - Focuses camera on selected node/edge.
 - **New Node Placement**:
   - New nodes appear at viewport center to prevent disorientation.
+
+---
+
+## Expand and Collapse (Clusters/Subgraphs/Layers)
+
+- **Goal**: treat clusters, communities, and subgraphs as first-class graph layers with native expand/collapse behavior.
+- **Interaction**:
+  - Group label chevron click collapses/expands the group by toggling `collapsedGroupIds` in the store.
+  - Alt + double-click preserves the previous “expand-select” behavior for bulk member selection.
+  - Collapsed group-node chevron click expands by toggling the owning group id.
+- **Render model**:
+  - Collapse replaces member nodes with a derived “group node” carrying `kg:groupId`, `kg:groupMemberCount`, `kg:collapsed`.
+  - Cross-group edges are aggregated and annotated with `kg:collapsedEdge` and `kg:edgeCount`.
