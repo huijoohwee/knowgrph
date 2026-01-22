@@ -29,7 +29,12 @@
 
 #### 2026-01-22
 
-**Recommended GraphRAG Stack:**
+- [] Collective sites https://bytebytego.com/guides/api-web-development/
+  - https://roadmap.sh/frontend?r=frontend-beginner
+  - "Extracted JSON-LD" not in Markdown Editor
+
+
+- [] **Recommended GraphRAG Stack:**
 ```
 NLTK (preprocessing: stopwords, regex, lemmatization): https://github.com/nltk/nltk.git
   ↓

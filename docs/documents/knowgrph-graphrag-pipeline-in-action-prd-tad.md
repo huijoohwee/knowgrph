@@ -143,9 +143,9 @@ mermaid: |
 
 # Knowledge Graph GraphRAG Pipeline with Analytics - PRD & TAD
 
-**Version**: 2.0.0  
+**Version**: 2.1.0  
 **Date**: 2026-01-22  
-**Status**: Draft  
+**Status**: Implemented (Enhanced v2.1)  
 **Previous Version**: 1.0.0
 
 ---
@@ -1427,9 +1427,9 @@ This PRD/TAD is implemented in the `knowgrph/canvas` pipeline as a domain-agnost
 - Parser integration (auto-detect `.txt` + plain-text `.md`): `canvas/src/features/parsers/default.ts` (`graphrag-text`)
 - UI visualization (stage-by-stage inspector): `canvas/src/features/panels/views/GraphRagTextPipelineSection.tsx` (Parser tab)
 - AIE book chapter snippet demo (multi-input, extraction fidelity): `canvas/src/features/demo/GraphRagAieBookChapterSummariesDemo.tsx`, `canvas/src/features/demo/aieBookChapterSnippets.ts`
-- Tests (neutral fixtures + demo-fidelity fixtures): `canvas/src/__tests__/graphragTextPipeline.test.ts`, `canvas/src/__tests__/aieBookGraphRagTextPipeline.test.ts`, `canvas/src/__tests__/demo/graphrag-pipeline-demo.md`
+- Tests (neutral fixtures + demo-fidelity fixtures): `canvas/src/__tests__/graphragTextPipeline.test.ts`, `canvas/src/__tests__/aieBookGraphRagTextPipeline.test.ts`, `canvas/src/__tests__/fixtures/graphrag-text-demo.md`
 
 ### Scope Notes
 
 - The Canvas demo remains extraction-only (no LLM API integration) and runs without server dependencies.
-- Library references and code snippets are shown for transparency; the demo pipeline itself uses heuristic implementations to stay portable.
+- Library references and code snippets are shown for transparency; the demo pipeline itself uses heuristic implementations (bounded summarization + sentence-level evidence spans) to stay portable.

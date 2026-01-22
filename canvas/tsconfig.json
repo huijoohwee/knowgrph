@@ -31,8 +31,5 @@
   "include": [
     "src",
     "api"
-  ],
-  "exclude": [
-    "src/__tests__/demo/graphrag-aie-book-chapter-summaries-demo.tsx"
   ]
 }

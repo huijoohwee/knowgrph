@@ -22,6 +22,10 @@ export type TextTriple = {
     negation?: boolean
     causalityStrength?: number
     causalitySignal?: string
+    evidenceText?: string
+    sentenceIndex?: number
+    sentenceStart?: number
+    sentenceEnd?: number
   }
 }
 
@@ -432,11 +436,24 @@ export const findFirstEntityMention = (sentence: string, entities: TextEntity[])
 }
 
 export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): TextTriple[] => {
-  const sentences = splitSentences(text)
+  const sentenceRanges = splitSentencesWithOffsets(text)
   const triples: TextTriple[] = []
   const seen = new Set<string>()
+  const isDateLike = (value: string): boolean => /^\d{4}(?:-\d{2}-\d{2})?$/.test(String(value || '').trim())
+  const normalizeLocation = (value: string): string => {
+    const t = normalizeNounPhrase(value)
+    if (!t) return ''
+    const head = t.split(/\b(?:and|which|that|who|where)\b/i)[0] || ''
+    return normalizeWhitespace(head)
+  }
 
-  const push = (s: string, p: string, o: string, confidence: number, context: string = '') => {
+  const push = (
+    s: string,
+    p: string,
+    o: string,
+    confidence: number,
+    evidence: { context?: string; sentenceIndex: number; sentenceStart: number; sentenceEnd: number; evidenceText: string },
+  ) => {
     const subject = normalizeWhitespace(s)
     const predicate = normalizeWhitespace(p).replace(/\s+/g, '-').toLowerCase()
     const object = normalizeWhitespace(o)
@@ -444,8 +461,20 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
     const key = `${subject.toLowerCase()}|${predicate}|${object.toLowerCase()}`
     if (seen.has(key)) return
     seen.add(key)
-    const properties = extractRichProperties(context)
-    triples.push({ subject, predicate, object, confidence, properties })
+    const properties = extractRichProperties(evidence.context || '')
+    triples.push({
+      subject,
+      predicate,
+      object,
+      confidence,
+      properties: {
+        ...(properties || {}),
+        evidenceText: evidence.evidenceText,
+        sentenceIndex: evidence.sentenceIndex,
+        sentenceStart: evidence.sentenceStart,
+        sentenceEnd: evidence.sentenceEnd,
+      },
+    })
   }
 
   const stableSubject = (() => {
@@ -457,7 +486,15 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
 
   let lastSubject = stableSubject
 
-  for (const sent of sentences) {
+  for (let sentIndex = 0; sentIndex < sentenceRanges.length; sentIndex += 1) {
+    const range = sentenceRanges[sentIndex]!
+    const sent = text.slice(range.start, range.end)
+    const evidenceBase = {
+      sentenceIndex: sentIndex,
+      sentenceStart: range.start,
+      sentenceEnd: range.end,
+      evidenceText: normalizeWhitespace(sent),
+    }
     const ents = listEntitiesInSentence(sent, entities)
     const lower = sent.trim().toLowerCase()
     const startsWithPronoun = /^(it|this|that|they|he|she|these|those)\b/.test(lower)
@@ -482,7 +519,7 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
       const v = normalizeWhitespace(verb)
       const o = normalizeNounPhrase(object)
       if (!v || !o) return
-      push(subjForSentence, v, o, confidence, context)
+      push(subjForSentence, v, o, confidence, { ...evidenceBase, context })
     }
 
     const applyVerbObjectFromSentence = (pattern: RegExp, predicate: string, confidence: number) => {
@@ -493,7 +530,7 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
 
     const mIsCalled = sent.match(/(.+?)\s+is\s+called\s+([^,.]+)[,.]?/i)
     if (mIsCalled && mIsCalled[1] && mIsCalled[2]) {
-      push(normalizeNounPhrase(mIsCalled[1]), 'is-called', normalizeNounPhrase(mIsCalled[2]), 0.75, mIsCalled[0])
+      push(normalizeNounPhrase(mIsCalled[1]), 'is-called', normalizeNounPhrase(mIsCalled[2]), 0.75, { ...evidenceBase, context: mIsCalled[0] })
     }
 
     const mYield = sent.match(/\byield(?:s)?\b\s+([^,.]+)[,.]?/i)
@@ -510,31 +547,38 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
       /^([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+){0,5})\s+is\s+(?:a|an|the)\s+([^,.]+?)\s+in\s+([^,.]+)[,.]?/i,
     )
     if (leadingIsAIn && leadingIsAIn[1] && leadingIsAIn[2] && leadingIsAIn[3]) {
-      push(leadingIsAIn[1], 'is-a', normalizeNounPhrase(leadingIsAIn[2]), 0.92, leadingIsAIn[0])
-      push(leadingIsAIn[1], 'located-in', normalizeNounPhrase(leadingIsAIn[3]), 0.92, leadingIsAIn[0])
+      push(leadingIsAIn[1], 'is-a', normalizeNounPhrase(leadingIsAIn[2]), 0.92, { ...evidenceBase, context: leadingIsAIn[0] })
+      const loc = normalizeLocation(leadingIsAIn[3])
+      if (loc && !isDateLike(loc)) push(leadingIsAIn[1], 'located-in', loc, 0.92, { ...evidenceBase, context: leadingIsAIn[0] })
     } else {
       const leadingIsA = sent.match(
         /^([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+){0,5})\s+is\s+(?:a|an|the)\s+([^,.]+)[,.]?/i,
       )
       if (leadingIsA && leadingIsA[1] && leadingIsA[2]) {
-        push(leadingIsA[1], 'is-a', normalizeNounPhrase(leadingIsA[2]), 0.9, leadingIsA[0])
+        push(leadingIsA[1], 'is-a', normalizeNounPhrase(leadingIsA[2]), 0.9, { ...evidenceBase, context: leadingIsA[0] })
       }
     }
 
     if (subjInSentence || (subjForSentence && sent.toLowerCase().includes(subjForSentence.toLowerCase()))) {
       const mIsAIn = sent.match(new RegExp(`\\b${subjRe}\\b\\s+is\\s+(?:a|an|the)\\s+([^,.]+?)\\s+in\\s+([^,.]+)`, 'i'))
       if (mIsAIn && mIsAIn[1] && mIsAIn[2]) {
-        push(subjForSentence, 'is-a', normalizeNounPhrase(mIsAIn[1]), 0.9, mIsAIn[0])
-        push(subjForSentence, 'located-in', normalizeNounPhrase(mIsAIn[2]), 0.9, mIsAIn[0])
+        push(subjForSentence, 'is-a', normalizeNounPhrase(mIsAIn[1]), 0.9, { ...evidenceBase, context: mIsAIn[0] })
+        push(subjForSentence, 'located-in', normalizeNounPhrase(mIsAIn[2]), 0.9, { ...evidenceBase, context: mIsAIn[0] })
       } else {
         const mIsA = sent.match(new RegExp(`\\b${subjRe}\\b\\s+is\\s+(?:a|an|the)\\s+([^,.]+)`, 'i'))
-        if (mIsA && mIsA[1]) push(subjForSentence, 'is-a', normalizeNounPhrase(mIsA[1]), 0.85, mIsA[0])
+        if (mIsA && mIsA[1]) push(subjForSentence, 'is-a', normalizeNounPhrase(mIsA[1]), 0.85, { ...evidenceBase, context: mIsA[0] })
         const mIn = sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,80}\\s+in\\s+([^,.]+)`, 'i'))
-        if (mIn && mIn[1]) push(subjForSentence, 'located-in', normalizeNounPhrase(mIn[1]), 0.8, mIn[0])
+        if (mIn && mIn[1]) {
+          const loc = normalizeLocation(mIn[1])
+          if (loc && !isDateLike(loc)) push(subjForSentence, 'located-in', loc, 0.8, { ...evidenceBase, context: mIn[0] })
+        }
       }
 
       const mLocated = sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,120}\\blocated\\s+in\\s+([^,.]+)`, 'i'))
-      if (mLocated && mLocated[1]) push(subjForSentence, 'located-in', normalizeNounPhrase(mLocated[1]), 0.85, mLocated[0])
+      if (mLocated && mLocated[1]) {
+        const loc = normalizeLocation(mLocated[1])
+        if (loc && !isDateLike(loc)) push(subjForSentence, 'located-in', loc, 0.85, { ...evidenceBase, context: mLocated[0] })
+      }
 
       applyVerbObjectFromSentence(new RegExp(`\\b${subjRe}\\b[^.]{0,80}\\bemploys\\b\\s+(?:a|an|the)?\\s*([^,.]+)`, 'i'), 'employs', 0.75)
       applyVerbObjectFromSentence(new RegExp(`\\b${subjRe}\\b[^.]{0,120}\\bretrieves\\b\\s+([^,.]+?)(?:\\s+from\\s+[^,.]+)?[,.]`, 'i'), 'retrieves', 0.7)
@@ -545,6 +589,15 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
     }
 
     if (startsWithPronoun) {
+      const mPronIsA = sent.match(/^\s*(?:it|this|that|they|he|she|these|those)\s+is\s+(?:a|an|the)\s+([^,.]+)[,.]?/i)
+      if (mPronIsA && mPronIsA[1]) {
+        push(subjForSentence, 'is-a', normalizeNounPhrase(mPronIsA[1]), 0.82, { ...evidenceBase, context: mPronIsA[0] })
+      }
+      const mPronLocated = sent.match(/^\s*(?:it|this|that|they|he|she|these|those)\b[^.]{0,160}\blocated\s+in\s+([^,.]+)[,.]?/i)
+      if (mPronLocated && mPronLocated[1]) {
+        const loc = normalizeLocation(mPronLocated[1])
+        if (loc && !isDateLike(loc)) push(subjForSentence, 'located-in', loc, 0.82, { ...evidenceBase, context: mPronLocated[0] })
+      }
       const shouldSkipPronounVerbs = /\bpopulation\s+of\b/i.test(sent) || /\bknown\s+for\b/i.test(sent)
       if (!shouldSkipPronounVerbs) {
         applyVerbObjectFromSentence(/\bemploys\b\s+(?:a|an|the)?\s*([^,.]+)[,.]/i, 'employs', 0.65)
@@ -565,7 +618,7 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
     const mPopulation = subjInSentence
       ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,240}\\bpopulation\\s+of\\s+(?:about\\s+)?(\\d+(?:\\.\\d+)?\\s*${quantityUnit})`, 'i'))
       : sent.match(new RegExp(`\\bpopulation\\s+of\\s+(?:about\\s+)?(\\d+(?:\\.\\d+)?\\s*${quantityUnit})`, 'i'))
-    if (mPopulation && mPopulation[1]) push(subjForSentence, 'has-population', normalizeNounPhrase(mPopulation[1]), 0.85, mPopulation[0])
+    if (mPopulation && mPopulation[1]) push(subjForSentence, 'has-population', normalizeNounPhrase(mPopulation[1]), 0.85, { ...evidenceBase, context: mPopulation[0] })
 
     const mKnown = subjInSentence
       ? sent.match(new RegExp(`\\b${subjRe}\\b[^.]{0,200}\\bknown\\s+for\\s+([^.]*)`, 'i'))
@@ -573,8 +626,8 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
     if (mKnown && mKnown[1]) {
       const list = splitCommaAndAndList(mKnown[1])
       list.forEach(item => {
-        if (/\bproject\b|\bprojects\b/i.test(item)) push(subjForSentence, 'has', item, 0.75, mKnown[0])
-        else push(subjForSentence, 'known-for', item, 0.75, mKnown[0])
+        if (/\bproject\b|\bprojects\b/i.test(item)) push(subjForSentence, 'has', item, 0.75, { ...evidenceBase, context: mKnown[0] })
+        else push(subjForSentence, 'known-for', item, 0.75, { ...evidenceBase, context: mKnown[0] })
       })
     }
 
@@ -587,7 +640,7 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
     if (mHas && mHas[1]) {
       const rhs = normalizeWhitespace(mHas[1]).replace(/\b(?:a|an|the)\b/gi, ' ').trim()
       const list = splitCommaAndAndList(rhs)
-      list.forEach(item => push(subjForSentence, 'has', item, 0.7, mHas[0]))
+      list.forEach(item => push(subjForSentence, 'has', item, 0.7, { ...evidenceBase, context: mHas[0] }))
     }
 
     if (triples.length === before && ents.length >= 2 && (subjInSentence || (subjForSentence && sent.toLowerCase().includes(subjForSentence.toLowerCase())))) {
@@ -604,7 +657,7 @@ export const extractTriplesHeuristic = (text: string, entities: TextEntity[]): T
       })()
       const verbTokens = tokenizeForStats(between, 2, new Set())
       const verb = verbTokens.find(t => t.length >= 2) || 'relates_to'
-      push(subjForSentence, verb, obj, 0.55, between)
+      push(subjForSentence, verb, obj, 0.55, { ...evidenceBase, context: between })
     }
   }
 

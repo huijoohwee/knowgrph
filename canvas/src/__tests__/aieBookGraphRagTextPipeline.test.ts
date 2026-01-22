@@ -15,7 +15,7 @@ export function testGraphRagTextPipelineExtractsFromAieBookSnippets() {
     const meta = graph.metadata as unknown as Record<string, unknown>
     const pipeline = meta?.graphragTextPipeline as unknown as Record<string, unknown>
     const stages = pipeline?.stages as unknown
-    if (!Array.isArray(stages) || stages.length !== 9) throw new Error(`Expected 9 stages for ${ch.title}`)
+    if (!Array.isArray(stages) || stages.length !== 10) throw new Error(`Expected 10 stages for ${ch.title}`)
 
     const stageIds = stages.map(s => String((s as Record<string, unknown>).id || ''))
     const expectedOrder = [
@@ -23,6 +23,7 @@ export function testGraphRagTextPipelineExtractsFromAieBookSnippets() {
       'hfTokenize',
       'spacyNerPos',
       'tripleExtract',
+      'extractiveSummarize',
       'entityAnalytics',
       'relationAnalytics',
       'graphConstruct',

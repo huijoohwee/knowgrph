@@ -40,15 +40,15 @@ const readFixture = (relPath: string): string => {
 }
 
 export function testGraphRagTextPipelineMatchesDemoFixture() {
-  const demoText = readFixture('./demo/graphrag-pipeline-demo.md').trim()
+  const demoText = readFixture('./fixtures/graphrag-text-demo.md').trim()
   const res = runGraphRagTextPipeline(demoText)
   const graph = res.graphData
   if (graph.type !== 'Graph') throw new Error('Expected GraphData.type=Graph')
 
   const labels = new Set(graph.nodes.map(n => n.label))
   const expectedNodes = [
-    'Singapore',
-    'Southeast Asia',
+    'Project Alpha',
+    'Example City',
   ]
   for (const l of expectedNodes) {
     if (!labels.has(l)) {
@@ -63,17 +63,17 @@ export function testGraphRagTextPipelineMatchesDemoFixture() {
   })
   const expectSome = (pred: (k: string) => boolean, label: string) => {
     if (!edgeTriples.some(pred)) {
-      const sample = edgeTriples.filter(k => k.startsWith('Singapore|')).sort().slice(0, 30).join(' | ')
-      throw new Error(`Missing expected edge pattern: ${label}. Singapore edges: ${sample}`)
+      const sample = edgeTriples.filter(k => k.startsWith('Project Alpha|')).sort().slice(0, 30).join(' | ')
+      throw new Error(`Missing expected edge pattern: ${label}. Project Alpha edges: ${sample}`)
     }
   }
-  expectSome(k => k.startsWith('Singapore|is-a|'), 'Singapore|is-a|*')
-  expectSome(k => k === 'Singapore|located-in|Southeast Asia', 'Singapore|located-in|Southeast Asia')
+  expectSome(k => k.startsWith('Project Alpha|is-a|'), 'Project Alpha|is-a|*')
+  expectSome(k => k === 'Project Alpha|located-in|Example City', 'Project Alpha|located-in|Example City')
 
   const meta = graph.metadata as unknown as Record<string, unknown>
   const pipeline = meta?.graphragTextPipeline as unknown as Record<string, unknown>
   const stages = pipeline?.stages as unknown
-  if (!Array.isArray(stages) || stages.length !== 9) throw new Error('Expected 9 graphragTextPipeline stages')
+  if (!Array.isArray(stages) || stages.length !== 10) throw new Error('Expected 10 graphragTextPipeline stages')
 }
 
 export function testGraphRagTextParserSpecMatchesTxt() {

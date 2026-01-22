@@ -22,7 +22,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
 import { useToolbarMenuAction } from '@/features/toolbar/useToolbarMenuAction'
-import { runAgenticRagDemo } from '@/__tests__/demo/runner'
 
 type ToolbarMenuLauncherProps = {
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
@@ -102,10 +101,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     closeToolMenu,
     toggleToolMenu,
   } = useToolMenuState()
-
-  const handleRunDemo = useCallback(async () => {
-    await runAgenticRagDemo(setPipelineStatus)
-  }, [setPipelineStatus])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -359,7 +354,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
             closeToolMenu()
           }}
           onRunPipeline={handleRunCodebaseIndexPipeline}
-          onRunDemo={handleRunDemo}
+          onRunDemo={undefined}
           onClose={closeToolMenu}
           onToolMenuAction={handleToolMenuAction}
           onOpenWorkflowTab={openWorkflowTab}

@@ -5,6 +5,7 @@ import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords
 import { nowMs, tokenizePreserveCase, lemmatizeNaive, hfToySubwordsFromText } from '@/lib/graph/graphragTextToyStages'
 import { applyGraphRagTextAnalytics, type GraphRagTextGraphMetrics } from '@/lib/graph/graphragTextAnalytics'
 import type { DensityClusteringConfig } from '@/features/semantic-mode/densityClustering'
+import { buildExtractiveSummary } from '@/lib/graph/extractiveSummarization'
 import {
   extractEntitiesHeuristic,
   extractTriplesHeuristic,
@@ -20,6 +21,7 @@ export type GraphRagTextPipelineStageId =
   | 'hfTokenize'
   | 'spacyNerPos'
   | 'tripleExtract'
+  | 'extractiveSummarize'
   | 'graphConstruct'
   | 'entityAnalytics'
   | 'relationAnalytics'
@@ -296,6 +298,44 @@ export function runGraphRagTextPipeline(text: string, options?: GraphRagTextPipe
     },
   })
 
+  const summarizeT0 = nowMs()
+  const summary = buildExtractiveSummary({
+    text: baseText,
+    entities,
+    options: { maxSentences: 4, maxSummaryChars: 900, maxSentenceChars: 280, maxSentencesScored: 160 },
+  })
+  const summarizeT1 = nowMs()
+  const summarySentences = summary.selectedSentenceIndices.map(idx => {
+    const entry = summary.sentences.find(s => s.index === idx)
+    if (!entry) return null
+    return {
+      index: entry.index,
+      paragraphIndex: entry.paragraphIndex,
+      score: Number(entry.score.toFixed(3)),
+      entityMentions: entry.entityMentions,
+      text: entry.text,
+    }
+  }).filter(Boolean)
+  const summaryOutput = {
+    summary: summary.summaryText,
+    sentences: summarySentences,
+    metrics: summary.metrics,
+  }
+  stages.push({
+    id: 'extractiveSummarize',
+    name: 'Extractive Summarization',
+    library: { name: 'HuggingFace Transformers', url: 'https://github.com/huggingface/transformers', license: 'Apache-2.0' },
+    code: ["from transformers import pipeline", "summarizer = pipeline('summarization')"].join('\n'),
+    input: 'Paragraph and sentence segmentation',
+    output: summaryOutput as unknown as JSONValue,
+    metrics: {
+      stage: 'extractiveSummarize',
+      status: 'success',
+      latency_ms: summarizeT1 - summarizeT0,
+      output_size: stageSize(summaryOutput),
+    },
+  })
+
   const graphT0 = nowMs()
   const built = buildGraphFromTriples({ triples, entities })
   const graphT1 = nowMs()
@@ -404,6 +444,7 @@ export function runGraphRagTextPipeline(text: string, options?: GraphRagTextPipe
       graphragTextPipeline: {
         inputTextPreview: baseText.slice(0, 2048),
         inputTextHash: hashText(baseText),
+        summary: summaryOutput as unknown as JSONValue,
         graphMetrics: graphMetrics as unknown as JSONValue,
         stages,
         warnings,
