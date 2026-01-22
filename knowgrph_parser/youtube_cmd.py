@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import re
 import sys
 import time
@@ -8,6 +9,7 @@ from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import Request, urlopen
 
 from .common import slugify
+from .youtube_tools import try_fetch_segments_with_ytdlp_subtitles, try_transcribe_with_whisper
 
 
 def _unwrap_user_provided_text(text: str) -> str:
@@ -473,8 +475,53 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
         source_url = _build_youtube_source_url(video_id, requested_start_s)
         watch_url = f"https://www.youtube.com/watch?v={video_id}"
 
-        snippets, meta = _fetch_transcript_snippets(video_id, languages=languages)
-        segments = _normalize_segments(snippets)
+        tools_timeout_s = 180
+        try:
+            raw = int(os.environ.get("KG_YOUTUBE_TOOLS_TIMEOUT_S", "") or "0")
+            if raw > 0:
+                tools_timeout_s = max(10, min(3600, raw))
+        except Exception:
+            tools_timeout_s = 180
+        whisper_model = str(os.environ.get("KG_WHISPER_MODEL", "") or "").strip() or "base"
+
+        segments: List[Dict[str, Any]] = []
+        meta: Dict[str, Any] = {}
+        try:
+            snippets, meta = _fetch_transcript_snippets(video_id, languages=languages)
+            segments = _normalize_segments(snippets)
+        except (TranscriptsDisabled, NoTranscriptFound):
+            segs_and_meta = try_fetch_segments_with_ytdlp_subtitles(
+                args.url, languages=languages, timeout_s=tools_timeout_s
+            )
+            if segs_and_meta:
+                segments = _normalize_segments(segs_and_meta[0])
+                meta = dict(segs_and_meta[1] or {})
+            if not segments:
+                whisper_obj = try_transcribe_with_whisper(
+                    args.url,
+                    language_code=requested_language_code,
+                    timeout_s=tools_timeout_s,
+                    whisper_model=whisper_model,
+                )
+                if whisper_obj:
+                    w_segments, w_meta = _parse_whisper_json_obj(whisper_obj)
+                    segments = _normalize_segments(w_segments)
+                    w_lang = (
+                        str(w_meta.get("language") or "").strip().lower()
+                        if isinstance(w_meta.get("language"), str)
+                        else ""
+                    )
+                    selected = w_lang or requested_language_code
+                    meta = {
+                        "selected_language_code": selected,
+                        "selected_language": selected,
+                        "is_generated": True,
+                        "is_translatable": False,
+                        "translation_languages": [],
+                    }
+        if not segments:
+            raise NoTranscriptFound("Transcript unavailable via youtube-transcript-api and tool fallbacks")
+
         timing = _compute_timing_metrics(segments)
         oembed = _fetch_oembed(watch_url=watch_url) or {}
         title = str(oembed.get("title") or "").strip() or f"YouTube Transcript: {video_id}"
@@ -482,6 +529,21 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
         markdown = _build_markdown(title=title, video_id=video_id, source_url=source_url, paragraphs=paragraphs)
         display_name = f"youtube-{slugify(video_id)}.md"
         generated_at_ms = int(time.time() * 1000)
+        selected_language_code = meta.get("selected_language_code")
+        selected_language = meta.get("selected_language")
+        is_generated = meta.get("is_generated")
+        is_translatable = meta.get("is_translatable")
+        translation_languages = meta.get("translation_languages") or []
+        if not isinstance(selected_language_code, str) or not selected_language_code.strip():
+            selected_language_code = requested_language_code
+        if not isinstance(selected_language, str) or not selected_language.strip():
+            selected_language = selected_language_code
+        if not isinstance(is_generated, bool):
+            is_generated = True
+        if not isinstance(is_translatable, bool):
+            is_translatable = False
+        if not isinstance(translation_languages, list):
+            translation_languages = []
 
         if args.emit == "json":
             payload: Dict[str, Any] = {
@@ -494,17 +556,17 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
                 "requested_language": requested_language_code,
                 "requested_languages": requested_languages,
                 "requested_start_s": int(requested_start_s),
-                "selected_language_code": meta.get("selected_language_code"),
-                "selected_language": meta.get("selected_language"),
-                "is_generated": meta.get("is_generated"),
-                "is_translatable": meta.get("is_translatable"),
-                "translation_languages": meta.get("translation_languages") or [],
+                "selected_language_code": selected_language_code,
+                "selected_language": selected_language,
+                "is_generated": is_generated,
+                "is_translatable": is_translatable,
+                "translation_languages": translation_languages,
                 "oembed": oembed,
-                "start_s": timing.get("start_s"),
-                "end_s": timing.get("end_s"),
-                "duration_s": timing.get("duration_s"),
-                "segment_count": timing.get("segment_count"),
-                "generated_at_ms": generated_at_ms,
+                "start_s": float(timing.get("start_s") or 0.0),
+                "end_s": float(timing.get("end_s") or 0.0),
+                "duration_s": float(timing.get("duration_s") or 0.0),
+                "segment_count": int(timing.get("segment_count") or 0),
+                "generated_at_ms": int(generated_at_ms),
                 "segments": segments,
                 "markdown": markdown,
                 "name": display_name,

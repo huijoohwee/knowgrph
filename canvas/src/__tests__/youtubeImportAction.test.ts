@@ -130,15 +130,31 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
 
   g.fetch = (async (input: unknown) => {
     const url = typeof input === 'string' ? input : ''
-    if (!url.includes(`/__youtube_transcript?url=${encodeURIComponent(watchUrl)}`)) {
-      throw new Error(`Unexpected fetch url: ${url}`)
+    if (url.includes(`/__youtube_transcript?url=${encodeURIComponent(watchUrl)}`)) {
+      const response: FetchResponseStub = {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, markdown, name: `youtube-${fakeId}.md`, transcript }),
+      }
+      return response as unknown as Response
     }
-    const response: FetchResponseStub = {
-      ok: true,
-      status: 200,
-      json: async () => ({ ok: true, markdown, name: `youtube-${fakeId}.md`, transcript }),
+    if (url.startsWith('http://localhost:1234/v1/chat/completions')) {
+      const response: FetchResponseStub = {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: 'Hello there.\n\nGeneral Kenobi.',
+              },
+            },
+          ],
+        }),
+      }
+      return response as unknown as Response
     }
-    return response as unknown as Response
+    throw new Error(`Unexpected fetch url: ${url}`)
   }) as unknown as typeof fetch
 
   const state = useGraphStore.getState()
