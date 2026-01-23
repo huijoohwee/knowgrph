@@ -4,6 +4,7 @@ import maplibregl, { type Map as MapLibreMap } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { graphNodesToPointFeatureCollection } from '@/lib/geospatial/geojson'
+import { normalizeGeospatialStyleUrl } from '@/lib/geospatial/styleUrl'
 import { normalizeGitHubBlobLikeUrl } from '@/lib/url'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { clamp01 } from '@/lib/math/clamp01'
@@ -35,6 +36,10 @@ export function GeospatialOverlay() {
   const lastZoomStateRef = React.useRef<{ k: number; x: number; y: number } | null>(null)
   const lastStyleUrlRef = React.useRef<string | null>(null)
   const lastAutoFitKeyRef = React.useRef<string | null>(null)
+  const targetStyleUrlRef = React.useRef<string>(OPENFREEMAP_STYLE_URL)
+
+  const [styleRevision, setStyleRevision] = React.useState(0)
+  const [mapError, setMapError] = React.useState<string | null>(null)
 
   const {
     enabled,
@@ -73,21 +78,30 @@ export function GeospatialOverlay() {
     return graphNodesToPointFeatureCollection(graphData)
   }, [graphData])
 
+  const targetStyleUrl = React.useMemo(() => {
+    const normalizedStyleUrlRaw = String(styleUrl || '').trim()
+    const isDefault =
+      !normalizedStyleUrlRaw || normalizedStyleUrlRaw.toLowerCase() === 'blank' || normalizedStyleUrlRaw.toLowerCase() === 'none'
+    const next = isDefault ? OPENFREEMAP_STYLE_URL : normalizeGeospatialStyleUrl(normalizedStyleUrlRaw)
+    return next || OPENFREEMAP_STYLE_URL
+  }, [styleUrl])
+
+  React.useEffect(() => {
+    targetStyleUrlRef.current = targetStyleUrl
+  }, [targetStyleUrl])
+
   React.useEffect(() => {
     if (!enabled) return
     if (!containerRef.current) return
     if (mapRef.current) return
 
-    const normalizedStyleUrlRaw = styleUrl.trim()
-    // Default to OpenFreeMap if blank/empty
-    const targetStyle =
-      !normalizedStyleUrlRaw || normalizedStyleUrlRaw.toLowerCase() === 'blank' || normalizedStyleUrlRaw.toLowerCase() === 'none'
-        ? OPENFREEMAP_STYLE_URL
-        : normalizedStyleUrlRaw
+    setMapError(null)
+
+    const initialStyleUrl = targetStyleUrlRef.current
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: targetStyle,
+      style: initialStyleUrl,
       center: [0, 0],
       zoom: 1,
       interactive: false,
@@ -98,9 +112,26 @@ export function GeospatialOverlay() {
       },
     })
     mapRef.current = map
-    lastStyleUrlRef.current = targetStyle
-    const onMapError = () => void 0
+    lastStyleUrlRef.current = initialStyleUrl
+
+    const onMapError = (e: unknown) => {
+      const extractMessage = (raw: unknown): string => {
+        if (raw instanceof Error) return raw.message
+        if (typeof raw === 'string') return raw
+        if (raw && typeof raw === 'object' && 'message' in raw) return String((raw as { message?: unknown }).message || '')
+        return ''
+      }
+
+      const payload = typeof e === 'object' && e && 'error' in e ? (e as { error?: unknown }).error : null
+      const message = extractMessage(payload) || extractMessage(e) || 'Map load error'
+      setMapError(prev => prev ?? message)
+      console.error('[geospatial] MapLibre error', e)
+    }
+    const onStyleReady = () => setStyleRevision(v => v + 1)
+
     map.on('error', onMapError)
+    map.on('load', onStyleReady)
+    map.on('style.load', onStyleReady)
 
     try {
       if (canvasRenderMode === '3d') {
@@ -112,29 +143,11 @@ export function GeospatialOverlay() {
       void 0
     }
 
-    const refreshRuntimeLayers = () => {
-      try {
-        ensureGraphPointLayer(map, GRAPH_SOURCE_ID, GRAPH_LAYER_ID)
-        setGeoJsonSourceData(map, GRAPH_SOURCE_ID, graphPoints)
-        datasets.forEach(d => {
-          if (!d.enabled) return
-          ensureDatasetLayer(map, toSourceId(d.id), colorForDataset(d.id))
-          const normalized = normalizeGitHubBlobLikeUrl(d.source.url) ?? d.source.url
-          const cached = datasetCache.get(normalized)
-          if (cached) setGeoJsonSourceData(map, toSourceId(d.id), cached)
-        })
-      } catch {
-        void 0
-      }
-    }
-    map.on('load', refreshRuntimeLayers)
-    map.on('style.load', refreshRuntimeLayers)
-
     return () => {
       try {
         map.off('error', onMapError)
-        map.off('load', refreshRuntimeLayers)
-        map.off('style.load', refreshRuntimeLayers)
+        map.off('load', onStyleReady)
+        map.off('style.load', onStyleReady)
       } catch {
         void 0
       }
@@ -148,33 +161,32 @@ export function GeospatialOverlay() {
       lastStyleUrlRef.current = null
       lastAutoFitKeyRef.current = null
     }
-  }, [enabled, styleUrl, graphPoints, datasets]) // Re-create map if critical props change initially or just rely on other effects
+  }, [enabled])
 
   // Effect to handle style changes dynamically
   React.useEffect(() => {
     const map = mapRef.current
     if (!enabled || !map) return
-    const normalizedStyleUrlRaw = styleUrl.trim()
-    const targetStyle =
-      !normalizedStyleUrlRaw || normalizedStyleUrlRaw.toLowerCase() === 'blank' || normalizedStyleUrlRaw.toLowerCase() === 'none'
-        ? OPENFREEMAP_STYLE_URL
-        : normalizedStyleUrlRaw
-
-    if (lastStyleUrlRef.current === targetStyle) return
+    if (lastStyleUrlRef.current === targetStyleUrl) return
 
     let cancelled = false
     const isCancelled = () => cancelled
     void (async () => {
         // If it's a URL, use applyPreferredStyle, otherwise if it was an object we'd set it directly
         // Here we assume it's a URL
-        const ok = await applyPreferredStyle(map, targetStyle, isCancelled)
-        if (!ok || isCancelled()) return
-        lastStyleUrlRef.current = targetStyle
+        const ok = await applyPreferredStyle(map, targetStyleUrl, isCancelled)
+        if (isCancelled()) return
+        if (!ok) {
+          setMapError(prev => prev ?? 'Failed to load map style.')
+          return
+        }
+        setMapError(null)
+        lastStyleUrlRef.current = targetStyleUrl
     })()
     return () => {
       cancelled = true
     }
-  }, [enabled, styleUrl])
+  }, [enabled, targetStyleUrl])
 
   React.useEffect(() => {
     const map = mapRef.current
@@ -186,7 +198,7 @@ export function GeospatialOverlay() {
     } catch {
       void 0
     }
-  }, [enabled, graphPoints])
+  }, [enabled, graphPoints, styleRevision])
 
   React.useEffect(() => {
     const map = mapRef.current
@@ -215,7 +227,7 @@ export function GeospatialOverlay() {
         void 0
       }
     })
-  }, [enabled, datasets])
+  }, [enabled, datasets, styleRevision])
 
   React.useEffect(() => {
     const map = mapRef.current
@@ -251,7 +263,7 @@ export function GeospatialOverlay() {
     return () => {
       cancelled = true
     }
-  }, [enabled, datasets, setDatasetStatus, datasetTimeoutMs, datasetMaxBytes])
+  }, [enabled, datasets, setDatasetStatus, datasetTimeoutMs, datasetMaxBytes, styleRevision])
 
   React.useEffect(() => {
     const map = mapRef.current
@@ -358,6 +370,11 @@ export function GeospatialOverlay() {
       style={{ opacity: clamp01(overlayOpacity) }}
       aria-hidden="true"
     >
+      {mapError ? (
+        <div className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
+          {mapError}
+        </div>
+      ) : null}
       <div ref={containerRef} className="absolute inset-0" />
     </div>
   )

@@ -12,6 +12,7 @@ import {
   DEFAULT_GEOSPATIAL_STYLE_URL,
   parseGeospatialDatasetsFromEnv,
 } from '@/lib/geospatial/config'
+import { normalizeGeospatialStyleUrl } from '@/lib/geospatial/styleUrl'
 import { clamp01 } from '@/lib/math/clamp01'
 
 const parseDatasetFormat = (raw: unknown): GeospatialDatasetFormat => {
@@ -88,10 +89,10 @@ export const createGeospatialDatasetsSlice = (
   const geospatialStyleUrl = (() => {
     const v = lsJson(LS_KEYS.geospatialStyleUrl, DEFAULT_GEOSPATIAL_STYLE_URL, (raw) => {
       if (typeof raw !== 'string') return null
-      const s = raw.trim()
+      const s = normalizeGeospatialStyleUrl(raw)
       return s ? s : DEFAULT_GEOSPATIAL_STYLE_URL
     })
-    return v
+    return normalizeGeospatialStyleUrl(v) || DEFAULT_GEOSPATIAL_STYLE_URL
   })()
 
   const geospatialOverlayOpacity = (() => {
@@ -118,7 +119,7 @@ export const createGeospatialDatasetsSlice = (
   return {
     geospatialStyleUrl,
     setGeospatialStyleUrl: (raw) => {
-      const s = String(raw || '').trim()
+      const s = normalizeGeospatialStyleUrl(raw)
       const next = s ? s : DEFAULT_GEOSPATIAL_STYLE_URL
       lsSetJson(LS_KEYS.geospatialStyleUrl, next)
       set(() => ({ geospatialStyleUrl: next }))

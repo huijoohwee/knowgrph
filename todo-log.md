@@ -1,5 +1,7 @@
 # todo-log
 
+**Canonical directive**: one-directive-per-row 
+
 ## 2026-01-23
 
 Canonical status: use the first Geospatial Mode row below; later Geospatial Mode rows may reference legacy placeholders.

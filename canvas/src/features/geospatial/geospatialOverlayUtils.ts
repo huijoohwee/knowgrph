@@ -3,6 +3,7 @@ import bbox from '@turf/bbox'
 import type { AllGeoJSON } from '@turf/helpers'
 import type { FeatureCollection, GeoJSON, GeoJsonProperties, Geometry } from 'geojson'
 import { parseGeoJsonFromText, recordsToPointFeatureCollection } from '@/lib/geospatial/geojson'
+import { normalizeGeospatialStyleUrl } from '@/lib/geospatial/styleUrl'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
 import { normalizeGitHubBlobLikeUrl } from '@/lib/url'
 import type { LRUCache } from '@/lib/cache/LRUCache'
@@ -102,7 +103,7 @@ async function loadStyleObject(styleUrl: string): Promise<unknown | null> {
 
 export function resolveStyleUrls(styleUrl: string, raw: unknown): unknown {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw
-  const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(styleUrl) ?? styleUrl
+  const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(normalizeGeospatialStyleUrl(styleUrl)) ?? styleUrl
   let base: URL
   try {
     base = new URL(normalizedStyleUrl)
@@ -190,7 +191,7 @@ export async function applyPreferredStyle(
   styleUrl: string,
   cancelled: () => boolean,
 ): Promise<boolean> {
-  const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(styleUrl) ?? styleUrl
+  const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(normalizeGeospatialStyleUrl(styleUrl)) ?? styleUrl
   const raw = await loadStyleObject(normalizedStyleUrl)
   if (!raw) return false
   if (cancelled()) return false
