@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, Map as MapIcon } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -259,6 +259,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className="App-toolbar__btn"
+        title={UI_LABELS.geospatialMode}
+        tooltipContent={UI_COPY.geospatialModeTooltip}
+        onClick={actions.handleOpenGeospatial}
+        showTooltip
+      >
+        <MapIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className="App-toolbar__btn"

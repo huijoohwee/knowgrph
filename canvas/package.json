@@ -24,12 +24,15 @@
   "dependencies": {
     "@react-three/fiber": "^8.17.8",
     "@types/d3": "^7.4.3",
+    "@turf/distance": "^7.2.0",
+    "@turf/helpers": "^7.2.0",
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
     "dagre": "^0.8.5",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.11",
     "lucide-react": "^0.562.0",
+    "maplibre-gl": "^5.7.2",
     "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^9.2.0",
     "markdown-it-footnote": "^4.0.0",
@@ -48,6 +51,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@types/geojson": "^7946.0.16",
     "@types/dagre": "^0.7.53",
     "@types/js-yaml": "^4.0.9",
     "@types/markdown-it-anchor": "^7.0.0",

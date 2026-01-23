@@ -89,6 +89,8 @@ export async function fetchRemoteText(
   options?: {
     useProxy?: boolean
     proxyEndpoint?: string
+    timeoutMs?: number
+    maxBytes?: number
     validate?: (text: string) => boolean
   },
 ): Promise<string | null> {
@@ -110,10 +112,21 @@ export async function fetchRemoteText(
     }
   })()
 
+  const timeoutMs = (() => {
+    const raw = options?.timeoutMs
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return Math.min(60_000, Math.max(1_000, Math.floor(raw)))
+    return 15_000
+  })()
+  const maxBytes = (() => {
+    const raw = options?.maxBytes
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return Math.min(20 * 1024 * 1024, Math.max(64 * 1024, Math.floor(raw)))
+    return 8 * 1024 * 1024
+  })()
+
   const attempt = async (targetUrl: string): Promise<string | null> => {
     return fetchTextWithLimit(targetUrl, {
-      timeoutMs: 15_000,
-      maxBytes: 8 * 1024 * 1024,
+      timeoutMs,
+      maxBytes,
       validate: options?.validate,
     })
   }

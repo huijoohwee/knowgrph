@@ -2,11 +2,11 @@ import { coerceHttpUrl } from '@/lib/url'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickFileWithExtensions } from '@/lib/graph/filePicker'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { deriveMarkdownNameFromPdfFilename, promptForUrl } from './ingestUtils'
+import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 
 type PdfMarkdownConversionOk = { markdown: string; displayName: string }
 type PdfMarkdownConversionResult = PdfMarkdownConversionOk | { error: string }
@@ -139,18 +139,18 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
     if (!res) return
 
     try {
-      const state = useGraphStore.getState()
       if (res.input && res.input.text.trim()) {
         const name = res.input.name
-        state.setJsonSourceDocument(name, null)
-        state.setMarkdownDocument(name, res.input.text)
-        state.setMarkdownDocumentSourceUrl(picked.sourceUrl)
-        state.setBottomPanelCurationView('grid')
-        state.addRecentFile({
+        applyImportedMarkdownToStore({
           name,
-          path: type === 'local' ? name : undefined,
-          url: type === 'url' ? (picked.sourceUrl || undefined) : undefined,
-          type: 'markdown',
+          text: res.input.text,
+          sourceUrl: picked.sourceUrl,
+          curationView: 'grid',
+          recent: {
+            name,
+            url: type === 'url' ? (picked.sourceUrl || undefined) : undefined,
+            type: 'markdown',
+          },
         })
       }
     } catch {

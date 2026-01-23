@@ -117,6 +117,20 @@ export const UI_COPY = {
   statsEdgesKeywordSectionTitle: 'Edges (Verb/Predicate/Relationship Keywords)',
   portHandlesTooltip:
     'Port Handles: toggle to show node connection handles and route 2D edge endpoints to the nearest handle.',
+  geospatialModeTooltip:
+    'Geospatial Mode: open the map view (MapLibre + OpenFreeMap) and keep map marker selection synchronized with graph selection.',
+  geospatialPanelSubtitle: 'Click a marker to select the node. Click map to set proximity center.',
+  geospatialRadiusLabel: 'Radius (km)',
+  geospatialNoProximityResults: 'No proximity results.',
+  geospatialCenterStatus: (lat: string, lng: string, matches: number) =>
+    `Center: ${lat}, ${lng} · Matches: ${matches}`,
+  geospatialBoundaryUrlLabel: 'Boundary GeoJSON URL (optional)',
+  geospatialBoundaryUrlPlaceholder: 'https://raw.githubusercontent.com/…/countries.geojson',
+  geospatialBoundaryLoadButtonLabel: 'Load',
+  geospatialBoundaryStatusLoading: 'Loading GeoJSON boundaries…',
+  geospatialBoundaryStatusLoadFailed: 'Boundary load failed.',
+  geospatialBoundaryStatusOverlayLoaded: 'Boundary overlay loaded.',
+  geospatialBoundaryStatusOverlayFailed: 'Boundary overlay failed to render.',
   fitToViewTooltip: 'Fit to View: automatically scale and center the graph to fill the viewport.',
   pinToViewTooltip:
     'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',

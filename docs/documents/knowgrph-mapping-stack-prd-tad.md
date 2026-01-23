@@ -41,21 +41,18 @@ Existing system provides graph visualization (d3.js), 3D knowledge structures (t
 ## User Personas
 
 ### Persona 1: Research Analyst
-**Name**: Dr. Sarah Chen  
 **Role**: Academic researcher analyzing global climate research distribution  
 **Goals**: Discover research clusters, identify geographic gaps, find collaborators by proximity  
 **Pain Points**: Cannot visualize research paper locations, no spatial query capabilities, manual distance calculations  
 **Technical Proficiency**: High (familiar with data analysis tools)
 
 ### Persona 2: Intelligence Analyst  
-**Name**: Marcus Rodriguez  
 **Role**: Government analyst tracking organization networks  
 **Goals**: Map entity relationships geographically, analyze proximity patterns, identify spatial anomalies  
 **Pain Points**: No geofencing capabilities, cannot calculate service areas, missing spatial relationship detection  
 **Technical Proficiency**: Medium (uses specialized analysis tools)
 
 ### Persona 3: Urban Planner
-**Name**: Aisha Patel  
 **Role**: City planning consultant managing stakeholder knowledge base  
 **Goals**: Visualize project locations, analyze impact zones, map community feedback  
 **Pain Points**: Cannot overlay project boundaries, no buffer zone analysis, missing distance measurements  
@@ -445,6 +442,13 @@ How to handle entities with non-WGS84 coordinate systems (UTM, State Plane, cust
 ## Architecture Overview
 
 **From knowledge entities to spatial insights**: System receives entities with location metadata → MapLibre Adapter transforms to GeoJSON → MapLibre GL renders on OpenFreeMap tiles → Turf.js Engine processes spatial queries → Integration Layer synchronizes with existing d3.js/three.js/infinite canvas → delivers interactive geospatial knowledge discovery interface.
+
+### MVP Implementation Notes (Canvas)
+
+- Geospatial Mode is implemented as a right-side panel **Map** tab opened via a toolbar toggle.
+- Implemented components: MapLibre Adapter (GraphNode → GeoJSON), Spatial Query Engine (proximity search), selection synchronization (map ↔ graph).
+- Optional boundary overlay loads external GeoJSON via URL (compatible with exported country/state boundary FeatureCollections).
+- Safety gates: bounded proximity results, bounded remote fetch limits, and StrictMode-safe map initialization (no unbounded effect loops).
 
 ---
 

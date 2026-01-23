@@ -4,6 +4,7 @@ import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
+import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import { unwrapUserProvidedText } from '@/lib/url'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { slugify } from '@/features/parsers/markdownJsonLd'
@@ -241,15 +242,18 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
     applyLoaderResultToParserUi(res)
 
     const state = useGraphStore.getState()
-    state.setMarkdownDocument(converted.displayName, markdownForEditors)
-    state.setMarkdownDocumentSourceUrl(converted.sourceUrl)
-    state.setJsonSourceDocument(converted.displayName, converted.transcriptJsonText)
-    state.setBottomPanelCurationView('markdown')
-    state.addRecentFile({
+    applyImportedMarkdownToStore({
       name: converted.displayName,
-      url: converted.sourceUrl,
-      type: 'markdown',
+      text: markdownForEditors,
+      sourceUrl: converted.sourceUrl,
+      curationView: 'markdown',
+      recent: {
+        name: converted.displayName,
+        url: converted.sourceUrl,
+        type: 'markdown',
+      },
     })
+    state.setJsonSourceDocument(converted.displayName, converted.transcriptJsonText)
     openBottomPanel('curation')
   } catch (error) {
     const msg =

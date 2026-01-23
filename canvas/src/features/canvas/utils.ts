@@ -12,7 +12,7 @@ export type PropsPanelOpenEventDetail = {
 }
 
 export type SidePanelOpenEventDetail = {
-  tab?: 'node' | 'chat'
+  tab?: 'node' | 'chat' | 'map'
   open?: boolean
 }
 

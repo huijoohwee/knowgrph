@@ -11,7 +11,7 @@ import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { FileCode, MessageCircle } from 'lucide-react'
+import { FileCode, MessageCircle, Map as MapIcon } from 'lucide-react'
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
@@ -21,6 +21,7 @@ const NodeEditorLazy = React.lazy(() => import('@/components/NodeEditor'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const SidebarTriggerLazy = React.lazy(() => import('@/components/SidebarTrigger'))
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
+const GeospatialPanelLazy = React.lazy(() => import('@/features/geospatial/GeospatialPanel'))
 
 type MarkdownMetricSample = {
   ts: number
@@ -320,13 +321,13 @@ export default function CanvasPage() {
       requestThreeCamera: s.requestThreeCamera,
     })),
   )
-  const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat'>('node')
+  const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'map'>('node')
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ tab?: 'node' | 'chat'; open?: boolean } | undefined>
+      const e = ev as CustomEvent<{ tab?: 'node' | 'chat' | 'map'; open?: boolean } | undefined>
       const detail = e.detail
-      const tab = detail?.tab === 'chat' ? 'chat' : detail?.tab === 'node' ? 'node' : null
+      const tab = detail?.tab === 'chat' ? 'chat' : detail?.tab === 'map' ? 'map' : detail?.tab === 'node' ? 'node' : null
       if (tab) setSidePanelTab(tab)
       if (detail?.open) setSidebarOpen(true)
     }
@@ -417,21 +418,26 @@ export default function CanvasPage() {
                       tabs={[
                         { key: 'node', label: 'Node' },
                         { key: 'chat', label: 'Chat' },
+                        { key: 'map', label: 'Map' },
                       ]}
                       tabVariant="icon"
                       tabIconByKey={{
                         node: FileCode,
                         chat: MessageCircle,
+                        map: MapIcon,
                       }}
                       activeTab={sidePanelTab}
                       onTabChange={key => {
-                        setSidePanelTab(key === 'chat' ? 'chat' : 'node')
+                        setSidePanelTab(key === 'chat' ? 'chat' : key === 'map' ? 'map' : 'node')
                       }}
                     />
                     <div className="flex-1 overflow-y-auto">
                       <React.Suspense fallback={null}>
                         <div className={sidePanelTab === 'chat' ? 'h-full' : 'hidden'}>
                           <SidePanelChatLazy />
+                        </div>
+                        <div className={sidePanelTab === 'map' ? 'h-full' : 'hidden'}>
+                          <GeospatialPanelLazy />
                         </div>
                         <div className={sidePanelTab === 'node' ? 'h-full' : 'hidden'}>
                           <NodeEditorLazy />

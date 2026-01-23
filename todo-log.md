@@ -3,6 +3,8 @@
 ## 2026-01-23
 
 | Context          | Intent                     | Directive                                                                                   | Module                     | Function/Method | Input                                          | Output                      | Decision Logic                                    | Updated Date |
+|------------------|----------------------------|---------------------------------------------------------------------------------------------|----------------------------|-----------------|------------------------------------------------|-----------------------------|---------------------------------------------------|--------------|
+| Geospatial Mode  | Map view integration        | Integrate MapLibre GL + OpenFreeMap + Turf proximity + optional boundary GeoJSON overlay; forbid hardcoded dataset assumptions, non-cached store snapshots, styling non-existent layers, and unbounded map/query loops | `Toolbar.tsx`, `Canvas.tsx`, `GeospatialPanel.tsx`, `boundaryProvider.ts`, `ingestUtils.ts`, `mapLibreAdapter.ts`, `spatialQueryEngine.ts` | `handleOpenGeospatial`, `transformGraphNodesToGeoJson`, `proximitySearchFromFeatures`, `loadBoundaryGeoJson`, `fetchRemoteText` | GraphData nodes with `properties.geo.{lat,lng}`; optional boundary GeoJSON URL | Side panel map view + synchronized selection + proximity results | Convert nodes to GeoJSON points via AgenticRAG geo shape; stabilize empty selector defaults; init map once and update sources/paints separately; guard paint updates by layer existence; normalize GitHub blob→raw for GeoJSON and bound remote fetch size/time | 2026-01-23 |
 
 
 ## 2026-01-22

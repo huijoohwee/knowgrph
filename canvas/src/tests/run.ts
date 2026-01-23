@@ -144,6 +144,7 @@ import {
 } from '@/__tests__/zoomStatePick.test'
 import { testCoerceMediaUrlAcceptsSafeRelative, testCoerceMediaUrlRejectsExplicitScheme } from '@/__tests__/mediaUrlCoercion.test'
 import { testApplyMediaProxyNormalizesGithubBlobUrl } from '@/__tests__/mediaProxySrc.test'
+import { testGeospatialAdapterTransformsGeo, testGeospatialProximitySearchMatchesAndSorts } from '@/__tests__/geospatialMode.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -209,7 +210,11 @@ export const runAllTests = async () => {
     if (filter && !name.toLowerCase().includes(filter.toLowerCase())) return
     try {
       console.log(`RUN ${name}`)
-      const timeoutMs = 120_000
+      const timeoutMs = (() => {
+        const raw = Number(process.env.KG_TEST_CASE_TIMEOUT_MS)
+        if (Number.isFinite(raw) && raw > 1_000) return Math.max(5_000, Math.min(10 * 60_000, Math.floor(raw)))
+        return 120_000
+      })()
       let timeoutId: ReturnType<typeof setTimeout> | null = null
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs)
@@ -236,6 +241,9 @@ export const runAllTests = async () => {
   await runParserTests(results)
 
   // Remaining tests
+  await exec('geospatial.adapter.transformsGeo', testGeospatialAdapterTransformsGeo)
+  await exec('geospatial.query.proximitySearch', testGeospatialProximitySearchMatchesAndSorts)
+
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
   

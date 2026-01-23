@@ -15,7 +15,7 @@
 - [ ] Store; short‑circuit unchanged layout caches and canvas dimensions/positions; forbid redundant updates that trigger render/recalc loops
 - [ ] Styling; enforce theme tokens; forbid inconsistent overrides
 - [ ] Test; unit test all components; forbid regression
-- [ ] Test; ensure close-loop test; forbid hang or infinite loop
+- [ ] Test/Verification; ensure close-loop test/bounded execution (e.g. `KG_TEST_TIMEOUT_MS`); forbid hang/indefinite runs/infinite loop
 - [ ] Utilities; centralize shared logic; forbid duplication across components
 - [ ] Document structure; adhere to `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/docs/document-template.md`; forbid inconsistent structure
 
@@ -39,6 +39,7 @@ https://reactflow.dev/examples/nodes/shapes
 https://mermaid.js.org/syntax/flowchart.html
 https://tiptap.dev/docs/editor/markdown
 
+- module: load plug-in -> activate
 
 - [] Collective sites https://bytebytego.com/guides/api-web-development/
   - https://roadmap.sh/frontend?r=frontend-beginner

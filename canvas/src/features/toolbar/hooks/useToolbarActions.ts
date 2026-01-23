@@ -176,6 +176,10 @@ export function useToolbarActions(
     emitSidePanelOpen({ tab: 'chat', open: true })
   }, [])
 
+  const handleOpenGeospatial = useCallback(() => {
+    emitSidePanelOpen({ tab: 'map', open: true })
+  }, [])
+
   const handleToggleTheme = useCallback(() => {
     setThemeMode(getNextThemeMode(themeMode))
   }, [setThemeMode, themeMode])
@@ -198,6 +202,7 @@ export function useToolbarActions(
     handleToggleRenderMedia,
     handleToggle3DMode,
     handleOpenChat,
+    handleOpenGeospatial,
     handleToggleTheme,
   }
 }

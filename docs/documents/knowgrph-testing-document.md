@@ -22,6 +22,22 @@
 
 ---
 
+## Bounded Execution (FORBID Indefinite Runs)
+
+**Global timeout** (whole suite):
+- `KG_TEST_TIMEOUT_MS` (default: 10 minutes)
+- Implemented in `canvas/src/tests/ci.ts` via a hard `Promise.race` timeout gate.
+
+**Per-test timeout** (single test case):
+- `KG_TEST_CASE_TIMEOUT_MS` (default: 120 seconds; clamped to 5s..10m)
+- Implemented in `canvas/src/tests/run.ts` inside the `exec()` wrapper.
+
+**Targeted execution** (bounded by scope, not just time):
+- `tsx src/tests/ci.ts <filter>` runs only tests whose name contains `<filter>` (case-insensitive).
+- Prefer targeted filters (e.g. `geospatial`, `parser`, `jsonld`) in CI and local iteration to avoid long-running suites.
+
+---
+
 ## Component Responsibility Matrix
 
 | Layer/Subsystem       | Path/Module                                   | Component                   | Interface/Method            | Responsibility (S-V-O)                                                                        | Dependencies                          | Contracts                                         | LOC    |

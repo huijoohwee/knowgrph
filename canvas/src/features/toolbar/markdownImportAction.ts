@@ -1,11 +1,11 @@
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { UI_COPY } from '@/lib/config'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { parseHtmlToMarkdown } from '@/features/parsers/html-parser'
 import { coerceHttpUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
+import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -52,28 +52,32 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
     if (!res) return
 
     try {
-      const state = useGraphStore.getState()
       if (res.input && res.input.text.trim()) {
         const rawSourceName = String(picked.name || '')
         const isHttp = /^https?:\/\//i.test(rawSourceName)
         if (isHttp) {
           const baseName = deriveMarkdownNameFromUrl(rawSourceName)
-          state.setJsonSourceDocument(baseName, null)
-          state.setMarkdownDocument(baseName, res.input.text)
-          state.setMarkdownDocumentSourceUrl(rawSourceName)
-          state.addRecentFile({ name: baseName, url: rawSourceName, type: 'url' })
+          applyImportedMarkdownToStore({
+            name: baseName,
+            text: res.input.text,
+            sourceUrl: rawSourceName,
+            curationView: 'markdown',
+            recent: { name: baseName, url: rawSourceName, type: 'url' },
+          })
         } else {
           const name = res.input.name
-          state.setJsonSourceDocument(name, null)
-          state.setMarkdownDocument(name, res.input.text)
-          state.setMarkdownDocumentSourceUrl(null)
-          state.addRecentFile({
+          applyImportedMarkdownToStore({
             name,
-            path: type === 'local' ? picked.name : undefined,
-            type: 'markdown',
+            text: res.input.text,
+            sourceUrl: null,
+            curationView: 'markdown',
+            recent: {
+              name,
+              path: type === 'local' ? picked.name : undefined,
+              type: 'markdown',
+            },
           })
         }
-        state.setBottomPanelCurationView('markdown')
       }
     } catch {
       void 0

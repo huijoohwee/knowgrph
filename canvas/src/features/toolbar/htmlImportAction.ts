@@ -3,11 +3,11 @@ import { parseHtmlToMarkdown, extractJsonLd } from '@/features/parsers/html-pars
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { deriveMarkdownNameFromUrl, fetchRemoteHtmlText as fetchRemoteHtmlTextUtil, promptForUrl } from './ingestUtils'
+import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 
 export type HtmlImportType = 'url' | 'local'
 
@@ -67,18 +67,19 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
     applyLoaderResultToParserUi(res)
     if (!res) return
     try {
-      const state = useGraphStore.getState()
       if (res.input && res.input.text.trim()) {
         const name = res.input.name
-        state.setJsonSourceDocument(name, null)
-        state.setMarkdownDocument(name, res.input.text)
-        state.setMarkdownDocumentSourceUrl(type === 'url' ? picked.name : null)
-        state.setBottomPanelCurationView('grid')
-        state.addRecentFile({
+        applyImportedMarkdownToStore({
           name,
-          path: type === 'local' ? picked.name : undefined,
-          url: type === 'url' ? picked.name : undefined,
-          type: 'html',
+          text: res.input.text,
+          sourceUrl: type === 'url' ? picked.name : null,
+          curationView: 'grid',
+          recent: {
+            name,
+            path: type === 'local' ? picked.name : undefined,
+            url: type === 'url' ? picked.name : undefined,
+            type: 'html',
+          },
         })
       }
     } catch {
