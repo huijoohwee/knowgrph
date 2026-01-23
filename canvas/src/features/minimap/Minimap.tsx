@@ -1,13 +1,22 @@
-import React from 'react';
-import { Map } from 'lucide-react';
-import { useGraphStore } from '@/hooks/useGraphStore';
-import usePersistedBoolean from '@/features/hooks/usePersistedBoolean';
-import { LS_KEYS } from '@/lib/config';
-import type { GraphNode, GraphEdge } from '@/lib/graph/types';
-import type { GraphState } from '@/hooks/useGraphStore';
-import { getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
-import { computeViewRect, computeGraphBounds, computeTransformFromViewTopLeft, computeTransformFromCenter, ZOOM_MIN, ZOOM_MAX, MINIMAP_WIDTH, MINIMAP_HEIGHT } from '@/features/minimap/math';
-import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer';
+import React from 'react'
+import { Map } from 'lucide-react'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
+import { LS_KEYS } from '@/lib/config'
+import type { GraphNode, GraphEdge } from '@/lib/graph/types'
+import type { GraphState } from '@/hooks/useGraphStore'
+import { getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
+import {
+  computeViewRect,
+  computeGraphBounds,
+  computeTransformFromViewTopLeft,
+  computeTransformFromCenter,
+  ZOOM_MIN,
+  ZOOM_MAX,
+  MINIMAP_WIDTH,
+  MINIMAP_HEIGHT,
+} from '@/features/minimap/math'
+import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 
 type ZoomT = { k: number; x: number; y: number };
 
@@ -32,24 +41,24 @@ const requestZoomTransform = (t: ZoomTransform) => {
 };
 
 function Minimap() {
-  const [minimapCollapsed, setMinimapCollapsed] = usePersistedBoolean(LS_KEYS.minimapCollapsed, false);
-  const graphData = useGraphStore(s => s.graphData);
-  const graphId = useGraphStore(s => s.graphId);
-  const canvasDims = useGraphStore(s => s.canvasDims);
-  const miniW = MINIMAP_WIDTH;
-  const miniH = MINIMAP_HEIGHT;
-  const zoomState = useGraphStore(s => s.zoomState);
-  const preview = useGraphStore(s => s.minimapPreview);
-  const selectedNodeId = useGraphStore(s => s.selectedNodeId);
-  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId);
-  const uiPanelOpacity = useGraphStore(s => s.uiPanelOpacity);
+  const [minimapCollapsed, setMinimapCollapsed] = usePersistedBoolean(LS_KEYS.minimapCollapsed, false)
+  const graphData = useGraphStore(s => s.graphData)
+  const graphId = useGraphStore(s => s.graphId)
+  const canvasDims = useGraphStore(s => s.canvasDims)
+  const miniW = MINIMAP_WIDTH
+  const miniH = MINIMAP_HEIGHT
+  const zoomState = useGraphStore(s => s.zoomState)
+  const preview = useGraphStore(s => s.minimapPreview)
+  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
+  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
+  const uiPanelOpacity = useGraphStore(s => s.uiPanelOpacity)
 
-  const schema = useGraphStore(s => s.schema);
-  const palette = getRendererPalette(schema || null);
+  const schema = useGraphStore(s => s.schema)
+  const palette = getRendererPalette(schema || null)
   const highlightColor = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
     ? palette.nodes.idea
-    : MVP_COLOR_PALETTE.nodes.idea;
-  const minimapOpacity = uiPanelOpacity ?? 0.7;
+    : MVP_COLOR_PALETTE.nodes.idea
+  const minimapOpacity = uiPanelOpacity ?? 0.7
   const nodes = React.useMemo(
     () => (Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []),
     [graphData],
@@ -362,8 +371,8 @@ function Minimap() {
 
   return (
     <aside className="relative group" aria-label="Minimap">
-      <div className="rounded bg-white backdrop-blur-sm shadow border border-gray-200" style={{ opacity: minimapOpacity }}>
-        <svg width={miniW} height={miniH} onClick={onMinimapClick} onWheel={onMinimapWheel} className="block">
+      <div className="relative rounded bg-white backdrop-blur-sm shadow border border-gray-200 overflow-hidden" style={{ opacity: minimapOpacity }}>
+        <svg width={miniW} height={miniH} onClick={onMinimapClick} onWheel={onMinimapWheel} className="relative block">
           <rect x={0} y={0} width={miniW} height={miniH} fill="#f8fafc" />
           {edgesPathD && (
             <path d={edgesPathD} stroke="#94a3b8" strokeWidth={1} strokeOpacity={0.6} fill="none" pointerEvents="none" shapeRendering="crispEdges" />

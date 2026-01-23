@@ -55,12 +55,10 @@ export async function loadSchemaFromFile(): Promise<LoadSchemaFromFileResult> {
     try {
       const schema = parseSchemaText(picked.text)
       return { ok: true, schema, label: picked.name }
-    } catch (err) {
-      console.warn('Schema import failed', err)
+    } catch {
       return { ok: false, reason: 'invalid' }
     }
   } catch (err) {
-    console.warn('Schema import failed', err)
     const reason = (() => {
       const value = err as { name?: unknown } | null | undefined
       const name = value && typeof value.name === 'string' ? value.name : ''
@@ -144,9 +142,6 @@ export async function exportSchemaAsJSON(
 ): Promise<boolean> {
   try {
     const lint = lintSchemaMetadata(schema)
-    if (lint.length > 0) {
-      console.warn('Schema metadata lint warnings:', lint.map(w => `${w.path}: ${w.message}`))
-    }
     try {
       const store = useGraphStore.getState()
       store.setSchemaLintSummary(lint.length, lint[0] ? lint[0].path : null)
@@ -178,8 +173,7 @@ export async function exportSchemaAsJSON(
     }
     downloadBlob(blob, name)
     return true
-  } catch (err) {
-    console.warn('Schema export failed', err)
+  } catch {
     return false
   }
 }
@@ -190,9 +184,6 @@ export async function exportSchemaAsJsonLd(
 ): Promise<boolean> {
   try {
     const lint = lintSchemaMetadata(schema)
-    if (lint.length > 0) {
-      console.warn('Schema metadata lint warnings:', lint.map(w => `${w.path}: ${w.message}`))
-    }
     try {
       const store = useGraphStore.getState()
       store.setSchemaLintSummary(lint.length, lint[0] ? lint[0].path : null)
@@ -222,8 +213,7 @@ export async function exportSchemaAsJsonLd(
     }
     downloadBlob(blob, name)
     return true
-  } catch (err) {
-    console.warn('Schema JSON-LD export failed', err)
+  } catch {
     return false
   }
 }
@@ -234,9 +224,6 @@ export async function exportSchemaAsCsv(
 ): Promise<boolean> {
   try {
     const lint = lintSchemaMetadata(schema)
-    if (lint.length > 0) {
-      console.warn('Schema metadata lint warnings:', lint.map(w => `${w.path}: ${w.message}`))
-    }
     try {
       const store = useGraphStore.getState()
       store.setSchemaLintSummary(lint.length, lint[0] ? lint[0].path : null)
@@ -260,8 +247,7 @@ export async function exportSchemaAsCsv(
     }
     downloadBlob(blob, 'schema.csv')
     return true
-  } catch (err) {
-    console.warn('Schema CSV export failed', err)
+  } catch {
     return false
   }
 }

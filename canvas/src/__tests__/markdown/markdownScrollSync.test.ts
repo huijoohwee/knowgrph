@@ -54,6 +54,7 @@ export async function testMarkdownScrollSyncViewerToEditor() {
 
     const { useGraphStore } = await import('@/hooks/useGraphStore')
     const store = useGraphStore.getState()
+    store.resetAll()
     store.setMarkdownDocument('test.md', longText)
 
     textarea.value = longText
@@ -137,6 +138,8 @@ export async function testMarkdownEditToggleKeepsScrollPosition() {
       anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
         setTimeout(() => cb(Date.now()), 0) as unknown as number
     }
+    const { useGraphStore } = await import('@/hooks/useGraphStore')
+    useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
     const container = doc.createElement('div')
@@ -317,6 +320,7 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
 
     const { useGraphStore } = await import('@/hooks/useGraphStore')
     const store = useGraphStore.getState()
+    store.resetAll()
     store.setMarkdownDocument('mixed.md', mixedMarkdown)
 
     textarea.value = mixedMarkdown

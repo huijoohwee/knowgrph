@@ -143,8 +143,8 @@ const jsonSpec: ParserSpec = {
   name: 'JSON',
   match: (name) => {
     const lower = (name || '').toLowerCase()
-    if (/^https?:\/\//i.test(lower)) return lower.endsWith('.json')
-    return lower.endsWith('.json')
+    if (/^https?:\/\//i.test(lower)) return lower.endsWith('.json') || lower.endsWith('.geojson')
+    return lower.endsWith('.json') || lower.endsWith('.geojson')
   },
   parseAsync: (name, text) => autoGraphSpec.parseAsync!(name, text),
   parse: (name, text) => autoGraphSpec.parse(name, text),

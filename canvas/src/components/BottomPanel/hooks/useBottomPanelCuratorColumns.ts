@@ -78,7 +78,6 @@ export function useBottomPanelCuratorColumns({
       const agenticPrefix =
         agenticKind === 'chunk_text' ||
         agenticKind === 'embedding' ||
-        agenticKind === 'geo' ||
         agenticKind === 'media_url' ||
         agenticKind === 'graphRAGPath'
           ? 'AgenticRAG · '

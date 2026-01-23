@@ -445,24 +445,27 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     try {
+      const timeoutMs = (() => {
+        const raw = String(process.env.KNOWGRPH_REMOTE_FETCH_TIMEOUT_MS || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsed)) return 30_000
+        return Math.max(1_000, Math.min(60_000, Math.floor(parsed)))
+      })()
+      const maxBytes = (() => {
+        const raw = String(process.env.KNOWGRPH_REMOTE_FETCH_MAX_BYTES || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsed)) return 20 * 1024 * 1024
+        return Math.max(64 * 1024, Math.min(50 * 1024 * 1024, Math.floor(parsed)))
+      })()
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15_000)
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
       const upstream = await (async () => {
         try {
           return await fetch(urlParam, {
             redirect: 'follow',
             signal: controller.signal,
             headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              Accept:
-                'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Sec-Fetch-Dest': 'document',
-              'Sec-Fetch-Mode': 'navigate',
-              'Sec-Fetch-Site': 'none',
-              'Sec-Fetch-User': '?1',
-              'Upgrade-Insecure-Requests': '1',
+              Accept: '*/*',
             },
           })
         } finally {
@@ -474,7 +477,6 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       if (contentType) {
         res.setHeader('Content-Type', contentType)
       }
-      const maxBytes = 8 * 1024 * 1024
       const readWithLimit = async (): Promise<Buffer> => {
         const reader = upstream.body?.getReader()
         if (!reader) {

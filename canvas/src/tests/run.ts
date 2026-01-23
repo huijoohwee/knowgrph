@@ -25,6 +25,20 @@ import {
   testNodesLayerHonorsVisualShapeOverrides,
 } from '@/__tests__/nodeShapes2d.test'
 import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
+import { testUiMapTabRendersGeospatialPanel } from '@/__tests__/uiMapTabUiOnly.test.tsx'
+import {
+  testGeospatialArrayRecordsDerivesGeo,
+  testGeospatialParseGeoJsonDerivesPointGeo,
+  testGeospatialRecordsToPointFeatureCollection,
+} from '@/__tests__/geospatialIngest.test'
+import {
+  testGeospatialIntegrationAirports,
+  testGeospatialIntegrationCities,
+  testGeospatialIntegrationCountries,
+} from '@/__tests__/geospatialIntegration.test'
+import { testGeospatialStyleResolvesRelativeUrls } from '@/__tests__/geospatialStyleResolution.test'
+import { testGeospatialOverlayPersistenceHydratesAndWrites } from '@/__tests__/geospatialOverlayPersistence.test'
+import { testGeospatialFetchLimitsPersistence } from '@/__tests__/geospatialFetchLimitsPersistence.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -144,7 +158,6 @@ import {
 } from '@/__tests__/zoomStatePick.test'
 import { testCoerceMediaUrlAcceptsSafeRelative, testCoerceMediaUrlRejectsExplicitScheme } from '@/__tests__/mediaUrlCoercion.test'
 import { testApplyMediaProxyNormalizesGithubBlobUrl } from '@/__tests__/mediaProxySrc.test'
-import { testGeospatialAdapterTransformsGeo, testGeospatialProximitySearchMatchesAndSorts } from '@/__tests__/geospatialMode.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -241,9 +254,6 @@ export const runAllTests = async () => {
   await runParserTests(results)
 
   // Remaining tests
-  await exec('geospatial.adapter.transformsGeo', testGeospatialAdapterTransformsGeo)
-  await exec('geospatial.query.proximitySearch', testGeospatialProximitySearchMatchesAndSorts)
-
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
   
@@ -304,6 +314,16 @@ export const runAllTests = async () => {
     testForceSimulationSeedsClusterAwarePositionsWhenMissing,
   )
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
+  await exec('ui.mapTab.rendersGeospatialPanel', testUiMapTabRendersGeospatialPanel)
+  await exec('geospatial.parse.geojsonDerivesPointGeo', testGeospatialParseGeoJsonDerivesPointGeo)
+  await exec('geospatial.parse.arrayRecordsDerivesGeo', testGeospatialArrayRecordsDerivesGeo)
+  await exec('geospatial.records.toPointFeatureCollection', testGeospatialRecordsToPointFeatureCollection)
+  await exec('geospatial.integration.airports', testGeospatialIntegrationAirports)
+  await exec('geospatial.integration.countries', testGeospatialIntegrationCountries)
+  await exec('geospatial.integration.cities', testGeospatialIntegrationCities)
+  await exec('geospatial.style.resolvesRelativeUrls', testGeospatialStyleResolvesRelativeUrls)
+  await exec('geospatial.overlay.persistenceHydratesAndWrites', testGeospatialOverlayPersistenceHydratesAndWrites)
+  await exec('geospatial.fetchLimits.persistence', testGeospatialFetchLimitsPersistence)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)

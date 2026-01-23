@@ -43,8 +43,6 @@ export const normalizeEdgesForSim = (nodes: GraphNode[], edges: GraphEdge[]): Gr
   return out;
 };
 
-type GraphLike = { nodes: GraphNode[]; edges: GraphEdge[] };
-
 export const buildSimulation = (
   nodes: GraphNode[],
   edgesForSim: GraphEdge[],

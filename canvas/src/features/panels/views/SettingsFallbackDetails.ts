@@ -178,6 +178,20 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Orchestrator UI',
     responsibility: 'Default Orchestrator bottom panel view (UI or Text)',
   },
+  'geospatial.overlay.enabled': {
+    area: 'Geospatial Mode',
+    responsibility: 'Toggle MapLibre basemap + dataset overlay on the 2D canvas',
+  },
+  'geospatial.datasetFetchTimeoutMs': {
+    area: 'Geospatial Mode',
+    responsibility: 'Dataset fetch timeout (ms) for runtime overlay layers',
+    notes: 'Applies to dataset layers added in Map tab (GeoJSON or record arrays). Clamped to a bounded range.',
+  },
+  'geospatial.datasetFetchMaxBytes': {
+    area: 'Geospatial Mode',
+    responsibility: 'Dataset fetch max bytes for runtime overlay layers',
+    notes: 'Applies to dataset layers added in Map tab (GeoJSON or record arrays). Clamped to a bounded range.',
+  },
   'graph.behavior.selectMode': {
     area: 'Canvas Interaction',
     responsibility: 'Node selection mode (single, multi, lasso)',

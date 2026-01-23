@@ -45,3 +45,23 @@ Mapped the end-to-end pipeline:
 - `canvas/src/lib/graph/schema.ts`
 - `canvas/src/features/schema-editor/utils.ts`
 - `canvas/src/hooks/store/schemaSlice.ts`
+
+---
+
+## 2026-01-23: Geospatial Mode runtime overlay (MapLibre + OpenFreeMap + Turf)
+
+### Pipeline Traversal (Frontend Import → Render)
+- **Import UI → ingest**: `features/toolbar/*ImportAction.ts` → `features/toolbar/ingestUtils.ts`
+- **Parse/normalize**: `features/parsers/loader.ts` → `lib/graph/io/adapter.ts` → `lib/graph/geo/*`
+- **Commit to store**: `hooks/store/graphDataSlice.ts` + geospatial UI slices (`geospatialOverlaySlice.ts`, `geospatialDatasetsSlice.ts`)
+- **Render switch**: `pages/Canvas.tsx` mounts `GeospatialOverlay.tsx` above `GraphCanvas`/`ThreeGraph` when enabled
+- **Overlay render**: `GeospatialOverlay.tsx` builds MapLibre layers and loads dataset URLs with bounded fetch limits
+
+### Fixes
+- Restored/kept MapLibre runtime overlay and ensured basemap visibility defaults are practical for real usage.
+- Extended record-style dataset parsing to accept both arrays and object maps (key → record), matching real-world datasets such as Airports.
+- Added globe-mode auto-fit to active geo bounds to avoid “blank” defaults in 3D render mode.
+- Extracted MapLibre-style/layer helpers into a dedicated module to keep files <600 lines and reduce conflicting implementations.
+
+### Verification
+- Ran bounded geospatial-only tests via the CI runner filter (no full-suite execution).

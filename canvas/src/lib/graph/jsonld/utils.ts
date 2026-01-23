@@ -14,6 +14,7 @@ import {
   ParsedAgenticGraphRagExamplePath,
   ParsedAgenticGraphRagTraversePath,
 } from '../types'
+import { isPlainObject } from '@/lib/graph/value'
 import {
   isGraphRagPathValue,
   toParsedExamplePath,
@@ -26,7 +27,7 @@ export function stripKg(x: unknown): string {
   return s.startsWith('kg:') ? s.slice(3) : s
 }
 
-export const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object'
+export const isRecord = isPlainObject
 
 export const AGENTIC_RAG_MINIMAL_CONTEXT: Record<string, unknown> = {
   source: { '@type': '@id' },
@@ -260,19 +261,6 @@ export function agenticRagNodeFromGraphNode(node: GraphNode): AgenticRagNodeView
       ? (embeddingRaw as number[] as AgenticRagEmbedding)
       : undefined
 
-  const geoRaw = props.geo
-  const geo =
-    geoRaw &&
-    typeof geoRaw === 'object' &&
-    !Array.isArray(geoRaw) &&
-    typeof (geoRaw as Record<string, unknown>).lat === 'number' &&
-    typeof (geoRaw as Record<string, unknown>).lng === 'number'
-      ? ({
-          lat: (geoRaw as Record<string, unknown>).lat as number,
-          lng: (geoRaw as Record<string, unknown>).lng as number,
-        } as AgenticRagGeo)
-      : undefined
-
   const mediaRaw = props.media_url
   const mediaUrl =
     typeof mediaRaw === 'string'
@@ -284,6 +272,17 @@ export function agenticRagNodeFromGraphNode(node: GraphNode): AgenticRagNodeView
     provenanceRaw && Object.keys(provenanceRaw).length > 0
       ? (provenanceRaw as AgenticRagNodeProvenance)
       : undefined
+
+  const geo = (() => {
+    const raw = (props as Record<string, JSONValue>).geo as unknown
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+    const rec = raw as Record<string, unknown>
+    const lat = rec.lat
+    const lng = rec.lng
+    if (typeof lat !== 'number' || typeof lng !== 'number') return undefined
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined
+    return { lat, lng } as AgenticRagGeo
+  })()
 
   return {
     id,

@@ -76,7 +76,6 @@ export type GraphFieldSettingsById = Partial<Record<GraphFieldId, GraphFieldSett
 export type AgenticRagFieldKind =
   | 'chunk_text'
   | 'embedding'
-  | 'geo'
   | 'media_url'
   | 'graphRAGPath'
 
@@ -95,10 +94,6 @@ export const AGENTIC_RAG_FIELD_KIND_META: Record<
     legendLabel: 'embedding (node.properties.embedding: number[])',
     defaultDisplayName: 'AgenticRAG embedding',
   },
-  geo: {
-    legendLabel: 'geo (node.properties.geo: { lat, lng })',
-    defaultDisplayName: 'AgenticRAG geo',
-  },
   media_url: {
     legendLabel: 'media_url (node.properties.media_url)',
     defaultDisplayName: 'AgenticRAG media URL',
@@ -113,7 +108,6 @@ export function getAgenticRagFieldKind(field: GraphField): AgenticRagFieldKind |
   if (field.scope !== 'node') return null
   if (field.key === 'chunk_text') return 'chunk_text'
   if (field.key === 'embedding') return 'embedding'
-  if (field.key === 'geo') return 'geo'
   if (field.key === 'media_url') return 'media_url'
   if (field.key === 'graphRAGPath') return 'graphRAGPath'
   return null

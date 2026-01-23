@@ -22,6 +22,7 @@ const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const SidebarTriggerLazy = React.lazy(() => import('@/components/SidebarTrigger'))
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
 const GeospatialPanelLazy = React.lazy(() => import('@/features/geospatial/GeospatialPanel'))
+const GeospatialOverlayLazy = React.lazy(() => import('@/features/geospatial/GeospatialOverlay'))
 
 type MarkdownMetricSample = {
   ts: number
@@ -314,11 +315,12 @@ export default function CanvasPage() {
     }
   }, [enableTabSync, graphId, tabId, schema])
 
-  const { requestZoom, canvasRenderMode, requestThreeCamera } = useGraphStore(
+  const { requestZoom, canvasRenderMode, requestThreeCamera, geospatialOverlayEnabled } = useGraphStore(
     useShallow(s => ({
       requestZoom: s.requestZoom,
       canvasRenderMode: s.canvasRenderMode,
       requestThreeCamera: s.requestThreeCamera,
+      geospatialOverlayEnabled: s.geospatialOverlayEnabled,
     })),
   )
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'map'>('node')
@@ -378,13 +380,20 @@ export default function CanvasPage() {
               <>
                 <React.Suspense fallback={null}>
                   <div
-                    className={`absolute inset-0 ${canvasRenderMode === '2d' ? 'visible' : 'invisible pointer-events-none'}`}
+                    className={[
+                      'absolute inset-0 z-[10]',
+                      canvasRenderMode === '2d' ? 'visible' : 'invisible pointer-events-none',
+                    ].filter(Boolean).join(' ')}
                     aria-hidden={canvasRenderMode !== '2d'}
                   >
                     <GraphCanvasLazy active={canvasRenderMode === '2d'} />
                   </div>
+                  {geospatialOverlayEnabled ? <GeospatialOverlayLazy /> : null}
                   <div
-                    className={`absolute inset-0 ${canvasRenderMode === '3d' ? 'visible' : 'invisible pointer-events-none'}`}
+                    className={[
+                      'absolute inset-0 z-[10]',
+                      canvasRenderMode === '3d' ? 'visible' : 'invisible pointer-events-none',
+                    ].filter(Boolean).join(' ')}
                     aria-hidden={canvasRenderMode !== '3d'}
                   >
                     <ThreeGraphLazy active={canvasRenderMode === '3d'} />

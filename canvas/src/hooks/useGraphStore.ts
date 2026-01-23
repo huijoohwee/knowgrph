@@ -10,6 +10,8 @@ import { createCanvasSlice } from '@/hooks/store/canvasSlice';
 import { createGraphViewSlice } from '@/hooks/store/graphViewSlice';
 import { createSchemaSlice, readSchemaFromStorage } from '@/hooks/store/schemaSlice';
 import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
+import { createGeospatialOverlaySlice } from '@/hooks/store/geospatialOverlaySlice';
+import { createGeospatialDatasetsSlice } from '@/hooks/store/geospatialDatasetsSlice';
 import { getLocalStorage } from '@/lib/persistence';
 import type { GraphState, LayoutPositionCacheKey, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -132,6 +134,8 @@ export const useGraphStore = create<GraphState>()(
   ...createHistorySlice(set, get),
   ...createUiSlice(set),
   ...createCanvasSlice(set, get),
+  ...createGeospatialOverlaySlice(set),
+  ...createGeospatialDatasetsSlice(set, get),
   ...createSchemaSlice(set, get),
 })),
 )

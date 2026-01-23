@@ -1,7 +1,6 @@
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from './types';
 
-const isRecord = (x: unknown): x is Record<string, unknown> =>
-  !!x && typeof x === 'object' && !Array.isArray(x);
+import { isPlainObject } from './value';
 
 const pickNodesArray = (obj: Record<string, unknown>): unknown[] => {
   if (Array.isArray(obj.nodes)) return obj.nodes as unknown[];
@@ -21,11 +20,11 @@ const pickEdgesArray = (obj: Record<string, unknown>): unknown[] => {
 };
 
 export function rawToGraphData(raw: unknown): GraphData {
-  const obj = isRecord(raw) ? (raw as Record<string, unknown>) : {};
+  const obj = isPlainObject(raw) ? (raw as Record<string, unknown>) : {};
 
   const nodesSrc = pickNodesArray(obj);
   const nodes: GraphNode[] = nodesSrc
-    .filter(entry => isRecord(entry))
+    .filter(entry => isPlainObject(entry))
     .map((entry, index) => {
       const rec = entry as Record<string, unknown>;
 
@@ -34,7 +33,7 @@ export function rawToGraphData(raw: unknown): GraphData {
 
       const dataRaw = rec.data;
       const dataProps: Record<string, JSONValue> =
-        isRecord(dataRaw) ? (dataRaw as Record<string, JSONValue>) : {};
+        isPlainObject(dataRaw) ? (dataRaw as Record<string, JSONValue>) : {};
 
       const props: Record<string, JSONValue> = { ...dataProps };
       Object.keys(rec).forEach((key) => {
@@ -75,7 +74,7 @@ export function rawToGraphData(raw: unknown): GraphData {
 
   const edgesSrc = pickEdgesArray(obj);
   const edges: GraphEdge[] = edgesSrc
-    .filter(entry => isRecord(entry))
+    .filter(entry => isPlainObject(entry))
     .map((entry, index) => {
       const rec = entry as Record<string, unknown>;
 
@@ -89,7 +88,7 @@ export function rawToGraphData(raw: unknown): GraphData {
 
       const dataRaw = rec.data;
       const dataProps: Record<string, JSONValue> =
-        isRecord(dataRaw) ? (dataRaw as Record<string, JSONValue>) : {};
+        isPlainObject(dataRaw) ? (dataRaw as Record<string, JSONValue>) : {};
 
       const props: Record<string, JSONValue> = { ...dataProps };
       Object.keys(rec).forEach((key) => {

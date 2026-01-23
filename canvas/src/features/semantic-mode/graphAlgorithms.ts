@@ -60,8 +60,8 @@ export const computeHITS = (args: {
     inMap.get(t)?.push(s)
   }
 
-  let hubs = new Map<string, number>()
-  let auth = new Map<string, number>()
+  const hubs = new Map<string, number>()
+  const auth = new Map<string, number>()
   nodes.forEach(id => {
     hubs.set(id, 1)
     auth.set(id, 1)
@@ -164,4 +164,3 @@ export const computePageRank = (args: {
   }
   return out
 }
-

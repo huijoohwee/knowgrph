@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, Map as MapIcon } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, Globe } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -93,6 +93,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'polygon' : 'rect'
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode || 'document')
   const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
+  const geospatialOverlayEnabled = useGraphStore(s => s.geospatialOverlayEnabled || false)
 
   const actions = useToolbarActions(
     schema,
@@ -261,13 +262,13 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
-        className="App-toolbar__btn"
+        className={`App-toolbar__btn ${geospatialOverlayEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName}`}
         title={UI_LABELS.geospatialMode}
         tooltipContent={UI_COPY.geospatialModeTooltip}
-        onClick={actions.handleOpenGeospatial}
+        onClick={actions.handleToggleGeospatialMode}
         showTooltip
       >
-        <MapIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        <Globe className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className="App-toolbar__btn"

@@ -116,8 +116,8 @@ export async function saveGraphFile(data: GraphData, suggested?: DatasetPath): P
     const saved = await saveBlobWithPicker(blob, name, { description: 'JSON-LD Files', accept: { 'application/ld+json': ['.jsonld', '.json'] } });
     if (saved === '') return;
     if (!saved) downloadBlob(blob, 'graph.jsonld');
-  } catch (err) {
-    console.warn('File save cancelled or failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -131,8 +131,8 @@ export async function exportSelectionAsJsonLd(data: GraphData, selectedNodeId: s
     const saved = await saveBlobWithPicker(blob, name, { description: 'JSON-LD Files', accept: { 'application/ld+json': ['.jsonld', '.json'] } });
     if (saved === '') return;
     if (!saved) downloadBlob(blob, 'graph-selection.jsonld');
-  } catch (err) {
-    console.warn('Selection JSON-LD export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -153,8 +153,8 @@ export async function exportSelectionAsJSON(data: GraphData, selectedNodeId: str
       return;
     }
     downloadBlob(blob, 'graph-selection.json');
-  } catch (err) {
-    console.warn('Selection JSON export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -175,8 +175,8 @@ export async function exportSelectionAsCombinedCSV(data: GraphData, selectedNode
       return;
     }
     downloadBlob(blob, 'graph-selection.csv');
-  } catch (err) {
-    console.warn('Selection combined CSV export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -197,8 +197,8 @@ export async function exportSelectionAsGraphML(data: GraphData, selectedNodeId: 
       return;
     }
     downloadBlob(blob, 'graph-selection.graphml');
-  } catch (err) {
-    console.warn('Selection GraphML export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -219,8 +219,8 @@ export async function exportSelectionAsCypher(data: GraphData, selectedNodeId: s
       return;
     }
     downloadBlob(blob, 'graph-selection.cypher');
-  } catch (err) {
-    console.warn('Selection Cypher export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -239,8 +239,8 @@ export async function exportGraphAsJSON(data: GraphData, suggested?: DatasetPath
       return;
     }
     downloadBlob(blob, 'graph.json');
-  } catch (err) {
-    console.warn('JSON export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -259,8 +259,8 @@ export async function exportGraphAsGraphML(data: GraphData, suggested?: DatasetP
       return;
     }
     downloadBlob(blob, 'graph.graphml');
-  } catch (err) {
-    console.warn('GraphML export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -279,8 +279,8 @@ export async function exportGraphAsCypher(data: GraphData, suggested?: DatasetPa
       return;
     }
     downloadBlob(blob, 'graph.cypher');
-  } catch (err) {
-    console.warn('Cypher export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -301,8 +301,8 @@ export async function exportGraphAsCombinedCSV(data: GraphData, suggested?: Data
       return;
     }
     downloadBlob(blob, 'graph.csv');
-  } catch (err) {
-    console.warn('Combined CSV export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -323,8 +323,8 @@ export async function exportSvgSnapshot(svgMarkup: string, suggestedName?: strin
       return;
     }
     downloadBlob(blob, 'graph-snapshot.svg');
-  } catch (err) {
-    console.warn('SVG snapshot export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -343,8 +343,8 @@ export async function exportPngSnapshot(pngBlob: Blob, suggestedName?: string): 
       return;
     }
     downloadBlob(blob, 'graph-snapshot.png');
-  } catch (err) {
-    console.warn('PNG snapshot export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -363,8 +363,8 @@ export async function exportValidationSummaryAsJSON(summary: GraphValidationSumm
       return;
     }
     downloadBlob(blob, 'graph-validation.json');
-  } catch (err) {
-    console.warn('Validation JSON export failed', err);
+  } catch {
+    void 0
   }
 }
 
@@ -433,8 +433,8 @@ export async function exportValidationSummaryAsMarkdown(summary: GraphValidation
       return;
     }
     downloadBlob(blob, 'graph-validation.md');
-  } catch (err) {
-    console.warn('Validation Markdown export failed', err);
+  } catch {
+    void 0
   }
 }
 

@@ -1,81 +1,83 @@
 # Knowgrph Geospatial Mode Document
 
-**Context**: Knowledge graph visualization with location-aware entities  
-**Intent**: Provide an integrated map view for spatial discovery while keeping GraphData + selection behavior consistent  
-**Directive**: Integrate MapLibre GL + OpenFreeMap + Turf proximity queries via modular adapters; forbid hardcoded datasets and unbounded execution
+**Context**: Map-oriented exploration on top of the 2D infinite canvas  
+**Intent**: Overlay basemap + geo layers without breaking graph-first affordances  
+**Directive**: Drive behavior via configuration (no hardcoded datasets/providers), bound all fetch/parse work, and preserve non-interactive overlay defaults
+
+---
+
+## Current Status (Runtime Overlay)
+
+- The toolbar **Geospatial Mode** (globe) button and the **Map** tab enable a runtime map overlay.
+- A non-interactive MapLibre GL basemap renders as a translucent layer on top of the canvas (pointer events pass through to the graph).
+- **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
+- In 3D render mode, the overlay switches to a **globe-style projection**.
+- Dataset layers can be added as URLs (GeoJSON or record-style JSON) and rendered as points/lines/polygons.
+- Geo fields are derived during ingest for both GeoJSON inputs and record-style inputs when coordinates are present.
+- “Fit to data” computes a bounded bbox and updates the overlay camera (no unbounded spatial loops).
+- In 3D render mode, the overlay auto-fits to active geo bounds so the globe doesn’t appear “blank” by default.
 
 ---
 
 ## User Journey
 
-1. User loads a dataset (JSON/JSON-LD/CSV/Markdown/YouTube).
-2. User clicks **Geospatial Mode** (toolbar button next to **Radial Layout**).
-3. The right-side panel opens on the **Map** tab and renders:
-   - OpenFreeMap basemap via MapLibre GL.
-   - Markers for nodes that include `properties.geo.{lat,lng}`.
-4. User clicks a marker to select the corresponding graph node (bidirectional sync).
-5. User clicks on the map background to set a proximity-search center and filters nearby entities.
+1. User loads a dataset into the graph OR opens the **Map** tab.
+2. User toggles **Geospatial Mode** ON (globe button).
+3. A translucent basemap overlay appears on top of the canvas (defaulting to OpenFreeMap) while graph interactions remain primary.
+4. User adds one or more dataset URLs in the Map tab to render additional map layers.
+5. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
 ---
 
 ## Data Contract
 
-### Node Geo Shape (Canonical)
+### Graph Nodes
 
-- **Input**: `GraphData.nodes[].properties.geo`
-- **Expected shape**: `{ lat: number, lng: number }`
-- Nodes with missing/invalid/out-of-range coordinates are skipped.
+- Geo-capable nodes carry `node.properties.geo.lat` and `node.properties.geo.lng` as numbers.
+- Geo is derived from dataset-agnostic shapes:
+  - **GeoJSON**: `FeatureCollection | Feature | Geometry`
+    - Each Feature becomes a graph node.
+    - Point Features derive `properties.geo` from `[lng, lat]`.
+  - **Records**: generic record datasets with common coordinate fields
+    - Supported record containers include arrays of objects and object maps (key → record).
+    - Supported coordinate shapes include `geo.{lat,lng}` and `lat/lng`, `latitude/longitude`.
 
-### Optional Boundary Overlay (GeoJSON)
+### Map Overlay Datasets
 
-- **Input**: external `FeatureCollection` (polygons/multipolygons/lines/points supported by GeoJSON)
-- **Default source**: `import.meta.env.VITE_GEOSPATIAL_BOUNDARY_GEOJSON_URL` (optional)
-- **Runtime override**: boundary URL input in the Geospatial panel
-
-This is compatible with GeoJSON exports derived from the countries-states-cities database (e.g., country/state boundary FeatureCollections), provided via a URL you control.
-
-**URL normalization**:
-- GitHub `.../blob/...` URLs are normalized to `raw.githubusercontent.com/...` before fetching.
-- Remote fetches are bounded by size/time and use the existing proxy fetch utility to avoid CORS surprises.
-
----
-
-## Configuration
-
-### Environment Variables (Vite)
-
-- `VITE_GEOSPATIAL_MAP_STYLE_URL`
-  - Default: `https://tiles.openfreemap.org/styles/liberty`
-  - Sets MapLibre style URL (OpenFreeMap public instance or self-hosted).
-- `VITE_GEOSPATIAL_BOUNDARY_GEOJSON_URL`
-  - Default: empty (no overlay)
-  - Optional GeoJSON boundary overlay URL.
+- Dataset layers are stored as URL references and loaded at runtime.
+- Load is bounded by fetch size/time limits and uses best-effort parsing:
+  - **GeoJSON**: Render directly.
+  - **Records**: Derive a GeoJSON Point FeatureCollection when coordinate fields are detected.
 
 ---
 
-## Architecture (Modular Components)
+## Configuration & Persistence
 
-### MapLibre Adapter
-
-- Transforms `GraphNode[]` into GeoJSON `FeatureCollection<Point>`.
-- Implementation: `canvas/src/features/geospatial/mapLibreAdapter.ts`
-
-### Spatial Query Engine (Turf)
-
-- Proximity search uses modular Turf imports (`@turf/distance`, `@turf/helpers`).
-- Output is bounded (max result limit enforced).
-- Implementation: `canvas/src/features/geospatial/spatialQueryEngine.ts`
-
-### View Synchronization (Selection)
-
-- Map marker click → `selectNode(nodeId)` updates graph selection.
-- Graph selection change → map highlight + flyTo.
-- UI wiring: `canvas/src/pages/Canvas.tsx`
+- Map settings persist via local storage:
+  - `LS_KEYS.geospatialOverlayEnabled`
+  - `LS_KEYS.geospatialStyleUrl`
+  - `LS_KEYS.geospatialOverlayOpacity`
+  - `LS_KEYS.geospatialDatasets`
+- Optional runtime configuration (no hardcoded datasets/providers):
+  - `VITE_GEOSPATIAL_STYLE_URL` (default: OpenFreeMap Liberty)
+  - `VITE_GEOSPATIAL_OVERLAY_OPACITY` (default: 0.65, clamped to [0,1])
+  - `VITE_GEOSPATIAL_DATASETS_JSON` (dataset catalog JSON)
+  - `VITE_GEOSPATIAL_DATASET_TIMEOUT_MS`
+  - `VITE_GEOSPATIAL_DATASET_MAX_BYTES`
 
 ---
 
-## Extensibility Hooks
+## Multi-Dataset Examples (No Runtime Hardcoding)
 
-- Add new coordinate extraction rules by extending the canonical `properties.geo` mapping upstream (parser transforms), rather than adding per-dataset heuristics in the map UI.
-- Add additional spatial queries (area containment, relationship detection) as separate functions in the Spatial Query Engine.
-- Add additional layers (D3 overlays, 3D custom layers) by extending the Geospatial panel with new MapLibre sources/layers and routing events through selection APIs.
+- Layer 01 (records): `https://github.com/mwgg/Airports/blob/master/airports.json`
+- Layer 02 (GeoJSON): `https://github.com/dr5hn/countries-states-cities-database/blob/master/geojson/countries.geojson`
+- Layer 03 (local GeoJSON fixture): `canvas/src/__tests__/demo/cities.geojson` (very large; host a sampled/simplified copy for browser rendering)
+
+Example dataset catalog (set as `VITE_GEOSPATIAL_DATASETS_JSON`):
+
+```json
+[
+  { "label": "Airports", "url": "https://github.com/mwgg/Airports/blob/master/airports.json", "format": "records" },
+  { "label": "Countries", "url": "https://github.com/dr5hn/countries-states-cities-database/blob/master/geojson/countries.geojson", "format": "geojson" }
+]
+```

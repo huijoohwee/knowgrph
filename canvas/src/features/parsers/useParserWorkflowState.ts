@@ -12,7 +12,8 @@ import {
   loadGraphDataFromTextViaParser,
   type LoaderResult,
 } from '@/features/parsers/loader'
-import { fetchRemoteText, promptForUrl } from '@/features/toolbar/ingestUtils'
+import { promptForUrl } from '@/features/toolbar/ingestUtils'
+import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { GraphSchema, defaultSchema } from '@/lib/graph/schema'

@@ -1,8 +1,8 @@
 # Knowledge Graph Geospatial Integration: PRD & TAD
 
-**Document Version**: 1.0.0  
-**Date**: 2026-01-21  
-**Status**: Proposed
+**Document Version**: 1.0.2  
+**Date**: 2026-01-23  
+**Status**: Active (runtime overlay implemented; advanced spatial analysis TBD)
 
 ---
 
@@ -10,7 +10,7 @@
 
 **Context**: Knowledge Graph systems with Agentic GraphRAG capabilities lack native geospatial visualization and spatial analysis  
 **Intent**: Enable location-aware knowledge discovery through integrated mapping capabilities  
-**Directive**: Specify requirements for MapLibre GL + OpenFreeMap + Turf.js integration while maintaining domain-agnostic architecture
+**Directive**: This document describes MapLibre GL + configurable vector map styles + Turf.js integration layered on top of the infinite canvas. The current runtime implements a non-interactive basemap overlay, dataset URL layers (GeoJSON + records→points), and bounded fit-to-data; spatial query and selection synchronization features remain future work unless explicitly implemented.
 
 ---
 
@@ -341,8 +341,8 @@ Spatial analysis occurs client-side using Turf.js. No PostGIS or server-side GIS
 **Rationale**: Maintains zero-backend-dependency principle, enables offline operation, reduces infrastructure complexity.
 
 **Custom Map Tile Generation**  
-System uses OpenFreeMap tiles exclusively. No tile server deployment or custom tile rendering.  
-**Rationale**: Eliminates hosting costs, reduces operational complexity, leverages existing FOSS infrastructure.
+System uses configurable MapLibre vector styles (via style URL). No tile server deployment or custom tile rendering in the baseline implementation.  
+**Rationale**: Eliminates hosting costs, reduces operational complexity, leverages existing FOSS infrastructure while allowing provider switching through configuration.
 
 **Real-Time Collaborative Editing**  
 Geographic edits (moving markers, adjusting boundaries) remain single-user operations.  
@@ -366,7 +366,7 @@ No time-series geographic visualizations (entity movement over time, historical 
 - **Existing Integration Points**: Access to graph view state management, d3.js rendering pipeline, three.js scene graph, infinite canvas API
 
 ### External Service Dependencies
-- **OpenFreeMap CDN**: Tile delivery via https://tiles.openfreemap.org (zero configuration, no API key)
+- **Vector tile/style provider (config-driven)**: default uses MapLibre demo tiles (zero configuration, no API key); OpenFreeMap or self-hosted style JSON are optional.
 - **Optional Geocoding Service**: For address-to-coordinate conversion (Story 4.1) - recommend Nominatim (FOSS)
 
 ### Data Model Dependencies
@@ -441,7 +441,7 @@ How to handle entities with non-WGS84 coordinate systems (UTM, State Plane, cust
 
 ## Architecture Overview
 
-**From knowledge entities to spatial insights**: System receives entities with location metadata → MapLibre Adapter transforms to GeoJSON → MapLibre GL renders on OpenFreeMap tiles → Turf.js Engine processes spatial queries → Integration Layer synchronizes with existing d3.js/three.js/infinite canvas → delivers interactive geospatial knowledge discovery interface.
+**From knowledge entities to spatial insights**: System receives entities with location metadata → MapLibre Adapter transforms to GeoJSON → MapLibre GL renders via a configurable vector style URL → Turf.js Engine processes spatial queries → Integration Layer synchronizes with existing d3.js/three.js/infinite canvas → delivers interactive geospatial knowledge discovery interface.
 
 ### MVP Implementation Notes (Canvas)
 
@@ -567,15 +567,15 @@ interface MultiLayerRenderer {
 
 ---
 
-### Component 5: Tile Provider Integration
+### Component 5: Vector Style Provider Integration
 
-**Responsibility**: Manages connection to OpenFreeMap tile service with fallback strategies and error recovery
+**Responsibility**: Manages connection to a vector style/tile provider via MapLibre style URL, with bounded error handling and request proxying
 
 **Interfaces**:
 ```typescript
 interface TileProvider {
   // Initialize tile source configuration
-  configure(style: 'liberty' | 'bright' | 'positron'): TileSourceConfig
+  configure(styleUrl: string): TileSourceConfig
   
   // Handle tile loading errors
   handleTileError(error: TileLoadError): RecoveryAction
@@ -589,9 +589,9 @@ interface TileProvider {
 ```
 
 **Dependencies**: MapLibre GL style specification, network request handling  
-**Configuration**: OpenFreeMap CDN URLs, retry policies, offline tile cache settings
+**Configuration**: Style URL, request proxy endpoint, retry policies
 
-**From style to tiles**: Provider loads OpenFreeMap style JSON → MapLibre requests tiles by zoom/x/y → Provider monitors requests for failures → implements exponential backoff retry → logs performance metrics → delivers tiles to MapLibre rendering pipeline.
+**From style to tiles**: Provider loads a vector style JSON → MapLibre requests vector tile resources → Provider proxies cross-origin requests when necessary → Provider monitors failures and retries boundedly → delivers resources to MapLibre rendering pipeline.
 
 ---
 
@@ -812,17 +812,17 @@ User workflows involve <50,000 entities per session (95th percentile). Turf.js h
 
 ---
 
-### ADR-002: OpenFreeMap for Vector Tiles
+### ADR-002: Configurable Vector Style Provider
 
 **Status**: Accepted  
 **Date**: 2026-01-21  
 **Deciders**: System Architect, Product Manager
 
 **Context**  
-Map tiles can come from paid services (Mapbox, MapTiler), free services with API keys (Stadia), or zero-config free services (OpenFreeMap). Decision impacts cost, configuration complexity, and reliability.
+Map tiles and styles can come from paid services (Mapbox, MapTiler), free services with API keys (Stadia), or zero-config free services (MapLibre demo tiles, OpenFreeMap). Decision impacts cost, configuration complexity, and reliability.
 
 **Decision**  
-Use OpenFreeMap (https://tiles.openfreemap.org) as primary tile provider.
+Use a configurable MapLibre vector style URL, with a zero-config default (MapLibre demo tiles) and optional alternatives (OpenFreeMap or self-hosted style JSON).
 
 **Alternatives Considered**
 
@@ -836,17 +836,17 @@ Use OpenFreeMap (https://tiles.openfreemap.org) as primary tile provider.
 - **Cons**: Requires tile server infrastructure, complex setup (500+ configuration tokens), maintenance burden
 - **Verdict**: Rejected - infrastructure complexity exceeds benefit
 
-**Option 3: OpenFreeMap (Chosen)**
-- **Pros**: Zero cost, no API key, no registration, no rate limits, FOSS
-- **Cons**: Community-maintained (reliability unknown), limited to provided styles
-- **Verdict**: Accepted - best balance of simplicity and capability
+**Option 3: MapLibre demo tiles (Chosen default)**
+- **Pros**: Zero cost, no API key, no registration, vector-first, low configuration
+- **Cons**: Public demo infrastructure (reliability unknown), limited style options
+- **Verdict**: Accepted - best zero-config default with an explicit provider-switching escape hatch
 
 **Rationale**  
-OpenFreeMap provides production-quality vector tiles without configuration overhead. System design enables easy provider switching if reliability issues emerge. Multiple style options (liberty, bright, positron) satisfy UI requirements.
+Defaulting to a zero-config vector style keeps onboarding friction low and avoids API keys. The architecture keeps the provider configurable via a style URL, enabling switching (OpenFreeMap, self-hosted) if reliability or styling requirements change.
 
 **Consequences**
-- **Positive**: Zero setup, zero cost, immediate availability, multiple styles
-- **Negative**: Dependency on community-maintained service (mitigated by provider abstraction allowing future migration)
+- **Positive**: Zero setup, zero cost, immediate availability, provider switching via configuration
+- **Negative**: Dependency on public infrastructure (mitigated by configuration-driven migration to OpenFreeMap/self-hosted styles)
 - **Neutral**: Attribution requirement (acceptable under FOSS licensing)
 
 ---

@@ -6,7 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveFilenameFromUrl } from '@/lib/url'
 import { ensureBuiltInParsersRegistered } from '@/features/parsers/ensure'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
-import { fetchRemoteText } from '@/features/toolbar/ingestUtils'
+import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
 import {
   type DbConnectorKind,
   type RelationalConnectorConfig,

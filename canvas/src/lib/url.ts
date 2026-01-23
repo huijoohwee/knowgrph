@@ -1,9 +1,35 @@
 export function coerceHttpUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
-  const raw = value.trim()
+  const raw = unwrapUserProvidedText(value) || value.trim()
   if (!raw) return null
   if (!/^https?:\/\//i.test(raw)) return null
-  return raw
+  try {
+    const url = new URL(raw)
+    if (!/^https?:$/i.test(url.protocol)) return null
+    if (url.username || url.password) return null
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+export function coerceFetchUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const raw = unwrapUserProvidedText(value) || value.trim()
+  if (!raw) return null
+  if (/^https?:\/\//i.test(raw)) return coerceHttpUrl(raw)
+  if (!raw.startsWith('/')) return null
+  if (typeof window === 'undefined') return null
+  const origin = window.location?.origin
+  if (!origin) return null
+  try {
+    const url = new URL(raw, origin)
+    if (!/^https?:$/i.test(url.protocol)) return null
+    if (url.username || url.password) return null
+    return url.toString()
+  } catch {
+    return null
+  }
 }
 
 export function unwrapUserProvidedText(value: unknown): string | null {
@@ -82,6 +108,7 @@ export function deriveFilenameFromUrl(rawUrl: string, fallback: string): string 
 }
 
 export const MEDIA_PROXY_ENDPOINT = '/__fetch_remote'
+export const REMOTE_FETCH_PROXY_ENDPOINT = MEDIA_PROXY_ENDPOINT
 
 export function applyMediaProxySrc(src: string): string {
   const raw = String(src || '').trim()

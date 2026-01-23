@@ -86,7 +86,6 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
     const entries: string[] = []
     if (kinds.has('chunk_text')) entries.push(AGENTIC_RAG_FIELD_KIND_META.chunk_text.legendLabel)
     if (kinds.has('embedding')) entries.push(AGENTIC_RAG_FIELD_KIND_META.embedding.legendLabel)
-    if (kinds.has('geo')) entries.push(AGENTIC_RAG_FIELD_KIND_META.geo.legendLabel)
     if (kinds.has('media_url')) entries.push(AGENTIC_RAG_FIELD_KIND_META.media_url.legendLabel)
     if (kinds.has('graphRAGPath')) entries.push(AGENTIC_RAG_FIELD_KIND_META.graphRAGPath.legendLabel)
     return entries

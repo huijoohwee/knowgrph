@@ -128,6 +128,12 @@ export const LS_KEYS = {
   chatTemperature: 'kg:chat:temperature',
   chatSystemPrompt: 'kg:chat:systemPrompt',
   chatHistoryPrefix: 'kg:chat:history:',
+  geospatialOverlayEnabled: 'kg:ui:geospatial:overlayEnabled',
+  geospatialStyleUrl: 'kg:ui:geospatial:styleUrl',
+  geospatialOverlayOpacity: 'kg:ui:geospatial:overlayOpacity',
+  geospatialDatasets: 'kg:ui:geospatial:datasets',
+  geospatialDatasetTimeoutMs: 'kg:ui:geospatial:datasetTimeoutMs',
+  geospatialDatasetMaxBytes: 'kg:ui:geospatial:datasetMaxBytes',
 } as const;
 
 export const SESSION_KEYS = {
@@ -187,6 +193,7 @@ export type LsKeyOwner =
   | 'workflow.presets'
   | 'schema.subsections'
   | 'schema.ui'
+  | 'ui.map'
   | 'ui.chat';
 
 export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
@@ -319,6 +326,12 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   chatTemperature: 'ui.chat',
   chatSystemPrompt: 'ui.chat',
   chatHistoryPrefix: 'ui.chat',
+  geospatialOverlayEnabled: 'ui.map',
+  geospatialStyleUrl: 'ui.map',
+  geospatialOverlayOpacity: 'ui.map',
+  geospatialDatasets: 'ui.map',
+  geospatialDatasetTimeoutMs: 'ui.map',
+  geospatialDatasetMaxBytes: 'ui.map',
 };
 
 export const SCHEMA_SECTIONS = [

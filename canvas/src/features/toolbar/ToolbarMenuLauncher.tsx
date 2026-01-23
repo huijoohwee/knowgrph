@@ -91,7 +91,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     isValidationExportMenuOpen,
     setIsValidationExportMenuOpen,
     pipelineStatus,
-    setPipelineStatus,
     toolMenuButtonRef,
     toolMenuCardRef,
     toolMenuCardStyle,

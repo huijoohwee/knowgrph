@@ -21,7 +21,10 @@ interface TooltipProps {
   onContentMouseLeave?: () => void
 }
 
-const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' && typeof document !== 'undefined' && typeof document.createElement === 'function'
+    ? React.useLayoutEffect
+    : React.useEffect
 
 export default function Tooltip({ content, className, children, maxWidthFromPrevSibling, maxWidthPx, contentClassName, open: controlledOpen, anchorStyle, onContentMouseLeave }: TooltipProps) {
   const anchorRef = React.useRef<HTMLSpanElement | null>(null)

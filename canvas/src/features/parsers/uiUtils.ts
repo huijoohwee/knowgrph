@@ -157,7 +157,7 @@ export async function importParser(): Promise<ImportParserResult> {
             window.alert(msg)
           }
         } catch {
-          console.warn('Parser import result:', msg)
+          void 0
         }
         return { kind: 'parsers', name, imported, errors }
       }

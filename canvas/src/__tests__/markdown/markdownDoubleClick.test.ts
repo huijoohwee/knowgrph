@@ -29,15 +29,32 @@ export async function testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine
     root.render(React.createElement(BottomPanelMarkdownSection))
 
     const tick = () =>
-      new Promise<void>(resolve =>
-        anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
-      )
+      new Promise<void>((resolve) => {
+        let done = false
+        const finish = () => {
+          if (done) return
+          done = true
+          resolve()
+        }
+        const timeoutId = setTimeout(finish, 25)
+        const raf = anyWindow.requestAnimationFrame
+        if (!raf) return
+        try {
+          raf(() => {
+            clearTimeout(timeoutId)
+            finish()
+          })
+        } catch {
+          void 0
+        }
+      })
     const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
     await tick()
     await tick()
 
     const { useGraphStore } = await import('@/hooks/useGraphStore')
     const store = useGraphStore.getState()
+    store.resetAll()
 
     const markdown = ['alpha one', 'alpha two', '', 'beta one', 'beta two'].join('\n')
     store.setMarkdownDocument('dblclick.md', markdown)
@@ -132,15 +149,32 @@ export async function testMarkdownViewerDoubleClickScrollsEditor() {
     root.render(React.createElement(BottomPanelMarkdownSection))
 
     const tick = () =>
-      new Promise<void>(resolve =>
-        anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
-      )
+      new Promise<void>((resolve) => {
+        let done = false
+        const finish = () => {
+          if (done) return
+          done = true
+          resolve()
+        }
+        const timeoutId = setTimeout(finish, 25)
+        const raf = anyWindow.requestAnimationFrame
+        if (!raf) return
+        try {
+          raf(() => {
+            clearTimeout(timeoutId)
+            finish()
+          })
+        } catch {
+          void 0
+        }
+      })
     const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
     await tick()
     await tick()
 
     const { useGraphStore } = await import('@/hooks/useGraphStore')
     const store = useGraphStore.getState()
+    store.resetAll()
 
     // 200 lines to ensure scrolling is possible
     const lines: string[] = []

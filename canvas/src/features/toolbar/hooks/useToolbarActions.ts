@@ -169,15 +169,27 @@ export function useToolbarActions(
   }, [renderMediaAsNodes, setRenderMediaAsNodes])
 
   const handleToggle3DMode = useCallback(() => {
-    setCanvasRenderMode(canvasRenderMode === '3d' ? '2d' : '3d')
+    const next = canvasRenderMode === '3d' ? '2d' : '3d'
+    setCanvasRenderMode(next)
   }, [canvasRenderMode, setCanvasRenderMode])
 
   const handleOpenChat = useCallback(() => {
     emitSidePanelOpen({ tab: 'chat', open: true })
   }, [])
 
-  const handleOpenGeospatial = useCallback(() => {
-    emitSidePanelOpen({ tab: 'map', open: true })
+  const handleToggleGeospatialMode = useCallback(() => {
+    try {
+      const s = useGraphStore.getState()
+      const enabled = !!s.geospatialOverlayEnabled
+      if (enabled) {
+        s.setGeospatialOverlayEnabled(false)
+        return
+      }
+      emitSidePanelOpen({ tab: 'map', open: true })
+      s.setGeospatialOverlayEnabled(true)
+    } catch {
+      emitSidePanelOpen({ tab: 'map', open: true })
+    }
   }, [])
 
   const handleToggleTheme = useCallback(() => {
@@ -202,7 +214,7 @@ export function useToolbarActions(
     handleToggleRenderMedia,
     handleToggle3DMode,
     handleOpenChat,
-    handleOpenGeospatial,
+    handleToggleGeospatialMode,
     handleToggleTheme,
   }
 }

@@ -157,6 +157,10 @@ Pipeline map:
 
 **Normalization Strategy**: Detect nodes/edges → extract if present → otherwise wrap with rawToGraphData
 
+**Geospatial-Aware JSON Shapes (Dataset-Agnostic)**:
+- GeoJSON `Feature` / `FeatureCollection` → ingest features as nodes and derive `properties.geo` (Point coordinates; bbox center for non-point geometries).
+- Record arrays or record maps (object-of-records) → ingest entries as nodes and derive `properties.geo` from common coordinate fields when present.
+
 | Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
 | Structure Detection  | Identify graph shape            | - [ ] Check for nodes/edges/links fields; detect variants; forbid format assumptions      | rawJsonSpec      | StructureDetector| hasGraphStructure      | —              | JSON object                  | Boolean (is graph)     | Field name matching (nodes/edges)|

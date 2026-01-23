@@ -14,6 +14,7 @@ import type {
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex';
 import type { MarkdownFrontmatter } from '@/lib/markdown'
+import type { GeospatialDataset, GeospatialDatasetFormat, GeospatialDatasetStatus } from '@/lib/geospatial/types'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -168,6 +169,26 @@ export interface GraphState {
   uiOverlayOpacity: number;
   uiPanelOpacity: number;
   uiToolbarOpacity: number;
+  geospatialOverlayEnabled: boolean;
+  setGeospatialOverlayEnabled: (v: boolean) => void;
+  geospatialStyleUrl: string;
+  setGeospatialStyleUrl: (url: string) => void;
+  geospatialOverlayOpacity: number;
+  setGeospatialOverlayOpacity: (v: number) => void;
+  geospatialDatasets: GeospatialDataset[];
+  addGeospatialDatasetUrl: (args: { url: string; label?: string; format?: GeospatialDatasetFormat }) => void;
+  removeGeospatialDataset: (id: string) => void;
+  toggleGeospatialDatasetEnabled: (id: string) => void;
+  setGeospatialDatasetLabel: (id: string, label: string) => void;
+  geospatialDatasetStatusById: Record<string, GeospatialDatasetStatus>;
+  setGeospatialDatasetStatus: (id: string, status: GeospatialDatasetStatus) => void;
+  geospatialDatasetTimeoutMs: number;
+  setGeospatialDatasetTimeoutMs: (v: number) => void;
+  geospatialDatasetMaxBytes: number;
+  setGeospatialDatasetMaxBytes: (v: number) => void;
+  geospatialFitRequest: null | { at: number };
+  requestGeospatialFitToData: () => void;
+  clearGeospatialFitRequest: () => void;
   mediaNodeOpacity: number;
   chatEndpointUrl: string | null;
   chatModel: string | null;
