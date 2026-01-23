@@ -91,17 +91,25 @@ export function useGraphCanvasStyles({
 
     const root = gRef?.current ?? null
     if (root) {
-      const styleTextSel = (sel: d3.Selection<SVGTextElement, unknown, SVGGElement, unknown>) => {
+      const styleTextSel = (sel: d3.Selection<SVGTextElement, unknown, SVGGElement, unknown>, fontSizePx?: number) => {
         sel
           .attr('fill', labelFill)
           .attr('stroke', haloColor)
           .attr('stroke-width', Math.max(2, haloWidth * 0.85))
           .attr('stroke-linejoin', 'round')
           .attr('paint-order', 'stroke')
+        if (typeof fontSizePx === 'number' && Number.isFinite(fontSizePx) && fontSizePx > 0) {
+          sel.attr('font-size', fontSizePx)
+        }
       }
 
-      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'))
-      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'))
+      const baseFontSizeRaw = schema.labelStyles?.fontSize
+      const baseFontSize = typeof baseFontSizeRaw === 'number' && Number.isFinite(baseFontSizeRaw) && baseFontSizeRaw > 0 ? baseFontSizeRaw : 12
+      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'), baseFontSize)
+      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'), Math.max(9, baseFontSize * 0.9))
+      root
+        .selectAll<SVGPathElement, unknown>('path[data-kg-group-chevron]')
+        .attr('stroke', labelFill)
     }
   }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, graphDataRevision]);
 }

@@ -1,6 +1,7 @@
 import * as d3 from 'd3'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation'
+import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'
+import { getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation'
 import { fitSubsetTransform } from '@/components/GraphCanvas/fit'
 import { callZoomTransform } from '@/components/GraphCanvas/helpers'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'

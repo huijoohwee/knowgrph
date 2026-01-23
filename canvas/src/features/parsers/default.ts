@@ -141,7 +141,11 @@ const autoGraphSpec: ParserSpec = {
 const jsonSpec: ParserSpec = {
   id: toParserId('json'),
   name: 'JSON',
-  match: () => false,
+  match: (name) => {
+    const lower = (name || '').toLowerCase()
+    if (/^https?:\/\//i.test(lower)) return lower.endsWith('.json')
+    return lower.endsWith('.json')
+  },
   parseAsync: (name, text) => autoGraphSpec.parseAsync!(name, text),
   parse: (name, text) => autoGraphSpec.parse(name, text),
 }
@@ -149,7 +153,11 @@ const jsonSpec: ParserSpec = {
 const csvSpec: ParserSpec = {
   id: toParserId('csv'),
   name: 'CSV',
-  match: () => false,
+  match: (name) => {
+    const lower = (name || '').toLowerCase()
+    if (/^https?:\/\//i.test(lower)) return lower.endsWith('.csv')
+    return lower.endsWith('.csv')
+  },
   parseAsync: (name, text) => autoGraphSpec.parseAsync!(name, text),
   parse: (name, text) => autoGraphSpec.parse(name, text),
 }
@@ -157,7 +165,11 @@ const csvSpec: ParserSpec = {
 const jsonLdSpec: ParserSpec = {
   id: toParserId('jsonld'),
   name: 'JSON‑LD',
-  match: () => false,
+  match: (name) => {
+    const lower = (name || '').toLowerCase()
+    if (/^https?:\/\//i.test(lower)) return lower.endsWith('.jsonld')
+    return lower.endsWith('.jsonld')
+  },
   parseAsync: (name, text) => autoGraphSpec.parseAsync!(name, text),
   parse: (name, text) => autoGraphSpec.parse(name, text),
 }

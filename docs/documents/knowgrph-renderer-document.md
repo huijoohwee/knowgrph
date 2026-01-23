@@ -134,6 +134,47 @@
 
 ---
 
+## Node Shapes (2D)
+
+- **Supported shapes**: `circle`, `rect`, `diamond`, `hex` (images render as `rect`).
+- **Precedence (SSOT)**:
+  1. `schema.nodeShapes[node.type]` (per-type shape)
+  2. `node.properties["visual:shape"]` (per-node override; used by Mermaid flowchart shape parsing)
+  3. `schema.behavior.nodeShapeMode` (global default; toolbar cycles)
+  4. Fallback: `rect` when Port Handles are enabled, otherwise `circle`
+- **Goal**: presentation toggles update layers without re-layout; shape updates must be tick-safe and bounded.
+
+---
+
+## Label Layout (SSOT)
+
+- **Single source**: wrapping + ellipsis decisions are shared across render, collision, and fit-to-view to prevent drift.
+- **Center alignment**: non-circle node labels are centered (`dx=0`, `anchor=middle`) and line-wrapped within the node’s visual bounds.
+- **Ellipsis**: long labels are clamped and expanded via hover tooltip (see `labels.ts`, `GraphHoverTooltip.tsx`).
+
+---
+
+## Edge Labels & Links
+
+- **Theme alignment**: edge labels and group labels use the same halo/fill paint via `useGraphCanvasStyles`.
+- **No endpoint overlap**: edge labels apply bounded normal-offset nudging to avoid overlapping their endpoint node AABBs.
+- **Temp link styling**: temp edge-creation link uses `--kg-canvas-accent` (light/dark aware) instead of hardcoded colors.
+
+---
+
+## Port Handles & Collision
+
+- **Port clearance**: collision extents include port handle offset/size so handles don’t visually overlap.
+- **Sizing SSOT**: default rect sizing derives from schema node radius (no minimap-driven sizing side-effects).
+
+---
+
+## Radial Layout (Bounded)
+
+- **Post-relaxation**: radial layout runs a bounded AABB-collide relaxation pass to reduce overlaps without starting an indefinite simulation.
+
+---
+
 ## Anti-Patterns (Forbidden)
 
 | Context              | Intent                          | Directive                                                                                   |

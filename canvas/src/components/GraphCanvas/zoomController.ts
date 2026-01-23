@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { fitAllTransform, fitSubsetTransform, centerAllTransform } from './fit';
-import { getAdjacencyMap } from './simulation';
+import { getAdjacencyMap } from './adjacency';
 
 type ZoomType = 'in' | 'out' | 'fit' | 'reset' | 'selection' | 'transform';
 

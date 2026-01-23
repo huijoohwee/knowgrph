@@ -3,10 +3,9 @@ export {
   normalizeEdgesForSim,
   buildSimulation,
   buildNeighborIds,
-  buildAdjacencyMap,
-  getAdjacencyMap,
   getEdgeEndpoints,
 } from './simulation';
+export { buildAdjacencyMap, getAdjacencyMap } from './adjacency'
 export type { EdgeWithRuntime } from './simulation';
 export { nodeDragBehavior } from './drag';
 export { fitNodeTransform, fitEdgeTransform, fitAllTransform, centerAllTransform } from './fit';

@@ -3,7 +3,7 @@ import type { JSONValue } from './types';
 export interface GraphBehavior {
   allowEdgeCreation: boolean;
   allowNodeDrag: boolean;
-  nodeShapeMode?: 'circle' | 'rect';
+  nodeShapeMode?: 'circle' | 'rect' | 'diamond' | 'hex';
   dragConstraint?: 'free' | 'axis-x' | 'axis-y' | 'none';
   snapGrid?: { enabled: boolean; size: number };
   preventDuplicatesGlobal?: boolean;

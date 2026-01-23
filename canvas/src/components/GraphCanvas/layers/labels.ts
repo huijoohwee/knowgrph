@@ -2,8 +2,9 @@ import * as d3 from 'd3';
 import type { MutableRefObject } from 'react';
 import type { GraphNode } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
-import { wrapTextByMaxChars, truncateTextWithEllipsis, truncateTextWithWordEllipsis, estimateMaxCharsForWidthPx } from '@/components/GraphCanvas/layout/utils'
-import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { truncateTextWithEllipsis, truncateTextWithWordEllipsis, estimateMaxCharsForWidthPx } from '@/components/GraphCanvas/layout/utils'
+import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { computeVisibleLabelLines2d, getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 
@@ -34,11 +35,11 @@ export const createLabelsLayer = (args: {
   const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3;
   const lineHeightPx = labelFontSize * 1.2;
   const getBaseDxForNode = (d: GraphNode) => {
-    if (getNodeRenderShape2d(d, schema) === 'rect') return 0
+    if (getNodeRenderShape2d(d, schema) !== 'circle') return 0
     return schema.labelStyles?.offset?.dx ?? 12
   }
   const getBaseAnchorForNode = (d: GraphNode) => {
-    if (getNodeRenderShape2d(d, schema) === 'rect') return 'middle'
+    if (getNodeRenderShape2d(d, schema) !== 'circle') return 'middle'
     const dx = getBaseDxForNode(d)
     return dx >= 0 ? 'start' : 'end'
   }
@@ -58,7 +59,7 @@ export const createLabelsLayer = (args: {
        return getBaseDxForNode(d)
     })
     .attr('dy', (d: GraphNode) => {
-        if (getNodeRenderShape2d(d, schema) === 'rect') return 0
+        if (getNodeRenderShape2d(d, schema) !== 'circle') return 0
         return schema.labelStyles?.offset?.dy ?? 4
     })
     .attr('data-base-anchor', (d: GraphNode) => getBaseAnchorForNode(d))
@@ -66,7 +67,7 @@ export const createLabelsLayer = (args: {
        return String(getBaseDxForNode(d))
     })
     .attr('data-base-dy', (d: GraphNode) => {
-        if (getNodeRenderShape2d(d, schema) === 'rect') return '0'
+        if (getNodeRenderShape2d(d, schema) !== 'circle') return '0'
         return String(schema.labelStyles?.offset?.dy ?? 4);
     })
     .attr('dominant-baseline', 'middle')
@@ -85,46 +86,11 @@ export const createLabelsLayer = (args: {
     
     label.each(function (d: GraphNode) {
       const el = d3.select(this)
-      const baseLabelFull = String(d.label || d.id || '')
+      const baseLabelFull = String(getNodeLabelFullText2d(d) || '')
       const baseLabel = truncateTextWithWordEllipsis(baseLabelFull, 20)
-      const isRect = getNodeRenderShape2d(d, schema) === 'rect'
-      
-      let wrapped = ''
-      let visibleLines: string[] = []
-      
-      if (isRect) {
-         const { width, height } = getNodeRectDimensions2d(d, schema)
-         const padX = 8
-         const padY = 4
-         const availW = Math.max(8, width - padX * 2)
-         const availH = Math.max(8, height - padY * 2)
-         const maxChars = Math.max(4, Math.min(80, estimateMaxCharsForWidthPx(availW, labelFontSize)))
-         
-         wrapped = wrapTextByMaxChars(baseLabel, maxChars)
-         const lines = String(wrapped).replace(/\r\n?/g, '\n').split('\n')
-         const maxLines = Math.floor(availH / lineHeightPx)
-         
-         if (lines.length > maxLines) {
-           visibleLines = lines.slice(0, Math.max(1, maxLines))
-           const last = visibleLines[visibleLines.length - 1]
-           visibleLines[visibleLines.length - 1] = last.endsWith('…') ? last : last + '…'
-         } else {
-           visibleLines = lines
-         }
-      } else {
-         wrapped = wrapTextByMaxChars(baseLabel, maxCharsPerLine)
-         const lines = String(wrapped).replace(/\r\n?/g, '\n').split('\n')
-         const maxLines = 3
-         if (lines.length > maxLines) {
-           visibleLines = lines.slice(0, maxLines)
-           const last = visibleLines[visibleLines.length - 1]
-           visibleLines[visibleLines.length - 1] = last.endsWith('…') ? last : last + '…'
-           wrapped = visibleLines.join('\n')
-         } else {
-           visibleLines = lines
-         }
-      }
-
+      const layout = computeVisibleLabelLines2d(d, schema)
+      const wrapped = layout.wrappedText
+      const visibleLines = layout.visibleLines
       const compact = truncateTextWithEllipsis(baseLabel, compactChars)
       const lineCount = Math.max(1, visibleLines.length)
       let maxLen = 0

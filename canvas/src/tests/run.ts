@@ -19,6 +19,11 @@ import {
   testFitAllTransformRespectsCollisionPaddingInViewportFit,
   testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
+import {
+  testIsNodePointerTargetAcceptsPathNodes,
+  testNodesLayerRendersDiamondAndHexPaths,
+  testNodesLayerHonorsVisualShapeOverrides,
+} from '@/__tests__/nodeShapes2d.test'
 import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
@@ -279,6 +284,9 @@ export const runAllTests = async () => {
     testSelectionZoomEdgeSelectionUsesEndpointsAndNeighbors,
   )
   await exec('graph.selectionZoom.noSelectionSubset', testSelectionZoomNoSelectionReturnsEmptySubset)
+  await exec('graph.nodes2d.rendersDiamondAndHex', testNodesLayerRendersDiamondAndHexPaths)
+  await exec('graph.nodes2d.honorsVisualShapeOverrides', testNodesLayerHonorsVisualShapeOverrides)
+  await exec('graph.pointerTarget.acceptsPathNodes', testIsNodePointerTargetAcceptsPathNodes)
   await exec(
     'graph.fitAllTransform.respectsCollisionPadding',
     testFitAllTransformRespectsCollisionPaddingInViewportFit,

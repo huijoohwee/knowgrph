@@ -5,7 +5,7 @@ export function testParserAutoSelectOnLoad() {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))
   const csv = bestMatch({ name: 'nodes.csv', text: 'id,label,type\na,b,c' })
-  if (!csv || String(csv.id) !== 'auto') throw new Error(`csv bestMatch failed: got ${csv?.id}`)
+  if (!csv || String(csv.id) !== 'csv') throw new Error(`csv bestMatch failed: got ${csv?.id}`)
   const json = bestMatch({ name: 'unicorn-investors-test.json', text: '{"type":"Graph","nodes":[],"edges":[]}' })
-  if (!json || String(json.id) !== 'auto') throw new Error(`json bestMatch failed: got ${json?.id}`)
+  if (!json || String(json.id) !== 'json') throw new Error(`json bestMatch failed: got ${json?.id}`)
 }

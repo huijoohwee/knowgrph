@@ -8,7 +8,10 @@ import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import type { EdgeWithRuntime } from '@/components/GraphCanvas/utils'
 import { getEdgeEndpointFromPorts, getPortHandlePosition, getPortHandlesConfig, type PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
+import { estimateLabelCharWidthPx } from '@/components/GraphCanvas/layout/utils'
+import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
 
 type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 
@@ -160,6 +163,26 @@ export const attachSimulationTick = (args: {
         .attr('ry', (d: GraphNode) => {
           return getNodeMetrics(d).r * 0.22;
         })
+      const pathSel = nodeSel.filter(function () {
+        const el = this as unknown as Element
+        const tag = String(el.tagName || '').toLowerCase()
+        return tag === 'path'
+      }) as unknown as d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown>
+      if (!pathSel.empty()) {
+        pathSel
+          .attr('transform', (d: GraphNode) => {
+            const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
+            const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
+            return `translate(${x},${y})`
+          })
+          .attr('d', function (d: GraphNode) {
+            const rawShape = String(this.getAttribute('data-kg-node-shape') || '').trim().toLowerCase()
+            const shape = rawShape === 'diamond' || rawShape === 'hex' ? rawShape : null
+            if (!shape) return ''
+            const { width, height } = getNodeMetrics(d)
+            return buildNodeShapePathD({ shape, width, height })
+          })
+      }
     }
 
     const groupChevronSel = groupChevronSelRef.current
@@ -383,9 +406,42 @@ export const attachSimulationTick = (args: {
           }
           const nx = -dy / len
           const ny = dx / len
-          const offset = labelFontSize * 0.9
-          const x = mx + nx * offset
-          const y = my + ny * offset
+          const text = el.textContent ?? ''
+          const charW = estimateLabelCharWidthPx(labelFontSize)
+          const labelHalfW = Math.max(2, (String(text).length * charW) / 2)
+          const labelHalfH = Math.max(2, labelFontSize * 0.6)
+          const srcExt = getNodeAabbHalfExtentsWithLabel(srcNode, schema)
+          const tgtExt = getNodeAabbHalfExtentsWithLabel(tgtNode, schema)
+
+          const overlapsEndpoint = (x: number, y: number) => {
+            const os =
+              Math.abs(x - sx) < srcExt.halfW + labelHalfW && Math.abs(y - sy) < srcExt.halfH + labelHalfH
+            const ot =
+              Math.abs(x - tx) < tgtExt.halfW + labelHalfW && Math.abs(y - ty) < tgtExt.halfH + labelHalfH
+            return os || ot
+          }
+
+          let x = mx + nx * (labelFontSize * 0.9)
+          let y = my + ny * (labelFontSize * 0.9)
+          let found = !overlapsEndpoint(x, y)
+          if (!found) {
+            for (let attempt = 1; attempt <= 4; attempt += 1) {
+              const off = labelFontSize * (0.9 + attempt * 0.9)
+              const x1 = mx + nx * off
+              const y1 = my + ny * off
+              if (!overlapsEndpoint(x1, y1)) {
+                x = x1
+                y = y1
+                found = true
+                break
+              }
+            }
+          }
+          if (!found) {
+            el.style.display = 'none'
+            return
+          }
+
           const sx2 = t.applyX(x)
           const sy2 = t.applyY(y)
           const farPad = 240

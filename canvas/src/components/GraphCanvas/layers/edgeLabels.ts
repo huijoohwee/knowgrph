@@ -3,7 +3,7 @@ import type { GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
-import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
+import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -34,35 +34,19 @@ export const createEdgeLabelsLayer = (args: {
     .attr('data-kg-edge-label', '1')
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'middle')
-    .attr('font-size', Math.max(9, fontSize * 0.9))
-    .attr('fill', schema.labelStyles?.color ?? '#111')
     .style('user-select', 'none')
     .style('pointer-events', 'all')
-    .style('cursor', 'pointer')
     .text(d => truncateTextWithEllipsis(String(d.label || ''), maxChars))
     .each(function (d) {
       this.setAttribute('data-label-full', String(d.label || ''))
     })
-    .on('click', (event: MouseEvent, d: GraphEdge) => {
-      event.stopPropagation()
-      setSelectionSource('canvas')
-      selectEdge(String(d.id))
-    })
-    .on('mouseover', (event: MouseEvent, d: GraphEdge) => {
-      if (!hoverEnabled) return
-      setHoverInfo(() => ({ kind: 'edge', id: String(d.id), clientX: event.clientX, clientY: event.clientY }))
-    })
-    .on('mousemove', (event: MouseEvent, d: GraphEdge) => {
-      if (!hoverEnabled) return
-      setHoverInfo(() => ({ kind: 'edge', id: String(d.id), clientX: event.clientX, clientY: event.clientY }))
-    })
-    .on('mouseout', (event: MouseEvent, d: GraphEdge) => {
-      if (!hoverEnabled) return
-      const rt = (event as unknown as { relatedTarget?: unknown }).relatedTarget
-      if (isTooltipRelatedTarget(rt)) return
-      const id = String(d.id)
-      setHoverInfo(prev => (prev && prev.kind === 'edge' && prev.id === id ? null : prev))
-    })
+
+  attachEdgeInteractionHandlers(labelSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>, {
+    hoverEnabled,
+    setHoverInfo,
+    setSelectionSource,
+    selectEdge,
+  })
 
   return labelSel
 }

@@ -45,6 +45,7 @@
   --kg-canvas-bg: var(--app-bg);
   --kg-canvas-node-stroke: #ffffff;
   --kg-canvas-edge-stroke: #9ca3af;
+  --kg-canvas-accent: #3b82f6;
   --kg-canvas-label-halo: var(--app-bg);
   --kg-canvas-label-fill: #111827;
   --kg-media-panel-header-bg: #f9fafb;
@@ -79,6 +80,7 @@
   --kg-code-text: #e2e8f0;
   --kg-canvas-node-stroke: #0b1220;
   --kg-canvas-edge-stroke: #4b5563;
+  --kg-canvas-accent: #60a5fa;
   --kg-canvas-label-fill: #e5e7eb;
   --kg-media-panel-header-bg: rgba(11, 18, 32, 0.75);
   --kg-statusbar-bg: rgba(11, 18, 32, 0.85);

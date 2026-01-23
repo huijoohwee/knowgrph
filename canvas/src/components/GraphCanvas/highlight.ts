@@ -1,7 +1,8 @@
 import { Selection } from 'd3-selection';
 import { GraphNode, GraphEdge, GraphData, type SelectionAnchorIds } from '@/lib/graph/types';
 import { GraphSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
-import { getAdjacencyMap, getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation';
+import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'
+import { getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation';
 import { getEdgeBaseStroke, getLayerOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 import { UI_THEME_COLORS_CSS, type ThemeColors } from '@/lib/ui/theme-tokens';
 

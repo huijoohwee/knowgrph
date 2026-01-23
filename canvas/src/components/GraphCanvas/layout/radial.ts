@@ -1,9 +1,8 @@
 import * as d3 from 'd3'
 import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
-import {
-  getAdjacencyMap,
-} from '../simulation'
+import { getAdjacencyMap } from '../adjacency'
+import { createBboxCollideForce } from './overlap'
 
 type RadialClusterNode = {
   id: string
@@ -95,5 +94,23 @@ export const applyRadialClusterLayout = (
     if (!p) continue
     node.x = p.x
     node.y = p.y
+  }
+
+  const relaxSteps = 6
+  if (relaxSteps <= 0) return
+  const force = createBboxCollideForce({ schema, padding: 6, strength: 0.75, iterations: 1 })
+  force.initialize(nodes, Math.random)
+  const applyForce = force as unknown as (alpha: number) => void
+  for (let step = 0; step < relaxSteps; step += 1) {
+    applyForce(0.9 - step * 0.1)
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const vx = typeof n.vx === 'number' && Number.isFinite(n.vx) ? n.vx : 0
+      const vy = typeof n.vy === 'number' && Number.isFinite(n.vy) ? n.vy : 0
+      n.x = (typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0) + vx
+      n.y = (typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : 0) + vy
+      n.vx = vx * 0.25
+      n.vy = vy * 0.25
+    }
   }
 }

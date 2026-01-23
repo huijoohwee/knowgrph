@@ -6,6 +6,7 @@ import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { getNodeMediaSpec, getLayerOpacity, getNodeBaseFill, getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
+import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { applyMediaProxySrc } from '@/lib/url'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { NodeSelectionState, SelectionVisuals } from './selection'
@@ -188,6 +189,19 @@ export function NodeMesh({
   const isSelectedNode = selection.isSelected
   const emissiveColor = isSelectedNode ? visuals.selectedEdgeColor : '#000000'
   const emissiveIntensity = isSelectedNode ? visuals.selectedNodeGlowIntensity : 0
+  const renderShape = getNodeRenderShape2d(node, schema)
+  const rectDims = renderShape === 'circle' ? null : getNodeRectDimensions2d(node, schema)
+  const depth = Math.max(2, radius * 0.85)
+  const boxW = rectDims ? Math.max(2, rectDims.width) : Math.max(2, radius * 2)
+  const boxH = rectDims ? Math.max(2, rectDims.height) : Math.max(2, radius * 2)
+  const hexR = Math.max(2, Math.min(boxW, boxH) / 2)
+  const mediaOffsetZ = renderShape === 'circle' ? radius + 0.1 : depth / 2 + 0.1
+  const meshRotation: [number, number, number] =
+    renderShape === 'hex'
+      ? [Math.PI / 2, 0, 0]
+      : renderShape === 'diamond'
+        ? [0, 0, Math.PI / 4]
+        : [0, 0, 0]
   useFrame(() => {
     if (paused) return
     if (!sphereRef.current) return
@@ -227,6 +241,7 @@ export function NodeMesh({
     <group>
       <mesh
         ref={sphereRef}
+        rotation={meshRotation}
         onClick={() => onClick(node.id)}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           hoveredRef.current = true
@@ -244,7 +259,13 @@ export function NodeMesh({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <sphereGeometry args={[radius, 32, 32]} />
+        {renderShape === 'circle' ? (
+          <sphereGeometry args={[radius, 32, 32]} />
+        ) : renderShape === 'hex' ? (
+          <cylinderGeometry args={[hexR, hexR, depth, 6]} />
+        ) : (
+          <boxGeometry args={[boxW, boxH, depth]} />
+        )}
         <meshLambertMaterial
           color={displayColor}
           transparent
@@ -257,7 +278,7 @@ export function NodeMesh({
             url={imageUrl}
             size={radius * 1.5}
             opacity={displayOpacity}
-            offsetZ={radius + 0.1}
+            offsetZ={mediaOffsetZ}
           />
         )}
       </mesh>

@@ -124,7 +124,13 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
   }
 
   // Helper to get or create a node
-  const getOrCreateNode = (name: string, label: string | null, lineIndex: number, className?: string): string => {
+  const getOrCreateNode = (
+    name: string,
+    label: string | null,
+    lineIndex: number,
+    className?: string,
+    shape?: string | null,
+  ): string => {
     const safeName = name.trim()
     if (!safeName) return ''
     
@@ -162,6 +168,12 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       mermaidScope: scope,
       ...(isFrontmatter ? { isMermaidFrontmatter: true } : {}),
       ...(diagramId ? { mermaidDiagramId: diagramId } : {}),
+    }
+    if (shape && typeof shape === 'string') {
+      const v = shape.trim().toLowerCase()
+      if (v === 'circle' || v === 'rect' || v === 'diamond' || v === 'hex') {
+        nodeProps['visual:shape'] = v
+      }
     }
 
     if (currentSubgraph) {
@@ -304,7 +316,9 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
     // --- Nodes & Edges ---
     // Helper to parse a potential node string
-    const parseNodeString = (str: string): { name: string; label: string | null; className?: string } | null => {
+    const parseNodeString = (
+      str: string,
+    ): { name: string; label: string | null; className?: string; shape?: string | null } | null => {
       const s = str.trim()
       if (!s) return null
       
@@ -319,69 +333,69 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
         cleanStr = s.substring(0, classMatch.index).trim()
       }
 
-      const finish = (n: string, l: string | null) => ({ name: n, label: l, className })
+      const finish = (n: string, l: string | null, shape?: string | null) => ({ name: n, label: l, className, shape })
 
       // Subroutine: id[[label]]
       m = /^([A-Za-z0-9_.]+)\s*\[\[([^\]]+)\]\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
 
       // Cylinder: id[(label)]
       m = /^([A-Za-z0-9_.]+)\s*\[\(([^)]+)\)\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
 
       // Circle: id((label))
       m = /^([A-Za-z0-9_.]+)\s*\(\(([^)]+)\)\)$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'circle')
 
       // Stadium / Pill: id([label])
       m = /^([A-Za-z0-9_.]+)\s*\(\[([^\]]+)\]\)$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
 
       // Asymmetric: id>label]
       m = /^([A-Za-z0-9_.]+)\s*>\s*([^\]]+)\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
 
       // Hexagon: id{{label}}
       m = /^([A-Za-z0-9_.]+)\s*\{\{([^}]+)\}\}$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'hex')
 
       // Parallelogram: id[/label/]
       m = /^([A-Za-z0-9_.]+)\s*\[\/([^/]+)\/\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
 
       // Parallelogram alt: id[\label\]
       m = /^([A-Za-z0-9_.]+)\s*\[\\([^\\]+)\\\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
 
       // Trapezoid: id[/label\]
       m = /^([A-Za-z0-9_.]+)\s*\[\/([^\]]+)\\\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
 
       // Trapezoid alt: id[\label/]
       m = /^([A-Za-z0-9_.]+)\s*\[\\([^/]+)\/\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
       
       // Double Circle: id(((label)))
       m = /^([A-Za-z0-9_.]+)\s*\(\(\(([^)]+)\)\)\)$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'circle')
 
       // Standard Box: id["label"]
       m = /^([A-Za-z0-9_.]+)\s*\["(.+)"\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2]) 
+      if (m) return finish(m[1], m[2], 'rect') 
       
       // Standard Box: id[label]
       m = /^([A-Za-z0-9_.]+)\s*\[([^\]]+)\]$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
 
       // Round Box: id(label)
       m = /^([A-Za-z0-9_.]+)\s*\(([^)]+)\)$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'rect')
       
       // Rhombus: id{label}
       m = /^([A-Za-z0-9_.]+)\s*\{([^}]+)\}$/.exec(cleanStr)
-      if (m) return finish(m[1], m[2])
+      if (m) return finish(m[1], m[2], 'diamond')
       
-      if (/^[A-Za-z0-9_.]+$/.test(cleanStr)) return finish(cleanStr, null)
+      if (/^[A-Za-z0-9_.]+$/.test(cleanStr)) return finish(cleanStr, null, null)
       
       return null
     }
@@ -419,14 +433,14 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     if (parts.length === 1) {
       const nodeDef = parseNodeString(parts[0])
       if (nodeDef) {
-        getOrCreateNode(nodeDef.name, nodeDef.label, i, nodeDef.className)
+        getOrCreateNode(nodeDef.name, nodeDef.label, i, nodeDef.className, nodeDef.shape)
       }
     } else {
       let currentSrcName: string | null = null
       
       const n0 = parseNodeString(parts[0])
       if (n0) {
-        getOrCreateNode(n0.name, n0.label, i, n0.className)
+        getOrCreateNode(n0.name, n0.label, i, n0.className, n0.shape)
         currentSrcName = n0.name
       }
       
@@ -438,7 +452,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
         const nNext = parseNodeString(nextNodeStr)
         if (nNext && currentSrcName) {
-           getOrCreateNode(nNext.name, nNext.label, i, nNext.className)
+           getOrCreateNode(nNext.name, nNext.label, i, nNext.className, nNext.shape)
            
            const srcId = mermaidNodeIdsByName.get(currentSrcName)
            const tgtId = mermaidNodeIdsByName.get(nNext.name)

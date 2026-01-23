@@ -17,37 +17,39 @@ venue: "Example City"
 institution: "Example Research Group"
 url: "https://example.invalid"
 mermaid: |
-  graph TB
-    subgraph S1["Phase 1: Input"]
-      S1_A[Source A]
-      S1_B[Source B]
-      S1_Port[Aggregator]
+  flowchart TB
+    %% Multi-shape node demo (Mermaid Flowchart syntax)
+    %% Circle: (( )), Rect: [ ], Diamond: { }, Hex: {{ }}
+    subgraph S1["Phase 1: Input (multi-shape)"]
+      S1_A([Source A])
+      S1_B([Source B])
+      S1_Port[(Aggregator DB)]
       S1_A --> S1_Port
       S1_B --> S1_Port
     end
-    subgraph S2["Phase 2A: Processing"]
-      S2_In[Ingest A]
-      S2_Proc[Work A]
-      S2_Out[Result A]
-      S2_In --> S2_Proc --> S2_Out
+    subgraph S2["Phase 2: Transform (diamond + hex)"]
+      S2_Decide{Validate?}
+      S2_Model{{Feature Extract}}
+      S2_Join[Join]
+      S2_Decide -->|yes| S2_Model --> S2_Join
+      S2_Decide -->|no| S2_Join
     end
-    subgraph S3["Phase 2B: Analysis"]
-      S3_In[Ingest B]
-      S3_Proc[Work B]
-      S3_Out[Result B]
-      S3_In --> S3_Proc --> S3_Out
+    subgraph S3["Phase 3: Report (circle)"]
+      S3_Start((Start))
+      S3_Render[Render 2D/3D]
+      S3_End((END))
+      S3_Start --> S3_Render --> S3_End
     end
-    subgraph S4["Phase 3: Output"]
-      S4_In[Finalize]
-      S4_D1[Dest 1]
-      S4_D2[Dest 2]
-      S4_In --> S4_D1
-      S4_In --> S4_D2
+    subgraph S4["Phase 4: Output (mix)"]
+      S4_Pub[/Publish/]
+      S4_Store[(Store)]
+      S4_Alert{{Alert}}
+      S4_Pub --> S4_Store
+      S4_Store --> S4_Alert
     end
-    S1_Port --> S2_In
-    S1_Port --> S3_In
-    S2_Out --> S4_In
-    S3_Out --> S4_In
+    S1_Port --> S2_Decide
+    S2_Join --> S3_Render
+    S3_End --> S4_Pub
 ---
 
 # Markdown Slide Styling Guidelines
@@ -88,6 +90,10 @@ mermaid: |
 - `url`: Link to paper or project
 - `theme`: Theme style (e.g., `default`, `academic`)
 - `mermaid`: Global mermaid diagram definition (string)
+
+### Node Shapes Demo (Mermaid + Canvas)
+
+The diagram in this file intentionally uses Mermaid flowchart shape syntax (diamond `{}` and hexagon `{{}}`) to exercise the Canvas node-shape pipeline in both 2D and 3D renderers.
 
 ### Mermaid Render Ordering (schema-driven)
 
@@ -138,4 +144,3 @@ Mermaid syntax does not specify z-order rules beyond draw order. For determinist
 - `<v-click>` blocks are treated as slide fragments.
 - `at="N"` sets the explicit fragment index for ordering.
 - When presentation mode is enabled and fragments are configured, fragments appear as the presenter advances steps.
-

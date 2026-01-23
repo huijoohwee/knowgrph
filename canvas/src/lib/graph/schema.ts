@@ -239,6 +239,10 @@ export const defaultSchema: GraphSchema = {
 export function getNodeRadiusFromSchema(node: GraphNode, schema: GraphSchema): number {
   const nodeSizes = schema.nodeSizes || {};
   const properties = node.properties || {};
+  const rawSize = properties['visual:nodeSize'];
+  if (typeof rawSize === 'number' && Number.isFinite(rawSize) && rawSize > 0) {
+    return rawSize;
+  }
   const sizingFormula = schema.three?.nodeSizingFormula || 'schema';
   if (sizingFormula === 'importance') {
     const importance = properties['visual:importance'];
@@ -252,13 +256,22 @@ export function getNodeRadiusFromSchema(node: GraphNode, schema: GraphSchema): n
       }
     }
   }
-  const rawSize = properties['visual:nodeSize'];
-  if (typeof rawSize === 'number' && Number.isFinite(rawSize) && rawSize > 0) {
-    return rawSize;
-  }
   const fallbackRadius = nodeSizes[node.type]?.radius;
   if (typeof fallbackRadius === 'number' && Number.isFinite(fallbackRadius) && fallbackRadius > 0) {
     return fallbackRadius;
   }
   return 10;
+}
+
+function getKeywordNodeSizeScale(schema: GraphSchema): number {
+  const v = schema.three?.keywordNodeSizeScale
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 1
+  return Math.max(0.2, Math.min(5, v))
+}
+
+export function getNodeRenderRadius(node: GraphNode, schema: GraphSchema): number {
+  const props = (node.properties || {}) as Record<string, unknown>
+  const kind = props ? props['keyword:kind'] : undefined
+  const scale = typeof kind === 'string' && kind.trim() !== '' ? getKeywordNodeSizeScale(schema) : 1
+  return getNodeRadiusFromSchema(node, schema) * scale
 }

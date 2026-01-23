@@ -54,9 +54,17 @@ export function useToolbarActions(
   const handleToggleNodeShapeMode = useCallback(() => {
     const current = schema
     const behavior = current.behavior
-    const cur = behavior.nodeShapeMode === 'rect' ? 'rect' : 'circle'
-    const nextMode: NonNullable<NonNullable<GraphSchema['behavior']>['nodeShapeMode']> =
-      cur === 'rect' ? 'circle' : 'rect'
+    const rawCur = behavior.nodeShapeMode
+    const cur: NonNullable<NonNullable<GraphSchema['behavior']>['nodeShapeMode']> =
+      rawCur === 'rect' || rawCur === 'diamond' || rawCur === 'hex' ? rawCur : 'circle'
+    const order: ReadonlyArray<NonNullable<NonNullable<GraphSchema['behavior']>['nodeShapeMode']>> = [
+      'circle',
+      'rect',
+      'diamond',
+      'hex',
+    ]
+    const idx = order.indexOf(cur)
+    const nextMode = order[(idx >= 0 ? idx + 1 : 0) % order.length]
     const next = {
       ...current,
       behavior: {

@@ -4,16 +4,16 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
-import { MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { buildClosedPathD, computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { getMarkdownBodyFontSizePx, getMarkdownHeadingFontSizePx } from '@/features/markdown/ui/markdownTypography'
 import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandles'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
-import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis } from '@/components/GraphCanvas/layout/utils'
+import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 import { isDisplayNode } from '@/components/GraphCanvas/displayFilter'
 import { collapsedGroupNodeIdFor } from '@/components/GraphCanvas/viewDerivation'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
+import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
 
 type GroupDatum = GraphGroup
 
@@ -95,17 +95,18 @@ export const createGroupsLayer = (args: {
   const baseFontSize = schema.labelStyles?.fontSize ?? 12
   const portCfg = getPortHandlesConfig(schema)
   const portExtra = portCfg.enabled ? Math.max(0, portCfg.offset + portCfg.size + portCfg.strokeWidth) : 0
+  const themeEdgeStroke = UI_THEME_COLORS_CSS.edgeStroke
 
   rectSel
     .attr('stroke-width', strokeWidth)
-    .attr('stroke', d => d.style.stroke ?? MVP_COLOR_PALETTE.edges.neutral)
-    .attr('fill', d => d.style.fill ?? MVP_COLOR_PALETTE.edges.neutral)
+    .attr('stroke', d => d.style.stroke ?? themeEdgeStroke)
+    .attr('fill', d => d.style.fill ?? themeEdgeStroke)
     .attr('fill-opacity', fillOpacity)
 
   geoSel
     .attr('stroke-width', strokeWidth)
-    .attr('stroke', d => d.style.stroke ?? MVP_COLOR_PALETTE.edges.neutral)
-    .attr('fill', d => d.style.fill ?? MVP_COLOR_PALETTE.edges.neutral)
+    .attr('stroke', d => d.style.stroke ?? themeEdgeStroke)
+    .attr('fill', d => d.style.fill ?? themeEdgeStroke)
     .attr('fill-opacity', fillOpacity)
 
   const getGroupLabelFontSizePx = (d: GroupDatum): number => {
@@ -119,6 +120,14 @@ export const createGroupsLayer = (args: {
     return Math.max(baseFontSize, Math.max(fallback, clamped))
   }
 
+  const computeGroupLabelText = (d: GroupDatum) => {
+    const full = String(d.label || '')
+    const fontSize = getGroupLabelFontSizePx(d)
+    const maxChars = Math.max(8, Math.min(120, estimateMaxCharsForWidthPx(260, fontSize)))
+    const wordLimited = truncateTextWithWordEllipsis(full, 24)
+    return { full, fontSize, visible: truncateTextWithEllipsis(wordLimited, maxChars) }
+  }
+
   const labelSel = labelsLayer
     .selectAll<SVGTextElement, GroupDatum>('text')
     .data(groups, d => d.id)
@@ -127,22 +136,13 @@ export const createGroupsLayer = (args: {
     .attr('data-kg-group-id', d => d.id)
     .each(function (d) {
       const el = this as unknown as SVGTextElement
-      const full = String(d.label || '')
-      el.setAttribute('data-label-full', full)
-      const isHeading = headingLevelByGroupId.has(String(d.id))
-      const fontSize = getGroupLabelFontSizePx(d)
-      const maxChars = Math.max(8, Math.min(80, estimateMaxCharsForWidthPx(220, fontSize)))
-      if (isHeading) {
-        el.textContent = full
-        return
-      }
-      const wordLimited = truncateTextWithWordEllipsis(full, 20)
-      el.textContent = truncateTextWithEllipsis(wordLimited, maxChars)
+      const t = computeGroupLabelText(d)
+      el.setAttribute('data-label-full', t.full)
+      el.textContent = t.visible
     })
     .style('user-select', 'none')
     .style('pointer-events', 'all')
     .style('cursor', 'pointer')
-    .attr('fill', schema.labelStyles?.color ?? '#111111')
     .attr('text-anchor', 'start')
     .attr('dominant-baseline', 'hanging')
     .style('font-size', d => {
@@ -164,7 +164,7 @@ export const createGroupsLayer = (args: {
     .attr('data-kg-group-chevron', '1')
     .attr('data-kg-group-id', d => d.id)
     .attr('fill', 'none')
-    .attr('stroke', schema.labelStyles?.color ?? '#111111')
+    .attr('stroke', schema.labelStyles?.color ?? UI_THEME_COLORS_CSS.labelFill)
     .attr('stroke-width', 1.75)
     .attr('stroke-linecap', 'round')
     .attr('stroke-linejoin', 'round')
@@ -356,16 +356,19 @@ export const createGroupsLayer = (args: {
     if (valid === 0 || minX === Infinity) {
       return { x: 0, y: 0, w: 0, h: 0, labelX: 0, labelY: 0, chevronCx: 0, chevronCy: 0, d: null }
     }
-    const fontSize = getGroupLabelFontSizePx(d)
+    const labelText = computeGroupLabelText(d)
+    const fontSize = labelText.fontSize
     const topPad = padding + labelPadding + fontSize * 1.25
     const x = minX - padding
     const y = minY - topPad
-    const w = Math.max(1, maxX - minX + padding * 2)
+    const w0 = Math.max(1, maxX - minX + padding * 2)
     const h = Math.max(1, maxY - minY + padding + topPad)
     const chevronCx = x + labelPadding + chevronSizePx * 0.5
     const chevronCy = y + labelPadding + fontSize * 0.55
     const labelX = x + labelPadding + chevronSizePx + chevronGapPx
     const labelY = y + labelPadding
+    const labelWidth = Math.min(800, Math.max(0, labelText.visible.length) * estimateLabelCharWidthPx(fontSize))
+    const w = Math.max(w0, labelX - x + labelWidth + labelPadding)
 
     if (shape === 'geo') {
       const ring = computeConvexRing(geoPoints)

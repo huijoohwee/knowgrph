@@ -103,7 +103,7 @@ export const UI_COPY = {
   frontmatterModeTooltip: 'Frontmatter Mode: focus canvas and panels on Mermaid frontmatter graph',
   frontmatterModeToggleTooltip: 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph',
   mermaidLayoutTooltip: 'Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout.',
-  nodeShapeModeTooltip: 'Node Shape: toggle between circle (default) and rectangular nodes.',
+  nodeShapeModeTooltip: 'Node Shape: cycle between circle (default), rect, diamond, and hex nodes.',
   groupShapeRectTooltip: 'Cluster Shape: switch to Polygon shape.',
   groupShapePolygonTooltip: 'Cluster Shape: switch to Rect shape.',
   documentStructureModeTooltip: 'Document Structure Mode (default): render document sections/blocks/links as graph.',

@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import { GraphNode } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
-import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, wrapTextByMaxChars } from '@/components/GraphCanvas/layout/utils'
+import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
 
 export const fitNodeTransform = (n: GraphNode, width: number, height: number) => {
   const s = 1.5;
@@ -146,7 +146,7 @@ export const fitAllTransform = (
         if (typeof vh === 'number' && Number.isFinite(vh) && vh > 0) halfH = (vh / 2) + nodePadding;
     }
     if (schema && (!props || (typeof props['visual:width'] !== 'number' && typeof props['visual:height'] !== 'number'))) {
-      if (getNodeRenderShape2d(n, schema) === 'rect') {
+      if (getNodeRenderShape2d(n, schema) !== 'circle') {
         const { width: rw, height: rh } = getNodeRectDimensions2d(n, schema)
         halfW = (rw / 2) + nodePadding
         halfH = (rh / 2) + nodePadding
@@ -154,37 +154,9 @@ export const fitAllTransform = (
     }
 
     if (schema) {
-      const fontSize = (() => {
-        const raw = schema.labelStyles?.fontSize
-        if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
-        return 12
-      })()
-      const dx = (() => {
-        const raw = schema.labelStyles?.offset?.dx
-        if (typeof raw === 'number' && Number.isFinite(raw)) return raw
-        return 12
-      })()
-      const dy = (() => {
-        const raw = schema.labelStyles?.offset?.dy
-        if (typeof raw === 'number' && Number.isFinite(raw)) return raw
-        return 4
-      })()
-      const rawLabel = String(n.label || n.id || '')
-      const maxChars = Math.max(8, Math.min(34, estimateMaxCharsForWidthPx(180, fontSize)))
-      const wrapped = wrapTextByMaxChars(rawLabel, maxChars)
-      const lines = String(wrapped).replace(/\r\n?/g, '\n').split('\n')
-      const lineCount = Math.max(1, Math.min(6, lines.length))
-      let maxLen = 0
-      for (let j = 0; j < lines.length; j += 1) {
-        const len = lines[j].length
-        if (len > maxLen) maxLen = len
-      }
-      const charW = estimateLabelCharWidthPx(fontSize)
-      const lineH = Math.max(fontSize + 2, fontSize * 1.2)
-      const labelW = Math.min(600, maxLen * charW)
-      const labelH = Math.min(400, lineCount * lineH)
-      halfW = Math.max(halfW, Math.abs(dx) + labelW / 2 + nodePadding)
-      halfH = Math.max(halfH, Math.abs(dy) + labelH / 2 + nodePadding)
+      const withLabel = estimateNodeLabelAabbHalfExtents2d(n, schema, { halfW, halfH })
+      halfW = withLabel.halfW
+      halfH = withLabel.halfH
     }
     
     if (x - halfW < minX) minX = x - halfW;

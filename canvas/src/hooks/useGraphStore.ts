@@ -40,7 +40,11 @@ const applyCanvasDefaultInitSchema = (schema: GraphSchema): GraphSchema => {
   const portHandles = behavior.portHandles
     ? { ...behavior.portHandles }
     : { enabled: false, placement: 'cardinal' as const, size: 4, offset: 2, strokeWidth: 1.5 }
-  const nodeShapeMode: 'circle' | 'rect' = behavior.nodeShapeMode === 'rect' ? 'rect' : 'circle'
+  const rawNodeShapeMode = behavior.nodeShapeMode
+  const nodeShapeMode: NonNullable<GraphSchema['behavior']>['nodeShapeMode'] =
+    rawNodeShapeMode === 'rect' || rawNodeShapeMode === 'diamond' || rawNodeShapeMode === 'hex'
+      ? rawNodeShapeMode
+      : 'circle'
   const nextBehavior = { ...behavior, nodeShapeMode, portHandles }
   const nextLayout = { ...(schema.layout || {}), mode: 'force' as const }
   return { ...schema, behavior: nextBehavior, layout: nextLayout }

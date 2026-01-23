@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, FileText, Tags } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -85,7 +85,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false);
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
-  const nodeShapeMode = schema.behavior?.nodeShapeMode === 'rect' ? 'rect' : 'circle'
+  const rawNodeShapeMode = schema.behavior?.nodeShapeMode
+  const nodeShapeMode =
+    rawNodeShapeMode === 'rect' || rawNodeShapeMode === 'diamond' || rawNodeShapeMode === 'hex'
+      ? rawNodeShapeMode
+      : 'circle'
   const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'polygon' : 'rect'
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode || 'document')
   const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
@@ -167,7 +171,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
-          nodeShapeMode === 'rect' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+          nodeShapeMode !== 'circle' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
         title={UI_LABELS.nodeShapeMode}
         tooltipContent={UI_COPY.nodeShapeModeTooltip}
@@ -176,6 +180,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         {nodeShapeMode === 'rect' ? (
           <Square className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        ) : nodeShapeMode === 'diamond' ? (
+          <Diamond className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        ) : nodeShapeMode === 'hex' ? (
+          <Hexagon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
         ) : (
           <Circle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
         )}

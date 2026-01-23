@@ -1,5 +1,5 @@
 import { GraphNode, GraphEdge } from '@/lib/graph/types'
-import { GraphSchema, getNodeRadiusFromSchema } from '@/lib/graph/schema'
+import { GraphSchema, getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 
 export type DisjointComponentTargets = {
@@ -80,7 +80,7 @@ export const computeDisjointComponentTargets = (args: {
       const n = nodes[i]
       if (String(n.type || '') === 'MermaidSubgraph') continue
       const extents = getNodeHalfExtents2d(n, schema)
-      const base = Math.max(extents.halfW, extents.halfH, getNodeRadiusFromSchema(n, schema) || 20)
+      const base = Math.max(extents.halfW, extents.halfH, getNodeRenderRadius(n, schema) || 20)
       if (Number.isFinite(base)) {
         sum += base
         count += 1
@@ -153,4 +153,3 @@ export const computeDisjointComponentTargets = (args: {
 
   return { componentByNodeId, targetsByComponent }
 }
-

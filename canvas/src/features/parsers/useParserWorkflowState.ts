@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import { listParsers, registerParser, bestMatch, builtInParsers, readCustomParsers } from '@/features/parsers'
+import { listParsers, registerParser, bestMatch, readCustomParsers } from '@/features/parsers'
 import type { ParserSpec } from '@/features/parsers'
 import { toParserSpec } from '@/features/parsers'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parserSpecTextFromList } from '@/features/parsers/specFormat'
+import { ensureBuiltInParsersRegistered } from '@/features/parsers/ensure'
 import {
   loadGraphDataViaParser,
   loadGraphDataFromBackendViaParser,
@@ -87,7 +88,7 @@ export function useParserWorkflowState() {
   }, [setParsersCollapsed])
 
   useEffect(() => {
-    builtInParsers.forEach(p => registerParser(p))
+    ensureBuiltInParsersRegistered()
     setParsers(listParsers())
   }, [])
 

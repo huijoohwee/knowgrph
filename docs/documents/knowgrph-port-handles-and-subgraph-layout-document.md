@@ -14,9 +14,9 @@
 - Toolbar toggle switches node rendering between circle (default) and rectangular shapes.
 - This is schema-driven (`behavior.nodeShapeMode`) and triggers a simulation update to adjust collision boundaries, preventing drift/overlap.
 - Node labels remain anchored to node positions across toggles (multi-line labels do not override the parent text anchor).
-- Rich Media panels (images/video/iframe) are sized consistently with Rect Nodes (using the same ~5.0x minimap ratio) to prevent disproportionate scaling.
+- Rich Media panels (images/video/iframe) use media-specific sizing (decoupled from rect node sizing) to prevent cross-feature coupling.
 - Label viewport adjustment is bounded and only applies near the viewport to prevent “fly-away” offsets when nodes are far offscreen.
-- Node/group labels with more than 20 words (excluding markdown heading layers `hn`) are clamped (ellipsis) in-canvas and expanded via the shared hover tooltip on hover. Labels are interactive (hover/click) even when truncated.
+- Node/group labels with more than 20 words are clamped (ellipsis) in-canvas and expanded via the shared hover tooltip on hover. Labels are interactive (hover/click) even when truncated.
 
 ## Frontmatter Mode
 
@@ -47,17 +47,18 @@
 - Double-click group label: selects the group plus its member nodes and member-to-member edges.
 - Drag group label: drags the entire group by moving all member nodes together.
 - Group label positioning uses per-group font sizing and top-left anchoring inside the group container.
-- Group labels with more than 20 words (excluding markdown heading layers `hn`) are clamped (ellipsis) in-canvas and expanded via the shared hover tooltip on hover.
+- Group labels with more than 20 words are clamped (ellipsis) in-canvas and expanded via the shared hover tooltip on hover.
 
 ## Performance
 
 - Presentation toggles update layers in place; schema dependency keys are narrowed to leaf fields to avoid unrelated schema edits triggering a full scene rebuild.
 - Radial layout is structured; entering radial recomputes its layout unless a valid radial cache exists, preventing cross-mode cache contamination.
+- Radial layout applies a bounded post-relaxation pass using the existing bbox-collide force to reduce overlaps without starting an indefinite simulation.
 - Group and edge labels follow the same zoom LOD hide threshold as node labels to reduce clutter when zoomed out.
 
 ## Markdown Heading Layers
 
 - Markdown headings (`Section` nodes with `properties.level`) are rendered as nested graph layers (H2 inside H1, H3 inside H2, etc).
 - Heading layers are visual-only containers: heading nodes are not rendered as normal nodes on the canvas.
-- Heading layer labels never ellipsize (no truncation); hover tooltip still exposes the full text consistently.
+- Heading layer labels ellipsize to avoid overflow and visual overlap; hover tooltip still exposes the full text consistently.
 - Membership is derived from existing document structure edges (`hasSection`, `hasBlock`, `hasItem`, `embedsImage`) to avoid duplicated parsing logic.

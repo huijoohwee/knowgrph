@@ -1,7 +1,9 @@
 import * as d3 from 'd3'
 import { GraphNode, GraphEdge } from '@/lib/graph/types'
-import { GraphSchema, getNodeRadiusFromSchema } from '@/lib/graph/schema'
+import { GraphSchema, getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
+import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 
 export type NodeHalfExtents = { halfW: number; halfH: number }
 
@@ -13,49 +15,10 @@ export const getNodeAabbHalfExtentsWithLabel = (node: GraphNode, schema: GraphSc
   if (cached) return cached
 
   const extents = getNodeHalfExtents2d(node, schema)
-  const labelFontSize = (() => {
-    const raw = schema.labelStyles?.fontSize
-    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
-    return 12
-  })()
-  const labelOffsetDx = (() => {
-    const raw = schema.labelStyles?.offset?.dx
-    if (typeof raw === 'number' && Number.isFinite(raw)) return raw
-    return 12
-  })()
-  const labelOffsetDy = (() => {
-    const raw = schema.labelStyles?.offset?.dy
-    if (typeof raw === 'number' && Number.isFinite(raw)) return raw
-    return 4
-  })()
-  const label = (() => {
-    const props = (node.properties || {}) as Record<string, unknown>
-    const raw = props['visual:label']
-    if (typeof raw === 'string') return raw
-    const base = typeof node.label === 'string' ? node.label : String(node.id || '')
-    return base
-  })()
-  const { labelHalfW, labelHalfH } = (() => {
-    const text = String(label || '').trim()
-    if (!text) return { labelHalfW: 0, labelHalfH: 0 }
-    const linesRaw = text.replace(/\r\n?/g, '\n').split('\n')
-    const lines = linesRaw.map(l => String(l).trimEnd())
-    const lineCount = Math.max(1, Math.min(6, lines.length))
-    let maxLen = 0
-    for (let i = 0; i < lines.length; i += 1) {
-      const len = lines[i].length
-      if (len > maxLen) maxLen = len
-    }
-    const charW = Math.max(4, Math.min(14, labelFontSize * 0.6))
-    const lineH = Math.max(labelFontSize + 2, labelFontSize * 1.2)
-    const w = Math.min(600, maxLen * charW)
-    const h = Math.min(400, lineCount * lineH)
-    const halfW = extents.halfW + Math.abs(labelOffsetDx) + w / 2
-    const halfH = Math.max(extents.halfH, h / 2 + Math.abs(labelOffsetDy))
-    return { labelHalfW: halfW, labelHalfH: halfH }
-  })()
-
-  const result = { halfW: Math.max(extents.halfW, labelHalfW), halfH: Math.max(extents.halfH, labelHalfH) }
+  const portCfg = getPortHandlesConfig(schema)
+  const portExtra = portCfg.enabled ? Math.max(0, portCfg.offset + portCfg.size + portCfg.strokeWidth) : 0
+  const extentsWithPorts = portExtra > 0 ? { halfW: extents.halfW + portExtra, halfH: extents.halfH + portExtra } : extents
+  const result = estimateNodeLabelAabbHalfExtents2d(node, schema, extentsWithPorts)
   extentsCache.set(node, result)
   return result
 }
@@ -64,8 +27,9 @@ export const getNodeCollisionRadius = (node: GraphNode, schema: GraphSchema): nu
   const cached = radiusCache.get(node)
   if (typeof cached === 'number') return cached
   const ext = getNodeAabbHalfExtentsWithLabel(node, schema)
-  const base = Math.max(8, ext.halfW, ext.halfH, getNodeRadiusFromSchema(node, schema) || 20)
-  const r = Math.max(8, base * 1.05 + 8, (getNodeRadiusFromSchema(node, schema) || 20) * 1.25)
+  const baseRadius = getNodeRenderRadius(node, schema) || 20
+  const base = Math.max(8, ext.halfW, ext.halfH, baseRadius)
+  const r = Math.max(8, base * 1.05 + 8, baseRadius * 1.25)
   radiusCache.set(node, r)
   return r
 }

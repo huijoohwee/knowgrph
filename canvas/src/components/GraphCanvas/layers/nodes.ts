@@ -15,6 +15,7 @@ import { applyMediaProxySrc } from '@/lib/url';
 import { MINIMAP_HEIGHT, ZOOM_MAX } from '@/features/minimap/math';
 import { getPortHandlePosition, getPortHandlesConfig, listPortHandlesForNodes, type PortHandleDatum } from '@/components/GraphCanvas/portHandles';
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
+import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d';
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 
@@ -23,7 +24,7 @@ type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
 
 const MEDIA_PANEL_HEADER_AT_MAX_ZOOM = 36;
-const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT = 5.0; // Aligned with Rect Nodes maxZoomMinimapWidthRatio=5.0
+const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT = 5.0;
 const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_COMPACT = 2.5; // Aligned with ~half size
 const MEDIA_PANEL_ASPECT_WIDTH = 16;
 const MEDIA_PANEL_ASPECT_HEIGHT = 9;
@@ -76,10 +77,10 @@ export const createNodesLayer = (args: {
 
   const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
   const nodes = rawNodes;
-  const rectNodeIdSet = new Set<string>();
+  const shapeByNodeId = new Map<string, ReturnType<typeof getNodeRenderShape2d>>();
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i];
-    if (getNodeRenderShape2d(n, schema) === 'rect') rectNodeIdSet.add(String(n.id));
+    shapeByNodeId.set(String(n.id), getNodeRenderShape2d(n, schema));
   }
   const mediaByNodeId = new Map<string, ReturnType<typeof getNodeMediaSpec>>();
   if (renderMediaAsNodes) {
@@ -274,14 +275,11 @@ export const createNodesLayer = (args: {
 
   const nodeLayer = g.append('g').attr('data-kg-layer', 'nodes');
 
-  const rectNodes = nodes.filter(n => {
-    if (renderMediaAsNodes && hasNodeMedia(n)) return false;
-    return rectNodeIdSet.has(String(n.id));
-  });
-  const circleNodes = nodes.filter(n => {
-    if (renderMediaAsNodes && hasNodeMedia(n)) return false;
-    return !rectNodeIdSet.has(String(n.id));
-  });
+  const eligibleNodes = nodes.filter(n => !(renderMediaAsNodes && hasNodeMedia(n)));
+  const circleNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'circle');
+  const rectNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'rect');
+  const diamondNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'diamond');
+  const hexNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'hex');
 
   nodeLayer
     .selectAll('circle')
@@ -314,7 +312,41 @@ export const createNodesLayer = (args: {
         return getNodeRectDimensions2d(d, schema).height
     })
 
-  const node = nodeLayer.selectAll<SVGElement, GraphNode>('circle,rect')
+  nodeLayer
+    .selectAll('path[data-kg-node-shape="diamond"]')
+    .data(diamondNodes)
+    .enter()
+    .append('path')
+    .attr('data-kg-node-shape', 'diamond')
+    .attr('fill', 'transparent')
+    .attr('transform', (d: GraphNode) => {
+      const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0;
+      const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0;
+      return `translate(${x},${y})`;
+    })
+    .attr('d', (d: GraphNode) => {
+      const { width, height } = getNodeRectDimensions2d(d, schema);
+      return buildNodeShapePathD({ shape: 'diamond', width, height });
+    })
+
+  nodeLayer
+    .selectAll('path[data-kg-node-shape="hex"]')
+    .data(hexNodes)
+    .enter()
+    .append('path')
+    .attr('data-kg-node-shape', 'hex')
+    .attr('fill', 'transparent')
+    .attr('transform', (d: GraphNode) => {
+      const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0;
+      const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0;
+      return `translate(${x},${y})`;
+    })
+    .attr('d', (d: GraphNode) => {
+      const { width, height } = getNodeRectDimensions2d(d, schema);
+      return buildNodeShapePathD({ shape: 'hex', width, height });
+    })
+
+  const node = nodeLayer.selectAll<SVGElement, GraphNode>('circle,rect,path[data-kg-node-shape]')
   node
      .attr('fill', (d: GraphNode) => getNodeBaseFill(d, schema))
     .attr('stroke', (d: GraphNode) => {

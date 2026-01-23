@@ -20,6 +20,8 @@
 
 **Design Principles**: Metadata-Driven Defaults | Runtime Configurability | Layout-Layer Separation | Preset Extensibility
 
+**Core modeling note (SSOT)**: Entity (Node) → Relation/Predicate (Edge) → Metadata (Attribute in `properties`/`metadata`) → Cluster (Subgraph/Graph Layer).
+
 ---
 
 ## Example Workflow Schema-Config

@@ -562,32 +562,3 @@ export const buildNeighborIds = (data: { nodes: GraphNode[]; edges: GraphEdge[] 
   }
   return neighborIds;
 };
-
-export const buildAdjacencyMap = (data: GraphLike) => {
-  const map = new Map<string, Set<string>>();
-  data.nodes.forEach((n) => map.set(n.id, new Set<string>()));
-  data.edges.forEach((e) => {
-    const { src, tgt } = getEdgeEndpoints(e as EdgeWithRuntime);
-    const s = src ?? '';
-    const t = tgt ?? '';
-    if (!s || !t) return;
-    if (!map.has(s)) map.set(s, new Set<string>());
-    if (!map.has(t)) map.set(t, new Set<string>());
-    map.get(s)!.add(t);
-    map.get(t)!.add(s);
-  });
-  return map;
-};
-
-const adjCache = new WeakMap<GraphLike, Map<string, Set<string>>>()
-export const getAdjacencyMap = (data: GraphLike) => {
-  const cached = adjCache.get(data)
-  if (cached) return cached
-  const built = buildAdjacencyMap(data)
-  adjCache.set(data, built)
-  return built
-}
-
-export const clearAdjacencyCacheFor = (data: GraphLike) => {
-  try { adjCache.delete(data) } catch (err) { void err }
-}

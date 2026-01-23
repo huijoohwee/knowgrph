@@ -1,5 +1,5 @@
 import { GraphNode } from '@/lib/graph/types'
-import { GraphSchema, getNodeRadiusFromSchema } from '@/lib/graph/schema'
+import { GraphSchema, getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 
 export const applyClusterAwareHeuristicSeedLayout = (args: {
@@ -24,9 +24,9 @@ export const applyClusterAwareHeuristicSeedLayout = (args: {
     const vw = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : 0
     const vh = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : 0
     const fromVisual = Math.max(vw, vh) > 0 ? Math.max(vw, vh) / 2 : 0
-    const fromSchema = getNodeRadiusFromSchema(n, schema) || 20
+    const fromSchema = getNodeRenderRadius(n, schema) || 20
     if (fromVisual > 0) return Math.max(10, fromVisual)
-    if (getNodeRenderShape2d(n, schema) === 'rect') {
+    if (getNodeRenderShape2d(n, schema) !== 'circle') {
       const { width, height } = getNodeRectDimensions2d(n, schema)
       return Math.max(10, Math.max(width, height) / 2)
     }
