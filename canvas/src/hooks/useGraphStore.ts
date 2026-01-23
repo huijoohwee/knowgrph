@@ -134,7 +134,7 @@ export const useGraphStore = create<GraphState>()(
   ...createHistorySlice(set, get),
   ...createUiSlice(set),
   ...createCanvasSlice(set, get),
-  ...createGeospatialOverlaySlice(set),
+  ...createGeospatialOverlaySlice(set, get),
   ...createGeospatialDatasetsSlice(set, get),
   ...createSchemaSlice(set, get),
 })),

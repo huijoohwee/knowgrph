@@ -17,6 +17,13 @@
 - “Fit to data” computes a bounded bbox and updates the overlay camera (no unbounded spatial loops).
 - In 3D render mode, the overlay auto-fits to active geo bounds so the globe doesn’t appear “blank” by default.
 
+### Reliability Notes
+
+- The MapLibre instance is created once per enable-cycle (not on every dataset/graph update) to avoid cancelling in-flight style loads.
+- In React dev StrictMode, effects mount/unmount twice; map creation is deferred to the next tick so the “probe” mount does not trigger aborted style requests.
+- When enabling the overlay, if the persisted opacity is `0` the implementation restores a safe default opacity so the overlay cannot be “enabled but invisible”.
+- Map style load failures are surfaced (console + small overlay banner) instead of silently producing a blank map.
+
 ---
 
 ## User Journey

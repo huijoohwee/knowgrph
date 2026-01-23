@@ -12,7 +12,7 @@ export function testGeospatialOverlayPersistenceHydratesAndWrites() {
   const slice = createGeospatialOverlaySlice((fn) => {
     updates.push(fn({} as never) as unknown as Record<string, unknown>)
     return void 0
-  })
+  }, () => ({ geospatialOverlayOpacity: 0 } as never))
 
   if (slice.geospatialOverlayEnabled !== true) {
     throw new Error('expected geospatialOverlayEnabled to hydrate from localStorage')
@@ -28,4 +28,3 @@ export function testGeospatialOverlayPersistenceHydratesAndWrites() {
     throw new Error('expected set to update store state')
   }
 }
-

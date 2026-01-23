@@ -10,7 +10,6 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { clamp01 } from '@/lib/math/clamp01'
 import {
   applyPreferredStyle,
-  buildBlankStyle,
   colorForDataset,
   computeBoundsFromCollections,
   ensureDatasetLayer,
@@ -37,6 +36,7 @@ export function GeospatialOverlay() {
   const lastStyleUrlRef = React.useRef<string | null>(null)
   const lastAutoFitKeyRef = React.useRef<string | null>(null)
   const targetStyleUrlRef = React.useRef<string>(OPENFREEMAP_STYLE_URL)
+  const mapListenersRef = React.useRef<{ onMapError: (e: unknown) => void; onStyleReady: () => void } | null>(null)
 
   const [styleRevision, setStyleRevision] = React.useState(0)
   const [mapError, setMapError] = React.useState<string | null>(null)
@@ -99,22 +99,30 @@ export function GeospatialOverlay() {
 
     const initialStyleUrl = targetStyleUrlRef.current
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: initialStyleUrl,
-      center: [0, 0],
-      zoom: 1,
-      interactive: false,
-      attributionControl: false,
-      transformRequest: (url) => {
-        const normalized = normalizeGitHubBlobLikeUrl(url) ?? url
-        return { url: normalized }
-      },
-    })
-    mapRef.current = map
-    lastStyleUrlRef.current = initialStyleUrl
+    let cancelled = false
+    let timeoutId: number | null = null
 
-    const onMapError = (e: unknown) => {
+    timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      if (!containerRef.current) return
+      if (mapRef.current) return
+
+      const map = new maplibregl.Map({
+        container: containerRef.current,
+        style: initialStyleUrl,
+        center: [0, 0],
+        zoom: 1,
+        interactive: false,
+        attributionControl: false,
+        transformRequest: (url) => {
+          const normalized = normalizeGitHubBlobLikeUrl(url) ?? url
+          return { url: normalized }
+        },
+      })
+      mapRef.current = map
+      lastStyleUrlRef.current = initialStyleUrl
+
+      const onMapError = (e: unknown) => {
       const extractMessage = (raw: unknown): string => {
         if (raw instanceof Error) return raw.message
         if (typeof raw === 'string') return raw
@@ -126,37 +134,53 @@ export function GeospatialOverlay() {
       const message = extractMessage(payload) || extractMessage(e) || 'Map load error'
       setMapError(prev => prev ?? message)
       console.error('[geospatial] MapLibre error', e)
-    }
-    const onStyleReady = () => setStyleRevision(v => v + 1)
-
-    map.on('error', onMapError)
-    map.on('load', onStyleReady)
-    map.on('style.load', onStyleReady)
-
-    try {
-      if (canvasRenderMode === '3d') {
-        map.setProjection({ type: 'globe' } as never)
-      } else {
-        map.setProjection({ type: 'mercator' } as never)
       }
-    } catch {
-      void 0
-    }
+      const onStyleReady = () => setStyleRevision(v => v + 1)
+
+      mapListenersRef.current = { onMapError, onStyleReady }
+
+      map.on('error', onMapError)
+      map.on('load', onStyleReady)
+      map.on('style.load', onStyleReady)
+
+      try {
+        if (canvasRenderMode === '3d') {
+          map.setProjection({ type: 'globe' } as never)
+        } else {
+          map.setProjection({ type: 'mercator' } as never)
+        }
+      } catch {
+        void 0
+      }
+    }, 0)
 
     return () => {
+      cancelled = true
+      if (timeoutId != null) {
+        try {
+          window.clearTimeout(timeoutId)
+        } catch {
+          void 0
+        }
+      }
       try {
-        map.off('error', onMapError)
-        map.off('load', onStyleReady)
-        map.off('style.load', onStyleReady)
+        const map = mapRef.current
+        const listeners = mapListenersRef.current
+        if (map && listeners) {
+          map.off('error', listeners.onMapError)
+          map.off('load', listeners.onStyleReady)
+          map.off('style.load', listeners.onStyleReady)
+        }
       } catch {
         void 0
       }
       try {
-        map.remove()
+        mapRef.current?.remove()
       } catch {
         void 0
       }
       mapRef.current = null
+      mapListenersRef.current = null
       lastZoomStateRef.current = null
       lastStyleUrlRef.current = null
       lastAutoFitKeyRef.current = null
