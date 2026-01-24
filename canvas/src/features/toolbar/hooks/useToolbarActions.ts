@@ -181,7 +181,12 @@ export function useToolbarActions(
     emitSidePanelOpen({ tab: 'geo', open: true })
     void import('gympgrph')
       .then(m => {
-        m.setGeospatialModeEnabled(true)
+        const enabled = typeof m.isGeospatialModeEnabled === 'function' ? m.isGeospatialModeEnabled() : false
+        if (typeof m.setGeospatialModeEnabled === 'function') {
+          m.setGeospatialModeEnabled(!enabled)
+        } else if (typeof m.toggleGeospatialModeEnabled === 'function') {
+          m.toggleGeospatialModeEnabled()
+        }
       })
       .catch(() => void 0)
   }, [])

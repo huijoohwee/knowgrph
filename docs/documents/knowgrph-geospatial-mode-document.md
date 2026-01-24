@@ -9,13 +9,13 @@
 ## Status (2026-01-24)
 
 - Knowgrph keeps Geospatial Mode logic out of its codebase and loads it on-demand from the sibling repo `gympgrph` (implementation lives in `gympgrph/src/`).
-- Knowgrph exposes a toolbar entrypoint (**Geospatial Mode**, right of **3D Mode**) that opens the Geo side-panel tab and mounts the gympgrph overlay.
+- Knowgrph exposes a toolbar entrypoint (**Geospatial Mode**, right of **3D Mode**) that opens the Geo side-panel tab and toggles the gympgrph overlay.
 
 ## Current Status (Runtime Overlay)
 
 - In the extracted module, a MapLibre GL basemap renders as a translucent layer on top of the canvas.
-- The overlay defaults to **interactive** map navigation (drag/pan + smooth zoom) while retaining configurable interaction gating (**Off / Hold Space / Always**).
-- To avoid conflicts with non-map UI (for example Workspace Actions → Imported files), the overlay is only mounted while the Geo side-panel tab is active.
+- The overlay supports interaction gating (**Off / Hold Space / Always**). When enabled via the toolbar entrypoint, the host forces **Always** for immediate navigation (users can switch back in the Geo panel).
+- To avoid conflicts with non-map UI (for example Workspace Actions → Imported files), the overlay is only mounted when the Geo side-panel tab is selected; SidePanel expand/collapse does not toggle Geospatial Mode.
 - MapLibre’s required CSS is bundled by the extracted module so host runtimes do not need to remember to import it separately (restores reliable drag/pan/zoom + pointer hit-testing).
 - **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
 - **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.
@@ -24,8 +24,8 @@
 - Clicking a rendered **POI** selects it:
   - Graph-node POIs select the corresponding graph node in the main canvas (selectionSource aligns with canvas clicks).
   - Dataset POIs show a lightweight selection marker + toast with dataset/feature details.
-  - POI clicking follows the interaction gating (Off / Hold Space / Always). When enabled via the toolbar entrypoint, the host forces **Always** so the map is immediately interactive; users can switch modes in the Geo panel.
-- Geo fields are derived during ingest for both GeoJSON inputs and record-style inputs when coordinates are present.
+  - POI clicking follows the interaction gating (Off / Hold Space / Always).
+- Geo fields are read from `GraphData` node properties when present (the module does not derive geo fields during ingest).
 - “Fit to data” computes a bounded bbox and updates the overlay camera (optional animation).
 - In 3D render mode, the overlay auto-fits to active geo bounds so the globe doesn’t appear “blank” by default.
 
@@ -102,8 +102,7 @@
 
 - The extracted module keeps the original persistence/config design (LS-backed settings + optional env overrides) for future reuse, but Knowgrph no longer defines or uses Geospatial Mode LS keys.
 - Persistence keys are namespaced to avoid collisions when multiple apps share the same origin:
-  - Current: `kg:ui:geospatial:*`
-  - Legacy read fallback: `ui:geospatial:*`
+  - `kg:ui:geospatial:*`
 
 ### Dataset Fetch Limits (UI)
 

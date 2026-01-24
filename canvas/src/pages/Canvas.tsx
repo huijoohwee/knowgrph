@@ -349,6 +349,7 @@ export default function CanvasPage() {
     })),
   )
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
+  const [geospatialHostMounted, setGeospatialHostMounted] = React.useState(false)
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const handler = (ev: Event) => {
@@ -357,6 +358,7 @@ export default function CanvasPage() {
       const tab =
         detail?.tab === 'chat' ? 'chat' : detail?.tab === 'geo' ? 'geo' : detail?.tab === 'node' ? 'node' : null
       if (tab) setSidePanelTab(tab)
+      if (tab === 'geo') setGeospatialHostMounted(true)
       if (detail?.open) setSidebarOpen(true)
     }
     window.addEventListener(SIDE_PANEL_OPEN_EVENT, handler as EventListener)
@@ -406,26 +408,28 @@ export default function CanvasPage() {
               <ToastHost />
               <>
                 <React.Suspense fallback={null}>
-                  <GeospatialOverlayHostLazy
-                    active={isSidebarOpen && sidePanelTab === 'geo'}
-                    snapshot={{
-                      graphData: gympgrphBridge.graphData,
-                      zoomState: gympgrphBridge.zoomState,
-                      canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                      selectedNodeId: gympgrphBridge.selectedNodeId,
-                      selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                    }}
-                    handlers={{
-                      selectNode: gympgrphBridge.selectNode,
-                      selectEdge: gympgrphBridge.selectEdge,
-                      setSelectionSource: gympgrphBridge.setSelectionSource,
-                      requestZoom: gympgrphBridge.requestZoom,
-                      requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                      pushUiToast: gympgrphBridge.pushUiToast,
-                      upsertUiToast: gympgrphBridge.upsertUiToast,
-                      dismissUiToast: gympgrphBridge.dismissUiToast,
-                    }}
-                  />
+                  {geospatialHostMounted && (
+                    <GeospatialOverlayHostLazy
+                      active={sidePanelTab === 'geo'}
+                      snapshot={{
+                        graphData: gympgrphBridge.graphData,
+                        zoomState: gympgrphBridge.zoomState,
+                        canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                        selectedNodeId: gympgrphBridge.selectedNodeId,
+                        selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                      }}
+                      handlers={{
+                        selectNode: gympgrphBridge.selectNode,
+                        selectEdge: gympgrphBridge.selectEdge,
+                        setSelectionSource: gympgrphBridge.setSelectionSource,
+                        requestZoom: gympgrphBridge.requestZoom,
+                        requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                        pushUiToast: gympgrphBridge.pushUiToast,
+                        upsertUiToast: gympgrphBridge.upsertUiToast,
+                        dismissUiToast: gympgrphBridge.dismissUiToast,
+                      }}
+                    />
+                  )}
                   <div
                     className={[
                       'absolute inset-0 z-[10]',
@@ -483,7 +487,9 @@ export default function CanvasPage() {
                       }}
                       activeTab={sidePanelTab}
                       onTabChange={key => {
-                        setSidePanelTab(key === 'chat' ? 'chat' : key === 'geo' ? 'geo' : 'node')
+                        const next = key === 'chat' ? 'chat' : key === 'geo' ? 'geo' : 'node'
+                        setSidePanelTab(next)
+                        if (next === 'geo') setGeospatialHostMounted(true)
                       }}
                     />
                     <div className="flex-1 overflow-y-auto">
@@ -495,26 +501,28 @@ export default function CanvasPage() {
                           <NodeEditorLazy />
                         </div>
                         <div className={sidePanelTab === 'geo' ? 'h-full' : 'hidden'}>
-                          <GeospatialPanelHostLazy
-                            active={sidePanelTab === 'geo'}
-                            snapshot={{
-                              graphData: gympgrphBridge.graphData,
-                              zoomState: gympgrphBridge.zoomState,
-                              canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                              selectedNodeId: gympgrphBridge.selectedNodeId,
-                              selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                            }}
-                            handlers={{
-                              selectNode: gympgrphBridge.selectNode,
-                              selectEdge: gympgrphBridge.selectEdge,
-                              setSelectionSource: gympgrphBridge.setSelectionSource,
-                              requestZoom: gympgrphBridge.requestZoom,
-                              requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                              pushUiToast: gympgrphBridge.pushUiToast,
-                              upsertUiToast: gympgrphBridge.upsertUiToast,
-                              dismissUiToast: gympgrphBridge.dismissUiToast,
-                            }}
-                          />
+                          {geospatialHostMounted && (
+                            <GeospatialPanelHostLazy
+                              active={sidePanelTab === 'geo'}
+                              snapshot={{
+                                graphData: gympgrphBridge.graphData,
+                                zoomState: gympgrphBridge.zoomState,
+                                canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                                selectedNodeId: gympgrphBridge.selectedNodeId,
+                                selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                              }}
+                              handlers={{
+                                selectNode: gympgrphBridge.selectNode,
+                                selectEdge: gympgrphBridge.selectEdge,
+                                setSelectionSource: gympgrphBridge.setSelectionSource,
+                                requestZoom: gympgrphBridge.requestZoom,
+                                requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                                pushUiToast: gympgrphBridge.pushUiToast,
+                                upsertUiToast: gympgrphBridge.upsertUiToast,
+                                dismissUiToast: gympgrphBridge.dismissUiToast,
+                              }}
+                            />
+                          )}
                         </div>
                       </React.Suspense>
                     </div>

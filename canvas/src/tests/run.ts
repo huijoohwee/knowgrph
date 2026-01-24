@@ -78,6 +78,13 @@ import { testLaunchSpotlightStorageHelpers } from '@/__tests__/launchSpotlight.t
 import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.test'
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
 import {
+  testGeospatialOverlayHostNotGatedBySidebar,
+  testGympgrphDefaultInteractionModeIsHoldSpace,
+  testGympgrphGeospatialKeysAreNamespacedOnly,
+  testHostEnableForcesAlwaysInteractionMode,
+  testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs,
+} from '@/__tests__/geospatialHostIntegration.test'
+import {
   testWorkflowPresetPipelinesAreSelfConsistent,
   testExportFunctionsAcceptBrandedPaths,
 } from '@/__tests__/workflowPresetPipeline.test'
@@ -243,6 +250,12 @@ export const runAllTests = async () => {
   // Remaining tests
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
+
+  await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
+  await exec('geospatial.persistence.keysAreNamespacedOnly', testGympgrphGeospatialKeysAreNamespacedOnly)
+  await exec('geospatial.interaction.defaultHoldSpace', testGympgrphDefaultInteractionModeIsHoldSpace)
+  await exec('geospatial.interaction.holdSpaceKeyHardening', testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs)
+  await exec('geospatial.host.enableForcesAlways', testHostEnableForcesAlwaysInteractionMode)
   
   await exec('previewGalleryReorder: arrow moves third above second', testPreviewGalleryArrowMovesThirdSlideAboveSecond)
   await exec('previewGalleryReorder: drag moves third above second', testPreviewGalleryDragMovesThirdSlideAboveSecond)
