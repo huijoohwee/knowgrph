@@ -13,7 +13,16 @@ import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
-import { GympgrphGeospatialOverlayHost, GympgrphGeospatialPanelHost } from '@/features/geospatial/GympgrphGeospatialHost'
+
+const GeospatialOverlayHostLazy = React.lazy(async () => {
+  const m = await import('gympgrph')
+  return { default: m.GeospatialOverlayHost }
+})
+
+const GeospatialPanelHostLazy = React.lazy(async () => {
+  const m = await import('gympgrph')
+  return { default: m.GeospatialPanelHost }
+})
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
@@ -322,6 +331,23 @@ export default function CanvasPage() {
       requestThreeCamera: s.requestThreeCamera,
     })),
   )
+  const gympgrphBridge = useGraphStore(
+    useShallow(s => ({
+      graphData: s.graphData,
+      zoomState: s.zoomState,
+      canvasRenderMode: s.canvasRenderMode,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
+      selectNode: s.selectNode,
+      selectEdge: s.selectEdge,
+      setSelectionSource: s.setSelectionSource,
+      requestZoom: s.requestZoom,
+      requestThreeCamera: s.requestThreeCamera,
+      pushUiToast: s.pushUiToast,
+      upsertUiToast: s.upsertUiToast,
+      dismissUiToast: s.dismissUiToast,
+    })),
+  )
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -378,9 +404,28 @@ export default function CanvasPage() {
                 </React.Suspense>
               </nav>
               <ToastHost />
-              <GympgrphGeospatialOverlayHost active={isSidebarOpen && sidePanelTab === 'geo'} />
               <>
                 <React.Suspense fallback={null}>
+                  <GeospatialOverlayHostLazy
+                    active={isSidebarOpen && sidePanelTab === 'geo'}
+                    snapshot={{
+                      graphData: gympgrphBridge.graphData,
+                      zoomState: gympgrphBridge.zoomState,
+                      canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                      selectedNodeId: gympgrphBridge.selectedNodeId,
+                      selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                    }}
+                    handlers={{
+                      selectNode: gympgrphBridge.selectNode,
+                      selectEdge: gympgrphBridge.selectEdge,
+                      setSelectionSource: gympgrphBridge.setSelectionSource,
+                      requestZoom: gympgrphBridge.requestZoom,
+                      requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                      pushUiToast: gympgrphBridge.pushUiToast,
+                      upsertUiToast: gympgrphBridge.upsertUiToast,
+                      dismissUiToast: gympgrphBridge.dismissUiToast,
+                    }}
+                  />
                   <div
                     className={[
                       'absolute inset-0 z-[10]',
@@ -450,7 +495,26 @@ export default function CanvasPage() {
                           <NodeEditorLazy />
                         </div>
                         <div className={sidePanelTab === 'geo' ? 'h-full' : 'hidden'}>
-                          <GympgrphGeospatialPanelHost active={sidePanelTab === 'geo'} />
+                          <GeospatialPanelHostLazy
+                            active={sidePanelTab === 'geo'}
+                            snapshot={{
+                              graphData: gympgrphBridge.graphData,
+                              zoomState: gympgrphBridge.zoomState,
+                              canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                              selectedNodeId: gympgrphBridge.selectedNodeId,
+                              selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                            }}
+                            handlers={{
+                              selectNode: gympgrphBridge.selectNode,
+                              selectEdge: gympgrphBridge.selectEdge,
+                              setSelectionSource: gympgrphBridge.setSelectionSource,
+                              requestZoom: gympgrphBridge.requestZoom,
+                              requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                              pushUiToast: gympgrphBridge.pushUiToast,
+                              upsertUiToast: gympgrphBridge.upsertUiToast,
+                              dismissUiToast: gympgrphBridge.dismissUiToast,
+                            }}
+                          />
                         </div>
                       </React.Suspense>
                     </div>

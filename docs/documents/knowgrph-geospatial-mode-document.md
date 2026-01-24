@@ -2,7 +2,7 @@
 
 **Context**: Map-oriented exploration on top of the 2D infinite canvas  
 **Intent**: Overlay basemap + geo layers without breaking graph-first affordances  
-**Directive**: Drive behavior via configuration (no hardcoded datasets/providers), bound all fetch/parse work, and preserve non-interactive overlay defaults
+**Directive**: Drive behavior via configuration (no hardcoded datasets/providers), bound all fetch/parse work, and preserve graph-first defaults (overlay is off until explicitly enabled)
 
 ---
 
@@ -14,7 +14,9 @@
 ## Current Status (Runtime Overlay)
 
 - In the extracted module, a MapLibre GL basemap renders as a translucent layer on top of the canvas.
-- The overlay is graph-first by default: map interactions are disabled unless explicitly enabled (for example, **Hold Space** to temporarily pan/zoom).
+- The overlay defaults to **interactive** map navigation (drag/pan + smooth zoom) while retaining configurable interaction gating (**Off / Hold Space / Always**).
+- To avoid conflicts with non-map UI (for example Workspace Actions → Imported files), the overlay is only mounted while the Geo side-panel tab is active.
+- MapLibre’s required CSS is bundled by the extracted module so host runtimes do not need to remember to import it separately (restores reliable drag/pan/zoom + pointer hit-testing).
 - **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
 - **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.
 - Projection is configurable (**Auto / Mercator / Globe**). In **Auto**, 3D render mode uses a globe-style projection.
@@ -22,7 +24,7 @@
 - Clicking a rendered **POI** selects it:
   - Graph-node POIs select the corresponding graph node in the main canvas (selectionSource aligns with canvas clicks).
   - Dataset POIs show a lightweight selection marker + toast with dataset/feature details.
-  - POI clicking follows the interaction gating: in the default **Hold Space** mode, clicks work while Space is held.
+  - POI clicking follows the interaction gating (Off / Hold Space / Always). When enabled via the toolbar entrypoint, the host forces **Always** so the map is immediately interactive; users can switch modes in the Geo panel.
 - Geo fields are derived during ingest for both GeoJSON inputs and record-style inputs when coordinates are present.
 - “Fit to data” computes a bounded bbox and updates the overlay camera (optional animation).
 - In 3D render mode, the overlay auto-fits to active geo bounds so the globe doesn’t appear “blank” by default.
@@ -87,18 +89,21 @@
   - Store commit: `canvas/src/hooks/store/graphDataSlice.ts` (`setGraphData`)
   - Render: `canvas/src/components/GraphCanvas.tsx` → `canvas/src/components/GraphCanvas/scene.ts`
 - Extracted Geospatial Mode implementation lives in `gympgrph/src/`:
-  - Overlay render + interaction gating: `features/geospatial/GeospatialOverlay.tsx`
-  - Basemap lifecycle: `features/geospatial/useMapLibreBasemap.ts`
-  - Dataset URL loading + layer creation: `features/geospatial/geospatialOverlayUtils.ts`
-  - POI selection mapping: `features/geospatial/geospatialPoiSelection.ts`
-  - UI controls: `features/geospatial/GeospatialPanel.tsx`
-  - Geo derivation helpers (historic): `lib/graph/geo/*` and `lib/geospatial/*`
+  - Overlay render + interaction gating: `gympgrph/src/features/geospatial/GeospatialOverlay.tsx`
+  - Basemap lifecycle: `gympgrph/src/features/geospatial/useMapLibreBasemap.ts`
+  - Dataset URL loading + layer creation: `gympgrph/src/features/geospatial/geospatialOverlayUtils.ts`
+  - POI selection mapping: `gympgrph/src/features/geospatial/geospatialPoiSelection.ts`
+  - UI controls: `gympgrph/src/features/geospatial/GeospatialPanel.tsx`
+  - Geo derivation helpers: `gympgrph/src/lib/graph/geo/*` and `gympgrph/src/lib/geospatial/*`
 
 ---
 
 ## Configuration & Persistence
 
 - The extracted module keeps the original persistence/config design (LS-backed settings + optional env overrides) for future reuse, but Knowgrph no longer defines or uses Geospatial Mode LS keys.
+- Persistence keys are namespaced to avoid collisions when multiple apps share the same origin:
+  - Current: `kg:ui:geospatial:*`
+  - Legacy read fallback: `ui:geospatial:*`
 
 ### Dataset Fetch Limits (UI)
 

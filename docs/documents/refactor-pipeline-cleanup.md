@@ -55,9 +55,9 @@ Mapped the end-to-end pipeline:
 ### Pipeline Traversal (Frontend Import → Render)
 - **Import UI → ingest**: `features/toolbar/*ImportAction.ts` → `features/toolbar/ingestUtils.ts`
 - **Parse/normalize**: `features/parsers/loader.ts` → `lib/graph/io/adapter.ts` → `lib/graph/geo/*`
-- **Commit to store**: `hooks/store/graphDataSlice.ts` + geospatial UI slice (`hooks/store/geospatialSlice.ts`)
-- **Render switch**: `pages/Canvas.tsx` mounts `GeospatialOverlay.tsx` above `GraphCanvas`/`ThreeGraph` when enabled
-- **Overlay render**: `GeospatialOverlay.tsx` builds MapLibre layers and loads dataset URLs with bounded fetch limits
+- **Commit to store**: `hooks/store/graphDataSlice.ts` (Knowgrph core) + `gympgrph/src/hooks/store/geospatialSlice.ts` (plugin-owned state)
+- **Render switch**: `pages/Canvas.tsx` mounts `gympgrph`’s overlay host above `GraphCanvas`/`ThreeGraph` when the Geo tab is active
+- **Overlay render**: `gympgrph/src/features/geospatial/GeospatialOverlay.tsx` builds MapLibre layers and loads dataset URLs with bounded fetch limits
 
 ### Fixes
 - Restored/kept MapLibre runtime overlay and ensured basemap visibility defaults are practical for real usage.
