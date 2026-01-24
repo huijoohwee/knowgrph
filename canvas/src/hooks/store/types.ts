@@ -199,6 +199,14 @@ export interface GraphState {
   setGeospatialStyleUrl: (url: string) => void;
   geospatialOverlayOpacity: number;
   setGeospatialOverlayOpacity: (v: number) => void;
+  geospatialInteractionMode: 'off' | 'hold-space' | 'always';
+  setGeospatialInteractionMode: (mode: 'off' | 'hold-space' | 'always') => void;
+  geospatialProjectionMode: 'auto' | 'mercator' | 'globe';
+  setGeospatialProjectionMode: (mode: 'auto' | 'mercator' | 'globe') => void;
+  geospatialAnimateCamera: boolean;
+  setGeospatialAnimateCamera: (v: boolean) => void;
+  geospatialAutoFitEnabled: boolean;
+  setGeospatialAutoFitEnabled: (v: boolean) => void;
   geospatialDatasets: GeospatialDataset[];
   addGeospatialDatasetUrl: (args: { url: string; label?: string; format?: GeospatialDatasetFormat }) => void;
   removeGeospatialDataset: (id: string) => void;

@@ -20,4 +20,10 @@
 | `LS_KEYS.geospatialOverlayEnabled` | Persists whether Geospatial Mode is enabled. |
 | `LS_KEYS.geospatialStyleUrl` | Persists MapLibre style URL for the basemap. |
 | `LS_KEYS.geospatialOverlayOpacity` | Persists overlay opacity (clamped to [0,1]). |
+| `LS_KEYS.geospatialInteractionMode` | Persists map interaction mode (off / hold-space / always). |
+| `LS_KEYS.geospatialProjectionMode` | Persists projection mode (auto / mercator / globe). |
+| `LS_KEYS.geospatialAnimateCamera` | Persists whether fit-to-data camera moves animate. |
+| `LS_KEYS.geospatialAutoFitEnabled` | Persists whether auto-fit is enabled in 3D render mode. |
 | `LS_KEYS.geospatialDatasets` | Persists dataset layer URL references for the map overlay. |
+| `LS_KEYS.geospatialDatasetTimeoutMs` | Persists per-dataset fetch timeout in milliseconds. |
+| `LS_KEYS.geospatialDatasetMaxBytes` | Persists per-dataset maximum download size in bytes. |

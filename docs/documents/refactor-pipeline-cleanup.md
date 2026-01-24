@@ -65,3 +65,14 @@ Mapped the end-to-end pipeline:
 
 ### Verification
 - Ran bounded geospatial-only tests via the CI runner filter (no full-suite execution).
+
+---
+
+## 2026-01-24: Geospatial overlay interaction + projection + animation controls
+
+### Changes
+- Added SidePanel Map settings for interaction mode, projection mode, camera animation, and 3D auto-fit.
+- Centralized basemap lifecycle in a dedicated hook and extracted map interaction toggling utilities.
+
+### Verification
+- Ran lint/typecheck for the canvas package after geospatial changes.

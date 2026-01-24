@@ -1,7 +1,7 @@
 import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { lsBool, lsInt, lsJson, lsNum, lsSetBool, lsSetInt, lsSetJson, lsSetNum } from '@/lib/persistence'
 import type { GraphState } from '@/hooks/store/types'
-import type { GeospatialDataset, GeospatialDatasetFormat } from '@/lib/geospatial/types'
+import type { GeospatialDataset } from '@/lib/geospatial/types'
 import {
   coerceGeospatialOverlayOpacity,
   DEFAULT_GEOSPATIAL_DATASET_MAX_BYTES,
@@ -23,6 +23,18 @@ const GEO_DATASET_TIMEOUT_MIN_MS = 1_000
 const GEO_DATASET_TIMEOUT_MAX_MS = 60_000
 const GEO_DATASET_MAX_BYTES_MIN = 64 * 1024
 const GEO_DATASET_MAX_BYTES_MAX = 20 * 1024 * 1024
+
+const parseInteractionMode = (raw: unknown): 'off' | 'hold-space' | 'always' => {
+  if (raw === 'off') return 'off'
+  if (raw === 'always') return 'always'
+  return 'hold-space'
+}
+
+const parseProjectionMode = (raw: unknown): 'auto' | 'mercator' | 'globe' => {
+  if (raw === 'mercator') return 'mercator'
+  if (raw === 'globe') return 'globe'
+  return 'auto'
+}
 
 const parseGeospatialDatasets = (raw: unknown): GeospatialDataset[] | null => {
   if (!Array.isArray(raw)) return null
@@ -66,6 +78,14 @@ export const createGeospatialSlice = (
   | 'setGeospatialStyleUrl'
   | 'geospatialOverlayOpacity'
   | 'setGeospatialOverlayOpacity'
+  | 'geospatialInteractionMode'
+  | 'setGeospatialInteractionMode'
+  | 'geospatialProjectionMode'
+  | 'setGeospatialProjectionMode'
+  | 'geospatialAnimateCamera'
+  | 'setGeospatialAnimateCamera'
+  | 'geospatialAutoFitEnabled'
+  | 'setGeospatialAutoFitEnabled'
   | 'geospatialDatasets'
   | 'addGeospatialDatasetUrl'
   | 'removeGeospatialDataset'
@@ -96,6 +116,19 @@ export const createGeospatialSlice = (
     const v = lsNum(LS_KEYS.geospatialOverlayOpacity, DEFAULT_GEOSPATIAL_OVERLAY_OPACITY)
     return coerceGeospatialOverlayOpacity(geospatialOverlayEnabled, v)
   })()
+
+  const geospatialInteractionMode = lsJson(LS_KEYS.geospatialInteractionMode, 'hold-space', raw => {
+    if (typeof raw !== 'string') return null
+    return parseInteractionMode(raw)
+  })
+
+  const geospatialProjectionMode = lsJson(LS_KEYS.geospatialProjectionMode, 'auto', raw => {
+    if (typeof raw !== 'string') return null
+    return parseProjectionMode(raw)
+  })
+
+  const geospatialAnimateCamera = lsBool(LS_KEYS.geospatialAnimateCamera, true)
+  const geospatialAutoFitEnabled = lsBool(LS_KEYS.geospatialAutoFitEnabled, true)
 
   const geospatialDatasetTimeoutMs = (() => {
     const raw = lsInt(LS_KEYS.geospatialDatasetTimeoutMs, DEFAULT_GEOSPATIAL_DATASET_TIMEOUT_MS)
@@ -143,6 +176,32 @@ export const createGeospatialSlice = (
       const next = clamp01(typeof v === 'number' ? v : DEFAULT_GEOSPATIAL_OVERLAY_OPACITY)
       lsSetNum(LS_KEYS.geospatialOverlayOpacity, next)
       set(() => ({ geospatialOverlayOpacity: next }))
+    },
+
+    geospatialInteractionMode,
+    setGeospatialInteractionMode: mode => {
+      const next = parseInteractionMode(mode)
+      lsSetJson(LS_KEYS.geospatialInteractionMode, next)
+      set(() => ({ geospatialInteractionMode: next }))
+    },
+
+    geospatialProjectionMode,
+    setGeospatialProjectionMode: mode => {
+      const next = parseProjectionMode(mode)
+      lsSetJson(LS_KEYS.geospatialProjectionMode, next)
+      set(() => ({ geospatialProjectionMode: next }))
+    },
+
+    geospatialAnimateCamera,
+    setGeospatialAnimateCamera: v => {
+      const next = lsSetBool(LS_KEYS.geospatialAnimateCamera, Boolean(v))
+      set(() => ({ geospatialAnimateCamera: next }))
+    },
+
+    geospatialAutoFitEnabled,
+    setGeospatialAutoFitEnabled: v => {
+      const next = lsSetBool(LS_KEYS.geospatialAutoFitEnabled, Boolean(v))
+      set(() => ({ geospatialAutoFitEnabled: next }))
     },
 
     geospatialDatasetTimeoutMs,
@@ -233,4 +292,3 @@ export const createGeospatialSlice = (
     },
   }
 }
-

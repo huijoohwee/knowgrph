@@ -9,12 +9,14 @@
 ## Current Status (Runtime Overlay)
 
 - The toolbar **Geospatial Mode** (globe) button and the **Map** tab enable a runtime map overlay.
-- A non-interactive MapLibre GL basemap renders as a translucent layer on top of the canvas (pointer events pass through to the graph).
+- A MapLibre GL basemap renders as a translucent layer on top of the canvas.
+- The overlay is graph-first by default: map interactions are disabled unless explicitly enabled (for example, **Hold Space** to temporarily pan/zoom).
 - **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
-- In 3D render mode, the overlay switches to a **globe-style projection**.
+- **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.
+- Projection is configurable (**Auto / Mercator / Globe**). In **Auto**, 3D render mode uses a globe-style projection.
 - Dataset layers can be added as URLs (GeoJSON or record-style JSON) and rendered as points/lines/polygons.
 - Geo fields are derived during ingest for both GeoJSON inputs and record-style inputs when coordinates are present.
-- “Fit to data” computes a bounded bbox and updates the overlay camera (no unbounded spatial loops).
+- “Fit to data” computes a bounded bbox and updates the overlay camera (optional animation).
 - In 3D render mode, the overlay auto-fits to active geo bounds so the globe doesn’t appear “blank” by default.
 
 ### Reliability Notes
@@ -42,8 +44,9 @@
 1. User loads a dataset into the graph OR opens the **Map** tab.
 2. User toggles **Geospatial Mode** ON (globe button).
 3. A translucent basemap overlay appears on top of the canvas (defaulting to OpenFreeMap) while graph interactions remain primary.
-4. User adds one or more dataset URLs in the Map tab to render additional map layers.
-5. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
+4. User optionally configures interaction/projection/animation settings in the Map tab.
+5. User adds one or more dataset URLs in the Map tab to render additional map layers.
+6. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
 ---
 
@@ -88,6 +91,10 @@
   - `LS_KEYS.geospatialOverlayEnabled`
   - `LS_KEYS.geospatialStyleUrl`
   - `LS_KEYS.geospatialOverlayOpacity`
+  - `LS_KEYS.geospatialInteractionMode`
+  - `LS_KEYS.geospatialProjectionMode`
+  - `LS_KEYS.geospatialAnimateCamera`
+  - `LS_KEYS.geospatialAutoFitEnabled`
   - `LS_KEYS.geospatialDatasets`
   - `LS_KEYS.geospatialDatasetTimeoutMs`
   - `LS_KEYS.geospatialDatasetMaxBytes`

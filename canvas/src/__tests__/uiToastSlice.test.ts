@@ -1,13 +1,13 @@
-import type { UiToast } from '@/hooks/store/types'
+import type { GraphState } from '@/hooks/store/types'
 import { createUiToastSlice } from '@/hooks/store/uiToastSlice'
 
 export function testUiToastUpsertDoesNotExtendExpiry() {
   const realNow = Date.now
-  let state: { uiToasts: UiToast[] } = { uiToasts: [] }
-  const set = (fn: (s: { uiToasts: UiToast[] }) => Partial<{ uiToasts: UiToast[] }>) => {
-    state = { ...state, ...fn(state) }
+  let state: Pick<GraphState, 'uiToasts'> = { uiToasts: [] }
+  const set: (fn: (s: GraphState) => Partial<GraphState>) => void = fn => {
+    state = { ...state, ...(fn(state as unknown as GraphState) as Pick<GraphState, 'uiToasts'>) }
   }
-  const slice = createUiToastSlice(set as unknown as (fn: (state: any) => Partial<any>) => void)
+  const slice = createUiToastSlice(set)
 
   try {
     Date.now = () => 1_000
@@ -36,11 +36,11 @@ export function testUiToastUpsertDoesNotExtendExpiry() {
 
 export function testUiToastUpsertMovesToastToFront() {
   const realNow = Date.now
-  let state: { uiToasts: UiToast[] } = { uiToasts: [] }
-  const set = (fn: (s: { uiToasts: UiToast[] }) => Partial<{ uiToasts: UiToast[] }>) => {
-    state = { ...state, ...fn(state) }
+  let state: Pick<GraphState, 'uiToasts'> = { uiToasts: [] }
+  const set: (fn: (s: GraphState) => Partial<GraphState>) => void = fn => {
+    state = { ...state, ...(fn(state as unknown as GraphState) as Pick<GraphState, 'uiToasts'>) }
   }
-  const slice = createUiToastSlice(set as unknown as (fn: (state: any) => Partial<any>) => void)
+  const slice = createUiToastSlice(set)
 
   try {
     Date.now = () => 1_000

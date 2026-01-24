@@ -1,0 +1,31 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Singapore", "country": "SG" },
+      "geometry": { "type": "Point", "coordinates": [103.8198, 1.3521] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Berlin", "country": "DE" },
+      "geometry": { "type": "Point", "coordinates": [13.405, 52.52] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "New York", "country": "US" },
+      "geometry": { "type": "Point", "coordinates": [-74.006, 40.7128] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sydney", "country": "AU" },
+      "geometry": { "type": "Point", "coordinates": [151.2093, -33.8688] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Tokyo", "country": "JP" },
+      "geometry": { "type": "Point", "coordinates": [139.6917, 35.6895] }
+    }
+  ]
+}
+

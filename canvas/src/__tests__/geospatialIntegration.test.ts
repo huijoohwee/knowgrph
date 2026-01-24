@@ -69,7 +69,8 @@ export async function testGeospatialIntegrationAirports() {
   if (!jfk) throw new Error('JFK feature not found')
   if (jfk.geometry.type !== 'Point') throw new Error('JFK is not a Point')
   
-  const coords = (jfk.geometry as any).coordinates
+  const coords = jfk.geometry.coordinates
+  if (coords.length < 2) throw new Error('JFK coordinates missing lng/lat')
   if (Math.abs(coords[0] - (-73.7789)) > 0.001) throw new Error(`JFK Lng mismatch: ${coords[0]}`)
   if (Math.abs(coords[1] - 40.6398) > 0.001) throw new Error(`JFK Lat mismatch: ${coords[1]}`)
 }
