@@ -12,6 +12,7 @@ import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FileCode, MessageCircle, Map as MapIcon } from 'lucide-react'
+import ToastHost from '@/components/ui/ToastHost'
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
@@ -377,6 +378,7 @@ export default function CanvasPage() {
                   <SidebarTriggerLazy ref={sidebarToggleRef} className="absolute right-3" />
                 </React.Suspense>
               </nav>
+              <ToastHost />
               <>
                 <React.Suspense fallback={null}>
                   <div

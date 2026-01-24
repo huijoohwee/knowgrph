@@ -110,6 +110,19 @@ export function deriveFilenameFromUrl(rawUrl: string, fallback: string): string 
 export const MEDIA_PROXY_ENDPOINT = '/__fetch_remote'
 export const REMOTE_FETCH_PROXY_ENDPOINT = MEDIA_PROXY_ENDPOINT
 
+export function shouldUseRemoteFetchProxy(): boolean {
+  if (typeof window === 'undefined') return false
+  const origin = window.location?.origin
+  if (!origin) return false
+  try {
+    const host = new URL(origin).hostname.toLowerCase()
+    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 export function applyMediaProxySrc(src: string): string {
   const raw = String(src || '').trim()
   if (!raw) return ''
@@ -121,6 +134,7 @@ export function applyMediaProxySrc(src: string): string {
     const u = new URL(normalized, base)
     if (!/^https?:$/i.test(u.protocol)) return raw
     if (u.origin === window.location.origin) return raw
+    if (!shouldUseRemoteFetchProxy()) return u.toString()
     return `${MEDIA_PROXY_ENDPOINT}?url=${encodeURIComponent(u.toString())}`
   } catch {
     return raw

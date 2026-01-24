@@ -10,11 +10,6 @@ import type { LRUCache } from '@/lib/cache/LRUCache'
 
 export const DATASET_COLOR_PALETTE = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4'] as const
 
-// OpenFreeMap styles
-export const OPENFREEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
-export const OPENFREEMAP_BRIGHT_STYLE_URL = 'https://tiles.openfreemap.org/styles/bright'
-export const OPENFREEMAP_POSITRON_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron'
-
 export const buildBlankStyle = (): Record<string, unknown> => ({
   version: 8,
   sources: {},
@@ -41,6 +36,7 @@ const coerceVectorPreferredStyle = (raw: unknown): unknown => {
 
   const removedSourceIds: string[] = []
   const nextSources: Record<string, unknown> = {}
+  let keptNonRaster = 0
   for (const [id, sourceRaw] of Object.entries(sources)) {
     if (!sourceRaw || typeof sourceRaw !== 'object' || Array.isArray(sourceRaw)) {
       nextSources[id] = sourceRaw
@@ -56,9 +52,11 @@ const coerceVectorPreferredStyle = (raw: unknown): unknown => {
       continue
     }
     nextSources[id] = sourceRaw
+    keptNonRaster += 1
   }
 
   if (removedSourceIds.length === 0) return raw
+  if (keptNonRaster === 0) return raw
 
   const layersRaw = Array.isArray(style.layers) ? style.layers : null
   const nextLayers = layersRaw
@@ -106,7 +104,14 @@ export function resolveStyleUrls(styleUrl: string, raw: unknown): unknown {
   const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(normalizeGeospatialStyleUrl(styleUrl)) ?? styleUrl
   let base: URL
   try {
-    base = new URL(normalizedStyleUrl)
+    const baseUrl = (() => {
+      const s = String(normalizedStyleUrl || '').trim()
+      if (!s) return s
+      if (/\.json(\?|#|$)/i.test(s)) return s
+      if (s.endsWith('/')) return s
+      return `${s}/`
+    })()
+    base = new URL(baseUrl)
   } catch {
     return raw
   }

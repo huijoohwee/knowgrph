@@ -1,9 +1,11 @@
 import { readEnvString } from '@/lib/config.env'
 import type { GeospatialDataset, GeospatialDatasetFormat } from '@/lib/geospatial/types'
+import { OPENFREEMAP_STYLE_URL } from '@/lib/geospatial/styles'
+import { clamp01 } from '@/lib/math/clamp01'
 
 export const DEFAULT_GEOSPATIAL_STYLE_URL = readEnvString(
   'VITE_GEOSPATIAL_STYLE_URL',
-  'https://tiles.openfreemap.org/styles/liberty',
+  OPENFREEMAP_STYLE_URL,
 )
 
 const readFirstEnvNumber = (keys: string[]): number | null => {
@@ -21,6 +23,13 @@ export const DEFAULT_GEOSPATIAL_OVERLAY_OPACITY = (() => {
   return n
 })()
 
+export function coerceGeospatialOverlayOpacity(enabled: boolean, raw: unknown): number {
+  const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : Number(raw)
+  const clamped = clamp01(Number.isFinite(n) ? n : DEFAULT_GEOSPATIAL_OVERLAY_OPACITY)
+  if (enabled && !(clamped > 0)) return DEFAULT_GEOSPATIAL_OVERLAY_OPACITY
+  return clamped
+}
+
 export const DEFAULT_GEOSPATIAL_DATASET_TIMEOUT_MS = (() => {
   const n = readFirstEnvNumber(['VITE_GEOSPATIAL_DATASET_TIMEOUT_MS', 'VITE_GEOSPATIAL_TIMEOUT_MS'])
   if (n === null) return 20_000
@@ -33,7 +42,7 @@ export const DEFAULT_GEOSPATIAL_DATASET_MAX_BYTES = (() => {
   return Math.max(64 * 1024, Math.min(20 * 1024 * 1024, Math.floor(n)))
 })()
 
-const parseDatasetFormat = (raw: unknown): GeospatialDatasetFormat => {
+export const parseGeospatialDatasetFormat = (raw: unknown): GeospatialDatasetFormat => {
   if (raw === 'geojson') return 'geojson'
   if (raw === 'records') return 'records'
   return 'auto'
@@ -61,7 +70,7 @@ export function parseGeospatialDatasetsFromEnv(): GeospatialDataset[] | null {
       const label = typeof rec.label === 'string' ? rec.label.trim() : ''
       const enabled = rec.enabled !== false
       const url = typeof rec.url === 'string' ? rec.url.trim() : ''
-      const format = parseDatasetFormat(rec.format)
+      const format = parseGeospatialDatasetFormat(rec.format)
       if (!label || !url) continue
       const id = idRaw || `geo:env:${hashToHex(`${label}|${url}`)}`
       out.push({

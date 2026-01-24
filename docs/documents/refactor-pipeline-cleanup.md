@@ -53,7 +53,7 @@ Mapped the end-to-end pipeline:
 ### Pipeline Traversal (Frontend Import → Render)
 - **Import UI → ingest**: `features/toolbar/*ImportAction.ts` → `features/toolbar/ingestUtils.ts`
 - **Parse/normalize**: `features/parsers/loader.ts` → `lib/graph/io/adapter.ts` → `lib/graph/geo/*`
-- **Commit to store**: `hooks/store/graphDataSlice.ts` + geospatial UI slices (`geospatialOverlaySlice.ts`, `geospatialDatasetsSlice.ts`)
+- **Commit to store**: `hooks/store/graphDataSlice.ts` + geospatial UI slice (`hooks/store/geospatialSlice.ts`)
 - **Render switch**: `pages/Canvas.tsx` mounts `GeospatialOverlay.tsx` above `GraphCanvas`/`ThreeGraph` when enabled
 - **Overlay render**: `GeospatialOverlay.tsx` builds MapLibre layers and loads dataset URLs with bounded fetch limits
 

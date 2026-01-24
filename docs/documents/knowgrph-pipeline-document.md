@@ -33,6 +33,48 @@
 
 ---
 
+## Runtime Canvas Pipeline (Import → Render)
+
+This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → canvas renders. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.
+
+### Import
+
+- Toolbar import actions read local files/URLs and call the parser loader:
+  - [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
+  - [importSideEffects.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importSideEffects.ts)
+- YouTube import converts transcripts to Markdown/JSON and then follows the same loader path:
+  - [youtubeImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts)
+
+### Parse + Normalize
+
+- Parser selection and orchestration (best-match + optional worker parsing):
+  - [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+  - [registry.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/registry.ts)
+  - [graphParser.worker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/workers/graphParser.worker.ts)
+- Format adapters (CSV/JSON/JSON-LD/GeoJSON/record arrays/GraphRAG bundle/n8n):
+  - [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
+- JSON-LD structural interpretation + AgenticRAG context handling:
+  - [parse.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/jsonld/parse.ts)
+  - [agenticrag.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/agenticrag.ts)
+
+### Validate + Store
+
+- Structural validation (duplicate IDs, dangling edges) + optional schema-config property checks:
+  - [validation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/validation.ts)
+- Store commit is centralized in the graph slice (`setGraphData`), which also persists and normalizes:
+  - [graphDataSlice.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSlice.ts)
+
+### Render
+
+- Render consumes the active `GraphData` view and applies schema-config-driven layout/styling:
+  - [GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
+
+### Schema Contract (SSOT)
+
+- Structural JSON-LD contract: [AgenticRAG README](file:///Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/schema/AgenticRAG/README.md)
+- The Canvas app resolves schema URLs via `VITE_AGENTIC_RAG_SCHEMA_URL` (fallback: `/schema/AgenticRAG`):
+  - [agenticrag.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/agenticrag.ts)
+
 ## Pipeline Architecture
 
 **Layer Stack**: Document Ingestion → Statistical Features → Token Linking → Edge Elevation → Threshold Tuning → Document Unification → Feedback Loops → Corpus Reasoning → Agentic RAG
@@ -225,7 +267,7 @@ provenance_tracking: {track_lineage, versioning_strategy}
 | `VITE_MARKDOWN_PIPELINE_OUTPUT_DIR`       | deployment       | `data/knowgrph-workflow-preview`           | Controls artifact output location                   |
 | `VITE_MARKDOWN_PIPELINE_BASENAME`         | deployment       | `knowgrph-pipeline-document`               | Controls artifact filename prefixes                 |
 
-**Artifact Generation**: `*-graph-data.jsonld` (neutral node/edge graph) | `*-schema-config.jsonld` (AgenticRAG schema) | `*-orchestrator-config.yaml` (workflow orchestrator)
+**Artifact Generation**: `*-graph-data.jsonld` (neutral node/edge graph) | `*-schema-config.jsonld` (Knowgrph schema-config, compatible with AgenticRAG structural JSON-LD) | `*-orchestrator-config.yaml` (workflow orchestrator)
 
 **Dev Workflow Integration**:
 

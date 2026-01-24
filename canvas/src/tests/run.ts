@@ -157,7 +157,8 @@ import {
   testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned,
 } from '@/__tests__/zoomStatePick.test'
 import { testCoerceMediaUrlAcceptsSafeRelative, testCoerceMediaUrlRejectsExplicitScheme } from '@/__tests__/mediaUrlCoercion.test'
-import { testApplyMediaProxyNormalizesGithubBlobUrl } from '@/__tests__/mediaProxySrc.test'
+import { testApplyMediaProxyNormalizesGithubBlobUrl, testApplyMediaProxySkipsProxyWhenNotLocalhost } from '@/__tests__/mediaProxySrc.test'
+import { testUiToastUpsertDoesNotExtendExpiry, testUiToastUpsertMovesToastToFront } from '@/__tests__/uiToastSlice.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -381,6 +382,7 @@ export const runAllTests = async () => {
   await exec('url.coerceMediaUrl.acceptsSafeRelative', testCoerceMediaUrlAcceptsSafeRelative)
   await exec('url.coerceMediaUrl.rejectsExplicitScheme', testCoerceMediaUrlRejectsExplicitScheme)
   await exec('url.applyMediaProxySrc.normalizesGithubBlob', testApplyMediaProxyNormalizesGithubBlobUrl)
+  await exec('url.applyMediaProxySrc.skipsProxyWhenNotLocalhost', testApplyMediaProxySkipsProxyWhenNotLocalhost)
   
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)
   await exec('persistence.storagePrimitives', testPersistencePrimitives)
@@ -509,6 +511,8 @@ export const runAllTests = async () => {
     'schema.applySchemaUiSnapshot.callsApplyWhenHashMatches',
     testApplySchemaUiSnapshotCallsApplyWhenHashMatches,
   )
+  await exec('ui.toast.upsertDoesNotExtendExpiry', testUiToastUpsertDoesNotExtendExpiry)
+  await exec('ui.toast.upsertMovesToastToFront', testUiToastUpsertMovesToastToFront)
   
   await exec('markdown.scrollSync.viewerToEditor', testMarkdownScrollSyncViewerToEditor)
   await exec('markdown.scrollSync.editToggleKeepsPos', testMarkdownEditToggleKeepsScrollPosition)

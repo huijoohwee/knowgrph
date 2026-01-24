@@ -1,5 +1,5 @@
 import { LS_KEYS } from '@/lib/config'
-import { createGeospatialDatasetsSlice } from '@/hooks/store/geospatialDatasetsSlice'
+import { createGeospatialSlice } from '@/hooks/store/geospatialSlice'
 import { createMemoryStorage } from '@/tests/lib/memoryStorage'
 
 export function testGeospatialFetchLimitsPersistence() {
@@ -11,7 +11,7 @@ export function testGeospatialFetchLimitsPersistence() {
   })
   anyWindow.window.localStorage = storage as unknown as Storage
 
-  const slice = createGeospatialDatasetsSlice(
+  const slice = createGeospatialSlice(
     () => ({}),
     () => ({ geospatialDatasets: [] } as never),
   )
@@ -35,4 +35,3 @@ export function testGeospatialFetchLimitsPersistence() {
     throw new Error('expected dataset max bytes to clamp to 20MiB')
   }
 }
-

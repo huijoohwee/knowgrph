@@ -1,29 +1,9 @@
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
-import { isPlainObject } from '@/lib/graph/value'
 import { deriveGeoFromRecord, deriveIdFromRecord, deriveLabelFromRecord } from '@/lib/graph/geo/recordHeuristics'
+import { coerceRecordEntries } from '@/lib/data/recordEntries'
 
 export function arrayRecordsToGraphData(raw: unknown): GraphData | null {
-  const entries: Array<{ key: string; value: Record<string, unknown> }> = (() => {
-    if (Array.isArray(raw)) {
-      if (raw.length === 0) return []
-      const out: Array<{ key: string; value: Record<string, unknown> }> = []
-      for (let i = 0; i < raw.length; i += 1) {
-        const v = raw[i]
-        if (!isPlainObject(v)) continue
-        out.push({ key: String(i), value: v })
-      }
-      return out
-    }
-    if (isPlainObject(raw)) {
-      const out: Array<{ key: string; value: Record<string, unknown> }> = []
-      for (const [k, v] of Object.entries(raw)) {
-        if (!isPlainObject(v)) continue
-        out.push({ key: k, value: v })
-      }
-      return out
-    }
-    return []
-  })()
+  const entries = coerceRecordEntries(raw)
   if (entries.length === 0) return null
 
   const nodes: GraphNode[] = []

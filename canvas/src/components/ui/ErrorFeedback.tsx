@@ -1,5 +1,7 @@
 import React from 'react'
 import { AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { sanitizeMessageText } from '@/lib/ui'
 
 type ErrorFeedbackProps = {
   title?: string
@@ -9,38 +11,16 @@ type ErrorFeedbackProps = {
   className?: string
 }
 
-const getCodeWrapClass = (wrap: boolean): string => (wrap ? 'whitespace-pre-wrap break-words' : '')
-
-const sanitizeErrorText = (raw: unknown): string => {
-  const text = raw instanceof Error ? raw.message : String(raw ?? '')
-  const lines = text.split('\n').map(l => l.trimEnd())
-  const out: string[] = []
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i]?.trim()
-    if (!line) continue
-    if (/^at\s+/i.test(line)) continue
-    if (/^error:\s*/i.test(line)) {
-      out.push(line.replace(/^error:\s*/i, ''))
-    } else {
-      out.push(line)
-    }
-    if (out.length >= 3) break
-  }
-  return out.join('\n').trim()
-}
-
 export function ErrorFeedback({ title, error, details, code, className }: ErrorFeedbackProps) {
-  const safeError = sanitizeErrorText(error)
+  const safeError = sanitizeMessageText(error, { maxLines: 3, stripErrorPrefix: true })
   if (!safeError) return null
 
   return (
     <div
-      className={[
+      className={cn(
         'mt-3 mb-3 p-3 rounded border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 overflow-auto',
         className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      )}
     >
       <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-semibold text-xs mb-2">
         <AlertCircle className="w-4 h-4" />
@@ -53,7 +33,7 @@ export function ErrorFeedback({ title, error, details, code, className }: ErrorF
       ) : null}
       {code && (
         <pre className="m-0 overflow-x-auto">
-          <code className={['font-mono text-xs text-gray-700 dark:text-gray-300', getCodeWrapClass(false)].join(' ')}>
+          <code className="font-mono text-xs text-gray-700 dark:text-gray-300">
             {code}
           </code>
         </pre>

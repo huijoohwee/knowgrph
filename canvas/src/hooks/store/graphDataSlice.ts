@@ -179,6 +179,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       graphData: nextGraphData,
       graphDataRevision: (s.graphDataRevision || 0) + 1,
       layoutPositionCacheByMode: {},
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
     }));
     try {
       const nextWorkflowText = readGraphRagWorkflowJsonTextFromGraphData(nextGraphData)
@@ -262,6 +264,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       aiKgTraversalRan: false,
       layoutPositionCacheByMode: {},
       minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } },
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
     }));
     set({ graphRagWorkflowJsonText: null })
     set({ lifecycleStage: 'reset' });

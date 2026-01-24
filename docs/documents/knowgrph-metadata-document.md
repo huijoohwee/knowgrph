@@ -570,8 +570,6 @@ metadata.codebasePath:
 | Fallback Resolution   | Find effective path           | - [ ] Try documentPath, then codebaseRelPath, then codebasePath; forbid undefined return    | `documentMetadata`        | `resolveDocumentPath`    | node metadata object      | path string or null   | sequential field access with null checks|
 | Line Range Extraction | Get source line span          | - [ ] Read lineStart/lineEnd; validate range; forbid inverted ranges                         | `documentMetadata`        | `resolveLineRange`       | node metadata object      | {start, end} or null  | validate start <= end, return object    |
 
----
-
 ## Metadata Quality Gates
 
 **Validation Standards**:
@@ -581,8 +579,6 @@ metadata.codebasePath:
 | Graph Metadata       | Ensure completeness             | - [ ] Validate `graphId`, `generatedAt`, `agenticRagSchema` presence; forbid missing core fields |
 | Schema-Config Metadata | Ensure alignment              | - [ ] Verify `agenticRagSchema` matches graph; validate `layersFromGraph` structure; forbid mismatched schemas |
 | Provenance Metadata  | Ensure resolvability            | - [ ] Validate at least one of `documentPath`/`codebaseRelPath` present; forbid orphaned nodes |
-
----
 
 ## Repository Health Checklist
 

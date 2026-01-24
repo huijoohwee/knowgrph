@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, GeoJsonProperties, Geometry, Point } from 'geojson'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
-import { isPlainObject } from '@/lib/graph/value'
 import { deriveGeoFromRecord, deriveIdFromRecord, deriveLabelFromRecord } from '@/lib/graph/geo/recordHeuristics'
+import { coerceRecordEntries } from '@/lib/data/recordEntries'
 
 type LngLat = { lng: number; lat: number }
 
@@ -19,7 +19,21 @@ export function extractLngLatFromGraphNode(node: GraphNode): LngLat | null {
 export function isGeoJsonLike(raw: unknown): boolean {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
   const t = (raw as Record<string, unknown>).type
-  return typeof t === 'string' && t.length > 0
+  if (typeof t !== 'string') return false
+  if (t === 'FeatureCollection') return Array.isArray((raw as Record<string, unknown>).features)
+  if (t === 'Feature') return true
+  if (
+    t === 'Point' ||
+    t === 'MultiPoint' ||
+    t === 'LineString' ||
+    t === 'MultiLineString' ||
+    t === 'Polygon' ||
+    t === 'MultiPolygon' ||
+    t === 'GeometryCollection'
+  ) {
+    return true
+  }
+  return false
 }
 
 function isGeometryLike(raw: unknown): raw is Geometry {
@@ -55,27 +69,7 @@ export function parseGeoJsonFromText(text: string): FeatureCollection | null {
 }
 
 export function recordsToPointFeatureCollection(raw: unknown): FeatureCollection<Point> | null {
-  const entries: Array<{ key: string; value: Record<string, unknown> }> = (() => {
-    if (Array.isArray(raw)) {
-      if (raw.length === 0) return []
-      const out: Array<{ key: string; value: Record<string, unknown> }> = []
-      for (let i = 0; i < raw.length; i += 1) {
-        const v = raw[i]
-        if (!isPlainObject(v)) continue
-        out.push({ key: String(i), value: v })
-      }
-      return out
-    }
-    if (isPlainObject(raw)) {
-      const out: Array<{ key: string; value: Record<string, unknown> }> = []
-      for (const [k, v] of Object.entries(raw)) {
-        if (!isPlainObject(v)) continue
-        out.push({ key: k, value: v })
-      }
-      return out
-    }
-    return []
-  })()
+  const entries = coerceRecordEntries(raw)
   if (entries.length === 0) return null
   const features: Array<Feature<Point>> = []
   for (let i = 0; i < entries.length; i += 1) {

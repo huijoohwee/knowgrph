@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import { OPENFREEMAP_STYLE_URL } from '@/features/geospatial/geospatialOverlayUtils'
+import { OPENFREEMAP_STYLE_URL } from '@/lib/geospatial/styles'
 
 export default function GeospatialPanel() {
   const {

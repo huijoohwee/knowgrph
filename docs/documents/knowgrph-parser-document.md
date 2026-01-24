@@ -55,7 +55,7 @@
 
 ## Video Analyzer: YouTube Import
 
-Canvas supports YouTube import via the `/__youtube_transcript` endpoint and `python3 -m knowgrph_parser youtube --emit json`. It extracts transcripts/subtitles/captions (manual or generated), groups them into paragraphs, and emits:
+Canvas supports YouTube import via the `/__youtube_transcript` endpoint. The server returns transcript JSON plus a Markdown representation; the client then loads the result through the standard parser/loader path. It extracts transcripts/subtitles/captions (manual or generated), groups them into paragraphs, and emits:
 - Markdown for Markdown Editor/Preview/Slides
 - Transcript JSON for the Bottom Panel JSON Editor (`jsonSourceDocumentText`)
 
@@ -93,18 +93,17 @@ Pipeline map:
 
 **Responsibility**: Parses Markdown to JSON-LD with structural and semantic layers, then converts to GraphData.
 
-**Layer Emission**: documentStructure (nodes/edges for structure) + semantic (entities/co-occurrence) + provenance (line ranges)
+**Layer Emission**: documentStructure (nodes/edges for structure) + Mermaid-derived concept-map edges (optional) + provenance (line ranges)
 
 | Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency       | Input                        | Output                 | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|------------------|------------------------------|------------------------|----------------------------------|
-| Block Parsing        | Tokenize Markdown               | - [ ] Split by headers/paragraphs/code/tables; preserve order; forbid block loss          | markdown-it      | BlockParser     | parseBlocks             | markdown-it      | Markdown text                | Token list             | Regex/state machine tokenization |
-| Structure Building   | Create document nodes           | - [ ] Build Document/Section/Paragraph nodes; link hierarchically; forbid orphaned nodes  | graph_builder    | StructureBuilder| buildStructure          | —                | Block list                   | JSON-LD @graph         | Hierarchical node creation       |
-| Media Extraction     | Parse inline references         | - [ ] Extract ![](url), <img>, <video>, <iframe>; resolve URLs; forbid broken refs       | graph_builder    | MediaExtractor  | extractMedia            | URL resolver     | Block content, base URL      | Media node list        | Regex extraction with resolution |
-| Semantic Processing  | Extract entities                | - [ ] Identify entities; compute co-occurrence; forbid domain vocabularies                | semantic_processor| EntityExtractor| extractEntities         | NLP features     | Text spans                   | Entity list            | Statistical feature-based        |
-| Line Mapping         | Preserve source positions       | - [ ] Record lineStart/lineEnd; 1-based; forbid 0-based or missing ranges                | graph_builder    | LineMapper      | mapLineRanges           | —                | Token positions              | Line range metadata    | Token position to line number    |
-| Layer Metadata       | Emit rendering hints            | - [ ] Populate metadata.layers; specify node/edge types; forbid renderer assumptions      | graph_builder    | MetadataBuilder | buildLayerMetadata      | —                | Graph structure              | Metadata object        | Type enumeration and categorization|
-| JSON-LD Conversion   | Build JSON-LD                   | - [ ] Emit @context, @graph; follow JSON-LD spec; forbid malformed JSON-LD               | graph_builder    | JSONLDBuilder   | buildMarkdownJsonLd     | —                | Nodes, edges, metadata       | JSON-LD document       | JSON-LD structure assembly       |
-| GraphData Conversion | Convert to GraphData            | - [ ] Parse JSON-LD to GraphData; preserve properties; forbid property loss               | parseJsonLd      | GraphDataConverter| convertToGraphData   | —                | JSON-LD document             | GraphData              | JSON-LD interpretation rules     |
+| Block Parsing        | Split Markdown into blocks      | - [ ] Parse headings/paragraphs/code/lists/tables; preserve order; forbid block loss     | lib/markdown     | BlockParser     | parseMarkdownBlocks     | —                | Markdown text                | Block list             | Line-based block parsing         |
+| Structure Building   | Create document structure nodes | - [ ] Build Document/Section/Paragraph nodes; link hierarchically; forbid orphaned nodes | markdownJsonLd   | MarkdownGraphBuilder | buildMarkdownJsonLd | —             | Block list                   | JSON-LD @graph         | Hierarchical node creation       |
+| Media Extraction     | Parse inline references         | - [ ] Extract links/images; normalize URLs; forbid broken refs                            | markdownJsonLd   | InlineRefExtractor | extractMarkdownInlineRefs | —           | Paragraph text, base URL     | Link/image refs        | Inline marker parsing            |
+| Mermaid Processing   | Extract Mermaid nodes/edges     | - [ ] Parse Mermaid blocks/frontmatter; preserve IDs; forbid graph loss                   | markdownJsonLd   | MermaidParser   | parseMermaidFrontmatter | —                | Mermaid code                 | Nodes/edges            | Line-aware Mermaid parsing       |
+| Line Mapping         | Preserve source positions       | - [ ] Record lineStart/lineEnd; 1-based; forbid 0-based or missing ranges                | markdownJsonLd   | MetadataBuilder | mkMeta                  | —                | Start/end line numbers       | Node metadata          | Immutable provenance stamping    |
+| JSON-LD Conversion   | Build JSON-LD                   | - [ ] Emit @context/@graph; keep properties/metadata opaque; forbid semantic validation  | markdownJsonLd   | Builder         | buildMarkdownJsonLd     | —                | Markdown text                | JSON-LD document       | Schema-aligned assembly          |
+| GraphData Conversion | Convert to GraphData            | - [ ] Parse JSON-LD to GraphData; preserve properties; forbid property loss              | parseJsonLd      | Converter       | parseJsonLd             | —                | JSON-LD document             | GraphData              | JSON-LD interpretation rules     |
 | Metrics Tracking     | Record parse timing             | - [ ] Measure buildMarkdownJsonLd, parseJsonLd; store in metadata; forbid unmeasured ops | graph_builder    | MetricsTracker  | trackMetrics            | performance      | Start/end timestamps         | Metrics object         | Delta calculation                |
 
 **Mermaid Support**:
@@ -247,8 +246,11 @@ canvas/
 │   └── features/
 │       ├── parsers/
 │       │   ├── default.ts
-│       │   ├── html-parser.ts
-│       │   └── jsonToMarkdown.ts
+│       │   ├── loader.ts
+│       │   ├── registry.ts
+│       │   ├── markdownJsonLd.ts
+│       │   └── python/
+│       │       └── index.ts
 │       └── markdown/
 │           └── ui/
 │               ├── MarkdownViewer.tsx
@@ -257,7 +259,8 @@ canvas/
 knowgrph_parser/
 ├── graph_builder.py
 ├── semantic_processor.py
-├── mermaid_parser.py
+├── markdown_cmd.py
+├── pipeline_cmd.py
 └── json_to_markdown_cmd.py
 ```
 
@@ -267,7 +270,7 @@ knowgrph_parser/
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
 | Parser Specs         | Suffix with Spec                | - [ ] Name xxxSpec in registry; document capability; forbid generic names                 |
 | Parser Functions     | Verb-oriented                   | - [ ] Use parseXxx, convertXxx; be descriptive; forbid noun-only names                    |
-| Token Properties     | Follow markdown-it              | - [ ] Use lineStart/lineEnd (1-based); forbid custom fields                               |
+| Source Mapping       | Preserve provenance lines       | - [ ] Use lineStart/lineEnd (1-based); forbid 0-based or missing ranges                  |
 | Layer Keys           | Use lowercase                   | - [ ] Name documentStructure, semantic; forbid camelCase in metadata                      |
 
 **File Organization**
@@ -295,13 +298,12 @@ knowgrph_parser/
 
 - **Unit**:
   - Parser capability predicates with various inputs.
-  - Tag-to-Markdown mapping for HTML converter.
 - **Integration**:
-  - Full parse from Markdown/HTML/JSON to GraphData.
+  - Full parse from Markdown/JSON/JSON-LD/CSV to GraphData.
   - Line mapping from selection to source position.
 - **E2E**:
   - Mermaid diagram parsing with all shapes.
-  - HTML block safety rendering.
+  - YouTube import + markdown pipeline smoke checks.
 
 **Quality Gates**
 

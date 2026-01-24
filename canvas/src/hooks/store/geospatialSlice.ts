@@ -1,25 +1,18 @@
 import { LS_KEYS, UI_COPY } from '@/lib/config'
-import { lsInt, lsJson, lsNum, lsSetInt, lsSetJson, lsSetNum } from '@/lib/persistence'
+import { lsBool, lsInt, lsJson, lsNum, lsSetBool, lsSetInt, lsSetJson, lsSetNum } from '@/lib/persistence'
 import type { GraphState } from '@/hooks/store/types'
-import type {
-  GeospatialDataset,
-  GeospatialDatasetFormat,
-} from '@/lib/geospatial/types'
+import type { GeospatialDataset, GeospatialDatasetFormat } from '@/lib/geospatial/types'
 import {
-  DEFAULT_GEOSPATIAL_OVERLAY_OPACITY,
+  coerceGeospatialOverlayOpacity,
   DEFAULT_GEOSPATIAL_DATASET_MAX_BYTES,
   DEFAULT_GEOSPATIAL_DATASET_TIMEOUT_MS,
+  DEFAULT_GEOSPATIAL_OVERLAY_OPACITY,
   DEFAULT_GEOSPATIAL_STYLE_URL,
+  parseGeospatialDatasetFormat,
   parseGeospatialDatasetsFromEnv,
 } from '@/lib/geospatial/config'
 import { normalizeGeospatialStyleUrl } from '@/lib/geospatial/styleUrl'
 import { clamp01 } from '@/lib/math/clamp01'
-
-const parseDatasetFormat = (raw: unknown): GeospatialDatasetFormat => {
-  if (raw === 'geojson') return 'geojson'
-  if (raw === 'records') return 'records'
-  return 'auto'
-}
 
 const clampInt = (value: number, min: number, max: number): number => {
   const v = Number.isFinite(value) ? Math.floor(value) : min
@@ -51,7 +44,7 @@ const parseGeospatialDatasets = (raw: unknown): GeospatialDataset[] | null => {
       label,
       enabled,
       source: { kind: 'url', url },
-      format: parseDatasetFormat(rec.format),
+      format: parseGeospatialDatasetFormat(rec.format),
     })
   }
   return out
@@ -62,11 +55,13 @@ const createDatasetId = (): string => {
   return `geo:${Date.now().toString(16)}:${rnd}`
 }
 
-export const createGeospatialDatasetsSlice = (
+export const createGeospatialSlice = (
   set: (fn: (state: GraphState) => Partial<GraphState>) => void,
   get: () => GraphState,
 ): Pick<
   GraphState,
+  | 'geospatialOverlayEnabled'
+  | 'setGeospatialOverlayEnabled'
   | 'geospatialStyleUrl'
   | 'setGeospatialStyleUrl'
   | 'geospatialOverlayOpacity'
@@ -86,8 +81,10 @@ export const createGeospatialDatasetsSlice = (
   | 'requestGeospatialFitToData'
   | 'clearGeospatialFitRequest'
 > => {
+  const geospatialOverlayEnabled = lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+
   const geospatialStyleUrl = (() => {
-    const v = lsJson(LS_KEYS.geospatialStyleUrl, DEFAULT_GEOSPATIAL_STYLE_URL, (raw) => {
+    const v = lsJson(LS_KEYS.geospatialStyleUrl, DEFAULT_GEOSPATIAL_STYLE_URL, raw => {
       if (typeof raw !== 'string') return null
       const s = normalizeGeospatialStyleUrl(raw)
       return s ? s : DEFAULT_GEOSPATIAL_STYLE_URL
@@ -97,7 +94,7 @@ export const createGeospatialDatasetsSlice = (
 
   const geospatialOverlayOpacity = (() => {
     const v = lsNum(LS_KEYS.geospatialOverlayOpacity, DEFAULT_GEOSPATIAL_OVERLAY_OPACITY)
-    return clamp01(v)
+    return coerceGeospatialOverlayOpacity(geospatialOverlayEnabled, v)
   })()
 
   const geospatialDatasetTimeoutMs = (() => {
@@ -117,21 +114,39 @@ export const createGeospatialDatasetsSlice = (
   })()
 
   return {
+    geospatialOverlayEnabled,
+    setGeospatialOverlayEnabled: v => {
+      const next = lsSetBool(LS_KEYS.geospatialOverlayEnabled, v)
+
+      if (next) {
+        const current = get().geospatialOverlayOpacity
+        const ensured = coerceGeospatialOverlayOpacity(true, current)
+        if (ensured !== current) {
+          lsSetNum(LS_KEYS.geospatialOverlayOpacity, ensured)
+          set(() => ({ geospatialOverlayOpacity: ensured }))
+        }
+      }
+
+      set(() => ({ geospatialOverlayEnabled: next }))
+    },
+
     geospatialStyleUrl,
-    setGeospatialStyleUrl: (raw) => {
+    setGeospatialStyleUrl: raw => {
       const s = normalizeGeospatialStyleUrl(raw)
       const next = s ? s : DEFAULT_GEOSPATIAL_STYLE_URL
       lsSetJson(LS_KEYS.geospatialStyleUrl, next)
       set(() => ({ geospatialStyleUrl: next }))
     },
+
     geospatialOverlayOpacity,
-    setGeospatialOverlayOpacity: (v) => {
+    setGeospatialOverlayOpacity: v => {
       const next = clamp01(typeof v === 'number' ? v : DEFAULT_GEOSPATIAL_OVERLAY_OPACITY)
       lsSetNum(LS_KEYS.geospatialOverlayOpacity, next)
       set(() => ({ geospatialOverlayOpacity: next }))
     },
+
     geospatialDatasetTimeoutMs,
-    setGeospatialDatasetTimeoutMs: (v) => {
+    setGeospatialDatasetTimeoutMs: v => {
       const raw = typeof v === 'number' ? v : DEFAULT_GEOSPATIAL_DATASET_TIMEOUT_MS
       const next = lsSetInt(LS_KEYS.geospatialDatasetTimeoutMs, raw, {
         min: GEO_DATASET_TIMEOUT_MIN_MS,
@@ -139,8 +154,9 @@ export const createGeospatialDatasetsSlice = (
       })
       set(() => ({ geospatialDatasetTimeoutMs: next }))
     },
+
     geospatialDatasetMaxBytes,
-    setGeospatialDatasetMaxBytes: (v) => {
+    setGeospatialDatasetMaxBytes: v => {
       const raw = typeof v === 'number' ? v : DEFAULT_GEOSPATIAL_DATASET_MAX_BYTES
       const next = lsSetInt(LS_KEYS.geospatialDatasetMaxBytes, raw, {
         min: GEO_DATASET_MAX_BYTES_MIN,
@@ -148,12 +164,13 @@ export const createGeospatialDatasetsSlice = (
       })
       set(() => ({ geospatialDatasetMaxBytes: next }))
     },
+
     geospatialDatasets,
-    addGeospatialDatasetUrl: (args) => {
+    addGeospatialDatasetUrl: args => {
       const url = String(args?.url || '').trim()
       if (!url) return
       const label = String(args?.label || '').trim() || UI_COPY.geospatialDatasetDefaultLabel
-      const format = parseDatasetFormat(args?.format)
+      const format = parseGeospatialDatasetFormat(args?.format)
       const nextItem: GeospatialDataset = {
         id: createDatasetId(),
         label,
@@ -161,69 +178,59 @@ export const createGeospatialDatasetsSlice = (
         source: { kind: 'url', url },
         format,
       }
-      set((state) => {
-        const next = [...(state.geospatialDatasets || []), nextItem]
-        lsSetJson(LS_KEYS.geospatialDatasets, next)
-        return { geospatialDatasets: next }
+      const current = get().geospatialDatasets || []
+      const next = [...current, nextItem]
+      lsSetJson(LS_KEYS.geospatialDatasets, next)
+      set(() => ({ geospatialDatasets: next }))
+    },
+
+    removeGeospatialDataset: id => {
+      const current = get().geospatialDatasets || []
+      const next = current.filter(d => d.id !== id)
+      if (next.length === current.length) return
+      lsSetJson(LS_KEYS.geospatialDatasets, next)
+      set(() => ({ geospatialDatasets: next }))
+      set(s => {
+        const status = s.geospatialDatasetStatusById || {}
+        if (!(id in status)) return {}
+        const copy = { ...status }
+        delete copy[id]
+        return { geospatialDatasetStatusById: copy }
       })
     },
-    removeGeospatialDataset: (id) => {
-      const target = String(id || '').trim()
-      if (!target) return
-      set((state) => {
-        const cur = state.geospatialDatasets || []
-        const next = cur.filter(d => d.id !== target)
-        if (next.length === cur.length) return {}
-        lsSetJson(LS_KEYS.geospatialDatasets, next)
-        const status = { ...(state.geospatialDatasetStatusById || {}) }
-        delete status[target]
-        return { geospatialDatasets: next, geospatialDatasetStatusById: status }
-      })
+
+    toggleGeospatialDatasetEnabled: id => {
+      const current = get().geospatialDatasets || []
+      const idx = current.findIndex(d => d.id === id)
+      if (idx < 0) return
+      const next = current.map(d => (d.id === id ? { ...d, enabled: !d.enabled } : d))
+      lsSetJson(LS_KEYS.geospatialDatasets, next)
+      set(() => ({ geospatialDatasets: next }))
     },
-    toggleGeospatialDatasetEnabled: (id) => {
-      const target = String(id || '').trim()
-      if (!target) return
-      set((state) => {
-        const cur = state.geospatialDatasets || []
-        const idx = cur.findIndex(d => d.id === target)
-        if (idx < 0) return {}
-        const nextItem = { ...cur[idx], enabled: !cur[idx].enabled }
-        const next = [...cur.slice(0, idx), nextItem, ...cur.slice(idx + 1)]
-        lsSetJson(LS_KEYS.geospatialDatasets, next)
-        return { geospatialDatasets: next }
-      })
+
+    setGeospatialDatasetLabel: (id, labelRaw) => {
+      const label = String(labelRaw || '').trim()
+      if (!label) return
+      const current = get().geospatialDatasets || []
+      const idx = current.findIndex(d => d.id === id)
+      if (idx < 0) return
+      const next = current.map(d => (d.id === id ? { ...d, label } : d))
+      lsSetJson(LS_KEYS.geospatialDatasets, next)
+      set(() => ({ geospatialDatasets: next }))
     },
-    setGeospatialDatasetLabel: (id, label) => {
-      const target = String(id || '').trim()
-      const nextLabel = String(label || '').trim()
-      if (!target || !nextLabel) return
-      set((state) => {
-        const cur = state.geospatialDatasets || []
-        const idx = cur.findIndex(d => d.id === target)
-        if (idx < 0) return {}
-        if (cur[idx].label === nextLabel) return {}
-        const nextItem = { ...cur[idx], label: nextLabel }
-        const next = [...cur.slice(0, idx), nextItem, ...cur.slice(idx + 1)]
-        lsSetJson(LS_KEYS.geospatialDatasets, next)
-        return { geospatialDatasets: next }
-      })
-    },
+
     geospatialDatasetStatusById: {},
     setGeospatialDatasetStatus: (id, status) => {
-      const target = String(id || '').trim()
-      if (!target) return
-      set((state) => ({
-        geospatialDatasetStatusById: {
-          ...(state.geospatialDatasetStatusById || {}),
-          [target]: status,
-        },
-      }))
+      set(s => ({ geospatialDatasetStatusById: { ...(s.geospatialDatasetStatusById || {}), [id]: status } }))
     },
+
     geospatialFitRequest: null,
     requestGeospatialFitToData: () => {
-      if (!get().geospatialOverlayEnabled) return
       set(() => ({ geospatialFitRequest: { at: Date.now() } }))
     },
-    clearGeospatialFitRequest: () => set(() => ({ geospatialFitRequest: null })),
+    clearGeospatialFitRequest: () => {
+      set(() => ({ geospatialFitRequest: null }))
+    },
   }
 }
+

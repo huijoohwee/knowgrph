@@ -17,7 +17,6 @@ import GraphFieldsListPanel from '@/features/panels/views/graph-fields/GraphFiel
 import FieldSettingsPanel from '@/features/panels/views/graph-fields/FieldSettingsPanel'
 import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamplesPanel'
 import { normalized } from '@/features/panels/utils/json'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 export type GraphFieldsSelectedView =
@@ -39,6 +38,8 @@ type GraphFieldsViewProps = {
 export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFieldsViewProps) {
   const graphData = useActiveGraphData()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
+  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
+  const dismissUiToast = useGraphStore(s => s.dismissUiToast)
   const settingsById = useGraphStore(s => s.graphFieldSettingsById)
   const setGraphFieldSettingsById = useGraphStore(s => s.setGraphFieldSettingsById)
   const graphDataTableVisibleColumns = useGraphStore(s => s.graphDataTableVisibleColumns)
@@ -168,6 +169,31 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
     [onStatusChange, selectedField, selectedSettings, setGraphFieldSettingsById, settingsById],
   )
 
+  const lastRawNodesEdgesToastRevisionRef = React.useRef<number | null>(null)
+
+  React.useEffect(() => {
+    const isRawNodesEdges = graphData && graphData.context === 'raw-nodes-edges'
+    const toastId = 'graphFields:raw-nodes-edges'
+
+    if (!isRawNodesEdges) {
+      lastRawNodesEdgesToastRevisionRef.current = null
+      dismissUiToast(toastId)
+      return
+    }
+
+    if (lastRawNodesEdgesToastRevisionRef.current === graphDataRevision) return
+    lastRawNodesEdgesToastRevisionRef.current = graphDataRevision
+
+    const message = `${UI_COPY.graphFieldsRawNodesEdgesToastTitle}\n${UI_COPY.graphFieldsRawNodesEdgesToastBody}`
+    upsertUiToast({
+      id: toastId,
+      kind: 'warning',
+      message,
+      ttlMs: 10_000,
+      dismissible: true,
+    })
+  }, [dismissUiToast, graphData, graphDataRevision, upsertUiToast])
+
   return (
     <MainPanelBody header={<MainPanelGraphFieldsHeader agenticLegend={agenticLegend} />} scrollable={false}>
       <article
@@ -175,22 +201,6 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
         data-kg-anchor={UI_ANCHORS.graphFields}
       >
         <div className="flex-1 min-h-0 overflow-hidden">
-          {graphData && graphData.context === 'raw-nodes-edges' && (
-            <div
-              role="alert"
-              className={[
-                `mb-2 px-3 py-2 rounded border ${UI_THEME_TOKENS.status.warning}`,
-                'text-[11px]',
-              ].join(' ')}
-            >
-              <div className="font-semibold">
-                {UI_COPY.graphFieldsRawNodesEdgesBannerTitle}
-              </div>
-              <div className="mt-0.5">
-                {UI_COPY.graphFieldsRawNodesEdgesBannerBody}
-              </div>
-            </div>
-          )}
           <div className="h-full min-h-0 min-w-0 overflow-hidden grid grid-cols-2 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
             <GraphFieldsListPanel
               graphData={graphData}

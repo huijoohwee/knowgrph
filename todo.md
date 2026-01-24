@@ -5,7 +5,9 @@
 ### Universal, neutral, project‑agnostic one‑liner in context–intent–directive
 
 - [ ] Cross-mode; maintain separate layout caches; forbid cross-mode cache contamination
+- [ ] Document Indexing; convert document over 600 lines into "index docs" that feature a section list with links to relevant code and schema
 - [ ] Full‑screen; preserve inactive canvas; forbid unnecessary recompute
+- [ ] Graphics; prioritize vector sources over raster
 - [ ] Markup; apply semantic elements; forbid generic `div` misuse
 - [ ] Modules; follow single responsibility; forbid cross‑cutting sprawl
 - [ ] Performance; apply memoization/cache results; forbid costly rerendering/recalculation

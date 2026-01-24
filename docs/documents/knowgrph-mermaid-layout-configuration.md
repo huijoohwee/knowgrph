@@ -10,9 +10,6 @@
 - [ ] Configurability; externalize all parameters; forbid hardcoded layout values
 - [ ] Compliance; support Mermaid syntax; forbid incompatible extensions
 ```
-
----
-
 ## Mermaid Layout Architecture
 
 **Layout Stack**: Mermaid AST → Dagre Graph → Layout Computation → Position Assignment → Interactive Dragging → Canvas Rendering
@@ -570,8 +567,6 @@ layout.rectNodes.maxZoomMinimapHeightRatio:
 | Edge Rendering       | ☐      | - [ ] B-splines smooth, direct lines during drag; forbid incorrect mode switching         |
 | Group Outline Visibility | ☐      | - [ ] Subgraph outlines render behind nodes; forbid z-order issues                         |
 
----
-
 ## Anti-Patterns (Forbidden)
 
 | Context              | Intent                          | Directive                                                                                   |
@@ -581,8 +576,6 @@ layout.rectNodes.maxZoomMinimapHeightRatio:
 | Unstable Rankers     | Prevent crashes                 | - [ ] Use `network-simplex`; forbid `tight-tree` without validation                        |
 | Unbounded Caches     | Prevent memory leaks            | - [ ] Implement LRU eviction; forbid unlimited cache growth                                |
 | Missing Validation   | Ensure robustness               | - [ ] Validate topology before Dagre; forbid passing invalid graphs                        |
-
----
 
 ## Codebase Integration Summary
 
@@ -600,59 +593,6 @@ layout.rectNodes.maxZoomMinimapHeightRatio:
 | `canvas/src/components/GraphCanvas/layers/links.ts`            | Edge rendering with B-splines and direct lines    | ~350   |
 | `canvas/src/components/GraphCanvas/layers/groups.ts`           | Subgraph container rendering                      | ~200   |
 
----
-
 ## Configuration Examples
 
-### High-Fidelity Mermaid Layout
-
-```json
-{
-  "layout": {
-    "mode": "mermaid",
-    "mermaid": {
-      "orientation": "vertical",
-      "direction": "source-target",
-      "separation": 3.5,
-      "validateTopology": true,
-      "enableCaching": true
-    },
-    "fitPadding": 100,
-    "fitTargetAspectRatio": 1.777,
-    "fitEnforceAspectRatio": true
-  }
-}
-```
-
-### Horizontal Flow with Custom Spacing
-
-```json
-{
-  "layout": {
-    "mode": "mermaid",
-    "mermaid": {
-      "orientation": "horizontal",
-      "direction": "source-target",
-      "separation": 4.0
-    }
-  }
-}
-```
-
-### Z-Order Control
-
-```json
-{
-  "layout": {
-    "mode": "mermaid",
-    "mermaid": {
-      "renderOrder": {
-        "MermaidSubgraph": -10,
-        "MermaidNode": 0,
-        "MermaidEdge": 5,
-        "Label": 10
-      }
-    }
-  }
-}
-```
+See [knowgrph-mermaid-layout-configuration-examples.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-mermaid-layout-configuration-examples.md).

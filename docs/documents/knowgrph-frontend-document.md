@@ -220,6 +220,32 @@ ui_settings_slice:
 
 ---
 
+### Layer 3.5: UI Notifications (Toast)
+
+**From state changes to user feedback**: Feature pushes/upserts toast → store updates `uiToasts[]` → ToastHost renders stack → prune loop auto-dismisses expired items.
+
+**Implementation**:
+- Store slice: `canvas/src/hooks/store/uiToastSlice.ts`
+- Host renderer: [ToastHost.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/ui/ToastHost.tsx)
+
+**Contracts**:
+- **Stack order**: Store order is visual order; index 0 is the newest at the default Y, older toasts push downward (no overlap).
+- **Actions**:
+  - `pushUiToast(...)`: event-style notifications (use unique ids for distinct events).
+  - `upsertUiToast(...)`: status-style notifications (stable id); moves to front; preserves original createdAt-based expiry.
+  - `dismissUiToast(id)`: explicit removal (required for persistent loading toasts where `ttlMs=null`).
+- **TTL**: Default TTL is 10s when `ttlMs` is omitted; repeated upserts must not extend expiry unless explicitly desired.
+
+**Design Compliance**:
+
+| Context           | Intent                          | Directive                                                                                  | Module/Component | Function/Method | Input                         | Output                    | Decision Logic |
+|------------------|----------------------------------|--------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------------|---------------------------|----------------|
+| Toast stacking    | Keep messages legible            | - [ ] Newest stays at default Y; older push downward; forbid overlap                       | ToastHost        | render          | uiToasts[]                     | Stacked toasts            | Render by store order |
+| Toast transitions | Preserve status causality        | - [ ] For loading → loaded/error, emit event toast and dismiss loading shortly after       | Feature module   | push/upsert     | status state + messages        | Loading + event toasts    | Stable loading id + unique event ids |
+| Auto-dismiss      | Reduce noise safely              | - [ ] Prune expired items on an interval; forbid sticky toasts from unbounded refresh loops | uiToastSlice     | pruneUiToasts   | nowMs                          | Remaining uiToasts[]      | Keep expiresAtMs null or > now |
+
+---
+
 ### Layer 4: Parsers & Data Ingestion
 
 **From source files to graph data**: User uploads file → Parser detects format → Normalize to internal representation → Validate against schema → Update store → Trigger canvas/panel updates.

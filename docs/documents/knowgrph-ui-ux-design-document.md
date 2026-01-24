@@ -76,6 +76,7 @@
 | Select edge | Click edge | Store selection updates | Must not invalidate layout caches |
 | Context menu | Right click canvas | Open props/actions | Must cleanup listeners on close/unmount |
 | Pan/zoom | Drag/scroll | Update viewport transform | Must keep updates throttled and stable |
+| Toast notification | Store adds toast | Surface transient status/errors | Must not overlap; newest stays at default Y and pushes older downward |
 
 ---
 
@@ -91,3 +92,16 @@
 - Global Lucide icon alignment: [index.css](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/index.css)
 - Icon+text combobox controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 - Canvas node label anchoring/baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)
+
+---
+
+## Notifications (Toast)
+
+**Primary directive**: Use Toast for transient UI feedback; forbid duplicate “Banner” implementations drifting from toast behavior.
+
+| Context | Intent | Directive |
+|---------|--------|-----------|
+| Toast stacking | Keep notifications legible | - [ ] Newest toast anchors at default Y; older push downward; forbid overlap |
+| Toast lifetime | Avoid sticky noise | - [ ] Default auto-dismiss by TTL; allow persistent “loading” toasts only with explicit dismiss |
+| State transitions | Preserve causality | - [ ] For event transitions (loading → loaded/error), emit a new toast event and dismiss loading shortly after; forbid overwriting status so users miss the transition |
+| Cleanup | Avoid leaks | - [ ] Clear timers/listeners on unmount; forbid orphaned intervals/timeouts |

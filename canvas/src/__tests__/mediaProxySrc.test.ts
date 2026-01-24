@@ -17,3 +17,19 @@ export const testApplyMediaProxyNormalizesGithubBlobUrl = () => {
     g.window = prevWindow
   }
 }
+
+export const testApplyMediaProxySkipsProxyWhenNotLocalhost = () => {
+  const g = globalThis as unknown as Record<string, unknown>
+  const prevWindow = g.window
+  g.window = { location: { origin: 'https://example.invalid' } }
+  try {
+    const blobLike = 'https://github.com/owner/repo/blob/main/doc.md'
+    const out = applyMediaProxySrc(blobLike)
+    if (out.startsWith(`${MEDIA_PROXY_ENDPOINT}?url=`)) throw new Error('expected direct URL (no proxy wrapper)')
+    if (!out.startsWith('https://raw.githubusercontent.com/')) {
+      throw new Error('expected github blob url to normalize to raw.githubusercontent.com')
+    }
+  } finally {
+    g.window = prevWindow
+  }
+}

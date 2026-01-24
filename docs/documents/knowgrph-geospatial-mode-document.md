@@ -22,7 +22,18 @@
 - The MapLibre instance is created once per enable-cycle (not on every dataset/graph update) to avoid cancelling in-flight style loads.
 - In React dev StrictMode, effects mount/unmount twice; map creation is deferred to the next tick so the “probe” mount does not trigger aborted style requests.
 - When enabling the overlay, if the persisted opacity is `0` the implementation restores a safe default opacity so the overlay cannot be “enabled but invisible”.
-- Map style load failures are surfaced (console + small overlay banner) instead of silently producing a blank map.
+- Map style load failures are surfaced (console + toast) instead of silently producing a blank map.
+- A persistent “blank overlay” state is prevented by warning when overlay opacity is `0%` and by timing out basemap load with a bounded error message.
+- Cross-origin asset proxying is **dev-only**: on localhost, cross-origin map assets can be routed through `/__fetch_remote` to avoid CORS issues; in production/static deploys the proxy does not exist, so assets must load directly.
+- Style-relative URLs are resolved against a trailing-slash base (for example `.../styles/liberty/`) so `sprite`, `glyphs`, and `source.url` relative paths resolve correctly.
+- Runtime overlay status is surfaced via a native in-app toast (top-right, below the toolbar) so it stays visible above the SidePanel and other UI layers.
+- If the basemap stays blank after refresh while requests succeed, the most common cause is a **0px-height overlay container** (e.g. `canvas=1728x0`). The overlay is mounted via a portal and forces viewport-sized layout (`100vw/100vh` with px fallbacks) and calls `map.resize()` to avoid this dead state.
+
+### Troubleshooting: “Loaded” but blank
+
+- Symptom: toast shows `styleLoaded=yes`, `tilesLoaded=yes`, `sourceLoaded=yes` but `canvas=...x0` and the basemap is invisible.
+- Cause: the overlay DOM element has `height: 0` after refresh/layout transitions, so MapLibre has no drawable area.
+- Fix: ensure the overlay is mounted at `document.body` (portal), forced to viewport size, and that `map.resize()` runs after style/load/resize events.
 
 ---
 
@@ -58,6 +69,19 @@
 
 ---
 
+## Implementation Map (Import → Render)
+
+- Parse routing: `features/parsers/default.ts` → `lib/graph/io/adapter.ts` (`parseGraph`)
+- Geo derivation on ingest:
+  - GeoJSON: `lib/graph/geo/geojsonToGraphData.ts`
+  - Records: `lib/graph/geo/arrayRecordsToGraph.ts` + `lib/graph/geo/recordHeuristics.ts`
+- Overlay render + readiness/toast: `features/geospatial/GeospatialOverlay.tsx`
+- Dataset URL loading + layer creation: `features/geospatial/geospatialOverlayUtils.ts` + `lib/geospatial/geojson.ts`
+- UI controls: `features/geospatial/GeospatialPanel.tsx`
+- Persisted state: `hooks/store/geospatialSlice.ts` + `lib/config.ls.ts`
+
+---
+
 ## Configuration & Persistence
 
 - Map settings persist via local storage:
@@ -65,6 +89,8 @@
   - `LS_KEYS.geospatialStyleUrl`
   - `LS_KEYS.geospatialOverlayOpacity`
   - `LS_KEYS.geospatialDatasets`
+  - `LS_KEYS.geospatialDatasetTimeoutMs`
+  - `LS_KEYS.geospatialDatasetMaxBytes`
 - Optional runtime configuration (no hardcoded datasets/providers):
   - `VITE_GEOSPATIAL_STYLE_URL` (default: OpenFreeMap Liberty)
   - `VITE_GEOSPATIAL_OVERLAY_OPACITY` (default: 0.65, clamped to [0,1])

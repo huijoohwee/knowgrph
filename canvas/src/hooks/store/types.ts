@@ -31,6 +31,25 @@ export type LayoutPositionCacheKey = `${string}:${LayoutMode}`;
 
 export type DocumentSemanticMode = 'document' | 'keyword'
 
+export type UiToastKind = 'neutral' | 'success' | 'warning' | 'error'
+
+export type UiToast = {
+  id: string
+  kind: UiToastKind
+  message: string
+  createdAtMs: number
+  expiresAtMs: number | null
+  dismissible: boolean
+}
+
+export type UiToastInput = {
+  id: string
+  kind?: UiToastKind
+  message: string
+  ttlMs?: number | null
+  dismissible?: boolean
+}
+
 export type GraphHoverPreviewConfig = {
   showNodeId: boolean;
   showNodeName: boolean;
@@ -169,6 +188,11 @@ export interface GraphState {
   uiOverlayOpacity: number;
   uiPanelOpacity: number;
   uiToolbarOpacity: number;
+  uiToasts: UiToast[];
+  pushUiToast: (toast: UiToastInput) => void;
+  upsertUiToast: (toast: UiToastInput) => void;
+  dismissUiToast: (id: string) => void;
+  pruneUiToasts: (nowMs: number) => void;
   geospatialOverlayEnabled: boolean;
   setGeospatialOverlayEnabled: (v: boolean) => void;
   geospatialStyleUrl: string;

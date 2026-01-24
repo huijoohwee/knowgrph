@@ -1,5 +1,5 @@
 import { LS_KEYS } from '@/lib/config'
-import { createGeospatialOverlaySlice } from '@/hooks/store/geospatialOverlaySlice'
+import { createGeospatialSlice } from '@/hooks/store/geospatialSlice'
 import { createMemoryStorage } from '@/tests/lib/memoryStorage'
 
 export function testGeospatialOverlayPersistenceHydratesAndWrites() {
@@ -9,10 +9,10 @@ export function testGeospatialOverlayPersistenceHydratesAndWrites() {
   anyWindow.window.localStorage = storage as unknown as Storage
 
   const updates: Array<Record<string, unknown>> = []
-  const slice = createGeospatialOverlaySlice((fn) => {
+  const slice = createGeospatialSlice((fn) => {
     updates.push(fn({} as never) as unknown as Record<string, unknown>)
     return void 0
-  }, () => ({ geospatialOverlayOpacity: 0 } as never))
+  }, () => ({ geospatialOverlayOpacity: 0, geospatialDatasets: [] } as never))
 
   if (slice.geospatialOverlayEnabled !== true) {
     throw new Error('expected geospatialOverlayEnabled to hydrate from localStorage')

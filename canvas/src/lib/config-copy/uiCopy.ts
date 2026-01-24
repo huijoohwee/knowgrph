@@ -274,8 +274,8 @@ export const UI_COPY = {
     'Higher values explore deeper multi-hop chains per query; lower values keep GraphRAG runs focused and quick to replay.',
   syncedFieldsStatus: (count: number) => `Synced ${count} fields`,
   syncedNoFieldsFoundStatus: 'Synced (no fields found)',
-  graphFieldsRawNodesEdgesBannerTitle: 'Raw JSON fields via rawToGraphData',
-  graphFieldsRawNodesEdgesBannerBody:
+  graphFieldsRawNodesEdgesToastTitle: 'Raw JSON fields via rawToGraphData',
+  graphFieldsRawNodesEdgesToastBody:
     'This graph was ingested as raw JSON (context: "raw-nodes-edges"). Node and edge properties shown here come from rawToGraphData → map important fields like chunk_text, media_url, graphRAGPath, and workflow phases to AgenticRAG roles in Field Settings so tables, schema, and JSON-LD exports stay aligned.',
   graphFieldsNewFieldMissingNameStatus: 'New field: missing name',
   graphFieldsNewFieldNameCannotContainColonStatus: 'New field: name cannot include ":"',
