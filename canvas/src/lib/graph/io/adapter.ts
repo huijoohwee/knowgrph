@@ -4,9 +4,6 @@ import { rawToGraphData } from '@/lib/graph/rawToGraph'
 import { parseJsonLd, toJsonLd } from '@/lib/graph/jsonld/index'
 import { isN8nWorkflow, parseN8nWorkflow } from '@/lib/graph/n8n'
 import { isGraphRagBundle, parseGraphRagBundle } from '@/lib/graph/graphrag'
-import { arrayRecordsToGraphData } from '@/lib/graph/geo/arrayRecordsToGraph'
-import { geojsonToGraphData } from '@/lib/graph/geo/geojsonToGraphData'
-import { coerceGeoJsonToFeatureCollection, isGeoJsonLike } from '@/lib/geospatial/geojson'
 
 export type ParseDiagnostics = {
   format: 'csv' | 'json' | 'jsonld'
@@ -21,17 +18,6 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
   }
   try {
     const json = JSON.parse(text)
-    if (isGeoJsonLike(json)) {
-      const fc = coerceGeoJsonToFeatureCollection(json)
-      if (fc) {
-        const data = geojsonToGraphData(fc, { sourceName: name })
-        return { data, diag: { format: 'json', warnings: [] } }
-      }
-    }
-    const records = arrayRecordsToGraphData(json)
-    if (records) {
-      return { data: records, diag: { format: 'json', warnings: [] } }
-    }
     if (json && Array.isArray(json.nodes) && Array.isArray(json.edges)) {
       const n0 = json.nodes[0] || {}
       const e0 = json.edges[0] || {}

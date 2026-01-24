@@ -80,15 +80,6 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     options: ['2d', '3d'],
   },
   {
-    key: 'geospatial.overlay.enabled',
-    type: 'boolean',
-    source: 'store',
-    read: () => s().geospatialOverlayEnabled,
-    write: (v) => s().setGeospatialOverlayEnabled(Boolean(v)),
-    docKey: 'geospatialOverlayEnabled',
-    default: () => false,
-  },
-  {
     key: 'orchestratorTraversalDelayMs',
     type: 'number',
     source: 'localStorage',

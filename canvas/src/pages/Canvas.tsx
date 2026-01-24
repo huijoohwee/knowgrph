@@ -11,8 +11,9 @@ import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { FileCode, MessageCircle, Map as MapIcon } from 'lucide-react'
+import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
+import { GympgrphGeospatialOverlayHost, GympgrphGeospatialPanelHost } from '@/features/geospatial/GympgrphGeospatialHost'
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
@@ -22,8 +23,6 @@ const NodeEditorLazy = React.lazy(() => import('@/components/NodeEditor'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const SidebarTriggerLazy = React.lazy(() => import('@/components/SidebarTrigger'))
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
-const GeospatialPanelLazy = React.lazy(() => import('@/features/geospatial/GeospatialPanel'))
-const GeospatialOverlayLazy = React.lazy(() => import('@/features/geospatial/GeospatialOverlay'))
 
 type MarkdownMetricSample = {
   ts: number
@@ -316,21 +315,21 @@ export default function CanvasPage() {
     }
   }, [enableTabSync, graphId, tabId, schema])
 
-  const { requestZoom, canvasRenderMode, requestThreeCamera, geospatialOverlayEnabled } = useGraphStore(
+  const { requestZoom, canvasRenderMode, requestThreeCamera } = useGraphStore(
     useShallow(s => ({
       requestZoom: s.requestZoom,
       canvasRenderMode: s.canvasRenderMode,
       requestThreeCamera: s.requestThreeCamera,
-      geospatialOverlayEnabled: s.geospatialOverlayEnabled,
     })),
   )
-  const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'map'>('node')
+  const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ tab?: 'node' | 'chat' | 'map'; open?: boolean } | undefined>
+      const e = ev as CustomEvent<{ tab?: 'node' | 'chat' | 'geo'; open?: boolean } | undefined>
       const detail = e.detail
-      const tab = detail?.tab === 'chat' ? 'chat' : detail?.tab === 'map' ? 'map' : detail?.tab === 'node' ? 'node' : null
+      const tab =
+        detail?.tab === 'chat' ? 'chat' : detail?.tab === 'geo' ? 'geo' : detail?.tab === 'node' ? 'node' : null
       if (tab) setSidePanelTab(tab)
       if (detail?.open) setSidebarOpen(true)
     }
@@ -379,6 +378,7 @@ export default function CanvasPage() {
                 </React.Suspense>
               </nav>
               <ToastHost />
+              <GympgrphGeospatialOverlayHost active={isSidebarOpen && sidePanelTab === 'geo'} />
               <>
                 <React.Suspense fallback={null}>
                   <div
@@ -390,7 +390,6 @@ export default function CanvasPage() {
                   >
                     <GraphCanvasLazy active={canvasRenderMode === '2d'} />
                   </div>
-                  {geospatialOverlayEnabled ? <GeospatialOverlayLazy /> : null}
                   <div
                     className={[
                       'absolute inset-0 z-[10]',
@@ -429,17 +428,17 @@ export default function CanvasPage() {
                       tabs={[
                         { key: 'node', label: 'Node' },
                         { key: 'chat', label: 'Chat' },
-                        { key: 'map', label: 'Map' },
+                        { key: 'geo', label: 'Geo' },
                       ]}
                       tabVariant="icon"
                       tabIconByKey={{
                         node: FileCode,
                         chat: MessageCircle,
-                        map: MapIcon,
+                        geo: Map,
                       }}
                       activeTab={sidePanelTab}
                       onTabChange={key => {
-                        setSidePanelTab(key === 'chat' ? 'chat' : key === 'map' ? 'map' : 'node')
+                        setSidePanelTab(key === 'chat' ? 'chat' : key === 'geo' ? 'geo' : 'node')
                       }}
                     />
                     <div className="flex-1 overflow-y-auto">
@@ -447,11 +446,11 @@ export default function CanvasPage() {
                         <div className={sidePanelTab === 'chat' ? 'h-full' : 'hidden'}>
                           <SidePanelChatLazy />
                         </div>
-                        <div className={sidePanelTab === 'map' ? 'h-full' : 'hidden'}>
-                          <GeospatialPanelLazy />
-                        </div>
                         <div className={sidePanelTab === 'node' ? 'h-full' : 'hidden'}>
                           <NodeEditorLazy />
+                        </div>
+                        <div className={sidePanelTab === 'geo' ? 'h-full' : 'hidden'}>
+                          <GympgrphGeospatialPanelHost active={sidePanelTab === 'geo'} />
                         </div>
                       </React.Suspense>
                     </div>

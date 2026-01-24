@@ -2,7 +2,7 @@
 
 **Document Version**: 1.0.2  
 **Date**: 2026-01-23  
-**Status**: Active (runtime overlay implemented; advanced spatial analysis TBD)
+**Status**: Active (reference implementation extracted to `gympgrph`; Knowgrph hosts it via a plugin bridge)
 
 ---
 
@@ -10,7 +10,7 @@
 
 **Context**: Knowledge Graph systems with Agentic GraphRAG capabilities lack native geospatial visualization and spatial analysis  
 **Intent**: Enable location-aware knowledge discovery through integrated mapping capabilities  
-**Directive**: This document describes MapLibre GL + configurable vector map styles + Turf.js integration layered on top of the infinite canvas. The current runtime implements a non-interactive basemap overlay, dataset URL layers (GeoJSON + records→points), and bounded fit-to-data; spatial query and selection synchronization features remain future work unless explicitly implemented.
+**Directive**: This document describes MapLibre GL + configurable vector map styles + Turf.js integration layered on top of the infinite canvas. The reference runtime (in `gympgrph`) implements a non-interactive basemap overlay, dataset URL layers (GeoJSON + records→points), and bounded fit-to-data; spatial query and selection synchronization features remain future work unless explicitly implemented.
 
 ---
 

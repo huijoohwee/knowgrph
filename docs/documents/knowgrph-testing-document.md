@@ -34,7 +34,7 @@
 
 **Targeted execution** (bounded by scope, not just time):
 - `tsx src/tests/ci.ts <filter>` runs only tests whose name contains `<filter>` (case-insensitive).
-- Prefer targeted filters (e.g. `geospatial`, `parser`, `jsonld`) in CI and local iteration to avoid long-running suites.
+- Prefer targeted filters (e.g. `parser`, `jsonld`, `settings`) in CI and local iteration to avoid long-running suites.
 
 ---
 

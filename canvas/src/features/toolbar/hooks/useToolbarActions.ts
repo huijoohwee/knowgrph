@@ -177,19 +177,13 @@ export function useToolbarActions(
     emitSidePanelOpen({ tab: 'chat', open: true })
   }, [])
 
-  const handleToggleGeospatialMode = useCallback(() => {
-    try {
-      const s = useGraphStore.getState()
-      const enabled = !!s.geospatialOverlayEnabled
-      if (enabled) {
-        s.setGeospatialOverlayEnabled(false)
-        return
-      }
-      emitSidePanelOpen({ tab: 'map', open: true })
-      s.setGeospatialOverlayEnabled(true)
-    } catch {
-      emitSidePanelOpen({ tab: 'map', open: true })
-    }
+  const handleOpenGeospatialMode = useCallback(() => {
+    emitSidePanelOpen({ tab: 'geo', open: true })
+    void import('gympgrph')
+      .then(m => {
+        m.setGeospatialModeEnabled(true)
+      })
+      .catch(() => void 0)
   }, [])
 
   const handleToggleTheme = useCallback(() => {
@@ -214,7 +208,7 @@ export function useToolbarActions(
     handleToggleRenderMedia,
     handleToggle3DMode,
     handleOpenChat,
-    handleToggleGeospatialMode,
+    handleOpenGeospatialMode,
     handleToggleTheme,
   }
 }

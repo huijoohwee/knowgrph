@@ -2,7 +2,7 @@
 
 **Context**: Persisted UI and workflow settings in the browser  
 **Intent**: Provide stable, discoverable storage keys with a single source of truth  
-**Directive**: Reference only canonical keys from `canvas/src/lib/config.ls.ts` (no magic strings)
+**Directive**: Reference only canonical keys from `canvas/src/lib/config.ls.ts` (no magic strings). For plugin-owned keys, import keys from the plugin package (host must not hardcode).
 
 ---
 
@@ -13,17 +13,7 @@
 
 ---
 
-## Geospatial Mode Keys
+## Geospatial Mode (Extracted)
 
-| Key | Purpose |
-|---|---|
-| `LS_KEYS.geospatialOverlayEnabled` | Persists whether Geospatial Mode is enabled. |
-| `LS_KEYS.geospatialStyleUrl` | Persists MapLibre style URL for the basemap. |
-| `LS_KEYS.geospatialOverlayOpacity` | Persists overlay opacity (clamped to [0,1]). |
-| `LS_KEYS.geospatialInteractionMode` | Persists map interaction mode (off / hold-space / always). |
-| `LS_KEYS.geospatialProjectionMode` | Persists projection mode (auto / mercator / globe). |
-| `LS_KEYS.geospatialAnimateCamera` | Persists whether fit-to-data camera moves animate. |
-| `LS_KEYS.geospatialAutoFitEnabled` | Persists whether auto-fit is enabled in 3D render mode. |
-| `LS_KEYS.geospatialDatasets` | Persists dataset layer URL references for the map overlay. |
-| `LS_KEYS.geospatialDatasetTimeoutMs` | Persists per-dataset fetch timeout in milliseconds. |
-| `LS_KEYS.geospatialDatasetMaxBytes` | Persists per-dataset maximum download size in bytes. |
+- Knowgrph keeps Geospatial Mode keys out of `canvas/src/lib/config.ls.ts` to preserve a geospatial-free core.
+- The Geospatial Mode implementation (including its persistence design) lives in the sibling repo `gympgrph` and owns its LocalStorage keys.

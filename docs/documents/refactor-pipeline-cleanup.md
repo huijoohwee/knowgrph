@@ -50,6 +50,8 @@ Mapped the end-to-end pipeline:
 
 ## 2026-01-23: Geospatial Mode runtime overlay (MapLibre + OpenFreeMap + Turf)
 
+- Status: This Geospatial Mode implementation was extracted to `gympgrph` on 2026-01-24; Knowgrph now loads it on-demand as a plugin via a minimal bridge.
+
 ### Pipeline Traversal (Frontend Import → Render)
 - **Import UI → ingest**: `features/toolbar/*ImportAction.ts` → `features/toolbar/ingestUtils.ts`
 - **Parse/normalize**: `features/parsers/loader.ts` → `lib/graph/io/adapter.ts` → `lib/graph/geo/*`
@@ -69,6 +71,8 @@ Mapped the end-to-end pipeline:
 ---
 
 ## 2026-01-24: Geospatial overlay interaction + projection + animation controls
+
+- Status: This work now continues in `gympgrph` (Knowgrph hosts it via a gympgrph plugin bridge).
 
 ### Changes
 - Added SidePanel Map settings for interaction mode, projection mode, camera animation, and 3D auto-fit.

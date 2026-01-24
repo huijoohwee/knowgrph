@@ -14,7 +14,6 @@ import type {
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex';
 import type { MarkdownFrontmatter } from '@/lib/markdown'
-import type { GeospatialDataset, GeospatialDatasetFormat, GeospatialDatasetStatus } from '@/lib/geospatial/types'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -193,40 +192,6 @@ export interface GraphState {
   upsertUiToast: (toast: UiToastInput) => void;
   dismissUiToast: (id: string) => void;
   pruneUiToasts: (nowMs: number) => void;
-  geospatialOverlayEnabled: boolean;
-  setGeospatialOverlayEnabled: (v: boolean) => void;
-  geospatialStyleUrl: string;
-  setGeospatialStyleUrl: (url: string) => void;
-  geospatialOverlayOpacity: number;
-  setGeospatialOverlayOpacity: (v: number) => void;
-  geospatialInteractionMode: 'off' | 'hold-space' | 'always';
-  setGeospatialInteractionMode: (mode: 'off' | 'hold-space' | 'always') => void;
-  geospatialProjectionMode: 'auto' | 'mercator' | 'globe';
-  setGeospatialProjectionMode: (mode: 'auto' | 'mercator' | 'globe') => void;
-  geospatialAnimateCamera: boolean;
-  setGeospatialAnimateCamera: (v: boolean) => void;
-  geospatialAutoFitEnabled: boolean;
-  setGeospatialAutoFitEnabled: (v: boolean) => void;
-  geospatialDatasets: GeospatialDataset[];
-  addGeospatialDatasetUrl: (args: { url: string; label?: string; format?: GeospatialDatasetFormat }) => void;
-  removeGeospatialDataset: (id: string) => void;
-  toggleGeospatialDatasetEnabled: (id: string) => void;
-  setGeospatialDatasetLabel: (id: string, label: string) => void;
-  geospatialDatasetStatusById: Record<string, GeospatialDatasetStatus>;
-  setGeospatialDatasetStatus: (id: string, status: GeospatialDatasetStatus) => void;
-  geospatialDatasetReloadNonceById: Record<string, number>;
-  requestGeospatialDatasetReload: (id: string) => void;
-  geospatialDatasetTimeoutMs: number;
-  setGeospatialDatasetTimeoutMs: (v: number) => void;
-  geospatialDatasetMaxBytes: number;
-  setGeospatialDatasetMaxBytes: (v: number) => void;
-  geospatialGraphPoiColor: string;
-  setGeospatialGraphPoiColor: (v: string) => void;
-  geospatialGraphPoiSelectedColor: string;
-  setGeospatialGraphPoiSelectedColor: (v: string) => void;
-  geospatialFitRequest: null | { at: number };
-  requestGeospatialFitToData: () => void;
-  clearGeospatialFitRequest: () => void;
   mediaNodeOpacity: number;
   chatEndpointUrl: string | null;
   chatModel: string | null;

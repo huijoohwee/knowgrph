@@ -6,10 +6,14 @@
 
 ---
 
+## Status (2026-01-24)
+
+- Knowgrph keeps Geospatial Mode logic out of its codebase and loads it on-demand from the sibling repo `gympgrph` (implementation lives in `gympgrph/src/`).
+- Knowgrph exposes a toolbar entrypoint (**Geospatial Mode**, right of **3D Mode**) that opens the Geo side-panel tab and mounts the gympgrph overlay.
+
 ## Current Status (Runtime Overlay)
 
-- The toolbar **Geospatial Mode** (globe) button and the **Map** tab enable a runtime map overlay.
-- A MapLibre GL basemap renders as a translucent layer on top of the canvas.
+- In the extracted module, a MapLibre GL basemap renders as a translucent layer on top of the canvas.
 - The overlay is graph-first by default: map interactions are disabled unless explicitly enabled (for example, **Hold Space** to temporarily pan/zoom).
 - **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
 - **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.
@@ -45,11 +49,11 @@
 
 ## User Journey
 
-1. User loads a dataset into the graph OR opens the **Map** tab.
-2. User toggles **Geospatial Mode** ON (globe button).
+1. User loads a dataset into the graph.
+2. In the extracted module UI, user enables the runtime overlay.
 3. A translucent basemap overlay appears on top of the canvas (defaulting to OpenFreeMap) while graph interactions remain primary.
-4. User optionally configures interaction/projection/animation settings in the Map tab.
-5. User adds one or more dataset URLs in the Map tab to render additional map layers.
+4. User optionally configures interaction/projection/animation settings in the overlay panel UI.
+5. User adds one or more dataset URLs in the overlay panel UI to render additional map layers.
 6. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
 ---
@@ -78,38 +82,23 @@
 
 ## Implementation Map (Import → Render)
 
-- Parse routing: `features/parsers/default.ts` → `lib/graph/io/adapter.ts` (`parseGraph`)
-- Geo derivation on ingest:
-  - GeoJSON: `lib/graph/geo/geojsonToGraphData.ts`
-  - Records: `lib/graph/geo/arrayRecordsToGraph.ts` + `lib/graph/geo/recordHeuristics.ts`
-- Overlay render + readiness/toast: `features/geospatial/GeospatialOverlay.tsx`
-- Dataset URL loading + layer creation: `features/geospatial/geospatialOverlayUtils.ts` + `lib/geospatial/geojson.ts`
-- UI controls: `features/geospatial/GeospatialPanel.tsx`
-- Persisted state: `hooks/store/geospatialSlice.ts` + `lib/config.ls.ts`
+- Knowgrph pipeline (import → parse → store → render) remains in:
+  - Parse routing: `canvas/src/features/parsers/default.ts` → `canvas/src/lib/graph/io/adapter.ts` (`parseGraph`)
+  - Store commit: `canvas/src/hooks/store/graphDataSlice.ts` (`setGraphData`)
+  - Render: `canvas/src/components/GraphCanvas.tsx` → `canvas/src/components/GraphCanvas/scene.ts`
+- Extracted Geospatial Mode implementation lives in `gympgrph/src/`:
+  - Overlay render + interaction gating: `features/geospatial/GeospatialOverlay.tsx`
+  - Basemap lifecycle: `features/geospatial/useMapLibreBasemap.ts`
+  - Dataset URL loading + layer creation: `features/geospatial/geospatialOverlayUtils.ts`
+  - POI selection mapping: `features/geospatial/geospatialPoiSelection.ts`
+  - UI controls: `features/geospatial/GeospatialPanel.tsx`
+  - Geo derivation helpers (historic): `lib/graph/geo/*` and `lib/geospatial/*`
 
 ---
 
 ## Configuration & Persistence
 
-- Map settings persist via local storage:
-  - `LS_KEYS.geospatialOverlayEnabled`
-  - `LS_KEYS.geospatialStyleUrl`
-  - `LS_KEYS.geospatialOverlayOpacity`
-  - `LS_KEYS.geospatialInteractionMode`
-  - `LS_KEYS.geospatialProjectionMode`
-  - `LS_KEYS.geospatialAnimateCamera`
-  - `LS_KEYS.geospatialAutoFitEnabled`
-  - `LS_KEYS.geospatialDatasets`
-  - `LS_KEYS.geospatialDatasetTimeoutMs`
-  - `LS_KEYS.geospatialDatasetMaxBytes`
-  - `LS_KEYS.geospatialGraphPoiColor`
-  - `LS_KEYS.geospatialGraphPoiSelectedColor`
-- Optional runtime configuration (no hardcoded datasets/providers):
-  - `VITE_GEOSPATIAL_STYLE_URL` (default: OpenFreeMap Liberty)
-  - `VITE_GEOSPATIAL_OVERLAY_OPACITY` (default: 0.65, clamped to [0,1])
-  - `VITE_GEOSPATIAL_DATASETS_JSON` (dataset catalog JSON)
-  - `VITE_GEOSPATIAL_DATASET_TIMEOUT_MS`
-  - `VITE_GEOSPATIAL_DATASET_MAX_BYTES`
+- The extracted module keeps the original persistence/config design (LS-backed settings + optional env overrides) for future reuse, but Knowgrph no longer defines or uses Geospatial Mode LS keys.
 
 ### Dataset Fetch Limits (UI)
 
