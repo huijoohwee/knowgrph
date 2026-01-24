@@ -161,8 +161,7 @@ export function useMapLibreBasemap(args: {
         attributionControl: false,
         transformRequest: (url, resourceType) => {
           const normalized = normalizeGitHubBlobLikeUrl(url) ?? url
-          const shouldProxy = resourceType === 'Image' || resourceType === 'SpriteImage'
-          const proxied = shouldProxy ? applyMediaProxySrc(normalized) : normalized
+          const proxied = applyMediaProxySrc(normalized)
           if (typeof window === 'undefined') return { url: proxied }
           try {
             const out = new URL(proxied).toString()
@@ -356,14 +355,12 @@ export function useMapLibreBasemap(args: {
       bootTimeoutId = window.setTimeout(() => {
         if (cancelled) return
         const probe = probeRef.current
-        const derivedReady = Boolean(
-          probe.tileSourceId && probe.styleLoaded && probe.tilesLoaded && probe.sourceLoaded && probe.canvasW > 0 && probe.canvasH > 0,
-        )
+        const derivedReady = Boolean(probe.styleLoaded && probe.canvasW > 0 && probe.canvasH > 0)
         if (derivedReady) return
         const last = lastMapRequestRef.current
         const suffix = last?.output ? ` (lastRequest=${last.output})` : ''
         setMapError(prev => prev ?? `Basemap did not load. Check style URL, CORS, or network.${suffix}`)
-      }, 12_000)
+      }, 25_000)
 
       try {
         forceViewportSize()

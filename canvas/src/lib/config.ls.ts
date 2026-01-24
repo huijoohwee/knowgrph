@@ -138,6 +138,8 @@ export const LS_KEYS = {
   geospatialDatasets: 'kg:ui:geospatial:datasets',
   geospatialDatasetTimeoutMs: 'kg:ui:geospatial:datasetTimeoutMs',
   geospatialDatasetMaxBytes: 'kg:ui:geospatial:datasetMaxBytes',
+  geospatialGraphPoiColor: 'kg:ui:geospatial:graphPoiColor',
+  geospatialGraphPoiSelectedColor: 'kg:ui:geospatial:graphPoiSelectedColor',
 } as const;
 
 export const SESSION_KEYS = {
@@ -340,6 +342,8 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   geospatialDatasets: 'ui.map',
   geospatialDatasetTimeoutMs: 'ui.map',
   geospatialDatasetMaxBytes: 'ui.map',
+  geospatialGraphPoiColor: 'ui.map',
+  geospatialGraphPoiSelectedColor: 'ui.map',
 };
 
 export const SCHEMA_SECTIONS = [

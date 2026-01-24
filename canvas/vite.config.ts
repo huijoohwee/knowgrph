@@ -426,7 +426,7 @@ function createPdfAssetsHandler(): import('vite').Connect.NextHandleFunction {
 
 function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
   return async (req, res, next) => {
-    if (req.method !== 'GET') {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
       next()
       return
     }
@@ -462,6 +462,7 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       const upstream = await (async () => {
         try {
           return await fetch(urlParam, {
+            method: req.method,
             redirect: 'follow',
             signal: controller.signal,
             headers: {
@@ -476,6 +477,14 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       const contentType = upstream.headers.get('content-type')
       if (contentType) {
         res.setHeader('Content-Type', contentType)
+      }
+      if (req.method === 'HEAD') {
+        const contentLength = upstream.headers.get('content-length')
+        if (contentLength) {
+          res.setHeader('Content-Length', contentLength)
+        }
+        res.end()
+        return
       }
       const readWithLimit = async (): Promise<Buffer> => {
         const reader = upstream.body?.getReader()
@@ -507,6 +516,11 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         return Buffer.concat(chunks)
       }
       const buf = await readWithLimit()
+      try {
+        res.setHeader('Content-Length', String(buf.byteLength))
+      } catch {
+        void 0
+      }
       res.end(buf)
     } catch (error) {
       const msg =

@@ -27,6 +27,14 @@ export default function GeospatialPanel() {
     toggleGeospatialDatasetEnabled,
     setGeospatialDatasetLabel,
     geospatialDatasetStatusById,
+    geospatialDatasetTimeoutMs,
+    setGeospatialDatasetTimeoutMs,
+    geospatialDatasetMaxBytes,
+    setGeospatialDatasetMaxBytes,
+    geospatialGraphPoiColor,
+    setGeospatialGraphPoiColor,
+    geospatialGraphPoiSelectedColor,
+    setGeospatialGraphPoiSelectedColor,
     requestGeospatialFitToData,
   } = useGraphStore(
     useShallow(s => ({
@@ -50,6 +58,14 @@ export default function GeospatialPanel() {
       toggleGeospatialDatasetEnabled: s.toggleGeospatialDatasetEnabled,
       setGeospatialDatasetLabel: s.setGeospatialDatasetLabel,
       geospatialDatasetStatusById: s.geospatialDatasetStatusById,
+      geospatialDatasetTimeoutMs: s.geospatialDatasetTimeoutMs,
+      setGeospatialDatasetTimeoutMs: s.setGeospatialDatasetTimeoutMs,
+      geospatialDatasetMaxBytes: s.geospatialDatasetMaxBytes,
+      setGeospatialDatasetMaxBytes: s.setGeospatialDatasetMaxBytes,
+      geospatialGraphPoiColor: s.geospatialGraphPoiColor,
+      setGeospatialGraphPoiColor: s.setGeospatialGraphPoiColor,
+      geospatialGraphPoiSelectedColor: s.geospatialGraphPoiSelectedColor,
+      setGeospatialGraphPoiSelectedColor: s.setGeospatialGraphPoiSelectedColor,
       requestGeospatialFitToData: s.requestGeospatialFitToData,
     })),
   )
@@ -57,6 +73,8 @@ export default function GeospatialPanel() {
   const [newLabel, setNewLabel] = React.useState('')
   const [newUrl, setNewUrl] = React.useState('')
   const [newFormat, setNewFormat] = React.useState<'auto' | 'geojson' | 'records'>('auto')
+  const normalizePickerColor = (value: string, fallback: string): string =>
+    /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback
 
   return (
     <div className={`h-full flex flex-col ${UI_THEME_TOKENS.panel.bg}`}>
@@ -183,6 +201,79 @@ export default function GeospatialPanel() {
             >
               {UI_COPY.geospatialFitToDataLabel}
             </button>
+          </div>
+
+          <div className="space-y-2">
+            <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>{UI_COPY.geospatialGraphPoiColorsTitle}</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.geospatialGraphPoiColorLabel}</div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className={`w-10 h-7 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
+                    value={normalizePickerColor(geospatialGraphPoiColor, '#2563EB')}
+                    onChange={e => setGeospatialGraphPoiColor(e.target.value)}
+                  />
+                  <input
+                    className={`w-full text-xs rounded border px-2 py-1 ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+                    value={geospatialGraphPoiColor}
+                    onChange={e => setGeospatialGraphPoiColor(e.target.value)}
+                    placeholder="#2563EB"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.geospatialGraphPoiSelectedColorLabel}</div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className={`w-10 h-7 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
+                    value={normalizePickerColor(geospatialGraphPoiSelectedColor, '#2563EB')}
+                    onChange={e => setGeospatialGraphPoiSelectedColor(e.target.value)}
+                  />
+                  <input
+                    className={`w-full text-xs rounded border px-2 py-1 ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+                    value={geospatialGraphPoiSelectedColor}
+                    onChange={e => setGeospatialGraphPoiSelectedColor(e.target.value)}
+                    placeholder="#2563EB"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>{UI_COPY.geospatialDatasetFetchLimitsTitle}</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.geospatialDatasetFetchTimeoutLabel}</div>
+                <input
+                  className={`w-full text-xs rounded border px-2 py-1 ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+                  type="number"
+                  min={1000}
+                  max={60000}
+                  step={500}
+                  value={geospatialDatasetTimeoutMs}
+                  onChange={e => setGeospatialDatasetTimeoutMs(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.geospatialDatasetFetchMaxBytesLabel}</div>
+                <input
+                  className={`w-full text-xs rounded border px-2 py-1 ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+                  type="number"
+                  min={64 * 1024}
+                  max={50 * 1024 * 1024}
+                  step={256 * 1024}
+                  value={geospatialDatasetMaxBytes}
+                  onChange={e => setGeospatialDatasetMaxBytes(Number(e.target.value))}
+                />
+                <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
+                  {UI_COPY.geospatialDatasetFetchMaxBytesHint(geospatialDatasetMaxBytes / (1024 * 1024))}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-2">

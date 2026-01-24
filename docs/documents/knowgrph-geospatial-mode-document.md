@@ -15,6 +15,10 @@
 - **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.
 - Projection is configurable (**Auto / Mercator / Globe**). In **Auto**, 3D render mode uses a globe-style projection.
 - Dataset layers can be added as URLs (GeoJSON or record-style JSON) and rendered as points/lines/polygons.
+- Clicking a rendered **POI** selects it:
+  - Graph-node POIs select the corresponding graph node in the main canvas (selectionSource aligns with canvas clicks).
+  - Dataset POIs show a lightweight selection marker + toast with dataset/feature details.
+  - POI clicking follows the interaction gating: in the default **Hold Space** mode, clicks work while Space is held.
 - Geo fields are derived during ingest for both GeoJSON inputs and record-style inputs when coordinates are present.
 - “Fit to data” computes a bounded bbox and updates the overlay camera (optional animation).
 - In 3D render mode, the overlay auto-fits to active geo bounds so the globe doesn’t appear “blank” by default.
@@ -98,6 +102,8 @@
   - `LS_KEYS.geospatialDatasets`
   - `LS_KEYS.geospatialDatasetTimeoutMs`
   - `LS_KEYS.geospatialDatasetMaxBytes`
+  - `LS_KEYS.geospatialGraphPoiColor`
+  - `LS_KEYS.geospatialGraphPoiSelectedColor`
 - Optional runtime configuration (no hardcoded datasets/providers):
   - `VITE_GEOSPATIAL_STYLE_URL` (default: OpenFreeMap Liberty)
   - `VITE_GEOSPATIAL_OVERLAY_OPACITY` (default: 0.65, clamped to [0,1])
@@ -105,19 +111,38 @@
   - `VITE_GEOSPATIAL_DATASET_TIMEOUT_MS`
   - `VITE_GEOSPATIAL_DATASET_MAX_BYTES`
 
+### Dataset Fetch Limits (UI)
+
+- Dataset fetch is always bounded by `timeoutMs` and `maxBytes` (user-configurable in the Map panel).
+- Default `maxBytes` is sized to handle common public GeoJSON datasets (for example ~20MB city datasets) while still remaining bounded.
+- If a dataset is too large (based on Content-Length when available), loading fails early with an actionable error instead of streaming indefinitely.
+- Basemap style/tiles are fetched via the local `/__fetch_remote` proxy when running on localhost to avoid CORS issues; binary tile responses are served with a corrected Content-Length to prevent truncated PBF parsing errors.
+
+### Graph POI Styling (UI)
+
+- Graph-node POIs are rendered as a dedicated overlay layer and are always clickable (an invisible hit layer is used to make selection reliable).
+- The Map panel exposes color pickers for:
+  - Graph POI color
+  - Selected outline color
+
 ---
 
 ## Multi-Dataset Examples (No Runtime Hardcoding)
 
-- Layer 01 (records): `https://github.com/mwgg/Airports/blob/master/airports.json`
-- Layer 02 (GeoJSON): `https://github.com/dr5hn/countries-states-cities-database/blob/master/geojson/countries.geojson`
-- Layer 03 (local GeoJSON fixture): `canvas/src/__tests__/demo/cities.geojson` (very large; host a sampled/simplified copy for browser rendering)
+- Layer 01 (records, object-map): `https://github.com/mwgg/Airports/blob/master/airports.json`
+- Layer 02 (GeoJSON polygons): `https://github.com/dr5hn/countries-states-cities-database/blob/master/geojson/countries.geojson`
+- Layer 03 (local GeoJSON fixture, ~7MB): `canvas/src/__tests__/demo/airports_full_all_feet.geojson`
+- Layer 04 (local GeoJSON fixture, ~200MB): `canvas/src/__tests__/demo/cities.geojson` (expected to fail under default `datasetFetchMaxBytes`)
+
+Notes:
+- Prefer `raw.githubusercontent.com/...` URLs (or providers that serve CORS-enabled JSON) for browser loading; GitHub `blob` URLs should be normalized to raw.
+- Bounded fetch limits are a feature: very large datasets should be rejected unless the user explicitly increases `datasetFetchMaxBytes` (still bounded).
 
 Example dataset catalog (set as `VITE_GEOSPATIAL_DATASETS_JSON`):
 
 ```json
 [
-  { "label": "Airports", "url": "https://github.com/mwgg/Airports/blob/master/airports.json", "format": "records" },
-  { "label": "Countries", "url": "https://github.com/dr5hn/countries-states-cities-database/blob/master/geojson/countries.geojson", "format": "geojson" }
+  { "id": "layer-01", "label": "Airports", "url": "https://raw.githubusercontent.com/mwgg/Airports/master/airports.json", "format": "records", "enabled": true },
+  { "id": "layer-02", "label": "Countries", "url": "https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/geojson/countries.geojson", "format": "geojson", "enabled": true }
 ]
 ```

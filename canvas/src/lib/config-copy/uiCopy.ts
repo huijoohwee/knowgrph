@@ -156,6 +156,13 @@ export const UI_COPY = {
   geospatialDatasetStatusLoading: 'Status: loading…',
   geospatialDatasetStatusReady: (featureCount: number) => `Status: ready (${featureCount} features)`,
   geospatialDatasetStatusError: (message: string) => `Status: error (${message})`,
+  geospatialDatasetFetchLimitsTitle: 'Dataset fetch limits',
+  geospatialDatasetFetchTimeoutLabel: 'Timeout (ms)',
+  geospatialDatasetFetchMaxBytesLabel: 'Max bytes',
+  geospatialDatasetFetchMaxBytesHint: (mb: number) => `≈ ${mb.toFixed(1)} MB`,
+  geospatialGraphPoiColorsTitle: 'Graph POI colors',
+  geospatialGraphPoiColorLabel: 'POI color',
+  geospatialGraphPoiSelectedColorLabel: 'Selected outline',
   fitToViewTooltip: 'Fit to View: automatically scale and center the graph to fill the viewport.',
   pinToViewTooltip:
     'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',

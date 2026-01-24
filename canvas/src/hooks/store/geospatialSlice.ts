@@ -22,7 +22,9 @@ const clampInt = (value: number, min: number, max: number): number => {
 const GEO_DATASET_TIMEOUT_MIN_MS = 1_000
 const GEO_DATASET_TIMEOUT_MAX_MS = 60_000
 const GEO_DATASET_MAX_BYTES_MIN = 64 * 1024
-const GEO_DATASET_MAX_BYTES_MAX = 20 * 1024 * 1024
+const GEO_DATASET_MAX_BYTES_MAX = 50 * 1024 * 1024
+const GEO_GRAPH_POI_COLOR_DEFAULT = '#2563EB'
+const GEO_GRAPH_POI_SELECTED_COLOR_DEFAULT = '#2563EB'
 
 const parseInteractionMode = (raw: unknown): 'off' | 'hold-space' | 'always' => {
   if (raw === 'off') return 'off'
@@ -34,6 +36,12 @@ const parseProjectionMode = (raw: unknown): 'auto' | 'mercator' | 'globe' => {
   if (raw === 'mercator') return 'mercator'
   if (raw === 'globe') return 'globe'
   return 'auto'
+}
+
+const normalizeHexColor = (raw: unknown, fallback: string): string => {
+  const s = typeof raw === 'string' ? raw.trim() : ''
+  if (/^#[0-9a-f]{6}$/i.test(s)) return s
+  return fallback
 }
 
 const parseGeospatialDatasets = (raw: unknown): GeospatialDataset[] | null => {
@@ -97,6 +105,10 @@ export const createGeospatialSlice = (
   | 'setGeospatialDatasetTimeoutMs'
   | 'geospatialDatasetMaxBytes'
   | 'setGeospatialDatasetMaxBytes'
+  | 'geospatialGraphPoiColor'
+  | 'setGeospatialGraphPoiColor'
+  | 'geospatialGraphPoiSelectedColor'
+  | 'setGeospatialGraphPoiSelectedColor'
   | 'geospatialFitRequest'
   | 'requestGeospatialFitToData'
   | 'clearGeospatialFitRequest'
@@ -139,6 +151,16 @@ export const createGeospatialSlice = (
     const raw = lsInt(LS_KEYS.geospatialDatasetMaxBytes, DEFAULT_GEOSPATIAL_DATASET_MAX_BYTES)
     return clampInt(raw, GEO_DATASET_MAX_BYTES_MIN, GEO_DATASET_MAX_BYTES_MAX)
   })()
+
+  const geospatialGraphPoiColor = lsJson(LS_KEYS.geospatialGraphPoiColor, GEO_GRAPH_POI_COLOR_DEFAULT, raw =>
+    typeof raw === 'string' ? normalizeHexColor(raw, GEO_GRAPH_POI_COLOR_DEFAULT) : null,
+  )
+
+  const geospatialGraphPoiSelectedColor = lsJson(
+    LS_KEYS.geospatialGraphPoiSelectedColor,
+    GEO_GRAPH_POI_SELECTED_COLOR_DEFAULT,
+    raw => (typeof raw === 'string' ? normalizeHexColor(raw, GEO_GRAPH_POI_SELECTED_COLOR_DEFAULT) : null),
+  )
 
   const geospatialDatasets = (() => {
     const envDefaults = parseGeospatialDatasetsFromEnv()
@@ -222,6 +244,20 @@ export const createGeospatialSlice = (
         max: GEO_DATASET_MAX_BYTES_MAX,
       })
       set(() => ({ geospatialDatasetMaxBytes: next }))
+    },
+
+    geospatialGraphPoiColor,
+    setGeospatialGraphPoiColor: v => {
+      const next = normalizeHexColor(v, GEO_GRAPH_POI_COLOR_DEFAULT)
+      lsSetJson(LS_KEYS.geospatialGraphPoiColor, next)
+      set(() => ({ geospatialGraphPoiColor: next }))
+    },
+
+    geospatialGraphPoiSelectedColor,
+    setGeospatialGraphPoiSelectedColor: v => {
+      const next = normalizeHexColor(v, GEO_GRAPH_POI_SELECTED_COLOR_DEFAULT)
+      lsSetJson(LS_KEYS.geospatialGraphPoiSelectedColor, next)
+      set(() => ({ geospatialGraphPoiSelectedColor: next }))
     },
 
     geospatialDatasets,

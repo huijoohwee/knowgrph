@@ -9,7 +9,7 @@ import { clamp01 } from '@/lib/math/clamp01'
 import { normalizeGitHubBlobLikeUrl } from '@/lib/url'
 import { graphNodesToPointFeatureCollection } from '@/lib/geospatial/geojson'
 import { DEFAULT_GEOSPATIAL_STYLE_URL } from '@/lib/geospatial/config'
-import { normalizeGeospatialStyleUrl } from '@/lib/geospatial/styleUrl'
+import { pickPoiSelection } from '@/features/geospatial/geospatialPoiSelection'
 import {
   colorForDataset,
   computeBoundsFromCollections,
@@ -25,6 +25,10 @@ import { useMapLibreBasemap } from '@/features/geospatial/useMapLibreBasemap'
 const GEO_SOURCE_PREFIX = 'kg-geo-ds'
 const GRAPH_SOURCE_ID = 'kg-geo-graph-nodes'
 const GRAPH_LAYER_ID = 'kg-geo-graph-nodes-layer'
+const GRAPH_HIT_LAYER_ID = 'kg-geo-graph-nodes-hit'
+const GRAPH_SELECTED_LAYER_ID = 'kg-geo-graph-nodes-selected'
+const POI_SOURCE_ID = 'kg-geo-poi-selected'
+const POI_LAYER_ID = 'kg-geo-poi-selected-layer'
 
 const datasetCache = new LRUCache<string, FeatureCollection>(40, 10 * 60 * 1000)
 
@@ -40,6 +44,12 @@ export function GeospatialOverlay() {
   const lastToastKeyRef = React.useRef<string>('')
   const lastToastEventKeyRef = React.useRef<string>('')
   const pendingDismissToastTimeoutRef = React.useRef<number | null>(null)
+  const lastPoiToastKeyRef = React.useRef<string>('')
+
+  const [selectedPoiPoint, setSelectedPoiPoint] = React.useState<FeatureCollection>({
+    type: 'FeatureCollection',
+    features: [],
+  })
 
   const {
     enabled,
@@ -53,11 +63,18 @@ export function GeospatialOverlay() {
     zoomState,
     canvasRenderMode,
     datasets,
+    selectedNodeId,
+    selectedNodeIds,
+    selectNode,
+    selectEdge,
+    setSelectionSource,
     setDatasetStatus,
     fitRequest,
     clearFitRequest,
     datasetTimeoutMs,
     datasetMaxBytes,
+    graphPoiColor,
+    graphPoiSelectedColor,
     pushUiToast,
     upsertUiToast,
     dismissUiToast,
@@ -74,11 +91,18 @@ export function GeospatialOverlay() {
       zoomState: s.zoomState,
       canvasRenderMode: s.canvasRenderMode,
       datasets: s.geospatialDatasets,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
+      selectNode: s.selectNode,
+      selectEdge: s.selectEdge,
+      setSelectionSource: s.setSelectionSource,
       setDatasetStatus: s.setGeospatialDatasetStatus,
       fitRequest: s.geospatialFitRequest,
       clearFitRequest: s.clearGeospatialFitRequest,
       datasetTimeoutMs: s.geospatialDatasetTimeoutMs,
       datasetMaxBytes: s.geospatialDatasetMaxBytes,
+    graphPoiColor: s.geospatialGraphPoiColor,
+    graphPoiSelectedColor: s.geospatialGraphPoiSelectedColor,
       pushUiToast: s.pushUiToast,
       upsertUiToast: s.upsertUiToast,
       dismissUiToast: s.dismissUiToast,
@@ -92,13 +116,7 @@ export function GeospatialOverlay() {
     return graphNodesToPointFeatureCollection(graphData)
   }, [graphData])
 
-  const targetStyleUrl = React.useMemo(() => {
-    const normalizedStyleUrlRaw = String(styleUrl || '').trim()
-    const isDefault =
-      !normalizedStyleUrlRaw || normalizedStyleUrlRaw.toLowerCase() === 'blank' || normalizedStyleUrlRaw.toLowerCase() === 'none'
-    const next = isDefault ? DEFAULT_GEOSPATIAL_STYLE_URL : normalizeGeospatialStyleUrl(normalizedStyleUrlRaw)
-    return next || DEFAULT_GEOSPATIAL_STYLE_URL
-  }, [styleUrl])
+  const targetStyleUrl = styleUrl || DEFAULT_GEOSPATIAL_STYLE_URL
 
   const { map, mapError, styleRevision, statusRevision, probe, lastMapRequestRef } = useMapLibreBasemap({
     enabled,
@@ -112,6 +130,16 @@ export function GeospatialOverlay() {
   const holdingSpace = useHeldKey({ enabled: enabled && interactionMode === 'hold-space', code: 'Space' })
   const interactionActive = interactionMode === 'always' ? true : interactionMode === 'off' ? false : holdingSpace
 
+  const interactiveLayerIds = React.useMemo(() => {
+    const ids: string[] = [GRAPH_HIT_LAYER_ID, GRAPH_LAYER_ID]
+    for (const d of datasets || []) {
+      if (!d.enabled) continue
+      const src = toSourceId(d.id)
+      ids.push(`${src}:points`, `${src}:line`, `${src}:fill`)
+    }
+    return ids
+  }, [datasets])
+
   React.useEffect(() => {
     if (!enabled || !map) return
     setMapInteractionEnabled(map, interactionActive)
@@ -121,12 +149,59 @@ export function GeospatialOverlay() {
     if (!enabled || !map) return
     if (!map.isStyleLoaded()) return
     try {
-      ensureGraphPointLayer(map, GRAPH_SOURCE_ID, GRAPH_LAYER_ID)
+      ensureGraphPointLayer(map, GRAPH_SOURCE_ID, GRAPH_LAYER_ID, graphPoiColor)
+      if (!map.getLayer(GRAPH_HIT_LAYER_ID)) {
+        map.addLayer({
+          id: GRAPH_HIT_LAYER_ID,
+          type: 'circle',
+          source: GRAPH_SOURCE_ID,
+          paint: {
+            'circle-radius': 12,
+            'circle-color': '#000000',
+            'circle-opacity': 0,
+          },
+        })
+      }
+      if (!map.getLayer(GRAPH_SELECTED_LAYER_ID)) {
+        map.addLayer({
+          id: GRAPH_SELECTED_LAYER_ID,
+          type: 'circle',
+          source: GRAPH_SOURCE_ID,
+          filter: ['==', ['get', 'nodeId'], '__none__'],
+          paint: {
+            'circle-radius': 7,
+            'circle-color': '#FFFFFF',
+            'circle-opacity': 0.9,
+            'circle-stroke-color': graphPoiSelectedColor,
+            'circle-stroke-width': 2,
+          },
+        })
+      }
       setGeoJsonSourceData(map, GRAPH_SOURCE_ID, graphPoints)
     } catch {
       void 0
     }
-  }, [enabled, map, graphPoints, styleRevision])
+  }, [enabled, map, graphPoints, graphPoiColor, graphPoiSelectedColor, styleRevision])
+
+  React.useEffect(() => {
+    if (!enabled || !map) return
+    if (!map.isStyleLoaded()) return
+    const active = (() => {
+      const ids = Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0 ? selectedNodeIds : selectedNodeId ? [selectedNodeId] : []
+      return ids.filter(Boolean)
+    })()
+    try {
+      if (active.length === 0) {
+        map.setFilter(GRAPH_SELECTED_LAYER_ID, ['==', ['get', 'nodeId'], '__none__'] as never)
+      } else if (active.length === 1) {
+        map.setFilter(GRAPH_SELECTED_LAYER_ID, ['==', ['get', 'nodeId'], active[0]] as never)
+      } else {
+        map.setFilter(GRAPH_SELECTED_LAYER_ID, ['in', ['get', 'nodeId'], ['literal', active]] as never)
+      }
+    } catch {
+      void 0
+    }
+  }, [enabled, map, selectedNodeId, selectedNodeIds, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
@@ -141,6 +216,145 @@ export function GeospatialOverlay() {
       }
     })
   }, [enabled, map, datasets, styleRevision])
+
+  React.useEffect(() => {
+    if (!enabled || !map) return
+    if (!map.isStyleLoaded()) return
+    try {
+      if (!map.getSource(POI_SOURCE_ID)) {
+        map.addSource(POI_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        })
+      }
+      if (!map.getLayer(POI_LAYER_ID)) {
+        map.addLayer({
+          id: POI_LAYER_ID,
+          type: 'circle',
+          source: POI_SOURCE_ID,
+          paint: {
+            'circle-radius': 8,
+            'circle-color': '#111827',
+            'circle-opacity': 0.85,
+            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-width': 2,
+          },
+        })
+      }
+      setGeoJsonSourceData(map, POI_SOURCE_ID, selectedPoiPoint)
+    } catch {
+      void 0
+    }
+  }, [enabled, map, selectedPoiPoint, styleRevision])
+
+  React.useEffect(() => {
+    if (!enabled || !map) return
+    if (!map.isStyleLoaded()) return
+    const ids = [GRAPH_LAYER_ID, GRAPH_SELECTED_LAYER_ID, POI_LAYER_ID]
+    for (const id of ids) {
+      try {
+        if (!map.getLayer(id)) continue
+        map.moveLayer(id)
+      } catch {
+        void 0
+      }
+    }
+  }, [enabled, map, datasets, styleRevision])
+
+  React.useEffect(() => {
+    if (!enabled || !map) return
+    if (!map.isStyleLoaded()) return
+    const onClick = (ev: unknown) => {
+      if (!interactionActive) return
+      const e = ev as { point?: unknown }
+      const pt = e.point as { x?: number; y?: number } | undefined
+      if (!pt || typeof pt.x !== 'number' || typeof pt.y !== 'number') return
+      let rendered: unknown[] = []
+      try {
+        const existingLayers = interactiveLayerIds.filter(id => {
+          try {
+            return Boolean(map.getLayer(id))
+          } catch {
+            return false
+          }
+        })
+        rendered =
+          existingLayers.length > 0
+            ? ((map.queryRenderedFeatures(pt as never, { layers: existingLayers as never }) as unknown) as unknown[])
+            : ((map.queryRenderedFeatures(pt as never) as unknown) as unknown[])
+      } catch {
+        rendered = []
+      }
+
+      const picked = pickPoiSelection({
+        features: rendered as never,
+        datasets,
+        graphLayerIds: [GRAPH_LAYER_ID, GRAPH_HIT_LAYER_ID],
+        datasetSourcePrefix: GEO_SOURCE_PREFIX,
+      })
+      if (!picked) return
+
+      if (picked.kind === 'graph-node') {
+        try {
+          setSelectionSource('canvas')
+          selectEdge(null)
+          selectNode(picked.nodeId)
+          setSelectedPoiPoint({ type: 'FeatureCollection', features: [] })
+        } catch {
+          void 0
+        }
+        return
+      }
+
+      const nextToastKey = `poi|${picked.datasetId}|${picked.featureId}`
+      if (lastPoiToastKeyRef.current !== nextToastKey) {
+        lastPoiToastKeyRef.current = nextToastKey
+        const coords = picked.lngLat ? `${picked.lngLat.lng.toFixed(4)}, ${picked.lngLat.lat.toFixed(4)}` : ''
+        const suffix = coords ? ` · ${coords}` : ''
+        pushUiToast({
+          id: `geospatial:poi:${Date.now()}`,
+          kind: 'neutral',
+          message: `${picked.datasetLabel} · ${picked.featureLabel} (${picked.geometryType})${suffix}`,
+          ttlMs: 4500,
+          dismissible: true,
+        })
+      }
+
+      if (picked.lngLat) {
+        setSelectedPoiPoint({
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              id: `${picked.datasetId}:${picked.featureId}`,
+              properties: {
+                datasetId: picked.datasetId,
+                datasetLabel: picked.datasetLabel,
+                featureId: picked.featureId,
+                featureLabel: picked.featureLabel,
+              },
+              geometry: { type: 'Point', coordinates: [picked.lngLat.lng, picked.lngLat.lat] },
+            },
+          ],
+        } as never)
+      } else {
+        setSelectedPoiPoint({ type: 'FeatureCollection', features: [] })
+      }
+    }
+
+    try {
+      map.on('click', onClick as never)
+    } catch {
+      void 0
+    }
+    return () => {
+      try {
+        map.off('click', onClick as never)
+      } catch {
+        void 0
+      }
+    }
+  }, [enabled, map, datasets, interactiveLayerIds, interactionActive, pushUiToast, selectEdge, selectNode, setSelectionSource, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
@@ -279,14 +493,7 @@ export function GeospatialOverlay() {
   const showOpacityWarning = !(clampedOpacity > 0)
 
   const toastLoadingId = 'geospatial:basemap:loading'
-  const derivedReady = Boolean(
-    probe.tileSourceId &&
-      probe.styleLoaded &&
-      probe.sourceLoaded &&
-      probe.tilesLoaded &&
-      probe.canvasW > 0 &&
-      probe.canvasH > 0,
-  )
+  const derivedReady = Boolean(probe.styleLoaded && probe.canvasW > 0 && probe.canvasH > 0)
 
   React.useEffect(() => {
     if (!enabled) {

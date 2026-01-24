@@ -3,10 +3,12 @@ import bbox from '@turf/bbox'
 import type { AllGeoJSON } from '@turf/helpers'
 import type { FeatureCollection, GeoJSON, GeoJsonProperties, Geometry } from 'geojson'
 import { parseGeoJsonFromText, recordsToPointFeatureCollection } from '@/lib/geospatial/geojson'
-import { normalizeGeospatialStyleUrl } from '@/lib/geospatial/styleUrl'
-import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
+import { fetchRemoteText, fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { normalizeGitHubBlobLikeUrl } from '@/lib/url'
+import { hashStringToIndex } from '@/lib/hash/stringHash'
 import type { LRUCache } from '@/lib/cache/LRUCache'
+
+export { hashStringToIndex }
 
 export const DATASET_COLOR_PALETTE = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4'] as const
 
@@ -101,7 +103,7 @@ async function loadStyleObject(styleUrl: string): Promise<unknown | null> {
 
 export function resolveStyleUrls(styleUrl: string, raw: unknown): unknown {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw
-  const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(normalizeGeospatialStyleUrl(styleUrl)) ?? styleUrl
+  const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(styleUrl) ?? styleUrl
   let base: URL
   try {
     const baseUrl = (() => {
@@ -196,7 +198,7 @@ export async function applyPreferredStyle(
   styleUrl: string,
   cancelled: () => boolean,
 ): Promise<boolean> {
-  const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(normalizeGeospatialStyleUrl(styleUrl)) ?? styleUrl
+  const normalizedStyleUrl = normalizeGitHubBlobLikeUrl(styleUrl) ?? styleUrl
   const raw = await loadStyleObject(normalizedStyleUrl)
   if (!raw) return false
   if (cancelled()) return false
@@ -210,21 +212,12 @@ export async function applyPreferredStyle(
   }
 }
 
-export function hashStringToIndex(input: string, mod: number): number {
-  let h = 0
-  for (let i = 0; i < input.length; i += 1) {
-    h = (h * 31 + input.charCodeAt(i)) | 0
-  }
-  const n = Math.abs(h)
-  return mod <= 0 ? 0 : n % mod
-}
-
 export function colorForDataset(datasetId: string): string {
   const idx = hashStringToIndex(datasetId, DATASET_COLOR_PALETTE.length)
   return DATASET_COLOR_PALETTE[idx] || '#2563EB'
 }
 
-export function ensureGraphPointLayer(map: MapLibreMap, sourceId: string, layerId: string) {
+export function ensureGraphPointLayer(map: MapLibreMap, sourceId: string, layerId: string, color: string) {
   if (!map.getSource(sourceId)) {
     map.addSource(sourceId, {
       type: 'geojson',
@@ -237,11 +230,11 @@ export function ensureGraphPointLayer(map: MapLibreMap, sourceId: string, layerI
       type: 'circle',
       source: sourceId,
       paint: {
-        'circle-radius': 4,
-        'circle-color': '#2563EB',
+        'circle-radius': 6,
+        'circle-color': color,
         'circle-opacity': 0.9,
         'circle-stroke-color': '#FFFFFF',
-        'circle-stroke-width': 1,
+        'circle-stroke-width': 2,
       },
     })
   }
@@ -318,11 +311,39 @@ export async function loadDatasetFeatureCollection(
   const cached = datasetCache.get(normalized)
   if (cached) return cached
 
-  const text = await fetcher(normalized, {
-    maxBytes: options.maxBytes,
-    timeoutMs: options.timeoutMs,
-  })
-  if (!text) throw new Error('Unable to fetch dataset.')
+  const text = await (async () => {
+    if (fetcher === fetchRemoteText) {
+      const res = await fetchRemoteTextDetailed(normalized, {
+        timeoutMs: options.timeoutMs,
+        maxBytes: options.maxBytes,
+      })
+      if (res.ok === false) {
+        if (res.kind === 'too_large') {
+          const mb = options.maxBytes / (1024 * 1024)
+          const gotMb = res.contentLength != null ? res.contentLength / (1024 * 1024) : null
+          const got = gotMb != null ? ` (${gotMb.toFixed(1)} MB)` : ''
+          throw new Error(`Dataset too large${got}. Increase max bytes (currently ${mb.toFixed(1)} MB).`)
+        }
+        if (res.kind === 'timeout') {
+          throw new Error(`Dataset fetch timed out. Increase timeoutMs (currently ${options.timeoutMs}ms).`)
+        }
+        if (res.kind === 'http' && res.status) {
+          throw new Error(`Dataset request failed (status ${res.status}).`)
+        }
+        throw new Error(`Unable to fetch dataset (timeoutMs=${options.timeoutMs}, maxBytes=${options.maxBytes}).`)
+      }
+      return res.text
+    }
+
+    const t = await fetcher(normalized, {
+      maxBytes: options.maxBytes,
+      timeoutMs: options.timeoutMs,
+    })
+    if (!t) {
+      throw new Error(`Unable to fetch dataset (timeoutMs=${options.timeoutMs}, maxBytes=${options.maxBytes}).`)
+    }
+    return t
+  })()
 
   // Try parsing as GeoJSON first if auto or geojson
   if (format === 'geojson' || format === 'auto') {

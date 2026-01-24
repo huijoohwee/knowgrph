@@ -1,0 +1,31 @@
+[
+  {
+    "id": "layer-01",
+    "label": "Airports",
+    "url": "https://raw.githubusercontent.com/mwgg/Airports/master/airports.json",
+    "format": "records",
+    "fixturePath": "airports.sample.json"
+  },
+  {
+    "id": "layer-02",
+    "label": "Countries",
+    "url": "https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/geojson/countries.geojson",
+    "format": "geojson",
+    "fixturePath": "countries.sample.geojson"
+  },
+  {
+    "id": "layer-03",
+    "label": "Airports Full All Feet",
+    "url": "file:demo/airports_full_all_feet.geojson",
+    "format": "geojson",
+    "fixturePath": "airports_full_all_feet.geojson"
+  },
+  {
+    "id": "layer-04",
+    "label": "Cities",
+    "url": "file:demo/cities.geojson",
+    "format": "geojson",
+    "fixturePath": "cities.geojson",
+    "expectTooLarge": true
+  }
+]

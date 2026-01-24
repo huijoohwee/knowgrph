@@ -218,6 +218,10 @@ export interface GraphState {
   setGeospatialDatasetTimeoutMs: (v: number) => void;
   geospatialDatasetMaxBytes: number;
   setGeospatialDatasetMaxBytes: (v: number) => void;
+  geospatialGraphPoiColor: string;
+  setGeospatialGraphPoiColor: (v: string) => void;
+  geospatialGraphPoiSelectedColor: string;
+  setGeospatialGraphPoiSelectedColor: (v: string) => void;
   geospatialFitRequest: null | { at: number };
   requestGeospatialFitToData: () => void;
   clearGeospatialFitRequest: () => void;

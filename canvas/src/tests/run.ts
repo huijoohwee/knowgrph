@@ -39,6 +39,7 @@ import {
 import { testGeospatialStyleResolvesRelativeUrls } from '@/__tests__/geospatialStyleResolution.test'
 import { testGeospatialOverlayPersistenceHydratesAndWrites } from '@/__tests__/geospatialOverlayPersistence.test'
 import { testGeospatialFetchLimitsPersistence } from '@/__tests__/geospatialFetchLimitsPersistence.test'
+import { testGeospatialPoiPickDatasetFeature, testGeospatialPoiPickGraphNode } from '@/__tests__/geospatialPoiSelection.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -325,6 +326,8 @@ export const runAllTests = async () => {
   await exec('geospatial.style.resolvesRelativeUrls', testGeospatialStyleResolvesRelativeUrls)
   await exec('geospatial.overlay.persistenceHydratesAndWrites', testGeospatialOverlayPersistenceHydratesAndWrites)
   await exec('geospatial.fetchLimits.persistence', testGeospatialFetchLimitsPersistence)
+  await exec('geospatial.poi.pickGraphNode', testGeospatialPoiPickGraphNode)
+  await exec('geospatial.poi.pickDatasetFeature', testGeospatialPoiPickDatasetFeature)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)

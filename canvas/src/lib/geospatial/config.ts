@@ -1,6 +1,7 @@
 import { readEnvString } from '@/lib/config.env'
 import type { GeospatialDataset, GeospatialDatasetFormat } from '@/lib/geospatial/types'
 import { OPENFREEMAP_STYLE_URL } from '@/lib/geospatial/styles'
+import { hashStringToHex } from '@/lib/hash/stringHash'
 import { clamp01 } from '@/lib/math/clamp01'
 
 export const DEFAULT_GEOSPATIAL_STYLE_URL = readEnvString(
@@ -38,22 +39,14 @@ export const DEFAULT_GEOSPATIAL_DATASET_TIMEOUT_MS = (() => {
 
 export const DEFAULT_GEOSPATIAL_DATASET_MAX_BYTES = (() => {
   const n = readFirstEnvNumber(['VITE_GEOSPATIAL_DATASET_MAX_BYTES', 'VITE_GEOSPATIAL_MAX_BYTES'])
-  if (n === null) return 12 * 1024 * 1024
-  return Math.max(64 * 1024, Math.min(20 * 1024 * 1024, Math.floor(n)))
+  if (n === null) return 25 * 1024 * 1024
+  return Math.max(64 * 1024, Math.min(50 * 1024 * 1024, Math.floor(n)))
 })()
 
 export const parseGeospatialDatasetFormat = (raw: unknown): GeospatialDatasetFormat => {
   if (raw === 'geojson') return 'geojson'
   if (raw === 'records') return 'records'
   return 'auto'
-}
-
-const hashToHex = (input: string): string => {
-  let h = 0
-  for (let i = 0; i < input.length; i += 1) {
-    h = (h * 31 + input.charCodeAt(i)) | 0
-  }
-  return Math.abs(h).toString(16)
 }
 
 export function parseGeospatialDatasetsFromEnv(): GeospatialDataset[] | null {
@@ -72,7 +65,7 @@ export function parseGeospatialDatasetsFromEnv(): GeospatialDataset[] | null {
       const url = typeof rec.url === 'string' ? rec.url.trim() : ''
       const format = parseGeospatialDatasetFormat(rec.format)
       if (!label || !url) continue
-      const id = idRaw || `geo:env:${hashToHex(`${label}|${url}`)}`
+      const id = idRaw || `geo:env:${hashStringToHex(`${label}|${url}`)}`
       out.push({
         id,
         label,

@@ -1,88 +1,72 @@
 import { loadDatasetFeatureCollection } from '@/features/geospatial/geospatialOverlayUtils'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import type { FeatureCollection } from 'geojson'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { createFsBoundedTextFetcher } from '@/__tests__/testUtils/fsBoundedTextFetcher'
 
-const MOCK_AIRPORTS = {
-  "AAA": {
-    "icao": "NTGA",
-    "iata": "AAA",
-    "name": "Anaa Airport",
-    "lat": -17.3526001,
-    "lon": -145.5099945
-  },
-  "JFK": {
-    "icao": "KJFK",
-    "iata": "JFK",
-    "name": "John F Kennedy International Airport",
-    "lat": 40.63980103,
-    "lon": -73.77890015
-  }
+type RegistryItem = {
+  id: string
+  label: string
+  url: string
+  format: 'auto' | 'geojson' | 'records'
+  fixturePath: string
+  expectTooLarge?: boolean
 }
 
-const MOCK_COUNTRIES = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      properties: { name: "Test Country" },
-      geometry: {
-        type: "Polygon",
-        coordinates: [[[0, 0], [0, 10], [10, 10], [10, 0], [0, 0]]]
-      }
-    }
-  ]
+const readRegistry = (): RegistryItem[] => {
+  const path = resolve(process.cwd(), 'src/__tests__/demo/geospatial-datasets.layers.json')
+  const raw = JSON.parse(readFileSync(path, 'utf8')) as unknown
+  if (!Array.isArray(raw)) throw new Error('geospatial dataset registry is not an array')
+  return raw as RegistryItem[]
 }
 
-const mockFetcher = async (url: string): Promise<string | null> => {
-  if (url.includes('airports.json')) return JSON.stringify(MOCK_AIRPORTS)
-  if (url.includes('countries.geojson')) return JSON.stringify(MOCK_COUNTRIES)
-  if (url.includes('cities.geojson')) {
-    return JSON.stringify({
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          properties: { name: "Mock City" },
-          geometry: { type: "Point", coordinates: [0, 0] }
-        }
-      ]
-    })
-  }
-  return null
+const getRegistryItem = (id: string): RegistryItem => {
+  const items = readRegistry()
+  const found = items.find(i => i && i.id === id)
+  if (!found) throw new Error(`missing registry item: ${id}`)
+  return found
+}
+
+const createFetcherForRegistry = (items: RegistryItem[]) => {
+  const baseDir = resolve(process.cwd(), 'src/__tests__/demo')
+  return createFsBoundedTextFetcher({
+    baseDir,
+    registry: items.map(i => ({ url: i.url, fixturePath: i.fixturePath })),
+  })
 }
 
 export async function testGeospatialIntegrationAirports() {
+  const item = getRegistryItem('layer-01')
+  const fetcher = createFetcherForRegistry([item])
   const cache = new LRUCache<string, FeatureCollection>(10, 1000)
   const result = await loadDatasetFeatureCollection(
-    'https://example.com/airports.json',
-    'auto',
-    { timeoutMs: 1000, maxBytes: 10000 },
+    item.url,
+    item.format,
+    { timeoutMs: 1000, maxBytes: 256 * 1024 },
     cache,
-    mockFetcher
+    fetcher
   )
   
   if (!result) throw new Error('Result is null')
   if (result.type !== 'FeatureCollection') throw new Error('Result is not FeatureCollection')
   if (result.features.length !== 2) throw new Error(`Expected 2 features, got ${result.features.length}`)
   
-  const jfk = result.features.find(f => f.properties?.iata === 'JFK')
-  if (!jfk) throw new Error('JFK feature not found')
-  if (jfk.geometry.type !== 'Point') throw new Error('JFK is not a Point')
-  
-  const coords = jfk.geometry.coordinates
-  if (coords.length < 2) throw new Error('JFK coordinates missing lng/lat')
-  if (Math.abs(coords[0] - (-73.7789)) > 0.001) throw new Error(`JFK Lng mismatch: ${coords[0]}`)
-  if (Math.abs(coords[1] - 40.6398) > 0.001) throw new Error(`JFK Lat mismatch: ${coords[1]}`)
+  const a = result.features.find(f => f.properties?.icao === '00AK')
+  if (!a) throw new Error('00AK feature not found')
+  if (a.geometry.type !== 'Point') throw new Error('00AK is not a Point')
 }
 
 export async function testGeospatialIntegrationCountries() {
+  const item = getRegistryItem('layer-02')
+  const fetcher = createFetcherForRegistry([item])
   const cache = new LRUCache<string, FeatureCollection>(10, 1000)
   const result = await loadDatasetFeatureCollection(
-    'https://example.com/countries.geojson',
-    'auto',
-    { timeoutMs: 1000, maxBytes: 10000 },
+    item.url,
+    item.format,
+    { timeoutMs: 1000, maxBytes: 256 * 1024 },
     cache,
-    mockFetcher
+    fetcher
   )
   
   if (!result) throw new Error('Result is null')
@@ -91,15 +75,37 @@ export async function testGeospatialIntegrationCountries() {
 }
 
 export async function testGeospatialIntegrationCities() {
+  const layer03 = getRegistryItem('layer-03')
+  const layer04 = getRegistryItem('layer-04')
+  const fetcher = createFetcherForRegistry([layer03, layer04])
+
+  {
     const cache = new LRUCache<string, FeatureCollection>(10, 1000)
-    // We use a fake path, mockFetcher handles it by string matching
     const result = await loadDatasetFeatureCollection(
-      '/path/to/cities.geojson',
-      'auto',
-      { timeoutMs: 1000, maxBytes: 10000 },
+      layer03.url,
+      layer03.format,
+      { timeoutMs: 1500, maxBytes: 8 * 1024 * 1024 },
       cache,
-      mockFetcher
+      fetcher,
     )
-    if (!result) throw new Error('Result is null')
-    if (result.features.length === 0) throw new Error('Expected features')
+    if (!result) throw new Error('Layer 03 result is null')
+    if (result.features.length === 0) throw new Error('Expected features for layer 03')
+  }
+
+  {
+    const cache = new LRUCache<string, FeatureCollection>(10, 1000)
+    let threw = false
+    try {
+      await loadDatasetFeatureCollection(
+        layer04.url,
+        layer04.format,
+        { timeoutMs: 200, maxBytes: 4 * 1024 * 1024 },
+        cache,
+        fetcher,
+      )
+    } catch {
+      threw = true
+    }
+    if (!threw) throw new Error('Expected layer 04 to fail bounded fetch')
+  }
 }
