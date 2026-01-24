@@ -27,11 +27,11 @@ export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
   if (!text.includes('kg:ui:geospatial:')) throw new Error('Expected namespaced kg:ui:geospatial keys')
 }
 
-export const testGympgrphDefaultInteractionModeIsHoldSpace = () => {
+export const testGympgrphDefaultInteractionModeIsAlways = () => {
   const slicePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
   const text = readUtf8(slicePath)
   if (!text.includes("LS_KEYS.geospatialInteractionMode")) throw new Error('Expected geospatialInteractionMode persistence key usage')
-  if (!text.includes("'hold-space'")) throw new Error('Expected default interaction mode to include hold-space')
+  if (!text.includes("'always'")) throw new Error('Expected default interaction mode to include always')
 }
 
 export const testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs = () => {
@@ -46,5 +46,13 @@ export const testHostEnableForcesAlwaysInteractionMode = () => {
   const text = readUtf8(hostBridgePath)
   if (!text.includes("s.setGeospatialInteractionMode('always')")) {
     throw new Error('Expected enabling Geospatial Mode to force interactionMode=always for immediate navigation')
+  }
+}
+
+export const testHostTailwindScansGympgrphClasses = () => {
+  const tailwindConfigPath = path.resolve(process.cwd(), 'tailwind.config.js')
+  const text = readUtf8(tailwindConfigPath)
+  if (!text.includes('../../gympgrph/src/**/*.{js,ts,jsx,tsx}')) {
+    throw new Error('Expected knowgrph host Tailwind config to scan gympgrph sources for class generation')
   }
 }

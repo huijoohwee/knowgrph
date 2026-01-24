@@ -79,11 +79,24 @@ import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.tes
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
 import {
   testGeospatialOverlayHostNotGatedBySidebar,
-  testGympgrphDefaultInteractionModeIsHoldSpace,
+  testGympgrphDefaultInteractionModeIsAlways,
   testGympgrphGeospatialKeysAreNamespacedOnly,
   testHostEnableForcesAlwaysInteractionMode,
+  testHostTailwindScansGympgrphClasses,
   testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs,
 } from '@/__tests__/geospatialHostIntegration.test'
+import {
+  testGympgrphApplyMediaProxyNormalizesGithubBlobUrl,
+  testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost,
+  testGympgrphCoerceFetchUrlAcceptsAbsolutePath,
+  testGympgrphCoerceFetchUrlRejectsFileScheme,
+} from '@/__tests__/gympgrphUrlInterop.test'
+import {
+  testGympgrphCoerceFeatureCollectionIdsAddsMissingIds,
+  testGympgrphIsPointOnlyFeatureCollectionDetectsPointOnly,
+  testGympgrphIsPointOnlyFeatureCollectionRejectsPolygon,
+  testGympgrphPickPoiSelectionSkipsClusterFeatures,
+} from '@/__tests__/gympgrphMapLibreBehaviors.test'
 import {
   testWorkflowPresetPipelinesAreSelfConsistent,
   testExportFunctionsAcceptBrandedPaths,
@@ -253,9 +266,18 @@ export const runAllTests = async () => {
 
   await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
   await exec('geospatial.persistence.keysAreNamespacedOnly', testGympgrphGeospatialKeysAreNamespacedOnly)
-  await exec('geospatial.interaction.defaultHoldSpace', testGympgrphDefaultInteractionModeIsHoldSpace)
+  await exec('geospatial.interaction.defaultAlways', testGympgrphDefaultInteractionModeIsAlways)
   await exec('geospatial.interaction.holdSpaceKeyHardening', testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs)
   await exec('geospatial.host.enableForcesAlways', testHostEnableForcesAlwaysInteractionMode)
+  await exec('geospatial.host.tailwindScansGympgrph', testHostTailwindScansGympgrphClasses)
+  await exec('geospatial.gympgrphUrl.proxyNormalizesGithubBlob', testGympgrphApplyMediaProxyNormalizesGithubBlobUrl)
+  await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
+  await exec('geospatial.gympgrphUrl.coerceFetchUrlAcceptsAbsolutePath', testGympgrphCoerceFetchUrlAcceptsAbsolutePath)
+  await exec('geospatial.gympgrphUrl.coerceFetchUrlRejectsFileScheme', testGympgrphCoerceFetchUrlRejectsFileScheme)
+  await exec('geospatial.gympgrphMapLibre.pickSkipsClusters', testGympgrphPickPoiSelectionSkipsClusterFeatures)
+  await exec('geospatial.gympgrphMapLibre.coerceFeatureIds', testGympgrphCoerceFeatureCollectionIdsAddsMissingIds)
+  await exec('geospatial.gympgrphMapLibre.pointOnly.true', testGympgrphIsPointOnlyFeatureCollectionDetectsPointOnly)
+  await exec('geospatial.gympgrphMapLibre.pointOnly.false', testGympgrphIsPointOnlyFeatureCollectionRejectsPolygon)
   
   await exec('previewGalleryReorder: arrow moves third above second', testPreviewGalleryArrowMovesThirdSlideAboveSecond)
   await exec('previewGalleryReorder: drag moves third above second', testPreviewGalleryDragMovesThirdSlideAboveSecond)
