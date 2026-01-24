@@ -1,9 +1,11 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { RotateCcw, Trash2 } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { OPENFREEMAP_STYLE_URL } from '@/lib/geospatial/styles'
+import StatusBadge from '@/features/panels/ui/StatusBadge'
 
 export default function GeospatialPanel() {
   const {
@@ -27,6 +29,7 @@ export default function GeospatialPanel() {
     toggleGeospatialDatasetEnabled,
     setGeospatialDatasetLabel,
     geospatialDatasetStatusById,
+    requestGeospatialDatasetReload,
     geospatialDatasetTimeoutMs,
     setGeospatialDatasetTimeoutMs,
     geospatialDatasetMaxBytes,
@@ -36,6 +39,9 @@ export default function GeospatialPanel() {
     geospatialGraphPoiSelectedColor,
     setGeospatialGraphPoiSelectedColor,
     requestGeospatialFitToData,
+    canvasRenderMode,
+    requestZoom,
+    requestThreeCamera,
   } = useGraphStore(
     useShallow(s => ({
       geospatialOverlayEnabled: s.geospatialOverlayEnabled,
@@ -58,6 +64,7 @@ export default function GeospatialPanel() {
       toggleGeospatialDatasetEnabled: s.toggleGeospatialDatasetEnabled,
       setGeospatialDatasetLabel: s.setGeospatialDatasetLabel,
       geospatialDatasetStatusById: s.geospatialDatasetStatusById,
+      requestGeospatialDatasetReload: s.requestGeospatialDatasetReload,
       geospatialDatasetTimeoutMs: s.geospatialDatasetTimeoutMs,
       setGeospatialDatasetTimeoutMs: s.setGeospatialDatasetTimeoutMs,
       geospatialDatasetMaxBytes: s.geospatialDatasetMaxBytes,
@@ -67,14 +74,32 @@ export default function GeospatialPanel() {
       geospatialGraphPoiSelectedColor: s.geospatialGraphPoiSelectedColor,
       setGeospatialGraphPoiSelectedColor: s.setGeospatialGraphPoiSelectedColor,
       requestGeospatialFitToData: s.requestGeospatialFitToData,
+      canvasRenderMode: s.canvasRenderMode,
+      requestZoom: s.requestZoom,
+      requestThreeCamera: s.requestThreeCamera,
     })),
   )
 
   const [newLabel, setNewLabel] = React.useState('')
   const [newUrl, setNewUrl] = React.useState('')
-  const [newFormat, setNewFormat] = React.useState<'auto' | 'geojson' | 'records'>('auto')
   const normalizePickerColor = (value: string, fallback: string): string =>
     /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback
+  const formatBytes = (n: number): string => {
+    const v = Number(n)
+    if (!Number.isFinite(v) || v <= 0) return '0 B'
+    if (v >= 1024 * 1024) return `${(v / (1024 * 1024)).toFixed(1)} MB`
+    if (v >= 1024) return `${Math.round(v / 1024)} KB`
+    return `${Math.round(v)} B`
+  }
+  const handleFitToData = React.useCallback(() => {
+    if (!geospatialOverlayEnabled) return
+    if (canvasRenderMode === '3d') {
+      requestGeospatialFitToData()
+      requestThreeCamera('fit')
+      return
+    }
+    requestZoom('fit')
+  }, [canvasRenderMode, geospatialOverlayEnabled, requestGeospatialFitToData, requestThreeCamera, requestZoom])
 
   return (
     <div className={`h-full flex flex-col ${UI_THEME_TOKENS.panel.bg}`}>
@@ -196,7 +221,7 @@ export default function GeospatialPanel() {
             <button
               type="button"
               className="App-toolbar__btn bg-gray-100 text-gray-700 text-xs"
-              onClick={requestGeospatialFitToData}
+              onClick={handleFitToData}
               disabled={!geospatialOverlayEnabled}
             >
               {UI_COPY.geospatialFitToDataLabel}
@@ -290,23 +315,13 @@ export default function GeospatialPanel() {
               placeholder={UI_COPY.geospatialDatasetUrlPlaceholder}
             />
             <div className="flex items-center gap-2">
-              <select
-                className={`text-xs rounded border px-2 py-1 ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
-                value={newFormat}
-                onChange={e => setNewFormat(e.target.value === 'geojson' ? 'geojson' : e.target.value === 'records' ? 'records' : 'auto')}
-              >
-                <option value="auto">{UI_COPY.geospatialDatasetFormatAuto}</option>
-                <option value="geojson">{UI_COPY.geospatialDatasetFormatGeoJson}</option>
-                <option value="records">{UI_COPY.geospatialDatasetFormatRecords}</option>
-              </select>
               <button
                 type="button"
                 className="App-toolbar__btn bg-blue-50 text-blue-700 text-xs"
                 onClick={() => {
-                  addGeospatialDatasetUrl({ url: newUrl, label: newLabel, format: newFormat })
+                  addGeospatialDatasetUrl({ url: newUrl, label: newLabel })
                   setNewLabel('')
                   setNewUrl('')
-                  setNewFormat('auto')
                 }}
               >
                 {UI_LABELS.add}
@@ -320,11 +335,22 @@ export default function GeospatialPanel() {
             )}
             {geospatialDatasets.map(d => {
               const status = geospatialDatasetStatusById?.[d.id] || { state: 'idle' as const }
-              const statusText = (() => {
-                if (status.state === 'loading') return UI_COPY.geospatialDatasetStatusLoading
-                if (status.state === 'ready') return UI_COPY.geospatialDatasetStatusReady(status.featureCount)
-                if (status.state === 'error') return UI_COPY.geospatialDatasetStatusError(status.message)
-                return UI_COPY.geospatialDatasetStatusIdle
+              const statusBadge = (() => {
+                if (status.state === 'ready') {
+                  return <StatusBadge label="geospatial-dataset" ok={true} msg="ready" details={`${status.featureCount} features`} />
+                }
+                if (status.state === 'error') {
+                  return <StatusBadge label="geospatial-dataset" ok={false} msg="error" details={status.message} below />
+                }
+                if (status.state === 'loading') {
+                  const loaded = typeof status.loadedBytes === 'number' ? status.loadedBytes : 0
+                  const total = typeof status.totalBytes === 'number' ? status.totalBytes : null
+                  const pct = total && total > 0 ? Math.min(100, Math.max(0, Math.floor((loaded / total) * 100))) : null
+                  const msg = pct != null ? `loading ${pct}%` : UI_COPY.geospatialDatasetStatusLoading
+                  const details = total ? `${formatBytes(loaded)} / ${formatBytes(total)}` : `${formatBytes(loaded)}`
+                  return <StatusBadge label="geospatial-dataset" ok={null} msg={msg} details={details} />
+                }
+                return <StatusBadge label="geospatial-dataset" ok={null} msg={UI_COPY.geospatialDatasetStatusIdle} />
               })()
               return (
                 <div key={d.id} className={`rounded border p-2 ${UI_THEME_TOKENS.panel.border}`}>
@@ -341,16 +367,29 @@ export default function GeospatialPanel() {
                         onChange={e => setGeospatialDatasetLabel(d.id, e.target.value)}
                       />
                     </label>
-                    <button
-                      type="button"
-                      className="App-toolbar__btn bg-gray-100 text-gray-700 text-xs"
-                      onClick={() => removeGeospatialDataset(d.id)}
-                    >
-                      {UI_COPY.geospatialDatasetRemoveLabel}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        className="group relative select-none rounded inline-flex items-center justify-center p-2 hover:bg-gray-100 App-toolbar__btn text-gray-700"
+                        onClick={() => requestGeospatialDatasetReload(d.id)}
+                        aria-label="Reload dataset"
+                        title="Reload dataset"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="group relative select-none rounded inline-flex items-center justify-center p-2 hover:bg-gray-100 App-toolbar__btn text-gray-700"
+                        onClick={() => removeGeospatialDataset(d.id)}
+                        aria-label="Remove dataset"
+                        title="Remove dataset"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className={`mt-1 text-[11px] break-all ${UI_THEME_TOKENS.text.tertiary}`}>{d.source.url}</div>
-                  <div className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>{statusText}</div>
+                  <div className="mt-2">{statusBadge}</div>
                 </div>
               )
             })}

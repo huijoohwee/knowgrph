@@ -18,6 +18,8 @@ interface BottomPanelCodeTabProps {
   codeRef: React.RefObject<MonacoTextEditorHandle | null>
   handlers: CodeEditorHandlers
   readOnly?: boolean
+  language?: string
+  uri?: string
   header?: React.ReactNode
   footer?: React.ReactNode
 }
@@ -28,6 +30,8 @@ export default function BottomPanelCodeTab({
   codeRef,
   handlers,
   readOnly = false,
+  language = 'json',
+  uri = 'inmemory://model/graph.json',
   header,
   footer,
 }: BottomPanelCodeTabProps) {
@@ -63,8 +67,8 @@ export default function BottomPanelCodeTab({
           editorRef={codeRef}
           value={codeText}
           onChange={handlers.onChange}
-          language="json"
-          uri="inmemory://model/graph.json"
+          language={language}
+          uri={uri}
           themeMode={rootThemeMode}
           readOnly={readOnly}
           className={`w-full h-full ${uiPanelMonospaceTextClass}`}

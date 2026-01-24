@@ -1,6 +1,7 @@
 import React from 'react'
 import type { RefObject } from 'react'
 import BottomPanelCodeTab from '@/components/BottomPanel/BottomPanelCodeTab'
+import BottomPanelCurationJsonMultiPane from '@/components/BottomPanel/BottomPanelCurationJsonMultiPane'
 import BottomPanelParserTab from '@/components/BottomPanel/BottomPanelParserTab'
 import BottomPanelSchemaTab from '@/components/BottomPanel/BottomPanelSchemaTab'
 import BottomPanelStatsTab from '@/components/BottomPanel/BottomPanelStatsTab'
@@ -57,6 +58,8 @@ type BottomPanelBodyProps = {
   codeError: string
   codeRef: RefObject<MonacoTextEditorHandle | null>
   handlers: CodeEditorHandlers
+  graphJsonText: string
+  jsonSourceDocumentText: string | null
   sortedNodes: GraphNode[]
   selectedNodeId: string | null
   sortedEdges: GraphEdge[]
@@ -97,6 +100,8 @@ export default function BottomPanelBody({
   codeError,
   codeRef,
   handlers,
+  graphJsonText,
+  jsonSourceDocumentText,
   sortedNodes,
   selectedNodeId,
   sortedEdges,
@@ -281,13 +286,14 @@ export default function BottomPanelBody({
           />
         ) : tab === 'curation' || tab === 'nodes' || tab === 'edges' ? (
           bottomPanelCurationView === 'json' ? (
-            <BottomPanelCodeTab
+            <BottomPanelCurationJsonMultiPane
               codeText={codeText}
               codeError={codeError}
               codeRef={codeRef}
               handlers={handlers}
-              readOnly={false}
               header={mermaidHint}
+              graphJsonText={graphJsonText}
+              jsonSourceDocumentText={jsonSourceDocumentText}
             />
           ) : bottomPanelCurationView === 'markdown' ? (
             <BottomPanelMarkdownSection />

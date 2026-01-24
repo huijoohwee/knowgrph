@@ -214,6 +214,8 @@ export interface GraphState {
   setGeospatialDatasetLabel: (id: string, label: string) => void;
   geospatialDatasetStatusById: Record<string, GeospatialDatasetStatus>;
   setGeospatialDatasetStatus: (id: string, status: GeospatialDatasetStatus) => void;
+  geospatialDatasetReloadNonceById: Record<string, number>;
+  requestGeospatialDatasetReload: (id: string) => void;
   geospatialDatasetTimeoutMs: number;
   setGeospatialDatasetTimeoutMs: (v: number) => void;
   geospatialDatasetMaxBytes: number;

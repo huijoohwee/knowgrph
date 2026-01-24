@@ -303,7 +303,7 @@ export function setGeoJsonSourceData(map: MapLibreMap, sourceId: string, data: F
 export async function loadDatasetFeatureCollection(
   url: string,
   format: 'auto' | 'geojson' | 'records',
-  options: { timeoutMs: number; maxBytes: number },
+  options: { timeoutMs: number; maxBytes: number; onProgress?: (args: { loadedBytes: number; totalBytes?: number }) => void },
   datasetCache: LRUCache<string, FeatureCollection>,
   fetcher: (url: string, opts: { timeoutMs: number; maxBytes: number }) => Promise<string | null> = fetchRemoteText,
 ): Promise<FeatureCollection> {
@@ -316,6 +316,7 @@ export async function loadDatasetFeatureCollection(
       const res = await fetchRemoteTextDetailed(normalized, {
         timeoutMs: options.timeoutMs,
         maxBytes: options.maxBytes,
+        onProgress: options.onProgress,
       })
       if (res.ok === false) {
         if (res.kind === 'too_large') {
@@ -363,7 +364,11 @@ export async function loadDatasetFeatureCollection(
     parsed = null
   }
   const points = recordsToPointFeatureCollection(parsed)
-  if (!points) throw new Error('Expected records with lat/lng-like fields, but no points were derived.')
+  if (!points) {
+    throw new Error(
+      'No GeoJSON parsed and no record points derived (expected fields like lat/lng, latitude/longitude, geo.lat/geo.lng, location.lat/location.lng, or geometry.coordinates).',
+    )
+  }
   datasetCache.set(normalized, points)
   return points
 }

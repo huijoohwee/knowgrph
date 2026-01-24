@@ -509,6 +509,8 @@ export default function BottomPanel() {
             codeError={codeError}
             codeRef={codeRef}
             handlers={handlers}
+            graphJsonText={graphJsonText}
+            jsonSourceDocumentText={jsonSourceDocumentText}
             sortedNodes={sortedNodes}
             selectedNodeId={selectedNodeId}
             sortedEdges={sortedEdges}

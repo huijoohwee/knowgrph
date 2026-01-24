@@ -15,6 +15,6 @@ export type GeospatialDataset = Readonly<{
 
 export type GeospatialDatasetStatus =
   | Readonly<{ state: 'idle' }>
-  | Readonly<{ state: 'loading' }>
+  | Readonly<{ state: 'loading'; loadedBytes?: number; totalBytes?: number }>
   | Readonly<{ state: 'ready'; featureCount: number }>
   | Readonly<{ state: 'error'; message: string }>

@@ -117,6 +117,7 @@
 - Default `maxBytes` is sized to handle common public GeoJSON datasets (for example ~20MB city datasets) while still remaining bounded.
 - If a dataset is too large (based on Content-Length when available), loading fails early with an actionable error instead of streaming indefinitely.
 - Basemap style/tiles are fetched via the local `/__fetch_remote` proxy when running on localhost to avoid CORS issues; binary tile responses are served with a corrected Content-Length to prevent truncated PBF parsing errors.
+- Dataset status shows streaming progress when Content-Length is available (bytes + %), and datasets can be reloaded via an icon action without remove/re-add.
 
 ### Graph POI Styling (UI)
 
@@ -124,6 +125,17 @@
 - The Map panel exposes color pickers for:
   - Graph POI color
   - Selected outline color
+
+### Dataset Format (Auto)
+
+- The dataset “format” selector is intentionally removed from the UI: parsing is auto-detected (GeoJSON first, then record-derived points).
+- Record datasets support common coordinate shapes (e.g. `lat/lng`, `latitude/longitude`, `geo.{lat,lng}`, `location.{lat,lng}`, `geometry.coordinates`).
+
+### Fit Behavior
+
+- Map panel “Fit to data” is consolidated with existing Fit-to-Screen behavior:
+  - In 2D, it triggers canvas fit-to-screen (map follows the canvas transform).
+  - In 3D, it triggers camera fit plus map fit-to-data.
 
 ---
 

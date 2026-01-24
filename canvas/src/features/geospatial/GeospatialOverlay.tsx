@@ -45,6 +45,7 @@ export function GeospatialOverlay() {
   const lastToastEventKeyRef = React.useRef<string>('')
   const pendingDismissToastTimeoutRef = React.useRef<number | null>(null)
   const lastPoiToastKeyRef = React.useRef<string>('')
+  const lastReloadNonceByIdRef = React.useRef<Record<string, number>>({})
 
   const [selectedPoiPoint, setSelectedPoiPoint] = React.useState<FeatureCollection>({
     type: 'FeatureCollection',
@@ -69,6 +70,7 @@ export function GeospatialOverlay() {
     selectEdge,
     setSelectionSource,
     setDatasetStatus,
+    datasetReloadNonceById,
     fitRequest,
     clearFitRequest,
     datasetTimeoutMs,
@@ -97,6 +99,7 @@ export function GeospatialOverlay() {
       selectEdge: s.selectEdge,
       setSelectionSource: s.setSelectionSource,
       setDatasetStatus: s.setGeospatialDatasetStatus,
+      datasetReloadNonceById: s.geospatialDatasetReloadNonceById,
       fitRequest: s.geospatialFitRequest,
       clearFitRequest: s.clearGeospatialFitRequest,
       datasetTimeoutMs: s.geospatialDatasetTimeoutMs,
@@ -147,7 +150,7 @@ export function GeospatialOverlay() {
 
   React.useEffect(() => {
     if (!enabled || !map) return
-    if (!map.isStyleLoaded()) return
+    if (!probe.styleLoaded) return
     try {
       ensureGraphPointLayer(map, GRAPH_SOURCE_ID, GRAPH_LAYER_ID, graphPoiColor)
       if (!map.getLayer(GRAPH_HIT_LAYER_ID)) {
@@ -181,11 +184,11 @@ export function GeospatialOverlay() {
     } catch {
       void 0
     }
-  }, [enabled, map, graphPoints, graphPoiColor, graphPoiSelectedColor, styleRevision])
+  }, [enabled, map, graphPoints, graphPoiColor, graphPoiSelectedColor, probe.styleLoaded, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
-    if (!map.isStyleLoaded()) return
+    if (!probe.styleLoaded) return
     const active = (() => {
       const ids = Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0 ? selectedNodeIds : selectedNodeId ? [selectedNodeId] : []
       return ids.filter(Boolean)
@@ -201,11 +204,11 @@ export function GeospatialOverlay() {
     } catch {
       void 0
     }
-  }, [enabled, map, selectedNodeId, selectedNodeIds, styleRevision])
+  }, [enabled, map, selectedNodeId, selectedNodeIds, probe.styleLoaded, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
-    if (!map.isStyleLoaded()) return
+    if (!probe.styleLoaded) return
 
     datasets.forEach(d => {
       if (!d.enabled) return
@@ -215,11 +218,11 @@ export function GeospatialOverlay() {
         void 0
       }
     })
-  }, [enabled, map, datasets, styleRevision])
+  }, [enabled, map, datasets, probe.styleLoaded, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
-    if (!map.isStyleLoaded()) return
+    if (!probe.styleLoaded) return
     try {
       if (!map.getSource(POI_SOURCE_ID)) {
         map.addSource(POI_SOURCE_ID, {
@@ -245,11 +248,11 @@ export function GeospatialOverlay() {
     } catch {
       void 0
     }
-  }, [enabled, map, selectedPoiPoint, styleRevision])
+  }, [enabled, map, selectedPoiPoint, probe.styleLoaded, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
-    if (!map.isStyleLoaded()) return
+    if (!probe.styleLoaded) return
     const ids = [GRAPH_LAYER_ID, GRAPH_SELECTED_LAYER_ID, POI_LAYER_ID]
     for (const id of ids) {
       try {
@@ -259,11 +262,11 @@ export function GeospatialOverlay() {
         void 0
       }
     }
-  }, [enabled, map, datasets, styleRevision])
+  }, [enabled, map, datasets, probe.styleLoaded, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
-    if (!map.isStyleLoaded()) return
+    if (!probe.styleLoaded) return
     const onClick = (ev: unknown) => {
       if (!interactionActive) return
       const e = ev as { point?: unknown }
@@ -354,23 +357,63 @@ export function GeospatialOverlay() {
         void 0
       }
     }
-  }, [enabled, map, datasets, interactiveLayerIds, interactionActive, pushUiToast, selectEdge, selectNode, setSelectionSource, styleRevision])
+  }, [enabled, map, datasets, interactiveLayerIds, interactionActive, probe.styleLoaded, pushUiToast, selectEdge, selectNode, setSelectionSource, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
-    if (!map.isStyleLoaded()) return
+    if (!probe.styleLoaded) return
 
     let cancelled = false
     const run = async () => {
       for (const d of datasets) {
         const sourceId = toSourceId(d.id)
-        if (!d.enabled) continue
+        const normalized = normalizeGitHubBlobLikeUrl(d.source.url) ?? d.source.url
+        const reloadNonce = datasetReloadNonceById?.[d.id] || 0
+        if ((lastReloadNonceByIdRef.current[d.id] || 0) !== reloadNonce) {
+          lastReloadNonceByIdRef.current = { ...lastReloadNonceByIdRef.current, [d.id]: reloadNonce }
+          datasetCache.delete(normalized)
+        }
+        if (!d.enabled) {
+          try {
+            ensureDatasetLayer(map, sourceId, colorForDataset(d.id))
+            setGeoJsonSourceData(map, sourceId, { type: 'FeatureCollection', features: [] } as never)
+          } catch {
+            void 0
+          }
+          setDatasetStatus(d.id, { state: 'idle' })
+          continue
+        }
         setDatasetStatus(d.id, { state: 'loading' })
         try {
+          let lastProgressBytes = 0
+          let lastProgressPct = -1
           const fc = await loadDatasetFeatureCollection(
             d.source.url,
             d.format,
-            { timeoutMs: datasetTimeoutMs, maxBytes: datasetMaxBytes },
+            {
+              timeoutMs: datasetTimeoutMs,
+              maxBytes: datasetMaxBytes,
+              onProgress: args => {
+                const loadedBytes = Math.max(0, Math.floor(args.loadedBytes))
+                const totalBytes = args.totalBytes != null ? Math.max(0, Math.floor(args.totalBytes)) : undefined
+                const pct = totalBytes && totalBytes > 0 ? Math.floor((loadedBytes / totalBytes) * 100) : null
+                const shouldEmit = (() => {
+                  if (pct != null && pct > lastProgressPct) {
+                    lastProgressPct = pct
+                    lastProgressBytes = loadedBytes
+                    return true
+                  }
+                  if (loadedBytes - lastProgressBytes >= 256 * 1024) {
+                    lastProgressBytes = loadedBytes
+                    return true
+                  }
+                  return false
+                })()
+                if (!shouldEmit) return
+                if (cancelled) return
+                setDatasetStatus(d.id, { state: 'loading', loadedBytes, totalBytes })
+              },
+            },
             datasetCache,
           )
           if (cancelled) return
@@ -392,7 +435,7 @@ export function GeospatialOverlay() {
     return () => {
       cancelled = true
     }
-  }, [enabled, map, datasets, setDatasetStatus, datasetTimeoutMs, datasetMaxBytes, styleRevision])
+  }, [enabled, map, datasets, setDatasetStatus, datasetTimeoutMs, datasetMaxBytes, datasetReloadNonceById, probe.styleLoaded, styleRevision])
 
   React.useEffect(() => {
     if (!enabled || !map) return
@@ -457,7 +500,7 @@ export function GeospatialOverlay() {
     if (!enabled || !map) return
     if (canvasRenderMode !== '3d') return
     if (!autoFitEnabled) return
-    if (!map.isStyleLoaded()) return
+    if (!probe.styleLoaded) return
 
     const enabledDatasets = datasets.filter(d => d.enabled)
     const parts: string[] = [`m:3d`, `g:${graphPoints.features.length}`]
@@ -487,7 +530,7 @@ export function GeospatialOverlay() {
       void 0
     }
     lastAutoFitKeyRef.current = key
-  }, [enabled, map, canvasRenderMode, graphPoints, datasets, animateCamera, autoFitEnabled])
+  }, [enabled, map, canvasRenderMode, graphPoints, datasets, animateCamera, autoFitEnabled, probe.styleLoaded])
 
   const clampedOpacity = clamp01(overlayOpacity)
   const showOpacityWarning = !(clampedOpacity > 0)

@@ -24,7 +24,7 @@ export type FetchRemoteTextResult = FetchRemoteTextSuccess | FetchRemoteTextFail
 
 async function fetchTextWithLimit(
   url: string,
-  opts: { timeoutMs: number; maxBytes: number; validate?: (text: string) => boolean },
+  opts: { timeoutMs: number; maxBytes: number; validate?: (text: string) => boolean; onProgress?: (args: { loadedBytes: number; totalBytes?: number }) => void },
 ): Promise<string | null> {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
   const timeoutSet =
@@ -51,15 +51,26 @@ async function fetchTextWithLimit(
     const decoder = new TextDecoder('utf-8')
     let total = 0
     let text = ''
+    const contentLengthRaw = res.headers.get('content-length')
+    const contentLength = contentLengthRaw ? Number(contentLengthRaw) : NaN
+    const contentLengthNum = Number.isFinite(contentLength) ? Math.floor(contentLength) : undefined
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       if (!value || value.byteLength === 0) continue
       total += value.byteLength
       if (total > opts.maxBytes) {
+      if (opts.onProgress) {
+        try {
+          opts.onProgress({ loadedBytes: total, totalBytes: contentLengthNum })
+        } catch {
+          void 0
+        }
+      }
         try {
           await reader.cancel()
         } catch {
+          void 0
           void 0
         }
         return null
@@ -84,7 +95,7 @@ async function fetchTextWithLimit(
 
 async function fetchTextWithLimitDetailed(
   url: string,
-  opts: { timeoutMs: number; maxBytes: number; validate?: (text: string) => boolean },
+  opts: { timeoutMs: number; maxBytes: number; validate?: (text: string) => boolean; onProgress?: (args: { loadedBytes: number; totalBytes?: number }) => void },
 ): Promise<{ ok: true; text: string; status: number; contentLength?: number } | { ok: false; kind: FetchFailureKind; status?: number; contentLength?: number }> {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
   const timeoutSet =
@@ -126,6 +137,13 @@ async function fetchTextWithLimitDetailed(
       if (done) break
       if (!value || value.byteLength === 0) continue
       total += value.byteLength
+      if (opts.onProgress) {
+        try {
+          opts.onProgress({ loadedBytes: total, totalBytes: contentLengthNum })
+        } catch {
+          void 0
+        }
+      }
       if (total > opts.maxBytes) {
         try {
           await reader.cancel()
@@ -196,6 +214,7 @@ export async function fetchRemoteTextDetailed(
     maxBytes?: number
     validate?: (text: string) => boolean
     preflightHead?: boolean
+    onProgress?: (args: { loadedBytes: number; totalBytes?: number }) => void
   },
 ): Promise<FetchRemoteTextResult> {
   const url = coerceFetchUrl(rawUrl)
@@ -235,6 +254,7 @@ export async function fetchRemoteTextDetailed(
       timeoutMs,
       maxBytes,
       validate: options?.validate,
+      onProgress: options?.onProgress,
     })
     if (r.ok) return { ok: true, text: r.text, url: targetUrl, usedProxy, status: r.status, contentLength: r.contentLength }
     return { ok: false, kind: r.ok === false ? r.kind : 'network', url: targetUrl, usedProxy, status: r.status, contentLength: r.contentLength }

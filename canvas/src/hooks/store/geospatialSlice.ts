@@ -101,6 +101,8 @@ export const createGeospatialSlice = (
   | 'setGeospatialDatasetLabel'
   | 'geospatialDatasetStatusById'
   | 'setGeospatialDatasetStatus'
+  | 'geospatialDatasetReloadNonceById'
+  | 'requestGeospatialDatasetReload'
   | 'geospatialDatasetTimeoutMs'
   | 'setGeospatialDatasetTimeoutMs'
   | 'geospatialDatasetMaxBytes'
@@ -287,10 +289,15 @@ export const createGeospatialSlice = (
       set(() => ({ geospatialDatasets: next }))
       set(s => {
         const status = s.geospatialDatasetStatusById || {}
-        if (!(id in status)) return {}
-        const copy = { ...status }
-        delete copy[id]
-        return { geospatialDatasetStatusById: copy }
+        const reload = s.geospatialDatasetReloadNonceById || {}
+        const hasStatus = id in status
+        const hasReload = id in reload
+        if (!hasStatus && !hasReload) return {}
+        const nextStatus = hasStatus ? { ...status } : status
+        if (hasStatus) delete (nextStatus as Record<string, unknown>)[id]
+        const nextReload = hasReload ? { ...reload } : reload
+        if (hasReload) delete (nextReload as Record<string, unknown>)[id]
+        return { geospatialDatasetStatusById: nextStatus, geospatialDatasetReloadNonceById: nextReload }
       })
     },
 
@@ -317,6 +324,17 @@ export const createGeospatialSlice = (
     geospatialDatasetStatusById: {},
     setGeospatialDatasetStatus: (id, status) => {
       set(s => ({ geospatialDatasetStatusById: { ...(s.geospatialDatasetStatusById || {}), [id]: status } }))
+    },
+
+    geospatialDatasetReloadNonceById: {},
+    requestGeospatialDatasetReload: id => {
+      const key = String(id || '').trim()
+      if (!key) return
+      set(s => {
+        const prev = s.geospatialDatasetReloadNonceById || {}
+        const nextVal = (prev[key] || 0) + 1
+        return { geospatialDatasetReloadNonceById: { ...prev, [key]: nextVal } }
+      })
     },
 
     geospatialFitRequest: null,
