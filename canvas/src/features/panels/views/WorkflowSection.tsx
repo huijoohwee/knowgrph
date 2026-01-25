@@ -1,7 +1,4 @@
 import React from 'react';
-import { ChevronDown } from 'lucide-react';
-import IconButton from '@/components/IconButton';
-import Tooltip from '@/features/panels/ui/Tooltip';
 import { useWorkflowExportActions } from '@/features/panels/hooks/useWorkflowExportActions';
 import { useParserWorkflowState } from '@/features/parsers/useParserWorkflowState';
 import { useGraphStore } from '@/hooks/useGraphStore';
@@ -9,16 +6,24 @@ import { openBottomPanel } from '@/features/bottom-panel/open';
 import { EXAMPLE_DATASETS } from '@/features/parsers/examplesCatalog';
 import { buildGraphRagWorkflowJsonLdDocument } from '@/features/panels/utils/workflowJsonLd';
 import { buildGraphRagWorkflowFromGraphData } from '@/features/panels/utils/graphragConfig';
-import { SHARE_BACKEND_URL, WORKFLOW_TAB_HEADER_TOOLTIP, UI_COPY } from '@/lib/config';
-import MainPanelBody from '@/features/panels/ui/MainPanelBody';
+import { SHARE_BACKEND_URL, UI_COPY } from '@/lib/config';
 import { getJsonLdGraphMappingSummary, getAgenticRagContextComparison } from '@/lib/graph/jsonld/index';
 import { WorkflowSteps } from '@/features/panels/views/WorkflowSteps';
-import { getIconSizeClass } from '@/lib/ui';
 import type { JsonLdMappingSummary, AgenticContextSummary } from '@/features/panels/views/WorkflowStepsModel';
 import type { GraphData } from '@/lib/graph/types';
 import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions';
 
-export default function WorkflowSection() {
+type WorkflowActions = {
+  collapseAll?: () => void;
+  expandAll?: () => void;
+  allCollapsed?: boolean;
+};
+
+type WorkflowSectionProps = {
+  onRegisterActions?: (actions: WorkflowActions) => void;
+};
+
+export default function WorkflowSection({ onRegisterActions }: WorkflowSectionProps) {
   const graphData = useGraphStore(s => s.graphData);
   const graphDataLoaded = !!graphData;
   const selectedNodeId = useGraphStore(s => s.selectedNodeId);
@@ -30,21 +35,6 @@ export default function WorkflowSection() {
   const graphId = useGraphStore(s => s.graphId);
   const graphRagWorkflowJsonText = useGraphStore(s => s.graphRagWorkflowJsonText);
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText);
-  const uiIconScale = useGraphStore(s => s.uiIconScale);
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth);
-  const uiSectionHeaderRowHeightClass = useGraphStore(
-    s => s.uiSectionHeaderRowHeightClass || 'min-h-[36px]',
-  );
-  const uiSectionHeaderRowPaddingClass = useGraphStore(
-    s => s.uiSectionHeaderRowPaddingClass || 'py-1',
-  );
-  const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
-  );
-  const uiPanelTextFontClass = useGraphStore(
-    s => s.uiPanelTextFontClass || 'font-sans',
-  );
-  const iconSizeClass = getIconSizeClass(uiIconScale);
   const [graphRagEditorExpanded, setGraphRagEditorExpanded] = React.useState(false);
   const jsonLdMapping = React.useMemo<JsonLdMappingSummary | null>(() => {
     const summary = getJsonLdGraphMappingSummary(graphData as GraphData | null) as
@@ -228,96 +218,46 @@ export default function WorkflowSection() {
   }, [graphData, graphId, setGraphRagWorkflowJsonText]);
 
   const allStepsCollapsed = Object.values(collapsedByStep).every(Boolean);
-  const uiPanelMicroLabelTextSizeClass = useGraphStore(
-    s => s.uiPanelMicroLabelTextSizeClass || 'text-xs',
-  );
-
-  const header = (
-    <div
-      className={[
-        'mt-4 border-t border-gray-200 flex items-center justify-between mb-1',
-        uiSectionHeaderRowHeightClass,
-        uiSectionHeaderRowPaddingClass,
-      ].join(' ')}
-    >
-      <div
-        className={[
-          'flex items-center gap-1 text-gray-600',
-          uiPanelMicroLabelTextSizeClass,
-        ].join(' ')}
-      >
-        <Tooltip
-          content={WORKFLOW_TAB_HEADER_TOOLTIP}
-          maxWidthPx={280}
-          contentClassName="bg-gray-800/90"
-        >
-          <span>Workflow</span>
-        </Tooltip>
-      </div>
-      <IconButton
-        className="App-toolbar__btn flex items-center justify-center"
-        title={allStepsCollapsed ? 'Expand All' : 'Collapse All'}
-        onClick={() => {
-          if (allStepsCollapsed) {
-            expandAll();
-          } else {
-            collapseAll();
-          }
-        }}
-        showTooltip
-      >
-        <ChevronDown
-          className={`${iconSizeClass} text-gray-700 transition-transform ${allStepsCollapsed ? '' : 'rotate-180'}`}
-          strokeWidth={uiIconStrokeWidth}
-          aria-hidden="true"
-        />
-      </IconButton>
-    </div>
-  );
+  React.useEffect(() => {
+    if (!onRegisterActions) return;
+    onRegisterActions({
+      collapseAll,
+      expandAll,
+      allCollapsed: allStepsCollapsed,
+    });
+  }, [allStepsCollapsed, collapseAll, expandAll, onRegisterActions]);
 
   return (
-    <MainPanelBody header={header}>
-      <div
-        className={
-          [
-            'h-full min-h-0 flex flex-col overflow-hidden py-2 text-gray-600',
-            uiPanelKeyValueTextSizeClass,
-            uiPanelTextFontClass,
-          ].join(' ')
-        }
-      >
-        <WorkflowSteps
-          collapsedByStep={collapsedByStep}
-          onToggleStep={handleToggleStep}
-          hasSchema={hasSchema}
-        graphDataLoaded={graphDataLoaded}
-        onOpenSchemaTab={handleOpenSchemaTab}
-        onOpenRenderTab={handleOpenRenderTab}
-        onOpenOrchestratorTab={handleOpenOrchestratorTab}
-        onRunAiKgTraversal={handleRunAiKgTraversal}
-        parserWorkflow={{
-          examples: EXAMPLE_DATASETS,
-          onApplyExample: applyExampleById,
-          presets: parserDataProps.presets || [],
-          onApplyPreset: parserDataProps.onApplyPreset,
-        }}
-        graphRagWorkflow={{
-          jsonLdMapping,
-          agenticContext,
-          graphRagWorkflowJsonText: graphRagWorkflowJsonText || '',
-          onChangeGraphRagWorkflowJsonText: v => setGraphRagWorkflowJsonText(v),
-          graphRagEditorExpanded,
-          onToggleGraphRagEditorExpanded: () => setGraphRagEditorExpanded(v => !v),
-          onResetGraphRagWorkflowJson: handleResetGraphRagWorkflowJson,
-          onGenerateGraphRagWorkflowFromGraph: handleGenerateGraphRagWorkflowFromGraph,
-          onImportGraphRagWorkflowJsonLd: importGraphRagWorkflowJsonLd,
-        }}
-        shareStatus={shareStatus}
-        onCopyShareLink={handleCopyShareLink}
-        pipelineStatus={pipelineStatus}
-        onRunCodebaseIndexPipeline={handleRunCodebaseIndexPipeline}
-      />
-      </div>
-    </MainPanelBody>
+    <WorkflowSteps
+      collapsedByStep={collapsedByStep}
+      onToggleStep={handleToggleStep}
+      hasSchema={hasSchema}
+      graphDataLoaded={graphDataLoaded}
+      onOpenSchemaTab={handleOpenSchemaTab}
+      onOpenRenderTab={handleOpenRenderTab}
+      onOpenOrchestratorTab={handleOpenOrchestratorTab}
+      onRunAiKgTraversal={handleRunAiKgTraversal}
+      parserWorkflow={{
+        examples: EXAMPLE_DATASETS,
+        onApplyExample: applyExampleById,
+        presets: parserDataProps.presets || [],
+        onApplyPreset: parserDataProps.onApplyPreset,
+      }}
+      graphRagWorkflow={{
+        jsonLdMapping,
+        agenticContext,
+        graphRagWorkflowJsonText: graphRagWorkflowJsonText || '',
+        onChangeGraphRagWorkflowJsonText: v => setGraphRagWorkflowJsonText(v),
+        graphRagEditorExpanded,
+        onToggleGraphRagEditorExpanded: () => setGraphRagEditorExpanded(v => !v),
+        onResetGraphRagWorkflowJson: handleResetGraphRagWorkflowJson,
+        onGenerateGraphRagWorkflowFromGraph: handleGenerateGraphRagWorkflowFromGraph,
+        onImportGraphRagWorkflowJsonLd: importGraphRagWorkflowJsonLd,
+      }}
+      shareStatus={shareStatus}
+      onCopyShareLink={handleCopyShareLink}
+      pipelineStatus={pipelineStatus}
+      onRunCodebaseIndexPipeline={handleRunCodebaseIndexPipeline}
+    />
   );
 }

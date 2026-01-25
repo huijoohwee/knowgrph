@@ -12,7 +12,7 @@
 
 - BottomPanel curation/presentation submodules (curator + markdown + stats + JSON views)
 - Graph Data Table (filter/sort/group + frozen areas + virtualized rows)
-- Markdown viewer/editor/presentation/gallery surfaces
+- Markdown viewer/editor/presentation/gallery surfaces + Source Files List
 - Preview-panel UI primitives used by markdown/presentation (gallery + overlays + zoom/pan)
 - JSON editor used by curation and inspectors
 
@@ -30,3 +30,11 @@ The canonical host integration pattern for extracted UI surfaces is:
 - **Coupling guardrail**: `curagrph` must not import host code via hardcoded sibling paths; any host coupling must occur only through stable host-provided module prefixes (e.g. `@/hooks/*`, `@/lib/*`) so the host controls the contract surface.
 
 This contract is the default pattern for future UI extractions so module ownership stays neutral and maintainable without reintroducing duplicate/competing implementations in host repos.
+
+---
+
+## Source Files Contract
+
+- **Host-owned ingest**: host UI surfaces (e.g. FloatingPanel Workspace Actions) ingest local/URL text and append to `useGraphStore.sourceFiles` using `addSourceFile`.
+- **Curation UI visibility**: `curagrph` markdown surfaces render an optional Source Files list inside the Markdown sidebar "Contents" area.
+- **Selection behavior**: selecting a source file sets the active markdown document via `setMarkdownDocument(name, text)` and updates the active marker by comparing `markdownDocumentName`.

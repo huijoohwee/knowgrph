@@ -11,6 +11,7 @@ import { createGraphViewSlice } from '@/hooks/store/graphViewSlice';
 import { createSchemaSlice, readSchemaFromStorage } from '@/hooks/store/schemaSlice';
 import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
 import { createUiToastSlice } from '@/hooks/store/uiToastSlice';
+import { createSourceFilesSlice } from '@/hooks/store/sourceFilesSlice';
 import { getLocalStorage } from '@/lib/persistence';
 import type { GraphState, LayoutPositionCacheKey, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -52,7 +53,7 @@ const applyCanvasDefaultInitSchema = (schema: GraphSchema): GraphSchema => {
 }
 
 export const useGraphStore = create<GraphState>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector((set, get, api) => ({
   schema: (() => {
     try {
       const storage = getLocalStorage();
@@ -133,6 +134,7 @@ export const useGraphStore = create<GraphState>()(
   ...createHistorySlice(set, get),
   ...createUiSlice(set),
   ...createUiToastSlice(set),
+  ...createSourceFilesSlice(set, get, api),
   ...createCanvasSlice(set, get),
   ...createSchemaSlice(set, get),
 })),

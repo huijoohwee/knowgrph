@@ -16,6 +16,7 @@ import { AGENTIC_RAG_CONTEXT_URL, AGENTIC_RAG_SCHEMA_URL, AGENTIC_RAG_GRAPH_RAG_
 import type { JsonLdMappingSummary, AgenticContextSummary } from '@/features/panels/views/WorkflowStepsModel';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { getPillClass, getChipClass } from '@/lib/ui';
+import WorkspaceActionsStep from '@/features/workspace-actions/WorkspaceActionsStep';
 
 type CollapsedByStep = {
   1: boolean;
@@ -158,6 +159,7 @@ export function WorkflowSteps({
         <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
           {WORKFLOW_STEP_COPY[3].descriptionShort}
         </div>
+        <WorkspaceActionsStep />
         <div className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
           <div className="mb-1">Or start with an example dataset:</div>
           <div className="flex flex-wrap gap-1">

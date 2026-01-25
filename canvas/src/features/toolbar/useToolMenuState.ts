@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
-import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions'
 
 type ToolMenuDragPosition = {
   top: number
@@ -11,21 +10,6 @@ type ToolMenuDragPosition = {
 
 export function useToolMenuState() {
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false)
-  const [isSourceFilesImportMenuOpen, setIsSourceFilesImportMenuOpen] = useState(false)
-  const [isSourceFilesExportMenuOpen, setIsSourceFilesExportMenuOpen] = useState(false)
-  const [isParserExportMenuOpen, setIsParserExportMenuOpen] = useState(false)
-  const [isMarkdownImportMenuOpen, setIsMarkdownImportMenuOpen] = useState(false)
-  const [isHtmlImportMenuOpen, setIsHtmlImportMenuOpen] = useState(false)
-  const [isPdfImportMenuOpen, setIsPdfImportMenuOpen] = useState(false)
-  const [isYouTubeImportMenuOpen, setIsYouTubeImportMenuOpen] = useState(false)
-  const [isJsonImportMenuOpen, setIsJsonImportMenuOpen] = useState(false)
-  const [isJsonLdImportMenuOpen, setIsJsonLdImportMenuOpen] = useState(false)
-  const [isSchemaExportMenuOpen, setIsSchemaExportMenuOpen] = useState(false)
-  const [isGraphFieldsExportMenuOpen, setIsGraphFieldsExportMenuOpen] = useState(false)
-  const [isSettingsExportMenuOpen, setIsSettingsExportMenuOpen] = useState(false)
-  const [isHistoryExportMenuOpen, setIsHistoryExportMenuOpen] = useState(false)
-  const [isValidationExportMenuOpen, setIsValidationExportMenuOpen] = useState(false)
-  const [pipelineStatus, setPipelineStatus] = useState<string | null>(null)
 
   const toolMenuButtonRef = useRef<HTMLButtonElement | null>(null)
   const toolMenuCardRef = useRef<HTMLDivElement | null>(null)
@@ -54,10 +38,6 @@ export function useToolMenuState() {
       top: clampedTop,
       left: clampedLeft,
     }
-  }, [])
-
-  const handleRunCodebaseIndexPipeline = useCallback(async () => {
-    await runMarkdownPipelineWithStatus(setPipelineStatus)
   }, [])
 
   const handleToolMenuCardPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -154,20 +134,6 @@ export function useToolMenuState() {
 
   const closeToolMenu = useCallback(() => {
     setIsToolMenuOpen(false)
-    setIsSourceFilesImportMenuOpen(false)
-    setIsSourceFilesExportMenuOpen(false)
-    setIsParserExportMenuOpen(false)
-    setIsMarkdownImportMenuOpen(false)
-    setIsHtmlImportMenuOpen(false)
-    setIsPdfImportMenuOpen(false)
-    setIsYouTubeImportMenuOpen(false)
-    setIsJsonImportMenuOpen(false)
-    setIsJsonLdImportMenuOpen(false)
-    setIsSchemaExportMenuOpen(false)
-    setIsGraphFieldsExportMenuOpen(false)
-    setIsSettingsExportMenuOpen(false)
-    setIsHistoryExportMenuOpen(false)
-    setIsValidationExportMenuOpen(false)
     const pinned = lsBool(LS_KEYS.floatingPanelPinned, false)
     if (!pinned) setToolMenuDragPos(null)
   }, [])
@@ -176,20 +142,6 @@ export function useToolMenuState() {
     setIsToolMenuOpen(prev => {
       const next = !prev
       if (!next) {
-        setIsSourceFilesImportMenuOpen(false)
-        setIsSourceFilesExportMenuOpen(false)
-        setIsParserExportMenuOpen(false)
-        setIsMarkdownImportMenuOpen(false)
-        setIsHtmlImportMenuOpen(false)
-        setIsPdfImportMenuOpen(false)
-        setIsYouTubeImportMenuOpen(false)
-        setIsJsonImportMenuOpen(false)
-        setIsJsonLdImportMenuOpen(false)
-        setIsSchemaExportMenuOpen(false)
-        setIsGraphFieldsExportMenuOpen(false)
-        setIsSettingsExportMenuOpen(false)
-        setIsHistoryExportMenuOpen(false)
-        setIsValidationExportMenuOpen(false)
         const pinned = lsBool(LS_KEYS.floatingPanelPinned, false)
         if (!pinned) setToolMenuDragPos(null)
       }
@@ -200,42 +152,11 @@ export function useToolMenuState() {
   return {
     isToolMenuOpen,
     setIsToolMenuOpen,
-    isSourceFilesImportMenuOpen,
-    setIsSourceFilesImportMenuOpen,
-    isSourceFilesExportMenuOpen,
-    setIsSourceFilesExportMenuOpen,
-    isParserExportMenuOpen,
-    setIsParserExportMenuOpen,
-    isMarkdownImportMenuOpen,
-    setIsMarkdownImportMenuOpen,
-    isHtmlImportMenuOpen,
-    setIsHtmlImportMenuOpen,
-    isPdfImportMenuOpen,
-    setIsPdfImportMenuOpen,
-    isYouTubeImportMenuOpen,
-    setIsYouTubeImportMenuOpen,
-    isJsonImportMenuOpen,
-    setIsJsonImportMenuOpen,
-    isJsonLdImportMenuOpen,
-    setIsJsonLdImportMenuOpen,
-    isSchemaExportMenuOpen,
-    setIsSchemaExportMenuOpen,
-    isGraphFieldsExportMenuOpen,
-    setIsGraphFieldsExportMenuOpen,
-    isSettingsExportMenuOpen,
-    setIsSettingsExportMenuOpen,
-    isHistoryExportMenuOpen,
-    setIsHistoryExportMenuOpen,
-    isValidationExportMenuOpen,
-    setIsValidationExportMenuOpen,
-    pipelineStatus,
-    setPipelineStatus,
     toolMenuButtonRef,
     toolMenuCardRef,
     toolMenuCardStyle,
     setToolMenuDragPos,
     handleToolMenuCardPointerDown,
-    handleRunCodebaseIndexPipeline,
     closeToolMenu,
     toggleToolMenu,
   }

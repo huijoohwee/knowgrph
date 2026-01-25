@@ -1,16 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { useShallow } from 'zustand/react/shallow'
+import React, { useEffect, useRef, useState } from 'react'
 import { Upload, CheckCircle, XCircle, ChevronDown } from 'lucide-react'
 import IconButton from '@/components/IconButton'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useParserUIState } from '@/features/parsers/uiState'
-import { useParserWorkflowState } from '@/features/parsers/useParserWorkflowState'
-import { useWorkflowExportActions } from '@/features/panels/hooks/useWorkflowExportActions'
 import { useToolMenuShortcuts } from '@/features/toolbar/useToolMenuShortcuts'
 import { useToolMenuState } from '@/features/toolbar/useToolMenuState'
 import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import {
   PROPS_PANEL_OPEN_EVENT,
   RENDERER_FLOATING_PANEL_OPEN_EVENT,
@@ -21,100 +16,51 @@ import { LS_KEYS, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
-import { useToolbarMenuAction } from '@/features/toolbar/useToolbarMenuAction'
+import { useWorkspaceActionsModel } from '@/features/workspace-actions/useWorkspaceActionsModel'
 
 type ToolbarMenuLauncherProps = {
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
 }
 
-export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProps) {
-  const {
-    graphData,
-    graphSchema,
-    selectedNodeId,
-    selectedEdgeId,
-    captureCanvasSvgSnapshot,
-    captureCanvasPngSnapshot,
-  } = useGraphStore(
-    useShallow(s => ({
-      graphData: s.graphData,
-      graphSchema: s.schema,
-      selectedNodeId: s.selectedNodeId,
-      selectedEdgeId: s.selectedEdgeId,
-      captureCanvasSvgSnapshot: s.captureCanvasSvgSnapshot,
-      captureCanvasPngSnapshot: s.captureCanvasPngSnapshot,
-    })),
-  )
-
-  const parserPreferredLanguage = useParserUIState(s => s.preferredLanguage)
-  const parserLoadOk = useParserUIState(s => s.parserLoadOk)
-  const parserLoadMsg = useParserUIState(s => s.parserLoadMsg)
+export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: ToolbarMenuLauncherProps) {
   const dataLoadOk = useParserUIState(s => s.dataLoadOk)
   const dataLoadMsg = useParserUIState(s => s.dataLoadMsg)
 
-  const { parserDataProps } = useParserWorkflowState()
-
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
-    { view: 'workspaceActions' | 'propsPanel' | 'renderer' | 'graphTraversal'; seq: number } | null
+    { view: 'propsPanel' | 'renderer' | 'graphTraversal'; seq: number } | null
   >(null)
 
   const {
     isToolMenuOpen,
     setIsToolMenuOpen,
-    isSourceFilesImportMenuOpen,
-    setIsSourceFilesImportMenuOpen,
-    isSourceFilesExportMenuOpen,
-    setIsSourceFilesExportMenuOpen,
-    isParserExportMenuOpen,
-    setIsParserExportMenuOpen,
-    isMarkdownImportMenuOpen,
-    setIsMarkdownImportMenuOpen,
-    isHtmlImportMenuOpen,
-    setIsHtmlImportMenuOpen,
-    isPdfImportMenuOpen,
-    setIsPdfImportMenuOpen,
-    isYouTubeImportMenuOpen,
-    setIsYouTubeImportMenuOpen,
-    isJsonImportMenuOpen,
-    setIsJsonImportMenuOpen,
-    isJsonLdImportMenuOpen,
-    setIsJsonLdImportMenuOpen,
-    isSchemaExportMenuOpen,
-    setIsSchemaExportMenuOpen,
-    isGraphFieldsExportMenuOpen,
-    setIsGraphFieldsExportMenuOpen,
-    isSettingsExportMenuOpen,
-    setIsSettingsExportMenuOpen,
-    isHistoryExportMenuOpen,
-    setIsHistoryExportMenuOpen,
-    isValidationExportMenuOpen,
-    setIsValidationExportMenuOpen,
-    pipelineStatus,
     toolMenuButtonRef,
     toolMenuCardRef,
     toolMenuCardStyle,
     setToolMenuDragPos,
     handleToolMenuCardPointerDown,
-    handleRunCodebaseIndexPipeline,
     closeToolMenu,
     toggleToolMenu,
   } = useToolMenuState()
+
+  const workspaceActions = useWorkspaceActionsModel()
+
+  useToolMenuShortcuts(workspaceActions.handleToolMenuAction)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     const handleOpenPropsPanel = (event: Event) => {
       floatingPanelRequestSeqRef.current += 1
-        setFloatingPanelRequestedView({
-          view: 'propsPanel',
-          seq: floatingPanelRequestSeqRef.current,
-        })
-        try {
-          const isPinned = lsBool(LS_KEYS.floatingPanelPinned, false)
-          const custom = event as CustomEvent<PropsPanelOpenEventDetail>
-          const detail = custom.detail
-          const clientX = detail && typeof detail.clientX === 'number' ? detail.clientX : null
-          const clientY = detail && typeof detail.clientY === 'number' ? detail.clientY : null
+      setFloatingPanelRequestedView({
+        view: 'propsPanel',
+        seq: floatingPanelRequestSeqRef.current,
+      })
+      try {
+        const isPinned = lsBool(LS_KEYS.floatingPanelPinned, false)
+        const custom = event as CustomEvent<PropsPanelOpenEventDetail>
+        const detail = custom.detail
+        const clientX = detail && typeof detail.clientX === 'number' ? detail.clientX : null
+        const clientY = detail && typeof detail.clientY === 'number' ? detail.clientY : null
         if (!isPinned && clientX !== null && clientY !== null && Number.isFinite(clientX) && Number.isFinite(clientY)) {
           const padding = 8
           const estimatedWidth = 320
@@ -149,93 +95,8 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
     }
   }, [setIsToolMenuOpen, setToolMenuDragPos])
 
-  const {
-    exportStatus,
-    hasSelection,
-    exportGraphJsonLd,
-    exportGraphJson,
-    exportGraphCsvCombined,
-    exportGraphGraphMl,
-    exportGraphCypher,
-    exportGraphRagWorkflowJsonLd,
-    exportSettingsJsonLd,
-    exportHistoryJsonLd,
-    exportGraphFieldSettingsJsonLd,
-    exportValidationJson,
-    exportValidationMarkdown,
-    exportSelectionValidationJson,
-    exportSelectionValidationMarkdown,
-    copyGraphJsonLd,
-    copyGraphJson,
-    exportSchemaJson,
-    exportSchemaJsonLd,
-    exportSchemaCsv,
-    copySchemaJsonLd,
-    copySchemaJson,
-    exportSelectionJsonLd,
-    exportSelectionJson,
-    exportSelectionCsvCombined,
-    exportSelectionGraphMl,
-    exportSelectionCypher,
-    importSchemaJsonOrJsonLd,
-    importGraphRagWorkflowJsonLd,
-    importSettingsJsonLd,
-    importHistoryJsonLd,
-    importGraphFieldSettingsJsonLd,
-  } = useWorkflowExportActions({
-    parserDataExports: parserDataProps,
-    graphData,
-    graphSchema,
-    selectedNodeId,
-    selectedEdgeId,
-    captureCanvasSvgSnapshot,
-    captureCanvasPngSnapshot,
-  })
-
-  const schemaOpOk = useGraphStore(s => s.schemaOpOk)
-  const schemaOpMsg = useGraphStore(s => s.schemaOpMsg)
-  const graphFieldsOpOk = useGraphStore(s => s.graphFieldsOpOk)
-  const graphFieldsOpMsg = useGraphStore(s => s.graphFieldsOpMsg)
-  const orchestratorOpOk = useGraphStore(s => s.orchestratorOpOk)
-  const orchestratorOpMsg = useGraphStore(s => s.orchestratorOpMsg)
-  const renderOpOk = useGraphStore(s => s.renderOpOk)
-  const renderOpMsg = useGraphStore(s => s.renderOpMsg)
-
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const iconSizeClass = getIconSizeClass(uiIconScale)
-
-  const openWorkflowTab = useCallback(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflow' } }))
-      }
-    } catch {
-      void 0
-    }
-  }, [])
-
-  const handleToolMenuAction = useToolbarMenuAction({
-    closeToolMenu,
-    openWorkflowTab,
-    onOpenMainPanel,
-    setIsMarkdownImportMenuOpen,
-    setIsHtmlImportMenuOpen,
-    setIsPdfImportMenuOpen,
-    setIsSchemaExportMenuOpen,
-    exportGraphJsonLd,
-    exportGraphJson,
-    exportGraphFieldSettingsJsonLd,
-    exportGraphRagWorkflowJsonLd,
-    exportHistoryJsonLd,
-    exportSettingsJsonLd,
-    importGraphFieldSettingsJsonLd,
-    importGraphRagWorkflowJsonLd,
-    importHistoryJsonLd,
-    importSchemaJsonOrJsonLd,
-    importSettingsJsonLd,
-  })
-
-  useToolMenuShortcuts(handleToolMenuAction)
 
   return (
     <>
@@ -273,90 +134,14 @@ export function ToolbarMenuLauncher({ onOpenMainPanel }: ToolbarMenuLauncherProp
       </IconButton>
       {isToolMenuOpen && (
         <ToolbarToolMenu
-          dataLoadOk={dataLoadOk}
-          dataLoadMsg={dataLoadMsg}
-          parserLoadOk={parserLoadOk}
-          parserLoadMsg={parserLoadMsg}
-          parserPreferredLanguage={parserPreferredLanguage}
-          schemaOpOk={schemaOpOk}
-          schemaOpMsg={schemaOpMsg}
-          graphFieldsOpOk={graphFieldsOpOk}
-          graphFieldsOpMsg={graphFieldsOpMsg}
-          orchestratorOpOk={orchestratorOpOk}
-          orchestratorOpMsg={orchestratorOpMsg}
-          renderOpOk={renderOpOk}
-          renderOpMsg={renderOpMsg}
-          pipelineStatus={pipelineStatus}
-          exportStatus={exportStatus}
-          isSourceFilesImportMenuOpen={isSourceFilesImportMenuOpen}
-          setIsSourceFilesImportMenuOpen={setIsSourceFilesImportMenuOpen}
-          isSourceFilesExportMenuOpen={isSourceFilesExportMenuOpen}
-          setIsSourceFilesExportMenuOpen={setIsSourceFilesExportMenuOpen}
-          isParserExportMenuOpen={isParserExportMenuOpen}
-          setIsParserExportMenuOpen={setIsParserExportMenuOpen}
-          isMarkdownImportMenuOpen={isMarkdownImportMenuOpen}
-          setIsMarkdownImportMenuOpen={setIsMarkdownImportMenuOpen}
-          isHtmlImportMenuOpen={isHtmlImportMenuOpen}
-          setIsHtmlImportMenuOpen={setIsHtmlImportMenuOpen}
-          isPdfImportMenuOpen={isPdfImportMenuOpen}
-          setIsPdfImportMenuOpen={setIsPdfImportMenuOpen}
-          isYouTubeImportMenuOpen={isYouTubeImportMenuOpen}
-          setIsYouTubeImportMenuOpen={setIsYouTubeImportMenuOpen}
-          isJsonImportMenuOpen={isJsonImportMenuOpen}
-          setIsJsonImportMenuOpen={setIsJsonImportMenuOpen}
-          isJsonLdImportMenuOpen={isJsonLdImportMenuOpen}
-          setIsJsonLdImportMenuOpen={setIsJsonLdImportMenuOpen}
-          isSchemaExportMenuOpen={isSchemaExportMenuOpen}
-          setIsSchemaExportMenuOpen={setIsSchemaExportMenuOpen}
-          isGraphFieldsExportMenuOpen={isGraphFieldsExportMenuOpen}
-          setIsGraphFieldsExportMenuOpen={setIsGraphFieldsExportMenuOpen}
-          isSettingsExportMenuOpen={isSettingsExportMenuOpen}
-          setIsSettingsExportMenuOpen={setIsSettingsExportMenuOpen}
-          isHistoryExportMenuOpen={isHistoryExportMenuOpen}
-          setIsHistoryExportMenuOpen={setIsHistoryExportMenuOpen}
-          isValidationExportMenuOpen={isValidationExportMenuOpen}
-          setIsValidationExportMenuOpen={setIsValidationExportMenuOpen}
-          onExportSchemaJson={exportSchemaJson}
-          onExportSchemaJsonLd={exportSchemaJsonLd}
-          onExportSchemaCsv={exportSchemaCsv}
-          onExportGraphJsonLd={exportGraphJsonLd}
-          onExportGraphJson={exportGraphJson}
-          onExportGraphCsvCombined={exportGraphCsvCombined}
-          onExportGraphMl={exportGraphGraphMl}
-          onExportGraphCypher={exportGraphCypher}
-          hasSelection={hasSelection}
-          onExportSelectionJsonLd={hasSelection ? exportSelectionJsonLd : undefined}
-          onExportSelectionJson={hasSelection ? exportSelectionJson : undefined}
-          onExportSelectionCsvCombined={hasSelection ? exportSelectionCsvCombined : undefined}
-          onExportSelectionGraphMl={hasSelection ? exportSelectionGraphMl : undefined}
-          onExportSelectionCypher={hasSelection ? exportSelectionCypher : undefined}
-          onCopySchemaJsonLd={copySchemaJsonLd}
-          onCopySchemaJson={copySchemaJson}
-          onCopyGraphJsonLd={copyGraphJsonLd}
-          onCopyGraphJson={copyGraphJson}
-          onExportGraphFieldSettingsJsonLd={exportGraphFieldSettingsJsonLd}
-          onExportSettingsJsonLd={exportSettingsJsonLd}
-          onExportHistoryJsonLd={exportHistoryJsonLd}
-          onExportValidationJson={exportValidationJson}
-          onExportValidationMarkdown={exportValidationMarkdown}
-          onExportSelectionValidationJson={hasSelection ? exportSelectionValidationJson : undefined}
-          onExportSelectionValidationMarkdown={hasSelection ? exportSelectionValidationMarkdown : undefined}
           toolMenuCardRef={toolMenuCardRef}
           toolMenuCardStyle={toolMenuCardStyle}
           onHeaderPointerDown={handleToolMenuCardPointerDown}
           requestedFloatingPanelView={floatingPanelRequestedView?.view}
           requestedFloatingPanelViewSeq={floatingPanelRequestedView?.seq}
-          onOpenData={() => {
-            if (dataLoadOk === true) {
-              openBottomPanel('data')
-            }
-            closeToolMenu()
-          }}
-          onRunPipeline={handleRunCodebaseIndexPipeline}
-          onRunDemo={undefined}
+          pipelineStatus={null}
+          exportStatus={null}
           onClose={closeToolMenu}
-          onToolMenuAction={handleToolMenuAction}
-          onOpenWorkflowTab={openWorkflowTab}
         />
       )}
     </>

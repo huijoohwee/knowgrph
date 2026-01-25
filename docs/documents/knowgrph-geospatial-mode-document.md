@@ -59,7 +59,7 @@
 2. In the extracted module UI, user enables the runtime overlay.
 3. A translucent basemap overlay appears on top of the canvas (defaulting to OpenFreeMap) while graph interactions remain primary.
 4. User optionally configures interaction/projection/animation settings in the overlay panel UI.
-5. User adds one or more dataset URLs in the overlay panel UI to render additional map layers.
+5. User adds one or more dataset URLs via **Source Files → Import** (Workspace Actions), optionally registering them as Geo layers to render additional map overlay layers.
 6. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
 ---
@@ -97,7 +97,7 @@
   - Basemap lifecycle: `gympgrph/src/features/geospatial/useMapLibreBasemap.ts`
   - Dataset URL loading + layer creation: `gympgrph/src/features/geospatial/geospatialOverlayUtils.ts`
   - POI selection mapping: `gympgrph/src/features/geospatial/geospatialPoiSelection.ts`
-  - UI controls: `gympgrph/src/features/geospatial/GeospatialPanel.tsx`
+  - UI controls: `gympgrph/src/features/geospatial/GeospatialPanel.tsx` (host may hide the dataset importer and consolidate import into Source Files)
   - Geo derivation helpers: `gympgrph/src/lib/graph/geo/*` and `gympgrph/src/lib/geospatial/*`
 
 ---

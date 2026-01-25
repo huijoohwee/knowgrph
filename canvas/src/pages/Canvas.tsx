@@ -504,6 +504,7 @@ export default function CanvasPage() {
                           {geospatialHostMounted && (
                             <GeospatialPanelHostLazy
                               active={sidePanelTab === 'geo'}
+                              showDatasetsManager={false}
                               snapshot={{
                                 graphData: gympgrphBridge.graphData,
                                 zoomState: gympgrphBridge.zoomState,

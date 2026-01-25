@@ -1,10 +1,11 @@
 import { UI_COPY } from '@/lib/config'
-import { pickTextFileWithExtensions } from '@/lib/graph/file'
+import { pickTextFilesWithExtensions } from '@/lib/graph/file'
 import { parseHtmlToMarkdown } from '@/features/parsers/html-parser'
 import { coerceHttpUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import { runImportFlow } from '@/features/toolbar/importFlow'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -15,44 +16,63 @@ export type MarkdownImportType = 'url' | 'local'
 
 export async function performMarkdownImport(type: MarkdownImportType, providedUrl?: string) {
   try {
-    const picked = await (async (): Promise<{ name: string; text: string; displayName?: string } | null> => {
+    const pickedFiles = await (async (): Promise<Array<{ name: string; text: string; displayName?: string; sourceUrl?: string }>> => {
       if (type === 'url') {
         const rawUrl = (() => {
           const v = typeof providedUrl === 'string' ? providedUrl.trim() : ''
           if (v) return v
           return promptForUrl(UI_COPY.markdownImportUrlPrompt) || ''
         })()
-        if (!rawUrl) return null
-        return fetchRemoteMarkdownText(rawUrl)
+        if (!rawUrl) return []
+        const res = await fetchRemoteMarkdownText(rawUrl)
+        return res ? [{ ...res, sourceUrl: rawUrl }] : []
       }
       if (type === 'local') {
-        return pickTextFileWithExtensions(['.md', '.markdown'])
+        const files = await pickTextFilesWithExtensions(['.md', '.markdown'])
+        return files.map(f => ({
+          name: f.name,
+          text: f.text,
+          displayName: f.name,
+        }))
       }
-      return null
+      return []
     })()
 
-    if (!picked) return
+    if (!pickedFiles || pickedFiles.length === 0) return
+
+    const store = useGraphStore.getState()
+    pickedFiles.forEach(f => {
+      store.addSourceFile({
+        id: crypto.randomUUID(),
+        name: f.displayName || f.name,
+        text: f.text,
+        enabled: true,
+        status: 'idle',
+      })
+    })
+
+    const first = pickedFiles[0]
 
     const text = (() => {
-      const raw = String(picked.text || '')
+      const raw = String(first.text || '')
       const trimmed = raw.trim().toLowerCase()
       const looksHtml =
         trimmed.startsWith('<!doctype html') ||
         trimmed.startsWith('<html') ||
         (trimmed.includes('<html') && trimmed.includes('</html>'))
       if (!looksHtml) return raw
-      const baseUrl = coerceHttpUrl(picked.name) || undefined
+      const baseUrl = coerceHttpUrl(first.name) || undefined
       return parseHtmlToMarkdown(raw, baseUrl)
     })()
 
-    const nameForParse = picked.displayName || picked.name
+    const nameForParse = first.displayName || first.name
     await runImportFlow({
       nameForParse,
       textForParse: text,
       openTab: 'curation',
       onSuccess: (res) => {
         if (!res.input || !res.input.text.trim()) return
-        const rawSourceName = String(picked.name || '')
+        const rawSourceName = String(first.name || '')
         const isHttp = /^https?:\/\//i.test(rawSourceName)
         if (isHttp) {
           const baseName = deriveMarkdownNameFromUrl(rawSourceName)
@@ -73,7 +93,7 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
           curationView: 'markdown',
           recent: {
             name,
-            path: type === 'local' ? picked.name : undefined,
+            path: type === 'local' ? first.name : undefined,
             type: 'markdown',
           },
         })

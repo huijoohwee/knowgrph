@@ -2,7 +2,7 @@ import { GraphData, type SelectionAnchorIds } from './types';
 import { exportAsJsonLdBlob, exportAsCombinedCsvBlob, exportAsRawJsonBlob, exportAsGraphMlBlob, exportAsCypherBlob } from './io/adapter';
 import { readExportPrefs, writeExportPrefs, saveBlobWithPicker, downloadBlob } from './save';
 import type { GraphValidationSummary } from './validation';
-export { pickTextFile, pickTextFileWithExtensions } from './filePicker';
+export { pickTextFile, pickTextFileWithExtensions, pickTextFilesWithExtensions } from './filePicker';
 
 declare const datasetPathBrand: unique symbol;
 declare const schemaConfigPathBrand: unique symbol;

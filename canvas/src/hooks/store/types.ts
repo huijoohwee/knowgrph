@@ -70,8 +70,23 @@ export type RecentFileEntry = {
   type: 'json' | 'jsonld' | 'markdown' | 'csv' | 'graphml' | 'cypher' | 'url' | 'html'
 }
 
+export type SourceFile = {
+  id: string
+  name: string
+  text: string
+  enabled: boolean
+  status: 'idle' | 'loading' | 'parsed' | 'error'
+  error?: string
+}
+
 export interface GraphState {
   graphData: GraphData | null;
+
+  sourceFiles: SourceFile[];
+  addSourceFile: (file: SourceFile) => void;
+  removeSourceFile: (id: string) => void;
+  toggleSourceFile: (id: string) => void;
+  setSourceFileStatus: (id: string, status: SourceFile['status'], error?: string) => void;
 
   graphDataRevision: number;
   documentSemanticMode: DocumentSemanticMode;

@@ -45,6 +45,61 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
       return haystack.includes(normalizedSearchQuery)
     })
   }, [normalizedSearchQuery])
+
+  type MenuToggleKey =
+    | 'sourceFilesImport'
+    | 'sourceFilesExport'
+    | 'parserExport'
+    | 'markdownImport'
+    | 'htmlImport'
+    | 'pdfImport'
+    | 'youTubeImport'
+    | 'jsonImport'
+    | 'jsonLdImport'
+    | 'schemaExport'
+    | 'graphFieldsExport'
+    | 'settingsExport'
+    | 'historyExport'
+    | 'validationExport'
+
+  const closeAllMenusExcept = React.useCallback(
+    (except: MenuToggleKey | null) => {
+      if (except !== 'sourceFilesImport') setIsSourceFilesImportMenuOpen(false)
+      if (except !== 'sourceFilesExport') setIsSourceFilesExportMenuOpen(false)
+      if (except !== 'parserExport') setIsParserExportMenuOpen(false)
+      if (except !== 'markdownImport') setIsMarkdownImportMenuOpen(false)
+      if (except !== 'htmlImport') setIsHtmlImportMenuOpen(false)
+      if (except !== 'pdfImport') setIsPdfImportMenuOpen(false)
+      if (except !== 'youTubeImport') setIsYouTubeImportMenuOpen(false)
+      if (except !== 'jsonImport') setIsJsonImportMenuOpen(false)
+      if (except !== 'jsonLdImport') setIsJsonLdImportMenuOpen(false)
+      if (except !== 'schemaExport') setIsSchemaExportMenuOpen(false)
+      if (except !== 'graphFieldsExport') setIsGraphFieldsExportMenuOpen(false)
+      if (except !== 'settingsExport') setIsSettingsExportMenuOpen(false)
+      if (except !== 'historyExport') setIsHistoryExportMenuOpen(false)
+      if (except !== 'validationExport') setIsValidationExportMenuOpen(false)
+    },
+    [
+      setIsGraphFieldsExportMenuOpen,
+      setIsHistoryExportMenuOpen,
+      setIsHtmlImportMenuOpen,
+      setIsJsonImportMenuOpen,
+      setIsJsonLdImportMenuOpen,
+      setIsMarkdownImportMenuOpen,
+      setIsParserExportMenuOpen,
+      setIsPdfImportMenuOpen,
+      setIsSchemaExportMenuOpen,
+      setIsSettingsExportMenuOpen,
+      setIsSourceFilesExportMenuOpen,
+      setIsSourceFilesImportMenuOpen,
+      setIsValidationExportMenuOpen,
+      setIsYouTubeImportMenuOpen,
+    ],
+  )
+
+  const areaActionButtonClassName =
+    `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 px-1 py-0.5`
+
   return (
     <>
       <div className={`flex items-center justify-between gap-1 px-0.5 pb-1 border-b ${UI_THEME_TOKENS.panel.divider}`}>
@@ -77,169 +132,86 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
         )}
       </div>
       {visibleAreas.map(area => (
-        <div
+        <section
           key={area.key}
           className={`flex flex-col gap-1 px-0.5 py-1 border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`}
         >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1 min-w-0">
-              <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary} truncate`}>
-                {area.description ? (
-                  <Tooltip
-                    content={area.description}
-                    maxWidthPx={280}
-                    contentClassName={UI_THEME_TOKENS.tooltip.bg}
-                  >
-                    <span>{area.label}</span>
-                  </Tooltip>
-                ) : (
-                  area.label
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
+          <header className="flex items-center justify-between gap-2">
+            <h3 className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary} truncate min-w-0`}>
+              {area.description ? (
+                <Tooltip
+                  content={area.description}
+                  maxWidthPx={280}
+                  contentClassName={UI_THEME_TOKENS.tooltip.bg}
+                >
+                  <span>{area.label}</span>
+                </Tooltip>
+              ) : (
+                area.label
+              )}
+            </h3>
+            <div className="flex items-center gap-1" role="toolbar" aria-label={`${area.label} actions`}>
               {area.actions.map(action => {
                 const handleClick =
                   area.key === 'sourceFiles' && action === 'import'
                     ? () => {
-                        setIsParserExportMenuOpen(false)
-                        setIsMarkdownImportMenuOpen(false)
-                        setIsHtmlImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
-                        setIsSchemaExportMenuOpen(false)
-                        setIsGraphFieldsExportMenuOpen(false)
-                        setIsSettingsExportMenuOpen(false)
-                        setIsHistoryExportMenuOpen(false)
-                        setIsValidationExportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
+                        closeAllMenusExcept('sourceFilesImport')
                         setIsSourceFilesImportMenuOpen(v => !v)
                       }
                     : area.key === 'sourceFiles' && action === 'export'
                     ? () => {
-                        setIsParserExportMenuOpen(false)
-                          setIsMarkdownImportMenuOpen(false)
-                          setIsHtmlImportMenuOpen(false)
-                          setIsPdfImportMenuOpen(false)
-                          setIsYouTubeImportMenuOpen(false)
-                          setIsJsonImportMenuOpen(false)
-                          setIsJsonLdImportMenuOpen(false)
-                          setIsSchemaExportMenuOpen(false)
-                          setIsGraphFieldsExportMenuOpen(false)
-                          setIsSettingsExportMenuOpen(false)
-                          setIsHistoryExportMenuOpen(false)
-                          setIsValidationExportMenuOpen(false)
-                          setIsSourceFilesImportMenuOpen(false)
-                          setIsSourceFilesExportMenuOpen(v => !v)
+                        closeAllMenusExcept('sourceFilesExport')
+                        setIsSourceFilesExportMenuOpen(v => !v)
                       }
                     : area.key === 'parser' && action === 'export'
                       ? () => {
-                        setIsSourceFilesImportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
-                        setIsMarkdownImportMenuOpen(false)
-                        setIsHtmlImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
+                        closeAllMenusExcept('parserExport')
                         setIsParserExportMenuOpen(v => !v)
                       }
                     : area.key === 'markdown' && action === 'import'
                       ? () => {
-                        setIsSourceFilesImportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
-                        setIsHtmlImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
+                        closeAllMenusExcept('markdownImport')
                         setIsMarkdownImportMenuOpen(v => !v)
                       }
                     : area.key === 'html' && action === 'import'
                       ? () => {
-                        setIsSourceFilesImportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
-                        setIsMarkdownImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
+                        closeAllMenusExcept('htmlImport')
                         setIsHtmlImportMenuOpen(v => !v)
                       }
                     : area.key === 'pdf' && action === 'import'
                       ? () => {
-                          setIsSourceFilesImportMenuOpen(false)
-                          setIsSourceFilesExportMenuOpen(false)
-                          setIsMarkdownImportMenuOpen(false)
-                          setIsHtmlImportMenuOpen(false)
-                          setIsJsonImportMenuOpen(false)
-                          setIsJsonLdImportMenuOpen(false)
-                          setIsYouTubeImportMenuOpen(false)
+                          closeAllMenusExcept('pdfImport')
                           setIsPdfImportMenuOpen(v => !v)
                         }
                     : area.key === 'schemaConfig' && action === 'export'
                       ? () => {
-                        setIsSourceFilesImportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
-                        setIsMarkdownImportMenuOpen(false)
-                        setIsHtmlImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
+                        closeAllMenusExcept('schemaExport')
                         setIsSchemaExportMenuOpen(v => !v)
                       }
                     : area.key === 'graphFields' && action === 'export'
                       ? () => {
-                        setIsSourceFilesImportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
-                        setIsMarkdownImportMenuOpen(false)
-                        setIsHtmlImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
+                        closeAllMenusExcept('graphFieldsExport')
                         setIsGraphFieldsExportMenuOpen(v => !v)
                       }
                     : area.key === 'settings' && action === 'export'
                       ? () => {
-                        setIsSourceFilesImportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
-                        setIsMarkdownImportMenuOpen(false)
-                        setIsHtmlImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
+                        closeAllMenusExcept('settingsExport')
                         setIsSettingsExportMenuOpen(v => !v)
                       }
                     : area.key === 'history' && action === 'export'
                       ? () => {
-                        setIsSourceFilesImportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
-                        setIsMarkdownImportMenuOpen(false)
-                        setIsHtmlImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
+                        closeAllMenusExcept('historyExport')
                         setIsHistoryExportMenuOpen(v => !v)
                       }
                     : area.key === 'validation' && action === 'export'
                       ? () => {
-                        setIsSourceFilesImportMenuOpen(false)
-                        setIsSourceFilesExportMenuOpen(false)
-                        setIsMarkdownImportMenuOpen(false)
-                        setIsHtmlImportMenuOpen(false)
-                        setIsPdfImportMenuOpen(false)
-                        setIsYouTubeImportMenuOpen(false)
-                        setIsJsonImportMenuOpen(false)
-                        setIsJsonLdImportMenuOpen(false)
+                        closeAllMenusExcept('validationExport')
                         setIsValidationExportMenuOpen(v => !v)
                       }
-                                : () => onToolMenuAction(area.key, action)
+                    : () => {
+                        closeAllMenusExcept(null)
+                        onToolMenuAction(area.key, action)
+                      }
                 const icon = (() => {
                   if (action === 'new') {
                     return (
@@ -280,7 +252,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                   <button
                     key={action}
                     type="button"
-                    className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 px-1 py-0.5`}
+                    className={areaActionButtonClassName}
                     onClick={handleClick}
                     aria-label={`${TOOL_MENU_ACTION_LABELS[action]} ${area.label}`}
                   >
@@ -289,7 +261,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                 )
               })}
             </div>
-          </div>
+          </header>
           {(() => {
             const renderArea = TOOLBAR_AREA_RENDERERS[area.key]
             if (renderArea) {
@@ -297,7 +269,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
             }
             return null
           })()}
-        </div>
+        </section>
       ))}
     </>
   )

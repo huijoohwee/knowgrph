@@ -52,6 +52,26 @@ export function unwrapUserProvidedText(value: unknown): string | null {
   return raw
 }
 
+export function splitUserProvidedTextList(value: unknown): string[] {
+  if (typeof value !== 'string') return []
+  const raw = value
+  const parts = raw
+    .split(/[\s,]+/g)
+    .map(p => unwrapUserProvidedText(p) || '')
+    .map(p => p.trim())
+    .filter(Boolean)
+
+  if (parts.length <= 1) return parts
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const p of parts) {
+    if (seen.has(p)) continue
+    seen.add(p)
+    out.push(p)
+  }
+  return out
+}
+
 export function coerceMediaUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const raw = value.trim()

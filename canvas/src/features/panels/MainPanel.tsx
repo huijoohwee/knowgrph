@@ -8,6 +8,7 @@ import WorkflowSection from '@/features/panels/views/WorkflowSection'
 import SettingsView from '@/features/panels/views/SettingsView'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeader'
+import MainPanelWorkflowHeader from '@/features/panels/ui/MainPanelWorkflowHeader'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { HelpCircle, MonitorPlay, Settings, Workflow } from 'lucide-react'
@@ -52,6 +53,12 @@ export default function MainPanel({
     apply?: () => void
     reset?: () => void
     globalReset?: () => void
+    collapseAll?: () => void
+    expandAll?: () => void
+    allCollapsed?: boolean
+  }>({ allCollapsed: true })
+
+  const [workflowActions, setWorkflowActions] = React.useState<{
     collapseAll?: () => void
     expandAll?: () => void
     allCollapsed?: boolean
@@ -227,7 +234,20 @@ export default function MainPanel({
     >
       <div className="h-full min-h-0 px-3 py-2 overflow-hidden">
         {tab === 'help' && <HelpView searchQuery={search} />}
-        {tab === 'workflow' && <WorkflowSection />}
+        {tab === 'workflow' && (
+          <MainPanelBody header={<MainPanelWorkflowHeader workflowActions={workflowActions} />}>
+            <div
+              className={[
+                'min-h-0 py-2 text-gray-600',
+                uiPanelKeyValueTextSizeClass,
+                uiPanelTextFontClass,
+              ].join(' ')}
+              data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
+            >
+              <WorkflowSection onRegisterActions={setWorkflowActions} />
+            </div>
+          </MainPanelBody>
+        )}
         {tab === 'graphFields' && (
           <GraphFieldsView onStatusChange={setGraphFieldsStatus} searchQuery={search} />
         )}

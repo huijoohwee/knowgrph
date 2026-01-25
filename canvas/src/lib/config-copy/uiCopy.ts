@@ -126,6 +126,18 @@ export const UI_COPY = {
   threeDModeOnTitle: '3D Mode (On)',
   threeDModeOffTitle: '3D Mode (Off)',
   geospatialModeTitle: 'Geospatial Mode',
+
+  sourceFilesImportPanelAriaLabel: 'Import Source Files',
+  sourceFilesImportLabelPlaceholder: 'Label (optional)',
+  sourceFilesImportUrlsPlaceholder: 'Source URL(s) (text)',
+  sourceFilesImportAddUrlsButtonLabel: 'Add',
+  sourceFilesImportAddLocalFilesButtonLabel: 'Add Local Files…',
+  sourceFilesImportAlsoAddGeoLayerLabel: 'Also add as Geo layer',
+  sourceFilesImportGeoLayerFormatLabel: 'Format',
+
+  sourceFilesQuickImportFormatLabel: 'Import as',
+  sourceFilesQuickImportUrlsPlaceholder: 'Import URL(s)…',
+  sourceFilesQuickImportAdvancedLabel: 'Advanced',
   themeTooltipPrefix: 'Theme: ',
   chatEmptyStateHelp:
     'Chat is context-aware of the active graph selection. Configure endpoint and model in Settings, then ask a question about the current node or dataset.',
@@ -406,6 +418,7 @@ export const UI_COPY = {
   markdownPreviewPrevButtonLabel: 'Prev',
   markdownPreviewNextButtonLabel: 'Next',
   markdownPreviewContentsLabel: 'Contents',
+  markdownPreviewSourceFilesLabel: 'Source files',
   bottomPanelMarkdownEditorTitle: 'Markdown Editor',
   bottomPanelMarkdownViewerTitle: 'Markdown Viewer',
   bottomPanelMarkdownWordWrapToggleTitle: 'Toggle word wrap',

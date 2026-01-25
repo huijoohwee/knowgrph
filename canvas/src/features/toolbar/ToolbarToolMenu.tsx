@@ -1,11 +1,10 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { GitBranch, MonitorPlay, PanelsTopLeft, SlidersHorizontal } from 'lucide-react'
+import { GitBranch, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorBottomPanelState } from '@/features/panels/hooks/useOrchestratorBottomPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
 import IconButton from '@/components/IconButton'
-import { ToolbarToolMenuAreas } from '@/features/toolbar/ToolbarToolMenuAreas'
 import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
@@ -21,94 +20,21 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 
-type FloatingPanelView = 'workspaceActions' | 'propsPanel' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'renderer' | 'graphTraversal'
 
 export function ToolbarToolMenu({
-  dataLoadOk,
-  dataLoadMsg,
-  parserLoadOk,
-  parserLoadMsg,
-  parserPreferredLanguage,
-  schemaOpOk,
-  schemaOpMsg,
-  graphFieldsOpOk,
-  graphFieldsOpMsg,
-  orchestratorOpOk,
-  orchestratorOpMsg,
-  renderOpOk,
-  renderOpMsg,
   pipelineStatus,
   exportStatus,
-  isSourceFilesImportMenuOpen,
-  setIsSourceFilesImportMenuOpen,
-  isSourceFilesExportMenuOpen,
-  setIsSourceFilesExportMenuOpen,
-  isParserExportMenuOpen,
-  setIsParserExportMenuOpen,
-  isMarkdownImportMenuOpen,
-  setIsMarkdownImportMenuOpen,
-  isHtmlImportMenuOpen,
-  setIsHtmlImportMenuOpen,
-  isPdfImportMenuOpen,
-  setIsPdfImportMenuOpen,
-  isYouTubeImportMenuOpen,
-  setIsYouTubeImportMenuOpen,
-  isJsonImportMenuOpen,
-  setIsJsonImportMenuOpen,
-  isJsonLdImportMenuOpen,
-  setIsJsonLdImportMenuOpen,
-  isSchemaExportMenuOpen,
-  setIsSchemaExportMenuOpen,
-  isGraphFieldsExportMenuOpen,
-  setIsGraphFieldsExportMenuOpen,
-  isSettingsExportMenuOpen,
-  setIsSettingsExportMenuOpen,
-  isHistoryExportMenuOpen,
-  setIsHistoryExportMenuOpen,
-  isValidationExportMenuOpen,
-  setIsValidationExportMenuOpen,
-  onExportSchemaJson,
-  onExportSchemaJsonLd,
-  onExportSchemaCsv,
-  onExportGraphJsonLd,
-  onExportGraphJson,
-  onExportGraphCsvCombined,
-  onExportGraphMl,
-  onExportGraphCypher,
-  onCopyGraphJsonLd,
-  onCopyGraphJson,
-  hasSelection,
-  onExportSelectionJsonLd,
-  onExportSelectionJson,
-  onExportSelectionCsvCombined,
-  onExportSelectionGraphMl,
-  onExportSelectionCypher,
-  onCopySchemaJsonLd,
-  onCopySchemaJson,
-  onExportGraphFieldSettingsJsonLd,
-  onExportSettingsJsonLd,
-  onExportHistoryJsonLd,
-  onExportValidationJson,
-  onExportValidationMarkdown,
-  onExportSelectionValidationJson,
-  onExportSelectionValidationMarkdown,
   toolMenuCardRef,
   toolMenuCardStyle,
   onHeaderPointerDown,
   requestedFloatingPanelView,
   requestedFloatingPanelViewSeq,
-  onOpenData,
-  onRunPipeline,
-  onRunDemo,
   onClose,
-  onToolMenuAction,
-  onOpenWorkflowTab,
 }: ToolbarToolMenuProps) {
   const [floatingPanelPinned, setFloatingPanelPinned] = React.useState(() => lsBool(LS_KEYS.floatingPanelPinned, true))
   const [floatingPanelMinimized, setFloatingPanelMinimized] = React.useState(false)
-  const [floatingPanelView, setFloatingPanelView] = React.useState<FloatingPanelView>('workspaceActions')
-  const [searchOpen, setSearchOpen] = React.useState(false)
-  const [searchQuery, setSearchQuery] = React.useState('')
+  const [floatingPanelView, setFloatingPanelView] = React.useState<FloatingPanelView>('propsPanel')
   const handledRequestedViewSeqRef = React.useRef<number | undefined>(undefined)
   const setFloatingPanelZIndex = useGraphStore(s => s.setFloatingPanelZIndex)
 
@@ -145,8 +71,6 @@ export function ToolbarToolMenu({
   const setOrchestratorWorkflowTracingCollapsed = orchestratorSectionSetters.workflowTracing
 
   const handleSelectView = React.useCallback((view: FloatingPanelView) => {
-    setSearchOpen(false)
-    setSearchQuery('')
     setFloatingPanelView(view)
   }, [])
 
@@ -198,16 +122,6 @@ export function ToolbarToolMenu({
   const viewButtons = (
     <>
       <IconButton
-        title={UI_LABELS.workspaceActions}
-        onClick={() => handleSelectView('workspaceActions')}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'workspaceActions' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <PanelsTopLeft className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-      <IconButton
         title={UI_LABELS.propsPanel}
         onClick={() => handleSelectView('propsPanel')}
         className={`App-toolbar__btn ${
@@ -252,8 +166,6 @@ export function ToolbarToolMenu({
     if (handledRequestedViewSeqRef.current === requestedFloatingPanelViewSeq) return
     handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
     setFloatingPanelMinimized(false)
-    setSearchOpen(false)
-    setSearchQuery('')
     setFloatingPanelView(requestedFloatingPanelView)
   }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq])
 
@@ -324,11 +236,6 @@ export function ToolbarToolMenu({
               )}
             </div>
             <HeaderActions
-              onSearchToggle={
-                floatingPanelView === 'workspaceActions'
-                  ? () => setSearchOpen(v => !v)
-                  : undefined
-              }
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
               onMinimize={() => {
@@ -337,102 +244,9 @@ export function ToolbarToolMenu({
               onClose={onClose}
             />
           </div>
-          {floatingPanelView === 'workspaceActions' && (
-            <div
-              className={`transition-opacity duration-150 ${searchOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-              aria-hidden={!searchOpen}
-            >
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder={UI_LABELS.search}
-                className={`h-7 w-full px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded-lg ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
-              />
-            </div>
-          )}
-          <div className={`mt-1 -mx-1 px-1 pb-1 border-t ${UI_THEME_TOKENS.panel.divider} flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.primary}`}>
-            {floatingPanelView === 'workspaceActions' && (
-              <ToolbarToolMenuAreas
-                dataLoadOk={dataLoadOk}
-                dataLoadMsg={dataLoadMsg}
-                parserLoadOk={parserLoadOk}
-                parserLoadMsg={parserLoadMsg}
-                parserPreferredLanguage={parserPreferredLanguage}
-                schemaOpOk={schemaOpOk}
-                schemaOpMsg={schemaOpMsg}
-                graphFieldsOpOk={graphFieldsOpOk}
-                graphFieldsOpMsg={graphFieldsOpMsg}
-                orchestratorOpOk={orchestratorOpOk}
-                orchestratorOpMsg={orchestratorOpMsg}
-                renderOpOk={renderOpOk}
-                renderOpMsg={renderOpMsg}
-                isSourceFilesImportMenuOpen={isSourceFilesImportMenuOpen}
-                setIsSourceFilesImportMenuOpen={setIsSourceFilesImportMenuOpen}
-                isSourceFilesExportMenuOpen={isSourceFilesExportMenuOpen}
-                setIsSourceFilesExportMenuOpen={setIsSourceFilesExportMenuOpen}
-                isParserExportMenuOpen={isParserExportMenuOpen}
-                setIsParserExportMenuOpen={setIsParserExportMenuOpen}
-                isMarkdownImportMenuOpen={isMarkdownImportMenuOpen}
-                setIsMarkdownImportMenuOpen={setIsMarkdownImportMenuOpen}
-                isHtmlImportMenuOpen={isHtmlImportMenuOpen}
-                setIsHtmlImportMenuOpen={setIsHtmlImportMenuOpen}
-                isPdfImportMenuOpen={isPdfImportMenuOpen}
-                setIsPdfImportMenuOpen={setIsPdfImportMenuOpen}
-                isYouTubeImportMenuOpen={isYouTubeImportMenuOpen}
-                setIsYouTubeImportMenuOpen={setIsYouTubeImportMenuOpen}
-                isJsonImportMenuOpen={isJsonImportMenuOpen}
-                setIsJsonImportMenuOpen={setIsJsonImportMenuOpen}
-                isJsonLdImportMenuOpen={isJsonLdImportMenuOpen}
-                setIsJsonLdImportMenuOpen={setIsJsonLdImportMenuOpen}
-                isSchemaExportMenuOpen={isSchemaExportMenuOpen}
-                setIsSchemaExportMenuOpen={setIsSchemaExportMenuOpen}
-                isGraphFieldsExportMenuOpen={isGraphFieldsExportMenuOpen}
-                setIsGraphFieldsExportMenuOpen={setIsGraphFieldsExportMenuOpen}
-                isSettingsExportMenuOpen={isSettingsExportMenuOpen}
-                setIsSettingsExportMenuOpen={setIsSettingsExportMenuOpen}
-                isHistoryExportMenuOpen={isHistoryExportMenuOpen}
-                setIsHistoryExportMenuOpen={setIsHistoryExportMenuOpen}
-                isValidationExportMenuOpen={isValidationExportMenuOpen}
-                setIsValidationExportMenuOpen={setIsValidationExportMenuOpen}
-                onExportSchemaJson={onExportSchemaJson}
-                onExportSchemaJsonLd={onExportSchemaJsonLd}
-                onExportSchemaCsv={onExportSchemaCsv}
-                onExportGraphJsonLd={onExportGraphJsonLd}
-                onExportGraphJson={onExportGraphJson}
-                onExportGraphCsvCombined={onExportGraphCsvCombined}
-                onExportGraphMl={onExportGraphMl}
-                onExportGraphCypher={onExportGraphCypher}
-                onCopyGraphJsonLd={onCopyGraphJsonLd}
-                onCopyGraphJson={onCopyGraphJson}
-                hasSelection={hasSelection}
-                onExportSelectionJsonLd={onExportSelectionJsonLd}
-                onExportSelectionJson={onExportSelectionJson}
-                onExportSelectionCsvCombined={onExportSelectionCsvCombined}
-                onExportSelectionGraphMl={onExportSelectionGraphMl}
-                onExportSelectionCypher={onExportSelectionCypher}
-                onCopySchemaJsonLd={onCopySchemaJsonLd}
-                onCopySchemaJson={onCopySchemaJson}
-                onExportGraphFieldSettingsJsonLd={onExportGraphFieldSettingsJsonLd}
-                onExportSettingsJsonLd={onExportSettingsJsonLd}
-                onExportHistoryJsonLd={onExportHistoryJsonLd}
-                onExportValidationJson={onExportValidationJson}
-                onExportValidationMarkdown={onExportValidationMarkdown}
-                onExportSelectionValidationJson={onExportSelectionValidationJson}
-                onExportSelectionValidationMarkdown={onExportSelectionValidationMarkdown}
-                onToolMenuAction={onToolMenuAction}
-                onOpenWorkflowTab={onOpenWorkflowTab}
-                onOpenData={onOpenData}
-                onRunPipeline={onRunPipeline}
-                onRunDemo={onRunDemo}
-                searchQuery={searchOpen ? searchQuery : ''}
-              />
-            )}
-            {floatingPanelView === 'propsPanel' && (
-              <FloatingPropsPanel />
-            )}
-            {floatingPanelView === 'renderer' && (
-              <ToolbarToolMenuRendererView />
-            )}
+          <div className={`mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.primary}`}>
+            {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
+            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView />}
             {floatingPanelView === 'graphTraversal' && (
               <OrchestratorSettingsSection
                 variant="floatingPanel"

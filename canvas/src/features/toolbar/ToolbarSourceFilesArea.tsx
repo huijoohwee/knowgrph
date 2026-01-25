@@ -3,10 +3,13 @@ import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { EXPORT_UI_LABELS, UI_COPY, UI_LABELS } from '@/lib/config'
 import type { ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { ToolbarMarkdownArea } from './ToolbarMarkdownArea'
 import { ToolbarHtmlArea } from './ToolbarHtmlArea'
 import { ToolbarPdfArea } from './ToolbarPdfArea'
 import { ToolbarYouTubeArea } from './ToolbarYouTubeArea'
+import { ToolbarSourceFilesImportPanel } from './ToolbarSourceFilesImportPanel'
+import { normalizeGitHubBlobLikeUrl, splitUserProvidedTextList } from '@/lib/url'
 
 type JsonImportAreaProps = {
   format: 'json' | 'jsonld'
@@ -95,6 +98,9 @@ export function ToolbarSourceFilesArea(props: ToolbarToolMenuAreasProps) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const uiPanelTextFontClass = useGraphStore(
+    s => s.uiPanelTextFontClass || 'font-sans',
+  )
   const buttonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700`
   const activeClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-blue-600 text-white`
 
@@ -132,88 +138,124 @@ export function ToolbarSourceFilesArea(props: ToolbarToolMenuAreasProps) {
     setIsJsonLdImportMenuOpen(false)
   }
 
+  const [quickImportFormat, setQuickImportFormat] = React.useState<
+    'markdown' | 'html' | 'pdf' | 'youtube' | 'jsonld' | 'json' | 'csv'
+  >('markdown')
+  const [quickImportUrlsText, setQuickImportUrlsText] = React.useState('')
+
+  const quickImportUrls = React.useMemo(() => {
+    const list = splitUserProvidedTextList(quickImportUrlsText)
+    if (!list || list.length === 0) return []
+    if (quickImportFormat === 'youtube') return list
+    return list.map(u => normalizeGitHubBlobLikeUrl(u) || u)
+  }, [quickImportUrlsText, quickImportFormat])
+
+  const canQuickImportLocal = quickImportFormat !== 'youtube'
+  const canQuickImportUrl = quickImportFormat !== 'csv'
+
+  const openAdvancedForFormat = React.useCallback(
+    (format: typeof quickImportFormat) => {
+      const toFlag = (f: typeof quickImportFormat) => {
+        if (f === 'markdown') return setIsMarkdownImportMenuOpen
+        if (f === 'html') return setIsHtmlImportMenuOpen
+        if (f === 'pdf') return setIsPdfImportMenuOpen
+        if (f === 'youtube') return setIsYouTubeImportMenuOpen
+        if (f === 'jsonld') return setIsJsonLdImportMenuOpen
+        if (f === 'json') return setIsJsonImportMenuOpen
+        return null
+      }
+      const setter = toFlag(format)
+      if (!setter) return
+      closeAllImportMenus()
+      setter(true)
+    },
+    [
+      closeAllImportMenus,
+      setIsHtmlImportMenuOpen,
+      setIsJsonImportMenuOpen,
+      setIsJsonLdImportMenuOpen,
+      setIsMarkdownImportMenuOpen,
+      setIsPdfImportMenuOpen,
+      setIsYouTubeImportMenuOpen,
+    ],
+  )
+
   return (
     <div className="flex flex-col gap-1">
       {/* Import Menu */}
       {isSourceFilesImportMenuOpen && (
         <div className="flex flex-col gap-1 px-1">
-          <div className="flex flex-wrap items-center justify-end gap-1">
-            <button
-              type="button"
-              className={isMarkdownImportMenuOpen ? activeClassName : buttonClassName}
-              onClick={() => {
-                const wasOpen = isMarkdownImportMenuOpen
+          <ToolbarSourceFilesImportPanel />
+
+          <div className={`grid grid-cols-1 gap-2 px-1 ${uiPanelTextFontClass}`}>
+            <div className="flex items-center justify-end gap-2">
+              <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.sourceFilesQuickImportFormatLabel}</div>
+              <select
+                className={`rounded border px-2 py-1 ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueTextSizeClass}`}
+                value={quickImportFormat}
+                onChange={e => setQuickImportFormat(e.target.value as typeof quickImportFormat)}
+              >
+                <option value="markdown">{UI_LABELS.markdown}</option>
+                <option value="html">{UI_LABELS.html}</option>
+                <option value="pdf">{UI_LABELS.pdf}</option>
+                <option value="youtube">{UI_LABELS.youtube}</option>
+                <option value="jsonld">{UI_LABELS.jsonLd}</option>
+                <option value="json">{UI_LABELS.json}</option>
+                <option value="csv">{UI_LABELS.csv}</option>
+              </select>
+
+              <button
+                type="button"
+                className={buttonClassName}
+                onClick={() => {
+                  closeAllImportMenus()
+                  if (!canQuickImportLocal) return
+                  onToolMenuAction('sourceFiles', 'importLocal', { format: quickImportFormat })
+                }}
+                disabled={!canQuickImportLocal}
+              >
+                {UI_COPY.toolbarMarkdownImportLocalDeviceButtonLabel}
+              </button>
+            </div>
+
+            <form
+              className="flex items-center justify-end gap-2"
+              onSubmit={e => {
+                e.preventDefault()
+                if (!canQuickImportUrl) return
+                if (!quickImportUrls || quickImportUrls.length === 0) return
                 closeAllImportMenus()
-                if (!wasOpen) setIsMarkdownImportMenuOpen(true)
+                for (const url of quickImportUrls) {
+                  onToolMenuAction('sourceFiles', 'importUrl', { format: quickImportFormat, url })
+                }
+                setQuickImportUrlsText('')
               }}
             >
-              {UI_LABELS.markdown}
-            </button>
-            <button
-              type="button"
-              className={isHtmlImportMenuOpen ? activeClassName : buttonClassName}
-              onClick={() => {
-                const wasOpen = isHtmlImportMenuOpen
-                closeAllImportMenus()
-                if (!wasOpen) setIsHtmlImportMenuOpen(true)
-              }}
-            >
-              {UI_LABELS.html}
-            </button>
-            <button
-              type="button"
-              className={isPdfImportMenuOpen ? activeClassName : buttonClassName}
-              onClick={() => {
-                const wasOpen = isPdfImportMenuOpen
-                closeAllImportMenus()
-                if (!wasOpen) setIsPdfImportMenuOpen(true)
-              }}
-            >
-              {UI_LABELS.pdf}
-            </button>
-            <button
-              type="button"
-              className={isYouTubeImportMenuOpen ? activeClassName : buttonClassName}
-              onClick={() => {
-                const wasOpen = isYouTubeImportMenuOpen
-                closeAllImportMenus()
-                if (!wasOpen) setIsYouTubeImportMenuOpen(true)
-              }}
-            >
-              {UI_LABELS.youtube}
-            </button>
-            <button
-              type="button"
-              className={isJsonLdImportMenuOpen ? activeClassName : buttonClassName}
-              onClick={() => {
-                const wasOpen = isJsonLdImportMenuOpen
-                closeAllImportMenus()
-                if (!wasOpen) setIsJsonLdImportMenuOpen(true)
-              }}
-            >
-              {UI_LABELS.jsonLd}
-            </button>
-            <button
-              type="button"
-              className={isJsonImportMenuOpen ? activeClassName : buttonClassName}
-              onClick={() => {
-                const wasOpen = isJsonImportMenuOpen
-                closeAllImportMenus()
-                if (!wasOpen) setIsJsonImportMenuOpen(true)
-              }}
-            >
-              {UI_LABELS.json}
-            </button>
-            <button
-              type="button"
-              className={buttonClassName}
-              onClick={() => {
-                closeAllImportMenus()
-                onToolMenuAction('sourceFiles', 'import', { format: 'csv' })
-              }}
-            >
-              {UI_LABELS.csv}
-            </button>
+              <textarea
+                className={`flex-1 rounded border px-2 py-1 ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} resize-y min-h-[34px] ${uiPanelKeyValueTextSizeClass}`}
+                placeholder={UI_COPY.sourceFilesQuickImportUrlsPlaceholder}
+                value={quickImportUrlsText}
+                onChange={e => setQuickImportUrlsText(e.target.value)}
+                rows={1}
+                disabled={!canQuickImportUrl}
+              />
+              <button
+                type="submit"
+                className={`${buttonClassName} px-2 py-1 ${quickImportUrls.length === 0 || !canQuickImportUrl ? UI_THEME_TOKENS.button.disabledText : ''}`}
+                disabled={quickImportUrls.length === 0 || !canQuickImportUrl}
+              >
+                {UI_COPY.toolbarJsonImportUrlButtonLabel}
+              </button>
+
+              <button
+                type="button"
+                className={buttonClassName}
+                onClick={() => openAdvancedForFormat(quickImportFormat)}
+                disabled={quickImportFormat === 'csv'}
+              >
+                {UI_COPY.sourceFilesQuickImportAdvancedLabel}
+              </button>
+            </form>
           </div>
 
           {/* Render active import area */}

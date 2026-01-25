@@ -1,6 +1,4 @@
 import React from 'react'
-import { ChevronDown } from 'lucide-react'
-import IconButton from '@/components/IconButton'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -8,8 +6,8 @@ import {
   UI_COLOR_PRIMARY_BLUE_BG,
   uiToolbarToggleActiveClassName,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
-import { getIconSizeClass } from '@/lib/ui'
 import { SETTINGS_TAB_HEADER_TOOLTIP } from '@/lib/config'
+import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 type MainPanelSettingsActions = {
   apply?: () => void
   reset?: () => void
@@ -24,7 +22,6 @@ type MainPanelSettingsHeaderProps = {
 
 export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSettingsHeaderProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiIconAnimationEnabled = useGraphStore(s => s.uiIconAnimationEnabled)
   const uiHeaderRowHeightClass = useGraphStore(
     s => s.uiHeaderRowHeightClass || 'min-h-[36px]',
@@ -51,7 +48,6 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
   const setUiSectionHeaderRowPaddingClass = useGraphStore(
     s => s.setUiSectionHeaderRowPaddingClass,
   )
-  const iconSizeClass = getIconSizeClass(uiIconScale)
   const iconToggleButtonBaseClass =
     'h-6 px-1.5 border rounded text-xs leading-tight focus:outline-none focus:ring-1'
   const headerDensityIsDefault =
@@ -185,27 +181,11 @@ export default function MainPanelSettingsHeader({ settingsActions }: MainPanelSe
           </button>
         </div>
         <div className="flex items-center gap-1">
-          <IconButton
-            className="App-toolbar__btn flex items-center justify-center"
-            title={settingsActions.allCollapsed ? 'Expand All' : 'Collapse All'}
-            onClick={() => {
-              const allCollapsed = settingsActions.allCollapsed
-              if (allCollapsed) {
-                if (settingsActions.expandAll) settingsActions.expandAll()
-              } else if (settingsActions.collapseAll) {
-                settingsActions.collapseAll()
-              }
-            }}
-            showTooltip
-          >
-            <ChevronDown
-              className={`${iconSizeClass} text-gray-700 transition-transform ${
-                settingsActions.allCollapsed ? '' : 'rotate-180'
-              }`}
-              strokeWidth={uiIconStrokeWidth}
-              aria-hidden="true"
-            />
-          </IconButton>
+          <ExpandCollapseAllButton
+            allCollapsed={!!settingsActions.allCollapsed}
+            onExpandAll={settingsActions.expandAll}
+            onCollapseAll={settingsActions.collapseAll}
+          />
         </div>
       </div>
     </div>

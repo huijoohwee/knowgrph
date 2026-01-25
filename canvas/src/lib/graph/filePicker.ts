@@ -66,7 +66,10 @@ export async function pickFile(): Promise<File | null> {
   }
 }
 
-export async function pickFileWithExtensions(exts: string[]): Promise<File | null> {
+export async function pickFilesWithExtensions(
+  exts: string[],
+  multiple: boolean = false
+): Promise<File[]> {
   try {
     const w = window as unknown as WindowWithOpenPicker;
     const canPicker = typeof w.showOpenFilePicker === 'function';
@@ -74,8 +77,8 @@ export async function pickFileWithExtensions(exts: string[]): Promise<File | nul
     if (canPicker) {
       const jsonLdExts = normalized.filter((e) => e === '.jsonld' || e === '.json-ld');
       const picker = w.showOpenFilePicker!;
-      const [fileHandle] = await picker({
-        multiple: false,
+      const fileHandles = await picker({
+        multiple,
         excludeAcceptAllOption: false,
         types: [
           {
@@ -89,11 +92,12 @@ export async function pickFileWithExtensions(exts: string[]): Promise<File | nul
           },
         ],
       });
-      return await fileHandle.getFile();
+      return await Promise.all(fileHandles.map(h => h.getFile()));
     }
-    return await new Promise<File | null>((resolve) => {
+    return await new Promise<File[]>((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
+      input.multiple = multiple;
       input.accept = normalized.join(',');
       input.style.position = 'fixed';
       input.style.left = '-9999px';
@@ -113,20 +117,20 @@ export async function pickFileWithExtensions(exts: string[]): Promise<File | nul
           void 0;
         }
       };
-      const resolveOnce = (f: File | null) => {
+      const resolveOnce = (files: File[]) => {
         if (settled) return;
         settled = true;
-        resolve(f);
+        resolve(files);
         cleanup();
       };
       const onFocus = () => {
         setTimeout(() => {
-          if (!settled) resolveOnce(null);
+          if (!settled) resolveOnce([]);
         }, 0);
       };
       input.onchange = () => {
-        const f = input.files && input.files[0] ? input.files[0] : null;
-        resolveOnce(f);
+        const files = input.files ? Array.from(input.files) : [];
+        resolveOnce(files);
       };
       try {
         window.addEventListener('focus', onFocus, true);
@@ -136,8 +140,13 @@ export async function pickFileWithExtensions(exts: string[]): Promise<File | nul
       input.click();
     });
   } catch {
-    return null;
+    return [];
   }
+}
+
+export async function pickFileWithExtensions(exts: string[]): Promise<File | null> {
+  const files = await pickFilesWithExtensions(exts, false);
+  return files[0] || null;
 }
 
 export async function pickTextFile(): Promise<{ name: string; text: string } | null> {
@@ -149,6 +158,20 @@ export async function pickTextFile(): Promise<{ name: string; text: string } | n
     return { name, text };
   } catch {
     return null;
+  }
+}
+
+export async function pickTextFilesWithExtensions(
+  exts: string[],
+): Promise<Array<{ name: string; text: string }>> {
+  try {
+    const files = await pickFilesWithExtensions(exts, true);
+    return Promise.all(files.map(async f => ({
+      name: f.name || '',
+      text: await f.text()
+    })));
+  } catch {
+    return [];
   }
 }
 
