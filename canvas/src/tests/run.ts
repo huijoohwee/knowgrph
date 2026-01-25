@@ -98,6 +98,12 @@ import {
   testGympgrphPickPoiSelectionSkipsClusterFeatures,
 } from '@/__tests__/gympgrphMapLibreBehaviors.test'
 import {
+  testCuragrphAliasContractInViteConfig,
+  testForbidMagicLocalStorageKeysOutsideCentralConstants,
+  testForbidSiblingRepoSourceImports,
+  testHostGympgrphIntegrationUsesPackageRootOnly,
+} from '@/__tests__/crossRepoBoundaryGuards.test'
+import {
   testWorkflowPresetPipelinesAreSelfConsistent,
   testExportFunctionsAcceptBrandedPaths,
 } from '@/__tests__/workflowPresetPipeline.test'
@@ -266,6 +272,11 @@ export const runAllTests = async () => {
   await runParserTests(results)
 
   // Remaining tests
+  await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)
+  await exec('policy.boundary.hostGympgrphRootOnly', testHostGympgrphIntegrationUsesPackageRootOnly)
+  await exec('policy.persistence.forbidMagicLocalStorageKeys', testForbidMagicLocalStorageKeysOutsideCentralConstants)
+  await exec('policy.curagrph.aliasContractInViteConfig', testCuragrphAliasContractInViteConfig)
+
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
 

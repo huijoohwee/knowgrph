@@ -1,6 +1,5 @@
 import { coerceHttpUrl } from '@/lib/url'
 import { parseHtmlToMarkdown, extractJsonLd } from '@/features/parsers/html-parser'
-import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
@@ -23,12 +22,7 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
         if (!url) return null
         const text = await fetchRemoteHtmlTextUtil(url)
         if (!text) {
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.htmlImportFetchFailedStatus(url))
-          } catch {
-            void 0
-          }
+          applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.htmlImportFetchFailedStatus(url) })
           return null
         }
         return { name: url, displayName: deriveMarkdownNameFromUrl(url), text }

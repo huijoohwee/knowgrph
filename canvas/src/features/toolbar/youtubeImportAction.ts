@@ -1,13 +1,11 @@
-import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
-import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import { unwrapUserProvidedText } from '@/lib/url'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { slugify } from '@/features/parsers/markdownJsonLd'
+import { runImportFlow } from '@/features/toolbar/importFlow'
 
 export type YouTubeImportType = 'url'
 
@@ -211,13 +209,11 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
     const normalizedLang = typeof lang === 'string' ? lang.trim() : ''
     const converted = await convertYouTubeUrlToMarkdown(cleaned, { lang: normalizedLang || undefined })
     if (!converted) {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.youtubeImportFetchFailedStatus(cleaned))
+      applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.youtubeImportFetchFailedStatus(cleaned) })
       return
     }
     if ('error' in converted) {
-      const ui = useParserUIState.getState()
-      ui.setDataLoadStatus(false, UI_COPY.youtubeImportConvertFailedStatusWithError(converted.error))
+      applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.youtubeImportConvertFailedStatusWithError(converted.error) })
       return
     }
 
@@ -226,35 +222,36 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
       fallbackMarkdown: converted.markdown,
     })
 
-    const res = await (async () => {
+    const parseTarget = (() => {
       if (converted.transcript) {
         const graphData = buildYouTubeTranscriptGraphData(converted.transcript)
         const jsonText = JSON.stringify(graphData, null, 2)
         const base = converted.displayName.replace(/\.(md|markdown)$/i, '') || converted.displayName
-        return loadGraphDataFromTextViaParser(`${base}.json`, jsonText)
+        return { nameForParse: `${base}.json`, textForParse: jsonText }
       }
-      return loadGraphDataFromTextViaParser(converted.displayName, converted.markdown)
+      return { nameForParse: converted.displayName, textForParse: converted.markdown }
     })()
-    if (!res) {
-      applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.youtubeImportConvertFailedStatusWithError(UI_COPY.parserDataLoadFailed) })
-      return
-    }
-    applyLoaderResultToParserUi(res)
 
-    const state = useGraphStore.getState()
-    applyImportedMarkdownToStore({
-      name: converted.displayName,
-      text: markdownForEditors,
-      sourceUrl: converted.sourceUrl,
-      curationView: 'markdown',
-      recent: {
-        name: converted.displayName,
-        url: converted.sourceUrl,
-        type: 'markdown',
+    await runImportFlow({
+      ...parseTarget,
+      openTab: 'curation',
+      onSuccess: (res) => {
+        if (!res.input) return
+        const state = useGraphStore.getState()
+        applyImportedMarkdownToStore({
+          name: converted.displayName,
+          text: markdownForEditors,
+          sourceUrl: converted.sourceUrl,
+          curationView: 'markdown',
+          recent: {
+            name: converted.displayName,
+            url: converted.sourceUrl,
+            type: 'markdown',
+          },
+        })
+        state.setJsonSourceDocument(converted.displayName, converted.transcriptJsonText)
       },
     })
-    state.setJsonSourceDocument(converted.displayName, converted.transcriptJsonText)
-    openBottomPanel('curation')
   } catch (error) {
     const msg =
       error && typeof error === 'object' && 'message' in error

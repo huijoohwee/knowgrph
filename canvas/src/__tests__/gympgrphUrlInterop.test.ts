@@ -2,7 +2,7 @@ import {
   applyMediaProxySrc as applyGympgrphMediaProxySrc,
   coerceFetchUrl as coerceGympgrphFetchUrl,
   MEDIA_PROXY_ENDPOINT as GYMPGRPH_MEDIA_PROXY_ENDPOINT,
-} from '../../../../gympgrph/src/lib/url'
+} from 'gympgrph/testkit'
 
 export const testGympgrphApplyMediaProxyNormalizesGithubBlobUrl = () => {
   const g = globalThis as unknown as Record<string, unknown>
@@ -63,4 +63,3 @@ export const testGympgrphCoerceFetchUrlRejectsFileScheme = () => {
     g.window = prevWindow
   }
 }
-

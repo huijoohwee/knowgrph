@@ -1,5 +1,4 @@
 import { coerceHttpUrl } from '@/lib/url'
-import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
 import { pickFileWithExtensions } from '@/lib/graph/filePicker'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
@@ -85,21 +84,11 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
         if (!url) return null
         const converted = await convertPdfUrlToMarkdown(url)
         if (!converted) {
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.pdfImportFetchFailedStatus(url))
-          } catch {
-            void 0
-          }
+          applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.pdfImportFetchFailedStatus(url) })
           return null
         }
         if ('error' in converted) {
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.pdfImportConvertFailedStatusWithError(converted.error))
-          } catch {
-            void 0
-          }
+          applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.pdfImportConvertFailedStatusWithError(converted.error) })
           return null
         }
         return { name: converted.displayName, markdown: converted.markdown, sourceUrl: url }
@@ -109,21 +98,11 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
         if (!file) return null
         const converted = await convertPdfFileToMarkdown(file)
         if (!converted) {
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.pdfImportConvertFailedStatus)
-          } catch {
-            void 0
-          }
+          applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.pdfImportConvertFailedStatus })
           return null
         }
         if ('error' in converted) {
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.pdfImportConvertFailedStatusWithError(converted.error))
-          } catch {
-            void 0
-          }
+          applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.pdfImportConvertFailedStatusWithError(converted.error) })
           return null
         }
         return { name: converted.displayName, markdown: converted.markdown, sourceUrl: null }

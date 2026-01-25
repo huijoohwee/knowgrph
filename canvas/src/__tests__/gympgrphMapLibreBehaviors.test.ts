@@ -1,5 +1,4 @@
-import { pickPoiSelection } from '../../../../gympgrph/src/features/geospatial/geospatialPoiSelection'
-import { coerceFeatureCollectionIds, isPointOnlyFeatureCollection } from '../../../../gympgrph/src/features/geospatial/geospatialOverlayUtils'
+import { pickPoiSelection, coerceFeatureCollectionIds, isPointOnlyFeatureCollection } from 'gympgrph/testkit'
 import type { FeatureCollection } from 'geojson'
 
 export const testGympgrphPickPoiSelectionSkipsClusterFeatures = () => {

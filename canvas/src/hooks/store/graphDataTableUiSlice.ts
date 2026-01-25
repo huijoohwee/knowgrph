@@ -1,6 +1,6 @@
 import { lsNum, lsSetNum, lsInt, lsSetInt, lsBool, lsSetBool, lsJson, lsSetJson } from '@/lib/persistence';
 import { LS_KEYS } from '@/lib/config';
-import type { GraphState } from '@/hooks/store/types';
+import type { GraphDataTableFreezeMode, GraphDataTableScope, GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import {
   buildDefaultVisibleColumns,
@@ -117,10 +117,6 @@ function parseGraphDataTableColumnWidths(
   }
   return next;
 }
-
-type GraphDataTableScope = 'all' | 'nodes' | 'edges';
-
-type GraphDataTableFreezeMode = 'none' | 'label' | 'id';
 
 type GraphDataTableFreezeModeByScope = Record<GraphDataTableScope, GraphDataTableFreezeMode>;
 

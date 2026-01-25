@@ -8,7 +8,7 @@ Knowgrph hosts the end-to-end import → parse → store → render pipeline, wh
 
 Canonical ownership and contract details live in:
 
-- `curagrph/docs/documents/curagrph-graph-data-curation-document.md`
+- `knowgrph/docs/documents/curagrph-graph-data-curation-document.md`
 
 ---
 

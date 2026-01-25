@@ -1,4 +1,3 @@
-import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { normalizeImportName, promptForUrl } from './ingestUtils'
@@ -25,12 +24,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
         const fetchUrl = normalizeGitHubBlobLikeUrl(url) ?? url
         const text = await fetchRemoteText(fetchUrl)
         if (!text) {
-          try {
-            const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.jsonImportFetchFailedStatus(url))
-          } catch {
-            void 0
-          }
+          applyLoaderResultToParserUi(null, { failureLabelOverride: UI_COPY.jsonImportFetchFailedStatus(url) })
           return null
         }
         const fallback = format === 'jsonld' ? 'remote.jsonld' : 'remote.json'
