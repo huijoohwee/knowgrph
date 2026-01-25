@@ -69,6 +69,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   } = useMainPanelDrag();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [geospatialEnabled, setGeospatialEnabled] = useState(false);
 
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
@@ -113,7 +114,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     zoomToSelectionMode,
     renderMediaAsNodes,
     setRenderMediaAsNodes,
-    canvasRenderMode
+    canvasRenderMode,
+    setGeospatialEnabled,
   );
 
   React.useEffect(() => {
@@ -136,6 +138,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       window.removeEventListener(MAIN_PANEL_OPEN_EVENT, handler as EventListener);
     };
   }, [openMainPanel]);
+
+  React.useEffect(() => {
+    void import('gympgrph')
+      .then(m => {
+        if (typeof m.isGeospatialModeEnabled !== 'function') return
+        setGeospatialEnabled(Boolean(m.isGeospatialModeEnabled()))
+      })
+      .catch(() => void 0)
+  }, []);
 
   return (
     <nav className="Island App-toolbar App-toolbar--compact w-fit" role="navigation" aria-label="Main Toolbar">
@@ -394,8 +405,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         <Box className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
-        className={`App-toolbar__btn ${uiPrimaryIconInactiveClassName}`}
-        title={UI_COPY.geospatialModeTitle}
+        className={`App-toolbar__btn ${
+          geospatialEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={`${UI_COPY.geospatialModeTitle} (${geospatialEnabled ? 'On' : 'Off'})`}
         onClick={actions.handleOpenGeospatialMode}
         showTooltip
       >

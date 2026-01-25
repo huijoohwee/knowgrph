@@ -1,11 +1,10 @@
-import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { UI_COPY } from '@/lib/config'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { parseHtmlToMarkdown } from '@/features/parsers/html-parser'
 import { coerceHttpUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
+import { runImportFlow } from '@/features/toolbar/importFlow'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -47,12 +46,12 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
     })()
 
     const nameForParse = picked.displayName || picked.name
-    const res = await loadGraphDataFromTextViaParser(nameForParse, text)
-    applyLoaderResultToParserUi(res)
-    if (!res) return
-
-    try {
-      if (res.input && res.input.text.trim()) {
+    await runImportFlow({
+      nameForParse,
+      textForParse: text,
+      openTab: 'curation',
+      onSuccess: (res) => {
+        if (!res.input || !res.input.text.trim()) return
         const rawSourceName = String(picked.name || '')
         const isHttp = /^https?:\/\//i.test(rawSourceName)
         if (isHttp) {
@@ -64,25 +63,22 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
             curationView: 'markdown',
             recent: { name: baseName, url: rawSourceName, type: 'url' },
           })
-        } else {
-          const name = res.input.name
-          applyImportedMarkdownToStore({
-            name,
-            text: res.input.text,
-            sourceUrl: null,
-            curationView: 'markdown',
-            recent: {
-              name,
-              path: type === 'local' ? picked.name : undefined,
-              type: 'markdown',
-            },
-          })
+          return
         }
-      }
-    } catch {
-      void 0
-    }
-    openBottomPanel('curation')
+        const name = res.input.name
+        applyImportedMarkdownToStore({
+          name,
+          text: res.input.text,
+          sourceUrl: null,
+          curationView: 'markdown',
+          recent: {
+            name,
+            path: type === 'local' ? picked.name : undefined,
+            type: 'markdown',
+          },
+        })
+      },
+    })
   } catch {
     applyLoaderResultToParserUi(null)
   }

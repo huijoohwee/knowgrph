@@ -162,9 +162,14 @@ import {
   testPickInitialZoomTransformReusesZoomAcrossPresentationChanges,
   testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned,
 } from '@/__tests__/zoomStatePick.test'
-import { testCoerceMediaUrlAcceptsSafeRelative, testCoerceMediaUrlRejectsExplicitScheme } from '@/__tests__/mediaUrlCoercion.test'
+import {
+  testCoerceMediaUrlAcceptsSafeRelative,
+  testCoerceMediaUrlRejectsExplicitScheme,
+  testNormalizeImportNameDerivesJsonNameFromUrlAndFormat,
+} from '@/__tests__/mediaUrlCoercion.test'
 import { testApplyMediaProxyNormalizesGithubBlobUrl, testApplyMediaProxySkipsProxyWhenNotLocalhost } from '@/__tests__/mediaProxySrc.test'
 import { testUiToastUpsertDoesNotExtendExpiry, testUiToastUpsertMovesToastToFront } from '@/__tests__/uiToastSlice.test'
+import { testIconButtonStopsPropagation, testToolbarIconTooltipsDoNotInterceptClicks } from '@/__tests__/toolbarButtons.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -392,6 +397,7 @@ export const runAllTests = async () => {
   await exec('zoom.pick.rejectsStaleWhenNotPinned', testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned)
   await exec('url.coerceMediaUrl.acceptsSafeRelative', testCoerceMediaUrlAcceptsSafeRelative)
   await exec('url.coerceMediaUrl.rejectsExplicitScheme', testCoerceMediaUrlRejectsExplicitScheme)
+  await exec('url.normalizeImportName.jsonUrlDerivation', testNormalizeImportNameDerivesJsonNameFromUrlAndFormat)
   await exec('url.applyMediaProxySrc.normalizesGithubBlob', testApplyMediaProxyNormalizesGithubBlobUrl)
   await exec('url.applyMediaProxySrc.skipsProxyWhenNotLocalhost', testApplyMediaProxySkipsProxyWhenNotLocalhost)
   
@@ -524,6 +530,8 @@ export const runAllTests = async () => {
   )
   await exec('ui.toast.upsertDoesNotExtendExpiry', testUiToastUpsertDoesNotExtendExpiry)
   await exec('ui.toast.upsertMovesToastToFront', testUiToastUpsertMovesToastToFront)
+  await exec('ui.toolbar.tooltipsDoNotInterceptClicks', testToolbarIconTooltipsDoNotInterceptClicks)
+  await exec('ui.toolbar.iconButtonStopsPropagation', testIconButtonStopsPropagation)
   
   await exec('markdown.scrollSync.viewerToEditor', testMarkdownScrollSyncViewerToEditor)
   await exec('markdown.scrollSync.editToggleKeepsPos', testMarkdownEditToggleKeepsScrollPosition)

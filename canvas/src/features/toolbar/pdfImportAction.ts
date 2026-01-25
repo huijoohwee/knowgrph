@@ -1,12 +1,11 @@
 import { coerceHttpUrl } from '@/lib/url'
-import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickFileWithExtensions } from '@/lib/graph/filePicker'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { deriveMarkdownNameFromPdfFilename, promptForUrl } from './ingestUtils'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
+import { runImportFlow } from '@/features/toolbar/importFlow'
 
 type PdfMarkdownConversionOk = { markdown: string; displayName: string }
 type PdfMarkdownConversionResult = PdfMarkdownConversionOk | { error: string }
@@ -134,12 +133,12 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
 
     if (!picked) return
 
-    const res = await loadGraphDataFromTextViaParser(picked.name, picked.markdown)
-    applyLoaderResultToParserUi(res)
-    if (!res) return
-
-    try {
-      if (res.input && res.input.text.trim()) {
+    await runImportFlow({
+      nameForParse: picked.name,
+      textForParse: picked.markdown,
+      openTab: 'curation',
+      onSuccess: (res) => {
+        if (!res.input || !res.input.text.trim()) return
         const name = res.input.name
         applyImportedMarkdownToStore({
           name,
@@ -152,11 +151,8 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
             type: 'markdown',
           },
         })
-      }
-    } catch {
-      void 0
-    }
-    openBottomPanel('curation')
+      },
+    })
   } catch {
     applyLoaderResultToParserUi(null)
   }

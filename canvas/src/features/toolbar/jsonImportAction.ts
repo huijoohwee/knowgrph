@@ -1,13 +1,12 @@
-import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
-import { promptForUrl } from './ingestUtils'
+import { normalizeImportName, promptForUrl } from './ingestUtils'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
+import { coerceHttpUrl, normalizeGitHubBlobLikeUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
-import { deriveFilenameFromUrl } from '@/lib/url'
 import { applyImportedCsvToStore, applyImportedJsonToStore } from '@/features/toolbar/importSideEffects'
+import { runImportFlow } from '@/features/toolbar/importFlow'
 
 export type JsonImportFormat = 'jsonld' | 'json'
 export type JsonImportType = 'url' | 'local'
@@ -21,19 +20,22 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           if (v) return v
           return promptForUrl(UI_COPY.jsonImportUrlPrompt) || ''
         })()
-        if (!rawUrl) return null
-        const text = await fetchRemoteText(rawUrl)
+        const url = coerceHttpUrl(rawUrl)
+        if (!url) return null
+        const fetchUrl = normalizeGitHubBlobLikeUrl(url) ?? url
+        const text = await fetchRemoteText(fetchUrl)
         if (!text) {
           try {
             const ui = useParserUIState.getState()
-            ui.setDataLoadStatus(false, UI_COPY.jsonImportFetchFailedStatus(rawUrl))
+            ui.setDataLoadStatus(false, UI_COPY.jsonImportFetchFailedStatus(url))
           } catch {
             void 0
           }
           return null
         }
         const fallback = format === 'jsonld' ? 'remote.jsonld' : 'remote.json'
-        return { name: deriveFilenameFromUrl(rawUrl, fallback), text, sourceUrl: rawUrl }
+        const name = normalizeImportName(rawUrl, fallback, 'json', format)
+        return { name, text, sourceUrl: url }
       }
       if (type === 'local') {
         const p = await pickTextFileWithExtensions(['.json', '.jsonld'])
@@ -45,26 +47,23 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
 
     if (!picked) return
 
-    const res = await loadGraphDataFromTextViaParser(picked.name, picked.text)
-    applyLoaderResultToParserUi(res, { collapsePanelsOnSuccess: true })
-    if (!res) return
-
-    try {
-      if (res.input && res.input.text.trim()) {
+    await runImportFlow({
+      nameForParse: picked.name,
+      textForParse: picked.text,
+      openTab: 'data',
+      ui: { collapsePanelsOnSuccess: true },
+      onSuccess: (res) => {
+        if (!res.input || !res.input.text.trim()) return
         const rawName = String(res.input.name || '')
         const baseName = rawName.trim() || (format === 'jsonld' ? 'graph.jsonld' : 'graph.json')
         applyImportedJsonToStore({
           name: baseName,
           text: String(res.input.text || ''),
           fallbackFenceLang: format === 'jsonld' ? 'jsonld' : 'json',
-          sourceUrl: null,
+          sourceUrl: type === 'url' ? picked.sourceUrl ?? null : null,
         })
-      }
-    } catch {
-      void 0
-    }
-
-    openBottomPanel('data')
+      },
+    })
   } catch {
     applyLoaderResultToParserUi(null)
   }
@@ -75,12 +74,12 @@ export async function performCsvImport() {
     const picked = await pickTextFileWithExtensions(['.csv'])
     if (!picked) return
 
-    const res = await loadGraphDataFromTextViaParser(picked.name, picked.text)
-    applyLoaderResultToParserUi(res)
-    if (!res) return
-
-    try {
-      if (res.input && res.input.text.trim()) {
+    await runImportFlow({
+      nameForParse: picked.name,
+      textForParse: picked.text,
+      openTab: 'data',
+      onSuccess: (res) => {
+        if (!res.input || !res.input.text.trim()) return
         const rawName = String(res.input.name || '')
         const baseName = rawName.trim() || 'graph.csv'
         applyImportedCsvToStore({
@@ -88,12 +87,8 @@ export async function performCsvImport() {
           text: String(res.input.text || ''),
           sourceUrl: null,
         })
-      }
-    } catch {
-      void 0
-    }
-
-    openBottomPanel('data')
+      },
+    })
   } catch {
     applyLoaderResultToParserUi(null)
   }

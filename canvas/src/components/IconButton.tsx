@@ -19,7 +19,19 @@ interface IconButtonProps extends BaseButtonProps {
 
 const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
   (
-    { title, onClick, disabled, className = '', children, showTooltip = false, hoverRingClass, tooltipContent, ...buttonProps },
+    {
+      title,
+      onClick,
+      onPointerDown,
+      onMouseDown,
+      disabled,
+      className = '',
+      children,
+      showTooltip = false,
+      hoverRingClass,
+      tooltipContent,
+      ...buttonProps
+    },
     ref,
   ) => {
     const hasMultipleChildren = React.Children.count(children) > 1;
@@ -56,7 +68,18 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         {...buttonProps}
         type="button"
         disabled={isDisabled}
-        onClick={onClick}
+        onPointerDown={e => {
+          e.stopPropagation()
+          onPointerDown?.(e)
+        }}
+        onMouseDown={e => {
+          e.stopPropagation()
+          onMouseDown?.(e)
+        }}
+        onClick={e => {
+          e.stopPropagation()
+          onClick?.(e)
+        }}
         className={cn(
           'group relative select-none rounded inline-flex items-center justify-center',
           paddingClass,
@@ -74,7 +97,7 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
 
     if (!showTooltip) return button
     return (
-      <Tooltip content={content} contentClassName={UI_THEME_TOKENS.tooltip.bg}>
+      <Tooltip content={content} contentClassName={cn(UI_THEME_TOKENS.tooltip.bg, 'pointer-events-none')}>
         {button}
       </Tooltip>
     )

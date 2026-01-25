@@ -1,5 +1,6 @@
 import { pickPoiSelection } from '../../../../gympgrph/src/features/geospatial/geospatialPoiSelection'
 import { coerceFeatureCollectionIds, isPointOnlyFeatureCollection } from '../../../../gympgrph/src/features/geospatial/geospatialOverlayUtils'
+import type { FeatureCollection } from 'geojson'
 
 export const testGympgrphPickPoiSelectionSkipsClusterFeatures = () => {
   const picked = pickPoiSelection({
@@ -34,35 +35,34 @@ export const testGympgrphPickPoiSelectionSkipsClusterFeatures = () => {
 }
 
 export const testGympgrphCoerceFeatureCollectionIdsAddsMissingIds = () => {
-  const raw = {
+  const raw: FeatureCollection = {
     type: 'FeatureCollection',
     features: [
       { type: 'Feature', properties: { label: 'A' }, geometry: { type: 'Point', coordinates: [0, 0] } },
       { type: 'Feature', id: 'keep', properties: { label: 'B' }, geometry: { type: 'Point', coordinates: [1, 1] } },
     ],
-  } as any
+  }
 
-  const out = coerceFeatureCollectionIds(raw, 'layer-01') as any
-  if (!out.features[0].id) throw new Error('expected first feature id to be set')
-  if (out.features[1].id !== 'keep') throw new Error('expected existing id to be preserved')
+  const out = coerceFeatureCollectionIds(raw, 'layer-01')
+  if (!out.features[0]?.id) throw new Error('expected first feature id to be set')
+  if (out.features[1]?.id !== 'keep') throw new Error('expected existing id to be preserved')
 }
 
 export const testGympgrphIsPointOnlyFeatureCollectionDetectsPointOnly = () => {
-  const fc = {
+  const fc: FeatureCollection = {
     type: 'FeatureCollection',
     features: [
       { type: 'Feature', id: 1, properties: {}, geometry: { type: 'Point', coordinates: [0, 0] } },
       { type: 'Feature', id: 2, properties: {}, geometry: { type: 'MultiPoint', coordinates: [[0, 0]] } },
     ],
-  } as any
+  }
   if (!isPointOnlyFeatureCollection(fc, 10)) throw new Error('expected point-only collection to be true')
 }
 
 export const testGympgrphIsPointOnlyFeatureCollectionRejectsPolygon = () => {
-  const fc = {
+  const fc: FeatureCollection = {
     type: 'FeatureCollection',
-    features: [{ type: 'Feature', id: 1, properties: {}, geometry: { type: 'Polygon', coordinates: [] } }],
-  } as any
+    features: [{ type: 'Feature', id: 1, properties: {}, geometry: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [0, 0]]] } }],
+  }
   if (isPointOnlyFeatureCollection(fc, 10)) throw new Error('expected polygon collection to be false')
 }
-

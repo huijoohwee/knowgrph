@@ -130,8 +130,8 @@ export async function testPreviewGalleryDragMovesThirdSlideAboveSecond() {
     })
 
     const cards = Array.from(
-      container.querySelectorAll('div[draggable="true"]'),
-    ) as HTMLDivElement[]
+      container.querySelectorAll('section[draggable="true"]'),
+    ) as HTMLElement[]
     if (cards.length !== 3) {
       throw new Error(`expected 3 draggable slide cards, got ${cards.length}`)
     }
@@ -194,8 +194,8 @@ export async function testPreviewGalleryDragMovesFirstSlideBelowThird() {
     })
 
     const cards = Array.from(
-      container.querySelectorAll('div[draggable="true"]'),
-    ) as HTMLDivElement[]
+      container.querySelectorAll('section[draggable="true"]'),
+    ) as HTMLElement[]
     if (cards.length !== 3) {
       throw new Error(`expected 3 draggable slide cards, got ${cards.length}`)
     }
@@ -260,8 +260,8 @@ export async function testPreviewGalleryDragMovesFirstSlideToLastInLongerList() 
     })
 
     const cards = Array.from(
-      container.querySelectorAll('div[draggable="true"]'),
-    ) as HTMLDivElement[]
+      container.querySelectorAll('section[draggable="true"]'),
+    ) as HTMLElement[]
     if (cards.length !== 5) {
       throw new Error(`expected 5 draggable slide cards, got ${cards.length}`)
     }
@@ -326,8 +326,8 @@ export async function testPreviewGalleryDragMovesLastSlideToFirstInLongerList() 
     })
 
     const cards = Array.from(
-      container.querySelectorAll('div[draggable="true"]'),
-    ) as HTMLDivElement[]
+      container.querySelectorAll('section[draggable="true"]'),
+    ) as HTMLElement[]
     if (cards.length !== 5) {
       throw new Error(`expected 5 draggable slide cards, got ${cards.length}`)
     }

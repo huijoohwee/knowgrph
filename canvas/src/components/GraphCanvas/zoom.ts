@@ -28,8 +28,8 @@ export const createZoom = (
           if (labelsSelRef.current) {
             labelsSelRef.current.attr('data-zoom-lod-hidden', hidden ? '1' : '0');
           }
-          g.selectAll('[data-kg-layer="group-labels"]').style('display', hidden ? 'none' : null)
-          g.selectAll('[data-kg-layer="edge-labels"]').style('display', hidden ? 'none' : null)
+          g.selectAll('[data-kg-layer="group-labels"]').style('display', hidden ? 'none' : '')
+          g.selectAll('[data-kg-layer="edge-labels"]').style('display', hidden ? 'none' : '')
           if (onLabelLodVisibilityChange) onLabelLodVisibilityChange(hidden);
         }
       }

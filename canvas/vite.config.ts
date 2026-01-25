@@ -6,6 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
@@ -14,6 +15,12 @@ import { unwrapUserProvidedText } from './src/lib/url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
+const nodeRequire = createRequire(import.meta.url)
+const resolvedReact = nodeRequire.resolve('react')
+const resolvedReactJsxRuntime = nodeRequire.resolve('react/jsx-runtime')
+const resolvedReactJsxDevRuntime = nodeRequire.resolve('react/jsx-dev-runtime')
+const resolvedReactDom = nodeRequire.resolve('react-dom')
+const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 
 function withRepoPythonPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const current = String(env.PYTHONPATH || '').trim()
@@ -687,6 +694,11 @@ export default defineConfig(({ command }) => ({
     preserveSymlinks: true,
     dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid'],
     alias: [
+      { find: 'react/jsx-runtime', replacement: resolvedReactJsxRuntime },
+      { find: 'react/jsx-dev-runtime', replacement: resolvedReactJsxDevRuntime },
+      { find: /^react$/, replacement: resolvedReact },
+      { find: 'react-dom/client', replacement: resolvedReactDomClient },
+      { find: /^react-dom$/, replacement: resolvedReactDom },
       {
         find: /^@\/components\/BottomPanel\/(.*)$/,
         replacement: path.resolve(__dirname, './node_modules/curagrph/src/components/BottomPanel/$1'),

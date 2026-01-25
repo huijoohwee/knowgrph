@@ -1,5 +1,49 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { createRequire, Module as NodeModule } from 'node:module'
+
+const ensurePeerSymlinks = () => {
+  try {
+    const rootDir = process.cwd()
+    const localRequire = createRequire(import.meta.url)
+    const curagrphEntry = localRequire.resolve('curagrph', { paths: [rootDir] })
+    const curagrphDir = fs.realpathSync(path.resolve(path.dirname(curagrphEntry), '..'))
+    const curagrphNodeModules = path.join(curagrphDir, 'node_modules')
+    fs.mkdirSync(curagrphNodeModules, { recursive: true })
+
+    const link = (name: string) => {
+      const src = path.join(rootDir, 'node_modules', name)
+      const dest = path.join(curagrphNodeModules, name)
+      if (!fs.existsSync(src)) return
+      if (fs.existsSync(dest)) {
+        try {
+          const st = fs.lstatSync(dest)
+          if (st.isSymbolicLink()) {
+            const existing = fs.readlinkSync(dest)
+            if (path.resolve(curagrphNodeModules, existing) === src) return
+          } else {
+            return
+          }
+        } catch {
+          return
+        }
+        try {
+          fs.rmSync(dest, { recursive: true, force: true })
+        } catch {
+          return
+        }
+      }
+      fs.symlinkSync(src, dest, 'dir')
+    }
+
+    link('react')
+    link('react-dom')
+  } catch {
+    void 0
+  }
+}
+
+ensurePeerSymlinks()
 
 type WindowStub = Pick<
   Window,
@@ -11,6 +55,41 @@ type WindowStub = Pick<
 type GlobalWithWindowStub = typeof globalThis & { window?: WindowStub }
 
 const g = globalThis as GlobalWithWindowStub
+
+const appRequire = createRequire(import.meta.url)
+const resolvedReact = appRequire.resolve('react', { paths: [process.cwd()] })
+const resolvedReactJsxRuntime = appRequire.resolve('react/jsx-runtime', { paths: [process.cwd()] })
+const resolvedReactJsxDevRuntime = appRequire.resolve('react/jsx-dev-runtime', { paths: [process.cwd()] })
+const resolvedReactDom = appRequire.resolve('react-dom', { paths: [process.cwd()] })
+const resolvedReactDomClient = appRequire.resolve('react-dom/client', { paths: [process.cwd()] })
+const originalResolveFilename = (NodeModule as unknown as { _resolveFilename: unknown })._resolveFilename as (
+  request: string,
+  parent: unknown,
+  isMain: boolean,
+  options?: unknown,
+) => string
+
+;(NodeModule as unknown as { _resolveFilename: unknown })._resolveFilename = function (
+  request: string,
+  parent: unknown,
+  isMain: boolean,
+  options?: unknown,
+) {
+  switch (request) {
+    case 'react':
+      return originalResolveFilename(resolvedReact, parent, isMain, options)
+    case 'react/jsx-runtime':
+      return originalResolveFilename(resolvedReactJsxRuntime, parent, isMain, options)
+    case 'react/jsx-dev-runtime':
+      return originalResolveFilename(resolvedReactJsxDevRuntime, parent, isMain, options)
+    case 'react-dom':
+      return originalResolveFilename(resolvedReactDom, parent, isMain, options)
+    case 'react-dom/client':
+      return originalResolveFilename(resolvedReactDomClient, parent, isMain, options)
+    default:
+      return originalResolveFilename(request, parent, isMain, options)
+  }
+}
 
 if (!g.window) {
   const stub = {} as WindowStub

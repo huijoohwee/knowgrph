@@ -17,7 +17,7 @@
     "typecheck": "tsc -b --noEmit",
     "typecheck:agenticrag": "tsc -p tsconfig.agenticrag.json --noEmit",
     "test": "npm run test:ci",
-    "test:ci": "tsx src/tests/ci.ts",
+    "test:ci": "node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs src/tests/ci.ts",
     "graphrag:workflow-cli": "tsx src/cli/graphrag-config-to-workflow.ts",
     "agenticrag:trace-codebase-index": "tsx src/cli/agenticrag-trace-codebase-index.ts"
   },

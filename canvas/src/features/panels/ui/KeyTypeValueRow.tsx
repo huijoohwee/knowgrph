@@ -36,6 +36,8 @@ export interface RightAlignedTooltipInputProps
   maxWidthPx?: number
   contentClassName?: string
   containerClassName?: string
+  className?: string
+  type?: string
 }
 
 export function KeyTypeValueRow({

@@ -86,7 +86,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
-  const prevCanvasRenderMode = prevCanvasRenderModeRef.current
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
   const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
   const selectedEdgeIdRef = useGraphStoreKeyRef('selectedEdgeId')
@@ -96,10 +95,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const schemaRef = useRef(schema)
 
   const schemaLayoutEngineJson = useMemo(() => {
-    const layout = schema?.layout || {}
+    const mode = schema?.layout?.mode || 'force'
+    const forces = schema?.layout?.forces || null
     return JSON.stringify({
-      mode: layout.mode || 'force',
-      forces: layout.forces || null,
+      mode,
+      forces,
     })
   }, [schema?.layout?.mode, schema?.layout?.forces])
 
@@ -372,7 +372,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         prevMode,
         prevFrontmatterMode,
         prevSemanticMode,
-        prevRenderMode: prevCanvasRenderMode,
+        prevRenderMode: prevCanvasRenderModeRef.current,
         nodes: Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes : [],
         layoutPositionCacheByMode,
       });
@@ -458,6 +458,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [
     active,
     graphDataRevision,
+    graphDataRevisionRef,
     sceneWidth,
     sceneHeight,
     sceneGraphData,
@@ -467,7 +468,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     effectiveFrontmatterModeEnabled,
     documentSemanticMode,
     canvasRenderMode,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    schemaNodesPresentationJson,
+    schemaGroupsPresentationJson,
     collapsedGroupIdsKey,
+    selectedNodeIdRef,
+    selectedEdgeIdRef,
+    selectedNodeIdsRef,
+    selectedEdgeIdsRef,
   ]);
 
   useEffect(() => {
@@ -516,7 +525,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
     })
     nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
-  }, [schemaNodesPresentationJson, sceneWidth, sceneHeight])
+  }, [schemaNodesPresentationJson, sceneWidth, sceneHeight, renderMediaAsNodes, mediaPanelDensity])
 
   useEffect(() => {
     const g = gRef.current

@@ -37,7 +37,7 @@ export function useSearchAndSort(
     [nodes, edges],
   )
 
-  const filteredNodes = useMemo(() => {
+  const filteredNodes: GraphNode[] = useMemo(() => {
     const q = normalized(query).trim()
     if (!q) return nodes
     const results = searchNodes(graphData, q, nodes.length)
@@ -45,7 +45,7 @@ export function useSearchAndSort(
     return nodes.filter(n => ids.has(n.id))
   }, [nodes, query, graphData])
 
-  const filteredEdges = useMemo(() => {
+  const filteredEdges: SortableEdge[] = useMemo(() => {
     const q = normalized(query).trim()
     if (!q) return edges
     const results = searchEdges(graphData, q, edges.length)
@@ -56,17 +56,17 @@ export function useSearchAndSort(
   const sortedNodes = useMemo(() => {
     if (!nodeSort) return filteredNodes
     const { key, dir } = nodeSort
-    if (key === 'properties') return sortBy(filteredNodes, n => jsonStr(n.properties), dir)
-    return sortBy(filteredNodes, n => normalized(String(n[key] ?? '')), dir)
+    if (key === 'properties') return sortBy<GraphNode>(filteredNodes, n => jsonStr(n.properties), dir)
+    return sortBy<GraphNode>(filteredNodes, n => normalized(String(n[key] ?? '')), dir)
   }, [filteredNodes, nodeSort])
 
   const sortedEdges = useMemo(() => {
     if (!edgeSort) return filteredEdges
     const { key, dir } = edgeSort
-    if (key === 'properties') return sortBy(filteredEdges, e => jsonStr(e.properties), dir)
-    if (key === 'source') return sortBy(filteredEdges, e => normalized(getEndpointId(e, 'source')), dir)
-    if (key === 'target') return sortBy(filteredEdges, e => normalized(getEndpointId(e, 'target')), dir)
-    return sortBy(filteredEdges, e => normalized(String(e[key] ?? '')), dir)
+    if (key === 'properties') return sortBy<SortableEdge>(filteredEdges, e => jsonStr(e.properties), dir)
+    if (key === 'source') return sortBy<SortableEdge>(filteredEdges, e => normalized(getEndpointId(e, 'source')), dir)
+    if (key === 'target') return sortBy<SortableEdge>(filteredEdges, e => normalized(getEndpointId(e, 'target')), dir)
+    return sortBy<SortableEdge>(filteredEdges, e => normalized(String(e[key] ?? '')), dir)
   }, [filteredEdges, edgeSort])
 
   const toggleNodeSort = useCallback(

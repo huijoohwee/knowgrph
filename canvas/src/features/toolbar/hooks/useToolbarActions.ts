@@ -10,7 +10,7 @@ export function useToolbarActions(
   setCanvasRenderMode: (m: '2d' | '3d') => void,
   themeMode: ThemeMode,
   setThemeMode: (mode: ThemeMode) => void,
-  launchSpotlight: (mode?: string) => void,
+  launchSpotlight: (mode?: 'tour' | 'stats') => void,
   openMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings') => void,
   onZoomIn?: () => void,
   onZoomOut?: () => void,
@@ -24,6 +24,7 @@ export function useToolbarActions(
   renderMediaAsNodes?: boolean,
   setRenderMediaAsNodes?: (v: boolean) => void,
   canvasRenderMode?: '2d' | '3d',
+  onGeospatialEnabledChange?: (enabled: boolean) => void,
 ) {
   const handleLaunchStats = useCallback(() => {
     launchSpotlight('stats')
@@ -187,9 +188,11 @@ export function useToolbarActions(
         } else if (typeof m.toggleGeospatialModeEnabled === 'function') {
           m.toggleGeospatialModeEnabled()
         }
+        const nextEnabled = typeof m.isGeospatialModeEnabled === 'function' ? m.isGeospatialModeEnabled() : !enabled
+        onGeospatialEnabledChange?.(nextEnabled)
       })
       .catch(() => void 0)
-  }, [])
+  }, [onGeospatialEnabledChange])
 
   const handleToggleTheme = useCallback(() => {
     setThemeMode(getNextThemeMode(themeMode))

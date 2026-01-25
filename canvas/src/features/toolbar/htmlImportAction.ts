@@ -1,13 +1,12 @@
 import { coerceHttpUrl } from '@/lib/url'
 import { parseHtmlToMarkdown, extractJsonLd } from '@/features/parsers/html-parser'
-import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { UI_COPY } from '@/lib/config'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { deriveMarkdownNameFromUrl, fetchRemoteHtmlText as fetchRemoteHtmlTextUtil, promptForUrl } from './ingestUtils'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
+import { runImportFlow } from '@/features/toolbar/importFlow'
 
 export type HtmlImportType = 'url' | 'local'
 
@@ -60,14 +59,12 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
       finalContent += '\n\n# Extracted JSON-LD\n\n```json\n' + JSON.stringify(jsonLd, null, 2) + '\n```\n'
     }
 
-    const res = await loadGraphDataFromTextViaParser(
-      picked.displayName || 'imported.md',
-      finalContent,
-    )
-    applyLoaderResultToParserUi(res)
-    if (!res) return
-    try {
-      if (res.input && res.input.text.trim()) {
+    await runImportFlow({
+      nameForParse: picked.displayName || 'imported.md',
+      textForParse: finalContent,
+      openTab: 'curation',
+      onSuccess: (res) => {
+        if (!res.input || !res.input.text.trim()) return
         const name = res.input.name
         applyImportedMarkdownToStore({
           name,
@@ -81,11 +78,8 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
             type: 'html',
           },
         })
-      }
-    } catch {
-      void 0
-    }
-    openBottomPanel('curation')
+      },
+    })
   } catch {
     applyLoaderResultToParserUi(null)
   }

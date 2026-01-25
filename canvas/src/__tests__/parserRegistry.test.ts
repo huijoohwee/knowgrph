@@ -1,7 +1,8 @@
-import { registerParser, unregisterParser, listParsers, bestMatch, applyParser, toParserId } from '@/features/parsers'
+import { registerParser, unregisterParser, listParsers, bestMatch, applyParser, toParserId, resetParsers } from '@/features/parsers'
 import type { ParserSpec } from '@/features/parsers'
 
 export function testParserRegistryCrud() {
+  resetParsers()
   const spec: ParserSpec = {
     id: toParserId('x'),
     name: 'X',
