@@ -20,6 +20,10 @@
 
 **Workflow Aside Rule**: Workflow uses the shared MainPanel `<aside>` wrapper (same scrolling contract as Settings) and reuses the shared Expand/Collapse All header control.
 
+**Search Rule**: Workspace Actions filtering reuses the MainPanel header Graph Search toggle (no duplicate per-section search input).
+
+**Toolbar Entry Point**: Toolbar "Open Data" opens MainPanel Workflow so ingest actions remain discoverable in the canonical step flow.
+
 **Optional Geo Layer Path**: Source Files (Import) → geospatial dataset registry (gympgrph store) → Geospatial Overlay layers
 
 ---

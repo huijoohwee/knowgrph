@@ -20,10 +20,11 @@ type WorkflowActions = {
 };
 
 type WorkflowSectionProps = {
+  searchQuery?: string;
   onRegisterActions?: (actions: WorkflowActions) => void;
 };
 
-export default function WorkflowSection({ onRegisterActions }: WorkflowSectionProps) {
+export default function WorkflowSection({ searchQuery, onRegisterActions }: WorkflowSectionProps) {
   const graphData = useGraphStore(s => s.graphData);
   const graphDataLoaded = !!graphData;
   const selectedNodeId = useGraphStore(s => s.selectedNodeId);
@@ -77,7 +78,7 @@ export default function WorkflowSection({ onRegisterActions }: WorkflowSectionPr
   const [collapsedByStep, setCollapsedByStep] = React.useState({
     1: true,
     2: true,
-    3: true,
+    3: false,
     4: true,
     5: true,
     6: true,
@@ -233,6 +234,7 @@ export default function WorkflowSection({ onRegisterActions }: WorkflowSectionPr
       onToggleStep={handleToggleStep}
       hasSchema={hasSchema}
       graphDataLoaded={graphDataLoaded}
+      searchQuery={searchQuery}
       onOpenSchemaTab={handleOpenSchemaTab}
       onOpenRenderTab={handleOpenRenderTab}
       onOpenOrchestratorTab={handleOpenOrchestratorTab}

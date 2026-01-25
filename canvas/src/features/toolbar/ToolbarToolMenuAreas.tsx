@@ -1,5 +1,5 @@
 import React from 'react'
-import { Database, Download, Eraser, MonitorPlay, PlayCircle, Plus, Upload } from 'lucide-react'
+import { Download, Eraser, Plus, Upload } from 'lucide-react'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { TOOL_MENU_ACTION_LABELS, TOOL_MENU_AREAS } from '@/features/toolbar/toolMenu'
 import { TOOLBAR_AREA_RENDERERS, type ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
@@ -9,7 +9,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
   const {
-    dataLoadOk,
     setIsSourceFilesImportMenuOpen,
     setIsSourceFilesExportMenuOpen,
     setIsParserExportMenuOpen,
@@ -25,9 +24,6 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
     setIsHistoryExportMenuOpen,
     setIsValidationExportMenuOpen,
     onToolMenuAction,
-    onOpenData,
-    onRunPipeline,
-    onRunDemo,
     searchQuery,
   } = props
   const uiIconScale = useGraphStore(s => s.uiIconScale)
@@ -102,35 +98,6 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
 
   return (
     <>
-      <div className={`flex items-center justify-between gap-1 px-0.5 pb-1 border-b ${UI_THEME_TOKENS.panel.divider}`}>
-        <button
-          type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-50 inline-flex items-center justify-center gap-1.5 h-7 px-2 rounded transition-colors`}
-          onClick={onOpenData}
-          disabled={dataLoadOk !== true}
-        >
-          <Database className={iconSizeClass} aria-hidden="true" />
-          <span>Open Data</span>
-        </button>
-        <button
-          type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} inline-flex items-center justify-center gap-1.5 h-7 px-2 rounded transition-colors`}
-          onClick={onRunPipeline}
-        >
-          <PlayCircle className={iconSizeClass} aria-hidden="true" />
-          <span>Run pipeline</span>
-        </button>
-        {onRunDemo && (
-          <button
-            type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} inline-flex items-center justify-center gap-1.5 h-7 px-2 rounded transition-colors`}
-            onClick={onRunDemo}
-          >
-            <MonitorPlay className={iconSizeClass} aria-hidden="true" />
-            <span>Demo</span>
-          </button>
-        )}
-      </div>
       {visibleAreas.map(area => (
         <section
           key={area.key}

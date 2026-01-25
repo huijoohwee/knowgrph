@@ -86,9 +86,6 @@ export interface ToolbarToolMenuAreasProps {
     payload?: ToolMenuPayload,
   ) => void
   onOpenWorkflowTab: () => void
-  onOpenData: () => void
-  onRunPipeline: () => void
-  onRunDemo?: () => void
   searchQuery?: string
 }
 

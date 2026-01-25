@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Upload, CheckCircle, XCircle, ChevronDown } from 'lucide-react'
+import { Upload, CheckCircle, XCircle } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { useToolMenuShortcuts } from '@/features/toolbar/useToolMenuShortcuts'
@@ -40,7 +40,6 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
     setToolMenuDragPos,
     handleToolMenuCardPointerDown,
     closeToolMenu,
-    toggleToolMenu,
   } = useToolMenuState()
 
   const workspaceActions = useWorkspaceActionsModel()
@@ -110,25 +109,25 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
               : UI_THEME_TOKENS.icon.color
         }`}
         title={dataLoadOk === true ? UI_LABELS.openData : UI_LABELS.loadStatus}
-        onClick={toggleToolMenu}
+        onClick={() => {
+          closeToolMenu()
+          _onOpenMainPanel('workflow')
+        }}
       >
         {dataLoadOk === true ? (
           <div className="flex items-center gap-1">
             <CheckCircle className={iconSizeClass} />
             <span className="text-xs max-w-20 truncate">{dataLoadMsg}</span>
-            <ChevronDown className={iconSizeClass} />
           </div>
         ) : dataLoadOk === false ? (
           <div className="flex items-center gap-1">
             <XCircle className={iconSizeClass} />
             <span className="text-xs max-w-20 truncate">{dataLoadMsg}</span>
-            <ChevronDown className={iconSizeClass} />
           </div>
         ) : (
           <div className="flex items-center gap-1">
             <Upload className={iconSizeClass} />
             <span className="text-xs max-w-20 truncate">{UI_LABELS.openData}</span>
-            <ChevronDown className={iconSizeClass} />
           </div>
         )}
       </IconButton>

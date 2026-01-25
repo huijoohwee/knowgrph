@@ -8,8 +8,12 @@ import {
   UI_COLOR_DANGER_RED_BORDER,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  buildSettingsAreaTooltip,
+  buildSettingsKeyTooltip,
+  buildSettingsValueTooltip,
+} from '@/lib/config'
 import { useSettingsView } from './useSettingsView'
-import { useGraphStore } from '@/hooks/useGraphStore'
 
 export default function SettingsView({
   searchQuery,
@@ -36,17 +40,35 @@ export default function SettingsView({
     collapsedByArea,
     groupByArea,
     toggleArea,
-    setUiPanelKeyValueTextSizeClass,
-    setUiPanelTextFontClass,
-    setUiPanelKeyValueInputClass,
-    setUiPanelRowDensityDefaultClass,
-    setUiPanelMonospaceTextClass,
-    setUiPanelMicroLabelTextSizeClass,
     uiPanelKeyValueTextSizeClass,
+    setValues,
+    dirtyRef,
   } = useSettingsView({ searchQuery, onRegisterActions })
-
-  const themeMode = useGraphStore(s => s.themeMode)
-  const setThemeMode = useGraphStore(s => s.setThemeMode)
+  const applyUiPanelDensityPreset = React.useCallback(
+    (preset: 'comfortable' | 'compact') => {
+      const patches: Record<string, string> =
+        preset === 'comfortable'
+          ? {
+              uiPanelKeyValueTextSizeClass: 'text-sm',
+              uiPanelTextFontClass: 'font-sans',
+              uiPanelKeyValueInputClass: 'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+              uiPanelRowDensityDefaultClass: 'py-1',
+              uiPanelMonospaceTextClass: 'font-mono text-xs',
+              uiPanelMicroLabelTextSizeClass: 'text-xs',
+            }
+          : {
+              uiPanelKeyValueTextSizeClass: 'text-xs',
+              uiPanelTextFontClass: 'font-sans',
+              uiPanelKeyValueInputClass: 'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right',
+              uiPanelRowDensityDefaultClass: 'py-0.5',
+              uiPanelMonospaceTextClass: 'font-mono text-xs',
+              uiPanelMicroLabelTextSizeClass: 'text-[9px]',
+            }
+      Object.keys(patches).forEach(key => dirtyRef.current.add(key))
+      setValues(prev => ({ ...prev, ...patches }))
+    },
+    [dirtyRef, setValues],
+  )
 
   return (
     <article className="h-full min-h-0 flex flex-col space-y-0">
@@ -64,12 +86,7 @@ export default function SettingsView({
           const collapsed = collapsedByArea[area] ?? true
           const responsibilities = entries.map(e => e.details.responsibility).filter(Boolean)
           const firstResponsibility = responsibilities[0]
-          let tooltipContent = firstResponsibility
-            ? `Settings area for ${firstResponsibility.toLowerCase()} keys. Expand to see modules, functions, and notes.`
-            : 'Settings area grouping related keys. Expand to see modules, functions, and notes.'
-          if (area === 'UI Density: Icons') {
-            tooltipContent = `${tooltipContent} Use uiIconScale to switch between compact and default icon sizes across toolbars and panels.`
-          }
+          const tooltipContent = buildSettingsAreaTooltip(area, firstResponsibility)
           return (
             <CollapsibleSection
               key={area}
@@ -93,44 +110,6 @@ export default function SettingsView({
               onToggle={next => toggleArea(area, next)}
             >
               <ul>
-                {area === 'UI Appearance' && (
-                  <li className={`mb-2 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                    <span className={`font-semibold ${UI_THEME_TOKENS.text.primary} mr-1`}>Theme Mode</span>
-                    <button
-                      type="button"
-                      className={`App-toolbar__btn text-xs h-6 px-2 border rounded ${
-                        themeMode === 'light'
-                          ? uiToolbarToggleActiveClassName
-                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-                      }`}
-                      onClick={() => setThemeMode('light')}
-                    >
-                      Light
-                    </button>
-                    <button
-                      type="button"
-                      className={`App-toolbar__btn text-xs h-6 px-2 border rounded ${
-                        themeMode === 'dark'
-                          ? uiToolbarToggleActiveClassName
-                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-                      }`}
-                      onClick={() => setThemeMode('dark')}
-                    >
-                      Dark
-                    </button>
-                    <button
-                      type="button"
-                      className={`App-toolbar__btn text-xs h-6 px-2 border rounded ${
-                        themeMode === 'system'
-                          ? uiToolbarToggleActiveClassName
-                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-                      }`}
-                      onClick={() => setThemeMode('system')}
-                    >
-                      System
-                    </button>
-                  </li>
-                )}
                 {area === 'UI Density: Panels' && (
                   <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                     <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Presets</span>
@@ -138,12 +117,7 @@ export default function SettingsView({
                       type="button"
                       className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
                       onClick={() => {
-                        setUiPanelKeyValueTextSizeClass('text-sm')
-                        setUiPanelTextFontClass('font-sans')
-                        setUiPanelKeyValueInputClass('w-full h-6 px-2 text-sm border border-gray-300 rounded text-right')
-                        setUiPanelRowDensityDefaultClass('py-1')
-                        setUiPanelMonospaceTextClass('font-mono text-xs')
-                        setUiPanelMicroLabelTextSizeClass('text-xs')
+                        applyUiPanelDensityPreset('comfortable')
                       }}
                     >
                       Comfortable
@@ -152,12 +126,7 @@ export default function SettingsView({
                       type="button"
                       className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
                       onClick={() => {
-                        setUiPanelKeyValueTextSizeClass('text-xs')
-                        setUiPanelTextFontClass('font-sans')
-                        setUiPanelKeyValueInputClass('w-full h-6 px-2 text-xs border border-gray-300 rounded text-right')
-                        setUiPanelRowDensityDefaultClass('py-0.5')
-                        setUiPanelMonospaceTextClass('font-mono text-xs')
-                        setUiPanelMicroLabelTextSizeClass('text-[9px]')
+                        applyUiPanelDensityPreset('compact')
                       }}
                     >
                       Compact
@@ -167,15 +136,27 @@ export default function SettingsView({
                 {entries.map(({ meta: s, details, writable, anchorId }) => {
                   const isExpanded = expanded === s.key
                   const hasOptions = Array.isArray(s.options) && s.options.length > 0
-                  const hint = details.notes || details.responsibility || ''
+                  const keyTooltip = buildSettingsKeyTooltip({
+                    area: details.area,
+                    key: s.key,
+                    responsibility: details.responsibility,
+                  })
+                  const valueTooltip = buildSettingsValueTooltip({
+                    type: s.type,
+                    key: s.key,
+                    defaultValue: s.default ? s.default() : null,
+                    options: s.options,
+                    notes: details.notes,
+                    impact: details.notes || details.responsibility,
+                  })
                   return (
                     <li key={s.key}>
                       <KeyTypeValueRow
                         id={anchorId}
                         dataKgAnchor={anchorId}
-                        keyNode={hasOptions && hint ? (
+                        keyNode={(
                           <Tooltip
-                            content={hint}
+                            content={keyTooltip}
                             maxWidthPx={250}
                             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                           >
@@ -183,13 +164,24 @@ export default function SettingsView({
                               <span className="truncate">{s.key}</span>
                             </span>
                           </Tooltip>
-                        ) : (
-                          <span className="truncate">{s.key}</span>
                         )}
                         typeNode={s.type}
                         valueNode={(
                           <div className="flex-1">
-                            {renderInput(s.key, s.type, writable, s.options)}
+                            {(writable || hasOptions) && valueTooltip.trim().length > 0
+                              ? (
+                                <Tooltip
+                                  content={valueTooltip}
+                                  maxWidthPx={260}
+                                  contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+                                  className="w-full"
+                                >
+                                  <span className="inline-flex w-full">
+                                    {renderInput(s.key, s.type, writable, s.options)}
+                                  </span>
+                                </Tooltip>
+                              )
+                              : renderInput(s.key, s.type, writable, s.options)}
                             {s.key === 'chatSystemPrompt' && (
                               <div className="mt-2">
                                 <button
@@ -215,24 +207,16 @@ export default function SettingsView({
                           <table className={`w-full text-left border-collapse ${uiPanelKeyValueTextSizeClass || ''}`}>
                             <thead>
                               <tr>
-                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Area</th>
                                 <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Modules</th>
                                 <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Classes/Objects</th>
                                 <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Functions/Methods</th>
-                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Responsibility</th>
-                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Dependencies / Imports</th>
-                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Notes</th>
                               </tr>
                             </thead>
                             <tbody>
                               <tr>
-                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{details.area}</td>
                                 <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.modules || []).join(', ') || '—'}</td>
                                 <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.classes || []).join(', ') || '—'}</td>
                                 <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.functions || []).join(', ') || '—'}</td>
-                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{details.responsibility}</td>
-                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.imports || []).join(', ') || '—'}</td>
-                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{details.notes || '—'}</td>
                               </tr>
                             </tbody>
                           </table>

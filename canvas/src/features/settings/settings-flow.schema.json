@@ -1,21 +1,2188 @@
 {
   "uiOverlayOpacity": {
-    "area": "Global Translucency",
+    "area": "—",
+    "responsibility": "ui overlay opacity",
+    "notes": "",
     "modules": [
-      "canvas/src/pages/Canvas.tsx"
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
     ],
-    "classes": [
-      "window.document.documentElement"
-    ],
+    "classes": [],
     "functions": [
-      "useEffect"
+      "setUiOverlayOpacity"
     ],
-    "responsibility": "Canvas writes CSS variables to :root",
     "imports": [
-      "React",
       "zustand"
     ],
-    "notes": "persisted kg:ui:overlayOpacity; clamps to [0,1]",
-    "lineRange": "canvas/src/pages/Canvas.tsx:22–27"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L10"
+  },
+  "uiPanelOpacity": {
+    "area": "Global Translucency",
+    "responsibility": "Main Panel opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiPanelOpacity"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L19"
+  },
+  "uiToolbarOpacity": {
+    "area": "Global Translucency",
+    "responsibility": "Toolbar opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiToolbarOpacity"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L28"
+  },
+  "selectionFlashDurationMs": {
+    "area": "Selection Flash",
+    "responsibility": "Duration of canvas-driven selection flash highlights (ms)",
+    "notes": "clamps to [100,2000]",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSelectionFlashDurationMs"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L37"
+  },
+  "selectionFlashOpacity": {
+    "area": "Selection Flash",
+    "responsibility": "Opacity of canvas-driven selection flash highlights",
+    "notes": "clamps to [0,1]",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSelectionFlashOpacity"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L46"
+  },
+  "uiIconScale": {
+    "area": "UI Density: Icons",
+    "responsibility": "Global icon scale (toolbar, panels, bottom panel)",
+    "notes": "Options: compact (smaller icons, denser UI) or default (larger icons, more spacious). Applied via getIconSizeClass across HeaderActions, Toolbar, SearchPanel, History panels, Launch Spotlight status, Help/Workflow headers, Graph Fields icon legend, and bottom panel toolbars.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconScale"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L55"
+  },
+  "uiPanelTextFontClass": {
+    "area": "UI Density: Panels",
+    "responsibility": "Tailwind class for panel key/value text font",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiPanelTextFontClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L69"
+  },
+  "uiPanelKeyValueTextSizeClass": {
+    "area": "UI Density: Panels",
+    "responsibility": "Tailwind class for panel key/value text size",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiPanelKeyValueTextSizeClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L78"
+  },
+  "uiPanelKeyValueInputClass": {
+    "area": "UI Density: Panels",
+    "responsibility": "Tailwind class for panel key/value numeric input shell",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiPanelKeyValueInputClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L87"
+  },
+  "uiPanelMonospaceTextClass": {
+    "area": "UI Density: Panels",
+    "responsibility": "Tailwind class for panel monospace text in Graph JSON, Parser, Schema, and Markdown editors",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiPanelMonospaceTextClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L96"
+  },
+  "uiPanelRowDensityDefaultClass": {
+    "area": "UI Density: Panels",
+    "responsibility": "Tailwind class for default panel row padding (density=\"default\")",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiPanelRowDensityDefaultClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L105"
+  },
+  "uiHeaderRowHeightClass": {
+    "area": "UI Density: Headers",
+    "responsibility": "Tailwind class for primary header row min-height",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiHeaderRowHeightClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L114"
+  },
+  "uiHeaderRowPaddingClass": {
+    "area": "UI Density: Headers",
+    "responsibility": "Tailwind class for primary header row padding",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiHeaderRowPaddingClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L123"
+  },
+  "uiSectionHeaderRowHeightClass": {
+    "area": "UI Density: Headers",
+    "responsibility": "Tailwind class for section header row min-height",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiSectionHeaderRowHeightClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L132"
+  },
+  "uiSectionHeaderRowPaddingClass": {
+    "area": "UI Density: Headers",
+    "responsibility": "Tailwind class for section header row padding",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiSectionHeaderRowPaddingClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L141"
+  },
+  "uiIconFormat": {
+    "area": "UI Density: Icons",
+    "responsibility": "Global icon format (default vs minimal styling)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconFormat"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L150"
+  },
+  "uiIconStrokeWidth": {
+    "area": "UI Density: Icons",
+    "responsibility": "Global Lucide icon stroke width",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconStrokeWidth"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L165"
+  },
+  "uiIconColorClass": {
+    "area": "UI Density: Icons",
+    "responsibility": "Base Tailwind class for icon color",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconColorClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L174"
+  },
+  "uiIconHoverBgClass": {
+    "area": "UI Density: Icons",
+    "responsibility": "Base Tailwind class for icon hover background",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconHoverBgClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L183"
+  },
+  "uiIconButtonPaddingClass": {
+    "area": "UI Density: Icons",
+    "responsibility": "Base Tailwind class for icon button padding",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconButtonPaddingClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L192"
+  },
+  "uiIconPillClass": {
+    "area": "UI Density: Icons",
+    "responsibility": "Base Tailwind class for icon legend pills (scope, origin, visibility, field types)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconPillClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L201"
+  },
+  "uiIconPillLegendTextSizeClass": {
+    "area": "UI Density: Icons",
+    "responsibility": "Tailwind class for legend pill text size",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconPillLegendTextSizeClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L211"
+  },
+  "uiIconPillBadgeTextSizeClass": {
+    "area": "UI Density: Icons",
+    "responsibility": "Tailwind class for badge and inline pill text size",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconPillBadgeTextSizeClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L220"
+  },
+  "uiIconBadgeChipClass": {
+    "area": "UI Density: Icons",
+    "responsibility": "Base Tailwind class for small schema/property badge chips",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconBadgeChipClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L229"
+  },
+  "uiIconBadgeChipTextSizeClass": {
+    "area": "UI Density: Icons",
+    "responsibility": "Tailwind class for badge chip text size",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconBadgeChipTextSizeClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L238"
+  },
+  "uiPanelMicroLabelTextSizeClass": {
+    "area": "UI Density: Panels",
+    "responsibility": "Tailwind class for panel micro-label helper text size",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiPanelMicroLabelTextSizeClass"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L247"
+  },
+  "uiIconAnimationEnabled": {
+    "area": "UI Density: Icons",
+    "responsibility": "Enable toolbar launch/3D icon animation",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setUiIconAnimationEnabled"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L256"
+  },
+  "themeMode": {
+    "area": "UI Appearance",
+    "responsibility": "Global color theme (Light, Dark, or System)",
+    "notes": "Controls the application color palette. Light mode follows GitHub Light Tritanopia, Dark mode follows GitHub Dark Tritanopia.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThemeMode"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L265"
+  },
+  "bottomPanelHeightRatio": {
+    "area": "Bottom Panel Layout",
+    "responsibility": "Bottom panel height ratio",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/panelLayoutUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setBottomPanelHeightRatio"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L280"
+  },
+  "floatingPanelWidthRatio": {
+    "area": "Floating Panel Layout",
+    "responsibility": "Floating panel width ratio (viewport)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/panelLayoutUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setFloatingPanelWidthRatio"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L289"
+  },
+  "floatingPanelHeightRatio": {
+    "area": "Floating Panel Layout",
+    "responsibility": "Floating panel height ratio (viewport)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/panelLayoutUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setFloatingPanelHeightRatio"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L298"
+  },
+  "floatingPanelZIndex": {
+    "area": "Floating Panel Layout",
+    "responsibility": "Floating panel z-index",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/panelLayoutUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setFloatingPanelZIndex"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L307"
+  },
+  "sidebarWidthRatio": {
+    "area": "Side Panel Layout",
+    "responsibility": "Side panel width ratio (viewport)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/panelLayoutUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSidebarWidthRatio"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L316"
+  },
+  "enableLaunchSpotlight": {
+    "area": "Launch Spotlight",
+    "responsibility": "Enable launch spotlight",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setEnableLaunchSpotlight"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L325"
+  },
+  "spotlight.margin": {
+    "area": "Launch Spotlight Layout",
+    "responsibility": "Viewport margin for spotlight card clamp",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSpotlightMargin"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L334"
+  },
+  "spotlight.nearTopThreshold": {
+    "area": "Launch Spotlight Layout",
+    "responsibility": "Top threshold before anchored card flips below target",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSpotlightNearTopThreshold"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L343"
+  },
+  "chatEndpointUrl": {
+    "area": "Chat",
+    "responsibility": "Chat endpoint URL (OpenAI-compatible)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setChatEndpointUrl"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L352"
+  },
+  "chatModel": {
+    "area": "Chat",
+    "responsibility": "Chat model name (OpenAI-compatible)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setChatModel"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L361"
+  },
+  "chatTemperature": {
+    "area": "Chat",
+    "responsibility": "Chat completion temperature",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setChatTemperature"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L370"
+  },
+  "chatSystemPrompt": {
+    "area": "Chat",
+    "responsibility": "Optional system prompt for Chat",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.ui.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setChatSystemPrompt"
+    ],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L379"
+  },
+  "graphFields.settingsById": {
+    "area": "Graph Fields",
+    "responsibility": "settings by id",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L21"
+  },
+  "graphDataTable.visibleColumns": {
+    "area": "Graph Data Table",
+    "responsibility": "visible columns",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L29"
+  },
+  "graphDataTable.columnOrder": {
+    "area": "Graph Data Table",
+    "responsibility": "column order",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L37"
+  },
+  "graphDataTable.columnWidths": {
+    "area": "Graph Data Table",
+    "responsibility": "column widths",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L45"
+  },
+  "graphDataTable.aggregateKeys": {
+    "area": "Graph Data Table Aggregation",
+    "responsibility": "aggregate keys",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L53"
+  },
+  "graphDataTable.filterState": {
+    "area": "Graph Data Table",
+    "responsibility": "filter state",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L61"
+  },
+  "graphDataTable.sortRules": {
+    "area": "Graph Data Table",
+    "responsibility": "sort rules",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L69"
+  },
+  "graphDataTable.groupKey": {
+    "area": "Graph Data Table",
+    "responsibility": "group key",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L77"
+  },
+  "graphDataTable.autoSortEnabled": {
+    "area": "Graph Data Table",
+    "responsibility": "auto sort enabled",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L85"
+  },
+  "graphDataTable.rowDensity": {
+    "area": "Graph Data Table",
+    "responsibility": "row density",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L93"
+  },
+  "graphDataTable.disableAutoScroll": {
+    "area": "Graph Data Table",
+    "responsibility": "disable auto scroll",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L101"
+  },
+  "graphDataTable.freezeFirstDataColumn": {
+    "area": "Graph Data Table",
+    "responsibility": "freeze first data column",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L109"
+  },
+  "graphDataTable.freezeFirstDataColumnByScope": {
+    "area": "Graph Data Table",
+    "responsibility": "freeze first data column by scope",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L117"
+  },
+  "graphDataTable.virtualOverscanRows": {
+    "area": "Graph Data Table Virtualization",
+    "responsibility": "Virtual overscan rows (window padding)",
+    "notes": "Acts as a hard floor for overscan rows. Lower values reduce DOM size but may cause more frequent row window updates while scrolling, especially when graphDataTable.overscanMultiplier is also low.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableVirtualOverscanRows"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L125"
+  },
+  "graphDataTable.overscanMultiplier": {
+    "area": "Graph Data Table Virtualization",
+    "responsibility": "Overscan multiplier for virtual tables",
+    "notes": "To make the table more stable with fewer re-renders while scrolling, increase this toward 1.0–2.0. To reduce DOM size for very large tables, lower this toward 0.1–0.3 and optionally reduce graphDataTable.virtualOverscanRows for a more aggressive window.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableOverscanMultiplier"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L134"
+  },
+  "graphDataTable.minRows": {
+    "area": "Graph Data Table Virtualization",
+    "responsibility": "Min rows before virtualizing tables",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableVirtualMinRows"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L143"
+  },
+  "graphDataTable.debugLogRanges": {
+    "area": "Graph Data Table Virtualization",
+    "responsibility": "Log virtual window ranges in dev",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableVirtualDebugLogRanges"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L152"
+  },
+  "graphDataTable.aggregateIncludeMixedNumericFields": {
+    "area": "Graph Data Table Aggregation",
+    "responsibility": "aggregate include mixed numeric fields",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableAggregateIncludeMixedNumericFields"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L161"
+  },
+  "graphDataTable.aggregateIncludeIdAsNumeric": {
+    "area": "Graph Data Table Aggregation",
+    "responsibility": "aggregate include id as numeric",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableAggregateIncludeIdAsNumeric"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L170"
+  },
+  "graphDataTable.aggregateIncludeSourceAsNumeric": {
+    "area": "Graph Data Table Aggregation",
+    "responsibility": "aggregate include source as numeric",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableAggregateIncludeSourceAsNumeric"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L179"
+  },
+  "graphDataTable.aggregateIncludeTargetAsNumeric": {
+    "area": "Graph Data Table Aggregation",
+    "responsibility": "aggregate include target as numeric",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableAggregateIncludeTargetAsNumeric"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L188"
+  },
+  "graphDataTable.aggregateDefaultVizMode": {
+    "area": "Graph Data Table Aggregation",
+    "responsibility": "aggregate default viz mode",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableAggregateDefaultVizMode"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L197"
+  },
+  "graphDataTable.numericSampleLimit": {
+    "area": "Graph Data Table",
+    "responsibility": "Maximum samples per field when inferring numeric behavior",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableNumericSampleLimit"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L209"
+  },
+  "graphDataTable.numericSampleMinCount": {
+    "area": "Graph Data Table",
+    "responsibility": "Minimum numeric samples required for aggregate eligibility",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableNumericSampleMinCount"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L218"
+  },
+  "graphDataTable.numericSampleMinRatio": {
+    "area": "Graph Data Table",
+    "responsibility": "Minimum numeric ratio required for aggregate eligibility",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableNumericSampleMinRatio"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L227"
+  },
+  "graphDataTable.frozenDragStepNoneLabelPx": {
+    "area": "Graph Data Table",
+    "responsibility": "Drag distance (px) from none to label boundary",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableFrozenDragStepNoneLabelPx"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L236"
+  },
+  "graphDataTable.frozenDragStepLabelIdPx": {
+    "area": "Graph Data Table",
+    "responsibility": "Drag distance (px) from label to id boundary",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-data-table.ts",
+      "canvas/src/hooks/store/graphDataTableUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphDataTableFrozenDragStepLabelIdPx"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L245"
+  },
+  "historyDebounceMs": {
+    "area": "Editor Behavior & Timing",
+    "responsibility": "Debounce history",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/historySlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setHistoryDebounceMs"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L15"
+  },
+  "codeHighlightDurationMs": {
+    "area": "Editor Behavior & Timing",
+    "responsibility": "Code highlight duration",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setCodeHighlightDurationMs"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L24"
+  },
+  "codeSelectThrottleMs": {
+    "area": "Editor Behavior & Timing",
+    "responsibility": "Code→Canvas selection throttle",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setCodeSelectThrottleMs"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L33"
+  },
+  "codeHighlightUntilClick": {
+    "area": "Editor Behavior & Timing",
+    "responsibility": "Highlight until click",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setCodeHighlightUntilClick"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L42"
+  },
+  "enableTabSync": {
+    "area": "Tab Sync",
+    "responsibility": "Enable cross‑tab sync",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setEnableTabSync"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L51"
+  },
+  "enableVirtualTables": {
+    "area": "Graph Data Table Virtualization",
+    "responsibility": "Virtualized tables",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setEnableVirtualTables"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L60"
+  },
+  "canvasRenderMode": {
+    "area": "Canvas Rendering",
+    "responsibility": "Render mode (2d or 3d)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/canvasSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setCanvasRenderMode"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L69"
+  },
+  "orchestratorTraversalDelayMs": {
+    "area": "Orchestrator Traversal",
+    "responsibility": "Delay between traversal steps in Orchestrator (ms)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L83"
+  },
+  "orchestratorView": {
+    "area": "Orchestrator UI",
+    "responsibility": "Default Orchestrator bottom panel view (UI or Text)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L97"
+  },
+  "graph.behavior.selectMode": {
+    "area": "Canvas Interaction",
+    "responsibility": "Node selection mode (single, multi, lasso)",
+    "notes": "Selector → pick single, multi, or lasso selection behavior → shape how canvas clicks, Graph Data Table row selection, and Embed/Overlay / Dataset Inspector visualizations respond to the active selection neighborhood.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSelectMode"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L115"
+  },
+  "graph.behavior.createMode": {
+    "area": "Canvas Interaction",
+    "responsibility": "Edge creation mode (shift-drag, click, panel-only)",
+    "notes": "Edge creator → choose shift-drag, click-source-target, or panel-only edge creation → align edge gestures with selection-aware overlays so you can inspect distributions, hierarchies, clusters, and paths without losing predictable zoom and node-drag behavior.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setCreateMode"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L135"
+  },
+  "schemaDeriveCacheCapacity": {
+    "area": "Graph Performance (Schema Derive Cache)",
+    "responsibility": "LRU capacity for schema derive lists",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/panelLayoutUiSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSchemaDeriveCacheCapacity"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L157"
+  },
+  "schema.behavior.hover.content.type": {
+    "area": "Graph Hover Preview",
+    "responsibility": "type",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/graphDataSliceUtils.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSchema"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L166"
+  },
+  "schema.behavior.hover.content.id": {
+    "area": "Graph Hover Preview",
+    "responsibility": "id",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/graphDataSliceUtils.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSchema"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L193"
+  },
+  "schema.behavior.hover.content.properties": {
+    "area": "Graph Hover Preview",
+    "responsibility": "properties",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/graphDataSliceUtils.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setSchema"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L220"
+  },
+  "graphHoverPreview.showNodeId": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show node id",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L247"
+  },
+  "graphHoverPreview.showNodeName": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show node name",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L256"
+  },
+  "graphHoverPreview.showNodeLabel": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show node label",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L265"
+  },
+  "graphHoverPreview.showNodeDescription": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show node description",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L274"
+  },
+  "graphHoverPreview.showNodeProperties": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show node properties",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L283"
+  },
+  "graphHoverPreview.showEdgeId": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show edge id",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L292"
+  },
+  "graphHoverPreview.showEdgeLabel": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show edge label",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L301"
+  },
+  "graphHoverPreview.showEdgeWeight": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show edge weight",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L310"
+  },
+  "graphHoverPreview.showEdgeProperties": {
+    "area": "Graph Hover Preview",
+    "responsibility": "Show edge properties",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/types.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setGraphHoverPreviewConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L319"
+  },
+  "three.selection.selectedNodeGlowIntensity": {
+    "area": "3D Selection",
+    "responsibility": "Selected node emissive glow intensity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L10"
+  },
+  "three.selection.dimmedNodeOpacity": {
+    "area": "3D Selection",
+    "responsibility": "Dimmed unselected node opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L23"
+  },
+  "three.selection.dimmedEdgeOpacity": {
+    "area": "3D Selection",
+    "responsibility": "Dimmed non‑selected edge opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L36"
+  },
+  "three.selection.selectedEdgeWidth": {
+    "area": "3D Selection",
+    "responsibility": "Selected edge stroke width in 3D",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L49"
+  },
+  "three.camera.backgroundColor": {
+    "area": "Canvas Rendering",
+    "responsibility": "3D canvas background color",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L62"
+  },
+  "three.camera.fogColor": {
+    "area": "—",
+    "responsibility": "fog color",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L74"
+  },
+  "three.camera.fogNear": {
+    "area": "—",
+    "responsibility": "fog near",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L86"
+  },
+  "three.camera.fogFar": {
+    "area": "—",
+    "responsibility": "fog far",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L98"
+  },
+  "three.camera.dampingFactor": {
+    "area": "—",
+    "responsibility": "damping factor",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L110"
+  },
+  "three.camera.rotateSpeed": {
+    "area": "—",
+    "responsibility": "rotate speed",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L122"
+  },
+  "three.camera.zoomSpeed": {
+    "area": "—",
+    "responsibility": "zoom speed",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L134"
+  },
+  "three.camera.panSpeed": {
+    "area": "—",
+    "responsibility": "pan speed",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L146"
+  },
+  "three.camera.autoRotate": {
+    "area": "—",
+    "responsibility": "auto rotate",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L158"
+  },
+  "three.camera.autoRotateSpeed": {
+    "area": "—",
+    "responsibility": "auto rotate speed",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L170"
+  },
+  "three.graph.linkDirectionalArrowLength": {
+    "area": "3D Edges & Arrows",
+    "responsibility": "Default 3D edge arrow length",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L182"
+  },
+  "three.graph.linkOpacity": {
+    "area": "3D Edges & Arrows",
+    "responsibility": "Default 3D edge opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L194"
+  },
+  "three.graph.linkCurvature": {
+    "area": "3D Edges & Arrows",
+    "responsibility": "Default 3D edge curvature",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L206"
+  },
+  "three.graph.linkCurveRotation": {
+    "area": "3D Edges & Arrows",
+    "responsibility": "Default 3D curve rotation",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L218"
+  },
+  "three.graph.linkDirectionalParticles": {
+    "area": "3D Particles",
+    "responsibility": "Default edge particle count",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L230"
+  },
+  "three.graph.linkDirectionalParticleSpeed": {
+    "area": "3D Particles",
+    "responsibility": "Default edge particle speed",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L242"
+  },
+  "three.graph.nodeSizingFormula": {
+    "area": "3D Formulas",
+    "responsibility": "Node sizing formula (schema or importance)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L256"
+  },
+  "three.graph.edgeWidthFormula": {
+    "area": "3D Formulas",
+    "responsibility": "Edge width formula (schema or weight)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L272"
+  },
+  "three.graph.layerOpacityByLayer.1": {
+    "area": "3D Layers",
+    "responsibility": "Layer 1 base opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L288"
+  },
+  "three.graph.layerOpacityByLayer.2": {
+    "area": "3D Layers",
+    "responsibility": "Layer 2 base opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L305"
+  },
+  "three.graph.layerOpacityByLayer.3": {
+    "area": "3D Layers",
+    "responsibility": "Layer 3 base opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L322"
+  },
+  "three.graph.nodeMotionIntensity": {
+    "area": "3D Motion",
+    "responsibility": "Idle node motion intensity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L339"
+  },
+  "three.graph.minimapOpacity": {
+    "area": "3D Minimap",
+    "responsibility": "3D minimap background opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L351"
+  },
+  "three.graph.starfieldEnabled": {
+    "area": "3D Background",
+    "responsibility": "Enable 3D starfield particle background",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L363"
+  },
+  "three.graph.starfieldCount": {
+    "area": "3D Background",
+    "responsibility": "Starfield particle count (0 disables)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L375"
+  },
+  "three.graph.starfieldRadius": {
+    "area": "3D Background",
+    "responsibility": "Starfield radius around camera",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L387"
+  },
+  "three.graph.starfieldOpacity": {
+    "area": "3D Background",
+    "responsibility": "Starfield particle brightness/opacity",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L401"
+  },
+  "three.graph.starfieldColor": {
+    "area": "3D Background",
+    "responsibility": "Starfield particle tint color",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L413"
+  },
+  "three.layout.sphereRadius": {
+    "area": "3D Layout & Physics",
+    "responsibility": "Base sphere radius for node layout",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L425"
+  },
+  "three.layout.seed": {
+    "area": "3D Layout & Physics",
+    "responsibility": "Random seed for 3D layout",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L437"
+  },
+  "three.layout.minSpacing": {
+    "area": "3D Layout & Physics",
+    "responsibility": "Minimum spacing between nodes",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L449"
+  },
+  "three.preset.presentation3d": {
+    "area": "3D Presets",
+    "responsibility": "Apply low-motion presentation 3D preset",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-presets.ts",
+      "canvas/src/hooks/store/canvasSlice.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setCanvasRenderMode",
+      "setThreeConfig"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9"
+  },
+  "CLICK_URL": {
+    "area": "Config Constants",
+    "responsibility": "Toolbar badge click URL",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-presets.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "import.meta.env"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L47"
+  },
+  "PUBLIC_FALLBACK_JSON": {
+    "area": "Dataset Loading",
+    "responsibility": "Fallback dataset path",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-presets.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "import.meta.env"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L54"
+  },
+  "KG_INPUT_PATH": {
+    "area": "Pipeline Env",
+    "responsibility": "Pipeline input path",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-presets.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "window.__ENV__"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L61"
+  },
+  "KG_OUTPUT_DIR": {
+    "area": "Pipeline Env",
+    "responsibility": "Pipeline output directory",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-presets.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "window.__ENV__"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L68"
+  },
+  "max-lines": {
+    "area": "ESLint Guard",
+    "responsibility": "Max lines per file",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-presets.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "eslint"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L75"
   }
 }

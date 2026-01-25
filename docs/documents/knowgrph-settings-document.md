@@ -22,13 +22,39 @@
 
 ---
 
+## Settings UI Tooltip Semantics
+
+**Scope**: MainPanel → Settings → key/value rows (hover tooltips)
+
+**Key tooltip (max 50 words)**
+- Format: `Role → Actions → Outcome`
+- Semantics: one atomic role, 1–2 atomic actions, one concrete outcome
+
+**Value tooltip (max 15 words)**
+- Format: `Default: …; Min: …; Max: …; Interval: …; Impact: …`
+- Semantics: include default; include min/max/interval when applicable; describe impact succinctly
+
+**Implementation anchors**
+- Tooltip builders: `canvas/src/lib/config-copy/tooltips.ts` (`buildRoleActionOutcomeTooltip`, `buildNumericTooltip`)
+- Settings UI surface: `canvas/src/features/panels/views/SettingsView.tsx`
+
+**Interaction**
+- Hover key label → show key tooltip
+- Hover value control → show value tooltip (no separate icon affordance)
+
+**Expanded details row (click to expand)**
+- Render only: `Modules | Classes/Objects | Functions/Methods`
+
+---
+
 ## Component Responsibility Matrix
 
 | Layer/Subsystem       | Path/Module                                   | Component                   | Interface/Method            | Responsibility (S-V-O)                                                                        | Dependencies                          | Contracts                                         | LOC    |
 |-----------------------|-----------------------------------------------|-----------------------------|-----------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------|---------------------------------------------------|--------|
-| Settings Extraction   | `scripts/buildSettings.ts`                    | Settings Builder            | `extractSettingsFromMarkdown` | Script → reads markdown table → parses settings flow → generates JSON schema                | `knowgrph-codebase-responsibility-flow.md` | Outputs `settings-flow.json`, `settings-flow.schema.json` | ~300 |
-| Settings Store        | `canvas/src/store/settingsStore.ts`           | Settings Zustand Store      | `useSettings`               | Store → manages runtime settings → validates updates → persists to localStorage              | Zustand, JSON schema                  | Type-safe settings state with validation          | ~200   |
-| Settings UI           | `canvas/src/features/settings/SettingsPanel.tsx` | Settings Panel           | `render`                    | Panel → displays settings controls → handles user input → updates store                      | `useSettings` hook                    | React component with form controls                | ~400   |
+| Settings Extraction   | `canvas/src/cli/extract-settings-schema.ts`   | Settings Flow Builder       | `deriveFromCode`, `buildFromMarkdown` | Script → derives setting responsibilities and module traces → writes Settings flow artifacts | `canvas/src/features/settings/registry.ts`, `SettingsFallbackDetails.ts` | Outputs `knowgrph-codebase-responsibility-flow.md`, `settings-flow.json`, `settings-flow.schema.json` | ~300 |
+| Settings Registry     | `canvas/src/features/settings/registry.ts`    | Settings Registry           | `settingsRegistry`, `loadFlowDetails` | Registry → enumerates all setting keys → provides flow metadata to Settings UI               | `registry-ui*`, `registry-three`, `registry-presets` | Single settings list used for docs, UI, and JSON-LD export | ~40 |
+| Settings Store        | `canvas/src/hooks/useGraphStore.ts`           | Graph Store (Zustand)       | `set*` setters              | Store → owns runtime setting state → persists when needed                                    | Zustand, localStorage helpers         | Stable setting setter APIs consumed by registry and UI | ~800+ |
+| Settings UI           | `canvas/src/features/panels/views/SettingsView.tsx` | MainPanel Settings View  | `SettingsView`, `useSettingsView` | UI → renders key/type/value rows → batches updates via Apply/Reset                           | Tooltip builders, registry, flow schema | Hover tooltips + click-to-expand modules/classes/functions | ~300 |
 | Theme Mode             | `canvas/src/hooks/store/uiSettingsSlice.ts`, `canvas/src/lib/ui/theme.ts`, `canvas/src/App.tsx` | Theme Mode Sync | `setThemeMode`, `applyThemeMode`, `subscribeToSystemThemeChanges` | Store → persists `themeMode` → applies `data-theme` + `.dark` → syncs with OS when mode=system | Zustand, localStorage, matchMedia | DOM theme aligned for CSS vars + Tailwind `dark:` | ~120 |
 
 ---
@@ -39,17 +65,16 @@
 
 **Command**: `npm run build:settings`
 
-**Source Document**: `knowgrph-codebase-responsibility-flow.md` at repository root
+**Source Document**: `knowgrph-codebase-responsibility-flow.md` at repository root (build script bootstraps/rewrites it from code-derived defaults; markdown rows can override inferred fields)
 
 **Processing Flow**:
 
 | Stage              | Input                          | Output                         | Responsibility                                              | Performance Consideration                    |
 |--------------------|--------------------------------|--------------------------------|-------------------------------------------------------------|----------------------------------------------|
-| Document Reading   | Markdown file path             | Markdown text                  | Read settings flow table from responsibility doc            | O(n) file read, typically <100 KB            |
-| Table Parsing      | Markdown text                  | Table rows                     | Extract settings table rows using regex                     | O(n) markdown parsing                        |
-| Setting Extraction | Table rows                     | Setting objects                | Parse each row into structured setting descriptor           | O(rows) iteration                            |
-| Schema Generation  | Setting objects                | JSON Schema                    | Generate JSON Schema with types, bounds, defaults           | O(settings) schema construction              |
-| File Writing       | JSON Schema                    | Disk files                     | Write `settings-flow.json` and `settings-flow.schema.json`  | O(1) JSON serialization + disk I/O           |
+| Document Reading   | Markdown file path             | Markdown text                  | Read settings flow table from responsibility doc (optional) | O(n) file read, typically <100 KB            |
+| Code Derivation    | Settings registry + store code | Inferred flow rows             | Derive areas/modules/functions from runtime settings code   | O(files) scan over settings + store slices   |
+| Merge              | Markdown rows + inferred rows  | Final flow rows                | Prefer non-placeholder markdown overrides over inferred rows | O(settings) merge                             |
+| File Writing       | Final flow rows                | Disk files                     | Write flow doc + JSON artifacts used by Settings UI         | O(1) JSON serialization + disk I/O           |
 
 **Performance Metrics** (macOS dev machine):
 
@@ -357,7 +382,7 @@ graphHoverPreview.showEdgeProperties:
 
 ---
 
-## Fallback Behavior
+## Bootstrap Behavior
 
 ### Source Document Missing
 
@@ -365,27 +390,12 @@ graphHoverPreview.showEdgeProperties:
 
 **Behavior**:
 
-| Action                  | Implementation                                      | Output                                      |
-|-------------------------|-----------------------------------------------------|---------------------------------------------|
-| Fallback to defaults    | Load minimal default schema with core settings only | `settings-flow.json` with minimal config    |
-| Print warning to stdout | Log "source doc missing, defaults only" message     | Visible in build output                     |
-| Proceed with build      | Do not fail build process                           | Canvas uses default settings at runtime     |
-
-**Default Settings Schema**:
-
-```json
-{
-  "themeMode": {"type": "string", "enum": ["light", "dark", "system"], "default": "light"},
-  "selectionFlashDurationMs": {"type": "number", "minimum": 100, "maximum": 2000, "default": 800}
-}
-```
-
-**Design Compliance**:
-
-| Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
-|-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
-| Missing File Detection| Check source availability     | - [ ] Attempt to read source doc; log warning on failure; forbid silent fallback            | Settings builder          | `detectSourceDoc`    | file path                 | file exists boolean   | fs.existsSync check + console.warn      |
-| Default Schema Loading| Provide minimal config        | - [ ] Load hardcoded defaults; write to output; forbid empty schema                        | Settings builder          | `loadDefaultSchema`  | void                      | default schema object | hardcoded minimal schema object         |
+| Action                     | Implementation                                      | Output                                             |
+|----------------------------|-----------------------------------------------------|----------------------------------------------------|
+| Bootstrap from code         | Derive flow rows from `settingsRegistry` + store setters | Flow rows with modules/classes/functions populated |
+| Write source doc            | Emit `knowgrph-codebase-responsibility-flow.md`      | Canonical flow doc created at repo root            |
+| Write JSON artifacts        | Emit Settings UI flow JSON files                     | `canvas/public/settings-flow.json` + `canvas/src/features/settings/settings-flow.schema.json` |
+| Proceed with build          | Do not fail build process                            | Settings UI always has flow metadata               |
 
 ---
 
@@ -421,7 +431,7 @@ graphHoverPreview.showEdgeProperties:
 | Context              | Status | Directive                                                                                   |
 |----------------------|--------|---------------------------------------------------------------------------------------------|
 | Source Doc Presence  | ☐      | - [ ] `knowgrph-codebase-responsibility-flow.md` exists at repo root; forbid missing source|
-| Schema Output        | ☐      | - [ ] `settings-flow.json` and `settings-flow.schema.json` generated; forbid missing output|
+| Schema Output        | ☐      | - [ ] `canvas/public/settings-flow.json` and `canvas/src/features/settings/settings-flow.schema.json` generated; forbid missing output|
 | Build Performance    | ☐      | - [ ] `build:settings` completes in <1s; forbid slow extraction                            |
 
 **Settings Quality**:
@@ -438,7 +448,7 @@ graphHoverPreview.showEdgeProperties:
 
 | Context              | Intent                          | Directive                                                                                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
-| Manual Schema Sync   | Automate schema generation      | - [ ] Extract from markdown; forbid manual JSON Schema editing                              |
-| Hardcoded Settings   | Externalize configuration       | - [ ] Read from markdown table; forbid inline setting definitions in code                   |
+| Manual Schema Sync   | Automate schema generation      | - [ ] Prefer build script output; forbid hand-editing generated JSON artifacts              |
+| Hardcoded Settings   | Externalize configuration       | - [ ] Keep settings in registry + store setters; forbid ad-hoc settings in random modules  |
 | Unbounded Values     | Enforce validation              | - [ ] Apply min/max/enum constraints; forbid accepting arbitrary values                     |
-| Silent Fallbacks     | Log missing source              | - [ ] Print warning when source missing; forbid silent default loading without notification|
+| Silent Fallbacks     | Make bootstrap explicit         | - [ ] When source doc is missing, regenerate it; forbid silent empty-flow output            |

@@ -151,7 +151,7 @@ export function useSettingsView({
 
   const entries = React.useMemo(() => {
     return settingsRegistry.map((s) => {
-      const source = flow[s.docKey || s.key]
+      const source = flow[s.key] || (s.docKey ? flow[s.docKey] : undefined)
       const details = {
         area: source?.area || FALLBACK_DETAILS[s.key]?.area || '—',
         modules: source?.modules || [],
@@ -177,6 +177,7 @@ export function useSettingsView({
       const anchorId = s.key === 'uiIconScale' ? UI_ANCHORS.settingsUiIconScale : undefined
       return { meta: s, details, writable: !!s.write, index, anchorId }
     })
+      .filter(entry => entry.writable)
       .filter(entry => !shouldHideSetting(entry.meta.key, entry.details.area))
   }, [flow, shouldHideSetting])
 
@@ -234,17 +235,6 @@ export function useSettingsView({
     })
   }, [saveCollapsed])
 
-  const setUiPanelKeyValueTextSizeClass = useGraphStore(s => s.setUiPanelKeyValueTextSizeClass)
-  const setUiPanelTextFontClass = useGraphStore(s => s.setUiPanelTextFontClass)
-  const setUiPanelKeyValueInputClass = useGraphStore(s => s.setUiPanelKeyValueInputClass)
-  const setUiPanelRowDensityDefaultClass = useGraphStore(
-    s => s.setUiPanelRowDensityDefaultClass,
-  )
-  const setUiPanelMonospaceTextClass = useGraphStore(s => s.setUiPanelMonospaceTextClass)
-  const setUiPanelMicroLabelTextSizeClass = useGraphStore(
-    s => s.setUiPanelMicroLabelTextSizeClass,
-  )
-
   React.useEffect(() => {
     if (onRegisterActions) {
       onRegisterActions({
@@ -286,11 +276,5 @@ export function useSettingsView({
     collapseAll,
     expandAll,
     toggleArea,
-    setUiPanelKeyValueTextSizeClass,
-    setUiPanelTextFontClass,
-    setUiPanelKeyValueInputClass,
-    setUiPanelRowDensityDefaultClass,
-    setUiPanelMonospaceTextClass,
-    setUiPanelMicroLabelTextSizeClass,
   }
 }

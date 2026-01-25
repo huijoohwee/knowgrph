@@ -154,7 +154,7 @@ export function KeyTypeValueRow({
   }
 
   const rootClassName = [
-    'grid w-full grid-cols-3 gap-1 rounded',
+    'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,0.52fr)_minmax(0,0.16fr)_minmax(0,0.32fr)] gap-x-2 gap-y-1 rounded',
     activeClass,
     uiPanelKeyValueTextSizeClass,
     uiPanelTextFontClass,

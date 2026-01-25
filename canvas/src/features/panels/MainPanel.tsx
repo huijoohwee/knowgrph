@@ -121,7 +121,7 @@ export default function MainPanel({
       collapsed={collapsed}
       searchVisible={
         searchOpen &&
-        (tab === 'help' || tab === 'graphFields' || tab === 'settings')
+        (tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow')
       }
       searchPlaceholder={
         tab === 'help'
@@ -130,6 +130,8 @@ export default function MainPanel({
           ? UI_COPY.searchFieldsPlaceholder
           : tab === 'settings'
           ? UI_COPY.searchSettingsPlaceholder
+          : tab === 'workflow'
+          ? UI_LABELS.search
           : 'Search'
       }
       searchQuery={search}
@@ -176,7 +178,7 @@ export default function MainPanel({
           onPinToggle={onPinToggle}
           pinned={pinned}
           onSearchToggle={
-            tab === 'help' || tab === 'graphFields' || tab === 'settings'
+            tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow'
               ? () => setSearchOpen(v => !v)
               : undefined
           }
@@ -244,7 +246,7 @@ export default function MainPanel({
               ].join(' ')}
               data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
             >
-              <WorkflowSection onRegisterActions={setWorkflowActions} />
+              <WorkflowSection searchQuery={search} onRegisterActions={setWorkflowActions} />
             </div>
           </MainPanelBody>
         )}

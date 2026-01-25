@@ -35,6 +35,101 @@ export function buildRoleActionOutcomeTooltip(options: RoleActionOutcomeTooltipO
   return `${options.role} \u2192 ${actionsPart} \u2192 ${options.outcome}`;
 }
 
+function countWords(text: string): number {
+  const normalized = String(text || '').trim().replace(/\s+/g, ' ')
+  if (!normalized) return 0
+  return normalized.split(' ').filter(Boolean).length
+}
+
+function truncateWords(text: string, maxWords: number): string {
+  const normalized = String(text || '').trim().replace(/\s+/g, ' ');
+  if (!normalized) return '';
+  const words = normalized.split(' ');
+  if (words.length <= maxWords) return normalized;
+  return `${words.slice(0, Math.max(0, maxWords)).join(' ')}\u2026`;
+}
+
+function extractClampRangeFromNotes(notes: string): { min?: number; max?: number } {
+  const raw = String(notes || '');
+  const m = raw.match(/clamps\s+to\s*\[\s*([0-9]*\.?[0-9]+)\s*,\s*([0-9]*\.?[0-9]+)\s*\]/i);
+  if (!m) return {};
+  const min = Number(m[1]);
+  const max = Number(m[2]);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return {};
+  return { min, max };
+}
+
+function extractIntervalFromNotes(notes: string): number | undefined {
+  const raw = String(notes || '')
+  const m = raw.match(/\b(?:interval|step)\s*(?:=|:)?\s*([0-9]*\.?[0-9]+)\b/i)
+  if (!m) return undefined
+  const value = Number(m[1])
+  if (!Number.isFinite(value)) return undefined
+  return value
+}
+
+function toTooltipRole(area: string): string {
+  const raw = String(area || '').trim()
+  if (!raw || raw === '\u2014') return 'Settings'
+  return raw
+}
+
+export function buildSettingsKeyTooltip(params: {
+  area: string;
+  key: string;
+  responsibility: string;
+}): string {
+  const role = toTooltipRole(params.area);
+  const tooltip = buildRoleActionOutcomeTooltip({
+    role,
+    actions: [`edit ${params.key} in MainPanel \u2192 Settings`, 'apply changes via MainPanel header'],
+    outcome: params.responsibility || 'update runtime behavior',
+  });
+  return truncateWords(tooltip, 50);
+}
+
+export function buildSettingsValueTooltip(params: {
+  type: string;
+  key: string;
+  defaultValue: string | number | boolean | null;
+  options?: string[];
+  notes?: string;
+  impact?: string;
+}): string {
+  const maxWords = 15
+  const segments: string[] = []
+  const impactRaw = String(params.impact || '').trim()
+
+  const defaultLabel =
+    params.type === 'boolean'
+      ? typeof params.defaultValue === 'boolean'
+        ? String(params.defaultValue)
+        : 'false'
+      : typeof params.defaultValue === 'number' && Number.isFinite(params.defaultValue)
+        ? String(params.defaultValue)
+        : typeof params.defaultValue === 'string' && params.defaultValue.trim().length > 0
+          ? params.defaultValue.trim()
+          : '—'
+
+  segments.push(`Default: ${defaultLabel}`)
+
+  if (params.type === 'number') {
+    const { min, max } = extractClampRangeFromNotes(params.notes || '')
+    const interval = extractIntervalFromNotes(params.notes || '')
+    if (typeof min !== 'undefined') segments.push(`Min: ${min}`)
+    if (typeof max !== 'undefined') segments.push(`Max: ${max}`)
+    if (typeof interval !== 'undefined') segments.push(`Interval: ${interval}`)
+  }
+
+  const base = segments.join('; ')
+  const baseWords = countWords(base)
+  const remaining = Math.max(0, maxWords - baseWords)
+  const impact =
+    impactRaw.length > 0 && remaining > 0 ? truncateWords(impactRaw, remaining) : ''
+  const final = [base, impact].filter(Boolean).join('; ')
+  return truncateWords(final, maxWords)
+}
+
 export function buildSettingsAreaTooltip(area: string, responsibility?: string): string {
   const normalizedResponsibility = responsibility ? responsibility.trim() : '';
   const base =

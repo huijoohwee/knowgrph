@@ -78,8 +78,6 @@ export function ToolbarToolMenuAreasInspector() {
     onExportSelectionValidationMarkdown: () => {},
     onToolMenuAction: () => {},
     onOpenWorkflowTab: () => {},
-    onOpenData: () => {},
-    onRunPipeline: () => {},
   }
 
   return (

@@ -1,6 +1,5 @@
 import { useCallback } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { useParserWorkflowState } from '@/features/parsers/useParserWorkflowState'
 import { useWorkflowExportActions } from '@/features/panels/hooks/useWorkflowExportActions'
@@ -126,12 +125,6 @@ export function useWorkspaceActionsModel(args?: { searchQuery?: string }) {
     importSettingsJsonLd,
   })
 
-  const handleOpenData = useCallback(() => {
-    if (dataLoadOk === true) {
-      openBottomPanel('data')
-    }
-  }, [dataLoadOk])
-
   const panelProps: ToolbarToolMenuAreasProps = {
     dataLoadOk,
     dataLoadMsg,
@@ -201,16 +194,12 @@ export function useWorkspaceActionsModel(args?: { searchQuery?: string }) {
     onExportSelectionValidationMarkdown: hasSelection ? exportSelectionValidationMarkdown : undefined,
     onToolMenuAction: handleToolMenuAction,
     onOpenWorkflowTab: openWorkflowTab,
-    onOpenData: handleOpenData,
-    onRunPipeline: menu.handleRunCodebaseIndexPipeline,
-    onRunDemo: undefined,
     searchQuery: searchQuery || '',
   }
 
   return {
     panelProps,
     handleToolMenuAction,
-    pipelineStatus: menu.pipelineStatus,
     closeAllMenus: menu.closeAllMenus,
   }
 }

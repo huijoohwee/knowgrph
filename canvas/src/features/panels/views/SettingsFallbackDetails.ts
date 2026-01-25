@@ -102,10 +102,12 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   selectionFlashDurationMs: {
     area: 'Selection Flash',
     responsibility: 'Duration of canvas-driven selection flash highlights (ms)',
+    notes: 'clamps to [100,2000]',
   },
   selectionFlashOpacity: {
     area: 'Selection Flash',
     responsibility: 'Opacity of canvas-driven selection flash highlights',
+    notes: 'clamps to [0,1]',
   },
   bottomPanelHeightRatio: { area: 'Bottom Panel Layout', responsibility: 'Bottom panel height ratio' },
   floatingPanelWidthRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel width ratio (viewport)' },

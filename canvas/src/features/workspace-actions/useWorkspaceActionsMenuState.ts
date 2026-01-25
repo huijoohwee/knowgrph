@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react'
-import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions'
 
 type WorkspaceActionsMenuKey =
   | 'sourceFilesImport'
@@ -32,7 +31,6 @@ export function useWorkspaceActionsMenuState() {
   const [isSettingsExportMenuOpen, setIsSettingsExportMenuOpen] = useState(false)
   const [isHistoryExportMenuOpen, setIsHistoryExportMenuOpen] = useState(false)
   const [isValidationExportMenuOpen, setIsValidationExportMenuOpen] = useState(false)
-  const [pipelineStatus, setPipelineStatus] = useState<string | null>(null)
 
   const closeAllMenusExcept = useCallback((except: WorkspaceActionsMenuKey | null) => {
     if (except !== 'sourceFilesImport') setIsSourceFilesImportMenuOpen(false)
@@ -54,10 +52,6 @@ export function useWorkspaceActionsMenuState() {
   const closeAllMenus = useCallback(() => {
     closeAllMenusExcept(null)
   }, [closeAllMenusExcept])
-
-  const handleRunCodebaseIndexPipeline = useCallback(async () => {
-    await runMarkdownPipelineWithStatus(setPipelineStatus)
-  }, [])
 
   return {
     isSourceFilesImportMenuOpen,
@@ -88,10 +82,7 @@ export function useWorkspaceActionsMenuState() {
     setIsHistoryExportMenuOpen,
     isValidationExportMenuOpen,
     setIsValidationExportMenuOpen,
-    pipelineStatus,
-    setPipelineStatus,
     closeAllMenus,
     closeAllMenusExcept,
-    handleRunCodebaseIndexPipeline,
   }
 }

@@ -58,6 +58,7 @@ interface WorkflowStepsProps {
   onToggleStep: (step: number, next: boolean) => void;
   hasSchema: boolean;
   graphDataLoaded: boolean;
+  searchQuery?: string;
   onOpenSchemaTab: () => void;
   onOpenRenderTab: () => void;
   onOpenOrchestratorTab: () => void;
@@ -89,6 +90,7 @@ export function WorkflowSteps({
   onToggleStep,
   hasSchema,
   graphDataLoaded,
+  searchQuery,
   onOpenSchemaTab,
   onOpenRenderTab,
   onOpenOrchestratorTab,
@@ -159,7 +161,7 @@ export function WorkflowSteps({
         <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
           {WORKFLOW_STEP_COPY[3].descriptionShort}
         </div>
-        <WorkspaceActionsStep />
+        <WorkspaceActionsStep searchQuery={searchQuery} />
         <div className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
           <div className="mb-1">Or start with an example dataset:</div>
           <div className="flex flex-wrap gap-1">
