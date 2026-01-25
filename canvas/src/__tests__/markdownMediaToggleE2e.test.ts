@@ -22,7 +22,7 @@ import {
 
 export async function testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo() {
   const markdownLines = readFileSync(
-    resolve(process.cwd(), 'src', '__tests__', 'demo', 'markdown-slide-demo.md'),
+    resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md'),
     'utf8',
   ).split('\n')
 

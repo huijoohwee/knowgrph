@@ -381,7 +381,7 @@ export async function testMarkdownPresentationVClickAndVMarkVisibilityFromSlideD
     const doc = dom.window.document
 
     const markdownText = readFileSync(
-      resolve(process.cwd(), 'canvas', 'src', '__tests__', 'demo', 'markdown-slide-demo.md'),
+      resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md'),
       'utf8',
     )
 

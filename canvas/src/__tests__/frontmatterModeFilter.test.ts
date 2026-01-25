@@ -5,7 +5,7 @@ import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 
 export const testFrontmatterModeFiltersToFrontmatterMermaidOnly = () => {
-  const mdPath = resolve(process.cwd(), 'src', '__tests__', 'demo', 'markdown-slide-demo.md')
+  const mdPath = resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md')
   const markdown = readFileSync(mdPath, { encoding: 'utf8' })
   const jsonld = buildMarkdownJsonLd(mdPath, markdown)
   const graph = parseJsonLd(jsonld)
@@ -32,4 +32,3 @@ export const testFrontmatterModeFiltersToFrontmatterMermaidOnly = () => {
     }
   }
 }
-

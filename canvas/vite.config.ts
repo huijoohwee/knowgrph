@@ -666,6 +666,9 @@ const youtubeConvertDevPlugin = {
 
 
 export default defineConfig(({ command }) => ({
+  optimizeDeps: {
+    include: ['highlight.js', 'dayjs', 'mermaid'],
+  },
   build: {
     sourcemap: 'hidden',
     chunkSizeWarningLimit: 500,
@@ -681,9 +684,34 @@ export default defineConfig(({ command }) => ({
     },
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+    preserveSymlinks: true,
+    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid'],
+    alias: [
+      {
+        find: /^@\/components\/BottomPanel\/(.*)$/,
+        replacement: path.resolve(__dirname, './node_modules/curagrph/src/components/BottomPanel/$1'),
+      },
+      {
+        find: /^@\/features\/graph-data-table\/(.*)$/,
+        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/graph-data-table/$1'),
+      },
+      {
+        find: /^@\/features\/json\/(.*)$/,
+        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/json/$1'),
+      },
+      {
+        find: /^@\/features\/markdown\/(.*)$/,
+        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/markdown/$1'),
+      },
+      {
+        find: /^@\/features\/panels\/views\/preview-panel\/ui\/(.*)$/,
+        replacement: path.resolve(
+          __dirname,
+          './node_modules/curagrph/src/features/panels/views/preview-panel/ui/$1',
+        ),
+      },
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+    ]
   },
   server: {
     port: 5173,

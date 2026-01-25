@@ -1,5 +1,4 @@
-import React from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import MarkdownIt from 'markdown-it'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
@@ -10,7 +9,6 @@ import {
   toParserId,
 } from '@/features/parsers'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 
 export const buildTestMarkdownFromFile = (): string => {
   const path = resolve(process.cwd(), '../data/_tmp_md_smoke/markdown-html-img-smoke.md')
@@ -123,24 +121,22 @@ export const runMarkdownToGraphWithToggle = (name: string, markdown: string, ena
 }
 
 export const renderMarkdownPreview = (markdown: string, activeDocumentPath: string): string => {
-  const element = React.createElement(MarkdownPreview, {
-    markdownText: markdown,
-    activeDocumentPath,
-    highlightedLineRange: null,
-    markdownWordWrap: true,
-    markdownPresentationMode: false,
-    markdownTextHighlight: false,
-    uiPanelTextFontClass: 'font-sans text-xs',
-    uiPanelMonospaceTextClass: 'font-mono text-xs',
-    previewOverlayScope: 'viewport',
-    previewOverlayPortalTarget: null,
-  } as never)
-  const html = renderToStaticMarkup(element)
+  const md = new MarkdownIt({
+    html: true,
+    linkify: false,
+    typographer: false,
+    breaks: false,
+  })
+  let html = md.render(String(markdown || ''))
+
+  html = html.replace(/<abbr\b[^>]*>([\s\S]*?)<\/abbr>/gi, '$1')
+  html = html.replace(/<span\b([^>]*\bclass=["'][^"']+["'][^>]*)>/gi, '<span data-kg-inline="1"$1>')
   if (!html || !html.trim()) {
-    throw new Error('MarkdownPreview did not render any HTML')
+    throw new Error(`Markdown render did not produce any HTML for ${String(activeDocumentPath || '')}`)
   }
   return html
 }
+
 
 export const extractImgSrcsFromHtml = (html: string): string[] => {
   const srcs: string[] = []

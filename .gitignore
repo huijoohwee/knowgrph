@@ -12,6 +12,9 @@ dist/
 build/
 coverage/
 
+git-error-*
+/git-error-*
+
 data/outputs/
 logs/
 *.log

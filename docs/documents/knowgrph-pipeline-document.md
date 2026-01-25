@@ -275,7 +275,7 @@ provenance_tracking: {track_lineage, versioning_strategy}
 |------|----------------------------------------|------------------------------------------|-------------------------------------|
 | 1    | Edit markdown documentation            | Manual editing in `docs/documents/`      | —                                   |
 | 2    | Run pipeline via Canvas UI             | Tools menu → "Run codebase index pipeline" | Vite dev server                   |
-| 3    | Load generated artifacts               | `runMarkdownPipelineAndLoadArtifacts()`  | Graph Data Table, Schema, Workflow views |
+| 3    | Load generated artifacts               | `runMarkdownPipelineAndLoadArtifacts()`  | Graph Data Table (curagrph), Schema + Workflow views (Knowgrph host) |
 | 4    | Validate in Canvas                     | Visual inspection, traversal tests       | Canvas UI layers                    |
 | 5    | Update docs with findings              | `npm run docs:update`                    | Preview artifacts                   |
 

@@ -48,13 +48,15 @@ mermaid: |
       S4_Store --> S4_Alert
     end
     S1_Port --> S2_Decide
-    S2_Join --> S3_Render
-    S3_End --> S4_Pub
 ---
 
 # Markdown Slide Styling Guidelines
 
 Universal syntax guide for presentation frameworks
+
+Hover over this term: <abbr title="Knowgrph Canvas Viewer">Canvas Viewer</abbr>
+
+<span class="text-emerald-400 font-semibold">Tailwind‑style span with custom color</span>
 
 > Status: This document distinguishes between **fully supported semantics** in the Knowgrph canvas markdown viewer and **structurally accepted only** features that are rendered as plain content without special behavior.
 

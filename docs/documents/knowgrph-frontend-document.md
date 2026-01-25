@@ -65,7 +65,7 @@
 - **Graph Visualization**:
   - `canvas/src/components/GraphCanvas.tsx` implements node/edge rendering, selection handling, and layout modes (semantic, document, schema-centric).
 - **Panel System**:
-  - `canvas/src/features/panels/` organizes main panel (workflow, schema, settings), bottom panel (markdown, parsers, tables), and floating panels (props, orchestrator).
+  - `canvas/src/features/panels/` organizes main panel (workflow, schema, settings), floating panels (props, orchestrator), and hosts Graph Data surfaces implemented in `curagrph/src` (BottomPanel markdown/parsers/tables + preview gallery + JSON editor) via `node_modules/curagrph/src` aliasing and dependency dedupe.
 - **State Management**:
   - `canvas/src/hooks/store/useGraphStore.ts` coordinates graph data, schema, workflows, UI settings, and panel layout via Zustand slices.
 - **Parsers & Loaders**:
@@ -350,7 +350,7 @@ semantic_html:
 | UI Settings     | `canvas/src/hooks/store/uiSettingsSlice.ts`  | UISettings          | `setIconScale`          | Slice updates scale → writes to localStorage → notifies components → reapplies styles | localStorage, LS_KEYS           | Persists UI density preferences       | ~200   |
 | Orchestrator    | `canvas/src/features/orchestrator/`          | Orchestrator        | `executeWorkflow`       | Orchestrator reads config → executes steps → tracks context → surfaces results        | workflow config, GraphRAG       | Serializable workflow state           | ~600   |
 | Theme           | `canvas/src/hooks/store/uiSettingsSlice.ts`  | ThemeManager        | `setTheme`              | Manager updates mode → applies DOM attributes → triggers re-renders → persists choice | localStorage, UI_THEME_TOKENS   | Consistent color palette application  | ~150   |
-| Markdown        | `canvas/src/features/markdown/`              | MarkdownSection     | `renderViewer`          | Section lexes tokens → shares with views → syncs scroll → handles selection          | marked, Monaco, useGraphStore   | Bidirectional canvas ↔ markdown sync  | ~500   |
+| Markdown        | `curagrph/src/features/markdown/`            | MarkdownSection     | `renderViewer`          | Section lexes tokens → shares with views → syncs scroll → handles selection          | markdown-it, Monaco, useGraphStore | Bidirectional canvas ↔ markdown sync  | ~500   |
 | Media Panels    | `canvas/src/components/MediaNode.tsx`        | MediaNode           | `renderPanel`           | Node renders media → scales to density → handles zoom → displays in panel-only mode  | schema, UI_THEME_TOKENS         | 16:9 aspect ratio, minimap sizing     | ~400   |
 
 ---

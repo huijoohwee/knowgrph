@@ -5,7 +5,7 @@ import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { deriveMarkdownHeadingGroups } from '@/components/GraphCanvas/layout/markdownHeadingGroups'
 
 export const testMarkdownHeadingGroupsDerivation = () => {
-  const mdPath = resolve(process.cwd(), 'src', '__tests__', 'demo', 'markdown-slide-demo.md')
+  const mdPath = resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md')
   const markdown = readFileSync(mdPath, { encoding: 'utf8' })
   const jsonld = buildMarkdownJsonLd(mdPath, markdown)
   const graph = parseJsonLd(jsonld)
@@ -40,4 +40,3 @@ export const testMarkdownHeadingGroupsDerivation = () => {
     }
   }
 }
-
