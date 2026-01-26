@@ -78,6 +78,9 @@ export type SourceFile = {
   geoLayerEnabled?: boolean
   status: 'idle' | 'loading' | 'parsed' | 'error'
   error?: string
+  parsedParserId?: string
+  parsedTextHash?: string
+  parsedGraphData?: GraphData
   source?: {
     kind: 'url' | 'local'
     url?: string
@@ -141,6 +144,7 @@ export interface GraphState {
   lifecycleStage: 'idle' | 'reset' | 'hydrated' | 'committed' | 'rendering' | 'selectionUpdate' | 'edgeMutate' | 'zoomUpdate' | 'minimapQuick' | 'minimapAsync';
   setLifecycleStage: (stage: 'idle' | 'reset' | 'hydrated' | 'committed' | 'rendering' | 'selectionUpdate' | 'edgeMutate' | 'zoomUpdate' | 'minimapQuick' | 'minimapAsync') => void;
   setGraphData: (data: GraphData) => void;
+  setGraphDataPreservingLayout: (data: GraphData) => void;
   resyncGraphFieldsFromGraphData: () => void;
   clearGraphData: () => void;
   updateNode: (id: string, updates: Partial<GraphNode>) => void;

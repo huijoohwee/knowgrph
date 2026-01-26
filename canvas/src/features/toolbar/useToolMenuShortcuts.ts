@@ -16,21 +16,6 @@ export function useToolMenuShortcuts(handleAction: (area: ToolMenuArea, action: 
       if (key === 'n') {
         ev.preventDefault()
         handleAction('sourceFiles', 'new')
-        return
-      }
-      if (key === 'i') {
-        ev.preventDefault()
-        handleAction('sourceFiles', 'import')
-        return
-      }
-      if (key === 'e') {
-        ev.preventDefault()
-        handleAction('sourceFiles', 'export')
-        return
-      }
-      if (key === 'backspace' || key === 'delete') {
-        ev.preventDefault()
-        handleAction('sourceFiles', 'clear')
       }
     }
     window.addEventListener('keydown', handler)

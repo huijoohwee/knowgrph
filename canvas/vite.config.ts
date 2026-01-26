@@ -159,6 +159,28 @@ const remoteFetchProxyDevPlugin = {
   },
 }
 
+const localGeoDatasetDevPlugin = {
+  name: 'knowgrph-local-geo-dataset-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      if (req.url?.startsWith('/__geo_upload') || req.url?.startsWith('/__geo_local/')) {
+        createLocalGeoDatasetHandler()(req, res, next)
+        return
+      }
+      next()
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use((req, res, next) => {
+      if (req.url?.startsWith('/__geo_upload') || req.url?.startsWith('/__geo_local/')) {
+        createLocalGeoDatasetHandler()(req, res, next)
+        return
+      }
+      next()
+    })
+  },
+}
+
 type PdfConvertResult = { ok: true; markdown: string; name: string } | { ok: false; error: string }
 
 function derivePdfNameFromUrl(urlParam: string): string {
@@ -427,6 +449,98 @@ function createPdfAssetsHandler(): import('vite').Connect.NextHandleFunction {
       res.statusCode = 404
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       res.end('Asset not found')
+    }
+  }
+}
+
+type LocalGeoDatasetEntry = { name: string; text: string; createdAtMs: number }
+const localGeoDatasetStore = new Map<string, LocalGeoDatasetEntry>()
+const LOCAL_GEO_DATASET_MAX_BYTES = 20 * 1024 * 1024
+const LOCAL_GEO_DATASET_TTL_MS = 30 * 60 * 1000
+
+function pruneLocalGeoDatasetStore(nowMs: number) {
+  for (const [k, v] of localGeoDatasetStore.entries()) {
+    if (nowMs - v.createdAtMs > LOCAL_GEO_DATASET_TTL_MS) {
+      localGeoDatasetStore.delete(k)
+    }
+  }
+}
+
+function createLocalGeoDatasetHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    const url = String(req.url || '')
+    const nowMs = Date.now()
+    pruneLocalGeoDatasetStore(nowMs)
+
+    if (url.startsWith('/__geo_local/')) {
+      const token = url.replace(/^\/__geo_local\//, '').replace(/\.geojson(\?.*)?$/i, '').trim()
+      if (!token) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Missing token' }))
+        return
+      }
+      const entry = localGeoDatasetStore.get(token)
+      if (!entry) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Not found' }))
+        return
+      }
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'application/geo+json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(entry.text)
+      return
+    }
+
+    if (!url.startsWith('/__geo_upload')) {
+      next()
+      return
+    }
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+
+    try {
+      const chunks: Buffer[] = []
+      let total = 0
+      await new Promise<void>((resolve, reject) => {
+        req.on('data', (chunk: Buffer) => {
+          total += chunk.length
+          if (total > LOCAL_GEO_DATASET_MAX_BYTES) {
+            reject(new Error('Payload too large'))
+            return
+          }
+          chunks.push(chunk)
+        })
+        req.on('end', () => resolve())
+        req.on('error', err => reject(err))
+      })
+      const raw = Buffer.concat(chunks).toString('utf8')
+      const parsed = JSON.parse(raw) as { name?: unknown; text?: unknown }
+      const name = typeof parsed?.name === 'string' ? parsed.name.trim() : ''
+      const text = typeof parsed?.text === 'string' ? parsed.text : ''
+      const trimmed = text.trim()
+      if (!trimmed) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Missing text' }))
+        return
+      }
+      const token = randomUUID()
+      localGeoDatasetStore.set(token, { name: name || 'local.geojson', text, createdAtMs: nowMs })
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'application/json')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify({ ok: true, url: `/__geo_local/${token}.geojson`, name: name || 'local.geojson' }))
+    } catch (error) {
+      const msg = error && typeof error === 'object' && 'message' in error ? String((error as any).message || '') : ''
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify({ ok: false, error: msg || 'Geo upload failed' }))
     }
   }
 }
@@ -753,6 +867,7 @@ export default defineConfig(({ command }) => ({
           }),
           markdownPipelineDevPlugin,
           remoteFetchProxyDevPlugin,
+          localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,
           youtubeConvertDevPlugin,
         ]),

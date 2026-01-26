@@ -119,3 +119,16 @@ export const IMPORT_EXPORT_STATUS_COPY = {
   graphRagWorkflowJsonInvalid: (message: string) => `GraphRAG workflow JSON invalid: ${message}`,
   importReadFileFailed: 'Import failed: unable to read file',
 } as const;
+
+export const SOURCE_FILES_FORMATS = {
+  import: ['.md', '.markdown', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.yaml', '.yml', '.pdf'] as const,
+  importLocalText: ['.md', '.markdown', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.yaml', '.yml'] as const,
+  export: ['.md', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.yaml'] as const,
+} as const
+
+export const SOURCE_FILES_COPY = {
+  supports:
+    'Supports import/export: .md .markdown .txt .geojson .json .jsonld .csv .html .htm .yaml .yml .pdf; URL sources: https://… (including YouTube).',
+  importUrlPrompt: 'Enter a Source File URL (https://… or YouTube).',
+  urlPlaceholder: 'https://… (or YouTube)',
+} as const

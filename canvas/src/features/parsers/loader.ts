@@ -19,6 +19,7 @@ import {
 export type LoaderResult = {
   parserId?: string
   name?: string
+  graphData?: GraphData
   counts?: { n: number; e: number }
   warnings?: string[]
   input?: { name: string; text: string }
@@ -137,13 +138,18 @@ export async function loadGraphDataFromBackendViaParser(url: string): Promise<Lo
   const text = fetched.inputText || ''
   return {
     name: fetched.name,
+    graphData: fetched.data,
     counts: { n: fetched.data.nodes.length, e: fetched.data.edges.length },
     warnings: fetched.warnings,
     input: text ? { name: fetched.name, text } : undefined,
   }
 }
 
-export async function loadGraphDataFromTextViaParser(name: string, text: string): Promise<LoaderResult | null> {
+export async function loadGraphDataFromTextViaParser(
+  name: string,
+  text: string,
+  options?: { applyToStore?: boolean },
+): Promise<LoaderResult | null> {
   ensureBuiltInParsersRegistered()
   const bm = bestMatch({ name, text })
   if (!bm) return { input: { name, text }, warnings: ['No matching parser found'], counts: { n: 0, e: 0 } }
@@ -153,10 +159,17 @@ export async function loadGraphDataFromTextViaParser(name: string, text: string)
   if (!res) return { parserId: bm.id, name, input: { name, text }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
   if (!cached) setCachedParse(parserId, name, text, res)
   const { graphData } = res
-  try { useGraphStore.getState().setGraphData(graphData) } catch { void 0 }
+  if (options?.applyToStore !== false) {
+    try {
+      useGraphStore.getState().setGraphData(graphData)
+    } catch {
+      void 0
+    }
+  }
   return {
     parserId: bm.id,
     name,
+    graphData,
     counts: { n: graphData.nodes.length, e: graphData.edges.length },
     warnings: res.warnings || [],
     input: { name, text },

@@ -46,7 +46,7 @@ export default function MainPanelFrame({
   )
 
   return (
-    <MainPanelContainer>
+    <MainPanelContainer className={collapsed ? 'h-auto' : 'h-full'}>
       <div className="flex h-full flex-col">
         <TabHeader
           collapsed={collapsed}

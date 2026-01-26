@@ -1,5 +1,5 @@
 import React from 'react'
-import { Download, Eraser, Plus, Square, Upload } from 'lucide-react'
+import { Download, Eraser, Plus, SquarePlus, Upload } from 'lucide-react'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { TOOL_MENU_ACTION_LABELS, TOOL_MENU_AREAS } from '@/features/toolbar/toolMenu'
 import { TOOLBAR_AREA_RENDERERS, type ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
@@ -91,6 +91,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
     `border ${UI_THEME_TOKENS.panel.border}`,
     UI_THEME_TOKENS.text.secondary,
     UI_THEME_TOKENS.button.hoverBg,
+    UI_THEME_TOKENS.button.square,
   ].join(' ')
 
   return (
@@ -126,7 +127,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                   aria-label="New Source File"
                   title="New Source File"
                 >
-                  <Square
+                  <SquarePlus
                     className={iconSizeClass}
                     strokeWidth={uiIconStrokeWidth}
                     aria-hidden="true"

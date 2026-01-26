@@ -1,15 +1,16 @@
 import React from 'react'
 import { WorkspaceActionsPanel } from '@/features/workspace-actions/WorkspaceActionsPanel'
-import { useWorkspaceActionsModel } from '@/features/workspace-actions/useWorkspaceActionsModel'
+import type { ExampleConfig, ExampleId } from '@/features/parsers/examplesCatalog'
 
 type WorkspaceActionsStepProps = {
   searchQuery?: string
+  examples: ExampleConfig[]
+  onApplyExample: (exampleId: ExampleId) => void
 }
 
-export default function WorkspaceActionsStep({ searchQuery }: WorkspaceActionsStepProps) {
-  const workspaceActions = useWorkspaceActionsModel({ searchQuery })
-
+export default function WorkspaceActionsStep({ searchQuery, examples, onApplyExample }: WorkspaceActionsStepProps) {
+  void searchQuery
   return (
-    <WorkspaceActionsPanel {...workspaceActions.panelProps} />
+    <WorkspaceActionsPanel examples={examples} onApplyExample={onApplyExample} />
   )
 }

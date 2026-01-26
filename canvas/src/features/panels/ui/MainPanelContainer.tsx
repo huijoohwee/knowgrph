@@ -13,10 +13,10 @@ export default function MainPanelContainer({ children, className, style }: { chi
     }
     return 36
   }, [uiHeaderRowHeightClass])
-  const base = `MainPanelContainer h-full flex flex-col p-0 rounded-xl border ${UI_THEME_TOKENS.panel.border} shadow-lg shadow-gray-200/60 dark:shadow-black/60 overflow-hidden`
+  const base = `MainPanelContainer flex flex-col p-0 rounded-xl border ${UI_THEME_TOKENS.panel.border} shadow-lg shadow-gray-200/60 dark:shadow-black/60 overflow-hidden`
   return (
     <div
-      className={`${base} ${className || ''}`}
+      className={`${base} ${className || 'h-full'}`}
       style={{
         backgroundColor: 'var(--panel-bg)',
         ['--kg-header-bar-height' as unknown as string]: `${headerBarHeightPx}px`,

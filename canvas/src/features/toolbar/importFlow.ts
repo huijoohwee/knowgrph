@@ -7,6 +7,7 @@ import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 export async function runImportFlow(args: {
   nameForParse: string
   textForParse: string
+  applyToStore?: boolean
   openTab?: BottomTab
   ui?: {
     collapsePanelsOnSuccess?: boolean
@@ -16,7 +17,7 @@ export async function runImportFlow(args: {
   onSuccess?: (res: LoaderResult) => void
 }): Promise<LoaderResult | null> {
   try {
-    const res = await loadGraphDataFromTextViaParser(args.nameForParse, args.textForParse)
+    const res = await loadGraphDataFromTextViaParser(args.nameForParse, args.textForParse, { applyToStore: args.applyToStore })
     applyLoaderResultToParserUi(res, args.ui)
     if (!res) return null
     if (args.onSuccess) {

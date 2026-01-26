@@ -92,6 +92,12 @@ import {
   testGympgrphCoerceFetchUrlRejectsFileScheme,
 } from '@/__tests__/gympgrphUrlInterop.test'
 import {
+  testFetchRemoteTextPreflightHeadGuardsTooLarge,
+  testFetchRemoteTextValidateSupportsStringAndArgs,
+  testFetchRemoteTextWrapperUseProxyBoolean,
+} from '@/__tests__/fetchRemoteTextInterop.test'
+import { testSourceFilesCompositionOrderAndVisibility } from '@/__tests__/sourceFilesComposition.test'
+import {
   testGympgrphCoerceFeatureCollectionIdsAddsMissingIds,
   testGympgrphIsPointOnlyFeatureCollectionDetectsPointOnly,
   testGympgrphIsPointOnlyFeatureCollectionRejectsPolygon,
@@ -280,6 +286,8 @@ export const runAllTests = async () => {
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
 
+  await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
+
   await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
   await exec('geospatial.persistence.keysAreNamespacedOnly', testGympgrphGeospatialKeysAreNamespacedOnly)
   await exec('geospatial.interaction.defaultAlways', testGympgrphDefaultInteractionModeIsAlways)
@@ -290,6 +298,9 @@ export const runAllTests = async () => {
   await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlAcceptsAbsolutePath', testGympgrphCoerceFetchUrlAcceptsAbsolutePath)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlRejectsFileScheme', testGympgrphCoerceFetchUrlRejectsFileScheme)
+  await exec('net.fetchRemoteText.validateSupportsStringAndArgs', testFetchRemoteTextValidateSupportsStringAndArgs)
+  await exec('net.fetchRemoteText.preflightHeadGuardsTooLarge', testFetchRemoteTextPreflightHeadGuardsTooLarge)
+  await exec('net.fetchRemoteText.wrapperUseProxyBoolean', testFetchRemoteTextWrapperUseProxyBoolean)
   await exec('geospatial.gympgrphMapLibre.pickSkipsClusters', testGympgrphPickPoiSelectionSkipsClusterFeatures)
   await exec('geospatial.gympgrphMapLibre.coerceFeatureIds', testGympgrphCoerceFeatureCollectionIdsAddsMissingIds)
   await exec('geospatial.gympgrphMapLibre.pointOnly.true', testGympgrphIsPointOnlyFeatureCollectionDetectsPointOnly)

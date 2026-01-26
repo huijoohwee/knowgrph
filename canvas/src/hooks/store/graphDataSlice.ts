@@ -252,6 +252,57 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     }
   },
 
+  setGraphDataPreservingLayout: (graphData: GraphData) => {
+    const nodeIds = new Set<string>((graphData.nodes || []).map(n => n.id))
+    const filteredEdges = (graphData.edges || []).filter(e => {
+      const src = String(e.source || '')
+      const tgt = String(e.target || '')
+      if (!src || !tgt) return false
+      if (!nodeIds.has(src) || !nodeIds.has(tgt)) return false
+      return true
+    })
+    const nextGraphData =
+      filteredEdges.length === (graphData.edges || []).length ? graphData : { ...graphData, edges: filteredEdges }
+
+    set(s => ({
+      graphData: nextGraphData,
+      graphDataRevision: (s.graphDataRevision || 0) + 1,
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
+    }))
+
+    try {
+      const { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds } = get()
+      const edgeIds = new Set<string>((nextGraphData.edges || []).map(e => e.id))
+      const nextSelectedNodeId = selectedNodeId && nodeIds.has(selectedNodeId) ? selectedNodeId : null
+      const nextSelectedEdgeId = selectedEdgeId && edgeIds.has(selectedEdgeId) ? selectedEdgeId : null
+      const nextSelectedNodeIds = (selectedNodeIds || []).filter(id => nodeIds.has(id))
+      const nextSelectedEdgeIds = (selectedEdgeIds || []).filter(id => edgeIds.has(id))
+      if (
+        nextSelectedNodeId !== selectedNodeId ||
+        nextSelectedEdgeId !== selectedEdgeId ||
+        nextSelectedNodeIds.length !== (selectedNodeIds || []).length ||
+        nextSelectedEdgeIds.length !== (selectedEdgeIds || []).length
+      ) {
+        set({
+          selectedNodeId: nextSelectedNodeId,
+          selectedEdgeId: nextSelectedEdgeId,
+          selectedNodeIds: nextSelectedNodeIds,
+          selectedEdgeIds: nextSelectedEdgeIds,
+        })
+      }
+    } catch {
+      void 0
+    }
+
+    set({ lifecycleStage: 'committed' })
+    try {
+      lsSetJson(LS_KEYS.graphData, nextGraphData)
+    } catch {
+      void 0
+    }
+  },
+
   clearGraphData: () => {
     get().cancelMinimapWorker?.();
     set(s => ({

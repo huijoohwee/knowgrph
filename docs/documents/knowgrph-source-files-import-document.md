@@ -14,7 +14,7 @@
 
 ## Architecture
 
-**UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → Workspace Actions → Source Files → header "New Source File" (icon) → per-row import/export/clear actions → Store mutations → Bottom Panel Markdown "Contents" navigation
+**UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → collapsible subsections (**Sample Dataset**, **Dataset fetch limits**, **Source Files**) → Source Files header "New Source File" (icon) → per-row import/export/clear actions → Store mutations → Bottom Panel Markdown "Contents" navigation
 
 **Supported Formats**: Local import/export supports `.md .markdown .txt .json .jsonld .csv .html .htm .yaml .yml`, URL sources via `https://…`, and YouTube imports via the YouTube importer.
 
@@ -28,7 +28,7 @@
 
 **Toolbar Entry Point**: Toolbar "Open Data" opens MainPanel Workflow so ingest actions remain discoverable in the canonical step flow.
 
-**Optional Geo Layer Path**: Source Files → per-row Geo Layer checkbox → geospatial dataset registry (gympgrph store) → Geospatial Overlay layers
+**Optional Geo Layer Path**: Source Files → per-row Geo Layer checkbox (visible only while Geospatial Mode is On) → geospatial dataset registry (gympgrph store) → Geospatial Overlay layers
 
 ---
 
@@ -89,14 +89,13 @@ sequenceDiagram
 ### High-Level Components
 
 - **Workspace Actions (Knowgrph)**:
-  - `knowgrph/canvas/src/features/toolbar/ToolbarSourceFilesArea.tsx` opens the Source Files import surface.
-  - `knowgrph/canvas/src/features/toolbar/ToolbarSourceFilesArea.tsx` embeds the URL/local Source Files import row and optional Geo dataset manager.
+  - `knowgrph/canvas/src/features/workspace-actions/WorkspaceActionsPanel.tsx` renders Step 3 subsections (Dataset fetch limits + Source Files).
+  - `knowgrph/canvas/src/features/toolbar/ToolbarSourceFilesArea.tsx` implements the Source Files table (row actions + parsing/export/clear).
 - **Curation UI (Curagrph)**:
   - `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders Source Files inside the "Contents" navigation.
   - `curagrph/src/components/BottomPanel/BottomPanelMarkdownSection.tsx` wires selection to `setMarkdownDocument(...)`.
 - **Geospatial Mode (Gympgrph)**:
   - `gympgrph/src/geospatialDatasets.ts` exposes a lightweight dataset-add API for hosts.
-  - `gympgrph/src/geospatialDatasetsUi.ts` exposes a dataset manager UI for host embedding.
   - `gympgrph/src/hooks/store/geospatialSlice.ts` persists `mapOverlayDatasets` under `kg:ui:geospatial:*` keys.
 
 ---
@@ -111,15 +110,18 @@ sequenceDiagram
 
 - If the user enables the Geo Layer checkbox on a URL row, the URL is registered as a dataset reference using `gympgrph` and rendered as an overlay when Geospatial mode is active.
 - Dataset labels are derived from the row label when not explicitly provided.
+- When a newly imported `.geojson` / geo-shaped `.json` looks geo-capable, the Geo Layer flag is auto-enabled so the row is ready for overlay use.
 
-### Quick Import (Parse → Graph)
+### Parse Routing (Source Files → Parse → Graph)
 
-**From/To**: Workspace Actions tool menu → Markdown/HTML/PDF/YouTube/JSON/JSON-LD areas → triggers `importLocal` / `importUrl` actions → runs the format-specific import pipeline.
+**From/To**: Source Files → per-row Local import or URL import → `runImportFlow` (format inferred by name/URL) → GraphCanvas render.
 
 **Decision Logic**:
 
-- Source Files focuses on managing the Source Files list (add via URL/local, reorder, toggle visibility).
-- Parser-oriented ingest (Markdown/HTML/PDF/YouTube/JSON/JSON-LD/CSV) remains in dedicated tool menu areas so Source Files stays table-driven and conflict-free.
+- Source Files is the canonical ingest surface for text-like and document-like sources (Markdown/HTML/PDF/JSON/JSON-LD/CSV/GeoJSON) and URL sources (including YouTube).
+- Legacy tool-menu ingest actions are removed to avoid duplicated/conflicting ingest surfaces.
+- Remote URL fetching is bounded and uses the Step 3 **Dataset fetch limits** (timeout/max-bytes) so large URL sources do not fail against the shared default limit.
+- Local file import is also bounded by the same max-bytes limit to keep local and URL ingest behavior consistent.
 
 ---
 

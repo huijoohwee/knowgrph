@@ -384,7 +384,6 @@ export function VisibilityIcon({
   return (
     <span
       className={className ?? 'inline-flex items-center justify-center'}
-      title={label}
       aria-label={label}
     >
       <svg

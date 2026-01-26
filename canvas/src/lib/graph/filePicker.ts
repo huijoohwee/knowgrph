@@ -76,6 +76,7 @@ export async function pickFilesWithExtensions(
     const normalized = (exts || []).map((e) => (e.startsWith('.') ? e : `.${e}`));
     if (canPicker) {
       const jsonLdExts = normalized.filter((e) => e === '.jsonld' || e === '.json-ld');
+      const pdfExts = normalized.filter((e) => e === '.pdf');
       const picker = w.showOpenFilePicker!;
       const fileHandles = await picker({
         multiple,
@@ -88,6 +89,7 @@ export async function pickFilesWithExtensions(
               'application/json': normalized.filter((e) => e === '.json'),
               'application/ld+json': jsonLdExts,
               'text/csv': normalized.filter((e) => e === '.csv'),
+              ...(pdfExts.length > 0 ? { 'application/pdf': pdfExts } : {}),
             },
           },
         ],

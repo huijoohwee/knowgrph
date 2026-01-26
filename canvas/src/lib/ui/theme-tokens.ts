@@ -49,6 +49,7 @@ export const UI_THEME_TOKENS = {
     hoverBg: 'hover:bg-black/5 dark:hover:bg-white/5',
     ring: 'ring-blue-500 dark:ring-blue-400',
     padding: 'p-2',
+    square: 'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] p-0 flex items-center justify-center',
     activeText: 'text-blue-600 dark:text-blue-400',
     activeBg: 'bg-blue-50 dark:bg-blue-900/20',
     activeBorder: 'border-blue-500 dark:border-blue-400',

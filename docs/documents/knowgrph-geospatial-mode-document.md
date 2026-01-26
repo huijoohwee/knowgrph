@@ -16,7 +16,7 @@
 - In the extracted module, a MapLibre GL basemap renders as a translucent layer on top of the canvas.
 - The overlay supports interaction gating (**Off / Hold Space / Always**). Default interaction mode is **Always** for immediate navigation, and users can switch in the Geo panel.
 - To avoid conflicts with non-map UI (for example Workspace Actions → Imported files), the overlay is only mounted when the Geo side-panel tab is selected; SidePanel expand/collapse does not toggle Geospatial Mode.
-- MapLibre’s required CSS is bundled by the extracted module so host runtimes do not need to remember to import it separately (restores reliable drag/pan/zoom + pointer hit-testing).
+- MapLibre’s required CSS is loaded by the extracted module so host runtimes do not need to remember to import it separately (restores reliable drag/pan/zoom + pointer hit-testing).
 - **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
 - **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.
 - Projection is configurable (**Auto / Mercator / Globe**). In **Auto**, 3D render mode uses a globe-style projection.
@@ -59,7 +59,7 @@
 2. In the extracted module UI, user enables the runtime overlay.
 3. A translucent basemap overlay appears on top of the canvas (defaulting to OpenFreeMap) while graph interactions remain primary.
 4. User optionally configures interaction/projection/animation settings in the overlay panel UI.
-5. User adds one or more dataset URLs via **Source Files → Import** (Workspace Actions), optionally registering them as Geo layers to render additional map overlay layers.
+5. User adds one or more dataset URLs via **Source Files** (Workspace Actions), optionally registering them as Geo layers to render additional map overlay layers.
 6. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
 ---
@@ -117,7 +117,9 @@
 
 ### Dataset Fetch Limits (UI)
 
-- Dataset fetch is always bounded by `timeoutMs` and `maxBytes` (user-configurable in the Map panel).
+- Dataset fetch is always bounded by `timeoutMs` and `maxBytes` (user-configurable).
+- In Knowgrph, the host UI surfaces these controls in **MainPanel Workflow → Step 3 (Ingest) → Dataset fetch limits** to avoid duplicating configuration in the Geo side panel.
+- The Geo side panel does not render fetch-limit inputs; it only provides geospatial overlay configuration and a small icon hint pointing users to Source Files for dataset add/import.
 - Default `maxBytes` is sized to handle common public GeoJSON datasets (for example ~20MB city datasets) while still remaining bounded.
 - If a dataset is too large (based on Content-Length when available), loading fails early with an actionable error instead of streaming indefinitely.
 - Basemap style/tiles are fetched via the local `/__fetch_remote` proxy when running on localhost to avoid CORS issues; binary tile responses are served with a corrected Content-Length to prevent truncated PBF parsing errors.

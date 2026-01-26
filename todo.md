@@ -20,9 +20,9 @@
 - [ ] Test/Verification; ensure close-loop test/bounded execution (e.g. `KG_TEST_TIMEOUT_MS`); forbid hang/indefinite runs/infinite loop
 - [ ] Utilities; centralize shared logic; forbid duplication across components
 - [ ] Unique Dataset ID
-- [ ] Document structure; adhere to `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/docs/document-template.md`; forbid inconsistent structure
+- [ ] Document structure; adhere to [document-template.md](../huijoohwee.github.io/docs/document-template.md); forbid inconsistent structure
 
-- [ ] Post-task completion; update `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents`
+- [ ] Post-task completion; update `docs/documents/`
 
 ---
 

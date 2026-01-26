@@ -89,7 +89,6 @@ export function WorkflowSteps({
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   );
-  const [selectedExampleId, setSelectedExampleId] = React.useState<string>('')
   const [selectedPresetId, setSelectedPresetId] = React.useState<string>('')
   const contentTooltipClassName = `${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`
   const statusPillClassName = `inline-flex items-center h-6 max-w-[14rem] rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} px-2 text-xs`
@@ -155,26 +154,11 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[3]}
         onToggle={next => onToggleStep(3, next)}
       >
-        <WorkspaceActionsStep searchQuery={searchQuery} />
-        <div className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
-          <div className="mb-1">Or start with an example dataset:</div>
-          <select
-            className={`w-full min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
-            value={selectedExampleId}
-            onChange={(e) => {
-              const id = e.target.value
-              setSelectedExampleId(id)
-              if (id) parserWorkflow.onApplyExample(id as ExampleId)
-              setTimeout(() => setSelectedExampleId(''), 0)
-            }}
-            aria-label="Example dataset"
-          >
-            <option value="">Select an example…</option>
-            {parserWorkflow.examples.map(example => (
-              <option key={example.id} value={example.id}>{example.label}</option>
-            ))}
-          </select>
-        </div>
+        <WorkspaceActionsStep
+          searchQuery={searchQuery}
+          examples={parserWorkflow.examples}
+          onApplyExample={parserWorkflow.onApplyExample}
+        />
         {parserWorkflow.presets.length > 0 && (
           <div className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
             <div className="mb-1">Or apply a curated workflow preset:</div>
