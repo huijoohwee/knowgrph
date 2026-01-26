@@ -16,9 +16,15 @@ import { openBottomPanel } from '@/features/bottom-panel/open'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { exportAsCombinedCsvBlob, exportAsJsonLdBlob, exportAsRawJsonBlob } from '@/lib/graph/io/adapter'
 import { exportAsGeoJsonBlob } from '@/lib/graph/io/geojson'
+import type { GraphData } from '@/lib/graph/types'
 import { SOURCE_FILES_COPY, SOURCE_FILES_FORMATS } from '@/lib/config.copy'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import {
+  buildEmbeddedGeoJsonUploadName,
+  extractEmbeddedGeoJsonFeatureCollections,
+} from '@/lib/markdown/embeddedGeoJson'
+import { uploadGeoJsonTextToLocalStore } from '@/features/geospatial/localGeoUpload'
 
 type GeoDatasetFormat = 'auto' | 'geojson' | 'records'
 
@@ -260,20 +266,61 @@ export function ToolbarSourceFilesArea(_props: Partial<ToolbarToolMenuAreasProps
         } catch {
           return
         }
-        try {
-          const res = await fetch('/__geo_upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify({ name: file.name, text }),
-          })
-          const json = (await res.json()) as { ok?: unknown; url?: unknown }
-          if (json && json.ok === true && typeof json.url === 'string' && json.url.trim()) {
-            url = json.url.trim()
-            updateSourceFile(file.id, { source: { ...(file.source || { kind: 'local' }), url } })
-          }
-        } catch {
-          void 0
+        const uploaded = await uploadGeoJsonTextToLocalStore({ name: file.name, text })
+        if (uploaded.ok) {
+          url = uploaded.url
+          updateSourceFile(file.id, { source: { ...(file.source || { kind: 'local' }), url } })
         }
+      }
+
+      if (!url && file.source?.kind === 'local' && (nameLower.endsWith('.md') || nameLower.endsWith('.markdown'))) {
+        const markdownText = String(file.text || '')
+        const embedded = extractEmbeddedGeoJsonFeatureCollections(markdownText)
+        if (embedded.length === 0) {
+          updateSourceFile(file.id, { status: 'error', error: SOURCE_FILES_COPY.geoLayerEmbeddedGeojsonNotFound })
+          setSourceFileGeoLayerEnabled(file.id, false)
+          return
+        }
+
+        updateSourceFile(file.id, { status: 'loading', error: undefined })
+        const uploadedUrls: string[] = []
+        for (let idx = 0; idx < embedded.length; idx += 1) {
+          const block = embedded[idx]
+          const uploadName = buildEmbeddedGeoJsonUploadName(file.name, idx)
+          try {
+            const uploaded = await uploadGeoJsonTextToLocalStore({ name: uploadName, text: block.geojsonText })
+            if (uploaded.ok) {
+              uploadedUrls.push(uploaded.url)
+              continue
+            }
+            updateSourceFile(file.id, { status: 'error', error: SOURCE_FILES_COPY.geoLayerEmbeddedGeojsonUploadFailed })
+            setSourceFileGeoLayerEnabled(file.id, false)
+            return
+          } catch {
+            updateSourceFile(file.id, {
+              status: 'error',
+              error: SOURCE_FILES_COPY.geoLayerEmbeddedGeojsonUploadFailed,
+            })
+            setSourceFileGeoLayerEnabled(file.id, false)
+            return
+          }
+        }
+
+        if (uploadedUrls.length > 0) {
+          try {
+            addGeospatialDatasetUrls(
+              uploadedUrls.map((u, i) => ({
+                label: `${file.name} · Embedded GeoJSON #${i + 1}`,
+                url: u,
+                format: 'geojson' as const,
+              })),
+            )
+          } catch {
+            void 0
+          }
+        }
+        updateSourceFile(file.id, { status: 'idle', error: undefined })
+        return
       }
 
       if (!url) return
@@ -505,7 +552,7 @@ export function ToolbarSourceFilesArea(_props: Partial<ToolbarToolMenuAreasProps
       setOpenExportMenuForFileId(prev => (prev === fileId ? null : prev))
       if (before.enabled) applyComposedGraphFromSourceFiles()
     },
-    [applyComposedGraphFromSourceFiles, updateSourceFile],
+    [updateSourceFile],
   )
 
   const openMarkdownViewerForSourceFile = React.useCallback(
@@ -647,23 +694,23 @@ export function ToolbarSourceFilesArea(_props: Partial<ToolbarToolMenuAreasProps
     return `${stem}${ext}`
   }, [])
 
-  const exportSourceFile = React.useCallback((file: { id: string; name: string; text?: string; parsedGraphData?: unknown }, formatOverride?: (typeof SUPPORTED_SOURCE_EXPORT_FORMATS)[number]) => {
+  const exportSourceFile = React.useCallback((file: { id: string; name: string; text?: string; parsedGraphData?: GraphData }, formatOverride?: (typeof SUPPORTED_SOURCE_EXPORT_FORMATS)[number]) => {
     const format = formatOverride || resolveExportFormat(file)
     const filename = buildExportFilename(file.name, format)
     if (format === '.jsonld' && file.parsedGraphData) {
-      downloadBlob(exportAsJsonLdBlob(file.parsedGraphData as any), filename)
+      downloadBlob(exportAsJsonLdBlob(file.parsedGraphData), filename)
       return
     }
     if (format === '.json' && file.parsedGraphData) {
-      downloadBlob(exportAsRawJsonBlob(file.parsedGraphData as any), filename)
+      downloadBlob(exportAsRawJsonBlob(file.parsedGraphData), filename)
       return
     }
     if (format === '.csv' && file.parsedGraphData) {
-      downloadBlob(exportAsCombinedCsvBlob(file.parsedGraphData as any), filename)
+      downloadBlob(exportAsCombinedCsvBlob(file.parsedGraphData), filename)
       return
     }
     if (format === '.geojson' && file.parsedGraphData) {
-      downloadBlob(exportAsGeoJsonBlob(file.parsedGraphData as any), filename)
+      downloadBlob(exportAsGeoJsonBlob(file.parsedGraphData), filename)
       return
     }
     const content = String(file.text || '')

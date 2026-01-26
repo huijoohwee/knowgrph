@@ -30,6 +30,8 @@
 
 **Optional Geo Layer Path**: Source Files → per-row Geo Layer checkbox (visible only while Geospatial Mode is On) → geospatial dataset registry (gympgrph store) → Geospatial Overlay layers
 
+**Embedded GeoJSON Path**: For local Markdown Source Files, the Geo checkbox can register embedded fenced `geojson` blocks (GeoJSON `FeatureCollection`) as overlay datasets by uploading them to the bounded local dataset cache and registering the returned `/__geo_local/...` URLs.
+
 ---
 
 ## Happy Path Sequence Diagrams
@@ -81,7 +83,12 @@ sequenceDiagram
   participant O as GeospatialOverlay
   participant L as loadDatasetFeatureCollection
 
-  UI->>M: addGeospatialDatasetUrls([{label,url,format}])
+  alt local .geojson OR embedded GeoJSON blocks
+    UI->>UI: POST /__geo_upload (bounded)
+    UI->>M: addGeospatialDatasetUrls([{label,url:"/__geo_local/...",format:"geojson"}])
+  else url-based dataset
+    UI->>M: addGeospatialDatasetUrls([{label,url,format}])
+  end
   H->>O: render overlay when active
   O->>L: loadDatasetFeatureCollection(dataset)
 ```
@@ -111,6 +118,7 @@ sequenceDiagram
 - If the user enables the Geo Layer checkbox on a URL row, the URL is registered as a dataset reference using `gympgrph` and rendered as an overlay when Geospatial mode is active.
 - Dataset labels are derived from the row label when not explicitly provided.
 - When a newly imported `.geojson` / geo-shaped `.json` looks geo-capable, the Geo Layer flag is auto-enabled so the row is ready for overlay use.
+- When a local Markdown Source File contains fenced `geojson` blocks that parse as GeoJSON `FeatureCollection`, enabling the Geo Layer checkbox extracts and uploads each block to the local dataset cache (`/__geo_upload`) and registers them as overlay datasets.
 
 ### Parse Routing (Source Files → Parse → Graph)
 

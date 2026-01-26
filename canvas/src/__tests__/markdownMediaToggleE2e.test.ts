@@ -7,6 +7,7 @@ import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanel
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
 import {
   buildTestMarkdownFromFile,
@@ -53,6 +54,68 @@ export async function testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo() {
   }
   if (html.includes('<span class="text-emerald-400 font-semibold">Tailwind‑style span with custom color</span>')) {
     throw new Error('expected raw span markup not to be echoed directly')
+  }
+}
+
+export async function testMarkdownViewerEmbedsYouTubeFromBareUrl() {
+  const { restore: restoreWindow } = initWindowHarness({ navigatorOnline: true })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    if (!anyWindow.requestAnimationFrame) {
+      anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+        setTimeout(() => cb(Date.now()), 0) as unknown as number
+    }
+    const anyGlobal = globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    if (!anyGlobal.requestAnimationFrame) {
+      anyGlobal.requestAnimationFrame = anyWindow.requestAnimationFrame
+    }
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const videoId = 'dQw4w9WgXcQ'
+    const markdown = ['# Demo', '', `https://youtu.be/${videoId}`, ''].join('\n')
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: markdown,
+        activeDocumentPath: 'docs/example.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans text-xs',
+        uiPanelMonospaceTextClass: 'font-mono text-xs',
+        previewOverlayScope: 'viewport',
+        previewOverlayPortalTarget: null,
+        previewScrollable: true,
+      } as never),
+    )
+
+    const tick = () =>
+      new Promise<void>(resolve =>
+        anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
+      )
+    await tick()
+    await tick()
+
+    const iframe = doc.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) {
+      throw new Error('expected markdown preview to render an iframe for YouTube')
+    }
+    const src = String(iframe.getAttribute('src') || '')
+    if (!src.includes(`youtube-nocookie.com/embed/${videoId}`)) {
+      throw new Error(`expected iframe src to include youtube-nocookie embed url, got ${src}`)
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+    restoreWindow()
   }
 }
 

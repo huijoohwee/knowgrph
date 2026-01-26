@@ -408,11 +408,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         className={`App-toolbar__btn ${
           geospatialEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
-        title={`${UI_COPY.geospatialModeTitle} (${geospatialEnabled ? 'On' : 'Off'})`}
+        title={geospatialEnabled ? UI_COPY.geospatialModeOnTitle : UI_COPY.geospatialModeOffTitle}
         onClick={actions.handleOpenGeospatialMode}
         showTooltip
       >
-        <Map className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
+        {geospatialEnabled ? (
+          <Map className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
+        ) : (
+          <FileText className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
+        )}
       </IconButton>
       <div className="App-toolbar__divider" />
       <IconButton

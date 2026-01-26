@@ -50,9 +50,9 @@ mermaid: |
     S1_Port --> S2_Decide
 ---
 
-# Markdown Slide Styling Guidelines
+# Markdown Slide Styling Guidelines · Markdown 幻灯片样式指南
 
-Universal syntax guide for presentation frameworks
+Universal syntax guide for presentation frameworks · 针对演示框架的通用语法参考
 
 Hover over this term: <abbr title="Knowgrph Canvas Viewer">Canvas Viewer</abbr>
 
@@ -63,6 +63,7 @@ Hover over this term: <abbr title="Knowgrph Canvas Viewer">Canvas Viewer</abbr>
 ---
 
 ## Frontmatter Configuration (fully supported in Knowgrph viewer)
+## Frontmatter 配置（Knowgrph 视图完全支持）
 
 ```yaml
 ---
@@ -79,11 +80,14 @@ mermaid: |
 ---
 ```
 
-**Purpose**: Configures presentation-wide settings via YAML metadata block
+**Purpose**: Configures presentation-wide settings via YAML metadata block  
+**用途**：通过 YAML 元数据块配置整份演示的全局属性
 
-**Common keys**: `theme`, `background`, `class`, `transition`, `layout`, `aspectRatio`, `lang`
+**Common keys**: `theme`, `background`, `class`, `transition`, `layout`, `aspectRatio`, `lang`  
+**常用键**：`theme`、`background`、`class`、`transition`、`layout`、`aspectRatio`、`lang`
 
-**Academic / Metadata keys (fully supported):**
+**Academic / Metadata keys (fully supported):**  
+**学术 / 元数据键（完全支持）：**
 - `authors`: List of authors (string or array)
 - `meeting`: Conference or meeting name
 - `date`: Presentation date
@@ -94,8 +98,10 @@ mermaid: |
 - `mermaid`: Global mermaid diagram definition (string)
 
 ### Mermaid Render Ordering (schema-driven)
+### Mermaid 渲染顺序（由 schema 驱动）
 
-Mermaid syntax does not specify z-order rules beyond draw order. For deterministic layering in the Canvas Mermaid layout, configure renderer ordering in the graph schema (not inside the Mermaid diagram text).
+Mermaid syntax does not specify z-order rules beyond draw order. For deterministic layering in the Canvas Mermaid layout, configure renderer ordering in the graph schema (not inside the Mermaid diagram text).  
+Mermaid 语法本身除了绘制顺序外并不定义 z 轴层级；要在 Canvas 的 Mermaid 布局中获得可预测的分层效果，应当在图 schema 中配置渲染顺序，而不是在 Mermaid 文本里硬编码。
 
 ```json
 {
@@ -112,9 +118,13 @@ Mermaid syntax does not specify z-order rules beyond draw order. For determinist
 }
 ```
 
-**Effect**: When these keys are present, a persistent footer is rendered on slides (except `cover` and `intro` layouts).
-- **Default Theme**: Meeting/Venue/Institution/Date (Left), Authors/URL (Right), Page Numbers (Right).
-- **Academic Theme** (`theme: academic`): Meeting + Authors (Left), Institution/Venue + Page X / Y (Right). (`neversink` is accepted as a legacy alias.)
+**Effect**: When these keys are present, a persistent footer is rendered on slides (except `cover` and `intro` layouts).  
+**效果**：当 schema 中存在上述配置时，除 `cover` 与 `intro` 布局外，其余幻灯片都会渲染持久页脚。
+
+- **Default Theme**: Meeting/Venue/Institution/Date (Left), Authors/URL (Right), Page Numbers (Right).  
+  **默认主题**：左侧显示会议 / 场地 / 机构 / 日期，右侧显示作者 / URL 与页码。
+- **Academic Theme** (`theme: academic`): Meeting + Authors (Left), Institution/Venue + Page X / Y (Right). (`neversink` is accepted as a legacy alias.)  
+  **学术主题**（`theme: academic`）：左侧显示会议名 + 作者，右侧显示机构 / 场地 + 第 X / Y 页。（`neversink` 作为历史别名仍然被接受。）
 
 ---
 

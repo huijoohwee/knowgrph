@@ -18,14 +18,23 @@ export const testMarkdownHeadingGroupsDerivation = () => {
   const byLabel = new Map<string, (typeof groups)[number]>()
   for (let i = 0; i < groups.length; i += 1) byLabel.set(groups[i]!.label, groups[i]!)
 
-  const root = byLabel.get('Markdown Slide Styling Guidelines')
-  if (!root) throw new Error('expected an H1 group for "Markdown Slide Styling Guidelines"')
+  const root = byLabel.get('Markdown Slide Styling Guidelines · Markdown 幻灯片样式指南')
+  if (!root) throw new Error('expected an H1 group for "Markdown Slide Styling Guidelines · Markdown 幻灯片样式指南"')
   if (root.depth !== 0) throw new Error(`expected H1 to be depth 0, got ${root.depth}`)
 
-  const h2 = byLabel.get('Frontmatter Configuration (fully supported in Knowgrph viewer)')
-  if (!h2) throw new Error('expected an H2 group for "Frontmatter Configuration (fully supported in Knowgrph viewer)"')
+  const h2En = byLabel.get('Frontmatter Configuration (fully supported in Knowgrph viewer)')
+  const h2Zh = byLabel.get('Frontmatter 配置（Knowgrph 视图完全支持）')
+  const h2 =
+    h2En && h2En.memberNodeIds.length > 0
+      ? h2En
+      : h2Zh && h2Zh.memberNodeIds.length > 0
+        ? h2Zh
+        : h2En || h2Zh
+  if (!h2) throw new Error('expected an H2 group for the Frontmatter section (en or zh)')
   if (h2.depth <= root.depth) throw new Error('expected H2 group to be nested under H1 group')
-  if (h2.memberNodeIds.length === 0) throw new Error('expected H2 group to contain leaf member nodes')
+  if (h2.memberNodeIds.length === 0) {
+    throw new Error('expected H2 group to contain leaf member nodes')
+  }
 
   const nodeById = new Map(graph.nodes.map(n => [String(n.id), n]))
   for (let i = 0; i < groups.length; i += 1) {

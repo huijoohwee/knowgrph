@@ -8,10 +8,11 @@ type FetchStubResponse = {
   text: () => Promise<string>
 }
 
-type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch; window?: any }
+type WindowOriginLike = { location?: { origin?: string } }
+type GlobalWithFetch = { fetch?: typeof fetch; window?: WindowOriginLike }
 
 export const testFetchRemoteTextValidateSupportsStringAndArgs = async () => {
-  const g = globalThis as GlobalWithFetch
+  const g = globalThis as unknown as GlobalWithFetch
   const prevFetch = g.fetch
   const prevWindow = g.window
   const calls: { url: string; method?: string }[] = []
@@ -51,7 +52,7 @@ export const testFetchRemoteTextValidateSupportsStringAndArgs = async () => {
 }
 
 export const testFetchRemoteTextPreflightHeadGuardsTooLarge = async () => {
-  const g = globalThis as GlobalWithFetch
+  const g = globalThis as unknown as GlobalWithFetch
   const prevFetch = g.fetch
   const prevWindow = g.window
   const calls: { url: string; method?: string }[] = []
@@ -95,7 +96,7 @@ export const testFetchRemoteTextPreflightHeadGuardsTooLarge = async () => {
 }
 
 export const testFetchRemoteTextWrapperUseProxyBoolean = async () => {
-  const g = globalThis as GlobalWithFetch
+  const g = globalThis as unknown as GlobalWithFetch
   const prevFetch = g.fetch
   const prevWindow = g.window
   const calls: string[] = []

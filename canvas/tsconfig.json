@@ -27,7 +27,10 @@
       "@/*": [
         "./src/*"
       ],
-      "@/components/BottomPanel/*": ["./node_modules/curagrph/src/components/BottomPanel/*"],
+      "@/components/BottomPanel/*": [
+        "./src/components/BottomPanel/*",
+        "./node_modules/curagrph/src/components/BottomPanel/*"
+      ],
       "@/features/graph-data-table/*": ["./node_modules/curagrph/src/features/graph-data-table/*"],
       "@/features/json/*": ["./node_modules/curagrph/src/features/json/*"],
       "@/features/markdown/*": ["./node_modules/curagrph/src/features/markdown/*"],

@@ -536,7 +536,12 @@ function createLocalGeoDatasetHandler(): import('vite').Connect.NextHandleFuncti
       res.setHeader('Cache-Control', 'no-store')
       res.end(JSON.stringify({ ok: true, url: `/__geo_local/${token}.geojson`, name: name || 'local.geojson' }))
     } catch (error) {
-      const msg = error && typeof error === 'object' && 'message' in error ? String((error as any).message || '') : ''
+      const msg =
+        error instanceof Error
+          ? error.message
+          : error && typeof error === 'object' && 'message' in error
+            ? String((error as { message?: unknown }).message || '')
+            : ''
       res.statusCode = 500
       res.setHeader('Content-Type', 'application/json')
       res.setHeader('Cache-Control', 'no-store')

@@ -103,6 +103,7 @@ import {
   testGympgrphIsPointOnlyFeatureCollectionRejectsPolygon,
   testGympgrphPickPoiSelectionSkipsClusterFeatures,
 } from '@/__tests__/gympgrphMapLibreBehaviors.test'
+import { testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections } from '@/__tests__/markdownEmbeddedGeoJson.test'
 import {
   testCuragrphAliasContractInViteConfig,
   testForbidMagicLocalStorageKeysOutsideCentralConstants,
@@ -182,6 +183,7 @@ import {
 import { testApplyMediaProxyNormalizesGithubBlobUrl, testApplyMediaProxySkipsProxyWhenNotLocalhost } from '@/__tests__/mediaProxySrc.test'
 import { testUiToastUpsertDoesNotExtendExpiry, testUiToastUpsertMovesToastToFront } from '@/__tests__/uiToastSlice.test'
 import { testIconButtonStopsPropagation, testToolbarIconTooltipsDoNotInterceptClicks } from '@/__tests__/toolbarButtons.test'
+import { testMarkdownGlobalRenderToggleVisible } from '@/__tests__/markdown/markdownRenderToggle.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -298,6 +300,8 @@ export const runAllTests = async () => {
   await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlAcceptsAbsolutePath', testGympgrphCoerceFetchUrlAcceptsAbsolutePath)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlRejectsFileScheme', testGympgrphCoerceFetchUrlRejectsFileScheme)
+
+  await exec('geospatial.markdown.embeddedGeoJsonExtraction', testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections)
   await exec('net.fetchRemoteText.validateSupportsStringAndArgs', testFetchRemoteTextValidateSupportsStringAndArgs)
   await exec('net.fetchRemoteText.preflightHeadGuardsTooLarge', testFetchRemoteTextPreflightHeadGuardsTooLarge)
   await exec('net.fetchRemoteText.wrapperUseProxyBoolean', testFetchRemoteTextWrapperUseProxyBoolean)
@@ -554,6 +558,7 @@ export const runAllTests = async () => {
   await exec('ui.toast.upsertMovesToastToFront', testUiToastUpsertMovesToastToFront)
   await exec('ui.toolbar.tooltipsDoNotInterceptClicks', testToolbarIconTooltipsDoNotInterceptClicks)
   await exec('ui.toolbar.iconButtonStopsPropagation', testIconButtonStopsPropagation)
+  await exec('ui.markdown.renderToggleVisible', testMarkdownGlobalRenderToggleVisible)
   
   await exec('markdown.scrollSync.viewerToEditor', testMarkdownScrollSyncViewerToEditor)
   await exec('markdown.scrollSync.editToggleKeepsPos', testMarkdownEditToggleKeepsScrollPosition)

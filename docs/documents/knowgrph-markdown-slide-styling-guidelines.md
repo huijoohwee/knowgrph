@@ -174,7 +174,7 @@ Here is a footnote reference[^1].
 
 ---
 
-## Code Blocks (fully supported as static code)
+## Code Blocks (fully supported)
 
 **Basic:**
 ````markdown
@@ -194,6 +194,10 @@ def calculate(x):
 ````
 
 **Supported languages:** `javascript`, `python`, `java`, `cpp`, `go`, `rust`, `sql`, `bash`, `css`, `html`, `json`, `yaml`, `markdown`
+
+**Viewer controls (Canvas):** The Markdown Viewer header provides a single global **Beside / Inline / Render** mode that applies to all code blocks:
+- **Beside / Inline** controls annotation layout (when annotations are detected).
+- **Render** shows a fitted preview when supported (e.g. `mermaid` / `mmd` diagrams, GeoJSON rendered via MapLibre).
 
 ---
 

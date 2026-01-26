@@ -30,9 +30,14 @@ Code blocks now feature a structured layout matching GitHub's design system:
 - **Header Bar**: A distinct header (`<header>`) containing metadata and controls.
 - **Language Label**: Clearly visible language identifier (e.g., YAML, TSX).
 - **Copy Button**: Integrated clipboard copy functionality with visual feedback.
-- **View Toggles**: "Beside" and "Inline" toggle buttons for annotation views:
+- **Main View Toggle**: A global toggle in the Markdown Viewer header sets the default mode for code blocks:
   - **Inline**: Renders annotations above the code block.
   - **Beside**: Renders code on the left and annotations on the right (on desktop), or annotations above code (on mobile).
+  - **Render**: Switches supported code blocks from source to a fitted preview.
+    - **Mermaid** (`mermaid` / `mmd`): Renders the diagram fitted to the full code block.
+    - **GeoJSON** (`geojson` / `json` with GeoJSON shapes): Renders a fitted MapLibre preview inside the code block.
+    - **Other languages**: Falls back to the source code view.
+- **Per-Block Mode Icons**: Each code block header also exposes icon-only controls for **Beside / Inline / Render** so a specific block can override the global mode without mutating the global preference.
 - **Hover Effects**: The entire code block (including annotations in Beside/Inline modes) is highlighted with a blue border on hover, ensuring clear visual grouping of the code and its associated notes.
 
 ### Semantic HTML
@@ -47,7 +52,7 @@ The implementation replaces generic `<div>` wrappers with semantic elements:
 - Supports Light (GitHub-like) and Dark (GitHub Dark-like) themes.
 - Theme tokens are centralized in `UI_THEME_TOKENS`.
 - **Line Highlighting**: Supports highlighting specific lines using `{1-3,5}` syntax in the language info string (e.g., `ts {1-3}`).
-- **Mermaid Support**: Standard `mermaid` and `mmd` blocks are rendered as interactive diagrams using the Mermaid library. `textmermaid` is treated as a standard code block.
+- **Mermaid Support**: Standard `mermaid` and `mmd` blocks support both source view and a fitted rendered diagram preview via the main "Render" mode. `textmermaid` is treated as a standard code block.
 
 ## Architecture & Performance
 

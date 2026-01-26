@@ -60,6 +60,7 @@
 3. A translucent basemap overlay appears on top of the canvas (defaulting to OpenFreeMap) while graph interactions remain primary.
 4. User optionally configures interaction/projection/animation settings in the overlay panel UI.
 5. User adds one or more dataset URLs via **Source Files** (Workspace Actions), optionally registering them as Geo layers to render additional map overlay layers.
+   - For local Markdown Source Files, embedded fenced `geojson` code blocks (GeoJSON `FeatureCollection`) can also be registered as overlay datasets by extracting and uploading the blocks to the bounded local dataset cache.
 6. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
 ---
@@ -80,6 +81,7 @@
 ### Map Overlay Datasets
 
 - Dataset layers are stored as URL references and loaded at runtime.
+- Same-origin dataset URLs may be produced by uploading local GeoJSON text (`/__geo_upload` → `/__geo_local/...`), including when the GeoJSON is embedded inside a local Markdown Source File as a fenced `geojson` block.
 - Load is bounded by fetch size/time limits and uses best-effort parsing:
   - **GeoJSON**: Render directly.
   - **Records**: Derive a GeoJSON Point FeatureCollection when coordinate fields are detected.
@@ -145,25 +147,83 @@
 
 ---
 
-## Multi-Dataset Examples (No Runtime Hardcoding)
+## Multi-Dataset Demo (Airports + Countries + Cities)
 
-These are examples only. The application must not ship with hardcoded datasets; users add datasets via the Geo panel or via `VITE_GEOSPATIAL_DATASETS_JSON`.
+**Purpose**: Show how to configure three independent Geo layers (Airports, Countries, Cities) via Source Files / Geo panel without hardcoding dataset URLs into production code.
 
-- Layer 01 (records, object-map): `https://github.com/mwgg/Airports/blob/master/airports.json`
-- Layer 02 (GeoJSON polygons): `https://github.com/dr5hn/countries-states-cities-database/blob/master/geojson/countries.geojson`
-- Layer 05 (records, array): `https://github.com/lutangar/cities.json/blob/master/admin2.json`
-- Layer 06 (records, array): `https://github.com/lutangar/cities.json/blob/master/admin1.json`
+> These are documentation-only examples. The application must not ship with hardcoded dataset URLs; users configure them via environment or UI.
 
-Notes:
-- Prefer `raw.githubusercontent.com/...` URLs (or providers that serve CORS-enabled JSON) for browser loading; GitHub `blob` URLs are normalized to raw.
-- Same-origin paths are supported for hosted datasets (for example `/data/cities.geojson`).
-- Bounded fetch limits are a feature: very large datasets should be rejected unless the user explicitly increases `datasetFetchMaxBytes` (still bounded).
+### Step 1 — Prepare dataset URLs (outside of code)
 
-Example dataset catalog (set as `VITE_GEOSPATIAL_DATASETS_JSON`):
+- **Airports (records)**: public airports dataset in JSON (array or object-map of records with lat/lng fields).
+- **Countries (GeoJSON)**: country polygons in GeoJSON.
+- **Cities (records)**: city records (with coordinates) in JSON.
 
-```json
+Store these URLs in environment configuration (for example `VITE_GEOSPATIAL_DATASETS_JSON` in your host) or paste them at runtime into the Geo panel “Dataset URL” inputs. Do not embed them inside source files.
+
+### Step 2 — Register datasets as layers
+
+There are two host-level paths to register Geo layers:
+
+1. **Via environment catalog (recommended for demos)**
+   - Set `VITE_GEOSPATIAL_DATASETS_JSON` to a JSON array that describes Airports / Countries / Cities.
+   - Example (pseudo-structure):
+
+```jsonc
 [
-  { "id": "layer-01", "label": "Airports", "url": "https://raw.githubusercontent.com/mwgg/Airports/master/airports.json", "format": "records", "enabled": true },
-  { "id": "layer-02", "label": "Countries", "url": "https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/geojson/countries.geojson", "format": "geojson", "enabled": true }
+  { "id": "layer-airports",  "label": "Airports",  "url": "<AIRPORTS_URL>",  "format": "records", "enabled": true },
+  { "id": "layer-countries", "label": "Countries", "url": "<COUNTRIES_URL>", "format": "geojson", "enabled": true },
+  { "id": "layer-cities",    "label": "Cities",    "url": "<CITIES_URL>",    "format": "records", "enabled": true }
 ]
 ```
+
+   - At runtime, the geospatial slice reads this JSON, normalizes `blob` URLs to `raw` (via `normalizeGitHubBlobLikeUrl`), and stores them in `geospatialDatasets`.
+
+2. **Via Geo panel UI (per-session configuration)**
+   - In Knowgrph, open **MainPanel Workflow → Step 3 (Ingest) → Source Files**.
+   - Add or select three Source File rows (for example “Airports”, “Countries”, “Cities”).
+   - For each row:
+     - Use the URL import control to enter the dataset URL.
+     - Use the Geo toggle/checkbox to register it as a geospatial dataset (the host calls `addGeospatialDatasetUrl` with `{ label, url, format: 'auto' }`).
+
+Both approaches use the same underlying dataset model and helpers (`addGeospatialDatasetUrl(s)`, `parseGeospatialDatasetFormat`, `loadDatasetFeatureCollection`).
+
+### Step 3 — Enable Geospatial Mode (MapLibre overlay)
+
+1. In the Canvas toolbar, click **Geospatial Mode** (Geo button) to open the Geo side-panel tab.
+2. Ensure Geospatial Mode is **enabled** (overlay toggle ON) and interaction mode is `Always` (default).
+3. Verify that the MapLibre basemap (default: OpenFreeMap Liberty) is visible as a translucent overlay on top of the 2D canvas.
+
+At this point, Document Mode (Graph canvas + panels) and Geospatial Mode share the same GraphData and selection; enabling Geo does not disable or replace Document Mode.
+
+### Step 4 — Observe multi-layer overlay + clustering
+
+1. In the Geo panel, confirm that all three datasets appear in the dataset list with their labels (“Airports”, “Countries”, “Cities”).
+2. Ensure each dataset is **enabled**:
+   - Countries (GeoJSON polygons) should render as polygon/line layers (fill + outline).
+   - Airports / Cities (records) should render as point layers derived from record coordinates.
+3. Enable clustering (if not already enabled) via the Geo panel cluster controls:
+   - `geospatialClusterEnabled = true`
+   - Adjust `geospatialClusterRadius` and `geospatialClusterMaxZoom` as needed.
+
+The MapLibre overlay now shows three simultaneous layers:
+
+- A polygon layer for country boundaries.
+- A clustered point layer for airports.
+- A clustered point layer for cities.
+
+### Step 5 — Use “Fit to data” and verify automatic bounds
+
+1. In the Geo panel, click **Fit to data**.
+2. The overlay computes combined bounds across all active datasets (Airports + Countries + Cities) using `computeBoundsFromCollections` (Turf `bbox` under the hood).
+3. The MapLibre camera animates (if enabled) to show all layers in a single view:
+   - In **2D** render mode, the map uses the same world bounds as the canvas, so graph-first affordances remain intact.
+   - In **3D** render mode, the overlay prefers selection bounds if a geo-capable graph selection exists; otherwise it uses dataset bounds.
+
+### Step 6 — Keep configuration neutral and bounded
+
+- Dataset URLs live in environment config or user input, not in compiled code.
+- Fetch behavior remains bounded:
+  - `geospatialDatasetTimeoutMs` and `geospatialDatasetMaxBytes` control timeout and max bytes.
+  - Oversized or slow datasets fail with clear, actionable messages (no infinite fetch loops).
+- The same pipeline accepts any Airports/Countries/Cities-style dataset that respects the coordinate contract, not just the example sources above.

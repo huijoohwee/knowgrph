@@ -84,7 +84,7 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
         </div>
       </CollapsibleSubsection>
 
-      <CollapsibleSubsection title="Dataset fetch limits" defaultCollapsed={false}>
+      <CollapsibleSubsection title="Dataset fetch limits">
         <div className="space-y-1">
           <SimpleKeyValueRow label="Timeout (ms)" density="compact" className="px-1">
             <RightAlignedTooltipInput
@@ -131,7 +131,6 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
             </button>
           </span>
         }
-        defaultCollapsed={false}
       >
         <ToolbarSourceFilesArea />
       </CollapsibleSubsection>

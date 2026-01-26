@@ -5,7 +5,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { UI_COPY } from '@/lib/config'
 import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
-import { findElementWithText } from './markdownTestUtils'
+import { findElementWithText, findElementWithTitle } from './markdownTestUtils'
 
 export async function testMarkdownLayoutViewToggleEndToEnd() {
   const storage = new MemoryStorage()
@@ -35,19 +35,11 @@ export async function testMarkdownLayoutViewToggleEndToEnd() {
     const editToggleTitle = UI_COPY.bottomPanelMarkdownEditToggleTitle
 
     // Initial state: Viewer mode (default)
-    const editorHeaderInitial = findElementWithText(doc.body as HTMLElement, editorTitle)
-    const viewerHeaderInitial = findElementWithText(doc.body as HTMLElement, viewerTitle)
+    const editorHeaderInitial = findElementWithTitle(doc.body as HTMLElement, editorTitle)
+    const viewerHeaderInitial = findElementWithTitle(doc.body as HTMLElement, viewerTitle)
     
     // In viewer mode, editor header should NOT be visible, viewer header SHOULD be visible
-    if (editorHeaderInitial) {
-      // Check if it's hidden via class
-      const isHidden = (editorHeaderInitial as HTMLElement).offsetParent === null || 
-                       editorHeaderInitial.classList.contains('hidden') ||
-                       editorHeaderInitial.closest('.hidden')
-      if (!isHidden) {
-         throw new Error('editor header should be hidden or absent in initial viewer layout')
-      }
-    }
+    if (editorHeaderInitial) throw new Error('editor header should be absent in initial viewer layout')
     if (!viewerHeaderInitial) {
       throw new Error('viewer header not found in initial viewer layout')
     }
@@ -70,21 +62,13 @@ export async function testMarkdownLayoutViewToggleEndToEnd() {
     editButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
     await tick()
 
-    const editorHeaderEditorMode = findElementWithText(doc.body as HTMLElement, editorTitle)
-    const viewerHeaderEditorMode = findElementWithText(doc.body as HTMLElement, viewerTitle)
+    const editorHeaderEditorMode = findElementWithTitle(doc.body as HTMLElement, editorTitle)
+    const viewerHeaderEditorMode = findElementWithTitle(doc.body as HTMLElement, viewerTitle)
     
     if (!editorHeaderEditorMode) {
       throw new Error('editor header not found after toggling to editor mode')
     }
-    // In editor mode, viewer header might be hidden or absent
-    if (viewerHeaderEditorMode) {
-       const isHidden = viewerHeaderEditorMode.offsetParent === null || 
-                        viewerHeaderEditorMode.classList.contains('hidden') ||
-                        viewerHeaderEditorMode.closest('.hidden')
-       if (!isHidden) {
-          throw new Error('viewer header should be hidden in editor mode')
-       }
-    }
+    if (viewerHeaderEditorMode) throw new Error('viewer header should be absent in editor mode')
 
     // Toggle back to Viewer Mode
     // Note: The button might have re-rendered, so find it again or reuse if stable
@@ -95,20 +79,13 @@ export async function testMarkdownLayoutViewToggleEndToEnd() {
     editButton2.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
     await tick()
 
-    const editorHeaderViewerMode = findElementWithText(doc.body as HTMLElement, editorTitle)
-    const viewerHeaderViewerMode = findElementWithText(doc.body as HTMLElement, viewerTitle)
+    const editorHeaderViewerMode = findElementWithTitle(doc.body as HTMLElement, editorTitle)
+    const viewerHeaderViewerMode = findElementWithTitle(doc.body as HTMLElement, viewerTitle)
     
     if (!viewerHeaderViewerMode) {
       throw new Error('viewer header not found after toggling back to viewer mode')
     }
-    if (editorHeaderViewerMode) {
-       const isHidden = editorHeaderViewerMode.offsetParent === null || 
-                        editorHeaderViewerMode.classList.contains('hidden') ||
-                        editorHeaderViewerMode.closest('.hidden')
-       if (!isHidden) {
-          throw new Error('editor header should be hidden in viewer mode')
-       }
-    }
+    if (editorHeaderViewerMode) throw new Error('editor header should be absent in viewer mode')
 
     root.unmount()
   } finally {

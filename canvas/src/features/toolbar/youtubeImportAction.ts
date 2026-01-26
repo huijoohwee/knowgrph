@@ -222,6 +222,17 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
       fallbackMarkdown: converted.markdown,
     })
 
+    const state = useGraphStore.getState()
+    applyImportedMarkdownToStore({
+      name: converted.displayName,
+      text: markdownForEditors,
+      sourceUrl: converted.sourceUrl,
+      curationView: 'markdown',
+      recent: { name: converted.displayName, url: converted.sourceUrl, type: 'markdown' },
+    })
+    const jsonNameForEditors = `${converted.displayName.replace(/\.(md|markdown)$/i, '') || converted.displayName}.json`
+    state.setJsonSourceDocument(jsonNameForEditors, converted.transcriptJsonText)
+
     const parseTarget = (() => {
       if (converted.transcript) {
         const graphData = buildYouTubeTranscriptGraphData(converted.transcript)
@@ -237,19 +248,6 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
       openTab: 'curation',
       onSuccess: (res) => {
         if (!res.input) return
-        const state = useGraphStore.getState()
-        applyImportedMarkdownToStore({
-          name: converted.displayName,
-          text: markdownForEditors,
-          sourceUrl: converted.sourceUrl,
-          curationView: 'markdown',
-          recent: {
-            name: converted.displayName,
-            url: converted.sourceUrl,
-            type: 'markdown',
-          },
-        })
-        state.setJsonSourceDocument(converted.displayName, converted.transcriptJsonText)
       },
     })
   } catch (error) {

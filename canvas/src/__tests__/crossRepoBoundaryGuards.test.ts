@@ -21,6 +21,9 @@ export function testForbidSiblingRepoSourceImports() {
     /\bfrom\s+['"][^'"]*(?:curagrph|gympgrph)\/src\//,
     /\bimport\(\s*['"][^'"]*(?:curagrph|gympgrph)\/src\//,
     /\brequire\(\s*['"][^'"]*(?:curagrph|gympgrph)\/src\//,
+    /\bfrom\s+['"][^'"]*grph-shared\/src\//,
+    /\bimport\(\s*['"][^'"]*grph-shared\/src\//,
+    /\brequire\(\s*['"][^'"]*grph-shared\/src\//,
   ]
   for (const file of files) {
     const st = statSync(file)

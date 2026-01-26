@@ -1,0 +1,5 @@
+[
+  { "id": "APT-AAA", "name": "Airport Alpha", "lat": 1.3521, "lon": 103.8198, "iata": "AAA" },
+  { "id": "APT-BBB", "name": "Airport Beta", "lat": 35.6895, "lon": 139.6917, "iata": "BBB" },
+  { "id": "APT-CCC", "name": "Airport Gamma", "lat": 51.5072, "lon": -0.1276, "iata": "CCC" }
+]

@@ -1,0 +1,27 @@
+{
+  "name": "grph-shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./url": {
+      "types": "./dist/url.d.ts",
+      "default": "./dist/url.js"
+    },
+    "./net/fetchRemoteText": {
+      "types": "./dist/net/fetchRemoteText.d.ts",
+      "default": "./dist/net/fetchRemoteText.js"
+    },
+    "./cache/LRUCache": {
+      "types": "./dist/cache/LRUCache.d.ts",
+      "default": "./dist/cache/LRUCache.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json",
+    "README.md"
+  ]
+}
+

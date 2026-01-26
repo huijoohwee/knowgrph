@@ -17,6 +17,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
 import { createId } from '@/lib/id'
+import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 
 type ToolbarMenuLauncherProps = {
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
@@ -42,7 +43,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
     closeToolMenu,
   } = useToolMenuState()
 
-  const handleToolMenuShortcutAction = React.useCallback((area: any, action: any) => {
+  const handleToolMenuShortcutAction = React.useCallback((area: ToolMenuArea, action: ToolMenuAction) => {
     if (area !== 'sourceFiles' || action !== 'new') return
     try {
       const store = useGraphStore.getState()

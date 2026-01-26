@@ -90,6 +90,16 @@ export const findElementWithText = (root: HTMLElement, text: string): HTMLElemen
   return null
 }
 
+export const findElementWithTitle = (root: HTMLElement, title: string): HTMLElement | null => {
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
+  while (walker.nextNode()) {
+    const el = walker.currentNode as HTMLElement
+    const t = el.getAttribute && el.getAttribute('title')
+    if (t && t.trim() === title) return el
+  }
+  return null
+}
+
 export const runMarkdownToGraphWithToggle = (name: string, markdown: string, enabled: boolean) => {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))

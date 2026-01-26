@@ -131,4 +131,6 @@ export const SOURCE_FILES_COPY = {
     'Supports import/export: .md .markdown .txt .geojson .json .jsonld .csv .html .htm .yaml .yml .pdf; URL sources: https://… (including YouTube).',
   importUrlPrompt: 'Enter a Source File URL (https://… or YouTube).',
   urlPlaceholder: 'https://… (or YouTube)',
+  geoLayerEmbeddedGeojsonNotFound: 'Geo layer enable failed: no embedded GeoJSON FeatureCollection blocks found in the Markdown file',
+  geoLayerEmbeddedGeojsonUploadFailed: 'Geo layer enable failed: unable to upload embedded GeoJSON to local dataset cache',
 } as const

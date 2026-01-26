@@ -20,12 +20,14 @@ import {
   testMarkdownEditToggleKeepsScrollPosition,
   testMarkdownScrollSyncMixedContentViewerToEditor,
 } from '@/__tests__/markdown/markdownScrollSync.test'
+import { testMarkdownYouTubeRendering } from '@/__tests__/markdown/markdownRichMedia.test'
 import {
   testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine,
   testMarkdownViewerDoubleClickScrollsEditor,
 } from '@/__tests__/markdown/markdownDoubleClick.test'
 import { testFrontmatterModeFiltersToFrontmatterMermaidOnly } from '@/__tests__/frontmatterModeFilter.test'
 import { testMarkdownHeadingGroupsDerivation } from '@/__tests__/markdownHeadingGroups.test'
+import { testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset } from '@/__tests__/markdown/markdownGeoJsonOverlayRegistration.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -43,8 +45,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.scrollSync.viewerToEditor', testMarkdownScrollSyncViewerToEditor)
   await execTest(results, 'markdown.scrollSync.editToggleKeepsPos', testMarkdownEditToggleKeepsScrollPosition)
   await execTest(results, 'markdown.scrollSync.mixedContent', testMarkdownScrollSyncMixedContentViewerToEditor)
+  await execTest(results, 'markdown.richMedia', testMarkdownYouTubeRendering)
   await execTest(results, 'markdown.scrollSync.editorDblClick', testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine)
   await execTest(results, 'markdown.scrollSync.viewerDblClick', testMarkdownViewerDoubleClickScrollsEditor)
   await execTest(results, 'markdown.frontmatterMode.filtersMermaidOnly', testFrontmatterModeFiltersToFrontmatterMermaidOnly)
   await execTest(results, 'markdown.headingGroups.derivation', testMarkdownHeadingGroupsDerivation)
+  await execTest(results, 'markdown.geojson.registersToGeo', testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset)
 }

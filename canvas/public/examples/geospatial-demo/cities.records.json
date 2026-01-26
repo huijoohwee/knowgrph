@@ -1,0 +1,5 @@
+[
+  { "id": "CITY-001", "name": "Example City One", "lat": 37.7749, "lng": -122.4194, "population": 1000000 },
+  { "id": "CITY-002", "name": "Example City Two", "lat": 48.8566, "lng": 2.3522, "population": 2000000 },
+  { "id": "CITY-003", "name": "Example City Three", "lat": -33.8688, "lng": 151.2093, "population": 500000 }
+]

@@ -205,6 +205,99 @@ Key behaviors:
 
 ---
 
+## URL → Proxy Fetch → Parse → Canvas/MapLibre Rendering
+
+### 1. Import URL (host) → normalize/resolve (shared)
+
+**Shared helpers (`knowgrph/grph-shared/src/url.ts`)**:
+- `unwrapUserProvidedText(value)` → strips quotes/angle brackets and trailing punctuation.
+- `coerceHttpUrl(value)` → validates `http(s)` URLs and rejects credentials.
+- `coerceFetchUrl(value)` → accepts `http(s)` URLs or same-origin absolute paths (`/path`), builds absolute URL from `window.location.origin`.
+- `normalizeGitHubBlobLikeUrl(rawUrl)` → rewrites GitHub `.../blob/{branch}/path` to `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{rel}`.
+- `deriveFilenameFromUrl(rawUrl, fallback)` → derives a stable document name from URL pathname or hostname.
+
+**Canvas UI import helpers (`knowgrph/canvas/src/features/toolbar/ingestUtils.ts`)**:
+- `normalizeImportName(rawUrl)` → uses `coerceHttpUrl` + `deriveFilenameFromUrl` to compute canonical document names.
+- `fetchRemoteMarkdownText(url)` / `fetchRemoteHtmlText(url)` → normalize GitHub blob URLs before remote fetch.
+
+**Geospatial dataset helpers (`gympgrph/src/geospatialDatasets.ts`)**:
+- `addGeospatialDatasetUrl({ label, url, format })` → normalizes GitHub blob URLs via `normalizeGitHubBlobLikeUrl` and stores dataset descriptors in `geospatialDatasets`.
+
+### 2. Proxy decision + remote fetch
+
+**Proxy contract (shared)**:
+- `REMOTE_FETCH_PROXY_ENDPOINT = '/__fetch_remote'`
+- `MEDIA_PROXY_ENDPOINT = REMOTE_FETCH_PROXY_ENDPOINT`
+- `shouldUseRemoteFetchProxy()` → returns true only on localhost-style hosts (`localhost`, `127.0.0.1`, `0.0.0.0`).
+
+**Remote text fetch (`knowgrph/grph-shared/src/net/fetchRemoteText.ts`)**:
+- `fetchRemoteTextDetailed(rawUrl, options)` →
+  - Uses `coerceFetchUrl` to validate/normalize the target.
+  - Applies `useProxy: 'auto' | 'always' | 'never'` and `shouldUseRemoteFetchProxy()`.
+  - Builds proxy URLs via `buildProxyUrl(proxyEndpoint, url)` pointing at `/__fetch_remote?url=...`.
+  - Enforces `timeoutMs` and `maxBytes` and optionally issues a HEAD preflight.
+- `fetchRemoteText(rawUrl, { timeoutMs, maxBytes, useProxy })` → convenience wrapper for text-only callers.
+
+**Dev/preview proxy implementation (`knowgrph/canvas/vite.config.ts`)**:
+- `remoteFetchProxyDevPlugin` registers middleware on `/__fetch_remote` for dev and preview servers.
+- `createRemoteFetchHandler()` →
+  - Reads `url` query parameter.
+  - Applies bounded timeout/size limits via `KNOWGRPH_REMOTE_FETCH_TIMEOUT_MS` and `KNOWGRPH_REMOTE_FETCH_MAX_BYTES`.
+  - Streams upstream `fetch(url)` responses back to the browser while enforcing `maxBytes`.
+
+**Media URL proxying (Canvas + Curagrph + Gympgrph)**:
+- `applyMediaProxySrc(src)` (shared) rewrites cross-origin media URLs to `/__fetch_remote?url=...` when `shouldUseRemoteFetchProxy()` is true.
+- Gympgrph and Curagrph import and reuse this helper for map tiles and markdown media respectively.
+
+### 3. Parse (Graph + GeoJSON) and apply to stores
+
+**Graph parsing (Knowgrph Canvas host)**:
+- `loadGraphDataFromTextViaParser(name, text, options)` → chooses parser, builds `GraphData`, and writes to the graph store by default.
+- `loadGraphDataFromBackendViaParser(url, options)` → calls `fetchRemoteTextDetailed(url, { useProxy: true, ... })`, then delegates to `loadGraphDataFromTextViaParser`.
+
+**Markdown/JSON/CSV import helpers (Knowgrph Canvas)**:
+- `performMarkdownImport(args)` → prompts for URL or local file, uses `fetchRemoteMarkdownText` for URL, then calls `applyImportedMarkdownToStore`.
+- `performJsonImport(args)` / `performCsvImport(args)` → normalize names via `normalizeImportName` and delegate to graph parsers.
+
+**Markdown Apply (Curagrph BottomPanel)**:
+- `useMarkdownApply()` → calls `loadGraphDataFromTextViaParser(text, { applyToStore: false })` for each source, composes graphs, then applies via `setGraphData` / `setGraphDataPreservingLayout`.
+
+**Geospatial datasets (Gympgrph)**:
+- `loadDatasetFeatureCollection(url, format, { timeoutMs, maxBytes, onProgress }, datasetCache, fetcher)` →
+  - Normalizes GitHub blob URLs (`normalizeGitHubBlobLikeUrl`).
+  - Uses `fetchRemoteTextDetailed` with host-provided `timeoutMs`/`maxBytes` when `fetcher` is `fetchRemoteText`.
+  - Parses GeoJSON via `parseGeoJsonFromText` or derives points from record-style JSON via `recordsToPointFeatureCollection`.
+  - Caches `FeatureCollection` in an in-memory `LRUCache`.
+
+### 4. Render on Canvas and MapLibre
+
+**Canvas (Knowgrph)**:
+- `GraphCanvas` React entry (`canvas/src/components/GraphCanvas.tsx`) uses `setupGraphScene(...)` to build the 2D scene and subscribes to `GraphData` store updates.
+- Selection and layout are derived from the same `GraphData` used by the BottomPanel and Code Editor; no separate “geo graph” copy exists.
+
+**Geospatial overlay (Gympgrph + MapLibre GL JS)**:
+- `GeospatialOverlayHost` (exported by `gympgrph`) mirrors the host `GraphData`, zoom state, and selection via `applyHostSnapshot(snapshot)`.
+- `GeospatialOverlay` mounts a MapLibre GL JS map, adds sources/layers via `ensureDatasetLayer`, and calls `setGeoJsonSourceData(map, sourceId, featureCollection)` with `FeatureCollection`s loaded by `loadDatasetFeatureCollection`.
+- Bounds are computed across all loaded datasets via `computeBoundsFromCollections(collections)` (Turf’s `bbox`), then translated into camera moves.
+
+### 5. Synchronization across Document Mode and Geospatial Mode
+
+**Host ↔ Gympgrph bridge**:
+- Canvas passes a `HostSnapshot` and `HostHandlers` into `GeospatialOverlayHost` and `GeospatialPanelHost`.
+- Gympgrph applies snapshots via `applyHostSnapshot(snapshot)` and routes selection/zoom/toasts back through handler callbacks.
+
+**Mode separation**:
+- Canvas controls geospatial mounting via `sidePanelTab` (`'node' | 'chat' | 'geo'`) and `geospatialHostMounted`:
+  - The MapLibre overlay is only active when `sidePanelTab === 'geo'`.
+  - Changing tabs does not change `graphData`, editor contents, or Document Mode configuration.
+- Gympgrph’s `setGeospatialModeEnabled(enabled)` toggles overlay state and interaction mode without mutating Knowgrph’s document parsers or markdown/JSON editors.
+
+**Result**:
+- URL imports and dataset URLs flow through one shared normalization and proxy pipeline.
+- GraphData, markdown editor, JSON editor, and geospatial overlay all consume the same underlying `GraphData` and dataset descriptors, ensuring that Document Mode and Geospatial Mode remain synchronized but independently toggled.
+
+---
+
 ### Module: `knowgrph_parser.markdown_cmd`
 
 **From Markdown files to Knowledge Graph JSONâ€'LD + configs**: Module → scans directory for markdown files → parses each into a graph → unifies entities across documents → generates schema and orchestrator configs.

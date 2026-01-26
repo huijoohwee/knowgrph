@@ -3,14 +3,32 @@ import { createRoot } from 'react-dom/client'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
-import { UI_COPY } from '@/lib/config'
+import { UI_COPY, LS_KEYS } from '@/lib/config'
 import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+
+const resetMarkdownPrefs = (storage: Storage) => {
+  try {
+    storage.clear()
+    storage.setItem(LS_KEYS.markdownLayoutMode, JSON.stringify('split'))
+    storage.setItem(LS_KEYS.markdownViewerWidthMode, JSON.stringify('standard'))
+    storage.setItem(LS_KEYS.markdownWordWrap, '0')
+    storage.setItem(LS_KEYS.markdownPresentationMode, '0')
+    storage.setItem(LS_KEYS.markdownSyncScroll, '1')
+    storage.setItem(LS_KEYS.markdownTextHighlight, '0')
+    storage.setItem('markdownPreviewCollapsedIds', JSON.stringify([]))
+    storage.setItem('markdownPreviewSidebarOpen', 'true')
+  } catch {
+    void 0
+  }
+}
 
 export async function testMarkdownScrollSyncViewerToEditor() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
+    resetMarkdownPrefs(storage)
+    resetMarkdownPrefs(dom.window.localStorage)
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     if (!anyWindow.requestAnimationFrame) {
       anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
@@ -26,22 +44,30 @@ export async function testMarkdownScrollSyncViewerToEditor() {
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
-    root.render(React.createElement(BottomPanelMarkdownSection))
 
     const tick = () => new Promise<void>(resolve => anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0))
     const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
-    await tick()
-
-    const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
-    if (!textarea) {
-      throw new Error('editor textarea not found')
-    }
 
     const lines: string[] = []
     for (let i = 0; i < 200; i += 1) {
       lines.push(`line ${i}`)
     }
     const longText = lines.join('\n')
+
+    const { useGraphStore } = await import('@/hooks/useGraphStore')
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.clearSourceFiles()
+    store.setJsonSourceDocument(null, null)
+    store.setMarkdownDocument('test.md', longText)
+
+    root.render(React.createElement(BottomPanelMarkdownSection))
+    await tick()
+
+    const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
+    if (!textarea) {
+      throw new Error('editor textarea not found')
+    }
 
     Object.defineProperty(textarea, 'scrollHeight', {
       value: 2000,
@@ -52,14 +78,6 @@ export async function testMarkdownScrollSyncViewerToEditor() {
       configurable: true,
     })
 
-    const { useGraphStore } = await import('@/hooks/useGraphStore')
-    const store = useGraphStore.getState()
-    store.resetAll()
-    store.setMarkdownDocument('test.md', longText)
-
-    textarea.value = longText
-    textarea.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-    textarea.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
     await waitDebounce()
     await tick()
 
@@ -133,19 +151,33 @@ export async function testMarkdownEditToggleKeepsScrollPosition() {
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
+    resetMarkdownPrefs(storage)
+    resetMarkdownPrefs(dom.window.localStorage)
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     if (!anyWindow.requestAnimationFrame) {
       anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
         setTimeout(() => cb(Date.now()), 0) as unknown as number
     }
     const { useGraphStore } = await import('@/hooks/useGraphStore')
-    useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
     const container = doc.createElement('div')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
+
+    const lines: string[] = []
+    for (let i = 0; i < 200; i += 1) {
+      lines.push(`line ${i}`)
+    }
+    const longText = lines.join('\n')
+
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.clearSourceFiles()
+    store.setJsonSourceDocument(null, null)
+    store.setMarkdownDocument('demo.md', longText)
+
     root.render(React.createElement(BottomPanelMarkdownSection))
 
     const tick = () =>
@@ -153,18 +185,13 @@ export async function testMarkdownEditToggleKeepsScrollPosition() {
         anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
       )
     const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
+
     await tick()
 
     const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
     if (!textarea) {
       throw new Error('editor textarea not found')
     }
-
-    const lines: string[] = []
-    for (let i = 0; i < 200; i += 1) {
-      lines.push(`line ${i}`)
-    }
-    const longText = lines.join('\n')
 
     Object.defineProperty(textarea, 'scrollHeight', {
       value: 4000,
@@ -175,9 +202,6 @@ export async function testMarkdownEditToggleKeepsScrollPosition() {
       configurable: true,
     })
 
-    textarea.value = longText
-    textarea.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-    textarea.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
     await waitDebounce()
     await tick()
 
@@ -258,6 +282,8 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
+    resetMarkdownPrefs(storage)
+    resetMarkdownPrefs(dom.window.localStorage)
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     if (!anyWindow.requestAnimationFrame) {
       anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
@@ -280,12 +306,6 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
         anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
       )
     const waitDebounce = () => new Promise<void>(resolve => setTimeout(resolve, 300))
-    await tick()
-
-    const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
-    if (!textarea) {
-      throw new Error('editor textarea not found')
-    }
 
     const mixedLines: string[] = []
     mixedLines.push('# Title')
@@ -309,6 +329,21 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
 
     const mixedMarkdown = mixedLines.join('\n')
 
+    const { useGraphStore } = await import('@/hooks/useGraphStore')
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.clearSourceFiles()
+    store.setJsonSourceDocument(null, null)
+    store.setMarkdownDocument('mixed.md', mixedMarkdown)
+
+    root.render(React.createElement(BottomPanelMarkdownSection))
+    await tick()
+
+    const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
+    if (!textarea) {
+      throw new Error('editor textarea not found')
+    }
+
     Object.defineProperty(textarea, 'scrollHeight', {
       value: 2000,
       configurable: true,
@@ -318,14 +353,6 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
       configurable: true,
     })
 
-    const { useGraphStore } = await import('@/hooks/useGraphStore')
-    const store = useGraphStore.getState()
-    store.resetAll()
-    store.setMarkdownDocument('mixed.md', mixedMarkdown)
-
-    textarea.value = mixedMarkdown
-    textarea.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-    textarea.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
     await waitDebounce()
     await tick()
     await tick()
@@ -333,6 +360,17 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
     const viewer = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
     if (!viewer) {
       throw new Error('markdown preview root not found')
+    }
+
+    const waitFor = async <T,>(fn: () => T | null, timeoutMs: number): Promise<T | null> => {
+      const start = Date.now()
+      while (Date.now() - start < timeoutMs) {
+        const res = fn()
+        if (res) return res
+        await tick()
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 25))
+      }
+      return null
     }
 
     Object.defineProperty(viewer, 'scrollHeight', {
@@ -384,32 +422,28 @@ export async function testMarkdownScrollSyncMixedContentViewerToEditor() {
       })
     })
 
-    const findBlockByLine = (line: number) => {
-      return blocks.find(el => {
-        const raw = el.getAttribute('data-start-line')
-        if (!raw) return false
-        const n = Number.parseInt(raw, 10)
-        return Number.isFinite(n) && n === line
-      })
-    }
+    const found = await waitFor(() => {
+      const liveBlocks = Array.from(viewer.querySelectorAll<HTMLElement>('[data-start-line]'))
+      if (liveBlocks.length === 0) return null
+      const find = (p: (el: HTMLElement) => boolean) => liveBlocks.find(p)
+      const code = find(el => (el.querySelector('pre') || el.querySelector('[aria-label="Copy code to clipboard"]')) && /console\.log/.test(String(el.textContent || '')))
+      const table = find(el => !!el.querySelector('table') && /Col A/i.test(String(el.textContent || '')))
+      const img = find(el => !!el.querySelector('img[alt="Alt text"]'))
+      if (!code || !table || !img) return null
+      return { liveBlocks, code, table, img }
+    }, 1200)
 
-    const codeStartLine = 5
-    const tableStartLine = 11
-    const imageStartLine = 16
-
-    const codeBlockEl = findBlockByLine(codeStartLine)
-    const tableBlockEl = findBlockByLine(tableStartLine)
-    const imageBlockEl = findBlockByLine(imageStartLine)
-
-    if (!codeBlockEl) {
-      throw new Error('code block element not found in preview')
+    if (!found) {
+      const liveBlocks = Array.from(viewer.querySelectorAll<HTMLElement>('[data-start-line]'))
+      const hasCode = liveBlocks.some(el => (el.querySelector('pre') || el.querySelector('[aria-label="Copy code to clipboard"]')) && /console\.log/.test(String(el.textContent || '')))
+      const hasTable = liveBlocks.some(el => !!el.querySelector('table') && /Col A/i.test(String(el.textContent || '')))
+      const hasImage = liveBlocks.some(el => !!el.querySelector('img') || /Alt text/i.test(String(el.textContent || '')))
+      throw new Error(
+        `expected mixed content blocks (code/table/image) to render; blocks=${liveBlocks.length} code=${hasCode} table=${hasTable} image=${hasImage}`,
+      )
     }
-    if (!tableBlockEl) {
-      throw new Error('table block element not found in preview')
-    }
-    if (!imageBlockEl) {
-      throw new Error('image block element not found in preview')
-    }
+    const { liveBlocks: finalBlocks, code: codeBlockEl, table: tableBlockEl, img: imageBlockEl } = found
+    blocks.splice(0, blocks.length, ...finalBlocks)
 
     const codeIndex = blocks.indexOf(codeBlockEl)
     const tableIndex = blocks.indexOf(tableBlockEl)

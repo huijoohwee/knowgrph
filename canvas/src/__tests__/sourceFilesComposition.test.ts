@@ -44,10 +44,15 @@ export function testSourceFilesCompositionOrderAndVisibility() {
   applyComposedGraphFromSourceFiles()
   const first = useGraphStore.getState().graphData
   if (!first) throw new Error('expected composed graph data')
-  const meta1 = (first.metadata || {}) as Record<string, any>
-  const layers1 = meta1.sourceLayers as Array<{ id: string }> | undefined
-  if (!Array.isArray(layers1) || layers1.length !== 2) throw new Error('expected 2 sourceLayers')
-  if (layers1[0]?.id !== 'sf-1' || layers1[1]?.id !== 'sf-2') throw new Error('sourceLayers order mismatch')
+  const meta1 = (first.metadata || {}) as unknown as Record<string, unknown>
+  const layers1Raw = meta1.sourceLayers
+  const layerIds1 = Array.isArray(layers1Raw)
+    ? layers1Raw
+        .map(v => (v && typeof v === 'object' && 'id' in v ? String((v as { id?: unknown }).id || '') : ''))
+        .filter(Boolean)
+    : []
+  if (layerIds1.length !== 2) throw new Error('expected 2 sourceLayers')
+  if (layerIds1[0] !== 'sf-1' || layerIds1[1] !== 'sf-2') throw new Error('sourceLayers order mismatch')
   if (first.nodes.map(n => n.id).join(',') !== 'sf-1::n1,sf-2::n2') throw new Error('node order mismatch after compose')
 
   const contentKey1 = String(meta1.sourceLayerHash || '')
@@ -58,10 +63,15 @@ export function testSourceFilesCompositionOrderAndVisibility() {
   applyComposedGraphFromSourceFiles()
   const second = useGraphStore.getState().graphData
   if (!second) throw new Error('expected composed graph data after reorder')
-  const meta2 = (second.metadata || {}) as Record<string, any>
-  const layers2 = meta2.sourceLayers as Array<{ id: string }> | undefined
-  if (!Array.isArray(layers2) || layers2.length !== 2) throw new Error('expected 2 sourceLayers after reorder')
-  if (layers2[0]?.id !== 'sf-2' || layers2[1]?.id !== 'sf-1') throw new Error('sourceLayers order mismatch after reorder')
+  const meta2 = (second.metadata || {}) as unknown as Record<string, unknown>
+  const layers2Raw = meta2.sourceLayers
+  const layerIds2 = Array.isArray(layers2Raw)
+    ? layers2Raw
+        .map(v => (v && typeof v === 'object' && 'id' in v ? String((v as { id?: unknown }).id || '') : ''))
+        .filter(Boolean)
+    : []
+  if (layerIds2.length !== 2) throw new Error('expected 2 sourceLayers after reorder')
+  if (layerIds2[0] !== 'sf-2' || layerIds2[1] !== 'sf-1') throw new Error('sourceLayers order mismatch after reorder')
   if (second.nodes.map(n => n.id).join(',') !== 'sf-2::n2,sf-1::n1') throw new Error('node order mismatch after reorder')
 
   const contentKey2 = String(meta2.sourceLayerHash || '')
@@ -75,4 +85,3 @@ export function testSourceFilesCompositionOrderAndVisibility() {
   if (!third) throw new Error('expected composed graph data after disable')
   if (third.nodes.length !== 1 || third.nodes[0]?.id !== 'sf-1::n1') throw new Error('expected only enabled layer nodes')
 }
-
