@@ -13,6 +13,7 @@ import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { HelpCircle, MonitorPlay, Settings, Workflow } from 'lucide-react'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type MainPanelTab = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings'
 
@@ -240,11 +241,11 @@ export default function MainPanel({
           <MainPanelBody header={<MainPanelWorkflowHeader workflowActions={workflowActions} />}>
             <div
               className={[
-                'min-h-0 py-2 text-gray-600',
+                `min-h-0 py-2 ${UI_THEME_TOKENS.text.primary}`,
                 uiPanelKeyValueTextSizeClass,
                 uiPanelTextFontClass,
               ].join(' ')}
-              data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
+              data-kg-anchor={UI_ANCHORS.workflowPanel}
             >
               <WorkflowSection searchQuery={search} onRegisterActions={setWorkflowActions} />
             </div>

@@ -14,7 +14,9 @@
 
 ## Architecture
 
-**UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → Workspace Actions → Source Files (Import) → Store mutations → Bottom Panel Markdown "Contents" navigation
+**UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → Workspace Actions → Source Files → header "New Source File" (icon) → per-row import/export/clear actions → Store mutations → Bottom Panel Markdown "Contents" navigation
+
+**Supported Formats**: Local import/export supports `.md .markdown .txt .json .jsonld .csv .html .htm .yaml .yml`, URL sources via `https://…`, and YouTube imports via the YouTube importer.
 
 **UI Consolidation Rule**: Workspace Actions lives in MainPanel Workflow only; FloatingPanel is reserved for transient views (e.g. Props, Renderer, Traversal) to avoid duplicated controls.
 
@@ -22,9 +24,11 @@
 
 **Search Rule**: Workspace Actions filtering reuses the MainPanel header Graph Search toggle (no duplicate per-section search input).
 
+**GraphRAG Workflow Editing Rule**: Workflow Step 6 links to Bottom Panel → Orchestrator for GraphRAG workflow JSON-LD editing (no duplicate editor in MainPanel Workflow).
+
 **Toolbar Entry Point**: Toolbar "Open Data" opens MainPanel Workflow so ingest actions remain discoverable in the canonical step flow.
 
-**Optional Geo Layer Path**: Source Files (Import) → geospatial dataset registry (gympgrph store) → Geospatial Overlay layers
+**Optional Geo Layer Path**: Source Files → per-row Geo Layer checkbox → geospatial dataset registry (gympgrph store) → Geospatial Overlay layers
 
 ---
 
@@ -35,46 +39,35 @@
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant UI as ToolbarSourceFilesImportPanel
-  participant URL as splitUserProvidedTextList
   participant GH as normalizeGitHubBlobLikeUrl
-  participant NET as fetchRemoteText
-  participant S as useGraphStore.addSourceFile
+  participant NET as fetchRemoteTextDetailed
+  participant S as useGraphStore.updateSourceFile
   participant BP as BottomPanelMarkdownSection
   participant MD as setMarkdownDocument
-  participant P as MarkdownPreview
-  participant TOK as useMarkdownPreviewTokens
+  participant OPEN as openBottomPanel
 
-  U->>UI: handleAddUrls()
-  UI->>URL: splitUserProvidedTextList(urlsText)
+  U->>UI: click "Open Markdown Viewer" (row)
   UI->>GH: normalizeGitHubBlobLikeUrl(url)
-  UI->>NET: fetchRemoteText(url)
-  UI->>S: addSourceFile({ id,name,text,enabled,status })
-  U->>BP: onSourceFileSelect(id)
-  BP->>MD: setMarkdownDocument(name,text)
-  P->>TOK: useMarkdownPreviewTokens(markdownDocumentText)
+  UI->>NET: fetchRemoteTextDetailed(url)
+  UI->>S: updateSourceFile(id,{ text,status })
+  UI->>MD: setMarkdownDocument(name,text)
+  UI->>OPEN: openBottomPanel('curation')
 ```
 
-### Quick Import (Parse → GraphCanvas Render) (Knowgrph)
+### Format-Specific Import (Parse → GraphCanvas Render) (Knowgrph)
 
 ```mermaid
 sequenceDiagram
   participant U as User
   participant UI as ToolbarSourceFilesArea
-  participant ACT as useToolbarMenuAction
-  participant IMP as performMarkdownImport
   participant FLOW as runImportFlow
   participant PAR as loadGraphDataFromTextViaParser
-  participant SIDE as applyImportedMarkdownToStore
   participant G as useActiveGraphData
   participant C as GraphCanvas
 
-  U->>UI: onToolMenuAction('sourceFiles','importUrl',{format,url})
-  UI->>ACT: dispatch importUrl
-  ACT->>IMP: performMarkdownImport('url', url)
-  IMP->>FLOW: runImportFlow({ nameForParse, textForParse, ... })
+  U->>UI: click "Import" (row)
+  UI->>FLOW: runImportFlow({ nameForParse, textForParse })
   FLOW->>PAR: loadGraphDataFromTextViaParser(nameForParse,textForParse)
-  IMP->>SIDE: applyImportedMarkdownToStore(...)
   C->>G: useActiveGraphData()
 ```
 
@@ -82,8 +75,8 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant UI as ToolbarSourceFilesImportPanel
-  participant M as gympgrph/datasets.addGeospatialDatasetUrls
+  participant UI as ToolbarSourceFilesArea
+  participant M as gympgrph.addGeospatialDatasetUrls
   participant H as GeospatialOverlayHost
   participant O as GeospatialOverlay
   participant L as loadDatasetFeatureCollection
@@ -97,7 +90,7 @@ sequenceDiagram
 
 - **Workspace Actions (Knowgrph)**:
   - `knowgrph/canvas/src/features/toolbar/ToolbarSourceFilesArea.tsx` opens the Source Files import surface.
-  - `knowgrph/canvas/src/features/toolbar/ToolbarSourceFilesImportPanel.tsx` imports local files and URL lists.
+  - `knowgrph/canvas/src/features/toolbar/ToolbarSourceFilesArea.tsx` embeds the URL/local Source Files import row and optional Geo dataset manager.
 - **Curation UI (Curagrph)**:
   - `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders Source Files inside the "Contents" navigation.
   - `curagrph/src/components/BottomPanel/BottomPanelMarkdownSection.tsx` wires selection to `setMarkdownDocument(...)`.
@@ -110,43 +103,23 @@ sequenceDiagram
 
 ## Specifications
 
-### Multi-Source URL Import
-
-**From/To**: ToolbarSourceFilesImportPanel → splits URL list → normalizes URLs → fetches text → stores Source Files.
-
-**Interface Pattern**:
-
-- `ToolbarSourceFilesImportPanel` stores each imported entry as `{ id, name, text, enabled, status }` via `addSourceFile(...)`.
-- URL parsing uses `splitUserProvidedTextList(...)` and `normalizeGitHubBlobLikeUrl(...)` to accept common paste formats.
-
 ### Optional Geo Layer Registration
 
 **From/To**: Source Files Import → registers dataset URLs → enables multi-dataset overlay rendering.
 
 **Decision Logic**:
 
-- If the user enables the "Also add as Geo layer" toggle, each imported URL is registered as a dataset reference using `gympgrph/datasets`.
-- Dataset labels are derived from the URL when not explicitly provided.
-- Dataset ids are generated uniquely and persisted; implementation should prefer uuid-based ids when available.
-
-### Dataset Add/List UI (Workspace Actions)
-
-**From/To**: Source Files Import → embeds geospatial dataset manager → add/remove/reload/toggle datasets.
-
-**Decision Logic**:
-
-- The host hides the dataset manager inside the Geo side panel and embeds it into Source Files import to avoid duplicated surfaces.
-- The embedded dataset manager is consumed via the declared `gympgrph/datasets-ui` entrypoint.
+- If the user enables the Geo Layer checkbox on a URL row, the URL is registered as a dataset reference using `gympgrph` and rendered as an overlay when Geospatial mode is active.
+- Dataset labels are derived from the row label when not explicitly provided.
 
 ### Quick Import (Parse → Graph)
 
-**From/To**: ToolbarSourceFilesArea → selects format → triggers `importLocal` / `importUrl` actions → runs the format-specific import pipeline.
+**From/To**: Workspace Actions tool menu → Markdown/HTML/PDF/YouTube/JSON/JSON-LD areas → triggers `importLocal` / `importUrl` actions → runs the format-specific import pipeline.
 
 **Decision Logic**:
 
-- The quick-import surface provides a single format dropdown, a Local action, and a URL(s) action.
-- URL(s) import accepts multiple URLs and dispatches `importUrl` once per URL (bounded by the underlying import flows).
-- Advanced format-specific panels remain available for specialized inputs (for example YouTube language).
+- Source Files focuses on managing the Source Files list (add via URL/local, reorder, toggle visibility).
+- Parser-oriented ingest (Markdown/HTML/PDF/YouTube/JSON/JSON-LD/CSV) remains in dedicated tool menu areas so Source Files stays table-driven and conflict-free.
 
 ---
 
@@ -154,7 +127,7 @@ sequenceDiagram
 
 | Context | Intent | Directive | Module/Component | Function/Method | Input | Output | Decision Logic |
 |---|---|---|---|---|---|---|---|
-| Utilities | Centralize parsing | - [ ] Reuse URL parsing; forbid duplicate splitting logic | `knowgrph/canvas/src/lib/url.ts` | `splitUserProvidedTextList` | URL text list | URL array | Split by whitespace/commas; trim/unwrap; dedupe |
-| Fetch | Bound remote work | - [ ] Bound fetch; forbid indefinite streaming | `knowgrph/canvas/src/lib/net/fetchRemoteText.ts` | `fetchRemoteText` | URL | Text or null | Timeout + max-bytes guard |
+| Utilities | Centralize parsing | - [ ] Reuse URL normalization; forbid ad-hoc GitHub URL handling | `knowgrph/canvas/src/lib/url.ts` | `normalizeGitHubBlobLikeUrl` | URL | URL | Normalize blob-like URLs to the canonical fetch URL when possible |
+| Fetch | Bound remote work | - [ ] Bound fetch; forbid indefinite streaming | `knowgrph/canvas/src/lib/net/fetchRemoteText.ts` | `fetchRemoteTextDetailed` | URL | `{ ok,text }` | Timeout + max-bytes guard |
 | Curation UI | Preserve discoverability | - [ ] Show Source Files in Contents; forbid hidden state | `curagrph/.../MarkdownPanelLayout.tsx` | `MarkdownPanelLayout` | `sourceFiles` | Contents nav list | Render list inside TOC nav so it remains visible even without headings |
 | Geospatial | Avoid duplicate import surfaces | - [ ] Consolidate dataset import; forbid conflicting UIs | `gympgrph/src/features/geospatial/GeospatialPanel.tsx` | `GeospatialPanel` | Dataset list | Dataset list UI | Geo panel does not provide dataset-add inputs; adding is consolidated into Source Files import |

@@ -42,6 +42,9 @@
   --kg-code-bg: #f8fafc;
   --kg-code-border: #e2e8f0;
   --kg-code-text: #0f172a;
+  --kg-control-height: 28px;
+  --kg-status-pill-height: 24px;
+  --kg-table-row-height: 44px;
   --kg-canvas-bg: var(--app-bg);
   --kg-canvas-node-stroke: #ffffff;
   --kg-canvas-edge-stroke: #9ca3af;

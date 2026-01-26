@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { useParserUIState } from '@/features/parsers/uiState'
 import type { ToolMenuAction, ToolMenuArea, ToolMenuPayload } from '@/features/toolbar/toolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { createId } from '@/lib/id'
 import { UI_COPY } from '@/lib/config'
 import { downloadBlob } from '@/lib/graph/save'
 import MarkdownIt from 'markdown-it'
@@ -174,6 +175,32 @@ export function useToolbarMenuAction(args: {
 
       if (area === 'sourceFiles') {
         const format = typeof payload?.format === 'string' ? payload.format : ''
+        if (action === 'new') {
+          try {
+            const store = useGraphStore.getState()
+            const count = Array.isArray(store.sourceFiles) ? store.sourceFiles.length : 0
+            const nextIndex = Math.max(1, count + 1)
+            store.addSourceFile({
+              id: createId('sf'),
+              name: `source-${nextIndex}.md`,
+              text: '',
+              enabled: true,
+              status: 'idle',
+              source: { kind: 'local' },
+            })
+          } catch {
+            void 0
+          }
+          return
+        }
+        if (action === 'clear') {
+          try {
+            useGraphStore.getState().clearSourceFiles()
+          } catch {
+            void 0
+          }
+          return
+        }
         if (action === 'import') {
           if (format === 'markdown') {
             void (async () => {

@@ -6,6 +6,7 @@ import { edgeExists } from '@/lib/graph/edges'
 import { getNodeMediaSpec, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { emitChatInputAppend, emitSidePanelOpen } from '@/features/canvas/utils'
 import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
+import { createId } from '@/lib/id'
 
 type FloatingPanelModel = {
   graphData: GraphData | null
@@ -48,8 +49,6 @@ type FloatingPanelModel = {
   doStartEdgeFromSelected: () => void
   doAddMediaNode: () => void
 }
-
-const createId = (prefix: 'n' | 'e') => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
 const getCanvasCenterGraphPoint = () => {
   const state = useGraphStore.getState()

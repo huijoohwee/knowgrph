@@ -674,7 +674,8 @@ const youtubeConvertDevPlugin = {
 
 export default defineConfig(({ command }) => ({
   optimizeDeps: {
-    include: ['highlight.js', 'dayjs', 'mermaid'],
+    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl'],
+    exclude: ['gympgrph', 'curagrph'],
   },
   build: {
     sourcemap: 'hidden',
@@ -692,7 +693,7 @@ export default defineConfig(({ command }) => ({
   },
   resolve: {
     preserveSymlinks: true,
-    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid'],
+    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl'],
     alias: [
       { find: 'react/jsx-runtime', replacement: resolvedReactJsxRuntime },
       { find: 'react/jsx-dev-runtime', replacement: resolvedReactJsxDevRuntime },
@@ -729,7 +730,11 @@ export default defineConfig(({ command }) => ({
     port: 5173,
     strictPort: true,
     fs: {
-      allow: [path.resolve(__dirname, '..')]
+      allow: [
+        path.resolve(__dirname, '..'),
+        path.resolve(__dirname, '../../gympgrph'),
+        path.resolve(__dirname, '../../curagrph'),
+      ]
     }
   },
   plugins: [

@@ -2,21 +2,16 @@ import React from 'react';
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection';
 import Tooltip from '@/features/panels/ui/Tooltip';
 import type { ExampleId, ExampleConfig } from '@/features/parsers/examplesCatalog';
-import { ORCHESTRATOR_AGENTIC_COPY, WORKFLOW_STEP_COPY, PIPELINE_STAGE_COPY } from '@/features/panels/config';
-import JsonEditor from '@/features/json/JsonEditor';
+import { WORKFLOW_STEP_COPY } from '@/features/panels/config';
 import {
-  UI_ANCHORS,
-  UI_LABELS,
   RUN_CODEBASE_INDEX_PIPELINE_LABEL,
   WORKFLOW_STEP3_PARSER_TOOLTIP,
   WORKFLOW_STEP6_ORCHESTRATOR_TOOLTIP,
   WORKFLOW_STEP8_BOTTOM_TABS_TOOLTIP,
 } from '@/lib/config';
-import { AGENTIC_RAG_CONTEXT_URL, AGENTIC_RAG_SCHEMA_URL, AGENTIC_RAG_GRAPH_RAG_PATH_IRI } from '@/lib/agenticrag';
-import type { JsonLdMappingSummary, AgenticContextSummary } from '@/features/panels/views/WorkflowStepsModel';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { getPillClass, getChipClass } from '@/lib/ui';
 import WorkspaceActionsStep from '@/features/workspace-actions/WorkspaceActionsStep';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type CollapsedByStep = {
   1: boolean;
@@ -41,18 +36,6 @@ interface ParserWorkflowProps {
   onApplyPreset: (presetId: string) => void;
 }
 
-interface GraphRagWorkflowProps {
-  jsonLdMapping: JsonLdMappingSummary | null;
-  agenticContext: AgenticContextSummary | null;
-  graphRagWorkflowJsonText: string;
-  onChangeGraphRagWorkflowJsonText: (text: string) => void;
-  graphRagEditorExpanded: boolean;
-  onToggleGraphRagEditorExpanded: () => void;
-  onResetGraphRagWorkflowJson: () => void;
-  onGenerateGraphRagWorkflowFromGraph: () => void;
-  onImportGraphRagWorkflowJsonLd: () => void;
-}
-
 interface WorkflowStepsProps {
   collapsedByStep: CollapsedByStep;
   onToggleStep: (step: number, next: boolean) => void;
@@ -64,7 +47,6 @@ interface WorkflowStepsProps {
   onOpenOrchestratorTab: () => void;
   onRunAiKgTraversal: () => void;
   parserWorkflow: ParserWorkflowProps;
-  graphRagWorkflow: GraphRagWorkflowProps;
   shareStatus: string | null;
   onCopyShareLink: () => void;
   pipelineStatus: string | null;
@@ -96,32 +78,39 @@ export function WorkflowSteps({
   onOpenOrchestratorTab,
   onRunAiKgTraversal,
   parserWorkflow,
-  graphRagWorkflow,
   shareStatus,
   onCopyShareLink,
   pipelineStatus,
   onRunCodebaseIndexPipeline,
 }: WorkflowStepsProps) {
-  const uiIconPillBadgeTextSizeClass = useGraphStore(s => s.uiIconPillBadgeTextSizeClass);
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
   );
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   );
-  const uiPanelMonospaceTextClass = useGraphStore(
-    s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
-  );
+  const [selectedExampleId, setSelectedExampleId] = React.useState<string>('')
+  const [selectedPresetId, setSelectedPresetId] = React.useState<string>('')
+  const contentTooltipClassName = `${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`
+  const statusPillClassName = `inline-flex items-center h-6 max-w-[14rem] rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} px-2 text-xs`
   return (
-    <div className="mt-3">
+    <div className="mt-0">
       <CollapsibleSection
-        title={<WorkflowStepHeader step={1} label={WORKFLOW_STEP_COPY[1].label} />}
+        title={(
+          <Tooltip
+            content={WORKFLOW_STEP_COPY[1].descriptionShort}
+            maxWidthPx={280}
+            contentClassName={contentTooltipClassName}
+          >
+            <span className="inline-flex items-center gap-1">
+              <WorkflowStepHeader step={1} label={WORKFLOW_STEP_COPY[1].label} />
+            </span>
+          </Tooltip>
+        )}
         collapsed={collapsedByStep[1]}
         onToggle={next => onToggleStep(1, next)}
+        className="mt-0 border-t-0 pt-0"
       >
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
-          {WORKFLOW_STEP_COPY[1].descriptionShort}
-        </div>
         <button
           type="button"
           className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${
@@ -134,13 +123,21 @@ export function WorkflowSteps({
       </CollapsibleSection>
 
       <CollapsibleSection
-        title={<WorkflowStepHeader step={2} label={WORKFLOW_STEP_COPY[2].label} />}
+        title={(
+          <Tooltip
+            content={WORKFLOW_STEP_COPY[2].descriptionShort}
+            maxWidthPx={280}
+            contentClassName={contentTooltipClassName}
+          >
+            <span className="inline-flex items-center gap-1">
+              <WorkflowStepHeader step={2} label={WORKFLOW_STEP_COPY[2].label} />
+            </span>
+          </Tooltip>
+        )}
         collapsed={collapsedByStep[2]}
         onToggle={next => onToggleStep(2, next)}
       >
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
-          {WORKFLOW_STEP_COPY[2].descriptionShort}
-        </div>
+        <div />
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -148,7 +145,7 @@ export function WorkflowSteps({
           <Tooltip
             content={WORKFLOW_STEP3_PARSER_TOOLTIP}
             maxWidthPx={280}
-            contentClassName="bg-gray-800/90"
+            contentClassName={contentTooltipClassName}
           >
             <span className="inline-flex items-center gap-1">
               <WorkflowStepHeader step={3} label={WORKFLOW_STEP_COPY[3].label} />
@@ -158,83 +155,83 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[3]}
         onToggle={next => onToggleStep(3, next)}
       >
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
-          {WORKFLOW_STEP_COPY[3].descriptionShort}
-        </div>
         <WorkspaceActionsStep searchQuery={searchQuery} />
         <div className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
           <div className="mb-1">Or start with an example dataset:</div>
-          <div className="flex flex-wrap gap-1">
-            {parserWorkflow.examples.map(example => {
-              const button = (
-                <button
-                  type="button"
-                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-                  onClick={() => parserWorkflow.onApplyExample(example.id)}
-                >
-                  {example.label}
-                </button>
-              );
-
-              if (example.id === 'edaMlpPipeline') {
-                return (
-                  <Tooltip
-                    key={example.id}
-                    content="Preset optimized for inspecting a single path via traversal."
-                    maxWidthPx={260}
-                    contentClassName="bg-gray-800/90"
-                  >
-                    {button}
-                  </Tooltip>
-                );
-              }
-
-              return (
-                <span key={example.id}>
-                  {button}
-                </span>
-              );
-            })}
-          </div>
+          <select
+            className={`w-full min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+            value={selectedExampleId}
+            onChange={(e) => {
+              const id = e.target.value
+              setSelectedExampleId(id)
+              if (id) parserWorkflow.onApplyExample(id as ExampleId)
+              setTimeout(() => setSelectedExampleId(''), 0)
+            }}
+            aria-label="Example dataset"
+          >
+            <option value="">Select an example…</option>
+            {parserWorkflow.examples.map(example => (
+              <option key={example.id} value={example.id}>{example.label}</option>
+            ))}
+          </select>
         </div>
         {parserWorkflow.presets.length > 0 && (
           <div className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
             <div className="mb-1">Or apply a curated workflow preset:</div>
-            <div className="flex flex-wrap gap-1">
+            <select
+              className={`w-full min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+              value={selectedPresetId}
+              onChange={(e) => {
+                const id = e.target.value
+                setSelectedPresetId(id)
+                if (id) parserWorkflow.onApplyPreset(id)
+                setTimeout(() => setSelectedPresetId(''), 0)
+              }}
+              aria-label="Workflow preset"
+            >
+              <option value="">Select a preset…</option>
               {parserWorkflow.presets.map(preset => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-                  onClick={() => parserWorkflow.onApplyPreset(preset.id)}
-                >
-                  {preset.label}
-                </button>
+                <option key={preset.id} value={preset.id}>{preset.label}</option>
               ))}
-            </div>
+            </select>
           </div>
         )}
       </CollapsibleSection>
 
       <CollapsibleSection
-        title={<WorkflowStepHeader step={4} label={WORKFLOW_STEP_COPY[4].label} />}
+        title={(
+          <Tooltip
+            content={WORKFLOW_STEP_COPY[4].descriptionShort}
+            maxWidthPx={280}
+            contentClassName={contentTooltipClassName}
+          >
+            <span className="inline-flex items-center gap-1">
+              <WorkflowStepHeader step={4} label={WORKFLOW_STEP_COPY[4].label} />
+            </span>
+          </Tooltip>
+        )}
         collapsed={collapsedByStep[4]}
         onToggle={next => onToggleStep(4, next)}
       >
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
-          {WORKFLOW_STEP_COPY[4].descriptionShort}
-        </div>
+        <div />
       </CollapsibleSection>
 
       <CollapsibleSection
-        title={<WorkflowStepHeader step={5} label={WORKFLOW_STEP_COPY[5].label} />}
+        title={(
+          <Tooltip
+            content={WORKFLOW_STEP_COPY[5].descriptionShort}
+            maxWidthPx={280}
+            contentClassName={contentTooltipClassName}
+          >
+            <span className="inline-flex items-center gap-1">
+              <WorkflowStepHeader step={5} label={WORKFLOW_STEP_COPY[5].label} />
+            </span>
+          </Tooltip>
+        )}
         collapsed={collapsedByStep[5]}
         onToggle={next => onToggleStep(5, next)}
       >
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
-          {WORKFLOW_STEP_COPY[5].descriptionShort}
-        </div>
-        <div className="flex items-center gap-1">
+        <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
           <button
             type="button"
             className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${
@@ -246,14 +243,11 @@ export function WorkflowSteps({
           </button>
           <button
             type="button"
-            className="App-toolbar__btn text-xs bg-blue-600 text-white"
+            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-blue-600 text-white`}
             onClick={onRunAiKgTraversal}
           >
             Run traversal preset
           </button>
-        </div>
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500 mt-1`}>
-          After loading the graph, use the toolbar Radial Layout and Clusters toggles to orbit nodes in 2D and outline related phases, datasets, and artifacts using schema.metadata["canvas:graphLayers"].
         </div>
       </CollapsibleSection>
 
@@ -262,7 +256,7 @@ export function WorkflowSteps({
           <Tooltip
             content={WORKFLOW_STEP6_ORCHESTRATOR_TOOLTIP}
             maxWidthPx={280}
-            contentClassName="bg-gray-800/90"
+            contentClassName={contentTooltipClassName}
           >
             <span className="inline-flex items-center gap-1">
               <WorkflowStepHeader step={6} label={WORKFLOW_STEP_COPY[6].label} />
@@ -272,9 +266,6 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[6]}
         onToggle={next => onToggleStep(6, next)}
       >
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
-          {WORKFLOW_STEP_COPY[6].descriptionShort}
-        </div>
         <div className={`flex items-center gap-2 mb-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
           <button
             type="button"
@@ -287,152 +278,36 @@ export function WorkflowSteps({
         <div className="flex items-center gap-2 mb-2">
           <button
             type="button"
-            className="App-toolbar__btn text-xs bg-gray-100 text-gray-700"
+            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
             onClick={onRunCodebaseIndexPipeline}
           >
             {RUN_CODEBASE_INDEX_PIPELINE_LABEL}
           </button>
           {pipelineStatus && (
-            <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
-              {pipelineStatus}
+            <span className={statusPillClassName} title={pipelineStatus}>
+              <span className="truncate overflow-hidden whitespace-nowrap">
+                {pipelineStatus}
+              </span>
             </span>
           )}
-        </div>
-        <div
-          className="mt-1 border border-gray-200 rounded px-2 py-1 flex flex-col min-h-0"
-          data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
-        >
-          <div className="flex items-start justify-between mb-1 gap-2">
-            <div className="flex flex-col">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold uppercase tracking-wide text-gray-500`}>
-                {UI_LABELS.ragGraphRAGWorkflow}
-              </div>
-              <div className={`mt-0.5 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500`}>
-                {ORCHESTRATOR_AGENTIC_COPY.schemaLabel}
-                {' '}
-                <span className={`${uiPanelMonospaceTextClass} break-all`}>{AGENTIC_RAG_SCHEMA_URL}</span>
-              </div>
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500`}>
-                <span
-                  className={getPillClass('badge', {
-                    baseClass:
-                      'inline-flex items-center px-1 py-[1px] mr-1 rounded border border-gray-300 bg-gray-50',
-                    badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                    textColorClass: 'text-gray-600',
-                  })}
-                >
-                  {PIPELINE_STAGE_COPY.agenticReasoning.badge}
-                </span>
-                {ORCHESTRATOR_AGENTIC_COPY.contextLabel}
-                {' '}
-                <span className={`${uiPanelMonospaceTextClass} break-all`}>{AGENTIC_RAG_CONTEXT_URL}</span>
-                {graphRagWorkflow.agenticContext && graphRagWorkflow.agenticContext.graphContextUrl && (
-                  <>
-                    {' '}
-                    {ORCHESTRATOR_AGENTIC_COPY.datasetContextVocabLabel}
-                    {' '}
-                    <span className={`${uiPanelMonospaceTextClass} break-all`}>
-                      {graphRagWorkflow.agenticContext.graphContextUrl}
-                    </span>
-                    {graphRagWorkflow.agenticContext.isCanonicalMatch === true && ' (matches)'}
-                    {graphRagWorkflow.agenticContext.isCanonicalMatch === false && ' (differs)'}
-                  </>
-                )}
-              </div>
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500 mt-0.5`}>
-                Step
-                {' '}
-                {PIPELINE_STAGE_COPY.agenticReasoning.workflowStepId}
-                {' – '}
-                {PIPELINE_STAGE_COPY.agenticReasoning.descriptionShort}
-              </div>
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500`}>
-                {ORCHESTRATOR_AGENTIC_COPY.graphRagPathIriLabel}
-                {' '}
-                <span className={`${uiPanelMonospaceTextClass} break-all`}>{AGENTIC_RAG_GRAPH_RAG_PATH_IRI}</span>
-              </div>
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500`}>
-                GraphRAG config layers:
-                {' '}
-                GraphRAG CLI YAML under a configs/graphrag directory is converted into the workflow JSON-LD shown here and can be wired into orchestrator configs via
-                {' '}
-                <span className={`${uiPanelMonospaceTextClass} break-all`}>graph.workflow_json</span>
-                .
-                {' '}
-                In this Workflow tab, use Import to load that JSON-LD document or, via the Orchestrator Tool Menu, import the corresponding GraphRAG CLI YAML so the editor reflects the same GraphRAG workflow used by offline pipelines.
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-                onClick={graphRagWorkflow.onImportGraphRagWorkflowJsonLd}
-              >
-                Import
-              </button>
-              <button
-                type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-                onClick={graphRagWorkflow.onGenerateGraphRagWorkflowFromGraph}
-              >
-                Generate from current graph
-              </button>
-              <button
-                type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-                onClick={graphRagWorkflow.onToggleGraphRagEditorExpanded}
-              >
-                {graphRagWorkflow.graphRagEditorExpanded ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-                onClick={graphRagWorkflow.onResetGraphRagWorkflowJson}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-          {graphRagWorkflow.jsonLdMapping && graphRagWorkflow.jsonLdMapping.selectedEdgeProps.length > 0 && (
-            <div className="mb-1 border border-gray-100 rounded px-1.5 py-1 bg-gray-50">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold uppercase tracking-wide text-gray-500`}>
-                JSON-LD context edges
-              </div>
-              <div className="mt-0.5 flex flex-wrap gap-1">
-                {graphRagWorkflow.jsonLdMapping.selectedEdgeProps.map(key => (
-                  <span
-                    key={key}
-                    className={getChipClass('default', {
-                      textSizeClass: uiIconPillBadgeTextSizeClass,
-                      textColorClass: 'text-gray-700',
-                      extraClassName: 'border-gray-300 bg-white',
-                    })}
-                  >
-                    {key}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className={graphRagWorkflow.graphRagEditorExpanded ? 'h-64 min-h-0' : 'h-32 min-h-0'}>
-            <JsonEditor
-              value={graphRagWorkflow.graphRagWorkflowJsonText}
-              onChange={graphRagWorkflow.onChangeGraphRagWorkflowJsonText}
-              className="w-full h-full"
-              language="json"
-            />
-          </div>
         </div>
       </CollapsibleSection>
 
       <CollapsibleSection
-        title={<WorkflowStepHeader step={7} label={WORKFLOW_STEP_COPY[7].label} />}
+        title={(
+          <Tooltip
+            content={WORKFLOW_STEP_COPY[7].descriptionShort}
+            maxWidthPx={280}
+            contentClassName={contentTooltipClassName}
+          >
+            <span className="inline-flex items-center gap-1">
+              <WorkflowStepHeader step={7} label={WORKFLOW_STEP_COPY[7].label} />
+            </span>
+          </Tooltip>
+        )}
         collapsed={collapsedByStep[7]}
         onToggle={next => onToggleStep(7, next)}
       >
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
-          {WORKFLOW_STEP_COPY[7].descriptionShort}
-        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -442,8 +317,10 @@ export function WorkflowSteps({
             Copy share link
           </button>
           {shareStatus && (
-            <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
-              {shareStatus}
+            <span className={statusPillClassName} title={shareStatus}>
+              <span className="truncate overflow-hidden whitespace-nowrap">
+                {shareStatus}
+              </span>
             </span>
           )}
         </div>
@@ -454,7 +331,7 @@ export function WorkflowSteps({
           <Tooltip
             content={WORKFLOW_STEP8_BOTTOM_TABS_TOOLTIP}
             maxWidthPx={280}
-            contentClassName="bg-gray-800/90"
+            contentClassName={contentTooltipClassName}
           >
             <span className="inline-flex items-center gap-1">
               <WorkflowStepHeader step={8} label={WORKFLOW_STEP_COPY[8].label} />
@@ -464,9 +341,7 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[8]}
         onToggle={next => onToggleStep(8, next)}
       >
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
-          {WORKFLOW_STEP_COPY[8].descriptionShort}
-        </div>
+        <div />
       </CollapsibleSection>
     </div>
   );

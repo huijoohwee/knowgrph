@@ -37,6 +37,29 @@
 
 This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → canvas renders. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.
 
+### Happy Path Call Graphs (Functions Only)
+
+#### Journey 1: Import JSON/CSV → See Nodes On MapLibre
+
+- `ToolbarToolMenuAreas` triggers a format import action → [useToolbarMenuAction](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/useToolbarMenuAction.ts)
+- `useToolbarMenuAction(area='sourceFiles', action='importLocal'|'importUrl', payload.format='json'|'csv')` → `performJsonImport` / `performCsvImport`
+- `performJsonImport` / `performCsvImport` → [runImportFlow](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importFlow.ts) → [loadGraphDataFromTextViaParser](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+- `loadGraphDataFromTextViaParser` → `bestMatch` → `applyParserAsync` → `useGraphStore.getState().setGraphData(graphData)`
+- `GraphCanvas` reads `graphData` → renders nodes/edges → [GraphCanvas](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
+- `Canvas` passes `graphData + zoomState + selection` into `gympgrph` hosts → [Canvas](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/pages/Canvas.tsx)
+- `GeospatialOverlayHost` applies snapshot into gympgrph store → [applyHostSnapshot](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/hostBridge.ts)
+- `GeospatialOverlay` builds GeoJSON points from graph nodes → ensures MapLibre sources/layers → [GeospatialOverlay](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/GeospatialOverlay.tsx)
+- `useMapLibreBasemap` creates the MapLibre map instance + style → [useMapLibreBasemap](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/useMapLibreBasemap.ts)
+
+#### Journey 2: Click Map POI → Host Selects Node → Canvas + Map Highlight
+
+- Map click event → `GeospatialOverlay.onClick` → [GeospatialOverlay](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/GeospatialOverlay.tsx)
+- `pickPoiSelection(...)` returns `{ kind: 'graph-node', nodeId }` → [pickPoiSelection](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/geospatialPoiSelection.ts)
+- `selectNode(nodeId)` (host handler injected via `setHostHandlers`) → updates Knowgrph `useGraphStore.selectedNodeId` → [Canvas](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/pages/Canvas.tsx)
+- `GraphCanvas` reads `selectedNodeId` → updates selection highlight
+- `Canvas` snapshots `selectedNodeId/selectedNodeIds` back into gympgrph → `applyHostSnapshot` updates gympgrph store
+- `GeospatialOverlay` reacts to `selectedNodeId/selectedNodeIds` → `map.setFilter(GRAPH_SELECTED_LAYER_ID, ...)` highlights the selected node layer
+
 ### Import
 
 - Toolbar import actions read local files/URLs and call the parser loader:

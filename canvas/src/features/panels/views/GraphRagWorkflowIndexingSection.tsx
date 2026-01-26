@@ -9,27 +9,36 @@ import {
   IGNORE_CODEBASE_PATHS_LABEL,
   IGNORE_CODEBASE_PATHS_TOOLTIP,
   WORKFLOW_INDEXING_PARAMETERS_TOOLTIP,
+  GRAPHRAG_DATASET_INPUT_DIR_KEY_TOOLTIP,
+  GRAPHRAG_DATASET_OUTPUT_DIR_KEY_TOOLTIP,
+  GRAPHRAG_CHUNK_METHOD_KEY_TOOLTIP,
+  GRAPHRAG_CHUNK_SIZE_KEY_TOOLTIP,
+  GRAPHRAG_MAX_HOPS_KEY_TOOLTIP,
+  GRAPHRAG_EMBEDDING_PROVIDER_KEY_TOOLTIP,
+  GRAPHRAG_EMBEDDING_MODEL_NAME_KEY_TOOLTIP,
+  GRAPHRAG_IGNORE_PATTERNS_VALUE_TOOLTIP,
   buildNumericTooltip,
+  buildDefaultTooltip,
   UI_COPY,
 } from '@/lib/config'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
-const DATASET_INPUT_DIR_TOOLTIP = buildNumericTooltip({
+const DATASET_INPUT_DIR_TOOLTIP = buildDefaultTooltip({
   defaultValue: './data/raw',
   impact: UI_COPY.graphRagWorkflowDatasetInputDirImpact,
-});
+})
 
-const DATASET_OUTPUT_DIR_TOOLTIP = buildNumericTooltip({
+const DATASET_OUTPUT_DIR_TOOLTIP = buildDefaultTooltip({
   defaultValue: './data/graphrag',
   impact: UI_COPY.graphRagWorkflowDatasetOutputDirImpact,
-});
+})
 
-const CHUNK_METHOD_TOOLTIP = buildNumericTooltip({
+const CHUNK_METHOD_TOOLTIP = buildDefaultTooltip({
   defaultValue: 'recursive_character',
   impact: UI_COPY.graphRagWorkflowChunkMethodImpact,
-});
+})
 
 const CHUNK_SIZE_TOOLTIP = buildNumericTooltip({
   defaultValue: 1024,
@@ -112,7 +121,7 @@ export function GraphRagWorkflowIndexingSection({
         <Tooltip
           content={WORKFLOW_INDEXING_PARAMETERS_TOOLTIP}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+          contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
         >
           <span>{UI_COPY.graphRagWorkflowIndexingParametersTitle}</span>
         </Tooltip>
@@ -134,9 +143,9 @@ export function GraphRagWorkflowIndexingSection({
             layout="keyIconValue"
             keyNode={(
               <Tooltip
-                content={UI_COPY.graphRagWorkflowDatasetInputDirTooltip}
+                content={GRAPHRAG_DATASET_INPUT_DIR_KEY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="break-words"
               >
                 dataset.inputDir
@@ -169,9 +178,9 @@ export function GraphRagWorkflowIndexingSection({
             layout="keyIconValue"
             keyNode={(
               <Tooltip
-                content={UI_COPY.graphRagWorkflowDatasetOutputDirTooltip}
+                content={GRAPHRAG_DATASET_OUTPUT_DIR_KEY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="break-words"
               >
                 dataset.outputDir
@@ -204,9 +213,9 @@ export function GraphRagWorkflowIndexingSection({
             layout="keyIconValue"
             keyNode={(
               <Tooltip
-                content={UI_COPY.graphRagWorkflowChunkMethodTooltip}
+                content={GRAPHRAG_CHUNK_METHOD_KEY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="break-words"
               >
                 chunking.method
@@ -239,9 +248,9 @@ export function GraphRagWorkflowIndexingSection({
             layout="keyIconSliderInput"
             keyNode={(
               <Tooltip
-                content={UI_COPY.graphRagWorkflowChunkSizeTooltip}
+                content={GRAPHRAG_CHUNK_SIZE_KEY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="break-words"
               >
                 chunking.chunkSize
@@ -251,7 +260,7 @@ export function GraphRagWorkflowIndexingSection({
               <Tooltip
                 content={CHUNK_SIZE_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="w-full h-full"
               >
                 <input
@@ -272,7 +281,7 @@ export function GraphRagWorkflowIndexingSection({
               <Tooltip
                 content={CHUNK_SIZE_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="w-full h-full"
               >
                 <input
@@ -294,9 +303,9 @@ export function GraphRagWorkflowIndexingSection({
             layout="keyIconValue"
             keyNode={(
               <Tooltip
-                content={UI_COPY.graphRagWorkflowEmbeddingProviderTooltip}
+                content={GRAPHRAG_EMBEDDING_PROVIDER_KEY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="break-words"
               >
                 embeddingModel.provider
@@ -305,7 +314,7 @@ export function GraphRagWorkflowIndexingSection({
             typeNode={null}
             valueNode={(
               <RightAlignedTooltipInput
-                tooltip={buildNumericTooltip({
+                tooltip={buildDefaultTooltip({
                   defaultValue: 'openai',
                   impact: UI_COPY.graphRagWorkflowEmbeddingProviderImpact,
                 })}
@@ -332,9 +341,9 @@ export function GraphRagWorkflowIndexingSection({
             layout="keyIconValue"
             keyNode={(
               <Tooltip
-                content={UI_COPY.graphRagWorkflowEmbeddingModelNameTooltip}
+                content={GRAPHRAG_EMBEDDING_MODEL_NAME_KEY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="break-words"
               >
                 embeddingModel.modelName
@@ -343,7 +352,7 @@ export function GraphRagWorkflowIndexingSection({
             typeNode={null}
             valueNode={(
               <RightAlignedTooltipInput
-                tooltip={buildNumericTooltip({
+                tooltip={buildDefaultTooltip({
                   defaultValue: 'text-embedding-3-large',
                   impact: UI_COPY.graphRagWorkflowEmbeddingModelNameImpact,
                 })}
@@ -370,19 +379,19 @@ export function GraphRagWorkflowIndexingSection({
             layout="keyIconSliderInput"
             keyNode={(
               <Tooltip
-                content={UI_COPY.graphRagWorkflowMaxHopsTooltip}
+                content={GRAPHRAG_MAX_HOPS_KEY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="break-words"
               >
-                graphRagWorkflow.maxHops
+                maxHops
               </Tooltip>
             )}
             typeNode={(
               <Tooltip
                 content={MAX_HOPS_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="w-full h-full"
               >
                 <input
@@ -412,7 +421,7 @@ export function GraphRagWorkflowIndexingSection({
               <Tooltip
                 content={MAX_HOPS_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="w-full h-full"
               >
                 <input
@@ -445,7 +454,7 @@ export function GraphRagWorkflowIndexingSection({
               <Tooltip
                 content={IGNORE_CODEBASE_PATHS_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 className="break-words"
               >
                 {IGNORE_CODEBASE_PATHS_LABEL}
@@ -474,12 +483,12 @@ export function GraphRagWorkflowIndexingSection({
                     )}
                     <RightAlignedValueCell className="mt-0.5">
                       <Tooltip
-                        content={UI_COPY.graphRagIgnorePatternsTooltip}
+                        content={GRAPHRAG_IGNORE_PATTERNS_VALUE_TOOLTIP}
                         maxWidthPx={260}
-                        contentClassName="bg-gray-800/90"
+                        contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                         className="w-full h-full"
                       >
-                        <div className={`w-full border border-gray-300 rounded overflow-hidden bg-transparent min-h-[96px]`}>
+                        <div className={`w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden bg-transparent min-h-[96px]`}>
                           <MonacoTextEditor
                             value={ignoreFilters ? ignoreFilters.rawPatterns.join(', ') : ''}
                             onChange={(val) => onChangeIgnoreCodebasePathsInput(val)}
@@ -487,7 +496,7 @@ export function GraphRagWorkflowIndexingSection({
                             uri="inmemory://graphrag/ignore-patterns"
                             themeMode="light"
                             wordWrap
-                            className={`w-full h-full ${uiPanelMonospaceTextClass}`}
+                            className={`w-full h-full ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.input.text}`}
                           />
                         </div>
                       </Tooltip>

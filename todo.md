@@ -30,25 +30,15 @@
 
 ### P0-Critical
 
+“Contract” Modules Worth Knowing
+
+single “call graph”-style outline (functions only, in execution order) for the two most common journeys: (1) load JSON/CSV → see nodes on MapLibre, (2) click map POI → host selects node → both canvas + map highlight update.
+
 #### 2026-01-24
 
 produce a single “happy path sequence diagram” for each repo (Knowgrph import → parse → store → GraphCanvas; Knowgrph store → Gympgrph hostBridge → MapLibre layers) using the exact function names
 
 
-Source
-- [ ] [Adm1](https://github.com/lutangar/cities.json/blob/master/admin1.json)
-- [ ] [airports.json](https://github.com/mwgg/Airports/blob/master/airports.json)
-- [ ] [atlas.co](https://atlas.co/maps/franchise-territory-map/)
-- [ ] [data.gov.sg/Tourist Attractions](https://data.gov.sg/datasets?query=&formats=GEOJSON&resultId=d_0f2f47515425404e6c9d2a040dd87354)
-- [ ] [Drone Flight Plan Generator](Drone Flightplan Generator)
-- [ ] [Food Tour](https://github.com/muratcankoylan/Food-tour-planner-agent?tab=readme-ov-file)
-- [ ] [GeoJSON](https://geojson.io)
-- [ ] [Indonesia GeoJSON](https://drive.google.com/drive/folders/10gEi4mIriMoL2p6kzlncPXkScw2uZiDW)
-
-- [ ] [Malaysia GeoJSON](https://github.com/nullifye/malaysia.geojson/tree/master)
-- [ ] https://github.com/cheeaun/railrouter-sg/blob/master/src/sg-rail.geo.json
-
-- [ ] [Wanderlog](https://wanderlog.com/view/nlcviusycz/japan-video-game-guide--2025)
 
 #### 2026-01-22
 

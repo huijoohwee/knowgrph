@@ -177,10 +177,33 @@ function findSetterModules(
 ): string[] {
   const modules: string[] = []
   setterNames.forEach(setter => {
-    const hit = storeFiles.find(f => f.text.includes(setter))
-    if (hit) modules.push(hit.rel)
+    const hits = storeFiles
+      .filter(f => f.text.includes(setter))
+      .filter(f => !f.rel.endsWith(path.join('hooks', 'store', 'types.ts')))
+    hits.forEach(hit => modules.push(hit.rel))
   })
   return dedupe(modules)
+}
+
+function findSetterLocations(
+  storeFileContents: Array<{ rel: string; lines: string[] }>,
+  setterNames: string[],
+): string[] {
+  const locations: string[] = []
+  setterNames.forEach(setter => {
+    for (const entry of storeFileContents) {
+      if (entry.rel.endsWith(path.join('hooks', 'store', 'types.ts'))) continue
+      for (let i = 0; i < entry.lines.length; i += 1) {
+        const line = entry.lines[i] ?? ''
+        if (!line.includes(setter)) continue
+        if (line.includes(`${setter}:`) || line.includes(` ${setter}:`) || line.includes(`function ${setter}`)) {
+          locations.push(`${entry.rel}:L${i + 1}`)
+          break
+        }
+      }
+    }
+  })
+  return dedupe(locations)
 }
 
 function buildImportsForSource(source: string): string[] {
@@ -238,6 +261,10 @@ function deriveFromCode(repoRoot: string): SettingsFlowSchema {
     rel: path.relative(repoRoot, filePath),
     text: readFileSync(filePath, 'utf8'),
   }))
+  const storeFileContentsWithLines = storeFiles.map(filePath => ({
+    rel: path.relative(repoRoot, filePath),
+    lines: splitLines(readFileSync(filePath, 'utf8')),
+  }))
 
   const schema: SettingsFlowSchema = {}
   settingsRegistry.forEach(meta => {
@@ -245,6 +272,7 @@ function deriveFromCode(repoRoot: string): SettingsFlowSchema {
     const def = findDefinitionLocation(settingFileContents, meta.key)
     const setters = extractSetterNames(meta.write)
     const setterModules = findSetterModules(storeFileContents, setters)
+    const setterLocations = findSetterLocations(storeFileContentsWithLines, setters)
     const classes = dedupe([
       ...extractClassesFromFunction(meta.read),
       ...extractClassesFromFunction(meta.write),
@@ -257,6 +285,7 @@ function deriveFromCode(repoRoot: string): SettingsFlowSchema {
     const area = fallback.area || inferAreaFromKey(meta.key)
     const responsibility =
       fallback.responsibility || inferResponsibilityFromKey(meta.key, meta.type)
+    const lineRangeParts = dedupe([def?.lineRange || '', ...setterLocations]).filter(Boolean)
     schema[meta.key] = {
       area,
       responsibility,
@@ -265,7 +294,7 @@ function deriveFromCode(repoRoot: string): SettingsFlowSchema {
       classes,
       functions,
       imports: buildImportsForSource(meta.source),
-      lineRange: def?.lineRange || '',
+      lineRange: lineRangeParts.join('; '),
     }
   })
   return schema
@@ -296,16 +325,22 @@ function mergeFlowRow(base: SettingsFlowRow, override: SettingsFlowRow): Setting
     if (!trimmed || trimmed === '—') return prev
     return trimmed
   }
-  const pickList = (next: string[], prev: string[]) => (Array.isArray(next) && next.length > 0 ? next : prev)
+  const pickTextPreferPrev = (next: string, prev: string) => {
+    const trimmedPrev = String(prev || '').trim()
+    if (trimmedPrev && trimmedPrev !== '—') return trimmedPrev
+    return pickText(next, prev)
+  }
+  const pickListPreferPrev = (next: string[], prev: string[]) =>
+    Array.isArray(prev) && prev.length > 0 ? prev : (Array.isArray(next) ? next : prev)
   return {
     area: pickText(override.area, base.area),
     responsibility: pickText(override.responsibility, base.responsibility),
     notes: pickText(override.notes, base.notes),
-    modules: pickList(override.modules, base.modules),
-    classes: pickList(override.classes, base.classes),
-    functions: pickList(override.functions, base.functions),
-    imports: pickList(override.imports, base.imports),
-    lineRange: pickText(override.lineRange, base.lineRange),
+    modules: pickListPreferPrev(override.modules, base.modules),
+    classes: pickListPreferPrev(override.classes, base.classes),
+    functions: pickListPreferPrev(override.functions, base.functions),
+    imports: pickListPreferPrev(override.imports, base.imports),
+    lineRange: pickTextPreferPrev(override.lineRange, base.lineRange),
   }
 }
 

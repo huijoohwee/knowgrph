@@ -23,12 +23,12 @@ export const renderSettingInput = (
   const pillBaseClass =
     typeof pillBaseRaw === 'string' && pillBaseRaw.trim().length > 0
       ? pillBaseRaw
-      : `inline-flex items-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1.5 py-0.5`
+      : `inline-flex items-center gap-1 h-6 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1.5`
   const badgeChipBaseRaw = values.uiIconBadgeChipClass
   const badgeChipBaseClass =
     typeof badgeChipBaseRaw === 'string' && badgeChipBaseRaw.trim().length > 0
       ? badgeChipBaseRaw
-      : `inline-flex items-center rounded-full border px-1 py-[1px] ${UI_THEME_TOKENS.panel.bg}`
+      : `inline-flex items-center gap-1 h-6 rounded-full border px-1 ${UI_THEME_TOKENS.panel.bg}`
   const rawPanelInputClass = values['uiPanelKeyValueInputClass']
   const uiPanelKeyValueInputClass =
     typeof rawPanelInputClass === 'string' && rawPanelInputClass.trim().length > 0
@@ -49,6 +49,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: e.target.checked }))
         }}
+        className="w-4 h-4"
       />
     )
   }
@@ -64,7 +65,7 @@ export const renderSettingInput = (
         : `${previewBase} ${UI_THEME_TOKENS.text.secondary} ${appliedClass}`
     const previewLabel = key === 'uiIconColorClass' ? 'Aa' : 'Hover'
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         <input type="text" value={previewLabel} readOnly className={previewClass} />
         <input
           type="text"
@@ -74,7 +75,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className={`${uiPanelKeyValueInputClass} flex-1`}
+          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
       </div>
@@ -91,7 +92,7 @@ export const renderSettingInput = (
       .filter(Boolean)
       .join(' ')
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         <div className={previewClass}>
           <SettingsIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
         </div>
@@ -103,7 +104,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className={`${uiPanelKeyValueInputClass} flex-1`}
+          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
       </div>
@@ -114,13 +115,13 @@ export const renderSettingInput = (
     const placeholder = pillBaseClass
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
-      'inline-flex items-center justify-center w-8 h-6 text-xs',
       appliedClass,
+      'inline-flex items-center justify-center gap-1 h-6 box-border text-xs',
     ]
       .filter(Boolean)
       .join(' ')
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         <div className={previewClass}>
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Scope</span>
@@ -133,7 +134,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className={`${uiPanelKeyValueInputClass} flex-1`}
+          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={pillBaseClass}
         />
       </div>
@@ -146,7 +147,7 @@ export const renderSettingInput = (
     const legendPreviewClass =
       key === 'uiIconPillLegendTextSizeClass'
         ? getPillClass('legend', {
-            baseClass: `${pillBaseClass} inline-flex items-center gap-1`,
+            baseClass: `${pillBaseClass} inline-flex items-center gap-1 box-border h-6`,
             legendTextSizeClass: appliedClass,
             textColorClass: 'text-gray-700',
           })
@@ -154,13 +155,13 @@ export const renderSettingInput = (
     const badgePreviewClass =
       key === 'uiIconPillBadgeTextSizeClass'
         ? getPillClass('badge', {
-            baseClass: `${pillBaseClass} inline-flex items-center gap-1`,
+            baseClass: `${pillBaseClass} inline-flex items-center gap-1 box-border h-6`,
             badgeTextSizeClass: appliedClass,
             textColorClass: 'text-gray-700',
           })
         : ''
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         {key === 'uiIconPillLegendTextSizeClass' ? (
           <div className="flex flex-wrap items-center gap-1">
             <span className={legendPreviewClass}>
@@ -215,7 +216,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className={`${uiPanelKeyValueInputClass} flex-1`}
+          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
       </div>
@@ -226,13 +227,13 @@ export const renderSettingInput = (
     const placeholder = 'px-1 py-[1px] rounded-full border'
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
-      'inline-flex items-center justify-center w-8 h-6 bg-white text-[9px]',
       appliedClass,
+      'inline-flex items-center justify-center gap-1 h-6 box-border bg-white text-[9px]',
     ]
       .filter(Boolean)
       .join(' ')
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         <div className={previewClass}>
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Badge</span>
@@ -245,7 +246,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className={`${uiPanelKeyValueInputClass} flex-1`}
+          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
       </div>
@@ -258,11 +259,12 @@ export const renderSettingInput = (
     const previewClass = [
       badgeChipBaseClass,
       appliedClass,
+      'inline-flex items-center gap-1 h-6 box-border',
     ]
       .filter(Boolean)
       .join(' ')
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         <div className={previewClass}>
           <TagIcon className="w-3 h-3" aria-hidden="true" />
           <span>Badge</span>
@@ -275,7 +277,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className={`${uiPanelKeyValueInputClass} flex-1`}
+          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={placeholder}
         />
       </div>
@@ -290,7 +292,7 @@ export const renderSettingInput = (
         ? normalized
         : '#000000'
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         <input
           type="color"
           value={colorValue}
@@ -309,7 +311,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className={`${uiPanelKeyValueInputClass} flex-1`}
+          className={`${uiPanelKeyValueInputClass} flex-1 min-w-0`}
           placeholder={fallback}
         />
       </div>
@@ -327,7 +329,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded bg-white text-right`}
       >
         {options.map(option => (
           <option key={option} value={option}>
@@ -341,7 +343,7 @@ export const renderSettingInput = (
   const baseInputClass =
     type === 'number' || isClassLikeKey
       ? uiPanelKeyValueInputClass
-      : 'w-full h-6 px-2 text-sm border border-gray-300 rounded'
+      : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`
   const finalInputClass = baseInputClass
   return (
     <input

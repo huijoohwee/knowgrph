@@ -53,7 +53,7 @@ export const TOOL_MENU_AREAS: ToolMenuAreaConfig[] = [
     key: 'sourceFiles',
     label: 'Source Files',
     description: TOOL_MENU_SOURCE_FILES_DESCRIPTION,
-    actions: ['new', 'import', 'export', 'clear'],
+    actions: ['new'],
   },
   {
     key: 'validation',

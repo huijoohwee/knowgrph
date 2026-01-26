@@ -37,7 +37,7 @@ export default function AiKgLayersSection({
   return (
     <div
       className="mt-2 border border-gray-200 rounded px-2 py-1"
-      data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
+      data-kg-anchor={UI_ANCHORS.aiKgLayers}
     >
       <div
         className={[
@@ -46,7 +46,7 @@ export default function AiKgLayersSection({
           'font-semibold uppercase tracking-wide text-gray-500 mb-1',
         ].join(' ')}
       >
-        {UI_LABELS.ragGraphRAGWorkflow}
+        {UI_LABELS.aiKgLayers}
       </div>
       <AiKgLayersControls
         schema={schema}

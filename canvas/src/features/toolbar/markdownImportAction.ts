@@ -6,6 +6,7 @@ import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import { runImportFlow } from '@/features/toolbar/importFlow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { createId } from '@/lib/id'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -43,11 +44,12 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
     const store = useGraphStore.getState()
     pickedFiles.forEach(f => {
       store.addSourceFile({
-        id: crypto.randomUUID(),
+        id: createId('sf'),
         name: f.displayName || f.name,
         text: f.text,
         enabled: true,
         status: 'idle',
+        source: f.sourceUrl ? { kind: 'url', url: f.sourceUrl } : { kind: 'local', path: f.name },
       })
     })
 

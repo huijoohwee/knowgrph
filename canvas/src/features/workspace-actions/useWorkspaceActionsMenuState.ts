@@ -1,8 +1,6 @@
 import { useCallback, useState } from 'react'
 
 type WorkspaceActionsMenuKey =
-  | 'sourceFilesImport'
-  | 'sourceFilesExport'
   | 'parserExport'
   | 'markdownImport'
   | 'htmlImport'
@@ -17,8 +15,6 @@ type WorkspaceActionsMenuKey =
   | 'validationExport'
 
 export function useWorkspaceActionsMenuState() {
-  const [isSourceFilesImportMenuOpen, setIsSourceFilesImportMenuOpen] = useState(false)
-  const [isSourceFilesExportMenuOpen, setIsSourceFilesExportMenuOpen] = useState(false)
   const [isParserExportMenuOpen, setIsParserExportMenuOpen] = useState(false)
   const [isMarkdownImportMenuOpen, setIsMarkdownImportMenuOpen] = useState(false)
   const [isHtmlImportMenuOpen, setIsHtmlImportMenuOpen] = useState(false)
@@ -33,8 +29,6 @@ export function useWorkspaceActionsMenuState() {
   const [isValidationExportMenuOpen, setIsValidationExportMenuOpen] = useState(false)
 
   const closeAllMenusExcept = useCallback((except: WorkspaceActionsMenuKey | null) => {
-    if (except !== 'sourceFilesImport') setIsSourceFilesImportMenuOpen(false)
-    if (except !== 'sourceFilesExport') setIsSourceFilesExportMenuOpen(false)
     if (except !== 'parserExport') setIsParserExportMenuOpen(false)
     if (except !== 'markdownImport') setIsMarkdownImportMenuOpen(false)
     if (except !== 'htmlImport') setIsHtmlImportMenuOpen(false)
@@ -54,10 +48,6 @@ export function useWorkspaceActionsMenuState() {
   }, [closeAllMenusExcept])
 
   return {
-    isSourceFilesImportMenuOpen,
-    setIsSourceFilesImportMenuOpen,
-    isSourceFilesExportMenuOpen,
-    setIsSourceFilesExportMenuOpen,
     isParserExportMenuOpen,
     setIsParserExportMenuOpen,
     isMarkdownImportMenuOpen,

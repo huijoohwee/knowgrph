@@ -51,6 +51,7 @@ import {
 } from '@/lib/config'
 import { getOrchestratorSectionListLabel } from '@/features/panels/config'
 import { getPillClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type OrchestratorSettingsSectionProps = {
   variant: 'floatingPanel' | 'bottomPanel'
@@ -454,7 +455,7 @@ export default function OrchestratorSettingsSection({
       className={
         variant === 'floatingPanel'
           ? [
-              'mt-1 text-gray-700',
+              `mt-1 ${UI_THEME_TOKENS.text.primary}`,
               uiPanelKeyValueTextSizeClass,
               uiPanelTextFontClass,
             ].join(' ')
@@ -474,7 +475,7 @@ export default function OrchestratorSettingsSection({
           <Tooltip
             content={ORCHESTRATOR_TRAVERSAL_TOOLTIP}
             maxWidthPx={280}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
             <div className="flex items-center gap-1">
               <div

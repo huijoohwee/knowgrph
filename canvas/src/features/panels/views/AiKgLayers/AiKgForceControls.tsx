@@ -3,13 +3,12 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import {
-  ORCHESTRATOR_TRAVERSAL_DELAY_ROW_TOOLTIP,
+  AI_KG_FORCE_BOX_FORCE_ROW_TOOLTIP,
+  AI_KG_FORCE_BOX_FORCE_STRENGTH_ROW_TOOLTIP,
+  AI_KG_FORCE_CHARGE_ROW_TOOLTIP,
+  AI_KG_FORCE_COLLISION_ROW_TOOLTIP,
 } from '@/lib/config'
 import {
-  ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS,
-  ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS,
-  ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
-  ORCHESTRATOR_TRAVERSAL_DELAY_TOOLTIP,
   COLLISION_RADIUS_DEFAULT,
   COLLISION_RADIUS_MIN,
   COLLISION_RADIUS_MAX,
@@ -22,8 +21,12 @@ import {
   CHARGE_STRENGTH_MAX,
   CHARGE_STRENGTH_MIN,
   CHARGE_STRENGTH_TOOLTIP,
+  BOX_FORCE_ENABLED_VALUE_TOOLTIP,
+  BOX_FORCE_STRENGTH_TOOLTIP,
   COLLISION_RADIUS_TOOLTIP,
 } from '../AiKgLayersSectionTooltips'
+import { OrchestratorTraversalDelayRow } from '@/features/panels/ui/OrchestratorTraversalDelayRow'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type AiKgForceControlsProps = {
   schema: GraphSchema
@@ -62,10 +65,10 @@ export default function AiKgForceControls({
         layout="keyIconSliderInput"
         keyNode={(
           <Tooltip
-            content="AI KG layout forces → tune layout.forces.charge separation strength → keep nodes spaced for readable traversal overlays without fragmenting clusters."
+            content={AI_KG_FORCE_CHARGE_ROW_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="text-gray-700 break-words"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className={`break-words ${UI_THEME_TOKENS.text.primary}`}
           >
             layout.forces.charge
           </Tooltip>
@@ -74,7 +77,7 @@ export default function AiKgForceControls({
           <Tooltip
             content={CHARGE_STRENGTH_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
             <input
@@ -101,7 +104,7 @@ export default function AiKgForceControls({
           <Tooltip
             content={CHARGE_STRENGTH_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
             <input
@@ -127,87 +130,22 @@ export default function AiKgForceControls({
           </Tooltip>
         )}
       />
-      <KeyTypeValueRow
+      <OrchestratorTraversalDelayRow
         density="compact"
-        layout="keyIconSliderInput"
-        keyNode={(
-          <Tooltip
-            content={ORCHESTRATOR_TRAVERSAL_DELAY_ROW_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="text-gray-700"
-          >
-            orchestratorTraversalDelayMs
-          </Tooltip>
-        )}
-        typeNode={(
-          <Tooltip
-            content={ORCHESTRATOR_TRAVERSAL_DELAY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="w-full h-full"
-          >
-            <input
-              type="range"
-              min={ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS}
-              max={ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS}
-              step={50}
-              value={Number(traversalDelayMs)}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const next = Number.isFinite(raw)
-                  ? Math.max(
-                      ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
-                      Math.min(ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS, raw),
-                    )
-                  : ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS
-                setTraversalDelayMs(next)
-              }}
-              className="w-full h-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content={ORCHESTRATOR_TRAVERSAL_DELAY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="w-full h-full"
-          >
-            <input
-              type="number"
-              min={ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS}
-              max={ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS}
-              step={50}
-              value={Number(traversalDelayMs)}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const next = Number.isFinite(raw)
-                  ? Math.max(
-                      ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
-                      Math.min(
-                        ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS,
-                        Math.round(raw / 50) * 50,
-                      ),
-                    )
-                  : ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS
-                setTraversalDelayMs(next)
-              }}
-              className={uiPanelKeyValueInputClass}
-            />
-          </Tooltip>
-        )}
+        traversalDelayMs={traversalDelayMs}
+        onChangeTraversalDelayMs={setTraversalDelayMs}
+        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
       />
       <KeyTypeValueRow
         density="compact"
         layout="keyIconSliderInput"
         keyNode={(
           <Tooltip
-            content="Renderer → tune global collision radius applied via layout.forces.collisionByType → push nodes apart in dense regions so AI KG layers avoid overlap and maintain legible clusters during traversal replays."
+            content={AI_KG_FORCE_COLLISION_ROW_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
-            <span className="text-gray-700 break-words">
+            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
               layout.forces.collisionByType
             </span>
           </Tooltip>
@@ -216,7 +154,7 @@ export default function AiKgForceControls({
           <Tooltip
             content={COLLISION_RADIUS_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full h-full"
           >
             <input
@@ -240,7 +178,7 @@ export default function AiKgForceControls({
           <Tooltip
             content={COLLISION_RADIUS_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full h-full"
           >
             <input
@@ -263,84 +201,111 @@ export default function AiKgForceControls({
       />
       <KeyTypeValueRow
         density="compact"
+        layout="keyIconValue"
         keyNode={(
           <Tooltip
-             content="Box Force → constrain nodes to viewport to prevent flying off-screen."
-             maxWidthPx={260}
-             contentClassName="bg-gray-800/90"
-             className="text-gray-700"
+            content={AI_KG_FORCE_BOX_FORCE_ROW_TOOLTIP}
+            maxWidthPx={260}
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className={`break-words ${UI_THEME_TOKENS.text.primary}`}
           >
-            Box Force
+            layout.forces.boxForce
           </Tooltip>
         )}
-        typeNode={
-           <div className="flex items-center">
-             <input
-               type="checkbox"
-               checked={schema.layout?.forces?.boxForce !== false}
-               onChange={e => {
-                  const forces = schema.layout?.forces || {};
+        typeNode={null}
+        valueNode={(
+          <Tooltip
+            content={BOX_FORCE_ENABLED_VALUE_TOOLTIP}
+            maxWidthPx={260}
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+          >
+            <div className="flex items-center justify-end">
+              <input
+                type="checkbox"
+                checked={schema.layout?.forces?.boxForce !== false}
+                onChange={e => {
+                  const forces = schema.layout?.forces || {}
                   setSchema({
-                     ...schema,
-                     layout: { ...schema.layout, forces: { ...forces, boxForce: e.target.checked } }
-                  });
-               }}
-               className="h-4 w-4"
-             />
-           </div>
-        }
-        valueNode={
-           <span className="text-xs text-gray-500 italic">Constrain</span>
-        }
+                    ...schema,
+                    layout: { ...schema.layout, forces: { ...forces, boxForce: e.target.checked } },
+                  })
+                }}
+                className={`h-4 w-4 ${UI_THEME_TOKENS.input.border}`}
+              />
+            </div>
+          </Tooltip>
+        )}
       />
       <KeyTypeValueRow
         density="compact"
         layout="keyIconSliderInput"
         keyNode={(
           <Tooltip
-             content="Strength of the box force constraint."
-             maxWidthPx={260}
-             contentClassName="bg-gray-800/90"
-             className="text-gray-700"
+            content={AI_KG_FORCE_BOX_FORCE_STRENGTH_ROW_TOOLTIP}
+            maxWidthPx={260}
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className={`break-words ${UI_THEME_TOKENS.text.primary}`}
           >
-            Box Str.
+            layout.forces.boxForceStrength
           </Tooltip>
         )}
         typeNode={(
-           <input
-               type="range"
-               min={0.01}
-               max={0.2}
-               step={0.01}
-               value={schema.layout?.forces?.boxForceStrength ?? 0.05}
-               onChange={e => {
-                 const val = Number(e.target.value);
-                 const forces = schema.layout?.forces || {};
-                 setSchema({
-                    ...schema,
-                    layout: { ...schema.layout, forces: { ...forces, boxForceStrength: val } }
-                 });
-               }}
-               className="w-full h-full"
-           />
+          <Tooltip
+            content={BOX_FORCE_STRENGTH_TOOLTIP}
+            maxWidthPx={260}
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className="w-full h-full"
+          >
+            <input
+              type="range"
+              min={0.01}
+              max={0.2}
+              step={0.01}
+              value={schema.layout?.forces?.boxForceStrength ?? 0.05}
+              onChange={e => {
+                const raw = Number(e.target.value)
+                const clamped = Number.isFinite(raw)
+                  ? Math.max(0.01, Math.min(0.2, raw))
+                  : 0.05
+                const quantized = Math.round(clamped * 100) / 100
+                const forces = schema.layout?.forces || {}
+                setSchema({
+                  ...schema,
+                  layout: { ...schema.layout, forces: { ...forces, boxForceStrength: quantized } },
+                })
+              }}
+              className="w-full h-full"
+            />
+          </Tooltip>
         )}
         valueNode={(
-           <input
-               type="number"
-               min={0.01}
-               max={0.2}
-               step={0.01}
-               value={schema.layout?.forces?.boxForceStrength ?? 0.05}
-               onChange={e => {
-                 const val = Number(e.target.value);
-                 const forces = schema.layout?.forces || {};
-                 setSchema({
-                    ...schema,
-                    layout: { ...schema.layout, forces: { ...forces, boxForceStrength: val } }
-                 });
-               }}
-               className={uiPanelKeyValueInputClass}
-           />
+          <Tooltip
+            content={BOX_FORCE_STRENGTH_TOOLTIP}
+            maxWidthPx={260}
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className="w-full h-full"
+          >
+            <input
+              type="number"
+              min={0.01}
+              max={0.2}
+              step={0.01}
+              value={schema.layout?.forces?.boxForceStrength ?? 0.05}
+              onChange={e => {
+                const raw = Number(e.target.value)
+                const clamped = Number.isFinite(raw)
+                  ? Math.max(0.01, Math.min(0.2, raw))
+                  : 0.05
+                const quantized = Math.round(clamped * 100) / 100
+                const forces = schema.layout?.forces || {}
+                setSchema({
+                  ...schema,
+                  layout: { ...schema.layout, forces: { ...forces, boxForceStrength: quantized } },
+                })
+              }}
+              className={uiPanelKeyValueInputClass}
+            />
+          </Tooltip>
         )}
       />
     </>

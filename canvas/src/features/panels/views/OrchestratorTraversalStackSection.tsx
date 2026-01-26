@@ -10,6 +10,7 @@ import {
 } from '@/lib/config'
 import { getOrchestratorSectionListLabel } from '@/features/panels/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphRagWorkflowJsonLd, DuckDbQueryConfig } from '@/features/panels/utils/graphragConfig'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
@@ -112,7 +113,7 @@ export function OrchestratorTraversalSection({
           <Tooltip
             content={AGENTIC_GRAPHRAG_PIPELINE_DESCRIPTION}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
             <span
               className={[
@@ -227,7 +228,7 @@ export function OrchestratorTraversalSection({
           <Tooltip
             content={TRAVERSAL_PRESETS_SECTION_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
               <span className="inline-flex items-center gap-1">
                 <span>{UI_COPY.orchestratorTraversalPresetsSectionTitle}</span>
@@ -243,7 +244,7 @@ export function OrchestratorTraversalSection({
           <Tooltip
             content={AGENTIC_REASONING_LABELS_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
             <div className="mb-2 flex items-center gap-1 text-gray-700">
               <div>
@@ -274,7 +275,7 @@ export function OrchestratorTraversalSection({
             <Tooltip
               content={TRAVERSAL_EDITOR_AND_LAYERS_SECTION_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             >
               <span className="inline-flex items-center gap-1">
                 <span>{UI_COPY.orchestratorTraversalEditorSectionTitle}</span>

@@ -3,16 +3,9 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import {
-  ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS,
-  ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS,
-  ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
-  ORCHESTRATOR_TRAVERSAL_DELAY_TOOLTIP,
-} from '@/features/panels/utils/orchestratorTraversal'
-import {
   AGENTIC_RAG_CONTEXT_IRI_TOOLTIP,
   GRAPHRAG_WORKFLOW_SUMMARY_TOOLTIP,
   ORCHESTRATOR_TRACING_OPTIONS_TOOLTIP,
-  ORCHESTRATOR_TRAVERSAL_DELAY_ROW_TOOLTIP,
   UI_COPY,
   UI_ANCHORS,
 } from '@/lib/config'
@@ -24,6 +17,7 @@ import { GraphRagWorkflowIndexingSection } from '@/features/panels/views/GraphRa
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import { OrchestratorTraversalDelayRow } from '@/features/panels/ui/OrchestratorTraversalDelayRow'
 
 export interface AgenticContextGraphContextUrlRowProps {
   agenticContext: AgenticRagContextComparison | null
@@ -176,113 +170,51 @@ export function GraphRagWorkflowSection({
         className="border-b border-gray-100"
         keyNode={<span className="break-words">{UI_COPY.graphRagWorkflowRowLabel}</span>}
         valueNode={(
-          <div
-            className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-gray-700 w-full"
-            title={GRAPHRAG_WORKFLOW_SUMMARY_TOOLTIP}
-          >
-            <span className="whitespace-nowrap">
-              {UI_COPY.graphRagWorkflowGraphIdLabel}
-            </span>
-            <span
-              className={`${uiPanelMonospaceTextClass} max-w-[120px] truncate`}
-              title={workflowDoc.graphId}
-            >
-              {workflowDoc.graphId}
-            </span>
-            <span className="text-gray-400">
-              ·
-            </span>
-            <span className="whitespace-nowrap">
-              {UI_COPY.graphRagWorkflowRetrievalLabel}
-            </span>
-            <span
-              className={`${uiPanelMonospaceTextClass} max-w-[100px] truncate`}
-              title={workflowDoc.retrievalMethod}
-            >
-              {workflowDoc.retrievalMethod}
-            </span>
-            <span className="text-gray-400">
-              ·
-            </span>
-            <span className="text-gray-500">
-              {workflowSource === 'loaded' && UI_COPY.graphRagWorkflowSourceLoadedLabel}
-              {workflowSource === 'generated' && UI_COPY.graphRagWorkflowSourceGeneratedLabel}
-              {workflowSource === 'invalid' && UI_COPY.graphRagWorkflowSourceInvalidLabel}
-              {workflowSource === 'parse-error' && UI_COPY.graphRagWorkflowSourceParseErrorLabel}
-            </span>
-          </div>
-        )}
-      />
-      <KeyTypeValueRow
-        layout="keyIconSliderInput"
-        keyNode={(
           <Tooltip
-            content={ORCHESTRATOR_TRAVERSAL_DELAY_ROW_TOOLTIP}
+            content={GRAPHRAG_WORKFLOW_SUMMARY_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className="w-full"
           >
-            <div className="flex min-w-0 w-full items-center gap-1">
-              <span className="break-words">orchestratorTraversalDelayMs</span>
+            <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-gray-700 w-full">
+              <span className="whitespace-nowrap">
+                {UI_COPY.graphRagWorkflowGraphIdLabel}
+              </span>
+              <span
+                className={`${uiPanelMonospaceTextClass} max-w-[120px] truncate`}
+                title={workflowDoc.graphId}
+              >
+                {workflowDoc.graphId}
+              </span>
+              <span className="text-gray-400">
+                ·
+              </span>
+              <span className="whitespace-nowrap">
+                {UI_COPY.graphRagWorkflowRetrievalLabel}
+              </span>
+              <span
+                className={`${uiPanelMonospaceTextClass} max-w-[100px] truncate`}
+                title={workflowDoc.retrievalMethod}
+              >
+                {workflowDoc.retrievalMethod}
+              </span>
+              <span className="text-gray-400">
+                ·
+              </span>
+              <span className="text-gray-500">
+                {workflowSource === 'loaded' && UI_COPY.graphRagWorkflowSourceLoadedLabel}
+                {workflowSource === 'generated' && UI_COPY.graphRagWorkflowSourceGeneratedLabel}
+                {workflowSource === 'invalid' && UI_COPY.graphRagWorkflowSourceInvalidLabel}
+                {workflowSource === 'parse-error' && UI_COPY.graphRagWorkflowSourceParseErrorLabel}
+              </span>
             </div>
           </Tooltip>
         )}
-        typeNode={(
-          <Tooltip
-            content={ORCHESTRATOR_TRAVERSAL_DELAY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="w-full h-full"
-          >
-            <input
-              type="range"
-              min={ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS}
-              max={ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS}
-              step={50}
-              value={Number(traversalDelayMs)}
-              onChange={e => {
-                const raw = Number(e.target.value)
-                const next = Number.isFinite(raw)
-                  ? Math.max(
-                      ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
-                      Math.min(ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS, raw),
-                    )
-                  : ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS
-                onChangeTraversalDelayMs(next)
-              }}
-              className="w-full h-full"
-            />
-          </Tooltip>
-        )}
-        valueNode={(
-          <Tooltip
-            content={ORCHESTRATOR_TRAVERSAL_DELAY_TOOLTIP}
-            maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="w-full h-full"
-          >
-              <input
-                type="number"
-                min={ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS}
-                max={ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS}
-                step={50}
-                value={Number(traversalDelayMs)}
-                onChange={e => {
-                  const raw = Number(e.target.value)
-                  const next = Number.isFinite(raw)
-                    ? Math.max(
-                        ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS,
-                        Math.min(
-                          ORCHESTRATOR_TRAVERSAL_DELAY_MAX_MS,
-                          Math.round(raw / 50) * 50,
-                        ),
-                      )
-                    : ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS
-                  onChangeTraversalDelayMs(next)
-                }}
-                className={uiPanelKeyValueInputClass}
-              />
-          </Tooltip>
-        )}
+      />
+      <OrchestratorTraversalDelayRow
+        traversalDelayMs={traversalDelayMs}
+        onChangeTraversalDelayMs={onChangeTraversalDelayMs}
+        uiPanelKeyValueInputClass={uiPanelKeyValueInputClass}
       />
       <AgenticContextGraphContextUrlRow
         agenticContext={agenticContext}
@@ -315,7 +247,7 @@ export function GraphRagWorkflowSection({
           <Tooltip
             content={ORCHESTRATOR_TRACING_OPTIONS_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
             <span className="inline-flex items-center gap-1">
               <span>{UI_COPY.graphRagWorkflowTracingOptionsTitle}</span>

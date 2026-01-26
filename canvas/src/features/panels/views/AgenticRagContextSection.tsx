@@ -16,6 +16,7 @@ import {
 import type { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getPillClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface AgenticRagContextSectionProps {
   collapsed: boolean
@@ -43,7 +44,7 @@ export default function AgenticRagContextSection({
         <Tooltip
           content={ORCHESTRATOR_AGENTIC_COPY.contextSectionTooltip}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+          contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
         >
           <span className="inline-flex items-center gap-1">
             <span>{AGENTIC_RAG_CONTEXT_AND_IGNORE_FILTERS_LABEL}</span>

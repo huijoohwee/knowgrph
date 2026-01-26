@@ -33,6 +33,7 @@
     "highlight.js": "^11.11.1",
     "katex": "^0.16.11",
     "lucide-react": "^0.562.0",
+    "maplibre-gl": "^5.7.3",
     "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^9.2.0",
     "markdown-it-footnote": "^4.0.0",

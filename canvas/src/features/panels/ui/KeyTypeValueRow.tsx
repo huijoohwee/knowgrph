@@ -70,8 +70,8 @@ export function KeyTypeValueRow({
 
   if (layout === 'keyIconSliderInput') {
     const rootClassName = [
-      'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,0.49fr)_minmax(0,0.01fr)_minmax(0,0.245fr)_minmax(0,0.245fr)]',
-      'gap-x-2 gap-y-1 rounded',
+      'grid w-full grid-cols-[minmax(0,1fr)_minmax(0,0.05fr)_minmax(0,0.6fr)_minmax(0,1.25fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.05fr)_minmax(0,0.55fr)_minmax(0,1.4fr)]',
+      'gap-x-2 gap-y-0 rounded',
       activeClass,
       uiPanelKeyValueTextSizeClass,
       uiPanelTextFontClass,
@@ -100,8 +100,8 @@ export function KeyTypeValueRow({
 
   if (layout === 'keyIconValue') {
     const rootClassName = [
-      'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,0.49fr)_minmax(0,0.02fr)_minmax(0,0.49fr)]',
-      'gap-x-2 gap-y-1 rounded',
+      'grid w-full grid-cols-[minmax(0,1fr)_minmax(1.25rem,1.75rem)_minmax(0,1.1fr)] sm:grid-cols-[minmax(0,1.1fr)_minmax(1.25rem,1.75rem)_minmax(0,1.2fr)]',
+      'gap-x-2 gap-y-0 rounded',
       activeClass,
       uiPanelKeyValueTextSizeClass,
       uiPanelTextFontClass,
@@ -154,7 +154,7 @@ export function KeyTypeValueRow({
   }
 
   const rootClassName = [
-    'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,0.52fr)_minmax(0,0.16fr)_minmax(0,0.32fr)] gap-x-2 gap-y-1 rounded',
+    'grid w-full grid-cols-[minmax(0,1fr)_minmax(4.25rem,5.75rem)_minmax(0,1.15fr)] sm:grid-cols-[minmax(0,1.05fr)_minmax(5rem,6.75rem)_minmax(0,1.25fr)] gap-x-2 gap-y-0 rounded',
     activeClass,
     uiPanelKeyValueTextSizeClass,
     uiPanelTextFontClass,
@@ -175,10 +175,10 @@ export function KeyTypeValueRow({
       <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
         {keyNode}
       </dt>
-      <dd className={`min-w-0 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+      <dd className={`flex min-w-0 items-center justify-end ${UI_THEME_TOKENS.text.secondary} break-words`}>
         {typeNode}
       </dd>
-      <dd className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+      <dd className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
         {valueNode}
       </dd>
     </dl>

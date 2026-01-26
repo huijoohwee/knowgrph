@@ -3,6 +3,12 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  AI_KG_LAYER1_OPACITY_ROW_TOOLTIP,
+  AI_KG_LAYER2_OPACITY_ROW_TOOLTIP,
+  AI_KG_LAYER3_OPACITY_ROW_TOOLTIP,
+} from '@/lib/config'
 import {
   LAYER1_OPACITY_TOOLTIP,
   LAYER2_OPACITY_TOOLTIP,
@@ -39,10 +45,10 @@ export default function AiKgOpacityControls({
         layout="keyIconSliderInput"
         keyNode={(
           <Tooltip
-            content="AI KG renderer → adjust three.layerOpacityByLayer['1'] for foreground band → keep top-layer concepts readable while replaying traversal paths."
+            content={AI_KG_LAYER1_OPACITY_ROW_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="text-gray-700 break-words"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className={`break-words ${UI_THEME_TOKENS.text.primary}`}
           >
             three.layerOpacityByLayer['1']
           </Tooltip>
@@ -51,7 +57,7 @@ export default function AiKgOpacityControls({
           <Tooltip
             content={LAYER1_OPACITY_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
             <input
@@ -83,7 +89,7 @@ export default function AiKgOpacityControls({
           <Tooltip
             content={LAYER1_OPACITY_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
             <input
@@ -117,10 +123,10 @@ export default function AiKgOpacityControls({
         layout="keyIconSliderInput"
         keyNode={(
           <Tooltip
-            content="AI KG renderer → adjust three.layerOpacityByLayer['2'] for mid band → balance context layer visibility against traversal highlights."
+            content={AI_KG_LAYER2_OPACITY_ROW_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="text-gray-700 break-words"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className={`break-words ${UI_THEME_TOKENS.text.primary}`}
           >
             three.layerOpacityByLayer['2']
           </Tooltip>
@@ -129,7 +135,7 @@ export default function AiKgOpacityControls({
           <Tooltip
             content={LAYER2_OPACITY_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
             <input
@@ -161,7 +167,7 @@ export default function AiKgOpacityControls({
           <Tooltip
             content={LAYER2_OPACITY_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
             <input
@@ -195,10 +201,10 @@ export default function AiKgOpacityControls({
         layout="keyIconSliderInput"
         keyNode={(
           <Tooltip
-            content="AI KG renderer → adjust three.layerOpacityByLayer['3'] for background band → keep deep context visible without overpowering traversal overlays."
+            content={AI_KG_LAYER3_OPACITY_ROW_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
-            className="text-gray-700 break-words"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+            className={`break-words ${UI_THEME_TOKENS.text.primary}`}
           >
             three.layerOpacityByLayer['3']
           </Tooltip>
@@ -207,7 +213,7 @@ export default function AiKgOpacityControls({
           <Tooltip
             content={LAYER3_OPACITY_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
             <input
@@ -239,7 +245,7 @@ export default function AiKgOpacityControls({
           <Tooltip
             content={LAYER3_OPACITY_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
             <input

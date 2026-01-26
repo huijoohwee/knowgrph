@@ -1,5 +1,5 @@
 import React from 'react'
-import { Download, Eraser, Plus, Upload } from 'lucide-react'
+import { Download, Eraser, Plus, Square, Upload } from 'lucide-react'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { TOOL_MENU_ACTION_LABELS, TOOL_MENU_AREAS } from '@/features/toolbar/toolMenu'
 import { TOOLBAR_AREA_RENDERERS, type ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
@@ -9,8 +9,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
   const {
-    setIsSourceFilesImportMenuOpen,
-    setIsSourceFilesExportMenuOpen,
     setIsParserExportMenuOpen,
     setIsMarkdownImportMenuOpen,
     setIsHtmlImportMenuOpen,
@@ -43,8 +41,6 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
   }, [normalizedSearchQuery])
 
   type MenuToggleKey =
-    | 'sourceFilesImport'
-    | 'sourceFilesExport'
     | 'parserExport'
     | 'markdownImport'
     | 'htmlImport'
@@ -60,8 +56,6 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
 
   const closeAllMenusExcept = React.useCallback(
     (except: MenuToggleKey | null) => {
-      if (except !== 'sourceFilesImport') setIsSourceFilesImportMenuOpen(false)
-      if (except !== 'sourceFilesExport') setIsSourceFilesExportMenuOpen(false)
       if (except !== 'parserExport') setIsParserExportMenuOpen(false)
       if (except !== 'markdownImport') setIsMarkdownImportMenuOpen(false)
       if (except !== 'htmlImport') setIsHtmlImportMenuOpen(false)
@@ -86,22 +80,25 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
       setIsPdfImportMenuOpen,
       setIsSchemaExportMenuOpen,
       setIsSettingsExportMenuOpen,
-      setIsSourceFilesExportMenuOpen,
-      setIsSourceFilesImportMenuOpen,
       setIsValidationExportMenuOpen,
       setIsYouTubeImportMenuOpen,
     ],
   )
 
-  const areaActionButtonClassName =
-    `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 px-1 py-0.5`
+  const areaActionButtonClassName = [
+    `App-toolbar__btn ${uiPanelKeyValueTextSizeClass}`,
+    UI_THEME_TOKENS.panel.bg,
+    `border ${UI_THEME_TOKENS.panel.border}`,
+    UI_THEME_TOKENS.text.secondary,
+    UI_THEME_TOKENS.button.hoverBg,
+  ].join(' ')
 
   return (
     <>
       {visibleAreas.map(area => (
         <section
           key={area.key}
-          className={`flex flex-col gap-1 px-0.5 py-1 border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`}
+          className={`flex flex-col gap-1 px-2 py-1 border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`}
         >
           <header className="flex items-center justify-between gap-2">
             <h3 className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary} truncate min-w-0`}>
@@ -109,7 +106,7 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
                 <Tooltip
                   content={area.description}
                   maxWidthPx={280}
-                  contentClassName={UI_THEME_TOKENS.tooltip.bg}
+                  contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                 >
                   <span>{area.label}</span>
                 </Tooltip>
@@ -118,19 +115,30 @@ export function ToolbarToolMenuAreas(props: ToolbarToolMenuAreasProps) {
               )}
             </h3>
             <div className="flex items-center gap-1" role="toolbar" aria-label={`${area.label} actions`}>
-              {area.actions.map(action => {
+              {area.key === 'sourceFiles' ? (
+                <button
+                  type="button"
+                  className={areaActionButtonClassName}
+                  onClick={() => {
+                    closeAllMenusExcept(null)
+                    onToolMenuAction('sourceFiles', 'new')
+                  }}
+                  aria-label="New Source File"
+                  title="New Source File"
+                >
+                  <Square
+                    className={iconSizeClass}
+                    strokeWidth={uiIconStrokeWidth}
+                    aria-hidden="true"
+                  />
+                </button>
+              ) : null}
+              {(area.key === 'sourceFiles'
+                ? area.actions.filter(action => action !== 'new')
+                : area.actions
+              ).map(action => {
                 const handleClick =
-                  area.key === 'sourceFiles' && action === 'import'
-                    ? () => {
-                        closeAllMenusExcept('sourceFilesImport')
-                        setIsSourceFilesImportMenuOpen(v => !v)
-                      }
-                    : area.key === 'sourceFiles' && action === 'export'
-                    ? () => {
-                        closeAllMenusExcept('sourceFilesExport')
-                        setIsSourceFilesExportMenuOpen(v => !v)
-                      }
-                    : area.key === 'parser' && action === 'export'
+                  area.key === 'parser' && action === 'export'
                       ? () => {
                         closeAllMenusExcept('parserExport')
                         setIsParserExportMenuOpen(v => !v)

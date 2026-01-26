@@ -273,7 +273,7 @@ export default function RenderSettingsSection({
         <Tooltip
           content={copy.tooltip}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+          contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
         >
           {titleContent}
         </Tooltip>

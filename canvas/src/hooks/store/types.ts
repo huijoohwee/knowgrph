@@ -75,8 +75,14 @@ export type SourceFile = {
   name: string
   text: string
   enabled: boolean
+  geoLayerEnabled?: boolean
   status: 'idle' | 'loading' | 'parsed' | 'error'
   error?: string
+  source?: {
+    kind: 'url' | 'local'
+    url?: string
+    path?: string
+  }
 }
 
 export interface GraphState {
@@ -84,9 +90,14 @@ export interface GraphState {
 
   sourceFiles: SourceFile[];
   addSourceFile: (file: SourceFile) => void;
+  updateSourceFile: (id: string, updates: Partial<SourceFile>) => void;
   removeSourceFile: (id: string) => void;
   toggleSourceFile: (id: string) => void;
+  setSourceFileName: (id: string, name: string) => void;
+  setSourceFileGeoLayerEnabled: (id: string, enabled: boolean) => void;
   setSourceFileStatus: (id: string, status: SourceFile['status'], error?: string) => void;
+  reorderSourceFiles: (sourceId: string, targetId: string) => void;
+  clearSourceFiles: () => void;
 
   graphDataRevision: number;
   documentSemanticMode: DocumentSemanticMode;

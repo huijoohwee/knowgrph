@@ -47,6 +47,24 @@
 
 ---
 
+## Settings Row Layout Consistency (Key / Type / Value)
+
+**Scope**: MainPanel → Settings rows (shared key/value layout utilities)
+
+**Layout rules**
+- One setting row renders as one row: Key / Type / Value do not stack into multiple rows at narrow widths.
+- Value controls are right-edge aligned within the Value column (text inputs, selects, checkboxes, pill buttons).
+- Height is consistent: value controls, preview chips, and pill actions use the same baseline height (`h-6`) to keep rows visually stable.
+- Composite value controls (preview + input) must be shrink-safe: wrappers use `w-full min-w-0` and inputs use `min-w-0` so the right border stays aligned.
+- Clean interactions: clicking inside a value control does not toggle expand/collapse; only row click toggles.
+
+**Implementation anchors**
+- Key/Type/Value row grid: `canvas/src/features/panels/ui/KeyTypeValueRow.tsx`
+- Settings surface + status/action pills: `canvas/src/features/panels/views/SettingsView.tsx`
+- Settings input renderer (composite controls + alignment/height): `canvas/src/features/settings/ui.tsx` (`renderSettingInput`)
+
+---
+
 ## Component Responsibility Matrix
 
 | Layer/Subsystem       | Path/Module                                   | Component                   | Interface/Method            | Responsibility (S-V-O)                                                                        | Dependencies                          | Contracts                                         | LOC    |

@@ -56,7 +56,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     id: 1,
     label: 'Schema (decide meaning once)',
     descriptionShort:
-      'Define ontology, validation, and provenance rules so GraphData, loaders, and exporters share a single semantic contract for nodes, edges, and properties.',
+      'Schema \u2192 define ontology, validation, and provenance rules \u2192 keep GraphData, loaders, and exporters aligned on one contract.',
     descriptionLong:
       'Define ontology, validation, and provenance rules so GraphData, loaders, and exporters share a single semantic contract for nodes, edges, and properties. Node type labels, edge relations, geo-coordinates, rich text chunks, and embedding placeholders all live in this layer so meaning is decided once and reused everywhere.',
   },
@@ -64,7 +64,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     id: 2,
     label: 'UI curation layer',
     descriptionShort:
-      'Use the in-app Graph Data Table or external spreadsheet-style curation to manage Nodes, Edges, and Metadata tables, then export CSV/JSON so ingest remains source-agnostic and lossless.',
+      'Curation \u2192 curate nodes, edges, and metadata tables \u2192 export lossless CSV/JSON so ingest stays source-agnostic.',
     descriptionLong:
       'Use the in-app Graph Data Table or an external multidimensional spreadsheet UI backed by a relational store to curate Nodes, Edges, Metadata, and Media URLs. Entity resolution, provenance entry, and manual confidence tagging happen here before export. Exports remain high-fidelity CSV/JSON per table so ingest stays source-agnostic and lossless.',
   },
@@ -72,7 +72,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     id: 3,
     label: 'Ingest',
     descriptionShort:
-      'Load curated exports through Loader, Parser, and Validator so raw files become canonical GraphData with stable IDs, referential integrity, and provenance preserved.',
+      'Ingest \u2192 load inputs via Loader, Parser, and Validator \u2192 produce canonical GraphData with stable IDs and preserved provenance.',
     descriptionLong:
       'Load curated exports or raw files through Loader, Parser, and Validator so raw JSON and CSV become canonical GraphData with stable IDs, deduplication, entity resolution, and provenance preserved. Loader validates JSON syntax only, Parser converts JSON to graph objects without domain assumptions, and Validator enforces structural integrity against the active schema.',
   },
@@ -80,7 +80,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     id: 4,
     label: 'Enrich',
     descriptionShort:
-      'Attach embeddings, confidence scores, and media references to GraphData so downstream retrieval and RAG pipelines can perform hybrid vector and graph-based search.',
+      'Enrich \u2192 attach embeddings, confidence, and media references \u2192 enable hybrid vector + graph retrieval without changing IDs.',
     descriptionLong:
       'Attach embeddings, confidence scores, and media references to GraphData so retrieval and RAG pipelines can combine vector similarity with graph structure. Chunk text becomes the grounding surface, embeddings capture semantic similarity, and media URLs and confidence signals stay attached as structured metadata for downstream tools.',
   },
@@ -88,7 +88,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     id: 5,
     label: 'Index and store',
     descriptionShort:
-      'Persist GraphData into DuckDB or other canonical stores with vector indexes so retrieval, analytics, and agents can share a single lossless storage layer.',
+      'Index \u2192 persist GraphData into canonical stores (DuckDB + vector indexes) \u2192 share one lossless retrieval and analytics layer.',
     descriptionLong:
       'Persist GraphData into DuckDB or other canonical stores with relational tables for nodes and edges plus optional vector indexes. Hybrid retrieval over SQL and vector similarity runs against this canonical store so agents, dashboards, and offline jobs all share the same lossless representation of the graph.',
   },
@@ -96,7 +96,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     id: 6,
     label: 'Agentic reasoning',
     descriptionShort:
-      `Use agents and the Orchestrator tab to run traversal presets, inspect Traversal sequence and the AgenticRAG node inspector, and review ${AGENTIC_RAG_CONTEXT_AND_IGNORE_FILTERS_LABEL} so multi-hop graphRAGPath reasoning stays grounded in schema, provenance, and confidence signals.`,
+      `Orchestrator \u2192 run traversal presets and inspect AgenticRAG context \u2192 keep multi-hop graphRAGPath reasoning grounded in schema and provenance.`,
     descriptionLong:
       `Use an orchestrator to plan and run multi-step workflows that combine SQL over DuckDB, vector search, and subgraph traversal over the indexed store. In the Orchestrator bottom-panel tab, run AgenticRAG traversal presets, inspect Traversal sequence and the AgenticRAG node inspector, and review ${AGENTIC_RAG_CONTEXT_AND_IGNORE_FILTERS_LABEL} so graphRAGPath IRI chains remain traceable, reproducible, and aligned with AgenticRAG JSON-LD schema and context.`,
   },
@@ -104,7 +104,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     id: 7,
     label: 'Produce',
     descriptionShort:
-      'Generate portable Blueprint JSON, JSON-LD, CSV, and other exports so downstream systems can consume fully validated graph snapshots and workflow state.',
+      'Produce \u2192 export portable JSON, JSON-LD, and CSV snapshots \u2192 reuse validated graph states across tools and runs.',
     descriptionLong:
       'Generate portable Blueprint JSON, JSON-LD, CSV, GraphML, Cypher, and DuckDB exports so downstream systems can consume fully validated graph snapshots and workflow state. History and Graph Fields configuration can be exported alongside GraphData so schema, field settings, and pipeline steps remain reproducible.',
   },
@@ -112,7 +112,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     id: 8,
     label: 'Reuse and render',
     descriptionShort:
-      'Render graphs in 2D/3D or maps, or feed exports into indexers and visualization stacks so appearance stays a late, replaceable decision on top of stable GraphData.',
+      'Render \u2192 visualize in 2D/3D/map without mutating GraphData \u2192 keep appearance a late, replaceable decision.',
     descriptionLong:
       'Render graphs in 2D/3D or map views, or feed exports into indexers, dashboards, and downstream RAG pipelines so appearance and retrieval strategies remain late, replaceable decisions on top of stable GraphData. Visual mappings, level-of-detail, canvas Embed/Overlay mini-visualizations, and schema-driven clusters (controlled by the Clusters toolbar toggle and `schema.metadata["canvas:graphLayers"]`) happen here without altering the canonical store, keeping phase/step-style outlines and overlays domain-agnostic.',
   },

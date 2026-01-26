@@ -15,6 +15,7 @@ import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type DuckDbQueryPresetDirectionMode = {
   id: string
@@ -103,7 +104,7 @@ function GraphRagPathTraverseHelperSection({
               <Tooltip
                 content="Preset optimized for inspecting a single path via traversal."
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               >
                 <button
                   type="button"
@@ -218,7 +219,7 @@ function DuckDbQueryPresetsSection({
         <Tooltip
           content={DUCKDB_QUERY_PRESETS_TOOLTIP}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+          contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
         >
           <span>{UI_COPY.orchestratorDuckDbQueryPresetsTitle}</span>
         </Tooltip>
@@ -230,7 +231,7 @@ function DuckDbQueryPresetsSection({
             <Tooltip
               content={DUCKDB_QUERY_PRESET_ID_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="break-words text-gray-500"
             >
               duckdbQueries[].id
@@ -243,7 +244,7 @@ function DuckDbQueryPresetsSection({
                 <Tooltip
                   content={UI_COPY.orchestratorDuckDbPresetSelectTooltip}
                   maxWidthPx={260}
-                  contentClassName="bg-gray-800/90"
+                  contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
                   className="w-full sm:w-auto"
                 >
                   <select
@@ -355,7 +356,7 @@ function DuckDbQueryPresetsSection({
             <Tooltip
               content={DUCKDB_QUERY_PRESET_DESCRIPTION_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="text-gray-500"
             >
               duckdbQueries[].description
@@ -366,7 +367,7 @@ function DuckDbQueryPresetsSection({
             <Tooltip
               content={UI_COPY.orchestratorDuckDbDescriptionValueTooltip}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             >
               <div
                 className={[
@@ -387,7 +388,7 @@ function DuckDbQueryPresetsSection({
             <Tooltip
               content={DUCKDB_SQL_FIELD_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="text-gray-500"
             >
               duckdbQueries[].sql
@@ -398,10 +399,10 @@ function DuckDbQueryPresetsSection({
             <Tooltip
               content={UI_COPY.orchestratorDuckDbSqlValueTooltip}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
               className="w-full"
             >
-              <div className="w-full border border-gray-300 rounded overflow-hidden min-h-[96px] bg-white">
+              <div className={`w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden min-h-[96px] ${UI_THEME_TOKENS.input.bg}`}>
                 <MonacoTextEditor
                   value={editableSqlById[activePresetId] || activePreset.sql}
                   onChange={(value) => {

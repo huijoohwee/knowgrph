@@ -28,7 +28,7 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
   return (
     <div>
       <div
-        className={`${uiIconPillClass} inline-flex items-center justify-center gap-1 text-xs min-w-[120px] ${classes}`}
+        className={`${uiIconPillClass} inline-flex items-center justify-center gap-1 h-[var(--kg-status-pill-height,24px)] box-border px-2 text-xs min-w-[120px] ${classes}`}
       >
         {ok === true ? (
           <CheckCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />

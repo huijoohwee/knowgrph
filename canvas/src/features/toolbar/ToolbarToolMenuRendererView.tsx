@@ -2,7 +2,6 @@ import { useRenderBottomPanelState } from '@/features/panels/hooks/useRenderBott
 import RenderSettingsSection from '@/features/panels/views/RenderSettingsSection'
 import { UI_LABELS } from '@/lib/config'
 import { RendererPaletteSettings } from '@/features/toolbar/ui/RendererPaletteSettings'
-import { RendererLayoutModeSettings } from '@/features/toolbar/ui/RendererLayoutModeSettings'
 import { RendererHoverSettings } from '@/features/toolbar/ui/RendererHoverSettings'
 
 export function ToolbarToolMenuRendererView() {
@@ -35,7 +34,6 @@ export function ToolbarToolMenuRendererView() {
 
   return (
     <div className="flex flex-col gap-2">
-      <RendererLayoutModeSettings />
       <RendererPaletteSettings />
       <RendererHoverSettings />
       <div className="flex items-center gap-2">

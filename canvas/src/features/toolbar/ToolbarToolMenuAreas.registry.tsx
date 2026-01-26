@@ -27,10 +27,6 @@ export interface ToolbarToolMenuAreasProps {
   orchestratorOpMsg: string | null
   renderOpOk: boolean | null
   renderOpMsg: string | null
-  isSourceFilesImportMenuOpen: boolean
-  setIsSourceFilesImportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
-  isSourceFilesExportMenuOpen: boolean
-  setIsSourceFilesExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isParserExportMenuOpen: boolean
   setIsParserExportMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   isMarkdownImportMenuOpen: boolean

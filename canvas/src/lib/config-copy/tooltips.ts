@@ -9,19 +9,23 @@ export interface NumericTooltipOptions {
 }
 
 export function buildNumericTooltip(options: NumericTooltipOptions): string {
-  const segments: string[] = [];
-  segments.push(`Default: ${options.defaultValue}`);
+  const maxWords = 15
+  const segments: string[] = []
+  segments.push(`Default: ${options.defaultValue}`)
   if (typeof options.min !== 'undefined') {
-    segments.push(`Min: ${options.min}`);
+    segments.push(`Min: ${options.min}`)
   }
   if (typeof options.max !== 'undefined') {
-    segments.push(`Max: ${options.max}`);
+    segments.push(`Max: ${options.max}`)
   }
   if (typeof options.interval !== 'undefined') {
-    segments.push(`Interval: ${options.interval}`);
+    segments.push(`Interval: ${options.interval}`)
   }
-  segments.push(options.impact);
-  return segments.join('; ');
+  const base = segments.join('; ')
+  const remaining = Math.max(0, maxWords - countWords(base))
+  const impact = remaining > 0 ? truncateWords(String(options.impact || ''), remaining) : ''
+  const final = [base, impact].filter(Boolean).join('; ')
+  return truncateWords(final, maxWords)
 }
 
 export interface RoleActionOutcomeTooltipOptions {
@@ -142,6 +146,26 @@ export function buildSettingsAreaTooltip(area: string, responsibility?: string):
   return base;
 }
 
+export function buildDefaultTooltip(params: {
+  defaultValue: string | number | boolean | null
+  impact: string
+}): string {
+  const maxWords = 15
+  const def =
+    typeof params.defaultValue === 'boolean'
+      ? String(params.defaultValue)
+      : typeof params.defaultValue === 'number' && Number.isFinite(params.defaultValue)
+        ? String(params.defaultValue)
+        : typeof params.defaultValue === 'string' && params.defaultValue.trim().length > 0
+          ? params.defaultValue.trim()
+          : '—'
+  const base = `Default: ${def}`
+  const remaining = Math.max(0, maxWords - countWords(base))
+  const impact = remaining > 0 ? truncateWords(String(params.impact || ''), remaining) : ''
+  const final = [base, impact].filter(Boolean).join('; ')
+  return truncateWords(final, maxWords)
+}
+
 export const ORCHESTRATOR_TRAVERSAL_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Orchestrator',
   actions: [
@@ -160,6 +184,69 @@ export const ORCHESTRATOR_TRAVERSAL_DELAY_ROW_TOOLTIP = buildRoleActionOutcomeTo
   outcome: 'keep AgenticRAG graph navigation smooth, debuggable, and reproducible across runs',
 });
 
+export const AI_KG_FORCE_CHARGE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'AI KG force charge',
+  actions: [
+    'set layout.forces.charge to control node repulsion',
+    'spread or tighten clusters around traversal overlays and highlights',
+  ],
+  outcome: 'keep dense graphs readable without fragmenting cluster structure',
+})
+
+export const AI_KG_FORCE_COLLISION_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'AI KG collision radius',
+  actions: [
+    'set layout.forces.collisionByType to push nodes apart per node type',
+    'reduce overlap for AI-KG layers and traversal playback',
+  ],
+  outcome: 'maintain legible clusters and labels during multi-hop inspection',
+})
+
+export const AI_KG_FORCE_BOX_FORCE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'AI KG box force',
+  actions: [
+    'toggle layout.forces.boxForce to constrain nodes within the viewport',
+    'prevent runaway layouts on large or high-charge graphs',
+  ],
+  outcome: 'keep traversal replays on-screen without constant refitting',
+})
+
+export const AI_KG_FORCE_BOX_FORCE_STRENGTH_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'AI KG box force strength',
+  actions: [
+    'set layout.forces.boxForceStrength to control constraint intensity',
+    'balance stability against distortion of natural force layouts',
+  ],
+  outcome: 'keep nodes visible while preserving the shape of the graph',
+})
+
+export const AI_KG_LAYER1_OPACITY_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'AI KG layer 1 opacity',
+  actions: [
+    "set three.layerOpacityByLayer['1'] for the foreground band",
+    'keep top-layer concepts readable during traversal replays',
+  ],
+  outcome: 'preserve focus-layer readability without hiding context entirely',
+})
+
+export const AI_KG_LAYER2_OPACITY_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'AI KG layer 2 opacity',
+  actions: [
+    "set three.layerOpacityByLayer['2'] for the mid band",
+    'balance context visibility against traversal highlights',
+  ],
+  outcome: 'keep supporting context present without overpowering the focus layer',
+})
+
+export const AI_KG_LAYER3_OPACITY_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'AI KG layer 3 opacity',
+  actions: [
+    "set three.layerOpacityByLayer['3'] for the background band",
+    'keep deep context visible behind traversal overlays',
+  ],
+  outcome: 'retain depth cues while keeping traversal paths visually dominant',
+})
+
 export const WORKFLOW_INDEXING_PARAMETERS_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'GraphRAG workflow indexing',
   actions: [
@@ -168,6 +255,74 @@ export const WORKFLOW_INDEXING_PARAMETERS_TOOLTIP = buildRoleActionOutcomeToolti
   ],
   outcome: 'keep indexing configuration consistent across AgenticRAG workflows, traversals, and exports',
 });
+
+export const GRAPHRAG_DATASET_INPUT_DIR_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'GraphRAG dataset input directory',
+  actions: [
+    'set dataset.inputDir for the active rag:GraphRAGWorkflow JSON-LD',
+    'align on-disk raw inputs with offline GraphRAG runs',
+  ],
+  outcome: 'keep GraphRAG workflows reproducible across machines and shared exports',
+})
+
+export const GRAPHRAG_DATASET_OUTPUT_DIR_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'GraphRAG dataset output directory',
+  actions: [
+    'set dataset.outputDir for the active rag:GraphRAGWorkflow JSON-LD',
+    'align GraphRAG artifacts output paths with offline runs',
+  ],
+  outcome: 'keep derived artifacts discoverable across exports and pipeline reruns',
+})
+
+export const GRAPHRAG_CHUNK_METHOD_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'GraphRAG chunking method',
+  actions: [
+    'set chunking.method for the active rag:GraphRAGWorkflow JSON-LD',
+    'choose how documents are split before embedding and indexing',
+  ],
+  outcome: 'keep chunk boundaries stable so retrieval and citations remain comparable',
+})
+
+export const GRAPHRAG_CHUNK_SIZE_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'GraphRAG chunk size',
+  actions: [
+    'set chunking.chunkSize for the active rag:GraphRAGWorkflow JSON-LD',
+    'control document chunk granularity before embedding',
+  ],
+  outcome: 'balance retrieval recall and index size without hard-coded dataset tuning',
+})
+
+export const GRAPHRAG_MAX_HOPS_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'GraphRAG max hops',
+  actions: [
+    'set maxHops for the active rag:GraphRAGWorkflow JSON-LD',
+    'control multi-hop neighborhood expansion during retrieval',
+  ],
+  outcome: 'trade off depth-driven recall against traversal cost and noise',
+})
+
+export const GRAPHRAG_EMBEDDING_PROVIDER_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'GraphRAG embedding provider',
+  actions: [
+    'set embeddingModel.provider for the active rag:GraphRAGWorkflow JSON-LD',
+    'select which embedding backend to use during indexing',
+  ],
+  outcome: 'keep embedding runs consistent across machines and exported workflows',
+})
+
+export const GRAPHRAG_EMBEDDING_MODEL_NAME_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'GraphRAG embedding model name',
+  actions: [
+    'set embeddingModel.modelName for the active rag:GraphRAGWorkflow JSON-LD',
+    'select the embedding model used for chunk vectors',
+  ],
+  outcome: 'control embedding quality and cost while keeping retrieval comparable across runs',
+})
+
+export const GRAPHRAG_IGNORE_PATTERNS_VALUE_TOOLTIP = buildDefaultTooltip({
+  defaultValue: '',
+  impact: 'Comma-separated patterns; matching paths are ignored during codebase indexing',
+})
 
 export const TRAVERSAL_PRESETS_SECTION_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Traversal presets and helpers',
@@ -346,18 +501,6 @@ export const TOOL_MENU_GRAPH_FIELDS_DESCRIPTION =
 export const TOOL_MENU_RENDER_DESCRIPTION =
   'Renderer \u2192 manage 2D/3D render presets and layout configurations \u2192 store JSON-LD (default) and YAML definitions that align camera, forces, and layer opacity with AgenticRAG traversal and selection semantics.';
 
-export const RENDERER_LAYOUT_MODE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer',
-  actions: [
-    'set schema.layout.mode for the active graph view',
-    'switch between force, radial, and tree layouts',
-  ],
-  outcome: 'keep layout selection consistent across renderer panels and the toolbar',
-});
-
-export const RENDERER_LAYOUT_MODE_VALUE_TOOLTIP =
-  'Default: force; Options: force, radial, tree; radial/tree switch to 2D.';
-
 export const RENDERER_PALETTE_LIFECYCLE_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Renderer palette lifecycle roles',
   actions: [
@@ -366,6 +509,34 @@ export const RENDERER_PALETTE_LIFECYCLE_TOOLTIP = buildRoleActionOutcomeTooltip(
   outcome:
     'keep blue/yellow/green/orange/red colors aligned with core ideas, hypotheses, execution, pivots, and alerts.',
 });
+
+export const RENDERER_PALETTE_ENTRY_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'Renderer palette entry',
+  actions: [
+    'set renderer:palette colors in schema.metadata to style nodes, edges, and clusters',
+    'keep lifecycle colors aligned with presets and exports',
+  ],
+  outcome: 'make graphs visually consistent across sessions without hard-coded theme overrides',
+})
+
+export const RENDERER_PALETTE_ENTRY_VALUE_TOOLTIP = buildDefaultTooltip({
+  defaultValue: '',
+  impact: 'Hex color; updates fills and outlines for matching nodes, edges, and clusters',
+})
+
+export const RENDERER_HOVER_CONTENT_KEY_TOOLTIP = buildRoleActionOutcomeTooltip({
+  role: 'Hover tooltip content',
+  actions: [
+    'choose which fields appear in the hover tooltip (Type, ID, Props)',
+    'reduce hover noise while keeping debugging info accessible',
+  ],
+  outcome: 'keep hover inspection fast and readable on dense graphs',
+})
+
+export const RENDERER_HOVER_CONTENT_VALUE_TOOLTIP = buildDefaultTooltip({
+  defaultValue: 'Type, ID, Props',
+  impact: 'Disable fields to reduce clutter; props may be large on codebase graphs',
+})
 
 export const RENDERER_TREE_CURVE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Renderer tree curve',
@@ -376,8 +547,10 @@ export const RENDERER_TREE_CURVE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
   outcome: 'improve Tree layout readability in dense hierarchies',
 });
 
-export const RENDERER_TREE_CURVE_VALUE_TOOLTIP =
-  'Default: bump; Options: bump, linear, step; Changes tree link shape.';
+export const RENDERER_TREE_CURVE_VALUE_TOOLTIP = buildDefaultTooltip({
+  defaultValue: 'bump',
+  impact: 'Changes tree link shape; step is angular; linear is straight',
+})
 
 export const RENDERER_TREE_ORIENTATION_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Renderer tree orientation',
@@ -388,8 +561,10 @@ export const RENDERER_TREE_ORIENTATION_ROW_TOOLTIP = buildRoleActionOutcomeToolt
   outcome: 'fit Tree layouts to panel and screen space',
 });
 
-export const RENDERER_TREE_ORIENTATION_VALUE_TOOLTIP =
-  'Default: horizontal; Options: horizontal, vertical; Rotates tree layout axis.';
+export const RENDERER_TREE_ORIENTATION_VALUE_TOOLTIP = buildDefaultTooltip({
+  defaultValue: 'horizontal',
+  impact: 'Rotates tree layout axis to fit available screen space',
+})
 
 export const RENDERER_TREE_LINK_OPACITY_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Renderer tree link opacity',

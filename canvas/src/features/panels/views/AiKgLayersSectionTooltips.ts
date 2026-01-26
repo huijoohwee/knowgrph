@@ -1,4 +1,4 @@
-import { buildNumericTooltip } from '@/lib/config'
+import { buildDefaultTooltip, buildNumericTooltip } from '@/lib/config'
 import {
   COLLISION_RADIUS_DEFAULT,
   COLLISION_RADIUS_INTERVAL,
@@ -12,7 +12,7 @@ export const COLLISION_RADIUS_TOOLTIP = buildNumericTooltip({
   max: COLLISION_RADIUS_MAX,
   interval: COLLISION_RADIUS_INTERVAL,
   impact:
-    'Higher values push nodes apart in dense regions; lower values keep AI-KG layers tighter around traversal paths.',
+    'Higher spreads nodes; lower keeps clusters tight near traversal paths.',
 })
 
 export const LAYER1_OPACITY_TOOLTIP = buildNumericTooltip({
@@ -21,7 +21,7 @@ export const LAYER1_OPACITY_TOOLTIP = buildNumericTooltip({
   max: 1,
   interval: 0.05,
   impact:
-    'Higher values make Layer 1 more opaque in the foreground band; lower values fade top-layer concepts during traversal replays.',
+    'Higher increases foreground opacity; lower fades top layer behind traversal overlays.',
 })
 
 export const LAYER2_OPACITY_TOOLTIP = buildNumericTooltip({
@@ -30,7 +30,7 @@ export const LAYER2_OPACITY_TOOLTIP = buildNumericTooltip({
   max: 1,
   interval: 0.05,
   impact:
-    'Higher values make Layer 2 more opaque in the mid band; lower values fade supporting context behind traversal highlights.',
+    'Higher increases mid-layer opacity; lower fades context behind traversal highlights.',
 })
 
 export const LAYER3_OPACITY_TOOLTIP = buildNumericTooltip({
@@ -39,7 +39,7 @@ export const LAYER3_OPACITY_TOOLTIP = buildNumericTooltip({
   max: 1,
   interval: 0.05,
   impact:
-    'Higher values make Layer 3 more opaque in the background band; lower values push traversal paths forward against a lighter backdrop.',
+    'Higher increases background opacity; lower makes traversal overlays stand out.',
 })
 
 export const CHARGE_STRENGTH_DEFAULT = 520
@@ -53,7 +53,7 @@ export const CHARGE_STRENGTH_TOOLTIP = buildNumericTooltip({
   max: CHARGE_STRENGTH_MAX,
   interval: CHARGE_STRENGTH_INTERVAL,
   impact:
-    'Higher values increase node repulsion and spread AI-KG clusters apart; lower values keep clusters denser around traversal focus points.',
+    'Higher spreads clusters; lower keeps nodes denser around focus.',
 })
 
 export const SEMANTIC_TOPK_EDGES_TOOLTIP = buildNumericTooltip({
@@ -71,4 +71,17 @@ export const SEMANTIC_MIN_SIMILARITY_TOOLTIP = buildNumericTooltip({
   max: 1,
   interval: 0.01,
   impact: 'Higher values favor precision (drop weak links); lower values favor recall.',
+})
+
+export const BOX_FORCE_ENABLED_VALUE_TOOLTIP = buildDefaultTooltip({
+  defaultValue: true,
+  impact: 'Enable to keep nodes on-screen; disable for unconstrained layouts.',
+})
+
+export const BOX_FORCE_STRENGTH_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.05,
+  min: 0.01,
+  max: 0.2,
+  interval: 0.01,
+  impact: 'Higher constrains nodes more; may distort natural force layouts.',
 })

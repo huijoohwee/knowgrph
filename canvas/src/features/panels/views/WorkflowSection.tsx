@@ -4,13 +4,8 @@ import { useParserWorkflowState } from '@/features/parsers/useParserWorkflowStat
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { openBottomPanel } from '@/features/bottom-panel/open';
 import { EXAMPLE_DATASETS } from '@/features/parsers/examplesCatalog';
-import { buildGraphRagWorkflowJsonLdDocument } from '@/features/panels/utils/workflowJsonLd';
-import { buildGraphRagWorkflowFromGraphData } from '@/features/panels/utils/graphragConfig';
 import { SHARE_BACKEND_URL, UI_COPY } from '@/lib/config';
-import { getJsonLdGraphMappingSummary, getAgenticRagContextComparison } from '@/lib/graph/jsonld/index';
 import { WorkflowSteps } from '@/features/panels/views/WorkflowSteps';
-import type { JsonLdMappingSummary, AgenticContextSummary } from '@/features/panels/views/WorkflowStepsModel';
-import type { GraphData } from '@/lib/graph/types';
 import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions';
 
 type WorkflowActions = {
@@ -33,27 +28,6 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
   const schema = useGraphStore(s => s.schema);
   const captureCanvasPngSnapshot = useGraphStore(s => s.captureCanvasPngSnapshot);
   const captureCanvasSvgSnapshot = useGraphStore(s => s.captureCanvasSvgSnapshot);
-  const graphId = useGraphStore(s => s.graphId);
-  const graphRagWorkflowJsonText = useGraphStore(s => s.graphRagWorkflowJsonText);
-  const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText);
-  const [graphRagEditorExpanded, setGraphRagEditorExpanded] = React.useState(false);
-  const jsonLdMapping = React.useMemo<JsonLdMappingSummary | null>(() => {
-    const summary = getJsonLdGraphMappingSummary(graphData as GraphData | null) as
-      | { selectedEdgeProps?: string[] | null }
-      | null;
-    if (!summary || !Array.isArray(summary.selectedEdgeProps)) return null;
-    return { selectedEdgeProps: summary.selectedEdgeProps };
-  }, [graphData]);
-  const agenticContext = React.useMemo<AgenticContextSummary | null>(() => {
-    const res = getAgenticRagContextComparison(graphData as GraphData | null) as
-      | { graphContextUrl?: string | null; isCanonicalMatch?: boolean | null }
-      | null;
-    if (!res) return null;
-    return {
-      graphContextUrl: res.graphContextUrl,
-      isCanonicalMatch: res.isCanonicalMatch,
-    };
-  }, [graphData]);
   const hasSchema = useGraphStore(s => {
     const currentSchema = s.schema;
     const catalog = currentSchema && currentSchema.catalog;
@@ -115,9 +89,7 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
     },
     [],
   );
-  const {
-    importGraphRagWorkflowJsonLd,
-  } = useWorkflowExportActions({
+  useWorkflowExportActions({
     parserDataExports: parserDataProps,
     graphData,
     graphSchema: schema,
@@ -126,27 +98,6 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
     captureCanvasSvgSnapshot,
     captureCanvasPngSnapshot,
   });
-  React.useEffect(() => {
-    const hasText = typeof graphRagWorkflowJsonText === 'string' && graphRagWorkflowJsonText.trim().length > 0;
-    if (hasText) return;
-    try {
-      const doc = buildGraphRagWorkflowJsonLdDocument(graphId);
-      const text = JSON.stringify(doc, null, 2);
-      setGraphRagWorkflowJsonText(text);
-    } catch {
-      setGraphRagWorkflowJsonText(null);
-    }
-  }, [graphId, graphRagWorkflowJsonText, setGraphRagWorkflowJsonText]);
-
-  const handleResetGraphRagWorkflowJson = React.useCallback(() => {
-    try {
-      const doc = buildGraphRagWorkflowJsonLdDocument(graphId);
-      const text = JSON.stringify(doc, null, 2);
-      setGraphRagWorkflowJsonText(text);
-    } catch {
-      setGraphRagWorkflowJsonText(null);
-    }
-  }, [graphId, setGraphRagWorkflowJsonText]);
 
   const [shareStatus, setShareStatus] = React.useState<string | null>(null);
   const [pipelineStatus, setPipelineStatus] = React.useState<string | null>(null);
@@ -208,16 +159,6 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
     await runMarkdownPipelineWithStatus(setPipelineStatus);
   }, []);
 
-  const handleGenerateGraphRagWorkflowFromGraph = React.useCallback(() => {
-    try {
-      const doc = buildGraphRagWorkflowFromGraphData(graphId, graphData || null);
-      const text = JSON.stringify(doc, null, 2);
-      setGraphRagWorkflowJsonText(text);
-    } catch {
-      setGraphRagWorkflowJsonText(null);
-    }
-  }, [graphData, graphId, setGraphRagWorkflowJsonText]);
-
   const allStepsCollapsed = Object.values(collapsedByStep).every(Boolean);
   React.useEffect(() => {
     if (!onRegisterActions) return;
@@ -244,17 +185,6 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
         onApplyExample: applyExampleById,
         presets: parserDataProps.presets || [],
         onApplyPreset: parserDataProps.onApplyPreset,
-      }}
-      graphRagWorkflow={{
-        jsonLdMapping,
-        agenticContext,
-        graphRagWorkflowJsonText: graphRagWorkflowJsonText || '',
-        onChangeGraphRagWorkflowJsonText: v => setGraphRagWorkflowJsonText(v),
-        graphRagEditorExpanded,
-        onToggleGraphRagEditorExpanded: () => setGraphRagEditorExpanded(v => !v),
-        onResetGraphRagWorkflowJson: handleResetGraphRagWorkflowJson,
-        onGenerateGraphRagWorkflowFromGraph: handleGenerateGraphRagWorkflowFromGraph,
-        onImportGraphRagWorkflowJsonLd: importGraphRagWorkflowJsonLd,
       }}
       shareStatus={shareStatus}
       onCopyShareLink={handleCopyShareLink}

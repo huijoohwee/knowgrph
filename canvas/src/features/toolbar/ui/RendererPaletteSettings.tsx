@@ -4,7 +4,11 @@ import Tooltip from '@/features/panels/ui/Tooltip';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema';
 import { useRendererPalette } from '@/features/toolbar/hooks/useRendererPalette';
-import { RENDERER_PALETTE_LIFECYCLE_TOOLTIP } from '@/lib/config';
+import {
+  RENDERER_PALETTE_LIFECYCLE_TOOLTIP,
+  RENDERER_PALETTE_ENTRY_KEY_TOOLTIP,
+  RENDERER_PALETTE_ENTRY_VALUE_TOOLTIP,
+} from '@/lib/config';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 export function RendererPaletteSettings() {
@@ -39,31 +43,45 @@ export function RendererPaletteSettings() {
           layout="keyIconValue"
           density="compact"
           keyNode={
-            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
-              {`renderer:palette.nodes.${type}`}
-            </span>
+            <Tooltip
+              content={RENDERER_PALETTE_ENTRY_KEY_TOOLTIP}
+              maxWidthPx={260}
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+              className="break-words"
+            >
+              <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
+                {`renderer:palette.nodes.${type}`}
+              </span>
+            </Tooltip>
           }
           typeNode={null}
           valueNode={
             <RightAlignedValueCell>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
-                  value={normalizeColorForPicker(
-                    palette.nodes[type],
-                    MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]
-                  )}
-                  onChange={(e) => handleUpdatePaletteColor('node', type, e.target.value)}
-                />
-                <input
-                  type="text"
-                  className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
-                  value={String(palette.nodes[type] || '')}
-                  onChange={(e) => handleUpdatePaletteColor('node', type, e.target.value)}
-                  placeholder={MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]}
-                />
-              </div>
+              <Tooltip
+                content={RENDERER_PALETTE_ENTRY_VALUE_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+                className="w-full"
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
+                    value={normalizeColorForPicker(
+                      palette.nodes[type],
+                      MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]
+                    )}
+                    onChange={(e) => handleUpdatePaletteColor('node', type, e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
+                    value={String(palette.nodes[type] || '')}
+                    onChange={(e) => handleUpdatePaletteColor('node', type, e.target.value)}
+                    placeholder={MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]}
+                  />
+                </div>
+              </Tooltip>
             </RightAlignedValueCell>
           }
         />
@@ -75,31 +93,45 @@ export function RendererPaletteSettings() {
           layout="keyIconValue"
           density="compact"
           keyNode={
-            <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
-              {`renderer:palette.edges.${type}`}
-            </span>
+            <Tooltip
+              content={RENDERER_PALETTE_ENTRY_KEY_TOOLTIP}
+              maxWidthPx={260}
+              contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+              className="break-words"
+            >
+              <span className={`${UI_THEME_TOKENS.text.primary} break-words`}>
+                {`renderer:palette.edges.${type}`}
+              </span>
+            </Tooltip>
           }
           typeNode={null}
           valueNode={
             <RightAlignedValueCell>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
-                  value={normalizeColorForPicker(
-                    palette.edges[type],
-                    MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]
-                  )}
-                  onChange={(e) => handleUpdatePaletteColor('edge', type, e.target.value)}
-                />
-                <input
-                  type="text"
-                  className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
-                  value={String(palette.edges[type] || '')}
-                  onChange={(e) => handleUpdatePaletteColor('edge', type, e.target.value)}
-                  placeholder={MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]}
-                />
-              </div>
+              <Tooltip
+                content={RENDERER_PALETTE_ENTRY_VALUE_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+                className="w-full"
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
+                    value={normalizeColorForPicker(
+                      palette.edges[type],
+                      MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]
+                    )}
+                    onChange={(e) => handleUpdatePaletteColor('edge', type, e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
+                    value={String(palette.edges[type] || '')}
+                    onChange={(e) => handleUpdatePaletteColor('edge', type, e.target.value)}
+                    placeholder={MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]}
+                  />
+                </div>
+              </Tooltip>
             </RightAlignedValueCell>
           }
         />

@@ -49,6 +49,20 @@
 
 ---
 
+## Renderer UI Surfaces (SSOT)
+
+**Canonical surface**: Toolbar → Floating Panel → Renderer
+
+- Floating panel renderer composes:
+  - Quick controls for `renderer:palette` and hover tooltip content.
+  - The full Render Settings section (collapsible) for layout, camera, selection, and presets.
+- Bottom Panel “Renderer” tab is treated as navigation and opens the Floating Panel renderer view (no duplicate renderer controls).
+- Tooltip semantics are standardized:
+  - Key tooltips follow Role → Actions → Outcome.
+  - Value tooltips follow Default/Min/Max/Interval (when applicable) + short impact (≤ 15 words).
+
+---
+
 ## Performance & Stability Strategies
 
 ### 1. Stable Graph References

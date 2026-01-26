@@ -23,7 +23,7 @@ export function ToolbarParserArea({
   return (
     <div className="flex flex-col gap-1">
       {isExportMenuOpen && (
-        <div className="flex items-center justify-end gap-1 px-1">
+        <div className="flex items-center justify-end gap-1">
           {(['json', 'yaml', 'text'] as const).map(lang => {
             const label =
               lang === 'json'
@@ -32,7 +32,7 @@ export function ToolbarParserArea({
                   ? UI_COPY.toolbarParserExportYamlButtonLabel
                   : UI_COPY.toolbarParserExportPythonButtonLabel
             const isActive = parserPreferredLanguage === lang
-            const className = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} px-1 py-0.5 ${
+            const className = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} px-2 ${
               isActive ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'
             }`
             return (

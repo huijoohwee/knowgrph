@@ -20,6 +20,7 @@ import {
   TRAVERSAL_SEQUENCE_MODE_LABEL_GENERIC,
   UI_COPY,
 } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface TraversalSequenceSectionProps {
   graphNodesById: OrchestratorTraversalSectionViewModel['graphNodesById']
@@ -64,7 +65,7 @@ export function TraversalSequenceSection({
           <Tooltip
             content={TRAVERSAL_SEQUENCE_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
             <div
               className={[

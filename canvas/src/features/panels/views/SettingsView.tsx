@@ -149,6 +149,8 @@ export default function SettingsView({
                     notes: details.notes,
                     impact: details.notes || details.responsibility,
                   })
+                  const pillButtonClassName = `inline-flex items-center justify-center h-6 rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary} px-2 text-xs whitespace-nowrap`
+                  const statusPillClassName = `inline-flex items-center h-6 max-w-[14rem] rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} px-2 text-xs`
                   return (
                     <li key={s.key}>
                       <KeyTypeValueRow
@@ -168,36 +170,62 @@ export default function SettingsView({
                         typeNode={s.type}
                         valueNode={(
                           <div className="flex-1">
-                            {(writable || hasOptions) && valueTooltip.trim().length > 0
-                              ? (
-                                <Tooltip
-                                  content={valueTooltip}
-                                  maxWidthPx={260}
-                                  contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-                                  className="w-full"
-                                >
-                                  <span className="inline-flex w-full">
+                            {(() => {
+                              const valueWrapperBaseClass = 'inline-flex w-full min-w-0 items-center min-h-[24px]'
+                              const valueWrapperClass = s.type === 'boolean'
+                                ? `${valueWrapperBaseClass} justify-end`
+                                : valueWrapperBaseClass
+                              const inputNode = (writable || hasOptions) && valueTooltip.trim().length > 0
+                                ? (
+                                  <Tooltip
+                                    content={valueTooltip}
+                                    maxWidthPx={260}
+                                    contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
+                                    className="w-full"
+                                  >
+                                    <span
+                                      className={valueWrapperClass}
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      {renderInput(s.key, s.type, writable, s.options)}
+                                    </span>
+                                  </Tooltip>
+                                )
+                                : (
+                                  <span
+                                    className={valueWrapperClass}
+                                    onClick={e => e.stopPropagation()}
+                                  >
                                     {renderInput(s.key, s.type, writable, s.options)}
                                   </span>
-                                </Tooltip>
-                              )
-                              : renderInput(s.key, s.type, writable, s.options)}
-                            {s.key === 'chatSystemPrompt' && (
-                              <div className="mt-2">
-                                <button
-                                  onClick={checkChatHealth}
-                                  disabled={isCheckingHealth}
-                                  className={`text-xs ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.button.text} px-2 py-1 rounded`}
-                                >
-                                  {isCheckingHealth ? 'Checking...' : 'Check Health'}
-                                </button>
-                                {chatHealthStatus && (
-                                  <div className={`mt-1 text-xs ${UI_THEME_TOKENS.text.tertiary}`}>
-                                    {chatHealthStatus}
+                                )
+                              if (s.key !== 'chatSystemPrompt') return inputNode
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    {inputNode}
                                   </div>
-                                )}
-                              </div>
-                            )}
+                                  {chatHealthStatus && (
+                                    <span className={statusPillClassName} title={chatHealthStatus}>
+                                      <span className="truncate overflow-hidden whitespace-nowrap">
+                                        {chatHealthStatus}
+                                      </span>
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      checkChatHealth()
+                                    }}
+                                    disabled={isCheckingHealth}
+                                    className={pillButtonClassName}
+                                  >
+                                    {isCheckingHealth ? 'Checking...' : 'Check Health'}
+                                  </button>
+                                </div>
+                              )
+                            })()}
                           </div>
                         )}
                         onClick={() => setExpanded(isExpanded ? null : s.key)}

@@ -30,7 +30,7 @@ export function ToolbarValidationArea({
   }
 
   return (
-    <div className="flex flex-col gap-1 px-1">
+    <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center justify-end gap-1">
         <button
           type="button"
@@ -84,4 +84,3 @@ export function ToolbarValidationArea({
     </div>
   )
 }
-

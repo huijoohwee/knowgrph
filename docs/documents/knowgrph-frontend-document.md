@@ -80,6 +80,15 @@
 | Consoles & tools                | BottomPanel (markdown, parsers, tables)  | activeBottomPanelTab, markdown sync settings              |
 | Runnable pipelines              | Orchestrator workflows + GraphRAG config | workflow presets, orchestrator context                    |
 
+### BottomPanel Orchestrator (SSOT)
+
+- Canonical surface: Bottom Panel → Orchestrator (UI/Text editor toggle).
+- Orchestrator UI hosts GraphRAG workflow editing, traversal presets, traversal sequence, and AgenticRAG context/ignore filters.
+- Graph Traversal floating panel reuses the same orchestrator controls; avoid duplicated controls with divergent copy/tooltips.
+- Tooltip semantics are standardized:
+  - Key tooltips follow Role → Actions → Outcome (≤ 50 words).
+  - Value tooltips follow Default/Min/Max/Interval (when applicable) + impact (≤ 15 words).
+
 ---
 
 ## Frontend Layer Specifications
@@ -345,6 +354,7 @@ semantic_html:
 |-----------------|----------------------------------------------|---------------------|-------------------------|-------------------------------------------------------------------------------------|---------------------------------|---------------------------------------|--------|
 | Visualization   | `canvas/src/components/GraphCanvas.tsx`      | GraphCanvas         | `render`                | Canvas renders nodes → positions elements → handles interactions → updates selection | `useGraphStore`, React          | Reads graph data, writes selection    | ~800   |
 | Panels          | `canvas/src/features/panels/MainPanel.tsx`   | MainPanel           | `renderActiveTab`       | Panel reads active tab → renders component → subscribes to store → displays content  | `useGraphStore`, panel views    | Renders based on activeMainPanelTab   | ~400   |
+| Workflow UI     | `canvas/src/features/panels/views/WorkflowSteps.tsx` | WorkflowSteps | `WorkflowSteps` | Workflow renders 8-step pipeline → uses tooltips for step guidance → keeps layout aligned | `CollapsibleSection`, `Tooltip`, `WORKFLOW_STEP_COPY` | Step headers use Role→Actions→Outcome tooltips; avoid verbose inline descriptions | ~300 |
 | State           | `canvas/src/hooks/store/useGraphStore.ts`    | useGraphStore       | `updateGraph`           | Store validates mutations → applies changes → notifies subscribers → triggers renders | Zustand, schema validator       | Maintains graph invariants            | ~2000  |
 | Parsers         | `canvas/src/parsers/csvParser.ts`            | CSVParser           | `parse`                 | Parser reads CSV → normalizes rows → validates schema → returns graph data           | PapaParse, schema definitions   | Conforms to internal graph format     | ~300   |
 | UI Settings     | `canvas/src/hooks/store/uiSettingsSlice.ts`  | UISettings          | `setIconScale`          | Slice updates scale → writes to localStorage → notifies components → reapplies styles | localStorage, LS_KEYS           | Persists UI density preferences       | ~200   |
@@ -404,6 +414,16 @@ UI_THEME_TOKENS:
 | Theme Switching      | Maintain visual coherence       | - [ ] Update data-theme attribute and dark class; trigger re-render; forbid partial updates |
 | Canvas Colors        | Match theme in WebGL/SVG        | - [ ] Use UI_THEME_COLORS (raw hex) for D3/WebGL contexts; forbid mismatched palettes     |
 | Icon Consistency     | Apply uniform sizing            | - [ ] Use uiIconScale and uiIconStrokeWidth; forbid per-component sizing                   |
+
+### MainPanel Workflow Layout Consistency
+
+**Scope**: MainPanel → Workflow → Workspace Actions (Source Files / Parser / Validation)
+
+- Enforce left/right edge alignment: avoid nested padding wrappers that drift from section headers.
+- Enforce consistent control heights: prefer `h-7` for row controls and `h-6` for status pills.
+- Reduce inline verbosity: keep guidance in Role → Actions → Outcome tooltips rather than long inline paragraphs.
+- Source Files Import uses a table layout (th/td) with Domain/Homepage/Status/Action columns and one URL per row.
+- Source Files management uses a fixed-width table: Move/Show/Label/Local-URL/Status/Action = 2%/2%/33%/50%/12%/2%.
 
 ### Code Block Styling
 
