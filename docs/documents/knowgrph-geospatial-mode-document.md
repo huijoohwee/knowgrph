@@ -61,6 +61,7 @@
 4. User optionally configures interaction/projection/animation settings in the overlay panel UI.
 5. User adds one or more dataset URLs via **Source Files** (Workspace Actions), optionally registering them as Geo layers to render additional map overlay layers.
    - For local Markdown Source Files, embedded fenced `geojson` code blocks (GeoJSON `FeatureCollection`) can also be registered as overlay datasets by extracting and uploading the blocks to the bounded local dataset cache.
+   - In the Bottom Panel Markdown Viewer, fenced `geojson` blocks can render an inline MapLibre preview (Render mode) using the same basemap/style loading behavior as Geospatial Mode.
 6. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
 ---

@@ -29,13 +29,13 @@
       ],
       "@/components/BottomPanel/*": [
         "./src/components/BottomPanel/*",
-        "./node_modules/curagrph/src/components/BottomPanel/*"
+        "../../curagrph/src/components/BottomPanel/*"
       ],
-      "@/features/graph-data-table/*": ["./node_modules/curagrph/src/features/graph-data-table/*"],
-      "@/features/json/*": ["./node_modules/curagrph/src/features/json/*"],
-      "@/features/markdown/*": ["./node_modules/curagrph/src/features/markdown/*"],
+      "@/features/graph-data-table/*": ["../../curagrph/src/features/graph-data-table/*"],
+      "@/features/json/*": ["../../curagrph/src/features/json/*"],
+      "@/features/markdown/*": ["../../curagrph/src/features/markdown/*"],
       "@/features/panels/views/preview-panel/ui/*": [
-        "./node_modules/curagrph/src/features/panels/views/preview-panel/ui/*"
+        "../../curagrph/src/features/panels/views/preview-panel/ui/*"
       ]
     }
   },

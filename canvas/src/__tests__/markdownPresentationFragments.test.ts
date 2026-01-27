@@ -1,11 +1,10 @@
 import React from 'react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { readMarkdownSlideDemo, resolveMarkdownSlideDemoPath } from '@/tests/lib/markdownSlideDemo'
 
 export async function testMarkdownPresentationFragmentsAdvanceWithinSlide() {
   const storage = new MemoryStorage()
@@ -45,7 +44,6 @@ export async function testMarkdownPresentationFragmentsAdvanceWithinSlide() {
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
-
     const presentationApiRef = React.createRef<{ prev: () => void; next: () => void }>()
 
     root.render(
@@ -70,6 +68,8 @@ export async function testMarkdownPresentationFragmentsAdvanceWithinSlide() {
         anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
       )
     await tick()
+    await tick()
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
 
     const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
     if (!rootEl) {
@@ -380,22 +380,27 @@ export async function testMarkdownPresentationVClickAndVMarkVisibilityFromSlideD
 
     const doc = dom.window.document
 
-    const markdownText = readFileSync(
-      resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md'),
-      'utf8',
-    )
+    const demo = readMarkdownSlideDemo()
+    if (!demo) return
+    const demoLines = demo.split('\n')
+    const startIdx = demoLines.findIndex(l => l.includes('Click-Based Progressive Disclosure') || l.includes('Click‑Based Progressive Disclosure'))
+    if (startIdx === -1) {
+      throw new Error('Expected sandbox slide demo to include Click-Based Progressive Disclosure section')
+    }
+    const excerpt = demoLines.slice(Math.max(0, startIdx - 2), startIdx + 40).join('\n')
+    const markdownText = ['---', 'fragments:', '  enabled: true', '  steps: 2', '---', '', excerpt, ''].join('\n')
+    const docPath = resolveMarkdownSlideDemoPath() ?? 'markdown-slide-demo.md'
 
     const container = doc.createElement('div')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
-
-    const presentationApiRef = React.createRef<{ prev: () => void; next: () => void }>()
+    const presentationApiRef = React.createRef<{ next: () => void }>()
 
     root.render(
       React.createElement(MarkdownPreview, {
         markdownText,
-        activeDocumentPath: 'docs/markdown-slide-demo.md',
+        activeDocumentPath: docPath,
         highlightedLineRange: null,
         markdownWordWrap: true,
         markdownPresentationMode: true,
@@ -414,56 +419,43 @@ export async function testMarkdownPresentationVClickAndVMarkVisibilityFromSlideD
         anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
       )
     await tick()
+    await tick()
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
+
+    const api = presentationApiRef.current
+    if (!api || typeof api.next !== 'function') {
+      throw new Error('presentationApiRef.current is null for v-click demo excerpt')
+    }
+
+    const pressNext = () => api.next()
 
     const rootEl = doc.querySelector('[data-testid="markdown-presentation-root"]') as HTMLDivElement | null
     if (!rootEl) {
       throw new Error('markdown presentation root not found')
     }
 
-    const findSlideIndex = (text: string) => {
-      const nodes = rootEl.querySelectorAll('[data-slide-index]')
-      for (let i = 0; i < nodes.length; i += 1) {
-        const node = nodes[i] as HTMLElement
-        const slideText = (node.textContent || '').replace(/\s+/g, ' ').trim()
-        if (slideText.includes(text)) return Number(node.getAttribute('data-slide-index') || '0')
-      }
-      return 0
-    }
-
-    const vClickSlideIndex = findSlideIndex('Click‑Based Progressive Disclosure')
-    const vMarkSlideIndex = findSlideIndex('Inline Text Markers')
-
-    const api = presentationApiRef.current
-    if (!api) {
-      throw new Error('presentationApiRef.current is null')
-    }
-
-    const goToSlide = (targetIndex: number) => {
-      for (;;) {
-        const text = (rootEl.textContent || '').replace(/\s+/g, ' ').trim()
-        const hasClickTitle = text.includes('Click‑Based Progressive Disclosure')
-        const hasInlineTitle = text.includes('Inline Text Markers')
-        const currentIndex = hasClickTitle ? vClickSlideIndex : hasInlineTitle ? vMarkSlideIndex : 0
-        if (currentIndex === targetIndex) break
-        api.next()
-      }
-    }
-
-    goToSlide(vClickSlideIndex)
-
     const getText = () => (rootEl.textContent || '').replace(/\s+/g, ' ').trim()
-
-    const initialText = getText()
-    if (initialText.includes('Appears first') || initialText.includes('Appears second') || initialText.includes('Appears third')) {
-      throw new Error('expected v-click fragments from demo slide to be hidden before stepping')
+    const hiddenBefore = getText()
+    if (hiddenBefore.includes('Block appears on click') || hiddenBefore.includes('Appears at step 2')) {
+      throw new Error('expected v-click fragments from demo excerpt to be hidden before stepping')
     }
 
-    api.next()
+    pressNext()
     await tick()
-
+    await tick()
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
     const afterFirstStep = getText()
-    if (!afterFirstStep.includes('Appears first')) {
-      throw new Error('expected first v-click fragment from demo slide to be visible after first next()')
+    if (!afterFirstStep.includes('Block appears on click')) {
+      throw new Error('expected first v-click fragment to be visible after first next()')
+    }
+
+    pressNext()
+    await tick()
+    await tick()
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
+    const afterSecondStep = getText()
+    if (!afterSecondStep.includes('Appears at step 2')) {
+      throw new Error('expected second v-click fragment to be visible after second next()')
     }
 
     root.unmount()

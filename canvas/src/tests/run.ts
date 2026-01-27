@@ -104,10 +104,13 @@ import {
   testGympgrphPickPoiSelectionSkipsClusterFeatures,
 } from '@/__tests__/gympgrphMapLibreBehaviors.test'
 import { testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections } from '@/__tests__/markdownEmbeddedGeoJson.test'
+import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
+import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
 import {
   testCuragrphAliasContractInViteConfig,
   testForbidMagicLocalStorageKeysOutsideCentralConstants,
   testForbidSiblingRepoSourceImports,
+  testForbidGympgrphHookUsageInHost,
   testHostGympgrphIntegrationUsesPackageRootOnly,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
 import {
@@ -282,6 +285,7 @@ export const runAllTests = async () => {
   // Remaining tests
   await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)
   await exec('policy.boundary.hostGympgrphRootOnly', testHostGympgrphIntegrationUsesPackageRootOnly)
+  await exec('policy.boundary.forbidGympgrphHookUsage', testForbidGympgrphHookUsageInHost)
   await exec('policy.persistence.forbidMagicLocalStorageKeys', testForbidMagicLocalStorageKeysOutsideCentralConstants)
   await exec('policy.curagrph.aliasContractInViteConfig', testCuragrphAliasContractInViteConfig)
 
@@ -302,6 +306,8 @@ export const runAllTests = async () => {
   await exec('geospatial.gympgrphUrl.coerceFetchUrlRejectsFileScheme', testGympgrphCoerceFetchUrlRejectsFileScheme)
 
   await exec('geospatial.markdown.embeddedGeoJsonExtraction', testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections)
+  await exec('policy.hashing.sharedContract', testHashStringContractIsSharedAcrossRepos)
+  await exec('markdown.demo.slideMediaAndGeo', testMarkdownSlideDemoParsesMediaAndGeo)
   await exec('net.fetchRemoteText.validateSupportsStringAndArgs', testFetchRemoteTextValidateSupportsStringAndArgs)
   await exec('net.fetchRemoteText.preflightHeadGuardsTooLarge', testFetchRemoteTextPreflightHeadGuardsTooLarge)
   await exec('net.fetchRemoteText.wrapperUseProxyBoolean', testFetchRemoteTextWrapperUseProxyBoolean)

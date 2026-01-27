@@ -67,6 +67,25 @@ export function testHostGympgrphIntegrationUsesPackageRootOnly() {
   }
 }
 
+export function testForbidGympgrphHookUsageInHost() {
+  const files = listFilesRecursively(SRC_DIR)
+    .filter(f => /\.(ts|tsx)$/.test(f))
+    .filter(f => !f.includes(join('src', '__tests__')))
+    .filter(f => !f.includes(join('src', 'tests')))
+    .filter(f => !f.includes(join('src', 'cli')))
+  const violations: string[] = []
+  const re = /\buseGympgrphStore\s*\(/g
+  for (const file of files) {
+    const st = statSync(file)
+    if (!st.isFile()) continue
+    const text = readFileSync(file, 'utf8')
+    if (re.test(text)) violations.push(file)
+  }
+  if (violations.length) {
+    throw new Error(`Host code must not call gympgrph React hooks directly (avoid duplicate React instances). Use the host external-store adapter instead:\n${violations.join('\n')}`)
+  }
+}
+
 export function testForbidMagicLocalStorageKeysOutsideCentralConstants() {
   const lsConfigPath = resolve(process.cwd(), 'src', 'lib', 'config.ls.ts')
   const lsConfigText = readFileSync(lsConfigPath, 'utf8')

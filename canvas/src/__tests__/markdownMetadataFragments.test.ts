@@ -2,13 +2,13 @@ import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 
 export function testMarkdownMetadataFragmentLineRange() {
   const meta = {
-    documentPath: 'docs/demo/markdown-slide-demo.md#L154-220',
+    documentPath: 'docs/demo.md#L154-220',
   }
   const loc = getDocumentLocationFromMetadata(meta)
   if (!loc) {
     throw new Error('expected document location from fragment metadata')
   }
-  if (loc.documentPath !== 'docs/demo/markdown-slide-demo.md') {
+  if (loc.documentPath !== 'docs/demo.md') {
     throw new Error(`unexpected documentPath from fragment: ${loc.documentPath}`)
   }
   if (loc.lineStart !== 154 || loc.lineEnd !== 220) {
@@ -18,13 +18,13 @@ export function testMarkdownMetadataFragmentLineRange() {
   }
 
   const fallbackMeta = {
-    codebaseRelPath: 'docs/demo/markdown-slide-demo.md#L10-12',
+    codebaseRelPath: 'docs/demo.md#L10-12',
   }
   const fallbackLoc = getDocumentLocationFromMetadata(fallbackMeta)
   if (!fallbackLoc) {
     throw new Error('expected document location from fallback fragment metadata')
   }
-  if (fallbackLoc.documentPath !== 'docs/demo/markdown-slide-demo.md') {
+  if (fallbackLoc.documentPath !== 'docs/demo.md') {
     throw new Error(`unexpected fallback documentPath from fragment: ${fallbackLoc.documentPath}`)
   }
   if (fallbackLoc.lineStart !== 10 || fallbackLoc.lineEnd !== 12) {

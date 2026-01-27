@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
 import { getNextThemeMode, type ThemeMode } from '@/lib/ui/theme'
 import { type GraphSchema } from '@/lib/graph/schema'
+import { toggleGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 export function useToolbarActions(
   schema: GraphSchema,
@@ -180,18 +181,23 @@ export function useToolbarActions(
 
   const handleOpenGeospatialMode = useCallback(() => {
     emitSidePanelOpen({ tab: 'geo', open: true })
-    void import('gympgrph')
-      .then(m => {
-        const enabled = typeof m.isGeospatialModeEnabled === 'function' ? m.isGeospatialModeEnabled() : false
-        if (typeof m.setGeospatialModeEnabled === 'function') {
-          m.setGeospatialModeEnabled(!enabled)
-        } else if (typeof m.toggleGeospatialModeEnabled === 'function') {
-          m.toggleGeospatialModeEnabled()
-        }
-        const nextEnabled = typeof m.isGeospatialModeEnabled === 'function' ? m.isGeospatialModeEnabled() : !enabled
+    void toggleGeospatialModeEnabled()
+      .then(nextEnabled => {
         onGeospatialEnabledChange?.(nextEnabled)
       })
-      .catch(() => void 0)
+      .catch((err: unknown) => {
+        try {
+          const msg =
+            err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '').trim() : ''
+          useGraphStore.getState().pushUiToast({
+            id: 'geospatial-mode-toggle-error',
+            kind: 'error',
+            message: `Geospatial Mode failed to load: ${msg || 'Unknown error'}`,
+          })
+        } catch {
+          void 0
+        }
+      })
   }, [onGeospatialEnabledChange])
 
   const handleToggleTheme = useCallback(() => {

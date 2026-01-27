@@ -1,42 +1,19 @@
 import React from 'react'
 import {
-  buildBlankStyle,
   coerceFeatureCollectionIds,
   colorForDataset,
   computeBoundsFromCollections,
+  createMapLibreMapWithBasemap,
+  DEFAULT_GEOSPATIAL_STYLE_URL,
   ensureDatasetLayer,
   isPointOnlyFeatureCollection,
+  parseGeoJsonFromText,
   setGeoJsonSourceData,
 } from 'gympgrph'
-import type { Feature, FeatureCollection, Geometry } from 'geojson'
-import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
-
-const isObjectRecord = (value: unknown): value is Record<string, unknown> => {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
-}
-
-const isGeometryLike = (value: unknown): value is Geometry => {
-  if (!isObjectRecord(value)) return false
-  const t = value.type
-  return typeof t === 'string' && t.trim().length > 0
-}
-
-const coerceGeoJsonToFeatureCollection = (value: unknown): FeatureCollection | null => {
-  if (!isObjectRecord(value)) return null
-  const type = typeof value.type === 'string' ? value.type : ''
-  if (!type) return null
-  if (type === 'FeatureCollection' && Array.isArray(value.features)) return value as unknown as FeatureCollection
-  if (type === 'Feature' && isGeometryLike(value.geometry)) {
-    return { type: 'FeatureCollection', features: [value as unknown as Feature] } as FeatureCollection
-  }
-  if (isGeometryLike(value)) {
-    return {
-      type: 'FeatureCollection',
-      features: [{ type: 'Feature', geometry: value as Geometry, properties: {} }],
-    } as FeatureCollection
-  }
-  return null
-}
+import type { FeatureCollection } from 'geojson'
+import type { Map as MapLibreMap } from 'maplibre-gl'
+import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
+import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
 
 const sanitizeId = (raw: string): string => {
   const s = String(raw || '').trim()
@@ -51,17 +28,26 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   heightPx?: number
 }) {
   const { geojsonText, datasetId, className, heightPx = 320 } = args
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const [containerEl, setContainerEl] = React.useState<HTMLDivElement | null>(null)
   const mapRef = React.useRef<MapLibreMap | null>(null)
+  const initInFlightRef = React.useRef(false)
+  const [shouldLoadMap, setShouldLoadMap] = React.useState(false)
   const [isReady, setIsReady] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [basemapWarning, setBasemapWarning] = React.useState<string | null>(null)
+
+  const styleUrl = useGympgrphExternalStore(s => {
+    const anyState = s as unknown as { geospatialStyleUrl?: unknown }
+    const raw = typeof anyState.geospatialStyleUrl === 'string' ? anyState.geospatialStyleUrl : ''
+    const trimmed = raw.trim()
+    return trimmed || DEFAULT_GEOSPATIAL_STYLE_URL
+  })
 
   const parsed = React.useMemo(() => {
     const trimmed = String(geojsonText || '').trim()
     if (!trimmed) return { fc: null as FeatureCollection | null, bounds: null as ReturnType<typeof computeBoundsFromCollections> }
     try {
-      const raw = JSON.parse(trimmed) as unknown
-      const fc = coerceGeoJsonToFeatureCollection(raw)
+      const fc = parseGeoJsonFromText(trimmed)
       const bounds = fc ? computeBoundsFromCollections([fc]) : null
       return { fc, bounds }
     } catch {
@@ -70,41 +56,194 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   }, [geojsonText])
 
   React.useEffect(() => {
-    let cancelled = false
-    const el = containerRef.current
+    const el = containerEl
     if (!el) return
+    if (shouldLoadMap) return
+    const ua = typeof window !== 'undefined' ? String(window.navigator?.userAgent || '') : ''
+    const isJsdom = /jsdom/i.test(ua)
+    if (isJsdom) return
+    let cancelled = false
+
+    const check = (): boolean => {
+      if (cancelled) return false
+      try {
+        const rect = el.getBoundingClientRect()
+        if (rect.width > 0 && rect.height > 0) {
+          setShouldLoadMap(true)
+          return true
+        }
+      } catch {
+        void 0
+      }
+      return false
+    }
+
+    try {
+      if (check()) return
+    } catch {
+      void 0
+    }
+    if (typeof IntersectionObserver === 'undefined') {
+      if (typeof ResizeObserver === 'undefined') {
+        setShouldLoadMap(true)
+        return
+      }
+    }
+    const start = Date.now()
+    const poll = () => {
+      if (cancelled) return
+      if (Date.now() - start > 6000) return
+      if (check()) return
+      try {
+        requestAnimationFrame(poll)
+      } catch {
+        setTimeout(poll, 16)
+      }
+    }
+    poll()
+
+    const io =
+      typeof IntersectionObserver === 'function'
+        ? new IntersectionObserver(
+            entries => {
+              for (const entry of entries) {
+                if (entry.isIntersecting) {
+                  setShouldLoadMap(true)
+                  io.disconnect()
+                  return
+                }
+              }
+            },
+            { root: null, rootMargin: '200px 0px', threshold: 0.01 },
+          )
+        : null
+    try {
+      io?.observe(el)
+    } catch {
+      void 0
+    }
+
+    const ro =
+      typeof ResizeObserver === 'function'
+        ? new ResizeObserver(() => {
+            if (check()) ro.disconnect()
+          })
+        : null
+    try {
+      ro?.observe(el)
+    } catch {
+      void 0
+    }
+    return () => {
+      cancelled = true
+      try {
+        io?.disconnect()
+      } catch {
+        void 0
+      }
+      try {
+        ro?.disconnect()
+      } catch {
+        void 0
+      }
+    }
+  }, [containerEl, shouldLoadMap])
+
+  React.useEffect(() => {
+    if (!shouldLoadMap) return
+    const el = containerEl
+    if (!el) return
+    if (mapRef.current) return
+    if (initInFlightRef.current) return
+
+    let cancelled = false
+    initInFlightRef.current = true
 
     void (async () => {
       try {
-        const mod = await import('maplibre-gl')
         if (cancelled) return
-        if (mapRef.current) return
-        const map = new mod.Map({
+        setError(null)
+        setBasemapWarning(null)
+        const map = await createMapLibreMapWithBasemap({
           container: el,
-          style: buildBlankStyle() as unknown as StyleSpecification,
-          attributionControl: false,
+          styleUrl,
+          cancelled: () => cancelled,
           interactive: true,
+          attributionControl: false,
+          onError: ({ message }) => {
+            if (cancelled) return
+            const trimmed = String(message || '').trim()
+            if (shouldSuppressBasemapErrorMessage(trimmed)) {
+              setBasemapWarning(prev => prev || 'Basemap unavailable')
+              return
+            }
+            setError(trimmed)
+          },
         })
-        mapRef.current = map
-        map.on('load', () => {
-          if (cancelled) return
-          setIsReady(true)
-          setError(null)
+        if (cancelled) {
           try {
-            map.resize()
+            map?.remove?.()
           } catch {
             void 0
           }
-        })
+          return
+        }
+        if (!map) {
+          setError('Map preview unavailable')
+          return
+        }
+        mapRef.current = map
+        setIsReady(true)
+
+        try {
+          const anyMap = map as unknown as { once?: (event: string, cb: () => void) => void }
+          anyMap.once?.('idle', () => {
+            if (cancelled) return
+            setBasemapWarning(null)
+          })
+        } catch {
+          void 0
+        }
       } catch (e) {
         if (cancelled) return
         const msg = e instanceof Error ? e.message : String(e)
-        setError(msg || 'Map preview unavailable')
+        const trimmed = String(msg || '').trim()
+        if (shouldSuppressBasemapErrorMessage(trimmed)) return
+        if (trimmed) setError(trimmed)
+      } finally {
+        initInFlightRef.current = false
       }
     })()
 
+    const anyWindow = globalThis as unknown as {
+      requestAnimationFrame?: (cb: () => void) => number
+    }
+    const startedAt = Date.now()
+    const resizeTick = () => {
+      if (cancelled) return
+      try {
+        mapRef.current?.resize?.()
+      } catch {
+        void 0
+      }
+      if (Date.now() - startedAt > 1000) {
+        return
+      }
+      try {
+        if (typeof anyWindow.requestAnimationFrame === 'function') {
+          anyWindow.requestAnimationFrame(resizeTick)
+        } else {
+          setTimeout(resizeTick, 16)
+        }
+      } catch {
+        setTimeout(resizeTick, 16)
+      }
+    }
+    resizeTick()
+
     return () => {
       cancelled = true
+      initInFlightRef.current = false
       try {
         mapRef.current?.remove?.()
       } catch {
@@ -113,7 +252,66 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
       mapRef.current = null
       setIsReady(false)
     }
-  }, [])
+  }, [containerEl, shouldLoadMap, styleUrl])
+
+  React.useEffect(() => {
+    const el = containerEl
+    const map = mapRef.current
+    if (!el || !map || !isReady) return
+    if (typeof ResizeObserver !== 'function') return
+    let raf: number | null = null
+    const anyWindow = globalThis as unknown as {
+      requestAnimationFrame?: (cb: () => void) => number
+      cancelAnimationFrame?: (id: number) => void
+    }
+    const schedule = (fn: () => void) => {
+      try {
+        if (typeof anyWindow.requestAnimationFrame === 'function') {
+          raf = anyWindow.requestAnimationFrame(fn)
+          return
+        }
+      } catch {
+        void 0
+      }
+      raf = null
+      setTimeout(fn, 0)
+    }
+    const ro = new ResizeObserver(() => {
+      if (raf != null) {
+        try {
+          anyWindow.cancelAnimationFrame?.(raf)
+        } catch {
+          void 0
+        }
+      }
+      schedule(() => {
+        try {
+          map.resize()
+        } catch {
+          void 0
+        }
+      })
+    })
+    try {
+      ro.observe(el)
+    } catch {
+      void 0
+    }
+    return () => {
+      try {
+        ro.disconnect()
+      } catch {
+        void 0
+      }
+      if (raf != null) {
+        try {
+          anyWindow.cancelAnimationFrame?.(raf)
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [containerEl, isReady])
 
   React.useEffect(() => {
     const map = mapRef.current
@@ -156,15 +354,31 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     }
   }, [heightPx, className])
 
-  if (error) {
-    return (
-      <div className={className} style={{ height: heightPx }}>
-        <div className="w-full h-full flex items-center justify-center text-xs text-[color:var(--kg-text-tertiary)]">
-          {error}
-        </div>
-      </div>
-    )
-  }
+  React.useEffect(() => {
+    if (!parsed.fc) return
+    if (isReady) return
+    const t = setTimeout(() => {
+      setError(prev => (prev && String(prev).trim()) ? prev : 'Map preview unavailable')
+    }, 6000)
+    return () => clearTimeout(t)
+  }, [isReady, parsed.fc])
 
-  return <div ref={containerRef} className={className} style={{ height: heightPx }} />
+  const overlayMessage = React.useMemo(() => {
+    if (error && String(error).trim()) return String(error).trim()
+    if (basemapWarning && String(basemapWarning).trim()) return String(basemapWarning).trim()
+    if (!parsed.fc) return null
+    if (isReady) return null
+    return 'Loading map preview…'
+  }, [error, basemapWarning, isReady, parsed.fc])
+
+  return (
+    <div className={`relative ${className || ''}`} style={{ height: heightPx }}>
+      <div ref={setContainerEl} data-testid="geojson-map-container" className="absolute inset-0" />
+      {overlayMessage && (
+        <div data-testid="geojson-map-overlay" className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center p-3 text-center text-xs text-gray-700 dark:text-gray-200 bg-white/60 dark:bg-black/40">
+          {overlayMessage}
+        </div>
+      )}
+    </div>
+  )
 }

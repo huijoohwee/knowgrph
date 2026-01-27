@@ -31,6 +31,23 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const glCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
+  const [webglSupported, setWebglSupported] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      setWebglSupported(false)
+      return
+    }
+    try {
+      const canvas = document.createElement('canvas')
+      const gl =
+        canvas.getContext('webgl2') ||
+        canvas.getContext('webgl') ||
+        canvas.getContext('experimental-webgl' as never)
+      setWebglSupported(!!gl)
+    } catch {
+      setWebglSupported(false)
+    }
+  }, [])
   const paused = !active || (!bottomPanelCollapsed && bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.001)
   const graph = data as GraphData | null
   const s = schema as GraphSchema | null
@@ -78,7 +95,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     }
     setHoverInfo({ kind: 'edge', id: info.id, clientX: info.clientX, clientY: info.clientY })
   }, [])
-  if (!hasGraph) {
+  if (!hasGraph || webglSupported === false) {
     return (
       <div
         className="absolute inset-0 w-full h-full z-0"

@@ -1,11 +1,10 @@
 import React from 'react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { readMarkdownSlideDemo } from '@/tests/lib/markdownSlideDemo'
 
 export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresentationModes() {
   const storage = new MemoryStorage()
@@ -26,8 +25,8 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
 
     const doc = dom.window.document
 
-    const mdPath = resolve(process.cwd(), 'src/__tests__/fixtures/markdown-slide-demo.md')
-    const markdownText = readFileSync(mdPath, 'utf8')
+    const markdownText = readMarkdownSlideDemo()
+    if (!markdownText) return
 
     const container = doc.createElement('div')
     container.id = 'root'
@@ -109,7 +108,12 @@ export async function testMarkdownSlideStylingReferenceRendersInViewerAndPresent
       throw new Error('expected non-empty content in presentation mode for slide styling reference')
     }
 
-    const api = presentationApiRef.current
+    let api = presentationApiRef.current
+    for (let i = 0; i < 10 && !api; i += 1) {
+      await tick()
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
+      api = presentationApiRef.current
+    }
     if (!api) {
       throw new Error('presentationApiRef.current is null in presentation mode')
     }

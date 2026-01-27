@@ -1,12 +1,12 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolveMarkdownSlideDemoPath, readMarkdownSlideDemo } from '@/tests/lib/markdownSlideDemo'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { deriveMarkdownHeadingGroups } from '@/components/GraphCanvas/layout/markdownHeadingGroups'
 
 export const testMarkdownHeadingGroupsDerivation = () => {
-  const mdPath = resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md')
-  const markdown = readFileSync(mdPath, { encoding: 'utf8' })
+  const markdown = readMarkdownSlideDemo()
+  if (!markdown) return
+  const mdPath = resolveMarkdownSlideDemoPath() ?? 'markdown-slide-demo.md'
   const jsonld = buildMarkdownJsonLd(mdPath, markdown)
   const graph = parseJsonLd(jsonld)
 

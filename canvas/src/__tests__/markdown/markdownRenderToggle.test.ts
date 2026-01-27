@@ -4,6 +4,7 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export async function testMarkdownGlobalRenderToggleVisible() {
   const storage = new MemoryStorage()
@@ -28,10 +29,24 @@ export async function testMarkdownGlobalRenderToggleVisible() {
     const tick = () => new Promise<void>(resolve => raf(() => resolve()))
     await tick()
 
-    const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
-    const hasRender = buttons.some(b => (b.textContent || '').trim() === 'Render')
-    if (!hasRender) {
+    const renderBtn = doc.querySelector('button[name="annotate-display"][value="render"]') as HTMLButtonElement | null
+    if (!renderBtn) {
       throw new Error('Global Render toggle button not found in Markdown header')
+    }
+
+    const state = useGraphStore.getState()
+    state.setFrontmatterModeEnabled(false)
+    state.setMarkdownDocument(
+      'frontmatter-demo.md',
+      ['---', 'title: Demo', 'mermaid: |', '  graph TD', '    A-->B', '---', '', '# Body', ''].join('\n'),
+    )
+    await tick()
+
+    renderBtn.click()
+    await tick()
+
+    if (!useGraphStore.getState().frontmatterModeEnabled) {
+      throw new Error('Expected clicking Render to enable frontmatter mode when frontmatter exists')
     }
 
     root.unmount()
@@ -40,4 +55,3 @@ export async function testMarkdownGlobalRenderToggleVisible() {
     restoreWindow()
   }
 }
-

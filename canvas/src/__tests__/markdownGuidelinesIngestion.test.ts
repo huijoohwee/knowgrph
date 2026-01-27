@@ -10,19 +10,10 @@ import type { GraphData } from '@/lib/graph/types'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { readMarkdownSlideDemo } from '@/tests/lib/markdownSlideDemo'
 
 async function readGuidelinesMarkdownFromDisk(): Promise<string | null> {
-  const pathMod = await import('node:path')
-  const fsMod = await import('node:fs')
-  const absPath = pathMod.resolve(
-    process.cwd(),
-    'src/__tests__/fixtures/markdown-slide-demo.md',
-  )
-  try {
-    return fsMod.readFileSync(absPath, 'utf8')
-  } catch {
-    return null
-  }
+  return readMarkdownSlideDemo()
 }
 
 export async function testGuidelinesMarkdownIngestionLexingAndSlides() {

@@ -1,29 +1,14 @@
 import React from 'react'
 import { BottomPanelMarkdownSection as CuragrphBottomPanelMarkdownSection } from 'curagrph/components/BottomPanel/BottomPanelMarkdownSection.tsx'
 import type { MarkdownGeoDatasetIntegration } from 'curagrph/features/markdown/ui/MarkdownRendererTypes.ts'
-import { addGeospatialDatasetUrls, setGeospatialModeEnabled } from 'gympgrph'
+import { addGeospatialDatasetUrls, parseGeoJsonFromText, setGeospatialModeEnabled } from 'gympgrph'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { uploadGeoJsonTextToLocalStore } from '@/features/geospatial/localGeoUpload'
 import { InlineMarkdownGeoJsonLayerMap } from '@/features/geospatial/InlineMarkdownGeoJsonLayerMap'
+import { LRUCache } from '@/lib/cache/LRUCache'
+import { hashStringToHex } from '@/lib/hash/stringHash'
 
-type FeatureCollection = { type: 'FeatureCollection'; features: unknown[] }
-
-const isFeatureCollection = (value: unknown): value is FeatureCollection => {
-  if (!value || typeof value !== 'object') return false
-  const v = value as { type?: unknown; features?: unknown }
-  if (v.type !== 'FeatureCollection') return false
-  return Array.isArray(v.features)
-}
-
-const hashString = (input: string): string => {
-  let h = 5381
-  for (let i = 0; i < input.length; i += 1) {
-    h = ((h << 5) + h) ^ input.charCodeAt(i)
-  }
-  return (h >>> 0).toString(16)
-}
-
-const uploadPromisesByKey = new Map<string, Promise<string>>()
+const uploadPromisesByKey = new LRUCache<string, Promise<string>>(64, 10 * 60_000)
 
 const deriveNameStem = (documentPath: string): string => {
   const raw = String(documentPath || '').trim()
@@ -65,11 +50,18 @@ async function uploadGeoJsonText(args: { key: string; name: string; text: string
 
 const createGeoDatasetIntegration = (): MarkdownGeoDatasetIntegration => {
   return {
+    isGeoJsonCodeBlock: req => {
+      const text = String(req?.codeBlock?.text || '').trim()
+      if (!text) return false
+      return parseGeoJsonFromText(text) != null
+    },
     renderGeoJsonFeatureCollection: req => {
-      const text = String(req?.codeBlock?.text || '')
+      const rawText = String(req?.codeBlock?.text || '')
+      const text = String(rawText || '').trim()
+      if (!text) return null
       const startLine = req?.codeBlock?.startLine || 1
       const documentPath = String(req?.sourceDocumentPath || '').trim() || 'document'
-      const key = `${documentPath}:${startLine}:${hashString(text)}`
+      const key = `${documentPath}:${startLine}:${hashStringToHex(text)}`
       return React.createElement(InlineMarkdownGeoJsonLayerMap, {
         geojsonText: text,
         datasetId: key,
@@ -81,17 +73,10 @@ const createGeoDatasetIntegration = (): MarkdownGeoDatasetIntegration => {
       const startLine = req?.codeBlock?.startLine || 1
       const documentPath = String(req?.sourceDocumentPath || '').trim() || 'document'
 
-      let parsed: unknown = null
-      try {
-        parsed = JSON.parse(text)
-      } catch {
-        return { ok: false, error: 'Invalid JSON' }
-      }
-      if (!isFeatureCollection(parsed)) {
-        return { ok: false, error: 'Expected GeoJSON FeatureCollection' }
-      }
+      const fc = parseGeoJsonFromText(String(text || '').trim())
+      if (!fc) return { ok: false, error: 'Expected GeoJSON (FeatureCollection/Feature/Geometry)' }
 
-      const key = `${documentPath}:${startLine}:${hashString(text)}`
+      const key = `${documentPath}:${startLine}:${hashStringToHex(text)}`
       const name = buildUploadName(documentPath, startLine)
       const url = await uploadGeoJsonText({ key, name, text })
       const label = buildDatasetLabel(documentPath, startLine)

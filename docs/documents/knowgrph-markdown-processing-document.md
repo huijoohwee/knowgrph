@@ -35,7 +35,9 @@ Code blocks now feature a structured layout matching GitHub's design system:
   - **Beside**: Renders code on the left and annotations on the right (on desktop), or annotations above code (on mobile).
   - **Render**: Switches supported code blocks from source to a fitted preview.
     - **Mermaid** (`mermaid` / `mmd`): Renders the diagram fitted to the full code block.
-    - **GeoJSON** (`geojson` / `json` with GeoJSON shapes): Renders a fitted MapLibre preview inside the code block.
+      - **Per-block Mermaid frontmatter**: A Mermaid code block may start with a YAML `--- ... ---` header. The viewer strips that header from the diagram text and merges it into Mermaid init config for that block (e.g., `theme`, `themeVariables`, or `mermaidTheme`/`mermaidThemeVariables`).
+    - **Frontmatter**: When the active document begins with YAML frontmatter (`--- ... ---`), clicking the global **Render** control also enables Frontmatter Mode so the frontmatter blocks are visible without a second toggle.
+    - **GeoJSON** (`geojson`): Renders a fitted MapLibre preview inside the code block using the same basemap/style loading behavior as Geospatial Mode. GeoJSON parsing and validation reuse the shared Gympgrph helpers (`parseGeoJsonFromText`) so inline rendering and dataset registration share the same acceptance rules.
     - **Other languages**: Falls back to the source code view.
 - **Per-Block Mode Icons**: Each code block header also exposes icon-only controls for **Beside / Inline / Render** so a specific block can override the global mode without mutating the global preference.
 - **Hover Effects**: The entire code block (including annotations in Beside/Inline modes) is highlighted with a blue border on hover, ensuring clear visual grouping of the code and its associated notes.
@@ -61,10 +63,18 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **Shared Lexing**: Markdown content is lexed once using `markdownPreviewLex.ts`.
 - **Token Passing**: The resulting tokens (`TokenWithLines`) are passed directly to `MarkdownCodeBlock`.
 - **No Re-lexing**: The component consumes the pre-computed token, avoiding expensive re-parsing during render cycles.
+- **Stable Token Keys (Presentation)**: In Presentation Mode, token render keys must incorporate `activeDocumentPath` + `startLine/endLine` to prevent per-slide state leakage (e.g., a code block “Inline” override persisting onto a different slide’s GeoJSON block).
+- **Code Block Mode Sync**: Global Beside/Inline/Render acts as the default. Per-block toggles create a local override; when the per-block mode matches the global default again, the override is cleared so future global changes apply.
 
 ### Rendering Optimization
 - **Memoization**: `MarkdownCodeBlock` is wrapped in `React.memo` to prevent unnecessary re-renders when parent components update.
 - **Highlight Caching**: Syntax highlighting is memoized via `useMemo`, ensuring that `highlight.js` is only invoked when the code content or language changes.
+- **GeoJSON Map Load**: Inline GeoJSON previews defer MapLibre initialization until the preview scrolls into view, wait for non-zero layout via bounded observers, keep a stable map container element across deferred-load states, and show a visible overlay message (“Loading map preview…” / “Map preview unavailable”) instead of failing silently ([InlineMarkdownGeoJsonLayerMap.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/geospatial/InlineMarkdownGeoJsonLayerMap.tsx), [mapLibreFactory.ts](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/mapLibreFactory.ts)).
+- **GeoJSON Detection**: `geojson` blocks are always GeoJSON-renderable; `json` blocks are treated as GeoJSON only when `geoDatasetIntegration.isGeoJsonCodeBlock` identifies the content as GeoJSON.
+- **GeoJSON Render Defaults**: In Viewer, GeoJSON-renderable blocks respect the global annotate display mode (typically Inline); in Presentation, GeoJSON-renderable blocks (including `json` fences identified as GeoJSON) default to Render.
+- **GeoJSON Interaction**: Map previews follow the same overlay conventions as Mermaid: container-scoped overlays use `PreviewOverlay` for fullscreen inspection; viewport-scoped previews delegate to `requestOpenGeoPanel`.
+- **GeoJSON Renderer Wiring**: Viewer-mode render trees must include `geoDatasetIntegration` in memo dependency arrays so injected renderers don’t stay stale and emit “GeoJSON renderer unavailable”.
+- **GeoJSON Error UI**: GeoJSON render failures show a compact error bar (≈50% of the Markdown toolbar nav height) to avoid consuming the code block preview area.
 
 ### Media Proxy Handling
 - **Background Sources**: Slide `background` URLs are normalized via [markdownSlideVisuals.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownSlideVisuals.ts#L1-L200) before render.
@@ -93,6 +103,12 @@ To avoid redundant processing and ensure consistency across the application (e.g
 | Layout | `components/GraphCanvas` | `scene` | `setupGraphScene` | D3 simulates physics → positions nodes → updates DOM | `d3-force` | SVG | ~400 |
 
 ## Usage
+
+For cross-feature smoke testing (Frontmatter + Mermaid + GeoJSON + Presentation), use the canonical sandbox fixture:
+
+`sandbox/demo/markdown-slide-demo.md`
+
+This is intentionally referenced as a repo-relative path; tests resolve it via a bounded search (or `KG_MARKDOWN_SLIDE_DEMO_PATH`) so docs don't hardcode machine-specific absolute paths.
 
 ```markdown
 ```yaml

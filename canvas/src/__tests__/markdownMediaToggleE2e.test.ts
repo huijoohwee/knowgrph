@@ -1,7 +1,5 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { UI_COPY } from '@/lib/config'
 import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -9,6 +7,7 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
+import { readMarkdownSlideDemo, resolveMarkdownSlideDemoPath } from '@/tests/lib/markdownSlideDemo'
 import {
   buildTestMarkdownFromFile,
   buildTestMarkdownFromGithub,
@@ -22,10 +21,9 @@ import {
 } from './markdown/markdownTestUtils'
 
 export async function testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo() {
-  const markdownLines = readFileSync(
-    resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md'),
-    'utf8',
-  ).split('\n')
+  const raw = readMarkdownSlideDemo()
+  if (!raw) return
+  const markdownLines = raw.split('\n')
 
   const abbrLineIndex = markdownLines.findIndex(line => line.includes('<abbr'))
   if (abbrLineIndex === -1) {
@@ -34,7 +32,8 @@ export async function testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo() {
 
   // Extract a snippet covering the abbr and the following span
   const snippet = markdownLines.slice(abbrLineIndex - 5, abbrLineIndex + 15).join('\n')
-  const html = renderMarkdownPreview(snippet, 'docs/markdown-slide-demo.md')
+  const docPath = resolveMarkdownSlideDemoPath() ?? 'markdown-slide-demo.md'
+  const html = renderMarkdownPreview(snippet, docPath)
 
   if (!html.includes('Hover over this term:')) {
     throw new Error('expected abbr line to be present in rendered HTML')

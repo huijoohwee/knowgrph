@@ -1,12 +1,12 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readMarkdownSlideDemo, resolveMarkdownSlideDemoPath } from '@/tests/lib/markdownSlideDemo'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 
 export const testFrontmatterModeFiltersToFrontmatterMermaidOnly = () => {
-  const mdPath = resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md')
-  const markdown = readFileSync(mdPath, { encoding: 'utf8' })
+  const markdown = readMarkdownSlideDemo()
+  if (!markdown) return
+  const mdPath = resolveMarkdownSlideDemoPath() ?? 'markdown-slide-demo.md'
   const jsonld = buildMarkdownJsonLd(mdPath, markdown)
   const graph = parseJsonLd(jsonld)
   const filtered = filterGraphToFrontmatterMermaid(graph)

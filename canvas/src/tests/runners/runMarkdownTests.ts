@@ -27,7 +27,19 @@ import {
 } from '@/__tests__/markdown/markdownDoubleClick.test'
 import { testFrontmatterModeFiltersToFrontmatterMermaidOnly } from '@/__tests__/frontmatterModeFilter.test'
 import { testMarkdownHeadingGroupsDerivation } from '@/__tests__/markdownHeadingGroups.test'
-import { testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset } from '@/__tests__/markdown/markdownGeoJsonOverlayRegistration.test'
+import {
+  testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset,
+  testMarkdownGeoJsonRenderFailureShowsVisibleError,
+} from '@/__tests__/markdown/markdownGeoJsonOverlayRegistration.test'
+import { testMarkdownAnnotateDisplay } from '@/__tests__/markdown/markdownAnnotateDisplay.test'
+import { testMarkdownFrontmatterBlocksRenderInViewer } from '@/__tests__/markdown/markdownFrontmatterViewer.test'
+import { testMarkdownGeoJsonBasemapErrorsAreSuppressed } from '@/__tests__/markdown/markdownGeoJsonBasemapErrors.test'
+import { testMarkdownGeoJsonDefaultsToInlineInViewerMode } from '@/__tests__/markdown/markdownGeoJsonDefaultRenderMode.test'
+import { testMarkdownGeoJsonJsonTagDefaultsToInlineInViewerAndRenderInPresentation } from '@/__tests__/markdown/markdownGeoJsonJsonTagDefaultRender.test'
+import { testMarkdownMermaidCodeBlockFrontmatterParsesAndMerges } from '@/__tests__/markdown/markdownMermaidCodeBlockFrontmatter.test'
+import { testMarkdownGeoJsonRendersInPresentationAfterPerBlockOverride } from '@/__tests__/markdown/markdownGeoJsonPresentationRender.test'
+import { testMarkdownGeoJsonInlineMapRendersStableContainerDom } from '@/__tests__/markdown/markdownGeoJsonInlineMapStableDom.test'
+import { testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvailable } from '@/__tests__/markdown/markdownGeoJsonRendererUnavailableFix.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -51,4 +63,14 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.frontmatterMode.filtersMermaidOnly', testFrontmatterModeFiltersToFrontmatterMermaidOnly)
   await execTest(results, 'markdown.headingGroups.derivation', testMarkdownHeadingGroupsDerivation)
   await execTest(results, 'markdown.geojson.registersToGeo', testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset)
+  await execTest(results, 'markdown.geojson.renderFailureVisible', testMarkdownGeoJsonRenderFailureShowsVisibleError)
+  await execTest(results, 'markdown.geojson.basemapErrorsSuppressed', testMarkdownGeoJsonBasemapErrorsAreSuppressed)
+  await execTest(results, 'markdown.geojson.defaultInlineInViewer', testMarkdownGeoJsonDefaultsToInlineInViewerMode)
+  await execTest(results, 'markdown.geojson.jsonTagDefaultInlineViewerRenderPresentation', testMarkdownGeoJsonJsonTagDefaultsToInlineInViewerAndRenderInPresentation)
+  await execTest(results, 'markdown.geojson.presentationRender', testMarkdownGeoJsonRendersInPresentationAfterPerBlockOverride)
+  await execTest(results, 'markdown.geojson.inlineMapStableDom', testMarkdownGeoJsonInlineMapRendersStableContainerDom)
+  await execTest(results, 'markdown.geojson.rendererUnavailableFix', testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvailable)
+  await execTest(results, 'markdown.mermaid.codeblockFrontmatter', testMarkdownMermaidCodeBlockFrontmatterParsesAndMerges)
+  await execTest(results, 'markdown.annotateDisplay.perCodeBlockToggle', testMarkdownAnnotateDisplay)
+  await execTest(results, 'markdown.frontmatter.blocksInViewer', testMarkdownFrontmatterBlocksRenderInViewer)
 }

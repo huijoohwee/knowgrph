@@ -18,6 +18,7 @@ import {
   uiPrimaryIconInactiveClassName,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
+import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge';
 
 import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
 import { FitToViewButton } from '@/features/toolbar/ui/FitToViewButton';
@@ -140,12 +141,22 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   }, [openMainPanel]);
 
   React.useEffect(() => {
-    void import('gympgrph')
-      .then(m => {
-        if (typeof m.isGeospatialModeEnabled !== 'function') return
-        setGeospatialEnabled(Boolean(m.isGeospatialModeEnabled()))
+    void readGeospatialModeEnabled()
+      .then(enabled => setGeospatialEnabled(enabled))
+      .catch((err: unknown) => {
+        setGeospatialEnabled(false)
+        try {
+          const msg =
+            err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '').trim() : ''
+          useGraphStore.getState().pushUiToast({
+            id: 'geospatial-mode-load-error',
+            kind: 'error',
+            message: `Geospatial Mode unavailable: ${msg || 'Unknown error'}`,
+          })
+        } catch {
+          void 0
+        }
       })
-      .catch(() => void 0)
   }, []);
 
   return (

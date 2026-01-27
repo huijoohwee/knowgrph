@@ -30,6 +30,10 @@
 
 ### P0-Critical
 
+#### 2026-01-27
+
+- handlebars.js for templating
+
 “Contract” Modules Worth Knowing
 
 single “call graph”-style outline (functions only, in execution order) for the two most common journeys: (1) load JSON/CSV → see nodes on MapLibre, (2) click map POI → host selects node → both canvas + map highlight update.

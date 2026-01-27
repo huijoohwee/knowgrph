@@ -120,6 +120,10 @@ export async function testMarkdownPresentationFullscreenFromBottomPanelControls(
     await tick()
     await tick()
 
+    const editorTitle = UI_COPY.bottomPanelMarkdownEditorTitle
+    const viewerTitle = UI_COPY.bottomPanelMarkdownViewerTitle
+    const editToggleTitle = UI_COPY.bottomPanelMarkdownEditToggleTitle
+
     const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
     if (!textarea) {
       throw new Error('editor textarea not found')
@@ -168,6 +172,27 @@ export async function testMarkdownPresentationFullscreenFromBottomPanelControls(
     if (!inlinePresentationRoot) {
         throw new Error('expected inline presentation to be rendered after first fullscreen click')
     }
+
+    // Switching: After entering inline presentation, user can still switch back to editor/viewer
+    const findToggleButton = (title: string): HTMLButtonElement | null => {
+      const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
+      for (const btn of buttons) {
+        if (btn.getAttribute('title') === title) return btn
+        if (btn.getAttribute('aria-label') === title) return btn
+      }
+      return null
+    }
+
+    const editBtn = findToggleButton(editToggleTitle)
+    if (!editBtn) throw new Error('edit toggle button not found after entering presentation')
+    editBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await tick()
+    await tick()
+
+    const editorHeader = findElementWithTitle(doc.body as HTMLElement, editorTitle)
+    const viewerHeader = findElementWithTitle(doc.body as HTMLElement, viewerTitle)
+    if (!editorHeader) throw new Error('expected editor mode to be reachable after entering presentation')
+    if (viewerHeader) throw new Error('expected viewer header to be hidden in editor mode after toggle')
 
     // Second click: Should trigger enterFullscreen since ref is now populated
     fullscreenBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

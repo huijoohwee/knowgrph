@@ -6,6 +6,8 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { BottomPanelMarkdownSection } from '../../components/BottomPanel/BottomPanelMarkdownSection'
 import { useGympgrphStore } from 'gympgrph'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import type { MarkdownGeoDatasetIntegration } from 'curagrph/features/markdown/ui/MarkdownRendererTypes.ts'
 
 export async function testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset() {
   const storage = new MemoryStorage()
@@ -87,15 +89,13 @@ export async function testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset()
     await tick()
     await new Promise<void>(resolve => setTimeout(() => resolve(), 250))
 
-    const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
-    const renderBtn = buttons.find(b => (b.textContent || '').trim() === 'Render') || null
+    const renderBtn = doc.querySelector('button[name="annotate-display"][value="render"]') as HTMLButtonElement | null
     if (!renderBtn) throw new Error('Render toggle button not found')
     renderBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
     await tick()
     await new Promise<void>(resolve => setTimeout(() => resolve(), 250))
-    const buttonsAfterClick = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
-    const renderBtnAfterClick = buttonsAfterClick.find(b => (b.textContent || '').trim() === 'Render') || null
+    const renderBtnAfterClick = doc.querySelector('button[name="annotate-display"][value="render"]') as HTMLButtonElement | null
     const ariaCurrent = renderBtnAfterClick ? renderBtnAfterClick.getAttribute('aria-current') : null
     if (ariaCurrent !== 'true') {
       throw new Error('expected Render toggle to become active (aria-current=true)')
@@ -115,10 +115,14 @@ export async function testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset()
     const hasGeoRegisterText = previewText.includes('Registering GeoJSON') || previewText.includes('GeoJSON is registered')
 
     const afterButtons = Array.from(previewRoot.querySelectorAll('button')) as HTMLButtonElement[]
-    const hasOpenGeo = afterButtons.some(b => (b.textContent || '').trim() === 'Open Geo')
-    if (!hasOpenGeo) {
+    const hasGeospatialModeButton = afterButtons.some(
+      b => String(b.getAttribute('aria-label') || '').trim() === 'Geospatial Mode (On)',
+    )
+    if (!hasGeospatialModeButton) {
       throw new Error(
-        `expected GeoJSON code block to show Geo panel render UI (Open Geo). hasGeoRegisterText=${hasGeoRegisterText} uploadCalls=${uploadCalls} previewText=${JSON.stringify(previewText.slice(0, 240))} previewHtml=${JSON.stringify(previewHtml.slice(0, 240))}`,
+        `expected GeoJSON code block to show Geo panel render UI (Geospatial Mode). hasGeoRegisterText=${hasGeoRegisterText} uploadCalls=${uploadCalls} previewText=${JSON.stringify(
+          previewText.slice(0, 240),
+        )} previewHtml=${JSON.stringify(previewHtml.slice(0, 240))}`,
       )
     }
 
@@ -134,6 +138,70 @@ export async function testMarkdownGeoJsonCodeBlockRegistersAsGeospatialDataset()
     throw new Error('expected GeoJSON code block to register as a geospatial dataset')
   } finally {
     globalThis.fetch = originalFetch
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMarkdownGeoJsonRenderFailureShowsVisibleError() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const geoDatasetIntegration: MarkdownGeoDatasetIntegration = {
+      renderGeoJsonFeatureCollection: () => {
+        throw new Error('boom')
+      },
+      requestOpenGeoPanel: () => {},
+    }
+
+    const raf = (cb: () => void) => {
+      const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+      if (anyWindow.requestAnimationFrame) {
+        anyWindow.requestAnimationFrame(cb)
+        return
+      }
+      setTimeout(cb, 0)
+    }
+    const tick = () => new Promise<void>(resolvePromise => raf(() => resolvePromise()))
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: ['# Demo', '', '```geojson', '{"type":"FeatureCollection","features":[]}', '```', ''].join('\n'),
+        activeDocumentPath: 'test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: true,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans text-xs',
+        uiPanelMonospaceTextClass: 'font-mono text-xs',
+        annotateDisplayMode: 'inline',
+        previewOverlayScope: 'viewport',
+        previewOverlayPortalTarget: null,
+        previewScrollable: true,
+        geoDatasetIntegration,
+      } as never),
+    )
+
+    await tick()
+    await tick()
+
+    const text = String(container.textContent || '')
+    if (!text.includes('GeoJSON render failed')) {
+      throw new Error(`expected GeoJSON render failure to be visible. text=${JSON.stringify(text.slice(0, 240))}`)
+    }
+    const geoBtn = container.querySelector('button[aria-label="Geospatial Mode (On)"]') as HTMLButtonElement | null
+    if (!geoBtn) {
+      throw new Error('expected GeoJSON render failure UI to include Geospatial Mode button')
+    }
+    root.unmount()
+  } finally {
     restoreDom()
     restoreWindow()
   }

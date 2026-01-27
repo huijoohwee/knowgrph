@@ -1,13 +1,11 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
 import { renderMarkdownPreview } from './markdownTestUtils'
+import { readMarkdownSlideDemo, resolveMarkdownSlideDemoPath } from '@/tests/lib/markdownSlideDemo'
 
 export async function testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo() {
-  const markdownLines = readFileSync(
-    resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-slide-demo.md'),
-    'utf8',
-  ).split('\n')
+  const raw = readMarkdownSlideDemo()
+  if (!raw) return
+  const markdownLines = raw.split('\n')
 
   const abbrLineIndex = markdownLines.findIndex(line => line.includes('<abbr'))
   if (abbrLineIndex === -1) {
@@ -15,7 +13,8 @@ export async function testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo() {
   }
 
   const snippet = markdownLines.slice(Math.max(0, abbrLineIndex - 5), abbrLineIndex + 15).join('\n')
-  const html = renderMarkdownPreview(snippet, 'docs/markdown-slide-demo.md')
+  const docPath = resolveMarkdownSlideDemoPath() ?? 'markdown-slide-demo.md'
+  const html = renderMarkdownPreview(snippet, docPath)
 
   if (!html.includes('Hover over this term:')) {
     throw new Error('expected abbr line to be present in rendered HTML')

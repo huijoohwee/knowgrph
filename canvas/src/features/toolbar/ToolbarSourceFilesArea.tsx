@@ -1,7 +1,6 @@
 import React from 'react'
 import { Download, Eraser, FileText, Link, Upload } from 'lucide-react'
-import { useShallow } from 'zustand/react/shallow'
-import { addGeospatialDatasetUrls, useGympgrphStore } from 'gympgrph'
+import { addGeospatialDatasetUrls } from 'gympgrph'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
 import { getIconSizeClass } from '@/lib/ui'
@@ -25,6 +24,7 @@ import {
   extractEmbeddedGeoJsonFeatureCollections,
 } from '@/lib/markdown/embeddedGeoJson'
 import { uploadGeoJsonTextToLocalStore } from '@/features/geospatial/localGeoUpload'
+import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
 
 type GeoDatasetFormat = 'auto' | 'geojson' | 'records'
 
@@ -74,13 +74,11 @@ export function ToolbarSourceFilesArea(_props: Partial<ToolbarToolMenuAreasProps
     ].join(' ')
   }, [uiPanelKeyValueTextSizeClass])
 
-  const { datasetTimeoutMs, datasetMaxBytes, geospatialOverlayEnabled } = useGympgrphStore(
-    useShallow(s => ({
-      datasetTimeoutMs: s.geospatialDatasetTimeoutMs,
-      datasetMaxBytes: s.geospatialDatasetMaxBytes,
-      geospatialOverlayEnabled: s.geospatialOverlayEnabled,
-    })),
-  )
+  const { datasetTimeoutMs, datasetMaxBytes, geospatialOverlayEnabled } = useGympgrphExternalStore(s => ({
+    datasetTimeoutMs: s.geospatialDatasetTimeoutMs,
+    datasetMaxBytes: s.geospatialDatasetMaxBytes,
+    geospatialOverlayEnabled: s.geospatialOverlayEnabled,
+  }))
   const showGeoColumn = geospatialOverlayEnabled === true
 
   const inferGeoLayerFromText = React.useCallback((name: string, text: string): boolean => {

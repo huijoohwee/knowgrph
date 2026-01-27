@@ -12,18 +12,20 @@
 ```
 ## Mermaid Layout Architecture
 
-**Layout Stack**: Mermaid AST → Dagre Graph → Layout Computation → Position Assignment → Interactive Dragging → Canvas Rendering
+**Layout Stack**: Mermaid code → Mermaid parser → GraphData → Mermaid seed layout (initial positions) → Force simulation → Interactive dragging → Canvas rendering
 
-**Data Flow**: GraphData → Topology Validation → Compound Hierarchy → Dagre Layout → Centering & Scaling → Group Outline Rendering → Edge Rendering → Label Rendering
+**Data Flow**: GraphData → Subgraph group derivation → Mermaid seed layout → Force layout forces → Group outline rendering → Edge rendering → Label rendering
 
-**Design Principles**: Schema-Driven Styling | Dagre Network-Simplex | Revision-Based Caching | Crash Prevention | 16:9 Presentation Framing
+**Design Principles**: Schema-Driven Styling | Seeded Stability | Crash Prevention | 16:9 Fit-to-View | Minimal Configuration Surface
 
 ### High-Level Components
 
-- **Layout Engine**: `canvas/src/components/GraphCanvas/layout/mermaid.ts` implements Dagre-based hierarchical flowchart layout with robust topology validation.
+- **Layout Seed Engine**: `canvas/src/components/GraphCanvas/layout/mermaidSeed.ts` assigns stable initial positions for Mermaid graphs inside Force mode.
 - **Parser Integration**: `canvas/src/features/parsers/markdownJsonLdMermaidParser.ts` provides Mermaid AST to GraphData conversion.
 - **Scene Orchestration**: `canvas/src/components/GraphCanvas/scene.ts` coordinates layout computation, rendering, and interaction.
-- **Drag Behavior**: `canvas/src/components/GraphCanvas/drag.ts` implements rigid group dragging for subgraphs and member nodes.
+- **Group Derivation**: `canvas/src/components/GraphCanvas/layout/mermaidSubgraphGroups.ts` derives Mermaid subgraph groups for rendering outlines.
+- **Direction Parsing**: `canvas/src/components/GraphCanvas/layout/mermaidDirection.ts` reads Mermaid flow direction (TB/LR/etc) from Mermaid diagram nodes.
+- **Drag Behavior**: `canvas/src/components/GraphCanvas/drag.ts` implements node dragging with optional snap-grid and constraints.
 - **Rendering Layers**: `canvas/src/components/GraphCanvas/layers/` provides nodes, links, labels, and group outlines with z-order management.
 
 ### Integration Bridge: Mermaid Layout → Canvas Renderer
@@ -45,11 +47,10 @@
 
 | Layer/Subsystem       | Path/Module                                   | Component                   | Interface/Method            | Responsibility (S-V-O)                                                                        | Dependencies                          | Contracts                                         | LOC    |
 |-----------------------|-----------------------------------------------|-----------------------------|-----------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------|---------------------------------------------------|--------|
-| Layout Engine         | `canvas/src/components/GraphCanvas/layout/mermaid.ts` | Mermaid Layout Engine | `computeMermaidLayout`      | Engine → validates topology → builds Dagre graph → computes layout → assigns positions        | Dagre, d3-hierarchy                   | Returns positioned GraphData with coordinates     | ~800   |
-| Topology Validator    | `canvas/src/components/GraphCanvas/layout/mermaid.ts` | Topology Validator    | `validateTopology`          | Validator → filters self-loops → checks edge endpoints → ensures node existence → prevents crashes| GraphData                             | Returns validated nodes/edges                     | ~150   |
-| Compound Setup        | `canvas/src/components/GraphCanvas/layout/mermaid.ts` | Compound Hierarchy    | `setupCompoundHierarchy`    | Setup → maps parent-child relations → assigns to Dagre graph → enables nested subgraphs       | Dagre compound mode                   | Mutates Dagre graph with parent assignments       | ~100   |
-| Centering & Scaling   | `canvas/src/components/GraphCanvas/layout/mermaid.ts` | Post-Layout Processor | `centerAndScale16x9`        | Processor → computes bounding box → centers layout → scales to 16:9 frame → applies padding   | Layout config                         | Mutates node positions for presentation           | ~200   |
-| Drag Handler          | `canvas/src/components/GraphCanvas/drag.ts`   | Rigid Group Drag            | `handleMermaidDrag`         | Handler → detects drag target → moves subgraph centroids → synchronizes member nodes           | Subgraph hierarchy                    | Updates node positions during drag                | ~250   |
+| Layout Seed Engine    | `canvas/src/components/GraphCanvas/layout/mermaidSeed.ts` | Mermaid Seed Layout | `applyMermaidSeedLayout`    | Engine → detects uninitialized layouts → groups Mermaid nodes → assigns stable seed positions  | Seed grid, Mermaid direction          | Mutates node positions and resets velocities      | ~300   |
+| Group Derivation      | `canvas/src/components/GraphCanvas/layout/mermaidSubgraphGroups.ts` | Mermaid Subgraph Groups | `deriveMermaidSubgraphGroups` | Deriver → reads Mermaid subgraph membership edges → builds nested groups for rendering outlines | GraphData                             | Returns groups with member ids and depth          | ~125   |
+| Direction Parsing     | `canvas/src/components/GraphCanvas/layout/mermaidDirection.ts` | Mermaid Direction     | `readMermaidAxisFromNodes`  | Parser → reads Mermaid flow direction from diagram code → maps to axis/forward                 | Mermaid diagram node properties       | Returns axis/forward used for seeding and ports   | ~25    |
+| Drag Handler          | `canvas/src/components/GraphCanvas/drag.ts`   | Node Drag                  | `nodeDragBehavior`          | Handler → drags nodes → applies snap/constraints → releases forces per mode                    | d3-drag                               | Updates node fx/fy and velocities                 | ~70    |
 | Group Renderer        | `canvas/src/components/GraphCanvas/layers/groups.ts` | Subgraph Renderer     | `createGroupsLayer`          | Renderer → computes bounds/outlines → draws behind nodes → manages z-order → applies padding  | Canvas 2D context                     | Draws subgraph containers                         | ~200   |
 | Node Renderer         | `canvas/src/components/GraphCanvas/layers/nodes.ts` | Mermaid Node Renderer | `renderMermaidNodes`        | Renderer → applies schema colors → renders rectangles → wraps labels → supports `classDef`     | Schema config, text wrapper           | Draws styled rectangular nodes                    | ~300   |
 | Edge Renderer         | `canvas/src/components/GraphCanvas/layers/links.ts` | Mermaid Edge Renderer | `renderMermaidEdges`        | Renderer → draws B-spline curves → switches to direct lines on drag → applies edge styles      | d3-shape                              | Draws styled edges with dynamic routing           | ~200   |
@@ -58,60 +59,38 @@
 
 ## Mermaid Layout Engine Specifications
 
-### Dagre Layout Algorithm
+### Seed Layout Algorithm
 
-**From GraphData → Positioned Layout**: Validate topology → build Dagre graph → configure network-simplex ranker → compute layout → extract positions → center and scale to 16:9 frame.
+**From GraphData → Stable Initial Positions**: Detect uninitialized positions → read Mermaid direction (TB/LR/etc) → group nodes by `visual:topParentId`/`visual:parentId` → seed each group into a grid band → layer nodes inside each group by `pointsTo` ranks → center result in the frame.
 
 **Configuration Schema**:
 
 ```yaml
 layout.mode:
   scope: layout_global
-  type: string (enum: "force" | "radial" | "tree" | "mermaid")
+  type: string (enum: "force" | "radial")
   mutability: runtime_configurable
   validation: valid layout mode
-  impact: selects Mermaid hierarchical layout engine
+  impact: enables Mermaid-aware seeding inside Force mode
 
-layout.mermaid.ranker:
-  scope: layout_specific
-  type: string (enum: "network-simplex" | "tight-tree" | "longest-path")
-  mutability: deployment_configurable
-  validation: valid Dagre ranker algorithm
-  impact: determines node ranking algorithm (default: "network-simplex" for stability)
-
-layout.mermaid.orientation:
-  scope: layout_specific
-  type: string (enum: "vertical" | "horizontal")
-  mutability: runtime_configurable
-  validation: enum value
-  impact: controls flow direction (vertical: TB, horizontal: LR)
-
-layout.mermaid.direction:
-  scope: layout_specific
-  type: string (enum: "source-target" | "target-source")
-  mutability: runtime_configurable
-  validation: enum value
-  impact: reverses layout direction (default: "source-target")
-
-layout.mermaid.separation:
-  scope: layout_specific
+schema.layout.fitPadding:
+  scope: layout_global
   type: number
   mutability: runtime_configurable
-  validation: must be positive
-  impact: spacing multiplier for `nodesep`/`ranksep` (default: 3.0)
+  validation: must be non-negative
+  impact: padding used by the seed grid (default: 80)
 ```
 
 **Processing Flow**:
 
 | Stage                    | Input                          | Output                         | Responsibility                                              | Performance Consideration                    |
 |--------------------------|--------------------------------|--------------------------------|-------------------------------------------------------------|----------------------------------------------|
-| Topology Validation      | GraphData nodes/edges          | Validated nodes/edges          | Filter self-loops, validate endpoints, check node existence | O(m) edge validation                         |
-| Dagre Graph Construction | Validated nodes/edges          | Dagre graph object             | Add nodes/edges to Dagre, set attributes                    | O(n + m) graph construction                  |
-| Compound Hierarchy Setup | Subgraph parent-child data     | Dagre with compound structure  | Set parent relationships for nested subgraphs               | O(k) where k = subgraphs                     |
-| Spacing Configuration    | Separation multiplier          | `nodesep`/`ranksep` values     | Compute spacing to avoid overlap and maximize frame usage   | O(1) spacing calculation                     |
-| Dagre Layout Execution   | Configured Dagre graph         | Node positions                 | Run network-simplex ranker, compute coordinates             | O((n+m) log n) Dagre complexity              |
-| Position Extraction      | Dagre graph with layout        | GraphData with coordinates     | Copy positions from Dagre nodes to GraphData                | O(n) position copying                        |
-| Centering & Scaling      | Positioned GraphData           | 16:9-centered layout           | Compute bbox, center, scale to fit 1920×1080                | O(n) position transformation                 |
+| Seed Eligibility Check   | nodes                           | skip/continue                  | Skip if enough nodes already have finite positions          | O(n)                                         |
+| Mermaid Direction Read   | Mermaid diagram nodes           | axis + forward                 | Parse flow direction from Mermaid code (TB/LR/etc)          | O(n + lines)                                 |
+| Group Extraction         | Mermaid nodes                   | groups + order                 | Group by `visual:topParentId`/`visual:parentId` and order by inter-group edges | O(n + m)                      |
+| In-Group Layering        | group nodes + `pointsTo` edges  | ranked layers                  | Compute lightweight ranks inside each group                 | O(n + m)                                     |
+| Seed Placement           | groups + layers + frame bounds  | positioned nodes               | Place groups into a seed grid and spread nodes inside boxes | O(n)                                         |
+| Centering                | positioned nodes                | centered positions             | Center seeded layout within canvas frame                    | O(n)                                         |
 
 **Design Compliance**:
 
@@ -245,28 +224,24 @@ drag.mermaid.persistPositions:
 
 | Drag Target           | Affected Nodes                                  | Movement Pattern                                |
 |-----------------------|-------------------------------------------------|-------------------------------------------------|
-| Subgraph centroid     | All member nodes + nested subgraphs             | Entire group moves together, preserving spacing |
-| Member node           | Parent subgraph + all sibling nodes             | Prevents dislocating node from container        |
-| Standalone node       | Only the dragged node                           | Independent movement                            |
+| Node                  | Only the dragged node                           | Updates `fx`/`fy` with optional snap-grid and axis constraints |
 
 **Processing Flow**:
 
 | Stage                    | Input                          | Output                         | Responsibility                                              | Performance Consideration                    |
 |--------------------------|--------------------------------|--------------------------------|-------------------------------------------------------------|----------------------------------------------|
-| Drag Target Detection    | Mouse event, canvas position   | Target node or subgraph        | Identify clicked entity (node vs subgraph centroid)         | O(1) raycasting with spatial index           |
-| Group Membership Lookup  | Target ID, hierarchy           | Affected node set              | Find all members if subgraph, or parent+siblings if member  | O(n) worst case for flat iteration           |
-| Delta Calculation        | Drag start/current positions   | Movement vector                | Compute (dx, dy) from drag start to current                 | O(1) vector subtraction                      |
-| Position Update          | Affected nodes, delta          | Updated positions              | Apply delta to all affected node positions                  | O(k) where k = affected nodes                |
-| Edge Redraw              | Updated node positions         | Redrawn edges                  | Switch to direct line mode during drag for performance      | O(m) edge drawing                            |
+| Drag Start               | Pointer down + node datum      | Node lock                       | Set `fx`/`fy`; restart force simulation in Force mode        | O(1)                                         |
+| Drag Move                | Pointer move                   | Updated node target             | Apply snap-grid and drag constraints; update `fx`/`fy`       | O(1)                                         |
+| Drag End                 | Pointer up                     | Node release or stop            | Release `fx`/`fy` in Force mode; stop simulation in Radial   | O(1)                                         |
 
 **Design Compliance**:
 
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
-| Target Detection      | Identify drag entity          | - [ ] Raycast to find node or subgraph; forbid missing drag targets                        | Drag handler              | `detectDragTarget`   | mouse position, scene     | target entity         | spatial query + entity type check       |
-| Member Lookup         | Find affected nodes           | - [ ] Query parent-child relations; forbid incomplete group detection                      | Drag handler              | `findAffectedNodes`  | target, hierarchy         | node set              | recursive parent/child traversal        |
-| Rigid Movement        | Preserve relative positions   | - [ ] Apply uniform delta to all members; forbid individual adjustments                    | Drag handler              | `moveRigidGroup`     | nodes, delta              | updated positions     | positions.map(p => p + delta)           |
-| Edge Mode Switch      | Optimize drag performance     | - [ ] Switch to direct lines during drag; revert to B-splines on release; forbid slow curves| Edge renderer             | `switchEdgeMode`     | drag state                | edge rendering mode   | conditional curve vs line rendering     |
+| Drag Start            | Lock node for dragging        | - [ ] Set `fx`/`fy`; restart simulation only in Force mode; forbid unnecessary restarts    | Drag handler              | `nodeDragBehavior`   | drag event, node          | node lock             | `schema.layout.mode` gating             |
+| Snap Grid             | Improve placement precision   | - [ ] Round to grid when enabled; forbid zero/negative grid size                            | Drag handler              | `nodeDragBehavior`   | x/y, grid size            | snapped x/y           | Math.round(v / size) * size             |
+| Drag Constraints      | Constrain movement            | - [ ] Apply `axis-x`/`axis-y`/`none`; forbid inconsistent constraints                        | Drag handler              | `nodeDragBehavior`   | constraint, x/y           | updated fx/fy         | constraint switch                        |
+| Drag End              | Release node appropriately    | - [ ] Release `fx`/`fy` in Force; stop simulation in Radial; forbid lingering velocities    | Drag handler              | `nodeDragBehavior`   | drag end event, node      | stable node           | mode-based release                        |
 
 ---
 
@@ -274,43 +249,35 @@ drag.mermaid.persistPositions:
 
 ### Topology Validation
 
-**From Potentially Invalid Graph → Safe Topology**: Filter self-loops → validate edge endpoints → ensure node existence → prevent Dagre `networkSimplex` crashes.
+**From Potentially Invalid Graph → Safe Seed**: Validate endpoints → ignore missing ids → tolerate cycles by clamping ranks → prevent NaN/undefined node positions.
 
 **Common Crash Scenarios**:
 
 | Crash Scenario                | Detection Method                          | Prevention Strategy                           |
 |-------------------------------|-------------------------------------------|-----------------------------------------------|
-| Self-loop (A → A)             | Check `edge.source === edge.target`       | Filter out self-loops before Dagre            |
-| Dangling edge (A → missing)   | Check `nodes.has(edge.target)`            | Filter edges with non-existent endpoints      |
-| Undefined rank                | Dagre ranker failure on cyclic graphs     | Use `network-simplex` ranker for robustness   |
-| Missing compound parent       | Check `parent` exists before `setParent`  | Validate parent existence before assignment   |
+| Dangling edge (A → missing)   | Check Mermaid node id set contains endpoints | Ignore edges with non-existent endpoints   |
+| Cyclic graph                  | Detect incomplete topological ordering    | Fall back to deterministic ordering            |
+| Missing group ids             | Detect zero derived group ids             | Skip Mermaid seeding when grouping is absent   |
+| Non-finite coordinates        | Check `Number.isFinite(x/y)`              | Skip seeding if already positioned; avoid writing NaNs |
 
 **Configuration Schema**:
 
 ```yaml
-layout.mermaid.validateTopology:
-  scope: layout_specific
-  type: boolean
-  mutability: deployment_configurable
-  validation: boolean
-  impact: enables strict topology validation (default: true)
-
-layout.mermaid.strictCompound:
-  scope: layout_specific
-  type: boolean
-  mutability: deployment_configurable
-  validation: boolean
-  impact: validates compound parent existence (default: true)
+schema.layout.fitPadding:
+  scope: layout_global
+  type: number
+  mutability: runtime_configurable
+  validation: must be non-negative
+  impact: controls seed grid padding (default: 80)
 ```
 
 **Design Compliance**:
 
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
-| Self-Loop Detection   | Prevent ranker instability    | - [ ] Filter edges where source === target; forbid passing self-loops to Dagre             | Topology validator        | `filterSelfLoops`    | edges                     | filtered edges        | edges.filter(e => e.source !== e.target)|
-| Endpoint Validation   | Prevent dangling edges        | - [ ] Check both endpoints exist in node set; forbid invalid edges                         | Topology validator        | `validateEndpoints`  | edges, nodes              | filtered edges        | edges.filter(e => nodes.has(e.source) && nodes.has(e.target))|
-| Parent Validation     | Prevent compound errors       | - [ ] Verify parent exists before setParent; forbid missing parent references              | Compound setup            | `validateParents`    | child-parent pairs, nodes | validated pairs       | pairs.filter(p => nodes.has(p.parent))  |
-| Ranker Selection      | Use stable algorithm          | - [ ] Use `network-simplex` ranker; forbid `tight-tree` (less stable)                      | Layout engine             | `selectRanker`       | config                    | ranker name           | config.ranker || "network-simplex"      |
+| Endpoint Filtering    | Prevent dangling edges        | - [ ] Ignore edges whose endpoints are not Mermaid nodes; forbid invalid endpoint reads    | Seed layout engine        | `applyMermaidSeedLayout` | nodes, edges         | filtered edges        | id-set membership check                 |
+| Cycle Tolerance       | Avoid unstable ordering        | - [ ] Tolerate cycles in group order and within-group ranks; forbid crashes on cycles      | Seed layout engine        | `applyMermaidSeedLayout` | nodes, edges         | ordered groups/ranks  | topo-sort + fallback                     |
+| Seed Eligibility      | Preserve user layouts         | - [ ] Skip seeding when nodes already have positions; forbid clobbering dragged layouts    | Seed layout engine        | `applyMermaidSeedLayout` | nodes                | skip/continue         | validRatio >= 0.2 → return              |
 
 ---
 

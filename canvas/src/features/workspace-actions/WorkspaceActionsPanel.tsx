@@ -1,7 +1,5 @@
 import React from 'react'
 import { SquarePlus } from 'lucide-react'
-import { useShallow } from 'zustand/react/shallow'
-import { useGympgrphStore } from 'gympgrph'
 import CollapsibleSubsection from '@/features/panels/ui/CollapsibleSubsection'
 import { RightAlignedTooltipInput, SimpleKeyValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import { ToolbarSourceFilesArea } from '@/features/toolbar/ToolbarSourceFilesArea'
@@ -10,6 +8,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { createId } from '@/lib/id'
+import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
 
 export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onApplyExample: (exampleId: ExampleId) => void }) {
   const { examples, onApplyExample } = props
@@ -26,14 +25,12 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
     setGeospatialDatasetTimeoutMs,
     geospatialDatasetMaxBytes,
     setGeospatialDatasetMaxBytes,
-  } = useGympgrphStore(
-    useShallow(s => ({
-      geospatialDatasetTimeoutMs: s.geospatialDatasetTimeoutMs,
-      setGeospatialDatasetTimeoutMs: s.setGeospatialDatasetTimeoutMs,
-      geospatialDatasetMaxBytes: s.geospatialDatasetMaxBytes,
-      setGeospatialDatasetMaxBytes: s.setGeospatialDatasetMaxBytes,
-    })),
-  )
+  } = useGympgrphExternalStore(s => ({
+    geospatialDatasetTimeoutMs: s.geospatialDatasetTimeoutMs,
+    setGeospatialDatasetTimeoutMs: s.setGeospatialDatasetTimeoutMs,
+    geospatialDatasetMaxBytes: s.geospatialDatasetMaxBytes,
+    setGeospatialDatasetMaxBytes: s.setGeospatialDatasetMaxBytes,
+  }))
 
   const squareIconButtonClassName = [
     `App-toolbar__btn ${uiPanelKeyValueTextSizeClass}`,

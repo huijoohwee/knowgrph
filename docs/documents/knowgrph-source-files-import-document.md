@@ -117,8 +117,8 @@ sequenceDiagram
 
 - If the user enables the Geo Layer checkbox on a URL row, the URL is registered as a dataset reference using `gympgrph` and rendered as an overlay when Geospatial mode is active.
 - Dataset labels are derived from the row label when not explicitly provided.
-- When a newly imported `.geojson` / geo-shaped `.json` looks geo-capable, the Geo Layer flag is auto-enabled so the row is ready for overlay use.
-- When a local Markdown Source File contains fenced `geojson` blocks that parse as GeoJSON `FeatureCollection`, enabling the Geo Layer checkbox extracts and uploads each block to the local dataset cache (`/__geo_upload`) and registers them as overlay datasets.
+- When a newly imported `.geojson` looks geo-capable, the Geo Layer flag is auto-enabled so the row is ready for overlay use.
+- When a local Markdown Source File contains fenced `geojson` blocks that parse as GeoJSON (FeatureCollection/Feature/Geometry), enabling the Geo Layer checkbox extracts and uploads each block to the local dataset cache (`/__geo_upload`) and registers them as overlay datasets.
 
 ### Parse Routing (Source Files → Parse → Graph)
 

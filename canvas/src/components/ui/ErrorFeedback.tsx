@@ -8,12 +8,29 @@ type ErrorFeedbackProps = {
   error: unknown
   details?: string | null
   code?: string
+  variant?: 'default' | 'compact'
   className?: string
 }
 
-export function ErrorFeedback({ title, error, details, code, className }: ErrorFeedbackProps) {
+export function ErrorFeedback({ title, error, details, code, variant = 'default', className }: ErrorFeedbackProps) {
   const safeError = sanitizeMessageText(error, { maxLines: 3, stripErrorPrefix: true })
   if (!safeError) return null
+
+  if (variant === 'compact') {
+    return (
+      <div
+        className={cn(
+          'h-[18px] px-2 rounded border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 overflow-hidden flex items-center gap-2',
+          className,
+        )}
+      >
+        <AlertCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+        <div className="text-[11px] text-red-700 dark:text-red-300 truncate">
+          {title ? title : 'Error'}: {safeError}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

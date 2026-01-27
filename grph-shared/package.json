@@ -8,6 +8,10 @@
       "types": "./dist/url.d.ts",
       "default": "./dist/url.js"
     },
+    "./hash/stringHash": {
+      "types": "./dist/hash/stringHash.d.ts",
+      "default": "./dist/hash/stringHash.js"
+    },
     "./net/fetchRemoteText": {
       "types": "./dist/net/fetchRemoteText.d.ts",
       "default": "./dist/net/fetchRemoteText.js"
@@ -24,4 +28,3 @@
     "README.md"
   ]
 }
-

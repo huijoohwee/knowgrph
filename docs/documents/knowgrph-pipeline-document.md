@@ -37,6 +37,8 @@
 
 This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → canvas renders. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.
 
+When changing shared packages that are wired via `file:` links (for example `curagrph` or `gympgrph`), restart or rebuild the Canvas dev server so the preview reflects the current checkout and not a stale build.
+
 ### Happy Path Call Graphs (Functions Only)
 
 #### Journey 1: Import JSON/CSV → See Nodes On MapLibre
