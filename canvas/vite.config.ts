@@ -806,7 +806,7 @@ const youtubeConvertDevPlugin = {
 export default defineConfig(({ command }) => ({
   optimizeDeps: {
     include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl'],
-    exclude: ['gympgrph', 'curagrph'],
+    exclude: ['gympgrph', 'curagrph', 'grph-shared'],
   },
   build: {
     sourcemap: 'hidden',

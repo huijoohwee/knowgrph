@@ -36,6 +36,13 @@ import {
 } from '@/__tests__/roundtrip.test'
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
+import {
+  testMarkdownFormattingBoldToggles,
+  testMarkdownFormattingBulletListToggles,
+} from '@/__tests__/markdown/markdownFormatting.test'
+import { testMarkdownTocMoveRootAndNested } from '@/__tests__/markdown/markdownTocMove.test'
+import { testMarkdownTocReorderRootAndNested } from '@/__tests__/markdown/markdownTocReorder.test'
+import { testMarkdownLineEditingInsertAfter } from '@/__tests__/markdown/markdownLineEditing.test'
 import { testUnifiedPanelExport } from '@/__tests__/panel.test'
 import { testSettingsViewCollapsePersistence } from '@/__tests__/settingsCollapse.test'
 import {
@@ -117,6 +124,7 @@ import {
 } from '@/__tests__/geojsonMapPreviewRegressionGuards.test'
 import {
   testCuragrphAliasContractInViteConfig,
+  testForbidEditorJsDependencies,
   testForbidMagicLocalStorageKeysOutsideCentralConstants,
   testForbidSiblingRepoSourceImports,
   testForbidGympgrphHookUsageInHost,
@@ -301,6 +309,7 @@ export const runAllTests = async () => {
   await exec('policy.boundary.forbidGympgrphHookUsage', testForbidGympgrphHookUsageInHost)
   await exec('policy.persistence.forbidMagicLocalStorageKeys', testForbidMagicLocalStorageKeysOutsideCentralConstants)
   await exec('policy.curagrph.aliasContractInViteConfig', testCuragrphAliasContractInViteConfig)
+  await exec('policy.markdown.forbidEditorJs', testForbidEditorJsDependencies)
 
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
@@ -430,6 +439,11 @@ export const runAllTests = async () => {
   await exec('cache.lruClear', testLRUCacheClear)
   await exec('util.reorderList.basicMoves', testReorderListBasicMoves)
   await exec('util.reorderList.noopAndBounds', testReorderListNoopAndBounds)
+  await exec('markdown.formatting.boldToggles', testMarkdownFormattingBoldToggles)
+  await exec('markdown.formatting.bulletListToggles', testMarkdownFormattingBulletListToggles)
+  await exec('markdown.tocMove.rootAndNested', testMarkdownTocMoveRootAndNested)
+  await exec('markdown.tocReorder.rootAndNested', testMarkdownTocReorderRootAndNested)
+  await exec('markdown.lineEditing.insertAfter', testMarkdownLineEditingInsertAfter)
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
   await exec('ui.bottomPanelCollapsePersistence', testBottomPanelCollapsePersistence)
@@ -599,10 +613,6 @@ export const runAllTests = async () => {
   await exec('ui.toolbar.tooltipsDoNotInterceptClicks', testToolbarIconTooltipsDoNotInterceptClicks)
   await exec('ui.toolbar.iconButtonStopsPropagation', testIconButtonStopsPropagation)
   await exec('ui.markdown.renderToggleVisible', testMarkdownGlobalRenderToggleVisible)
-  
-  await exec('markdown.scrollSync.viewerToEditor', testMarkdownScrollSyncViewerToEditor)
-  await exec('markdown.scrollSync.editToggleKeepsPos', testMarkdownEditToggleKeepsScrollPosition)
-  await exec('markdown.scrollSync.mixedContent', testMarkdownScrollSyncMixedContentViewerToEditor)
 
   return results
 }

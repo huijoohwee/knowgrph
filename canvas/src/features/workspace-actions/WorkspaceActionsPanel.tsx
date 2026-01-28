@@ -7,8 +7,8 @@ import type { ExampleConfig, ExampleId } from '@/features/parsers/examplesCatalo
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { createId } from '@/lib/id'
 import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
+import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
 
 export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onApplyExample: (exampleId: ExampleId) => void }) {
   const { examples, onApplyExample } = props
@@ -41,21 +41,7 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
   ].join(' ')
 
   const handleNewSourceFile = React.useCallback(() => {
-    try {
-      const store = useGraphStore.getState()
-      const count = Array.isArray(store.sourceFiles) ? store.sourceFiles.length : 0
-      const nextIndex = Math.max(1, count + 1)
-      store.addSourceFile({
-        id: createId('sf'),
-        name: `source-${nextIndex}.md`,
-        text: '',
-        enabled: true,
-        status: 'idle',
-        source: { kind: 'local' },
-      })
-    } catch {
-      void 0
-    }
+    createNewMarkdownSourceFileAndOpenViewer()
   }, [])
 
   return (

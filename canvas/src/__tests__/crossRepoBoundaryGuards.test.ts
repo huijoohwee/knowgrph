@@ -1,12 +1,15 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-function listFilesRecursively(dir: string): string[] {
+function listFilesRecursively(dir: string, opts?: { ignoreDirNames?: Set<string> }): string[] {
   const entries = readdirSync(dir, { withFileTypes: true })
   const out: string[] = []
   for (const e of entries) {
     const p = join(dir, e.name)
-    if (e.isDirectory()) out.push(...listFilesRecursively(p))
+    if (e.isDirectory()) {
+      if (opts?.ignoreDirNames?.has(e.name)) continue
+      out.push(...listFilesRecursively(p, opts))
+    }
     else out.push(p)
   }
   return out
@@ -142,5 +145,76 @@ export function testCuragrphAliasContractInViteConfig() {
   if (missing.length) {
     const msg = missing.map(s => `missing: ${s}`).join('\n')
     throw new Error(`Curagrph alias contract missing in vite.config.ts:\n${msg}`)
+  }
+}
+
+export function testForbidEditorJsDependencies() {
+  const ignoreDirNames = new Set(['node_modules', 'dist', 'build', 'coverage', '.git'])
+  const repoRoot = resolve(process.cwd(), '..', '..', '..')
+  const repoSrcDirs = [
+    SRC_DIR,
+    resolve(repoRoot, 'curagrph', 'src'),
+    resolve(repoRoot, 'gympgrph', 'src'),
+  ]
+  const pkgJsonPaths = [
+    resolve(repoRoot, 'curagrph', 'package.json'),
+    resolve(repoRoot, 'gympgrph', 'package.json'),
+  ]
+
+  const files = repoSrcDirs
+    .flatMap(dir => {
+      try {
+        return listFilesRecursively(dir, { ignoreDirNames })
+      } catch {
+        return []
+      }
+    })
+    .filter(f => /\.(ts|tsx|js|jsx|json)$/.test(f))
+    .filter(f => !f.includes(join('src', '__tests__')))
+    .filter(f => !f.includes(join('src', 'tests')))
+    .filter(f => !f.includes(join('src', 'cli')))
+  const violations: Array<{ file: string; snippet: string }> = []
+
+  const patterns: RegExp[] = [
+    /@editorjs\//,
+    /\b@editorjs\/editorjs\b/,
+    /\beditorjs\b/i,
+    /codex-team\/editor\.js/i,
+    /editorjs\.io/i,
+  ]
+
+  for (const file of files) {
+    const st = statSync(file)
+    if (!st.isFile()) continue
+    const text = readFileSync(file, 'utf8')
+    for (const re of patterns) {
+      const m = text.match(re)
+      if (m && m[0]) {
+        violations.push({ file, snippet: m[0] })
+        break
+      }
+    }
+  }
+
+  for (const file of pkgJsonPaths) {
+    try {
+      const text = readFileSync(file, 'utf8')
+      for (const re of patterns) {
+        const m = text.match(re)
+        if (m && m[0]) {
+          violations.push({ file, snippet: m[0] })
+          break
+        }
+      }
+    } catch {
+      void 0
+    }
+  }
+
+  if (violations.length) {
+    const msg = violations.map(v => `${v.file} contains ${JSON.stringify(v.snippet)}`).join('\n')
+    throw new Error(
+      `Forbidden Editor.js dependency/reference detected (Markdown must remain native; do not import/copy Editor.js):\n${msg}`,
+    )
   }
 }

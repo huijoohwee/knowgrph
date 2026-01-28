@@ -4,6 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
+    "./array/reorderList": {
+      "types": "./dist/array/reorderList.d.ts",
+      "default": "./dist/array/reorderList.js"
+    },
+    "./markdown/formatting": {
+      "types": "./dist/markdown/formatting.d.ts",
+      "default": "./dist/markdown/formatting.js"
+    },
+    "./markdown/toc": {
+      "types": "./dist/markdown/toc.d.ts",
+      "default": "./dist/markdown/toc.js"
+    },
+    "./markdown/lineEditing": {
+      "types": "./dist/markdown/lineEditing.d.ts",
+      "default": "./dist/markdown/lineEditing.js"
+    },
     "./url": {
       "types": "./dist/url.d.ts",
       "default": "./dist/url.js"

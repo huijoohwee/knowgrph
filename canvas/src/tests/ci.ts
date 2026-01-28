@@ -36,6 +36,7 @@ const ensurePeerSymlinks = () => {
       fs.mkdirSync(nodeModulesDir, { recursive: true })
       linkPeer(nodeModulesDir, 'react')
       linkPeer(nodeModulesDir, 'react-dom')
+      linkPeer(nodeModulesDir, 'grph-shared')
     }
 
     ensureForPackage('curagrph')

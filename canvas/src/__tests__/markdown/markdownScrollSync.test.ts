@@ -15,8 +15,8 @@ const resetMarkdownPrefs = (storage: Storage) => {
     storage.setItem(LS_KEYS.markdownPresentationMode, '0')
     storage.setItem(LS_KEYS.markdownSyncScroll, '1')
     storage.setItem(LS_KEYS.markdownTextHighlight, '0')
-    storage.setItem('markdownPreviewCollapsedIds', JSON.stringify([]))
-    storage.setItem('markdownPreviewSidebarOpen', 'true')
+    storage.setItem(LS_KEYS.markdownCollapsedHeadingIds, JSON.stringify([]))
+    storage.setItem(LS_KEYS.markdownSidebarOpen, '1')
   } catch {
     void 0
   }

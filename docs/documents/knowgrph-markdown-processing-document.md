@@ -3,6 +3,12 @@
 ## Overview
 The Markdown rendering engine in Knowgrph has been enhanced to support GitHub-style code blocks with semantic HTML structure and optimized token sharing architecture. This ensures high performance during rendering cycles and a consistent, accessible UI.
 
+## Non-Goals (Explicit)
+
+- Do not import, embed, or copy Editor.js (or similar) for Markdown editing/rendering.
+- Provide Editor.js-like affordances via native controls only (e.g., formatting buttons that apply Markdown syntax to the current selection while keeping live preview).
+- Keep the core stack: Monaco for editing + tokenized Markdown rendering for preview/presentation.
+
 ## Design Mantras
 
 ```
@@ -41,6 +47,13 @@ Code blocks now feature a structured layout matching GitHub's design system:
     - **Other languages**: Falls back to the source code view.
 - **Per-Block Mode Icons**: Each code block header also exposes icon-only controls for **Beside / Inline / Render** so a specific block can override the global mode without mutating the global preference.
 - **Hover Effects**: The entire code block (including annotations in Beside/Inline modes) is highlighted with a blue border on hover, ensuring clear visual grouping of the code and its associated notes.
+- **Viewer Block Controls**: In Viewer mode, blocks may expose icon-only controls (on hover) to support bounded block-style operations: heading grip drag reorder among same-parent siblings, and “Add line” insertion after a block. This is implemented as pure Markdown text transforms (not a WYSIWYG block editor).
+- **Reorder Grip**: Drag reorder is enabled only from a dedicated grip handle; controls live in a reserved left gutter so they never overlap content.
+- **Nested Blocks Rule**: Nested blocks rendered inside lists/quotes do not render the block gutter/controls (prevents double-indentation and preserves the natural list marker / blockquote border alignment).
+- **Text Selection Gestures**: Viewer/Presentation preserve native browser selection (single click caret anchor; double click word; triple click paragraph/line). No double-click navigation.
+- **Right Click → “Show on/in …”**: Right click opens the Selection Toolbar at the exact pointer position; Monaco’s built-in context menu is disabled so the same toolbar behavior is used across Editor/Viewer/Presentation.
+- **Apply Shortcut**: In Editor/Viewer layout modes, Cmd/Ctrl+Enter toggles Editor↔Viewer; when in Editor it applies and then switches to Viewer.
+- **Left-Side Contents Panel (Bottom Panel)**: The Markdown “Contents” sidebar is rendered on the left and includes a Source Files tree (folder/file hierarchy derived from `/` in file names) with icon-only create actions.
 
 ### Semantic HTML
 The implementation replaces generic `<div>` wrappers with semantic elements:

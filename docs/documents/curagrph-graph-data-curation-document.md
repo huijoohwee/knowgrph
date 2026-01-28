@@ -38,3 +38,13 @@ This contract is the default pattern for future UI extractions so module ownersh
 - **Host-owned ingest**: host UI surfaces (e.g. FloatingPanel Workspace Actions) ingest local/URL text and append to `useGraphStore.sourceFiles` using `addSourceFile`.
 - **Curation UI visibility**: `curagrph` markdown surfaces render an optional Source Files list inside the Markdown sidebar "Contents" area.
 - **Selection behavior**: selecting a source file sets the active markdown document via `setMarkdownDocument(name, text)` and updates the active marker by comparing `markdownDocumentName`.
+
+---
+
+## Markdown Interaction Contract (Editor / Viewer / Presentation)
+
+- **Text selection**: Viewer/Presentation preserve native browser selection (single click caret anchor; double click selects a word; triple click selects a paragraph/line). No implicit navigation on double-click.
+- **Right click**: Opens the Selection Toolbar (“Show on/in …”) at the exact pointer position. Monaco’s built-in context menu is disabled so right click always produces the same app-level toolbar.
+- **Cmd/Ctrl+Enter**: In the Markdown section Editor/Viewer layout modes, Cmd/Ctrl+Enter toggles Editor↔Viewer. When in Editor, it applies and then switches to Viewer.
+- **Reorder grip + gutter**: Block controls (Add line + reorder grip) live in a reserved left gutter so they never overlap content; drag reorder is enabled only from the grip.
+- **Nested blocks**: Tokens rendered inside list items and blockquotes do not render block gutters/controls to avoid compounding indentation and to preserve marker/border alignment.

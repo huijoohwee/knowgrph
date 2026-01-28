@@ -75,6 +75,9 @@
 | Select node | Click node | Store selection updates | Must not trigger full scene rebuild unnecessarily |
 | Select edge | Click edge | Store selection updates | Must not invalidate layout caches |
 | Context menu | Right click canvas | Open props/actions | Must cleanup listeners on close/unmount |
+| Markdown text selection | Click / double click / triple click in Viewer/Presentation | Native selection only (caret anchor / word / paragraph) | Must not hijack native selection gestures |
+| Markdown “Show on/in …” | Right click in Editor/Viewer/Presentation | Open Selection Toolbar at exact pointer position | Must not “fly out”; must not use Monaco default context menu |
+| Markdown apply + toggle | Cmd/Ctrl+Enter in Markdown section | Apply (when in Editor) and toggle Editor↔Viewer | Must be scoped to BottomPanel Markdown root (no global hijack) |
 | Pan/zoom | Drag/scroll | Update viewport transform | Must keep updates throttled and stable |
 | Toast notification | Store adds toast | Surface transient status/errors | Must not overlap; newest stays at default Y and pushes older downward |
 

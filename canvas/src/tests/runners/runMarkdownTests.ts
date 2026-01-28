@@ -40,6 +40,8 @@ import { testMarkdownMermaidCodeBlockFrontmatterParsesAndMerges } from '@/__test
 import { testMarkdownGeoJsonRendersInPresentationAfterPerBlockOverride } from '@/__tests__/markdown/markdownGeoJsonPresentationRender.test'
 import { testMarkdownGeoJsonInlineMapRendersStableContainerDom } from '@/__tests__/markdown/markdownGeoJsonInlineMapStableDom.test'
 import { testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvailable } from '@/__tests__/markdown/markdownGeoJsonRendererUnavailableFix.test'
+import { testNewSourceFileOpensBottomPanelMarkdownViewer } from '@/__tests__/markdown/newSourceFileOpensViewer.test'
+import { testMarkdownSidebarNewSourceFileButtonCreatesFile } from '@/__tests__/markdown/markdownSourceFilesTreeNewFile.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -73,4 +75,6 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.mermaid.codeblockFrontmatter', testMarkdownMermaidCodeBlockFrontmatterParsesAndMerges)
   await execTest(results, 'markdown.annotateDisplay.perCodeBlockToggle', testMarkdownAnnotateDisplay)
   await execTest(results, 'markdown.frontmatter.blocksInViewer', testMarkdownFrontmatterBlocksRenderInViewer)
+  await execTest(results, 'markdown.sourceFiles.newFileOpensViewer', testNewSourceFileOpensBottomPanelMarkdownViewer)
+  await execTest(results, 'markdown.sidebar.sourceFilesTree.newFile', testMarkdownSidebarNewSourceFileButtonCreatesFile)
 }

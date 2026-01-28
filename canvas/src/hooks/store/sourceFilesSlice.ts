@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import type { GraphState, SourceFile } from './types';
+import { reorderList } from '@/lib/reorder';
 
 export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
   sourceFiles: SourceFile[];
@@ -32,14 +33,9 @@ export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
     sourceFiles: state.sourceFiles.map((f) => (f.id === id ? { ...f, status, error } : f)),
   })),
   reorderSourceFiles: (sourceId, targetId) => set((state) => {
-    const list = [...state.sourceFiles];
-    const fromIndex = list.findIndex((f) => f.id === sourceId);
-    const toIndex = list.findIndex((f) => f.id === targetId);
-    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return { sourceFiles: list };
-    const [item] = list.splice(fromIndex, 1);
-    if (!item) return { sourceFiles: list };
-    list.splice(toIndex, 0, item);
-    return { sourceFiles: list };
+    const fromIndex = state.sourceFiles.findIndex((f) => f.id === sourceId);
+    const toIndex = state.sourceFiles.findIndex((f) => f.id === targetId);
+    return { sourceFiles: reorderList(state.sourceFiles, fromIndex, toIndex) };
   }),
   clearSourceFiles: () => set(() => ({ sourceFiles: [] })),
 });

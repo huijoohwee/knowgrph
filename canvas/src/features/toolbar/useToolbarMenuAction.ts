@@ -1,7 +1,6 @@
 import { useCallback } from 'react'
 import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { createId } from '@/lib/id'
+import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
 
 export function useToolbarMenuAction(args: {
   closeToolMenu: () => void
@@ -35,21 +34,7 @@ export function useToolbarMenuAction(args: {
       closeToolMenu()
       if (area === 'sourceFiles') {
         if (action === 'new') {
-          try {
-            const store = useGraphStore.getState()
-            const count = Array.isArray(store.sourceFiles) ? store.sourceFiles.length : 0
-            const nextIndex = Math.max(1, count + 1)
-            store.addSourceFile({
-              id: createId('sf'),
-              name: `source-${nextIndex}.md`,
-              text: '',
-              enabled: true,
-              status: 'idle',
-              source: { kind: 'local' },
-            })
-          } catch {
-            void 0
-          }
+          createNewMarkdownSourceFileAndOpenViewer()
           return
         }
         return

@@ -465,6 +465,8 @@ UI_THEME_TOKENS:
 
 **Presentation Mode**: Base font size increased to `text-2xl` (~24px) for large screen readability
 
+**Markdown Typography Ladder**: Must be monotonic in both Viewer and Presentation: body < h6 < h5 < h4 < h3 < h2 < h1 (Presentation scales the ladder up without inverting ordering).
+
 ### Visual Consistency Standards
 
 | Context              | Intent                          | Directive                                                                                   |
@@ -546,9 +548,9 @@ ZOOM_MAX: number
 - Mermaid frontmatter sync → Scroll to exact node definition line within frontmatter block
 
 **Markdown to Canvas**:
-- Text selection → Highlight corresponding node/edge on canvas
-- Double-click line → Position editor and update canvas selection
-- Presentation/Slides Gallery click → Update canvas and editor position
+- Meta/Cmd-click a preview block → Show on Canvas (highlights the corresponding node/edge when provenance exists)
+- Right click → Opens the “Show on/in …” Selection Toolbar at the exact pointer position
+- Text selection gestures remain native (single click places caret anchor; double click selects word; triple click selects paragraph/line)
 
 ### Auto-Scroll Behavior
 
@@ -582,7 +584,7 @@ ZOOM_MAX: number
 
 ### Markdown Preview Interaction
 
-**Selection Toolbar**: Appears on text selection or double-click, provides context-aware navigation
+**Selection Toolbar**: Appears on Right Click (with or without a text selection), provides context-aware navigation
 
 **Available Actions**:
 - Show on Canvas: Highlights corresponding node/edge
@@ -593,6 +595,8 @@ ZOOM_MAX: number
 - Show in Graph Data Table: Opens Graph Data Table tab
 
 **Conditional Availability**: Irrelevant options disabled based on current view
+
+**Apply Shortcut**: In Editor/Viewer layout modes, Cmd/Ctrl+Enter toggles Editor↔Viewer. When in Editor, it applies and then switches to Viewer.
 
 ### Full Screen Presentation
 
@@ -608,6 +612,8 @@ ZOOM_MAX: number
 ### Right-Click Context Menu
 
 **Unified Behavior**: Displays Selection Toolbar in Viewer, Editor, Presentation, Slides Gallery, and Graph Data Table
+
+**Positioning Rule**: The toolbar is positioned at the exact pointer coordinates (no “fly-out” bias).
 
 **Consistent Navigation**: Provides same context-aware actions across all views
 
@@ -852,11 +858,9 @@ ZOOM_MAX: number
 
 **Mechanism**: Shared state and explicit jump triggers
 
-### Double-Click Behaviors
+### Click & Selection Behaviors
 
-**Viewer/Presentation/Slides Gallery**: Double-click line → auto-position Markdown Editor to corresponding line
-
-**Line Mapping**: Precise, preserving line numbers for nested content
+**Viewer/Presentation/Slides Gallery**: Native selection gestures only (single click caret anchor; double click word; triple click paragraph/line). No implicit navigation on double-click.
 
 **Bottom Panel Tab Bar**: Double-click → toggle fullscreen expansion
 

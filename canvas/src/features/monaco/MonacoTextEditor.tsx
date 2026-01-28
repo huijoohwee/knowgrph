@@ -235,7 +235,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
         wordWrap: wordWrap ? 'on' : 'off',
         fontLigatures: false,
         automaticLayout: true,
-        contextmenu: true,
+        contextmenu: false,
         padding: {
           top:
             typeof paddingTopPx === 'number' && Number.isFinite(paddingTopPx) && paddingTopPx > 0
@@ -251,6 +251,8 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
           maxLineCount: 5,
         },
       })
+
+      monaco.editor.setTheme(themeMode === 'dark' ? 'vs-dark' : 'vs')
 
       editorInstanceRef.current = editor
       lastAppliedValueRef.current = model.getValue()

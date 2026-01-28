@@ -20,19 +20,16 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
   try {
     const anyWindow = dom.window as unknown as {
       requestAnimationFrame?: (cb: (ts: number) => void) => number
       getSelection?: () => Selection | null
     }
-    if (!anyWindow.requestAnimationFrame) {
-      anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-        setTimeout(() => cb(Date.now()), 0) as unknown as number
-    }
-    const anyGlobal = globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    if (!anyGlobal.requestAnimationFrame) {
-      anyGlobal.requestAnimationFrame = anyWindow.requestAnimationFrame
-    }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
 
@@ -91,7 +88,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
     const container = doc.createElement('div')
     container.id = 'root'
     doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
+    root = createRoot(container as unknown as HTMLElement)
 
     root.render(
       React.createElement(MarkdownPreview, {
@@ -109,11 +106,23 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
       } as never),
     )
 
-    const tick = () =>
-      new Promise<void>(resolve =>
-        anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
-      )
-    await tick()
+    const tick = (label: string) =>
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 750) as unknown as number
+        const raf = anyWindow.requestAnimationFrame
+        if (typeof raf === 'function') {
+          raf(() => {
+            clearTimeout(timer)
+            resolve()
+          })
+          return
+        }
+        setTimeout(() => {
+          clearTimeout(timer)
+          resolve()
+        }, 0)
+      })
+    await tick('mount')
 
     const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
     if (!rootEl) {
@@ -136,13 +145,8 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
       clientX: 10,
       clientY: 10,
     })
-    Object.defineProperty(contextMenuEvent, 'target', {
-      value: targetBlock,
-      writable: false,
-    })
-
-    rootEl.dispatchEvent(contextMenuEvent)
-    await tick()
+    targetBlock.dispatchEvent(contextMenuEvent)
+    await tick('contextmenu')
 
     const menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
     if (!menuButton) {
@@ -150,7 +154,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
     }
 
     menuButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    await tick()
+    await tick('show-on-canvas')
 
     const selectedNodeId = useGraphStore.getState().selectedNodeId
     const selectedEdgeId = useGraphStore.getState().selectedEdgeId
@@ -160,8 +164,12 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
       )
     }
 
-    root.unmount()
   } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
     restoreDom()
     restoreWindow()
   }
@@ -171,19 +179,16 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
   try {
     const anyWindow = dom.window as unknown as {
       requestAnimationFrame?: (cb: (ts: number) => void) => number
       getSelection?: () => Selection | null
     }
-    if (!anyWindow.requestAnimationFrame) {
-      anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-        setTimeout(() => cb(Date.now()), 0) as unknown as number
-    }
-    const anyGlobal = globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    if (!anyGlobal.requestAnimationFrame) {
-      anyGlobal.requestAnimationFrame = anyWindow.requestAnimationFrame
-    }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
 
     const doc = dom.window.document
 
@@ -201,7 +206,7 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
     const container = doc.createElement('div')
     container.id = 'root'
     doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
+    root = createRoot(container as unknown as HTMLElement)
 
     root.render(
       React.createElement(MarkdownPreview, {
@@ -219,11 +224,23 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
       } as never),
     )
 
-    const tick = () =>
-      new Promise<void>(resolve =>
-        anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
-      )
-    await tick()
+    const tick = (label: string) =>
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 750) as unknown as number
+        const raf = anyWindow.requestAnimationFrame
+        if (typeof raf === 'function') {
+          raf(() => {
+            clearTimeout(timer)
+            resolve()
+          })
+          return
+        }
+        setTimeout(() => {
+          clearTimeout(timer)
+          resolve()
+        }, 0)
+      })
+    await tick('mount')
 
     const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
     if (!rootEl) {
@@ -246,21 +263,20 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
       clientX: 10,
       clientY: 10,
     })
-    Object.defineProperty(contextMenuEvent, 'target', {
-      value: targetBlock,
-      writable: false,
-    })
-
-    rootEl.dispatchEvent(contextMenuEvent)
-    await tick()
+    targetBlock.dispatchEvent(contextMenuEvent)
+    await tick('contextmenu')
 
     const menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
     if (!menuButton) {
       throw new Error('context menu button not found inside markdown preview root')
     }
 
-    root.unmount()
   } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
     restoreDom()
     restoreWindow()
   }

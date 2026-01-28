@@ -160,6 +160,7 @@ export function getOrchestratorSectionListLabel(): string {
 export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   `Cmd/Ctrl + S — ${UI_LABELS.apply}`,
   `Cmd/Ctrl + Enter — ${UI_LABELS.apply}`,
+  'Markdown: Cmd/Ctrl + Enter toggles Markdown Editor/Viewer (applies changes when in Editor).',
   `Cmd/Ctrl + Shift + F — ${UI_LABELS.format}`,
   `Cmd/Ctrl + Z — ${UI_LABELS.undo}`,
   `Cmd/Ctrl + Shift + Z — ${UI_LABELS.redo}`,

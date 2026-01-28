@@ -16,7 +16,11 @@
 **Package**: `knowgrph/grph-shared` exposes a small, stable surface used by sibling repos.
 
 **Exports (public subpaths)**:
+- `grph-shared/array/reorderList`
+- `grph-shared/markdown/formatting`
+- `grph-shared/markdown/toc`
 - `grph-shared/url`
+- `grph-shared/hash/stringHash`
 - `grph-shared/net/fetchRemoteText`
 - `grph-shared/cache/LRUCache`
 
@@ -56,4 +60,3 @@ This ensures Node-side entrypoints (notably Vite config) never attempt to execut
 - `npm --prefix knowgrph/canvas run build:grph-shared`
 - `npm --prefix knowgrph/canvas run dev` (must reach Vite “ready”)
 - `node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs src/tests/focusedSharedUtils.ts` (Canvas)
-

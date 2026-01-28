@@ -13,6 +13,21 @@
 
 ---
 
+## Markdown UI (Bottom Panel)
+
+- `LS_KEYS.markdownLayoutMode`
+- `LS_KEYS.markdownWordWrap`
+- `LS_KEYS.markdownViewerWidthMode`
+- `LS_KEYS.markdownPresentationMode`
+- `LS_KEYS.markdownTextHighlight`
+- `LS_KEYS.markdownAnnotateDisplay`
+- `LS_KEYS.markdownSyncScroll`
+- `LS_KEYS.markdownSidebarOpen`
+- `LS_KEYS.markdownCollapsedHeadingIds`
+- `LS_KEYS.jsonMarkdownMode`
+
+---
+
 ## Geospatial Mode (Extracted)
 
 - Knowgrph keeps Geospatial Mode keys out of `canvas/src/lib/config.ls.ts` to preserve a geospatial-free core.
