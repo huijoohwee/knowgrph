@@ -45,6 +45,7 @@ export const LS_KEYS = {
   floatingPanelHeightRatio: 'kg:ui:floatingPanelHeightRatio',
   floatingPanelZIndex: 'kg:ui:floatingPanelZIndex',
   sidebarWidthRatio: 'kg:ui:sidebarWidthRatio',
+  geospatialOverlayEnabled: 'kg:ui:geospatial:overlayEnabled',
   orchestratorView: 'kg:orchestrator:view',
   orchestratorTraversalDelayMs: 'kg:orchestrator:traversalDelayMs',
   orchestratorTraversalLegendGraphRagMaxFull: 'kg:orchestrator:traversalLegend:graphRagMaxFull',
@@ -162,6 +163,7 @@ export type LsKeyOwner =
   | 'ui.mainPanel'
   | 'ui.floatingPanel'
   | 'ui.sidebar'
+  | 'ui.geospatial'
   | 'ui.preview'
   | 'parsers.treeSitter'
   | 'graphragText.analytics'
@@ -236,6 +238,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   floatingPanelHeightRatio: 'ui.floatingPanel',
   floatingPanelZIndex: 'ui.floatingPanel',
   sidebarWidthRatio: 'ui.sidebar',
+  geospatialOverlayEnabled: 'ui.geospatial',
   orchestratorView: 'orchestrator.prefs',
   orchestratorTraversalDelayMs: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagMaxFull: 'orchestrator.prefs',

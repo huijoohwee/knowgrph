@@ -79,6 +79,7 @@ import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.tes
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
 import {
   testGeospatialOverlayHostNotGatedBySidebar,
+  testCanvasForbidsGraphWhenGeospatialEnabled,
   testGympgrphDefaultInteractionModeIsAlways,
   testGympgrphGeospatialKeysAreNamespacedOnly,
   testHostEnableForcesAlwaysInteractionMode,
@@ -295,6 +296,7 @@ export const runAllTests = async () => {
   await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
 
   await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
+  await exec('geospatial.canvas.forbidGraphWhenGeoEnabled', testCanvasForbidsGraphWhenGeospatialEnabled)
   await exec('geospatial.persistence.keysAreNamespacedOnly', testGympgrphGeospatialKeysAreNamespacedOnly)
   await exec('geospatial.interaction.defaultAlways', testGympgrphDefaultInteractionModeIsAlways)
   await exec('geospatial.interaction.holdSpaceKeyHardening', testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs)

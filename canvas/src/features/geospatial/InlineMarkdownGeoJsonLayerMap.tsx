@@ -12,6 +12,7 @@ import {
 } from 'gympgrph'
 import type { FeatureCollection } from 'geojson'
 import type { Map as MapLibreMap } from 'maplibre-gl'
+import { geoMercator, geoPath } from 'd3'
 import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
 
@@ -19,6 +20,69 @@ const sanitizeId = (raw: string): string => {
   const s = String(raw || '').trim()
   if (!s) return 'dataset'
   return s.replace(/[^a-zA-Z0-9._:-]+/g, '_').slice(0, 80) || 'dataset'
+}
+
+function GeoJsonSvgPreview(args: {
+  fc: FeatureCollection
+  color: string
+  heightPx: number
+  className?: string
+}) {
+  const { fc, color, heightPx, className } = args
+  const width = 1000
+  const height = 600
+  const projection = React.useMemo(() => {
+    try {
+      return geoMercator().fitSize([width, height], fc as never)
+    } catch {
+      return geoMercator()
+    }
+  }, [fc])
+  const pathGen = React.useMemo(() => {
+    try {
+      return geoPath(projection).pointRadius(3)
+    } catch {
+      return null
+    }
+  }, [projection])
+  const paths = React.useMemo(() => {
+    if (!pathGen) return [] as Array<{ key: string; d: string }>
+    const out: Array<{ key: string; d: string }> = []
+    const features = Array.isArray(fc.features) ? fc.features : []
+    for (let i = 0; i < features.length; i += 1) {
+      const f = features[i]
+      if (!f) continue
+      let d = ''
+      try {
+        d = String(pathGen(f as never) || '')
+      } catch {
+        d = ''
+      }
+      if (!d) continue
+      const id = (f as unknown as { id?: unknown }).id
+      const key = typeof id === 'string' || typeof id === 'number' ? String(id) : `f${i}`
+      out.push({ key, d })
+    }
+    return out
+  }, [fc.features, pathGen])
+
+  return (
+    <svg
+      className={className || ''}
+      style={{ height: heightPx }}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMidYMid meet"
+      aria-label="GeoJSON preview"
+      role="img"
+    >
+      <rect x="0" y="0" width={width} height={height} fill="transparent" />
+      <g>
+        {paths.map(p => (
+          <path key={p.key} d={p.d} fill="none" stroke={color} strokeWidth={2} opacity={0.85} />
+        ))}
+      </g>
+    </svg>
+  )
 }
 
 export function InlineMarkdownGeoJsonLayerMap(args: {
@@ -357,11 +421,12 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   React.useEffect(() => {
     if (!parsed.fc) return
     if (isReady) return
+    if (!shouldLoadMap) return
     const t = setTimeout(() => {
       setError(prev => (prev && String(prev).trim()) ? prev : 'Map preview unavailable')
     }, 6000)
     return () => clearTimeout(t)
-  }, [isReady, parsed.fc])
+  }, [isReady, parsed.fc, shouldLoadMap])
 
   const overlayMessage = React.useMemo(() => {
     if (error && String(error).trim()) return String(error).trim()
@@ -371,11 +436,24 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     return 'Loading map preview…'
   }, [error, basemapWarning, isReady, parsed.fc])
 
+  const svgColor = React.useMemo(() => {
+    const safeDatasetId = sanitizeId(datasetId)
+    return colorForDataset(safeDatasetId)
+  }, [datasetId])
+
   return (
     <div className={`relative ${className || ''}`} style={{ height: heightPx }}>
+      {parsed.fc && (
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} heightPx={heightPx} className="w-full" />
+        </div>
+      )}
       <div ref={setContainerEl} data-testid="geojson-map-container" className="absolute inset-0" />
       {overlayMessage && (
-        <div data-testid="geojson-map-overlay" className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center p-3 text-center text-xs text-gray-700 dark:text-gray-200 bg-white/60 dark:bg-black/40">
+        <div
+          data-testid="geojson-map-overlay"
+          className="absolute bottom-2 right-2 z-10 pointer-events-none px-2 py-1 rounded-md text-[11px] text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-black/60 border border-gray-200/60 dark:border-gray-800/60"
+        >
           {overlayMessage}
         </div>
       )}

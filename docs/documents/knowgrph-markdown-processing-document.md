@@ -73,6 +73,7 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **GeoJSON Detection**: `geojson` blocks are always GeoJSON-renderable; `json` blocks are treated as GeoJSON only when `geoDatasetIntegration.isGeoJsonCodeBlock` identifies the content as GeoJSON.
 - **GeoJSON Render Defaults**: In Viewer, GeoJSON-renderable blocks respect the global annotate display mode (typically Inline); in Presentation, GeoJSON-renderable blocks (including `json` fences identified as GeoJSON) default to Render.
 - **GeoJSON Interaction**: Map previews follow the same overlay conventions as Mermaid: container-scoped overlays use `PreviewOverlay` for fullscreen inspection; viewport-scoped previews delegate to `requestOpenGeoPanel`.
+- **GeoJSON Mode Independence**: GeoJSON previews in the Markdown Viewer/Presentation are available in both Document Mode and Geospatial Mode. Document Mode disables the full-screen geospatial overlay, but Markdown code-block previews can still render fitted MapLibre maps using the same basemap style configuration.
 - **GeoJSON Renderer Wiring**: Viewer-mode render trees must include `geoDatasetIntegration` in memo dependency arrays so injected renderers don’t stay stale and emit “GeoJSON renderer unavailable”.
 - **GeoJSON Error UI**: GeoJSON render failures show a compact error bar (≈50% of the Markdown toolbar nav height) to avoid consuming the code block preview area.
 

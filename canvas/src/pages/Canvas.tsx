@@ -7,9 +7,12 @@ import { clearCustomParsers } from '@/features/parsers/persistence'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/config'
+import { getLocalStorage, readBoolFromStorage } from '@/lib/persistence'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
+import { GEOSPATIAL_MODE_CHANGED_EVENT, type GeospatialModeChangedDetail } from '@/features/geospatial/events'
+import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
@@ -348,8 +351,42 @@ export default function CanvasPage() {
       dismissUiToast: s.dismissUiToast,
     })),
   )
+  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
+    try {
+      const storage = getLocalStorage()
+      return readBoolFromStorage(storage, LS_KEYS.geospatialOverlayEnabled, false)
+    } catch {
+      return false
+    }
+  })
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
   const [geospatialHostMounted, setGeospatialHostMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = (ev: Event) => {
+      const e = ev as CustomEvent<GeospatialModeChangedDetail | undefined>
+      const enabled = e.detail && typeof e.detail.enabled === 'boolean' ? e.detail.enabled : null
+      if (enabled == null) return
+      setGeospatialModeEnabled(enabled)
+    }
+    window.addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT, handler as EventListener)
+    return () => {
+      window.removeEventListener(GEOSPATIAL_MODE_CHANGED_EVENT, handler as EventListener)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    void readGeospatialModeEnabled()
+      .then(enabled => setGeospatialModeEnabled(enabled))
+      .catch(() => void 0)
+  }, [])
+
+  React.useEffect(() => {
+    if (geospatialModeEnabled) setGeospatialHostMounted(true)
+    if (geospatialModeEnabled && sidePanelTab === 'node') setSidePanelTab('geo')
+  }, [geospatialModeEnabled, sidePanelTab])
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const handler = (ev: Event) => {
@@ -410,7 +447,7 @@ export default function CanvasPage() {
                 <React.Suspense fallback={null}>
                   {geospatialHostMounted && (
                     <GeospatialOverlayHostLazy
-                      active={sidePanelTab === 'geo'}
+                      active={geospatialModeEnabled}
                       snapshot={{
                         graphData: gympgrphBridge.graphData,
                         zoomState: gympgrphBridge.zoomState,
@@ -433,29 +470,31 @@ export default function CanvasPage() {
                   <div
                     className={[
                       'absolute inset-0 z-[10]',
-                      canvasRenderMode === '2d' ? 'visible' : 'invisible pointer-events-none',
+                      !geospatialModeEnabled && canvasRenderMode === '2d' ? 'visible' : 'invisible pointer-events-none',
                     ].filter(Boolean).join(' ')}
-                    aria-hidden={canvasRenderMode !== '2d'}
+                    aria-hidden={geospatialModeEnabled || canvasRenderMode !== '2d'}
                   >
-                    <GraphCanvasLazy active={canvasRenderMode === '2d'} />
+                    <GraphCanvasLazy active={!geospatialModeEnabled && canvasRenderMode === '2d'} />
                   </div>
                   <div
                     className={[
                       'absolute inset-0 z-[10]',
-                      canvasRenderMode === '3d' ? 'visible' : 'invisible pointer-events-none',
+                      !geospatialModeEnabled && canvasRenderMode === '3d' ? 'visible' : 'invisible pointer-events-none',
                     ].filter(Boolean).join(' ')}
-                    aria-hidden={canvasRenderMode !== '3d'}
+                    aria-hidden={geospatialModeEnabled || canvasRenderMode !== '3d'}
                   >
-                    <ThreeGraphLazy active={canvasRenderMode === '3d'} />
+                    <ThreeGraphLazy active={!geospatialModeEnabled && canvasRenderMode === '3d'} />
                   </div>
                   <LaunchSpotlight />
-                  <section
-        className="fixed left-3 z-[201] pointer-events-auto"
-        style={{ bottom: 'calc(40px + 12px)' }}
-        aria-label="Minimap Overlay"
-      >
-        <MinimapLazy />
-      </section>
+                  {!geospatialModeEnabled && (
+                    <section
+                      className="fixed left-3 z-[201] pointer-events-auto"
+                      style={{ bottom: 'calc(40px + 12px)' }}
+                      aria-label="Minimap Overlay"
+                    >
+                      <MinimapLazy />
+                    </section>
+                  )}
                   <BottomPanelLazy />
                   <MarkdownMetricsDevOverlay />
                 </React.Suspense>
@@ -474,11 +513,18 @@ export default function CanvasPage() {
                   <div className="ModalContainer h-full flex flex-col rounded-none shadow-none p-0 border-l border-gray-200 border-t-0 border-b-0 border-r-0">
                     <TabHeader
                       collapsed={false}
-                      tabs={[
-                        { key: 'node', label: 'Node' },
-                        { key: 'chat', label: 'Chat' },
-                        { key: 'geo', label: 'Geo' },
-                      ]}
+                      tabs={
+                        geospatialModeEnabled
+                          ? [
+                              { key: 'chat', label: 'Chat' },
+                              { key: 'geo', label: 'Geo' },
+                            ]
+                          : [
+                              { key: 'node', label: 'Node' },
+                              { key: 'chat', label: 'Chat' },
+                              { key: 'geo', label: 'Geo' },
+                            ]
+                      }
                       tabVariant="icon"
                       tabIconByKey={{
                         node: FileCode,
@@ -498,7 +544,7 @@ export default function CanvasPage() {
                           <SidePanelChatLazy />
                         </div>
                         <div className={sidePanelTab === 'node' ? 'h-full' : 'hidden'}>
-                          <NodeEditorLazy />
+                          {!geospatialModeEnabled && <NodeEditorLazy />}
                         </div>
                         <div className={sidePanelTab === 'geo' ? 'h-full' : 'hidden'}>
                           {geospatialHostMounted && (

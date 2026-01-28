@@ -12,8 +12,22 @@ export const testGeospatialOverlayHostNotGatedBySidebar = () => {
     throw new Error('GeospatialOverlayHost must not be gated by SidePanel expand/collapse')
   }
   if (!text.includes('geospatialHostMounted')) throw new Error('Expected geospatialHostMounted guard to exist')
-  if (!text.includes("active={sidePanelTab === 'geo'}")) {
-    throw new Error('Expected GeospatialOverlayHost to be gated by Geo tab selection only')
+  if (!text.includes('geospatialModeEnabled')) throw new Error('Expected geospatialModeEnabled state to exist')
+  if (!text.includes('active={geospatialModeEnabled}')) throw new Error('Expected GeospatialOverlayHost active prop to depend on geospatialModeEnabled')
+}
+
+export const testCanvasForbidsGraphWhenGeospatialEnabled = () => {
+  const canvasPath = path.resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
+  const text = readUtf8(canvasPath)
+
+  if (!text.includes('!geospatialModeEnabled && canvasRenderMode === \'2d\'')) {
+    throw new Error('Expected 2D canvas to be gated off while Geospatial Mode is enabled')
+  }
+  if (!text.includes('!geospatialModeEnabled && canvasRenderMode === \'3d\'')) {
+    throw new Error('Expected 3D canvas to be gated off while Geospatial Mode is enabled')
+  }
+  if (!(text.includes('!geospatialModeEnabled') && text.includes('<MinimapLazy />'))) {
+    throw new Error('Expected minimap overlay to be gated by Geospatial Mode')
   }
 }
 

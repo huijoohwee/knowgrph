@@ -60,8 +60,8 @@ export async function testMarkdownGeoJsonDefaultsToInlineInViewerMode() {
     await tick()
     await tick()
 
-    const inlineBtn = doc.querySelector('button[aria-label="Show annotations inline"][aria-current="true"]')
-    if (!inlineBtn) throw new Error('expected GeoJSON code block to default to Inline mode in viewer')
+    const renderBtn = doc.querySelector('button[aria-label="Render code block output"][aria-current="true"]')
+    if (!renderBtn) throw new Error('expected GeoJSON code block to default to Render mode in viewer')
     root.unmount()
   } finally {
     restore()

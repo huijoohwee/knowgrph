@@ -85,8 +85,8 @@ const createGeoDatasetIntegration = (): MarkdownGeoDatasetIntegration => {
       return { ok: true }
     },
     requestOpenGeoPanel: () => {
-      emitSidePanelOpen({ tab: 'geo', open: true })
       setGeospatialModeEnabled(true)
+      emitSidePanelOpen({ tab: 'geo', open: true })
     },
   }
 }

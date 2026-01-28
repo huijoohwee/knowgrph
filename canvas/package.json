@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build:grph-shared": "node ./node_modules/typescript/bin/tsc -p ../grph-shared/tsconfig.json",
+    "build:grph-shared": "tsc -p ../grph-shared/tsconfig.json",
     "build:settings": "tsx src/cli/extract-settings-schema.ts",
     "predev": "npm run build:grph-shared && npm run build:settings",
     "dev": "vite",

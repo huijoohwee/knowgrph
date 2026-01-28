@@ -827,6 +827,10 @@ export default defineConfig(({ command }) => ({
       { find: /^curagrph\/components\/(.*)$/, replacement: path.resolve(__dirname, '../../curagrph/src/components/$1') },
       { find: /^curagrph\/features\/(.*)$/, replacement: path.resolve(__dirname, '../../curagrph/src/features/$1') },
       {
+        find: /^@\/components\/BottomPanel\/BottomPanelMarkdownSection$/,
+        replacement: path.resolve(__dirname, './src/components/BottomPanel/BottomPanelMarkdownSection.tsx'),
+      },
+      {
         find: /^@\/components\/BottomPanel\/(.*)$/,
         replacement: path.resolve(__dirname, '../../curagrph/src/components/BottomPanel/$1'),
       },

@@ -180,10 +180,10 @@ export function useToolbarActions(
   }, [])
 
   const handleOpenGeospatialMode = useCallback(() => {
-    emitSidePanelOpen({ tab: 'geo', open: true })
     void toggleGeospatialModeEnabled()
       .then(nextEnabled => {
         onGeospatialEnabledChange?.(nextEnabled)
+        if (nextEnabled) emitSidePanelOpen({ tab: 'geo', open: true })
       })
       .catch((err: unknown) => {
         try {

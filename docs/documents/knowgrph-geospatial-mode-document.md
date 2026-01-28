@@ -15,7 +15,8 @@
 
 - In the extracted module, a MapLibre GL basemap renders as a translucent layer on top of the canvas.
 - The overlay supports interaction gating (**Off / Hold Space / Always**). Default interaction mode is **Always** for immediate navigation, and users can switch in the Geo panel.
-- To avoid conflicts with non-map UI (for example Workspace Actions → Imported files), the overlay is only mounted when the Geo side-panel tab is selected; SidePanel expand/collapse does not toggle Geospatial Mode.
+- Geospatial Mode is a canvas rendering mode: when **ON**, the canvas suppresses knowledge-graph rendering (nodes/edges/layers/rich media) so the map overlay and geospatial datasets are the primary surface.
+- SidePanel expand/collapse does not toggle Geospatial Mode.
 - MapLibre’s required CSS is loaded by the extracted module so host runtimes do not need to remember to import it separately (restores reliable drag/pan/zoom + pointer hit-testing).
 - **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
 - **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.

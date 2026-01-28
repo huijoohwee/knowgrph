@@ -10,7 +10,8 @@ import { getIconSizeClass } from '@/lib/ui';
 import SearchPanel from '@/components/SearchPanel';
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
-import { UI_LABELS, UI_COPY } from '@/lib/config';
+import { LS_KEYS, UI_LABELS, UI_COPY } from '@/lib/config';
+import { getLocalStorage, readBoolFromStorage } from '@/lib/persistence'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import { ToolbarMenuLauncher } from '@/features/toolbar/ToolbarMenuLauncher';
 import {
@@ -19,6 +20,7 @@ import {
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
 import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge';
+import { GEOSPATIAL_MODE_CHANGED_EVENT, type GeospatialModeChangedDetail } from '@/features/geospatial/events'
 
 import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
 import { FitToViewButton } from '@/features/toolbar/ui/FitToViewButton';
@@ -70,7 +72,14 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   } = useMainPanelDrag();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [geospatialEnabled, setGeospatialEnabled] = useState(false);
+  const [geospatialEnabled, setGeospatialEnabled] = useState(() => {
+    try {
+      const storage = getLocalStorage()
+      return readBoolFromStorage(storage, LS_KEYS.geospatialOverlayEnabled, false)
+    } catch {
+      return false
+    }
+  });
 
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
@@ -158,6 +167,20 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }
       })
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = (ev: Event) => {
+      const e = ev as CustomEvent<GeospatialModeChangedDetail | undefined>
+      const enabled = e.detail && typeof e.detail.enabled === 'boolean' ? e.detail.enabled : null
+      if (enabled == null) return
+      setGeospatialEnabled(enabled)
+    }
+    window.addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT, handler as EventListener)
+    return () => {
+      window.removeEventListener(GEOSPATIAL_MODE_CHANGED_EVENT, handler as EventListener)
+    }
+  }, [])
 
   return (
     <nav className="Island App-toolbar App-toolbar--compact w-fit" role="navigation" aria-label="Main Toolbar">

@@ -64,8 +64,8 @@ export async function testMarkdownGeoJsonJsonTagDefaultsToInlineInViewerAndRende
     await tick()
     await tick()
 
-    if (doc.querySelector('[data-testid="geojson-map"]')) {
-      throw new Error('Expected GeoJSON content tagged as json to default to Inline in viewer mode')
+    if (!doc.querySelector('[data-testid="geojson-map"]')) {
+      throw new Error('Expected GeoJSON content tagged as json to default to Render in viewer mode')
     }
 
     root.render(
