@@ -45,17 +45,15 @@ export async function testMarkdownSidebarNewSourceFileButtonCreatesFile() {
     await tick()
     await tick()
 
-    const btn = doc.querySelector('button[aria-label="New source file"]') as HTMLButtonElement | null
-    if (!btn) throw new Error('New source file button not found in Markdown sidebar')
+    const openFolderBtn = doc.querySelector('button[aria-label="Open folder"]') as HTMLButtonElement | null
+    if (!openFolderBtn) throw new Error('Open folder button not found in Markdown sidebar')
 
-    btn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    await tick()
-    await tick()
+    const newFolderBtn = doc.querySelector('button[aria-label="New folder"]') as HTMLButtonElement | null
+    if (!newFolderBtn) throw new Error('New folder button not found in Markdown sidebar')
 
-    const next = useGraphStore.getState()
-    if (!Array.isArray(next.sourceFiles) || next.sourceFiles.length !== 2) {
-      throw new Error('expected New source file button to create a second source file')
-    }
+    const newFileBtn = doc.querySelector('button[aria-label="New source file"]') as HTMLButtonElement | null
+    if (!newFileBtn) throw new Error('New source file button not found in Markdown sidebar')
+    if (!newFileBtn.disabled) throw new Error('expected New source file button to be disabled when no folder is opened')
   } finally {
     try {
       root?.unmount()

@@ -4,6 +4,7 @@ import { reorderList } from '@/lib/reorder';
 
 export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
   sourceFiles: SourceFile[];
+  setSourceFiles: (files: SourceFile[]) => void;
   addSourceFile: (file: SourceFile) => void;
   updateSourceFile: (id: string, updates: Partial<SourceFile>) => void;
   removeSourceFile: (id: string) => void;
@@ -15,6 +16,7 @@ export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
   clearSourceFiles: () => void;
 }> = (set) => ({
   sourceFiles: [],
+  setSourceFiles: (files) => set(() => ({ sourceFiles: Array.isArray(files) ? files : [] })),
   addSourceFile: (file) => set((state) => ({ sourceFiles: [...state.sourceFiles, file] })),
   updateSourceFile: (id, updates) => set((state) => ({
     sourceFiles: state.sourceFiles.map((f) => (f.id === id ? { ...f, ...updates } : f)),

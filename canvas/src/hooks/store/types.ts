@@ -88,10 +88,13 @@ export type SourceFile = {
   }
 }
 
+export type LocalMarkdownFolderAccessMode = 'fs-access' | 'opfs' | 'file-input'
+
 export interface GraphState {
   graphData: GraphData | null;
 
   sourceFiles: SourceFile[];
+  setSourceFiles: (files: SourceFile[]) => void;
   addSourceFile: (file: SourceFile) => void;
   updateSourceFile: (id: string, updates: Partial<SourceFile>) => void;
   removeSourceFile: (id: string) => void;
@@ -101,6 +104,19 @@ export interface GraphState {
   setSourceFileStatus: (id: string, status: SourceFile['status'], error?: string) => void;
   reorderSourceFiles: (sourceId: string, targetId: string) => void;
   clearSourceFiles: () => void;
+
+  localMarkdownFolderHandle: FileSystemDirectoryHandle | null
+  localMarkdownFolderName: string | null
+  localMarkdownFolderAccessMode: LocalMarkdownFolderAccessMode | null
+  localMarkdownFallbackFilesByPath: Map<string, File> | null
+  localMarkdownSelectedFolderPath: string | null
+  setLocalMarkdownFolderHandle: (
+    handle: FileSystemDirectoryHandle | null,
+    opts?: { accessMode?: 'fs-access' | 'opfs'; name?: string | null },
+  ) => void
+  setLocalMarkdownFallbackFilesByPath: (files: Map<string, File> | null, folderName?: string | null) => void
+  setLocalMarkdownSelectedFolderPath: (path: string | null) => void
+  clearLocalMarkdownFolder: () => void
 
   graphDataRevision: number;
   documentSemanticMode: DocumentSemanticMode;

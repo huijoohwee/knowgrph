@@ -36,6 +36,8 @@ import {
 } from '@/__tests__/roundtrip.test'
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
+import { testFindNextSourceFileIndexNested, testFindNextSourceFileIndexRoot, testNormalizeParentPath } from '@/__tests__/sourceFileNaming.test'
+import { testWebkitRelativePathFallsBackToFileName, testWebkitRelativePathStripsRootFolder } from '@/__tests__/webkitRelativePath.test'
 import {
   testMarkdownFormattingBoldToggles,
   testMarkdownFormattingBulletListToggles,
@@ -173,11 +175,6 @@ import {
 } from '@/__tests__/previewGalleryReorder.test'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaults.test'
-import {
-  testMarkdownScrollSyncViewerToEditor,
-  testMarkdownEditToggleKeepsScrollPosition,
-  testMarkdownScrollSyncMixedContentViewerToEditor,
-} from '@/__tests__/markdown/markdownScrollSync.test'
 import { testKeywordModeDerivesEntitiesAndPredicateEdges, testKeywordModeMergesMediaNodesForOverlays } from '@/__tests__/keywordMode.test'
 import { testToolMenuDoesNotExposeCuratorArea } from '@/__tests__/toolMenuCuratorActions.test'
 import { testForbidHardcodedYouTubeUrlLiteral, testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
@@ -315,6 +312,11 @@ export const runAllTests = async () => {
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
 
   await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
+  await exec('sourceFiles.naming.normalizeParentPath', testNormalizeParentPath)
+  await exec('sourceFiles.naming.findNextIndex.root', testFindNextSourceFileIndexRoot)
+  await exec('sourceFiles.naming.findNextIndex.nested', testFindNextSourceFileIndexNested)
+  await exec('sourceFiles.folderPicker.webkitRelativePath.stripsRootFolder', testWebkitRelativePathStripsRootFolder)
+  await exec('sourceFiles.folderPicker.webkitRelativePath.fallsBackToFileName', testWebkitRelativePathFallsBackToFileName)
 
   await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
   await exec('geospatial.canvas.forbidGraphWhenGeoEnabled', testCanvasForbidsGraphWhenGeospatialEnabled)

@@ -1,7 +1,13 @@
 # todo-log
 
 **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
-- **STRICTLY COMPLY** with update `Class/Object` column cells
+
+## 2026-01-29
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Markdown Viewer/Editor/Presentation + Local Source Files | Fix local Markdown CRUD UX + keep text SSOT | Keep Source Files actions clickable; auto-open local folder when needed; selecting a local source file must update both store doc and editor text so Viewer/Editor/Presentation always render the same content. | `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx`, `curagrph/src/components/BottomPanel/BottomPanelMarkdownSection.tsx`, `knowgrph/canvas/src/features/source-files/localMarkdownFolder.ts` | `MarkdownPanelLayout`, `BottomPanelMarkdownSection`, `localMarkdownFolder` | `openLocalMarkdownFolder`, `createLocalMarkdownFolder`, `createNewMarkdownSourceFileAndOpenViewer`, `readLocalMarkdownFileText` | Click Open folder/New folder/New file; select local file; switch Viewer↔Editor↔Presentation | Clickable actions; created local items; Editor no longer blank after Viewer/Presentation | Sidebar z-index above overlays; New folder/New file not gated by disabled state; selection sets `setMarkdownText(resolvedText)` | Add a bounded host-level UI smoke test for the Viewer→Editor text sync on local files. | 2026-01-29 |
+
 
 ## 2026-01-28
 

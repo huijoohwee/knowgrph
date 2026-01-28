@@ -37,7 +37,18 @@ This contract is the default pattern for future UI extractions so module ownersh
 
 - **Host-owned ingest**: host UI surfaces (e.g. FloatingPanel Workspace Actions) ingest local/URL text and append to `useGraphStore.sourceFiles` using `addSourceFile`.
 - **Curation UI visibility**: `curagrph` markdown surfaces render an optional Source Files list inside the Markdown sidebar "Contents" area.
-- **Selection behavior**: selecting a source file sets the active markdown document via `setMarkdownDocument(name, text)` and updates the active marker by comparing `markdownDocumentName`.
+- **Selection behavior**: selecting a source file updates the active markdown document via `setMarkdownDocument(name, text)` and updates the active marker by comparing `markdownDocumentName`.
+- **Text SSOT**: selecting a Markdown source file must update the editor’s underlying markdown text source (not only Viewer/Presentation state) so Editor/Viewer/Presentation always render the same text.
+
+### Local Markdown Folder (CRUD) Contract
+
+- **Open folder (browser-consistent)**:
+  - If supported, use the File System Access API directory picker with write access.
+  - Otherwise, use a file-input directory pick as read-only; if OPFS is available, prefer creating a writable OPFS copy.
+- **Create folder/file (write-gated)**: “New folder” and “New source file” are user-visible actions; if a writable local folder handle is not available, prompt the folder-open flow first and surface read-only constraints via UI toasts.
+- **Delete file (write-only)**: delete is available only when a writable local folder handle exists.
+- **ui-path-0 (canonical happy path)**:
+  - BottomPanel → Markdown → Contents → Source files → Open folder → select a `.md` file → view in Viewer/Presentation → switch to Editor → Editor shows the same text content.
 
 ---
 
@@ -48,3 +59,4 @@ This contract is the default pattern for future UI extractions so module ownersh
 - **Cmd/Ctrl+Enter**: In the Markdown section Editor/Viewer layout modes, Cmd/Ctrl+Enter toggles Editor↔Viewer. When in Editor, it applies and then switches to Viewer.
 - **Reorder grip + gutter**: Block controls (Add line + reorder grip) live in a reserved left gutter so they never overlap content; drag reorder is enabled only from the grip.
 - **Nested blocks**: Tokens rendered inside list items and blockquotes do not render block gutters/controls to avoid compounding indentation and to preserve marker/border alignment.
+- **Mode synchronization**: Editor/Viewer/Presentation are different render modes over the same markdown text source; switching modes must not desynchronize content (no “Viewer has content while Editor is blank”).
