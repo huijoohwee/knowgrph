@@ -65,7 +65,8 @@ const createGeoDatasetIntegration = (): MarkdownGeoDatasetIntegration => {
       return React.createElement(InlineMarkdownGeoJsonLayerMap, {
         geojsonText: text,
         datasetId: key,
-        className: 'w-full h-[320px]',
+        className: 'w-full h-full',
+        useContainerHeight: true,
       })
     },
     registerGeoJsonFeatureCollection: async req => {

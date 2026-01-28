@@ -89,7 +89,7 @@ import {
 import {
   testGympgrphApplyMediaProxyNormalizesGithubBlobUrl,
   testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost,
-  testGympgrphApplyMediaProxySkipsOpenFreeMapOnLocalhost,
+  testGympgrphApplyMediaProxyProxiesOpenFreeMapOnLocalhost,
   testGympgrphCoerceFetchUrlAcceptsAbsolutePath,
   testGympgrphCoerceFetchUrlRejectsFileScheme,
 } from '@/__tests__/gympgrphUrlInterop.test'
@@ -109,6 +109,12 @@ import {
 import { testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections } from '@/__tests__/markdownEmbeddedGeoJson.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
+import {
+  testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback,
+  testGeoJsonMapPreviewSupportsContainerHeightMode,
+  testInlineMarkdownGeoJsonMapReusesSharedBasemapHook,
+  testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnly,
+} from '@/__tests__/geojsonMapPreviewRegressionGuards.test'
 import {
   testCuragrphAliasContractInViteConfig,
   testForbidMagicLocalStorageKeysOutsideCentralConstants,
@@ -189,7 +195,7 @@ import {
 import {
   testApplyMediaProxyNormalizesGithubBlobUrl,
   testApplyMediaProxySkipsProxyWhenNotLocalhost,
-  testApplyMediaProxySkipsOpenFreeMapOnLocalhost,
+  testApplyMediaProxyProxiesOpenFreeMapOnLocalhost,
 } from '@/__tests__/mediaProxySrc.test'
 import { testUiToastUpsertDoesNotExtendExpiry, testUiToastUpsertMovesToastToFront } from '@/__tests__/uiToastSlice.test'
 import { testIconButtonStopsPropagation, testToolbarIconTooltipsDoNotInterceptClicks } from '@/__tests__/toolbarButtons.test'
@@ -310,9 +316,14 @@ export const runAllTests = async () => {
   await exec('geospatial.host.tailwindScansGympgrph', testHostTailwindScansGympgrphClasses)
   await exec('geospatial.gympgrphUrl.proxyNormalizesGithubBlob', testGympgrphApplyMediaProxyNormalizesGithubBlobUrl)
   await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
-  await exec('geospatial.gympgrphUrl.proxySkipsOpenFreeMapOnLocalhost', testGympgrphApplyMediaProxySkipsOpenFreeMapOnLocalhost)
+  await exec('geospatial.gympgrphUrl.proxyOpenFreeMapOnLocalhost', testGympgrphApplyMediaProxyProxiesOpenFreeMapOnLocalhost)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlAcceptsAbsolutePath', testGympgrphCoerceFetchUrlAcceptsAbsolutePath)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlRejectsFileScheme', testGympgrphCoerceFetchUrlRejectsFileScheme)
+
+  await exec('geospatial.geojsonPreview.layering.mapAboveSvgFallback', testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback)
+  await exec('geospatial.geojsonPreview.sizing.containerHeightMode', testGeoJsonMapPreviewSupportsContainerHeightMode)
+  await exec('policy.geospatial.inlineMarkdownGeoJson.reusesSharedBasemapHook', testInlineMarkdownGeoJsonMapReusesSharedBasemapHook)
+  await exec('policy.geospatial.useMapLibreBasemap.bootTimeoutReadyCriteria', testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnly)
 
   await exec('geospatial.markdown.embeddedGeoJsonExtraction', testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections)
   await exec('policy.hashing.sharedContract', testHashStringContractIsSharedAcrossRepos)
@@ -442,7 +453,7 @@ export const runAllTests = async () => {
   await exec('url.normalizeImportName.jsonUrlDerivation', testNormalizeImportNameDerivesJsonNameFromUrlAndFormat)
   await exec('url.applyMediaProxySrc.normalizesGithubBlob', testApplyMediaProxyNormalizesGithubBlobUrl)
   await exec('url.applyMediaProxySrc.skipsProxyWhenNotLocalhost', testApplyMediaProxySkipsProxyWhenNotLocalhost)
-  await exec('url.applyMediaProxySrc.skipsOpenFreeMapOnLocalhost', testApplyMediaProxySkipsOpenFreeMapOnLocalhost)
+  await exec('url.applyMediaProxySrc.proxiesOpenFreeMapOnLocalhost', testApplyMediaProxyProxiesOpenFreeMapOnLocalhost)
   
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)
   await exec('persistence.storagePrimitives', testPersistencePrimitives)

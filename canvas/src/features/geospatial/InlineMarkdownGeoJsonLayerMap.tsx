@@ -3,15 +3,14 @@ import {
   coerceFeatureCollectionIds,
   colorForDataset,
   computeBoundsFromCollections,
-  createMapLibreMapWithBasemap,
   DEFAULT_GEOSPATIAL_STYLE_URL,
   ensureDatasetLayer,
   isPointOnlyFeatureCollection,
   parseGeoJsonFromText,
   setGeoJsonSourceData,
+  useMapLibreBasemap,
 } from 'gympgrph'
 import type { FeatureCollection } from 'geojson'
-import type { Map as MapLibreMap } from 'maplibre-gl'
 import { geoMercator, geoPath } from 'd3'
 import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
@@ -25,15 +24,15 @@ const sanitizeId = (raw: string): string => {
 function GeoJsonSvgPreview(args: {
   fc: FeatureCollection
   color: string
-  heightPx: number
+  height: number | string
   className?: string
 }) {
-  const { fc, color, heightPx, className } = args
+  const { fc, color, height, className } = args
   const width = 1000
-  const height = 600
+  const viewHeight = 600
   const projection = React.useMemo(() => {
     try {
-      return geoMercator().fitSize([width, height], fc as never)
+      return geoMercator().fitSize([width, viewHeight], fc as never)
     } catch {
       return geoMercator()
     }
@@ -69,13 +68,13 @@ function GeoJsonSvgPreview(args: {
   return (
     <svg
       className={className || ''}
-      style={{ height: heightPx }}
-      viewBox={`0 0 ${width} ${height}`}
+      style={{ height }}
+      viewBox={`0 0 ${width} ${viewHeight}`}
       preserveAspectRatio="xMidYMid meet"
       aria-label="GeoJSON preview"
       role="img"
     >
-      <rect x="0" y="0" width={width} height={height} fill="transparent" />
+      <rect x="0" y="0" width={width} height={viewHeight} fill="transparent" />
       <g>
         {paths.map(p => (
           <path key={p.key} d={p.d} fill="none" stroke={color} strokeWidth={2} opacity={0.85} />
@@ -90,13 +89,12 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   datasetId: string
   className?: string
   heightPx?: number
+  useContainerHeight?: boolean
 }) {
-  const { geojsonText, datasetId, className, heightPx = 320 } = args
-  const [containerEl, setContainerEl] = React.useState<HTMLDivElement | null>(null)
-  const mapRef = React.useRef<MapLibreMap | null>(null)
-  const initInFlightRef = React.useRef(false)
+  const { geojsonText, datasetId, className, heightPx = 320, useContainerHeight = false } = args
+  const rootRef = React.useRef<HTMLDivElement | null>(null)
+  const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [shouldLoadMap, setShouldLoadMap] = React.useState(false)
-  const [isReady, setIsReady] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [basemapWarning, setBasemapWarning] = React.useState<string | null>(null)
 
@@ -119,274 +117,43 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     }
   }, [geojsonText])
 
-  React.useEffect(() => {
-    const el = containerEl
-    if (!el) return
-    if (shouldLoadMap) return
+  const isJsdom = React.useMemo(() => {
     const ua = typeof window !== 'undefined' ? String(window.navigator?.userAgent || '') : ''
-    const isJsdom = /jsdom/i.test(ua)
+    return /jsdom/i.test(ua)
+  }, [])
+
+  React.useEffect(() => {
+    if (shouldLoadMap) return
     if (isJsdom) return
-    let cancelled = false
-    const forceLoadTimer = setTimeout(() => {
-      if (cancelled) return
-      setShouldLoadMap(true)
-    }, 350)
+    if (!parsed.fc) return
+    setShouldLoadMap(true)
+  }, [isJsdom, parsed.fc, shouldLoadMap])
 
-    const check = (): boolean => {
-      if (cancelled) return false
-      try {
-        const rect = el.getBoundingClientRect()
-        const w = rect.width || (el as unknown as { offsetWidth?: number }).offsetWidth || 0
-        const h = rect.height || (el as unknown as { offsetHeight?: number }).offsetHeight || 0
-        if (w > 0 && h > 0) {
-          setShouldLoadMap(true)
-          return true
-        }
-      } catch {
-        void 0
-      }
-      return false
-    }
-
-    try {
-      if (check()) return
-    } catch {
-      void 0
-    }
-    if (typeof IntersectionObserver === 'undefined') {
-      if (typeof ResizeObserver === 'undefined') {
-        setShouldLoadMap(true)
-        return
-      }
-    }
-    const start = Date.now()
-    const poll = () => {
-      if (cancelled) return
-      if (Date.now() - start > 6000) return
-      if (check()) return
-      try {
-        requestAnimationFrame(poll)
-      } catch {
-        setTimeout(poll, 16)
-      }
-    }
-    poll()
-
-    const io =
-      typeof IntersectionObserver === 'function'
-        ? new IntersectionObserver(
-            entries => {
-              for (const entry of entries) {
-                if (entry.isIntersecting) {
-                  setShouldLoadMap(true)
-                  io.disconnect()
-                  return
-                }
-              }
-            },
-            { root: null, rootMargin: '200px 0px', threshold: 0.01 },
-          )
-        : null
-    try {
-      io?.observe(el)
-    } catch {
-      void 0
-    }
-
-    const ro =
-      typeof ResizeObserver === 'function'
-        ? new ResizeObserver(() => {
-            if (check()) ro.disconnect()
-          })
-        : null
-    try {
-      ro?.observe(el)
-    } catch {
-      void 0
-    }
-    return () => {
-      cancelled = true
-      clearTimeout(forceLoadTimer)
-      try {
-        io?.disconnect()
-      } catch {
-        void 0
-      }
-      try {
-        ro?.disconnect()
-      } catch {
-        void 0
-      }
-    }
-  }, [containerEl, shouldLoadMap])
+  const basemap = useMapLibreBasemap({
+    enabled: shouldLoadMap,
+    rootRef,
+    containerRef,
+    targetStyleUrl: styleUrl,
+    canvasRenderMode: '2d',
+    projectionMode: 'mercator',
+    viewportSizingMode: 'none',
+    vectorFallbackMs: 2_000,
+  })
 
   React.useEffect(() => {
-    if (!shouldLoadMap) return
-    const el = containerEl
-    if (!el) return
-    if (mapRef.current) return
-    if (initInFlightRef.current) return
-
-    let cancelled = false
-    initInFlightRef.current = true
-
-    void (async () => {
-      try {
-        if (cancelled) return
-        setError(null)
-        setBasemapWarning(null)
-        const map = await createMapLibreMapWithBasemap({
-          container: el,
-          styleUrl,
-          cancelled: () => cancelled,
-          interactive: true,
-          attributionControl: false,
-          onError: ({ message }) => {
-            if (cancelled) return
-            const trimmed = String(message || '').trim()
-            if (shouldSuppressBasemapErrorMessage(trimmed)) {
-              setBasemapWarning(prev => prev || 'Basemap unavailable')
-              return
-            }
-            setError(trimmed)
-          },
-        })
-        if (cancelled) {
-          try {
-            map?.remove?.()
-          } catch {
-            void 0
-          }
-          return
-        }
-        if (!map) {
-          setError('Map preview unavailable')
-          return
-        }
-        mapRef.current = map
-        setIsReady(true)
-
-        try {
-          const anyMap = map as unknown as { once?: (event: string, cb: () => void) => void }
-          anyMap.once?.('idle', () => {
-            if (cancelled) return
-            setBasemapWarning(null)
-          })
-        } catch {
-          void 0
-        }
-      } catch (e) {
-        if (cancelled) return
-        const msg = e instanceof Error ? e.message : String(e)
-        const trimmed = String(msg || '').trim()
-        if (shouldSuppressBasemapErrorMessage(trimmed)) return
-        if (trimmed) setError(trimmed)
-      } finally {
-        initInFlightRef.current = false
-      }
-    })()
-
-    const anyWindow = globalThis as unknown as {
-      requestAnimationFrame?: (cb: () => void) => number
+    const msg = String(basemap.mapError || '').trim()
+    if (!msg) return
+    if (shouldSuppressBasemapErrorMessage(msg)) {
+      setBasemapWarning(prev => prev || 'Basemap unavailable')
+      return
     }
-    const startedAt = Date.now()
-    const resizeTick = () => {
-      if (cancelled) return
-      try {
-        mapRef.current?.resize?.()
-      } catch {
-        void 0
-      }
-      if (Date.now() - startedAt > 1000) {
-        return
-      }
-      try {
-        if (typeof anyWindow.requestAnimationFrame === 'function') {
-          anyWindow.requestAnimationFrame(resizeTick)
-        } else {
-          setTimeout(resizeTick, 16)
-        }
-      } catch {
-        setTimeout(resizeTick, 16)
-      }
-    }
-    resizeTick()
-
-    return () => {
-      cancelled = true
-      initInFlightRef.current = false
-      try {
-        mapRef.current?.remove?.()
-      } catch {
-        void 0
-      }
-      mapRef.current = null
-      setIsReady(false)
-    }
-  }, [containerEl, shouldLoadMap, styleUrl])
+    setError(prev => prev || msg)
+  }, [basemap.mapError])
 
   React.useEffect(() => {
-    const el = containerEl
-    const map = mapRef.current
-    if (!el || !map || !isReady) return
-    if (typeof ResizeObserver !== 'function') return
-    let raf: number | null = null
-    const anyWindow = globalThis as unknown as {
-      requestAnimationFrame?: (cb: () => void) => number
-      cancelAnimationFrame?: (id: number) => void
-    }
-    const schedule = (fn: () => void) => {
-      try {
-        if (typeof anyWindow.requestAnimationFrame === 'function') {
-          raf = anyWindow.requestAnimationFrame(fn)
-          return
-        }
-      } catch {
-        void 0
-      }
-      raf = null
-      setTimeout(fn, 0)
-    }
-    const ro = new ResizeObserver(() => {
-      if (raf != null) {
-        try {
-          anyWindow.cancelAnimationFrame?.(raf)
-        } catch {
-          void 0
-        }
-      }
-      schedule(() => {
-        try {
-          map.resize()
-        } catch {
-          void 0
-        }
-      })
-    })
-    try {
-      ro.observe(el)
-    } catch {
-      void 0
-    }
-    return () => {
-      try {
-        ro.disconnect()
-      } catch {
-        void 0
-      }
-      if (raf != null) {
-        try {
-          anyWindow.cancelAnimationFrame?.(raf)
-        } catch {
-          void 0
-        }
-      }
-    }
-  }, [containerEl, isReady])
-
-  React.useEffect(() => {
-    const map = mapRef.current
-    if (!map || !isReady) return
+    const map = basemap.map
+    if (!map) return
+    if (basemap.styleRevision <= 0) return
     if (!parsed.fc) {
       setError('GeoJSON render: invalid or unsupported shape')
       return
@@ -413,36 +180,26 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
         void 0
       }
     }
-  }, [datasetId, isReady, parsed.bounds, parsed.fc])
+  }, [basemap.map, basemap.styleRevision, datasetId, parsed.bounds, parsed.fc])
 
   React.useEffect(() => {
-    const map = mapRef.current
+    const map = basemap.map
     if (!map) return
     try {
       map.resize()
     } catch {
       void 0
     }
-  }, [heightPx, className])
-
-  React.useEffect(() => {
-    if (!parsed.fc) return
-    if (isReady) return
-    if (!shouldLoadMap) return
-    const t = setTimeout(() => {
-      setError(prev => (prev && String(prev).trim()) ? prev : 'Map preview unavailable')
-    }, 6000)
-    return () => clearTimeout(t)
-  }, [isReady, parsed.fc, shouldLoadMap])
+  }, [basemap.map, heightPx, className])
 
   const overlayMessage = React.useMemo(() => {
     if (error && String(error).trim()) return String(error).trim()
     if (basemapWarning && String(basemapWarning).trim()) return String(basemapWarning).trim()
     if (!parsed.fc) return null
-    if (isReady) return null
+    if (basemap.map) return null
     if (!shouldLoadMap) return 'Preparing map preview…'
     return 'Loading map preview…'
-  }, [error, basemapWarning, isReady, parsed.fc, shouldLoadMap])
+  }, [error, basemapWarning, basemap.map, parsed.fc, shouldLoadMap])
 
   const svgColor = React.useMemo(() => {
     const safeDatasetId = sanitizeId(datasetId)
@@ -450,13 +207,17 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   }, [datasetId])
 
   return (
-    <div className={`relative ${className || ''}`} style={{ height: heightPx }}>
+    <div ref={el => {
+      rootRef.current = el
+    }} className={`relative ${className || ''}`} style={{ height: useContainerHeight ? '100%' : heightPx }}>
       {parsed.fc && (
         <div className="absolute inset-0 z-0 pointer-events-none">
-          <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} heightPx={heightPx} className="w-full" />
+          <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} height={useContainerHeight ? '100%' : heightPx} className="w-full" />
         </div>
       )}
-      <div ref={setContainerEl} data-testid="geojson-map-container" className="absolute inset-0 z-[1]" />
+      <div ref={el => {
+        containerRef.current = el
+      }} data-testid="geojson-map-container" className="absolute inset-0 z-[1]" />
       {overlayMessage && (
         <div
           data-testid="geojson-map-overlay"

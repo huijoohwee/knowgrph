@@ -6,26 +6,19 @@ const ensurePeerSymlinks = () => {
   try {
     const rootDir = process.cwd()
     const localRequire = createRequire(import.meta.url)
-    const curagrphEntry = localRequire.resolve('curagrph', { paths: [rootDir] })
-    const curagrphDir = fs.realpathSync(path.resolve(path.dirname(curagrphEntry), '..'))
-    const curagrphNodeModules = path.join(curagrphDir, 'node_modules')
-    fs.mkdirSync(curagrphNodeModules, { recursive: true })
-
-    const link = (name: string) => {
+    const linkPeer = (nodeModulesDir: string, name: string) => {
       const src = path.join(rootDir, 'node_modules', name)
-      const dest = path.join(curagrphNodeModules, name)
+      const dest = path.join(nodeModulesDir, name)
       if (!fs.existsSync(src)) return
       if (fs.existsSync(dest)) {
         try {
           const st = fs.lstatSync(dest)
           if (st.isSymbolicLink()) {
             const existing = fs.readlinkSync(dest)
-            if (path.resolve(curagrphNodeModules, existing) === src) return
-          } else {
-            return
+            if (path.resolve(nodeModulesDir, existing) === src) return
           }
         } catch {
-          return
+          void 0
         }
         try {
           fs.rmSync(dest, { recursive: true, force: true })
@@ -36,8 +29,17 @@ const ensurePeerSymlinks = () => {
       fs.symlinkSync(src, dest, 'dir')
     }
 
-    link('react')
-    link('react-dom')
+    const ensureForPackage = (pkgName: string) => {
+      const entry = localRequire.resolve(pkgName, { paths: [rootDir] })
+      const pkgDir = fs.realpathSync(path.resolve(path.dirname(entry), '..'))
+      const nodeModulesDir = path.join(pkgDir, 'node_modules')
+      fs.mkdirSync(nodeModulesDir, { recursive: true })
+      linkPeer(nodeModulesDir, 'react')
+      linkPeer(nodeModulesDir, 'react-dom')
+    }
+
+    ensureForPackage('curagrph')
+    ensureForPackage('gympgrph')
   } catch {
     void 0
   }
@@ -114,6 +116,24 @@ if (!g.window) {
     g.window.HTMLIFrameElement = class {} as typeof HTMLIFrameElement
   }
 }
+
+const ensureUrlObjectUrls = () => {
+  const w = g.window as unknown as { URL?: typeof URL }
+  const urlCtor = (globalThis as unknown as { URL?: typeof URL }).URL
+  if (!urlCtor) return
+  if (!w.URL) w.URL = urlCtor
+  const urlAny = w.URL as unknown as {
+    createObjectURL?: (obj: Blob) => string
+    revokeObjectURL?: (url: string) => void
+  }
+  if (!urlAny.createObjectURL) {
+    let n = 0
+    urlAny.createObjectURL = () => `blob:kg-test-${Date.now()}-${++n}`
+  }
+  if (!urlAny.revokeObjectURL) urlAny.revokeObjectURL = () => {}
+}
+
+ensureUrlObjectUrls()
 
 if (!g.window.requestAnimationFrame) {
   g.window.requestAnimationFrame = (callback: FrameRequestCallback) => {

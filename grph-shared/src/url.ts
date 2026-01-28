@@ -157,9 +157,6 @@ export function applyMediaProxySrc(src: string): string {
     if (!/^https?:$/i.test(u.protocol)) return raw
     if (u.origin === window.location.origin) return raw
 
-    const host = u.hostname.toLowerCase()
-    if (host === 'tiles.openfreemap.org') return u.toString()
-
     if (!shouldUseRemoteFetchProxy()) return u.toString()
     return `${MEDIA_PROXY_ENDPOINT}?url=${encodeURIComponent(u.toString())}`
   } catch {

@@ -552,10 +552,22 @@ function createLocalGeoDatasetHandler(): import('vite').Connect.NextHandleFuncti
 
 function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
   return async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       next()
       return
     }
+
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
     const urlParam = (() => {
       try {
         const parsed = new URL(req.url || '', `http://${req.headers.host}`)
