@@ -1,4 +1,5 @@
 import { pickPoiSelection, coerceFeatureCollectionIds, isPointOnlyFeatureCollection } from 'gympgrph/testkit'
+import { ensureDatasetLayer } from 'gympgrph'
 import type { FeatureCollection } from 'geojson'
 
 export const testGympgrphPickPoiSelectionSkipsClusterFeatures = () => {
@@ -64,4 +65,37 @@ export const testGympgrphIsPointOnlyFeatureCollectionRejectsPolygon = () => {
     features: [{ type: 'Feature', id: 1, properties: {}, geometry: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [0, 0]]] } }],
   }
   if (isPointOnlyFeatureCollection(fc, 10)) throw new Error('expected polygon collection to be false')
+}
+
+export const testGympgrphEnsureDatasetLayerClusterCountUsesNotoSans = () => {
+  const layersById = new Map<string, any>()
+  const sourcesById = new Map<string, any>()
+
+  const map = {
+    getLayer: (id: string) => layersById.get(id) || null,
+    addLayer: (layer: any) => {
+      layersById.set(layer.id, layer)
+    },
+    removeLayer: (id: string) => {
+      layersById.delete(id)
+    },
+    getSource: (id: string) => sourcesById.get(id) || null,
+    addSource: (id: string, src: any) => {
+      sourcesById.set(id, src)
+    },
+    removeSource: (id: string) => {
+      sourcesById.delete(id)
+    },
+  } as any
+
+  ensureDatasetLayer(map, 'kg-ds:test', '#2563EB', { cluster: true })
+
+  const clusterCount = layersById.get('kg-ds:test:cluster-count')
+  if (!clusterCount) throw new Error('expected cluster-count symbol layer to be created')
+
+  const tf = clusterCount.layout ? clusterCount.layout['text-font'] : null
+  const ok = Array.isArray(tf) && tf.some((v: unknown) => String(v) === 'Noto Sans Regular')
+  if (!ok) {
+    throw new Error(`expected cluster-count text-font to include Noto Sans Regular. got=${JSON.stringify(tf)}`)
+  }
 }

@@ -33,3 +33,16 @@ export const testApplyMediaProxySkipsProxyWhenNotLocalhost = () => {
     g.window = prevWindow
   }
 }
+
+export const testApplyMediaProxySkipsOpenFreeMapOnLocalhost = () => {
+  const g = globalThis as unknown as Record<string, unknown>
+  const prevWindow = g.window
+  g.window = { location: { origin: 'http://localhost:5173' } }
+  try {
+    const src = 'https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf'
+    const out = applyMediaProxySrc(src)
+    if (out !== src) throw new Error('expected OpenFreeMap assets to bypass proxy')
+  } finally {
+    g.window = prevWindow
+  }
+}

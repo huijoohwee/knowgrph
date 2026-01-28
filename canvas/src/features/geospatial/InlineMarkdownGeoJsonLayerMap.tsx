@@ -127,12 +127,18 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     const isJsdom = /jsdom/i.test(ua)
     if (isJsdom) return
     let cancelled = false
+    const forceLoadTimer = setTimeout(() => {
+      if (cancelled) return
+      setShouldLoadMap(true)
+    }, 350)
 
     const check = (): boolean => {
       if (cancelled) return false
       try {
         const rect = el.getBoundingClientRect()
-        if (rect.width > 0 && rect.height > 0) {
+        const w = rect.width || (el as unknown as { offsetWidth?: number }).offsetWidth || 0
+        const h = rect.height || (el as unknown as { offsetHeight?: number }).offsetHeight || 0
+        if (w > 0 && h > 0) {
           setShouldLoadMap(true)
           return true
         }
@@ -200,6 +206,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     }
     return () => {
       cancelled = true
+      clearTimeout(forceLoadTimer)
       try {
         io?.disconnect()
       } catch {
@@ -433,8 +440,9 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     if (basemapWarning && String(basemapWarning).trim()) return String(basemapWarning).trim()
     if (!parsed.fc) return null
     if (isReady) return null
+    if (!shouldLoadMap) return 'Preparing map preview…'
     return 'Loading map preview…'
-  }, [error, basemapWarning, isReady, parsed.fc])
+  }, [error, basemapWarning, isReady, parsed.fc, shouldLoadMap])
 
   const svgColor = React.useMemo(() => {
     const safeDatasetId = sanitizeId(datasetId)
@@ -448,7 +456,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
           <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} heightPx={heightPx} className="w-full" />
         </div>
       )}
-      <div ref={setContainerEl} data-testid="geojson-map-container" className="absolute inset-0" />
+      <div ref={setContainerEl} data-testid="geojson-map-container" className="absolute inset-0 z-[1]" />
       {overlayMessage && (
         <div
           data-testid="geojson-map-overlay"

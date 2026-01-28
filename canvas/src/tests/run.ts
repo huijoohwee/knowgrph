@@ -89,6 +89,7 @@ import {
 import {
   testGympgrphApplyMediaProxyNormalizesGithubBlobUrl,
   testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost,
+  testGympgrphApplyMediaProxySkipsOpenFreeMapOnLocalhost,
   testGympgrphCoerceFetchUrlAcceptsAbsolutePath,
   testGympgrphCoerceFetchUrlRejectsFileScheme,
 } from '@/__tests__/gympgrphUrlInterop.test'
@@ -103,6 +104,7 @@ import {
   testGympgrphIsPointOnlyFeatureCollectionDetectsPointOnly,
   testGympgrphIsPointOnlyFeatureCollectionRejectsPolygon,
   testGympgrphPickPoiSelectionSkipsClusterFeatures,
+  testGympgrphEnsureDatasetLayerClusterCountUsesNotoSans,
 } from '@/__tests__/gympgrphMapLibreBehaviors.test'
 import { testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections } from '@/__tests__/markdownEmbeddedGeoJson.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
@@ -184,7 +186,11 @@ import {
   testCoerceMediaUrlRejectsExplicitScheme,
   testNormalizeImportNameDerivesJsonNameFromUrlAndFormat,
 } from '@/__tests__/mediaUrlCoercion.test'
-import { testApplyMediaProxyNormalizesGithubBlobUrl, testApplyMediaProxySkipsProxyWhenNotLocalhost } from '@/__tests__/mediaProxySrc.test'
+import {
+  testApplyMediaProxyNormalizesGithubBlobUrl,
+  testApplyMediaProxySkipsProxyWhenNotLocalhost,
+  testApplyMediaProxySkipsOpenFreeMapOnLocalhost,
+} from '@/__tests__/mediaProxySrc.test'
 import { testUiToastUpsertDoesNotExtendExpiry, testUiToastUpsertMovesToastToFront } from '@/__tests__/uiToastSlice.test'
 import { testIconButtonStopsPropagation, testToolbarIconTooltipsDoNotInterceptClicks } from '@/__tests__/toolbarButtons.test'
 import { testMarkdownGlobalRenderToggleVisible } from '@/__tests__/markdown/markdownRenderToggle.test'
@@ -304,6 +310,7 @@ export const runAllTests = async () => {
   await exec('geospatial.host.tailwindScansGympgrph', testHostTailwindScansGympgrphClasses)
   await exec('geospatial.gympgrphUrl.proxyNormalizesGithubBlob', testGympgrphApplyMediaProxyNormalizesGithubBlobUrl)
   await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
+  await exec('geospatial.gympgrphUrl.proxySkipsOpenFreeMapOnLocalhost', testGympgrphApplyMediaProxySkipsOpenFreeMapOnLocalhost)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlAcceptsAbsolutePath', testGympgrphCoerceFetchUrlAcceptsAbsolutePath)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlRejectsFileScheme', testGympgrphCoerceFetchUrlRejectsFileScheme)
 
@@ -317,6 +324,7 @@ export const runAllTests = async () => {
   await exec('geospatial.gympgrphMapLibre.coerceFeatureIds', testGympgrphCoerceFeatureCollectionIdsAddsMissingIds)
   await exec('geospatial.gympgrphMapLibre.pointOnly.true', testGympgrphIsPointOnlyFeatureCollectionDetectsPointOnly)
   await exec('geospatial.gympgrphMapLibre.pointOnly.false', testGympgrphIsPointOnlyFeatureCollectionRejectsPolygon)
+  await exec('geospatial.gympgrphMapLibre.clusterCountFont', testGympgrphEnsureDatasetLayerClusterCountUsesNotoSans)
   
   await exec('previewGalleryReorder: arrow moves third above second', testPreviewGalleryArrowMovesThirdSlideAboveSecond)
   await exec('previewGalleryReorder: drag moves third above second', testPreviewGalleryDragMovesThirdSlideAboveSecond)
@@ -434,6 +442,7 @@ export const runAllTests = async () => {
   await exec('url.normalizeImportName.jsonUrlDerivation', testNormalizeImportNameDerivesJsonNameFromUrlAndFormat)
   await exec('url.applyMediaProxySrc.normalizesGithubBlob', testApplyMediaProxyNormalizesGithubBlobUrl)
   await exec('url.applyMediaProxySrc.skipsProxyWhenNotLocalhost', testApplyMediaProxySkipsProxyWhenNotLocalhost)
+  await exec('url.applyMediaProxySrc.skipsOpenFreeMapOnLocalhost', testApplyMediaProxySkipsOpenFreeMapOnLocalhost)
   
   await exec('ui.launchSpotlightPersistence', testLaunchSpotlightStorageHelpers)
   await exec('persistence.storagePrimitives', testPersistencePrimitives)
