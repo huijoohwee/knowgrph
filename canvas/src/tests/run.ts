@@ -320,10 +320,22 @@ export const runAllTests = async () => {
   await exec('geospatial.gympgrphUrl.coerceFetchUrlAcceptsAbsolutePath', testGympgrphCoerceFetchUrlAcceptsAbsolutePath)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlRejectsFileScheme', testGympgrphCoerceFetchUrlRejectsFileScheme)
 
-  await exec('geospatial.geojsonPreview.layering.mapAboveSvgFallback', testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback)
-  await exec('geospatial.geojsonPreview.sizing.containerHeightMode', testGeoJsonMapPreviewSupportsContainerHeightMode)
-  await exec('policy.geospatial.inlineMarkdownGeoJson.reusesSharedBasemapHook', testInlineMarkdownGeoJsonMapReusesSharedBasemapHook)
-  await exec('policy.geospatial.useMapLibreBasemap.bootTimeoutReadyCriteria', testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnly)
+  await exec(
+    'geospatial.geojsonPreview.layering.mapAboveSvgFallback.geojsonMapPreview',
+    testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback,
+  )
+  await exec(
+    'geospatial.geojsonPreview.sizing.containerHeightMode.geojsonMapPreview',
+    testGeoJsonMapPreviewSupportsContainerHeightMode,
+  )
+  await exec(
+    'policy.geospatial.inlineMarkdownGeoJson.reusesSharedBasemapHook.geojsonMapPreview',
+    testInlineMarkdownGeoJsonMapReusesSharedBasemapHook,
+  )
+  await exec(
+    'policy.geospatial.useMapLibreBasemap.bootTimeoutReadyCriteria.geojsonMapPreview',
+    testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnly,
+  )
 
   await exec('geospatial.markdown.embeddedGeoJsonExtraction', testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections)
   await exec('policy.hashing.sharedContract', testHashStringContractIsSharedAcrossRepos)

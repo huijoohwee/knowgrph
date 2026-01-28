@@ -109,6 +109,9 @@ export async function testGeoJsonMapPreviewSupportsContainerHeightMode() {
     if (wrapper.style.height !== '100%') {
       throw new Error(`Expected wrapper to use container height (100%), got "${wrapper.style.height}"`)
     }
+    if (!wrapper.style.minHeight || wrapper.style.minHeight === '0px') {
+      throw new Error(`Expected wrapper to set a non-zero minHeight, got "${wrapper.style.minHeight}"`)
+    }
 
     root.unmount()
   } finally {
@@ -143,5 +146,13 @@ export function testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnl
   if (missing.length) {
     const msg = missing.map(s => `missing: ${s}`).join('\n')
     throw new Error(`useMapLibreBasemap regression guard failed:\n${msg}`)
+  }
+}
+
+export function testHostImportsMapLibreCssForMarkdownGeoJsonPreviews() {
+  const p = resolve(process.cwd(), 'src', 'main.tsx')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes("import 'maplibre-gl/dist/maplibre-gl.css'")) {
+    throw new Error('Expected host app to import maplibre-gl CSS so Markdown GeoJSON previews can render')
   }
 }

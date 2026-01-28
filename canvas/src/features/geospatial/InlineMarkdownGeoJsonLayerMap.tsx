@@ -126,7 +126,62 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     if (shouldLoadMap) return
     if (isJsdom) return
     if (!parsed.fc) return
-    setShouldLoadMap(true)
+    const isPositiveSize = (el: HTMLElement | null): boolean => {
+      if (!el) return false
+      try {
+        const rect = el.getBoundingClientRect()
+        const w = Number.isFinite(rect.width) ? Math.max(0, Math.floor(rect.width)) : 0
+        const h = Number.isFinite(rect.height) ? Math.max(0, Math.floor(rect.height)) : 0
+        return w > 0 && h > 0
+      } catch {
+        return false
+      }
+    }
+
+    if (isPositiveSize(containerRef.current) || isPositiveSize(rootRef.current)) {
+      setShouldLoadMap(true)
+      return
+    }
+
+    if (typeof ResizeObserver === 'undefined') {
+      setShouldLoadMap(true)
+      return
+    }
+
+    let cancelled = false
+    const ro = new ResizeObserver(() => {
+      if (cancelled) return
+      if (isPositiveSize(containerRef.current) || isPositiveSize(rootRef.current)) {
+        setShouldLoadMap(true)
+        try {
+          ro.disconnect()
+        } catch {
+          void 0
+        }
+      }
+    })
+
+    try {
+      if (rootRef.current) ro.observe(rootRef.current)
+      if (containerRef.current && containerRef.current !== rootRef.current) ro.observe(containerRef.current)
+    } catch {
+      try {
+        ro.disconnect()
+      } catch {
+        void 0
+      }
+      setShouldLoadMap(true)
+      return
+    }
+
+    return () => {
+      cancelled = true
+      try {
+        ro.disconnect()
+      } catch {
+        void 0
+      }
+    }
   }, [isJsdom, parsed.fc, shouldLoadMap])
 
   const basemap = useMapLibreBasemap({
@@ -206,13 +261,16 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     return colorForDataset(safeDatasetId)
   }, [datasetId])
 
+  const rootHeight = useContainerHeight ? '100%' : heightPx
+  const rootMinHeight = useContainerHeight ? heightPx : undefined
+
   return (
     <div ref={el => {
       rootRef.current = el
-    }} className={`relative ${className || ''}`} style={{ height: useContainerHeight ? '100%' : heightPx }}>
+    }} className={`relative ${className || ''}`} style={{ height: rootHeight, minHeight: rootMinHeight }}>
       {parsed.fc && (
         <div className="absolute inset-0 z-0 pointer-events-none">
-          <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} height={useContainerHeight ? '100%' : heightPx} className="w-full" />
+          <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} height={rootHeight} className="w-full" />
         </div>
       )}
       <div ref={el => {
