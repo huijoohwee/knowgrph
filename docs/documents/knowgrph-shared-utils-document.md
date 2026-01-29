@@ -18,7 +18,10 @@
 **Exports (public subpaths)**:
 - `grph-shared/array/reorderList`
 - `grph-shared/markdown/formatting`
+- `grph-shared/markdown/backlinks`
+- `grph-shared/markdown/slugify`
 - `grph-shared/markdown/toc`
+- `grph-shared/markdown/wikiLinks`
 - `grph-shared/url`
 - `grph-shared/hash/stringHash`
 - `grph-shared/net/fetchRemoteText`
@@ -38,6 +41,9 @@ This ensures Node-side entrypoints (notably Vite config) never attempt to execut
 - Host wrappers live under `knowgrph/canvas/src/lib/*` and re-export from `grph-shared/*`.
 - `knowgrph/canvas/vite.config.ts` may import small helpers (e.g. text sanitizers) but relies on the JS `dist/` export contract.
 - Canvas scripts compile `grph-shared` as part of `predev`, `prebuild`, and `pretest:ci`.
+
+**Markdown SSOT consumers**
+- Viewer/Presentation share wikilinks/backlinks/slugify via `grph-shared/markdown/*` to prevent UI↔parser drift.
 
 **Gympgrph**
 - Depends on `grph-shared` via file dependency pointing at `knowgrph/grph-shared`.

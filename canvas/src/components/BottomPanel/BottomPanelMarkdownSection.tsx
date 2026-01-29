@@ -1,12 +1,23 @@
 import React from 'react'
 import { BottomPanelMarkdownSection as CuragrphBottomPanelMarkdownSection } from 'curagrph/components/BottomPanel/BottomPanelMarkdownSection.tsx'
 import type { MarkdownGeoDatasetIntegration } from 'curagrph/features/markdown/ui/MarkdownRendererTypes.ts'
+import type { MarkdownSourceFilesPanelIntegration } from 'curagrph/features/markdown/ui/MarkdownSourceFilesPanel.tsx'
 import { addGeospatialDatasetUrls, parseGeoJsonFromText, setGeospatialModeEnabled } from 'gympgrph'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { uploadGeoJsonTextToLocalStore } from '@/features/geospatial/localGeoUpload'
 import { InlineMarkdownGeoJsonLayerMap } from '@/features/geospatial/InlineMarkdownGeoJsonLayerMap'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { getIconSizeClass } from '@/lib/ui'
+import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
+import {
+  createLocalMarkdownFolder,
+  deleteLocalMarkdownEntry,
+  openLocalMarkdownFolder,
+  syncLocalMarkdownFolderToSourceFiles,
+} from '@/features/source-files/localMarkdownFolder'
 
 const uploadPromisesByKey = new LRUCache<string, Promise<string>>(64, 10 * 60_000)
 
@@ -96,8 +107,69 @@ type CuragrphBottomPanelMarkdownSectionProps = React.ComponentProps<typeof Curag
 
 export function BottomPanelMarkdownSection(props: CuragrphBottomPanelMarkdownSectionProps) {
   const geoDatasetIntegration = React.useMemo(() => createGeoDatasetIntegration(), [])
+
+  const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const iconClassName = React.useMemo(() => getIconSizeClass(uiIconScale), [uiIconScale])
+  const folderName = useGraphStore(s => s.localMarkdownFolderName)
+  const canWrite = !!useGraphStore(s => s.localMarkdownFolderHandle)
+  const accessMode = useGraphStore(s => s.localMarkdownFolderAccessMode)
+  const setSelectedFolderPath = useGraphStore(s => s.setLocalMarkdownSelectedFolderPath)
+  const reorderSourceFiles = useGraphStore(s => s.reorderSourceFiles)
+
+  const sourceFilesPanelIntegration = React.useMemo((): MarkdownSourceFilesPanelIntegration => {
+    return {
+      iconClassName,
+      folderName: folderName || null,
+      canWrite,
+      accessMode: accessMode || null,
+      onOpenFolder: async () => {
+        await openLocalMarkdownFolder()
+      },
+      onRefreshFiles: async () => {
+        try {
+          await syncLocalMarkdownFolderToSourceFiles()
+          useGraphStore.getState().pushUiToast({
+            id: 'local-folder-refreshed',
+            kind: 'success',
+            message: 'Refreshed Markdown files.',
+          })
+        } catch (e) {
+          useGraphStore.getState().pushUiToast({
+            id: 'local-folder-refresh-error',
+            kind: 'error',
+            message: `Refresh failed: ${String((e as { message?: unknown })?.message ?? e)}`,
+          })
+        }
+      },
+      onCreateFolder: async parentPath => {
+        if (!canWrite) return null
+        const created = await createLocalMarkdownFolder({ parentPath })
+        return created || null
+      },
+      onCreateFile: parentPath => {
+        if (!canWrite) return
+        setSelectedFolderPath(parentPath || '')
+        createNewMarkdownSourceFileAndOpenViewer({ parentPath })
+      },
+      onDeleteFile: async path => {
+        if (!canWrite) return
+        await deleteLocalMarkdownEntry(path)
+      },
+      onReorderSourceFiles: (fromId, toId) => {
+        reorderSourceFiles(fromId, toId)
+      },
+      onAfterReorderSourceFiles: () => {
+        applyComposedGraphFromSourceFiles()
+      },
+      onSelectedFolderPathChange: path => {
+        setSelectedFolderPath(path)
+      },
+    }
+  }, [accessMode, canWrite, folderName, iconClassName, reorderSourceFiles, setSelectedFolderPath])
+
   return React.createElement(CuragrphBottomPanelMarkdownSection, {
     ...props,
     geoDatasetIntegration,
+    sourceFilesPanelIntegration,
   })
 }

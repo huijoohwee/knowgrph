@@ -32,7 +32,6 @@
         "../../curagrph/src/components/BottomPanel/*"
       ],
       "@/features/graph-data-table/*": ["../../curagrph/src/features/graph-data-table/*"],
-      "@/features/json/*": ["../../curagrph/src/features/json/*"],
       "@/features/markdown/*": ["../../curagrph/src/features/markdown/*"],
       "@/features/panels/views/preview-panel/ui/*": [
         "../../curagrph/src/features/panels/views/preview-panel/ui/*"

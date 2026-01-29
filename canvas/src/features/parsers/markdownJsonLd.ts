@@ -86,6 +86,25 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       : typeof mermaidAnchorsOnlyRaw === 'string'
       ? mermaidAnchorsOnlyRaw.trim().toLowerCase() === 'true'
       : false
+
+  const mermaidDensityParts: string[] = []
+  const trySetMermaidTreeLayoutFromCode = (code: string) => {
+    if (mermaidTreeLayout) return
+    const firstLine = String(code || '').split('\n')[0]?.trim() || ''
+    if (!firstLine.startsWith('graph ') && !firstLine.startsWith('flowchart ')) return
+    const parts = firstLine.split(/\s+/)
+    const dir = parts[1]?.toUpperCase()
+    if (!dir) return
+    if (dir === 'TD' || dir === 'TB' || dir === 'DT') {
+      mermaidTreeLayout = { orientation: 'vertical', direction: 'source-target' }
+    } else if (dir === 'BT') {
+      mermaidTreeLayout = { orientation: 'vertical', direction: 'target-source' }
+    } else if (dir === 'LR') {
+      mermaidTreeLayout = { orientation: 'horizontal', direction: 'source-target' }
+    } else if (dir === 'RL') {
+      mermaidTreeLayout = { orientation: 'horizontal', direction: 'target-source' }
+    }
+  }
   
   const splitMermaidIntoDiagrams = (code: string): Array<{ code: string; offset: number }> => {
     const lines = String(code || '').split('\n')
@@ -113,20 +132,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   if (mermaidCode) {
     const diagrams = splitMermaidIntoDiagrams(mermaidCode)
-    const firstLine = (diagrams[0]?.code || mermaidCode).split('\n')[0]?.trim() || ''
-    if (firstLine.startsWith('graph ') || firstLine.startsWith('flowchart ')) {
-      const parts = firstLine.split(/\s+/)
-      const dir = parts[1]?.toUpperCase()
-      if (dir === 'TD' || dir === 'TB' || dir === 'DT') {
-        mermaidTreeLayout = { orientation: 'vertical', direction: 'source-target' }
-      } else if (dir === 'BT') {
-        mermaidTreeLayout = { orientation: 'vertical', direction: 'target-source' }
-      } else if (dir === 'LR') {
-        mermaidTreeLayout = { orientation: 'horizontal', direction: 'source-target' }
-      } else if (dir === 'RL') {
-        mermaidTreeLayout = { orientation: 'horizontal', direction: 'target-source' }
-      }
-    }
+    trySetMermaidTreeLayoutFromCode(diagrams[0]?.code || mermaidCode)
 
     let mermaidStartLine = 1
     for (let i = 0; i < startIndex; i++) {
@@ -148,6 +154,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
     for (let idx = 0; idx < diagrams.length; idx += 1) {
       const diagram = diagrams[idx]!
+      mermaidDensityParts.push(diagram.code)
       const diagramStart = Math.max(1, mermaidStartLine + diagram.offset)
       const diagramLineCount = Math.max(1, diagram.code.split('\n').length)
       const diagramEnd = Math.max(diagramStart, diagramStart + diagramLineCount - 1)
@@ -176,6 +183,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   let anchorsOnlyParagraphEmitted = false
   let currentAnchorId: string | null = null
   let pendingExplicitAnchorId: { id: string; line: number } | null = null
+  let hasMermaidBlock = false
 
   const extractHtmlAnchorIds = (line: string): string[] => {
     const out: string[] = []
@@ -220,9 +228,12 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
     // Process Mermaid blocks to extract graph nodes
     if (isMermaidBlock) {
+      hasMermaidBlock = true
       const diagrams = splitMermaidIntoDiagrams(b.text)
       for (let idx = 0; idx < diagrams.length; idx += 1) {
         const diagram = diagrams[idx]!
+        mermaidDensityParts.push(diagram.code)
+        trySetMermaidTreeLayoutFromCode(diagram.code)
         const diagramStart = Math.max(1, b.startLine + 1 + diagram.offset)
         const diagramLineCount = Math.max(1, diagram.code.split('\n').length)
         const diagramEnd = Math.max(diagramStart, diagramStart + diagramLineCount - 1)
@@ -503,7 +514,13 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     next: { '@id': 'kg:next', '@type': '@id' },
   }
 
-  const hasMermaid = !!mermaidCode
+  const hasMermaid = !!mermaidCode || hasMermaidBlock
+  const mermaidDensitySource = (() => {
+    const combined = mermaidDensityParts.join('\n\n').trim()
+    if (!combined) return ''
+    const maxChars = 50_000
+    return combined.length > maxChars ? combined.slice(0, maxChars) : combined
+  })()
 
   const treeMeta: {
     edgeLabels?: string[]
@@ -533,7 +550,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     if (mermaidTreeLayout?.direction) {
       treeMeta.direction = mermaidTreeLayout.direction
     }
-    const density = computeMermaidTreeSeparation(mermaidCode, mermaidAnchorsOnly)
+    const density = computeMermaidTreeSeparation(mermaidDensitySource || mermaidCode, mermaidAnchorsOnly)
     treeMeta.separation = density.separation
     treeMeta.mermaidDensity = {
       statementCount: density.statementCount,

@@ -844,25 +844,21 @@ export default defineConfig(({ command }) => ({
       },
       {
         find: /^@\/components\/BottomPanel\/(.*)$/,
-        replacement: path.resolve(__dirname, '../../curagrph/src/components/BottomPanel/$1'),
+        replacement: path.resolve(__dirname, './node_modules/curagrph/src/components/BottomPanel/$1'),
       },
       {
         find: /^@\/features\/graph-data-table\/(.*)$/,
-        replacement: path.resolve(__dirname, '../../curagrph/src/features/graph-data-table/$1'),
-      },
-      {
-        find: /^@\/features\/json\/(.*)$/,
-        replacement: path.resolve(__dirname, '../../curagrph/src/features/json/$1'),
+        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/graph-data-table/$1'),
       },
       {
         find: /^@\/features\/markdown\/(.*)$/,
-        replacement: path.resolve(__dirname, '../../curagrph/src/features/markdown/$1'),
+        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/markdown/$1'),
       },
       {
         find: /^@\/features\/panels\/views\/preview-panel\/ui\/(.*)$/,
         replacement: path.resolve(
           __dirname,
-          '../../curagrph/src/features/panels/views/preview-panel/ui/$1',
+          './node_modules/curagrph/src/features/panels/views/preview-panel/ui/$1',
         ),
       },
       { find: '@', replacement: path.resolve(__dirname, './src') },

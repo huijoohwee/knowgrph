@@ -104,7 +104,12 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   const onScrollRef = React.useRef(onScroll)
   const onBlurRef = React.useRef(onBlur)
   const onFocusRef = React.useRef(onFocus)
+  const themeModeRef = React.useRef<'light' | 'dark'>(themeMode)
   const textareaHandleRef = React.useRef<MonacoTextEditorHandle | null>(null)
+
+  React.useEffect(() => {
+    themeModeRef.current = themeMode
+  }, [themeMode])
 
   React.useEffect(() => {
     editorRefRef.current = editorRef
@@ -253,7 +258,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
         },
       })
 
-      monaco.editor.setTheme(themeMode === 'dark' ? 'vs-dark' : 'vs')
+      monaco.editor.setTheme(themeModeRef.current === 'dark' ? 'vs-dark' : 'vs')
 
       editorInstanceRef.current = editor
       lastAppliedValueRef.current = model.getValue()

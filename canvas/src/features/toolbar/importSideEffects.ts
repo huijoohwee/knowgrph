@@ -9,7 +9,7 @@ export function applyImportedMarkdownToStore(args: {
   text: string
   sourceUrl: string | null
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'>
-  curationView?: 'grid' | 'json' | 'markdown'
+  curationView?: 'grid' | 'markdown'
 }): void {
   const name = String(args.name || '').trim()
   const text = String(args.text || '')
@@ -97,4 +97,3 @@ export function applyImportedJsonToStore(args: {
   state.setBottomPanelCurationView('markdown')
   if (args.recent) state.addRecentFile(args.recent)
 }
-

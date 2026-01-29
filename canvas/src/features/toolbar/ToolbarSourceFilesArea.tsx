@@ -587,7 +587,9 @@ export function ToolbarSourceFilesArea() {
           lower.endsWith('.json') || lower.endsWith('.jsonld') || lower.endsWith('.geojson') || lower.endsWith('.csv') || lower.endsWith('.yaml') || lower.endsWith('.yml')
         if (isJsonish) {
           store.setJsonSourceDocument(after.name, text)
-          store.setBottomPanelCurationView('json')
+          store.setMarkdownDocument(after.name, '')
+          store.setMarkdownDocumentSourceUrl(sourceUrl || null)
+          store.setBottomPanelCurationView('markdown')
         } else {
           store.setMarkdownDocument(after.name, text)
           store.setMarkdownDocumentSourceUrl(sourceUrl || null)

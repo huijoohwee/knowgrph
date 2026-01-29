@@ -1,5 +1,5 @@
 import type { GraphSchema } from '@/lib/graph/schema'
-import JsonEditor from '@/features/json/JsonEditor'
+import { MarkdownStructuredTextEditor } from '@/features/markdown/ui/MarkdownStructuredTextEditor'
 import { Eraser } from 'lucide-react'
 import { TwoColumnEditorGrid } from '@/features/panels/ui/TwoColumnEditorGrid'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -110,7 +110,7 @@ export function SchemaUiMetadataContextRow({
         <div className={`${uiPanelMicroLabelTextSizeClass} text-gray-600 mb-1`}>
           Shared provenance and RAG configuration belong here, not in per-type properties.
         </div>
-        <JsonEditor
+        <MarkdownStructuredTextEditor
           value={metadataText}
           onChange={v => setMetadataText(v)}
           className="w-full flex-1 min-h-0"
@@ -122,7 +122,7 @@ export function SchemaUiMetadataContextRow({
         <div className={`${uiPanelMicroLabelTextSizeClass} text-gray-600 mb-1`}>
           JSON-LD context for schema serialization.
         </div>
-        <JsonEditor
+        <MarkdownStructuredTextEditor
           value={contextText}
           onChange={v => setContextText(v)}
           className="w-full flex-1 min-h-0"
@@ -146,7 +146,7 @@ export function SchemaUiTemplatePropsRow({
     <TwoColumnEditorGrid className="flex-1 min-h-0">
       <div className="flex min-h-0 flex-col">
         <SchemaSubstepHeader title="Template" label="Template" />
-        <JsonEditor
+        <MarkdownStructuredTextEditor
           value={templateText}
           onChange={v => setTemplateText(v)}
           className="w-full flex-1 min-h-0"
@@ -159,7 +159,7 @@ export function SchemaUiTemplatePropsRow({
           For shared schemas, keep provenance and RAG configuration in top-level metadata or context,
           not in node or edge properties.
         </div>
-        <JsonEditor
+        <MarkdownStructuredTextEditor
           value={propsText}
           onChange={v => setPropsText(v)}
           className="w-full flex-1 min-h-0"
@@ -323,7 +323,7 @@ export function SchemaUiValidationRulesRow({
             {UI_COPY.validationInferTypesButtonLabel}
           </button>
         </div>
-        <JsonEditor
+        <MarkdownStructuredTextEditor
           value={validationText}
           onChange={v => setValidationText(v)}
           className="w-full flex-1 min-h-0"
@@ -337,7 +337,7 @@ export function SchemaUiValidationRulesRow({
             {rulesHelperText}
           </div>
         ) : null}
-        <JsonEditor
+        <MarkdownStructuredTextEditor
           value={rulesText}
           onChange={v => setRulesText(v)}
           className="w-full flex-1 min-h-0"
@@ -372,7 +372,7 @@ export function SchemaUiRulesRow({
           {helperText}
         </div>
       ) : null}
-      <JsonEditor
+      <MarkdownStructuredTextEditor
         value={rulesText}
         onChange={v => setRulesText(v)}
         className="w-full min-h-[120px]"
@@ -475,7 +475,7 @@ export function SchemaUiLayoutSection({
       <TwoColumnEditorGrid className="mt-2">
         <div className="flex min-h-0 flex-col">
           <div className="text-xs font-medium mb-1">Link Distance by Label</div>
-          <JsonEditor
+          <MarkdownStructuredTextEditor
             value={linkDistanceText}
             onChange={v => setLinkDistanceText(v)}
             className="w-full flex-1 min-h-0"
@@ -484,7 +484,7 @@ export function SchemaUiLayoutSection({
         </div>
         <div className="flex min-h-0 flex-col">
           <div className="text-xs font-medium mb-1">Collision Radius by Node Type</div>
-          <JsonEditor
+          <MarkdownStructuredTextEditor
             value={collisionByTypeText}
             onChange={v => setCollisionByTypeText(v)}
             className="w-full flex-1 min-h-0"

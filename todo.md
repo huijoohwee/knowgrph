@@ -30,6 +30,10 @@
 
 ### P0-Critical
 
+#### 2026-01-29
+
+- sync, diff across multiple devices
+
 #### 2026-01-27
 
 - handlebars.js for templating

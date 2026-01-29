@@ -1,3 +1,4 @@
+import { hashStringToHex } from '@/lib/hash/stringHash'
 import { slugify } from './markdownJsonLdUtils'
 
 export interface MermaidParserContext {
@@ -36,6 +37,8 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
   const lines = String(code || '').split('\n')
   if (lines.length === 0) return
+
+  const diagramKey = diagramId ? hashStringToHex(diagramId) : 'd'
 
   const mermaidNodeIdsByName = new Map<string, string>()
   const mermaidSubgraphIdsByName = new Map<string, string>()
@@ -155,7 +158,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       return existing
     }
 
-    const nodeId = `mermaid:${gid}:${slugify(safeName)}`
+    const nodeId = `mermaid:${gid}:${diagramKey}:${slugify(safeName)}`
     mermaidNodeIdsByName.set(safeName, nodeId)
 
     // Determine parent subgraph
@@ -216,7 +219,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     const existing = mermaidSubgraphIdsByName.get(safeName)
     if (existing) return existing
 
-    const subgraphId = `mermaid:${gid}:subgraph:${slugify(safeName)}`
+    const subgraphId = `mermaid:${gid}:${diagramKey}:subgraph:${slugify(safeName)}`
     mermaidSubgraphIdsByName.set(safeName, subgraphId)
 
     const display = label || safeName

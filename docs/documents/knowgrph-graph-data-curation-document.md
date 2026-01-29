@@ -38,7 +38,7 @@ This boundary mirrors the earlier pattern used for Geospatial Mode extraction (i
 - `curagrph/src/components/BottomPanel/*`: BottomPanel submodules that implement curation and document views.
 - `curagrph/src/features/graph-data-table/*`: Graph Data Table model and UI.
 - `curagrph/src/features/markdown/*`: Markdown lexing/rendering/presentation surfaces.
-- `curagrph/src/features/json/JsonEditor.tsx`: Monaco-backed JSON/YAML editor.
+- `curagrph/src/features/markdown/ui/MarkdownStructuredTextEditor.tsx`: Monaco-backed structured editor (JSON/YAML) consolidated under Markdown.
 - `curagrph/src/features/panels/views/preview-panel/ui/*`: gallery + preview overlay primitives used by markdown/presentation.
 
 **knowgrph**
@@ -63,4 +63,4 @@ Knowgrph integrates the extracted Graph Data code via:
 Graph Data extraction is verified using bounded execution:
 
 - TypeScript no-emit checks (host + extracted module).
-- Filtered CI runner cases only for impacted surfaces (BottomPanel/Markdown/JSON editor/Preview gallery), avoiding full-suite runs.
+- Filtered CI runner cases only for impacted surfaces (BottomPanel/Markdown/structured editor/Preview gallery), avoiding full-suite runs.

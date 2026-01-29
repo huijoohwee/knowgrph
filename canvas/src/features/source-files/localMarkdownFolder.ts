@@ -11,7 +11,7 @@ const toLogicalPath = (raw: string): string => {
 
 const isMarkdownFileName = (name: string): boolean => {
   const lower = String(name || '').trim().toLowerCase()
-  return lower.endsWith('.md')
+  return lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')
 }
 
 const isHiddenName = (name: string): boolean => {

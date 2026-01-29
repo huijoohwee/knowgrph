@@ -45,6 +45,12 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   setMarkdownDocument: (name: string | null, text: string | null) => {
+    const nextText = String(text || '')
+    const hasFrontmatterMermaid = (() => {
+      const m = nextText.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/)
+      if (!m || !m[1]) return false
+      return /\bmermaid\s*:/i.test(m[1])
+    })()
     set({
       markdownDocumentName: name,
       markdownDocumentText: text,
@@ -53,6 +59,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       markdownTokensKey: null,
       markdownTokensMeta: null,
       markdownTokensStartLineOffset: null,
+      ...(hasFrontmatterMermaid ? { frontmatterModeEnabled: true } : {}),
     })
   },
 
@@ -62,7 +69,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!nextName || !nextText.trim()) return false
 
     const lower = nextName.toLowerCase()
-    const isMarkdown = lower.endsWith('.md') || lower.endsWith('.markdown')
+    const isMarkdown = lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')
     if (!isMarkdown) return false
 
     const state = get()

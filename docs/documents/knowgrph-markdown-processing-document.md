@@ -3,6 +3,14 @@
 ## Overview
 The Markdown rendering engine in Knowgrph has been enhanced to support GitHub-style code blocks with semantic HTML structure and optimized token sharing architecture. This ensures high performance during rendering cycles and a consistent, accessible UI.
 
+## SSOT UI Contract
+Markdown Editor/Viewer/Presentation must share a single SSOT header and a single SSOT Contents sidebar/TOC structure.
+
+- SSOT contract document: `knowgrph/docs/documents/knowgrph-markdown-ssot-ui-contract-document.md`
+- Header SSOT: `curagrph/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx`
+- Sidebar SSOT: `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx` (frame + sections)
+- Shared utils SSOT: `knowgrph/grph-shared/src/markdown/*` (wikilinks/backlinks/slugify)
+
 ## Non-Goals (Explicit)
 
 - Do not import, embed, or copy Editor.js (or similar) for Markdown editing/rendering.
@@ -41,6 +49,7 @@ Code blocks now feature a structured layout matching GitHub's design system:
   - **Beside**: Renders code on the left and annotations on the right (on desktop), or annotations above code (on mobile).
   - **Render**: Switches supported code blocks from source to a fitted preview.
     - **Mermaid** (`mermaid` / `mmd`): Renders the diagram fitted to the full code block.
+      - **Pan/Zoom + In-doc anchors**: In Render mode, Mermaid previews support drag/pan (and optional zoom) inside the code block; in-diagram `#anchor` links trigger in-document scrolling within the Markdown preview container.
       - **Per-block Mermaid frontmatter**: A Mermaid code block may start with a YAML `--- ... ---` header. The viewer strips that header from the diagram text and merges it into Mermaid init config for that block (e.g., `theme`, `themeVariables`, or `mermaidTheme`/`mermaidThemeVariables`).
     - **Frontmatter**: When the active document begins with YAML frontmatter (`--- ... ---`), clicking the global **Render** control also enables Frontmatter Mode so the frontmatter blocks are visible without a second toggle.
     - **GeoJSON** (`geojson`): Renders a fitted MapLibre preview inside the code block using the same basemap/style loading behavior as Geospatial Mode. GeoJSON parsing and validation reuse the shared Gympgrph helpers (`parseGeoJsonFromText`) so inline rendering and dataset registration share the same acceptance rules.
@@ -60,7 +69,7 @@ Code blocks now feature a structured layout matching GitHub's design system:
 - **Heading anchors are generated**: Headings receive deterministic ids using the shared `slugify` implementation from `grph-shared` so UI and parser agree on targets.
 - **Block-id anchors are supported**: A trailing `^block-id` at end-of-line emits a DOM anchor with id `^block-id`, enabling links like `[[#^block-id]]`.
 - **Callouts (subset)**: Blockquotes whose first line is `[!type]` render as semantic callouts. `+` / `-` after the type enables foldable callouts.
-- **Wikilinks (subset)**: `[[#Heading]]` and `[[#^block-id]]` are converted to safe hash links. File-level `[[Note Name]]` resolution and cross-document backlinks are currently conceptual only.
+- **Wikilinks + Backlinks**: In-doc `[[#Heading]]` / `[[#^block-id]]` render as safe hash links; file-level `[[Note]]` / `[[Note#Heading]]` resolve against Source Files (loose name normalization) and navigate in-app. The Contents sidebar also includes a computed Backlinks view (linked + heuristic unlinked mentions).
 
 ### Semantic HTML
 The implementation replaces generic `<div>` wrappers with semantic elements:

@@ -43,11 +43,11 @@ const markdownSpec: ParserSpec = {
   match: (name, text) => {
     const lower = (name || '').toLowerCase()
     if (/^https?:\/\//i.test(lower)) {
-      const isMdByName = lower.endsWith('.md') || lower.endsWith('.markdown')
+      const isMdByName = lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')
       if (isMdByName) return !isLikelyPlainTextMarkdown(text) || containsFrontmatterMermaid(text)
       return hasMarkdownStructure(String(text || ''))
     }
-    if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
+    if (lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')) {
       if (isLikelyPlainTextMarkdown(text) && !containsFrontmatterMermaid(text)) return false
       return true
     }
@@ -58,7 +58,7 @@ const markdownSpec: ParserSpec = {
     const maxChars = 500000
     if (raw.length > maxChars) {
       const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
-      const stem = baseName.replace(/\.(md|markdown)$/i, '') || 'markdown'
+      const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '') || 'markdown'
       const nodeId = `md:large:${slugify(stem)}`
       const label = stem || baseName || 'Markdown Document'
       const previewLimit = 32000

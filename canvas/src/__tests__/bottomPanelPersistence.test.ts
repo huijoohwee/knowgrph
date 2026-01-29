@@ -40,13 +40,6 @@ export function testBottomPanelCollapsePersistence() {
     throw new Error('bottom panel height ratio not restored to default')
   }
 
-  state.setBottomPanelTab('nodes')
-  openBottomPanel('code')
-  const afterLegacy = useGraphStore.getState()
-  if (afterLegacy.bottomPanelTab !== 'data') {
-    throw new Error('legacy bottom panel tab not normalized to data')
-  }
-
   restore()
 }
 

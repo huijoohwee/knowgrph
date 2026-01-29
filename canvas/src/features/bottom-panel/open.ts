@@ -15,7 +15,6 @@ export type BottomTab =
   | 'render'
   | 'settings'
   | 'history'
-  | 'code'
 
 export type BottomTabId = BottomTab
 
@@ -29,13 +28,12 @@ function clearBottomPanelCollapsed(storage: Storage | null): void {
 
 export function openBottomPanel(tab: BottomTab = 'curation') {
   try {
-    const normalizedTab: BottomTab = tab === 'code' ? 'data' : tab
-    if (normalizedTab === 'render') {
+    if (tab === 'render') {
       emitRendererPanelOpen()
       return
     }
     const s = useGraphStore.getState()
-    if (normalizedTab) s.setBottomPanelTab(normalizedTab)
+    if (tab) s.setBottomPanelTab(tab)
     const storage = getLocalStorage()
     const isCollapsed = readBottomPanelCollapsed(storage)
     if (isCollapsed) {

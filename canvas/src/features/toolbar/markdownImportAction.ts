@@ -29,7 +29,7 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
         return res ? [{ ...res, sourceUrl: rawUrl }] : []
       }
       if (type === 'local') {
-        const files = await pickTextFilesWithExtensions(['.md', '.markdown'])
+        const files = await pickTextFilesWithExtensions(['.md', '.markdown', '.mmd'])
         return files.map(f => ({
           name: f.name,
           text: f.text,

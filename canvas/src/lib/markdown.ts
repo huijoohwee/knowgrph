@@ -1,3 +1,5 @@
+import { load as parseYaml } from 'js-yaml'
+
 export type MarkdownFrontmatter = Record<string, unknown>
 
 export type MarkdownBlock =
@@ -23,225 +25,39 @@ export const parseMarkdownFrontmatter = (
 ): { meta: MarkdownFrontmatter; startIndex: number } => {
   if (!lines.length) return { meta: {}, startIndex: 0 }
   if ((lines[0] || '').trim() !== '---') return { meta: {}, startIndex: 0 }
-  const meta: MarkdownFrontmatter = {}
-  const structuredKeys = new Set(['ontologies', 'graphLayers'])
-  let currentKey: string | null = null
-  let currentList: unknown[] = []
-  let currentIndent = 0
-  let startIndex = 0
-
-  const finalizeList = () => {
-    if (currentKey && currentList.length) {
-      if (currentKey === 'graphLayers') {
-        ;(meta as Record<string, unknown>).graphLayers = currentList
-      } else {
-        meta[currentKey] = currentList
-      }
-    }
-    currentKey = null
-    currentList = []
-    currentIndent = 0
-  }
-
+  let endIndex = -1
   for (let i = 1; i < lines.length; i += 1) {
-    const rawLine = lines[i] ?? ''
-    const trimmed = rawLine.trim()
-    if (trimmed === '---') {
-      finalizeList()
-      startIndex = i + 1
+    if ((lines[i] || '').trim() === '---') {
+      endIndex = i
       break
     }
-    if (!trimmed || trimmed.startsWith('#')) continue
-    const indent = rawLine.length - trimmed.length
-    const isDashItem = trimmed.startsWith('- ')
-    const colonIndex = trimmed.indexOf(':')
+  }
+  if (endIndex < 0) return { meta: {}, startIndex: 0 }
 
-    if (currentKey && structuredKeys.has(currentKey)) {
-      if (isDashItem && indent > currentIndent) {
-        const afterDash = trimmed.slice(2).trim()
-        if (!afterDash) continue
-        if (currentKey === 'ontologies') {
-          const innerIdx = afterDash.indexOf(':')
-          if (innerIdx > 0) {
-            const field = afterDash.slice(0, innerIdx).trim()
-            const value = afterDash.slice(innerIdx + 1).trim()
-            if (field) {
-              const obj: Record<string, unknown> = {}
-              obj[field] = value
-              currentList.push(obj)
-            }
-          }
-        } else if (currentKey === 'graphLayers') {
-          currentList.push(afterDash)
-        }
-        continue
-      }
-
-      if (!isDashItem && colonIndex > 0 && indent > currentIndent) {
-        const fieldKey = trimmed.slice(0, colonIndex).trim()
-        const fieldVal = trimmed.slice(colonIndex + 1).trim()
-        if (!fieldKey) continue
-
-        // Handle Block Scalar (|) for multiline strings (e.g. mermaid)
-        if (fieldVal === '|') {
-          const blockLines: string[] = []
-          let j = i + 1
-          let baseIndent = -1
-          while (j < lines.length) {
-            const nextLine = lines[j]
-            // Stop at next section or empty frontmatter close
-            if (nextLine.trim() === '---') break
-            
-            // Determine indentation of the first content line
-            const nextTrimmed = nextLine.trim()
-            if (nextTrimmed) {
-              const nextIndent = nextLine.length - nextTrimmed.length
-              if (baseIndent === -1) baseIndent = nextIndent
-              
-              // If indentation is less than the block start, it's likely the end of the block
-              // (unless it's empty, handled below)
-              if (nextIndent < indent + 2 && nextIndent < baseIndent) {
-                break
-              }
-            } else {
-              // Empty lines are part of the block if we are inside
-              // but if we haven't started, they are just empty
-            }
-            
-            blockLines.push(nextLine)
-            j += 1
-          }
-          
-          // Normalize indentation
-          if (blockLines.length > 0 && baseIndent > -1) {
-            const normalized = blockLines.map(l => {
-              if (!l.trim()) return '' // Empty line
-              if (l.length >= baseIndent) return l.slice(baseIndent)
-              return l.trimStart()
-            }).join('\n')
-            
-            // Assign to meta
-            if (currentKey === 'ontologies') {
-              const last = currentList[currentList.length - 1]
-              if (last && typeof last === 'object' && !Array.isArray(last)) {
-                ;(last as Record<string, unknown>)[fieldKey] = normalized
-              } else {
-                const obj: Record<string, unknown> = {}
-                obj[fieldKey] = normalized
-                currentList.push(obj)
-              }
-            } else {
-              meta[fieldKey] = normalized
-            }
-          }
-          
-          i = j - 1
-          continue
-        }
-
-        if (currentKey === 'ontologies') {
-          const last = currentList[currentList.length - 1]
-          if (last && typeof last === 'object' && !Array.isArray(last)) {
-            ;(last as Record<string, unknown>)[fieldKey] = fieldVal
-          } else {
-            const obj: Record<string, unknown> = {}
-            obj[fieldKey] = fieldVal
-            currentList.push(obj)
-          }
-        } else if (currentKey === 'graphLayers') {
-          currentList.push(fieldVal || fieldKey)
-        }
-        continue
-      }
+  const frontmatterText = lines.slice(1, endIndex).join('\n')
+  const sanitizeYamlValue = (value: unknown): unknown => {
+    if (value instanceof Date) return value.toISOString()
+    if (Array.isArray(value)) return value.map(v => sanitizeYamlValue(v))
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>
+      const out: Record<string, unknown> = {}
+      for (const key of Object.keys(record)) out[key] = sanitizeYamlValue(record[key])
+      return out
     }
-
-    if (colonIndex > 0 && !isDashItem) {
-      finalizeList()
-      const key = trimmed.slice(0, colonIndex).trim()
-      const val = trimmed.slice(colonIndex + 1).trim()
-      if (!key) continue
-      const isBlock = val === '|' || val === '>' || val.startsWith('|') || val.startsWith('>')
-      const isStructured = structuredKeys.has(key)
-      
-      if (!isStructured && isBlock) {
-        const blockLines: string[] = []
-        let j = i + 1
-        let baseIndent = -1
-
-        while (j < lines.length) {
-          const nextLine = lines[j] ?? ''
-          const trimmedNext = nextLine.trim()
-
-          if (trimmedNext === '---') break
-
-          if (trimmedNext) {
-            const nextIndent = nextLine.length - trimmedNext.length
-            if (baseIndent === -1) baseIndent = nextIndent
-            
-            // If indentation is less than or equal to the key's indent, it's a new key
-            // Relaxed check: if equal indent, only break if it looks like a key
-            if (nextIndent <= indent) {
-               if (nextIndent < indent) {
-                   break
-               }
-               const colIdx = trimmedNext.indexOf(':')
-               const isKey = colIdx > 0 && !trimmedNext.startsWith('- ')
-               if (isKey) {
-                   break
-               }
-            }
-          }
-
-          blockLines.push(nextLine)
-          j += 1
-        }
-
-        let normalized = ''
-        if (blockLines.length > 0) {
-          const effectiveIndent = baseIndent > -1 ? baseIndent : 0
-          normalized = blockLines
-            .map(l => {
-              if (!l.trim()) return ''
-              if (l.length >= effectiveIndent) return l.slice(effectiveIndent)
-              return l.trimStart()
-            })
-            .join('\n')
-        }
-
-        meta[key] = normalized
-        i = j - 1
-      } else if (structuredKeys.has(key)) {
-        currentKey = key
-        currentIndent = indent
-        currentList = []
-        if (val) {
-          if (key === 'ontologies') {
-            const innerIdx = val.indexOf(':')
-            if (innerIdx > 0) {
-              const field = val.slice(0, innerIdx).trim()
-              const value = val.slice(innerIdx + 1).trim()
-              if (field) {
-                const obj: Record<string, unknown> = {}
-                obj[field] = value
-                currentList.push(obj)
-              }
-            }
-          } else if (key === 'graphLayers') {
-            currentList.push(val)
-          }
-        }
-      } else {
-        meta[key] = val
-      }
-      continue
-    }
+    return value
   }
 
-  finalizeList()
-  if (!startIndex) {
-    return { meta: {}, startIndex: 0 }
+  let meta: MarkdownFrontmatter = {}
+  try {
+    const parsed = parseYaml(frontmatterText) as unknown
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      meta = sanitizeYamlValue(parsed) as MarkdownFrontmatter
+    }
+  } catch {
+    meta = {}
   }
-  return { meta, startIndex }
+
+  return { meta, startIndex: endIndex + 1 }
 }
 
 export const parseMarkdownBlocks = (lines: string[], startIndex: number): MarkdownBlock[] => {

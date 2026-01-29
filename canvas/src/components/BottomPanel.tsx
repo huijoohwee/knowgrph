@@ -1,28 +1,16 @@
 import { useMemo, useState, useEffect, useRef, useDeferredValue, useCallback, useTransition } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS, UI_LAYOUT } from '@/lib/config'
-import { findObjectBoundsById, countLinesUpTo, smoothScrollTextareaToCenter } from '@/lib/editor'
-import { scheduleIdle } from '@/features/bottom-panel/utils'
 import { type NodeSort, type EdgeSort } from '@/components/BottomPanel/sort'
-import { tryFormatJson } from '@/features/code-editor/format'
-import { detectIdAroundSelection } from '@/features/code-editor/selection'
 import { scrollRowToCenter } from '@/features/tables/scroll'
-import { usePanelHotkeys } from '@/features/hooks/usePanelHotkeys'
-import { useCodeSelectionSync } from '@/features/hooks/useCodeSelectionSync'
 import { useSearchAndSort } from '@/features/hooks/useSearchAndSort'
 import { useDragResize } from '@/features/hooks/useDragResize'
-import { useCodeJsonEditor } from '@/features/hooks/useCodeJsonEditor'
-import { DEFAULT_GRAPH_JSON } from '@/features/panels/constants'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import { buildCodeActions } from '@/features/code-editor/actions'
 import { DEFAULT_PARSER_SCRIPT_TEXT, useParserUIState } from '@/features/parsers/uiState'
-import { useCodeEditorHandlers } from '@/features/hooks/useCodeEditorHandlers'
-import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useParserEditor } from '@/features/parsers/useParserEditor'
 import { useBottomPanelSchema } from '@/features/schema-editor/useBottomPanelSchema'
 import BottomPanelHeader from '@/components/BottomPanel/BottomPanelHeader'
 import BottomPanelBody from '@/components/BottomPanel/BottomPanelBody'
-import { resolveCurationJsonViewText } from '@/components/BottomPanel/bottomPanelJsonView'
 import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO, PARSER_UI_EDITOR_OPEN_STORAGE_KEY } from '@/features/bottom-panel/constants'
 import { PANEL_MAX_RATIO } from '@/features/panels/config'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
@@ -30,30 +18,16 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 export default function BottomPanel() {
-  const graphData = useGraphStore(s => s.graphData)
   const activeGraphData = useActiveGraphData()
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectionSource = useGraphStore(s => s.selectionSource)
-  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
-  const selectNode = useGraphStore(s => s.selectNode)
-  const selectEdge = useGraphStore(s => s.selectEdge)
-  const setGraphData = useGraphStore(s => s.setGraphData)
-  const undoHistory = useGraphStore(s => s.undoHistory)
-  const redoHistory = useGraphStore(s => s.redoHistory)
-  const codeHighlightDurationMs = useGraphStore(s => s.codeHighlightDurationMs)
-  const codeSelectThrottleMs = useGraphStore(s => s.codeSelectThrottleMs)
-  const codeHighlightUntilClick = useGraphStore(s => s.codeHighlightUntilClick)
-  const graphId = useGraphStore(s => s.graphId)
-  const tabId = useGraphStore(s => s.tabId)
-  const enableTabSync = useGraphStore(s => s.enableTabSync)
   const bottomPanelHeightRatio = useGraphStore(s => s.bottomPanelHeightRatio)
   const setBottomPanelHeightRatio = useGraphStore(s => s.setBottomPanelHeightRatio)
   const setBottomPanelCollapsed = useGraphStore(s => s.setBottomPanelCollapsed)
   const [collapsed, setCollapsed] = usePersistedBoolean(COLLAPSE_STORAGE_KEY, true)
   const rawTab = useGraphStore(s => s.bottomPanelTab)
   const setTabStore = useGraphStore(s => s.setBottomPanelTab)
-  const bottomPanelCurationView = useGraphStore(s => s.bottomPanelCurationView)
   const [, startTransition] = useTransition()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -64,11 +38,6 @@ export default function BottomPanel() {
   const [edgeSort, setEdgeSort] = useState<EdgeSort>(null)
   const nodeRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
   const edgeRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
-  const [codeText, setCodeText] = useState('')
-  const [codeError, setCodeError] = useState('')
-  const codeRef = useRef<MonacoTextEditorHandle | null>(null)
-  const blockHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const codeSelectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastCenteredRef = useRef<string | null>(null)
 
   const tab: typeof rawTab = rawTab === 'data' ? 'curation' : rawTab
@@ -148,36 +117,14 @@ export default function BottomPanel() {
     handleSchemaUiExpandAll,
   } = useBottomPanelSchema(tab)
 
-  const stickyBlockRef = useRef<{ start: number; end: number } | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const headerRef = useRef<HTMLDivElement | null>(null)
   const dragHandleRef = useRef<HTMLDivElement | null>(null)
-  const { applyJson, formatEditor } = useCodeJsonEditor({ codeText, setCodeText, setCodeError, codeRef, setGraphData })
 
   const parserScriptText = useParserUIState(s => s.scriptText)
   const parserLoadOk = useParserUIState(s => s.parserLoadOk)
   const { parserError: parserErrorHook, setParserError: setParserErrorHook, onApplyParser } = useParserEditor()
 
-  const onApply = useCallback(() => { applyJson() }, [applyJson])
-  const onRevert = useCallback(() => {
-    try {
-      const s = useGraphStore.getState()
-      const src =
-        typeof s.jsonSourceDocumentText === 'string' && s.jsonSourceDocumentText.trim()
-          ? s.jsonSourceDocumentText
-          : ''
-      const shouldUseSource =
-        s.bottomPanelTab === 'curation' && s.bottomPanelCurationView === 'json' && !!src
-      if (shouldUseSource) {
-        setCodeText(src)
-      } else {
-        setCodeText(JSON.stringify(graphData ?? DEFAULT_GRAPH_JSON, null, 2))
-      }
-    } catch {
-      setCodeText(JSON.stringify(graphData ?? DEFAULT_GRAPH_JSON, null, 2))
-    }
-    setCodeError('')
-  }, [graphData])
   const onResetParser = useCallback(() => {
     try {
       const s = useParserUIState.getState()
@@ -193,47 +140,6 @@ export default function BottomPanel() {
 
   const nodes = useMemo(() => activeGraphData?.nodes ?? [], [activeGraphData])
   const edges = useMemo(() => activeGraphData?.edges ?? [], [activeGraphData])
-  const nodeIdSet = useMemo<Set<string>>(() => new Set(nodes.map(n => n.id)), [nodes])
-  const edgeIdSet = useMemo<Set<string>>(() => new Set(edges.map(e => e.id)), [edges])
-  const jsonSourceDocumentText = useGraphStore(s => s.jsonSourceDocumentText)
-  const isGraphJsonView = tab === 'curation' && bottomPanelCurationView === 'json'
-  const isGraphJsonTab = tab === 'code' || isGraphJsonView
-  const shouldMirrorGraphJson = isGraphJsonTab
-  const graphJsonText = useMemo(() => JSON.stringify(graphData ?? DEFAULT_GRAPH_JSON, null, 2), [graphData])
-  const jsonViewText = useMemo(
-    () =>
-      resolveCurationJsonViewText({
-        tab,
-        curationView: bottomPanelCurationView,
-        jsonSourceDocumentText,
-        graphJsonText,
-      }).text,
-    [bottomPanelCurationView, graphJsonText, jsonSourceDocumentText, tab],
-  )
-  const lastSyncedGraphJsonRef = useRef<string>('')
-
-  useEffect(() => {
-    if (!shouldMirrorGraphJson) return
-    if (codeText === jsonViewText && !codeError) {
-      lastSyncedGraphJsonRef.current = jsonViewText
-      return
-    }
-
-    if (!isGraphJsonTab) {
-      if (codeText !== jsonViewText) setCodeText(jsonViewText)
-      if (codeError) setCodeError('')
-      lastSyncedGraphJsonRef.current = jsonViewText
-      return
-    }
-
-    const isDirty = codeText !== lastSyncedGraphJsonRef.current
-    if (!isDirty) {
-      setCodeText(jsonViewText)
-      if (codeError) setCodeError('')
-      lastSyncedGraphJsonRef.current = jsonViewText
-    }
-  }, [codeError, codeText, isGraphJsonTab, jsonViewText, shouldMirrorGraphJson])
-
   const centerNodeRow = useCallback((id: string) => {
     if (!id) return
     if (lastCenteredRef.current === id) return
@@ -260,84 +166,21 @@ export default function BottomPanel() {
     setEdgeSort,
   )
 
-  const centerIdInCode = useCallback((id: string) => {
-    if (lastCenteredRef.current === id) return
-    const bounds = findObjectBoundsById(codeText, id)
-    if (!bounds) return
-    const handle = codeRef.current
-    if (!handle) return
-    
-    handle.revealOffsetInCenter(bounds.start)
-    handle.focus()
-    handle.setSelectionOffsets(bounds.start, bounds.end)
-    
-    if (codeHighlightUntilClick) {
-      stickyBlockRef.current = bounds
-    } else {
-      if (blockHighlightTimerRef.current) clearTimeout(blockHighlightTimerRef.current)
-      blockHighlightTimerRef.current = setTimeout(() => {
-        if (codeRef.current) codeRef.current.setSelectionOffsets(bounds.start, bounds.start)
-      }, codeHighlightDurationMs)
-    }
-
-    lastCenteredRef.current = id
-  }, [codeText, codeHighlightUntilClick, codeHighlightDurationMs])
-
   useEffect(() => {
     if (!selectedNodeId) return
     setCollapsed(false)
-    if (isGraphJsonTab) {
-      centerIdInCode(selectedNodeId)
-      return
-    }
     if (tab !== 'nodes') return
     if (selectionSource === 'canvas') return
     centerNodeRow(selectedNodeId)
-  }, [selectedNodeId, tab, selectionSource, centerIdInCode, centerNodeRow, setCollapsed, isGraphJsonTab])
+  }, [centerNodeRow, selectedNodeId, selectionSource, setCollapsed, tab])
 
   useEffect(() => {
     if (!selectedEdgeId) return
     setCollapsed(false)
-    if (isGraphJsonTab) {
-      centerIdInCode(selectedEdgeId)
-      return
-    }
     if (tab !== 'edges') return
     if (selectionSource === 'canvas') return
     centerEdgeRow(selectedEdgeId)
-  }, [selectedEdgeId, tab, selectionSource, centerIdInCode, centerEdgeRow, setCollapsed, isGraphJsonTab])
-
-  useEffect(() => {
-    if (collapsed) return
-    if (isGraphJsonTab) {
-      if (selectedNodeId) {
-        centerIdInCode(selectedNodeId)
-      } else if (selectedEdgeId) {
-        centerIdInCode(selectedEdgeId)
-      }
-      return
-    }
-    if (selectionSource === 'canvas') return
-    if (tab === 'nodes') {
-      if (!selectedNodeId) return
-      centerNodeRow(selectedNodeId)
-      return
-    }
-    if (tab === 'edges') {
-      if (!selectedEdgeId) return
-      centerEdgeRow(selectedEdgeId)
-    }
-  }, [
-    collapsed,
-    tab,
-    selectedNodeId,
-    selectedEdgeId,
-    selectionSource,
-    centerIdInCode,
-    centerNodeRow,
-    centerEdgeRow,
-    isGraphJsonTab,
-  ])
+  }, [centerEdgeRow, selectedEdgeId, selectionSource, setCollapsed, tab])
   
   useEffect(() => {
     if (tab !== 'parser') return
@@ -352,25 +195,6 @@ export default function BottomPanel() {
     } catch { void 0 }
   }, [tab, parserLoadOk, setParserError, setParserErrorHook])
   
-
-  useEffect(() => {
-    return () => {
-      if (codeSelectTimerRef.current) {
-        clearTimeout(codeSelectTimerRef.current)
-        codeSelectTimerRef.current = null
-      }
-      if (blockHighlightTimerRef.current) {
-        clearTimeout(blockHighlightTimerRef.current)
-        blockHighlightTimerRef.current = null
-      }
-    }
-  }, [])
-
-  const { publishCaret } = useCodeSelectionSync({ enableTabSync, graphId, tabId, isGraphJsonView: isGraphJsonTab, codeRef })
-
-  const hotkeyHandlers = useMemo(() => ({ save: applyJson, format: formatEditor, undo: undoHistory, redo: redoHistory, apply: applyJson }), [applyJson, formatEditor, undoHistory, redoHistory])
-  usePanelHotkeys(!collapsed && isGraphJsonTab, hotkeyHandlers)
-
   const [collapsedHeaderPx, setCollapsedHeaderPx] = useState<number>(40)
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
@@ -412,31 +236,6 @@ export default function BottomPanel() {
 
   useDragResize({ collapsed, ratio: bottomPanelHeightRatio, setRatio: setBottomPanelHeightRatioClamped, handleRef: dragHandleRef })
 
-  const codeActions = useMemo(
-    () => buildCodeActions(formatEditor, applyJson, graphData, setCodeText, setCodeError, DEFAULT_GRAPH_JSON),
-    [formatEditor, applyJson, graphData, setCodeText, setCodeError],
-  )
-
-  const handlers = useCodeEditorHandlers({
-    codeText,
-    setCodeText,
-    setCodeError,
-    codeSelectThrottleMs,
-    publishCaret,
-    nodeIdSet,
-    edgeIdSet,
-    setSelectionSource: v => setSelectionSource(v),
-    selectNode,
-    selectEdge,
-    codeSelectTimerRef,
-    stickyBlockRef,
-    countLinesUpTo,
-    smoothScrollTextareaToCenter,
-    detectIdAroundSelection,
-    scheduleIdle,
-    tryFormatJson,
-  })
-
   const isFullscreen = !collapsed && bottomPanelHeightRatio >= 0.999
 
   return (
@@ -467,7 +266,6 @@ export default function BottomPanel() {
             collapsed={collapsed}
             bottomPanelHeightRatio={bottomPanelHeightRatio}
             tab={tab}
-            isGraphJsonView={isGraphJsonTab}
             startTransition={startTransition}
             setTabStore={setTabStore}
             setBottomPanelHeightRatio={setBottomPanelHeightRatioClamped}
@@ -476,10 +274,8 @@ export default function BottomPanel() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onToggleSearch={() => setSearchOpen(v => !v)}
-            onApply={onApply}
             onApplyParser={onApplyParser}
             onApplySchema={onApplySchema}
-            onRevert={onRevert}
             onResetParser={onResetParser}
             onResetSchema={onResetSchema}
           />
@@ -490,7 +286,6 @@ export default function BottomPanel() {
             tab={tab}
             startTransition={startTransition}
             setTabStore={setTabStore}
-            codeActions={codeActions}
             schemaUiEditorOpen={schemaUiEditorOpen}
             setSchemaUiEditorOpen={setSchemaUiEditorOpen}
             schema={schema}
@@ -505,12 +300,6 @@ export default function BottomPanel() {
             setSchemaUiStep32Collapsed={setSchemaUiStep32Collapsed}
             setSchemaUiStep33Collapsed={setSchemaUiStep33Collapsed}
             setSchemaUiStep332Collapsed={setSchemaUiStep332Collapsed}
-            codeText={codeText}
-            codeError={codeError}
-            codeRef={codeRef}
-            handlers={handlers}
-            graphJsonText={graphJsonText}
-            jsonSourceDocumentText={jsonSourceDocumentText}
             sortedNodes={sortedNodes}
             selectedNodeId={selectedNodeId}
             sortedEdges={sortedEdges}

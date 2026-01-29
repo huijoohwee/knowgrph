@@ -412,6 +412,10 @@ export const UI_COPY = {
   markdownPreviewNextButtonLabel: 'Next',
   markdownPreviewContentsLabel: 'Contents',
   markdownPreviewSourceFilesLabel: 'Source files',
+  markdownPreviewBacklinksLabel: 'Backlinks',
+  markdownPreviewBacklinksNoneLabel: 'None',
+  markdownPreviewBacklinksEmptyStateLabel: 'No backlinks found.',
+  markdownPreviewBacklinksUnlinkedPrefix: 'Unlinked: ',
   bottomPanelMarkdownEditorTitle: 'Markdown Editor',
   bottomPanelMarkdownViewerTitle: 'Markdown Viewer',
   bottomPanelMarkdownWordWrapToggleTitle: 'Toggle word wrap',
@@ -445,14 +449,14 @@ export const UI_COPY = {
   bottomPanelMarkdownStatusReady: 'Ready',
   bottomPanelMarkdownStatusError: 'Error',
   bottomPanelMarkdownApplyJsonBackedUnsupportedStatus:
-    'Apply is not supported for JSON → Markdown preview. Edit graph via JSON or UI Editor instead.',
+    'Apply is not supported for JSON → Markdown preview. Edit graph via UI Editor instead.',
   markdownLargeSummaryHelperText:
     'Large markdown summary: long slide decks are summarized; original file stays unchanged.',
   markdownPreviewTruncatedHelperText:
     'Preview truncated for very large markdown; edit source for full text.',
   bottomPanelMarkdownJsonBackedPreviewBadgeLabel: 'JSON-backed preview',
   bottomPanelMarkdownJsonBackedPreviewBadgeTooltip:
-    'Preview of the last JSON/JSON-LD import. Edit graph structure via JSON Editor or UI Editor; Apply from Markdown is disabled.',
+    'Preview of the last JSON/JSON-LD import. Edit graph structure via UI Editor; Apply from Markdown is disabled.',
   bottomPanelJsonMarkdownModeLabel: 'JSON → Markdown mode',
   bottomPanelJsonMarkdownModeAutoLabel: 'Auto',
   bottomPanelJsonMarkdownModeTableLabel: 'Table',

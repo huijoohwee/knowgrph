@@ -24,6 +24,14 @@
       "types": "./dist/markdown/lineEditing.d.ts",
       "default": "./dist/markdown/lineEditing.js"
     },
+    "./markdown/wikiLinks": {
+      "types": "./dist/markdown/wikiLinks.d.ts",
+      "default": "./dist/markdown/wikiLinks.js"
+    },
+    "./markdown/backlinks": {
+      "types": "./dist/markdown/backlinks.d.ts",
+      "default": "./dist/markdown/backlinks.js"
+    },
     "./url": {
       "types": "./dist/url.d.ts",
       "default": "./dist/url.js"
@@ -39,6 +47,10 @@
     "./cache/LRUCache": {
       "types": "./dist/cache/LRUCache.d.ts",
       "default": "./dist/cache/LRUCache.js"
+    },
+    "./dom/pointerDrag": {
+      "types": "./dist/dom/pointerDrag.d.ts",
+      "default": "./dist/dom/pointerDrag.js"
     }
   },
   "files": [

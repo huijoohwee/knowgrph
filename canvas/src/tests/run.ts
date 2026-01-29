@@ -55,11 +55,9 @@ import {
   testGraphFieldsSyncOnHistoryUndoRedo,
   testGraphFieldsSyncOnNodeAndEdgeMutations,
 } from '@/__tests__/bottomPanelPersistence.test'
-import { testBottomPanelCurationJsonEditorPrefersSourceJson } from '@/__tests__/bottomPanelJsonView.test'
 import { testBottomPanelMarkdownFullscreenOpensOverlay } from '@/__tests__/bottomPanelFullscreenUi.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
-import { testJsonEditorLineHeightConstant } from '@/__tests__/jsonEditorRendering.test'
 import {
   testBuildSelectionSubgraphFromNode,
   testBuildSelectionSubgraphFromEdge,
@@ -490,8 +488,6 @@ export const runAllTests = async () => {
   await exec('search.cacheVersionKey', testSearchCacheKeysRespectVersion)
   await exec('n8n.parseWorkflow', testN8nParsingBasic)
   
-  await exec('jsonEditor.lineHeightConstant', testJsonEditorLineHeightConstant)
-  await exec('ui.bottomPanel.curationJsonPrefersSource', testBottomPanelCurationJsonEditorPrefersSourceJson)
   await exec('ui.toolMenu.noCuratorArea', testToolMenuDoesNotExposeCuratorArea)
   
   await exec(

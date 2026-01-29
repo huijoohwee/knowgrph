@@ -43,11 +43,14 @@ import { testMarkdownGeoJsonInlineMapRendersStableContainerDom } from '@/__tests
 import { testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvailable } from '@/__tests__/markdown/markdownGeoJsonRendererUnavailableFix.test'
 import { testNewSourceFileOpensBottomPanelMarkdownViewer } from '@/__tests__/markdown/newSourceFileOpensViewer.test'
 import { testMarkdownSidebarNewSourceFileButtonCreatesFile } from '@/__tests__/markdown/markdownSourceFilesTreeNewFile.test'
+import { testMarkdownSidebarSourceFilesTreeUsesSemanticDom } from '@/__tests__/markdown/markdownSourceFilesTreeSemanticDom.test'
 import { testMarkdownLocalFolderSelectionKeepsEditorTextInSync } from '@/__tests__/markdown/markdownLocalFolderEditorSync.test'
 import { testMarkdownDocumentPathNormalization } from '@/__tests__/markdownDocumentPathNormalization.test'
 import { testMarkdownSourceFilesOpenInEditorUsesSelectedDocument } from '@/__tests__/markdown/markdownSourceFilesOpenInEditorUsesSelectedDocument.test'
+import { testMarkdownSidebarResizeHandleUpdatesWidthAndPersists } from '@/__tests__/markdown/markdownSidebarResize.test'
 import { testMarkdownAutoAppliesFrontmatterMermaidToCanvasWhenGraphEmpty } from '@/__tests__/markdown/markdownAutoApplyFrontmatterToCanvas.test'
 import { testMarkdownOpenInEditorAutoParsesFrontmatterGraph } from '@/__tests__/markdown/markdownOpenInEditorAutoParsesFrontmatterGraph.test'
+import { testMarkdownFormattingToolbarVisibleAcrossModes } from '@/__tests__/markdown/markdownFormattingToolbarConsistency.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -84,9 +87,12 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.frontmatter.blocksInViewer', testMarkdownFrontmatterBlocksRenderInViewer)
   await execTest(results, 'markdown.sourceFiles.newFileOpensViewer', testNewSourceFileOpensBottomPanelMarkdownViewer)
   await execTest(results, 'markdown.sidebar.sourceFilesTree.newFile', testMarkdownSidebarNewSourceFileButtonCreatesFile)
+  await execTest(results, 'markdown.sidebar.sourceFilesTree.semanticDom', testMarkdownSidebarSourceFilesTreeUsesSemanticDom)
   await execTest(results, 'markdown.localFolder.editorSync', testMarkdownLocalFolderSelectionKeepsEditorTextInSync)
   await execTest(results, 'markdown.documentPath.normalization', testMarkdownDocumentPathNormalization)
   await execTest(results, 'markdown.sourceFiles.openInEditorUsesSelectedDocument', testMarkdownSourceFilesOpenInEditorUsesSelectedDocument)
+  await execTest(results, 'markdown.sidebar.resize', testMarkdownSidebarResizeHandleUpdatesWidthAndPersists)
   await execTest(results, 'markdown.autoApply.frontmatterMermaidGraph', testMarkdownAutoAppliesFrontmatterMermaidToCanvasWhenGraphEmpty)
   await execTest(results, 'markdown.openInEditor.autoParsesFrontmatterGraph', testMarkdownOpenInEditorAutoParsesFrontmatterGraph)
+  await execTest(results, 'markdown.toolbar.formattingConsistency', testMarkdownFormattingToolbarVisibleAcrossModes)
 }
