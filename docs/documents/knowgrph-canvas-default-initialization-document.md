@@ -62,7 +62,8 @@
 | Context          | Intent                          | Directive                                                                 | Module/Component | Function/Method                   | Input               | Output              | Decision Logic |
 |-----------------|----------------------------------|---------------------------------------------------------------------------|------------------|-----------------------------------|---------------------|---------------------|----------------|
 | Defaults        | Stable startup                   | - [ ] Normalize init schema; forbid inconsistent initial toggles          | useGraphStore.ts | applyCanvasDefaultInitSchema       | GraphSchema         | GraphSchema         | force + document + portHandles (default off) |
-| Frontmatter     | Disable by default               | - [ ] Default OFF; forbid frontmatter-only rendering at init              | uiSettingsSlice.ts | frontmatterModeEnabled default   | —                   | boolean             | default false |
+| Frontmatter     | Enable safe frontmatter focus     | - [ ] Default ON; forbid blank canvas: if no frontmatter Mermaid, fall back to full graph | uiSettingsSlice.ts | frontmatterModeEnabled default   | —                   | boolean             | default true + filter fallback |
+| Toolbar Modes   | Prefer document semantics at init | - [ ] Default Document Structure + Document Mode; forbid keyword/geospatial as implicit default | uiSettingsSlice.ts | documentSemanticMode + geospatialEnabled | — | boolean/enum | documentSemanticMode='document'; geospatialEnabled=false |
 | Layer Mode      | Prefer document structure        | - [ ] Default document mode; forbid semantic-first default                | schema.ts        | defaultSchema.layers.mode         | —                   | 'document'          | constant |
 | Port Handles    | Disable by default               | - [ ] Default OFF; forbid implicit border anchoring at init               | schema.ts        | defaultSchema.behavior.portHandles | —                   | enabled false       | constant |
 
@@ -73,7 +74,7 @@
 | Layer/Subsystem | Path/Module                    | Component           | Interface/Method        | Responsibility (S-V-O)                                                | Dependencies                    | Contracts                             | LOC    |
 |-----------------|--------------------------------|---------------------|-------------------------|-----------------------------------------------------------------------|---------------------------------|---------------------------------------|--------|
 | Store           | `hooks/useGraphStore.ts`       | useGraphStore       | `applyCanvasDefaultInitSchema` | Store enforces schema defaults → returns normalized schema → guarantees safe init | `schema.ts`                     | Must return valid schema              | ~10    |
-| Store           | `hooks/store/uiSettingsSlice.ts`| createUiSettingsSlice| `frontmatterModeEnabled` | Slice initializes UI flags → sets default boolean → controls frontmatter mode | `types.ts`                      | Default must be false                 | ~5     |
+| Store           | `hooks/store/uiSettingsSlice.ts`| createUiSettingsSlice| `frontmatterModeEnabled` | Slice initializes UI flags → sets default boolean → controls frontmatter focus mode | `types.ts`                      | Default must be true (safe fallback)  | ~5     |
 | Canvas          | `components/GraphCanvas.tsx`   | GraphCanvas         | `useEffect`             | Canvas initializes scene → triggers simulation → renders graph        | `scene.ts`, `simulation.ts`     | Renders SVG from graphData            | ~100   |
 | Layout          | `layout/positioning.ts`        | determineLayoutPositions | `determineLayoutPositions` | Logic calculates cache usage → determines skipInitialLayout → optimizes re-render | `types.ts`                      | Returns layout strategy               | ~80    |
 
@@ -92,7 +93,9 @@
 
 - **Initialization Contract**:
   - Must ensure `layout.mode` is 'force'.
-  - Must ensure `frontmatterModeEnabled` is false.
+  - Must ensure `frontmatterModeEnabled` is true.
+  - Must ensure Frontmatter Mode never yields an empty canvas: if no frontmatter Mermaid nodes exist, render the full graph.
+  - Must default to Document Mode by disabling Geospatial Mode on init (forbid persisted geospatial drift producing an empty graph canvas).
   - Must ensure `graphLayersVisible` is true.
 
 ---

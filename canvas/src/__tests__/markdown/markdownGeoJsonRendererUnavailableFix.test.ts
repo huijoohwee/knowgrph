@@ -4,7 +4,7 @@ import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { initWindowHarness } from '../../tests/lib/windowHarness'
 import { initJsdomHarness } from '../../tests/lib/jsdomHarness'
 import { MemoryStorage } from '../../tests/lib/memoryStorage'
-import { readMarkdownSlideDemo } from '../../tests/lib/markdownSlideDemo'
+import { readMarkdownSlideDemo, resolveMarkdownSlideDemoDocumentPath } from '../../tests/lib/markdownSlideDemo'
 import { extractFirstFencedBlock } from '../../tests/lib/markdownFence'
 import type { MarkdownGeoDatasetIntegration } from 'curagrph/features/markdown/ui/MarkdownRendererTypes.ts'
 
@@ -22,7 +22,7 @@ export async function testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvai
     const markdown = ['# Demo', '', '```geojson', geojson, '```', ''].join('\n')
 
     const doc = dom.window.document
-    const container = doc.createElement('div')
+    const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
 
@@ -31,7 +31,7 @@ export async function testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvai
     root.render(
       React.createElement(MarkdownPreview, {
         markdownText: markdown,
-        activeDocumentPath: 'sandbox/demo/markdown-slide-demo.md',
+        activeDocumentPath: resolveMarkdownSlideDemoDocumentPath() ?? 'markdown-slide-demo.md',
         highlightedLineRange: null,
         markdownWordWrap: true,
         markdownPresentationMode: false,
@@ -65,7 +65,7 @@ export async function testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvai
 
     const geoDatasetIntegration: MarkdownGeoDatasetIntegration = {
       renderGeoJsonFeatureCollection: () =>
-        React.createElement('div', { 'data-testid': 'geojson-map', className: 'w-full h-[320px]' }),
+        React.createElement('section', { 'data-testid': 'geojson-map', className: 'w-full h-[320px]' }),
       registerGeoJsonFeatureCollection: async () => ({ ok: true }),
       requestOpenGeoPanel: () => {},
     }
@@ -73,7 +73,7 @@ export async function testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvai
     root.render(
       React.createElement(MarkdownPreview, {
         markdownText: markdown,
-        activeDocumentPath: 'sandbox/demo/markdown-slide-demo.md',
+        activeDocumentPath: resolveMarkdownSlideDemoDocumentPath() ?? 'markdown-slide-demo.md',
         highlightedLineRange: null,
         markdownWordWrap: true,
         markdownPresentationMode: false,

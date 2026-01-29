@@ -172,6 +172,25 @@ Here is a footnote reference[^1].
 
 **Purpose**: Highlights citations, callouts, or emphasized content blocks
 
+### Callouts (subset)
+
+Callouts are blockquotes whose first line includes `[!type]`:
+
+```markdown
+> [!info] Status
+> This is an informational callout.
+```
+
+Foldable callouts add `+` (open) or `-` (collapsed) after the type:
+
+```markdown
+> [!note+] Open by default
+> Details...
+
+> [!warning-] Collapsed by default
+> Details...
+```
+
 ---
 
 ## Code Blocks (fully supported)

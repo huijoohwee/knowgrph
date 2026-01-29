@@ -368,6 +368,11 @@ export interface GraphState {
   setGraphDataTableVirtualMinRows: (v: number) => void;
   setGraphDataTableVirtualDebugLogRanges: (v: boolean) => void;
   setMarkdownDocument: (name: string | null, text: string | null) => void;
+  applyMarkdownDocumentToGraph: (
+    name: string,
+    text: string,
+    opts?: { force?: boolean },
+  ) => Promise<boolean>;
   setJsonSourceDocument: (name: string | null, text: string | null) => void;
   setMarkdownDocumentSourceUrl: (url: string | null) => void;
   setMarkdownPreviewMermaidFocus: (

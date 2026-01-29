@@ -56,6 +56,36 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     })
   },
 
+  applyMarkdownDocumentToGraph: async (name: string, text: string, opts?: { force?: boolean }) => {
+    const nextName = String(name || '').trim()
+    const nextText = String(text || '')
+    if (!nextName || !nextText.trim()) return false
+
+    const lower = nextName.toLowerCase()
+    const isMarkdown = lower.endsWith('.md') || lower.endsWith('.markdown')
+    if (!isMarkdown) return false
+
+    const state = get()
+    const hasFrontmatterMermaid = (() => {
+      const m = nextText.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/)
+      if (!m || !m[1]) return false
+      return /\bmermaid\s*:/i.test(m[1])
+    })()
+
+    const shouldApply = (() => {
+      if (opts?.force) return true
+      if ((state.documentSemanticMode || 'document') !== 'document') return false
+      if (!(state.frontmatterModeEnabled || false)) return false
+      return hasFrontmatterMermaid
+    })()
+
+    if (!shouldApply) return false
+
+    const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
+    const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: true })
+    return !!(res?.graphData && ((res.graphData.nodes || []).length > 0 || (res.graphData.edges || []).length > 0))
+  },
+
   setMarkdownTokens: (args: {
     tokens: import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null
     path?: string | null

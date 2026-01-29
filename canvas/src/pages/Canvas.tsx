@@ -2,17 +2,16 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
-import { useParserUIState } from '@/features/parsers/uiState'
-import { clearCustomParsers } from '@/features/parsers/persistence'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/config'
-import { getLocalStorage, readBoolFromStorage } from '@/lib/persistence'
+import { lsSetBool } from '@/lib/persistence'
+import { hashText } from '@/features/parsers/hash'
+import { autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty } from '@/features/parsers/loader'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { GEOSPATIAL_MODE_CHANGED_EVENT, type GeospatialModeChangedDetail } from '@/features/geospatial/events'
-import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
@@ -173,6 +172,16 @@ export default function CanvasPage() {
     })),
   )
   const setLifecycleStage = useGraphStore(s => s.setLifecycleStage)
+  const { markdownDocumentName, markdownDocumentText, frontmatterModeEnabled, documentSemanticMode, graphData } = useGraphStore(
+    useShallow(s => ({
+      markdownDocumentName: s.markdownDocumentName,
+      markdownDocumentText: s.markdownDocumentText,
+      frontmatterModeEnabled: s.frontmatterModeEnabled || false,
+      documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+      graphData: s.graphData,
+    })),
+  )
+  const lastAutoAppliedMarkdownHashRef = React.useRef<string | null>(null)
   const [, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false)
   const asideRef = React.useRef<HTMLDivElement | null>(null)
   const sidebarToggleRef = React.useRef<HTMLButtonElement | null>(null)
@@ -234,24 +243,6 @@ export default function CanvasPage() {
     return () => {
       window.removeEventListener('resize', measure)
       if (timer) clearTimeout(timer)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    try {
-      useGraphStore.getState().clearGraphData?.()
-    } catch {
-      void 0
-    }
-    try {
-      useParserUIState.getState().reset?.()
-    } catch {
-      void 0
-    }
-    try {
-      clearCustomParsers()
-    } catch {
-      void 0
     }
   }, [])
 
@@ -351,14 +342,7 @@ export default function CanvasPage() {
       dismissUiToast: s.dismissUiToast,
     })),
   )
-  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
-    try {
-      const storage = getLocalStorage()
-      return readBoolFromStorage(storage, LS_KEYS.geospatialOverlayEnabled, false)
-    } catch {
-      return false
-    }
-  })
+  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(false)
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
   const [geospatialHostMounted, setGeospatialHostMounted] = React.useState(false)
 
@@ -377,10 +361,24 @@ export default function CanvasPage() {
   }, [])
 
   React.useEffect(() => {
-    void readGeospatialModeEnabled()
-      .then(enabled => setGeospatialModeEnabled(enabled))
-      .catch(() => void 0)
+    lsSetBool(LS_KEYS.geospatialOverlayEnabled, false)
+    setGeospatialModeEnabled(false)
   }, [])
+
+  React.useEffect(() => {
+    if (documentSemanticMode !== 'document') return
+    if (!frontmatterModeEnabled) return
+    const text = String(markdownDocumentText || '')
+    if (!text.trim()) return
+    const base = graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
+    const n = base && Array.isArray(base.nodes) ? base.nodes.length : 0
+    const e = base && Array.isArray(base.edges) ? base.edges.length : 0
+    if (n > 0 || e > 0) return
+    const h = hashText(text)
+    if (lastAutoAppliedMarkdownHashRef.current === h) return
+    lastAutoAppliedMarkdownHashRef.current = h
+    void autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty({ name: markdownDocumentName, text })
+  }, [documentSemanticMode, frontmatterModeEnabled, graphData, markdownDocumentName, markdownDocumentText])
 
   React.useEffect(() => {
     if (geospatialModeEnabled) setGeospatialHostMounted(true)

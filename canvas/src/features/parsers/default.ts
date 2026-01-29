@@ -8,6 +8,7 @@ import type { ParserSpec } from './types'
 import { toParserId } from './types'
 import { pythonSpec } from './python'
 import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
+import { containsFrontmatterMermaid } from './markdownHeuristics'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
 
@@ -43,11 +44,11 @@ const markdownSpec: ParserSpec = {
     const lower = (name || '').toLowerCase()
     if (/^https?:\/\//i.test(lower)) {
       const isMdByName = lower.endsWith('.md') || lower.endsWith('.markdown')
-      if (isMdByName) return !isLikelyPlainTextMarkdown(text)
+      if (isMdByName) return !isLikelyPlainTextMarkdown(text) || containsFrontmatterMermaid(text)
       return hasMarkdownStructure(String(text || ''))
     }
     if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
-      if (isLikelyPlainTextMarkdown(text)) return false
+      if (isLikelyPlainTextMarkdown(text) && !containsFrontmatterMermaid(text)) return false
       return true
     }
     return false

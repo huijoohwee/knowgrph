@@ -16,6 +16,10 @@
       "types": "./dist/markdown/toc.d.ts",
       "default": "./dist/markdown/toc.js"
     },
+    "./markdown/slugify": {
+      "types": "./dist/markdown/slugify.d.ts",
+      "default": "./dist/markdown/slugify.js"
+    },
     "./markdown/lineEditing": {
       "types": "./dist/markdown/lineEditing.d.ts",
       "default": "./dist/markdown/lineEditing.js"

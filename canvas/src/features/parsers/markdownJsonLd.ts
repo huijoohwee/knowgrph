@@ -27,8 +27,9 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const { meta, startIndex } = parseMarkdownFrontmatter(rawLines)
   const blocks = parseMarkdownBlocks(rawLines, startIndex)
 
+  const normalizedName = String(name || '').replace(/\\/g, '/').trim()
   const fmGraphId = String(meta.graphId || meta.graph_id || meta.graph || '').trim()
-  const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
+  const baseName = normalizedName.split('/').pop() || ''
   const stem = baseName.replace(/\.(md|markdown)$/i, '')
   const gid = fmGraphId || (stem ? `md:${slugify(stem)}` : 'md:x')
 
@@ -43,13 +44,22 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   const nowIso = new Date().toISOString()
   const sourceUrl = (() => {
-    const raw = String(name || '').trim()
-    if (!/^https?:\/\//i.test(raw)) return ''
-    return raw
+    if (!/^https?:\/\//i.test(normalizedName)) return ''
+    return normalizedName
+  })()
+
+  const documentPath = (() => {
+    if (sourceUrl) return sourceUrl
+    if (!normalizedName) return baseName
+    const stripped = normalizedName.split('#')[0]?.split('?')[0]?.trim() || ''
+    if (!stripped) return baseName
+    const isAbsolutePosix = stripped.startsWith('/')
+    const isAbsoluteWindows = /^[A-Za-z]:\//.test(stripped)
+    return isAbsolutePosix || isAbsoluteWindows ? baseName : stripped
   })()
   const mkMeta = (startLine: number, endLine: number): Record<string, unknown> => ({
     timestamp: nowIso,
-    documentPath: baseName,
+    documentPath,
     ...(sourceUrl ? { documentUrl: sourceUrl } : {}),
     lineStart: startLine,
     lineEnd: endLine,
@@ -64,8 +74,8 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   } | null = null
 
   const docProps: Record<string, unknown> = { format: 'text/markdown', graphId: gid }
-  if (baseName) docProps.path = baseName
-  builder.createDocumentNode(title, `${title}\n\nSource: ${baseName || 'inline'}`, docProps, mkMeta(1, Math.max(1, rawLines.length)))
+  if (documentPath) docProps.path = documentPath
+  builder.createDocumentNode(title, `${title}\n\nSource: ${documentPath || baseName || 'inline'}`, docProps, mkMeta(1, Math.max(1, rawLines.length)))
 
   const mermaidRaw = typeof meta.mermaid === 'string' ? meta.mermaid : ''
   const mermaidCode = String(mermaidRaw || '').trim()
@@ -164,8 +174,35 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   let lastBlockId: string | null = null
   const indexByParent = new Map<string, number>()
   let anchorsOnlyParagraphEmitted = false
+  let currentAnchorId: string | null = null
+  let pendingExplicitAnchorId: { id: string; line: number } | null = null
+
+  const extractHtmlAnchorIds = (line: string): string[] => {
+    const out: string[] = []
+    const anchorRe = /<a\s+[^>]*id\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>\s*<\/a>/gi
+    anchorRe.lastIndex = 0
+    for (;;) {
+      const match = anchorRe.exec(line)
+      if (!match) break
+      const anchorIdRaw = String(match[1] || match[2] || match[3] || '').trim()
+      if (anchorIdRaw) out.push(anchorIdRaw)
+    }
+    return out
+  }
 
   for (const b of blocks) {
+    const scanStart = Math.max(1, b.startLine - 2)
+    const scanEnd = Math.max(1, b.startLine - 1)
+    for (let ln = scanStart; ln <= scanEnd; ln += 1) {
+      const line = rawLines[ln - 1] ?? ''
+      const ids = extractHtmlAnchorIds(line)
+      for (const id of ids) {
+        const anchorNodeId = `anchor:${gid}:${id}`
+        builder.createAnchorNode(anchorNodeId, id, { anchorId: id, kind: 'html' }, mkMeta(ln, ln))
+        pendingExplicitAnchorId = { id, line: ln }
+      }
+    }
+
     const isMermaidBlock =
       b.kind === 'code' &&
       (b.language === 'mermaid' ||
@@ -225,6 +262,16 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         indexByParent.set(parentId, order)
         
         builder.createSectionNode(secId, b.text, { heading: b.text, level: b.level, anchor, order }, mkMeta(b.startLine, b.endLine), parentId)
+        const headingAnchorNodeId = `anchor:${gid}:${anchor}`
+        builder.createAnchorNode(headingAnchorNodeId, anchor, { anchorId: anchor, kind: 'heading' }, mkMeta(b.startLine, b.startLine))
+        if (pendingExplicitAnchorId && Math.abs(pendingExplicitAnchorId.line - b.startLine) <= 2) {
+          const explicitAnchorNodeId = `anchor:${gid}:${pendingExplicitAnchorId.id}`
+          builder.addRel(explicitAnchorNodeId, 'pointsTo', headingAnchorNodeId)
+          currentAnchorId = pendingExplicitAnchorId.id
+        } else {
+          currentAnchorId = anchor
+        }
+        pendingExplicitAnchorId = null
         
         builder.setNext(lastBlockId, secId)
         lastBlockId = secId
@@ -239,7 +286,31 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
       if (b.kind === 'paragraph') {
         const id = `blk:${gid}:p:${b.startLine}:${order}`
-        builder.createParagraphNode(id, b.text, { text: b.text, order, charCount: (b.text || '').length, name: `Paragraph ${order}` }, mkMeta(b.startLine, b.endLine), parentId)
+        const firstLine = String(b.text || '').split('\n')[0] || ''
+        const calloutMatch = /^>\s*\[!([A-Za-z0-9_-]+)([+-])?\]\s*(.*)$/.exec(firstLine.trim())
+        const isCallout = !!calloutMatch
+        const calloutType = calloutMatch ? String(calloutMatch[1] || '').trim().toLowerCase() : ''
+        const calloutFoldable = calloutMatch ? String(calloutMatch[2] || '').trim() : ''
+        const calloutTitle = calloutMatch ? String(calloutMatch[3] || '').trim() : ''
+        const name = isCallout ? `Callout ${calloutType || 'note'}` : `Paragraph ${order}`
+        const props: Record<string, unknown> = {
+          text: b.text,
+          order,
+          charCount: (b.text || '').length,
+          name,
+          ...(isCallout
+            ? {
+                calloutType: true,
+                calloutKind: calloutType || null,
+                calloutFoldable: calloutFoldable || null,
+                calloutTitle: calloutTitle || null,
+              }
+            : {}),
+        }
+        builder.createParagraphNode(id, b.text, props, mkMeta(b.startLine, b.endLine), parentId)
+        if (isCallout && currentAnchorId) {
+          builder.addRel(id, 'pointsTo', `anchor:${gid}:${currentAnchorId}`)
+        }
         
         builder.setNext(lastBlockId, id)
         lastBlockId = id
@@ -339,6 +410,18 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       builder.createAnchorNode(anchorNodeId, anchorIdRaw, { anchorId: anchorIdRaw }, mkMeta(lineNo, lineNo))
     }
 
+    const blockIdRe = /(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9_-]{0,127})(?=\s*$)/g
+    blockIdRe.lastIndex = 0
+    for (;;) {
+      const match = blockIdRe.exec(line)
+      if (!match) break
+      const rawId = String(match[1] || '').trim()
+      if (!rawId) continue
+      const anchorIdRaw = `^${rawId}`
+      const anchorNodeId = `anchor:${gid}:${anchorIdRaw}`
+      builder.createAnchorNode(anchorNodeId, anchorIdRaw, { anchorId: anchorIdRaw, kind: 'block' }, mkMeta(lineNo, lineNo))
+    }
+
     const internalLinkRe = /\[([^\]]+)\]\(#([^)]+)\)/g
     internalLinkRe.lastIndex = 0
     for (;;) {
@@ -351,6 +434,25 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       builder.createInternalLinkNode(linkId, label || anchorIdRaw, { anchorId: anchorIdRaw, label }, mkMeta(lineNo, lineNo))
 
       const anchorNodeId = `anchor:${gid}:${anchorIdRaw}`
+      if (builder.hasAnchor(anchorNodeId)) {
+        builder.addRel(linkId, 'pointsTo', anchorNodeId)
+      }
+    }
+
+    const wikiRe = /\[\[([^\]\r\n]+)\]\]/g
+    wikiRe.lastIndex = 0
+    for (;;) {
+      const match = wikiRe.exec(line)
+      if (!match) break
+      const inner = String(match[1] || '').trim()
+      if (!inner.startsWith('#')) continue
+      const isBlock = inner.startsWith('#^')
+      const rawTarget = isBlock ? `^${inner.slice(2).trim()}` : slugify(inner.slice(1).trim())
+      if (!rawTarget) continue
+      const label = isBlock ? rawTarget : inner.slice(1).trim()
+      const linkId = `internal-wikilink:${gid}:${slugify(label || rawTarget)}:${slugify(rawTarget)}`
+      builder.createInternalLinkNode(linkId, label || rawTarget, { anchorId: rawTarget, label, kind: 'wikilink' }, mkMeta(lineNo, lineNo))
+      const anchorNodeId = `anchor:${gid}:${rawTarget}`
       if (builder.hasAnchor(anchorNodeId)) {
         builder.addRel(linkId, 'pointsTo', anchorNodeId)
       }

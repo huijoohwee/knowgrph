@@ -11,7 +11,7 @@ import SearchPanel from '@/components/SearchPanel';
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
 import { LS_KEYS, UI_LABELS, UI_COPY } from '@/lib/config';
-import { getLocalStorage, readBoolFromStorage } from '@/lib/persistence'
+import { lsSetBool } from '@/lib/persistence'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import { ToolbarMenuLauncher } from '@/features/toolbar/ToolbarMenuLauncher';
 import {
@@ -19,7 +19,6 @@ import {
   uiPrimaryIconInactiveClassName,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
-import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge';
 import { GEOSPATIAL_MODE_CHANGED_EVENT, type GeospatialModeChangedDetail } from '@/features/geospatial/events'
 
 import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
@@ -72,14 +71,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   } = useMainPanelDrag();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [geospatialEnabled, setGeospatialEnabled] = useState(() => {
-    try {
-      const storage = getLocalStorage()
-      return readBoolFromStorage(storage, LS_KEYS.geospatialOverlayEnabled, false)
-    } catch {
-      return false
-    }
-  });
+  const [geospatialEnabled, setGeospatialEnabled] = useState(false);
+
+  React.useEffect(() => {
+    lsSetBool(LS_KEYS.geospatialOverlayEnabled, false)
+    setGeospatialEnabled(false)
+  }, [])
 
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
@@ -148,25 +145,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       window.removeEventListener(MAIN_PANEL_OPEN_EVENT, handler as EventListener);
     };
   }, [openMainPanel]);
-
-  React.useEffect(() => {
-    void readGeospatialModeEnabled()
-      .then(enabled => setGeospatialEnabled(enabled))
-      .catch((err: unknown) => {
-        setGeospatialEnabled(false)
-        try {
-          const msg =
-            err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '').trim() : ''
-          useGraphStore.getState().pushUiToast({
-            id: 'geospatial-mode-load-error',
-            kind: 'error',
-            message: `Geospatial Mode unavailable: ${msg || 'Unknown error'}`,
-          })
-        } catch {
-          void 0
-        }
-      })
-  }, []);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -452,7 +430,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           <FileText className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
         )}
       </IconButton>
-      <div className="App-toolbar__divider" />
+      <hr className="App-toolbar__divider" aria-hidden="true" />
       <IconButton
         className="App-toolbar__btn"
         ref={searchBtnRef}

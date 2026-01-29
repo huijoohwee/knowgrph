@@ -218,3 +218,41 @@ export function testForbidEditorJsDependencies() {
     )
   }
 }
+
+export function testForbidLegacyToolbarToolMenuAreasSystem() {
+  const toolbarDir = resolve(SRC_DIR, 'features', 'toolbar')
+  let files: string[] = []
+  try {
+    files = listFilesRecursively(toolbarDir).filter(f => /\.(ts|tsx)$/.test(f))
+  } catch {
+    files = []
+  }
+
+  const forbiddenFileNameParts = [
+    'ToolbarToolMenuAreas',
+    'ToolbarToolMenuAreasInspector',
+    'ToolbarToolMenuAreas.registry',
+    'useToolbarMenuAction',
+  ]
+  const forbiddenContentPatterns: RegExp[] = [
+    /\bTOOLBAR_AREA_RENDERERS\b/,
+    /\bToolbarToolMenuAreasProps\b/,
+  ]
+
+  const violations: string[] = []
+  for (const file of files) {
+    const base = file.split(/[/\\]/).pop() || file
+    if (forbiddenFileNameParts.some(part => base.includes(part))) {
+      violations.push(file)
+      continue
+    }
+    const text = readFileSync(file, 'utf8')
+    if (forbiddenContentPatterns.some(re => re.test(text))) {
+      violations.push(file)
+    }
+  }
+
+  if (violations.length) {
+    throw new Error(`Legacy toolbar tool-menu-areas system must not be reintroduced:\n${violations.join('\n')}`)
+  }
+}

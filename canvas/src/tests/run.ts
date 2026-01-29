@@ -129,6 +129,7 @@ import {
   testForbidEditorJsDependencies,
   testForbidMagicLocalStorageKeysOutsideCentralConstants,
   testForbidSiblingRepoSourceImports,
+  testForbidLegacyToolbarToolMenuAreasSystem,
   testForbidGympgrphHookUsageInHost,
   testHostGympgrphIntegrationUsesPackageRootOnly,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
@@ -307,6 +308,7 @@ export const runAllTests = async () => {
   await exec('policy.persistence.forbidMagicLocalStorageKeys', testForbidMagicLocalStorageKeysOutsideCentralConstants)
   await exec('policy.curagrph.aliasContractInViteConfig', testCuragrphAliasContractInViteConfig)
   await exec('policy.markdown.forbidEditorJs', testForbidEditorJsDependencies)
+  await exec('policy.toolbar.forbidLegacyToolMenuAreasSystem', testForbidLegacyToolbarToolMenuAreasSystem)
 
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)

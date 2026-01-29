@@ -16,8 +16,8 @@ import { LS_KEYS, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
-import { createId } from '@/lib/id'
 import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
+import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
 
 type ToolbarMenuLauncherProps = {
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
@@ -46,17 +46,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
   const handleToolMenuShortcutAction = React.useCallback((area: ToolMenuArea, action: ToolMenuAction) => {
     if (area !== 'sourceFiles' || action !== 'new') return
     try {
-      const store = useGraphStore.getState()
-      const count = Array.isArray(store.sourceFiles) ? store.sourceFiles.length : 0
-      const nextIndex = Math.max(1, count + 1)
-      store.addSourceFile({
-        id: createId('sf'),
-        name: `source-${nextIndex}.md`,
-        text: '',
-        enabled: true,
-        status: 'idle',
-        source: { kind: 'local' },
-      })
+      createNewMarkdownSourceFileAndOpenViewer()
     } catch {
       void 0
     }

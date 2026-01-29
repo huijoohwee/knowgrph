@@ -49,7 +49,7 @@ export type MonacoTextEditorProps = {
   onDoubleClickSelection?: (args: { startLine: number; endLine: number; text: string; event: Monaco.editor.IEditorMouseEvent }) => void
   onDoubleClickLine?: (line: number) => void
   onSelectionChangeOffsets?: (args: { startOffset: number; endOffset: number }) => void
-  onDoubleClickSelectionOffsets?: (args: { startOffset: number; endOffset: number }) => void
+  onDoubleClickSelectionOffsets?: (args: { startOffset: number; endOffset: number; text: string }) => void
   onScroll?: (scrollTop: number, scrollLeft: number) => void
   onBlur?: () => void
   onFocus?: () => void
@@ -100,6 +100,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   const onDoubleClickLineRef = React.useRef(onDoubleClickLine)
   const onDoubleClickSelectionOffsetsRef = React.useRef(onDoubleClickSelectionOffsets)
   const onSelectionChangeOffsetsRef = React.useRef(onSelectionChangeOffsets)
+  const lastTextareaSelectionOffsetsRef = React.useRef<{ startOffset: number; endOffset: number } | null>(null)
   const onScrollRef = React.useRef(onScroll)
   const onBlurRef = React.useRef(onBlur)
   const onFocusRef = React.useRef(onFocus)
@@ -400,7 +401,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
               const offsets = handle.getSelectionOffsets()
               if (!offsets) return
               if (onDoubleClickSelectionOffsetsRef.current) {
-                onDoubleClickSelectionOffsetsRef.current(offsets)
+                onDoubleClickSelectionOffsetsRef.current({ ...offsets, text: handle.getValue() })
               }
             })
           })
@@ -644,6 +645,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
             const el = e.currentTarget
             const startOffset = typeof el.selectionStart === 'number' ? el.selectionStart : 0
             const endOffset = typeof el.selectionEnd === 'number' ? el.selectionEnd : startOffset
+            lastTextareaSelectionOffsetsRef.current = { startOffset, endOffset }
             if (onSelectionChangeOffsetsRef.current) {
               onSelectionChangeOffsetsRef.current({ startOffset, endOffset })
             }
@@ -652,8 +654,27 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
             const el = e.currentTarget
             const startOffset = typeof el.selectionStart === 'number' ? el.selectionStart : 0
             const endOffset = typeof el.selectionEnd === 'number' ? el.selectionEnd : startOffset
+            const stable = lastTextareaSelectionOffsetsRef.current
+            const stableStartOffset = stable ? stable.startOffset : startOffset
+            const stableEndOffset = stable ? stable.endOffset : endOffset
+            if (onDoubleClickLineRef.current) {
+              const text = String(el.value || '')
+              const rawOffset = Math.min(stableStartOffset, stableEndOffset)
+              const clampedOffset = Math.max(0, Math.min(text.length, rawOffset))
+              const offsetForLine = clampedOffset > 0 && text[clampedOffset - 1] === '\n' ? clampedOffset - 1 : clampedOffset
+              const prefix = text.slice(0, offsetForLine)
+              const rawLine = (prefix.match(/\n/g) || []).length + 1
+              const lines = text.split('\n')
+              let idx = Math.min(Math.max(rawLine - 1, 0), Math.max(lines.length - 1, 0))
+              while (idx > 0 && String(lines[idx] || '').trim() === '') idx -= 1
+              onDoubleClickLineRef.current(idx + 1)
+            }
             if (onDoubleClickSelectionOffsetsRef.current) {
-              onDoubleClickSelectionOffsetsRef.current({ startOffset, endOffset })
+              onDoubleClickSelectionOffsetsRef.current({
+                startOffset: stableStartOffset,
+                endOffset: stableEndOffset,
+                text: String(el.value || ''),
+              })
             }
           }}
           onBlur={onBlur}

@@ -560,6 +560,8 @@ metadata.codebasePath:
 
 **Fallback Chain**: `documentPath` (strip `#L` fragment) → `codebaseRelPath` → `codebasePath` (if unavoidable)
 
+**Portability Rule**: Producers preserve relative `documentPath` segments when provided (e.g., `docs/example.md`) and strip absolute filesystem paths down to the basename (e.g., `example.md`) to forbid environment-coupled provenance.
+
 **Centralized Implementation**: `lib/graph/documentMetadata.ts` provides `resolveDocumentPath(node)` and `resolveLineRange(node)` functions shared by Bottom Panel, Data Table, and selection/highlight logic.
 
 **Design Compliance**:

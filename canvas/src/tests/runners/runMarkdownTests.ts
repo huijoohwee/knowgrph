@@ -10,6 +10,7 @@ import {
   testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo,
   testMarkdownHeadMetaFrontmatterArrays,
 } from '@/__tests__/markdown/markdownRendering.test'
+import { testMarkdownSlideDemoSupportInteropFeaturesRenderAndLink } from '@/__tests__/markdown/markdownSlideDemoSupportInterop.test'
 import { testMarkdownMediaToggleEndToEnd } from '@/__tests__/markdown/markdownMediaToggle.test'
 import {
   testMarkdownLayoutViewToggleEndToEnd,
@@ -42,6 +43,11 @@ import { testMarkdownGeoJsonInlineMapRendersStableContainerDom } from '@/__tests
 import { testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvailable } from '@/__tests__/markdown/markdownGeoJsonRendererUnavailableFix.test'
 import { testNewSourceFileOpensBottomPanelMarkdownViewer } from '@/__tests__/markdown/newSourceFileOpensViewer.test'
 import { testMarkdownSidebarNewSourceFileButtonCreatesFile } from '@/__tests__/markdown/markdownSourceFilesTreeNewFile.test'
+import { testMarkdownLocalFolderSelectionKeepsEditorTextInSync } from '@/__tests__/markdown/markdownLocalFolderEditorSync.test'
+import { testMarkdownDocumentPathNormalization } from '@/__tests__/markdownDocumentPathNormalization.test'
+import { testMarkdownSourceFilesOpenInEditorUsesSelectedDocument } from '@/__tests__/markdown/markdownSourceFilesOpenInEditorUsesSelectedDocument.test'
+import { testMarkdownAutoAppliesFrontmatterMermaidToCanvasWhenGraphEmpty } from '@/__tests__/markdown/markdownAutoApplyFrontmatterToCanvas.test'
+import { testMarkdownOpenInEditorAutoParsesFrontmatterGraph } from '@/__tests__/markdown/markdownOpenInEditorAutoParsesFrontmatterGraph.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -53,6 +59,7 @@ export const runMarkdownTests = async (results: TestResult[]) => {
 
   await execTest(results, 'markdown.rendering.inlineAbbrAndSpan', testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo)
   await execTest(results, 'markdown.rendering.headMetaArrays', testMarkdownHeadMetaFrontmatterArrays)
+  await execTest(results, 'markdown.rendering.slideDemoSupportInterop', testMarkdownSlideDemoSupportInteropFeaturesRenderAndLink)
   await execTest(results, 'markdown.mediaToggle.e2e', testMarkdownMediaToggleEndToEnd)
   await execTest(results, 'markdown.layoutToggle.e2e', testMarkdownLayoutViewToggleEndToEnd)
   await execTest(results, 'markdown.presentation.fullscreen', testMarkdownPresentationFullscreenFromBottomPanelControls)
@@ -77,4 +84,9 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.frontmatter.blocksInViewer', testMarkdownFrontmatterBlocksRenderInViewer)
   await execTest(results, 'markdown.sourceFiles.newFileOpensViewer', testNewSourceFileOpensBottomPanelMarkdownViewer)
   await execTest(results, 'markdown.sidebar.sourceFilesTree.newFile', testMarkdownSidebarNewSourceFileButtonCreatesFile)
+  await execTest(results, 'markdown.localFolder.editorSync', testMarkdownLocalFolderSelectionKeepsEditorTextInSync)
+  await execTest(results, 'markdown.documentPath.normalization', testMarkdownDocumentPathNormalization)
+  await execTest(results, 'markdown.sourceFiles.openInEditorUsesSelectedDocument', testMarkdownSourceFilesOpenInEditorUsesSelectedDocument)
+  await execTest(results, 'markdown.autoApply.frontmatterMermaidGraph', testMarkdownAutoAppliesFrontmatterMermaidToCanvasWhenGraphEmpty)
+  await execTest(results, 'markdown.openInEditor.autoParsesFrontmatterGraph', testMarkdownOpenInEditorAutoParsesFrontmatterGraph)
 }

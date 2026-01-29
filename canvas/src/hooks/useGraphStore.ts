@@ -124,7 +124,8 @@ export const useGraphStore = create<GraphState>()(
       renderOpOk: null,
       renderOpMsg: '',
       lifecycleStage: 'idle',
-      frontmatterModeEnabled: false,
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: true,
     });
   },
   ...createUiSettingsSlice(set),

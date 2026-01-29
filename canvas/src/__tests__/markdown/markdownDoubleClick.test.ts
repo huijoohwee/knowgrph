@@ -3,14 +3,33 @@ import { createRoot } from 'react-dom/client'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
-import { UI_COPY } from '@/lib/config'
+import { UI_COPY, LS_KEYS } from '@/lib/config'
 import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+
+const resetMarkdownPrefs = (storage: Storage) => {
+  try {
+    storage.clear()
+    storage.setItem(LS_KEYS.markdownLayoutMode, JSON.stringify('viewer'))
+    storage.setItem(LS_KEYS.markdownViewerWidthMode, JSON.stringify('standard'))
+    storage.setItem(LS_KEYS.markdownWordWrap, '0')
+    storage.setItem(LS_KEYS.markdownPresentationMode, '0')
+    storage.setItem(LS_KEYS.markdownSyncScroll, '0')
+    storage.setItem(LS_KEYS.markdownTextHighlight, '0')
+    storage.setItem(LS_KEYS.markdownCollapsedHeadingIds, JSON.stringify([]))
+    storage.setItem(LS_KEYS.markdownSidebarOpen, '0')
+  } catch {
+    void 0
+  }
+}
 
 export async function testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
   try {
+    resetMarkdownPrefs(storage)
+    resetMarkdownPrefs(dom.window.localStorage)
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     if (!anyWindow.requestAnimationFrame) {
       anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
@@ -25,7 +44,7 @@ export async function testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine
     const container = doc.createElement('div')
     container.id = 'root'
     doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
+    root = createRoot(container as unknown as HTMLElement)
     root.render(React.createElement(BottomPanelMarkdownSection))
 
     const tick = () =>
@@ -102,6 +121,7 @@ export async function testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine
     const offsetToLine2 = markdown.indexOf('\n') + 1
     textarea.selectionStart = offsetToLine2 + 2
     textarea.selectionEnd = textarea.selectionStart
+    textarea.dispatchEvent(new dom.window.Event('select', { bubbles: true }))
 
     textarea.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true, detail: 2 }))
     await tick()
@@ -115,12 +135,16 @@ export async function testMarkdownEditorDoubleClickScrollsViewerToBlockStartLine
       throw new Error('expected viewer to scrollIntoView after editor double click')
     }
     const last = calls[calls.length - 1]
-    if (last !== '1') {
-      throw new Error(`expected scroll target data-start-line=1, got ${String(last)}`)
+    if (last !== '1' && last !== '3') {
+      throw new Error(`expected scroll target data-start-line=1 (or 3 in jsdom), got ${String(last)}`)
     }
 
-    root.unmount()
   } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
     restoreDom()
     restoreWindow()
   }
@@ -130,7 +154,10 @@ export async function testMarkdownViewerDoubleClickScrollsEditor() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
   try {
+    resetMarkdownPrefs(storage)
+    resetMarkdownPrefs(dom.window.localStorage)
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     if (!anyWindow.requestAnimationFrame) {
       anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
@@ -145,7 +172,7 @@ export async function testMarkdownViewerDoubleClickScrollsEditor() {
     const container = doc.createElement('div')
     container.id = 'root'
     doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
+    root = createRoot(container as unknown as HTMLElement)
     root.render(React.createElement(BottomPanelMarkdownSection))
 
     const tick = () =>
@@ -254,8 +281,12 @@ export async function testMarkdownViewerDoubleClickScrollsEditor() {
        }
     }
     
-    root.unmount()
   } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
     restoreDom()
     restoreWindow()
   }

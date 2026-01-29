@@ -59,7 +59,7 @@ export const createUiSettingsSlice = (set: SetGraph) => {
   bottomPanelTab: 'graph-data' as BottomTab,
   bottomPanelCurationView: 'grid' as const,
   bottomPanelCodeSource: 'graph-json' as const,
-  frontmatterModeEnabled: false,
+  frontmatterModeEnabled: true,
   documentSemanticMode: 'document' as DocumentSemanticMode,
   schemaDeriveCacheCapacity: 50,
   graphFieldSettingsById: {} as GraphFieldSettingsById,

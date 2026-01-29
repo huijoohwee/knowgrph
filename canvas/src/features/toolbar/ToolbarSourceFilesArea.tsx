@@ -2,7 +2,6 @@ import React from 'react'
 import { Download, Eraser, FileText, Link, Upload } from 'lucide-react'
 import { addGeospatialDatasetUrls } from 'gympgrph'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { ToolbarToolMenuAreasProps } from '@/features/toolbar/ToolbarToolMenuAreas.registry'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { GripDotsIcon, VisibilityIcon } from '@/features/graph-fields/ui/graphFieldIcons'
@@ -31,8 +30,7 @@ type GeoDatasetFormat = 'auto' | 'geojson' | 'records'
 const SUPPORTED_SOURCE_FILE_IMPORT_EXTENSIONS = [...SOURCE_FILES_FORMATS.import]
 const SUPPORTED_SOURCE_EXPORT_FORMATS = SOURCE_FILES_FORMATS.export
 
-export function ToolbarSourceFilesArea(_props: Partial<ToolbarToolMenuAreasProps> = {}) {
-  void _props
+export function ToolbarSourceFilesArea() {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
@@ -594,6 +592,7 @@ export function ToolbarSourceFilesArea(_props: Partial<ToolbarToolMenuAreasProps
           store.setMarkdownDocument(after.name, text)
           store.setMarkdownDocumentSourceUrl(sourceUrl || null)
           store.setBottomPanelCurationView('markdown')
+          void store.applyMarkdownDocumentToGraph(after.name, text, { force: true })
         }
       } catch {
         void 0

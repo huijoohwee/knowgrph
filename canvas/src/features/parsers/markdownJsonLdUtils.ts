@@ -1,13 +1,4 @@
-export const slugify = (text: string): string => {
-  const normalized = String(text || '')
-    .trim()
-    .toLowerCase()
-    .replace(/['"]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '')
-  return normalized || 'x'
-}
+export { slugify } from 'grph-shared/markdown/slugify'
 
 export const resolveUrl = (baseUrl: string | undefined, value: string): string => {
   const raw = String(value || '').trim()

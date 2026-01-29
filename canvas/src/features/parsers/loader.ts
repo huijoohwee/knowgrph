@@ -7,6 +7,7 @@ import { deriveFilenameFromUrl } from '@/lib/url'
 import { ensureBuiltInParsersRegistered } from '@/features/parsers/ensure'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
+import { containsFrontmatterMermaid } from '@/features/parsers/markdownHeuristics'
 import {
   type DbConnectorKind,
   type RelationalConnectorConfig,
@@ -158,7 +159,33 @@ export async function loadGraphDataFromTextViaParser(
   const res = cached || await applyParserAsync(parserId, { name, text })
   if (!res) return { parserId: bm.id, name, input: { name, text }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
   if (!cached) setCachedParse(parserId, name, text, res)
-  const { graphData } = res
+  let { graphData } = res
+  const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
+  const lower = String(name || '').trim().toLowerCase()
+  if (maybeEmpty && bm.id !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown')) && containsFrontmatterMermaid(text)) {
+    const markdownParserId = toParserId('markdown')
+    const fallbackCached = getCachedParse(markdownParserId, name, text)
+    const fallback = fallbackCached || await applyParserAsync(markdownParserId, { name, text })
+    if (fallback?.graphData) {
+      if (!fallbackCached) setCachedParse(markdownParserId, name, text, fallback)
+      graphData = fallback.graphData
+      if (options?.applyToStore !== false) {
+        try {
+          useGraphStore.getState().setGraphData(graphData)
+        } catch {
+          void 0
+        }
+      }
+      return {
+        parserId: 'markdown',
+        name,
+        graphData,
+        counts: { n: graphData.nodes.length, e: graphData.edges.length },
+        warnings: [...(fallback.warnings || []), `Parser fallback: ${bm.id} yielded empty graph; used markdown parser instead.`],
+        input: { name, text },
+      }
+    }
+  }
   if (options?.applyToStore !== false) {
     try {
       useGraphStore.getState().setGraphData(graphData)
@@ -174,4 +201,28 @@ export async function loadGraphDataFromTextViaParser(
     warnings: res.warnings || [],
     input: { name, text },
   }
+}
+
+export async function autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty(args?: {
+  name?: string | null
+  text?: string | null
+}): Promise<boolean> {
+  const store = useGraphStore.getState()
+  if ((store.documentSemanticMode || 'document') !== 'document') return false
+  if (!(store.frontmatterModeEnabled || false)) return false
+
+  const name = String(args?.name ?? store.markdownDocumentName ?? 'document.md')
+  const text = String(args?.text ?? store.markdownDocumentText ?? '')
+  if (!text.trim()) return false
+  if (!containsFrontmatterMermaid(text)) return false
+
+  const base = store.graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
+  const n = base && Array.isArray(base.nodes) ? base.nodes.length : 0
+  const e = base && Array.isArray(base.edges) ? base.edges.length : 0
+  if (n > 0 || e > 0) return false
+
+  const lower = name.toLowerCase()
+  const resolvedName = lower.endsWith('.md') || lower.endsWith('.markdown') ? name : `${name}.md`
+  const res = await loadGraphDataFromTextViaParser(resolvedName, text, { applyToStore: true })
+  return !!(res?.graphData && (res.graphData.nodes.length > 0 || res.graphData.edges.length > 0))
 }

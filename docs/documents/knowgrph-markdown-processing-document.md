@@ -55,6 +55,13 @@ Code blocks now feature a structured layout matching GitHub's design system:
 - **Apply Shortcut**: In Editor/Viewer layout modes, Cmd/Ctrl+Enter toggles Editor↔Viewer; when in Editor it applies and then switches to Viewer.
 - **Left-Side Contents Panel (Bottom Panel)**: The Markdown “Contents” sidebar is rendered on the left and includes a Source Files tree (folder/file hierarchy derived from `/` in file names) with icon-only create actions.
 
+### In-Doc Navigation (Anchors, Callouts, Wikilinks)
+- **HTML anchors are preserved**: Empty anchor targets like `<a id="phase-1-input"></a>` remain in the rendered DOM so `#phase-1-input` hash navigation works (including Mermaid `click ... "#phase-*"` directives).
+- **Heading anchors are generated**: Headings receive deterministic ids using the shared `slugify` implementation from `grph-shared` so UI and parser agree on targets.
+- **Block-id anchors are supported**: A trailing `^block-id` at end-of-line emits a DOM anchor with id `^block-id`, enabling links like `[[#^block-id]]`.
+- **Callouts (subset)**: Blockquotes whose first line is `[!type]` render as semantic callouts. `+` / `-` after the type enables foldable callouts.
+- **Wikilinks (subset)**: `[[#Heading]]` and `[[#^block-id]]` are converted to safe hash links. File-level `[[Note Name]]` resolution and cross-document backlinks are currently conceptual only.
+
 ### Semantic HTML
 The implementation replaces generic `<div>` wrappers with semantic elements:
 - `<figure>`: The main container for the code block.
@@ -118,11 +125,16 @@ To avoid redundant processing and ensure consistency across the application (e.g
 
 ## Usage
 
-For cross-feature smoke testing (Frontmatter + Mermaid + GeoJSON + Presentation), use the canonical sandbox fixture:
+For cross-feature smoke testing (Frontmatter + Mermaid + GeoJSON + Presentation), use a sandbox demo Markdown file under:
 
-`sandbox/demo/markdown-slide-demo.md`
+`sandbox/demo/*.md`
 
-This is intentionally referenced as a repo-relative path; tests resolve it via a bounded search (or `KG_MARKDOWN_SLIDE_DEMO_PATH`) so docs don't hardcode machine-specific absolute paths.
+For slide-demo interop (anchors/callouts/wikilinks), keep the bounded tests aligned with the same fixture:
+
+- `knowgrph/canvas/src/__tests__/markdown/markdownSlideDemoSupportInterop.test.ts`
+- `knowgrph/canvas/src/__tests__/markdown/markdownJsonLdSlideDemoInterop.test.ts`
+
+Tests resolve a demo file via a bounded search within the repo sandbox folder (or `KG_MARKDOWN_SLIDE_DEMO_PATH` / `KG_SANDBOX_ROOT`) so docs don't hardcode machine-specific absolute paths.
 
 ```markdown
 ```yaml

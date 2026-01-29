@@ -34,6 +34,7 @@ import {
   testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd,
 } from '@/__tests__/graphragTextPipeline.test'
 import { testGraphRagTextPipelineExtractsFromAieBookSnippets } from '@/__tests__/aieBookGraphRagTextPipeline.test'
+import { testMarkdownJsonLdSlideDemoEmitsAnchorsAndWikilinks } from '@/__tests__/markdown/markdownJsonLdSlideDemoInterop.test'
 
 export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.registryCrud', testParserRegistryCrud)
@@ -65,4 +66,5 @@ export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.graphragText.pipelineExtractsFromAieBookSnippets', testGraphRagTextPipelineExtractsFromAieBookSnippets)
   await execTest(results, 'parser.graphragText.parserSpecMatchesTxt', testGraphRagTextParserSpecMatchesTxt)
   await execTest(results, 'parser.graphragText.bestMatchPrefersGraphRagOnPlainMd', testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd)
+  await execTest(results, 'parser.markdownJsonLd.slideDemoInterop', testMarkdownJsonLdSlideDemoEmitsAnchorsAndWikilinks)
 }
