@@ -50,9 +50,14 @@ Code blocks now feature a structured layout matching GitHub's design system:
   - **Render**: Switches supported code blocks from source to a fitted preview.
     - **Mermaid** (`mermaid` / `mmd`): Renders the diagram fitted to the full code block.
       - **Pan/Zoom + In-doc anchors**: In Render mode, Mermaid previews support drag/pan (and optional zoom) inside the code block; in-diagram `#anchor` links trigger in-document scrolling within the Markdown preview container.
+      - **Preview Panel (double-click)**: Double-clicking a rendered Mermaid preview focuses it in MainPanel → Preview. Single click remains navigation-only (e.g., `#hash` anchors).
       - **Per-block Mermaid frontmatter**: A Mermaid code block may start with a YAML `--- ... ---` header. The viewer strips that header from the diagram text and merges it into Mermaid init config for that block (e.g., `theme`, `themeVariables`, or `mermaidTheme`/`mermaidThemeVariables`).
+      - **Multi-diagram fences**: When a single Mermaid fence contains multiple diagram starts (e.g., repeated `graph TB` / `graph LR` blocks), the viewer splits it into multiple renderable diagrams using a shared `grph-shared` helper (`splitMermaidIntoDiagrams`).
     - **Frontmatter**: When the active document begins with YAML frontmatter (`--- ... ---`), clicking the global **Render** control also enables Frontmatter Mode so the frontmatter blocks are visible without a second toggle.
     - **GeoJSON** (`geojson`): Renders a fitted MapLibre preview inside the code block using the same basemap/style loading behavior as Geospatial Mode. GeoJSON parsing and validation reuse the shared Gympgrph helpers (`parseGeoJsonFromText`) so inline rendering and dataset registration share the same acceptance rules.
+    - **HTML/SVG** (`html` / `htm` / `svg`): Renders safe HTML inside the code block in Render mode (sanitized; no script/event handlers).
+      - **Drag-to-pan**: The HTML render surface supports click-drag panning by scrolling the container (useful for wide content).
+      - **srcdoc iframes**: `<iframe srcdoc="...">` renders as a sandboxed iframe (no network; scripts disabled).
     - **Other languages**: Falls back to the source code view.
 - **Per-Block Mode Icons**: Each code block header also exposes icon-only controls for **Beside / Inline / Render** so a specific block can override the global mode without mutating the global preference.
 - **Hover Effects**: The entire code block (including annotations in Beside/Inline modes) is highlighted with a blue border on hover, ensuring clear visual grouping of the code and its associated notes.
@@ -98,7 +103,7 @@ To avoid redundant processing and ensure consistency across the application (e.g
 ### Rendering Optimization
 - **Memoization**: `MarkdownCodeBlock` is wrapped in `React.memo` to prevent unnecessary re-renders when parent components update.
 - **Highlight Caching**: Syntax highlighting is memoized via `useMemo`, ensuring that `highlight.js` is only invoked when the code content or language changes.
-- **GeoJSON Map Load**: Inline GeoJSON previews defer MapLibre initialization until the preview scrolls into view, wait for non-zero layout via bounded observers, keep a stable map container element across deferred-load states, and show a visible overlay message (“Loading map preview…” / “Map preview unavailable”) instead of failing silently ([InlineMarkdownGeoJsonLayerMap.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/geospatial/InlineMarkdownGeoJsonLayerMap.tsx), [mapLibreFactory.ts](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/mapLibreFactory.ts)).
+- **GeoJSON Map Load**: Inline GeoJSON previews defer MapLibre initialization until the preview scrolls into view, wait for non-zero layout via bounded observers, keep a stable map container element across deferred-load states, and show a visible overlay message (“Loading map preview…” / “Map preview unavailable”) instead of failing silently ([InlineMarkdownGeoJsonLayerMap.tsx](../../canvas/src/features/geospatial/InlineMarkdownGeoJsonLayerMap.tsx), [mapLibreFactory.ts](../../../gympgrph/src/features/geospatial/mapLibreFactory.ts)).
 - **GeoJSON Detection**: `geojson` blocks are always GeoJSON-renderable; `json` blocks are treated as GeoJSON only when `geoDatasetIntegration.isGeoJsonCodeBlock` identifies the content as GeoJSON.
 - **GeoJSON Render Defaults**: In Viewer, GeoJSON-renderable blocks respect the global annotate display mode (typically Inline); in Presentation, GeoJSON-renderable blocks (including `json` fences identified as GeoJSON) default to Render.
 - **GeoJSON Interaction**: Map previews follow the same overlay conventions as Mermaid: container-scoped overlays use `PreviewOverlay` for fullscreen inspection; viewport-scoped previews delegate to `requestOpenGeoPanel`.
@@ -107,19 +112,19 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **GeoJSON Error UI**: GeoJSON render failures show a compact error bar (≈50% of the Markdown toolbar nav height) to avoid consuming the code block preview area.
 
 ### Media Proxy Handling
-- **Background Sources**: Slide `background` URLs are normalized via [markdownSlideVisuals.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownSlideVisuals.ts#L1-L200) before render.
-- **Proxy Routing**: Cross-origin URLs are routed through `/__fetch_remote` by [applyMediaProxySrc](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/url.ts#L1-L200).
+- **Background Sources**: Slide `background` URLs are normalized via [markdownSlideVisuals.ts](../../../curagrph/src/features/markdown/ui/markdownSlideVisuals.ts) before render.
+- **Proxy Routing**: Cross-origin URLs are routed through `/__fetch_remote` by [applyMediaProxySrc](../../canvas/src/lib/url.ts).
 - **Domain Neutrality**: No special-case domain rewrites; all remote backgrounds follow the same proxy path.
 
 ### Markdown → Graph → Canvas flow
 
 **Processing Flow**: Markdown input → Markdown parser → GraphData store → layer derivation → Canvas scene
 
-- **Import & Parse**: Markdown is ingested via [markdownImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/markdownImportAction.ts), which calls [loadGraphDataFromTextViaParser](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts#L159-L193). The markdown parser builds JSON‑LD (`buildMarkdownJsonLd`) and converts it into GraphData ([default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts#L39-L87)).
+- **Import & Parse**: Markdown is ingested via [markdownImportAction.ts](../../canvas/src/features/toolbar/markdownImportAction.ts), which calls [loadGraphDataFromTextViaParser](../../canvas/src/features/parsers/loader.ts). The markdown parser builds JSON‑LD (`buildMarkdownJsonLd`) and converts it into GraphData ([default.ts](../../canvas/src/features/parsers/default.ts)).
 - **YouTube Import**: Workspace Actions → Source Files → YouTube fetches transcripts/subtitles (manual or generated) via `/__youtube_transcript` and converts them into Markdown + a JSON source payload. Markdown is loaded into the Markdown Editor/Preview/Slides, while the JSON payload is stored as `jsonSourceDocumentText` for the Bottom Panel JSON Editor.
-- **GraphData Commit**: Parsed GraphData is stored via the graph store (`setGraphData`), which triggers minimap and layout autosuggest side effects without blocking the UI ([graphDataSlice.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSlice.ts#L224-L249)).
-- **Layer Derivation**: The renderer derives a view‑specific graph (document/schema/semantic) with [deriveGraphDataForLayers](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts#L324-L538) and optional frontmatter filtering; this stage clones nodes/edges so D3 can mutate render-only objects without polluting the store.
-- **Canvas Rendering**: [GraphCanvas](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx#L142-L405) builds the scene via [setupGraphScene](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts#L63-L418), producing SVG layers for nodes, edges, labels, and graph layers.
+- **GraphData Commit**: Parsed GraphData is stored via the graph store (`setGraphData`), which triggers minimap and layout autosuggest side effects without blocking the UI ([graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)).
+- **Layer Derivation**: The renderer derives a view‑specific graph (document/schema/semantic) with [deriveGraphDataForLayers](../../canvas/src/lib/graph/layerDerivation.ts) and optional frontmatter filtering; this stage clones nodes/edges so D3 can mutate render-only objects without polluting the store.
+- **Canvas Rendering**: [GraphCanvas](../../canvas/src/components/GraphCanvas.tsx) builds the scene via [setupGraphScene](../../canvas/src/components/GraphCanvas/scene.ts), producing SVG layers for nodes, edges, labels, and graph layers.
 
 ## Component Responsibility Matrix
 

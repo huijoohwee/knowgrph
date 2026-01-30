@@ -74,7 +74,7 @@ export default function RenderSettingsSection({
   )
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-    schema.layout?.mode === 'radial' ? schema.layout.mode : 'force'
+    schema.layout?.mode === 'radial' || schema.layout?.mode === 'stratify' ? schema.layout.mode : 'force'
 
   const setLayoutMode = React.useCallback(
     (mode: NonNullable<NonNullable<GraphSchema['layout']>['mode']>) => {
@@ -107,6 +107,69 @@ export default function RenderSettingsSection({
       const curLayout = current.layout || {}
       const next = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : (curLayout.fitPadding ?? 80)
       setSchema({ ...current, layout: { ...curLayout, fitPadding: next } })
+    },
+    [schema, setSchema],
+  )
+
+  const setStratifyEdgeLabels = React.useCallback(
+    (text: string) => {
+      const current = schema
+      const curLayout = current.layout || {}
+      const curStratify = curLayout.stratify || {}
+      const labels = String(text || '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(v => v.length > 0)
+      const unique: string[] = []
+      for (const v of labels) {
+        if (!unique.includes(v)) unique.push(v)
+      }
+      const nextStratify = { ...curStratify } as Record<string, unknown>
+      if (unique.length > 0) nextStratify.edgeLabels = unique
+      else delete nextStratify.edgeLabels
+      const hasAny = Object.values(nextStratify).some(v => v !== undefined)
+      setSchema({
+        ...current,
+        layout: {
+          ...curLayout,
+          stratify: hasAny ? (nextStratify as GraphSchema['layout']['stratify']) : undefined,
+        },
+      })
+    },
+    [schema, setSchema],
+  )
+
+  const setStratifyOrientation = React.useCallback(
+    (orientation: 'vertical' | 'horizontal') => {
+      const current = schema
+      const curLayout = current.layout || {}
+      const curStratify = curLayout.stratify || {}
+      const nextStratify = { ...curStratify, orientation }
+      setSchema({ ...current, layout: { ...curLayout, stratify: nextStratify } })
+    },
+    [schema, setSchema],
+  )
+
+  const setStratifySeparation = React.useCallback(
+    (value: number | null) => {
+      const current = schema
+      const curLayout = current.layout || {}
+      const curStratify = curLayout.stratify || {}
+      const nextStratify = { ...curStratify } as Record<string, unknown>
+      if (value === null) {
+        delete nextStratify.separation
+      } else {
+        const next = Number.isFinite(value) ? Math.max(0.1, Math.min(10, value)) : 1
+        nextStratify.separation = next
+      }
+      const hasAny = Object.values(nextStratify).some(v => v !== undefined)
+      setSchema({
+        ...current,
+        layout: {
+          ...curLayout,
+          stratify: hasAny ? (nextStratify as GraphSchema['layout']['stratify']) : undefined,
+        },
+      })
     },
     [schema, setSchema],
   )
@@ -398,19 +461,88 @@ export default function RenderSettingsSection({
                       onChange={e => {
                         const raw = e.target.value
                         const next: typeof layoutMode =
-                          raw === 'radial' ? 'radial' : 'force'
+                          raw === 'radial' ? 'radial' : raw === 'stratify' ? 'stratify' : 'force'
                         setLayoutMode(next)
-                        if (next === 'radial') {
+                        if (next === 'radial' || next === 'stratify') {
                           setCanvasRenderMode('2d')
                         }
                       }}
                     >
                       <option value="force">force</option>
                       <option value="radial">radial</option>
+                      <option value="stratify">stratify</option>
                     </select>
                   </RightAlignedValueCell>
                 )}
               />
+              {layoutMode === 'stratify' && (
+                <>
+                  <KeyTypeValueRow
+                    layout="keyValue"
+                    density="compact"
+                    keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.stratify.edgeLabels</span>}
+                    valueNode={(
+                      <RightAlignedValueCell>
+                        <input
+                          type="text"
+                          className={uiPanelKeyValueInputClass}
+                          value={(schema.layout?.stratify?.edgeLabels || []).join(', ')}
+                          placeholder="pointsTo"
+                          onChange={e => setStratifyEdgeLabels(e.target.value)}
+                        />
+                      </RightAlignedValueCell>
+                    )}
+                  />
+                  <KeyTypeValueRow
+                    layout="keyValue"
+                    density="compact"
+                    keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.stratify.orientation</span>}
+                    valueNode={(
+                      <RightAlignedValueCell>
+                        <select
+                          className={uiPanelKeyValueInputClass}
+                          value={schema.layout?.stratify?.orientation === 'vertical' ? 'vertical' : 'horizontal'}
+                          onChange={e => {
+                            const raw = e.target.value
+                            setStratifyOrientation(raw === 'vertical' ? 'vertical' : 'horizontal')
+                          }}
+                        >
+                          <option value="horizontal">horizontal</option>
+                          <option value="vertical">vertical</option>
+                        </select>
+                      </RightAlignedValueCell>
+                    )}
+                  />
+                  <KeyTypeValueRow
+                    layout="keyValue"
+                    density="compact"
+                    keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.stratify.separation</span>}
+                    valueNode={(
+                      <RightAlignedValueCell>
+                        <input
+                          type="number"
+                          step={0.1}
+                          min={0.1}
+                          max={10}
+                          className={uiPanelKeyValueInputClass}
+                          value={typeof schema.layout?.stratify?.separation === 'number' ? schema.layout.stratify.separation : ''}
+                          placeholder="1"
+                          onChange={e => {
+                            const rawText = String(e.target.value || '')
+                            if (!rawText.trim()) {
+                              setStratifySeparation(null)
+                              return
+                            }
+                            const raw = parseFloat(rawText)
+                            if (!Number.isFinite(raw)) return
+                            setStratifySeparation(raw)
+                          }}
+                        />
+                      </RightAlignedValueCell>
+                    )}
+                  />
+                </>
+              )}
               <KeyTypeValueRow
                 layout="keyValue"
                 density="compact"

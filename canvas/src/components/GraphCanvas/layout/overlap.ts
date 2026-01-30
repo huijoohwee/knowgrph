@@ -4,34 +4,44 @@ import { GraphSchema, getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
 import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
+import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
 
 export type NodeHalfExtents = { halfW: number; halfH: number }
 
-const extentsCache = new WeakMap<GraphNode, NodeHalfExtents>()
-const radiusCache = new WeakMap<GraphNode, number>()
+const extentsCache = new WeakMap<GraphNode, { schema: GraphSchema; extents: NodeHalfExtents }>()
+const radiusCache = new WeakMap<GraphNode, { schema: GraphSchema; radius: number }>()
 
 export const getNodeAabbHalfExtentsWithLabel = (node: GraphNode, schema: GraphSchema): NodeHalfExtents => {
   const cached = extentsCache.get(node)
-  if (cached) return cached
+  if (cached && cached.schema === schema) return cached.extents
 
-  const extents = getNodeHalfExtents2d(node, schema)
+  const baseExtents = getNodeHalfExtents2d(node, schema)
   const portCfg = getPortHandlesConfig(schema)
   const portExtra = portCfg.enabled ? Math.max(0, portCfg.offset + portCfg.size + portCfg.strokeWidth) : 0
-  const extentsWithPorts = portExtra > 0 ? { halfW: extents.halfW + portExtra, halfH: extents.halfH + portExtra } : extents
-  const result = estimateNodeLabelAabbHalfExtents2d(node, schema, extentsWithPorts)
-  extentsCache.set(node, result)
-  return result
+  const extentsWithPorts = portExtra > 0 ? { halfW: baseExtents.halfW + portExtra, halfH: baseExtents.halfH + portExtra } : baseExtents
+  const extentsWithLabel = estimateNodeLabelAabbHalfExtents2d(node, schema, extentsWithPorts)
+  extentsCache.set(node, { schema, extents: extentsWithLabel })
+  return extentsWithLabel
 }
 
 export const getNodeCollisionRadius = (node: GraphNode, schema: GraphSchema): number => {
   const cached = radiusCache.get(node)
-  if (typeof cached === 'number') return cached
+  if (cached && cached.schema === schema) return cached.radius
   const ext = getNodeAabbHalfExtentsWithLabel(node, schema)
   const baseRadius = getNodeRenderRadius(node, schema) || 20
   const base = Math.max(8, ext.halfW, ext.halfH, baseRadius)
   const r = Math.max(8, base * 1.05 + 8, baseRadius * 1.25)
-  radiusCache.set(node, r)
+  radiusCache.set(node, { schema, radius: r })
   return r
+}
+
+export function readBboxCollideConfig(schema: GraphSchema): {
+  enabled: boolean
+  padding: number
+  strength: number
+  iterations: number
+} {
+  return readCollisionConfig(schema).nodeBbox
 }
 
 export const createBboxCollideForce = (args: {
@@ -43,7 +53,7 @@ export const createBboxCollideForce = (args: {
   const { schema } = args
   let nodes: GraphNode[] = []
   let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : 0.7
-  let iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : 1
+  let iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : 2
   let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : 10
   let maxHalf = 64
 

@@ -30,8 +30,42 @@
   "edgeRouting": { "mode": "straight", "curvatureByLabel": {} },
   "layout": {
     "mode": "force",
-    "forces": { "linkDistanceByLabel": {}, "charge": -300, "collisionByType": {}, "centerStrength": 1, "alphaDecay": 0.02 },
-    "fitPadding": 80
+    "forces": {
+      "linkDistanceByLabel": { "relatedTo": 80 },
+      "charge": -450,
+      "collisionByType": {},
+      "centerStrength": 1,
+      "alphaDecay": 0.02,
+      "bboxCollide": true,
+      "bboxCollideStrength": 0.7,
+      "bboxCollidePadding": 10,
+      "bboxCollideIterations": 2,
+      "groupBboxCollide": true,
+      "groupBboxCollideStrength": 0.385,
+      "groupBboxCollidePadding": 10,
+      "groupBboxCollideIterations": 3
+    },
+    "fitPadding": 80,
+    "fitUseCentroid": true,
+    "fitDetectClusters": true,
+    "fitTargetAspectRatio": 1.777,
+    "fitEnforceAspectRatio": true,
+    "groups": {
+      "enabled": true,
+      "shape": "rect",
+      "padding": 24,
+      "cornerRadius": 12,
+      "labelPadding": 10,
+      "strokeWidth": 1.5,
+      "fillOpacity": 0.08
+    },
+    "stratify": {
+      "edgeLabels": [],
+      "orientation": "vertical",
+      "separation": 1,
+      "reuseSeedStrength": 0.75,
+      "fitFillRatio": 0.8
+    }
   },
   "endpointMatrix": {},
   "cardinality": { "nodeType": {}, "edgeLabel": {} },

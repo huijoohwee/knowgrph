@@ -41,8 +41,10 @@ export const testApplyMediaProxyProxiesOpenFreeMapOnLocalhost = () => {
   try {
     const src = 'https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf'
     const out = applyMediaProxySrc(src)
-    if (out.startsWith(`${MEDIA_PROXY_ENDPOINT}?url=`)) throw new Error('expected OpenFreeMap assets to bypass proxy on localhost')
-    if (out !== src) throw new Error('expected OpenFreeMap URL to remain unchanged')
+    if (!out.startsWith(`${MEDIA_PROXY_ENDPOINT}?url=`)) throw new Error('expected OpenFreeMap assets to be proxied on localhost')
+    const encoded = out.slice(`${MEDIA_PROXY_ENDPOINT}?url=`.length)
+    const decoded = decodeURIComponent(encoded)
+    if (decoded !== src) throw new Error('expected OpenFreeMap URL to be preserved inside proxy parameter')
   } finally {
     g.window = prevWindow
   }

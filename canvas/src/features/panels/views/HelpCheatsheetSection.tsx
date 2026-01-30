@@ -66,11 +66,11 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
           'Canvas clusters → toggle the toolbar button to render or hide outline clusters around nodes linked by document/subgraph structure → styling comes from schema.metadata["canvas:graphLayers"] (defaultStyle, byOwnerType, byPropertyKey) or falls back to the owner node type color for domain-agnostic grouping.',
       },
       {
-        mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.treeLayoutMode}`,
-        gesture: 'Toggle tree layout to arrange nodes into a hierarchical tree',
+        mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.stratifyLayoutMode}`,
+        gesture: 'Toggle Stratify layout to arrange nodes into a hierarchy-derived tree',
         zoomDrag: 'Zoom and node drag behave normally; positions remain stable and translate as a group',
         tools:
-          'Tree layout → toggle the toolbar button (or use FloatingPanel → Render → Layout mode) to switch schema.layout.mode between force and tree; tree uses a Dagre-based layered layout to derive a single parent→child tree from the configured edge labels (or an auto-picked most-common label) and renders only those tree edges so the view stays uncluttered. Links and labels follow an Observable-style default (curved links, stroke #555 @ 0.4, width 1.5, small node radius, internal fill #555, leaf fill #999, haloed labels) while remaining schema-driven. The tree layout is preserved across cluster toggles, UI re-renders, and mode switches via per-mode caching. Refine Settings → 2D layout → tree (edgeLabels, direction, orientation left-to-right/top-to-bottom, nodeSize, separation, sortBy, curve, colorMode, linkStroke/linkOpacity/linkWidth, nodeRadius, internalFill/leafFill, labelFontSize/labelFontFamily) so layout and styling stay reproducible and domain-agnostic.',
+          'Stratify layout → toggle the toolbar button (or use FloatingPanel → Render → Layout mode) to switch schema.layout.mode between force and stratify; stratify derives a parent→child tree from the configured edge labels (or an auto-picked most-common label) and renders only those hierarchy edges so dense graphs stay readable. Refine Settings → 2D layout → stratify (edgeLabels, orientation, separation) so layout stays reproducible and domain-agnostic.',
       },
       {
         mode: 'Create: shift-drag',

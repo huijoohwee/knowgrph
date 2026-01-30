@@ -6,6 +6,15 @@ import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 export const testFrontmatterModeFiltersToFrontmatterMermaidOnly = () => {
   const markdown = readMarkdownSlideDemo()
   if (!markdown) return
+  const lines = markdown.replace(/\r\n?/g, '\n').split('\n')
+  const frontmatterStart0 = lines.findIndex(l => String(l || '').trim() === '---')
+  const frontmatterEnd0 = lines.findIndex((l, i) => i > frontmatterStart0 && String(l || '').trim() === '---')
+  const mermaidKey0 =
+    frontmatterStart0 >= 0 && frontmatterEnd0 > frontmatterStart0
+      ? lines.findIndex((l, i) => i > frontmatterStart0 && i < frontmatterEnd0 && String(l || '').trim() === 'mermaid: |')
+      : -1
+  const allowedMermaidLineStart = mermaidKey0 >= 0 ? mermaidKey0 + 1 : 1
+  const allowedMermaidLineEnd = frontmatterEnd0 >= 0 ? frontmatterEnd0 + 1 : allowedMermaidLineStart
   const mdPath = resolveMarkdownSlideDemoPath() ?? 'markdown-slide-demo.md'
   const jsonld = buildMarkdownJsonLd(mdPath, markdown)
   const graph = parseJsonLd(jsonld)
@@ -32,7 +41,7 @@ export const testFrontmatterModeFiltersToFrontmatterMermaidOnly = () => {
     }
     if (String(n.type || '') === 'MermaidDiagram' || String(n.type || '') === 'MermaidNode' || String(n.type || '') === 'MermaidSubgraph') {
       sawFrontmatterMermaid = true
-      if (ls < 19 || le > 55) {
+      if (ls < allowedMermaidLineStart || le > allowedMermaidLineEnd) {
         throw new Error(`expected mermaid node ${String(n.id)} to be within frontmatter mermaid line range`)
       }
     }

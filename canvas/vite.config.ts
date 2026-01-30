@@ -831,6 +831,10 @@ export default defineConfig(({ command }) => ({
       { find: /^react$/, replacement: resolvedReact },
       { find: 'react-dom/client', replacement: resolvedReactDomClient },
       { find: /^react-dom$/, replacement: resolvedReactDom },
+      {
+        find: /^grph-shared\/markdown\/mermaidBlocks$/,
+        replacement: path.resolve(__dirname, '../grph-shared/dist/markdown/mermaidBlocks.js'),
+      },
       { find: /^gympgrph$/, replacement: path.resolve(__dirname, '../../gympgrph/src/index.ts') },
       { find: /^gympgrph\/datasets$/, replacement: path.resolve(__dirname, '../../gympgrph/src/geospatialDatasets.ts') },
       { find: /^gympgrph\/datasets-ui$/, replacement: path.resolve(__dirname, '../../gympgrph/src/geospatialDatasetsUi.ts') },
@@ -853,6 +857,10 @@ export default defineConfig(({ command }) => ({
       {
         find: /^@\/features\/markdown\/(.*)$/,
         replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/markdown/$1'),
+      },
+      {
+        find: /^@\/features\/json\/(.*)$/,
+        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/json/$1'),
       },
       {
         find: /^@\/features\/panels\/views\/preview-panel\/ui\/(.*)$/,

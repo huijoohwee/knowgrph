@@ -2,13 +2,17 @@ import * as d3 from 'd3';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
 import { applyRadialClusterLayout } from './layout/radial';
+import { applyStratifyLayout } from './layout/stratify';
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { computeDisjointComponentTargets } from './layout/disjoint';
-import { applyClusterAwareHeuristicSeedLayout } from './layout/heuristic-cluster';
-import { applyMermaidSeedLayout } from './layout/mermaidSeed';
-import { applyMarkdownHeadingSeedLayout } from './layout/markdownHeadingSeed';
+import { applyForceModeSeeds } from './layout/seeding';
 import { readMermaidAxisFromNodes } from './layout/mermaidDirection';
 import { createBboxCollideForce, getNodeCollisionRadius } from './layout/overlap';
+import { createGroupBboxCollideForce } from './layout/groupOverlap';
+import { createGroupKeyOfNode, computeGroupTargets, type GroupKeyOfNode } from './layout/grouping';
+import { readCollisionConfig } from './layout/collisionConfig';
+import { readLayoutMode } from './layout/fitConfig';
+import { DEFAULT_CENTER_STRENGTH, readFitPadding, readForceCharge, readForceLinkDistance } from '@/lib/graph/layoutDefaults';
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined;
 
@@ -49,7 +53,7 @@ export const buildSimulation = (
   width: number,
   height: number,
   schema: GraphSchema,
-  options?: { skipInitialLayout?: boolean }
+  options?: { skipInitialLayout?: boolean; groupKeyOf?: GroupKeyOfNode }
 ) => {
   const frameW = width > 0 ? width : 1920
   const frameH = height > 0 ? height : 1080
@@ -70,15 +74,14 @@ export const buildSimulation = (
     return { inDegree, outDegree }
   }
 
-  const linkDist = (e: GraphEdge) => schema.layout?.forces?.linkDistanceByLabel?.[e.label] ?? 120;
-  const schemaCharge = schema.layout?.forces?.charge;
-  const baseChargeVal = typeof schemaCharge === 'number' ? schemaCharge * 1.5 : -600;
+  const linkDist = (e: GraphEdge) => readForceLinkDistance(schema, e);
+  const chargeStrength = readForceCharge(schema);
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {};
-  const mode = schema.layout?.mode === 'radial' ? 'radial' : 'force';
+  const mode = readLayoutMode(schema);
   const disjointEnabled = schema.layout?.forces?.disjointComponents !== false;
   const disjointStrength =
     typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : 0.1;
-  const disjointPadding = Math.max(40, schema.layout?.fitPadding ?? 80);
+  const disjointPadding = Math.max(40, readFitPadding(schema));
   const disjointLayout =
     mode === 'force' && disjointEnabled
       ? computeDisjointComponentTargets({
@@ -91,8 +94,17 @@ export const buildSimulation = (
         })
       : null;
   if (!options?.skipInitialLayout) {
+    const seedGroupKeyOf = options?.groupKeyOf || createGroupKeyOfNode({ nodes, edges: edgesForSim })
     if (mode === 'radial') {
-      applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema);
+      applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf);
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        n.vx = 0
+        n.vy = 0
+      }
+    }
+    if (mode === 'stratify') {
+      applyStratifyLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf)
       for (let i = 0; i < nodes.length; i += 1) {
         const n = nodes[i]
         n.vx = 0
@@ -100,9 +112,7 @@ export const buildSimulation = (
       }
     }
     if (mode === 'force') {
-      applyMermaidSeedLayout({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
-      applyMarkdownHeadingSeedLayout({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
-      applyClusterAwareHeuristicSeedLayout({ nodes, width: frameW, height: frameH, schema })
+      applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
     }
   }
 
@@ -111,7 +121,7 @@ export const buildSimulation = (
     .id(d => d.id)
     .distance(linkDist);
   
-  if (mode === 'radial') {
+  if (mode === 'radial' || mode === 'stratify') {
     const simulation = d3.forceSimulation<GraphNode>(nodes)
     simulation.stop()
     return simulation
@@ -125,25 +135,8 @@ export const buildSimulation = (
       return getNodeCollisionRadius(d, schema)
     }
 
-    const forces = (schema.layout?.forces || {}) as GraphSchema['layout']['forces'] & {
-      bboxCollide?: boolean
-      bboxCollideStrength?: number
-      bboxCollidePadding?: number
-      bboxCollideIterations?: number
-    }
-    const bboxCollideEnabled = forces.bboxCollide !== false
-    const bboxPadding =
-      typeof forces.bboxCollidePadding === 'number' && Number.isFinite(forces.bboxCollidePadding)
-        ? forces.bboxCollidePadding
-        : 10
-    const bboxStrength =
-      typeof forces.bboxCollideStrength === 'number' && Number.isFinite(forces.bboxCollideStrength)
-        ? forces.bboxCollideStrength
-        : 0.7
-    const bboxIterations =
-      typeof forces.bboxCollideIterations === 'number' && Number.isFinite(forces.bboxCollideIterations)
-        ? forces.bboxCollideIterations
-        : 1
+    const collisionCfg = readCollisionConfig(schema)
+    const bboxCfg = collisionCfg.nodeBbox
 
     const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
     const hasMermaidNodes = portHandlesEnabled && nodes.some(n => String(n.type || '') === 'MermaidNode')
@@ -186,88 +179,8 @@ export const buildSimulation = (
       }
     }
 
-    const computeGroupTargets = () => {
-      const sectionIds = new Set<string>()
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        if (String(n.type || '') !== 'Section') continue
-        const props = (n.properties || {}) as Record<string, unknown>
-        if (typeof props.level !== 'number' || !Number.isFinite(props.level)) continue
-        sectionIds.add(String(n.id))
-      }
-
-      const parentOf = new Map<string, string>()
-      for (let i = 0; i < edgesForSim.length; i += 1) {
-        const e = edgesForSim[i]
-        const lbl = String(e.label || '')
-        if (lbl !== 'hasSection' && lbl !== 'hasBlock' && lbl !== 'hasItem' && lbl !== 'embedsImage') continue
-        const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
-        const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
-        const src = String(s || '')
-        const tgt = String(t || '')
-        if (!src || !tgt) continue
-        if (!parentOf.has(tgt)) parentOf.set(tgt, src)
-      }
-
-      const topSectionOf = (nodeId: string): string | null => {
-        const seen = new Set<string>()
-        let cur: string | null = nodeId
-        let section: string | null = null
-        while (cur && !seen.has(cur)) {
-          seen.add(cur)
-          if (sectionIds.has(cur)) section = cur
-          cur = parentOf.get(cur) || null
-        }
-        if (!section) return null
-        cur = section
-        while (cur) {
-          const p = parentOf.get(cur)
-          if (!p || !sectionIds.has(p)) break
-          cur = p
-        }
-        return cur || section
-      }
-
-      const groupKeyOf = (n: GraphNode): string | null => {
-        const p = (n.properties || {}) as Record<string, unknown>
-        const top = typeof p['visual:topParentId'] === 'string' ? (p['visual:topParentId'] as string).trim() : ''
-        if (top) return top
-        const parent = typeof p['visual:parentId'] === 'string' ? (p['visual:parentId'] as string).trim() : ''
-        if (parent) return parent
-        const nid = String(n.id)
-        return topSectionOf(nid)
-      }
-
-      const groupAcc = new Map<string, { sx: number; sy: number; n: number }>()
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const id = String(n.id)
-        if (!id || sectionIds.has(id)) continue
-        const gid = groupKeyOf(n)
-        if (!gid) continue
-        const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-        const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-        if (x == null || y == null) continue
-        const prev = groupAcc.get(gid) || { sx: 0, sy: 0, n: 0 }
-        groupAcc.set(gid, { sx: prev.sx + x, sy: prev.sy + y, n: prev.n + 1 })
-      }
-
-      const groupTarget = new Map<string, { x: number; y: number }>()
-      groupAcc.forEach((v, gid) => {
-        if (v.n <= 0) return
-        groupTarget.set(gid, { x: v.sx / v.n, y: v.sy / v.n })
-      })
-
-      const readGroupTarget = (n: GraphNode): { x: number; y: number } | null => {
-        const gid = groupKeyOf(n)
-        if (!gid) return null
-        return groupTarget.get(gid) || null
-      }
-
-      return { readGroupTarget }
-    }
-
-    const { readGroupTarget } = computeGroupTargets()
+    const groupKeyOf = options?.groupKeyOf || createGroupKeyOfNode({ nodes, edges: edgesForSim })
+    const { readGroupTarget } = computeGroupTargets({ nodes, groupKeyOf })
 
     const xTarget = (n: GraphNode) => {
       if (portHandlesEnabled) {
@@ -317,13 +230,30 @@ export const buildSimulation = (
     const centerStrength =
       typeof schema.layout?.forces?.centerStrength === 'number' && Number.isFinite(schema.layout.forces.centerStrength)
         ? schema.layout.forces.centerStrength
-        : 1
+        : DEFAULT_CENTER_STRENGTH
     const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.06
     let antiLineTick = 0
     simulation
-      .force('charge', d3.forceManyBody().strength(baseChargeVal))
+      .force('charge', d3.forceManyBody().strength(chargeStrength))
       .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(2))
-      .force('bboxCollide', bboxCollideEnabled ? createBboxCollideForce({ schema, padding: bboxPadding, strength: bboxStrength, iterations: bboxIterations }) : null)
+      .force(
+        'bboxCollide',
+        bboxCfg.enabled
+          ? createBboxCollideForce({ schema, padding: bboxCfg.padding, strength: bboxCfg.strength, iterations: bboxCfg.iterations })
+          : null,
+      )
+      .force(
+        'groupBboxCollide',
+        collisionCfg.groupBbox.enabled
+          ? createGroupBboxCollideForce({
+              schema,
+              padding: collisionCfg.groupBbox.padding,
+              strength: collisionCfg.groupBbox.strength,
+              iterations: collisionCfg.groupBbox.iterations,
+              groupKeyOf,
+            })
+          : null,
+      )
       .force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
       .force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
        .force('box', () => {
@@ -482,9 +412,10 @@ export const updateForceSimulationPresentation = (args: {
   width: number
   height: number
   schema: GraphSchema
+  groupKeyOf?: GroupKeyOfNode
 }) => {
   const { simulation, nodes, width, height, schema } = args
-  if (schema.layout?.mode === 'radial') return
+  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'stratify') return
 
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
   const collideRadiusFn = (d: GraphNode) => {
@@ -493,31 +424,26 @@ export const updateForceSimulationPresentation = (args: {
     return getNodeCollisionRadius(d, schema)
   }
 
-  const forces = (schema.layout?.forces || {}) as GraphSchema['layout']['forces'] & {
-    bboxCollide?: boolean
-    bboxCollideStrength?: number
-    bboxCollidePadding?: number
-    bboxCollideIterations?: number
-  }
-  const bboxCollideEnabled = forces.bboxCollide !== false
-  const bboxPadding =
-    typeof forces.bboxCollidePadding === 'number' && Number.isFinite(forces.bboxCollidePadding)
-      ? forces.bboxCollidePadding
-      : 10
-  const bboxStrength =
-    typeof forces.bboxCollideStrength === 'number' && Number.isFinite(forces.bboxCollideStrength)
-      ? forces.bboxCollideStrength
-      : 0.7
-  const bboxIterations =
-    typeof forces.bboxCollideIterations === 'number' && Number.isFinite(forces.bboxCollideIterations)
-      ? forces.bboxCollideIterations
-      : 1
+  const collisionCfg = readCollisionConfig(schema)
+  const bboxCfg = collisionCfg.nodeBbox
 
   simulation.force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(2))
   simulation.force(
     'bboxCollide',
-    bboxCollideEnabled
-      ? createBboxCollideForce({ schema, padding: bboxPadding, strength: bboxStrength, iterations: bboxIterations })
+    bboxCfg.enabled
+      ? createBboxCollideForce({ schema, padding: bboxCfg.padding, strength: bboxCfg.strength, iterations: bboxCfg.iterations })
+      : null,
+  )
+  simulation.force(
+    'groupBboxCollide',
+    collisionCfg.groupBbox.enabled
+      ? createGroupBboxCollideForce({
+          schema,
+          padding: collisionCfg.groupBbox.padding,
+          strength: collisionCfg.groupBbox.strength,
+          iterations: collisionCfg.groupBbox.iterations,
+          groupKeyOf: args.groupKeyOf,
+        })
       : null,
   )
   simulation.force('box', () => {

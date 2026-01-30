@@ -27,6 +27,7 @@ export const fitEdgeTransform = (src: GraphNode, tgt: GraphNode, width: number, 
 
 export type FitAllTransformOptions = {
   pad?: number
+  targetFillRatio?: number
   enforceAspectRatio?: boolean
   targetAspectRatio?: number
   minScale?: number
@@ -168,6 +169,8 @@ export const fitAllTransform = (
   const w = Math.max(1, width);
   const h = Math.max(1, height);
   const p = Math.max(20, (typeof opts.pad === 'number' && Number.isFinite(opts.pad) ? opts.pad : 80) ?? 80);
+  const targetFillRatioRaw = typeof opts.targetFillRatio === 'number' && Number.isFinite(opts.targetFillRatio) ? opts.targetFillRatio : null
+  const targetFillRatio = targetFillRatioRaw == null ? null : Math.max(0.2, Math.min(0.95, targetFillRatioRaw))
 
   let bboxW = Math.max(maxX - minX, minBBoxSize);
   let bboxH = Math.max(maxY - minY, minBBoxSize);
@@ -199,8 +202,8 @@ export const fitAllTransform = (
   const cx = useCentroidCentering ? centroidX : bboxCenterX;
   const cy = useCentroidCentering ? centroidY : bboxCenterY;
 
-  const sX = viewW / bboxW;
-  const sY = viewH / bboxH;
+  const sX = (targetFillRatio != null ? (w * targetFillRatio) : viewW) / bboxW;
+  const sY = (targetFillRatio != null ? (h * targetFillRatio) : viewH) / bboxH;
 
   const unclamped = Math.min(sX, sY)
   const upper = Math.min(Math.max(0.1, maxScale), Math.max(0.1, maxScaleHardCap))

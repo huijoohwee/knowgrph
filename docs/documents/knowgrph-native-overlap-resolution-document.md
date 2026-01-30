@@ -42,7 +42,7 @@
 
 **Algorithm Summary**
 
-- **Enhanced Spatial Indexing**: Uses `d3.quadtree` (O(n log n)) to efficiently query potential collisions, inspired by [xyflow/node-collision-algorithms](https://github.com/xyflow/node-collision-algorithms) benchmarks.
+- **Enhanced Spatial Indexing**: Uses `d3.quadtree` (O(n log n)) to efficiently query potential collisions.
 - Build a `d3.quadtree` every iteration over current node positions.
 - For each node `a`, visit quadtree nodes that intersect `a`’s expanded bounds.
 - For each neighbor `b` in intersecting leaves, compute overlap `(ox, oy)`:
@@ -66,6 +66,11 @@ layout:
     bboxCollideStrength: number
     bboxCollidePadding: number
     bboxCollideIterations: number
+    groupBboxCollide: boolean
+    groupBboxCollideStrength: number
+    groupBboxCollidePadding: number
+    groupBboxCollideIterations: number
+    structuredRelaxSteps: number
 ```
 
 ---
@@ -75,6 +80,7 @@ layout:
 | Location | Integration | Behavior |
 |---|---|---|
 | [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('bboxCollide', ...)` | Adds label-aware overlap resolution in force mode |
+| [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('groupBboxCollide', ...)` | Prevents group-box overlap in force mode (schema-driven group knobs) |
 | [schema.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schema.ts) | defaults | Enables bbox collide by default |
 
 ---

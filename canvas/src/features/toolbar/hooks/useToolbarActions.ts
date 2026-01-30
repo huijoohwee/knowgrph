@@ -111,6 +111,21 @@ export function useToolbarActions(
     }
   }, [schema, setSchema, setCanvasRenderMode])
 
+  const handleToggleStratifyLayout = useCallback(() => {
+    const current = schema
+    const layout = current.layout || {}
+    const nextMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
+      layout.mode === 'stratify' ? 'force' : 'stratify'
+    const next = {
+      ...current,
+      layout: { ...layout, mode: nextMode },
+    }
+    setSchema(next as GraphSchema)
+    if (nextMode === 'stratify') {
+      setCanvasRenderMode('2d')
+    }
+  }, [schema, setSchema, setCanvasRenderMode])
+
   const handleOpenGraphFields = useCallback(() => {
     openMainPanel('graphFields')
   }, [openMainPanel])
@@ -211,6 +226,7 @@ export function useToolbarActions(
     handleToggleGroupShapeMode,
     handleTogglePortHandles,
     handleToggleRadialLayout,
+    handleToggleStratifyLayout,
     handleOpenGraphFields,
     handleOpenSettings,
     handleOpenHistory,

@@ -51,6 +51,13 @@ import { testMarkdownSidebarResizeHandleUpdatesWidthAndPersists } from '@/__test
 import { testMarkdownAutoAppliesFrontmatterMermaidToCanvasWhenGraphEmpty } from '@/__tests__/markdown/markdownAutoApplyFrontmatterToCanvas.test'
 import { testMarkdownOpenInEditorAutoParsesFrontmatterGraph } from '@/__tests__/markdown/markdownOpenInEditorAutoParsesFrontmatterGraph.test'
 import { testMarkdownFormattingToolbarVisibleAcrossModes } from '@/__tests__/markdown/markdownFormattingToolbarConsistency.test'
+import { testMarkdownMermaidMultiDiagramFenceRendersAllDiagrams } from '@/__tests__/markdown/markdownMermaidMultiDiagramInterop.test'
+import { testMarkdownMermaidOpensPreviewOnDoubleClickOnly } from '@/__tests__/markdown/markdownMermaidPreviewDoubleClick.test'
+import { testMarkdownHtmlCodeBlockRendersAsSafeHtmlInRenderMode } from '@/__tests__/markdown/markdownHtmlCodeBlockRender.test'
+import { testMarkdownIframeSrcdocRendersAsSandboxedIframe } from '@/__tests__/markdown/markdownIframeSrcdocSupport.test'
+import { testMarkdownHtmlCodeFenceRespectsFragmentsInRenderMode } from '@/__tests__/markdown/markdownHtmlCodeFenceFragments.test'
+import { testPreviewPanelSplitsMultiDiagramMermaidCodeBlocks } from '@/__tests__/markdown/previewPanelMermaidMultiDiagramSplit.test'
+import { testMarkdownMediaOpensPreviewOnDoubleClickOnly } from '@/__tests__/markdown/markdownMediaPreviewDoubleClick.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -63,6 +70,13 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.rendering.inlineAbbrAndSpan', testMarkdownInlineAbbrAndSpanRenderingFromSlideDemo)
   await execTest(results, 'markdown.rendering.headMetaArrays', testMarkdownHeadMetaFrontmatterArrays)
   await execTest(results, 'markdown.rendering.slideDemoSupportInterop', testMarkdownSlideDemoSupportInteropFeaturesRenderAndLink)
+  await execTest(results, 'markdown.mermaid.multiDiagramFence', testMarkdownMermaidMultiDiagramFenceRendersAllDiagrams)
+  await execTest(results, 'markdown.mermaid.previewDoubleClick', testMarkdownMermaidOpensPreviewOnDoubleClickOnly)
+  await execTest(results, 'markdown.codeblock.htmlRender', testMarkdownHtmlCodeBlockRendersAsSafeHtmlInRenderMode)
+  await execTest(results, 'markdown.html.srcdocIframe', testMarkdownIframeSrcdocRendersAsSandboxedIframe)
+  await execTest(results, 'markdown.html.codeFenceFragments', testMarkdownHtmlCodeFenceRespectsFragmentsInRenderMode)
+  await execTest(results, 'markdown.previewPanel.mermaidMultiDiagramSplit', testPreviewPanelSplitsMultiDiagramMermaidCodeBlocks)
+  await execTest(results, 'markdown.previewPanel.mediaDoubleClick', testMarkdownMediaOpensPreviewOnDoubleClickOnly)
   await execTest(results, 'markdown.mediaToggle.e2e', testMarkdownMediaToggleEndToEnd)
   await execTest(results, 'markdown.layoutToggle.e2e', testMarkdownLayoutViewToggleEndToEnd)
   await execTest(results, 'markdown.presentation.fullscreen', testMarkdownPresentationFullscreenFromBottomPanelControls)

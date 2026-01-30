@@ -1,12 +1,11 @@
 import * as d3 from 'd3'
 import type { GraphNode, GraphData, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { buildClosedPathD, computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { getMarkdownBodyFontSizePx, getMarkdownHeadingFontSizePx } from '@/features/markdown/ui/markdownTypography'
-import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandles'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
@@ -93,8 +92,6 @@ export const createGroupsLayer = (args: {
   const fillOpacity =
     typeof cfg.fillOpacity === 'number' && Number.isFinite(cfg.fillOpacity) ? Math.max(0, Math.min(1, cfg.fillOpacity)) : 0.08
   const baseFontSize = schema.labelStyles?.fontSize ?? 12
-  const portCfg = getPortHandlesConfig(schema)
-  const portExtra = portCfg.enabled ? Math.max(0, portCfg.offset + portCfg.size + portCfg.strokeWidth) : 0
   const themeEdgeStroke = UI_THEME_COLORS_CSS.edgeStroke
 
   rectSel
@@ -258,7 +255,7 @@ export const createGroupsLayer = (args: {
           if (n) dragNodes.push(n)
         }
         const mode = schema.layout?.mode || 'force'
-        const structured = mode === 'radial'
+        const structured = mode === 'radial' || mode === 'stratify'
         if (simulation && !structured && !event.active) {
           simulation.alphaTarget(0.3).restart()
         }
@@ -273,7 +270,7 @@ export const createGroupsLayer = (args: {
         const dy = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
         if (dx === 0 && dy === 0) return
         const mode = schema.layout?.mode || 'force'
-        const structured = mode === 'radial'
+        const structured = mode === 'radial' || mode === 'stratify'
         for (let i = 0; i < dragNodes.length; i += 1) {
           const n = dragNodes[i]!
           const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0
@@ -296,7 +293,7 @@ export const createGroupsLayer = (args: {
       })
       .on('end', (event) => {
         const mode = schema.layout?.mode || 'force'
-        const structured = mode === 'radial'
+        const structured = mode === 'radial' || mode === 'stratify'
         if (simulation && !structured && !event.active) {
           simulation.alphaTarget(0)
         }
@@ -334,9 +331,9 @@ export const createGroupsLayer = (args: {
       const n = nodeById.get(id)
       if (!n) continue
       if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue
-      const base = getNodeHalfExtents2d(n, schema)
-      const halfW = base.halfW + portExtra
-      const halfH = base.halfH + portExtra
+      const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+      const halfW = ext.halfW
+      const halfH = ext.halfH
       const x0 = n.x - halfW
       const x1 = n.x + halfW
       const y0 = n.y - halfH

@@ -538,51 +538,6 @@ export const RENDERER_HOVER_CONTENT_VALUE_TOOLTIP = buildDefaultTooltip({
   impact: 'Disable fields to reduce clutter; props may be large on codebase graphs',
 })
 
-export const RENDERER_TREE_CURVE_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer tree curve',
-  actions: [
-    'set graph.layout.tree.curve style for Tree layout',
-    'choose bump, linear, or step link shapes',
-  ],
-  outcome: 'improve Tree layout readability in dense hierarchies',
-});
-
-export const RENDERER_TREE_CURVE_VALUE_TOOLTIP = buildDefaultTooltip({
-  defaultValue: 'bump',
-  impact: 'Changes tree link shape; step is angular; linear is straight',
-})
-
-export const RENDERER_TREE_ORIENTATION_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer tree orientation',
-  actions: [
-    'set graph.layout.tree.orientation axis',
-    'render Tree layout horizontal or vertical',
-  ],
-  outcome: 'fit Tree layouts to panel and screen space',
-});
-
-export const RENDERER_TREE_ORIENTATION_VALUE_TOOLTIP = buildDefaultTooltip({
-  defaultValue: 'horizontal',
-  impact: 'Rotates tree layout axis to fit available screen space',
-})
-
-export const RENDERER_TREE_LINK_OPACITY_ROW_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Renderer tree link opacity',
-  actions: [
-    'set graph.layout.tree.linkOpacity',
-    'tune link visibility against node and label density',
-  ],
-  outcome: 'keep tree edges readable without overpowering nodes',
-});
-
-export const RENDERER_TREE_LINK_OPACITY_VALUE_TOOLTIP = buildNumericTooltip({
-  defaultValue: 0.4,
-  min: 0,
-  max: 1,
-  interval: 0.05,
-  impact: 'Higher increases link prominence.',
-});
-
 export const TOOL_MENU_SETTINGS_DESCRIPTION =
   'Settings \u2192 manage workspace-level presets and defaults \u2192 store JSON-LD (default) and YAML configuration for canvas UI, traversal, and rendering so sessions reload with consistent AgenticRAG behavior.';
 

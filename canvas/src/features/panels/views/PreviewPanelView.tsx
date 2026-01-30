@@ -28,6 +28,7 @@ import {
 import {
   MermaidDiagram,
 } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
+import { splitMermaidIntoDiagrams } from 'grph-shared/markdown/mermaidBlocks'
 import {
   type MermaidInitConfig,
   parseMermaidConfigFromFrontmatter,
@@ -90,10 +91,13 @@ export default function PreviewPanelView() {
     if (!frontmatterModeEnabled) return
     if (!frontmatterMermaidCode) return
     const current = String(mermaidFocusCode || '').trim()
-    if (current === frontmatterMermaidCode) return
+    const split = splitMermaidIntoDiagrams(frontmatterMermaidCode)
+    const next = String(split[0] || '').trim()
+    if (!next) return
+    if (current === next) return
     setActiveMediaKey(null)
     setMermaidFocus({
-      code: frontmatterMermaidCode,
+      code: next,
       frontmatterConfig: mermaidFrontmatterConfig,
     })
   }, [
@@ -139,15 +143,20 @@ export default function PreviewPanelView() {
     const frontmatterMermaid = String((meta as Record<string, unknown>).mermaid || '').trim()
 
     if (frontmatterMermaid) {
-      list.push({
-        key: 'frontmatter-mermaid',
-        kind: 'mermaid',
-        source: 'markdown',
-        startLine: 1,
-        label: 'Mermaid diagram from frontmatter',
-        code: frontmatterMermaid,
-        mermaidConfig: mermaidFrontmatterConfig,
-      })
+      const diagrams = splitMermaidIntoDiagrams(frontmatterMermaid)
+      for (let i = 0; i < diagrams.length; i += 1) {
+        const code = diagrams[i]
+        const key = `frontmatter-mermaid:${i}`
+        list.push({
+          key,
+          kind: 'mermaid',
+          source: 'markdown',
+          startLine: 1,
+          label: diagrams.length > 1 ? `Mermaid diagram from frontmatter (${i + 1}/${diagrams.length})` : 'Mermaid diagram from frontmatter',
+          code,
+          mermaidConfig: mermaidFrontmatterConfig,
+        })
+      }
     }
 
     for (let i = 0; i < tokens.length; i += 1) {
@@ -158,17 +167,21 @@ export default function PreviewPanelView() {
         const c = t as unknown as TokensCode
         const lang = String((c as unknown as { lang?: unknown }).lang || '').trim().toLowerCase()
         if (lang === 'mermaid' || lang === 'mmd') {
-          const code = String(c.text || '')
-          const key = buildMarkdownPreviewMediaKey('mermaid', t.startLine, code)
-          list.push({
-            key,
-            kind: 'mermaid',
-            source: 'markdown',
-            startLine: t.startLine,
-            label: `Mermaid diagram ${list.length + 1}`,
-            code,
-            mermaidConfig: mermaidFrontmatterConfig,
-          })
+          const raw = String(c.text || '')
+          const diagrams = splitMermaidIntoDiagrams(raw)
+          for (let j = 0; j < diagrams.length; j += 1) {
+            const code = diagrams[j]
+            const key = buildMarkdownPreviewMediaKey('mermaid', t.startLine, `${j}:${code}`)
+            list.push({
+              key,
+              kind: 'mermaid',
+              source: 'markdown',
+              startLine: t.startLine,
+              label: `Mermaid diagram ${list.length + 1}`,
+              code,
+              mermaidConfig: mermaidFrontmatterConfig,
+            })
+          }
         }
         continue
       }
@@ -548,16 +561,19 @@ export default function PreviewPanelView() {
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="aspect-video w-full max-w-4xl">
                     <div className="w-full h-full overflow-auto">
-                      <MermaidDiagram
-                        code={mermaidFocusCode}
-                        highlightClass=""
-                        frontmatterConfig={
-                          (mermaidFocusConfig as MermaidInitConfig | null) || mermaidFrontmatterConfig
-                        }
-                        rootThemeMode={rootThemeMode}
-                        overlayScope="container"
-                        overlayPortalTarget={overlayPortalTarget}
-                      />
+                      {splitMermaidIntoDiagrams(mermaidFocusCode).map((code, i) => (
+                        <MermaidDiagram
+                          key={i}
+                          code={code}
+                          highlightClass=""
+                          frontmatterConfig={
+                            (mermaidFocusConfig as MermaidInitConfig | null) || mermaidFrontmatterConfig
+                          }
+                          rootThemeMode={rootThemeMode}
+                          overlayScope="container"
+                          overlayPortalTarget={overlayPortalTarget}
+                        />
+                      ))}
                     </div>
                   </div>
                 </div>

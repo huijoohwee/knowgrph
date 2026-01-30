@@ -19,6 +19,7 @@ import {
   testFitAllTransformRespectsCollisionPaddingInViewportFit,
   testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
+import { testGroupBboxCollideSeparatesTopParentGroups } from '@/__tests__/groupOverlapForce.test'
 import {
   testIsNodePointerTargetAcceptsPathNodes,
   testNodesLayerRendersDiamondAndHexPaths,
@@ -416,6 +417,7 @@ export const runAllTests = async () => {
     'graph.simulation.forceSeedsClusterAwarePositions',
     testForceSimulationSeedsClusterAwarePositionsWhenMissing,
   )
+  await exec('graph.groups.bboxCollide.separatesTopParentGroups', testGroupBboxCollideSeparatesTopParentGroups)
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)

@@ -32,6 +32,11 @@
       "types": "./dist/markdown/backlinks.d.ts",
       "default": "./dist/markdown/backlinks.js"
     },
+    "./markdown/mermaidBlocks": {
+      "types": "./dist/markdown/mermaidBlocks.d.ts",
+      "import": "./dist/markdown/mermaidBlocks.js",
+      "default": "./dist/markdown/mermaidBlocks.js"
+    },
     "./url": {
       "types": "./dist/url.d.ts",
       "default": "./dist/url.js"

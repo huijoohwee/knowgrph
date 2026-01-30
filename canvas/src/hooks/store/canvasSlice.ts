@@ -64,7 +64,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
     set(state => {
       const requested = m === '3d' ? '3d' : '2d'
       const layoutMode = state.schema?.layout?.mode
-      const enforce2d = layoutMode === 'radial'
+      const enforce2d = layoutMode === 'radial' || layoutMode === 'stratify'
       if (enforce2d) {
         if (requested === '3d') {
           const nextLastFree = state.canvasRenderMode === '3d' ? '3d' : (state.canvasRenderModeLastFree || '2d')

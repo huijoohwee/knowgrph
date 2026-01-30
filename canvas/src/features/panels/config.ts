@@ -175,7 +175,7 @@ export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   'Help: Launch re-opens the launch spotlight.',
   'Canvas: Cmd/Ctrl + Shift + G replays the launch spotlight.',
   'Settings: uiIconScale under “UI Density: Icons” controls compact vs default icon size across toolbars and panels.',
-  'Canvas: Tidy tree layout renders an uncluttered parent→child tree using configured edge labels; non-tree edges are omitted so curved links and label LOD stay readable on large graphs.',
+  'Canvas: Stratify layout renders an uncluttered parent→child tree using configured edge labels; non-hierarchy edges are omitted so label LOD stays readable on large graphs.',
   'Markdown: Toolbar → Floating Panel → Markdown → Import loads a Markdown document into the Bottom Panel Markdown editor/viewer.',
   'Markdown: Presentation Mode renders slides split by standalone --- separators. Shortcuts: Space/Right (Next), Shift+Space/Left (Prev), F (Fullscreen), O (Overview), N (Notes).',
   'Markdown: Presentation Mode applies slide `transition` frontmatter and renders $...$/$$...$$ and \\(...\\)/\\[...\\] math via KaTeX.',

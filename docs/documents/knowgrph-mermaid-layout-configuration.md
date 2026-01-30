@@ -37,8 +37,8 @@
 | Dagre Layout Execution        | Position computation                  | `network-simplex` ranker, `nodesep`/`ranksep` spacing     |
 | Centering & Scaling           | 16:9 frame alignment                  | `fitPadding`, `fitTargetAspectRatio` schema settings      |
 | Group Outline Rendering       | Subgraph box/outline visualization    | `layout.groups` configuration with rectangular outlines   |
-| Node Rendering                | Styled rectangular boxes              | Schema-driven `getNodeBaseFill`, Mermaid `classDef` support|
-| Edge Rendering                | B-spline curves or direct lines       | Dynamic switching based on drag state                     |
+| Node Rendering                | Styled geometric nodes (circle/rect/diamond/hex) | Schema-driven `getNodeBaseFill`, Mermaid shape syntax (`(( ))`, `[ ]`, `{ }`, `{{ }}`, `@{ shape: ... }`) |
+| Edge Rendering                | Direct lines with arrow markers       | Endpoints clipped/offset to node bounds; hit layer separate from visuals |
 | Interactive Dragging          | Rigid group movement                  | Subgraph centroid dragging with member node synchronization|
 
 ---
@@ -52,8 +52,8 @@
 | Direction Parsing     | `canvas/src/components/GraphCanvas/layout/mermaidDirection.ts` | Mermaid Direction     | `readMermaidAxisFromNodes`  | Parser → reads Mermaid flow direction from diagram code → maps to axis/forward                 | Mermaid diagram node properties       | Returns axis/forward used for seeding and ports   | ~25    |
 | Drag Handler          | `canvas/src/components/GraphCanvas/drag.ts`   | Node Drag                  | `nodeDragBehavior`          | Handler → drags nodes → applies snap/constraints → releases forces per mode                    | d3-drag                               | Updates node fx/fy and velocities                 | ~70    |
 | Group Renderer        | `canvas/src/components/GraphCanvas/layers/groups.ts` | Subgraph Renderer     | `createGroupsLayer`          | Renderer → computes bounds/outlines → draws behind nodes → manages z-order → applies padding  | Canvas 2D context                     | Draws subgraph containers                         | ~200   |
-| Node Renderer         | `canvas/src/components/GraphCanvas/layers/nodes.ts` | Mermaid Node Renderer | `renderMermaidNodes`        | Renderer → applies schema colors → renders rectangles → wraps labels → supports `classDef`     | Schema config, text wrapper           | Draws styled rectangular nodes                    | ~300   |
-| Edge Renderer         | `canvas/src/components/GraphCanvas/layers/links.ts` | Mermaid Edge Renderer | `renderMermaidEdges`        | Renderer → draws B-spline curves → switches to direct lines on drag → applies edge styles      | d3-shape                              | Draws styled edges with dynamic routing           | ~200   |
+| Node Renderer         | `canvas/src/components/GraphCanvas/layers/nodes.ts` | Mermaid Node Renderer | `createNodesLayer`          | Renderer → applies schema colors → renders node shapes → wraps labels → supports `classDef`     | Schema config, label layout           | Draws styled geometric nodes                      | ~300   |
+| Edge Renderer         | `canvas/src/components/GraphCanvas/layers/links.ts` | Mermaid Edge Renderer | `createLinksLayer`          | Renderer → draws direct line edges → applies edge styles and arrow markers                      | d3                                    | Draws styled edges (visuals) + hit layer          | ~200   |
 
 ---
 
@@ -91,6 +91,8 @@ schema.layout.fitPadding:
 | In-Group Layering        | group nodes + `pointsTo` edges  | ranked layers                  | Compute lightweight ranks inside each group                 | O(n + m)                                     |
 | Seed Placement           | groups + layers + frame bounds  | positioned nodes               | Place groups into a seed grid and spread nodes inside boxes | O(n)                                         |
 | Centering                | positioned nodes                | centered positions             | Center seeded layout within canvas frame                    | O(n)                                         |
+
+**Overlap Enforcement**: Force mode enforces both node-level bbox collision (`schema.layout.forces.bboxCollide*`) and group-level bbox collision (`schema.layout.forces.groupBboxCollide*`). Group keys are derived consistently (Mermaid subgraphs + Markdown structure), and group boxes use label-aware node AABBs so outlines don’t clip labels.
 
 **Design Compliance**:
 

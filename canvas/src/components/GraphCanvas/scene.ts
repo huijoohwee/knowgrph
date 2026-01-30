@@ -5,12 +5,15 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { createZoom } from '@/components/GraphCanvas/zoom'
 import { buildSimulation } from '@/components/GraphCanvas/simulation'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
+import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { createLayoutGroupKeyOfNode } from '@/components/GraphCanvas/layout/layoutGroupKey'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight'
 import { createDefs, createGroupsLayer, createLinksHitLayer, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer } from '@/components/GraphCanvas/sceneLayers'
 import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCanvas/sceneHandlers'
+import { applyGraphCanvasZOrder } from '@/components/GraphCanvas/zOrder'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { getDisplayEdges, getDisplayNodes } from '@/components/GraphCanvas/displayFilter'
 
@@ -28,6 +31,7 @@ type SetupGraphSceneArgs = {
   zoomOnDoubleClick: boolean
   renderMediaAsNodes: boolean
   mediaPanelDensity: 'default' | 'compact'
+  fitToScreenMode?: boolean
   initialZoomTransform?: { k: number; x: number; y: number } | null
   layoutPositionsForMode?: Record<string, { x: number; y: number }> | null
   prevPositions?: Record<string, { x: number; y: number }> | null
@@ -83,6 +87,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     zoomOnDoubleClick,
     renderMediaAsNodes,
     mediaPanelDensity,
+    fitToScreenMode,
     initialZoomTransform,
     layoutPositionsForMode,
     prevPositions,
@@ -200,6 +205,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const simulation = buildSimulation(displayNodes, edgesForDisplay, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
     skipInitialLayout: !!skipInitialLayout,
+    groupKeyOf: createLayoutGroupKeyOfNode({ graphData: graphDataForDisplay, schema }),
   })
   simulationRef.current = simulation
 
@@ -220,24 +226,10 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
 
   // Fit to screen logic for clean slate
-  if (!initialZoomTransform) {
-    const padding = schema.layout?.fitPadding
-    const useCentroid = schema.layout?.fitUseCentroid
-    const detectClusters = schema.layout?.fitDetectClusters
-    const targetAspectRatio = schema.layout?.fitTargetAspectRatio
-    const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
-
-    const commonOpts = {
-      pad: typeof padding === 'number' && Number.isFinite(padding) ? Math.max(20, Math.min(160, Math.floor(padding))) : 80,
-      useCentroidCentering: useCentroid !== false,
-      detectClusters: detectClusters !== false,
-      targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
-      enforceAspectRatio: enforceAspectRatio !== false,
-      schema,
-    }
-
-    const t = fitAllTransform(graphDataForDisplay.nodes, width, height, commonOpts)
-
+  if (fitToScreenMode !== false && !initialZoomTransform) {
+    const mode = readLayoutMode(schema)
+    const opts = readFitAllOptions({ schema, mode, intent: 'initialFit' })
+    const t = fitAllTransform(graphDataForDisplay.nodes, width, height, opts)
     svg.call(zoom.transform as unknown as (
       sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
       t: d3.ZoomTransform,
@@ -335,17 +327,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   }
 
-  // Z-Order: Groups (bottom) -> Links -> Nodes -> PortHandles -> Labels (top)
-  g.selectAll('[data-kg-layer="groups"]').lower()
-  g.selectAll('[data-kg-layer="links"]').raise()
-  g.selectAll('[data-kg-layer="edge-labels"]').raise()
-  g.selectAll('[data-kg-layer="temp-link"]').raise()
-  g.selectAll('[data-kg-layer="nodes"]').raise()
-  g.selectAll('[data-kg-layer="node-chevrons"]').raise()
-  g.selectAll('[data-kg-layer="media"]').raise()
-  g.selectAll('[data-kg-layer="port-handles"]').raise()
-  g.selectAll('[data-kg-layer="labels"]').raise()
-  g.selectAll('[data-kg-layer="group-labels"]').raise()
+  applyGraphCanvasZOrder(g)
 
   const storeLayoutPositions = () => {
     if (!layoutCacheKey || typeof setLayoutPositionsForMode !== 'function') return
@@ -367,7 +349,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   simulation.on('end.layoutCache', storeLayoutPositions)
 
-  if (schema.layout?.mode === 'radial') {
+  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'stratify') {
     simulation.stop()
     storeLayoutPositions()
   }
@@ -467,17 +449,7 @@ export const updateGraphSceneNodesPresentation = (args: {
     setSelectionSource: args.setSelectionSource,
   })
 
-  // Z-Order: Groups (bottom) -> Links -> Nodes -> PortHandles -> Labels (top)
-  g.selectAll('[data-kg-layer="groups"]').lower()
-  g.selectAll('[data-kg-layer="links"]').raise()
-  g.selectAll('[data-kg-layer="edge-labels"]').raise()
-  g.selectAll('[data-kg-layer="temp-link"]').raise()
-  g.selectAll('[data-kg-layer="nodes"]').raise()
-  g.selectAll('[data-kg-layer="node-chevrons"]').raise()
-  g.selectAll('[data-kg-layer="media"]').raise()
-  g.selectAll('[data-kg-layer="port-handles"]').raise()
-  g.selectAll('[data-kg-layer="labels"]').raise()
-  g.selectAll('[data-kg-layer="group-labels"]').raise()
+  applyGraphCanvasZOrder(g)
 }
 
 export const updateGraphSceneGroupsPresentation = (args: {
@@ -522,14 +494,5 @@ export const updateGraphSceneGroupsPresentation = (args: {
   })
   args.beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
   
-  // Z-Order: Groups (bottom) -> Links -> Nodes -> PortHandles -> Labels (top)
-  g.selectAll('[data-kg-layer="groups"]').lower()
-  g.selectAll('[data-kg-layer="links"]').raise()
-  g.selectAll('[data-kg-layer="edge-labels"]').raise()
-  g.selectAll('[data-kg-layer="temp-link"]').raise()
-  g.selectAll('[data-kg-layer="nodes"]').raise()
-  g.selectAll('[data-kg-layer="media"]').raise()
-  g.selectAll('[data-kg-layer="port-handles"]').raise()
-  g.selectAll('[data-kg-layer="labels"]').raise()
-  g.selectAll('[data-kg-layer="group-labels"]').raise()
+  applyGraphCanvasZOrder(g)
 }

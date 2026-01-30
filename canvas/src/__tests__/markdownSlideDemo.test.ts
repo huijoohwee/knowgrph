@@ -102,8 +102,17 @@ export function testMarkdownSlideDemoParsesMediaAndGeo() {
       throw new Error('Expected iframe block to be a single tag block')
     }
     const iframeSrc = extractAttr(iframeBlock, 'src')
-    if (!iframeSrc || !isSafeHref(iframeSrc) || !isSafeMediaSrc(iframeSrc)) {
-      throw new Error('Expected iframe src to be safe')
+    const iframeSrcdoc = extractAttr(iframeBlock, 'srcdoc')
+    if (iframeSrc) {
+      if (!isSafeHref(iframeSrc) || !isSafeMediaSrc(iframeSrc)) {
+        throw new Error('Expected iframe src to be safe')
+      }
+    } else if (iframeSrcdoc) {
+      if (/<\s*script\b/i.test(iframeSrcdoc)) {
+        throw new Error('Expected iframe srcdoc to be script-free')
+      }
+    } else {
+      throw new Error('Expected iframe to have either src or srcdoc')
     }
   }
 

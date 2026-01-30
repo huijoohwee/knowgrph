@@ -68,7 +68,7 @@
 - Link cohesion: `d3.forceLink`
 - Repulsion: `d3.forceManyBody`
 - Positioning: `d3.forceX` + `d3.forceY` targeting component anchors when `disjointComponents` is enabled
-- Overlap: `d3.forceCollide` (radius) + native `bboxCollide` (label-aware AABB with Quadtree acceleration)
+- Overlap: `d3.forceCollide` (radius) + native `bboxCollide` (label-aware AABB with Quadtree acceleration) + group-level bbox collision (label-aware group boxes)
 
 **Implementation**: [buildSimulation](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
 
@@ -89,7 +89,12 @@ layout:
     bboxCollide: boolean               # default true
     bboxCollideStrength: number        # default 0.7
     bboxCollidePadding: number         # default 10
-    bboxCollideIterations: number      # default 1
+    bboxCollideIterations: number      # default 2
+
+    groupBboxCollide: boolean          # default true
+    groupBboxCollideStrength: number   # default 0.385
+    groupBboxCollidePadding: number    # default 10
+    groupBboxCollideIterations: number # default 2
 ```
 
 ---

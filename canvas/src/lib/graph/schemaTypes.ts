@@ -83,7 +83,7 @@ export interface GraphSchema {
     }>;
   };
   layout?: {
-    mode?: 'force' | 'radial';
+    mode?: 'force' | 'radial' | 'stratify';
     forces?: {
       linkDistanceByLabel?: Record<string, number>;
       charge?: number;
@@ -98,6 +98,11 @@ export interface GraphSchema {
       bboxCollideStrength?: number;
       bboxCollidePadding?: number;
       bboxCollideIterations?: number;
+      groupBboxCollide?: boolean;
+      groupBboxCollideStrength?: number;
+      groupBboxCollidePadding?: number;
+      groupBboxCollideIterations?: number;
+      structuredRelaxSteps?: number;
     };
     fitPadding?: number;
     fitUseCentroid?: boolean;
@@ -116,6 +121,13 @@ export interface GraphSchema {
       labelPadding?: number;
       strokeWidth?: number;
       fillOpacity?: number;
+    };
+    stratify?: {
+      edgeLabels?: string[];
+      orientation?: 'vertical' | 'horizontal';
+      separation?: number;
+      reuseSeedStrength?: number;
+      fitFillRatio?: number;
     };
   };
   endpointMatrix?: Record<string, { sources: string[]; targets: string[] }>;

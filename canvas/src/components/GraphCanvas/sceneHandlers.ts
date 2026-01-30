@@ -7,7 +7,7 @@ import { calcMouseGraphPosition, isNodePointerTarget } from '@/features/canvas/u
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import type { EdgeWithRuntime } from '@/components/GraphCanvas/utils'
 import { getEdgeEndpointFromPorts, getPortHandlePosition, getPortHandlesConfig, type PortHandleDatum } from '@/components/GraphCanvas/portHandles'
-import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 import { estimateLabelCharWidthPx } from '@/components/GraphCanvas/layout/utils'
@@ -121,11 +121,52 @@ export const attachSimulationTick = (args: {
             return p.y
           })
       } else {
+        const pickEndpoint = (from: GraphNode, to: GraphNode, padOut: number): { x: number; y: number } => {
+          const fx = typeof from.x === 'number' && Number.isFinite(from.x) ? from.x : 0
+          const fy = typeof from.y === 'number' && Number.isFinite(from.y) ? from.y : 0
+          const tx = typeof to.x === 'number' && Number.isFinite(to.x) ? to.x : fx
+          const ty = typeof to.y === 'number' && Number.isFinite(to.y) ? to.y : fy
+          const dx = tx - fx
+          const dy = ty - fy
+          const norm = Math.sqrt(dx * dx + dy * dy) || 1
+          const ux = dx / norm
+          const uy = dy / norm
+          const shape = getNodeRenderShape2d(from, schema)
+          if (shape === 'circle') {
+            const r = getNodeMetrics(from).r
+            const dist = Math.max(0, r + padOut)
+            return { x: fx + ux * dist, y: fy + uy * dist }
+          }
+          const { width, height } = getNodeMetrics(from)
+          const halfW = Math.max(1, width / 2)
+          const halfH = Math.max(1, height / 2)
+          const absUx = Math.abs(ux)
+          const absUy = Math.abs(uy)
+          const txRect = absUx > 1e-6 ? halfW / absUx : Number.POSITIVE_INFINITY
+          const tyRect = absUy > 1e-6 ? halfH / absUy : Number.POSITIVE_INFINITY
+          const dist = Math.max(0, Math.min(txRect, tyRect) + padOut)
+          return { x: fx + ux * dist, y: fy + uy * dist }
+        }
+
         sel
-          .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.source.x ?? 0)
-          .attr('y1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.source.y ?? 0)
-          .attr('x2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.x ?? 0)
-          .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => d.target.y ?? 0)
+          .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+            const p = pickEndpoint(d.source, d.target, 3)
+            return p.x
+          })
+          .attr('y1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+            const p = pickEndpoint(d.source, d.target, 3)
+            return p.y
+          })
+          .attr('x2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+            const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
+            const p = pickEndpoint(d.target, d.source, hasArrow ? 8 : 3)
+            return p.x
+          })
+          .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+            const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
+            const p = pickEndpoint(d.target, d.source, hasArrow ? 8 : 3)
+            return p.y
+          })
       }
     }
 

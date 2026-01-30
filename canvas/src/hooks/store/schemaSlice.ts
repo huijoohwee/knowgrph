@@ -67,13 +67,13 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
 }
 
 export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
-  type LayoutMode = 'force' | 'radial'
+  type LayoutMode = 'force' | 'radial' | 'stratify'
   const setSchemaState = (schema: GraphSchema) => {
     const next = { ...schema }
     const prevMode = (get().schema.layout?.mode || 'force') as LayoutMode
     const nextMode = (next.layout?.mode || 'force') as LayoutMode
-    const prevRequires2d = prevMode === 'radial'
-    const nextRequires2d = nextMode === 'radial'
+    const prevRequires2d = prevMode === 'radial' || prevMode === 'stratify'
+    const nextRequires2d = nextMode === 'radial' || nextMode === 'stratify'
     const canvasRenderMode = get().canvasRenderMode
     const lastFree = get().canvasRenderModeLastFree
     const isAuto = get().canvasRenderModeIsAuto

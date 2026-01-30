@@ -306,7 +306,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
 
     // --- Click Event ---
-    const clickMatch = /^click\s+([A-Za-z0-9_.]+)\s+"#([^"]+)"/.exec(trimmed)
+    const clickMatch = /^click\s+([A-Za-z0-9_.-]+)\s+"#([^"]+)"/.exec(trimmed)
     if (clickMatch) {
       const nodeName = clickMatch[1]
       const anchor = clickMatch[2]
@@ -338,67 +338,131 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
       const finish = (n: string, l: string | null, shape?: string | null) => ({ name: n, label: l, className, shape })
 
+      const mapMermaidShape = (raw: string): 'circle' | 'rect' | 'diamond' | 'hex' | null => {
+        const v = String(raw || '').trim().toLowerCase()
+        if (!v) return null
+        if (v === 'circle' || v === 'circ' || v === 'doublecircle') return 'circle'
+        if (v === 'diamond' || v === 'rhombus') return 'diamond'
+        if (v === 'hex' || v === 'hexagon') return 'hex'
+        if (
+          v === 'rect' ||
+          v === 'rectangle' ||
+          v === 'round-rect' ||
+          v === 'stadium' ||
+          v === 'pill' ||
+          v === 'subroutine' ||
+          v === 'cyl' ||
+          v === 'cylinder' ||
+          v === 'parallelogram' ||
+          v === 'trapezoid' ||
+          v === 'trap' ||
+          v === 'lean-right' ||
+          v === 'lean-left'
+        ) {
+          return 'rect'
+        }
+        return 'rect'
+      }
+
+      const unquoteLocal = (raw: string): string => {
+        const v = String(raw || '').trim()
+        if (v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))) {
+          return v.slice(1, -1)
+        }
+        return v
+      }
+
+      const unescapeQuoted = (raw: string): string => {
+        const s = String(raw || '')
+        return s.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, '\\')
+      }
+
+      const parseAtShapeSyntax = () => {
+        const idx = cleanStr.indexOf('@{')
+        if (idx <= 0) return null
+        if (!cleanStr.trimEnd().endsWith('}')) return null
+        const name = cleanStr.slice(0, idx).trim()
+        if (!/^[A-Za-z0-9_.-]+$/.test(name)) return null
+        const body = cleanStr.slice(idx + 2, cleanStr.lastIndexOf('}')).trim()
+        const shapeMatch = /(?:^|,)\s*shape\s*:\s*([A-Za-z0-9_-]+|"[^"]*"|'[^']*')\s*(?:,|$)/i.exec(body)
+        const rawShape = shapeMatch ? String(shapeMatch[1] || '').trim() : ''
+        const shapeValue = unquoteLocal(rawShape)
+        const labelMatch = /(?:^|,)\s*(?:label|text)\s*:\s*("[^"]*"|'[^']*'|`[^`]*`|[^,}]+)\s*(?:,|$)/i.exec(body)
+        const rawLabel = labelMatch ? String(labelMatch[1] || '').trim() : ''
+        const labelValue = (() => {
+          if (!rawLabel) return null
+          const v = rawLabel.startsWith('`') && rawLabel.endsWith('`') ? rawLabel.slice(1, -1) : unquoteLocal(rawLabel)
+          const out = unescapeQuoted(v)
+          return out.trim() ? out : null
+        })()
+        const mapped = shapeValue ? mapMermaidShape(shapeValue) : null
+        return finish(name, labelValue, mapped)
+      }
+
+      const atSyntax = parseAtShapeSyntax()
+      if (atSyntax) return atSyntax
+
       // Subroutine: id[[label]]
-      m = /^([A-Za-z0-9_.]+)\s*\[\[([^\]]+)\]\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\[\[([^\]]+)\]\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
 
       // Cylinder: id[(label)]
-      m = /^([A-Za-z0-9_.]+)\s*\[\(([^)]+)\)\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\[\(([^)]+)\)\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
 
       // Circle: id((label))
-      m = /^([A-Za-z0-9_.]+)\s*\(\(([^)]+)\)\)$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\(\(([^)]+)\)\)$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'circle')
 
       // Stadium / Pill: id([label])
-      m = /^([A-Za-z0-9_.]+)\s*\(\[([^\]]+)\]\)$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\(\[([^\]]+)\]\)$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
 
       // Asymmetric: id>label]
-      m = /^([A-Za-z0-9_.]+)\s*>\s*([^\]]+)\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*>\s*([^\]]+)\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
 
       // Hexagon: id{{label}}
-      m = /^([A-Za-z0-9_.]+)\s*\{\{([^}]+)\}\}$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\{\{([^}]+)\}\}$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'hex')
 
       // Parallelogram: id[/label/]
-      m = /^([A-Za-z0-9_.]+)\s*\[\/([^/]+)\/\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\[\/([^/]+)\/\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
 
       // Parallelogram alt: id[\label\]
-      m = /^([A-Za-z0-9_.]+)\s*\[\\([^\\]+)\\\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\[\\([^\\]+)\\\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
 
       // Trapezoid: id[/label\]
-      m = /^([A-Za-z0-9_.]+)\s*\[\/([^\]]+)\\\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\[\/([^\]]+)\\\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
 
       // Trapezoid alt: id[\label/]
-      m = /^([A-Za-z0-9_.]+)\s*\[\\([^/]+)\/\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\[\\([^/]+)\/\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
       
       // Double Circle: id(((label)))
-      m = /^([A-Za-z0-9_.]+)\s*\(\(\(([^)]+)\)\)\)$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\(\(\(([^)]+)\)\)\)$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'circle')
 
       // Standard Box: id["label"]
-      m = /^([A-Za-z0-9_.]+)\s*\["(.+)"\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\["(.+)"\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect') 
       
       // Standard Box: id[label]
-      m = /^([A-Za-z0-9_.]+)\s*\[([^\]]+)\]$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\[([^\]]+)\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
 
       // Round Box: id(label)
-      m = /^([A-Za-z0-9_.]+)\s*\(([^)]+)\)$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\(([^)]+)\)$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect')
       
       // Rhombus: id{label}
-      m = /^([A-Za-z0-9_.]+)\s*\{([^}]+)\}$/.exec(cleanStr)
+      m = /^([A-Za-z0-9_.-]+)\s*\{([^}]+)\}$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'diamond')
       
-      if (/^[A-Za-z0-9_.]+$/.test(cleanStr)) return finish(cleanStr, null, null)
+      if (/^[A-Za-z0-9_.-]+$/.test(cleanStr)) return finish(cleanStr, null, null)
       
       return null
     }

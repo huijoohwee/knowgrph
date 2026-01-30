@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { fitAllTransform, fitSubsetTransform, centerAllTransform } from './fit';
 import { getAdjacencyMap } from './adjacency';
+import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 
 type ZoomType = 'in' | 'out' | 'fit' | 'reset' | 'selection' | 'transform';
 
@@ -71,25 +72,8 @@ export const applyZoomRequest = (
   const computeFitTransform = () => {
     if (!graphData) return null;
     const schema = useGraphStore.getState().schema
-    const padding = schema.layout?.fitPadding
-    const useCentroid = schema.layout?.fitUseCentroid
-    const detectClusters = schema.layout?.fitDetectClusters
-    const targetAspectRatio = schema.layout?.fitTargetAspectRatio
-    const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
-
-    const pad =
-      typeof padding === 'number' && Number.isFinite(padding)
-        ? Math.max(20, Math.min(160, Math.floor(padding)))
-        : 80
-
-    const commonOpts = {
-      pad,
-      useCentroidCentering: useCentroid !== false,
-      detectClusters: detectClusters !== false,
-      targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
-      enforceAspectRatio: enforceAspectRatio !== false,
-      schema,
-    }
+    const mode = readLayoutMode(schema)
+    const commonOpts = readFitAllOptions({ schema, mode, intent: 'fitToScreen' })
 
     const w = Math.max(1, Math.floor(width))
     const h = Math.max(1, Math.floor(height))
