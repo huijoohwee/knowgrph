@@ -12,7 +12,8 @@ import {
 } from '@/components/GraphCanvas/helpers';
 import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
 import { applyMediaProxySrc } from '@/lib/url';
-import { MINIMAP_HEIGHT, ZOOM_MAX } from '@/features/minimap/math';
+import { MINIMAP_HEIGHT } from '@/features/minimap/math';
+import { DEFAULT_ZOOM_MAX_SCALE } from '@/lib/graph/layoutDefaults'
 import { getPortHandlePosition, getPortHandlesConfig, listPortHandlesForNodes, type PortHandleDatum } from '@/components/GraphCanvas/portHandles';
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d';
@@ -33,7 +34,7 @@ const MEDIA_PANEL_CORNER_AT_MAX_ZOOM = 8;
 const MEDIA_PANEL_BORDER_COLOR = UI_THEME_COLORS_CSS.border;
 const MEDIA_PANEL_BG_FILL_OPACITY = 0.14;
 const MEDIA_PANEL_HEADER_FILL_OPACITY = 0.22;
-const MEDIA_PANEL_BORDER_WIDTH = 1 / ZOOM_MAX;
+const MEDIA_PANEL_BORDER_WIDTH = 1 / DEFAULT_ZOOM_MAX_SCALE;
 
 export const createNodesLayer = (args: {
   g: GSelection;
@@ -97,7 +98,7 @@ export const createNodesLayer = (args: {
   if (renderMediaAsNodes && mediaByNodeId.size > 0) {
     const mediaNodes = nodes.filter(n => mediaByNodeId.has(String(n.id)));
     if (mediaNodes.length > 0) {
-      const headerHeight = MEDIA_PANEL_HEADER_AT_MAX_ZOOM / ZOOM_MAX;
+      const headerHeight = MEDIA_PANEL_HEADER_AT_MAX_ZOOM / DEFAULT_ZOOM_MAX_SCALE;
       const padding = MEDIA_PANEL_PADDING;
 
       mediaPanelSel = (mediaLayer
@@ -127,10 +128,10 @@ export const createNodesLayer = (args: {
           density === 'compact'
             ? MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_COMPACT
             : MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT;
-        const bodyHeight = (MINIMAP_HEIGHT * bodyMultiplier) / ZOOM_MAX;
+        const bodyHeight = (MINIMAP_HEIGHT * bodyMultiplier) / DEFAULT_ZOOM_MAX_SCALE;
         const panelHeight = bodyHeight + headerHeight;
         const panelWidth = (bodyHeight * MEDIA_PANEL_ASPECT_WIDTH) / MEDIA_PANEL_ASPECT_HEIGHT;
-        const corner = MEDIA_PANEL_CORNER_AT_MAX_ZOOM / ZOOM_MAX;
+        const corner = MEDIA_PANEL_CORNER_AT_MAX_ZOOM / DEFAULT_ZOOM_MAX_SCALE;
         const baseFill = getNodeBaseFill(d, schema)
         const baseStroke = schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS_CSS.nodeStroke
         const bg = panel
@@ -200,7 +201,7 @@ export const createNodesLayer = (args: {
           fo.each(function () {
             const container = d3
               .select(this)
-              .append('xhtml:div')
+              .append('xhtml:section')
               .style('width', '100%')
               .style('height', '100%')
               .style('border-radius', `${corner}px`)

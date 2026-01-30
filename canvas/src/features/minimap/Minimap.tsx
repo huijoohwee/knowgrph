@@ -5,18 +5,18 @@ import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS } from '@/lib/config'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphState } from '@/hooks/useGraphStore'
-import { getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
+import { defaultSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import {
   computeViewRect,
   computeGraphBounds,
   computeTransformFromViewTopLeft,
   computeTransformFromCenter,
-  ZOOM_MIN,
-  ZOOM_MAX,
+  clampZoomScale,
   MINIMAP_WIDTH,
   MINIMAP_HEIGHT,
 } from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
+import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 
 type ZoomT = { k: number; x: number; y: number };
 
@@ -54,6 +54,9 @@ function Minimap() {
   const uiPanelOpacity = useGraphStore(s => s.uiPanelOpacity)
 
   const schema = useGraphStore(s => s.schema)
+  const [minScale, maxScale] = React.useMemo(() => {
+    return readZoomScaleExtent(schema || defaultSchema)
+  }, [schema])
   const palette = getRendererPalette(schema || null)
   const highlightColor = typeof palette.nodes.idea === 'string' && palette.nodes.idea.trim()
     ? palette.nodes.idea
@@ -178,8 +181,15 @@ function Minimap() {
     const z: ZoomT = zoomState || { k: 1, x: 0, y: 0 };
     const k0 = z.k || 1;
     const factor = Math.pow(1.2, -e.deltaY / 100);
-    const k1 = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, k0 * factor));
-    const t = computeTransformFromCenter(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), ux, uy, k1);
+    const k1 = clampZoomScale(k0 * factor, minScale, maxScale)
+    const t = computeTransformFromCenter(
+      Math.max(1, canvasDims.w),
+      Math.max(1, canvasDims.h),
+      ux,
+      uy,
+      k1,
+      { minScale, maxScale },
+    )
     requestZoomTransform(t);
   };
 
@@ -262,15 +272,16 @@ function Minimap() {
       const uy = my / sx + bounds.minY;
       const vw = Math.max(1, canvasDims.w);
       const vh = Math.max(1, canvasDims.h);
-      const w0 = vw / Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, k));
-      const h0 = vh / Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, k));
+      const kk = clampZoomScale(k, minScale, maxScale)
+      const w0 = vw / kk;
+      const h0 = vh / kk;
       const minCX = bounds.minX + w0 / 2;
       const maxCX = bounds.maxX - w0 / 2;
       const minCY = bounds.minY + h0 / 2;
       const maxCY = bounds.maxY - h0 / 2;
       const cx = Math.max(minCX, Math.min(ux, maxCX));
       const cy = Math.max(minCY, Math.min(uy, maxCY));
-      const t = computeTransformFromCenter(vw, vh, cx, cy, k);
+      const t = computeTransformFromCenter(vw, vh, cx, cy, kk, { minScale, maxScale });
       const EPS = 0.5;
       const nearlySame = Math.abs(t.x - z.x) < EPS && Math.abs(t.y - z.y) < EPS && Math.abs((t.k || 1) - (z.k || 1)) < 1e-9;
       if (!nearlySame) {

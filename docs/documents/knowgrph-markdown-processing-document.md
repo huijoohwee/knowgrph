@@ -44,17 +44,18 @@ Code blocks now feature a structured layout matching GitHub's design system:
 - **Header Bar**: A distinct header (`<header>`) containing metadata and controls.
 - **Language Label**: Clearly visible language identifier (e.g., YAML, TSX).
 - **Copy Button**: Integrated clipboard copy functionality with visual feedback.
-- **Main View Toggle**: A global toggle in the Markdown Viewer header sets the default mode for code blocks:
+- **Main View Toggle**: A global toggle in the Markdown Viewer header sets the default mode for most code blocks:
   - **Inline**: Renders annotations above the code block.
   - **Beside**: Renders code on the left and annotations on the right (on desktop), or annotations above code (on mobile).
   - **Render**: Switches supported code blocks from source to a fitted preview.
-    - **Mermaid** (`mermaid` / `mmd`): Renders the diagram fitted to the full code block.
+    - **Mermaid** (`mermaid` / `mmd`): Render-preferred in Viewer/Presentation (defaults to Render even when the global mode is Inline/Beside).
+      - **`.mmd` import normalization**: Mermaid-only `.mmd` inputs are normalized into a fenced `mermaid` block before parsing and before being stored as the active Markdown document, so both graph extraction and preview rendering behave consistently.
       - **Pan/Zoom + In-doc anchors**: In Render mode, Mermaid previews support drag/pan (and optional zoom) inside the code block; in-diagram `#anchor` links trigger in-document scrolling within the Markdown preview container.
       - **Preview Panel (double-click)**: Double-clicking a rendered Mermaid preview focuses it in MainPanel → Preview. Single click remains navigation-only (e.g., `#hash` anchors).
       - **Per-block Mermaid frontmatter**: A Mermaid code block may start with a YAML `--- ... ---` header. The viewer strips that header from the diagram text and merges it into Mermaid init config for that block (e.g., `theme`, `themeVariables`, or `mermaidTheme`/`mermaidThemeVariables`).
       - **Multi-diagram fences**: When a single Mermaid fence contains multiple diagram starts (e.g., repeated `graph TB` / `graph LR` blocks), the viewer splits it into multiple renderable diagrams using a shared `grph-shared` helper (`splitMermaidIntoDiagrams`).
     - **Frontmatter**: When the active document begins with YAML frontmatter (`--- ... ---`), clicking the global **Render** control also enables Frontmatter Mode so the frontmatter blocks are visible without a second toggle.
-    - **GeoJSON** (`geojson`): Renders a fitted MapLibre preview inside the code block using the same basemap/style loading behavior as Geospatial Mode. GeoJSON parsing and validation reuse the shared Gympgrph helpers (`parseGeoJsonFromText`) so inline rendering and dataset registration share the same acceptance rules.
+    - **GeoJSON** (`geojson`): Render-preferred in Viewer/Presentation (defaults to Render; may be overridden per-block).
     - **HTML/SVG** (`html` / `htm` / `svg`): Renders safe HTML inside the code block in Render mode (sanitized; no script/event handlers).
       - **Drag-to-pan**: The HTML render surface supports click-drag panning by scrolling the container (useful for wide content).
       - **srcdoc iframes**: `<iframe srcdoc="...">` renders as a sandboxed iframe (no network; scripts disabled).
@@ -75,6 +76,7 @@ Code blocks now feature a structured layout matching GitHub's design system:
 - **Block-id anchors are supported**: A trailing `^block-id` at end-of-line emits a DOM anchor with id `^block-id`, enabling links like `[[#^block-id]]`.
 - **Callouts (subset)**: Blockquotes whose first line is `[!type]` render as semantic callouts. `+` / `-` after the type enables foldable callouts.
 - **Wikilinks + Backlinks**: In-doc `[[#Heading]]` / `[[#^block-id]]` render as safe hash links; file-level `[[Note]]` / `[[Note#Heading]]` resolve against Source Files (loose name normalization) and navigate in-app. The Contents sidebar also includes a computed Backlinks view (linked + heuristic unlinked mentions).
+- **Caret hash href stability**: For `#^block-id` links, the rendered anchor preserves a raw `href="#^..."` attribute so tests and UI selectors remain stable even if URL serialization encodes the caret.
 
 ### Semantic HTML
 The implementation replaces generic `<div>` wrappers with semantic elements:
@@ -105,7 +107,7 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **Highlight Caching**: Syntax highlighting is memoized via `useMemo`, ensuring that `highlight.js` is only invoked when the code content or language changes.
 - **GeoJSON Map Load**: Inline GeoJSON previews defer MapLibre initialization until the preview scrolls into view, wait for non-zero layout via bounded observers, keep a stable map container element across deferred-load states, and show a visible overlay message (“Loading map preview…” / “Map preview unavailable”) instead of failing silently ([InlineMarkdownGeoJsonLayerMap.tsx](../../canvas/src/features/geospatial/InlineMarkdownGeoJsonLayerMap.tsx), [mapLibreFactory.ts](../../../gympgrph/src/features/geospatial/mapLibreFactory.ts)).
 - **GeoJSON Detection**: `geojson` blocks are always GeoJSON-renderable; `json` blocks are treated as GeoJSON only when `geoDatasetIntegration.isGeoJsonCodeBlock` identifies the content as GeoJSON.
-- **GeoJSON Render Defaults**: In Viewer, GeoJSON-renderable blocks respect the global annotate display mode (typically Inline); in Presentation, GeoJSON-renderable blocks (including `json` fences identified as GeoJSON) default to Render.
+- **GeoJSON Render Defaults**: GeoJSON-renderable blocks are render-preferred in Viewer/Presentation (including `json` fences identified as GeoJSON).
 - **GeoJSON Interaction**: Map previews follow the same overlay conventions as Mermaid: container-scoped overlays use `PreviewOverlay` for fullscreen inspection; viewport-scoped previews delegate to `requestOpenGeoPanel`.
 - **GeoJSON Mode Independence**: GeoJSON previews in the Markdown Viewer/Presentation are available in both Document Mode and Geospatial Mode. Document Mode disables the full-screen geospatial overlay, but Markdown code-block previews can still render fitted MapLibre maps using the same basemap style configuration.
 - **GeoJSON Renderer Wiring**: Viewer-mode render trees must include `geoDatasetIntegration` in memo dependency arrays so injected renderers don’t stay stale and emit “GeoJSON renderer unavailable”.

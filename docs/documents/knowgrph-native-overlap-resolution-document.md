@@ -73,6 +73,9 @@ layout:
     structuredRelaxSteps: number
 ```
 
+Notes:
+- Group bbox collision is enforced whenever `layout.groups.enabled !== false`; `groupBboxCollide` is deprecated for disabling but its tunables still apply.
+
 ---
 
 ## Integration Points
@@ -80,7 +83,7 @@ layout:
 | Location | Integration | Behavior |
 |---|---|---|
 | [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('bboxCollide', ...)` | Adds label-aware overlap resolution in force mode |
-| [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('groupBboxCollide', ...)` | Prevents group-box overlap in force mode (schema-driven group knobs) |
+| [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('groupBboxCollide', ...)` | Prevents group-box overlap in force mode (enforced when groups enabled; schema-driven group knobs) |
 | [schema.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schema.ts) | defaults | Enables bbox collide by default |
 
 ---

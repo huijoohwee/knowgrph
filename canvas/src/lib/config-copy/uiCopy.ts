@@ -104,7 +104,7 @@ export const UI_COPY = {
   frontmatterModeToggleTooltip: 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph',
   mermaidLayoutTooltip: 'Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout.',
   stratifyLayoutTooltip:
-    'Stratify Layout: toggles a hierarchy-derived tree layout using configured edge labels and renders only the selected hierarchy edges so large graphs stay readable.',
+    'Stratify Layout: tree layout mode that derives parent→child hierarchy from configured edge labels and places nodes in a stable layered structure.',
   nodeShapeModeTooltip: 'Node Shape: cycle between circle (default), rect, diamond, and hex nodes.',
   groupShapeRectTooltip: 'Cluster Shape: switch to Polygon shape.',
   groupShapePolygonTooltip: 'Cluster Shape: switch to Rect shape.',
@@ -120,6 +120,8 @@ export const UI_COPY = {
   portHandlesTooltip:
     'Port Handles: toggle to show node connection handles and route 2D edge endpoints to the nearest handle.',
   fitToViewTooltip: 'Fit to View: automatically scale and center the graph to fill the viewport.',
+  fitToScreenTooltip:
+    'Fit to Screen mode: toggle to center the viewport on the full graph and clear Zoom to Selection until you turn it off.',
   pinToViewTooltip:
     'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',
   zoomToSelectionTooltip: 'Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused.',

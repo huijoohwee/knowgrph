@@ -147,3 +147,124 @@ export const extractWikiLinksFromMarkdown = (markdownText: string): ParsedWikiLi
 
   return out
 }
+
+export const replaceWikiLinksInMarkdown = (markdownText: string): string => {
+  const lines = String(markdownText || '').split(/\r?\n/g)
+  const out: string[] = []
+
+  let inFence = false
+  let fenceMarker = ''
+
+  const fenceRe = /^\s*(```+|~~~+)\s*/
+  const wikiRe = /\[\[([^\]\r\n]+)\]\]/g
+
+  for (const line of lines) {
+    const fenceMatch = line.match(fenceRe)
+    if (fenceMatch) {
+      const marker = String(fenceMatch[1] || '')
+      if (!inFence) {
+        inFence = true
+        fenceMarker = marker
+      } else if (marker.startsWith(fenceMarker)) {
+        inFence = false
+        fenceMarker = ''
+      }
+      out.push(line)
+      continue
+    }
+    if (inFence) {
+      out.push(line)
+      continue
+    }
+
+    let next = ''
+    let lastIndex = 0
+    wikiRe.lastIndex = 0
+    for (;;) {
+      const m = wikiRe.exec(line)
+      if (!m) break
+      const matchText = String(m[0] || '')
+      const inner = String(m[1] || '')
+
+      const prefix = line.slice(0, m.index)
+      const backtickCount = (prefix.match(/`/g) || []).length
+      if (backtickCount % 2 === 1) {
+        continue
+      }
+
+      const parsed = parseWikiLinkInner(inner)
+      const label = parsed.label.replace(/\]/g, '')
+      const href = (() => {
+        if (parsed.docKey) {
+          return buildMarkdownWikiHref(parsed.docKey, parsed.anchorId)
+        }
+        if (parsed.anchorId) {
+          return `#${parsed.anchorId}`
+        }
+        const docKey = String(inner || '').trim()
+        if (!docKey) return '#'
+        return buildMarkdownWikiHref(docKey, null)
+      })()
+
+      next += line.slice(lastIndex, m.index)
+      next += `[${label}](${href})`
+      lastIndex = m.index + matchText.length
+    }
+    next += line.slice(lastIndex)
+    out.push(next)
+  }
+
+  return out.join('\n')
+}
+
+export const injectMarkdownBlockAnchorIds = (markdownText: string): string => {
+  const lines = String(markdownText || '').split(/\r?\n/g)
+  const out: string[] = []
+
+  let inFence = false
+  let fenceMarker = ''
+
+  const fenceRe = /^\s*(```+|~~~+)\s*/
+  const blockIdRe = /^(.*?)(\s+)\^([A-Za-z0-9][A-Za-z0-9_-]*)\s*$/
+
+  for (const line of lines) {
+    const fenceMatch = line.match(fenceRe)
+    if (fenceMatch) {
+      const marker = String(fenceMatch[1] || '')
+      if (!inFence) {
+        inFence = true
+        fenceMarker = marker
+      } else if (marker.startsWith(fenceMarker)) {
+        inFence = false
+        fenceMarker = ''
+      }
+      out.push(line)
+      continue
+    }
+    if (inFence) {
+      out.push(line)
+      continue
+    }
+    const m = line.match(blockIdRe)
+    if (!m) {
+      out.push(line)
+      continue
+    }
+    const base = String(m[1] || '')
+    const whitespace = String(m[2] || ' ')
+    const idBody = String(m[3] || '')
+    const anchorId = idBody ? `^${idBody}` : ''
+    if (!anchorId) {
+      out.push(line)
+      continue
+    }
+    out.push(`${base}${whitespace}<a id="${anchorId}"></a>`)
+  }
+
+  return out.join('\n')
+}
+
+export const normalizeMarkdownWikiLinksAndBlockIds = (markdownText: string): string => {
+  const injected = injectMarkdownBlockAnchorIds(markdownText)
+  return replaceWikiLinksInMarkdown(injected)
+}

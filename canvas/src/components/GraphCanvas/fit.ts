@@ -3,6 +3,16 @@ import { GraphNode } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
+import {
+  DEFAULT_FIT_PADDING,
+  DEFAULT_ZOOM_MAX_SCALE,
+  DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
+  DEFAULT_ZOOM_MIN_SCALE,
+  ZOOM_VIEWPORT_PRESET_16_9,
+  clampFillRatio,
+  clampScaleToExtent,
+  computeFitFrame,
+} from 'grph-shared/zoom/presets'
 
 export const fitNodeTransform = (n: GraphNode, width: number, height: number) => {
   const s = 1.5;
@@ -10,7 +20,7 @@ export const fitNodeTransform = (n: GraphNode, width: number, height: number) =>
 };
 
 export const fitEdgeTransform = (src: GraphNode, tgt: GraphNode, width: number, height: number) => {
-  const pad = 80;
+  const pad = DEFAULT_FIT_PADDING;
   const minX = Math.min(src.x || 0, tgt.x || 0);
   const maxX = Math.max(src.x || 0, tgt.x || 0);
   const minY = Math.min(src.y || 0, tgt.y || 0);
@@ -19,7 +29,7 @@ export const fitEdgeTransform = (src: GraphNode, tgt: GraphNode, width: number, 
   const boxH = Math.max(1, maxY - minY);
   const sX = (width - 2 * pad) / boxW;
   const sY = (height - 2 * pad) / boxH;
-  const s = Math.max(0.1, Math.min(4, Math.min(sX, sY, 3)));
+  const s = Math.max(DEFAULT_ZOOM_MIN_SCALE, Math.min(DEFAULT_ZOOM_MAX_SCALE, Math.min(sX, sY, 3)));
   const cx = ((src.x || 0) + (tgt.x || 0)) / 2;
   const cy = ((src.y || 0) + (tgt.y || 0)) / 2;
   return d3.zoomIdentity.translate(width / 2 - s * cx, height / 2 - s * cy).scale(s);
@@ -44,7 +54,7 @@ export const fitAllTransform = (
   nodes: GraphNode[],
   width: number,
   height: number,
-  padOrOptions: number | FitAllTransformOptions = 80,
+  padOrOptions: number | FitAllTransformOptions = DEFAULT_FIT_PADDING,
 ) => {
   if (!nodes || nodes.length === 0) {
     return d3.zoomIdentity;
@@ -59,11 +69,15 @@ export const fitAllTransform = (
   const targetAspectRatio =
     typeof opts.targetAspectRatio === 'number' && Number.isFinite(opts.targetAspectRatio) && opts.targetAspectRatio > 0
       ? opts.targetAspectRatio
-      : (1920 / 1080)
-  const minScale = typeof opts.minScale === 'number' && Number.isFinite(opts.minScale) ? opts.minScale : 0.1
-  const maxScale = typeof opts.maxScale === 'number' && Number.isFinite(opts.maxScale) ? opts.maxScale : 4
+      : ZOOM_VIEWPORT_PRESET_16_9.aspectRatio
+  const minScale =
+    typeof opts.minScale === 'number' && Number.isFinite(opts.minScale) ? opts.minScale : DEFAULT_ZOOM_MIN_SCALE
+  const maxScale =
+    typeof opts.maxScale === 'number' && Number.isFinite(opts.maxScale) ? opts.maxScale : DEFAULT_ZOOM_MAX_SCALE
   const maxScaleHardCap =
-    typeof opts.maxScaleHardCap === 'number' && Number.isFinite(opts.maxScaleHardCap) ? opts.maxScaleHardCap : 6
+    typeof opts.maxScaleHardCap === 'number' && Number.isFinite(opts.maxScaleHardCap)
+      ? opts.maxScaleHardCap
+      : DEFAULT_ZOOM_MAX_SCALE_HARD_CAP
   const minBBoxSize = typeof opts.minBBoxSize === 'number' && Number.isFinite(opts.minBBoxSize) ? opts.minBBoxSize : 100
   const useCentroidCentering = opts.useCentroidCentering !== false
   const detectClusters = opts.detectClusters === true
@@ -168,21 +182,24 @@ export const fitAllTransform = (
 
   const w = Math.max(1, width);
   const h = Math.max(1, height);
-  const p = Math.max(20, (typeof opts.pad === 'number' && Number.isFinite(opts.pad) ? opts.pad : 80) ?? 80);
+  const p = Math.max(
+    20,
+    (typeof opts.pad === 'number' && Number.isFinite(opts.pad) ? opts.pad : DEFAULT_FIT_PADDING) ?? DEFAULT_FIT_PADDING,
+  );
   const targetFillRatioRaw = typeof opts.targetFillRatio === 'number' && Number.isFinite(opts.targetFillRatio) ? opts.targetFillRatio : null
-  const targetFillRatio = targetFillRatioRaw == null ? null : Math.max(0.2, Math.min(0.95, targetFillRatioRaw))
+  const targetFillRatio = targetFillRatioRaw == null ? null : clampFillRatio(targetFillRatioRaw)
 
   let bboxW = Math.max(maxX - minX, minBBoxSize);
   let bboxH = Math.max(maxY - minY, minBBoxSize);
 
-  const frameW = Math.min(1920, w)
-  const frameH = Math.min(1080, h)
+  const { frameW, frameH } = computeFitFrame(w, h, ZOOM_VIEWPORT_PRESET_16_9)
   const viewW = Math.max(1, frameW - p * 2);
   const viewH = Math.max(1, frameH - p * 2);
 
   if (enforceAspectRatio) {
     const viewRatio = viewW / viewH;
-    const effectiveTargetRatio = Math.abs(viewRatio - targetAspectRatio) < 0.1 ? targetAspectRatio : viewRatio;
+    const effectiveTargetRatio =
+      Number.isFinite(targetAspectRatio) && targetAspectRatio > 0 ? targetAspectRatio : viewRatio
     const bboxRatio = bboxW / bboxH;
     
     if (Number.isFinite(effectiveTargetRatio) && Number.isFinite(bboxRatio) && effectiveTargetRatio > 0 && bboxRatio > 0) {
@@ -202,61 +219,19 @@ export const fitAllTransform = (
   const cx = useCentroidCentering ? centroidX : bboxCenterX;
   const cy = useCentroidCentering ? centroidY : bboxCenterY;
 
-  const sX = (targetFillRatio != null ? (w * targetFillRatio) : viewW) / bboxW;
-  const sY = (targetFillRatio != null ? (h * targetFillRatio) : viewH) / bboxH;
+  const sX = (targetFillRatio != null ? (frameW * targetFillRatio) : viewW) / bboxW;
+  const sY = (targetFillRatio != null ? (frameH * targetFillRatio) : viewH) / bboxH;
 
   const unclamped = Math.min(sX, sY)
-  const upper = Math.min(Math.max(0.1, maxScale), Math.max(0.1, maxScaleHardCap))
-  const lower = Math.max(0.01, Math.min(minScale, upper))
-  const s = Math.max(lower, Math.min(upper, unclamped))
+  const s = clampScaleToExtent(unclamped, { minScale, maxScale, maxScaleHardCap })
 
   return d3.zoomIdentity
     .translate(w / 2 - s * cx, h / 2 - s * cy)
     .scale(s);
 };
 
-export const fitSubsetTransform = (nodes: GraphNode[], width: number, height: number, pad: number = 80) => {
-  if (!nodes || nodes.length === 0) {
-    return d3.zoomIdentity;
-  }
-  const coords = nodes
-    .map(n => [n.x, n.y] as const)
-    .filter(([x, y]) => typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y));
-  if (coords.length === 0) {
-    return d3.zoomIdentity;
-  }
-  const xs = coords.map(([x]) => x);
-  const ys = coords.map(([, y]) => y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  let boxW = Math.max(1, maxX - minX);
-  let boxH = Math.max(1, maxY - minY);
-  const p = Math.max(20, pad ?? 80);
-  const viewW = Math.max(1, width - 2 * p);
-  const viewH = Math.max(1, height - 2 * p);
-  const viewRatio = viewW / viewH;
-  const boxRatio = boxW / boxH;
-  if (Number.isFinite(viewRatio) && Number.isFinite(boxRatio) && viewRatio > 0 && boxRatio > 0) {
-    if (boxRatio > viewRatio) {
-      boxH = Math.max(boxH, boxW / viewRatio);
-    } else {
-      boxW = Math.max(boxW, boxH * viewRatio);
-    }
-  }
-  const sX = viewW / boxW;
-  const sY = viewH / boxH;
-  const s = Math.max(0.1, Math.min(4, Math.min(sX, sY, 3)));
-  let sumX = 0;
-  let sumY = 0;
-  for (let i = 0; i < coords.length; i += 1) {
-    sumX += coords[i][0];
-    sumY += coords[i][1];
-  }
-  const cx = coords.length > 0 ? sumX / coords.length : (minX + maxX) / 2;
-  const cy = coords.length > 0 ? sumY / coords.length : (minY + maxY) / 2;
-  return d3.zoomIdentity.translate(width / 2 - s * cx, height / 2 - s * cy).scale(s);
+export const fitSubsetTransform = (nodes: GraphNode[], width: number, height: number, pad: number = DEFAULT_FIT_PADDING) => {
+  return fitAllTransform(nodes, width, height, typeof pad === 'number' ? { pad } : {})
 };
 
 export const centerAllTransform = (nodes: GraphNode[], width: number, height: number) => {
@@ -276,3 +251,27 @@ export const centerAllTransform = (nodes: GraphNode[], width: number, height: nu
   const cy = coords.length > 0 ? sumY / coords.length : 0;
   return d3.zoomIdentity.translate(width / 2 - cx, height / 2 - cy).scale(1);
 };
+
+export const scaleCenteredOnGraphCentroidTransform = (
+  nodes: GraphNode[],
+  width: number,
+  height: number,
+  scale: number,
+) => {
+  const coords = nodes
+    .map(n => [n.x, n.y] as const)
+    .filter(([x, y]) => typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y))
+  if (coords.length === 0) {
+    return d3.zoomIdentity.scale(scale)
+  }
+  let sumX = 0
+  let sumY = 0
+  for (let i = 0; i < coords.length; i += 1) {
+    sumX += coords[i][0]
+    sumY += coords[i][1]
+  }
+  const cx = sumX / coords.length
+  const cy = sumY / coords.length
+  const k = Math.max(0.001, scale)
+  return d3.zoomIdentity.translate(width / 2 - k * cx, height / 2 - k * cy).scale(k)
+}

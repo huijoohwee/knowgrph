@@ -4,6 +4,12 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
 import type { GroupKeyOfNode } from '@/components/GraphCanvas/layout/grouping'
 import { readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
+import {
+  DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS,
+  DEFAULT_GROUP_BBOX_COLLIDE_PADDING,
+  DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH,
+  DEFAULT_GROUP_PADDING,
+} from '@/lib/graph/layoutDefaults'
 
 export const getDefaultGroupKeyOfNode: GroupKeyOfNode = (n: GraphNode): string | null => {
   const p = (n.properties || {}) as Record<string, unknown>
@@ -33,9 +39,11 @@ export const createGroupBboxCollideForce = (args: {
   const { schema } = args
   const groupKeyOf = args.groupKeyOf || getDefaultGroupKeyOfNode
   let nodes: GraphNode[] = []
-  let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : 10
-  let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : 0.35
-  let iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : 1
+  let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
+  let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH
+  let iterations = Number.isFinite(args.iterations)
+    ? Math.max(1, Math.floor(args.iterations))
+    : DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS
 
   const isPinned = (n: GraphNode): boolean =>
     (typeof (n as { fx?: unknown }).fx === 'number' && Number.isFinite((n as { fx: number }).fx)) ||
@@ -46,7 +54,7 @@ export const createGroupBboxCollideForce = (args: {
     const groupPad =
       typeof schema.layout?.groups?.padding === 'number' && Number.isFinite(schema.layout.groups.padding)
         ? Math.max(0, schema.layout.groups.padding)
-        : 24
+        : DEFAULT_GROUP_PADDING
     const topLabelExtra = readGroupLabelTopExtra(schema)
     const pad = Math.max(0, padding + groupPad)
 

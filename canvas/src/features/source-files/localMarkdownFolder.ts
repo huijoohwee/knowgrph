@@ -3,15 +3,11 @@ import type { SourceFile } from '@/hooks/store/types'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { findNextSourceFileIndex, normalizeParentPath } from './sourceFileNaming'
 import { parseWebkitRelativePath } from './webkitRelativePath'
+import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 
 const toLogicalPath = (raw: string): string => {
   const p = String(raw || '').trim().replace(/\\/g, '/')
   return p.replace(/^\/+/, '').replace(/\/+$/, '')
-}
-
-const isMarkdownFileName = (name: string): boolean => {
-  const lower = String(name || '').trim().toLowerCase()
-  return lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')
 }
 
 const isHiddenName = (name: string): boolean => {
@@ -189,7 +185,7 @@ const openLocalFolderViaFileInput = async (): Promise<{ folderName: string | nul
     const rawPath = parsed.rawRelativePath
     const logicalPath = toLogicalPath(rawPath)
     if (!logicalPath) continue
-    if (!isMarkdownFileName(logicalPath)) continue
+    if (!isMarkdownLikeFileName(logicalPath)) continue
     filesByPath.set(logicalPath, f)
   }
 
@@ -209,7 +205,7 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
     for (const key of fallback.keys()) {
       const p = toLogicalPath(key)
       if (!p) continue
-      if (!isMarkdownFileName(p)) continue
+      if (!isMarkdownLikeFileName(p)) continue
       found.push({ path: p })
     }
     found.sort((a, b) => a.path.localeCompare(b.path))
@@ -241,7 +237,7 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
         stack.push({ handle: entry as FileSystemDirectoryHandle, basePath: dirPath })
         continue
       }
-      if (!isMarkdownFileName(name)) continue
+      if (!isMarkdownLikeFileName(name)) continue
       const filePath = basePath ? `${basePath}/${name}` : name
       found.push({ path: filePath })
     }

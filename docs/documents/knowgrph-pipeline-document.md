@@ -33,6 +33,22 @@
 
 ---
 
+## Agentic GraphRAG/Knowledge Graph Pipeline Guidelines
+
+## COMPLY
+`/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`
+
+## ALIGN (Semantic Definition)
+- **GRAPHS Elements:** nodes, edges, graph layers (subgraphs, groups, clusters, communities), labels, text
+- **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs
+
+## Pipeline Discipline (Runtime Import → Render)
+- Scope: `/GitHub/{knowgrph,gympgrph,curagrph}` → import → render.
+- Support all `/GitHub/sandbox/` test data; no hardcoding.
+- Centralize configs (labels, boxes, collisions, timing, knobs); reuse shared utilities.
+- Resolve cross‑repo conflicts; remove legacy/conflicting/stale code.
+- Test only bounded diffs; forbid indefinite runs.
+
 ## Runtime Canvas Pipeline (Import → Render)
 
 This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → canvas renders. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.

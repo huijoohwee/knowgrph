@@ -1,4 +1,12 @@
 import type { GraphSchema } from '@/lib/graph/schema'
+import {
+  DEFAULT_BBOX_COLLIDE_ITERATIONS,
+  DEFAULT_BBOX_COLLIDE_PADDING,
+  DEFAULT_BBOX_COLLIDE_STRENGTH,
+  DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS,
+  DEFAULT_GROUP_BBOX_COLLIDE_PADDING,
+  DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH,
+} from '@/lib/graph/layoutDefaults'
 
 export type BboxCollideConfig = {
   enabled: boolean
@@ -42,16 +50,16 @@ export function readCollisionConfig(schema: GraphSchema): CollisionConfig {
   }
 
   const nodeBboxEnabled = forces.bboxCollide !== false
-  const nodeBboxPadding = clampNonNegative(forces.bboxCollidePadding, 10)
-  const nodeBboxStrength = clampNonNegative(forces.bboxCollideStrength, 0.7)
-  const nodeBboxIterations = clampPositiveInt(forces.bboxCollideIterations, 2)
+  const nodeBboxPadding = clampNonNegative(forces.bboxCollidePadding, DEFAULT_BBOX_COLLIDE_PADDING)
+  const nodeBboxStrength = clampNonNegative(forces.bboxCollideStrength, DEFAULT_BBOX_COLLIDE_STRENGTH)
+  const nodeBboxIterations = clampPositiveInt(forces.bboxCollideIterations, DEFAULT_BBOX_COLLIDE_ITERATIONS)
 
   const groupsEnabled = schema.layout?.groups?.enabled !== false
-  const groupBboxEnabled = groupsEnabled
-  const groupBboxPadding = clampNonNegative(forces.groupBboxCollidePadding, nodeBboxPadding)
-  const groupBboxStrengthRaw = clampNonNegative(forces.groupBboxCollideStrength, nodeBboxStrength * 0.55)
+  const groupBboxEnabled = groupsEnabled && forces.groupBboxCollide !== false
+  const groupBboxPadding = clampNonNegative(forces.groupBboxCollidePadding, DEFAULT_GROUP_BBOX_COLLIDE_PADDING)
+  const groupBboxStrengthRaw = clampNonNegative(forces.groupBboxCollideStrength, DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH)
   const groupBboxStrength = groupBboxEnabled ? Math.max(0.05, groupBboxStrengthRaw) : 0
-  const groupBboxIterations = clampPositiveInt(forces.groupBboxCollideIterations, nodeBboxIterations)
+  const groupBboxIterations = clampPositiveInt(forces.groupBboxCollideIterations, DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS)
 
   return {
     nodeBbox: {

@@ -19,18 +19,26 @@ import {
   MermaidParserContext,
 } from './markdownJsonLdMermaidParser'
 import { MarkdownGraphBuilder } from './markdownJsonLdBuilder'
+import * as wikiLinks from 'grph-shared/markdown/wikiLinks'
 
 export { slugify } from './markdownJsonLdUtils'
 
 export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<string, unknown> => {
-  const rawLines = splitMarkdownLines(markdownText)
+  const rawText = String(markdownText || '')
+  const normalizedText =
+    rawText.includes('[[') || /(?:^|\s)\^[A-Za-z0-9]/m.test(rawText)
+      ? (typeof wikiLinks.normalizeMarkdownWikiLinksAndBlockIds === 'function'
+          ? wikiLinks.normalizeMarkdownWikiLinksAndBlockIds(rawText)
+          : rawText)
+      : rawText
+  const rawLines = splitMarkdownLines(normalizedText)
   const { meta, startIndex } = parseMarkdownFrontmatter(rawLines)
   const blocks = parseMarkdownBlocks(rawLines, startIndex)
 
   const normalizedName = String(name || '').replace(/\\/g, '/').trim()
   const fmGraphId = String(meta.graphId || meta.graph_id || meta.graph || '').trim()
   const baseName = normalizedName.split('/').pop() || ''
-  const stem = baseName.replace(/\.(md|markdown)$/i, '')
+  const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '')
   const gid = fmGraphId || (stem ? `md:${slugify(stem)}` : 'md:x')
 
   const fmTitle = String(meta.title || '').trim()

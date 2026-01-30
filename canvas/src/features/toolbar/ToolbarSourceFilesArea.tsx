@@ -12,6 +12,7 @@ import { downloadBlob } from '@/lib/graph/save'
 import { runImportFlow } from '@/features/toolbar/importFlow'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { exportAsCombinedCsvBlob, exportAsJsonLdBlob, exportAsRawJsonBlob } from '@/lib/graph/io/adapter'
 import { exportAsGeoJsonBlob } from '@/lib/graph/io/geojson'
 import type { GraphData } from '@/lib/graph/types'
@@ -591,10 +592,11 @@ export function ToolbarSourceFilesArea() {
           store.setMarkdownDocumentSourceUrl(sourceUrl || null)
           store.setBottomPanelCurationView('markdown')
         } else {
-          store.setMarkdownDocument(after.name, text)
+          const normalized = normalizeMermaidMmdToMarkdown(after.name, text)
+          store.setMarkdownDocument(after.name, normalized)
           store.setMarkdownDocumentSourceUrl(sourceUrl || null)
           store.setBottomPanelCurationView('markdown')
-          void store.applyMarkdownDocumentToGraph(after.name, text, { force: true })
+          void store.applyMarkdownDocumentToGraph(after.name, normalized, { force: true })
         }
       } catch {
         void 0
@@ -625,7 +627,7 @@ export function ToolbarSourceFilesArea() {
         if (isJsonish) {
           store.setJsonSourceDocument(file.name, text)
         } else {
-          store.setMarkdownDocument(file.name, text)
+          store.setMarkdownDocument(file.name, normalizeMermaidMmdToMarkdown(file.name, text))
           store.setMarkdownDocumentSourceUrl(sourceUrl || null)
         }
       } catch {

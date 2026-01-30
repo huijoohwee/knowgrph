@@ -7,6 +7,13 @@ import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphNode } from '@/lib/graph/types'
+import { readFitAllOptions } from '@/components/GraphCanvas/layout/fitConfig'
+import {
+  DEFAULT_FIT_PADDING,
+  DEFAULT_FIT_TO_SCREEN_FILL_RATIO,
+  computeFitFrame,
+  ZOOM_VIEWPORT_PRESET_16_9,
+} from 'grph-shared/zoom/presets'
 
 const makeZoomGraph = (): GraphData => ({
   type: 'Graph',
@@ -228,6 +235,76 @@ export function testFitAllTransformRespectsCollisionPaddingInViewportFit() {
   }
   if (Math.abs(screenCentroidY - height / 2) > 1) {
     throw new Error('expected fitAllTransform to center by centroid Y')
+  }
+}
+
+export function testFitAllTransformTargetFillUsesCapped1920x1080Frame() {
+  const pad = DEFAULT_FIT_PADDING
+  const nodes: GraphNode[] = [
+    { id: 'n1', label: 'N1', type: 'Entity', properties: { 'visual:width': 200, 'visual:height': 120 }, x: -500, y: -200 },
+    { id: 'n2', label: 'N2', type: 'Entity', properties: { 'visual:width': 240, 'visual:height': 160 }, x: 600, y: 350 },
+  ]
+
+  const tCapped = fitAllTransform(nodes, 1920, 1080, { pad, targetFillRatio: DEFAULT_FIT_TO_SCREEN_FILL_RATIO })
+  const tLarge = fitAllTransform(nodes, 3840, 2160, { pad, targetFillRatio: DEFAULT_FIT_TO_SCREEN_FILL_RATIO })
+
+  if (Math.abs(tCapped.k - tLarge.k) > 1e-9) {
+    throw new Error('expected targetFillRatio scaling to be computed on capped 1920×1080 frame')
+  }
+}
+
+export function testFitAllTransformTargetFillUses80to20Ratio() {
+  const pad = DEFAULT_FIT_PADDING
+  const nodes: GraphNode[] = [
+    { id: 'n1', label: 'N1', type: 'Entity', properties: { 'visual:width': 200, 'visual:height': 120 }, x: -500, y: -200 },
+    { id: 'n2', label: 'N2', type: 'Entity', properties: { 'visual:width': 240, 'visual:height': 160 }, x: 600, y: 350 },
+  ]
+  const t = fitAllTransform(nodes, 3840, 2160, { pad, targetFillRatio: DEFAULT_FIT_TO_SCREEN_FILL_RATIO, enforceAspectRatio: true })
+  const k = t.k
+  if (!(typeof k === 'number' && Number.isFinite(k) && k > 0)) throw new Error('expected finite fit scale')
+  const { frameW, frameH } = computeFitFrame(3840, 2160, ZOOM_VIEWPORT_PRESET_16_9)
+
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (const n of nodes) {
+    const x = n.x || 0
+    const y = n.y || 0
+    const w = (n.properties as Record<string, unknown>)['visual:width']
+    const h = (n.properties as Record<string, unknown>)['visual:height']
+    const halfW = typeof w === 'number' && Number.isFinite(w) && w > 0 ? w / 2 : 24
+    const halfH = typeof h === 'number' && Number.isFinite(h) && h > 0 ? h / 2 : 24
+    minX = Math.min(minX, x - halfW)
+    maxX = Math.max(maxX, x + halfW)
+    minY = Math.min(minY, y - halfH)
+    maxY = Math.max(maxY, y + halfH)
+  }
+  const bboxW = Math.max(1, maxX - minX)
+  const bboxH = Math.max(1, maxY - minY)
+  const screenW = bboxW * k
+  const screenH = bboxH * k
+  const targetW = frameW * DEFAULT_FIT_TO_SCREEN_FILL_RATIO
+  const targetH = frameH * DEFAULT_FIT_TO_SCREEN_FILL_RATIO
+  if (screenW > targetW + 1.0 && screenH > targetH + 1.0) {
+    throw new Error('expected fit-to-screen to respect 80/20 target fill ratio on capped frame')
+  }
+}
+
+export function testReadFitAllOptionsEnforces80to20FillRatioForAllFitIntents() {
+  const schema = defaultSchema
+  const mode = 'force'
+  const view = readFitAllOptions({ schema, mode, intent: 'fitToView' })
+  const selection = readFitAllOptions({ schema, mode, intent: 'fitSelection' })
+  const screen = readFitAllOptions({ schema, mode, intent: 'fitToScreen' })
+  if (view.targetFillRatio !== DEFAULT_FIT_TO_SCREEN_FILL_RATIO) {
+    throw new Error('expected fitToView to use default 80/20 target fill ratio')
+  }
+  if (selection.targetFillRatio !== DEFAULT_FIT_TO_SCREEN_FILL_RATIO) {
+    throw new Error('expected fitSelection to use default 80/20 target fill ratio')
+  }
+  if (screen.targetFillRatio !== DEFAULT_FIT_TO_SCREEN_FILL_RATIO) {
+    throw new Error('expected fitToScreen to use default 80/20 target fill ratio')
   }
 }
 

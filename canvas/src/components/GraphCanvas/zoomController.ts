@@ -1,15 +1,15 @@
 import * as d3 from 'd3';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { GraphNode, GraphEdge } from '@/lib/graph/types';
-import { fitAllTransform, fitSubsetTransform, centerAllTransform } from './fit';
-import { getAdjacencyMap } from './adjacency';
+import type { GraphData } from '@/lib/graph/types'
+import type { GraphNode } from '@/lib/graph/types'
+import { fitAllTransform, centerAllTransform, scaleCenteredOnGraphCentroidTransform } from './fit';
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { computeZoomSubset } from '@/components/GraphCanvas/selectionZoom'
+import type { ZoomRequest } from '@/lib/zoom/requests'
 
 type ZoomType = 'in' | 'out' | 'fit' | 'reset' | 'selection' | 'transform';
 
-export type ZoomRequest =
-  | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at?: number }
-  | { type: 'transform'; at?: number; payload?: { k: number; x: number; y: number } };
+export type { ZoomRequest } from '@/lib/zoom/requests'
 
 export const applyTransform = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
@@ -36,7 +36,7 @@ export const applyZoomRequest = (
   ctx: {
     svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
     zoom: d3.ZoomBehavior<SVGSVGElement, unknown>;
-    graphData: { nodes: GraphNode[]; edges: GraphEdge[] } | null;
+    graphData: GraphData | null;
     width: number;
     height: number;
     selectedNodeId: string | null;
@@ -73,7 +73,8 @@ export const applyZoomRequest = (
     if (!graphData) return null;
     const schema = useGraphStore.getState().schema
     const mode = readLayoutMode(schema)
-    const commonOpts = readFitAllOptions({ schema, mode, intent: 'fitToScreen' })
+    const intent = zoomRequest.type === 'fit' ? zoomRequest.intent : 'fitToView'
+    const commonOpts = readFitAllOptions({ schema, mode, intent })
 
     const w = Math.max(1, Math.floor(width))
     const h = Math.max(1, Math.floor(height))
@@ -83,7 +84,13 @@ export const applyZoomRequest = (
   if (type === 'in') {
     const [, maxK] = zoom.scaleExtent();
     const k2 = Math.min(maxK, t.k * 1.2);
-    applyScaleTo(svg, zoom, k2);
+    if (graphData && (graphData.nodes || []).length > 0) {
+      const w = Math.max(1, Math.floor(width))
+      const h = Math.max(1, Math.floor(height))
+      applyTransform(svg, zoom, scaleCenteredOnGraphCentroidTransform(graphData.nodes, w, h, k2), 200)
+    } else {
+      applyScaleTo(svg, zoom, k2)
+    }
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
     clear()
     return;
@@ -91,7 +98,13 @@ export const applyZoomRequest = (
   if (type === 'out') {
     const [minK] = zoom.scaleExtent();
     const k2 = Math.max(minK, t.k / 1.2);
-    applyScaleTo(svg, zoom, k2);
+    if (graphData && (graphData.nodes || []).length > 0) {
+      const w = Math.max(1, Math.floor(width))
+      const h = Math.max(1, Math.floor(height))
+      applyTransform(svg, zoom, scaleCenteredOnGraphCentroidTransform(graphData.nodes, w, h, k2), 200)
+    } else {
+      applyScaleTo(svg, zoom, k2)
+    }
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
     clear()
     return;
@@ -123,50 +136,18 @@ export const applyZoomRequest = (
       clear()
       return
     }
-    const nodeIds =
-      Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
-        ? selectedNodeIds
-        : selectedNodeId
-          ? [selectedNodeId]
-          : [];
-    const edgeIds =
-      Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0
-        ? selectedEdgeIds
-        : selectedEdgeId
-          ? [selectedEdgeId]
-          : [];
-    const adj = getAdjacencyMap(graphData);
-    const ids = new Set<string>();
-    if (nodeIds.length > 0) {
-      for (const nid of nodeIds) {
-        const id = String(nid);
-        if (!id) continue;
-        ids.add(id);
-        (adj.get(id) || new Set<string>()).forEach(n => ids.add(n));
-      }
-    } else if (edgeIds.length > 0) {
-      for (const eid of edgeIds) {
-        const edgeId = String(eid);
-        if (!edgeId) continue;
-        const e = graphData.edges.find(x => x.id === edgeId);
-        if (!e) continue;
-        const sId = String(e.source);
-        const tId = String(e.target);
-        if (sId) ids.add(sId);
-        if (tId) ids.add(tId);
-        (adj.get(sId) || new Set<string>()).forEach(n => ids.add(n));
-        (adj.get(tId) || new Set<string>()).forEach(n => ids.add(n));
-      }
-    }
-    if (ids.size > 0) {
-      const subset = graphData.nodes.filter(n => ids.has(String(n.id)));
-      if (subset.length > 0) {
-        const next = fitSubsetTransform(subset, width, height);
-        applyTransform(svg, zoom, next, 300);
-        try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
-        clear()
-        return;
-      }
+    const subset = computeZoomSubset({ graphData, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds })
+    if (subset.length > 0) {
+      const schema = useGraphStore.getState().schema
+      const mode = readLayoutMode(schema)
+      const opts = readFitAllOptions({ schema, mode, intent: 'fitSelection' })
+      const w = Math.max(1, Math.floor(width))
+      const h = Math.max(1, Math.floor(height))
+      const next = fitAllTransform(subset as GraphNode[], w, h, opts)
+      applyTransform(svg, zoom, next, 300);
+      try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
+      clear()
+      return;
     }
     const fallback = computeFitTransform()
     if (fallback) applyTransform(svg, zoom, fallback, 300)

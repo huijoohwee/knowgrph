@@ -7,7 +7,7 @@ import { deriveFilenameFromUrl } from '@/lib/url'
 import { ensureBuiltInParsersRegistered } from '@/features/parsers/ensure'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
-import { containsFrontmatterMermaid } from '@/features/parsers/markdownHeuristics'
+import { containsFrontmatterMermaid, normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import {
   type DbConnectorKind,
   type RelationalConnectorConfig,
@@ -152,22 +152,23 @@ export async function loadGraphDataFromTextViaParser(
   options?: { applyToStore?: boolean },
 ): Promise<LoaderResult | null> {
   ensureBuiltInParsersRegistered()
-  const bm = bestMatch({ name, text })
+  const normalizedText = normalizeMermaidMmdToMarkdown(name, text)
+  const bm = bestMatch({ name, text: normalizedText })
   if (!bm) return { input: { name, text }, warnings: ['No matching parser found'], counts: { n: 0, e: 0 } }
   const parserId = toParserId(bm.id)
-  const cached = getCachedParse(parserId, name, text)
-  const res = cached || await applyParserAsync(parserId, { name, text })
-  if (!res) return { parserId: bm.id, name, input: { name, text }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
-  if (!cached) setCachedParse(parserId, name, text, res)
+  const cached = getCachedParse(parserId, name, normalizedText)
+  const res = cached || await applyParserAsync(parserId, { name, text: normalizedText })
+  if (!res) return { parserId: bm.id, name, input: { name, text: normalizedText }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
+  if (!cached) setCachedParse(parserId, name, normalizedText, res)
   let { graphData } = res
   const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
   const lower = String(name || '').trim().toLowerCase()
-  if (maybeEmpty && bm.id !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown')) && containsFrontmatterMermaid(text)) {
+  if (maybeEmpty && bm.id !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown')) && containsFrontmatterMermaid(normalizedText)) {
     const markdownParserId = toParserId('markdown')
-    const fallbackCached = getCachedParse(markdownParserId, name, text)
-    const fallback = fallbackCached || await applyParserAsync(markdownParserId, { name, text })
+    const fallbackCached = getCachedParse(markdownParserId, name, normalizedText)
+    const fallback = fallbackCached || await applyParserAsync(markdownParserId, { name, text: normalizedText })
     if (fallback?.graphData) {
-      if (!fallbackCached) setCachedParse(markdownParserId, name, text, fallback)
+      if (!fallbackCached) setCachedParse(markdownParserId, name, normalizedText, fallback)
       graphData = fallback.graphData
       if (options?.applyToStore !== false) {
         try {
@@ -182,7 +183,7 @@ export async function loadGraphDataFromTextViaParser(
         graphData,
         counts: { n: graphData.nodes.length, e: graphData.edges.length },
         warnings: [...(fallback.warnings || []), `Parser fallback: ${bm.id} yielded empty graph; used markdown parser instead.`],
-        input: { name, text },
+        input: { name, text: normalizedText },
       }
     }
   }
@@ -199,7 +200,7 @@ export async function loadGraphDataFromTextViaParser(
     graphData,
     counts: { n: graphData.nodes.length, e: graphData.edges.length },
     warnings: res.warnings || [],
-    input: { name, text },
+    input: { name, text: normalizedText },
   }
 }
 

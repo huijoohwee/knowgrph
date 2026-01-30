@@ -10,8 +10,9 @@ import { getEdgeEndpointFromPorts, getPortHandlePosition, getPortHandlesConfig, 
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
-import { estimateLabelCharWidthPx } from '@/components/GraphCanvas/layout/utils'
+import { estimateLabelCharWidthPx, pickEdgeLabelPlacement, type AabbRect } from '@/components/GraphCanvas/layout/utils'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
+import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
 
 type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 
@@ -421,6 +422,26 @@ export const attachSimulationTick = (args: {
         edgeLabelSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
       } else {
         edgeLabelSel.attr('data-zoom-lod-hidden', '0').style('display', null)
+        const stratifyNoOverlap = schema.layout?.mode === 'stratify'
+        const placedEdgeLabelRects: AabbRect[] = []
+        const nodeBlockers: { id: string; rect: AabbRect }[] = stratifyNoOverlap
+          ? (() => {
+              const collisionPad = readCollisionConfig(schema).nodeBbox.padding
+              const clearance = Math.max(2, Math.min(16, Math.floor(collisionPad)))
+              const out: { id: string; rect: AabbRect }[] = []
+              for (let i = 0; i < nodes.length; i += 1) {
+                const n = nodes[i]
+                const id = String(n.id || '')
+                if (!id) continue
+                const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+                const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+                if (x == null || y == null) continue
+                const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+                out.push({ id, rect: { x, y, halfW: ext.halfW + clearance, halfH: ext.halfH + clearance } })
+              }
+              return out
+            })()
+          : []
         edgeLabelSel.each(function (d: GraphEdge) {
           const el = this as unknown as SVGTextElement
           const edge = d as unknown as EdgeWithRuntime
@@ -436,55 +457,79 @@ export const attachSimulationTick = (args: {
           const ty = typeof tgtNode.y === 'number' && Number.isFinite(tgtNode.y) ? tgtNode.y : 0
           const p1 = portHandlesEnabled ? getEdgeEndpointFromPorts({ from: srcNode, to: tgtNode, schema }) : { x: sx, y: sy }
           const p2 = portHandlesEnabled ? getEdgeEndpointFromPorts({ from: tgtNode, to: srcNode, schema }) : { x: tx, y: ty }
-          const mx = (p1.x + p2.x) / 2
-          const my = (p1.y + p2.y) / 2
-          const dx = p2.x - p1.x
-          const dy = p2.y - p1.y
-          const len = Math.hypot(dx, dy)
-          if (!Number.isFinite(len) || len < 1e-6) {
-            el.style.display = 'none'
-            return
-          }
-          const nx = -dy / len
-          const ny = dx / len
           const text = el.textContent ?? ''
-          const charW = estimateLabelCharWidthPx(labelFontSize)
-          const labelHalfW = Math.max(2, (String(text).length * charW) / 2)
-          const labelHalfH = Math.max(2, labelFontSize * 0.6)
           const srcExt = getNodeAabbHalfExtentsWithLabel(srcNode, schema)
           const tgtExt = getNodeAabbHalfExtentsWithLabel(tgtNode, schema)
 
-          const overlapsEndpoint = (x: number, y: number) => {
-            const os =
-              Math.abs(x - sx) < srcExt.halfW + labelHalfW && Math.abs(y - sy) < srcExt.halfH + labelHalfH
-            const ot =
-              Math.abs(x - tx) < tgtExt.halfW + labelHalfW && Math.abs(y - ty) < tgtExt.halfH + labelHalfH
-            return os || ot
-          }
+          const labelHalfW = Math.max(2, (String(text).length * estimateLabelCharWidthPx(labelFontSize)) / 2)
+          const labelHalfH = Math.max(2, labelFontSize * 0.6)
+          const x = (() => {
+            if (!stratifyNoOverlap) {
+              const mx = (p1.x + p2.x) / 2
+              const my = (p1.y + p2.y) / 2
+              const dx = p2.x - p1.x
+              const dy = p2.y - p1.y
+              const len = Math.hypot(dx, dy)
+              if (!Number.isFinite(len) || len < 1e-6) return null
+              const nx = -dy / len
+              const ny = dx / len
 
-          let x = mx + nx * (labelFontSize * 0.9)
-          let y = my + ny * (labelFontSize * 0.9)
-          let found = !overlapsEndpoint(x, y)
-          if (!found) {
-            for (let attempt = 1; attempt <= 4; attempt += 1) {
-              const off = labelFontSize * (0.9 + attempt * 0.9)
-              const x1 = mx + nx * off
-              const y1 = my + ny * off
-              if (!overlapsEndpoint(x1, y1)) {
-                x = x1
-                y = y1
-                found = true
-                break
+              const overlapsEndpoint = (x: number, y: number) => {
+                const os = Math.abs(x - sx) < srcExt.halfW + labelHalfW && Math.abs(y - sy) < srcExt.halfH + labelHalfH
+                const ot = Math.abs(x - tx) < tgtExt.halfW + labelHalfW && Math.abs(y - ty) < tgtExt.halfH + labelHalfH
+                return os || ot
               }
+
+              let x = mx + nx * (labelFontSize * 0.9)
+              let y = my + ny * (labelFontSize * 0.9)
+              let found = !overlapsEndpoint(x, y)
+              if (!found) {
+                for (let attempt = 1; attempt <= 4; attempt += 1) {
+                  const off = labelFontSize * (0.9 + attempt * 0.9)
+                  const x1 = mx + nx * off
+                  const y1 = my + ny * off
+                  if (!overlapsEndpoint(x1, y1)) {
+                    x = x1
+                    y = y1
+                    found = true
+                    break
+                  }
+                }
+              }
+              if (!found) return null
+              return { x, y }
             }
-          }
-          if (!found) {
+
+            const srcRect: AabbRect = { x: sx, y: sy, halfW: srcExt.halfW, halfH: srcExt.halfH }
+            const tgtRect: AabbRect = { x: tx, y: ty, halfW: tgtExt.halfW, halfH: tgtExt.halfH }
+            const blockers: AabbRect[] = []
+            for (let i = 0; i < nodeBlockers.length; i += 1) {
+              const b = nodeBlockers[i]
+              if (b.id === String(srcNode.id) || b.id === String(tgtNode.id)) continue
+              blockers.push(b.rect)
+            }
+            const placement = pickEdgeLabelPlacement({
+              p1,
+              p2,
+              text,
+              fontSize: labelFontSize,
+              srcRect,
+              tgtRect,
+              blockerRects: blockers,
+              placedLabelRects: placedEdgeLabelRects,
+            })
+            if (!placement) return null
+            placedEdgeLabelRects.push(placement)
+            return { x: placement.x, y: placement.y }
+          })()
+
+          if (!x) {
             el.style.display = 'none'
             return
           }
 
-          const sx2 = t.applyX(x)
-          const sy2 = t.applyY(y)
+          const sx2 = t.applyX(x.x)
+          const sy2 = t.applyY(x.y)
           const farPad = 240
           const isNearViewport =
             sx2 > -farPad &&
@@ -496,8 +541,8 @@ export const attachSimulationTick = (args: {
             return
           }
           el.style.display = ''
-          el.setAttribute('x', String(x))
-          el.setAttribute('y', String(y))
+          el.setAttribute('x', String(x.x))
+          el.setAttribute('y', String(x.y))
         })
       }
     }
@@ -515,50 +560,30 @@ export const attachGlobalHandlers = (args: {
   hideTemp: () => void
   cancelPending: () => void
 }): (() => void) => {
-  const {
-    svgRef,
-    svg,
-    tempLinkSelRef,
-    linkDragRef,
-    selectNode,
-    hideTemp,
-    cancelPending,
-  } = args
-
+  const { svgRef, svg, tempLinkSelRef, linkDragRef, selectNode, hideTemp, cancelPending } = args
   svg.on('mousemove', (ev: MouseEvent) => {
     if (!tempLinkSelRef.current || !linkDragRef.current) return
     const p = calcMouseGraphPosition(svgRef, ev)
     tempLinkSelRef.current.attr('x2', p[0]).attr('y2', p[1])
   })
-
-  svg.on('mouseup', () => {
-    hideTemp()
-  })
-
+  svg.on('mouseup', () => { hideTemp() })
   svg.on('click', (ev: MouseEvent) => {
     if (typeof ev.button === 'number' && ev.button !== 0) return
     selectNode(null)
     cancelPending()
   })
-
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      hideTemp()
-      cancelPending()
-    }
+    if (e.key === 'Escape') { hideTemp(); cancelPending() }
   }
-
   const onDocPointerDown = (e: PointerEvent) => {
     if (!linkDragRef.current) return
     if (isNodePointerTarget(e.target as HTMLElement | null)) return
     hideTemp()
     cancelPending()
   }
-
   const pointerDownOptions: AddEventListenerOptions = { capture: true }
   window.addEventListener('keydown', onKeyDown)
   document.addEventListener('pointerdown', onDocPointerDown, pointerDownOptions)
-
   return () => {
     svg.on('mousemove', null)
     svg.on('mouseup', null)

@@ -13,20 +13,13 @@ export const PinToViewButton = () => {
   const {
     viewPinned,
     setViewPinned,
-    setFitToScreenMode,
-    setZoomToSelectionMode,
     uiIconScale,
     uiIconStrokeWidth,
   } = useToolbarState();
 
   const handleTogglePinned = useCallback(() => {
-    const next = !viewPinned;
-    setViewPinned(next);
-    if (next) {
-      setFitToScreenMode(false);
-      setZoomToSelectionMode(false);
-    }
-  }, [viewPinned, setViewPinned, setFitToScreenMode, setZoomToSelectionMode]);
+    setViewPinned(!viewPinned);
+  }, [viewPinned, setViewPinned]);
 
   const iconSizeClass = getIconSizeClass(uiIconScale);
 
@@ -42,4 +35,3 @@ export const PinToViewButton = () => {
     </IconButton>
   );
 };
-

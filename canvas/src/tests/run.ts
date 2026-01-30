@@ -17,6 +17,9 @@ import {
   testSelectionZoomEdgeSelectionUsesEndpointsAndNeighbors,
   testSelectionZoomNoSelectionReturnsEmptySubset,
   testFitAllTransformRespectsCollisionPaddingInViewportFit,
+  testFitAllTransformTargetFillUsesCapped1920x1080Frame,
+  testFitAllTransformTargetFillUses80to20Ratio,
+  testReadFitAllOptionsEnforces80to20FillRatioForAllFitIntents,
   testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
 import { testGroupBboxCollideSeparatesTopParentGroups } from '@/__tests__/groupOverlapForce.test'
@@ -118,6 +121,12 @@ import { testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections } from '@/
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
 import {
+  testStratifyLayoutDoesNotReuseForceCacheKey,
+  testStratifyLayoutProducesStableLayering,
+  testStratifyLayoutSnapsToGrid,
+  testStratifyLayoutNoOverlapAfterGridSnap,
+} from '@/__tests__/stratifyLayoutEnhancements.test'
+import {
   testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback,
   testGeoJsonMapPreviewSupportsContainerHeightMode,
   testInlineMarkdownGeoJsonMapReusesSharedBasemapHook,
@@ -192,6 +201,7 @@ import {
   testPickInitialZoomTransformReusesZoomAcrossPresentationChanges,
   testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned,
 } from '@/__tests__/zoomStatePick.test'
+import { testZoomViewKeyIncludesPresentationKeys } from '@/__tests__/zoomViewKey.test'
 import {
   testCoerceMediaUrlAcceptsSafeRelative,
   testCoerceMediaUrlRejectsExplicitScheme,
@@ -205,6 +215,11 @@ import {
 import { testUiToastUpsertDoesNotExtendExpiry, testUiToastUpsertMovesToastToFront } from '@/__tests__/uiToastSlice.test'
 import { testIconButtonStopsPropagation, testToolbarIconTooltipsDoNotInterceptClicks } from '@/__tests__/toolbarButtons.test'
 import { testMarkdownGlobalRenderToggleVisible } from '@/__tests__/markdown/markdownRenderToggle.test'
+import {
+  testNormalizeMermaidMmdToMarkdownKeepsFencedMarkdown,
+  testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid,
+} from '@/__tests__/mmdNormalization.test'
+import { testMarkdownSlideThemeNeversinkAliasesToAcademic } from '@/__tests__/markdownThemeAlias.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -312,6 +327,11 @@ export const runAllTests = async () => {
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
 
+  await exec('layout.stratify.layeringStable', testStratifyLayoutProducesStableLayering)
+  await exec('layout.stratify.noForceCacheReuse', testStratifyLayoutDoesNotReuseForceCacheKey)
+  await exec('layout.stratify.gridSnap', testStratifyLayoutSnapsToGrid)
+  await exec('layout.stratify.gridNoOverlap', testStratifyLayoutNoOverlapAfterGridSnap)
+
   await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
   await exec('sourceFiles.naming.normalizeParentPath', testNormalizeParentPath)
   await exec('sourceFiles.naming.findNextIndex.root', testFindNextSourceFileIndexRoot)
@@ -414,6 +434,18 @@ export const runAllTests = async () => {
     testFitAllTransformRespectsCollisionPaddingInViewportFit,
   )
   await exec(
+    'graph.fitAllTransform.targetFill.usesCappedFrame',
+    testFitAllTransformTargetFillUsesCapped1920x1080Frame,
+  )
+  await exec(
+    'graph.fitAllTransform.targetFill.uses80to20',
+    testFitAllTransformTargetFillUses80to20Ratio,
+  )
+  await exec(
+    'graph.fitAllTransform.options.enforces80to20ForAllFitIntents',
+    testReadFitAllOptionsEnforces80to20FillRatioForAllFitIntents,
+  )
+  await exec(
     'graph.simulation.forceSeedsClusterAwarePositions',
     testForceSimulationSeedsClusterAwarePositionsWhenMissing,
   )
@@ -478,6 +510,7 @@ export const runAllTests = async () => {
   await exec('zoom.pinned.adjustKeepsWorldCenterOnResize', testPinnedZoomAdjustKeepsWorldCenter)
   await exec('zoom.pick.reusesAcrossPresentationChanges', testPickInitialZoomTransformReusesZoomAcrossPresentationChanges)
   await exec('zoom.pick.rejectsStaleWhenNotPinned', testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned)
+  await exec('zoom.viewKey.includesPresentation', testZoomViewKeyIncludesPresentationKeys)
   await exec('url.coerceMediaUrl.acceptsSafeRelative', testCoerceMediaUrlAcceptsSafeRelative)
   await exec('url.coerceMediaUrl.rejectsExplicitScheme', testCoerceMediaUrlRejectsExplicitScheme)
   await exec('url.normalizeImportName.jsonUrlDerivation', testNormalizeImportNameDerivesJsonNameFromUrlAndFormat)
@@ -615,6 +648,9 @@ export const runAllTests = async () => {
   await exec('ui.toolbar.tooltipsDoNotInterceptClicks', testToolbarIconTooltipsDoNotInterceptClicks)
   await exec('ui.toolbar.iconButtonStopsPropagation', testIconButtonStopsPropagation)
   await exec('ui.markdown.renderToggleVisible', testMarkdownGlobalRenderToggleVisible)
+  await exec('parser.mmd.wrapsPlainMermaid', testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid)
+  await exec('parser.mmd.keepsFencedMarkdown', testNormalizeMermaidMmdToMarkdownKeepsFencedMarkdown)
+  await exec('markdown.slide.theme.neversinkAliasesToAcademic', testMarkdownSlideThemeNeversinkAliasesToAcademic)
 
   return results
 }

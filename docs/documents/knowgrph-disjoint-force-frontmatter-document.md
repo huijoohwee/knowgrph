@@ -91,7 +91,7 @@ layout:
     bboxCollidePadding: number         # default 10
     bboxCollideIterations: number      # default 2
 
-    groupBboxCollide: boolean          # default true
+    groupBboxCollide: boolean          # deprecated for disabling; enforced when groups enabled
     groupBboxCollideStrength: number   # default 0.385
     groupBboxCollidePadding: number    # default 10
     groupBboxCollideIterations: number # default 2

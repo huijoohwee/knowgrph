@@ -2,6 +2,7 @@ import { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import { validateSchema } from '@/features/schema/validation'
 import { LS_KEYS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
+import { layoutModeRequires2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
 import type { GraphState } from '@/hooks/store/types'
 import type { JSONValue } from '@/lib/graph/types'
 import type { StoreApi } from 'zustand';
@@ -67,13 +68,12 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
 }
 
 export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
-  type LayoutMode = 'force' | 'radial' | 'stratify'
   const setSchemaState = (schema: GraphSchema) => {
     const next = { ...schema }
-    const prevMode = (get().schema.layout?.mode || 'force') as LayoutMode
-    const nextMode = (next.layout?.mode || 'force') as LayoutMode
-    const prevRequires2d = prevMode === 'radial' || prevMode === 'stratify'
-    const nextRequires2d = nextMode === 'radial' || nextMode === 'stratify'
+    const prevMode = (get().schema.layout?.mode || 'force') as LayoutMode2d
+    const nextMode = (next.layout?.mode || 'force') as LayoutMode2d
+    const prevRequires2d = layoutModeRequires2d(prevMode)
+    const nextRequires2d = layoutModeRequires2d(nextMode)
     const canvasRenderMode = get().canvasRenderMode
     const lastFree = get().canvasRenderModeLastFree
     const isAuto = get().canvasRenderModeIsAuto

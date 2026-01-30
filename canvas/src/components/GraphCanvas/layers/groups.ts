@@ -13,6 +13,7 @@ import { isDisplayNode } from '@/components/GraphCanvas/displayFilter'
 import { collapsedGroupNodeIdFor } from '@/components/GraphCanvas/viewDerivation'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
+import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 
 type GroupDatum = GraphGroup
 
@@ -254,8 +255,7 @@ export const createGroupsLayer = (args: {
           const n = nodeById.get(String(d.memberNodeIds[i]))
           if (n) dragNodes.push(n)
         }
-        const mode = schema.layout?.mode || 'force'
-        const structured = mode === 'radial' || mode === 'stratify'
+        const structured = readLayoutMode(schema) === 'radial'
         if (simulation && !structured && !event.active) {
           simulation.alphaTarget(0.3).restart()
         }
@@ -269,8 +269,7 @@ export const createGroupsLayer = (args: {
         const dx = typeof event.dx === 'number' && Number.isFinite(event.dx) ? event.dx : 0
         const dy = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
         if (dx === 0 && dy === 0) return
-        const mode = schema.layout?.mode || 'force'
-        const structured = mode === 'radial' || mode === 'stratify'
+        const structured = readLayoutMode(schema) === 'radial'
         for (let i = 0; i < dragNodes.length; i += 1) {
           const n = dragNodes[i]!
           const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0
@@ -292,8 +291,7 @@ export const createGroupsLayer = (args: {
         }
       })
       .on('end', (event) => {
-        const mode = schema.layout?.mode || 'force'
-        const structured = mode === 'radial' || mode === 'stratify'
+        const structured = readLayoutMode(schema) === 'radial'
         if (simulation && !structured && !event.active) {
           simulation.alphaTarget(0)
         }

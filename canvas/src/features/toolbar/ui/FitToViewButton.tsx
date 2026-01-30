@@ -17,7 +17,7 @@ export const FitToViewButton = () => {
     // "Fit to View" triggers a one-time zoom-to-fit calculation
     // This uses the same logic as the initial load auto-fit (fitAllTransform)
     // but triggered explicitly by the user.
-    requestZoom('fit');
+    requestZoom('fit', { intent: 'fitToView' });
   }, [requestZoom]);
 
   const iconSizeClass = getIconSizeClass(uiIconScale);

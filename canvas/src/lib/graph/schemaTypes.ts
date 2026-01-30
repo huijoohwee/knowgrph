@@ -83,7 +83,7 @@ export interface GraphSchema {
     }>;
   };
   layout?: {
-    mode?: 'force' | 'radial' | 'stratify';
+    mode?: 'force' | 'radial' | 'stratify' | 'mermaid';
     forces?: {
       linkDistanceByLabel?: Record<string, number>;
       charge?: number;
@@ -105,7 +105,6 @@ export interface GraphSchema {
       structuredRelaxSteps?: number;
     };
     fitPadding?: number;
-    fitUseCentroid?: boolean;
     fitDetectClusters?: boolean;
     fitTargetAspectRatio?: number;
     fitEnforceAspectRatio?: boolean;
@@ -126,9 +125,26 @@ export interface GraphSchema {
       edgeLabels?: string[];
       orientation?: 'vertical' | 'horizontal';
       separation?: number;
+      nodeGap?: number;
+      rankGap?: number;
       reuseSeedStrength?: number;
       fitFillRatio?: number;
+      groupRoots?: boolean;
+      antiLine?: {
+        enabled?: boolean;
+        maxAspectRatio?: number;
+        wrapRows?: number;
+      };
+      grid?: {
+        enabled?: boolean;
+        size?: number;
+        strength?: number;
+        steps?: number;
+      };
     };
+    mermaid?: {
+      renderOrder?: Record<string, number>
+    }
   };
   endpointMatrix?: Record<string, { sources: string[]; targets: string[] }>;
   cardinality?: {
@@ -143,6 +159,10 @@ export interface GraphSchema {
     lod?: {
       hideLabelsBelowScale?: number;
     };
+    zoom?: {
+      minScale?: number
+      maxScale?: number
+    }
     caps?: { maxNodes?: number; maxEdges?: number };
   };
   accessibility?: { highContrast?: boolean };

@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
 import { applyRadialClusterLayout } from './layout/radial';
-import { applyStratifyLayout } from './layout/stratify';
+import { applyStratifyLayout } from './layout/stratify'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { computeDisjointComponentTargets } from './layout/disjoint';
 import { applyForceModeSeeds } from './layout/seeding';
@@ -13,6 +13,7 @@ import { createGroupKeyOfNode, computeGroupTargets, type GroupKeyOfNode } from '
 import { readCollisionConfig } from './layout/collisionConfig';
 import { readLayoutMode } from './layout/fitConfig';
 import { DEFAULT_CENTER_STRENGTH, readFitPadding, readForceCharge, readForceLinkDistance } from '@/lib/graph/layoutDefaults';
+import { computeFitFrame, ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined;
 
@@ -55,8 +56,9 @@ export const buildSimulation = (
   schema: GraphSchema,
   options?: { skipInitialLayout?: boolean; groupKeyOf?: GroupKeyOfNode }
 ) => {
-  const frameW = width > 0 ? width : 1920
-  const frameH = height > 0 ? height : 1080
+  const viewW = width > 0 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
+  const viewH = height > 0 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
+  const { frameW, frameH } = computeFitFrame(viewW, viewH, ZOOM_VIEWPORT_PRESET_16_9)
 
   const computeTopology = (ns: GraphNode[], es: GraphEdge[]) => {
     const inDegree = new Map<string, number>()
@@ -104,11 +106,9 @@ export const buildSimulation = (
       }
     }
     if (mode === 'stratify') {
-      applyStratifyLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf)
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        n.vx = 0
-        n.vy = 0
+      const ok = applyStratifyLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf)
+      if (!ok) {
+        applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
       }
     }
     if (mode === 'force') {
@@ -415,7 +415,8 @@ export const updateForceSimulationPresentation = (args: {
   groupKeyOf?: GroupKeyOfNode
 }) => {
   const { simulation, nodes, width, height, schema } = args
-  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'stratify') return
+  const mode = readLayoutMode(schema)
+  if (mode === 'radial' || mode === 'stratify') return
 
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
   const collideRadiusFn = (d: GraphNode) => {

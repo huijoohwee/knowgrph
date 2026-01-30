@@ -1237,7 +1237,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L69; canvas/src/hooks/store/canvasSlice.ts:L63"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L69; canvas/src/hooks/store/canvasSlice.ts:L126"
   },
   "orchestratorTraversalDelayMs": {
     "area": "Orchestrator Traversal",
@@ -2146,7 +2146,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L63; canvas/src/hooks/store/schemaSlice.ts:L251"
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L126; canvas/src/hooks/store/schemaSlice.ts:L251"
   },
   "CLICK_URL": {
     "area": "Config Constants",

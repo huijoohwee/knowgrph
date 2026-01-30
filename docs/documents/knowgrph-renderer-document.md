@@ -211,10 +211,14 @@
 
 ## Viewport and zoom behavior
 - **Fit to Screen**:
-  - Automatically centers graph on load or layout change.
-  - Uses `fitAllTransform` to compute optimal bounding box.
+  - Centers on rendered graph centroid and accounts for label-aware bounds.
+  - Computes fit scale on capped `1920×1080` (16:9) frame with `targetFillRatio = 0.8`.
+  - Clamps zoom scale via `schema.performance.zoom.{minScale,maxScale}`.
+  - Re-evaluates on view/layout/presentation changes unless the view is pinned.
 - **Zoom to Selection**:
   - Focuses camera on selected node/edge.
+- **Zoom State Caching**:
+  - Caches zoom state per viewKey to prevent cross-mode/layout/presentation contamination.
 - **New Node Placement**:
   - New nodes appear at viewport center to prevent disorientation.
 

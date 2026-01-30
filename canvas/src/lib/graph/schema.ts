@@ -21,6 +21,8 @@ import {
   DEFAULT_STRATIFY_FIT_FILL_RATIO,
   DEFAULT_STRATIFY_REUSE_SEED_STRENGTH,
   DEFAULT_STRATIFY_SEPARATION,
+  DEFAULT_ZOOM_MAX_SCALE,
+  DEFAULT_ZOOM_MIN_SCALE,
 } from './layoutDefaults';
 
 // Re-export types and property helpers
@@ -171,7 +173,6 @@ export const defaultSchema: GraphSchema = {
       groupBboxCollideIterations: DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS,
     },
     fitPadding: DEFAULT_FIT_PADDING,
-    fitUseCentroid: true,
     fitDetectClusters: true,
     fitTargetAspectRatio: 1.777,
     fitEnforceAspectRatio: true,
@@ -190,12 +191,28 @@ export const defaultSchema: GraphSchema = {
       separation: DEFAULT_STRATIFY_SEPARATION,
       reuseSeedStrength: DEFAULT_STRATIFY_REUSE_SEED_STRENGTH,
       fitFillRatio: DEFAULT_STRATIFY_FIT_FILL_RATIO,
+      groupRoots: true,
+      antiLine: {
+        enabled: true,
+        maxAspectRatio: 6,
+        wrapRows: 0,
+      },
+      grid: {
+        enabled: true,
+        size: 0,
+        strength: 0.7,
+        steps: 24,
+      },
     },
   },
   endpointMatrix: {},
   cardinality: { nodeType: {}, edgeLabel: {} },
   templates: { node: {}, edge: {} },
-  performance: { lod: { hideLabelsBelowScale: 0.0 }, caps: { maxNodes: 0, maxEdges: 0 } },
+  performance: {
+    lod: { hideLabelsBelowScale: 0.0 },
+    zoom: { minScale: DEFAULT_ZOOM_MIN_SCALE, maxScale: DEFAULT_ZOOM_MAX_SCALE },
+    caps: { maxNodes: 0, maxEdges: 0 },
+  },
   accessibility: { highContrast: false },
   legend: { showLegend: false },
   rules: [],

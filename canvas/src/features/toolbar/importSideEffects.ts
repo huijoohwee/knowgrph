@@ -3,6 +3,7 @@ import { lsJson, lsSetJson } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
 import { jsonToMarkdown, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import type { RecentFileEntry } from '@/hooks/store/types'
+import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 
 export function applyImportedMarkdownToStore(args: {
   name: string
@@ -12,7 +13,7 @@ export function applyImportedMarkdownToStore(args: {
   curationView?: 'grid' | 'markdown'
 }): void {
   const name = String(args.name || '').trim()
-  const text = String(args.text || '')
+  const text = normalizeMermaidMmdToMarkdown(name, String(args.text || ''))
   const sourceUrl = typeof args.sourceUrl === 'string' ? args.sourceUrl : null
   if (!name) return
 

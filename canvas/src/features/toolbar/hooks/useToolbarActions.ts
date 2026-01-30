@@ -121,10 +121,7 @@ export function useToolbarActions(
       layout: { ...layout, mode: nextMode },
     }
     setSchema(next as GraphSchema)
-    if (nextMode === 'stratify') {
-      setCanvasRenderMode('2d')
-    }
-  }, [schema, setSchema, setCanvasRenderMode])
+  }, [schema, setSchema])
 
   const handleOpenGraphFields = useCallback(() => {
     openMainPanel('graphFields')
@@ -159,27 +156,20 @@ export function useToolbarActions(
   }, [onReset])
 
   const handleToggleFitToScreen = useCallback(() => {
-    if (!toggleFitToScreenMode || !setZoomToSelectionMode) return
-    const next = !fitToScreenMode
+    if (!toggleFitToScreenMode) return
     toggleFitToScreenMode()
-    if (next) {
-      setZoomToSelectionMode(false)
-      try { useGraphStore.getState().setViewPinned(false) } catch { void 0 }
-    }
-  }, [fitToScreenMode, toggleFitToScreenMode, setZoomToSelectionMode])
+  }, [toggleFitToScreenMode])
 
   const handleToggleZoomToSelection = useCallback(() => {
-    if (!setZoomToSelectionMode || !setFitToScreenMode) return
+    if (!setZoomToSelectionMode) return
     const next = !zoomToSelectionMode
     setZoomToSelectionMode(next)
     if (next) {
-      setFitToScreenMode(false)
-      try { useGraphStore.getState().setViewPinned(false) } catch { void 0 }
       if (onZoomSelection) {
         onZoomSelection()
       }
     }
-  }, [zoomToSelectionMode, setZoomToSelectionMode, setFitToScreenMode, onZoomSelection])
+  }, [zoomToSelectionMode, setZoomToSelectionMode, onZoomSelection])
 
   const handleToggleRenderMedia = useCallback(() => {
     if (setRenderMediaAsNodes) setRenderMediaAsNodes(!renderMediaAsNodes)

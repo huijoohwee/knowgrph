@@ -67,10 +67,10 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
       },
       {
         mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.stratifyLayoutMode}`,
-        gesture: 'Toggle Stratify layout to arrange nodes into a hierarchy-derived tree',
-        zoomDrag: 'Zoom and node drag behave normally; positions remain stable and translate as a group',
+        gesture: 'Toggle Stratify layout (UI only)',
+        zoomDrag: 'Zoom and node drag behave normally; behavior matches Force layout',
         tools:
-          'Stratify layout → toggle the toolbar button (or use FloatingPanel → Render → Layout mode) to switch schema.layout.mode between force and stratify; stratify derives a parent→child tree from the configured edge labels (or an auto-picked most-common label) and renders only those hierarchy edges so dense graphs stay readable. Refine Settings → 2D layout → stratify (edgeLabels, orientation, separation) so layout stays reproducible and domain-agnostic.',
+          'Stratify layout → toolbar toggle is kept for compatibility, but the renderer behaves like Force layout (no tree layout and no edge filtering).',
       },
       {
         mode: 'Create: shift-drag',

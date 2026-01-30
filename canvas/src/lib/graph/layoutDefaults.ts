@@ -1,7 +1,19 @@
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphEdge } from '@/lib/graph/types'
 
-export const DEFAULT_FIT_PADDING = 80
+import {
+  DEFAULT_FIT_PADDING as SHARED_DEFAULT_FIT_PADDING,
+  DEFAULT_FIT_TO_SCREEN_FILL_RATIO as SHARED_DEFAULT_FIT_TO_SCREEN_FILL_RATIO,
+  DEFAULT_ZOOM_MAX_SCALE as SHARED_DEFAULT_ZOOM_MAX_SCALE,
+  DEFAULT_ZOOM_MAX_SCALE_HARD_CAP as SHARED_DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
+  DEFAULT_ZOOM_MIN_SCALE as SHARED_DEFAULT_ZOOM_MIN_SCALE,
+} from 'grph-shared/zoom/presets'
+
+export const DEFAULT_FIT_PADDING = SHARED_DEFAULT_FIT_PADDING
+export const DEFAULT_FIT_TO_SCREEN_FILL_RATIO = SHARED_DEFAULT_FIT_TO_SCREEN_FILL_RATIO
+export const DEFAULT_ZOOM_MIN_SCALE = SHARED_DEFAULT_ZOOM_MIN_SCALE
+export const DEFAULT_ZOOM_MAX_SCALE = SHARED_DEFAULT_ZOOM_MAX_SCALE
+export const DEFAULT_ZOOM_MAX_SCALE_HARD_CAP = SHARED_DEFAULT_ZOOM_MAX_SCALE_HARD_CAP
 export const DEFAULT_LINK_DISTANCE = 120
 export const DEFAULT_CHARGE = -450
 export const DEFAULT_CENTER_STRENGTH = 1
@@ -44,4 +56,13 @@ export const readFitPadding = (schema: GraphSchema): number => {
   return typeof padding === 'number' && Number.isFinite(padding)
     ? Math.max(20, Math.min(160, Math.floor(padding)))
     : DEFAULT_FIT_PADDING
+}
+
+export const readZoomScaleExtent = (schema: GraphSchema): [number, number] => {
+  const rawMin = schema.performance?.zoom?.minScale
+  const rawMax = schema.performance?.zoom?.maxScale
+  const min = typeof rawMin === 'number' && Number.isFinite(rawMin) && rawMin > 0 ? rawMin : DEFAULT_ZOOM_MIN_SCALE
+  const max = typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax > 0 ? rawMax : DEFAULT_ZOOM_MAX_SCALE
+  if (min <= max) return [min, max]
+  return [max, min]
 }

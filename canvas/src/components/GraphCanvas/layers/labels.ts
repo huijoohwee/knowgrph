@@ -33,7 +33,7 @@ export const createLabelsLayer = (args: {
   const haloColor = schema.labelStyles?.halo?.color ?? '#ffffff';
   const haloWidthRaw = schema.labelStyles?.halo?.width;
   const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3;
-  const lineHeightPx = labelFontSize * 1.2;
+  const lineHeightEm = 1.2
   const getBaseDxForNode = (d: GraphNode) => {
     if (getNodeRenderShape2d(d, schema) !== 'circle') return 0
     return schema.labelStyles?.offset?.dx ?? 12
@@ -99,7 +99,7 @@ export const createLabelsLayer = (args: {
         if (len > maxLen) maxLen = len
       }
 
-      const dy0 = -((Math.max(1, lineCount) - 1) / 2) * lineHeightPx
+      const dy0Em = -((Math.max(1, lineCount) - 1) / 2) * lineHeightEm
       
       el
         .attr('data-label-mode', 'wrap')
@@ -110,7 +110,7 @@ export const createLabelsLayer = (args: {
         .attr('data-label-maxlen', String(maxLen))
       el.text(null)
       for (let i = 0; i < visibleLines.length; i += 1) {
-        el.append('tspan').attr('dy', i === 0 ? `${dy0}px` : `${lineHeightPx}px`).text(visibleLines[i])
+        el.append('tspan').attr('dy', i === 0 ? `${dy0Em}em` : `${lineHeightEm}em`).text(visibleLines[i])
       }
     })
 

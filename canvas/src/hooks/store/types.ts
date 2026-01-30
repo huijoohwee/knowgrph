@@ -14,6 +14,8 @@ import type {
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex';
 import type { MarkdownFrontmatter } from '@/lib/markdown'
+import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
+import type { LayoutMode2d } from '@/lib/graph/layoutMode'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -24,7 +26,7 @@ export type GraphDataTableScope = 'all' | 'nodes' | 'edges';
 
 export type GraphDataTableFreezeMode = 'none' | 'label' | 'id';
 
-export type LayoutMode = 'force' | 'radial' | 'stratify';
+export type LayoutMode = LayoutMode2d;
 export type NodePosition2d = { x: number; y: number };
 export type LayoutPositionCacheKey = `${string}:${LayoutMode}`;
 
@@ -416,12 +418,17 @@ export interface GraphState {
   zoomToSelectionMode: boolean;
   setZoomToSelectionMode: (v: boolean) => void;
   toggleZoomToSelectionMode: () => void;
-  zoomRequest: null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection' | 'transform'; at: number; payload?: { k: number; x: number; y: number } };
-  requestZoom: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => void;
+  zoomRequest: ZoomRequest | null;
+  requestZoom: (type: ZoomCommandType, opts?: { intent?: ZoomFitIntent }) => void;
   requestZoomTransform: (payload: { k: number; x: number; y: number }) => void;
   clearZoomRequest: () => void;
   zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number };
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => void;
+  zoomStateByKey: Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>
+  setZoomStateForKey: (
+    key: string,
+    z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number } | null,
+  ) => void
   threeCameraRequest: null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number };
   requestThreeCamera: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => void;
   clearThreeCameraRequest: () => void;

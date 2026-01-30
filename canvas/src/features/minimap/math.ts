@@ -1,3 +1,5 @@
+import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE } from 'grph-shared/zoom/presets'
+
 export const computeViewRect = (vw: number, vh: number, k: number, x: number, y: number, sx: number) => {
   const kk = Math.max(1e-6, k)
   const x0 = (0 - x) / kk
@@ -63,17 +65,22 @@ export const buildCoordMap = (nodes: Array<{ id: string; x?: number; y?: number 
   return map;
 };
 
-export const ZOOM_MIN = 0.1;
-export const ZOOM_MAX = 4;
+export const clampZoomScale = (k: number, minScale: number, maxScale: number) => {
+  const kk = Number.isFinite(k) ? k : 1
+  const min = Number.isFinite(minScale) ? minScale : DEFAULT_ZOOM_MIN_SCALE
+  const max = Number.isFinite(maxScale) ? maxScale : DEFAULT_ZOOM_MAX_SCALE
+  return Math.max(min, Math.min(max, kk))
+}
 
 export const computeTransformFromCenter = (
   vw: number,
   vh: number,
   ux: number,
   uy: number,
-  k: number
+  k: number,
+  scaleExtent: { minScale: number; maxScale: number }
 ) => {
-  const kk = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, k));
+  const kk = clampZoomScale(k, scaleExtent.minScale, scaleExtent.maxScale)
   const x = -ux * kk + (vw / 2);
   const y = -uy * kk + (vh / 2);
   return { k: kk, x, y };

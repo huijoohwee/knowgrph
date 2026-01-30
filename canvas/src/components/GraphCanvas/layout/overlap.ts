@@ -5,6 +5,11 @@ import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
 import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
+import {
+  DEFAULT_BBOX_COLLIDE_ITERATIONS,
+  DEFAULT_BBOX_COLLIDE_PADDING,
+  DEFAULT_BBOX_COLLIDE_STRENGTH,
+} from '@/lib/graph/layoutDefaults'
 
 export type NodeHalfExtents = { halfW: number; halfH: number }
 
@@ -52,9 +57,9 @@ export const createBboxCollideForce = (args: {
 }): d3.Force<GraphNode, GraphEdge> => {
   const { schema } = args
   let nodes: GraphNode[] = []
-  let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : 0.7
-  let iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : 2
-  let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : 10
+  let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : DEFAULT_BBOX_COLLIDE_STRENGTH
+  let iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : DEFAULT_BBOX_COLLIDE_ITERATIONS
+  let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : DEFAULT_BBOX_COLLIDE_PADDING
   let maxHalf = 64
 
   const isPinned = (n: GraphNode): boolean =>

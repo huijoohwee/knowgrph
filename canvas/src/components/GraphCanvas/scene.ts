@@ -327,7 +327,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   }
 
-  applyGraphCanvasZOrder(g)
+  applyGraphCanvasZOrder(g, args.schema)
 
   const storeLayoutPositions = () => {
     if (!layoutCacheKey || typeof setLayoutPositionsForMode !== 'function') return
@@ -349,7 +349,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   simulation.on('end.layoutCache', storeLayoutPositions)
 
-  if (schema.layout?.mode === 'radial' || schema.layout?.mode === 'stratify') {
+  const layoutMode = readLayoutMode(schema)
+  if (layoutMode === 'radial' || layoutMode === 'stratify') {
     simulation.stop()
     storeLayoutPositions()
   }
@@ -449,7 +450,7 @@ export const updateGraphSceneNodesPresentation = (args: {
     setSelectionSource: args.setSelectionSource,
   })
 
-  applyGraphCanvasZOrder(g)
+  applyGraphCanvasZOrder(g, args.schema)
 }
 
 export const updateGraphSceneGroupsPresentation = (args: {
@@ -494,5 +495,5 @@ export const updateGraphSceneGroupsPresentation = (args: {
   })
   args.beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
   
-  applyGraphCanvasZOrder(g)
+  applyGraphCanvasZOrder(g, args.schema)
 }

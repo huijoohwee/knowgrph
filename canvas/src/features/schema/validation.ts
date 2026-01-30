@@ -150,6 +150,30 @@ export const validateSchema = (s: Partial<GraphSchema>): GraphSchema => {
           ...(s.layout?.forces?.collisionByType || {}),
         },
       },
+      groups: {
+        ...(base.layout?.groups || {}),
+        ...(s.layout?.groups || {}),
+      },
+      stratify: {
+        ...(base.layout?.stratify || {}),
+        ...(s.layout?.stratify || {}),
+        antiLine: {
+          ...(base.layout?.stratify?.antiLine || {}),
+          ...(s.layout?.stratify?.antiLine || {}),
+        },
+        grid: {
+          ...(base.layout?.stratify?.grid || {}),
+          ...(s.layout?.stratify?.grid || {}),
+        },
+      },
+      mermaid: {
+        ...(base.layout?.mermaid || {}),
+        ...(s.layout?.mermaid || {}),
+        renderOrder: {
+          ...(base.layout?.mermaid?.renderOrder || {}),
+          ...(s.layout?.mermaid?.renderOrder || {}),
+        },
+      },
     },
     endpointMatrix: { ...(base.endpointMatrix || {}), ...(s.endpointMatrix || {}) },
     cardinality: { ...(base.cardinality || {}), ...(s.cardinality || {}) },

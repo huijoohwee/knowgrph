@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { Maximize } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { getIconSizeClass } from '@/lib/ui';
-import { UI_LABELS } from '@/lib/config';
+import { UI_COPY, UI_LABELS } from '@/lib/config';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import {
   uiPrimaryIconActiveClassName,
@@ -13,21 +13,13 @@ export const FitToScreenButton = () => {
   const {
     fitToScreenMode,
     toggleFitToScreenMode,
-    setZoomToSelectionMode,
-    setViewPinned,
     uiIconScale,
     uiIconStrokeWidth,
   } = useToolbarState();
 
   const handleToggleFitToScreen = useCallback(() => {
-    const next = !fitToScreenMode;
     toggleFitToScreenMode();
-    // When enabling Fit to Screen, we must disable Zoom to Selection to avoid conflict
-    if (next) {
-      setZoomToSelectionMode(false);
-      setViewPinned(false);
-    }
-  }, [fitToScreenMode, toggleFitToScreenMode, setZoomToSelectionMode, setViewPinned]);
+  }, [toggleFitToScreenMode]);
 
   const iconSizeClass = getIconSizeClass(uiIconScale);
 
@@ -37,7 +29,7 @@ export const FitToScreenButton = () => {
         fitToScreenMode ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
       }`}
       title={UI_LABELS.fitToScreen}
-      tooltipContent="Fit to Screen mode: toggle to center the viewport on the full graph and clear Zoom to Selection until you turn it off."
+      tooltipContent={UI_COPY.fitToScreenTooltip}
       onClick={handleToggleFitToScreen}
       showTooltip
     >

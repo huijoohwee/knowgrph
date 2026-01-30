@@ -10,7 +10,11 @@ export const execTest = async (
   try {
     console.log(`RUN ${name}`)
     const startedAt = Date.now()
-    const timeoutMs = 120_000
+    const timeoutMs = (() => {
+      const raw = Number(process.env.KG_TEST_CASE_TIMEOUT_MS)
+      if (Number.isFinite(raw) && raw > 1_000) return Math.max(5_000, Math.min(10 * 60_000, Math.floor(raw)))
+      return 60_000
+    })()
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     let heartbeatId: ReturnType<typeof setInterval> | null = null
     const timeoutPromise = new Promise<never>((_, reject) => {

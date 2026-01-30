@@ -28,6 +28,24 @@
 - **Drag Behavior**: `canvas/src/components/GraphCanvas/drag.ts` implements node dragging with optional snap-grid and constraints.
 - **Rendering Layers**: `canvas/src/components/GraphCanvas/layers/` provides nodes, links, labels, and group outlines with z-order management.
 
+### Schema-Driven Render Order (Mermaid)
+
+To make Mermaid layering deterministic without relying on Mermaid draw-order, Canvas reads an optional schema mapping:
+
+```json
+{
+  "layout": {
+    "mermaid": {
+      "renderOrder": {
+        "MermaidSubgraph": -10,
+        "MermaidNode": 0,
+        "edge": 10
+      }
+    }
+  }
+}
+```
+
 ### Integration Bridge: Mermaid Layout → Canvas Renderer
 
 | Mermaid Layout Stage          | Canvas Renderer Equivalent            | Configuration Controls                                    |
@@ -92,7 +110,7 @@ schema.layout.fitPadding:
 | Seed Placement           | groups + layers + frame bounds  | positioned nodes               | Place groups into a seed grid and spread nodes inside boxes | O(n)                                         |
 | Centering                | positioned nodes                | centered positions             | Center seeded layout within canvas frame                    | O(n)                                         |
 
-**Overlap Enforcement**: Force mode enforces both node-level bbox collision (`schema.layout.forces.bboxCollide*`) and group-level bbox collision (`schema.layout.forces.groupBboxCollide*`). Group keys are derived consistently (Mermaid subgraphs + Markdown structure), and group boxes use label-aware node AABBs so outlines don’t clip labels.
+**Overlap Enforcement**: Force mode enforces node-level bbox collision (`schema.layout.forces.bboxCollide*`). Group-level bbox collision is enforced whenever `schema.layout.groups.enabled !== false`; `schema.layout.forces.groupBboxCollide` is deprecated for disabling but its `*Strength/*Padding/*Iterations` still tune the constraint. Group keys are derived consistently (Mermaid subgraphs + Markdown structure), and group boxes use label-aware node AABBs so outlines don’t clip labels.
 
 **Design Compliance**:
 
@@ -435,13 +453,7 @@ layout.fitPadding:
   type: number
   default: 80
   validation: must be non-negative
-  impact: padding around graph in pixels
-
-layout.fitUseCentroid:
-  scope: layout_global
-  type: boolean
-  default: true
-  impact: blends centroid with bbox for centering
+  impact: padding around graph in pixels; fit scale computed on a capped 1920×1080 (16:9) frame
 
 layout.fitDetectClusters:
   scope: layout_global

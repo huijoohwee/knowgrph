@@ -120,14 +120,7 @@ schema.layout.fitPadding:
   type: number
   mutability: runtime_configurable
   validation: must be non-negative
-  impact: padding around graph in pixels (default: 80)
-
-schema.layout.fitUseCentroid:
-  scope: layout_global
-  type: boolean
-  mutability: runtime_configurable
-  validation: boolean
-  impact: blends centroid centering with bounding box for visual balance (default: true)
+  impact: padding around graph in pixels; fit scale computed on a capped 1920×1080 (16:9) frame
 
 schema.layout.fitDetectClusters:
   scope: layout_global

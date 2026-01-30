@@ -6,8 +6,8 @@ import { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import { type GraphSchema } from '@/lib/graph/schema'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { normalizeEdgesForSim, updateForceSimulationPresentation } from '@/components/GraphCanvas/simulation'
+import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { createLayoutGroupKeyOfNode } from '@/components/GraphCanvas/layout/layoutGroupKey'
-import { selectStratifyHierarchyEdges } from '@/components/GraphCanvas/layout/stratify'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import {
@@ -30,6 +30,7 @@ import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { pickInitialZoomTransform } from '@/components/GraphCanvas/zoomState'
+import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -99,17 +100,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const schemaRef = useRef(schema)
 
   const schemaLayoutEngineJson = useMemo(() => {
-    const mode = schema?.layout?.mode || 'force'
+    const mode = schema ? readLayoutMode(schema) : 'force'
     const forces = schema?.layout?.forces || null
-    const stratify = schema?.layout?.stratify || null
     const fitPadding = schema?.layout?.fitPadding ?? null
     return JSON.stringify({
       mode,
       forces,
-      stratify,
       fitPadding,
     })
-  }, [schema?.layout?.mode, schema?.layout?.forces, schema?.layout?.stratify, schema?.layout?.fitPadding])
+  }, [schema])
 
   const schemaNodesPresentationJson = useMemo(() => {
     return JSON.stringify({
@@ -294,15 +293,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       (sceneGraphData?.nodes ?? []) as GraphNode[],
       (sceneGraphData?.edges ?? []) as GraphEdge[],
     )
-    const mode = schema.layout?.mode === 'stratify' ? 'stratify' : schema.layout?.mode === 'radial' ? 'radial' : 'force'
-    if (mode !== 'stratify') return normalized
-    const selection = selectStratifyHierarchyEdges(
-      (sceneGraphData?.nodes ?? []) as GraphNode[],
-      normalized as GraphEdge[],
-      schema,
-    )
-    return selection.hierarchyEdges.length > 0 ? selection.hierarchyEdges : normalized
-  }, [sceneGraphData, schema])
+    return normalized
+  }, [sceneGraphData])
 
   const flowState = useMemo(
     () => computeFlowState(sceneGraphData as GraphData | null),
@@ -338,7 +330,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
       if (sceneCleanupRef.current && sceneBuildKeyRef.current === buildKey) {
         const sim = simulationRef.current
-        if (sim && schemaValue.layout?.mode !== 'radial' && schemaValue.layout?.mode !== 'stratify') {
+        const effectiveMode = readLayoutMode(schemaValue)
+        if (sim && effectiveMode !== 'radial' && effectiveMode !== 'stratify') {
           try {
             sim.alphaTarget(0.08).restart()
           } catch {
@@ -360,10 +353,26 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       }
       nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
       groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
-      const z = useGraphStore.getState().zoomState;
+      const zoomViewKey = buildZoomViewKey({
+        canvasRenderMode,
+        schemaLayoutEngineJson,
+        frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
+        documentSemanticMode: String(documentSemanticMode),
+        graphMetaKey: String(sceneGraphData?.metadata && typeof sceneGraphData.metadata === 'object'
+          ? `${String((sceneGraphData.metadata as Record<string, unknown>).kind ?? '')}:${String((sceneGraphData.metadata as Record<string, unknown>).source ?? '')}`
+          : ''),
+        renderMediaAsNodes: renderMediaAsNodes === true,
+        mediaPanelDensity: String(mediaPanelDensity),
+        collapsedGroupIdsKey,
+        schemaNodesPresentationJson,
+        schemaGroupsPresentationJson,
+      })
+
+      const stateForZoom = useGraphStore.getState()
+      const z = stateForZoom.zoomStateByKey[zoomViewKey] || stateForZoom.zoomState;
       const layoutPositionCacheByMode = useGraphStore.getState().layoutPositionCacheByMode;
       const isPinned = useGraphStore.getState().viewPinned === true;
-      const mode = (schemaValue.layout?.mode || 'force') as 'force' | 'radial' | 'stratify'
+      const mode = readLayoutMode(schemaValue)
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
       const prevSemanticMode = lastSemanticModeRef.current
@@ -452,12 +461,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
         onZoomTransform: t => {
           const pinned = useGraphStore.getState().viewPinned === true
-          useGraphStore.getState().setZoomState({
+          const next = {
             ...t,
             graphDataRevision: pinned ? undefined : graphDataRevisionRef.current,
             viewportW: sceneWidth,
             viewportH: sceneHeight,
-          })
+          }
+          useGraphStore.getState().setZoomState(next)
+          useGraphStore.getState().setZoomStateForKey(zoomViewKey, next)
         },
         getSchema: () => schemaRef.current,
         getRenderMediaAsNodes: () => useGraphStore.getState().renderMediaAsNodes === true,

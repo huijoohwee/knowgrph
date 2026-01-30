@@ -1,6 +1,7 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { computeSeedGrid, getSeedGridCellBox } from '@/components/GraphCanvas/layout/seedGrid'
+import { DEFAULT_FIT_PADDING, readFitPadding } from '@/lib/graph/layoutDefaults'
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -90,7 +91,7 @@ export const applyMarkdownHeadingSeedLayout = (args: {
   const groupIds = Array.from(membersByTop.keys()).sort((a, b) => a.localeCompare(b))
   if (groupIds.length < 2) return
 
-  const pad = Math.max(80, typeof schema.layout?.fitPadding === 'number' ? schema.layout.fitPadding : 80)
+  const pad = Math.max(DEFAULT_FIT_PADDING, readFitPadding(schema))
   const frameW = Math.max(1, width)
   const frameH = Math.max(1, height)
   const grid = computeSeedGrid({ count: groupIds.length, width: frameW, height: frameH, pad })
@@ -143,4 +144,3 @@ export const applyMarkdownHeadingSeedLayout = (args: {
     }
   }
 }
-

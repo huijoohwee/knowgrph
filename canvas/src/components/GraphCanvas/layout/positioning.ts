@@ -35,8 +35,7 @@ export const determineLayoutPositions = ({
   const isFrontmatterChange = prevFrontmatterMode !== frontmatterMode;
   const isSemanticChange = prevSemanticMode !== semanticMode;
   const isRenderModeChange = prevRenderMode !== renderMode;
-  const legacyKey = `${String(semanticMode || 'document')}:${frontmatterMode ? 'frontmatter' : 'default'}:${mode}`;
-  const cacheKey = `${legacyKey}:${renderMode}`;
+  const cacheKey = `${String(semanticMode || 'document')}:${frontmatterMode ? 'frontmatter' : 'default'}:${mode}:${renderMode}`;
 
   // Calculate coverage of current node positions (are they valid?)
   const coverageFromNodes = (() => {
@@ -53,9 +52,7 @@ export const determineLayoutPositions = ({
     return matches / Math.max(1, nodes.length);
   })();
 
-  const cachedPositions = layoutPositionCacheByMode
-    ? ((layoutPositionCacheByMode[cacheKey] ?? layoutPositionCacheByMode[legacyKey]) ?? null)
-    : null;
+  const cachedPositions = layoutPositionCacheByMode ? (layoutPositionCacheByMode[cacheKey] ?? null) : null;
   const coverageFromCache = (() => {
     if (!cachedPositions) return 0;
     if (nodes.length === 0) return 0;

@@ -46,7 +46,6 @@
       "groupBboxCollideIterations": 3
     },
     "fitPadding": 80,
-    "fitUseCentroid": true,
     "fitDetectClusters": true,
     "fitTargetAspectRatio": 1.777,
     "fitEnforceAspectRatio": true,

@@ -6,30 +6,37 @@
   "exports": {
     "./array/reorderList": {
       "types": "./dist/array/reorderList.d.ts",
+      "import": "./dist/array/reorderList.js",
       "default": "./dist/array/reorderList.js"
     },
     "./markdown/formatting": {
       "types": "./dist/markdown/formatting.d.ts",
+      "import": "./dist/markdown/formatting.js",
       "default": "./dist/markdown/formatting.js"
     },
     "./markdown/toc": {
       "types": "./dist/markdown/toc.d.ts",
+      "import": "./dist/markdown/toc.js",
       "default": "./dist/markdown/toc.js"
     },
     "./markdown/slugify": {
       "types": "./dist/markdown/slugify.d.ts",
+      "import": "./dist/markdown/slugify.js",
       "default": "./dist/markdown/slugify.js"
     },
     "./markdown/lineEditing": {
       "types": "./dist/markdown/lineEditing.d.ts",
+      "import": "./dist/markdown/lineEditing.js",
       "default": "./dist/markdown/lineEditing.js"
     },
     "./markdown/wikiLinks": {
       "types": "./dist/markdown/wikiLinks.d.ts",
+      "import": "./dist/markdown/wikiLinks.js",
       "default": "./dist/markdown/wikiLinks.js"
     },
     "./markdown/backlinks": {
       "types": "./dist/markdown/backlinks.d.ts",
+      "import": "./dist/markdown/backlinks.js",
       "default": "./dist/markdown/backlinks.js"
     },
     "./markdown/mermaidBlocks": {
@@ -37,25 +44,40 @@
       "import": "./dist/markdown/mermaidBlocks.js",
       "default": "./dist/markdown/mermaidBlocks.js"
     },
+    "./markdown/mermaidInput": {
+      "types": "./dist/markdown/mermaidInput.d.ts",
+      "import": "./dist/markdown/mermaidInput.js",
+      "default": "./dist/markdown/mermaidInput.js"
+    },
     "./url": {
       "types": "./dist/url.d.ts",
+      "import": "./dist/url.js",
       "default": "./dist/url.js"
     },
     "./hash/stringHash": {
       "types": "./dist/hash/stringHash.d.ts",
+      "import": "./dist/hash/stringHash.js",
       "default": "./dist/hash/stringHash.js"
     },
     "./net/fetchRemoteText": {
       "types": "./dist/net/fetchRemoteText.d.ts",
+      "import": "./dist/net/fetchRemoteText.js",
       "default": "./dist/net/fetchRemoteText.js"
     },
     "./cache/LRUCache": {
       "types": "./dist/cache/LRUCache.d.ts",
+      "import": "./dist/cache/LRUCache.js",
       "default": "./dist/cache/LRUCache.js"
     },
     "./dom/pointerDrag": {
       "types": "./dist/dom/pointerDrag.d.ts",
+      "import": "./dist/dom/pointerDrag.js",
       "default": "./dist/dom/pointerDrag.js"
+    },
+    "./zoom/presets": {
+      "types": "./dist/zoom/presets.d.ts",
+      "import": "./dist/zoom/presets.js",
+      "default": "./dist/zoom/presets.js"
     }
   },
   "files": [

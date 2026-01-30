@@ -1,11 +1,12 @@
 import * as d3 from 'd3';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
+import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig';
 
 export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>, schema: GraphSchema) =>
   d3.drag<SVGElement, GraphNode>()
     .on('start', function (event, d) {
-      const mode = schema.layout?.mode || 'force'
+      const mode = readLayoutMode(schema)
       const structured = mode === 'radial' || mode === 'stratify'
       if (!structured && !event.active) {
          simulation.alphaTarget(0.3).restart();
@@ -14,7 +15,7 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       d.fy = d.y;
     })
     .on('drag', (event, d) => {
-      const mode = schema.layout?.mode || 'force'
+      const mode = readLayoutMode(schema)
       const structured = mode === 'radial' || mode === 'stratify'
       const gridEnabled = !!schema.behavior.snapGrid?.enabled;
       const gridSize = Math.max(1, schema.behavior.snapGrid?.size ?? 10);
@@ -55,7 +56,7 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       }
     })
     .on('end', (event, d) => {
-      const mode = schema.layout?.mode || 'force'
+      const mode = readLayoutMode(schema)
       const structured = mode === 'radial' || mode === 'stratify'
       if (!structured) {
         if (!event.active) simulation.alphaTarget(0);

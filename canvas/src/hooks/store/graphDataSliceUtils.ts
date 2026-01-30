@@ -13,30 +13,6 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
-function readStringArray(v: unknown): string[] | null {
-  if (!Array.isArray(v)) return null
-  const out: string[] = []
-  for (const item of v) {
-    if (typeof item !== 'string') continue
-    const s = item.trim()
-    if (!s || out.includes(s)) continue
-    out.push(s)
-  }
-  return out.length > 0 ? out : null
-}
-
-function readLayoutHintsFromMetadata(metadata: Record<string, unknown>): {
-  edgeLabels: string[] | null
-  orientation: 'vertical' | 'horizontal' | null
-} {
-  const tree = isRecord(metadata.tree) ? metadata.tree : null
-  const mermaid = isRecord(metadata.mermaid) ? metadata.mermaid : null
-  const edgeLabels = readStringArray(tree?.edgeLabels) || readStringArray(mermaid?.edgeLabels)
-  const rawOrientation = typeof tree?.orientation === 'string' ? tree.orientation : typeof mermaid?.orientation === 'string' ? mermaid.orientation : ''
-  const orientation = rawOrientation.trim().toLowerCase() === 'horizontal' ? 'horizontal' : rawOrientation.trim().toLowerCase() === 'vertical' ? 'vertical' : null
-  return { edgeLabels, orientation }
-}
-
 export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unknown) {
   if (!isRecord(metadata)) return
   const rawMode =
@@ -52,20 +28,9 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
   const curLayout = schema.layout || {}
   if ((curLayout.mode || 'force') !== 'force') return
   if (modeSuggestion === 'force') return
+  if (modeSuggestion === 'stratify') return
 
   const nextLayout: NonNullable<typeof schema.layout> = { ...curLayout, mode: modeSuggestion }
-  if (modeSuggestion === 'stratify') {
-    const hints = readLayoutHintsFromMetadata(metadata)
-    const curStratify = isRecord(nextLayout.stratify) ? nextLayout.stratify : null
-    const edgeLabelsMissing = !curStratify || !Array.isArray(curStratify.edgeLabels) || curStratify.edgeLabels.length === 0
-    const orientationMissing = !curStratify || (curStratify.orientation !== 'horizontal' && curStratify.orientation !== 'vertical')
-    if (hints.edgeLabels && edgeLabelsMissing) {
-      nextLayout.stratify = { ...(curStratify || {}), edgeLabels: hints.edgeLabels }
-    }
-    if (hints.orientation && orientationMissing) {
-      nextLayout.stratify = { ...(isRecord(nextLayout.stratify) ? nextLayout.stratify : {}), orientation: hints.orientation }
-    }
-  }
   get().setSchema({ ...schema, layout: nextLayout })
   if ((nextLayout.mode || schema.layout?.mode) === 'radial') {
     const setCanvasRenderMode = get().setCanvasRenderMode

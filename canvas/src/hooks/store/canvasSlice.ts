@@ -1,5 +1,6 @@
 import type { GraphState, CanvasSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
+import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -22,7 +23,14 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   setViewPinned: (v: boolean) =>
     set(state => {
       const nextPinned = !!v
-      if (nextPinned) return { viewPinned: true, zoomRequest: null }
+      if (nextPinned) {
+        return {
+          viewPinned: true,
+          fitToScreenMode: false,
+          zoomToSelectionMode: false,
+          zoomRequest: null,
+        }
+      }
       const z = state.zoomState
       const nextZoomState = z ? { ...z, graphDataRevision: state.graphDataRevision } : z
       return { viewPinned: false, zoomState: nextZoomState }
@@ -32,21 +40,76 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
     get().setViewPinned(!current)
   },
   fitToScreenMode: true as boolean,
-  setFitToScreenMode: (v: boolean) => set({ fitToScreenMode: !!v }),
-  toggleFitToScreenMode: () => set(state => ({ fitToScreenMode: !state.fitToScreenMode })),
+  setFitToScreenMode: (v: boolean) =>
+    set(state => {
+      const next = !!v
+      if (!next) {
+        if (!state.fitToScreenMode) return {}
+        return { fitToScreenMode: false }
+      }
+      return {
+        viewPinned: false,
+        fitToScreenMode: true,
+        zoomToSelectionMode: false,
+      }
+    }),
+  toggleFitToScreenMode: () => {
+    const current = get().fitToScreenMode
+    get().setFitToScreenMode(!current)
+  },
   zoomToSelectionMode: false as boolean,
-  setZoomToSelectionMode: (v: boolean) => set({ zoomToSelectionMode: !!v }),
-  toggleZoomToSelectionMode: () => set(state => ({ zoomToSelectionMode: !state.zoomToSelectionMode })),
-  zoomRequest: null as null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection' | 'transform'; at: number; payload?: { k: number; x: number; y: number } },
-  requestZoom: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') =>
+  setZoomToSelectionMode: (v: boolean) =>
+    set(state => {
+      const next = !!v
+      if (!next) {
+        if (!state.zoomToSelectionMode) return {}
+        return { zoomToSelectionMode: false }
+      }
+      return {
+        viewPinned: false,
+        zoomToSelectionMode: true,
+        fitToScreenMode: false,
+      }
+    }),
+  toggleZoomToSelectionMode: () => {
+    const current = get().zoomToSelectionMode
+    get().setZoomToSelectionMode(!current)
+  },
+  zoomRequest: null as ZoomRequest | null,
+  requestZoom: (type: ZoomCommandType, opts?: { intent?: ZoomFitIntent }) =>
     set(state => {
       if (state.viewPinned && type === 'selection') return {}
-      return { zoomRequest: { type, at: Date.now() } }
+      if (type === 'fit') {
+        const intent: ZoomFitIntent = opts?.intent || 'fitToView'
+        return { zoomRequest: { type: 'fit', intent, at: Date.now() } }
+      }
+      return { zoomRequest: { type, at: Date.now() } as ZoomRequest }
     }),
-  requestZoomTransform: (payload: { k: number; x: number; y: number }) => set({ zoomRequest: { type: 'transform', at: Date.now(), payload } }),
+  requestZoomTransform: (payload: { k: number; x: number; y: number }) =>
+    set({ zoomRequest: { type: 'transform', at: Date.now(), payload } }),
   clearZoomRequest: () => set({ zoomRequest: null }),
   zoomState: null as null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number },
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => set({ zoomState: z }),
+  zoomStateByKey: {} as Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>,
+  setZoomStateForKey: (
+    key: string,
+    z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number } | null,
+  ) =>
+    set(state => {
+      const k = String(key || '')
+      if (!k) return {}
+      if (!z) {
+        if (!state.zoomStateByKey[k]) return {}
+        const next = { ...state.zoomStateByKey }
+        delete next[k]
+        return { zoomStateByKey: next }
+      }
+      const prev = state.zoomStateByKey[k]
+      if (prev && prev.k === z.k && prev.x === z.x && prev.y === z.y && prev.graphDataRevision === z.graphDataRevision && prev.viewportW === z.viewportW && prev.viewportH === z.viewportH) {
+        return {}
+      }
+      return { zoomStateByKey: { ...state.zoomStateByKey, [k]: z } }
+    }),
   threeCameraRequest: null as null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number },
   requestThreeCamera: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') =>
     set(state => {

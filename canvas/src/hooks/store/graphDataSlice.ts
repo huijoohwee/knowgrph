@@ -7,6 +7,7 @@ import { lsSetJson, lsRemove } from '@/lib/persistence'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { applyLayoutAutosuggestFromMetadata, syncGraphFieldsWithGraphData, readGraphRagWorkflowJsonTextFromGraphData } from './graphDataSliceUtils'
+import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import {
   buildDefaultVisibleColumns,
   isGraphDataTablePropertyColumnKey,
@@ -46,11 +47,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
 
   setMarkdownDocument: (name: string | null, text: string | null) => {
     const nextText = String(text || '')
-    const hasFrontmatterMermaid = (() => {
-      const m = nextText.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/)
-      if (!m || !m[1]) return false
-      return /\bmermaid\s*:/i.test(m[1])
-    })()
+    const hasFrontmatterMermaid = containsFrontmatterMermaid(nextText)
     set({
       markdownDocumentName: name,
       markdownDocumentText: text,
@@ -69,15 +66,11 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!nextName || !nextText.trim()) return false
 
     const lower = nextName.toLowerCase()
-    const isMarkdown = lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')
+    const isMarkdown = isMarkdownLikeFileName(lower)
     if (!isMarkdown) return false
 
     const state = get()
-    const hasFrontmatterMermaid = (() => {
-      const m = nextText.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/)
-      if (!m || !m[1]) return false
-      return /\bmermaid\s*:/i.test(m[1])
-    })()
+    const hasFrontmatterMermaid = containsFrontmatterMermaid(nextText)
 
     const shouldApply = (() => {
       if (opts?.force) return true

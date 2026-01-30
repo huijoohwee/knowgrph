@@ -748,7 +748,7 @@ ZOOM_MAX: number
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|----------------------|---------------------|----------------------------------|
 | Label Truncation     | Reduce visual clutter           | - [ ] Clamp labels with >20 words (excluding heading layers `hn`); full text in tooltip; forbid overflow | NodeLabel        | renderLabel     | zoom level + text    | styled label        | Word threshold + zoom threshold  |
 | Tooltip Content      | Show configurable details       | - [ ] Read settings; include enabled fields; forbid unconfigured display                  | HoverTooltip     | buildContent    | node/edge + settings | tooltip HTML        | Settings flags + field inclusion |
-| Fit to Screen        | Center visible graph            | - [ ] Compute bbox; center with margin; account for labels; forbid origin-centric fit     | ZoomEffects      | fitAll          | nodes + labels       | zoom transform      | Bbox calculation + viewport fit  |
+| Fit to Screen        | Center visible graph            | - [ ] Fit on capped `1920×1080` frame with `targetFillRatio=0.8`; center by graph centroid; account for label-aware bounds; clamp via `schema.performance.zoom`; forbid origin-centric fit | ZoomEffects      | fitAll          | nodes + labels + schema + viewport | zoom transform      | Frame cap + fill ratio + centroid centering |
 | Pin to View          | Preserve camera position        | - [ ] Lock transform; disable auto-fit; disable selection zoom; forbid unexpected movement| CameraControl    | togglePin       | void                 | pinned state        | Boolean flag + event blocking    |
 
 ---

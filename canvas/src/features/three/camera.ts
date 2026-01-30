@@ -5,6 +5,7 @@ import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
 import type { Vec3 } from './layout'
 import { computeZoomTargetNodeIds } from '@/components/GraphCanvas/selectionZoom'
+import { DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from 'grph-shared/zoom/presets'
 
 export type CameraZoomType = 'in' | 'out'
 
@@ -157,7 +158,8 @@ export function fitCameraToPoints(options: {
     if (d > maxR) maxR = d
   })
   const fov = THREE.MathUtils.degToRad(camera.fov)
-  const dist = maxR / Math.tan(fov / 2) + 40
+  const fillRatio = DEFAULT_FIT_TO_SCREEN_FILL_RATIO
+  const dist = (maxR / (Math.tan(fov / 2) * Math.max(0.2, Math.min(0.95, fillRatio)))) + 40
   const offset = new THREE.Vector3()
   offset.subVectors(camera.position, controls.target)
   if (offset.lengthSq() < 1e-6) {

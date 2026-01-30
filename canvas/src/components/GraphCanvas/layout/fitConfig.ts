@@ -1,22 +1,29 @@
 import type { FitAllTransformOptions } from '@/components/GraphCanvas/fit'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { DEFAULT_FIT_PADDING, DEFAULT_STRATIFY_FIT_FILL_RATIO } from '@/lib/graph/layoutDefaults'
+import {
+  DEFAULT_FIT_PADDING,
+  DEFAULT_FIT_TO_SCREEN_FILL_RATIO,
+  DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
+  readZoomScaleExtent,
+} from '@/lib/graph/layoutDefaults'
 
-export type LayoutMode = NonNullable<NonNullable<GraphSchema['layout']>['mode']>
+import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
+
+import { ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
+
+export type LayoutMode = LayoutMode2d
 
 export const readLayoutMode = (schema: GraphSchema): LayoutMode => {
-  const m = schema.layout?.mode
-  return m === 'radial' || m === 'stratify' ? m : 'force'
+  return readLayoutMode2d(schema)
 }
 
 export function readFitAllOptions(args: {
   schema: GraphSchema
   mode: LayoutMode
-  intent: 'fitToScreen' | 'initialFit'
+  intent: 'fitToScreen' | 'initialFit' | 'fitToView' | 'fitSelection'
 }): FitAllTransformOptions {
   const { schema, mode } = args
   const padding = schema.layout?.fitPadding
-  const useCentroid = schema.layout?.fitUseCentroid
   const detectClusters = schema.layout?.fitDetectClusters
   const targetAspectRatio = schema.layout?.fitTargetAspectRatio
   const enforceAspectRatio = schema.layout?.fitEnforceAspectRatio
@@ -26,19 +33,25 @@ export function readFitAllOptions(args: {
       ? Math.max(20, Math.min(160, Math.floor(padding)))
       : DEFAULT_FIT_PADDING
 
-  const stratifyFillRaw = schema.layout?.stratify?.fitFillRatio
-  const stratifyFill =
-    typeof stratifyFillRaw === 'number' && Number.isFinite(stratifyFillRaw)
-      ? Math.max(0.2, Math.min(0.95, stratifyFillRaw))
-      : DEFAULT_STRATIFY_FIT_FILL_RATIO
+  const [minScale, maxScale] = readZoomScaleExtent(schema)
+  const detectClustersEffective = args.intent === 'fitSelection' ? false : detectClusters !== false
+  const targetFillRatio = (() => {
+    const isStratify = (mode as LayoutMode2d) === 'stratify'
+    const v = isStratify ? schema.layout?.stratify?.fitFillRatio : null
+    if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0.2, Math.min(0.95, v))
+    return DEFAULT_FIT_TO_SCREEN_FILL_RATIO
+  })()
 
   return {
     pad,
-    useCentroidCentering: useCentroid !== false,
-    detectClusters: detectClusters !== false,
-    targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : 1.777,
+    useCentroidCentering: true,
+    detectClusters: detectClustersEffective,
+    targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : ZOOM_VIEWPORT_PRESET_16_9.aspectRatio,
     enforceAspectRatio: enforceAspectRatio !== false,
-    targetFillRatio: mode === 'stratify' ? stratifyFill : undefined,
+    targetFillRatio,
+    minScale,
+    maxScale,
+    maxScaleHardCap: DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
     schema,
   }
 }

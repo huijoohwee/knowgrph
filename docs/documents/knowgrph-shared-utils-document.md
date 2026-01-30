@@ -22,6 +22,7 @@
 - `grph-shared/markdown/slugify`
 - `grph-shared/markdown/toc`
 - `grph-shared/markdown/wikiLinks`
+- `grph-shared/zoom/presets`
 - `grph-shared/url`
 - `grph-shared/hash/stringHash`
 - `grph-shared/net/fetchRemoteText`

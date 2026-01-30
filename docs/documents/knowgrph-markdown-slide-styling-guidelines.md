@@ -62,7 +62,7 @@ mermaid: |
 - `venue`: Presentation venue
 - `institution`: Institution or organization name (displays in footer)
 - `url`: Link to paper or project
-- `theme`: Theme style (e.g., `default`, `academic`)
+- `theme`: Theme style (e.g., `default`, `academic`; legacy alias: `neversink` → `academic`)
 - `mermaid`: Global mermaid diagram definition (string)
 
 **Effect**: When these keys are present, a persistent footer is rendered on slides (except `cover` and `intro` layouts).

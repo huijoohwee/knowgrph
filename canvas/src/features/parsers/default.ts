@@ -8,7 +8,7 @@ import type { ParserSpec } from './types'
 import { toParserId } from './types'
 import { pythonSpec } from './python'
 import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
-import { containsFrontmatterMermaid } from './markdownHeuristics'
+import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
 
@@ -43,11 +43,11 @@ const markdownSpec: ParserSpec = {
   match: (name, text) => {
     const lower = (name || '').toLowerCase()
     if (/^https?:\/\//i.test(lower)) {
-      const isMdByName = lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')
+      const isMdByName = isMarkdownLikeFileName(lower)
       if (isMdByName) return !isLikelyPlainTextMarkdown(text) || containsFrontmatterMermaid(text)
       return hasMarkdownStructure(String(text || ''))
     }
-    if (lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')) {
+    if (isMarkdownLikeFileName(lower)) {
       if (isLikelyPlainTextMarkdown(text) && !containsFrontmatterMermaid(text)) return false
       return true
     }

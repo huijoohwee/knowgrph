@@ -58,6 +58,7 @@ import { testMarkdownIframeSrcdocRendersAsSandboxedIframe } from '@/__tests__/ma
 import { testMarkdownHtmlCodeFenceRespectsFragmentsInRenderMode } from '@/__tests__/markdown/markdownHtmlCodeFenceFragments.test'
 import { testPreviewPanelSplitsMultiDiagramMermaidCodeBlocks } from '@/__tests__/markdown/previewPanelMermaidMultiDiagramSplit.test'
 import { testMarkdownMediaOpensPreviewOnDoubleClickOnly } from '@/__tests__/markdown/markdownMediaPreviewDoubleClick.test'
+import { testMarkdownMmdMermaidRendersInViewer } from '@/__tests__/markdown/markdownMmdMermaidViewer.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.markdown.layoutModePersistence', testMarkdownLayoutModePersistence)
@@ -72,6 +73,7 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.rendering.slideDemoSupportInterop', testMarkdownSlideDemoSupportInteropFeaturesRenderAndLink)
   await execTest(results, 'markdown.mermaid.multiDiagramFence', testMarkdownMermaidMultiDiagramFenceRendersAllDiagrams)
   await execTest(results, 'markdown.mermaid.previewDoubleClick', testMarkdownMermaidOpensPreviewOnDoubleClickOnly)
+  await execTest(results, 'markdown.mmd.mermaidViewer', testMarkdownMmdMermaidRendersInViewer)
   await execTest(results, 'markdown.codeblock.htmlRender', testMarkdownHtmlCodeBlockRendersAsSafeHtmlInRenderMode)
   await execTest(results, 'markdown.html.srcdocIframe', testMarkdownIframeSrcdocRendersAsSandboxedIframe)
   await execTest(results, 'markdown.html.codeFenceFragments', testMarkdownHtmlCodeFenceRespectsFragmentsInRenderMode)

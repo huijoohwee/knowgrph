@@ -70,8 +70,9 @@ export function testMarkdownSlideDemoParsesMediaAndGeo() {
   if (!hrefs.includes(expectedHeadingHref)) {
     throw new Error(`Expected wikilink heading href ${expectedHeadingHref}`)
   }
-  if (!hrefs.includes('#^mermaid-s2-decide')) {
-    throw new Error('Expected block wikilink href #^mermaid-s2-decide')
+  const blockHrefCandidates = new Set(['#^mermaid-s2-decide', '#%5Emermaid-s2-decide'])
+  if (!hrefs.some(h => blockHrefCandidates.has(h))) {
+    throw new Error('Expected block wikilink href for ^mermaid-s2-decide')
   }
 
   const hasGeoJsonFence = tokens.some(t => {
