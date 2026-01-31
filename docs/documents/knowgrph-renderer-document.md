@@ -126,7 +126,7 @@
   - `determineLayoutPositions` checks coverage (>95% matched nodes).
   - Reuses cached positions to skip expensive layout calculations on re-visits.
 - **Continuity**:
-  - Cache keys include semantic mode + frontmatter mode + layout mode + render mode to prevent 2D/3D drift.
+  - Cache keys include semantic mode + frontmatter mode + layout mode + render mode + render variant (+ optional layout variant) to prevent cross-renderer and cross-layout drift.
   - Switching modes (e.g. Tree -> Force, 2D -> 3D -> 2D) restores cached positions to prevent visual chaos.
   - Centroid recentering ensures the graph stays visible.
 

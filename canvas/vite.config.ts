@@ -805,7 +805,7 @@ const youtubeConvertDevPlugin = {
 
 export default defineConfig(({ command }) => ({
   optimizeDeps: {
-    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'reactflow', 'dagre'],
+    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'reactflow', 'dagre', 'elkjs'],
     exclude: ['gympgrph', 'curagrph', 'grph-shared'],
   },
   build: {

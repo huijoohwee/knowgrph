@@ -6,6 +6,7 @@ export interface LayoutPositionConfig {
   semanticMode: string;
   renderMode: '2d' | '3d';
   renderVariant?: string;
+  layoutVariant?: string;
   prevMode: string | null;
   prevFrontmatterMode: boolean | null;
   prevSemanticMode: string | null;
@@ -26,6 +27,7 @@ export const determineLayoutPositions = ({
   semanticMode,
   renderMode,
   renderVariant,
+  layoutVariant,
   prevMode,
   prevFrontmatterMode,
   prevSemanticMode,
@@ -38,7 +40,12 @@ export const determineLayoutPositions = ({
   const isSemanticChange = prevSemanticMode !== semanticMode;
   const isRenderModeChange = prevRenderMode !== renderMode;
   const baseKey = `${String(semanticMode || 'document')}:${frontmatterMode ? 'frontmatter' : 'default'}:${mode}:${renderMode}`
-  const cacheKey = renderVariant ? `${baseKey}:${String(renderVariant)}` : baseKey
+  const parts = [baseKey]
+  const rv = typeof renderVariant === 'string' ? renderVariant.trim() : ''
+  const lv = typeof layoutVariant === 'string' ? layoutVariant.trim() : ''
+  if (rv) parts.push(rv)
+  if (lv) parts.push(lv)
+  const cacheKey = parts.join(':')
 
   // Calculate coverage of current node positions (are they valid?)
   const coverageFromNodes = (() => {

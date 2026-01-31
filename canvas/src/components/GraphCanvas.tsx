@@ -380,6 +380,30 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
       const prevSemanticMode = lastSemanticModeRef.current
+      const layoutVariant = (() => {
+        if (mode !== 'stratify') return ''
+        const stratify = schemaValue?.layout?.stratify || null
+        const orientation = stratify?.orientation === 'horizontal' ? 'horizontal' : 'vertical'
+        const groupRoots = stratify?.groupRoots !== false ? '1' : '0'
+        const grid = stratify?.grid || null
+        const gridEnabled = grid?.enabled !== false ? '1' : '0'
+        const gridSize = typeof grid?.size === 'number' && Number.isFinite(grid.size) ? String(Math.floor(grid.size)) : ''
+        const antiLine = stratify?.antiLine || null
+        const antiLineEnabled = antiLine?.enabled !== false ? '1' : '0'
+        const wrapRows =
+          typeof antiLine?.wrapRows === 'number' && Number.isFinite(antiLine.wrapRows) ? String(Math.floor(antiLine.wrapRows)) : ''
+        const maxAspectRatio =
+          typeof antiLine?.maxAspectRatio === 'number' && Number.isFinite(antiLine.maxAspectRatio)
+            ? String(Math.round(antiLine.maxAspectRatio * 100) / 100)
+            : ''
+        const parts = [
+          `o=${orientation}`,
+          `gr=${groupRoots}`,
+          `g=${gridEnabled}${gridSize ? `:${gridSize}` : ''}`,
+          `al=${antiLineEnabled}${wrapRows || maxAspectRatio ? `:${wrapRows || ''}:${maxAspectRatio || ''}` : ''}`,
+        ]
+        return parts.join('|')
+      })()
       const initialZoomTransform = pickInitialZoomTransform({
         zoomState: z,
         pinned: isPinned,
@@ -397,6 +421,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         semanticMode: documentSemanticMode,
         renderMode: canvasRenderMode,
         renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
+        layoutVariant,
         prevMode,
         prevFrontmatterMode,
         prevSemanticMode,
@@ -499,6 +524,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     effectiveFrontmatterModeEnabled,
     documentSemanticMode,
     canvasRenderMode,
+    canvas2dRenderer,
     renderMediaAsNodes,
     mediaPanelDensity,
     schemaNodesPresentationJson,

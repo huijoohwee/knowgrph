@@ -2,6 +2,12 @@
 
 **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 
+## 2026-02-01
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Layout (2D D3/Flow) | Align Stratify with Flow layout | Centralize Flow layout knobs in layoutDefaults; Stratify defaults reuse Flow spacing; isolate layout position caches by renderVariant and optional layoutVariant; modularize Stratify grid constraints to prevent drift and cross-mode interference. | `knowgrph/canvas/src/lib/graph/layoutDefaults.ts`, `knowgrph/canvas/src/components/{FlowCanvas/config.ts,GraphCanvas/layout/{stratify.ts,stratifyGrid.ts},GraphCanvas/layout/positioning.ts}`, tests | `GraphCanvas`, `FlowCanvas` | `readFlowLayoutKnobs`, `applyStratifyLayout`, `determineLayoutPositions` | schema.layout + nodes/edges | Stable, consistent 2D layouts | Cache key = semantic/frontmatter/layout/render + renderer + layout variant | Keep docs/schema aligned and expand layout-only regression coverage when knobs change. | 2026-02-01 |
+
 ## 2026-01-30
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

@@ -5,9 +5,11 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { buildMarkdownJsonLd } from '@/features/parsers/default'
 import { parseJsonLd } from '@/lib/graph/jsonld/index'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
+import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import { readMarkdownSlideDemo, resolveMarkdownSlideDemoDocumentPath } from '@/tests/lib/markdownSlideDemo'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
 import { pickEdgeLabelPlacement } from '@/components/GraphCanvas/layout/utils'
+import { readFlowConfig } from '@/components/FlowCanvas/config'
 
 export const testStratifyLayoutProducesStableLayering = () => {
   const schema = {
@@ -81,6 +83,71 @@ export const testStratifyLayoutProducesStableLayering = () => {
   if (coverage < 0.95) throw new Error(`expected stratify layout to position most demo nodes; got coverage=${coverage}`)
 }
 
+export const testStratifyLayoutDefaultsMatchFlowSpacing = () => {
+  const schema = {
+    ...defaultSchema,
+    layout: {
+      ...defaultSchema.layout,
+      fitPadding: 24,
+      mode: 'stratify' as const,
+      forces: {
+        ...(defaultSchema.layout?.forces || {}),
+        structuredRelaxSteps: 0,
+        bboxCollide: false,
+        groupBboxCollide: false,
+      },
+      stratify: {
+        ...(defaultSchema.layout?.stratify || {}),
+        orientation: 'vertical' as const,
+        grid: { enabled: false },
+      },
+    },
+  }
+
+  const padding = readFitPadding(schema)
+  const flow = readFlowConfig({ schema, rankdir: 'TB' })
+
+  const nodes: GraphNode[] = [
+    { id: 'root', label: 'X', type: 'T', properties: {} },
+    { id: 'a', label: 'X', type: 'T', properties: {} },
+    { id: 'b', label: 'X', type: 'T', properties: {} },
+  ]
+
+  const edges: GraphEdge[] = [
+    { id: 'e1', label: 'pointsTo', source: 'root', target: 'a', properties: {} },
+    { id: 'e2', label: 'pointsTo', source: 'root', target: 'b', properties: {} },
+  ]
+
+  let maxW = 0
+  let maxH = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    const ext = getNodeAabbHalfExtentsWithLabel(nodes[i], schema)
+    maxW = Math.max(maxW, Math.max(8, ext.halfW * 2))
+    maxH = Math.max(maxH, Math.max(8, ext.halfH * 2))
+  }
+
+  const expectedNodeGap = flow.elk.nodeNodeSpacingPx
+  const expectedRankGap = flow.elk.layerSpacingPx
+  const breadthStep = Math.max(24, maxW + expectedNodeGap)
+  const depthStep = Math.max(32, maxH + expectedRankGap)
+
+  const width = padding * 2 + breadthStep
+  const height = padding * 2 + depthStep
+  const ok = applyStratifyLayout(nodes, edges, width, height, schema, () => '')
+  if (!ok) throw new Error('expected stratify layout to succeed')
+
+  const ax = nodes.find(n => n.id === 'a')?.x
+  const bx = nodes.find(n => n.id === 'b')?.x
+  if (typeof ax !== 'number' || !Number.isFinite(ax)) throw new Error('expected node a to have numeric x')
+  if (typeof bx !== 'number' || !Number.isFinite(bx)) throw new Error('expected node b to have numeric x')
+
+  const sep = Math.abs(ax - bx)
+  const eps = 1e-3
+  if (Math.abs(sep - breadthStep) > eps) {
+    throw new Error(`expected sibling separation ~${breadthStep}, got ${sep}`)
+  }
+}
+
 export const testStratifyLayoutDoesNotReuseForceCacheKey = () => {
   const nodes: GraphNode[] = [
     { id: 'a', label: 'a', type: 'T', x: 10, y: 20, properties: {} },
@@ -88,7 +155,7 @@ export const testStratifyLayoutDoesNotReuseForceCacheKey = () => {
   ]
 
   const cache = {
-    'document:default:force:2d': {
+    'document:default:force:2d:d3': {
       a: { x: 1, y: 2 },
       b: { x: 3, y: 4 },
     },
@@ -99,6 +166,7 @@ export const testStratifyLayoutDoesNotReuseForceCacheKey = () => {
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
+    renderVariant: 'd3',
     prevMode: 'force',
     prevFrontmatterMode: false,
     prevSemanticMode: 'document',
@@ -107,8 +175,8 @@ export const testStratifyLayoutDoesNotReuseForceCacheKey = () => {
     layoutPositionCacheByMode: cache,
   })
 
-  if (res.cacheKey !== 'document:default:stratify:2d') {
-    throw new Error(`expected cacheKey document:default:stratify:2d, got ${res.cacheKey}`)
+  if (res.cacheKey !== 'document:default:stratify:2d:d3') {
+    throw new Error(`expected cacheKey document:default:stratify:2d:d3, got ${res.cacheKey}`)
   }
   if (res.layoutPositionsForMode !== null) {
     throw new Error('expected stratify mode not to reuse force cache')

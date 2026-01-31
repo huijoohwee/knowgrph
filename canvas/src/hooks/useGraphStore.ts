@@ -14,7 +14,7 @@ import { createUiToastSlice } from '@/hooks/store/uiToastSlice';
 import { createSourceFilesSlice } from '@/hooks/store/sourceFilesSlice';
 import { createLocalMarkdownFolderSlice } from '@/hooks/store/localMarkdownFolderSlice'
 import { getLocalStorage } from '@/lib/persistence';
-import type { GraphState, LayoutPositionCacheKey, NodePosition2d } from '@/hooks/store/types';
+import type { GraphState, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
 
 const positionsMatch = (

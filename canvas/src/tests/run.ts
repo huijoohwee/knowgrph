@@ -126,10 +126,16 @@ import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingIn
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
 import {
   testStratifyLayoutDoesNotReuseForceCacheKey,
+  testStratifyLayoutDefaultsMatchFlowSpacing,
   testStratifyLayoutProducesStableLayering,
   testStratifyLayoutSnapsToGrid,
   testStratifyLayoutNoOverlapAfterGridSnap,
 } from '@/__tests__/stratifyLayoutEnhancements.test'
+import {
+  testElkLayoutReturnsNodePositions,
+  testElkLayoutTimeoutIsBounded,
+  testFlowHandlesByNodeDeterministicOrdering,
+} from '@/__tests__/flowElkMultipleHandles.test'
 import {
   testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback,
   testGeoJsonMapPreviewSupportsContainerHeightMode,
@@ -332,9 +338,13 @@ export const runAllTests = async () => {
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
 
   await exec('layout.stratify.layeringStable', testStratifyLayoutProducesStableLayering)
+  await exec('layout.stratify.defaultsMatchFlowSpacing', testStratifyLayoutDefaultsMatchFlowSpacing)
   await exec('layout.stratify.noForceCacheReuse', testStratifyLayoutDoesNotReuseForceCacheKey)
   await exec('layout.stratify.gridSnap', testStratifyLayoutSnapsToGrid)
   await exec('layout.stratify.gridNoOverlap', testStratifyLayoutNoOverlapAfterGridSnap)
+  await exec('layout.flow.elkMultipleHandles.deterministicOrdering', testFlowHandlesByNodeDeterministicOrdering)
+  await exec('layout.flow.elkMultipleHandles.timeoutBounded', testElkLayoutTimeoutIsBounded)
+  await exec('layout.flow.elkMultipleHandles.returnsNodePositions', testElkLayoutReturnsNodePositions)
 
   await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
   await exec('sourceFiles.naming.normalizeParentPath', testNormalizeParentPath)

@@ -22,6 +22,10 @@ import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewD
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { FlowZoomEffects } from '@/components/FlowCanvas/FlowZoomEffects'
+import { ElkNode } from '@/components/FlowCanvas/ElkNode'
+import { readFlowConfig } from '@/components/FlowCanvas/config'
+import { buildElkLayout } from '@/components/FlowCanvas/elkLayout'
+import { computeFlowHandlesByNode, buildFlowHandleId } from '@/components/FlowCanvas/handles'
 import { buildDagreLayout, buildGraphMetaKey, deriveRankdir } from '@/components/FlowCanvas/layout'
 
 function hasCacheCoverage(args: {
@@ -188,15 +192,24 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
   const nodesConnectable = selectMode === 'single' || selectMode === 'multi' || selectMode === 'lasso'
   const panOnDrag = dragConstraint !== 'none'
   const rankdir = deriveRankdir({ schemaOrientation: schema?.layout?.stratify?.orientation })
+  const flowConfig = React.useMemo(() => readFlowConfig({ schema, rankdir }), [rankdir, schema])
   const layoutMode = schema ? readLayoutMode(schema) : 'force'
 
   const { cacheKey, layoutPositionsForMode } = React.useMemo(() => {
+    const layoutVariant = [
+      `rd=${rankdir}`,
+      `dir=${flowConfig.elk.direction}`,
+      `n=${flowConfig.node.widthPx}x${flowConfig.node.heightPx}`,
+      `s=${flowConfig.elk.nodeNodeSpacingPx},${flowConfig.elk.layerSpacingPx},${flowConfig.elk.edgeNodeSpacingPx}`,
+      `h=${flowConfig.handle.sizePx},${flowConfig.handle.lineHeightPx}`,
+    ].join('|')
     const out = determineLayoutPositions({
       mode: layoutMode,
       frontmatterMode: effectiveFrontmatter,
       semanticMode: documentSemanticMode,
       renderMode: '2d',
       renderVariant: canvas2dRenderer,
+      layoutVariant,
       prevMode: null,
       prevFrontmatterMode: null,
       prevSemanticMode: null,
@@ -205,7 +218,16 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       layoutPositionCacheByMode,
     })
     return { cacheKey: out.cacheKey, layoutPositionsForMode: out.layoutPositionsForMode }
-  }, [canvas2dRenderer, documentSemanticMode, effectiveFrontmatter, layoutMode, layoutPositionCacheByMode, sceneGraphData])
+  }, [
+    canvas2dRenderer,
+    documentSemanticMode,
+    effectiveFrontmatter,
+    flowConfig,
+    layoutMode,
+    layoutPositionCacheByMode,
+    rankdir,
+    sceneGraphData,
+  ])
 
   const { zoomStateByKey, zoomState, setZoomStateForKey } = useGraphStore(
     useShallow(s => ({
@@ -229,66 +251,104 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
 
   const lastGraphKeyRef = React.useRef<string>('')
   React.useEffect(() => {
+    let cancelled = false
     const g = sceneGraphData
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
-    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${rankdir}`
+    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${rankdir}:${flowConfig.elk.direction}:${flowConfig.node.widthPx}x${flowConfig.node.heightPx}`
     if (graphKey === lastGraphKeyRef.current && nodes.length > 0) return
     lastGraphKeyRef.current = graphKey
 
-    const cached = layoutPositionsForMode || null
-    const computed = hasCacheCoverage({ nodes: nodeList, positions: cached, minCoverage: 0.9 })
-      ? cached
-      : buildDagreLayout({
-          nodes: nodeList.map(n => ({ id: String(n.id) })),
-          edges: edgeList.map(e => ({ source: String(e.source), target: String(e.target) })),
-          rankdir,
-        })
+    const run = async () => {
+      const cached = layoutPositionsForMode || null
+      const computed = hasCacheCoverage({ nodes: nodeList, positions: cached, minCoverage: 0.9 })
+        ? cached
+        : await (async () => {
+            try {
+              return await buildElkLayout({
+                graphData: { nodes: nodeList, edges: edgeList },
+                config: flowConfig,
+              })
+            } catch {
+              return buildDagreLayout({
+                nodes: nodeList.map(n => ({ id: String(n.id) })),
+                edges: edgeList.map(e => ({ source: String(e.source), target: String(e.target) })),
+                rankdir,
+                nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
+              })
+            }
+          })()
 
-    if (cacheKey && typeof setLayoutPositionsForMode === 'function' && computed && Object.keys(computed).length > 0) {
-      setLayoutPositionsForMode(cacheKey, computed)
+      if (cancelled) return
+
+      if (cacheKey && typeof setLayoutPositionsForMode === 'function' && computed && Object.keys(computed).length > 0) {
+        setLayoutPositionsForMode(cacheKey, computed)
+      }
+
+      const handlesByNode = computeFlowHandlesByNode({
+        nodes: nodeList as ReadonlyArray<{ id: unknown }>,
+        edges: edgeList as ReadonlyArray<{ id: unknown; source: unknown; target: unknown }>,
+      })
+
+      const nextNodes: Node[] = nodeList
+        .map(n => {
+          const id = String(n.id)
+          if (!id) return null
+          const label = String(n.label || id)
+          const p = computed ? computed[id] : null
+          const x = p && Number.isFinite(p.x) ? p.x : 0
+          const y = p && Number.isFinite(p.y) ? p.y : 0
+          const selected =
+            (selectedNodeId && String(selectedNodeId) === id) ||
+            (Array.isArray(selectedNodeIds) && selectedNodeIds.some(v => String(v) === id))
+          const handles = handlesByNode[id] || { in: [], out: [] }
+          return {
+            id,
+            type: 'elk',
+            position: { x, y },
+            data: { label, handles, config: { node: flowConfig.node, handle: flowConfig.handle } },
+            draggable: allowNodeDrag,
+            selected,
+          } as Node
+        })
+        .filter(Boolean) as Node[]
+
+      const nextEdges: Edge[] = edgeList
+        .map(e => {
+          const id = String(e.id)
+          const source = String(e.source)
+          const target = String(e.target)
+          if (!id || !source || !target) return null
+          const label = e.label != null ? String(e.label) : undefined
+          const selected =
+            (selectedEdgeId && String(selectedEdgeId) === id) ||
+            (Array.isArray(selectedEdgeIds) && selectedEdgeIds.some(v => String(v) === id))
+          return {
+            id,
+            source,
+            target,
+            sourceHandle: buildFlowHandleId({ dir: 'out', edgeId: id }),
+            targetHandle: buildFlowHandleId({ dir: 'in', edgeId: id }),
+            label,
+            type: 'smoothstep',
+            animated: false,
+            selected,
+          } as Edge
+        })
+        .filter(Boolean) as Edge[]
+
+      setNodes(nextNodes)
+      setEdges(nextEdges)
     }
 
-    const nextNodes: Node[] = nodeList
-      .map(n => {
-        const id = String(n.id)
-        if (!id) return null
-        const label = String(n.label || id)
-        const p = computed ? computed[id] : null
-        const x = p && Number.isFinite(p.x) ? p.x : 0
-        const y = p && Number.isFinite(p.y) ? p.y : 0
-        const selected =
-          (selectedNodeId && String(selectedNodeId) === id) ||
-          (Array.isArray(selectedNodeIds) && selectedNodeIds.some(v => String(v) === id))
-        return {
-          id,
-          position: { x, y },
-          data: { label },
-          draggable: allowNodeDrag,
-          selected,
-        } as Node
-      })
-      .filter(Boolean) as Node[]
-
-    const nextEdges: Edge[] = edgeList
-      .map(e => {
-        const id = String(e.id)
-        const source = String(e.source)
-        const target = String(e.target)
-        if (!id || !source || !target) return null
-        const label = e.label != null ? String(e.label) : undefined
-        const selected =
-          (selectedEdgeId && String(selectedEdgeId) === id) ||
-          (Array.isArray(selectedEdgeIds) && selectedEdgeIds.some(v => String(v) === id))
-        return { id, source, target, label, animated: false, selected } as Edge
-      })
-      .filter(Boolean) as Edge[]
-
-    setNodes(nextNodes)
-    setEdges(nextEdges)
+    void run()
+    return () => {
+      cancelled = true
+    }
   }, [
     allowNodeDrag,
     cacheKey,
+    flowConfig,
     layoutPositionsForMode,
     nodes.length,
     rankdir,
@@ -403,6 +463,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={{ elk: ElkNode }}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         nodesDraggable={allowNodeDrag}
@@ -419,7 +480,6 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
         zoomOnPinch
         preventScrolling
         defaultViewport={defaultViewport}
-        fitView
         className="bg-transparent"
       >
         <Background gap={18} size={1} />

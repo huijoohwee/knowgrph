@@ -39,6 +39,89 @@ export const DEFAULT_STRATIFY_REUSE_SEED_STRENGTH = 0.75
 export const DEFAULT_STRATIFY_FIT_FILL_RATIO = 0.8
 export const DEFAULT_STRATIFY_SEPARATION = 1
 
+export const DEFAULT_FLOW_NODE_WIDTH_PX = 180
+export const DEFAULT_FLOW_NODE_HEIGHT_PX = 48
+export const DEFAULT_FLOW_NODE_PADDING_X_PX = 12
+export const DEFAULT_FLOW_NODE_PADDING_Y_PX = 8
+
+export const DEFAULT_FLOW_HANDLE_SIZE_PX = 10
+export const DEFAULT_FLOW_HANDLE_LINE_HEIGHT_PX = 16
+
+export const DEFAULT_FLOW_ELK_LAYOUT_TIMEOUT_MS = 1500
+
+export type FlowLayoutKnobs = {
+  node: {
+    widthPx: number
+    heightPx: number
+    paddingX: number
+    paddingY: number
+  }
+  handle: {
+    sizePx: number
+    lineHeightPx: number
+  }
+  elk: {
+    direction: 'RIGHT' | 'DOWN'
+    layoutTimeoutMs: number
+    nodeNodeSpacingPx: number
+    layerSpacingPx: number
+    edgeNodeSpacingPx: number
+  }
+}
+
+const clampInt = (v: unknown, min: number, max: number): number | null => {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return null
+  return Math.max(min, Math.min(max, Math.floor(v)))
+}
+
+export const readFlowLayoutKnobs = (args: {
+  schema: GraphSchema | null
+  rankdir: 'TB' | 'LR'
+}): FlowLayoutKnobs => {
+  const padding = args.schema ? readFitPadding(args.schema) : DEFAULT_FIT_PADDING
+
+  const node = {
+    widthPx: DEFAULT_FLOW_NODE_WIDTH_PX,
+    heightPx: DEFAULT_FLOW_NODE_HEIGHT_PX,
+    paddingX: DEFAULT_FLOW_NODE_PADDING_X_PX,
+    paddingY: DEFAULT_FLOW_NODE_PADDING_Y_PX,
+  }
+
+  const handle = {
+    sizePx: DEFAULT_FLOW_HANDLE_SIZE_PX,
+    lineHeightPx: DEFAULT_FLOW_HANDLE_LINE_HEIGHT_PX,
+  }
+
+  const elkDirection = args.rankdir === 'LR' ? 'RIGHT' : 'DOWN'
+  const elkNodeNodeSpacing = 40 + Math.floor(padding / 2)
+  const elkLayerSpacing = 80 + padding
+  const elkEdgeNodeSpacing = 24 + Math.floor(padding / 3)
+
+  const scaled = {
+    node: {
+      ...node,
+      widthPx: Math.max(24, node.widthPx),
+      heightPx: Math.max(16, node.heightPx),
+      paddingX: Math.max(0, node.paddingX),
+      paddingY: Math.max(0, node.paddingY),
+    },
+    handle: {
+      ...handle,
+      sizePx: Math.max(4, handle.sizePx),
+      lineHeightPx: Math.max(8, handle.lineHeightPx),
+    },
+    elk: {
+      direction: elkDirection,
+      layoutTimeoutMs: Math.max(200, clampInt(DEFAULT_FLOW_ELK_LAYOUT_TIMEOUT_MS, 200, 20_000) ?? 1500),
+      nodeNodeSpacingPx: Math.max(24, elkNodeNodeSpacing),
+      layerSpacingPx: Math.max(48, elkLayerSpacing),
+      edgeNodeSpacingPx: Math.max(16, elkEdgeNodeSpacing),
+    },
+  } satisfies FlowLayoutKnobs
+
+  return scaled
+}
+
 export const readForceLinkDistance = (schema: GraphSchema, edge: Pick<GraphEdge, 'label'>): number => {
   const byLabel = schema.layout?.forces?.linkDistanceByLabel || null
   const label = typeof edge.label === 'string' ? edge.label : String(edge.label || '')
