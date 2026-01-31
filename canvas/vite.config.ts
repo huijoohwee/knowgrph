@@ -874,7 +874,7 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     port: 5173,
-    strictPort: true,
+    strictPort: false,
     fs: {
       allow: [
         path.resolve(__dirname, '..'),
