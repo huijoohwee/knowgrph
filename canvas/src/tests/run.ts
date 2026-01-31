@@ -118,6 +118,10 @@ import {
   testGympgrphEnsureDatasetLayerClusterCountUsesNotoSans,
 } from '@/__tests__/gympgrphMapLibreBehaviors.test'
 import { testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections } from '@/__tests__/markdownEmbeddedGeoJson.test'
+import {
+  testMarkdownLoaderKeyNormalizesBasename,
+  testMarkdownLoaderPrefersImportedForBasenameMatch,
+} from '@/__tests__/markdownLoaderInterop.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
 import {
@@ -370,6 +374,8 @@ export const runAllTests = async () => {
   )
 
   await exec('geospatial.markdown.embeddedGeoJsonExtraction', testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections)
+  await exec('markdown.loader.normalizesBasename', testMarkdownLoaderKeyNormalizesBasename)
+  await exec('markdown.loader.prefersImportedBasenameMatch', testMarkdownLoaderPrefersImportedForBasenameMatch)
   await exec('policy.hashing.sharedContract', testHashStringContractIsSharedAcrossRepos)
   await exec('markdown.demo.slideMediaAndGeo', testMarkdownSlideDemoParsesMediaAndGeo)
   await exec('net.fetchRemoteText.validateSupportsStringAndArgs', testFetchRemoteTextValidateSupportsStringAndArgs)

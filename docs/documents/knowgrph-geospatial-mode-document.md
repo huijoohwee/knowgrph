@@ -143,9 +143,9 @@
 
 ### Fit Behavior
 
-- Map panel “Fit to data” is consolidated with existing Fit-to-Screen behavior:
-  - In 2D, it triggers canvas fit-to-screen (map follows the canvas transform).
-  - In 3D, it triggers camera fit plus map fit-to-data.
+- Map panel “Fit to data” is consolidated with existing fit/zoom commands:
+  - When Geospatial Mode is active, zoom/fit commands route to the geospatial overlay camera and do not trigger graph-canvas zoom pipelines.
+  - When Geospatial Mode is off, zoom/fit commands route to the active graph renderer.
 
 ---
 
@@ -196,7 +196,7 @@ Both approaches use the same underlying dataset model and helpers (`addGeospatia
 2. Ensure Geospatial Mode is **enabled** (overlay toggle ON) and interaction mode is `Always` (default).
 3. Verify that the MapLibre basemap (default: OpenFreeMap Liberty) is visible as a translucent overlay on top of the 2D canvas.
 
-At this point, Document Mode (Graph canvas + panels) and Geospatial Mode share the same GraphData and selection; enabling Geo does not disable or replace Document Mode.
+At this point, Document Mode (graph canvases) and Geospatial Mode share the same GraphData and selection state, but the host enforces **mutual exclusivity**: when Geospatial Mode is enabled, graph canvases are unmounted so they cannot run background rendering/recalculation or consume shared requests.
 
 ### Step 4 — Observe multi-layer overlay + clustering
 

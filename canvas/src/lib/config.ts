@@ -26,3 +26,4 @@ export const IFRAME_ALLOWED_HOSTS = readEnvString('VITE_IFRAME_ALLOWED_HOSTS', '
 
 export * from './config.ls';
 export * from './config.copy';
+export * from './config.render';

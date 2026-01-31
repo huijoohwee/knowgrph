@@ -85,6 +85,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const setThemeMode = useGraphStore(s => s.setThemeMode)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
+  const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
   const launchSpotlight = useLaunchSpotlight();
   const iconSizeClass = getIconSizeClass(uiIconScale);
   const iconStrokeWidth = uiIconStrokeWidth;
@@ -176,6 +178,33 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <BarChart3 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${
+          canvasRenderMode === '2d' && canvas2dRenderer === 'flow'
+            ? uiPrimaryIconActiveClassName
+            : uiPrimaryIconInactiveClassName
+        }`}
+        title={canvas2dRenderer === 'flow' ? UI_COPY.twoDRendererFlowTitle : UI_COPY.twoDRendererD3Title}
+        tooltipContent={UI_COPY.twoDRendererToggleTooltip}
+        disabled={canvasRenderMode !== '2d' || geospatialEnabled}
+        onClick={() => {
+          const next = canvas2dRenderer === 'flow' ? 'd3' : 'flow'
+          setCanvas2dRenderer(next)
+        }}
+        showTooltip
+      >
+        {canvas2dRenderer === 'flow' ? (
+          <div className="flex items-center gap-1">
+            <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+            <span className="text-xs">Flow</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+            <span className="text-xs">D3</span>
+          </div>
+        )}
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${

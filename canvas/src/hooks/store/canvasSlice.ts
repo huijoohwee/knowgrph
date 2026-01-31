@@ -1,6 +1,8 @@
 import type { GraphState, CanvasSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
+import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config'
+import { lsJson, lsSetJson } from '@/lib/persistence'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -121,6 +123,9 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   requestEdgeCreation: (req: { type: 'create' | 'update-source' | 'update-target'; fromId: string }) => set({ edgeCreationRequest: { ...req, at: Date.now() } }),
   clearEdgeCreationRequest: () => set({ edgeCreationRequest: null }),
   canvasRenderMode: '2d' as '2d' | '3d',
+  canvas2dRenderer: lsJson<'d3' | 'flow'>(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, v =>
+    v === 'flow' || v === 'd3' ? v : DEFAULT_CANVAS_2D_RENDERER,
+  ),
   canvasRenderModeLastFree: '2d' as '2d' | '3d',
   canvasRenderModeIsAuto: false as boolean,
   setCanvasRenderMode: (m: '2d' | '3d') =>
@@ -136,6 +141,13 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
         return { canvasRenderMode: '2d', canvasRenderModeIsAuto: false }
       }
       return { canvasRenderMode: requested, canvasRenderModeLastFree: requested, canvasRenderModeIsAuto: false }
+    }),
+  setCanvas2dRenderer: (id: 'd3' | 'flow') =>
+    set(state => {
+      const next: 'd3' | 'flow' = id === 'flow' ? 'flow' : 'd3'
+      if (state.canvas2dRenderer === next) return {}
+      lsSetJson(LS_KEYS.canvas2dRenderer, next)
+      return { canvas2dRenderer: next }
     }),
   canvasSnapshotFns: {} as { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns },
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) =>

@@ -68,6 +68,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     frontmatterModeEnabled,
     documentSemanticMode,
     canvasRenderMode,
+    canvas2dRenderer,
     collapsedGroupIds,
     viewPinned,
     zoomState,
@@ -84,6 +85,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
       canvasRenderMode: s.canvasRenderMode,
+      canvas2dRenderer: s.canvas2dRenderer,
       collapsedGroupIds: s.collapsedGroupIds || [],
       viewPinned: s.viewPinned === true,
       zoomState: s.zoomState || null,
@@ -261,6 +263,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomRef,
     width,
     height,
+    paused: !active,
   });
 
   useEdgeCreationEffect({
@@ -355,6 +358,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
       const zoomViewKey = buildZoomViewKey({
         canvasRenderMode,
+        canvas2dRenderer,
         schemaLayoutEngineJson,
         frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
         documentSemanticMode: String(documentSemanticMode),
@@ -392,6 +396,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         frontmatterMode: !!effectiveFrontmatterModeEnabled,
         semanticMode: documentSemanticMode,
         renderMode: canvasRenderMode,
+        renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
         prevMode,
         prevFrontmatterMode,
         prevSemanticMode,

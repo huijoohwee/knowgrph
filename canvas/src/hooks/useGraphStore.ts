@@ -79,7 +79,7 @@ export const useGraphStore = create<GraphState>()(
       graphValidationTimestamp: timestamp,
     })
   },
-  setLayoutPositionsForMode: (key: LayoutPositionCacheKey, positions: Record<string, NodePosition2d> | null) => {
+  setLayoutPositionsForMode: (key: string, positions: Record<string, NodePosition2d> | null) => {
     const prev = get().layoutPositionCacheByMode || {}
     const prevEntry = prev[key] || null
     if (!positions || Object.keys(positions).length === 0) {

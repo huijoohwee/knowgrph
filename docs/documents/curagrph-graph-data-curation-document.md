@@ -18,6 +18,15 @@
 
 ---
 
+## Graph Data Table Contract
+
+- Graph Data Table is a curation surface over the same `GraphData` SSOT used by Canvas renderers.
+- Row selection updates the shared selection model (`selectedNodeId` / `selectedEdgeId`) so Canvas, Markdown “Show on Canvas”, and table highlights stay consistent.
+- Renderer/mode switches (D3/Flow/3D/Geospatial) must not reset selection or mutate canonical graph data.
+- When Geospatial Mode is enabled, the table remains usable but the graph canvas is not rendered; selection is still updated in the shared store for when the user returns to a graph renderer.
+
+---
+
 ## Integration Contract
 
 The canonical host integration pattern for extracted UI surfaces is:
@@ -39,6 +48,12 @@ This contract is the default pattern for future UI extractions so module ownersh
 - **Curation UI visibility**: `curagrph` markdown surfaces render an optional Source Files list inside the Markdown sidebar "Contents" area.
 - **Selection behavior**: selecting a source file updates the active markdown document via `setMarkdownDocument(name, text)` and updates the active marker by comparing `markdownDocumentName`.
 - **Text SSOT**: selecting a Markdown source file must update the editor’s underlying markdown text source (not only Viewer/Presentation state) so Editor/Viewer/Presentation always render the same text.
+
+### Markdown Loader Identity Rule
+
+- Do not require strict `activeDocumentPath === markdownDocumentName` equality.
+- Implementations must treat `sandbox/docs/demo.md` and `demo.md` as the same document identity for the purpose of preferring imported/store markdown text.
+- On fs-load failure for a basename match, fall back to the imported/store markdown so the editor cannot become blank while viewer/presentation still show content.
 
 ### Local Markdown Folder (CRUD) Contract
 

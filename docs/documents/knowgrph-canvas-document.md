@@ -40,6 +40,28 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 | Subgraph Containment | Prevent nodes escaping group bounds | - [ ] Clamp member nodes within group bounds; forbid escape or touching borders |
 | Verification | Make layout and fit changes regression-resistant | - [ ] Cover fit and layout behaviors via bounded tests; forbid brittle dataset-specific assertions |
 | Zoom State | Prevent stale transforms across view toggles | - [ ] Cache zoom state by viewKey across mode/layout/presentation toggles; forbid stale transforms when switching layers/modes/labels/groups |
+| Renderer Exclusivity | Prevent inactive/off mode interference | - [ ] Mount exactly one active renderer/mode at a time (D3 / Flow / 3D / Geospatial); forbid inactive/off layers from rendering, consuming requests, or recalculating in the background |
+
+---
+
+## Renderer Modes (D3 / Flow / 3D / Geospatial)
+
+### Mode Model (SSOT)
+
+- **Canvas render mode**: `canvasRenderMode` selects the primary graph renderer surface:
+  - `2d` (graph)
+  - `3d` (graph)
+- **2D renderer**: `canvas2dRenderer` selects the active 2D implementation:
+  - `d3` (existing `GraphCanvas`)
+  - `flow` (React Flow renderer)
+- **Geospatial Mode**: hosted by `gympgrph` and treated as a mutually exclusive overlay mode.
+
+### Exclusivity Rules (Non-Negotiable)
+
+- When **Geospatial Mode is enabled**, the host forbids graph rendering by unmounting D3/Flow/3D canvases (no hidden background work).
+- When **Flow is active**, D3 is not mounted; when **D3 is active**, Flow is not mounted.
+- Only the active renderer may consume shared requests (e.g. `zoomRequest`) and run expensive effects.
+- Switching modes must preserve selection and avoid cross-mode cache contamination by keying layout/zoom caches with mode + renderer.
 
 ---
 

@@ -12,6 +12,14 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - There must be **one-and-only** Markdown sidebar/TOC structure implementation (used by Viewer/Presentation, and referenced by Editor flows).
 - Shared markdown logic must live in `knowgrph/grph-shared` and be imported via `grph-shared/*` exports (no `grph-shared/src/*` runtime imports).
 
+## Markdown Text SSOT (Editor / Viewer / Presentation)
+
+- Editor, Viewer, and Presentation are three render modes over the **same markdown text source**.
+- Host and extracted UI must keep `markdownDocumentText` hydrated so:
+  - Viewer/Presentation showing content implies Editor must show the same content (no split-brain).
+  - Switching modes never changes the active document selection.
+- Source Files selection may carry a full relative path (e.g. `sandbox/docs/demo.md`) while stored document names may be basenames (e.g. `demo.md`). Loader logic must use **loose basename matching** to decide when to prefer imported/store text and avoid blank editors caused by failed `@fs` loads.
+
 ## Canonical UI Surfaces
 
 ### Markdown Section Header (SSOT)
@@ -61,4 +69,3 @@ Shared markdown logic is contractually owned by `knowgrph/grph-shared`.
 ## Verification (Bounded)
 - `npm --prefix curagrph run typecheck`
 - `npm --prefix knowgrph/canvas run typecheck`
-

@@ -28,7 +28,7 @@ export type GraphDataTableFreezeMode = 'none' | 'label' | 'id';
 
 export type LayoutMode = LayoutMode2d;
 export type NodePosition2d = { x: number; y: number };
-export type LayoutPositionCacheKey = `${string}:${LayoutMode}`;
+export type LayoutPositionCacheKey = string;
 
 export type DocumentSemanticMode = 'document' | 'keyword'
 
@@ -500,9 +500,11 @@ export interface GraphState {
   setSchemaLintActivePath: (examplePath: string | null) => void;
   clearSchemaLintSummary: () => void;
   canvasRenderMode: '2d' | '3d';
+  canvas2dRenderer: 'd3' | 'flow';
   canvasRenderModeLastFree: '2d' | '3d';
   canvasRenderModeIsAuto: boolean;
   setCanvasRenderMode: (m: '2d' | '3d') => void;
+  setCanvas2dRenderer: (id: 'd3' | 'flow') => void;
   resetAll: () => void;
   canvasSnapshotFns: { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns };
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) => void;

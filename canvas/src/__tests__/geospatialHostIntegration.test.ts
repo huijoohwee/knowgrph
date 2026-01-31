@@ -11,9 +11,10 @@ export const testGeospatialOverlayHostNotGatedBySidebar = () => {
   if (text.includes("active={isSidebarOpen && sidePanelTab === 'geo'}")) {
     throw new Error('GeospatialOverlayHost must not be gated by SidePanel expand/collapse')
   }
-  if (!text.includes('geospatialHostMounted')) throw new Error('Expected geospatialHostMounted guard to exist')
   if (!text.includes('geospatialModeEnabled')) throw new Error('Expected geospatialModeEnabled state to exist')
-  if (!text.includes('active={geospatialModeEnabled}')) throw new Error('Expected GeospatialOverlayHost active prop to depend on geospatialModeEnabled')
+  if (!text.includes('geospatialModeEnabled &&')) {
+    throw new Error('Expected GeospatialOverlayHost to mount only when Geospatial Mode is enabled')
+  }
 }
 
 export const testCanvasForbidsGraphWhenGeospatialEnabled = () => {

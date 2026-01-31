@@ -1,5 +1,6 @@
 export function buildZoomViewKey(args: {
   canvasRenderMode: string
+  canvas2dRenderer?: string
   schemaLayoutEngineJson: string
   frontmatterModeEnabled: boolean
   documentSemanticMode: string
@@ -12,6 +13,7 @@ export function buildZoomViewKey(args: {
 }): string {
   return [
     String(args.canvasRenderMode),
+    String(args.canvas2dRenderer || ''),
     String(args.schemaLayoutEngineJson),
     String(args.frontmatterModeEnabled ? 1 : 0),
     String(args.documentSemanticMode),
@@ -23,4 +25,3 @@ export function buildZoomViewKey(args: {
     String(args.schemaGroupsPresentationJson),
   ].join('|')
 }
-

@@ -27,6 +27,7 @@ const GeospatialPanelHostLazy = React.lazy(async () => {
 })
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
+const FlowCanvasLazy = React.lazy(() => import('@/components/FlowCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const BottomPanelLazy = React.lazy(() => import('@/components/BottomPanel'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
@@ -318,10 +319,11 @@ export default function CanvasPage() {
     }
   }, [enableTabSync, graphId, tabId, schema])
 
-  const { requestZoom, canvasRenderMode, requestThreeCamera } = useGraphStore(
+  const { requestZoom, canvasRenderMode, canvas2dRenderer, requestThreeCamera } = useGraphStore(
     useShallow(s => ({
       requestZoom: s.requestZoom,
       canvasRenderMode: s.canvasRenderMode,
+      canvas2dRenderer: s.canvas2dRenderer,
       requestThreeCamera: s.requestThreeCamera,
     })),
   )
@@ -344,7 +346,6 @@ export default function CanvasPage() {
   )
   const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(false)
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
-  const [geospatialHostMounted, setGeospatialHostMounted] = React.useState(false)
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -381,8 +382,11 @@ export default function CanvasPage() {
   }, [documentSemanticMode, frontmatterModeEnabled, graphData, markdownDocumentName, markdownDocumentText])
 
   React.useEffect(() => {
-    if (geospatialModeEnabled) setGeospatialHostMounted(true)
-    if (geospatialModeEnabled && sidePanelTab === 'node') setSidePanelTab('geo')
+    if (geospatialModeEnabled) {
+      if (sidePanelTab === 'node') setSidePanelTab('geo')
+      return
+    }
+    if (sidePanelTab === 'geo') setSidePanelTab('node')
   }, [geospatialModeEnabled, sidePanelTab])
 
   React.useEffect(() => {
@@ -392,16 +396,25 @@ export default function CanvasPage() {
       const detail = e.detail
       const tab =
         detail?.tab === 'chat' ? 'chat' : detail?.tab === 'geo' ? 'geo' : detail?.tab === 'node' ? 'node' : null
-      if (tab) setSidePanelTab(tab)
-      if (tab === 'geo') setGeospatialHostMounted(true)
+      if (tab) {
+        if (tab === 'geo' && !geospatialModeEnabled) {
+          setSidePanelTab('node')
+        } else {
+          setSidePanelTab(tab)
+        }
+      }
       if (detail?.open) setSidebarOpen(true)
     }
     window.addEventListener(SIDE_PANEL_OPEN_EVENT, handler as EventListener)
     return () => {
       window.removeEventListener(SIDE_PANEL_OPEN_EVENT, handler as EventListener)
     }
-  }, [setSidebarOpen])
+  }, [geospatialModeEnabled, setSidebarOpen])
   const makeZoomHandler = (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => () => {
+    if (geospatialModeEnabled) {
+      requestZoom(type)
+      return
+    }
     if (canvasRenderMode === '2d') {
       requestZoom(type)
     } else {
@@ -443,9 +456,9 @@ export default function CanvasPage() {
               <ToastHost />
               <>
                 <React.Suspense fallback={null}>
-                  {geospatialHostMounted && (
+                  {geospatialModeEnabled && (
                     <GeospatialOverlayHostLazy
-                      active={geospatialModeEnabled}
+                      active
                       snapshot={{
                         graphData: gympgrphBridge.graphData,
                         zoomState: gympgrphBridge.zoomState,
@@ -465,26 +478,23 @@ export default function CanvasPage() {
                       }}
                     />
                   )}
-                  <div
-                    className={[
-                      'absolute inset-0 z-[10]',
-                      !geospatialModeEnabled && canvasRenderMode === '2d' ? 'visible' : 'invisible pointer-events-none',
-                    ].filter(Boolean).join(' ')}
-                    aria-hidden={geospatialModeEnabled || canvasRenderMode !== '2d'}
-                  >
-                    <GraphCanvasLazy active={!geospatialModeEnabled && canvasRenderMode === '2d'} />
-                  </div>
-                  <div
-                    className={[
-                      'absolute inset-0 z-[10]',
-                      !geospatialModeEnabled && canvasRenderMode === '3d' ? 'visible' : 'invisible pointer-events-none',
-                    ].filter(Boolean).join(' ')}
-                    aria-hidden={geospatialModeEnabled || canvasRenderMode !== '3d'}
-                  >
-                    <ThreeGraphLazy active={!geospatialModeEnabled && canvasRenderMode === '3d'} />
-                  </div>
+                  {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
+                    <div className="absolute inset-0 z-[10]">
+                      <GraphCanvasLazy active />
+                    </div>
+                  )}
+                  {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'flow' && (
+                    <div className="absolute inset-0 z-[10]">
+                      <FlowCanvasLazy active />
+                    </div>
+                  )}
+                  {!geospatialModeEnabled && canvasRenderMode === '3d' && (
+                    <div className="absolute inset-0 z-[10]">
+                      <ThreeGraphLazy active />
+                    </div>
+                  )}
                   <LaunchSpotlight />
-                  {!geospatialModeEnabled && (
+                  {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
                     <section
                       className="fixed left-3 z-[201] pointer-events-auto"
                       style={{ bottom: 'calc(40px + 12px)' }}
@@ -532,8 +542,11 @@ export default function CanvasPage() {
                       activeTab={sidePanelTab}
                       onTabChange={key => {
                         const next = key === 'chat' ? 'chat' : key === 'geo' ? 'geo' : 'node'
+                        if (next === 'geo' && !geospatialModeEnabled) {
+                          setSidePanelTab('node')
+                          return
+                        }
                         setSidePanelTab(next)
-                        if (next === 'geo') setGeospatialHostMounted(true)
                       }}
                     />
                     <div className="flex-1 overflow-y-auto">
@@ -545,9 +558,9 @@ export default function CanvasPage() {
                           {!geospatialModeEnabled && <NodeEditorLazy />}
                         </div>
                         <div className={sidePanelTab === 'geo' ? 'h-full' : 'hidden'}>
-                          {geospatialHostMounted && (
+                          {geospatialModeEnabled ? (
                             <GeospatialPanelHostLazy
-                              active={sidePanelTab === 'geo'}
+                              active
                               showDatasetsManager={false}
                               snapshot={{
                                 graphData: gympgrphBridge.graphData,
@@ -567,6 +580,12 @@ export default function CanvasPage() {
                                 dismissUiToast: gympgrphBridge.dismissUiToast,
                               }}
                             />
+                          ) : (
+                            <section className="p-3" aria-label="Geospatial Disabled">
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                Enable Geospatial Mode to view this panel.
+                              </p>
+                            </section>
                           )}
                         </div>
                       </React.Suspense>

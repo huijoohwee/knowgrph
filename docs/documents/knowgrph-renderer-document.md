@@ -90,11 +90,16 @@
 - **Optimization**: `useStatsSelection` uses the same memoized schema JSON technique to prevent expensive stats re-calculation when irrelevant schema parts (like colors) change.
 
 ### 5. Preserve Inactive Renderers
-- **Issue**: Switching 2D↔3D previously unmounted the inactive renderer and forced a full scene rebuild on return.
-- **Solution**: Canvas keeps both renderers mounted and toggles visibility while passing an `active` flag to pause work and preserve state.
+### 5. Forbid Inactive Renderer Interference
+- **Issue**: When multiple renderer layers remain mounted (even if visually hidden), they can still run effects (zoomRequest consumption, timers, layout recalculation, MapLibre lifecycle) and interfere with the active mode.
+- **Solution**: Canvas mounts renderers **mutually exclusively** and unmounts inactive layers.
+  - Active mode is the only mounted renderer and the only consumer of shared requests.
+  - Switching renderer must preserve selection and reuse cached layout/zoom state keyed by mode/renderer.
   - UI container: `canvas/src/pages/Canvas.tsx`
-  - 2D renderer entry: `canvas/src/components/GraphCanvas.tsx`
+  - 2D D3 renderer entry: `canvas/src/components/GraphCanvas.tsx`
+  - 2D Flow renderer entry: `canvas/src/components/FlowCanvas.tsx`
   - 3D renderer entry: `canvas/src/features/three/ThreeGraph.tsx`
+  - Geospatial overlay host: `gympgrph` host surface mounted only when Geospatial Mode is enabled.
 
 ### 6. Tick-Path Caching + Force Gating
 - **Issue**: D3 simulation ticks are O(nodes + edges) and can become CPU-bound due to repeated geometry computations and custom-force passes.
