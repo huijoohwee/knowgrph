@@ -41,6 +41,7 @@ import { testMarkdownMermaidCodeBlockFrontmatterParsesAndMerges } from '@/__test
 import { testMarkdownGeoJsonRendersInPresentationAfterPerBlockOverride } from '@/__tests__/markdown/markdownGeoJsonPresentationRender.test'
 import { testMarkdownGeoJsonInlineMapRendersStableContainerDom } from '@/__tests__/markdown/markdownGeoJsonInlineMapStableDom.test'
 import { testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvailable } from '@/__tests__/markdown/markdownGeoJsonRendererUnavailableFix.test'
+import { testMarkdownGeoJsonWithCommentsParsesAndExtracts } from '@/__tests__/markdown/markdownGeoJsonCommentsInterop.test'
 import { testNewSourceFileOpensBottomPanelMarkdownViewer } from '@/__tests__/markdown/newSourceFileOpensViewer.test'
 import { testMarkdownSidebarNewSourceFileButtonCreatesFile } from '@/__tests__/markdown/markdownSourceFilesTreeNewFile.test'
 import { testMarkdownSidebarSourceFilesTreeUsesSemanticDom } from '@/__tests__/markdown/markdownSourceFilesTreeSemanticDom.test'
@@ -98,6 +99,7 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.geojson.presentationRender', testMarkdownGeoJsonRendersInPresentationAfterPerBlockOverride)
   await execTest(results, 'markdown.geojson.inlineMapStableDom', testMarkdownGeoJsonInlineMapRendersStableContainerDom)
   await execTest(results, 'markdown.geojson.rendererUnavailableFix', testMarkdownGeoJsonRenderUpdatesWhenGeoRendererBecomesAvailable)
+  await execTest(results, 'markdown.geojson.comments.tripDemo', testMarkdownGeoJsonWithCommentsParsesAndExtracts)
   await execTest(results, 'markdown.mermaid.codeblockFrontmatter', testMarkdownMermaidCodeBlockFrontmatterParsesAndMerges)
   await execTest(results, 'markdown.annotateDisplay.perCodeBlockToggle', testMarkdownAnnotateDisplay)
   await execTest(results, 'markdown.frontmatter.blocksInViewer', testMarkdownFrontmatterBlocksRenderInViewer)

@@ -880,6 +880,7 @@ export default defineConfig(({ command }) => ({
         path.resolve(__dirname, '..'),
         path.resolve(__dirname, '../../gympgrph'),
         path.resolve(__dirname, '../../curagrph'),
+        path.resolve(__dirname, '../../grph'),
       ]
     }
   },
