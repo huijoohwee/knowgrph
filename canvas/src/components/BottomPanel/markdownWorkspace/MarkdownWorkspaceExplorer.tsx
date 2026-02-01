@@ -21,7 +21,6 @@ export type MarkdownWorkspaceExplorerProps = {
   toggleExpanded: (path: WorkspacePath) => void
   activePath: WorkspacePath | null
   onSelectFile: (path: WorkspacePath) => void
-  onSelectFolder: (path: WorkspacePath) => void
 
   search: string
   setSearch: (next: string) => void
@@ -68,7 +67,6 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     toggleExpanded,
     activePath,
     onSelectFile,
-    onSelectFolder,
     search,
     setSearch,
     sourceFilesCollapsed,
@@ -249,7 +247,6 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
               toggleExpanded={toggleExpanded}
               activePath={activePath}
               onSelectFile={onSelectFile}
-              onSelectFolder={onSelectFolder}
               sourcesByPath={sourcesByPath}
             />
           )}

@@ -616,10 +616,6 @@ export function MarkdownWorkspace() {
         toggleExpanded={toggleExpanded}
         activePath={activePath}
         onSelectFile={onSelectFile}
-        onSelectFolder={path => {
-          setActivePathSafe(path)
-          setBottomPanelCurationView('markdown')
-        }}
         search={search}
         setSearch={setSearch}
         sourceFilesCollapsed={sourceFilesCollapsed}

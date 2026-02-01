@@ -3,6 +3,11 @@ import { MonacoTextEditor, type MonacoTextEditorHandle } from '@/features/monaco
 import MarkdownPreview, { type MarkdownPreviewPresentationApi } from '@/features/markdown/ui/MarkdownPreview'
 import type { HighlightedLineRange } from '@/features/markdown/ui/MarkdownRendererTypes'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
+import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
+import { emitSidePanelOpen } from '@/features/canvas/utils'
+import { setGeospatialModeEnabled } from 'gympgrph'
+import { extractFencedCodeBlocks } from '@/lib/markdown/extractFencedCodeBlocks'
+import { hashText } from '@/features/parsers/hash'
 import { MarkdownWorkspaceToolbar } from '../MarkdownWorkspaceToolbar'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 
@@ -110,6 +115,67 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     [activeDocumentKey, layoutMode],
   )
 
+  const geoDatasetIntegration = React.useMemo(
+    () =>
+      createMarkdownGeoDatasetIntegration({
+        requestOpenGeoPanel: () => {
+          try {
+            setGeospatialModeEnabled(true)
+          } catch {
+            void 0
+          }
+          emitSidePanelOpen({ tab: 'geo', open: true })
+        },
+      }),
+    [],
+  )
+
+  const lastGeoAutoRegisterSigRef = React.useRef<string>('')
+  React.useEffect(() => {
+    const docKey = String(activeDocumentKey || '').trim()
+    if (!docKey) return
+    const text = String(activeText || '')
+    if (!text.trim()) return
+    if (!text.includes('```')) return
+    if (!text.includes('FeatureCollection') && !text.includes('featureCollection')) return
+
+    const sig = `${docKey}:${hashText(text)}`
+    if (lastGeoAutoRegisterSigRef.current === sig) return
+    lastGeoAutoRegisterSigRef.current = sig
+
+    const schedule = (cb: () => void) => {
+      const w = window as unknown as { requestIdleCallback?: (fn: () => void, opts?: { timeout?: number }) => number }
+      if (typeof w.requestIdleCallback === 'function') {
+        w.requestIdleCallback(cb, { timeout: 800 })
+        return
+      }
+      setTimeout(cb, 0)
+    }
+
+    schedule(() => {
+      const blocks = extractFencedCodeBlocks(text)
+      if (!blocks.length) return
+      const candidates = blocks
+        .filter(b => b.lang === 'geojson' || b.lang === 'json')
+        .slice(0, 20)
+      if (!candidates.length) return
+
+      void Promise.all(
+        candidates.map(b =>
+          geoDatasetIntegration.registerGeoJsonFeatureCollection?.({
+            sourceDocumentPath: docKey,
+            codeBlock: {
+              lang: b.lang === 'geojson' ? 'geojson' : 'json',
+              text: b.content,
+              startLine: b.startLine,
+              endLine: b.endLine,
+            },
+          }),
+        ),
+      )
+    })
+  }, [activeDocumentKey, activeText, geoDatasetIntegration])
+
   return (
     <main className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor and Viewer">
       <MarkdownWorkspaceToolbar
@@ -154,6 +220,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             uiPanelTextFontClass={uiPanelTextFontClass}
             uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
             presentationApiRef={presentationApiRef}
+            geoDatasetIntegration={geoDatasetIntegration}
             viewMode={layoutMode === 'slides-gallery' ? 'gallery' : layoutMode === 'presentation' ? 'presentation' : 'viewer'}
             showSidebar={false}
             onShowInEditor={line => revealLineInEditor(line)}
@@ -188,6 +255,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
                 uiPanelTextFontClass={uiPanelTextFontClass}
                 uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
                 presentationApiRef={presentationApiRef}
+                geoDatasetIntegration={geoDatasetIntegration}
                 viewMode="viewer"
                 showSidebar={false}
                 onShowInEditor={line => revealLineInEditor(line)}

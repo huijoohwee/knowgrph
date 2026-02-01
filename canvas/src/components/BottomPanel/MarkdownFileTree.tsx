@@ -40,10 +40,9 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   toggleExpanded: (path: WorkspacePath) => void
   activePath: WorkspacePath | null
   onSelectFile: (path: WorkspacePath) => void
-  onSelectFolder?: (path: WorkspacePath) => void
   sourcesByPath?: WorkspaceSourceIndex | null
 }) {
-  const { entries, expandedPaths, toggleExpanded, activePath, onSelectFile, onSelectFolder, sourcesByPath } = props
+  const { entries, expandedPaths, toggleExpanded, activePath, onSelectFile, sourcesByPath } = props
   const tree = React.useMemo(() => buildTree(entries), [entries])
 
   const renderNode = (node: Node, depth: number) => {
@@ -83,7 +82,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
             onClick={() => {
               if (isFolder) {
                 toggleExpanded(entry.path)
-                onSelectFolder?.(entry.path)
+                return
               } else {
                 onSelectFile(entry.path)
               }

@@ -18,12 +18,14 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Host and extracted UI must keep `markdownDocumentText` hydrated so:
   - Viewer/Presentation showing content implies Editor must show the same content (no split-brain).
   - Switching modes never changes the active document selection.
+- Explorer folder expansion/collapse must not clear or change the active document; only explicit file selection changes the active document.
 - Source Files selection may carry a full relative path (e.g. `sandbox/docs/demo.md`) while stored document names may be basenames (e.g. `demo.md`). Loader logic must use **loose basename matching** to decide when to prefer imported/store text and avoid blank editors caused by failed `@fs` loads.
 
 ## Cross-Surface Sync (Slides / Graph Data / Canvas)
 
 - Slides Gallery, Graph Data, and Canvas interactions are read-only projections over the same active markdown document identity; they must not maintain a separate markdown text source.
 - Any memoized markdown token cache must be isolated by `activeDocumentPath` and must not return cached tokens when the stored document path differs (prevents cross-document bleed and “content disappears” on view switches).
+- When the host supports Geospatial Mode, Markdown preview surfaces must receive `geoDatasetIntegration` so fenced GeoJSON blocks can render previews and register datasets into the geospatial layer.
 
 ## Canonical UI Surfaces
 
