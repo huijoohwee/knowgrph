@@ -1,20 +1,15 @@
 import React from 'react'
-import { SquarePlus } from 'lucide-react'
 import CollapsibleSubsection from '@/features/panels/ui/CollapsibleSubsection'
 import { RightAlignedTooltipInput, SimpleKeyValueRow } from '@/features/panels/ui/KeyTypeValueRow'
-import { ToolbarSourceFilesArea } from '@/features/toolbar/ToolbarSourceFilesArea'
 import type { ExampleConfig, ExampleId } from '@/features/parsers/examplesCatalog'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
-import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
+import { openBottomPanel } from '@/features/bottom-panel/open'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 
 export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onApplyExample: (exampleId: ExampleId) => void }) {
   const { examples, onApplyExample } = props
-  const uiIconScale = useGraphStore(s => s.uiIconScale)
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
-  const iconSizeClass = getIconSizeClass(uiIconScale)
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
 
@@ -32,20 +27,17 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
     setGeospatialDatasetMaxBytes: s.setGeospatialDatasetMaxBytes,
   }))
 
-  const squareIconButtonClassName = [
-    `App-toolbar__btn ${uiPanelKeyValueTextSizeClass}`,
-    UI_THEME_TOKENS.panel.bg,
-    UI_THEME_TOKENS.button.text,
-    UI_THEME_TOKENS.button.hoverBg,
-    UI_THEME_TOKENS.button.square,
-  ].join(' ')
-
-  const handleNewSourceFile = React.useCallback(() => {
-    createNewMarkdownSourceFileAndOpenViewer()
+  const handleOpenMarkdownSourceFiles = React.useCallback(() => {
+    openBottomPanel('curation')
+    useGraphStore.getState().setBottomPanelCurationView('markdown')
+    const active = useMarkdownExplorerStore.getState().activePath
+    if (!active) {
+      useMarkdownExplorerStore.getState().setActivePath('/README.md')
+    }
   }, [])
 
   return (
-    <div className="px-2 py-1">
+    <section className="px-2 py-1" aria-label="Workspace actions">
       <CollapsibleSubsection title="Sample Dataset" defaultCollapsed={true}>
         <div className="px-1">
           <select
@@ -96,27 +88,22 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
         </div>
       </CollapsibleSubsection>
 
-      <CollapsibleSubsection
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span>Source Files</span>
-            <button
-              type="button"
-              className={squareIconButtonClassName}
-              onClick={e => {
-                e.stopPropagation()
-                handleNewSourceFile()
-              }}
-              aria-label="New Source File"
-              title="New Source File"
-            >
-              <SquarePlus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-            </button>
-          </span>
-        }
-      >
-        <ToolbarSourceFilesArea />
+      <CollapsibleSubsection title="Source Files">
+        <section className="px-1" aria-label="Source Files">
+          <p className={`${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+            Source Files are managed in the Bottom Panel Markdown workspace.
+          </p>
+          <button
+            type="button"
+            className={`mt-1 ${UI_THEME_TOKENS.badge.chip} px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            onClick={() => handleOpenMarkdownSourceFiles()}
+            aria-label="Open Source Files"
+            title="Open Source Files"
+          >
+            Open Markdown
+          </button>
+        </section>
       </CollapsibleSubsection>
-    </div>
+    </section>
   )
 }

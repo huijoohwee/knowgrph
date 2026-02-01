@@ -15,16 +15,24 @@
 
 ## Markdown UI (Bottom Panel)
 
-- `LS_KEYS.markdownLayoutMode`
-- `LS_KEYS.markdownWordWrap`
-- `LS_KEYS.markdownViewerWidthMode`
-- `LS_KEYS.markdownPresentationMode`
-- `LS_KEYS.markdownTextHighlight`
-- `LS_KEYS.markdownAnnotateDisplay`
-- `LS_KEYS.markdownSyncScroll`
-- `LS_KEYS.markdownSidebarOpen`
-- `LS_KEYS.markdownCollapsedHeadingIds`
-- `LS_KEYS.jsonMarkdownMode`
+- Explorer Workspace
+  - `LS_KEYS.markdownSidebarWidthPx`
+  - `LS_KEYS.markdownExplorerSourceFilesCollapsed`
+  - `LS_KEYS.markdownExplorerSourceFilesExpandedPaths`
+  - `LS_KEYS.markdownExplorerOutlineCollapsed`
+  - `LS_KEYS.markdownExplorerBacklinksCollapsed`
+
+- Legacy keys (not used by the current Explorer workspace UI)
+  - `LS_KEYS.markdownLayoutMode`
+  - `LS_KEYS.markdownWordWrap`
+  - `LS_KEYS.markdownViewerWidthMode`
+  - `LS_KEYS.markdownPresentationMode`
+  - `LS_KEYS.markdownTextHighlight`
+  - `LS_KEYS.markdownAnnotateDisplay`
+  - `LS_KEYS.markdownSyncScroll`
+  - `LS_KEYS.markdownSidebarOpen`
+  - `LS_KEYS.markdownCollapsedHeadingIds`
+  - `LS_KEYS.jsonMarkdownMode`
 
 ---
 

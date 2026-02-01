@@ -26,8 +26,10 @@
 - Clicking a rendered **POI** selects it:
   - Graph-node POIs select the corresponding graph node in the main canvas (selectionSource aligns with canvas clicks).
   - Dataset POIs show a lightweight selection marker + popup with dataset/feature details.
+  - Dataset POIs may also open a bounded, right-side details panel when the feature carries markdown/media properties (dataset-agnostic; driven by feature metadata).
   - POI clicking follows the interaction gating (Off / Hold Space / Always).
 - Dataset point layers can optionally render as clusters (MapLibre GeoJSON source clustering). Clustering is configuration-driven and dataset-agnostic.
+- When GraphData nodes carry geo fields, the overlay may render both **graph nodes** (points) and **graph edges** (lines) directly on the basemap, as a pure view projection of GraphData (no ingest-time derivation in the overlay).
 - Geo fields are read from `GraphData` node properties when present (the module does not derive geo fields during ingest).
 - “Fit to data” computes a bounded bbox and updates the overlay camera (optional animation).
 - In 3D render mode, the overlay auto-fits to active geo bounds so the globe doesn’t appear “blank” by default.
@@ -62,6 +64,8 @@
 4. User optionally configures interaction/projection/animation settings in the overlay panel UI.
 5. User adds one or more dataset URLs via **Source Files** (Workspace Actions), optionally registering them as Geo layers to render additional map overlay layers.
    - For local Markdown Source Files, embedded fenced `geojson` code blocks (GeoJSON `FeatureCollection`) can also be registered as overlay datasets by extracting and uploading the blocks to the bounded local dataset cache.
+   - For local JSON Source Files, record-style datasets (array-of-records or object-map records) can be converted into a derived GeoJSON Point FeatureCollection and registered as an overlay dataset.
+   - For local Markdown itinerary documents (no embedded GeoJSON), implementations may derive POIs from headings + tokens (e.g. airport codes) and resolve coordinates using a bounded, in-memory index built from already-registered point datasets.
    - In the Bottom Panel Markdown Viewer, fenced `geojson` blocks can render an inline MapLibre preview (Render mode) using the same basemap/style loading behavior as Geospatial Mode.
 6. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
@@ -84,6 +88,7 @@
 
 - Dataset layers are stored as URL references and loaded at runtime.
 - Same-origin dataset URLs may be produced by uploading local GeoJSON text (`/__geo_upload` → `/__geo_local/...`), including when the GeoJSON is embedded inside a local Markdown Source File as a fenced `geojson` block.
+- The local upload handler must enforce a bounded byte limit and should be configurable (for example `KNOWGRPH_LOCAL_GEO_DATASET_MAX_BYTES`) so large-but-common fixtures (≈20MB GeoJSON city datasets) remain supported without unbounded growth.
 - Load is bounded by fetch size/time limits and uses best-effort parsing:
   - **GeoJSON**: Render directly.
   - **Records**: Derive a GeoJSON Point FeatureCollection when coordinate fields are detected.

@@ -13,6 +13,22 @@ export function coerceHttpUrl(value: unknown): string | null {
   }
 }
 
+export function isYouTubeUrl(value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  const raw = unwrapUserProvidedText(value) || value.trim()
+  if (!raw) return false
+  try {
+    const url = new URL(raw)
+    const host = url.hostname.toLowerCase()
+    if (host === 'youtu.be') return true
+    if (host === 'www.youtu.be') return true
+    if (host === 'youtube.com' || host.endsWith('.youtube.com')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 export function coerceFetchUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const raw = unwrapUserProvidedText(value) || value.trim()

@@ -455,7 +455,12 @@ function createPdfAssetsHandler(): import('vite').Connect.NextHandleFunction {
 
 type LocalGeoDatasetEntry = { name: string; text: string; createdAtMs: number }
 const localGeoDatasetStore = new Map<string, LocalGeoDatasetEntry>()
-const LOCAL_GEO_DATASET_MAX_BYTES = 20 * 1024 * 1024
+const LOCAL_GEO_DATASET_MAX_BYTES = (() => {
+  const raw = String(process.env.KNOWGRPH_LOCAL_GEO_DATASET_MAX_BYTES || '').trim()
+  const parsed = raw ? Number(raw) : NaN
+  if (!Number.isFinite(parsed)) return 25 * 1024 * 1024
+  return Math.max(64 * 1024, Math.min(50 * 1024 * 1024, Math.floor(parsed)))
+})()
 const LOCAL_GEO_DATASET_TTL_MS = 30 * 60 * 1000
 
 function pruneLocalGeoDatasetStore(nowMs: number) {

@@ -63,6 +63,7 @@ export const UI_THEME_TOKENS = {
   badge: {
     chip: 'rounded px-1.5 py-0.5 bg-black/5 dark:bg-white/5',
     text: 'text-[10px] font-mono',
+    toolbarGroup: 'rounded bg-black/5 dark:bg-white/5 p-0.5',
   },
   icon: {
     color: 'text-[color:var(--kg-text-secondary)]',

@@ -110,13 +110,17 @@ export interface GraphState {
   localMarkdownFolderHandle: FileSystemDirectoryHandle | null
   localMarkdownFolderName: string | null
   localMarkdownFolderAccessMode: LocalMarkdownFolderAccessMode | null
-  localMarkdownFallbackFilesByPath: Map<string, File> | null
+  localMarkdownFolderCacheId: string | null
   localMarkdownSelectedFolderPath: string | null
   setLocalMarkdownFolderHandle: (
     handle: FileSystemDirectoryHandle | null,
     opts?: { accessMode?: 'fs-access' | 'opfs'; name?: string | null },
   ) => void
-  setLocalMarkdownFallbackFilesByPath: (files: Map<string, File> | null, folderName?: string | null) => void
+  setLocalMarkdownFolderCachedMetadata: (meta: {
+    name: string | null
+    accessMode: LocalMarkdownFolderAccessMode | null
+  }) => void
+  setLocalMarkdownFolderCacheId: (cacheId: string | null, folderName?: string | null) => void
   setLocalMarkdownSelectedFolderPath: (path: string | null) => void
   clearLocalMarkdownFolder: () => void
 

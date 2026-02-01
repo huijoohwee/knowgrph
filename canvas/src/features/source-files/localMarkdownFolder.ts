@@ -4,6 +4,12 @@ import { hashStringToHex } from '@/lib/hash/stringHash'
 import { findNextSourceFileIndex, normalizeParentPath } from './sourceFileNaming'
 import { parseWebkitRelativePath } from './webkitRelativePath'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
+import {
+  cacheMarkdownFolderFromFileInput,
+  getMostRecentCachedMarkdownFolderId,
+  listCachedMarkdownPaths,
+  readCachedMarkdownText,
+} from './markdownFsCache'
 
 const toLogicalPath = (raw: string): string => {
   const p = String(raw || '').trim().replace(/\\/g, '/')
@@ -198,28 +204,36 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
   const store = useGraphStore.getState()
   const root = args?.rootHandle || store.localMarkdownFolderHandle
   if (!root) {
-    const fallback = store.localMarkdownFallbackFilesByPath
-    if (!fallback || fallback.size === 0) return
+    const cacheId = String(store.localMarkdownFolderCacheId || '').trim() || (await getMostRecentCachedMarkdownFolderId())
+    if (!cacheId) return
 
-    const found: Array<{ path: string }> = []
-    for (const key of fallback.keys()) {
-      const p = toLogicalPath(key)
-      if (!p) continue
-      if (!isMarkdownLikeFileName(p)) continue
-      found.push({ path: p })
-    }
-    found.sort((a, b) => a.path.localeCompare(b.path))
+    const paths = await listCachedMarkdownPaths(cacheId)
+    const found: Array<{ path: string }> = paths
+      .map(p => ({ path: toLogicalPath(p) }))
+      .filter(x => !!x.path && isMarkdownLikeFileName(x.path))
+      .sort((a, b) => a.path.localeCompare(b.path))
 
     const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
     const nonLocal = existing.filter(f => f?.source?.kind !== 'local')
-    const nextLocal: SourceFile[] = found.map(({ path }) => ({
-      id: buildLocalSourceFileId(path),
-      name: path,
-      text: '',
-      enabled: true,
-      status: 'idle',
-      source: { kind: 'local', path },
-    }))
+    const existingLocalById = new Map<string, SourceFile>()
+    for (const f of existing) {
+      if (f?.source?.kind !== 'local') continue
+      if (!f.id) continue
+      existingLocalById.set(String(f.id), f)
+    }
+    const nextLocal: SourceFile[] = found.map(({ path }) => {
+      const id = buildLocalSourceFileId(path)
+      const prev = existingLocalById.get(id)
+      return {
+        ...(prev || {}),
+        id,
+        name: path,
+        enabled: prev ? !!prev.enabled : true,
+        status: prev?.status || 'idle',
+        text: prev?.text || '',
+        source: { kind: 'local', path },
+      }
+    })
     store.setSourceFiles([...nextLocal, ...nonLocal])
     return
   }
@@ -247,14 +261,25 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
 
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
   const nonLocal = existing.filter(f => f?.source?.kind !== 'local')
-  const nextLocal: SourceFile[] = found.map(({ path }) => ({
-    id: buildLocalSourceFileId(path),
-    name: path,
-    text: '',
-    enabled: true,
-    status: 'idle',
-    source: { kind: 'local', path },
-  }))
+  const existingLocalById = new Map<string, SourceFile>()
+  for (const f of existing) {
+    if (f?.source?.kind !== 'local') continue
+    if (!f.id) continue
+    existingLocalById.set(String(f.id), f)
+  }
+  const nextLocal: SourceFile[] = found.map(({ path }) => {
+    const id = buildLocalSourceFileId(path)
+    const prev = existingLocalById.get(id)
+    return {
+      ...(prev || {}),
+      id,
+      name: path,
+      enabled: prev ? !!prev.enabled : true,
+      status: prev?.status || 'idle',
+      text: prev?.text || '',
+      source: { kind: 'local', path },
+    }
+  })
   store.setSourceFiles([...nextLocal, ...nonLocal])
 }
 
@@ -317,7 +342,18 @@ export const openLocalMarkdownFolder = async (): Promise<boolean> => {
       }
     }
 
-    store.setLocalMarkdownFallbackFilesByPath(picked.filesByPath, picked.folderName)
+    const inputEntries: Array<{ path: string; text: string }> = []
+    for (const [path, file] of picked.filesByPath.entries()) {
+      const logicalPath = toLogicalPath(path)
+      if (!logicalPath) continue
+      if (!isMarkdownLikeFileName(logicalPath)) continue
+      inputEntries.push({ path: logicalPath, text: await file.text() })
+    }
+    const cached = await cacheMarkdownFolderFromFileInput({
+      folderName: picked.folderName,
+      entries: inputEntries,
+    })
+    store.setLocalMarkdownFolderCacheId(cached.folderId, picked.folderName)
     await syncLocalMarkdownFolderToSourceFiles()
     store.pushUiToast({
       id: 'local-folder-opened-readonly',
@@ -339,12 +375,12 @@ export const readLocalMarkdownFileText = async (relativePath: string): Promise<s
     return file.text()
   }
 
-  const fallback = store.localMarkdownFallbackFilesByPath
-  if (!fallback) throw new Error('No local folder opened')
+  const cacheId = String(store.localMarkdownFolderCacheId || '').trim() || (await getMostRecentCachedMarkdownFolderId())
+  if (!cacheId) throw new Error('No local folder opened')
   const key = toLogicalPath(relativePath)
-  const f = fallback.get(key)
-  if (!f) throw new Error('Missing file in selected folder')
-  return f.text()
+  const cached = await readCachedMarkdownText(cacheId, key)
+  if (cached == null) throw new Error('Missing file in selected folder')
+  return cached
 }
 
 export const writeLocalMarkdownFileText = async (relativePath: string, text: string): Promise<void> => {

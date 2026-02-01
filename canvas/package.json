@@ -34,6 +34,7 @@
     "d3": "^7.9.0",
     "dagre": "^0.8.5",
     "dayjs": "^1.11.19",
+    "dexie": "^4.0.2",
     "elkjs": "^0.10.0",
     "gympgrph": "file:../../gympgrph",
     "highlight.js": "^11.11.1",

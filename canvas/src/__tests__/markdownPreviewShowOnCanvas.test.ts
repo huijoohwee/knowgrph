@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -271,6 +272,191 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
       throw new Error('context menu button not found inside markdown preview root')
     }
 
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMarkdownPreviewTokenCacheDoesNotCrossDocumentPath() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+  try {
+    const anyWindow = dom.window as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+    }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    const doc = dom.window.document
+    const markdownA = ['# A', '', 'alpha'].join('\n')
+    const markdownB = ['# B', '', 'beta'].join('\n')
+
+    const { tokens: tokensA, meta: metaA, startLineOffset: startLineOffsetA } = lexMarkdown(markdownA)
+    if (!tokensA || tokensA.length === 0) throw new Error('expected tokens for markdownA')
+
+    const keyB = buildMarkdownTokensKey(markdownB)
+    useGraphStore.getState().setMarkdownTokens({
+      tokens: tokensA,
+      path: 'docA.md',
+      key: keyB,
+      meta: metaA,
+      startLineOffset: startLineOffsetA,
+    })
+
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: markdownB,
+        activeDocumentPath: 'docB.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans text-xs',
+        uiPanelMonospaceTextClass: 'font-mono text-xs',
+        previewOverlayScope: 'viewport',
+        previewOverlayPortalTarget: null,
+        previewScrollable: true,
+      } as never),
+    )
+
+    const tick = (label: string) =>
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 750) as unknown as number
+        const raf = anyWindow.requestAnimationFrame
+        if (typeof raf === 'function') {
+          raf(() => {
+            clearTimeout(timer)
+            resolve()
+          })
+          return
+        }
+        setTimeout(() => {
+          clearTimeout(timer)
+          resolve()
+        }, 0)
+      })
+    await tick('mount')
+
+    const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
+    if (!rootEl) throw new Error('markdown preview root not found')
+
+    const text = String(rootEl.textContent || '')
+    if (!text.includes('B')) {
+      throw new Error(`expected markdownB content to render, got: ${text.slice(0, 80)}`)
+    }
+    if (text.includes('A')) {
+      throw new Error(`expected markdownA token cache not to be used, got: ${text.slice(0, 80)}`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+  try {
+    const anyWindow = dom.window as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+    }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+
+    const tick = (label: string) =>
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 750) as unknown as number
+        const raf = anyWindow.requestAnimationFrame
+        if (typeof raf === 'function') {
+          raf(() => {
+            clearTimeout(timer)
+            resolve()
+          })
+          return
+        }
+        setTimeout(() => {
+          clearTimeout(timer)
+          resolve()
+        }, 0)
+      })
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: ['# A', '', 'alpha'].join('\n'),
+        activeDocumentPath: 'docA.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans text-xs',
+        uiPanelMonospaceTextClass: 'font-mono text-xs',
+        previewOverlayScope: 'viewport',
+        previewOverlayPortalTarget: null,
+        previewScrollable: true,
+        viewMode: 'viewer',
+      } as never),
+    )
+    await tick('mount-A')
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: ['# B', '', 'beta'].join('\n'),
+        activeDocumentPath: 'docB.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: true,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans text-xs',
+        uiPanelMonospaceTextClass: 'font-mono text-xs',
+        previewOverlayScope: 'viewport',
+        previewOverlayPortalTarget: null,
+        previewScrollable: true,
+        viewMode: 'presentation',
+      } as never),
+    )
+    await tick('mount-B')
+
+    const rootEl =
+      (doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null) ||
+      (doc.querySelector('[data-testid="markdown-preview"]') as HTMLDivElement | null) ||
+      (container as unknown as HTMLDivElement)
+    const text = String(rootEl.textContent || '')
+    if (!text.includes('B')) {
+      throw new Error(`expected B content after view switch, got: ${text.slice(0, 80)}`)
+    }
+    if (text.includes('A')) {
+      throw new Error(`expected A content not to persist after view switch, got: ${text.slice(0, 80)}`)
+    }
   } finally {
     try {
       root?.unmount()

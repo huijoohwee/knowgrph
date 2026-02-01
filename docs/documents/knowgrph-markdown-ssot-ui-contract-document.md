@@ -1,10 +1,10 @@
 # Knowgrph Markdown SSOT UI Contract
 
 ## Purpose
-This document defines the Single Source of Truth (SSOT) contract for Markdown UI surfaces so Markdown Editor, Viewer, and Presentation share the same header, sidebar, TOC structure, typography, and shared utility behavior.
+This document defines the Single Source of Truth (SSOT) contract for Markdown UI surfaces so Markdown Editor, Viewer, and Presentation share the same header, sidebar, TOC structure, typography, and shared utility behavior, and so secondary surfaces (Slides Gallery, Graph Data, Canvas) never drift from the active document’s text identity.
 
 ## Scope
-- **In scope**: Bottom Panel Markdown header, Contents sidebar (TOC + Source files + Backlinks), typography ladder, shared markdown utilities used by UI and parsers.
+- **In scope**: Bottom Panel Markdown header, Explorer sidebar (Source Files + Outline + Backlinks), typography ladder, shared markdown utilities used by UI and parsers.
 - **Out of scope**: Canvas graph rendering, parser schema details (covered in the Markdown processing and schema documents).
 
 ## SSOT Rule (Non-Negotiable)
@@ -20,30 +20,47 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - Switching modes never changes the active document selection.
 - Source Files selection may carry a full relative path (e.g. `sandbox/docs/demo.md`) while stored document names may be basenames (e.g. `demo.md`). Loader logic must use **loose basename matching** to decide when to prefer imported/store text and avoid blank editors caused by failed `@fs` loads.
 
+## Cross-Surface Sync (Slides / Graph Data / Canvas)
+
+- Slides Gallery, Graph Data, and Canvas interactions are read-only projections over the same active markdown document identity; they must not maintain a separate markdown text source.
+- Any memoized markdown token cache must be isolated by `activeDocumentPath` and must not return cached tokens when the stored document path differs (prevents cross-document bleed and “content disappears” on view switches).
+
 ## Canonical UI Surfaces
 
 ### Markdown Section Header (SSOT)
-**Contract**: The Markdown section header is the only place that may host cross-document actions (e.g., Source Files actions) and editor workflow actions (Apply/Save).
+**Contract**: The Markdown section header is the canonical place for cross-document actions (Source Files ingest/export/save/apply) and editor workflow actions (Apply/Save).
 
 - **Canonical implementation**: `curagrph/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` (`ViewerHeaderRow`).
 - **Required behavior**:
   - Same header structure across Editor/Viewer/Presentation; only state changes (enabled/disabled) are allowed.
   - `Apply changes`, `Save`, `Save As...` are always present but disabled when not in editing mode.
   - `Source files` actions (`Open folder`, `Refresh files`, `New folder`, `New source file`) render **in the header**, immediately left of `Apply changes`.
+  - The Explorer sidebar may also surface icon-only Source Files actions for VS Code-like parity, but must reuse the same underlying integrations (no duplicated logic paths).
 
-### Contents Sidebar / TOC (SSOT)
-**Contract**: The Contents sidebar uses a stable, semantic DOM with SSOT typography and must not duplicate action menus.
+### Explorer Sidebar (SSOT)
+**Contract**: The Explorer sidebar uses a stable, semantic DOM with SSOT typography; it owns the only Source Files tree and the only Outline (TOC) renderer.
 
 - **Canonical container**: `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx`.
 - **Canonical frame**: `curagrph/src/features/markdown/ui/MarkdownSidebarFrame.tsx`.
-  - Renders the sidebar `<aside>` and the top `Contents` header.
+  - Renders the sidebar `<aside>` and the top `Explorer` header.
 - **Canonical section wrapper**: `curagrph/src/features/markdown/ui/MarkdownSidebarSection.tsx`.
   - Renders section title (`h3`) and section body.
-  - **Rule**: section headers are typography-only (no `menu` actions).
+  - **Rule**: section headers are typography-only except Source Files (may include an action menu for Explorer parity).
 - **Canonical sections**:
-  - Contents: `curagrph/src/features/markdown/ui/MarkdownTableOfContents.tsx`
   - Source files: `curagrph/src/features/markdown/ui/MarkdownSourceFilesPanel.tsx`
+  - Outline (TOC): `curagrph/src/features/markdown/ui/MarkdownTableOfContents.tsx`
   - Backlinks: `curagrph/src/features/markdown/ui/MarkdownBacklinksPanel.tsx`
+
+### Explorer Persistence (SSOT)
+- **Shared state hook**: `curagrph/src/features/markdown/ui/useMarkdownExplorerControls.ts`
+  - Centralizes sidebar-open + collapsed-heading persistence across Viewer and BottomPanel (no duplicated local fallbacks).
+- **LocalStorage (UI state)**: keys are SSOT in `knowgrph/canvas/src/lib/config.ls.ts`.
+  - Sidebar: `LS_KEYS.markdownSidebarOpen`, `LS_KEYS.markdownSidebarWidthPx`
+  - Explorer sections: `LS_KEYS.markdownExplorerSourceFilesCollapsed`, `LS_KEYS.markdownExplorerOutlineCollapsed`, `LS_KEYS.markdownExplorerBacklinksCollapsed`
+  - Source Files tree: `LS_KEYS.markdownExplorerSourceFilesExpandedPaths`
+- **Dexie (workspace + cached sources)**: `knowgrph/canvas/src/features/source-files/sourceFilesDb.ts`
+  - DB name: `kg:source-files`
+  - Persists ordered Source Files payloads plus minimal workspace metadata (folder name, access mode, selected folder path).
 
 ## Typography Contract
 - Sidebar labels use `uiPanelMicroLabelTextSizeClass` (default `text-[10px]`) and the shared builder:
@@ -64,7 +81,7 @@ Shared markdown logic is contractually owned by `knowgrph/grph-shared`.
 
 ## Removal Policy (Legacy Cleanup)
 - Remove or block any Viewer-only or Presentation-only header/sidebar variants.
-- If a legacy action menu or duplicate title styling appears in the sidebar, it is a contract violation and must be deleted (not conditionally hidden).
+- If a duplicate TOC renderer appears (e.g., nested inside Source Files rows), it is a contract violation and must be deleted (not conditionally hidden).
 
 ## Verification (Bounded)
 - `npm --prefix curagrph run typecheck`

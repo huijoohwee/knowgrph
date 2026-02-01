@@ -14,7 +14,9 @@
 
 ## Architecture
 
-**UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → collapsible subsections (**Sample Dataset**, **Dataset fetch limits**, **Source Files**) → Source Files header "New Source File" (icon) → creates empty `.md` + selects it → opens Bottom Panel Curation → Markdown Viewer (viewer mode) → left-side "Contents" panel (Source Files tree + TOC)
+**UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → collapsible subsections (**Sample Dataset**, **Dataset fetch limits**, **Source Files**) → Source Files header "New Source File" (icon) → creates empty `.md` + selects it → opens Bottom Panel Curation → Markdown Viewer/Editor → left-side **Explorer** sidebar with sections (**Source Files**, **Outline**, **Backlinks**).
+
+**Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
 
 **Supported Formats**: Local import/export supports `.md .markdown .txt .json .jsonld .csv .html .htm .yaml .yml`, URL sources via `https://…`, and YouTube imports via the YouTube importer.
 
@@ -61,13 +63,13 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant UI as ToolbarSourceFilesArea
+  participant UI as BottomPanel Markdown Toolbar
   participant FLOW as runImportFlow
   participant PAR as loadGraphDataFromTextViaParser
   participant G as useActiveGraphData
   participant C as GraphCanvas
 
-  U->>UI: click "Import" (row)
+  U->>UI: Import local/URL (active file)
   UI->>FLOW: runImportFlow({ nameForParse, textForParse })
   FLOW->>PAR: loadGraphDataFromTextViaParser(nameForParse,textForParse)
   C->>G: useActiveGraphData()
@@ -77,17 +79,15 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant UI as ToolbarSourceFilesArea
+  participant UI as BottomPanel Markdown (Geo integration)
   participant M as gympgrph.addGeospatialDatasetUrls
   participant H as GeospatialOverlayHost
   participant O as GeospatialOverlay
   participant L as loadDatasetFeatureCollection
 
-  alt local .geojson OR embedded GeoJSON blocks
+  alt embedded GeoJSON blocks in Markdown
     UI->>UI: POST /__geo_upload (bounded)
     UI->>M: addGeospatialDatasetUrls([{label,url:"/__geo_local/...",format:"geojson"}])
-  else url-based dataset
-    UI->>M: addGeospatialDatasetUrls([{label,url,format}])
   end
   H->>O: render overlay when active
   O->>L: loadDatasetFeatureCollection(dataset)
@@ -97,10 +97,12 @@ sequenceDiagram
 
 - **Workspace Actions (Knowgrph)**:
   - `knowgrph/canvas/src/features/workspace-actions/WorkspaceActionsPanel.tsx` renders Step 3 subsections (Dataset fetch limits + Source Files).
-  - `knowgrph/canvas/src/features/toolbar/ToolbarSourceFilesArea.tsx` implements the Source Files table (row actions + parsing/export/clear).
+- **Source Files Ingest (Knowgrph)**:
+  - `knowgrph/canvas/src/features/source-files/sourceFilesIngestIntegration.ts` implements Source Files import/export/clear + parse/apply helpers used by the BottomPanel Markdown toolbar.
 - **Curation UI (Curagrph)**:
-  - `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders Source Files inside the "Contents" navigation.
+  - `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders an Explorer-like sidebar (Source Files + Outline + Backlinks).
   - `curagrph/src/components/BottomPanel/BottomPanelMarkdownSection.tsx` wires selection to `setMarkdownDocument(...)`.
+  - `curagrph/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` renders the Source Files ingest controls in the Markdown toolbar.
 - **Geospatial Mode (Gympgrph)**:
   - `gympgrph/src/geospatialDatasets.ts` exposes a lightweight dataset-add API for hosts.
   - `gympgrph/src/hooks/store/geospatialSlice.ts` persists `mapOverlayDatasets` under `kg:ui:geospatial:*` keys.
@@ -115,10 +117,7 @@ sequenceDiagram
 
 **Decision Logic**:
 
-- If the user enables the Geo Layer checkbox on a URL row, the URL is registered as a dataset reference using `gympgrph` and rendered as an overlay when Geospatial mode is active.
-- Dataset labels are derived from the row label when not explicitly provided.
-- When a newly imported `.geojson` looks geo-capable, the Geo Layer flag is auto-enabled so the row is ready for overlay use.
-- When a local Markdown Source File contains fenced `geojson` blocks that parse as GeoJSON (FeatureCollection/Feature/Geometry), enabling the Geo Layer checkbox extracts and uploads each block to the local dataset cache (`/__geo_upload`) and registers them as overlay datasets.
+- When a local Markdown Source File contains fenced `geojson` blocks that parse as GeoJSON (FeatureCollection/Feature/Geometry), the renderer integration uploads each block to the local dataset cache (`/__geo_upload`) and registers them as overlay datasets.
 
 ### Parse Routing (Source Files → Parse → Graph)
 
@@ -139,5 +138,5 @@ sequenceDiagram
 |---|---|---|---|---|---|---|---|
 | Utilities | Centralize parsing | - [ ] Reuse URL normalization; forbid ad-hoc GitHub URL handling | `knowgrph/canvas/src/lib/url.ts` | `normalizeGitHubBlobLikeUrl` | URL | URL | Normalize blob-like URLs to the canonical fetch URL when possible |
 | Fetch | Bound remote work | - [ ] Bound fetch; forbid indefinite streaming | `knowgrph/canvas/src/lib/net/fetchRemoteText.ts` | `fetchRemoteTextDetailed` | URL | `{ ok,text }` | Timeout + max-bytes guard |
-| Curation UI | Preserve discoverability | - [ ] Show Source Files in Contents; forbid hidden state | `curagrph/.../MarkdownPanelLayout.tsx` | `MarkdownPanelLayout` | `sourceFiles` | Contents nav list | Render list inside TOC nav so it remains visible even without headings |
+| Curation UI | Preserve discoverability | - [ ] Show Source Files/Outline/Backlinks in Explorer; forbid hidden state | `curagrph/.../MarkdownPanelLayout.tsx` | `MarkdownPanelLayout` | `sourceFiles`, `tokens` | Explorer sidebar | Render Source Files tree + Outline (TOC) + Backlinks as stable sections |
 | Geospatial | Avoid duplicate import surfaces | - [ ] Consolidate dataset import; forbid conflicting UIs | `gympgrph/src/features/geospatial/GeospatialPanel.tsx` | `GeospatialPanel` | Dataset list | Dataset list UI | Geo panel does not provide dataset-add inputs; adding is consolidated into Source Files import |

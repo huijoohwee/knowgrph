@@ -13,3 +13,11 @@ export const testWebkitRelativePathFallsBackToFileName = () => {
   if (parsed.folderName !== null) throw new Error('expected folderName null')
   if (parsed.rawRelativePath !== 'readme.md') throw new Error(`expected rawRelativePath readme.md, got ${String(parsed.rawRelativePath)}`)
 }
+
+export const testWebkitRelativePathDoesNotTreatFileNameAsFolder = () => {
+  const parsed = parseWebkitRelativePath('readme.md', 'readme.md')
+  if (parsed.folderName !== null) throw new Error(`expected folderName null, got ${String(parsed.folderName)}`)
+  if (parsed.rawRelativePath !== 'readme.md') {
+    throw new Error(`expected rawRelativePath readme.md, got ${String(parsed.rawRelativePath)}`)
+  }
+}

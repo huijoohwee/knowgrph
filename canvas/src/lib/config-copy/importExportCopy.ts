@@ -133,4 +133,10 @@ export const SOURCE_FILES_COPY = {
   urlPlaceholder: 'https://… (or YouTube)',
   geoLayerEmbeddedGeojsonNotFound: 'Geo layer enable failed: no embedded GeoJSON FeatureCollection blocks found in the Markdown file',
   geoLayerEmbeddedGeojsonUploadFailed: 'Geo layer enable failed: unable to upload embedded GeoJSON to local dataset cache',
+  geoLayerJsonNoPointsDerived:
+    'Geo layer enable failed: no GeoJSON parsed and no record points derived (expected fields like lat/lng, latitude/longitude, geo.lat/geo.lng, location.lat/location.lng, or geometry.coordinates).',
+  geoLayerMarkdownNoPoisResolved:
+    'Geo layer enable failed: no itinerary POIs resolved. Enable a geospatial reference dataset (airports/cities) or add embedded GeoJSON blocks.',
+  geoLayerLocalPathFetchFailed:
+    'Geo layer enable failed: unable to read local file path via dev server. Use the file picker import instead.',
 } as const

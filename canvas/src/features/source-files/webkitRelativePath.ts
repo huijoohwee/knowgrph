@@ -6,7 +6,10 @@ export const parseWebkitRelativePath = (
     .trim()
     .replace(/\\/g, '/')
   const parts = rel.split('/').filter(Boolean)
-  const folderName = parts.length > 0 ? String(parts[0] || '').trim() || null : null
-  const rawRelativePath = parts.length > 1 ? parts.slice(1).join('/') : String(fallbackFileName || '').trim()
+  const hasFolder = parts.length >= 2
+  const folderName = hasFolder ? String(parts[0] || '').trim() || null : null
+  const rawRelativePath = hasFolder
+    ? parts.slice(1).join('/')
+    : (String(parts[0] || '').trim() || String(fallbackFileName || '').trim())
   return { folderName, rawRelativePath }
 }

@@ -35,7 +35,6 @@ import {
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -372,13 +371,6 @@ export default function PreviewPanelView() {
         selectNode(item.nodeId)
         openBottomPanel('curation')
         setBottomPanelCurationView('markdown')
-        if (typeof window !== 'undefined') {
-          try {
-            window.dispatchEvent(new CustomEvent(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT))
-          } catch {
-            void 0
-          }
-        }
       } catch {
         void 0
       }

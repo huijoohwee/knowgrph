@@ -15,6 +15,7 @@ import { GEOSPATIAL_MODE_CHANGED_EVENT, type GeospatialModeChangedDetail } from 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
+import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 
 const GeospatialOverlayHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -433,6 +434,7 @@ export default function CanvasPage() {
         :root { --panel-bg-rgb: 255, 255, 255; }
         .dark { --panel-bg-rgb: 13, 17, 23; }
       `}</style>
+      <SourceFilesPersistenceBootstrap />
       <div className="flex h-screen w-screen flex-col overflow-hidden bg-white dark:bg-[#0d1117] transition-colors duration-300">
       <main className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden">

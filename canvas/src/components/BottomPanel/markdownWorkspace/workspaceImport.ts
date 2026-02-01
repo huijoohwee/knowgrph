@@ -1,0 +1,419 @@
+import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
+import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativePath'
+import { deriveFilenameFromUrl, isYouTubeUrl, normalizeGitHubBlobLikeUrl, unwrapUserProvidedText } from '@/lib/url'
+import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
+import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
+import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
+
+export type WorkspaceImportResult = {
+  createdPaths: WorkspacePath[]
+  sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>
+  skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }>
+  failed: Array<{ name: string; error: string }>
+}
+
+export type WorkspaceUrlContent = {
+  normalizedUrl: string
+  name: string
+  text: string
+}
+
+export type WorkspaceImportProgress = {
+  phase: 'listing' | 'fetching' | 'writing'
+  current: number
+  total?: number
+  label?: string
+}
+
+function toFileArray(files: FileList | ReadonlyArray<File> | null): File[] {
+  if (!files) return []
+  try {
+    return Array.from(files as ArrayLike<File>)
+  } catch {
+    return []
+  }
+}
+
+function isPdfFile(file: File): boolean {
+  const lower = String(file.name || '').toLowerCase()
+  if (lower.endsWith('.pdf')) return true
+  return file.type === 'application/pdf'
+}
+
+async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
+  const converted = await convertPdfFileToMarkdown(args.file)
+  if (!converted) throw new Error('PDF import failed')
+  if (converted.ok === false) throw new Error(converted.error || 'PDF import failed')
+  return args.fs.createFile({ parentPath: args.parentPath, name: String(converted.name || 'document.md'), text: String(converted.markdown || '') })
+}
+
+async function importTextFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
+  const text = await args.file.text()
+  return args.fs.createFile({ parentPath: args.parentPath, name: args.file.name, text })
+}
+
+const WORKSPACE_IMPORT_EXTS = (() => {
+  const exts = new Set<string>()
+  for (const ext of SOURCE_FILES_FORMATS.import) exts.add(String(ext || '').toLowerCase())
+  exts.add('.mdx')
+  return exts
+})()
+
+const WORKSPACE_GITHUB_IMPORT_TEXT_EXTS = (() => {
+  const exts = new Set<string>()
+  for (const ext of SOURCE_FILES_FORMATS.importLocalText) exts.add(String(ext || '').toLowerCase())
+  exts.add('.mdx')
+  return exts
+})()
+
+function isSupportedWorkspaceImportFile(file: File): boolean {
+  const name = String(file.name || '').trim()
+  if (!name) return false
+  const lower = name.toLowerCase()
+  const dot = lower.lastIndexOf('.')
+  const ext = dot > 0 ? lower.slice(dot) : ''
+  if (!ext || !ext.startsWith('.')) return false
+  return WORKSPACE_IMPORT_EXTS.has(ext)
+}
+
+export async function importWorkspaceLocalFiles(args: {
+  fs: WorkspaceFs
+  files: FileList | ReadonlyArray<File> | null
+  parentPath?: WorkspacePath
+}): Promise<WorkspaceImportResult> {
+  const files = toFileArray(args.files)
+  if (files.length === 0) return { createdPaths: [], sources: [], skipped: [], failed: [] }
+  const parentPath = args.parentPath || WORKSPACE_ROOT_PATH
+  const createdPaths: WorkspacePath[] = []
+  const sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }> = []
+  const skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }> = []
+  const failed: Array<{ name: string; error: string }> = []
+
+  for (const file of files) {
+    const name = String(file?.name || '').trim()
+    if (!name) {
+      skipped.push({ name: '', reason: 'missing-name' })
+      continue
+    }
+    if (!isSupportedWorkspaceImportFile(file)) {
+      skipped.push({ name, reason: 'unsupported' })
+      continue
+    }
+    try {
+      const createdPath = isPdfFile(file)
+        ? await importPdfFile({ fs: args.fs, file, parentPath })
+        : await importTextFile({ fs: args.fs, file, parentPath })
+      const normalized = normalizeWorkspacePath(createdPath)
+      createdPaths.push(normalized)
+      sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
+    } catch (e) {
+      failed.push({ name, error: String((e as { message?: unknown })?.message ?? e) })
+    }
+  }
+
+  return { createdPaths, sources, skipped, failed }
+}
+
+export async function importWorkspaceLocalFolder(args: {
+  fs: WorkspaceFs
+  files: FileList | ReadonlyArray<File> | null
+}): Promise<WorkspaceImportResult> {
+  const list = toFileArray(args.files)
+  if (list.length === 0) return { createdPaths: [], sources: [], skipped: [], failed: [] }
+  const folderMap = new Map<string, WorkspacePath>()
+  const createdPaths: WorkspacePath[] = []
+  const sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }> = []
+  const skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }> = []
+  const failed: Array<{ name: string; error: string }> = []
+
+  const ensureFolder = async (parent: WorkspacePath, name: string, key: string) => {
+    const existing = folderMap.get(key)
+    if (existing) return existing
+    const created = await args.fs.createFolder({ parentPath: parent, name })
+    const normalized = normalizeWorkspacePath(created)
+    folderMap.set(key, normalized)
+    return normalized
+  }
+
+  for (const file of list) {
+    const name = String(file?.name || '').trim()
+    if (!name) {
+      skipped.push({ name: '', reason: 'missing-name' })
+      continue
+    }
+    if (!isSupportedWorkspaceImportFile(file)) {
+      skipped.push({ name, reason: 'unsupported' })
+      continue
+    }
+    const rel = String((file as unknown as { webkitRelativePath?: unknown }).webkitRelativePath || '').trim()
+    const parsed = parseWebkitRelativePath(rel, file.name)
+    const parts = parsed.folderName
+      ? [parsed.folderName, ...String(parsed.rawRelativePath || '').split('/').filter(Boolean)]
+      : String(parsed.rawRelativePath || '').split('/').filter(Boolean)
+    if (parts.length === 0) continue
+    let parentPath: WorkspacePath = WORKSPACE_ROOT_PATH
+    let relKey = ''
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const seg = String(parts[i] || '').trim()
+      if (!seg) continue
+      relKey = relKey ? `${relKey}/${seg}` : seg
+      parentPath = await ensureFolder(parentPath, seg, relKey)
+    }
+    try {
+      const createdPath = isPdfFile(file)
+        ? await importPdfFile({ fs: args.fs, file, parentPath })
+        : await importTextFile({ fs: args.fs, file, parentPath })
+      const normalized = normalizeWorkspacePath(createdPath)
+      createdPaths.push(normalized)
+      sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
+    } catch (e) {
+      failed.push({ name, error: String((e as { message?: unknown })?.message ?? e) })
+    }
+  }
+
+  return { createdPaths, sources, skipped, failed }
+}
+
+export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<WorkspaceUrlContent> {
+  const rawUrl = unwrapUserProvidedText(String(urlRaw || '').trim()) || String(urlRaw || '').trim()
+  if (!rawUrl) throw new Error('Missing URL')
+
+  const normalizedUrl = normalizeGitHubBlobLikeUrl(rawUrl) || rawUrl
+
+  const isPdf = /\.pdf(\?|#|$)/i.test(normalizedUrl)
+  if (isYouTubeUrl(normalizedUrl)) {
+    const converted = await fetchYouTubeTranscriptMarkdown(normalizedUrl)
+    if (!converted) throw new Error('YouTube import failed')
+    if (converted.ok === false) throw new Error(converted.error || 'YouTube import failed')
+    return {
+      normalizedUrl,
+      name: String(converted.name || 'youtube-transcript.md'),
+      text: String(converted.markdown || ''),
+    }
+  }
+
+  if (isPdf) {
+    const converted = await convertPdfUrlToMarkdown(normalizedUrl)
+    if (!converted) throw new Error('PDF import failed')
+    if (converted.ok === false) throw new Error(converted.error || 'PDF import failed')
+    return {
+      normalizedUrl,
+      name: String(converted.name || 'document.md'),
+      text: String(converted.markdown || ''),
+    }
+  }
+
+  const res = await fetchRemoteTextDetailed(normalizedUrl, { preflightHead: true, preferProxy: true })
+  if (!res.ok) throw new Error(describeFetchRemoteTextFailure(res as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure))
+  const text = res.text
+
+  const fallbackExt = (() => {
+    const urlLower = normalizedUrl.toLowerCase()
+    if (urlLower.endsWith('.md') || urlLower.endsWith('.markdown') || urlLower.endsWith('.mdx')) return '.md'
+    if (urlLower.endsWith('.json') || urlLower.endsWith('.jsonld') || urlLower.endsWith('.geojson')) return '.json'
+    if (urlLower.endsWith('.csv')) return '.csv'
+    if (urlLower.endsWith('.yaml') || urlLower.endsWith('.yml')) return '.yaml'
+    if (urlLower.endsWith('.html') || urlLower.endsWith('.htm')) return '.html'
+    return '.txt'
+  })()
+
+  const fallback = `import${fallbackExt}`
+  const derived = deriveFilenameFromUrl(normalizedUrl, fallback)
+  const name = derived.includes('.') ? derived : `${derived}${fallbackExt}`
+  return { normalizedUrl, name, text }
+}
+
+type GitHubRepoRef = {
+  owner: string
+  repo: string
+  ref: string | null
+  subdirPath: string
+}
+
+const parseGitHubRepoUrl = (urlRaw: string): GitHubRepoRef | null => {
+  try {
+    const url = new URL(urlRaw)
+    if (url.hostname !== 'github.com') return null
+    const parts = url.pathname.split('/').filter(Boolean)
+    const owner = String(parts[0] || '').trim()
+    const repo = String(parts[1] || '').trim()
+    if (!owner || !repo) return null
+    if (parts[2] === 'tree') {
+      const ref = String(parts[3] || '').trim()
+      if (!ref) return null
+      const subdirPath = parts.slice(4).join('/')
+      return { owner, repo, ref, subdirPath }
+    }
+    if (parts.length === 2) {
+      return { owner, repo, ref: null, subdirPath: '' }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+const encodeGitHubContentsPath = (path: string) => {
+  const trimmed = String(path || '').replace(/^\/+/, '').replace(/\/+$/, '')
+  if (!trimmed) return ''
+  return trimmed
+    .split('/')
+    .filter(Boolean)
+    .map(seg => encodeURIComponent(seg))
+    .join('/')
+}
+
+const fetchJson = async <T,>(url: string): Promise<T> => {
+  const res = await fetchRemoteTextDetailed(url, { preferProxy: true, preflightHead: false, maxBytes: 2_000_000 })
+  if (!res.ok) {
+    throw new Error(describeFetchRemoteTextFailure(res as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure))
+  }
+  try {
+    return JSON.parse(res.text) as T
+  } catch {
+    throw new Error('Invalid JSON response')
+  }
+}
+
+const resolveGitHubDefaultBranch = async (args: { owner: string; repo: string }): Promise<string> => {
+  const url = `https://api.github.com/repos/${encodeURIComponent(args.owner)}/${encodeURIComponent(args.repo)}`
+  const json = await fetchJson<{ default_branch?: unknown }>(url)
+  const branch = typeof json.default_branch === 'string' ? json.default_branch.trim() : ''
+  return branch || 'main'
+}
+
+type GitHubContentItem = {
+  type: 'file' | 'dir' | string
+  path?: unknown
+  name?: unknown
+  download_url?: unknown
+  url?: unknown
+}
+
+const listGitHubFolderContents = async (args: { owner: string; repo: string; ref: string; folderPath: string }) => {
+  const encodedPath = encodeGitHubContentsPath(args.folderPath)
+  const pathPart = encodedPath ? `/${encodedPath}` : ''
+  const url = `https://api.github.com/repos/${encodeURIComponent(args.owner)}/${encodeURIComponent(args.repo)}/contents${pathPart}?ref=${encodeURIComponent(args.ref)}`
+  const json = await fetchJson<unknown>(url)
+  if (!Array.isArray(json)) return []
+  return json as GitHubContentItem[]
+}
+
+const isProbablyTextFile = (path: string) => {
+  const lower = String(path || '').toLowerCase().trim()
+  const dot = lower.lastIndexOf('.')
+  const ext = dot > 0 ? lower.slice(dot) : ''
+  if (!ext) return false
+  return WORKSPACE_GITHUB_IMPORT_TEXT_EXTS.has(ext)
+}
+
+async function importGitHubFolder(args: {
+  fs: WorkspaceFs
+  repoRef: GitHubRepoRef
+  parentPath: WorkspacePath
+  onProgress?: (p: WorkspaceImportProgress) => void
+  maxFiles?: number
+}) : Promise<WorkspaceImportResult> {
+  const maxFiles = typeof args.maxFiles === 'number' && Number.isFinite(args.maxFiles) && args.maxFiles > 0 ? Math.floor(args.maxFiles) : 120
+  const ref = args.repoRef.ref || (await resolveGitHubDefaultBranch({ owner: args.repoRef.owner, repo: args.repoRef.repo }))
+
+  const rootFolderName = String(args.repoRef.repo || 'repo').replace(/\.git$/i, '') || 'repo'
+  const rootFolderPath = await args.fs.createFolder({ parentPath: args.parentPath, name: rootFolderName })
+
+  const folderQueue: string[] = [String(args.repoRef.subdirPath || '').replace(/^\/+/, '')]
+  const filesToFetch: Array<{ relPath: string; downloadUrl: string }> = []
+
+  let listed = 0
+  while (folderQueue.length > 0) {
+    const folderPath = folderQueue.shift() || ''
+    args.onProgress?.({ phase: 'listing', current: listed, label: folderPath ? `Listing ${folderPath}` : 'Listing repo' })
+    const children = await listGitHubFolderContents({ owner: args.repoRef.owner, repo: args.repoRef.repo, ref, folderPath })
+    listed += 1
+
+    for (const item of children) {
+      const type = String(item.type || '').trim()
+      const relPath = typeof item.path === 'string' ? String(item.path) : ''
+      if (!relPath) continue
+      if (type === 'dir') {
+        folderQueue.push(relPath)
+        continue
+      }
+      if (type !== 'file') continue
+      const downloadUrl = typeof item.download_url === 'string' ? String(item.download_url) : ''
+      if (!downloadUrl) continue
+      if (!isProbablyTextFile(relPath)) continue
+      filesToFetch.push({ relPath, downloadUrl })
+      if (filesToFetch.length >= maxFiles) break
+    }
+    if (filesToFetch.length >= maxFiles) break
+  }
+
+  const createdPaths: WorkspacePath[] = []
+  const sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }> = []
+  const folderMap = new Map<string, WorkspacePath>()
+
+  const ensureFolder = async (parent: WorkspacePath, name: string, key: string) => {
+    const existing = folderMap.get(key)
+    if (existing) return existing
+    const created = await args.fs.createFolder({ parentPath: parent, name })
+    folderMap.set(key, created)
+    return created
+  }
+
+  const totalFiles = filesToFetch.length
+  for (let i = 0; i < filesToFetch.length; i += 1) {
+    const file = filesToFetch[i]
+    args.onProgress?.({ phase: 'fetching', current: i + 1, total: totalFiles, label: `Fetching ${file.relPath}` })
+    const fetched = await fetchRemoteTextDetailed(file.downloadUrl, { preflightHead: true, preferProxy: true })
+    if (!fetched.ok) {
+      throw new Error(describeFetchRemoteTextFailure(fetched as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure))
+    }
+
+    const segments = String(file.relPath || '').split('/').filter(Boolean)
+    if (segments.length === 0) continue
+    let parentFolder: WorkspacePath = rootFolderPath
+    let relKey = ''
+    for (let si = 0; si < segments.length - 1; si += 1) {
+      const seg = String(segments[si] || '').trim()
+      if (!seg) continue
+      relKey = relKey ? `${relKey}/${seg}` : seg
+      parentFolder = await ensureFolder(parentFolder, seg, relKey)
+    }
+
+    args.onProgress?.({ phase: 'writing', current: i + 1, total: totalFiles, label: `Writing ${file.relPath}` })
+    const createdPath = await args.fs.createFile({ parentPath: parentFolder, name: segments[segments.length - 1] || 'file.txt', text: fetched.text })
+    createdPaths.push(normalizeWorkspacePath(createdPath))
+    sources.push({ path: normalizeWorkspacePath(createdPath), source: { kind: 'url', url: file.downloadUrl } })
+  }
+
+  return { createdPaths, sources, skipped: [], failed: [] }
+}
+
+export async function importWorkspaceUrl(args: {
+  fs: WorkspaceFs
+  urlRaw: string
+  parentPath?: WorkspacePath
+  onProgress?: (p: WorkspaceImportProgress) => void
+}): Promise<WorkspaceImportResult> {
+  const rawUrl = String(args.urlRaw || '').trim()
+  if (!rawUrl) return { createdPaths: [], sources: [], skipped: [], failed: [] }
+  const parentPath = args.parentPath || WORKSPACE_ROOT_PATH
+
+  const repoRef = parseGitHubRepoUrl(rawUrl)
+  if (repoRef) {
+    return importGitHubFolder({ fs: args.fs, repoRef, parentPath, onProgress: args.onProgress })
+  }
+
+  const fetched = await fetchWorkspaceUrlContent(rawUrl)
+  const createdPath = await args.fs.createFile({ parentPath, name: fetched.name, text: fetched.text })
+  const normalized = normalizeWorkspacePath(createdPath)
+  return {
+    createdPaths: [normalized],
+    sources: [{ path: normalized, source: { kind: 'url', url: fetched.normalizedUrl } }],
+    skipped: [],
+    failed: [],
+  }
+}

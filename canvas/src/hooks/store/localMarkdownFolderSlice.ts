@@ -5,13 +5,17 @@ export type LocalMarkdownFolderSlice = {
   localMarkdownFolderHandle: FileSystemDirectoryHandle | null
   localMarkdownFolderName: string | null
   localMarkdownFolderAccessMode: 'fs-access' | 'opfs' | 'file-input' | null
-  localMarkdownFallbackFilesByPath: Map<string, File> | null
+  localMarkdownFolderCacheId: string | null
   localMarkdownSelectedFolderPath: string | null
   setLocalMarkdownFolderHandle: (
     handle: FileSystemDirectoryHandle | null,
     opts?: { accessMode?: 'fs-access' | 'opfs'; name?: string | null },
   ) => void
-  setLocalMarkdownFallbackFilesByPath: (files: Map<string, File> | null, folderName?: string | null) => void
+  setLocalMarkdownFolderCachedMetadata: (meta: {
+    name: string | null
+    accessMode: 'fs-access' | 'opfs' | 'file-input' | null
+  }) => void
+  setLocalMarkdownFolderCacheId: (cacheId: string | null, folderName?: string | null) => void
   setLocalMarkdownSelectedFolderPath: (path: string | null) => void
   clearLocalMarkdownFolder: () => void
 }
@@ -20,7 +24,7 @@ export const createLocalMarkdownFolderSlice: StateCreator<GraphState, [], [], Lo
   localMarkdownFolderHandle: null,
   localMarkdownFolderName: null,
   localMarkdownFolderAccessMode: null,
-  localMarkdownFallbackFilesByPath: null,
+  localMarkdownFolderCacheId: null,
   localMarkdownSelectedFolderPath: null,
   setLocalMarkdownFolderHandle: (handle, opts) => {
     const accessMode = opts?.accessMode || 'fs-access'
@@ -30,16 +34,29 @@ export const createLocalMarkdownFolderSlice: StateCreator<GraphState, [], [], Lo
       localMarkdownFolderHandle: handle || null,
       localMarkdownFolderName: handle ? effectiveName : null,
       localMarkdownFolderAccessMode: handle ? accessMode : null,
-      localMarkdownFallbackFilesByPath: null,
+      localMarkdownFolderCacheId: null,
     }))
   },
-  setLocalMarkdownFallbackFilesByPath: (files, folderName) => {
+  setLocalMarkdownFolderCachedMetadata: meta => {
+    const name = String(meta?.name || '').trim() || null
+    const accessMode = meta?.accessMode || null
+    set(prev => {
+      if (prev.localMarkdownFolderHandle || prev.localMarkdownFolderCacheId) return prev
+      return {
+        ...prev,
+        localMarkdownFolderName: name,
+        localMarkdownFolderAccessMode: accessMode,
+      }
+    })
+  },
+  setLocalMarkdownFolderCacheId: (cacheId, folderName) => {
+    const id = String(cacheId || '').trim() || null
     const name = String(folderName || '').trim() || null
     set(() => ({
       localMarkdownFolderHandle: null,
       localMarkdownFolderName: name,
-      localMarkdownFolderAccessMode: files && files.size > 0 ? 'file-input' : null,
-      localMarkdownFallbackFilesByPath: files && files.size > 0 ? files : null,
+      localMarkdownFolderAccessMode: id ? 'file-input' : null,
+      localMarkdownFolderCacheId: id,
     }))
   },
   setLocalMarkdownSelectedFolderPath: (path) => {
@@ -51,7 +68,7 @@ export const createLocalMarkdownFolderSlice: StateCreator<GraphState, [], [], Lo
       localMarkdownFolderHandle: null,
       localMarkdownFolderName: null,
       localMarkdownFolderAccessMode: null,
-      localMarkdownFallbackFilesByPath: null,
+      localMarkdownFolderCacheId: null,
       localMarkdownSelectedFolderPath: null,
     }))
   },

@@ -41,14 +41,11 @@ import {
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
 import { testFindNextSourceFileIndexNested, testFindNextSourceFileIndexRoot, testNormalizeParentPath } from '@/__tests__/sourceFileNaming.test'
-import { testWebkitRelativePathFallsBackToFileName, testWebkitRelativePathStripsRootFolder } from '@/__tests__/webkitRelativePath.test'
 import {
-  testMarkdownFormattingBoldToggles,
-  testMarkdownFormattingBulletListToggles,
-} from '@/__tests__/markdown/markdownFormatting.test'
-import { testMarkdownTocMoveRootAndNested } from '@/__tests__/markdown/markdownTocMove.test'
-import { testMarkdownTocReorderRootAndNested } from '@/__tests__/markdown/markdownTocReorder.test'
-import { testMarkdownLineEditingInsertAfter } from '@/__tests__/markdown/markdownLineEditing.test'
+  testWebkitRelativePathDoesNotTreatFileNameAsFolder,
+  testWebkitRelativePathFallsBackToFileName,
+  testWebkitRelativePathStripsRootFolder,
+} from '@/__tests__/webkitRelativePath.test'
 import { testUnifiedPanelExport } from '@/__tests__/panel.test'
 import { testSettingsViewCollapsePersistence } from '@/__tests__/settingsCollapse.test'
 import {
@@ -59,7 +56,6 @@ import {
   testGraphFieldsSyncOnHistoryUndoRedo,
   testGraphFieldsSyncOnNodeAndEdgeMutations,
 } from '@/__tests__/bottomPanelPersistence.test'
-import { testBottomPanelMarkdownFullscreenOpensOverlay } from '@/__tests__/bottomPanelFullscreenUi.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
 import {
@@ -122,6 +118,12 @@ import {
   testMarkdownLoaderKeyNormalizesBasename,
   testMarkdownLoaderPrefersImportedForBasenameMatch,
 } from '@/__tests__/markdownLoaderInterop.test'
+import {
+  testWorkspaceImportLocalFilesCreatesExpectedEntries,
+  testWorkspaceImportLocalFolderCreatesNestedFolders,
+  testNormalizeWorkspacePathCollapsesExtraSlashes,
+  testWorkspaceImportSkipsUnsupportedFilesButContinues,
+} from '@/__tests__/workspaceImportLocal.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
 import {
@@ -199,6 +201,10 @@ import { testToolMenuDoesNotExposeCuratorArea } from '@/__tests__/toolMenuCurato
 import { testForbidHardcodedYouTubeUrlLiteral, testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
 import { testGroupCollapseDerivationCollapsesCommunityIntoGroupNode } from '@/__tests__/groupCollapse.test'
 import {
+  testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange,
+  testWorkspaceAutosaveGuardsAgainstPathSwitchOverwrite,
+} from '@/__tests__/workspaceAutosave.test'
+import {
   testGraphRagAnalyticsWritesNamespacedCausalityComponents,
   testKeywordGraphWritesKeywordFrequencyAndStrengthScore,
 } from '@/__tests__/metricsProperties.test'
@@ -224,7 +230,6 @@ import {
 } from '@/__tests__/mediaProxySrc.test'
 import { testUiToastUpsertDoesNotExtendExpiry, testUiToastUpsertMovesToastToFront } from '@/__tests__/uiToastSlice.test'
 import { testIconButtonStopsPropagation, testToolbarIconTooltipsDoNotInterceptClicks } from '@/__tests__/toolbarButtons.test'
-import { testMarkdownGlobalRenderToggleVisible } from '@/__tests__/markdown/markdownRenderToggle.test'
 import {
   testNormalizeMermaidMmdToMarkdownKeepsFencedMarkdown,
   testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid,
@@ -352,6 +357,9 @@ export const runAllTests = async () => {
   await exec('sourceFiles.naming.findNextIndex.nested', testFindNextSourceFileIndexNested)
   await exec('sourceFiles.folderPicker.webkitRelativePath.stripsRootFolder', testWebkitRelativePathStripsRootFolder)
   await exec('sourceFiles.folderPicker.webkitRelativePath.fallsBackToFileName', testWebkitRelativePathFallsBackToFileName)
+  await exec('sourceFiles.folderPicker.webkitRelativePath.doesNotTreatFileNameAsFolder', testWebkitRelativePathDoesNotTreatFileNameAsFolder)
+  await exec('markdownWorkspace.autosave.guardsAgainstPathSwitchOverwrite', testWorkspaceAutosaveGuardsAgainstPathSwitchOverwrite)
+  await exec('markdownWorkspace.preview.splitFlushesOnDocKeyChange', testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange)
 
   await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
   await exec('geospatial.canvas.forbidGraphWhenGeoEnabled', testCanvasForbidsGraphWhenGeospatialEnabled)
@@ -491,15 +499,9 @@ export const runAllTests = async () => {
   await exec('cache.lruClear', testLRUCacheClear)
   await exec('util.reorderList.basicMoves', testReorderListBasicMoves)
   await exec('util.reorderList.noopAndBounds', testReorderListNoopAndBounds)
-  await exec('markdown.formatting.boldToggles', testMarkdownFormattingBoldToggles)
-  await exec('markdown.formatting.bulletListToggles', testMarkdownFormattingBulletListToggles)
-  await exec('markdown.tocMove.rootAndNested', testMarkdownTocMoveRootAndNested)
-  await exec('markdown.tocReorder.rootAndNested', testMarkdownTocReorderRootAndNested)
-  await exec('markdown.lineEditing.insertAfter', testMarkdownLineEditingInsertAfter)
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
   await exec('ui.bottomPanelCollapsePersistence', testBottomPanelCollapsePersistence)
-  await exec('ui.bottomPanel.markdownFullscreenOpensOverlay', testBottomPanelMarkdownFullscreenOpensOverlay)
   await exec('ui.graphFieldsPruneOnGraphDataChange', testGraphFieldsPruneOnGraphDataChange)
   await exec(
     'ui.graphFieldsStorePopulatesDerivedFields',
@@ -578,12 +580,28 @@ export const runAllTests = async () => {
   await exec('workflowPreset.selfConsistent', testWorkflowPresetPipelinesAreSelfConsistent)
   await exec('workflowPreset.exportBrandedPaths', testExportFunctionsAcceptBrandedPaths)
   await exec('ui.media.mediaInteractiveDefaults', testMediaInteractiveDefaults)
+  await exec('workspace.import.localFiles', testWorkspaceImportLocalFilesCreatesExpectedEntries)
+  await exec('workspace.import.localFolder', testWorkspaceImportLocalFolderCreatesNestedFolders)
+  await exec('workspace.path.normalizeCollapsesSlashes', testNormalizeWorkspacePathCollapsesExtraSlashes)
+  await exec('workspace.import.skipsUnsupportedContinues', testWorkspaceImportSkipsUnsupportedFilesButContinues)
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')
     await exec(
       'ui.markdown.preview.showOnCanvas',
       modShowOnCanvas.testMarkdownPreviewShowOnCanvasSelectsExpectedNode,
+    )
+    await exec(
+      'ui.markdown.preview.contextMenuRendersInsideRoot',
+      modShowOnCanvas.testMarkdownPreviewContextMenuRendersInsideRoot,
+    )
+    await exec(
+      'ui.markdown.preview.tokenCacheDoesNotCrossDocPath',
+      modShowOnCanvas.testMarkdownPreviewTokenCacheDoesNotCrossDocumentPath,
+    )
+    await exec(
+      'ui.markdown.preview.viewModeSwitchDoesNotCrossDocPath',
+      modShowOnCanvas.testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath,
     )
 
     await import('@/__tests__/markdownSelectionScrollHighlight.test')
@@ -663,7 +681,6 @@ export const runAllTests = async () => {
   await exec('ui.toast.upsertMovesToastToFront', testUiToastUpsertMovesToastToFront)
   await exec('ui.toolbar.tooltipsDoNotInterceptClicks', testToolbarIconTooltipsDoNotInterceptClicks)
   await exec('ui.toolbar.iconButtonStopsPropagation', testIconButtonStopsPropagation)
-  await exec('ui.markdown.renderToggleVisible', testMarkdownGlobalRenderToggleVisible)
   await exec('parser.mmd.wrapsPlainMermaid', testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid)
   await exec('parser.mmd.keepsFencedMarkdown', testNormalizeMermaidMmdToMarkdownKeepsFencedMarkdown)
   await exec('markdown.slide.theme.neversinkAliasesToAcademic', testMarkdownSlideThemeNeversinkAliasesToAcademic)

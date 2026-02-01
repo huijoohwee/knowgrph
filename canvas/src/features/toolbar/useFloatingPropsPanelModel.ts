@@ -5,7 +5,9 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { edgeExists } from '@/lib/graph/edges'
 import { getNodeMediaSpec, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { emitChatInputAppend, emitSidePanelOpen } from '@/features/canvas/utils'
-import { BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT } from '@/features/bottom-panel/constants'
+import { openBottomPanel } from '@/features/bottom-panel/open'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { createId } from '@/lib/id'
 
 type FloatingPanelModel = {
@@ -239,9 +241,10 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     try {
       setBottomPanelTab('curation')
       setBottomPanelCurationView('markdown')
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT))
-      }
+      openBottomPanel('curation')
+      const path = normalizeWorkspacePath(prov.documentPath)
+      useMarkdownExplorerStore.getState().setActivePath(path)
+      useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
     } catch {
       void 0
     }
@@ -434,9 +437,10 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     try {
       setBottomPanelTab('curation')
       setBottomPanelCurationView('markdown')
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(BOTTOM_PANEL_MARKDOWN_AUTO_OPEN_EVENT))
-      }
+      openBottomPanel('curation')
+      const path = normalizeWorkspacePath(prov.documentPath)
+      useMarkdownExplorerStore.getState().setActivePath(path)
+      useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
     } catch {
       void 0
     }
