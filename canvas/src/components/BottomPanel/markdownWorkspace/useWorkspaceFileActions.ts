@@ -37,7 +37,6 @@ export function useWorkspaceFileActions(args: {
   setExpandedPaths: React.Dispatch<React.SetStateAction<Set<string>>>
   setActivePathSafe: (path: WorkspacePath) => void
   setSelectionPathSafe: (path: WorkspacePath) => void
-  setBottomPanelCurationView: (view: 'grid' | 'markdown') => void
 
   setMarkdownDocument: (name: string | null, text: string | null) => void
   setMarkdownDocumentSourceUrl: (url: string | null) => void
@@ -57,7 +56,6 @@ export function useWorkspaceFileActions(args: {
     setExpandedPaths,
     setActivePathSafe,
     setSelectionPathSafe,
-    setBottomPanelCurationView,
     setMarkdownDocument,
     setMarkdownDocumentSourceUrl,
     applyMarkdownDocumentToGraph,
@@ -75,7 +73,6 @@ export function useWorkspaceFileActions(args: {
         for (const ancestor of ancestorPathsForWorkspacePath(createdPath)) next.add(ancestor)
         return next
       })
-      setBottomPanelCurationView('markdown')
       if (opts?.sourceUrl) setMarkdownDocumentSourceUrl(opts.sourceUrl)
       if (opts?.applyToGraph) {
         try {
@@ -95,7 +92,7 @@ export function useWorkspaceFileActions(args: {
         }
       }
     },
-    [applyMarkdownDocumentToGraph, getFs, lastLoadedRef, setActivePathSafe, setActiveText, setBottomPanelCurationView, setExpandedPaths, setMarkdownDocument, setMarkdownDocumentSourceUrl, setSelectionPathSafe, setStatusLabel],
+    [applyMarkdownDocumentToGraph, getFs, lastLoadedRef, setActivePathSafe, setActiveText, setExpandedPaths, setMarkdownDocument, setMarkdownDocumentSourceUrl, setSelectionPathSafe, setStatusLabel],
   )
 
   const createNewFile = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
@@ -108,12 +105,11 @@ export function useWorkspaceFileActions(args: {
       await refresh()
       setActivePathSafe(path)
       setSelectionPathSafe(path)
-      setBottomPanelCurationView('markdown')
       setStatusLabel('Created')
     } catch (e) {
       setStatusLabel(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [getFs, refresh, setActivePathSafe, setBottomPanelCurationView, setSelectionPathSafe, setStatusLabel])
+  }, [getFs, refresh, setActivePathSafe, setSelectionPathSafe, setStatusLabel])
 
   const createNewFolder = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
     setStatusLabel('Creating…')
@@ -124,12 +120,11 @@ export function useWorkspaceFileActions(args: {
       setExpandedPaths(prev => new Set(prev).add(path))
       await refresh()
       setSelectionPathSafe(path)
-      setBottomPanelCurationView('markdown')
       setStatusLabel('Created')
     } catch (e) {
       setStatusLabel(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [getFs, refresh, setBottomPanelCurationView, setExpandedPaths, setSelectionPathSafe, setStatusLabel])
+  }, [getFs, refresh, setExpandedPaths, setSelectionPathSafe, setStatusLabel])
 
   const handleImportLocalFiles = React.useCallback(
     async (files: FileList | null) => {

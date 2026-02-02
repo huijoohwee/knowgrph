@@ -21,8 +21,10 @@ export function applyImportedMarkdownToStore(args: {
   state.setMarkdownDocument(name, text)
   state.setJsonSourceDocument(name, null)
   state.setMarkdownDocumentSourceUrl(sourceUrl)
-  if (args.curationView) {
-    state.setBottomPanelCurationView(args.curationView)
+  if (args.curationView === 'markdown') {
+    state.setWorkspaceViewMode('editor')
+  } else if (args.curationView === 'grid') {
+    state.setBottomPanelCurationView('grid')
   }
   if (args.recent) {
     state.addRecentFile(args.recent)
@@ -95,6 +97,6 @@ export function applyImportedJsonToStore(args: {
 
   state.setMarkdownDocument(name, markdown)
   state.setMarkdownDocumentSourceUrl(args.sourceUrl)
-  state.setBottomPanelCurationView('markdown')
+  state.setWorkspaceViewMode('editor')
   if (args.recent) state.addRecentFile(args.recent)
 }

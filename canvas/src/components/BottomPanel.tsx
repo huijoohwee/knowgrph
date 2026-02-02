@@ -43,8 +43,7 @@ export default function BottomPanel() {
 
   const tab: typeof rawTab = rawTab === 'data' ? 'curation' : rawTab
 
-  const keepBodyMountedWhenCollapsed =
-    collapsed && tab === 'curation' && bottomPanelCurationView === 'markdown'
+  const keepBodyMountedWhenCollapsed = false
 
   useEffect(() => {
     if (rawTab !== 'render') return

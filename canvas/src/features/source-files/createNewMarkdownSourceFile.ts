@@ -1,4 +1,3 @@
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
@@ -13,8 +12,7 @@ export function createNewMarkdownSourceFileAndOpenViewer(
 ): { id: string; name: string } | null {
   try {
     const store = useGraphStore.getState()
-    store.setBottomPanelCurationView('markdown')
-    openBottomPanel('curation')
+    store.setWorkspaceViewMode('editor')
 
     void (async () => {
       try {

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, ListTree } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, ListTree, FileCode } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -83,6 +83,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
   const themeMode = useGraphStore(s => s.themeMode)
   const setThemeMode = useGraphStore(s => s.setThemeMode)
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const toggleWorkspaceViewMode = useGraphStore(s => s.toggleWorkspaceViewMode)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -165,6 +167,25 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   return (
     <nav className="Island App-toolbar App-toolbar--compact w-fit" role="navigation" aria-label="Main Toolbar">
       <ToolbarMenuLauncher onOpenMainPanel={openMainPanel} />
+
+      <IconButton
+        className={`App-toolbar__btn ${
+          workspaceViewMode === 'editor' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={UI_LABELS.editor}
+        tooltipContent={
+          workspaceViewMode === 'editor'
+            ? UI_COPY.toolbarEditorWorkspaceOnTooltip
+            : UI_COPY.toolbarEditorWorkspaceOffTooltip
+        }
+        onClick={toggleWorkspaceViewMode}
+        showTooltip
+      >
+        <div className="flex items-center gap-1">
+          <FileCode className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+          <span className="text-xs">Editor</span>
+        </div>
+      </IconButton>
 
       <IconButton
         className={`App-toolbar__btn ${

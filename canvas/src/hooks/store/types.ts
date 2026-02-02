@@ -32,6 +32,8 @@ export type LayoutPositionCacheKey = string;
 
 export type DocumentSemanticMode = 'document' | 'keyword'
 
+export type WorkspaceViewMode = 'canvas' | 'editor'
+
 export type UiToastKind = 'neutral' | 'success' | 'warning' | 'error'
 
 export type UiToast = {
@@ -143,6 +145,7 @@ export interface GraphState {
   selectionSource: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown';
   setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown') => void;
   isEditMode: boolean;
+  workspaceViewMode: WorkspaceViewMode;
   isSidebarOpen: boolean;
   history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>;
   historyIndex: number;
@@ -183,6 +186,8 @@ export interface GraphState {
   clearCollapsedGroups: () => void;
   toggleGroupCollapsed: (id: string) => void;
   setEditMode: (mode: boolean) => void;
+  setWorkspaceViewMode: (mode: WorkspaceViewMode) => void;
+  toggleWorkspaceViewMode: () => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
   addHistory: (label?: string) => void;

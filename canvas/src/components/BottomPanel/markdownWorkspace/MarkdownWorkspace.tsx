@@ -26,6 +26,8 @@ import { useWorkspaceFileActions } from './useWorkspaceFileActions'
 import { useCanvasMarkdownSync } from './useCanvasMarkdownSync'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { shouldAutosaveWorkspaceFile } from './workspaceAutosave'
+import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
+import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
 const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
@@ -36,7 +38,8 @@ const parseStringArray = (raw: unknown): string[] | null => {
 export function MarkdownWorkspace() {
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
-  const setBottomPanelCurationView = useGraphStore(s => s.setBottomPanelCurationView)
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const effectiveBottomPanelCollapsed = workspaceViewMode === 'editor' ? false : bottomPanelCollapsed
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
   const applyMarkdownDocumentToGraph = useGraphStore(s => s.applyMarkdownDocumentToGraph)
@@ -88,7 +91,7 @@ export function MarkdownWorkspace() {
     [],
   )
   const workspaceFsRef = React.useRef<Awaited<ReturnType<typeof getWorkspaceFs>> | null>(null)
-  const [highlightLine, setHighlightLine] = React.useState<number | null>(null)
+  const [highlightedLineRange, setHighlightedLineRange] = React.useState<HighlightedLineRange>(null)
   const [activeText, setActiveText] = React.useState('')
   const activeTextRef = React.useRef('')
   activeTextRef.current = activeText
@@ -97,7 +100,7 @@ export function MarkdownWorkspace() {
   const outlineText = useDebouncedValue(activeText, 160, activePath)
   const lastLoadedRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
-  const prevCollapsedRef = React.useRef<boolean>(bottomPanelCollapsed)
+  const prevCollapsedRef = React.useRef<boolean>(effectiveBottomPanelCollapsed)
   const lastRequestedActivePathRef = React.useRef<{ path: WorkspacePath; atMs: number } | null>(null)
   const lastSetActivePath = useMarkdownExplorerStore(s => s.lastSetActivePath)
 
@@ -220,10 +223,10 @@ export function MarkdownWorkspace() {
   }, [expandedPaths])
 
   React.useEffect(() => {
-    if (!highlightLine) return
-    const id = window.setTimeout(() => setHighlightLine(null), 1500)
+    if (!highlightedLineRange) return
+    const id = window.setTimeout(() => setHighlightedLineRange(null), 1500)
     return () => window.clearTimeout(id)
-  }, [highlightLine])
+  }, [highlightedLineRange])
 
   const sidebarWidthPxRef = React.useRef(sidebarWidthPx)
   React.useEffect(() => {
@@ -308,6 +311,7 @@ export function MarkdownWorkspace() {
     return entries.find(e => e.path === path) || null
   }, [entries, selectionPath])
 
+  const activeEntryKind = activeEntry ? activeEntry.kind : null
   const activeEntryIsFile = activeEntry?.kind === 'file'
   const activeEntryText = activeEntry && activeEntry.kind === 'file' ? activeEntry.text : undefined
   const activeDocumentKey = React.useMemo(() => {
@@ -321,9 +325,9 @@ export function MarkdownWorkspace() {
     if (!path) return
 
     const prev = prevCollapsedRef.current
-    if (prev !== bottomPanelCollapsed) {
-      prevCollapsedRef.current = bottomPanelCollapsed
-      if (bottomPanelCollapsed) {
+    if (prev !== effectiveBottomPanelCollapsed) {
+      prevCollapsedRef.current = effectiveBottomPanelCollapsed
+      if (effectiveBottomPanelCollapsed) {
         collapsedSnapshotRef.current = { path, text: activeText }
         return
       }
@@ -345,7 +349,7 @@ export function MarkdownWorkspace() {
       return
     }
 
-    if (!bottomPanelCollapsed) return
+    if (!effectiveBottomPanelCollapsed) return
     if (String(activeText || '').trim()) {
       collapsedSnapshotRef.current = { path, text: activeText }
       return
@@ -359,12 +363,12 @@ export function MarkdownWorkspace() {
     activeDocumentKey,
     activePath,
     activeText,
-    bottomPanelCollapsed,
+    effectiveBottomPanelCollapsed,
     setMarkdownDocument,
   ])
 
   React.useEffect(() => {
-    if (bottomPanelCollapsed) return
+    if (effectiveBottomPanelCollapsed) return
     const path = activePath
     if (!path) return
     if (String(activeText || '').trim()) return
@@ -389,7 +393,7 @@ export function MarkdownWorkspace() {
         void 0
       }
     })()
-  }, [activeDocumentKey, activePath, activeText, bottomPanelCollapsed, getFs, setMarkdownDocument])
+  }, [activeDocumentKey, activePath, activeText, effectiveBottomPanelCollapsed, getFs, setMarkdownDocument])
 
   const createParentPath = React.useMemo<WorkspacePath>(() => {
     if (!selectionEntry) return WORKSPACE_ROOT_PATH
@@ -430,12 +434,10 @@ export function MarkdownWorkspace() {
     if (!firstFile) return
     if (!activePath) {
       setActivePathSafe(firstFile.path)
-      setBottomPanelCurationView('markdown')
       return
     }
     setActivePathSafe(firstFile.path)
-    setBottomPanelCurationView('markdown')
-  }, [activePath, entries, lastSetActivePath, loading, setActivePathSafe, setBottomPanelCurationView])
+  }, [activePath, entries, lastSetActivePath, loading, setActivePathSafe])
 
   React.useEffect(() => {
     const path = activePath
@@ -444,14 +446,14 @@ export function MarkdownWorkspace() {
     if (activeEntry.kind !== 'folder') return
     if (activePathRef.current !== path) return
     setActiveText('')
-    setHighlightLine(null)
+    setHighlightedLineRange(null)
     setStatusLabel('')
   }, [activeEntry, activePath, setMarkdownDocument, setMarkdownDocumentSourceUrl])
 
   React.useEffect(() => {
     const path = activePath
     if (!path) return
-    if (activeEntry?.kind === 'folder') return
+    if (activeEntryKind === 'folder') return
 
     const scheduledFor = path
 
@@ -537,6 +539,7 @@ export function MarkdownWorkspace() {
     }
   }, [
     activeDocumentKey,
+    activeEntryKind,
     activeEntryIsFile,
     activeEntryText,
     activePath,
@@ -553,7 +556,7 @@ export function MarkdownWorkspace() {
   React.useEffect(() => {
     const path = activePath
     if (!path) return
-    if (activeEntry?.kind === 'folder') return
+    if (activeEntryKind === 'folder') return
     const last = lastLoadedRef.current
     if (!shouldAutosaveWorkspaceFile({ path, lastLoaded: last, activeText, debouncedText })) return
     void (async () => {
@@ -573,7 +576,7 @@ export function MarkdownWorkspace() {
     })()
   }, [
     activeDocumentKey,
-    activeEntry,
+    activeEntryKind,
     activePath,
     activeText,
     debouncedText,
@@ -615,13 +618,15 @@ export function MarkdownWorkspace() {
   }, [requestRevealLine, requestedRevealLine])
 
   const revealLineInEditor = React.useCallback(
-    (line: number) => {
+    (line: number, endLine?: number) => {
       if (!Number.isFinite(line) || line <= 0) return
-      setHighlightLine(Math.floor(line))
+      const start = Math.floor(line)
+      const end = Number.isFinite(endLine) && (endLine as number) > 0 ? Math.max(start, Math.floor(endLine as number)) : start
+      setHighlightedLineRange({ start, end })
       if (layoutMode !== 'split' && layoutMode !== 'editor') {
         setLayoutMode('split')
       }
-      requestRevealLine(Math.floor(line))
+      requestRevealLine(start)
     },
     [layoutMode, requestRevealLine, setLayoutMode],
   )
@@ -631,7 +636,6 @@ export function MarkdownWorkspace() {
     activePath,
     setActivePathSafe,
     setExpandedPaths,
-    setBottomPanelCurationView,
     layoutMode,
     setLayoutMode,
     revealLineInEditor,
@@ -641,7 +645,12 @@ export function MarkdownWorkspace() {
   const showInViewer = React.useCallback(
     (line: number) => {
       setLayoutMode('viewer')
-      setHighlightLine(Number.isFinite(line) && line > 0 ? Math.floor(line) : null)
+      if (!Number.isFinite(line) || line <= 0) {
+        setHighlightedLineRange(null)
+        return
+      }
+      const v = Math.floor(line)
+      setHighlightedLineRange({ start: v, end: v })
     },
     [setLayoutMode],
   )
@@ -649,7 +658,12 @@ export function MarkdownWorkspace() {
   const showInPresentation = React.useCallback(
     (line: number) => {
       setLayoutMode('presentation')
-      setHighlightLine(Number.isFinite(line) && line > 0 ? Math.floor(line) : null)
+      if (!Number.isFinite(line) || line <= 0) {
+        setHighlightedLineRange(null)
+        return
+      }
+      const v = Math.floor(line)
+      setHighlightedLineRange({ start: v, end: v })
     },
     [setLayoutMode],
   )
@@ -657,9 +671,96 @@ export function MarkdownWorkspace() {
   const showInSlidesGallery = React.useCallback(
     (line: number) => {
       setLayoutMode('slides-gallery')
-      setHighlightLine(Number.isFinite(line) && line > 0 ? Math.floor(line) : null)
+      if (!Number.isFinite(line) || line <= 0) {
+        setHighlightedLineRange(null)
+        return
+      }
+      const v = Math.floor(line)
+      setHighlightedLineRange({ start: v, end: v })
     },
     [setLayoutMode],
+  )
+
+  const graphData = useGraphStore(s => s.graphData) as GraphData | null
+  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
+  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
+  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
+  const selectNode = useGraphStore(s => s.selectNode)
+  const selectEdge = useGraphStore(s => s.selectEdge)
+
+  const normalizeDocKey = React.useCallback((raw: unknown) => {
+    const text = String(raw || '').trim()
+    if (!text) return ''
+    const hashIndex = text.indexOf('#')
+    const noHash = hashIndex >= 0 ? text.slice(0, hashIndex).trim() : text
+    return noHash.replace(/^\/+/, '').trim()
+  }, [])
+
+  const matchesActiveDoc = React.useCallback(
+    (documentPath: unknown) => {
+      const activeKey = normalizeDocKey(activeDocumentKey)
+      const targetKey = normalizeDocKey(documentPath)
+      if (!activeKey) return !targetKey
+      if (!targetKey) return true
+      if (activeKey === targetKey) return true
+      if (activeKey.endsWith(`/${targetKey}`)) return true
+      if (targetKey.endsWith(`/${activeKey}`)) return true
+      return false
+    },
+    [activeDocumentKey, normalizeDocKey],
+  )
+
+  const lastCaretLineRef = React.useRef<number | null>(null)
+  const onEditorCaretLine = React.useCallback(
+    (line: number) => {
+      if (!Number.isFinite(line) || line <= 0) return
+      const v = Math.floor(line)
+      if (lastCaretLineRef.current === v) return
+      lastCaretLineRef.current = v
+      setHighlightedLineRange({ start: v, end: v })
+      if (!graphData) return
+
+      const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
+      for (const n of nodes) {
+        const loc = getDocumentLocationFromMetadata(n?.metadata)
+        if (!loc) continue
+        if (!matchesActiveDoc(loc.documentPath)) continue
+        const start = Math.max(1, Math.floor(loc.lineStart))
+        const end = Math.max(start, Math.floor(loc.lineEnd || loc.lineStart))
+        if (v < start || v > end) continue
+        const id = String(n.id || '')
+        if (!id) continue
+        if (selectedNodeId === id) return
+        setSelectionSource('editor')
+        selectNode(id)
+        return
+      }
+
+      const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
+      for (const e of edges) {
+        const loc = getDocumentLocationFromMetadata(e?.metadata)
+        if (!loc) continue
+        if (!matchesActiveDoc(loc.documentPath)) continue
+        const start = Math.max(1, Math.floor(loc.lineStart))
+        const end = Math.max(start, Math.floor(loc.lineEnd || loc.lineStart))
+        if (v < start || v > end) continue
+        const id = String(e.id || '')
+        if (!id) continue
+        if (selectedEdgeId === id) return
+        setSelectionSource('editor')
+        selectEdge(id)
+        return
+      }
+    },
+    [
+      graphData,
+      matchesActiveDoc,
+      selectEdge,
+      selectNode,
+      selectedEdgeId,
+      selectedNodeId,
+      setSelectionSource,
+    ],
   )
 
   const outline = React.useMemo(() => computeMarkdownOutline(outlineText), [outlineText])
@@ -699,11 +800,6 @@ export function MarkdownWorkspace() {
     return () => window.clearTimeout(t)
   }, [activePath, backlinksCollapsed, entries])
 
-  const highlightedLineRange: HighlightedLineRange = React.useMemo(() => {
-    if (!highlightLine) return null
-    return { start: highlightLine, end: highlightLine }
-  }, [highlightLine])
-
   const toggleExpanded = React.useCallback((path: WorkspacePath) => {
     const normalized = normalizeWorkspacePath(path)
     setExpandedPaths(prev => {
@@ -718,17 +814,15 @@ export function MarkdownWorkspace() {
     (path: WorkspacePath) => {
       setActivePathSafe(path)
       setSelectionPathSafe(path)
-      setBottomPanelCurationView('markdown')
     },
-    [setActivePathSafe, setBottomPanelCurationView, setSelectionPathSafe],
+    [setActivePathSafe, setSelectionPathSafe],
   )
 
   const onSelectFolder = React.useCallback(
     (path: WorkspacePath) => {
       setSelectionPathSafe(path)
-      setBottomPanelCurationView('markdown')
     },
-    [setBottomPanelCurationView, setSelectionPathSafe],
+    [setSelectionPathSafe],
   )
 
   const handleApply = React.useCallback(async () => {
@@ -822,7 +916,6 @@ export function MarkdownWorkspace() {
     setExpandedPaths,
     setActivePathSafe,
     setSelectionPathSafe,
-    setBottomPanelCurationView,
     setMarkdownDocument,
     setMarkdownDocumentSourceUrl,
     applyMarkdownDocumentToGraph,
@@ -935,7 +1028,7 @@ export function MarkdownWorkspace() {
         editorUri={editorUri}
         editorLanguage={editorLanguage}
         editorRef={editorRef}
-        setHighlightLine={setHighlightLine}
+        onEditorCaretLine={onEditorCaretLine}
       />
     </section>
   )

@@ -102,13 +102,13 @@ function syncDocumentViewFromSourceFile(
     store.setJsonSourceDocument(name, null)
     store.setMarkdownDocument(name, markdown)
     store.setMarkdownDocumentSourceUrl(sourceUrl || null)
-    store.setBottomPanelCurationView('markdown')
+    store.setWorkspaceViewMode('editor')
     return
   }
   const normalized = normalizeMermaidMmdToMarkdown(name, text)
   store.setMarkdownDocument(name, normalized)
   store.setMarkdownDocumentSourceUrl(sourceUrl || null)
-  store.setBottomPanelCurationView('markdown')
+  store.setWorkspaceViewMode('editor')
   if (opts?.applyToGraph ?? true) {
     void store.applyMarkdownDocumentToGraph(name, normalized, { force: true })
   }

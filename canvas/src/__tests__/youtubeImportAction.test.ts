@@ -170,8 +170,11 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
   }
 
   const next = useGraphStore.getState()
-  if (next.bottomPanelCurationView !== 'markdown') {
-    throw new Error(`Expected bottomPanelCurationView=markdown, got ${String(next.bottomPanelCurationView)}`)
+  if (next.bottomPanelCurationView !== 'grid') {
+    throw new Error(`Expected bottomPanelCurationView=grid, got ${String(next.bottomPanelCurationView)}`)
+  }
+  if (next.workspaceViewMode !== 'editor') {
+    throw new Error(`Expected workspaceViewMode=editor, got ${String(next.workspaceViewMode)}`)
   }
   if (!next.markdownDocumentText || !next.markdownDocumentText.includes(fakeId)) {
     throw new Error('Expected markdownDocumentText to be populated with transcript markdown')

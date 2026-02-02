@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useLocation } from 'react-router-dom'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
@@ -16,6 +17,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
+import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 
 const GeospatialOverlayHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -136,6 +138,23 @@ function MarkdownMetricsDevOverlay() {
 }
 
 export default function CanvasPage() {
+  const location = useLocation()
+  const isEmbeddedPreview = React.useMemo(() => {
+    try {
+      const q = new URLSearchParams(String(location.search || '')).get('kgPreview') === '1'
+      if (q) return true
+      const w = window as unknown as { frameElement?: Element | null }
+      const frameEl = w?.frameElement
+      if (!frameEl) return false
+      if (frameEl instanceof HTMLIFrameElement) {
+        return String(frameEl.getAttribute('data-kg-preview') || '') === '1'
+      }
+      return String(frameEl.getAttribute('data-kg-preview') || '') === '1'
+    } catch {
+      return false
+    }
+  }, [location.search])
+
   const {
     isSidebarOpen,
     setSidebarOpen,
@@ -153,6 +172,7 @@ export default function CanvasPage() {
     schema,
     setSchema,
     setEnableLaunchSpotlight,
+    workspaceViewMode,
   } = useGraphStore(
     useShallow(s => ({
       isSidebarOpen: s.isSidebarOpen,
@@ -171,6 +191,7 @@ export default function CanvasPage() {
       schema: s.schema as GraphSchema,
       setSchema: s.setSchema,
       setEnableLaunchSpotlight: s.setEnableLaunchSpotlight,
+      workspaceViewMode: s.workspaceViewMode,
     })),
   )
   const setLifecycleStage = useGraphStore(s => s.setLifecycleStage)
@@ -430,6 +451,87 @@ export default function CanvasPage() {
   const handleReset = makeZoomHandler('reset')
   const handleZoomSelection = makeZoomHandler('selection')
 
+  const previewSrc = React.useMemo(() => {
+    return '/'
+  }, [])
+
+  React.useEffect(() => {
+    if (!isEmbeddedPreview) return
+    const handler = (event: MessageEvent) => {
+      try {
+        if (event.origin !== window.location.origin) return
+        const data = event.data as unknown
+        if (!data || typeof data !== 'object') return
+        const msg = data as { kind?: unknown; payload?: unknown }
+        if (msg.kind !== 'kg-preview-sync') return
+        const payload = msg.payload as {
+          graphData?: unknown
+          schema?: unknown
+          canvasRenderMode?: unknown
+          canvas2dRenderer?: unknown
+          selectedNodeId?: unknown
+          selectedEdgeId?: unknown
+          selectedGroupId?: unknown
+        }
+        const store = useGraphStore.getState()
+        if (payload.schema) {
+          try {
+            const setSchema = store.setSchema
+            if (typeof setSchema === 'function') setSchema(payload.schema as never)
+          } catch {
+            void 0
+          }
+        }
+        if (payload.canvasRenderMode) {
+          try {
+            const setCanvasRenderMode = store.setCanvasRenderMode
+            if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode(payload.canvasRenderMode as never)
+          } catch {
+            void 0
+          }
+        }
+        if (payload.canvas2dRenderer) {
+          try {
+            const setCanvas2dRenderer = store.setCanvas2dRenderer
+            if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer(payload.canvas2dRenderer as never)
+          } catch {
+            void 0
+          }
+        }
+        if (payload.graphData) {
+          try {
+            const setGraphData = store.setGraphData
+            if (typeof setGraphData === 'function') setGraphData(payload.graphData as never)
+          } catch {
+            void 0
+          }
+        }
+
+        const selectedNodeId = typeof payload.selectedNodeId === 'string' ? payload.selectedNodeId : ''
+        const selectedEdgeId = typeof payload.selectedEdgeId === 'string' ? payload.selectedEdgeId : ''
+        const selectedGroupId = typeof payload.selectedGroupId === 'string' ? payload.selectedGroupId : ''
+        if (selectedNodeId || selectedEdgeId || selectedGroupId) {
+          try {
+            store.setSelectionSource('editor')
+          } catch {
+            void 0
+          }
+          try {
+            if (selectedNodeId) store.selectNode(selectedNodeId)
+            else if (selectedEdgeId) store.selectEdge(selectedEdgeId)
+            else if (selectedGroupId) store.selectGroup(selectedGroupId)
+          } catch {
+            void 0
+          }
+        }
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [isEmbeddedPreview])
+
   return (
     <>
       <style>{`
@@ -438,15 +540,53 @@ export default function CanvasPage() {
       `}</style>
       <SourceFilesPersistenceBootstrap />
       <div className="flex h-screen w-screen flex-col overflow-hidden bg-white dark:bg-[#0d1117] transition-colors duration-300">
-      <main className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 relative overflow-hidden">
-            <>
-              <nav
-                className="absolute top-2 inset-x-0 z-[200] flex items-center justify-center"
-                aria-label="Canvas Toolbar"
-                role="navigation"
-              >
+        {isEmbeddedPreview ? (
+          <main className="flex-1 relative overflow-hidden" aria-label="Canvas Preview Only">
+            <React.Suspense fallback={null}>
+              {geospatialModeEnabled && (
+                <GeospatialOverlayHostLazy
+                  active
+                  snapshot={{
+                    graphData: gympgrphBridge.graphData,
+                    zoomState: gympgrphBridge.zoomState,
+                    canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                    selectedNodeId: gympgrphBridge.selectedNodeId,
+                    selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                    selectedEdgeId: gympgrphBridge.selectedEdgeId,
+                  }}
+                  handlers={{
+                    selectNode: gympgrphBridge.selectNode,
+                    selectEdge: gympgrphBridge.selectEdge,
+                    setSelectionSource: gympgrphBridge.setSelectionSource,
+                    requestZoom: gympgrphBridge.requestZoom,
+                    requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                    pushUiToast: gympgrphBridge.pushUiToast,
+                    upsertUiToast: gympgrphBridge.upsertUiToast,
+                    dismissUiToast: gympgrphBridge.dismissUiToast,
+                  }}
+                />
+              )}
+              {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
+                <div className="absolute inset-0 z-[10]">
+                  <GraphCanvasLazy active />
+                </div>
+              )}
+              {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'flow' && (
+                <div className="absolute inset-0 z-[10]">
+                  <FlowCanvasLazy active />
+                </div>
+              )}
+              {!geospatialModeEnabled && canvasRenderMode === '3d' && (
+                <div className="absolute inset-0 z-[10]">
+                  <ThreeGraphLazy active />
+                </div>
+              )}
+            </React.Suspense>
+          </main>
+        ) : workspaceViewMode === 'editor' ? (
+          <>
+            <header className="shrink-0" aria-label="Editor Toolbar Header">
+              <nav className="relative z-[200] flex items-center justify-center pt-2" aria-label="Canvas Toolbar" role="navigation">
                 <React.Suspense fallback={null}>
                   <ToolbarLazy
                     onZoomIn={handleZoomIn}
@@ -454,155 +594,179 @@ export default function CanvasPage() {
                     onReset={handleReset}
                     onZoomSelection={handleZoomSelection}
                   />
-                  <SidebarTriggerLazy ref={sidebarToggleRef} className="absolute right-3" />
                 </React.Suspense>
               </nav>
-              <ToastHost />
-              <>
-                <React.Suspense fallback={null}>
-                  {geospatialModeEnabled && (
-                    <GeospatialOverlayHostLazy
-                      active
-                      snapshot={{
-                        graphData: gympgrphBridge.graphData,
-                        zoomState: gympgrphBridge.zoomState,
-                        canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                        selectedNodeId: gympgrphBridge.selectedNodeId,
-                        selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                        selectedEdgeId: gympgrphBridge.selectedEdgeId,
+            </header>
+            <ToastHost />
+            <EmbeddedEditorShell previewSrc={previewSrc} />
+          </>
+        ) : (
+          <main className="flex-1 flex overflow-hidden" aria-label="Canvas Workspace">
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 relative overflow-hidden">
+                <>
+                  <nav
+                    className="absolute top-2 inset-x-0 z-[200] flex items-center justify-center"
+                    aria-label="Canvas Toolbar"
+                    role="navigation"
+                  >
+                    <React.Suspense fallback={null}>
+                      <ToolbarLazy
+                        onZoomIn={handleZoomIn}
+                        onZoomOut={handleZoomOut}
+                        onReset={handleReset}
+                        onZoomSelection={handleZoomSelection}
+                      />
+                      <SidebarTriggerLazy ref={sidebarToggleRef} className="absolute right-3" />
+                    </React.Suspense>
+                  </nav>
+                  <ToastHost />
+                  <>
+                    <React.Suspense fallback={null}>
+                      {geospatialModeEnabled && (
+                        <GeospatialOverlayHostLazy
+                          active
+                          snapshot={{
+                            graphData: gympgrphBridge.graphData,
+                            zoomState: gympgrphBridge.zoomState,
+                            canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                            selectedNodeId: gympgrphBridge.selectedNodeId,
+                            selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                            selectedEdgeId: gympgrphBridge.selectedEdgeId,
+                          }}
+                          handlers={{
+                            selectNode: gympgrphBridge.selectNode,
+                            selectEdge: gympgrphBridge.selectEdge,
+                            setSelectionSource: gympgrphBridge.setSelectionSource,
+                            requestZoom: gympgrphBridge.requestZoom,
+                            requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                            pushUiToast: gympgrphBridge.pushUiToast,
+                            upsertUiToast: gympgrphBridge.upsertUiToast,
+                            dismissUiToast: gympgrphBridge.dismissUiToast,
+                          }}
+                        />
+                      )}
+                      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
+                        <div className="absolute inset-0 z-[10]">
+                          <GraphCanvasLazy active />
+                        </div>
+                      )}
+                      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'flow' && (
+                        <div className="absolute inset-0 z-[10]">
+                          <FlowCanvasLazy active />
+                        </div>
+                      )}
+                      {!geospatialModeEnabled && canvasRenderMode === '3d' && (
+                        <div className="absolute inset-0 z-[10]">
+                          <ThreeGraphLazy active />
+                        </div>
+                      )}
+                      <LaunchSpotlight />
+                      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
+                        <section
+                          className="fixed left-3 z-[201] pointer-events-auto"
+                          style={{ bottom: 'calc(40px + 12px)' }}
+                          aria-label="Minimap Overlay"
+                        >
+                          <MinimapLazy />
+                        </section>
+                      )}
+                      <BottomPanelLazy />
+                      <MarkdownMetricsDevOverlay />
+                    </React.Suspense>
+                    <aside
+                      className={`absolute right-0 z-30 transition-all duration-200 flex flex-col ${
+                        isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                      }`}
+                      style={{
+                        width: isSidebarOpen ? `${Math.round(((sidebarWidthRatio || 0.25) * 100))}vw` : 0,
+                        top: `${Math.max(0, Math.round(sidebarTopOffsetPx))}px`,
+                        bottom: 'var(--bottom-panel-height-px, 40px)',
                       }}
-                      handlers={{
-                        selectNode: gympgrphBridge.selectNode,
-                        selectEdge: gympgrphBridge.selectEdge,
-                        setSelectionSource: gympgrphBridge.setSelectionSource,
-                        requestZoom: gympgrphBridge.requestZoom,
-                        requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                        pushUiToast: gympgrphBridge.pushUiToast,
-                        upsertUiToast: gympgrphBridge.upsertUiToast,
-                        dismissUiToast: gympgrphBridge.dismissUiToast,
-                      }}
-                    />
-                  )}
-                  {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
-                    <div className="absolute inset-0 z-[10]">
-                      <GraphCanvasLazy active />
-                    </div>
-                  )}
-                  {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'flow' && (
-                    <div className="absolute inset-0 z-[10]">
-                      <FlowCanvasLazy active />
-                    </div>
-                  )}
-                  {!geospatialModeEnabled && canvasRenderMode === '3d' && (
-                    <div className="absolute inset-0 z-[10]">
-                      <ThreeGraphLazy active />
-                    </div>
-                  )}
-                  <LaunchSpotlight />
-                  {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
-                    <section
-                      className="fixed left-3 z-[201] pointer-events-auto"
-                      style={{ bottom: 'calc(40px + 12px)' }}
-                      aria-label="Minimap Overlay"
+                      aria-hidden={!isSidebarOpen}
+                      ref={asideRef}
                     >
-                      <MinimapLazy />
-                    </section>
-                  )}
-                  <BottomPanelLazy />
-                  <MarkdownMetricsDevOverlay />
-                </React.Suspense>
-                <aside
-                  className={`absolute right-0 z-30 transition-all duration-200 flex flex-col ${
-                    isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                  }`}
-                  style={{
-                    width: isSidebarOpen ? `${Math.round(((sidebarWidthRatio || 0.25) * 100))}vw` : 0,
-                    top: `${Math.max(0, Math.round(sidebarTopOffsetPx))}px`,
-                    bottom: 'var(--bottom-panel-height-px, 40px)',
-                  }}
-                  aria-hidden={!isSidebarOpen}
-                  ref={asideRef}
-                >
-                  <div className="ModalContainer h-full flex flex-col rounded-none shadow-none p-0 border-l border-gray-200 border-t-0 border-b-0 border-r-0">
-                    <TabHeader
-                      collapsed={false}
-                      tabs={
-                        geospatialModeEnabled
-                          ? [
-                              { key: 'chat', label: 'Chat' },
-                              { key: 'geo', label: 'Geo' },
-                            ]
-                          : [
-                              { key: 'node', label: 'Node' },
-                              { key: 'chat', label: 'Chat' },
-                              { key: 'geo', label: 'Geo' },
-                            ]
-                      }
-                      tabVariant="icon"
-                      tabIconByKey={{
-                        node: FileCode,
-                        chat: MessageCircle,
-                        geo: Map,
-                      }}
-                      activeTab={sidePanelTab}
-                      onTabChange={key => {
-                        const next = key === 'chat' ? 'chat' : key === 'geo' ? 'geo' : 'node'
-                        if (next === 'geo' && !geospatialModeEnabled) {
-                          setSidePanelTab('node')
-                          return
-                        }
-                        setSidePanelTab(next)
-                      }}
-                    />
-                    <div className="flex-1 overflow-y-auto">
-                      <React.Suspense fallback={null}>
-                        <div className={sidePanelTab === 'chat' ? 'h-full' : 'hidden'}>
-                          <SidePanelChatLazy />
+                      <div className="ModalContainer h-full flex flex-col rounded-none shadow-none p-0 border-l border-gray-200 border-t-0 border-b-0 border-r-0">
+                        <TabHeader
+                          collapsed={false}
+                          tabs={
+                            geospatialModeEnabled
+                              ? [
+                                  { key: 'chat', label: 'Chat' },
+                                  { key: 'geo', label: 'Geo' },
+                                ]
+                              : [
+                                  { key: 'node', label: 'Node' },
+                                  { key: 'chat', label: 'Chat' },
+                                  { key: 'geo', label: 'Geo' },
+                                ]
+                          }
+                          tabVariant="icon"
+                          tabIconByKey={{
+                            node: FileCode,
+                            chat: MessageCircle,
+                            geo: Map,
+                          }}
+                          activeTab={sidePanelTab}
+                          onTabChange={key => {
+                            const next = key === 'chat' ? 'chat' : key === 'geo' ? 'geo' : 'node'
+                            if (next === 'geo' && !geospatialModeEnabled) {
+                              setSidePanelTab('node')
+                              return
+                            }
+                            setSidePanelTab(next)
+                          }}
+                        />
+                        <div className="flex-1 overflow-y-auto">
+                          <React.Suspense fallback={null}>
+                            <div className={sidePanelTab === 'chat' ? 'h-full' : 'hidden'}>
+                              <SidePanelChatLazy />
+                            </div>
+                            <div className={sidePanelTab === 'node' ? 'h-full' : 'hidden'}>
+                              {!geospatialModeEnabled && <NodeEditorLazy />}
+                            </div>
+                            <div className={sidePanelTab === 'geo' ? 'h-full' : 'hidden'}>
+                              {geospatialModeEnabled ? (
+                                <GeospatialPanelHostLazy
+                                  active
+                                  showDatasetsManager={false}
+                                  snapshot={{
+                                    graphData: gympgrphBridge.graphData,
+                                    zoomState: gympgrphBridge.zoomState,
+                                    canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                                    selectedNodeId: gympgrphBridge.selectedNodeId,
+                                    selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                                    selectedEdgeId: gympgrphBridge.selectedEdgeId,
+                                  }}
+                                  handlers={{
+                                    selectNode: gympgrphBridge.selectNode,
+                                    selectEdge: gympgrphBridge.selectEdge,
+                                    setSelectionSource: gympgrphBridge.setSelectionSource,
+                                    requestZoom: gympgrphBridge.requestZoom,
+                                    requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                                    pushUiToast: gympgrphBridge.pushUiToast,
+                                    upsertUiToast: gympgrphBridge.upsertUiToast,
+                                    dismissUiToast: gympgrphBridge.dismissUiToast,
+                                  }}
+                                />
+                              ) : (
+                                <section className="p-3" aria-label="Geospatial Disabled">
+                                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                                    Enable Geospatial Mode to view this panel.
+                                  </p>
+                                </section>
+                              )}
+                            </div>
+                          </React.Suspense>
                         </div>
-                        <div className={sidePanelTab === 'node' ? 'h-full' : 'hidden'}>
-                          {!geospatialModeEnabled && <NodeEditorLazy />}
-                        </div>
-                        <div className={sidePanelTab === 'geo' ? 'h-full' : 'hidden'}>
-                          {geospatialModeEnabled ? (
-                            <GeospatialPanelHostLazy
-                              active
-                              showDatasetsManager={false}
-                              snapshot={{
-                                graphData: gympgrphBridge.graphData,
-                                zoomState: gympgrphBridge.zoomState,
-                                canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                                selectedNodeId: gympgrphBridge.selectedNodeId,
-                                selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                                selectedEdgeId: gympgrphBridge.selectedEdgeId,
-                              }}
-                              handlers={{
-                                selectNode: gympgrphBridge.selectNode,
-                                selectEdge: gympgrphBridge.selectEdge,
-                                setSelectionSource: gympgrphBridge.setSelectionSource,
-                                requestZoom: gympgrphBridge.requestZoom,
-                                requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                                pushUiToast: gympgrphBridge.pushUiToast,
-                                upsertUiToast: gympgrphBridge.upsertUiToast,
-                                dismissUiToast: gympgrphBridge.dismissUiToast,
-                              }}
-                            />
-                          ) : (
-                            <section className="p-3" aria-label="Geospatial Disabled">
-                              <p className="text-sm text-gray-600 dark:text-gray-300">
-                                Enable Geospatial Mode to view this panel.
-                              </p>
-                            </section>
-                          )}
-                        </div>
-                      </React.Suspense>
-                    </div>
-                  </div>
-                </aside>
-              </>
-            </>
-          </div>
-        </div>
-      </main>
+                      </div>
+                    </aside>
+                  </>
+                </>
+              </div>
+            </div>
+          </main>
+        )}
       </div>
     </>
   )

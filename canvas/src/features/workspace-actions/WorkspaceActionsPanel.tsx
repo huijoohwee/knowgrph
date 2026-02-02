@@ -5,7 +5,6 @@ import type { ExampleConfig, ExampleId } from '@/features/parsers/examplesCatalo
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 
 export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onApplyExample: (exampleId: ExampleId) => void }) {
   const { examples, onApplyExample } = props
@@ -27,8 +26,7 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
   }))
 
   const handleOpenMarkdownSourceFiles = React.useCallback(() => {
-    openBottomPanel('curation')
-    useGraphStore.getState().setBottomPanelCurationView('markdown')
+    useGraphStore.getState().setWorkspaceViewMode('editor')
   }, [])
 
   return (
@@ -86,7 +84,7 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
       <CollapsibleSubsection title="Source Files">
         <section className="px-1" aria-label="Source Files">
           <p className={`${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-            Source Files are managed in the Bottom Panel Markdown workspace.
+            Source Files are managed in the Editor workspace.
           </p>
           <button
             type="button"

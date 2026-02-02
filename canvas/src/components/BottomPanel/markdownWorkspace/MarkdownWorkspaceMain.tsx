@@ -49,7 +49,7 @@ export type MarkdownWorkspaceMainProps = {
   editorUri: string
   editorLanguage: string
   editorRef: React.MutableRefObject<HTMLTextAreaElement | null>
-  setHighlightLine: (next: number | null) => void
+  onEditorCaretLine?: (line: number) => void
 }
 
 const md = (() => {
@@ -109,15 +109,19 @@ const splitSlides = (raw: string): Slide[] => {
   return slides.length ? slides : [{ index: 0, markdown: '' }]
 }
 
+import { useSyncScroll } from './useSyncScroll'
+
 function MarkdownViewer(props: {
   markdownText: string
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
   scrollable: boolean
+  viewerRef?: React.MutableRefObject<HTMLElement | null>
 }) {
   const html = React.useMemo(() => md.render(String(props.markdownText || '')), [props.markdownText])
   return (
     <section
+      ref={props.viewerRef}
       className={`relative flex-1 min-h-0 px-8 ${props.scrollable ? 'overflow-auto' : 'overflow-hidden'} ${props.uiPanelTextFontClass} text-[color:var(--kg-text-primary)]`}
       data-testid="markdown-preview-root"
       aria-label="Markdown Preview Content"
@@ -135,19 +139,38 @@ function MarkdownEditor(props: {
   onChange: (next: string) => void
   wordWrap: boolean
   editorRef: React.MutableRefObject<HTMLTextAreaElement | null>
+  onCaretLine?: (line: number) => void
 }) {
+  const emitCaretLine = React.useCallback(() => {
+    const onCaretLine = props.onCaretLine
+    if (!onCaretLine) return
+    const el = props.editorRef.current
+    if (!el) return
+    const offsetRaw = typeof el.selectionStart === 'number' ? el.selectionStart : 0
+    const offset = Math.max(0, Math.floor(offsetRaw))
+    const text = String(el.value || '')
+    let line = 1
+    for (let i = 0; i < offset && i < text.length; i += 1) {
+      if (text.charCodeAt(i) === 10) line += 1
+    }
+    onCaretLine(line)
+  }, [props.editorRef, props.onCaretLine])
+
   return (
-    <section className="flex-1 min-h-0 overflow-hidden" aria-label="Markdown Editor">
+    <section className="flex-1 min-h-0 overflow-hidden flex flex-col" aria-label="Markdown Editor">
       <textarea
         ref={el => {
           props.editorRef.current = el
         }}
-        className={`w-full h-full resize-none px-4 py-3 font-mono text-xs ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
+        className={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 font-mono text-xs ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
         value={props.value}
         onChange={e => props.onChange(e.target.value)}
         spellCheck={false}
         wrap={props.wordWrap ? 'soft' : 'off'}
         aria-label="Markdown Editor Text"
+        onKeyUp={() => emitCaretLine()}
+        onClick={() => emitCaretLine()}
+        onSelect={() => emitCaretLine()}
       />
     </section>
   )
@@ -214,6 +237,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     activeText,
     setActiveText,
     editorRef,
+    onEditorCaretLine,
   } = props
 
   const slides = React.useMemo(() => splitSlides(activeText), [activeText])
@@ -222,6 +246,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const slideHtml = React.useMemo(() => md.render(String(activeSlide.markdown || '')), [activeSlide.markdown])
   const slideCanvasOuterRef = React.useRef<HTMLElement | null>(null)
   const [scale, setScale] = React.useState(0.05)
+  const viewerRef = React.useRef<HTMLElement | null>(null)
+
+  useSyncScroll(editorRef, viewerRef, layoutMode === 'split')
 
   React.useEffect(() => {
     if (layoutMode !== 'presentation') {
@@ -270,6 +297,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
       scrollable={true}
+      viewerRef={viewerRef}
     />
   )
 
@@ -295,7 +323,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       />
 
       {layoutMode === 'editor' ? (
-        <MarkdownEditor value={activeText} onChange={setActiveText} wordWrap={markdownWordWrap} editorRef={editorRef} />
+        <MarkdownEditor
+          value={activeText}
+          onChange={setActiveText}
+          wordWrap={markdownWordWrap}
+          editorRef={editorRef}
+          onCaretLine={onEditorCaretLine}
+        />
       ) : layoutMode === 'viewer' ? (
         viewer
       ) : layoutMode === 'presentation' ? (
@@ -354,7 +388,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       ) : (
         <section className="flex-1 min-h-0 flex" aria-label="Split view">
           <section className="flex-1 min-w-0 min-h-0" aria-label="Editor">
-            <MarkdownEditor value={activeText} onChange={setActiveText} wordWrap={markdownWordWrap} editorRef={editorRef} />
+            <MarkdownEditor
+              value={activeText}
+              onChange={setActiveText}
+              wordWrap={markdownWordWrap}
+              editorRef={editorRef}
+              onCaretLine={onEditorCaretLine}
+            />
           </section>
           <hr className="w-px bg-[color:var(--kg-border)] border-0" aria-hidden="true" />
           <section className="flex-1 min-w-0 min-h-0" aria-label="Viewer">

@@ -18,6 +18,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   const originalDocument = (g as { document?: unknown }).document as Document | undefined
   const originalNode = (g as { Node?: typeof Node }).Node
   const originalElement = (g as { Element?: typeof Element }).Element
+  const originalHTMLElement = (g as { HTMLElement?: typeof HTMLElement }).HTMLElement
   const originalNodeFilter = (g as { NodeFilter?: typeof NodeFilter }).NodeFilter
   const originalDomParser = (g as { DOMParser?: typeof DOMParser }).DOMParser
   const originalHtmlIFrameElement = (g as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement
@@ -30,6 +31,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   ;(g as { document: Document }).document = dom.window.document as unknown as Document
   ;(g as { Node: typeof Node }).Node = dom.window.Node as unknown as typeof Node
   ;(g as { Element: typeof Element }).Element = dom.window.Element as unknown as typeof Element
+  ;(g as { HTMLElement: typeof HTMLElement }).HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement
   const nodeFilter = (dom.window as unknown as { NodeFilter?: typeof NodeFilter }).NodeFilter
   const polyfillNodeFilter = (nodeFilter ||
     ({
@@ -123,6 +125,12 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       delete (g as { Element?: typeof Element }).Element
     } else {
       ;(g as { Element: typeof Element }).Element = originalElement as typeof Element
+    }
+
+    if (typeof originalHTMLElement === 'undefined') {
+      delete (g as { HTMLElement?: typeof HTMLElement }).HTMLElement
+    } else {
+      ;(g as { HTMLElement: typeof HTMLElement }).HTMLElement = originalHTMLElement as typeof HTMLElement
     }
 
     if (typeof originalNodeFilter === 'undefined') {

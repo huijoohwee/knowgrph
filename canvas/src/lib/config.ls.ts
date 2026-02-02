@@ -140,6 +140,8 @@ export const LS_KEYS = {
   chatTemperature: 'kg:chat:temperature',
   chatSystemPrompt: 'kg:chat:systemPrompt',
   chatHistoryPrefix: 'kg:chat:history:',
+  workspaceViewMode: 'kg:ui:workspace:viewMode',
+  workspacePreviewWidthPx: 'kg:ui:workspace:previewWidthPx',
 } as const;
 
 export const SESSION_KEYS = {
@@ -200,7 +202,8 @@ export type LsKeyOwner =
   | 'workflow.presets'
   | 'schema.subsections'
   | 'schema.ui'
-  | 'ui.chat';
+  | 'ui.chat'
+  | 'ui.workspace';
 
 export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   overlayOpacity: 'ui.overlayOpacity',
@@ -344,6 +347,8 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   chatTemperature: 'ui.chat',
   chatSystemPrompt: 'ui.chat',
   chatHistoryPrefix: 'ui.chat',
+  workspaceViewMode: 'ui.workspace',
+  workspacePreviewWidthPx: 'ui.workspace',
 };
 
 export const SCHEMA_SECTIONS = [

@@ -52,10 +52,9 @@ export function useCanvasMarkdownSync(args: {
   activePath: WorkspacePath | null
   setActivePathSafe: (path: WorkspacePath) => void
   setExpandedPaths: React.Dispatch<React.SetStateAction<Set<string>>>
-  setBottomPanelCurationView: (view: 'grid' | 'markdown') => void
   layoutMode: MarkdownWorkspaceLayoutMode
   setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
-  revealLineInEditor: (line: number) => void
+  revealLineInEditor: (line: number, endLine?: number) => void
   setStatusLabel: (label: string) => void
 }) {
   const {
@@ -63,7 +62,6 @@ export function useCanvasMarkdownSync(args: {
     activePath,
     setActivePathSafe,
     setExpandedPaths,
-    setBottomPanelCurationView,
     layoutMode,
     setLayoutMode,
     revealLineInEditor,
@@ -74,6 +72,7 @@ export function useCanvasMarkdownSync(args: {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
+  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
 
   const lastCanvasSyncSig = useMarkdownExplorerStore(s => s.lastCanvasSyncSig)
   const setLastCanvasSyncSig = useMarkdownExplorerStore(s => s.setLastCanvasSyncSig)
@@ -116,9 +115,9 @@ export function useCanvasMarkdownSync(args: {
       })
       setActivePathSafe(normalizedTarget)
     }
-    setBottomPanelCurationView('markdown')
+    setWorkspaceViewMode('editor')
     if (layoutMode !== 'split' && layoutMode !== 'editor') setLayoutMode('split')
-    revealLineInEditor(location.lineStart)
+    revealLineInEditor(location.lineStart, location.lineEnd)
     setLastCanvasSyncSig(sig)
   }, [
     activePath,
@@ -130,11 +129,11 @@ export function useCanvasMarkdownSync(args: {
     selectedNodeId,
     selectionSource,
     setActivePathSafe,
-    setBottomPanelCurationView,
     setExpandedPaths,
     setLayoutMode,
     setLastCanvasSyncSig,
     setStatusLabel,
+    setWorkspaceViewMode,
     lastCanvasSyncSig,
   ])
 }

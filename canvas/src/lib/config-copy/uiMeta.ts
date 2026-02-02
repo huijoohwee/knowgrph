@@ -131,6 +131,7 @@ export const UI_LABELS = {
   localSchemaLocalRules: 'Local schema · Local rules',
   mermaidFocus: 'Mermaid Focus',
   status: 'Status',
+  editor: 'Editor',
   nodeShapeMode: 'Node Shape',
   groupShapeRect: 'Cluster Shape: Rect',
   groupShapePolygon: 'Cluster Shape: Polygon',

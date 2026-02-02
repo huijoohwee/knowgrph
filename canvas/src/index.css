@@ -95,6 +95,12 @@ body {
   background-color: var(--app-bg);
 }
 
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 @keyframes launch-rocket {
   0% {
     transform: translateY(0) rotate(0deg);

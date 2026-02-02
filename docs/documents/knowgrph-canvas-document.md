@@ -65,6 +65,21 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 ---
 
+## Workspace View Modes (Canvas vs Editor)
+
+### Mode Model
+
+- **Canvas mode** is the default full-screen graph workspace with Toolbar, BottomPanel, and the optional right side panel.
+- **Editor mode** is a VS Code-like embedded workspace that reuses the existing Markdown Workspace SSOT (files + editor/viewer/split/presentation + import + apply-to-graph) and shows a Canvas preview.
+
+### Preview Contract (SSOT)
+
+- Editor mode previews the Canvas using an embedded `iframe` pointed at `/?kgPreview=1`.
+- `kgPreview=1` must force preview-only rendering (no Toolbar, no BottomPanel, no side panels) so the preview cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
+- The host must avoid rendering graph canvases in the background when the active view mode is Editor (mount only what is visible).
+
+---
+
 ## Repository Architecture
 
 **Module Hierarchy**: schema defaults/types → layout engines (force/radial/stratify/Mermaid) → collision + overlap resolution → fit + zoom controller → renderer layers (nodes/links/groups)  

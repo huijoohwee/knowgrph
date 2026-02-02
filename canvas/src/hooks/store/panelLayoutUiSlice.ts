@@ -111,8 +111,18 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
         bottomPanelCurationView: s.bottomPanelCurationView,
       })),
     setBottomPanelCurationView: (view: 'grid' | 'markdown') =>
-      set({
-        bottomPanelCurationView: view === 'markdown' ? 'markdown' : 'grid',
+      set(s => {
+        if (view === 'markdown') {
+          const current = s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'
+          const nextMode = current === 'editor' ? current : 'editor'
+          return {
+            bottomPanelCurationView: 'grid',
+            workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode),
+          }
+        }
+        return {
+          bottomPanelCurationView: 'grid',
+        }
       }),
     setSchemaDeriveCacheCapacity: (n: number) => set({ schemaDeriveCacheCapacity: lsSetInt(LS_KEYS.schemaDeriveCacheCapacity, n, { min: 1, max: 1024 }) }),
     setGraphFieldSettingsById: (next: GraphFieldSettingsById) => set({ graphFieldSettingsById: lsSetJson(LS_KEYS.graphFieldSettingsById, next) }),

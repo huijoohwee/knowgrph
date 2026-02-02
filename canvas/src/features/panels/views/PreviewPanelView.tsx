@@ -375,8 +375,7 @@ export default function PreviewPanelView() {
       try {
         setSelectionSource('toolbar')
         selectNode(item.nodeId)
-        openBottomPanel('curation')
-        setBottomPanelCurationView('markdown')
+        setWorkspaceViewMode('editor')
       } catch {
         void 0
       }

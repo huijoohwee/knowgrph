@@ -217,6 +217,10 @@ import { testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile } from '@/_
 import { testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles } from '@/__tests__/workspaceSeedPersistence.test'
 import { testBottomPanelMarkdownCollapseKeepsEditorContentMounted } from '@/__tests__/bottomPanelMarkdownCollapseKeepsContent.test'
 import {
+  testEmbeddedEditorShellRendersCanvasPreviewIframe,
+  testToolbarEditorButtonTogglesWorkspaceViewMode,
+} from '@/__tests__/embeddedEditorMode.test'
+import {
   testGraphRagAnalyticsWritesNamespacedCausalityComponents,
   testKeywordGraphWritesKeywordFrequencyAndStrengthScore,
 } from '@/__tests__/metricsProperties.test'
@@ -352,6 +356,9 @@ export const runAllTests = async () => {
   await exec('policy.curagrph.aliasContractInViteConfig', testCuragrphAliasContractInViteConfig)
   await exec('policy.markdown.forbidEditorJs', testForbidEditorJsDependencies)
   await exec('policy.toolbar.forbidLegacyToolMenuAreasSystem', testForbidLegacyToolbarToolMenuAreasSystem)
+
+  await exec('toolbar.editorToggle.togglesWorkspaceViewMode', testToolbarEditorButtonTogglesWorkspaceViewMode)
+  await exec('editorShell.rendersCanvasPreviewIframe', testEmbeddedEditorShellRendersCanvasPreviewIframe)
 
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)

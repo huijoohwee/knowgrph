@@ -83,7 +83,7 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
         const name = isHttp ? deriveMarkdownNameFromUrl(rawSourceName) : ensureMarkdownFileName(res.input.name || first.displayName || first.name)
 
         const store = useGraphStore.getState()
-        store.setBottomPanelCurationView('markdown')
+        store.setWorkspaceViewMode('editor')
         if (isHttp) store.addRecentFile({ name, url: rawSourceName, type: 'url' })
         else store.addRecentFile({ name, path: type === 'local' ? first.name : undefined, type: 'markdown' })
 

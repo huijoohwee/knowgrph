@@ -15,6 +15,12 @@ export const createUiSlice = (set: SetGraph) => {
 
     isEditMode: false,
 
+    workspaceViewMode: lsJson<'canvas' | 'editor'>(
+      LS_KEYS.workspaceViewMode,
+      'canvas',
+      value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
+    ),
+
     codeHighlightDurationMs: 1000,
     codeSelectThrottleMs: 100,
     codeHighlightUntilClick: true,
@@ -165,6 +171,20 @@ export const createUiSlice = (set: SetGraph) => {
     statusPanelPinned: lsBool(LS_KEYS.statusPanelPinned, false),
 
     setEditMode: (mode: boolean) => set({ isEditMode: mode }),
+
+    setWorkspaceViewMode: (mode: 'canvas' | 'editor') =>
+      set({
+        workspaceViewMode: lsSetJson(
+          LS_KEYS.workspaceViewMode,
+          mode === 'editor' ? 'editor' : 'canvas',
+        ),
+      }),
+    toggleWorkspaceViewMode: () =>
+      set(s => {
+        const current = s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'
+        const next = current === 'editor' ? 'canvas' : 'editor'
+        return { workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, next) }
+      }),
 
     setCodeHighlightDurationMs: (ms: number) => set({ codeHighlightDurationMs: Math.max(0, Math.floor(ms)) }),
     setCodeSelectThrottleMs: (ms: number) => set({ codeSelectThrottleMs: Math.max(0, Math.floor(ms)) }),

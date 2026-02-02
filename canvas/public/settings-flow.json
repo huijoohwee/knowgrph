@@ -14,7 +14,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L10; canvas/src/hooks/store/uiSlice.ts:L334"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L10; canvas/src/hooks/store/uiSlice.ts:L354"
   },
   "uiPanelOpacity": {
     "area": "Global Translucency",
@@ -31,7 +31,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L19; canvas/src/hooks/store/uiSlice.ts:L335"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L19; canvas/src/hooks/store/uiSlice.ts:L355"
   },
   "uiToolbarOpacity": {
     "area": "Global Translucency",
@@ -48,7 +48,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L28; canvas/src/hooks/store/uiSlice.ts:L336"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L28; canvas/src/hooks/store/uiSlice.ts:L356"
   },
   "selectionFlashDurationMs": {
     "area": "Selection Flash",
@@ -99,7 +99,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L55; canvas/src/hooks/store/uiSlice.ts:L261"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L55; canvas/src/hooks/store/uiSlice.ts:L281"
   },
   "uiPanelTextFontClass": {
     "area": "UI Density: Panels",
@@ -116,7 +116,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L69; canvas/src/hooks/store/uiSlice.ts:L181"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L69; canvas/src/hooks/store/uiSlice.ts:L201"
   },
   "uiPanelKeyValueTextSizeClass": {
     "area": "UI Density: Panels",
@@ -133,7 +133,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L78; canvas/src/hooks/store/uiSlice.ts:L173"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L78; canvas/src/hooks/store/uiSlice.ts:L193"
   },
   "uiPanelKeyValueInputClass": {
     "area": "UI Density: Panels",
@@ -150,7 +150,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L87; canvas/src/hooks/store/uiSlice.ts:L189"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L87; canvas/src/hooks/store/uiSlice.ts:L209"
   },
   "uiPanelMonospaceTextClass": {
     "area": "UI Density: Panels",
@@ -167,7 +167,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L96; canvas/src/hooks/store/uiSlice.ts:L214"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L96; canvas/src/hooks/store/uiSlice.ts:L234"
   },
   "uiPanelRowDensityDefaultClass": {
     "area": "UI Density: Panels",
@@ -184,7 +184,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L105; canvas/src/hooks/store/uiSlice.ts:L198"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L105; canvas/src/hooks/store/uiSlice.ts:L218"
   },
   "uiHeaderRowHeightClass": {
     "area": "UI Density: Headers",
@@ -201,7 +201,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L114; canvas/src/hooks/store/uiSlice.ts:L229"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L114; canvas/src/hooks/store/uiSlice.ts:L249"
   },
   "uiHeaderRowPaddingClass": {
     "area": "UI Density: Headers",
@@ -218,7 +218,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L123; canvas/src/hooks/store/uiSlice.ts:L237"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L123; canvas/src/hooks/store/uiSlice.ts:L257"
   },
   "uiSectionHeaderRowHeightClass": {
     "area": "UI Density: Headers",
@@ -235,7 +235,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L132; canvas/src/hooks/store/uiSlice.ts:L245"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L132; canvas/src/hooks/store/uiSlice.ts:L265"
   },
   "uiSectionHeaderRowPaddingClass": {
     "area": "UI Density: Headers",
@@ -252,7 +252,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L141; canvas/src/hooks/store/uiSlice.ts:L253"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L141; canvas/src/hooks/store/uiSlice.ts:L273"
   },
   "uiIconFormat": {
     "area": "UI Density: Icons",
@@ -269,7 +269,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L150; canvas/src/hooks/store/uiSlice.ts:L265"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L150; canvas/src/hooks/store/uiSlice.ts:L285"
   },
   "uiIconStrokeWidth": {
     "area": "UI Density: Icons",
@@ -286,7 +286,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L165; canvas/src/hooks/store/uiSlice.ts:L269"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L165; canvas/src/hooks/store/uiSlice.ts:L289"
   },
   "uiIconColorClass": {
     "area": "UI Density: Icons",
@@ -303,7 +303,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L174; canvas/src/hooks/store/uiSlice.ts:L273"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L174; canvas/src/hooks/store/uiSlice.ts:L293"
   },
   "uiIconHoverBgClass": {
     "area": "UI Density: Icons",
@@ -320,7 +320,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L183; canvas/src/hooks/store/uiSlice.ts:L280"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L183; canvas/src/hooks/store/uiSlice.ts:L300"
   },
   "uiIconButtonPaddingClass": {
     "area": "UI Density: Icons",
@@ -337,7 +337,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L192; canvas/src/hooks/store/uiSlice.ts:L287"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L192; canvas/src/hooks/store/uiSlice.ts:L307"
   },
   "uiIconPillClass": {
     "area": "UI Density: Icons",
@@ -354,7 +354,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L201; canvas/src/hooks/store/uiSlice.ts:L294"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L201; canvas/src/hooks/store/uiSlice.ts:L314"
   },
   "uiIconPillLegendTextSizeClass": {
     "area": "UI Density: Icons",
@@ -371,7 +371,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L211; canvas/src/hooks/store/uiSlice.ts:L316"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L211; canvas/src/hooks/store/uiSlice.ts:L336"
   },
   "uiIconPillBadgeTextSizeClass": {
     "area": "UI Density: Icons",
@@ -388,7 +388,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L220; canvas/src/hooks/store/uiSlice.ts:L323"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L220; canvas/src/hooks/store/uiSlice.ts:L343"
   },
   "uiIconBadgeChipClass": {
     "area": "UI Density: Icons",
@@ -405,7 +405,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L229; canvas/src/hooks/store/uiSlice.ts:L302"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L229; canvas/src/hooks/store/uiSlice.ts:L322"
   },
   "uiIconBadgeChipTextSizeClass": {
     "area": "UI Density: Icons",
@@ -422,7 +422,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L238; canvas/src/hooks/store/uiSlice.ts:L309"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L238; canvas/src/hooks/store/uiSlice.ts:L329"
   },
   "uiPanelMicroLabelTextSizeClass": {
     "area": "UI Density: Panels",
@@ -439,7 +439,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L247; canvas/src/hooks/store/uiSlice.ts:L221"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L247; canvas/src/hooks/store/uiSlice.ts:L241"
   },
   "uiIconAnimationEnabled": {
     "area": "UI Density: Icons",
@@ -456,7 +456,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L256; canvas/src/hooks/store/uiSlice.ts:L330"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L256; canvas/src/hooks/store/uiSlice.ts:L350"
   },
   "themeMode": {
     "area": "UI Appearance",
@@ -580,7 +580,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L325; canvas/src/hooks/store/uiSlice.ts:L366"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L325; canvas/src/hooks/store/uiSlice.ts:L386"
   },
   "spotlight.margin": {
     "area": "Launch Spotlight Layout",
@@ -631,7 +631,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L352; canvas/src/hooks/store/uiSlice.ts:L337"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L352; canvas/src/hooks/store/uiSlice.ts:L357"
   },
   "chatModel": {
     "area": "Chat",
@@ -648,7 +648,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L361; canvas/src/hooks/store/uiSlice.ts:L344"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L361; canvas/src/hooks/store/uiSlice.ts:L364"
   },
   "chatTemperature": {
     "area": "Chat",
@@ -665,7 +665,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L370; canvas/src/hooks/store/uiSlice.ts:L351"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L370; canvas/src/hooks/store/uiSlice.ts:L371"
   },
   "chatSystemPrompt": {
     "area": "Chat",
@@ -682,7 +682,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L379; canvas/src/hooks/store/uiSlice.ts:L358"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L379; canvas/src/hooks/store/uiSlice.ts:L378"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",
@@ -1150,7 +1150,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L24; canvas/src/hooks/store/uiSlice.ts:L169"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L24; canvas/src/hooks/store/uiSlice.ts:L189"
   },
   "codeSelectThrottleMs": {
     "area": "Editor Behavior & Timing",
@@ -1167,7 +1167,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L33; canvas/src/hooks/store/uiSlice.ts:L170"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L33; canvas/src/hooks/store/uiSlice.ts:L190"
   },
   "codeHighlightUntilClick": {
     "area": "Editor Behavior & Timing",
@@ -1184,7 +1184,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L42; canvas/src/hooks/store/uiSlice.ts:L171"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L42; canvas/src/hooks/store/uiSlice.ts:L191"
   },
   "enableTabSync": {
     "area": "Tab Sync",
@@ -1317,7 +1317,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L157; canvas/src/hooks/store/panelLayoutUiSlice.ts:L117; canvas/src/hooks/store/uiSettingsSlice.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L157; canvas/src/hooks/store/panelLayoutUiSlice.ts:L127; canvas/src/hooks/store/uiSettingsSlice.ts:L146"
   },
   "schema.behavior.hover.content.type": {
     "area": "Graph Hover Preview",

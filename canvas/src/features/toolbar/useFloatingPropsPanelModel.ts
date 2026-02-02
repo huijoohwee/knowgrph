@@ -5,7 +5,6 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { edgeExists } from '@/lib/graph/edges'
 import { getNodeMediaSpec, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { emitChatInputAppend, emitSidePanelOpen } from '@/features/canvas/utils'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { createId } from '@/lib/id'
@@ -78,7 +77,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const setSidebarOpen = useGraphStore(s => s.setSidebarOpen)
   const setBottomPanelTab = useGraphStore(s => s.setBottomPanelTab)
-  const setBottomPanelCurationView = useGraphStore(s => s.setBottomPanelCurationView)
+  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const addNode = useGraphStore(s => s.addNode)
   const addEdge = useGraphStore(s => s.addEdge)
   const removeNode = useGraphStore(s => s.removeNode)
@@ -239,16 +238,14 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!prov) return
     setSelectionSource('toolbar')
     try {
-      setBottomPanelTab('curation')
-      setBottomPanelCurationView('markdown')
-      openBottomPanel('curation')
+      setWorkspaceViewMode('editor')
       const path = normalizeWorkspacePath(prov.documentPath)
       useMarkdownExplorerStore.getState().setActivePath(path)
       useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
     } catch {
       void 0
     }
-  }, [graphData, nodeContextId, resolveMarkdownProvenance, setBottomPanelTab, setBottomPanelCurationView, setSelectionSource])
+  }, [graphData, nodeContextId, resolveMarkdownProvenance, setSelectionSource, setWorkspaceViewMode])
 
   const doAddToChat = React.useCallback(() => {
     if (!graphData) return
@@ -435,16 +432,14 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!prov) return
     setSelectionSource('toolbar')
     try {
-      setBottomPanelTab('curation')
-      setBottomPanelCurationView('markdown')
-      openBottomPanel('curation')
+      setWorkspaceViewMode('editor')
       const path = normalizeWorkspacePath(prov.documentPath)
       useMarkdownExplorerStore.getState().setActivePath(path)
       useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
     } catch {
       void 0
     }
-  }, [edgeContextId, graphData, resolveMarkdownProvenance, setBottomPanelTab, setBottomPanelCurationView, setSelectionSource])
+  }, [edgeContextId, graphData, resolveMarkdownProvenance, setSelectionSource, setWorkspaceViewMode])
 
   const doAddNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}
