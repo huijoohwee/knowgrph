@@ -22,6 +22,7 @@ export default function BottomPanel() {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectionSource = useGraphStore(s => s.selectionSource)
+  const bottomPanelCurationView = useGraphStore(s => s.bottomPanelCurationView)
   const bottomPanelHeightRatio = useGraphStore(s => s.bottomPanelHeightRatio)
   const setBottomPanelHeightRatio = useGraphStore(s => s.setBottomPanelHeightRatio)
   const setBottomPanelCollapsed = useGraphStore(s => s.setBottomPanelCollapsed)
@@ -42,6 +43,9 @@ export default function BottomPanel() {
 
   const tab: typeof rawTab = rawTab === 'data' ? 'curation' : rawTab
 
+  const keepBodyMountedWhenCollapsed =
+    collapsed && tab === 'curation' && bottomPanelCurationView === 'markdown'
+
   useEffect(() => {
     if (rawTab !== 'render') return
     emitRendererPanelOpen()
@@ -57,7 +61,9 @@ export default function BottomPanel() {
     if (!Number.isFinite(vh) || vh <= 0) return ratio
     const toolbar = typeof document === 'undefined' ? null : document.querySelector('.App-toolbar')
     const toolbarBottomPx =
-      toolbar instanceof HTMLElement ? toolbar.getBoundingClientRect().bottom : UI_LAYOUT.toolbarOffsetPx
+      typeof HTMLElement !== 'undefined' && toolbar instanceof HTMLElement
+        ? toolbar.getBoundingClientRect().bottom
+        : UI_LAYOUT.toolbarOffsetPx
     const clearancePx = toolbarBottomPx + UI_LAYOUT.toolbarOffsetPx
     const maxRatio = Math.max(0, (vh - clearancePx) / vh)
     return Math.min(ratio, maxRatio)
@@ -228,6 +234,7 @@ export default function BottomPanel() {
   }, [collapsed, setBottomPanelCollapsed])
 
   useEffect(() => {
+    if (typeof document === 'undefined') return
     const root = document.documentElement
     const vh = window.innerHeight
     const h = collapsed ? collapsedHeaderPx : Math.round(bottomPanelHeightRatio * vh)
@@ -281,40 +288,49 @@ export default function BottomPanel() {
           />
         </header>
 
-        {!collapsed && (
-          <BottomPanelBody
-            tab={tab}
-            startTransition={startTransition}
-            setTabStore={setTabStore}
-            schemaUiEditorOpen={schemaUiEditorOpen}
-            setSchemaUiEditorOpen={setSchemaUiEditorOpen}
-            schema={schema}
-            schemaError={schemaError}
-            schemaUiStep31Collapsed={schemaUiStep31Collapsed}
-            schemaUiStep32Collapsed={schemaUiStep32Collapsed}
-            schemaUiStep33Collapsed={schemaUiStep33Collapsed}
-            schemaUiStep332Collapsed={schemaUiStep332Collapsed}
-            handleSchemaUiCollapseAll={handleSchemaUiCollapseAll}
-            handleSchemaUiExpandAll={handleSchemaUiExpandAll}
-            setSchemaUiStep31Collapsed={setSchemaUiStep31Collapsed}
-            setSchemaUiStep32Collapsed={setSchemaUiStep32Collapsed}
-            setSchemaUiStep33Collapsed={setSchemaUiStep33Collapsed}
-            setSchemaUiStep332Collapsed={setSchemaUiStep332Collapsed}
-            sortedNodes={sortedNodes}
-            selectedNodeId={selectedNodeId}
-            sortedEdges={sortedEdges}
-            selectedEdgeId={selectedEdgeId}
-            parserScriptText={parserScriptText}
-            parserError={parserError}
-            parserErrorHook={parserErrorHook}
-            parserUiEditorOpen={parserUiEditorOpen}
-            setParserUiEditorOpen={setParserUiEditorOpen}
-            searchQuery={searchQuery}
-            nodes={nodes}
-            schemaText={schemaText}
-            setSchemaText={setSchemaText}
-          />
-      )}
+        {(!collapsed || keepBodyMountedWhenCollapsed) && (
+          <section
+            className={
+              collapsed
+                ? 'h-0 overflow-hidden pointer-events-none'
+                : 'flex-1 min-h-0'
+            }
+            aria-hidden={collapsed}
+          >
+            <BottomPanelBody
+              tab={tab}
+              startTransition={startTransition}
+              setTabStore={setTabStore}
+              schemaUiEditorOpen={schemaUiEditorOpen}
+              setSchemaUiEditorOpen={setSchemaUiEditorOpen}
+              schema={schema}
+              schemaError={schemaError}
+              schemaUiStep31Collapsed={schemaUiStep31Collapsed}
+              schemaUiStep32Collapsed={schemaUiStep32Collapsed}
+              schemaUiStep33Collapsed={schemaUiStep33Collapsed}
+              schemaUiStep332Collapsed={schemaUiStep332Collapsed}
+              handleSchemaUiCollapseAll={handleSchemaUiCollapseAll}
+              handleSchemaUiExpandAll={handleSchemaUiExpandAll}
+              setSchemaUiStep31Collapsed={setSchemaUiStep31Collapsed}
+              setSchemaUiStep32Collapsed={setSchemaUiStep32Collapsed}
+              setSchemaUiStep33Collapsed={setSchemaUiStep33Collapsed}
+              setSchemaUiStep332Collapsed={setSchemaUiStep332Collapsed}
+              sortedNodes={sortedNodes}
+              selectedNodeId={selectedNodeId}
+              sortedEdges={sortedEdges}
+              selectedEdgeId={selectedEdgeId}
+              parserScriptText={parserScriptText}
+              parserError={parserError}
+              parserErrorHook={parserErrorHook}
+              parserUiEditorOpen={parserUiEditorOpen}
+              setParserUiEditorOpen={setParserUiEditorOpen}
+              searchQuery={searchQuery}
+              nodes={nodes}
+              schemaText={schemaText}
+              setSchemaText={setSchemaText}
+            />
+          </section>
+        )}
       </section>
     </aside>
   )

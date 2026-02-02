@@ -1,10 +1,27 @@
 import React from 'react'
-import type { MarkdownGeoDatasetIntegration, MarkdownGeoDatasetRegistrationRequest } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { InlineMarkdownGeoJsonLayerMap } from '@/features/geospatial/InlineMarkdownGeoJsonLayerMap'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashText } from '@/features/parsers/hash'
 import { addGeospatialDatasetUrl, isGeospatialModeEnabled, parseGeoJsonFromText } from 'gympgrph'
 import { uploadGeoJsonTextToLocalStore } from '@/features/geospatial/localGeoUpload'
+
+type MarkdownGeoDatasetRegistrationRequest = {
+  sourceDocumentPath: string
+  codeBlock: {
+    lang: 'geojson' | 'json'
+    text: string
+    startLine: number
+    endLine: number
+  }
+}
+
+type MarkdownGeoDatasetIntegration = {
+  isGeospatialModeEnabled?: () => boolean
+  isGeoJsonCodeBlock?: (req: MarkdownGeoDatasetRegistrationRequest) => boolean
+  renderGeoJsonFeatureCollection?: (req: MarkdownGeoDatasetRegistrationRequest) => React.ReactNode
+  registerGeoJsonFeatureCollection?: (req: MarkdownGeoDatasetRegistrationRequest) => Promise<{ ok: true } | { ok: false; error: string }>
+  requestOpenGeoPanel?: () => void
+}
 
 type GeoDetectResult = { ok: boolean }
 type GeoUploadCacheValue = { ok: true; url: string; name: string } | { ok: false; error: string }

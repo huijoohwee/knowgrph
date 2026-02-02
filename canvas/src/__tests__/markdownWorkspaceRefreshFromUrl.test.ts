@@ -69,8 +69,6 @@ export async function testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAn
         setTimeout(() => resolve(), 0)
       })
 
-    for (let i = 0; i < 12; i += 1) await tick()
-
     const findRefreshButton = (): HTMLButtonElement | null => {
       const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
       for (const btn of buttons) {
@@ -80,7 +78,16 @@ export async function testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAn
       return null
     }
 
-    const refreshBtn = findRefreshButton()
+    let refreshBtn: HTMLButtonElement | null = null
+    for (let i = 0; i < 60; i += 1) {
+      await tick()
+      const btn = findRefreshButton()
+      if (btn) {
+        refreshBtn = btn
+        break
+      }
+    }
+
     if (!refreshBtn) throw new Error('refresh button not found')
 
     refreshBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

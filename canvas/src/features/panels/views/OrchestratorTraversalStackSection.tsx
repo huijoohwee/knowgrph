@@ -48,6 +48,7 @@ interface OrchestratorTraversalWorkflowProps {
 
 interface OrchestratorTraversalPresetsProps {
   runGraphRagTraversal: () => void
+  traversalPlaneProgress?: number | null
   traversalStartNodeId: string
   setTraversalStartNodeId: (value: string) => void
   traversalMaxDepth: number

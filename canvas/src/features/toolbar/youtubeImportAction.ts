@@ -1,11 +1,15 @@
 import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
-import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import { unwrapUserProvidedText } from '@/lib/url'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { slugify } from '@/features/parsers/markdownJsonLd'
 import { runImportFlow } from '@/features/toolbar/importFlow'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
+import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { ensureMarkdownFileName, upsertWorkspaceTextDocument } from '@/features/workspace-fs/upsertWorkspaceTextDocument'
 
 export type YouTubeImportType = 'url'
 
@@ -223,13 +227,32 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
     })
 
     const state = useGraphStore.getState()
-    applyImportedMarkdownToStore({
-      name: converted.displayName,
-      text: markdownForEditors,
-      sourceUrl: converted.sourceUrl,
-      curationView: 'markdown',
-      recent: { name: converted.displayName, url: converted.sourceUrl, type: 'markdown' },
-    })
+    const markdownName = ensureMarkdownFileName(converted.displayName)
+    state.setBottomPanelCurationView('markdown')
+    state.addRecentFile({ name: markdownName, url: converted.sourceUrl, type: 'markdown' })
+    try {
+      state.setMarkdownDocument(markdownName, markdownForEditors)
+      state.setMarkdownDocumentSourceUrl(converted.sourceUrl)
+    } catch {
+      void 0
+    }
+
+    void (async () => {
+      try {
+        const fs = await getWorkspaceFs()
+        await fs.ensureSeed()
+        const path = await upsertWorkspaceTextDocument({
+          fs,
+          parentPath: WORKSPACE_ROOT_PATH,
+          name: markdownName,
+          text: markdownForEditors,
+        })
+        setWorkspaceEntrySource(path, { kind: 'url', url: converted.sourceUrl })
+        useMarkdownExplorerStore.getState().setActivePath(path)
+      } catch {
+        void 0
+      }
+    })()
     const jsonNameForEditors = `${converted.displayName.replace(/\.(md|markdown)$/i, '') || converted.displayName}.json`
     state.setJsonSourceDocument(jsonNameForEditors, converted.transcriptJsonText)
 

@@ -40,3 +40,11 @@ export async function toggleGeospatialModeEnabled(): Promise<boolean> {
   }
   return Boolean(m.isGeospatialModeEnabled())
 }
+
+export async function requestGeospatialTraversalRun(args?: { edgeIds?: string[] | null }): Promise<void> {
+  const m = await importGympgrph()
+  if (typeof m.requestGeospatialTraversalRun !== 'function') {
+    throw new Error('Geospatial traversal API is unavailable')
+  }
+  m.requestGeospatialTraversalRun(args)
+}

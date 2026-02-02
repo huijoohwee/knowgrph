@@ -6,7 +6,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
 import { openBottomPanel } from '@/features/bottom-panel/open'
-import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 
 export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onApplyExample: (exampleId: ExampleId) => void }) {
   const { examples, onApplyExample } = props
@@ -30,10 +29,6 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
   const handleOpenMarkdownSourceFiles = React.useCallback(() => {
     openBottomPanel('curation')
     useGraphStore.getState().setBottomPanelCurationView('markdown')
-    const active = useMarkdownExplorerStore.getState().activePath
-    if (!active) {
-      useMarkdownExplorerStore.getState().setActivePath('/README.md')
-    }
   }, [])
 
   return (

@@ -142,3 +142,33 @@ export const useGraphStore = create<GraphState>()(
   ...createSchemaSlice(set, get),
 })),
 )
+
+try {
+  const w = typeof window !== 'undefined' ? (window as unknown as { localStorage?: Storage; __KG_MARKDOWN_EMPTY_TRACE__?: unknown; __KG_MARKDOWN_EMPTY_TRACE_SUB__?: unknown }) : null
+  const enabled = !!(w?.localStorage && w.localStorage.getItem('kg:debug:markdownEmptyTrace') === '1')
+  if (w && enabled && !w.__KG_MARKDOWN_EMPTY_TRACE_SUB__) {
+    w.__KG_MARKDOWN_EMPTY_TRACE_SUB__ = true
+    const buf: Array<{ ts: number; prevName: string; nextName: string; prevLen: number; nextLen: number; stack: string }> = []
+    w.__KG_MARKDOWN_EMPTY_TRACE__ = buf
+    let prevName = String(useGraphStore.getState().markdownDocumentName || '')
+    let prevText = String(useGraphStore.getState().markdownDocumentText || '')
+    useGraphStore.subscribe(
+      s => [s.markdownDocumentName, s.markdownDocumentText] as const,
+      next => {
+        const nextName = String(next[0] || '')
+        const nextText = String(next[1] || '')
+        const prevLen = prevText.trim().length
+        const nextLen = nextText.trim().length
+        if (prevLen > 0 && nextLen === 0) {
+          const stack = String(new Error('markdownDocumentText emptied').stack || '')
+          buf.push({ ts: Date.now(), prevName, nextName, prevLen, nextLen, stack })
+          if (buf.length > 20) buf.splice(0, buf.length - 20)
+        }
+        prevName = nextName
+        prevText = nextText
+      },
+    )
+  }
+} catch {
+  void 0
+}

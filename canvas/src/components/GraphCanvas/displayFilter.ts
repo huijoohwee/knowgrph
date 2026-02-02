@@ -9,18 +9,23 @@ export const isDisplayNode = (n: GraphNode): boolean => {
 
 export const getDisplayNodes = (graphData: GraphData): GraphNode[] => {
   const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
-  return nodes.filter(isDisplayNode)
+  const preferred = nodes.filter(isDisplayNode)
+  return preferred.length > 0 ? preferred : nodes
 }
 
 export const getDisplayEdges = (args: { edges: GraphEdge[]; displayNodeIdSet: Set<string> }): GraphEdge[] => {
   const edges = Array.isArray(args.edges) ? args.edges : []
-  return edges.filter(e => {
+  const base = edges.filter(e => {
     const s = String(e.source || '')
     const t = String(e.target || '')
     if (!s || !t) return false
     if (!args.displayNodeIdSet.has(s) || !args.displayNodeIdSet.has(t)) return false
+    return true
+  })
+
+  const preferred = base.filter(e => {
     if (e.label === 'hasMermaidNode' || e.label === 'hasMermaidSubgraph' || e.label === 'hasMermaid') return false
     return true
   })
+  return preferred.length > 0 ? preferred : base
 }
-

@@ -27,6 +27,9 @@
       "@/*": [
         "./src/*"
       ],
+      "@sandbox/*": [
+        "../../sandbox/*"
+      ],
       "@/components/BottomPanel/*": [
         "./src/components/BottomPanel/*",
         "../../curagrph/src/components/BottomPanel/*"

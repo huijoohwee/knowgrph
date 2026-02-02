@@ -11,7 +11,7 @@ export function MarkdownExplorerSection(props: {
 }) {
   const { title, collapsed, setCollapsed, right, children } = props
   return (
-    <section className="border-b border-zinc-200/70" aria-label={title}>
+    <section className={`border-b ${UI_THEME_TOKENS.panel.border}`} aria-label={title}>
       <button
         type="button"
         className={`w-full flex items-center justify-between px-2 py-1 text-[11px] tracking-wide font-semibold uppercase ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}

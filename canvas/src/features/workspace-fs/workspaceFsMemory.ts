@@ -1,9 +1,34 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
-import { WORKSPACE_SEED_FILES } from './workspaceFs'
+import { LEGACY_WORKSPACE_README_PATH, LEGACY_WORKSPACE_README_TEXT, getWorkspaceSeedFiles } from './workspaceFs'
+import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
+import { LS_KEYS } from '@/lib/config'
+import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
 
-export function createMemoryWorkspaceFs(): WorkspaceFs {
+export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry[] }): WorkspaceFs {
   const entriesByPath = new Map<string, WorkspaceEntry>()
+
+  const loadInitial = () => {
+    const initial = Array.isArray(args?.initialEntries) ? args?.initialEntries : []
+    for (const raw of initial) {
+      if (!raw || typeof raw !== 'object') continue
+      const kind = raw.kind === 'file' || raw.kind === 'folder' ? raw.kind : null
+      if (!kind) continue
+      const path = normalizeWorkspacePath(raw.path)
+      if (!path) continue
+      const next: WorkspaceEntry = {
+        path,
+        parentPath: raw.parentPath ? normalizeWorkspacePath(raw.parentPath) : null,
+        kind,
+        name: String(raw.name ?? ''),
+        updatedAtMs: typeof raw.updatedAtMs === 'number' ? raw.updatedAtMs : Date.now(),
+        ...(kind === 'file' ? { text: typeof raw.text === 'string' ? raw.text : '' } : {}),
+      }
+      entriesByPath.set(path, next)
+    }
+  }
+
+  loadInitial()
 
   const ensureRoot = () => {
     if (entriesByPath.has(WORKSPACE_ROOT_PATH)) return
@@ -18,8 +43,24 @@ export function createMemoryWorkspaceFs(): WorkspaceFs {
 
   const ensureSeed = async () => {
     ensureRoot()
-    if ([...entriesByPath.values()].some(e => e.kind === 'file')) return
-    for (const seed of WORKSPACE_SEED_FILES) {
+
+    const legacyPath = normalizeWorkspacePath(LEGACY_WORKSPACE_README_PATH)
+    const legacy = entriesByPath.get(legacyPath)
+    if (legacy && legacy.kind === 'file' && String(legacy.text ?? '') === LEGACY_WORKSPACE_README_TEXT) {
+      entriesByPath.delete(legacyPath)
+    }
+
+    const hasFiles = [...entriesByPath.values()].some(e => e.kind === 'file')
+    const seeded = lsBool(LS_KEYS.markdownWorkspaceSeeded, false)
+    const userClearedAll = lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)
+    if (hasFiles) {
+      if (!seeded) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
+      if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+      return
+    }
+    if (userClearedAll) return
+    const seeds = await getWorkspaceSeedFiles()
+    for (const seed of seeds) {
       const path = normalizeWorkspacePath(seed.path)
       entriesByPath.set(path, {
         path,
@@ -30,6 +71,8 @@ export function createMemoryWorkspaceFs(): WorkspaceFs {
         updatedAtMs: Date.now(),
       })
     }
+    lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
+    if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
   }
 
   const listEntries = async () => {
@@ -50,6 +93,7 @@ export function createMemoryWorkspaceFs(): WorkspaceFs {
     const entry = entriesByPath.get(p)
     if (!entry || entry.kind !== 'file') return
     entriesByPath.set(p, { ...entry, text: String(text ?? ''), updatedAtMs: Date.now() })
+    notifyWorkspaceFsChanged({ op: 'writeFileText', path: p })
   }
 
   const createFolder = async (args: { parentPath: WorkspacePath; name: string }) => {
@@ -69,6 +113,7 @@ export function createMemoryWorkspaceFs(): WorkspaceFs {
       name,
       updatedAtMs: Date.now(),
     })
+    notifyWorkspaceFsChanged({ op: 'createFolder', path })
     return path
   }
 
@@ -93,6 +138,10 @@ export function createMemoryWorkspaceFs(): WorkspaceFs {
       text: String(args.text ?? ''),
       updatedAtMs: Date.now(),
     })
+    if (lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)) {
+      lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+    }
+    notifyWorkspaceFsChanged({ op: 'createFile', path })
     return path
   }
 
@@ -104,12 +153,18 @@ export function createMemoryWorkspaceFs(): WorkspaceFs {
     if (!target) return
     if (target.kind === 'file') {
       entriesByPath.delete(p)
+      const remainingHasFiles = [...entriesByPath.values()].some(e => e.kind === 'file')
+      if (!remainingHasFiles) lsSetBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, true)
+      notifyWorkspaceFsChanged({ op: 'deleteEntry', path: p })
       return
     }
     const prefix = p.endsWith('/') ? p : `${p}/`
     for (const key of [...entriesByPath.keys()]) {
       if (key === p || key.startsWith(prefix)) entriesByPath.delete(key)
     }
+    const remainingHasFiles = [...entriesByPath.values()].some(e => e.kind === 'file')
+    if (!remainingHasFiles) lsSetBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, true)
+    notifyWorkspaceFsChanged({ op: 'deleteEntry', path: p })
   }
 
   return {
@@ -122,4 +177,3 @@ export function createMemoryWorkspaceFs(): WorkspaceFs {
     deleteEntry,
   }
 }
-

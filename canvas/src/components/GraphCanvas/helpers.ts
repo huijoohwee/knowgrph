@@ -226,6 +226,11 @@ function isSafeIframeUrl(value: string): boolean {
     const u = new URL(value)
     if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
     const host = u.hostname.toLowerCase()
+
+    if (host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be' || host.endsWith('.youtu.be')) {
+      return false
+    }
+
     const allowed = String(IFRAME_ALLOWED_HOSTS || '')
       .split(/[,\s]+/)
       .map(s => s.trim().toLowerCase())
@@ -237,45 +242,10 @@ function isSafeIframeUrl(value: string): boolean {
   }
 }
 
-function coerceYouTubeId(value: string): string | null {
-  const raw = String(value || '').trim()
-  if (!raw) return null
-  const cleaned = raw.replace(/[^a-zA-Z0-9_-]/g, '')
-  if (!cleaned) return null
-  if (cleaned.length < 6) return null
-  return cleaned
-}
-
 function normalizeIframeUrl(value: string): string {
   try {
     const u = new URL(value)
     const host = u.hostname.toLowerCase()
-
-    if (host === 'youtu.be' || host.endsWith('.youtu.be')) {
-      const id = coerceYouTubeId(u.pathname.replace(/^\//, '').split('/')[0] || '')
-      if (!id) return value
-      return `https://www.youtube.com/embed/${id}`
-    }
-
-    if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
-      if (u.pathname === '/watch') {
-        const id = coerceYouTubeId(u.searchParams.get('v') || '')
-        if (!id) return value
-        return `https://www.youtube.com/embed/${id}`
-      }
-      const mEmbed = u.pathname.match(/^\/embed\/([^/]+)/)
-      if (mEmbed && mEmbed[1]) {
-        const id = coerceYouTubeId(mEmbed[1])
-        if (!id) return value
-        return `https://www.youtube.com/embed/${id}`
-      }
-      const mShorts = u.pathname.match(/^\/shorts\/([^/]+)/)
-      if (mShorts && mShorts[1]) {
-        const id = coerceYouTubeId(mShorts[1])
-        if (!id) return value
-        return `https://www.youtube.com/embed/${id}`
-      }
-    }
 
     if (host === 'vimeo.com' || host.endsWith('.vimeo.com')) {
       const m = u.pathname.match(/^\/(\d+)(\/|$)/)

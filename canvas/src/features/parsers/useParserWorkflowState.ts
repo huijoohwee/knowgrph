@@ -16,6 +16,7 @@ import { promptForUrl } from '@/features/toolbar/ingestUtils'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { GraphSchema, defaultSchema } from '@/lib/graph/schema'
 import { validateGraphDataWithSchema } from '@/lib/graph/validation'
 import { validateSchema } from '@/features/schema/validation'
@@ -298,7 +299,20 @@ export function useParserWorkflowState() {
         return 'remote.json'
       }
     })()
-    await loadWithStatus(() => loadGraphDataFromTextViaParser(name, text))
+    await loadWithStatus(async () => {
+      const result = await loadGraphDataFromTextViaParser(name, text)
+      try {
+        const state = useGraphStore.getState()
+        const normalizedText = normalizeMermaidMmdToMarkdown(name, text)
+        if (normalizedText.trim()) {
+          state.setMarkdownDocument(name, normalizedText)
+          state.setMarkdownDocumentSourceUrl(rawUrl)
+        }
+      } catch {
+        void 0
+      }
+      return result
+    })
   }, [loadWithStatus])
 
   const onLoadBackendWithStatus = React.useCallback(async () => {
@@ -350,7 +364,20 @@ export function useParserWorkflowState() {
         }
 
         const name = fileNameFromRepoPath(String(pipeline.datasetPath))
-        await loadWithStatus(() => loadGraphDataFromTextViaParser(name, datasetText))
+        await loadWithStatus(async () => {
+          const result = await loadGraphDataFromTextViaParser(name, datasetText)
+          try {
+            const state = useGraphStore.getState()
+            const normalizedText = normalizeMermaidMmdToMarkdown(name, datasetText)
+            if (normalizedText.trim()) {
+              state.setMarkdownDocument(name, normalizedText)
+              state.setMarkdownDocumentSourceUrl(null)
+            }
+          } catch {
+            void 0
+          }
+          return result
+        })
       }
 
       void run()

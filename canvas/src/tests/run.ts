@@ -89,10 +89,16 @@ import {
   testCanvasForbidsGraphWhenGeospatialEnabled,
   testGympgrphDefaultInteractionModeIsAlways,
   testGympgrphGeospatialKeysAreNamespacedOnly,
+  testGympgrphDefaultViewModeIs2d,
+  testGeospatialOverlayHostSupportsCesiumRenderer,
   testHostEnableForcesAlwaysInteractionMode,
   testHostTailwindScansGympgrphClasses,
   testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs,
 } from '@/__tests__/geospatialHostIntegration.test'
+import {
+  testMarkdownPreviewViewerForcesPrimaryTextColor,
+  testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses,
+} from '@/__tests__/markdownWorkspaceTheme.test'
 import {
   testGympgrphApplyMediaProxyNormalizesGithubBlobUrl,
   testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost,
@@ -124,8 +130,11 @@ import {
   testNormalizeWorkspacePathCollapsesExtraSlashes,
   testWorkspaceImportSkipsUnsupportedFilesButContinues,
 } from '@/__tests__/workspaceImportLocal.test'
+import { testWorkspaceFsChangedBatchCoalescesNotifications } from '@/__tests__/workspaceFsEventsBatch.test'
+import { testWorkspaceFsMemoryInitialEntries } from '@/__tests__/workspaceFsMemoryInitialEntries.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
+import { testGraphCanvasDisplayFilterFallback } from '@/__tests__/graphCanvasDisplayFilterFallback.test'
 import {
   testStratifyLayoutDoesNotReuseForceCacheKey,
   testStratifyLayoutDefaultsMatchFlowSpacing,
@@ -204,6 +213,9 @@ import {
   testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange,
   testWorkspaceAutosaveGuardsAgainstPathSwitchOverwrite,
 } from '@/__tests__/workspaceAutosave.test'
+import { testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile } from '@/__tests__/markdownWorkspaceCrudActions.test'
+import { testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles } from '@/__tests__/workspaceSeedPersistence.test'
+import { testBottomPanelMarkdownCollapseKeepsEditorContentMounted } from '@/__tests__/bottomPanelMarkdownCollapseKeepsContent.test'
 import {
   testGraphRagAnalyticsWritesNamespacedCausalityComponents,
   testKeywordGraphWritesKeywordFrequencyAndStrengthScore,
@@ -235,6 +247,8 @@ import {
   testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid,
 } from '@/__tests__/mmdNormalization.test'
 import { testMarkdownSlideThemeNeversinkAliasesToAcademic } from '@/__tests__/markdownThemeAlias.test'
+import { testMarkdownViewerShowsMissingDocumentPathMessage } from '@/__tests__/markdownMissingDocumentPathMessage.test'
+import { testWorkspaceFolderSelectionDoesNotClearMarkdownDocument } from '@/__tests__/workspaceImportFolderDoesNotClearMarkdownDocument.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -360,13 +374,21 @@ export const runAllTests = async () => {
   await exec('sourceFiles.folderPicker.webkitRelativePath.doesNotTreatFileNameAsFolder', testWebkitRelativePathDoesNotTreatFileNameAsFolder)
   await exec('markdownWorkspace.autosave.guardsAgainstPathSwitchOverwrite', testWorkspaceAutosaveGuardsAgainstPathSwitchOverwrite)
   await exec('markdownWorkspace.preview.splitFlushesOnDocKeyChange', testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange)
+  await exec('markdownWorkspace.explorer.crudActions.createDelete', testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile)
+  await exec('bottomPanel.markdown.collapseKeepsContent', testBottomPanelMarkdownCollapseKeepsEditorContentMounted)
+  await exec('workspaceFs.seed.noReseedAfterUserDeletesAll', testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles)
+  await exec('workspaceFs.events.batch.coalescesNotifications', testWorkspaceFsChangedBatchCoalescesNotifications)
+  await exec('workspaceFs.memory.initialEntries', testWorkspaceFsMemoryInitialEntries)
+  await exec('graphCanvas.displayFilter.fallback', testGraphCanvasDisplayFilterFallback)
 
   await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
   await exec('geospatial.canvas.forbidGraphWhenGeoEnabled', testCanvasForbidsGraphWhenGeospatialEnabled)
   await exec('geospatial.persistence.keysAreNamespacedOnly', testGympgrphGeospatialKeysAreNamespacedOnly)
+  await exec('geospatial.persistence.defaultViewModeIs2d', testGympgrphDefaultViewModeIs2d)
   await exec('geospatial.interaction.defaultAlways', testGympgrphDefaultInteractionModeIsAlways)
   await exec('geospatial.interaction.holdSpaceKeyHardening', testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs)
   await exec('geospatial.host.enableForcesAlways', testHostEnableForcesAlwaysInteractionMode)
+  await exec('geospatial.host.supportsCesiumRenderer', testGeospatialOverlayHostSupportsCesiumRenderer)
   await exec('geospatial.host.tailwindScansGympgrph', testHostTailwindScansGympgrphClasses)
   await exec('geospatial.gympgrphUrl.proxyNormalizesGithubBlob', testGympgrphApplyMediaProxyNormalizesGithubBlobUrl)
   await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
@@ -392,6 +414,11 @@ export const runAllTests = async () => {
   )
 
   await exec('geospatial.markdown.embeddedGeoJsonExtraction', testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections)
+
+  await exec('markdown.workspace.noHardcodedLightTheme', testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses)
+  await exec('markdown.preview.forcesPrimaryTextColor', testMarkdownPreviewViewerForcesPrimaryTextColor)
+  await exec('markdown.preview.missingDocumentPathMessage', testMarkdownViewerShowsMissingDocumentPathMessage)
+  await exec('markdown.workspace.folderDoesNotClearMarkdown', testWorkspaceFolderSelectionDoesNotClearMarkdownDocument)
   await exec('markdown.loader.normalizesBasename', testMarkdownLoaderKeyNormalizesBasename)
   await exec('markdown.loader.prefersImportedBasenameMatch', testMarkdownLoaderPrefersImportedForBasenameMatch)
   await exec('policy.hashing.sharedContract', testHashStringContractIsSharedAcrossRepos)

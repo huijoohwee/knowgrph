@@ -15,7 +15,6 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 
 export type HoverKind = 'node' | 'edge' | 'group'
 
-
 export type HoverInfo = {
   kind: HoverKind;
   id: string;
@@ -35,6 +34,102 @@ const NODE_PROP_PRIORITY = [
   'visual:layer',
 ]
 const EDGE_PROP_PRIORITY = ['weight', 'score', 'confidence', 'count']
+
+function markdownToPlainText(markdown: string): string {
+  const raw = String(markdown || '')
+  if (!raw.trim()) return ''
+
+  let text = raw
+  text = text.replace(/```[\s\S]*?```/g, ' ')
+  text = text.replace(/`[^`]*`/g, ' ')
+  text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+  text = text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  text = text.replace(/^\s{0,3}#{1,6}\s+/gm, '')
+  text = text.replace(/\*\*([^*]+)\*\*/g, '$1')
+  text = text.replace(/\*([^*]+)\*/g, '$1')
+  text = text.replace(/_{1,2}([^_]+)_{1,2}/g, '$1')
+  text = text.replace(/\s+/g, ' ')
+  return text.trim()
+}
+
+function firstString(obj: Record<string, unknown> | null | undefined, keys: string[]): string | null {
+  if (!obj) return null
+  for (const key of keys) {
+    const v = obj[key]
+    const s = typeof v === 'string' ? v.trim() : ''
+    if (s) return s
+  }
+  return null
+}
+
+function collectImageUrls(obj: Record<string, unknown> | null | undefined): string[] {
+  if (!obj) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  const rec = obj as Record<string, unknown>
+  const push = (v: unknown) => {
+    const s = typeof v === 'string' ? v.trim() : ''
+    if (!s) return
+    if (seen.has(s)) return
+    seen.add(s)
+    out.push(s)
+  }
+
+  const mdImages = rec.mdImagesJson
+  if (typeof mdImages === 'string' && mdImages.trim()) {
+    try {
+      const parsed = JSON.parse(mdImages) as unknown
+      if (Array.isArray(parsed)) {
+        for (const v of parsed) push(v)
+      }
+    } catch {
+      void 0
+    }
+  } else if (Array.isArray(mdImages)) {
+    for (const v of mdImages) push(v)
+  }
+
+  const arrays = [
+    rec.images,
+    rec.imageUrls,
+    rec.image_urls,
+    rec.media,
+    rec.mediaUrls,
+    rec.thumbnails,
+  ]
+  for (const arr of arrays) {
+    if (!Array.isArray(arr)) continue
+    for (const v of arr) push(v)
+  }
+
+  const singles = [
+    rec.image,
+    rec.image_url,
+    rec.media_url,
+    rec.thumbnail,
+    rec.thumbnail_url,
+    rec.hero_image,
+  ]
+  for (const v of singles) push(v)
+  return out
+}
+
+function buildHoverDescription(node: GraphNode): string {
+  const props = (node.properties || {}) as unknown as Record<string, unknown>
+  const meta = (node.metadata || {}) as unknown as Record<string, unknown>
+  const raw =
+    firstString(props, ['description', 'summary', 'chunk_text', 'text', 'markdown', 'mdSectionMarkdown', 'sectionMarkdown']) ||
+    firstString(meta, ['mdSectionMarkdown', 'sectionMarkdown', 'markdown', 'description', 'summary', 'text']) ||
+    ''
+  return markdownToPlainText(raw)
+}
+
+function buildHoverImageInfo(node: GraphNode): { imageSrc: string | null; imageCount: number } {
+  const props = (node.properties || {}) as unknown as Record<string, unknown>
+  const meta = (node.metadata || {}) as unknown as Record<string, unknown>
+  const urls = [...collectImageUrls(props), ...collectImageUrls(meta)].filter(Boolean).slice(0, 8)
+  return { imageSrc: urls.length > 0 ? urls[0] : null, imageCount: urls.length }
+}
 
 function formatPropValue(v: unknown): string {
   if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v)
@@ -75,8 +170,9 @@ function buildNodeContent(
   const showProps = contentCfg?.showProps !== false && config.showNodeProperties;
   const showType = contentCfg?.showType !== false && config.showNodeLabel;
   const showId = contentCfg?.showId !== false && config.showNodeId;
-  const desc = config.showNodeDescription && node.properties?.description ? String(node.properties.description) : ''
-  const descText = expanded ? desc : truncateTextWithEllipsis(desc, 280)
+  const { imageSrc, imageCount } = buildHoverImageInfo(node)
+  const descRaw = config.showNodeDescription ? buildHoverDescription(node) : ''
+  const descText = expanded ? descRaw : truncateTextWithEllipsis(descRaw, 280)
 
   return (
     <div>
@@ -93,7 +189,19 @@ function buildNodeContent(
           {node.id}
         </div>
       )}
-      {desc ? (
+      {imageSrc ? (
+        <div className="mt-1">
+          <div className="flex gap-2 items-start">
+            <img src={imageSrc} alt="" className="w-12 h-12 rounded-lg object-cover flex-none" />
+            <div className="min-w-0 flex-1">
+              {imageCount > 1 ? (
+                <div className={`text-[10px] ${UI_THEME_TOKENS.tooltip.textTertiary} font-semibold`}>{`+${imageCount - 1}`}</div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {descRaw ? (
         <button
           type="button"
           className={`mt-1 text-left ${UI_THEME_TOKENS.tooltip.text} break-words leading-tight w-full`}
@@ -107,7 +215,7 @@ function buildNodeContent(
       {showProps && sorted.length > 0 && (
         <div className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
-            if (k === 'description') return null; // Handled separately if desired, or duplicate? Let's hide if description is shown above
+            if (k === 'description' || k === 'chunk_text' || k === 'mdSectionMarkdown' || k === 'mdImagesJson') return null
             const spec = getNodePropSpec(schema, node.type, k)
             const description = spec && typeof spec.description === 'string' ? spec.description.trim() : ''
             const badges = summarizePropertySpec(spec)

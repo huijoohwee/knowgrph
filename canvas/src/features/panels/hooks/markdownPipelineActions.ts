@@ -1,5 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader';
+import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput';
 import { parseSchemaText } from '@/features/schema/io';
 import { openBottomPanel } from '@/features/bottom-panel/open';
 import {
@@ -110,6 +111,26 @@ export async function runMarkdownPipelineAndLoadArtifacts(): Promise<boolean> {
     ]);
 
     await loadGraphDataFromTextViaParser(CODEBASE_INDEX_PIPELINE_GRAPH_REL_PATH, graphText);
+
+    try {
+      const name = CODEBASE_INDEX_PIPELINE_GRAPH_REL_PATH;
+      const normalizedText = normalizeMermaidMmdToMarkdown(name, graphText);
+      if (normalizedText.trim()) {
+        const store = useGraphStore.getState();
+        try {
+          store.setMarkdownDocument(name, normalizedText);
+        } catch {
+          void 0;
+        }
+        try {
+          store.setMarkdownDocumentSourceUrl(null);
+        } catch {
+          void 0;
+        }
+      }
+    } catch {
+      void 0;
+    }
 
     try {
       const schema = parseSchemaText(schemaText);

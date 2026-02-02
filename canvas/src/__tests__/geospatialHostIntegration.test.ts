@@ -40,6 +40,25 @@ export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
   }
   if (text.includes('LS_KEYS_LEGACY')) throw new Error('Legacy key map must not exist (collision risk)')
   if (!text.includes('kg:ui:geospatial:')) throw new Error('Expected namespaced kg:ui:geospatial keys')
+  if (!text.includes('geospatialViewMode')) throw new Error('Expected persisted geospatialViewMode key to exist')
+}
+
+export const testGympgrphDefaultViewModeIs2d = () => {
+  const slicePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const text = readUtf8(slicePath)
+  if (!text.includes('LS_KEYS.geospatialViewMode')) {
+    throw new Error('Expected geospatialViewMode persistence key usage')
+  }
+  if (!text.includes("'2d'")) {
+    throw new Error("Expected geospatialViewMode default to include '2d'")
+  }
+}
+
+export const testGeospatialOverlayHostSupportsCesiumRenderer = () => {
+  const hostPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('CesiumOverlayLazy')) throw new Error('Expected CesiumOverlay host lazy import')
+  if (!text.includes('geospatialViewMode')) throw new Error('Expected host to read geospatialViewMode')
 }
 
 export const testGympgrphDefaultInteractionModeIsAlways = () => {

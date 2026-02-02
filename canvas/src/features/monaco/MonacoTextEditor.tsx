@@ -15,6 +15,7 @@ const FLASH_CSS = `
 
 export type MonacoTextEditorHandle = {
   focus: () => void
+  layout: () => void
   revealLine: (line: number) => void
   revealOffsetInCenter: (offset: number) => void
   setSelection: (startLine: number, startColumn: number, endLine: number, endColumn: number) => void
@@ -127,6 +128,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
 
   React.useEffect(() => {
     if (editorInstanceRef.current) return
+    if (typeof document === 'undefined') return
     if (document.getElementById(FLASH_STYLE_ID)) return
     const styleEl = document.createElement('style')
     styleEl.id = FLASH_STYLE_ID
@@ -265,6 +267,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
 
       const handle = {
         focus: () => editor.focus(),
+        layout: () => editor.layout(),
         revealLine: (line: number) => {
           const safe = Math.max(1, Math.floor(line || 1))
           editor.revealLineInCenter(safe)
@@ -550,6 +553,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
 
             const handle: MonacoTextEditorHandle = {
               focus: () => el.focus(),
+              layout: () => void 0,
               revealLine: (line: number) => {
                 const top = getTopForLineNumber(line)
                 el.scrollTop = top

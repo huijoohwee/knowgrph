@@ -13,6 +13,18 @@ export function applyComposedGraphFromSourceFiles() {
     parsedGraphData: f.parsedGraphData,
   }))
   const { graphData, contentKey, orderKey } = composeGraphFromSourceLayers({ layers })
+
+  const composedHasContent = !!((graphData.nodes && graphData.nodes.length) || (graphData.edges && graphData.edges.length))
+  const prevHasContent = !!(
+    store.graphData &&
+    ((store.graphData.nodes && store.graphData.nodes.length) || (store.graphData.edges && store.graphData.edges.length))
+  )
+  if (!composedHasContent && prevHasContent) {
+    const hasPendingEnabledText = layers.some(l => l.enabled && String(l.text || '').trim() && !l.parsedGraphData)
+    const hasAnyParsedEnabled = layers.some(l => l.enabled && !!l.parsedGraphData)
+    if (hasPendingEnabledText && !hasAnyParsedEnabled) return
+  }
+
   const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
   const prevContentKey = typeof prevMeta.sourceLayerHash === 'string' ? prevMeta.sourceLayerHash : ''
   const prevOrderKey = typeof prevMeta.sourceLayerOrderHash === 'string' ? prevMeta.sourceLayerOrderHash : ''
@@ -23,4 +35,3 @@ export function applyComposedGraphFromSourceFiles() {
   }
   store.setGraphData(graphData)
 }
-

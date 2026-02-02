@@ -38,6 +38,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { openBottomPanel } from '@/features/bottom-panel/open'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_COPY } from '@/lib/config'
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -59,6 +60,7 @@ export default function PreviewPanelView() {
 
   const hasMarkdown = !!(markdownText && markdownText.trim())
   const [overlayPortalTarget, setOverlayPortalTarget] = React.useState<HTMLDivElement | null>(null)
+  const [loadedEmbedKey, setLoadedEmbedKey] = React.useState<string>('')
   const setOverlayPortalRef = React.useCallback((el: HTMLDivElement | null) => {
     setOverlayPortalTarget(prev => (prev === el ? prev : el))
   }, [])
@@ -69,6 +71,10 @@ export default function PreviewPanelView() {
       setActiveMediaKey(null)
     }
   }, [setActiveMediaKey, setMermaidFocus])
+
+  React.useEffect(() => {
+    setLoadedEmbedKey(prev => (activeMediaKey ? (prev === activeMediaKey ? prev : '') : ''))
+  }, [activeMediaKey])
 
   const { tokens, meta } = useMarkdownPreviewLexedMarkdown(
     markdownText || '',
@@ -467,17 +473,37 @@ export default function PreviewPanelView() {
       activeMedia.kind === 'youtube' ||
       activeMedia.kind === 'vimeo'
     ) {
+      const loaded = loadedEmbedKey === activeMedia.key
       return (
         <div className="w-full h-full flex items-center justify-center">
           <div className={`aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
-            <iframe
-              src={activeMedia.src}
-              title={activeMedia.label}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              sandbox="allow-scripts allow-same-origin allow-presentation"
-              className="w-full h-full"
-            />
+            {loaded ? (
+              <iframe
+                src={activeMedia.src}
+                title={activeMedia.label}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-presentation"
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                className="w-full h-full"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={`text-xs px-3 py-2 rounded border ${UI_THEME_TOKENS.panel.border} bg-white hover:bg-black/5`}
+                    onClick={() => setLoadedEmbedKey(activeMedia.key)}
+                  >
+                    {UI_COPY.markdownMediaLoadEmbedLabel}
+                  </button>
+                  <a className="text-xs underline" href={activeMedia.src} target="_blank" rel="noreferrer">
+                    {UI_COPY.markdownMediaOpenInNewTabLabel}
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )

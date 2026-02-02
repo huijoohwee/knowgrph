@@ -10,6 +10,7 @@ import { exportAsCombinedCsvBlob, exportAsJsonLdBlob, exportAsRawJsonBlob } from
 import { exportAsGeoJsonBlob } from '@/lib/graph/io/geojson'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { runImportFlow } from '@/features/toolbar/importFlow'
+import { applyImportedCsvToStore, applyImportedJsonToStore } from '@/features/toolbar/importSideEffects'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { findNextSourceFileIndex } from '@/features/source-files/sourceFileNaming'
@@ -80,8 +81,26 @@ function syncDocumentViewFromSourceFile(
   const text = String(file.text || '')
   const sourceUrl = file.source?.kind === 'url' ? String(file.source?.url || '').trim() : ''
   if (isJsonishName(name)) {
-    store.setJsonSourceDocument(name, text)
-    store.setMarkdownDocument(name, '')
+    const lower = name.toLowerCase()
+    if (lower.endsWith('.csv')) {
+      applyImportedCsvToStore({ name, text, sourceUrl: sourceUrl || null })
+      return
+    }
+    if (lower.endsWith('.json') || lower.endsWith('.jsonld') || lower.endsWith('.geojson')) {
+      applyImportedJsonToStore({
+        name,
+        text,
+        fallbackFenceLang: lower.endsWith('.jsonld') ? 'jsonld' : 'json',
+        sourceUrl: sourceUrl || null,
+      })
+      return
+    }
+
+    const trimmed = text.trim()
+    const fencedLang = lower.endsWith('.yml') || lower.endsWith('.yaml') ? 'yaml' : 'text'
+    const markdown = trimmed ? ['```' + fencedLang, trimmed, '```', ''].join('\n') : text
+    store.setJsonSourceDocument(name, null)
+    store.setMarkdownDocument(name, markdown)
     store.setMarkdownDocumentSourceUrl(sourceUrl || null)
     store.setBottomPanelCurationView('markdown')
     return

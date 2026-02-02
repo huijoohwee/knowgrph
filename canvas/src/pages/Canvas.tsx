@@ -5,7 +5,7 @@ import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/config'
-import { lsSetBool } from '@/lib/persistence'
+import { lsBool } from '@/lib/persistence'
 import { hashText } from '@/features/parsers/hash'
 import { autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty } from '@/features/parsers/loader'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
@@ -335,6 +335,7 @@ export default function CanvasPage() {
       canvasRenderMode: s.canvasRenderMode,
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
+      selectedEdgeId: s.selectedEdgeId,
       selectNode: s.selectNode,
       selectEdge: s.selectEdge,
       setSelectionSource: s.setSelectionSource,
@@ -345,7 +346,13 @@ export default function CanvasPage() {
       dismissUiToast: s.dismissUiToast,
     })),
   )
-  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(false)
+  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
+    try {
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+    } catch {
+      return false
+    }
+  })
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
 
   React.useEffect(() => {
@@ -360,11 +367,6 @@ export default function CanvasPage() {
     return () => {
       window.removeEventListener(GEOSPATIAL_MODE_CHANGED_EVENT, handler as EventListener)
     }
-  }, [])
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.geospatialOverlayEnabled, false)
-    setGeospatialModeEnabled(false)
   }, [])
 
   React.useEffect(() => {
@@ -467,6 +469,7 @@ export default function CanvasPage() {
                         canvasRenderMode: gympgrphBridge.canvasRenderMode,
                         selectedNodeId: gympgrphBridge.selectedNodeId,
                         selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                        selectedEdgeId: gympgrphBridge.selectedEdgeId,
                       }}
                       handlers={{
                         selectNode: gympgrphBridge.selectNode,
@@ -570,6 +573,7 @@ export default function CanvasPage() {
                                 canvasRenderMode: gympgrphBridge.canvasRenderMode,
                                 selectedNodeId: gympgrphBridge.selectedNodeId,
                                 selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                                selectedEdgeId: gympgrphBridge.selectedEdgeId,
                               }}
                               handlers={{
                                 selectNode: gympgrphBridge.selectNode,

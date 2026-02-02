@@ -18,6 +18,7 @@ import {
   removeWorkspaceEntrySourcesForPrefix,
   setWorkspaceEntrySource,
 } from '@/features/workspace-fs/sourceIndex'
+import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsEvents'
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 
 export function useWorkspaceFileActions(args: {
@@ -25,8 +26,9 @@ export function useWorkspaceFileActions(args: {
   refresh: () => Promise<void>
   setStatusLabel: (next: string) => void
 
-  activePath: WorkspacePath | null
-  activeEntryKind: WorkspaceEntry['kind'] | null
+  openedPath: WorkspacePath | null
+  selectionPath: WorkspacePath | null
+  selectionEntryKind: WorkspaceEntry['kind'] | null
   activeDocumentKey: string
   setActiveText: (next: string) => void
   setEntries: React.Dispatch<React.SetStateAction<WorkspaceEntry[]>>
@@ -34,6 +36,7 @@ export function useWorkspaceFileActions(args: {
 
   setExpandedPaths: React.Dispatch<React.SetStateAction<Set<string>>>
   setActivePathSafe: (path: WorkspacePath) => void
+  setSelectionPathSafe: (path: WorkspacePath) => void
   setBottomPanelCurationView: (view: 'grid' | 'markdown') => void
 
   setMarkdownDocument: (name: string | null, text: string | null) => void
@@ -44,23 +47,29 @@ export function useWorkspaceFileActions(args: {
     getFs,
     refresh,
     setStatusLabel,
-    activePath,
-    activeEntryKind,
+    openedPath,
+    selectionPath,
+    selectionEntryKind,
     activeDocumentKey,
     setActiveText,
     setEntries,
     lastLoadedRef,
     setExpandedPaths,
     setActivePathSafe,
+    setSelectionPathSafe,
     setBottomPanelCurationView,
     setMarkdownDocument,
     setMarkdownDocumentSourceUrl,
     applyMarkdownDocumentToGraph,
   } = args
 
+  const importJobRef = React.useRef(0)
+
   const focusAfterImport = React.useCallback(
-    async (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean }) => {
+    async (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => {
+      if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
       setActivePathSafe(createdPath)
+      setSelectionPathSafe(createdPath)
       setExpandedPaths(prev => {
         const next = new Set(prev)
         for (const ancestor of ancestorPathsForWorkspacePath(createdPath)) next.add(ancestor)
@@ -72,8 +81,11 @@ export function useWorkspaceFileActions(args: {
         try {
           const fs = await getFs()
           const text = await fs.readFileText(createdPath)
+          if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
           const docKey = workspaceDocumentKey(createdPath)
           const content = String(text || '')
+          lastLoadedRef.current = { path: createdPath, text: content }
+          setActiveText(content)
           if (docKey && content.trim()) {
             setMarkdownDocument(docKey, content)
             await applyMarkdownDocumentToGraph(docKey, content, { force: true })
@@ -83,7 +95,7 @@ export function useWorkspaceFileActions(args: {
         }
       }
     },
-    [applyMarkdownDocumentToGraph, getFs, setActivePathSafe, setBottomPanelCurationView, setExpandedPaths, setMarkdownDocument, setMarkdownDocumentSourceUrl, setStatusLabel],
+    [applyMarkdownDocumentToGraph, getFs, lastLoadedRef, setActivePathSafe, setActiveText, setBottomPanelCurationView, setExpandedPaths, setMarkdownDocument, setMarkdownDocumentSourceUrl, setSelectionPathSafe, setStatusLabel],
   )
 
   const createNewFile = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
@@ -95,12 +107,13 @@ export function useWorkspaceFileActions(args: {
       setWorkspaceEntrySource(path, { kind: 'local', originalName: null })
       await refresh()
       setActivePathSafe(path)
+      setSelectionPathSafe(path)
       setBottomPanelCurationView('markdown')
       setStatusLabel('Created')
     } catch (e) {
       setStatusLabel(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [getFs, refresh, setActivePathSafe, setBottomPanelCurationView, setStatusLabel])
+  }, [getFs, refresh, setActivePathSafe, setBottomPanelCurationView, setSelectionPathSafe, setStatusLabel])
 
   const createNewFolder = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
     setStatusLabel('Creating…')
@@ -110,32 +123,38 @@ export function useWorkspaceFileActions(args: {
       const path = await fs.createFolder({ parentPath, name: 'folder' })
       setExpandedPaths(prev => new Set(prev).add(path))
       await refresh()
+      setSelectionPathSafe(path)
       setBottomPanelCurationView('markdown')
       setStatusLabel('Created')
     } catch (e) {
       setStatusLabel(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [getFs, refresh, setBottomPanelCurationView, setExpandedPaths, setStatusLabel])
+  }, [getFs, refresh, setBottomPanelCurationView, setExpandedPaths, setSelectionPathSafe, setStatusLabel])
 
   const handleImportLocalFiles = React.useCallback(
     async (files: FileList | null) => {
       const snapshot = files ? Array.from(files) : []
       if (snapshot.length === 0) return
+      const jobId = (importJobRef.current += 1)
       setStatusLabel('Importing…')
       try {
         const fs = await getFs()
         await fs.ensureSeed()
-        const res = await importWorkspaceLocalFiles({ fs, files: snapshot, parentPath: WORKSPACE_ROOT_PATH })
+        const res = await runWorkspaceFsChangedBatch(() =>
+          importWorkspaceLocalFiles({ fs, files: snapshot, parentPath: WORKSPACE_ROOT_PATH }),
+        )
+        if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
         const lastCreated = res.createdPaths[res.createdPaths.length - 1] || null
-        if (lastCreated) await focusAfterImport(lastCreated, { applyToGraph: true })
+        if (lastCreated) await focusAfterImport(lastCreated, { applyToGraph: true, jobId })
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
         const failed = res.failed.length
         const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
         setStatusLabel(`Imported ${imported}${suffix}`)
       } catch (e) {
+        if (importJobRef.current !== jobId) return
         setStatusLabel(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
@@ -146,21 +165,24 @@ export function useWorkspaceFileActions(args: {
     async (files: FileList | null) => {
       const snapshot = files ? Array.from(files) : []
       if (snapshot.length === 0) return
+      const jobId = (importJobRef.current += 1)
       setStatusLabel('Importing folder…')
       try {
         const fs = await getFs()
         await fs.ensureSeed()
-        const res = await importWorkspaceLocalFolder({ fs, files: snapshot })
+        const res = await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot }))
+        if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
         const lastCreated = res.createdPaths[res.createdPaths.length - 1] || null
-        if (lastCreated) await focusAfterImport(lastCreated, { applyToGraph: true })
+        if (lastCreated) await focusAfterImport(lastCreated, { applyToGraph: true, jobId })
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
         const failed = res.failed.length
         const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
         setStatusLabel(`Imported ${imported}${suffix}`)
       } catch (e) {
+        if (importJobRef.current !== jobId) return
         setStatusLabel(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
@@ -171,34 +193,40 @@ export function useWorkspaceFileActions(args: {
     async (urlRaw: string) => {
       const url = String(urlRaw || '').trim()
       if (!url) return
+      const jobId = (importJobRef.current += 1)
       setStatusLabel('Importing URL…')
       try {
         const fs = await getFs()
         await fs.ensureSeed()
-        const res = await importWorkspaceUrl({
-          fs,
-          urlRaw: url,
-          parentPath: WORKSPACE_ROOT_PATH,
-          onProgress: p => {
-            if (p.phase === 'listing') {
-              setStatusLabel(p.label ? `${p.label}…` : 'Listing…')
-              return
-            }
-            if (p.total && p.total > 0) {
-              setStatusLabel(`${p.phase === 'fetching' ? 'Fetching' : 'Writing'} ${p.current}/${p.total}…`)
-              return
-            }
-            setStatusLabel(`${p.phase === 'fetching' ? 'Fetching' : 'Writing'}…`)
-          },
-        })
+        const res = await runWorkspaceFsChangedBatch(() =>
+          importWorkspaceUrl({
+            fs,
+            urlRaw: url,
+            parentPath: WORKSPACE_ROOT_PATH,
+            onProgress: p => {
+              if (importJobRef.current !== jobId) return
+              if (p.phase === 'listing') {
+                setStatusLabel(p.label ? `${p.label}…` : 'Listing…')
+                return
+              }
+              if (p.total && p.total > 0) {
+                setStatusLabel(`${p.phase === 'fetching' ? 'Fetching' : 'Writing'} ${p.current}/${p.total}…`)
+                return
+              }
+              setStatusLabel(`${p.phase === 'fetching' ? 'Fetching' : 'Writing'}…`)
+            },
+          }),
+        )
+        if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
         const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
         const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
         const sourceUrl = source && source.kind === 'url' ? source.url : null
-        if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true })
+        if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
         setStatusLabel(res.createdPaths.length > 1 ? `Imported ${res.createdPaths.length}` : 'Imported URL')
       } catch (e) {
+        if (importJobRef.current !== jobId) return
         setStatusLabel(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
@@ -221,7 +249,7 @@ export function useWorkspaceFileActions(args: {
         await fs.writeFileText(normalized, fetched.text)
         const inlineText = fetched.text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? fetched.text : undefined
         setEntries(prev => prev.map(e => (e.path === normalized ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
-        if (activePath === normalized) {
+        if (openedPath === normalized) {
           lastLoadedRef.current = { path: normalized, text: fetched.text }
           setActiveText(fetched.text)
           if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, fetched.text)
@@ -235,7 +263,7 @@ export function useWorkspaceFileActions(args: {
         setStatusLabel(`Refresh failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, activePath, applyMarkdownDocumentToGraph, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setMarkdownDocumentSourceUrl, setStatusLabel],
+    [activeDocumentKey, openedPath, applyMarkdownDocumentToGraph, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setMarkdownDocumentSourceUrl, setStatusLabel],
   )
 
   const deleteEntry = React.useCallback(
@@ -264,7 +292,7 @@ export function useWorkspaceFileActions(args: {
         await fs.writeFileText(normalized, '')
         lastLoadedRef.current = { path: normalized, text: '' }
         setEntries(prev => prev.map(e => (e.path === normalized ? { ...e, text: '', updatedAtMs: Date.now() } : e)))
-        if (activePath === normalized) {
+        if (openedPath === normalized) {
           setActiveText('')
           if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, '')
         }
@@ -273,7 +301,7 @@ export function useWorkspaceFileActions(args: {
         setStatusLabel(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, activePath, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setStatusLabel],
+    [activeDocumentKey, openedPath, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setStatusLabel],
   )
 
   const clearFolder = React.useCallback(
@@ -295,7 +323,7 @@ export function useWorkspaceFileActions(args: {
           await fs.writeFileText(p, '')
         }
 
-        const normalizedActivePath = activePath ? normalizeWorkspacePath(activePath) : null
+        const normalizedActivePath = openedPath ? normalizeWorkspacePath(openedPath) : null
         const shouldClearActive = !!(normalizedActivePath && targetSet.has(normalizedActivePath))
         if (shouldClearActive) {
           lastLoadedRef.current = { path: normalizedActivePath as WorkspacePath, text: '' }
@@ -316,31 +344,31 @@ export function useWorkspaceFileActions(args: {
         setStatusLabel(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, activePath, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setStatusLabel],
+    [activeDocumentKey, openedPath, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setStatusLabel],
   )
 
   const canClearActiveSelection = !!(
-    activePath &&
-    (activeEntryKind === 'file' || (activeEntryKind === 'folder' && activePath !== WORKSPACE_ROOT_PATH))
+    selectionPath &&
+    (selectionEntryKind === 'file' || (selectionEntryKind === 'folder' && selectionPath !== WORKSPACE_ROOT_PATH))
   )
-  const canDeleteActive = !!activePath && activePath !== WORKSPACE_ROOT_PATH
+  const canDeleteActive = !!selectionPath && selectionPath !== WORKSPACE_ROOT_PATH
 
   const clearActiveSelection = React.useCallback(() => {
-    if (!activePath) return
-    if (activeEntryKind === 'file') {
-      void clearFile(activePath)
+    if (!selectionPath) return
+    if (selectionEntryKind === 'file') {
+      void clearFile(selectionPath)
       return
     }
-    if (activeEntryKind === 'folder') {
-      void clearFolder(activePath)
+    if (selectionEntryKind === 'folder') {
+      void clearFolder(selectionPath)
     }
-  }, [activeEntryKind, activePath, clearFile, clearFolder])
+  }, [clearFile, clearFolder, selectionEntryKind, selectionPath])
 
   const deleteActive = React.useCallback(() => {
-    if (!activePath) return
-    if (activePath === WORKSPACE_ROOT_PATH) return
-    void deleteEntry(activePath)
-  }, [activePath, deleteEntry])
+    if (!selectionPath) return
+    if (selectionPath === WORKSPACE_ROOT_PATH) return
+    void deleteEntry(selectionPath)
+  }, [deleteEntry, selectionPath])
 
   const onDeleteEntry = React.useCallback((path: WorkspacePath) => {
     void deleteEntry(path)

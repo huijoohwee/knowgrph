@@ -49,6 +49,12 @@
 - Resolve cross‑repo conflicts; remove legacy/conflicting/stale code.
 - Test only bounded diffs; forbid indefinite runs.
 
+### Markdown Workspace Import Stability
+
+- Bulk imports must batch change notifications so the UI refreshes once per import, not per file.
+- Import actions must be order-safe: late async completions must not steal focus from the current document.
+- Workspace seeds must be repo-local so the host app does not couple to sibling repo paths.
+
 ## Runtime Canvas Pipeline (Import → Render)
 
 This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → canvas renders. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.

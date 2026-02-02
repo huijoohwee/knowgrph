@@ -495,7 +495,9 @@ export const UI_COPY = {
   markdownSlidesSidebarViewTitle: 'View',
   markdownSlidesSidebarClearSelectionLabel: 'Clear selection',
   markdownSlidesSidebarSlidesSuffix: 'slides',
-   markdownMediaErrorPrefix: 'Media failed to load',
+  markdownMediaErrorPrefix: 'Media failed to load',
+  markdownMediaLoadEmbedLabel: 'Load embed',
+  markdownMediaOpenInNewTabLabel: 'Open in new tab',
   markdownPresentationEmptyTitle: 'Presentation mode is ready.',
   markdownPresentationEmptyBody: 'Add markdown with --- separators to define slides.',
   

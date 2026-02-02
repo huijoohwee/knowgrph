@@ -28,5 +28,10 @@ export const normalizeMermaidMmdToMarkdown = (name: string, text: string): strin
 
 export const isMarkdownLikeFileName = (name: string): boolean => {
   const lower = String(name || '').trim().toLowerCase()
-  return lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mmd')
+  return (
+    lower.endsWith('.md') ||
+    lower.endsWith('.markdown') ||
+    lower.endsWith('.mmd') ||
+    lower.endsWith('.mdx')
+  )
 }

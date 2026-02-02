@@ -334,6 +334,58 @@ export default function OrchestratorSettingsSection({
     [],
   )
 
+  const [traversalPlane, setTraversalPlane] = React.useState<{ startedAtMs: number; durationMs: number } | null>(null)
+  const [traversalPlaneProgress, setTraversalPlaneProgress] = React.useState<number | null>(null)
+  const traversalPlaneTimeoutRef = React.useRef<number | null>(null)
+
+  const startTraversalPlane = React.useCallback((edgeCount: number) => {
+    const count = Number.isFinite(edgeCount) ? Math.max(0, Math.floor(edgeCount)) : 0
+    const stepMs = lsInt(LS_KEYS.orchestratorTraversalDelayMs, ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS)
+    const durationMs = Math.max(600, Math.min(60_000, stepMs * Math.max(1, count)))
+    const startedAtMs = Date.now()
+    setTraversalPlane({ startedAtMs, durationMs })
+    setTraversalPlaneProgress(0)
+    if (typeof window !== 'undefined') {
+      if (traversalPlaneTimeoutRef.current != null) {
+        try {
+          window.clearTimeout(traversalPlaneTimeoutRef.current)
+        } catch {
+          void 0
+        }
+      }
+      traversalPlaneTimeoutRef.current = window.setTimeout(() => {
+        setTraversalPlane(null)
+        setTraversalPlaneProgress(null)
+        traversalPlaneTimeoutRef.current = null
+      }, durationMs + stepMs)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (!traversalPlane) {
+      setTraversalPlaneProgress(null)
+      return
+    }
+    if (typeof window === 'undefined') return
+    let raf = 0
+    const tick = () => {
+      const elapsed = Date.now() - traversalPlane.startedAtMs
+      const p = traversalPlane.durationMs > 0 ? elapsed / traversalPlane.durationMs : 0
+      const clamped = Math.max(0, Math.min(1, p))
+      setTraversalPlaneProgress(clamped)
+      if (clamped >= 1) return
+      raf = window.requestAnimationFrame(tick)
+    }
+    raf = window.requestAnimationFrame(tick)
+    return () => {
+      try {
+        window.cancelAnimationFrame(raf)
+      } catch {
+        void 0
+      }
+    }
+  }, [traversalPlane])
+
   const runGraphRagTraversal = React.useCallback(() => {
     const graph = data as GraphData | null
     if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return
@@ -361,8 +413,9 @@ export default function OrchestratorSettingsSection({
       summary && summary.ownerNodeId && summary.ownerNodeId.trim().length > 0
         ? summary.ownerNodeId
         : selectedNodeId || null
+    startTraversalPlane(edgeIds.length)
     runEdgeTraversalSequence(edgeIds, startNodeId)
-  }, [data, selectedNodeId, runEdgeTraversalSequence, setLastTraversal])
+  }, [data, selectedNodeId, runEdgeTraversalSequence, setLastTraversal, startTraversalPlane])
 
   const runGenericTraversalQuery = React.useCallback(() => {
     const graph = data as GraphData | null
@@ -385,6 +438,7 @@ export default function OrchestratorSettingsSection({
       labelFilter: traversalLabelFilter,
       edgeIds,
     })
+    startTraversalPlane(edgeIds.length)
     runEdgeTraversalSequence(edgeIds, startNodeId)
   }, [
     data,
@@ -393,6 +447,7 @@ export default function OrchestratorSettingsSection({
     traversalLabelFilter,
     selectedNodeId,
     runEdgeTraversalSequence,
+    startTraversalPlane,
     setLastTraversal,
   ])
 
@@ -527,6 +582,7 @@ export default function OrchestratorSettingsSection({
           traversalLabelFilter,
           setTraversalLabelFilter,
           runGenericTraversalQuery,
+          traversalPlaneProgress,
           selectedNodeId,
           graphRagPathHelper,
           graphNodesById,

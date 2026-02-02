@@ -3,10 +3,14 @@ import { pickTextFilesWithExtensions } from '@/lib/graph/file'
 import { parseHtmlToMarkdown } from '@/features/parsers/html-parser'
 import { coerceHttpUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
-import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import { runImportFlow } from '@/features/toolbar/importFlow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createId } from '@/lib/id'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
+import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { ensureMarkdownFileName, upsertWorkspaceTextDocument } from '@/features/workspace-fs/upsertWorkspaceTextDocument'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -76,29 +80,24 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
         if (!res.input || !res.input.text.trim()) return
         const rawSourceName = String(first.name || '')
         const isHttp = /^https?:\/\//i.test(rawSourceName)
-        if (isHttp) {
-          const baseName = deriveMarkdownNameFromUrl(rawSourceName)
-          applyImportedMarkdownToStore({
-            name: baseName,
-            text: res.input.text,
-            sourceUrl: rawSourceName,
-            curationView: 'markdown',
-            recent: { name: baseName, url: rawSourceName, type: 'url' },
-          })
-          return
-        }
-        const name = res.input.name
-        applyImportedMarkdownToStore({
-          name,
-          text: res.input.text,
-          sourceUrl: null,
-          curationView: 'markdown',
-          recent: {
-            name,
-            path: type === 'local' ? first.name : undefined,
-            type: 'markdown',
-          },
-        })
+        const name = isHttp ? deriveMarkdownNameFromUrl(rawSourceName) : ensureMarkdownFileName(res.input.name || first.displayName || first.name)
+
+        const store = useGraphStore.getState()
+        store.setBottomPanelCurationView('markdown')
+        if (isHttp) store.addRecentFile({ name, url: rawSourceName, type: 'url' })
+        else store.addRecentFile({ name, path: type === 'local' ? first.name : undefined, type: 'markdown' })
+
+        void (async () => {
+          try {
+            const fs = await getWorkspaceFs()
+            await fs.ensureSeed()
+            const path = await upsertWorkspaceTextDocument({ fs, parentPath: WORKSPACE_ROOT_PATH, name, text: res.input.text })
+            setWorkspaceEntrySource(path, isHttp ? { kind: 'url', url: rawSourceName } : { kind: 'local', originalName: first.name })
+            useMarkdownExplorerStore.getState().setActivePath(path)
+          } catch {
+            void 0
+          }
+        })()
       },
     })
   } catch {

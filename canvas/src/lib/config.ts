@@ -24,7 +24,7 @@ export const SHARE_BACKEND_URL = (() => {
 
 export const IFRAME_ALLOWED_HOSTS = readEnvString('VITE_IFRAME_ALLOWED_HOSTS', '');
 
-export const WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS = 250_000
+export const WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS = 50_000
 
 export * from './config.ls';
 export * from './config.copy';

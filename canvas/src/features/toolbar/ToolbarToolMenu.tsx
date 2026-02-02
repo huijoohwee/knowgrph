@@ -19,6 +19,7 @@ import { lsBool, lsSetBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
+import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
 
 type FloatingPanelView = 'propsPanel' | 'renderer' | 'graphTraversal'
 
@@ -248,21 +249,35 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
             {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView />}
             {floatingPanelView === 'graphTraversal' && (
-              <OrchestratorSettingsSection
-                variant="floatingPanel"
-                graphRagCollapsed={orchestratorGraphRagCollapsed}
-                presetsCollapsed={orchestratorPresetsCollapsed}
-                editorCollapsed={orchestratorEditorCollapsed}
-                contextCollapsed={orchestratorContextCollapsed}
-                setGraphRagCollapsed={setOrchestratorGraphRagCollapsed}
-                setPresetsCollapsed={setOrchestratorPresetsCollapsed}
-                setEditorCollapsed={setOrchestratorEditorCollapsed}
-                setContextCollapsed={setOrchestratorContextCollapsed}
-                indexingCollapsed={orchestratorWorkflowIndexingCollapsed}
-                setIndexingCollapsed={setOrchestratorWorkflowIndexingCollapsed}
-                tracingCollapsed={orchestratorWorkflowTracingCollapsed}
-                setTracingCollapsed={setOrchestratorWorkflowTracingCollapsed}
-              />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>Geospatial</div>
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 bg-gray-100 text-gray-700 text-xs hover:bg-gray-200"
+                    onClick={() => {
+                      void requestGeospatialTraversalRun().catch(() => void 0)
+                    }}
+                  >
+                    Run airplane on selected edge
+                  </button>
+                </div>
+                <OrchestratorSettingsSection
+                  variant="floatingPanel"
+                  graphRagCollapsed={orchestratorGraphRagCollapsed}
+                  presetsCollapsed={orchestratorPresetsCollapsed}
+                  editorCollapsed={orchestratorEditorCollapsed}
+                  contextCollapsed={orchestratorContextCollapsed}
+                  setGraphRagCollapsed={setOrchestratorGraphRagCollapsed}
+                  setPresetsCollapsed={setOrchestratorPresetsCollapsed}
+                  setEditorCollapsed={setOrchestratorEditorCollapsed}
+                  setContextCollapsed={setOrchestratorContextCollapsed}
+                  indexingCollapsed={orchestratorWorkflowIndexingCollapsed}
+                  setIndexingCollapsed={setOrchestratorWorkflowIndexingCollapsed}
+                  tracingCollapsed={orchestratorWorkflowTracingCollapsed}
+                  setTracingCollapsed={setOrchestratorWorkflowTracingCollapsed}
+                />
+              </div>
             )}
           </div>
         </div>

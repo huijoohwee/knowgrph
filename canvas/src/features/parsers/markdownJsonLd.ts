@@ -35,6 +35,25 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const { meta, startIndex } = parseMarkdownFrontmatter(rawLines)
   const blocks = parseMarkdownBlocks(rawLines, startIndex)
 
+  const mediaPoiImageUrlByName = (() => {
+    const out = new Map<string, string>()
+    const metaRec = meta as unknown
+    const mediaRaw = metaRec && typeof metaRec === 'object' && !Array.isArray(metaRec) ? (metaRec as Record<string, unknown>).media : null
+    if (!mediaRaw || typeof mediaRaw !== 'object' || Array.isArray(mediaRaw)) return out
+    const poiImagesRaw = (mediaRaw as Record<string, unknown>).poi_images
+    if (!Array.isArray(poiImagesRaw)) return out
+    for (const item of poiImagesRaw) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+      const rec = item as Record<string, unknown>
+      const poi = typeof rec.poi === 'string' ? rec.poi.trim() : ''
+      const url = typeof rec.url === 'string' ? rec.url.trim() : ''
+      if (!poi || !url) continue
+      const key = poi.toLowerCase()
+      if (!out.has(key)) out.set(key, url)
+    }
+    return out
+  })()
+
   const normalizedName = String(name || '').replace(/\\/g, '/').trim()
   const fmGraphId = String(meta.graphId || meta.graph_id || meta.graph || '').trim()
   const baseName = normalizedName.split('/').pop() || ''
@@ -585,5 +604,35 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     ...(hasMermaid ? { mermaid: treeMeta } : { tree: treeMeta }),
   }
 
-  return { '@context': ctx, metadata, '@graph': builder.getNodes() }
+  const nodes = builder.getNodes()
+  if (mediaPoiImageUrlByName.size > 0) {
+    for (const nodeAny of nodes) {
+      if (!nodeAny || typeof nodeAny !== 'object' || Array.isArray(nodeAny)) continue
+      const node = nodeAny as Record<string, unknown>
+      const nameRaw = typeof node.name === 'string' ? node.name.trim() : ''
+      if (!nameRaw) continue
+      const nameKey = nameRaw.toLowerCase()
+      let url = mediaPoiImageUrlByName.get(nameKey)
+      if (!url) {
+        for (const [poiKey, poiUrl] of mediaPoiImageUrlByName.entries()) {
+          if (nameKey.includes(poiKey)) {
+            url = poiUrl
+            break
+          }
+        }
+      }
+      if (!url) continue
+      const propsRaw = node.properties
+      if (!propsRaw || typeof propsRaw !== 'object' || Array.isArray(propsRaw)) {
+        node.properties = { image_url: url }
+        continue
+      }
+      const props = propsRaw as Record<string, unknown>
+      const existing = typeof props.image_url === 'string' ? props.image_url.trim() : typeof props.image === 'string' ? props.image.trim() : ''
+      if (existing) continue
+      props.image_url = url
+    }
+  }
+
+  return { '@context': ctx, metadata, '@graph': nodes }
 }

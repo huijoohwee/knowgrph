@@ -17,6 +17,5 @@ export function languageForPath(path: WorkspacePath): string {
 export function isMarkdownPath(path: WorkspacePath | null): boolean {
   if (!path) return false
   const ext = workspaceExtLower(path)
-  return ext === 'md' || ext === 'markdown' || ext === 'mdx'
+  return ext === 'md' || ext === 'markdown' || ext === 'mdx' || ext === 'mmd'
 }
-

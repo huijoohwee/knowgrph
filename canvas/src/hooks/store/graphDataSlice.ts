@@ -70,13 +70,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!isMarkdown) return false
 
     const state = get()
-    const hasFrontmatterMermaid = containsFrontmatterMermaid(nextText)
-
     const shouldApply = (() => {
       if (opts?.force) return true
       if ((state.documentSemanticMode || 'document') !== 'document') return false
-      if (!(state.frontmatterModeEnabled || false)) return false
-      return hasFrontmatterMermaid
+
+      if (state.frontmatterModeEnabled || false) {
+        const hasFrontmatterMermaid = containsFrontmatterMermaid(nextText)
+        if (hasFrontmatterMermaid) return true
+      }
+
+      return true
     })()
 
     if (!shouldApply) return false

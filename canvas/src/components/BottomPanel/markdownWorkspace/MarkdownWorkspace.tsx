@@ -2,6 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import type { WorkspaceBacklink, WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
@@ -12,15 +13,18 @@ import { computeMarkdownOutline } from '@/features/markdown-explorer/outline'
 import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
 import { parseMarkdownWorkspaceLayoutMode, type MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
-import type { MarkdownPreviewPresentationApi } from '@/features/markdown/ui/MarkdownPreview'
-import type { HighlightedLineRange } from '@/features/markdown/ui/MarkdownRendererTypes'
+import type { HighlightedLineRange, MarkdownPresentationApi } from './markdownWorkspaceTypes'
+import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
+import { extractFencedCodeBlocks } from '@/lib/markdown/extractFencedCodeBlocks'
+import { emitSidePanelOpen } from '@/features/canvas/utils'
+import { setGeospatialModeEnabled } from 'gympgrph'
 import { MarkdownWorkspaceExplorer } from './MarkdownWorkspaceExplorer'
 import { MarkdownWorkspaceMain } from './MarkdownWorkspaceMain'
 import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, isMarkdownPath, languageForPath } from './markdownWorkspaceUtils'
 import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { useWorkspaceFileActions } from './useWorkspaceFileActions'
 import { useCanvasMarkdownSync } from './useCanvasMarkdownSync'
+import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { shouldAutosaveWorkspaceFile } from './workspaceAutosave'
 
 const parseStringArray = (raw: unknown): string[] | null => {
@@ -31,6 +35,7 @@ const parseStringArray = (raw: unknown): string[] | null => {
 
 export function MarkdownWorkspace() {
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
+  const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
   const setBottomPanelCurationView = useGraphStore(s => s.setBottomPanelCurationView)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
@@ -63,21 +68,45 @@ export function MarkdownWorkspace() {
     return new Set((arr || []).map(p => normalizeWorkspacePath(p)))
   })
 
-  const editorRef = React.useRef<MonacoTextEditorHandle | null>(null)
+  const editorRef = React.useRef<HTMLTextAreaElement | null>(null)
   const resizeHandleRef = React.useRef<HTMLHRElement | null>(null)
   const workspaceRootRef = React.useRef<HTMLElement | null>(null)
-  const presentationApiRef = React.useRef<MarkdownPreviewPresentationApi | null>(null)
+  const presentationApiRef = React.useRef<MarkdownPresentationApi | null>(null)
+
+  const geoDatasetIntegration = React.useMemo(
+    () =>
+      createMarkdownGeoDatasetIntegration({
+        requestOpenGeoPanel: () => {
+          try {
+            setGeospatialModeEnabled(true)
+          } catch {
+            void 0
+          }
+          emitSidePanelOpen({ tab: 'geo', open: true })
+        },
+      }),
+    [],
+  )
   const workspaceFsRef = React.useRef<Awaited<ReturnType<typeof getWorkspaceFs>> | null>(null)
   const [highlightLine, setHighlightLine] = React.useState<number | null>(null)
   const [activeText, setActiveText] = React.useState('')
+  const activeTextRef = React.useRef('')
+  activeTextRef.current = activeText
   const [backlinks, setBacklinks] = React.useState<WorkspaceBacklink[]>([])
   const debouncedText = useDebouncedValue(activeText, 450, activePath)
   const outlineText = useDebouncedValue(activeText, 160, activePath)
   const lastLoadedRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
+  const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
+  const prevCollapsedRef = React.useRef<boolean>(bottomPanelCollapsed)
   const lastRequestedActivePathRef = React.useRef<{ path: WorkspacePath; atMs: number } | null>(null)
+  const lastSetActivePath = useMarkdownExplorerStore(s => s.lastSetActivePath)
 
   const activePathRef = React.useRef<WorkspacePath | null>(null)
   activePathRef.current = activePath
+
+  const [selectionPath, setSelectionPath] = React.useState<WorkspacePath | null>(null)
+  const selectionPathRef = React.useRef<WorkspacePath | null>(null)
+  selectionPathRef.current = selectionPath
 
   const getFs = React.useCallback(async () => {
     const existing = workspaceFsRef.current
@@ -122,6 +151,40 @@ export function MarkdownWorkspace() {
 
   React.useEffect(() => {
     void refresh()
+  }, [refresh])
+
+  const pendingExternalRefreshRef = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    const unsubscribe = subscribeWorkspaceFsChanged(detail => {
+      const active = activePathRef.current
+      const last = lastLoadedRef.current
+      const isDirty = !!(active && last?.path === active && last.text !== activeTextRef.current)
+      const changedPath = typeof detail?.path === 'string' && detail.path ? detail.path : null
+      if (isDirty && (!changedPath || changedPath === active)) return
+
+      if (pendingExternalRefreshRef.current != null) {
+        try {
+          window.clearTimeout(pendingExternalRefreshRef.current)
+        } catch {
+          void 0
+        }
+      }
+      pendingExternalRefreshRef.current = window.setTimeout(() => {
+        pendingExternalRefreshRef.current = null
+        void refresh()
+      }, 180)
+    })
+    return () => {
+      if (pendingExternalRefreshRef.current != null) {
+        try {
+          window.clearTimeout(pendingExternalRefreshRef.current)
+        } catch {
+          void 0
+        }
+        pendingExternalRefreshRef.current = null
+      }
+      unsubscribe()
+    }
   }, [refresh])
 
   React.useEffect(() => {
@@ -217,23 +280,123 @@ export function MarkdownWorkspace() {
     return result
   }, [entries, search])
 
+  React.useEffect(() => {
+    if (!selectionPathRef.current && activePath) {
+      setSelectionPath(activePath)
+    }
+  }, [activePath])
+
+  React.useEffect(() => {
+    if (!selectionPath) return
+    if (loading) return
+    if (entries.some(e => e.path === selectionPath)) return
+    if (activePath && entries.some(e => e.path === activePath)) {
+      setSelectionPath(activePath)
+      return
+    }
+    setSelectionPath(null)
+  }, [activePath, entries, loading, selectionPath])
+
   const activeEntry = React.useMemo(() => {
     if (!activePath) return null
     return entries.find(e => e.path === activePath) || null
   }, [activePath, entries])
 
+  const selectionEntry = React.useMemo(() => {
+    const path = selectionPath
+    if (!path) return null
+    return entries.find(e => e.path === path) || null
+  }, [entries, selectionPath])
+
   const activeEntryIsFile = activeEntry?.kind === 'file'
+  const activeEntryText = activeEntry && activeEntry.kind === 'file' ? activeEntry.text : undefined
   const activeDocumentKey = React.useMemo(() => {
-    if (!activePath || !activeEntryIsFile) return ''
+    if (!activePath) return ''
+    if (activeEntry && activeEntry.kind !== 'file') return ''
     return workspaceDocumentKey(activePath)
-  }, [activeEntryIsFile, activePath])
+  }, [activeEntry, activePath])
+
+  React.useEffect(() => {
+    const path = activePath
+    if (!path) return
+
+    const prev = prevCollapsedRef.current
+    if (prev !== bottomPanelCollapsed) {
+      prevCollapsedRef.current = bottomPanelCollapsed
+      if (bottomPanelCollapsed) {
+        collapsedSnapshotRef.current = { path, text: activeText }
+        return
+      }
+
+      const snap = collapsedSnapshotRef.current
+      const candidate =
+        snap && snap.path === path && String(snap.text || '').trim()
+          ? snap.text
+          : (() => {
+              const last = lastLoadedRef.current
+              if (!last || last.path !== path) return ''
+              return last.text
+            })()
+
+      if (String(activeText || '').trim()) return
+      if (!String(candidate || '').trim()) return
+      setActiveText(candidate)
+      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, candidate)
+      return
+    }
+
+    if (!bottomPanelCollapsed) return
+    if (String(activeText || '').trim()) {
+      collapsedSnapshotRef.current = { path, text: activeText }
+      return
+    }
+    const snap = collapsedSnapshotRef.current
+    if (!snap || snap.path !== path) return
+    if (!String(snap.text || '').trim()) return
+    setActiveText(snap.text)
+    if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, snap.text)
+  }, [
+    activeDocumentKey,
+    activePath,
+    activeText,
+    bottomPanelCollapsed,
+    setMarkdownDocument,
+  ])
+
+  React.useEffect(() => {
+    if (bottomPanelCollapsed) return
+    const path = activePath
+    if (!path) return
+    if (String(activeText || '').trim()) return
+
+    const last = lastLoadedRef.current
+    if (last && last.path === path && String(last.text || '').trim()) {
+      setActiveText(last.text)
+      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, last.text)
+      return
+    }
+
+    void (async () => {
+      try {
+        const fs = await getFs()
+        const text = await fs.readFileText(path)
+        const next = typeof text === 'string' ? text : ''
+        if (!next.trim()) return
+        lastLoadedRef.current = { path, text: next }
+        setActiveText(next)
+        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, next)
+      } catch {
+        void 0
+      }
+    })()
+  }, [activeDocumentKey, activePath, activeText, bottomPanelCollapsed, getFs, setMarkdownDocument])
 
   const createParentPath = React.useMemo<WorkspacePath>(() => {
-    if (!activeEntry) return WORKSPACE_ROOT_PATH
-    if (activeEntry.kind === 'folder') return activeEntry.path
-    if (activeEntry.parentPath) return activeEntry.parentPath
+    if (!selectionEntry) return WORKSPACE_ROOT_PATH
+    if (selectionEntry.kind === 'folder') return selectionEntry.path
+    if (selectionEntry.parentPath) return selectionEntry.parentPath
     return WORKSPACE_ROOT_PATH
-  }, [activeEntry])
+  }, [selectionEntry])
 
   const setActivePathSafe = React.useCallback(
     (path: WorkspacePath) => {
@@ -243,6 +406,10 @@ export function MarkdownWorkspace() {
     },
     [setActivePath],
   )
+
+  const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
+    setSelectionPath(normalizeWorkspacePath(path))
+  }, [])
 
   const isEditing = layoutMode === 'editor' || layoutMode === 'split'
   const isMarkdown = isMarkdownPath(activePath)
@@ -254,7 +421,10 @@ export function MarkdownWorkspace() {
     if (activePath && entries.some(e => e.path === activePath)) return
 
     const recent = lastRequestedActivePathRef.current
-    if (activePath && recent?.path === activePath && Date.now() - recent.atMs < 2000) return
+    const storeRecent = lastSetActivePath
+    const isRecentlyRequested = (req: { path: WorkspacePath; atMs: number } | null) =>
+      !!(activePath && req?.path === activePath && Date.now() - req.atMs < 2000)
+    if (isRecentlyRequested(recent) || isRecentlyRequested(storeRecent)) return
 
     const firstFile = entries.find(e => e.kind === 'file')
     if (!firstFile) return
@@ -265,7 +435,7 @@ export function MarkdownWorkspace() {
     }
     setActivePathSafe(firstFile.path)
     setBottomPanelCurationView('markdown')
-  }, [activePath, entries, loading, setActivePathSafe, setBottomPanelCurationView])
+  }, [activePath, entries, lastSetActivePath, loading, setActivePathSafe, setBottomPanelCurationView])
 
   React.useEffect(() => {
     const path = activePath
@@ -274,8 +444,6 @@ export function MarkdownWorkspace() {
     if (activeEntry.kind !== 'folder') return
     if (activePathRef.current !== path) return
     setActiveText('')
-    setMarkdownDocument(null, null)
-    setMarkdownDocumentSourceUrl(null)
     setHighlightLine(null)
     setStatusLabel('')
   }, [activeEntry, activePath, setMarkdownDocument, setMarkdownDocumentSourceUrl])
@@ -283,16 +451,19 @@ export function MarkdownWorkspace() {
   React.useEffect(() => {
     const path = activePath
     if (!path) return
-    if (!activeEntryIsFile) return
+    if (activeEntry?.kind === 'folder') return
 
     const scheduledFor = path
 
-    const cachedText = activeEntry && activeEntry.kind === 'file' && typeof activeEntry.text === 'string' ? String(activeEntry.text ?? '') : null
+    const lastLoaded = lastLoadedRef.current
+    const isDirty = !!(lastLoaded && lastLoaded.path === path && lastLoaded.text !== activeTextRef.current)
+    if (isDirty) return
+
+    const cachedText = typeof activeEntryText === 'string' ? String(activeEntryText ?? '') : null
     const source = sourcesByPath[path]
     const sourceUrl = source && source.kind === 'url' ? String(source.url || '').trim() : ''
     setMarkdownDocumentSourceUrl(sourceUrl ? sourceUrl : null)
 
-    const lastLoaded = lastLoadedRef.current
     const canTrustEmptyCache = !!(cachedText === '' && lastLoaded && lastLoaded.path === path && lastLoaded.text === '')
     if (cachedText != null && (cachedText !== '' || canTrustEmptyCache)) {
       if (activePathRef.current !== scheduledFor) return
@@ -316,23 +487,41 @@ export function MarkdownWorkspace() {
         const text = await fs.readFileText(path)
         if (cancelled) return
         if (activePathRef.current !== scheduledFor) return
-        const next = String(text ?? '')
+        if (text == null) {
+          setStatusLabel('Load failed: Missing file contents')
+          return
+        }
+        const next = String(text)
         lastLoadedRef.current = { path, text: next }
         setActiveText(next)
-        if (typeof activeEntry?.text !== 'string' || activeEntry.text !== next) {
-          const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-          const inlineText = next.length <= maxInline ? next : undefined
-          setEntries(prev => {
-            const idx = prev.findIndex(e => e.path === path)
-            if (idx < 0) return prev
+        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+        const inlineText = next.length <= maxInline ? next : undefined
+        setEntries(prev => {
+          const idx = prev.findIndex(e => e.path === path)
+          if (idx >= 0) {
             const current = prev[idx]
             if (current.kind !== 'file') return prev
             if (current.text === inlineText) return prev
             const nextEntries = prev.slice()
             nextEntries[idx] = { ...current, text: inlineText }
             return nextEntries
-          })
-        }
+          }
+          const normalized = normalizeWorkspacePath(path)
+          const parts = normalized.replace(/^\/+/, '').split('/').filter(Boolean)
+          const name = parts[parts.length - 1] || ''
+          const parent = parts.length <= 1 ? WORKSPACE_ROOT_PATH : normalizeWorkspacePath(parts.slice(0, -1).join('/'))
+          const nextEntries = prev.slice()
+          nextEntries.push({
+            path: normalized,
+            parentPath: parent,
+            kind: 'file',
+            name,
+            text: inlineText,
+            updatedAtMs: Date.now(),
+          } satisfies WorkspaceEntry)
+          nextEntries.sort((a, b) => a.path.localeCompare(b.path))
+          return nextEntries
+        })
         if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, next)
         setStatusWithAutoClear('Loaded')
       } catch (e) {
@@ -348,13 +537,14 @@ export function MarkdownWorkspace() {
     }
   }, [
     activeDocumentKey,
-    activeEntry,
     activeEntryIsFile,
+    activeEntryText,
     activePath,
     getFs,
     setMarkdownDocument,
     setMarkdownDocumentSourceUrl,
     setStatusWithAutoClear,
+    setStatusLabel,
     setActiveText,
     setEntries,
     sourcesByPath,
@@ -363,7 +553,7 @@ export function MarkdownWorkspace() {
   React.useEffect(() => {
     const path = activePath
     if (!path) return
-    if (!activeEntryIsFile) return
+    if (activeEntry?.kind === 'folder') return
     const last = lastLoadedRef.current
     if (!shouldAutosaveWorkspaceFile({ path, lastLoaded: last, activeText, debouncedText })) return
     void (async () => {
@@ -383,7 +573,7 @@ export function MarkdownWorkspace() {
     })()
   }, [
     activeDocumentKey,
-    activeEntryIsFile,
+    activeEntry,
     activePath,
     activeText,
     debouncedText,
@@ -396,8 +586,31 @@ export function MarkdownWorkspace() {
 
   React.useEffect(() => {
     if (!requestedRevealLine) return
-    if (!editorRef.current) return
-    editorRef.current.revealLine(requestedRevealLine)
+    const el = editorRef.current
+    if (!el) return
+    const line = Math.max(1, Math.floor(requestedRevealLine))
+    const text = String(activeTextRef.current || '')
+    let offset = 0
+    let currentLine = 1
+    while (currentLine < line && offset < text.length) {
+      const nextNewline = text.indexOf('\n', offset)
+      if (nextNewline < 0) {
+        offset = text.length
+        break
+      }
+      offset = nextNewline + 1
+      currentLine += 1
+    }
+    try {
+      el.focus()
+      el.setSelectionRange(offset, offset)
+      const computed = window.getComputedStyle(el)
+      const lineHeightRaw = computed.lineHeight
+      const lineHeight = Number.isFinite(Number.parseFloat(lineHeightRaw)) ? Number.parseFloat(lineHeightRaw) : 18
+      el.scrollTop = Math.max(0, (line - 1) * Math.max(10, Math.min(40, lineHeight)))
+    } catch {
+      void 0
+    }
     requestRevealLine(null)
   }, [requestRevealLine, requestedRevealLine])
 
@@ -504,9 +717,18 @@ export function MarkdownWorkspace() {
   const onSelectFile = React.useCallback(
     (path: WorkspacePath) => {
       setActivePathSafe(path)
+      setSelectionPathSafe(path)
       setBottomPanelCurationView('markdown')
     },
-    [setActivePathSafe, setBottomPanelCurationView],
+    [setActivePathSafe, setBottomPanelCurationView, setSelectionPathSafe],
+  )
+
+  const onSelectFolder = React.useCallback(
+    (path: WorkspacePath) => {
+      setSelectionPathSafe(path)
+      setBottomPanelCurationView('markdown')
+    },
+    [setBottomPanelCurationView, setSelectionPathSafe],
   )
 
   const handleApply = React.useCallback(async () => {
@@ -518,25 +740,49 @@ export function MarkdownWorkspace() {
     setStatusLabel('Applying…')
     try {
       const ok = await applyMarkdownDocumentToGraph(name, activeText)
+      const blocks = (() => {
+        const text = String(activeText || '')
+        if (!text.includes('```')) return []
+        return extractFencedCodeBlocks(text)
+          .filter(b => b.lang === 'geojson' || b.lang === 'json')
+          .slice(0, 20)
+      })()
+      if (blocks.length > 0) {
+        await Promise.all(
+          blocks.map(b =>
+            geoDatasetIntegration.registerGeoJsonFeatureCollection?.({
+              sourceDocumentPath: name,
+              codeBlock: {
+                lang: b.lang === 'geojson' ? 'geojson' : 'json',
+                text: b.content,
+                startLine: b.startLine,
+                endLine: b.endLine,
+              },
+            }),
+          ),
+        )
+      }
       setStatusLabel(ok ? 'Applied' : 'Skipped')
     } catch (e) {
       setStatusLabel(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [activeDocumentKey, activeText, applyMarkdownDocumentToGraph])
+  }, [activeDocumentKey, activeText, applyMarkdownDocumentToGraph, geoDatasetIntegration])
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {
-      const handle = editorRef.current
-      if (!handle) return
-      const selection = handle.getSelectionOffsets?.() || { startOffset: activeText.length, endOffset: activeText.length }
+      const el = editorRef.current
+      if (!el) return
+      const startOffset = typeof el.selectionStart === 'number' ? el.selectionStart : activeText.length
+      const endOffset = typeof el.selectionEnd === 'number' ? el.selectionEnd : activeText.length
+      const selection = { startOffset, endOffset }
       const { nextText, nextSelection } = applyMarkdownFormatAction({ text: activeText, selection, action })
       setActiveText(nextText)
       const focusAndSelect = () => {
         const h = editorRef.current
         if (!h) return
         try {
-          h.focus?.()
-          h.setSelectionOffsets?.(nextSelection.startOffset, nextSelection.endOffset)
+          h.focus()
+          h.setSelectionRange(nextSelection.startOffset, nextSelection.endOffset)
         } catch {
           void 0
         }
@@ -566,14 +812,16 @@ export function MarkdownWorkspace() {
     getFs,
     refresh,
     setStatusLabel,
-    activePath,
-    activeEntryKind: activeEntry?.kind ?? null,
+    openedPath: activePath,
+    selectionPath,
+    selectionEntryKind: selectionEntry?.kind ?? null,
     activeDocumentKey,
     setActiveText,
     setEntries,
     lastLoadedRef,
     setExpandedPaths,
     setActivePathSafe,
+    setSelectionPathSafe,
     setBottomPanelCurationView,
     setMarkdownDocument,
     setMarkdownDocumentSourceUrl,
@@ -581,17 +829,18 @@ export function MarkdownWorkspace() {
   })
 
   const canRefreshActiveFromSource = React.useMemo(() => {
-    if (!activePath || !activeEntryIsFile) return false
-    const src = sourcesByPath ? sourcesByPath[activePath] : null
+    if (!selectionPath || selectionEntry?.kind !== 'file') return false
+    const src = sourcesByPath ? sourcesByPath[selectionPath] : null
     return !!(src && src.kind === 'url' && String((src as { url?: unknown }).url || '').trim())
-  }, [activeEntryIsFile, activePath, sourcesByPath])
+  }, [selectionEntry, selectionPath, sourcesByPath])
 
   const openBacklink = React.useCallback(
     (args: { path: WorkspacePath; line: number }) => {
       setActivePathSafe(args.path)
+      setSelectionPathSafe(args.path)
       revealLineInEditor(args.line)
     },
-    [revealLineInEditor, setActivePathSafe],
+    [revealLineInEditor, setActivePathSafe, setSelectionPathSafe],
   )
 
   const editorUri = activePath ? `inmemory://workspace/${encodeURIComponent(workspaceDocumentKey(activePath) || 'document')}` : 'inmemory://model/empty'
@@ -600,7 +849,7 @@ export function MarkdownWorkspace() {
   return (
     <section
       ref={workspaceRootRef}
-      className="h-full min-h-0 flex overflow-hidden rounded border border-zinc-200/60"
+      className={`h-full min-h-0 flex overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
       aria-label="Markdown Workspace"
     >
       <MarkdownWorkspaceExplorer
@@ -614,8 +863,9 @@ export function MarkdownWorkspace() {
         loadError={loadError}
         expandedPaths={expandedPaths}
         toggleExpanded={toggleExpanded}
-        activePath={activePath}
+        activePath={selectionPath || activePath}
         onSelectFile={onSelectFile}
+        onSelectFolder={onSelectFolder}
         search={search}
         setSearch={setSearch}
         sourceFilesCollapsed={sourceFilesCollapsed}
@@ -632,14 +882,14 @@ export function MarkdownWorkspace() {
         onCreateNewFolder={() => void fileActions.createNewFolder({ parentPath: createParentPath })}
         onRefresh={() => void refresh()}
         statusLabel={statusLabel}
-        activeEntryName={activeEntry?.name || ''}
-        activeEntryKind={activeEntry?.kind || ''}
+        activeEntryName={selectionEntry?.name || ''}
+        activeEntryKind={selectionEntry?.kind || ''}
         canClearActiveSelection={fileActions.canClearActiveSelection}
         onClearActiveSelection={fileActions.onClearActiveSelection}
         canRefreshActiveFromSource={canRefreshActiveFromSource}
         onRefreshActiveFromSource={() => {
-          if (!activePath || !activeEntryIsFile) return
-          void fileActions.refreshFileFromSource(activePath)
+          if (!selectionPath || selectionEntry?.kind !== 'file') return
+          void fileActions.refreshFileFromSource(selectionPath)
         }}
         canDeleteActive={fileActions.canDeleteActive}
         onDeleteActive={fileActions.onDeleteActive}
@@ -647,7 +897,7 @@ export function MarkdownWorkspace() {
 
       <hr
         ref={resizeHandleRef}
-        className="w-1 h-full border-0 cursor-col-resize bg-zinc-200/70 hover:bg-zinc-300/70"
+        className="w-1 h-full border-0 cursor-col-resize bg-[color:var(--kg-border)] hover:bg-[color:var(--kg-divider)]"
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize explorer"

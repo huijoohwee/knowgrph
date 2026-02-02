@@ -22,6 +22,41 @@ const resolvedReactJsxDevRuntime = nodeRequire.resolve('react/jsx-dev-runtime')
 const resolvedReactDom = nodeRequire.resolve('react-dom')
 const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 
+const cesiumPublicDir = path.resolve(__dirname, 'public', 'cesium')
+
+async function ensureCesiumPublicAssets(): Promise<void> {
+  try {
+    const widgetsCss = path.join(cesiumPublicDir, 'Widgets', 'widgets.css')
+    if (existsSync(widgetsCss)) return
+
+    const pkgJson = nodeRequire.resolve('cesium/package.json')
+    const pkgDir = path.dirname(pkgJson)
+    const buildDir = path.join(pkgDir, 'Build', 'Cesium')
+
+    await fs.mkdir(cesiumPublicDir, { recursive: true })
+
+    const folders = ['Assets', 'Widgets', 'ThirdParty', 'Workers']
+    for (const folder of folders) {
+      const src = path.join(buildDir, folder)
+      const dst = path.join(cesiumPublicDir, folder)
+      if (!existsSync(src)) continue
+      await fs.cp(src, dst, { recursive: true })
+    }
+  } catch {
+    void 0
+  }
+}
+
+const cesiumAssetsPlugin = {
+  name: 'knowgrph-cesium-assets',
+  async configResolved() {
+    await ensureCesiumPublicAssets()
+  },
+  async buildStart() {
+    await ensureCesiumPublicAssets()
+  },
+}
+
 function withRepoPythonPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const current = String(env.PYTHONPATH || '').trim()
   const next = current ? `${repoRoot}${path.delimiter}${current}` : repoRoot
@@ -587,6 +622,8 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       res.end('Missing or invalid url parameter')
       return
     }
+
+    let controller: AbortController | null = null
     try {
       const timeoutMs = (() => {
         const raw = String(process.env.KNOWGRPH_REMOTE_FETCH_TIMEOUT_MS || '').trim()
@@ -600,14 +637,28 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         if (!Number.isFinite(parsed)) return 20 * 1024 * 1024
         return Math.max(64 * 1024, Math.min(50 * 1024 * 1024, Math.floor(parsed)))
       })()
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+      const ctrl = new AbortController()
+      controller = ctrl
+      let finished = false
+      const abort = () => {
+        if (finished) return
+        try {
+          ctrl.abort()
+        } catch {
+          void 0
+        }
+      }
+      req.on('aborted', abort)
+      req.on('close', abort)
+      res.on('close', abort)
+
+      const timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
       const upstream = await (async () => {
         try {
           return await fetch(urlParam, {
             method: req.method,
             redirect: 'follow',
-            signal: controller.signal,
+            signal: ctrl.signal,
             headers: {
               Accept: '*/*',
             },
@@ -616,6 +667,20 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
           clearTimeout(timeoutId)
         }
       })()
+
+      if (ctrl.signal.aborted) {
+        finished = true
+        if (!res.writableEnded) {
+          try {
+            res.statusCode = 499
+            res.end()
+          } catch {
+            void 0
+          }
+        }
+        return
+      }
+
       res.statusCode = upstream.status
       const contentType = upstream.headers.get('content-type')
       if (contentType) {
@@ -627,6 +692,7 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
           res.setHeader('Content-Length', contentLength)
         }
         res.end()
+        finished = true
         return
       }
       const readWithLimit = async (): Promise<Buffer> => {
@@ -642,6 +708,7 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         const chunks: Buffer[] = []
         let total = 0
         while (true) {
+          if (ctrl.signal.aborted) throw new Error('aborted')
           const { done, value } = await reader.read()
           if (done) break
           if (!value || value.byteLength === 0) continue
@@ -665,12 +732,22 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         void 0
       }
       res.end(buf)
+      finished = true
     } catch (error) {
       const msg =
         error && typeof error === 'object' && 'message' in error
           ? String((error as { message?: unknown }).message || '')
           : 'Upstream fetch failed'
       const message = msg || 'Upstream fetch failed'
+      if (controller?.signal.aborted || /aborted/i.test(message)) {
+        try {
+          res.statusCode = 499
+          res.end()
+        } catch {
+          void 0
+        }
+        return
+      }
       if (/aborted/i.test(message) || /timeout/i.test(message)) {
         res.statusCode = 504
       } else if (/too large/i.test(message)) {
@@ -809,8 +886,11 @@ const youtubeConvertDevPlugin = {
 
 
 export default defineConfig(({ command }) => ({
+  define: {
+    CESIUM_BASE_URL: JSON.stringify('/cesium/'),
+  },
   optimizeDeps: {
-    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'reactflow', 'dagre', 'elkjs'],
+    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'reactflow', 'dagre', 'elkjs', 'cesium'],
     exclude: ['gympgrph', 'curagrph', 'grph-shared'],
   },
   build: {
@@ -829,7 +909,7 @@ export default defineConfig(({ command }) => ({
   },
   resolve: {
     preserveSymlinks: true,
-    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl'],
+    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'cesium'],
     alias: [
       { find: 'react/jsx-runtime', replacement: resolvedReactJsxRuntime },
       { find: 'react/jsx-dev-runtime', replacement: resolvedReactJsxDevRuntime },
@@ -891,6 +971,7 @@ export default defineConfig(({ command }) => ({
   },
   plugins: [
     react(),
+    cesiumAssetsPlugin,
     ...(command === 'build'
       ? []
       : [

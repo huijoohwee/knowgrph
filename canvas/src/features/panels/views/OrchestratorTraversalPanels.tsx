@@ -29,6 +29,7 @@ type DuckDbQueryPreset = DuckDbQueryConfig & {
 
 interface OrchestratorTraversalPresetsSectionProps {
   runGraphRagTraversal: () => void
+  traversalPlaneProgress?: number | null
   traversalStartNodeId: string
   setTraversalStartNodeId: (value: string) => void
   traversalMaxDepth: number
@@ -45,6 +46,7 @@ interface OrchestratorTraversalPresetsSectionProps {
 
 interface GraphRagPathTraverseHelperSectionProps {
   runGraphRagTraversal: () => void
+  traversalPlaneProgress?: number | null
   graphRagPathHelper: GraphRagPathHelper | null
   graphNodesById: Record<string, { label: string }>
   selectNode: (id: string | null) => void
@@ -58,6 +60,7 @@ interface GraphRagPathTraverseHelperSectionProps {
 
 function GraphRagPathTraverseHelperSection({
   runGraphRagTraversal,
+  traversalPlaneProgress,
   graphRagPathHelper,
   graphNodesById,
   selectNode,
@@ -99,7 +102,24 @@ function GraphRagPathTraverseHelperSection({
                 ].join(' ')}
                 onClick={runGraphRagTraversal}
               >
-                {UI_COPY.orchestratorPlayPathButtonLabel}
+                <span className="inline-flex items-center gap-2">
+                  <span>{UI_COPY.orchestratorPlayPathButtonLabel}</span>
+                  {typeof traversalPlaneProgress === 'number' && Number.isFinite(traversalPlaneProgress) && traversalPlaneProgress >= 0 && traversalPlaneProgress <= 1 && (
+                    <span className="relative inline-block w-10 h-3 overflow-hidden align-middle" aria-hidden="true">
+                      <span className="absolute left-0 right-0 top-1/2 h-px bg-gray-300" style={{ transform: 'translateY(-50%)' }} />
+                      <span
+                        className="absolute top-1/2"
+                        style={{
+                          transform: `translate(${Math.round(traversalPlaneProgress * 36)}px, -50%)`,
+                          fontSize: 12,
+                          opacity: 0.85,
+                        }}
+                      >
+                        {'✈'}
+                      </span>
+                    </span>
+                  )}
+                </span>
               </button>
               <Tooltip
                 content="Preset optimized for inspecting a single path via traversal."
@@ -429,6 +449,7 @@ function DuckDbQueryPresetsSection({
 
 export function OrchestratorTraversalPresetsSection({
   runGraphRagTraversal,
+  traversalPlaneProgress,
   traversalStartNodeId,
   setTraversalStartNodeId,
   traversalMaxDepth,
@@ -519,6 +540,7 @@ export function OrchestratorTraversalPresetsSection({
       />
       <GraphRagPathTraverseHelperSection
         runGraphRagTraversal={runGraphRagTraversal}
+        traversalPlaneProgress={traversalPlaneProgress}
         graphRagPathHelper={graphRagPathHelper}
         graphNodesById={graphNodesById}
         selectNode={selectNode}

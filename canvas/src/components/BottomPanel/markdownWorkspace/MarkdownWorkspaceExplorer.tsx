@@ -21,6 +21,7 @@ export type MarkdownWorkspaceExplorerProps = {
   toggleExpanded: (path: WorkspacePath) => void
   activePath: WorkspacePath | null
   onSelectFile: (path: WorkspacePath) => void
+  onSelectFolder: (path: WorkspacePath) => void
 
   search: string
   setSearch: (next: string) => void
@@ -67,6 +68,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     toggleExpanded,
     activePath,
     onSelectFile,
+    onSelectFolder,
     search,
     setSearch,
     sourceFilesCollapsed,
@@ -93,24 +95,49 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     onDeleteActive,
   } = props
 
-  const closeNearestDetails = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    try {
-      const details = e.currentTarget.closest('details')
-      if (details) details.removeAttribute('open')
-    } catch {
-      void 0
-    }
-  }, [])
-
   const clearLabel = activeEntryKind === 'folder' ? 'Clear files' : 'Clear'
+
+  const hasSelectionActions = canClearActiveSelection || canRefreshActiveFromSource || canDeleteActive
+  const [selectionMenuOpen, setSelectionMenuOpen] = React.useState(false)
+  const selectionMenuRootRef = React.useRef<HTMLElement | null>(null)
+
+  React.useEffect(() => {
+    if (hasSelectionActions) return
+    setSelectionMenuOpen(false)
+  }, [hasSelectionActions])
+
+  React.useEffect(() => {
+    if (!selectionMenuOpen) return
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') setSelectionMenuOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectionMenuOpen])
+
+  React.useEffect(() => {
+    if (!selectionMenuOpen) return
+    const onDown = (ev: PointerEvent) => {
+      const root = selectionMenuRootRef.current
+      const target = ev.target as Node | null
+      if (!root || !target) return
+      if (root.contains(target)) return
+      setSelectionMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [selectionMenuOpen])
 
   return (
     <aside
-      className="h-full min-h-0 flex flex-col bg-zinc-50"
+      className={`h-full min-h-0 flex flex-col ${UI_THEME_TOKENS.panel.bg}`}
       style={{ width: Math.max(sidebarWidthMinPx, Math.min(sidebarWidthMaxPx, sidebarWidthPx)) }}
       aria-label="Markdown Explorer"
     >
-      <header className="flex items-center justify-between gap-2 px-2 py-1 border-b border-zinc-200/70" aria-label="Explorer header">
+      <header
+        className={`flex items-center justify-between gap-2 px-2 py-1 border-b ${UI_THEME_TOKENS.panel.border}`}
+        aria-label="Explorer header"
+      >
         <section className="min-w-0 flex-1 flex items-center gap-2" aria-label="Explorer title">
           <h2 className={`shrink-0 text-[11px] font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Explorer</h2>
           {statusLabel ? (
@@ -119,107 +146,132 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
             </output>
           ) : null}
         </section>
-        <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Explorer actions">
-          {canClearActiveSelection || canRefreshActiveFromSource || canDeleteActive ? (
-            <li className="list-none relative">
-              <details className="relative">
-                <summary
+        <nav aria-label="Explorer actions">
+          <ul className="flex items-center gap-1 list-none m-0 p-0" aria-label="Explorer actions list">
+            {hasSelectionActions ? (
+              <li className="list-none relative" ref={el => (selectionMenuRootRef.current = el)}>
+                <button
+                  type="button"
                   className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded cursor-pointer ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                   aria-label={activeEntryName ? `Actions for ${activeEntryName}` : 'Selection actions'}
+                  aria-haspopup="menu"
+                  aria-expanded={selectionMenuOpen}
                   title="Selection actions"
+                  onClick={() => setSelectionMenuOpen(v => !v)}
                 >
                   <MoreHorizontal className="w-4 h-4" />
-                </summary>
-                <menu
-                  className={`absolute right-0 mt-1 min-w-40 bg-white border border-zinc-200/70 rounded shadow-md text-xs ${UI_THEME_TOKENS.text.primary} list-none m-0 p-1`}
-                  aria-label="Selection actions menu"
-                >
-                  {canRefreshActiveFromSource ? (
-                    <li className="list-none">
-                      <button
-                        type="button"
-                        className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                        aria-label={activeEntryName ? `Refresh ${activeEntryName}` : 'Refresh from URL'}
-                        onClick={e => {
-                          closeNearestDetails(e)
-                          onRefreshActiveFromSource()
-                        }}
-                      >
-                        Refresh from URL
-                      </button>
-                    </li>
-                  ) : null}
-                  {canClearActiveSelection ? (
-                    <li className="list-none">
-                      <button
-                        type="button"
-                        className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                        onClick={e => {
-                          closeNearestDetails(e)
-                          onClearActiveSelection()
-                        }}
-                      >
-                        {clearLabel}
-                      </button>
-                    </li>
-                  ) : null}
-                  {canDeleteActive ? (
-                    <li className="list-none">
-                      <button
-                        type="button"
-                        className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                        onClick={e => {
-                          closeNearestDetails(e)
-                          onDeleteActive()
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </li>
-                  ) : null}
-                </menu>
-              </details>
+                </button>
+                {selectionMenuOpen ? (
+                  <section
+                    className={`absolute right-0 mt-1 min-w-40 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md text-xs ${UI_THEME_TOKENS.text.primary} p-1 z-50`}
+                    role="menu"
+                    aria-label="Selection actions menu"
+                  >
+                    <ul className="list-none m-0 p-0">
+                      {canRefreshActiveFromSource ? (
+                        <li className="list-none">
+                          <button
+                            type="button"
+                            className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                            aria-label={activeEntryName ? `Refresh ${activeEntryName}` : 'Refresh from URL'}
+                            role="menuitem"
+                            onClick={() => {
+                              setSelectionMenuOpen(false)
+                              onRefreshActiveFromSource()
+                            }}
+                          >
+                            Refresh from URL
+                          </button>
+                        </li>
+                      ) : null}
+                      {canClearActiveSelection ? (
+                        <li className="list-none">
+                          <button
+                            type="button"
+                            className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                            role="menuitem"
+                            onClick={() => {
+                              setSelectionMenuOpen(false)
+                              onClearActiveSelection()
+                            }}
+                          >
+                            {clearLabel}
+                          </button>
+                        </li>
+                      ) : null}
+                      {canDeleteActive ? (
+                        <li className="list-none">
+                          <button
+                            type="button"
+                            className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                            role="menuitem"
+                            onClick={() => {
+                              setSelectionMenuOpen(false)
+                              onDeleteActive()
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </li>
+                      ) : null}
+                    </ul>
+                  </section>
+                ) : null}
+              </li>
+            ) : null}
+            <li className="list-none">
+              <button
+                type="button"
+                className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={onCreateNewFile}
+                aria-label="New file"
+                title="New file"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
             </li>
-          ) : null}
-          <li className="list-none">
-            <button
-              type="button"
-              className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-              onClick={onCreateNewFile}
-              aria-label="New file"
-              title="New file"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-              onClick={onCreateNewFolder}
-              aria-label="New folder"
-              title="New folder"
-            >
-              <FolderPlus className="w-4 h-4" />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-              onClick={onRefresh}
-              aria-label="Refresh"
-              title="Refresh"
-            >
-              <RefreshCcw className="w-4 h-4" />
-            </button>
-          </li>
-        </menu>
+            <li className="list-none">
+              <button
+                type="button"
+                className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={onCreateNewFolder}
+                aria-label="New folder"
+                title="New folder"
+              >
+                <FolderPlus className="w-4 h-4" />
+              </button>
+            </li>
+            {canRefreshActiveFromSource ? (
+              <li className="list-none">
+                <button
+                  type="button"
+                  className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  onClick={onRefreshActiveFromSource}
+                  aria-label={activeEntryName ? `Refresh ${activeEntryName}` : 'Refresh from URL'}
+                  title="Refresh from URL"
+                >
+                  <RefreshCcw className="w-4 h-4" />
+                </button>
+              </li>
+            ) : null}
+            <li className="list-none">
+              <button
+                type="button"
+                className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={onRefresh}
+                aria-label="Refresh"
+                title="Refresh"
+              >
+                <RefreshCcw className="w-4 h-4" />
+              </button>
+            </li>
+          </ul>
+        </nav>
       </header>
 
       <form className="px-2 py-1" role="search" aria-label="Search files">
         <label className="flex items-center gap-2">
-          <Search className="w-4 h-4 shrink-0 text-zinc-500" />
+          <Search className={`w-4 h-4 shrink-0 ${UI_THEME_TOKENS.text.secondary}`} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -247,6 +299,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
               toggleExpanded={toggleExpanded}
               activePath={activePath}
               onSelectFile={onSelectFile}
+              onSelectFolder={onSelectFolder}
               sourcesByPath={sourcesByPath}
             />
           )}

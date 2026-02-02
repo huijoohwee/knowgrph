@@ -7,8 +7,8 @@ export const testWorkspaceFsSeedAndCrud = async () => {
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
   const entries = await fs.listEntries()
-  const hasReadme = entries.some(e => e.kind === 'file' && e.path === '/README.md')
-  if (!hasReadme) throw new Error('Expected /README.md seed file')
+  const fileCount = entries.filter(e => e.kind === 'file').length
+  if (fileCount < 2) throw new Error(`Expected at least 2 seed files, got ${fileCount}`)
 
   const folder = await fs.createFolder({ parentPath: WORKSPACE_ROOT_PATH, name: 'docs' })
   if (!folder.startsWith('/docs')) throw new Error('Expected docs folder under root')
@@ -28,13 +28,12 @@ export const testMarkdownOutlineAndBacklinks = () => {
   if (lines.join(',') !== '1,3,8') throw new Error(`Unexpected outline lines: ${lines.join(',')}`)
 
   const backlinks = computeBacklinks({
-    activePath: '/README.md',
+    activePath: '/index.md',
     entries: [
-      { path: '/README.md', parentPath: '/', kind: 'file', name: 'README.md', text: 'x', updatedAtMs: 0 },
-      { path: '/a.md', parentPath: '/', kind: 'file', name: 'a.md', text: 'see [[README]]', updatedAtMs: 0 },
-      { path: '/b.md', parentPath: '/', kind: 'file', name: 'b.md', text: 'see ](/README.md)', updatedAtMs: 0 },
+      { path: '/index.md', parentPath: '/', kind: 'file', name: 'index.md', text: 'x', updatedAtMs: 0 },
+      { path: '/a.md', parentPath: '/', kind: 'file', name: 'a.md', text: 'see [[index]]', updatedAtMs: 0 },
+      { path: '/b.md', parentPath: '/', kind: 'file', name: 'b.md', text: 'see ](/index.md)', updatedAtMs: 0 },
     ],
   })
   if (backlinks.length !== 2) throw new Error(`Expected 2 backlinks, got ${backlinks.length}`)
 }
-

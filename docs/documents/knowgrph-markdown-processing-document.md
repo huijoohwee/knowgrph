@@ -91,6 +91,7 @@ The implementation replaces generic `<div>` wrappers with semantic elements:
 - Theme tokens are centralized in `UI_THEME_TOKENS`.
 - **Line Highlighting**: Supports highlighting specific lines using `{1-3,5}` syntax in the language info string (e.g., `ts {1-3}`).
 - **Mermaid Support**: Standard `mermaid` and `mmd` blocks support both source view and a fitted rendered diagram preview via the main "Render" mode. `textmermaid` is treated as a standard code block.
+- **Markdown File Extensions (Graph Pipeline)**: Files ending in `.md`, `.markdown`, `.mmd`, or `.mdx` are treated as Markdown inputs for graph extraction (`isMarkdownLikeFileName` in `knowgrph/grph-shared/src/markdown/mermaidInput.ts`).
 
 ## Architecture & Performance
 

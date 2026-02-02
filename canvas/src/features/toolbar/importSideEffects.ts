@@ -18,8 +18,8 @@ export function applyImportedMarkdownToStore(args: {
   if (!name) return
 
   const state = useGraphStore.getState()
-  state.setJsonSourceDocument(name, null)
   state.setMarkdownDocument(name, text)
+  state.setJsonSourceDocument(name, null)
   state.setMarkdownDocumentSourceUrl(sourceUrl)
   if (args.curationView) {
     state.setBottomPanelCurationView(args.curationView)

@@ -1,7 +1,10 @@
 import Dexie, { type Table } from 'dexie'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
-import { WORKSPACE_SEED_FILES } from './workspaceFs'
+import { LEGACY_WORKSPACE_README_PATH, LEGACY_WORKSPACE_README_TEXT, getWorkspaceSeedFiles } from './workspaceFs'
+import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
+import { LS_KEYS } from '@/lib/config'
+import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
 
 const DB_NAME = 'kg:workspace-fs'
 const DB_VERSION = 1
@@ -44,11 +47,26 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
   const ensureSeed = async () => {
     const db = getDb()
     await ensureRoot()
+
+    const legacyPath = normalizeWorkspacePath(LEGACY_WORKSPACE_README_PATH)
+    const legacy = await db.entries.get(legacyPath)
+    if (legacy && legacy.kind === 'file' && String(legacy.text ?? '') === LEGACY_WORKSPACE_README_TEXT) {
+      await db.entries.delete(legacyPath)
+    }
+
     const fileCount = await db.entries.where('kind').equals('file').count()
-    if (fileCount > 0) return
+    const seeded = lsBool(LS_KEYS.markdownWorkspaceSeeded, false)
+    const userClearedAll = lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)
+    if (fileCount > 0) {
+      if (!seeded) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
+      if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+      return
+    }
+    if (userClearedAll) return
     const now = Date.now()
+    const seeds = await getWorkspaceSeedFiles()
     await db.transaction('rw', db.entries, async () => {
-      for (const seed of WORKSPACE_SEED_FILES) {
+      for (const seed of seeds) {
         const path = normalizeWorkspacePath(seed.path)
         await db.entries.put({
           path,
@@ -60,6 +78,8 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
         })
       }
     })
+    lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
+    if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
   }
 
   const listEntries = async () => {
@@ -87,6 +107,7 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
       text: String(text ?? ''),
       updatedAtMs: Date.now(),
     })
+    notifyWorkspaceFsChanged({ op: 'writeFileText', path: p })
   }
 
   const createFolder = async (args: { parentPath: WorkspacePath; name: string }) => {
@@ -109,6 +130,7 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
       name,
       updatedAtMs: Date.now(),
     })
+    notifyWorkspaceFsChanged({ op: 'createFolder', path })
     return path
   }
 
@@ -136,6 +158,10 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
       text: String(args.text ?? ''),
       updatedAtMs: Date.now(),
     })
+    if (lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)) {
+      lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+    }
+    notifyWorkspaceFsChanged({ op: 'createFile', path })
     return path
   }
 
@@ -148,6 +174,9 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
     if (!row) return
     if (row.kind === 'file') {
       await db.entries.delete(p)
+      const remaining = await db.entries.where('kind').equals('file').count()
+      if (remaining === 0) lsSetBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, true)
+      notifyWorkspaceFsChanged({ op: 'deleteEntry', path: p })
       return
     }
     const prefix = p.endsWith('/') ? p : `${p}/`
@@ -158,6 +187,9 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
         .filter(key => key === p || key.startsWith(prefix))
       if (toDelete.length > 0) await db.entries.bulkDelete(toDelete)
     })
+    const remaining = await db.entries.where('kind').equals('file').count()
+    if (remaining === 0) lsSetBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, true)
+    notifyWorkspaceFsChanged({ op: 'deleteEntry', path: p })
   }
 
   return {
@@ -170,4 +202,3 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
     deleteEntry,
   }
 }
-

@@ -7,7 +7,7 @@ import { deriveFilenameFromUrl } from '@/lib/url'
 import { ensureBuiltInParsersRegistered } from '@/features/parsers/ensure'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
-import { containsFrontmatterMermaid, normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
+import { containsFrontmatterMermaid, isMarkdownLikeFileName, normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import {
   type DbConnectorKind,
   type RelationalConnectorConfig,
@@ -210,12 +210,11 @@ export async function autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty(args?: {
 }): Promise<boolean> {
   const store = useGraphStore.getState()
   if ((store.documentSemanticMode || 'document') !== 'document') return false
-  if (!(store.frontmatterModeEnabled || false)) return false
 
   const name = String(args?.name ?? store.markdownDocumentName ?? 'document.md')
   const text = String(args?.text ?? store.markdownDocumentText ?? '')
   if (!text.trim()) return false
-  if (!containsFrontmatterMermaid(text)) return false
+  if (!isMarkdownLikeFileName(name)) return false
 
   const base = store.graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
   const n = base && Array.isArray(base.nodes) ? base.nodes.length : 0

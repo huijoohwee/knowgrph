@@ -22,11 +22,11 @@ import {
   Upload,
   WrapText,
 } from 'lucide-react'
-import type { MarkdownPreviewPresentationApi } from '@/features/markdown/ui/MarkdownPreview'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
+import type { MarkdownPresentationApi } from './markdownWorkspace/markdownWorkspaceTypes'
 
 export type MarkdownWorkspaceToolbarProps = {
   layoutMode: MarkdownWorkspaceLayoutMode
@@ -38,7 +38,7 @@ export type MarkdownWorkspaceToolbarProps = {
   onApply: () => void
   applyStatusLabel?: string
   onToggleFullscreen: () => void
-  presentationApiRef: React.MutableRefObject<MarkdownPreviewPresentationApi | null>
+  presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
 
   isEditing: boolean
   isMarkdown: boolean
@@ -108,7 +108,10 @@ export function MarkdownWorkspaceToolbar({
   }, [])
 
   return (
-    <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-zinc-200/60 bg-white" aria-label="Markdown Toolbar">
+    <header
+      className={`flex items-center justify-between gap-2 px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+      aria-label="Markdown Toolbar"
+    >
       <span className="min-w-0">
         <span className={`text-[11px] uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Markdown</span>
         {applyStatusLabel ? (
