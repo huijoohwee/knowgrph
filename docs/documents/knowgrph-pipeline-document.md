@@ -115,6 +115,11 @@ When changing shared packages that are wired via `file:` links (for example `cur
 
 - Render consumes the active `GraphData` view and applies schema-config-driven layout/styling:
   - [GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
+- Active `GraphData` for rendering is SSOT-derived to keep Canvas/D3, Flow, Graph Data Table, Graph Fields, and Props/Node Editor consistent:
+  - Canonical hook: `useActiveGraphRenderData()` (`knowgrph/canvas/src/hooks/useActiveGraphData.ts`)
+  - Derivation order: keyword semantic mode base → optional frontmatter Mermaid filter (document mode only) → optional group collapse (`collapsedGroupIds`)
+  - Example SSOT consumers (host): `PreviewPanelView`, `DatasetInspectorSection`, `GraphTableWorkspace`
+  - Bounded regression test: `canvas/src/__tests__/rxdbGraphTableDb.test.ts` (`testGraphTableDbSyncsCollapsedView`)
 
 ### Schema Contract (SSOT)
 

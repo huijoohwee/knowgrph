@@ -96,6 +96,7 @@ import { testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument } from '@
 import { testGraphDataMetadataHashIncludesRevision } from '@/__tests__/graphDataHashRevision.test'
 import {
   testGraphTableDbAllocatesAndCreatesRows,
+  testGraphTableDbSyncsCollapsedGraphViewRows,
   testGraphTableDbSeedsBaseTablesAndColumns,
   testGraphTableDbSyncsGraphAndInfersPropertyColumns,
   testGraphTableDbUpdatesCellValues,
@@ -539,6 +540,7 @@ export const runAllTests = async () => {
   await exec('ui.bottomPanelCollapsePersistence', testBottomPanelCollapsePersistence)
   await exec('rxdb.graphTable.seed', testGraphTableDbSeedsBaseTablesAndColumns)
   await exec('rxdb.graphTable.sync', testGraphTableDbSyncsGraphAndInfersPropertyColumns)
+  await exec('rxdb.graphTable.syncCollapsedView', testGraphTableDbSyncsCollapsedGraphViewRows)
   await exec('rxdb.graphTable.updateCell', testGraphTableDbUpdatesCellValues)
   await exec('rxdb.graphTable.createRow', testGraphTableDbAllocatesAndCreatesRows)
   await exec('ui.themeModePersistence', testThemeModePersistence)

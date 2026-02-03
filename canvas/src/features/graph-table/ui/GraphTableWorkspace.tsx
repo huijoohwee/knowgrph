@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Subscription } from 'rxjs'
 import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { hashString32 } from 'grph-shared/hash/stringHash'
@@ -104,7 +105,8 @@ const applyCellUpdateToGraphStore = (
 
 export default function GraphTableWorkspace() {
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
-  const graphData = useGraphStore(s => s.graphData)
+  const baseGraphData = useGraphStore(s => s.graphData)
+  const renderGraphData = useActiveGraphRenderData()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const selectionSource = useGraphStore(s => s.selectionSource)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -152,14 +154,14 @@ export default function GraphTableWorkspace() {
         return
       }
       if (lastSyncedRevisionRef.current === graphDataRevision) return
-      await syncGraphDataToGraphTableDb(graphData)
+      await syncGraphDataToGraphTableDb(renderGraphData)
       if (cancelled) return
       lastSyncedRevisionRef.current = graphDataRevision
     })()
     return () => {
       cancelled = true
     }
-  }, [graphData, graphDataRevision])
+  }, [graphDataRevision, renderGraphData])
 
   useEffect(() => {
     let sub: Subscription | null = null
@@ -357,7 +359,7 @@ export default function GraphTableWorkspace() {
         useGraphStore.getState().addNode(node)
         return
       }
-      const nodes = (graphData?.nodes || []).map(n => n.id)
+      const nodes = (baseGraphData?.nodes || []).map(n => n.id)
       const source = nodes[0] || ''
       const target = nodes[1] || source
       const edge: GraphEdge = { id: rowId, label: 'relates_to', source, target, properties: {} }
@@ -366,7 +368,7 @@ export default function GraphTableWorkspace() {
       lastGraphWriteRevisionRef.current = prev + 1
       useGraphStore.getState().addEdge(edge)
     })()
-  }, [activeTableId, graphData])
+  }, [activeTableId, baseGraphData])
 
   const handleDeleteSelected = useCallback(() => {
     void (async () => {

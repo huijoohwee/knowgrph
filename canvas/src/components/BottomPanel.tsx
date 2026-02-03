@@ -14,10 +14,10 @@ import { BOTTOM_PANEL_OPEN_EVENT, COLLAPSE_STORAGE_KEY, DEFAULT_BOTTOM_PANEL_HEI
 import { PANEL_MAX_RATIO } from '@/features/panels/config'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { useActiveGraphData } from '@/hooks/useActiveGraphData'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 
 export default function BottomPanel() {
-  const activeGraphData = useActiveGraphData()
+  const activeGraphData = useActiveGraphRenderData()
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectionSource = useGraphStore(s => s.selectionSource)

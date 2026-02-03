@@ -13,12 +13,10 @@ import ReactFlow, {
 import { useShallow } from 'zustand/react/shallow'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { useActiveGraphData } from '@/hooks/useActiveGraphData'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useContainerDims } from '@/hooks/useContainerDims'
-import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
-import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { FlowZoomEffects } from '@/components/FlowCanvas/FlowZoomEffects'
@@ -134,29 +132,21 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     schema?.layout?.groups,
   ])
 
-  const rawGraphData = useActiveGraphData()
+  const renderGraphData = useActiveGraphRenderData()
   const effectiveFrontmatter = !!frontmatterModeEnabled && documentSemanticMode !== 'keyword'
-  const renderGraphData = React.useMemo(() => {
-    if (!rawGraphData) return null
-    if (effectiveFrontmatter) return filterGraphToFrontmatterMermaid(rawGraphData)
-    return rawGraphData
-  }, [effectiveFrontmatter, rawGraphData])
 
   const collapsedGroupIdsKey = React.useMemo(() => {
     const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
-    return ids.length > 0 ? ids.join('|') : ''
+    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
+    if (normalized.length === 0) return ''
+    normalized.sort((a, b) => a.localeCompare(b))
+    return normalized.join('|')
   }, [collapsedGroupIds])
 
-  const effectiveRenderGraphData = React.useMemo(() => {
-    if (!renderGraphData) return null
-    if (!collapsedGroupIdsKey) return renderGraphData
-    return deriveGraphDataWithGroupCollapse({ graphData: renderGraphData, collapsedGroupIds })
-  }, [collapsedGroupIds, collapsedGroupIdsKey, renderGraphData])
-
   const sceneGraphData = React.useMemo(() => {
-    if (!effectiveRenderGraphData) return null
-    return cloneGraphDataForRender(effectiveRenderGraphData)
-  }, [effectiveRenderGraphData])
+    if (!renderGraphData) return null
+    return cloneGraphDataForRender(renderGraphData)
+  }, [renderGraphData])
 
   const zoomViewKey = React.useMemo(() => {
     return buildZoomViewKey({

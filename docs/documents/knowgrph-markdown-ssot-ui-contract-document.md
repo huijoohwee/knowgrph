@@ -27,6 +27,14 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Any memoized markdown token cache must be isolated by `activeDocumentPath` and must not return cached tokens when the stored document path differs (prevents cross-document bleed and “content disappears” on view switches).
 - When the host supports Geospatial Mode, Markdown preview surfaces must receive `geoDatasetIntegration` so fenced GeoJSON blocks can render previews and register datasets into the geospatial layer.
 
+### Active Graph Render View (SSOT)
+
+- Graph Data Table, Graph Fields, Props Panel/Node Editor, Canvas (D3/Flow/3D), Canvas Preview, and Geospatial overlays must render from the same derived `GraphData` view (no per-surface re-derivation).
+- Canonical derivation API: `useActiveGraphRenderData()` in `knowgrph/canvas/src/hooks/useActiveGraphData.ts`.
+- Derivation rules (in order): keyword semantic mode may derive a keyword base graph → optional frontmatter Mermaid filter (document mode only) → optional group collapse (`collapsedGroupIds`).
+- SSOT consumers include `PreviewPanelView`, `DatasetInspectorSection`, and `GraphTableWorkspace` (host), plus extracted table/stats surfaces.
+- Bounded verification: `canvas/src/__tests__/rxdbGraphTableDb.test.ts` (`testGraphTableDbSyncsCollapsedView`) asserts table rows match the collapsed render view.
+
 ### Shared Surface Vocabulary + Events (SSOT)
 
 - Cross-repo surfaces must share a stable surface vocabulary defined in `grph-shared/ssot/types` (`SsotSurface`).

@@ -8,6 +8,7 @@ import { emitChatInputAppend, emitSidePanelOpen } from '@/features/canvas/utils'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { createId } from '@/lib/id'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 
 type FloatingPanelModel = {
   graphData: GraphData | null
@@ -68,7 +69,7 @@ const getCanvasCenterGraphPoint = () => {
 }
 
 export function useFloatingPropsPanelModel(): FloatingPanelModel {
-  const graphData = useGraphStore(s => s.graphData)
+  const graphData = useActiveGraphRenderData()
   const schema = useGraphStore(s => s.schema as GraphSchema | null)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)

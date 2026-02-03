@@ -6,20 +6,13 @@ import { getNodeMediaSpec, hasNodeMedia, type NodeMediaSpec } from '@/components
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 
 type MediaNodeRow = {
   id: string
   label: string
   type: string
   media: NodeMediaSpec
-}
-
-function getGraphFromStore(): GraphData | null {
-  try {
-    return useGraphStore.getState().graphData as GraphData | null
-  } catch {
-    return null
-  }
 }
 
 export default function MediaNodesSection({
@@ -31,7 +24,7 @@ export default function MediaNodesSection({
   collapsed?: boolean
   onToggle?: (next: boolean) => void
 }) {
-  const graph = getGraphFromStore()
+  const graph = useActiveGraphRenderData() as GraphData | null
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',

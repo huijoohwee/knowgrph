@@ -7,6 +7,7 @@ import {
   syncGraphDataToGraphTableDb,
   updateGraphTableCell,
 } from '@/features/graph-table-db/graphTableDb'
+import { collapsedGroupNodeIdFor, deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 
 export async function testGraphTableDbSeedsBaseTablesAndColumns() {
   await ensureGraphTableSeed()
@@ -82,3 +83,25 @@ export async function testGraphTableDbAllocatesAndCreatesRows() {
   if (!row) throw new Error('expected newly created node row to exist')
 }
 
+export async function testGraphTableDbSyncsCollapsedGraphViewRows() {
+  const graph: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'a', type: 'Entity', label: 'A', properties: { 'visual:community': 0 } },
+      { id: 'b', type: 'Entity', label: 'B', properties: { 'visual:community': 0 } },
+      { id: 'c', type: 'Entity', label: 'C', properties: { 'visual:community': 1 } },
+    ],
+    edges: [{ id: 'e1', source: 'a', target: 'c', label: 'rel', properties: {} }],
+  }
+
+  const collapsed = deriveGraphDataWithGroupCollapse({ graphData: graph, collapsedGroupIds: ['community:0'] })
+  await syncGraphDataToGraphTableDb(collapsed)
+
+  const { collections } = await getGraphTableDb()
+  const rows = await collections.rows.find({ selector: { tableId: 'nodes' } }).exec()
+  const ids = new Set(rows.map(r => r.get('rowId')))
+  const groupNodeId = collapsedGroupNodeIdFor('community:0')
+  if (!ids.has(groupNodeId)) throw new Error('expected collapsed group node to be present in nodes table')
+  if (ids.has('a') || ids.has('b')) throw new Error('expected collapsed member nodes to be absent from nodes table')
+  if (!ids.has('c')) throw new Error('expected non-member node to remain present in nodes table')
+}

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { usePositions } from './layout'
@@ -21,7 +22,6 @@ const ControlsLazy = React.lazy(() =>
 
 export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const {
-    graphData: data,
     schema,
     selectNode,
     selectEdge,
@@ -49,7 +49,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     }
   }, [])
   const paused = !active || (!bottomPanelCollapsed && bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.001)
-  const graph = data as GraphData | null
+  const graph = useActiveGraphRenderData() as GraphData | null
   const s = schema as GraphSchema | null
   const effectiveSchema = useMemo<GraphSchema>(() => s || defaultSchema, [s])
   const renderGraphRef = useRef<GraphData | null>(null)

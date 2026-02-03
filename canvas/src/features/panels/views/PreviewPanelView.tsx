@@ -34,10 +34,11 @@ import {
   parseMermaidConfigFromFrontmatter,
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
-import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -53,7 +54,7 @@ export default function PreviewPanelView() {
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
-  const graphData = useGraphStore(s => s.graphData as GraphData | null)
+  const graphData = useActiveGraphRenderData()
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
   const rootThemeMode = useRootThemeMode()
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData';
 import { NODE_EDITOR_EMPTY_TEXT } from '@/lib/config';
 import { GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types';
 import { summarizePropertySpec, toCompactPropertyBadgeLabel, getNodePropSpec, buildNodeSchemaBadges, type GraphSchema } from '@/lib/graph/schema';
@@ -17,7 +18,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 import { uiPrimaryLinkClassName, uiPrimaryLinkSmallClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 
 export default function NodeEditor() {
-  const graphData = useGraphStore(s => s.graphData);
+  const graphData = useActiveGraphRenderData();
   const selectedNodeId = useGraphStore(s => s.selectedNodeId);
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId);
   const selectNode = useGraphStore(s => s.selectNode);
@@ -40,8 +41,8 @@ export default function NodeEditor() {
       return;
     }
     const found = graphData.nodes.find(n => n.id === selectedNodeId);
+    setNode(found || null);
     if (found) {
-      setNode(found);
       setOpenSections(prev => {
         if (prev[selectedNodeId]) return prev;
         return { ...prev, [selectedNodeId]: { props: true, media: true, related: true, edges: true } };

@@ -14,6 +14,7 @@ import {
 import type { GraphData, SelectionAnchorIds } from '@/lib/graph/types'
 import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import {
   DatasetDistributionViz,
   DatasetHierarchyViz,
@@ -34,14 +35,6 @@ interface DatasetInspectorSectionProps {
   toolbarAligned?: boolean
   collapsed?: boolean
   onToggle?: (next: boolean) => void
-}
-
-function getGraphFromStore(): GraphData | null {
-  try {
-    return useGraphStore.getState().graphData as GraphData | null
-  } catch {
-    return null
-  }
 }
 
 export default function DatasetInspectorSection({
@@ -70,7 +63,7 @@ export default function DatasetInspectorSection({
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
   const copy = RENDER_PANEL_SECTION_COPY.datasetInspector
-  const graph = getGraphFromStore()
+  const graph = useActiveGraphRenderData()
 
   const selectionSubgraph = React.useMemo<GraphData | null>(() => {
     if (!graph) return null

@@ -5,6 +5,8 @@ import type { GraphData } from '@/lib/graph/types'
 import { keywordGraphCache, deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
 import { hashText } from '@/features/parsers/hash'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
+import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
+import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 
 const buildKeywordSourceTextFromGraph = (graph: GraphData): string => {
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
@@ -76,4 +78,51 @@ export function useActiveGraphData(): GraphData | null {
     keywordGraphCache.set(cacheKey, { ...derived, graph })
     return graph
   }, [baseGraphData, markdownName, markdownText, mode, revision])
+}
+
+export function deriveGraphDataForActiveView(args: {
+  graphData: GraphData
+  frontmatterModeEnabled: boolean
+  documentSemanticMode: string
+  collapsedGroupIds: string[]
+}): GraphData {
+  const base =
+    args.frontmatterModeEnabled && String(args.documentSemanticMode) !== 'keyword'
+      ? filterGraphToFrontmatterMermaid(args.graphData)
+      : args.graphData
+
+  const collapsedGroupIds = Array.isArray(args.collapsedGroupIds) ? args.collapsedGroupIds : []
+  if (collapsedGroupIds.length === 0) return base
+  return deriveGraphDataWithGroupCollapse({ graphData: base, collapsedGroupIds })
+}
+
+export function useActiveGraphRenderData(): GraphData | null {
+  const graphData = useActiveGraphData()
+  const { frontmatterModeEnabled, documentSemanticMode, collapsedGroupIds } = useGraphStore(
+    useShallow(s => ({
+      frontmatterModeEnabled: s.frontmatterModeEnabled === true,
+      documentSemanticMode: String(s.documentSemanticMode || 'document'),
+      collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
+    })),
+  )
+
+  const collapsedGroupIdsKey = React.useMemo(() => {
+    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
+    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
+    if (normalized.length === 0) return ''
+    normalized.sort((a, b) => a.localeCompare(b))
+    return normalized.join('|')
+  }, [collapsedGroupIds])
+
+  return React.useMemo(() => {
+    if (!graphData) return null
+    if (!frontmatterModeEnabled && !collapsedGroupIdsKey) return graphData
+    const normalizedCollapsedGroupIds = collapsedGroupIdsKey ? collapsedGroupIdsKey.split('|').filter(Boolean) : []
+    return deriveGraphDataForActiveView({
+      graphData,
+      frontmatterModeEnabled,
+      documentSemanticMode,
+      collapsedGroupIds: normalizedCollapsedGroupIds,
+    })
+  }, [collapsedGroupIdsKey, documentSemanticMode, frontmatterModeEnabled, graphData])
 }

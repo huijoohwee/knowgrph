@@ -17,7 +17,7 @@ import GraphFieldsListPanel from '@/features/panels/views/graph-fields/GraphFiel
 import FieldSettingsPanel from '@/features/panels/views/graph-fields/FieldSettingsPanel'
 import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamplesPanel'
 import { normalized } from '@/features/panels/utils/json'
-import { useActiveGraphData } from '@/hooks/useActiveGraphData'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -36,7 +36,7 @@ type GraphFieldsViewProps = {
 }
 
 export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFieldsViewProps) {
-  const graphData = useActiveGraphData()
+  const graphData = useActiveGraphRenderData()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const dismissUiToast = useGraphStore(s => s.dismissUiToast)
