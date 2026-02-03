@@ -18,6 +18,7 @@ import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
+import { SsotEventBridge } from '@/features/ssot/SsotEventBridge'
 
 const GeospatialOverlayHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -34,6 +35,7 @@ const FlowCanvasLazy = React.lazy(() => import('@/components/FlowCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const BottomPanelLazy = React.lazy(() => import('@/components/BottomPanel'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
+const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
 const NodeEditorLazy = React.lazy(() => import('@/components/NodeEditor'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const SidebarTriggerLazy = React.lazy(() => import('@/components/SidebarTrigger'))
@@ -539,6 +541,11 @@ export default function CanvasPage() {
           } catch {
             void 0
           }
+          try {
+            store.requestZoom('selection')
+          } catch {
+            void 0
+          }
         }
       } catch {
         void 0
@@ -548,6 +555,49 @@ export default function CanvasPage() {
     return () => window.removeEventListener('message', handler)
   }, [isEmbeddedPreview])
 
+  React.useEffect(() => {
+    if (!isEmbeddedPreview) return
+    const parentWin = window.parent
+    if (!parentWin || parentWin === window) return
+    const lastRef = { key: '' }
+    const unsubscribe = useGraphStore.subscribe(
+      s => ({
+        selectedNodeId: s.selectedNodeId,
+        selectedEdgeId: s.selectedEdgeId,
+        selectedGroupId: s.selectedGroupId,
+        selectionSource: s.selectionSource,
+      }),
+      next => {
+        if (next.selectionSource === 'editor') return
+        const key = `${next.selectionSource || ''}:${next.selectedNodeId || ''}:${next.selectedEdgeId || ''}:${next.selectedGroupId || ''}`
+        if (key === lastRef.key) return
+        lastRef.key = key
+        try {
+          parentWin.postMessage(
+            {
+              kind: 'kg-preview-selection',
+              payload: {
+                selectedNodeId: next.selectedNodeId,
+                selectedEdgeId: next.selectedEdgeId,
+                selectedGroupId: next.selectedGroupId,
+              },
+            },
+            window.location.origin,
+          )
+        } catch {
+          void 0
+        }
+      },
+    )
+    return () => {
+      try {
+        unsubscribe()
+      } catch {
+        void 0
+      }
+    }
+  }, [isEmbeddedPreview])
+
   return (
     <>
       <style>{`
@@ -555,6 +605,7 @@ export default function CanvasPage() {
         .dark { --panel-bg-rgb: 13, 17, 23; }
       `}</style>
       <SourceFilesPersistenceBootstrap />
+      <SsotEventBridge />
       <div className="flex h-screen w-screen flex-col overflow-hidden bg-white dark:bg-[#0d1117] transition-colors duration-300">
         {isEmbeddedPreview ? (
           <main className="flex-1 relative overflow-hidden" aria-label="Canvas Preview Only">
@@ -615,6 +666,29 @@ export default function CanvasPage() {
             </header>
             <ToastHost />
             <EmbeddedEditorShell previewSrc={previewSrc} />
+          </>
+        ) : workspaceViewMode === 'table' ? (
+          <>
+            <header className="shrink-0" aria-label="Table Toolbar Header">
+              <nav
+                className="relative z-[200] flex items-center justify-center pt-2"
+                aria-label="Canvas Toolbar"
+                role="navigation"
+              >
+                <React.Suspense fallback={null}>
+                  <ToolbarLazy
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onReset={handleReset}
+                    onZoomSelection={handleZoomSelection}
+                  />
+                </React.Suspense>
+              </nav>
+            </header>
+            <ToastHost />
+            <React.Suspense fallback={null}>
+              <GraphTableWorkspaceLazy />
+            </React.Suspense>
           </>
         ) : (
           <main className="flex-1 flex overflow-hidden" aria-label="Canvas Workspace">

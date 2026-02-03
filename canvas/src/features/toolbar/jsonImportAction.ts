@@ -44,7 +44,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
     await runImportFlow({
       nameForParse: picked.name,
       textForParse: picked.text,
-      openTab: 'curation',
+      openWorkspaceViewMode: 'table',
       ui: { collapsePanelsOnSuccess: true },
       onSuccess: (res) => {
         if (!res.input || !res.input.text.trim()) return
@@ -71,7 +71,7 @@ export async function performCsvImport() {
     await runImportFlow({
       nameForParse: picked.name,
       textForParse: picked.text,
-      openTab: 'curation',
+      openWorkspaceViewMode: 'table',
       onSuccess: (res) => {
         if (!res.input || !res.input.text.trim()) return
         const rawName = String(res.input.name || '')

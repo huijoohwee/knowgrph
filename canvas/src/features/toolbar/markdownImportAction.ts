@@ -75,7 +75,7 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
     await runImportFlow({
       nameForParse,
       textForParse: text,
-      openTab: 'curation',
+      openWorkspaceViewMode: 'editor',
       onSuccess: (res) => {
         if (!res.input || !res.input.text.trim()) return
         const rawSourceName = String(first.name || '')

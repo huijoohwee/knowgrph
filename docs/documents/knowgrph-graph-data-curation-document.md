@@ -19,6 +19,15 @@ Canonical ownership and contract details live in:
 - Owns pipeline orchestration: ingest/import → parser selection → GraphData commit → canvas render.
 - Owns global state wiring (Zustand store and app routing) and calls Graph Data surfaces as UI modules.
 
+#### Host-only workspace tools (do not drift into curagrph)
+
+- The Editor workspace includes a host-owned **Graph Table** (aka “Graph Data Table” inside Editor mode) that is intentionally lightweight:
+  - Semantic HTML `<table>` renderer with a small toolbar (fields/filter/group/sort/row height) and `<colgroup>` resizing.
+  - Persisted via `kg:ui:graphTable:*` keys.
+  - Selection-synced with the Canvas preview and the Markdown Explorer TOC.
+
+This host workspace tool must not be duplicated inside `curagrph` (keep one owner per surface).
+
 ### curagrph (Graph Data surfaces)
 
 - Owns Graph Data curation/presentation UI and supporting modules:

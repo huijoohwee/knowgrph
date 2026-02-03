@@ -57,6 +57,23 @@
 - Edit interactions: `canvas/src/features/*`
 - Visual highlight: `canvas/src/components/GraphCanvas/highlight.ts`
 
+### Journey D: Editor Workspace (Markdown + Graph Table + Canvas Preview)
+
+**From/To**: User toggles Editor mode → edits Markdown or inspects Graph Data in a table → verifies changes in a preview canvas.
+
+- Editor mode shell: [EmbeddedEditorShell.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/EmbeddedEditorShell.tsx)
+- Editor workspace view mode: `LS_KEYS.workspaceViewMode` (`Canvas | Editor`)
+- Editor sections:
+  - Markdown Workspace (SSOT text + Explorer)
+  - Graph Table (semantic HTML table with toolbar + optional Record Inspector)
+
+**Stability constraints**
+- Preview is isolated via `/?kgPreview=1` (no toolbars/panels) to prevent recursion and cross-mode interference.
+- Selection sync is bidirectional but must not induce scroll-jump loops:
+  - Table selection sets `selectionSource='table'`.
+  - Preview selection sets `selectionSource='canvas'`.
+  - Explorer TOC focus is requested via an event (Table → TOC) and must reuse stable heading ids.
+
 ### Group Shape Toggle
 - **Toggle**: Button with Square/Hexagon icon next to Frontmatter Mode.
 - **Function**: Switches `schema.layout.groups.shape` between `rect` (default) and `geo`.

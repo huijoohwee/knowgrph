@@ -56,7 +56,7 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
     await runImportFlow({
       nameForParse: picked.displayName || 'imported.md',
       textForParse: finalContent,
-      openTab: 'curation',
+      openWorkspaceViewMode: 'table',
       onSuccess: (res) => {
         if (!res.input || !res.input.text.trim()) return
         const name = res.input.name

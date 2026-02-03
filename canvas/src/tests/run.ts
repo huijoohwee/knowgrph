@@ -48,14 +48,7 @@ import {
 } from '@/__tests__/webkitRelativePath.test'
 import { testUnifiedPanelExport } from '@/__tests__/panel.test'
 import { testSettingsViewCollapsePersistence } from '@/__tests__/settingsCollapse.test'
-import {
-  testBottomPanelCollapsePersistence,
-  testGraphFieldsPruneOnGraphDataChange,
-  testGraphFieldsStorePopulatesDerivedFields,
-  testGraphFieldsSyncOnEdgePropertiesEditViaTableUi,
-  testGraphFieldsSyncOnHistoryUndoRedo,
-  testGraphFieldsSyncOnNodeAndEdgeMutations,
-} from '@/__tests__/bottomPanelPersistence.test'
+import { testBottomPanelCollapsePersistence } from '@/__tests__/bottomPanelPersistence.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
 import {
@@ -101,6 +94,12 @@ import {
 } from '@/__tests__/markdownWorkspaceTheme.test'
 import { testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument } from '@/__tests__/markdownSelectionTargetEmptyDocPath.test'
 import { testGraphDataMetadataHashIncludesRevision } from '@/__tests__/graphDataHashRevision.test'
+import {
+  testGraphTableDbAllocatesAndCreatesRows,
+  testGraphTableDbSeedsBaseTablesAndColumns,
+  testGraphTableDbSyncsGraphAndInfersPropertyColumns,
+  testGraphTableDbUpdatesCellValues,
+} from '@/__tests__/rxdbGraphTableDb.test'
 import {
   testGympgrphApplyMediaProxyNormalizesGithubBlobUrl,
   testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost,
@@ -538,20 +537,10 @@ export const runAllTests = async () => {
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
   await exec('ui.bottomPanelCollapsePersistence', testBottomPanelCollapsePersistence)
-  await exec('ui.graphFieldsPruneOnGraphDataChange', testGraphFieldsPruneOnGraphDataChange)
-  await exec(
-    'ui.graphFieldsStorePopulatesDerivedFields',
-    testGraphFieldsStorePopulatesDerivedFields,
-  )
-  await exec(
-    'ui.graphFieldsSyncOnNodeAndEdgeMutations',
-    testGraphFieldsSyncOnNodeAndEdgeMutations,
-  )
-  await exec(
-    'ui.graphFieldsSyncOnEdgePropertiesEditViaTableUi',
-    testGraphFieldsSyncOnEdgePropertiesEditViaTableUi,
-  )
-  await exec('ui.graphFieldsSyncOnHistoryUndoRedo', testGraphFieldsSyncOnHistoryUndoRedo)
+  await exec('rxdb.graphTable.seed', testGraphTableDbSeedsBaseTablesAndColumns)
+  await exec('rxdb.graphTable.sync', testGraphTableDbSyncsGraphAndInfersPropertyColumns)
+  await exec('rxdb.graphTable.updateCell', testGraphTableDbUpdatesCellValues)
+  await exec('rxdb.graphTable.createRow', testGraphTableDbAllocatesAndCreatesRows)
   await exec('ui.themeModePersistence', testThemeModePersistence)
   await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
   await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)

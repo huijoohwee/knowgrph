@@ -27,6 +27,20 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Any memoized markdown token cache must be isolated by `activeDocumentPath` and must not return cached tokens when the stored document path differs (prevents cross-document bleed and “content disappears” on view switches).
 - When the host supports Geospatial Mode, Markdown preview surfaces must receive `geoDatasetIntegration` so fenced GeoJSON blocks can render previews and register datasets into the geospatial layer.
 
+### Shared Surface Vocabulary + Events (SSOT)
+
+- Cross-repo surfaces must share a stable surface vocabulary defined in `grph-shared/ssot/types` (`SsotSurface`).
+- Hosts emit SSOT focus/change events using `grph-shared/ssot/events` so extracted UI surfaces can subscribe without reaching into host implementation details.
+- The host must bridge the canonical store to these events once (e.g. `canvas/src/features/ssot/SsotEventBridge.tsx`) so Table/Markdown/Slides/Canvas/Map can stay selection-synchronized even as module ownership is split across repos.
+
+### TOC Focus Contract (Table → Explorer)
+
+- Non-markdown projections (e.g. Graph Data Table / Graph Table) may request TOC focus.
+- The contract is event-driven and DOM-agnostic:
+  - Emit: `window.dispatchEvent(new CustomEvent('kg:tocFocus', { detail: { id } }))`
+  - Receive: the Explorer TOC scrolls the corresponding heading row into view and highlights it as active.
+- `id` must be a stable heading identifier derived from the SSOT markdown pipeline (e.g. `anchorId`, `anchor`, or shared `slugify` output); do not invent per-surface ids.
+
 ## Canonical UI Surfaces
 
 ### Markdown Section Header (SSOT)

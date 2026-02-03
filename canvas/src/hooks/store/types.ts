@@ -32,7 +32,9 @@ export type LayoutPositionCacheKey = string;
 
 export type DocumentSemanticMode = 'document' | 'keyword'
 
-export type WorkspaceViewMode = 'canvas' | 'editor'
+export type WorkspaceViewMode = 'canvas' | 'editor' | 'table'
+
+export type EditorWorkspaceSection = 'markdown' | 'graphTable'
 
 export type UiToastKind = 'neutral' | 'success' | 'warning' | 'error'
 
@@ -144,6 +146,9 @@ export interface GraphState {
   renderOpMsg: string;
   selectionSource: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown';
   setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown') => void;
+
+  editorWorkspaceSection: EditorWorkspaceSection
+  setEditorWorkspaceSection: (section: EditorWorkspaceSection) => void
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;
   isSidebarOpen: boolean;
@@ -261,7 +266,6 @@ export interface GraphState {
   floatingPanelZIndex: number;
   sidebarWidthRatio: number;
   bottomPanelTab: BottomTab;
-  bottomPanelCurationView: 'grid' | 'markdown';
   launchSpotlightMode: 'tour' | 'stats';
   enableLaunchSpotlight: boolean;
   statusPanelPinned: boolean;
@@ -336,7 +340,6 @@ export interface GraphState {
   setFloatingPanelZIndex: (v: number) => void;
   setSidebarWidthRatio: (v: number) => void;
   setBottomPanelTab: (tab: BottomTab) => void;
-  setBottomPanelCurationView: (view: 'grid' | 'markdown') => void;
   setLaunchSpotlightMode: (mode: 'tour' | 'stats') => void;
   setEnableLaunchSpotlight: (v: boolean) => void;
   setStatusPanelPinned: (v: boolean) => void;

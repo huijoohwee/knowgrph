@@ -83,6 +83,21 @@
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",
       "default": "./dist/zoom/presets.js"
+    },
+    "./ssot/types": {
+      "types": "./dist/ssot/types.d.ts",
+      "import": "./dist/ssot/types.js",
+      "default": "./dist/ssot/types.js"
+    },
+    "./ssot/events": {
+      "types": "./dist/ssot/events.d.ts",
+      "import": "./dist/ssot/events.js",
+      "default": "./dist/ssot/events.js"
+    },
+    "./spreadsheet/types": {
+      "types": "./dist/spreadsheet/types.d.ts",
+      "import": "./dist/spreadsheet/types.js",
+      "default": "./dist/spreadsheet/types.js"
     }
   },
   "files": [

@@ -130,6 +130,7 @@ function TocTreeItem(props: {
 
         <button
           type="button"
+          data-toc-id={item.id}
           className={`flex-1 min-w-0 flex items-center gap-1 rounded px-1 py-[2px] ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${uiPanelTextFontClass} ${isDragging ? 'opacity-50' : ''} ${isActive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : ''}`}
           style={{ paddingLeft: 6 + indent }}
           onClick={() => {
@@ -214,6 +215,19 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
   const clearLabel = activeEntryKind === 'folder' ? 'Clear files' : 'Clear'
 
   const tocItems = React.useMemo(() => buildTocTree(tocTokens), [tocTokens])
+
+  const tocParentById = React.useMemo(() => {
+    const out = new Map<string, string | null>()
+    const walk = (items: TocItem[], parentId: string | null) => {
+      for (const item of items) {
+        const id = String(item.id || '').trim()
+        if (id) out.set(id, parentId)
+        if (item.children.length) walk(item.children, id || parentId)
+      }
+    }
+    walk(tocItems, null)
+    return out
+  }, [tocItems])
   const tocLineById = React.useMemo(() => {
     const out = new Map<string, number>()
     const walk = (items: TocItem[]) => {
@@ -229,6 +243,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
 
   const [tocCollapsedIds, setTocCollapsedIds] = React.useState<Set<string>>(() => new Set())
   const [activeTocId, setActiveTocId] = React.useState<string>('')
+  const tocNavRef = React.useRef<HTMLElement | null>(null)
   React.useEffect(() => {
     setTocCollapsedIds(new Set())
     setActiveTocId('')
@@ -242,6 +257,35 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
       return next
     })
   }, [])
+
+  React.useEffect(() => {
+    const handler = (ev: Event) => {
+      const e = ev as CustomEvent<{ id?: unknown }>
+      const id = typeof e.detail?.id === 'string' ? e.detail.id : ''
+      if (!id) return
+      setActiveTocId(id)
+      setTocCollapsedIds(prev => {
+        const next = new Set(prev)
+        let cur: string | null | undefined = tocParentById.get(id)
+        while (cur) {
+          next.delete(cur)
+          cur = tocParentById.get(cur)
+        }
+        return next
+      })
+      try {
+        const nav = tocNavRef.current
+        const el = nav ? nav.querySelector(`[data-toc-id="${CSS.escape(id)}"]`) : null
+        if (el && el instanceof HTMLElement) {
+          el.scrollIntoView({ block: 'center', inline: 'nearest' })
+        }
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener('kg:tocFocus', handler as EventListener)
+    return () => window.removeEventListener('kg:tocFocus', handler as EventListener)
+  }, [tocParentById])
 
   const handleTocReorderByIds = React.useCallback(
     (sourceId: string, targetId: string, position: 'before' | 'after') => {
@@ -496,7 +540,13 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
           {tocItems.length === 0 ? (
             <p className={`px-2 py-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>No headings.</p>
           ) : (
-            <nav className="min-h-0 overflow-auto" aria-label="Table of contents">
+            <nav
+              ref={el => {
+                tocNavRef.current = el
+              }}
+              className="min-h-0 overflow-auto"
+              aria-label="Table of contents"
+            >
               <ul className="list-none m-0 p-0">{tocItems.map(item => renderTocNode(item, 0))}</ul>
             </nav>
           )}

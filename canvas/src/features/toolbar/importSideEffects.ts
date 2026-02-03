@@ -24,7 +24,7 @@ export function applyImportedMarkdownToStore(args: {
   if (args.curationView === 'markdown') {
     state.setWorkspaceViewMode('editor')
   } else if (args.curationView === 'grid') {
-    state.setBottomPanelCurationView('grid')
+    state.setWorkspaceViewMode('table')
   }
   if (args.recent) {
     state.addRecentFile(args.recent)

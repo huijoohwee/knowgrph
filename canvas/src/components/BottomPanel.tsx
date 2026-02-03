@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect, useRef, useDeferredValue, useCallback, us
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS, UI_LAYOUT } from '@/lib/config'
 import { type NodeSort, type EdgeSort } from '@/components/BottomPanel/sort'
-import { scrollRowToCenter } from '@/features/tables/scroll'
 import { useSearchAndSort } from '@/features/hooks/useSearchAndSort'
 import { useDragResize } from '@/features/hooks/useDragResize'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
@@ -36,9 +35,6 @@ export default function BottomPanel() {
   const deferredQuery = useDeferredValue(searchQuery)
   const [nodeSort, setNodeSort] = useState<NodeSort>(null)
   const [edgeSort, setEdgeSort] = useState<EdgeSort>(null)
-  const nodeRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
-  const edgeRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
-  const lastCenteredRef = useRef<string | null>(null)
 
   const tab: typeof rawTab = rawTab
 
@@ -47,7 +43,7 @@ export default function BottomPanel() {
   useEffect(() => {
     if (rawTab !== 'render') return
     emitRendererPanelOpen()
-    setTabStore('curation')
+    setTabStore('stats')
   }, [rawTab, setTabStore])
 
   const clampBottomPanelHeightRatio = useCallback((ratio: number) => {
@@ -144,22 +140,6 @@ export default function BottomPanel() {
 
   const nodes = useMemo(() => activeGraphData?.nodes ?? [], [activeGraphData])
   const edges = useMemo(() => activeGraphData?.edges ?? [], [activeGraphData])
-  const centerNodeRow = useCallback((id: string) => {
-    if (!id) return
-    if (lastCenteredRef.current === id) return
-    const row = nodeRowRefs.current.get(id)
-    scrollRowToCenter(row)
-    lastCenteredRef.current = id
-  }, [])
-
-  const centerEdgeRow = useCallback((id: string) => {
-    if (!id) return
-    if (lastCenteredRef.current === id) return
-    const row = edgeRowRefs.current.get(id)
-    scrollRowToCenter(row)
-    lastCenteredRef.current = id
-  }, [])
-
   const { sortedNodes, sortedEdges } = useSearchAndSort(
     nodes,
     edges,
@@ -170,22 +150,6 @@ export default function BottomPanel() {
     setEdgeSort,
   )
 
-  useEffect(() => {
-    if (!selectedNodeId) return
-    setCollapsed(false)
-    if (tab !== 'curation') return
-    if (selectionSource === 'canvas') return
-    centerNodeRow(selectedNodeId)
-  }, [centerNodeRow, selectedNodeId, selectionSource, setCollapsed, tab])
-
-  useEffect(() => {
-    if (!selectedEdgeId) return
-    setCollapsed(false)
-    if (tab !== 'curation') return
-    if (selectionSource === 'canvas') return
-    centerEdgeRow(selectedEdgeId)
-  }, [centerEdgeRow, selectedEdgeId, selectionSource, setCollapsed, tab])
-  
   useEffect(() => {
     if (tab !== 'parser') return
     try {

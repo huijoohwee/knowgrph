@@ -76,8 +76,7 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     floatingPanelHeightRatio: lsNum(LS_KEYS.floatingPanelHeightRatio, 0.5),
     floatingPanelZIndex: lsInt(LS_KEYS.floatingPanelZIndex, 5000),
     sidebarWidthRatio: lsNum(LS_KEYS.sidebarWidthRatio, 0.25),
-    bottomPanelTab: 'curation' as BottomTab,
-    bottomPanelCurationView: 'grid' as const,
+    bottomPanelTab: 'stats' as BottomTab,
     schemaDeriveCacheCapacity: lsInt(LS_KEYS.schemaDeriveCacheCapacity, 16),
     graphFieldSettingsById: lsJson(LS_KEYS.graphFieldSettingsById, {} as GraphFieldSettingsById, parseGraphFieldSettingsById),
     selectedGraphFieldId: null as GraphFieldId | null,
@@ -106,22 +105,9 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
         sidebarWidthRatio: lsSetNum(LS_KEYS.sidebarWidthRatio, v),
       }),
     setBottomPanelTab: (tab: BottomTab) =>
-      set(s => ({
+      set(() => ({
         bottomPanelTab: tab,
-        bottomPanelCurationView: s.bottomPanelCurationView,
       })),
-    setBottomPanelCurationView: (view: 'grid' | 'markdown') =>
-      set(() => {
-        if (view === 'markdown') {
-          return {
-            bottomPanelCurationView: 'grid',
-            workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, 'editor'),
-          }
-        }
-        return {
-          bottomPanelCurationView: 'grid',
-        }
-      }),
     setSchemaDeriveCacheCapacity: (n: number) => set({ schemaDeriveCacheCapacity: lsSetInt(LS_KEYS.schemaDeriveCacheCapacity, n, { min: 1, max: 1024 }) }),
     setGraphFieldSettingsById: (next: GraphFieldSettingsById) => set({ graphFieldSettingsById: lsSetJson(LS_KEYS.graphFieldSettingsById, next) }),
     setSelectedGraphFieldId: (id: GraphFieldId | null) => set({ selectedGraphFieldId: id }),

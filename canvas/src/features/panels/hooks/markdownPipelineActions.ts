@@ -178,7 +178,7 @@ export async function runMarkdownPipelineAndLoadArtifacts(): Promise<boolean> {
     }
 
     try {
-      openBottomPanel('curation');
+      useGraphStore.getState().setWorkspaceViewMode('table')
     } catch {
       void 0;
     }

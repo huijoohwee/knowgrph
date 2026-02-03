@@ -20,7 +20,6 @@ import {
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
 import { GEOSPATIAL_MODE_CHANGED_EVENT, type GeospatialModeChangedDetail } from '@/features/geospatial/events'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 
 import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
 import { FitToViewButton } from '@/features/toolbar/ui/FitToViewButton';
@@ -86,6 +85,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const setThemeMode = useGraphStore(s => s.setThemeMode)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const toggleWorkspaceViewMode = useGraphStore(s => s.toggleWorkspaceViewMode)
+  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+  const editorWorkspaceSection = useGraphStore(s => s.editorWorkspaceSection)
+  const setEditorWorkspaceSection = useGraphStore(s => s.setEditorWorkspaceSection)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -106,9 +108,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'polygon' : 'rect'
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode || 'document')
   const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
-  const bottomPanelTab = useGraphStore(s => s.bottomPanelTab)
-  const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
-
   const actions = useToolbarActions(
     schema,
     setSchema,
@@ -189,15 +188,23 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
       <IconButton
         className={`App-toolbar__btn ${
-          bottomPanelTab === 'curation' && !bottomPanelCollapsed ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+          workspaceViewMode === 'table' || (workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable')
+            ? uiPrimaryIconActiveClassName
+            : uiPrimaryIconInactiveClassName
         }`}
         title={UI_COPY.toolbarGraphDataTableToggleTitle}
         tooltipContent={
-          bottomPanelTab === 'curation' && !bottomPanelCollapsed
+          workspaceViewMode === 'table' || (workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable')
             ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip
             : UI_COPY.toolbarGraphDataTableWorkspaceOffTooltip
         }
-        onClick={() => openBottomPanel('curation')}
+        onClick={() => {
+          if (workspaceViewMode === 'editor') {
+            setEditorWorkspaceSection(editorWorkspaceSection === 'graphTable' ? 'markdown' : 'graphTable')
+            return
+          }
+          setWorkspaceViewMode(workspaceViewMode === 'table' ? 'canvas' : 'table')
+        }}
         showTooltip
       >
         <Table className={iconSizeClass} strokeWidth={iconStrokeWidth} />

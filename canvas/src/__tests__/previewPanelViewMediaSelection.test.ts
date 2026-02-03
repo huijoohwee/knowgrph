@@ -63,8 +63,7 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
     const graph = buildGraphWithMediaNode()
     state.setGraphData(graph)
     state.setMarkdownDocument('doc.md', buildMarkdown())
-    state.setBottomPanelTab('curation')
-    state.setBottomPanelCurationView('grid')
+    state.setWorkspaceViewMode('canvas')
     state.selectNode(null)
     state.setSelectionSource(null)
     state.setMarkdownPreviewMermaidFocus(null)
@@ -93,13 +92,8 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
     if (after.selectionSource !== 'toolbar') {
       throw new Error(`expected selectionSource "toolbar", got ${String(after.selectionSource)}`)
     }
-    if (after.bottomPanelTab !== 'curation') {
-      throw new Error(`expected bottomPanelTab "curation", got ${String(after.bottomPanelTab)}`)
-    }
-    if (after.bottomPanelCurationView !== 'markdown') {
-      throw new Error(
-        `expected bottomPanelCurationView "markdown", got ${String(after.bottomPanelCurationView)}`,
-      )
+    if (after.workspaceViewMode !== 'editor') {
+      throw new Error(`expected workspaceViewMode "editor", got ${String(after.workspaceViewMode)}`)
     }
     const expectedKey = 'graph-node-media:n1:image:https://example.com/example.png'
     if (after.markdownPreviewActiveMediaKey !== expectedKey) {

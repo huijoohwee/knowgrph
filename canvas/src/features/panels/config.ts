@@ -119,7 +119,6 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
 }
 
 export type BottomTabRoleKey =
-  | 'curation'
   | 'stats'
   | 'parser'
   | 'schema'
@@ -142,7 +141,6 @@ export type BottomTabOwner =
   | 'bottomPanel.history'
 
 export function getBottomTabLabel(key: BottomTabRoleKey): string {
-  if (key === 'curation') return 'Graph Data'
   if (key === 'stats') return 'Stats'
   if (key === 'parser') return 'Parser'
   if (key === 'schema') return 'Schema Configurator'
@@ -248,7 +246,6 @@ export const ORCHESTRATOR_AGENTIC_COPY: OrchestratorAgenticCopy = {
 }
 
 export const BOTTOM_TAB_ROLE_OWNERS: Record<BottomTabRoleKey, BottomTabOwner> = {
-  curation: 'bottomPanel.curation',
   stats: 'bottomPanel.stats',
   parser: 'bottomPanel.parser',
   schema: 'bottomPanel.schema',
@@ -290,7 +287,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     title: 'Panel tour',
     descriptionShort:
       PANEL_TOUR_GRAPH_DATA_TABLE_LOCATION,
-    descriptionLong: `The panel tour explains how the toolbar, main panel, and bottom panel work together. Toolbar actions load data and toggle views, the main panel anchors Workflow, Help, and Graph Fields, and the bottom panel hosts Graph Data Table, Parser, Schema Configurator, Orchestrator (${getOrchestratorSectionListLabel()}), Renderer, and Export so curation, schema design, and exports stay aligned. When the Curation tab is active, the Graph Data Table is the bottom panel UI for editing, grouping, and aggregating node and edge rows.`,
+    descriptionLong: `The panel tour explains how the toolbar, main panel, and bottom panel work together. Toolbar actions load data and toggle views, the main panel anchors Workflow, Help, and Graph Fields, and the bottom panel hosts Stats, Parser, Schema Configurator, Orchestrator (${getOrchestratorSectionListLabel()}), Renderer, History, and Export so schema design, curation, and exports stay aligned. Use the Graph Data Table workspace to edit, group, and aggregate node and edge rows.`,
   },
   workflowLinks: {
     id: 'workflowLinks',

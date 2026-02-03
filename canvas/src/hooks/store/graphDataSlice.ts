@@ -6,7 +6,12 @@ import { LS_KEYS } from '@/lib/config'
 import { lsSetJson, lsRemove } from '@/lib/persistence'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import { isJsonValue } from '@/lib/graph/jsonValue'
-import { applyLayoutAutosuggestFromMetadata, syncGraphFieldsWithGraphData, readGraphRagWorkflowJsonTextFromGraphData } from './graphDataSliceUtils'
+import {
+  applyLayoutAutosuggestFromMetadata,
+  syncGraphFieldsWithGraphData,
+  readGraphRagWorkflowJsonTextFromGraphData,
+  withGraphDataRevision,
+} from './graphDataSliceUtils'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import {
   buildDefaultVisibleColumns,
@@ -176,11 +181,13 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       }
     }
 
-    const nextGraphData: GraphData = {
+    const nextGraphDataBase: GraphData = {
       ...graphData,
       metadata: nextMetadata,
     }
-    set({ graphData: nextGraphData })
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    set({ graphData: nextGraphData, graphDataRevision: nextRevision })
     try {
       lsSetJson(LS_KEYS.graphData, nextGraphData)
     } catch {
@@ -210,22 +217,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
 
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
-      const metaRaw = (nextGraphDataBase as unknown as { metadata?: unknown })?.metadata
-      const metaObj = metaRaw && typeof metaRaw === 'object' && !Array.isArray(metaRaw) ? (metaRaw as Record<string, unknown>) : {}
-      const nextMetadata: Record<string, unknown> = {
-        ...metaObj,
-        graphDataRevision: nextRevision,
-        hash: `rev:${nextRevision}`,
-      }
-      const nextGraphData = { ...(nextGraphDataBase as unknown as Record<string, unknown>), metadata: nextMetadata } as unknown as GraphData
+      const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
       return {
         graphData: nextGraphData,
         graphDataRevision: nextRevision,
-      layoutPositionCacheByMode: {},
-      graphValidationStatus: null,
-      graphValidationTimestamp: null,
+        layoutPositionCacheByMode: {},
+        graphValidationStatus: null,
+        graphValidationTimestamp: null,
       }
-    });
+    })
     const stateNow = get()
     const nextGraphData = stateNow.graphData as GraphData
 
@@ -311,12 +311,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const nextGraphData =
       filteredEdges.length === (graphData.edges || []).length ? graphData : { ...graphData, edges: filteredEdges }
 
-    set(s => ({
-      graphData: nextGraphData,
-      graphDataRevision: (s.graphDataRevision || 0) + 1,
-      graphValidationStatus: null,
-      graphValidationTimestamp: null,
-    }))
+    set(s => {
+      const nextRevision = (s.graphDataRevision || 0) + 1
+      return {
+        graphData: withGraphDataRevision(nextGraphData, nextRevision),
+        graphDataRevision: nextRevision,
+        graphValidationStatus: null,
+        graphValidationTimestamp: null,
+      }
+    })
 
     try {
       const { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds } = get()
@@ -344,7 +347,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
 
     set({ lifecycleStage: 'committed' })
     try {
-      lsSetJson(LS_KEYS.graphData, nextGraphData)
+      lsSetJson(LS_KEYS.graphData, get().graphData)
     } catch {
       void 0
     }
@@ -387,9 +390,11 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const current = graphData.nodes.find(n => n.id === id);
     const nextNode = current ? { ...current, ...updates } : null;
     if (!validateNodeProperties(schema, id, nextNode, graphData)) return;
-    const nodes = graphData.nodes.map(n => (n.id === id ? { ...n, ...updates } : n));
-    const nextGraphData = { ...graphData, nodes }
-    set({ graphData: nextGraphData });
+    const nodes = graphData.nodes.map(n => (n.id === id ? { ...n, ...updates } : n))
+    const nextGraphDataBase = { ...graphData, nodes }
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
     if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
       try {
         syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -408,9 +413,11 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!graphData) return
     const tpl = schema.templates?.node?.[node.type] || {};
     const withTpl = { ...node, properties: { ...(node.properties || {}), ...tpl } };
-    const nodes = [...graphData.nodes, withTpl];
-    const nextGraphData = { ...graphData, nodes }
-    set({ graphData: nextGraphData });
+    const nodes = [...graphData.nodes, withTpl]
+    const nextGraphDataBase = { ...graphData, nodes }
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
     } catch { void 0 }
@@ -423,7 +430,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!graphData) return;
     const nodes = graphData.nodes.filter(n => n.id !== id);
     const edges = graphData.edges.filter(e => e.source !== id && e.target !== id);
-    const nextGraphData = { ...graphData, nodes, edges }
+    const nextGraphDataBase = { ...graphData, nodes, edges }
     const state = get()
     const selectedEdgeId = state.selectedEdgeId
     const nextSelectedEdgeId = selectedEdgeId && edges.some(e => e.id === selectedEdgeId) ? selectedEdgeId : null
@@ -431,12 +438,17 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const nextSelectedEdgeIds = (state.selectedEdgeIds || []).filter(edgeId =>
       edges.some(e => e.id === edgeId),
     )
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
     set({
       graphData: nextGraphData,
+      graphDataRevision: nextRevision,
       selectedNodeId: null,
       selectedEdgeId: nextSelectedEdgeId,
       selectedNodeIds: nextSelectedNodeIds,
       selectedEdgeIds: nextSelectedEdgeIds,
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
     });
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -455,9 +467,11 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!canAddEdge(schema, graphData, edge)) return;
     const tpl = schema.templates?.edge?.[edge.label] || {};
     const withTpl = { ...edge, properties: { ...(edge.properties || {}), ...tpl } };
-    const edges = [...graphData.edges, withTpl];
-    const nextGraphData = { ...graphData, edges }
-    set({ graphData: nextGraphData });
+    const edges = [...graphData.edges, withTpl]
+    const nextGraphDataBase = { ...graphData, edges }
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
     } catch { void 0 }
@@ -483,9 +497,11 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       const dataWithoutEdge = { ...graphData, edges: graphData.edges.filter(e => e.id !== id) }
       if (!canAddEdge(schema, dataWithoutEdge, nextEdge)) return
     }
-    const edges = graphData.edges.map(e => (e.id === id ? { ...e, ...normalizedUpdates } : e));
-    const nextGraphData = { ...graphData, edges }
-    set({ graphData: nextGraphData });
+    const edges = graphData.edges.map(e => (e.id === id ? { ...e, ...normalizedUpdates } : e))
+    const nextGraphDataBase = { ...graphData, edges }
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
     if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
       try {
         syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -500,15 +516,20 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const { graphData } = get();
     if (!graphData) return;
     const edges = graphData.edges.filter(e => e.id !== id);
-    const nextGraphData = { ...graphData, edges }
+    const nextGraphDataBase = { ...graphData, edges }
     const state = get()
     const selectedEdgeId = state.selectedEdgeId
     const nextSelectedEdgeId = selectedEdgeId === id ? null : selectedEdgeId
     const nextSelectedEdgeIds = (state.selectedEdgeIds || []).filter(edgeId => edgeId !== id)
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
     set({
       graphData: nextGraphData,
+      graphDataRevision: nextRevision,
       selectedEdgeId: nextSelectedEdgeId,
       selectedEdgeIds: nextSelectedEdgeIds,
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
     });
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)

@@ -5,6 +5,7 @@ import { lsInt, lsSetInt } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { MarkdownWorkspace } from './BottomPanel/markdownWorkspace/MarkdownWorkspace'
+import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 
 export function EmbeddedEditorShell(props: { previewSrc: string }) {
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
@@ -120,23 +121,47 @@ export function EmbeddedEditorShell(props: { previewSrc: string }) {
     sendPreviewSnapshot,
   ])
 
+  React.useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      try {
+        if (event.origin !== window.location.origin) return
+        const data = event.data as unknown
+        if (!data || typeof data !== 'object') return
+        const msg = data as { kind?: unknown; payload?: unknown }
+        if (msg.kind !== 'kg-preview-selection') return
+        const payload = msg.payload as { selectedNodeId?: unknown; selectedEdgeId?: unknown; selectedGroupId?: unknown }
+        const nextNodeId = typeof payload.selectedNodeId === 'string' ? payload.selectedNodeId : ''
+        const nextEdgeId = typeof payload.selectedEdgeId === 'string' ? payload.selectedEdgeId : ''
+        const nextGroupId = typeof payload.selectedGroupId === 'string' ? payload.selectedGroupId : ''
+        const store = useGraphStore.getState()
+        store.setSelectionSource('canvas')
+        if (nextNodeId) store.selectNode(nextNodeId)
+        else if (nextEdgeId) store.selectEdge(nextEdgeId)
+        else if (nextGroupId) store.selectGroup(nextGroupId)
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
+
   return (
     <section className="flex-1 min-h-0 flex overflow-hidden" aria-label="Embedded Editor Workspace">
       <main className={`flex-1 min-w-0 min-h-0 flex ${uiPanelTextFontClass}`} aria-label="Editor and Preview">
-        <section className="flex-1 min-w-0 min-h-0 flex" aria-label="Editor">
+        <section className="flex-1 min-w-0 min-h-0 overflow-hidden" aria-label="Editor">
           <MarkdownWorkspace />
         </section>
 
-        <hr
+        <VerticalResizeSeparatorHr
           ref={el => {
             dragHandleRef.current = el
           }}
-          className={`w-1 cursor-col-resize select-none touch-none ${UI_THEME_TOKENS.panel.border}`}
-          aria-label="Resize preview"
+          ariaLabel="Resize preview"
         />
 
         <aside
-          className={`shrink-0 min-h-0 border-l ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} flex flex-col`}
+          className={`shrink-0 min-h-0 ${UI_THEME_TOKENS.panel.bg} flex flex-col`}
           style={{ width: `${previewWidthPx}px` }}
           aria-label="Canvas Preview"
         >

@@ -3,7 +3,6 @@ import { LS_KEYS } from '@/lib/config';
 import type { GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage';
-import { createGraphDataTableUiSlice } from '@/hooks/store/graphDataTableUiSlice';
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice';
 
 type SetGraph = StoreApi<GraphState>['setState'];
@@ -11,14 +10,19 @@ type SetGraph = StoreApi<GraphState>['setState'];
 export const createUiSlice = (set: SetGraph) => {
   return {
     ...createPanelLayoutUiSlice(set),
-    ...createGraphDataTableUiSlice(set),
 
     isEditMode: false,
 
-    workspaceViewMode: lsJson<'canvas' | 'editor'>(
+    workspaceViewMode: lsJson<'canvas' | 'editor' | 'table'>(
       LS_KEYS.workspaceViewMode,
       'canvas',
-      value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
+      value => (value === 'editor' || value === 'canvas' || value === 'table' ? value : 'canvas'),
+    ),
+
+    editorWorkspaceSection: lsJson<'markdown' | 'graphTable'>(
+      LS_KEYS.workspaceEditorSection,
+      'markdown',
+      value => (value === 'markdown' || value === 'graphTable' ? value : 'markdown'),
     ),
 
     codeHighlightDurationMs: 1000,
@@ -172,11 +176,19 @@ export const createUiSlice = (set: SetGraph) => {
 
     setEditMode: (mode: boolean) => set({ isEditMode: mode }),
 
-    setWorkspaceViewMode: (mode: 'canvas' | 'editor') =>
+    setWorkspaceViewMode: (mode: 'canvas' | 'editor' | 'table') =>
       set({
         workspaceViewMode: lsSetJson(
           LS_KEYS.workspaceViewMode,
-          mode === 'editor' ? 'editor' : 'canvas',
+          mode === 'editor' ? 'editor' : mode === 'table' ? 'table' : 'canvas',
+        ),
+      }),
+
+    setEditorWorkspaceSection: (section: 'markdown' | 'graphTable') =>
+      set({
+        editorWorkspaceSection: lsSetJson(
+          LS_KEYS.workspaceEditorSection,
+          section === 'graphTable' ? 'graphTable' : 'markdown',
         ),
       }),
     toggleWorkspaceViewMode: () =>

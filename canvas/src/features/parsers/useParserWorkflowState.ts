@@ -14,7 +14,6 @@ import {
 } from '@/features/parsers/loader'
 import { promptForUrl } from '@/features/toolbar/ingestUtils'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { GraphSchema, defaultSchema } from '@/lib/graph/schema'
@@ -270,7 +269,11 @@ export function useParserWorkflowState() {
         void 0
       }
     }
-    openBottomPanel('curation')
+    try {
+      useGraphStore.getState().setWorkspaceViewMode('table')
+    } catch {
+      void 0
+    }
   }, [setParsersCollapsed])
 
   const onLoadFileWithStatus = React.useCallback(async () => {
@@ -408,7 +411,11 @@ export function useParserWorkflowState() {
     } catch {
       void 0
     }
-    openBottomPanel('curation')
+    try {
+      useGraphStore.getState().setWorkspaceViewMode('table')
+    } catch {
+      void 0
+    }
   }, [])
 
   const parserSelectionProps = useMemo(

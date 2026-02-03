@@ -33,15 +33,8 @@ export async function testBottomPanelMarkdownCollapseKeepsEditorContentMounted()
     dom.window.localStorage.setItem(COLLAPSE_STORAGE_KEY, '0')
     dom.window.localStorage.setItem(LS_KEYS.markdownLayoutMode, JSON.stringify('editor'))
 
-    useGraphStore.getState().setBottomPanelTab('curation')
-    useGraphStore.getState().setBottomPanelCurationView('markdown')
-
-    if (useGraphStore.getState().workspaceViewMode !== 'editor') {
-      throw new Error('expected setBottomPanelCurationView(\'markdown\') to open Editor workspace')
-    }
-    if (useGraphStore.getState().bottomPanelCurationView !== 'grid') {
-      throw new Error('expected setBottomPanelCurationView(\'markdown\') to keep bottom panel on grid view')
-    }
+    useGraphStore.getState().setBottomPanelTab('stats')
+    useGraphStore.getState().setWorkspaceViewMode('editor')
 
     useMarkdownExplorerStore.getState().setActivePath('/README.md')
 

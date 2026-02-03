@@ -13,6 +13,7 @@ import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
 import { parseMarkdownWorkspaceLayoutMode, type MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi } from './markdownWorkspaceTypes'
+import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
 import { extractFencedCodeBlocks } from '@/lib/markdown/extractFencedCodeBlocks'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
@@ -37,10 +38,13 @@ const parseStringArray = (raw: unknown): string[] | null => {
   return out
 }
 
+const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
+
 export function MarkdownWorkspace() {
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const editorWorkspaceSection = useGraphStore(s => s.editorWorkspaceSection)
   const effectiveBottomPanelCollapsed = workspaceViewMode === 'editor' ? false : bottomPanelCollapsed
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
@@ -946,10 +950,12 @@ export function MarkdownWorkspace() {
   const editorUri = activePath ? `inmemory://workspace/${encodeURIComponent(workspaceDocumentKey(activePath) || 'document')}` : 'inmemory://model/empty'
   const editorLanguage = activePath ? languageForPath(activePath) : 'markdown'
 
+  const showGraphTable = workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable'
+
   return (
     <section
       ref={workspaceRootRef}
-      className={`h-full min-h-0 flex overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+      className={`flex-1 w-full h-full min-h-0 flex overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
       aria-label="Markdown Workspace"
     >
       <MarkdownWorkspaceExplorer
@@ -997,47 +1003,47 @@ export function MarkdownWorkspace() {
         onDeleteActive={fileActions.onDeleteActive}
       />
 
-      <hr
-        ref={resizeHandleRef}
-        className="w-1 h-full border-0 cursor-col-resize bg-[color:var(--kg-border)] hover:bg-[color:var(--kg-divider)]"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize explorer"
-      />
+      <VerticalResizeSeparatorHr ref={resizeHandleRef} ariaLabel="Resize explorer" />
 
-      <MarkdownWorkspaceMain
-        themeMode={themeMode}
-        uiPanelTextFontClass={uiPanelTextFontClass}
-        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-        layoutMode={layoutMode}
-        setLayoutMode={setLayoutMode}
-        markdownWordWrap={markdownWordWrap}
-        setMarkdownWordWrap={setMarkdownWordWrap}
-        markdownTextHighlight={markdownTextHighlight}
-        setMarkdownTextHighlight={setMarkdownTextHighlight}
-        statusLabel={statusLabel}
-        onApply={() => void handleApply()}
-        onToggleFullscreen={toggleFullscreen}
-        presentationApiRef={presentationApiRef}
-        isEditing={isEditing}
-        isMarkdown={isMarkdown}
-        onFormatAction={handleFormatAction}
-        onImportLocalFiles={fileActions.handleImportLocalFiles}
-        onImportLocalFolder={fileActions.handleImportLocalFolder}
-        onImportUrl={fileActions.handleImportUrl}
-        activeText={activeText}
-        setActiveText={setActiveText}
-        activeDocumentKey={activeDocumentKey}
-        highlightedLineRange={highlightedLineRange}
-        revealLineInEditor={revealLineInEditor}
-        showInViewer={showInViewer}
-        showInPresentation={showInPresentation}
-        showInSlidesGallery={showInSlidesGallery}
-        editorUri={editorUri}
-        editorLanguage={editorLanguage}
-        editorRef={editorRef}
-        onEditorCaretLine={onEditorCaretLine}
-      />
+      {showGraphTable ? (
+        <React.Suspense fallback={null}>
+          <GraphTableWorkspaceLazy />
+        </React.Suspense>
+      ) : (
+        <MarkdownWorkspaceMain
+          themeMode={themeMode}
+          uiPanelTextFontClass={uiPanelTextFontClass}
+          uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+          layoutMode={layoutMode}
+          setLayoutMode={setLayoutMode}
+          markdownWordWrap={markdownWordWrap}
+          setMarkdownWordWrap={setMarkdownWordWrap}
+          markdownTextHighlight={markdownTextHighlight}
+          setMarkdownTextHighlight={setMarkdownTextHighlight}
+          statusLabel={statusLabel}
+          onApply={() => void handleApply()}
+          onToggleFullscreen={toggleFullscreen}
+          presentationApiRef={presentationApiRef}
+          isEditing={isEditing}
+          isMarkdown={isMarkdown}
+          onFormatAction={handleFormatAction}
+          onImportLocalFiles={fileActions.handleImportLocalFiles}
+          onImportLocalFolder={fileActions.handleImportLocalFolder}
+          onImportUrl={fileActions.handleImportUrl}
+          activeText={activeText}
+          setActiveText={setActiveText}
+          activeDocumentKey={activeDocumentKey}
+          highlightedLineRange={highlightedLineRange}
+          revealLineInEditor={revealLineInEditor}
+          showInViewer={showInViewer}
+          showInPresentation={showInPresentation}
+          showInSlidesGallery={showInSlidesGallery}
+          editorUri={editorUri}
+          editorLanguage={editorLanguage}
+          editorRef={editorRef}
+          onEditorCaretLine={onEditorCaretLine}
+        />
+      )}
     </section>
   )
 }

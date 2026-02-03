@@ -161,7 +161,6 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
   state.setMarkdownDocument(null, null)
   state.setJsonSourceDocument(null, null)
   state.setMarkdownDocumentSourceUrl(null)
-  state.setBottomPanelCurationView('grid')
 
   try {
     await performYouTubeImport('url', wrappedInput)
@@ -170,9 +169,6 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
   }
 
   const next = useGraphStore.getState()
-  if (next.bottomPanelCurationView !== 'grid') {
-    throw new Error(`Expected bottomPanelCurationView=grid, got ${String(next.bottomPanelCurationView)}`)
-  }
   if (next.workspaceViewMode !== 'editor') {
     throw new Error(`Expected workspaceViewMode=editor, got ${String(next.workspaceViewMode)}`)
   }

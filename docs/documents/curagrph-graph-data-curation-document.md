@@ -16,14 +16,23 @@
 - Preview-panel UI primitives used by markdown/presentation (gallery + overlays + zoom/pan)
 - JSON editor used by curation and inspectors
 
+**Out of scope (host-owned)**
+
+- Host editor-workspace tools that may also show a “Graph Data Table” label (e.g. a lightweight semantic `<table>` view inside Editor mode). Those are not owned by `curagrph` and must not share persistence keys or internal state with the curation table.
+
 ---
 
 ## Graph Data Table Contract
 
 - Graph Data Table is a curation surface over the same `GraphData` SSOT used by Canvas renderers.
+- Any mutation of Graph Data (imports, table edits, canvas edits, history restore) must bump `graphDataRevision` and stamp `GraphData.metadata.graphDataRevision/hash` so all derived views re-render deterministically.
 - Row selection updates the shared selection model (`selectedNodeId` / `selectedEdgeId`) so Canvas, Markdown “Show on Canvas”, and table highlights stay consistent.
 - Renderer/mode switches (D3/Flow/3D/Geospatial) must not reset selection or mutate canonical graph data.
 - When Geospatial Mode is enabled, the table remains usable but the graph canvas is not rendered; selection is still updated in the shared store for when the user returns to a graph renderer.
+
+### Surface Vocabulary
+
+- Cross-surface routing uses the shared `SsotSurface` vocabulary from `grph-shared/ssot/types` so “Table / Markdown / Slides / Canvas / Map” can be referenced without per-repo string drift.
 
 ---
 

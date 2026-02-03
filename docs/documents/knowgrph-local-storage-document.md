@@ -13,6 +13,34 @@
 
 ---
 
+## Graph Data (SSOT)
+
+- Canonical graph data is persisted under `LS_KEYS.graphData`.
+- The stored payload includes `GraphData.metadata.graphDataRevision` and `GraphData.metadata.hash` so derived surfaces can detect staleness.
+- Writes are intentionally debounced (batched via the history scheduler) to avoid per-keystroke LocalStorage churn while still persisting edits/imports reliably.
+
+- Graph Data Table UI state keys (owned by the curation surface):
+  - `LS_KEYS.graphDataTableVisibleColumns`
+  - `LS_KEYS.graphDataTableColumnOrder`
+  - `LS_KEYS.graphDataTableColumnWidths`
+  - `LS_KEYS.graphDataTableFilterState`
+  - `LS_KEYS.graphDataTableSortRules`
+  - `LS_KEYS.graphDataTableGroupKey`
+
+- Graph Table (Editor Workspace) view state keys (owned by the host workspace tool, not the curation plugin):
+  - `LS_KEYS.graphTablePanelCollapsed`
+  - `LS_KEYS.graphTableInspectorOpen`
+  - `LS_KEYS.graphTableInspectorWidthPx`
+  - `LS_KEYS.graphTableColumnVisibilityById`
+  - `LS_KEYS.graphTableFilters`
+  - `LS_KEYS.graphTableFilterMatch`
+  - `LS_KEYS.graphTableGroupBy`
+  - `LS_KEYS.graphTableSortRules`
+  - `LS_KEYS.graphTableRowHeightPreset`
+  - `LS_KEYS.graphTableColumnWidthsPx`
+
+---
+
 ## Markdown UI (Bottom Panel)
 
 - Explorer Workspace
@@ -33,6 +61,15 @@
   - `LS_KEYS.markdownSidebarOpen`
   - `LS_KEYS.markdownCollapsedHeadingIds`
   - `LS_KEYS.jsonMarkdownMode`
+
+---
+
+## Workspace UI (Canvas vs Editor)
+
+- Workspace view mode and Editor layout state:
+  - `LS_KEYS.workspaceViewMode` (Canvas | Editor)
+  - `LS_KEYS.workspacePreviewWidthPx` (Editor preview split width)
+  - `LS_KEYS.workspaceEditorSection` (Editor left pane section: Markdown | Graph Table)
 
 ---
 

@@ -76,7 +76,6 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const selectEdge = useGraphStore(s => s.selectEdge)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const setSidebarOpen = useGraphStore(s => s.setSidebarOpen)
-  const setBottomPanelTab = useGraphStore(s => s.setBottomPanelTab)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const addNode = useGraphStore(s => s.addNode)
   const addEdge = useGraphStore(s => s.addEdge)
@@ -219,9 +218,9 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doOpenNodeNodesTab = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
     setSelectionSource('toolbar')
-    setBottomPanelTab('curation')
+    setWorkspaceViewMode('table')
     selectNode(nodeContextId)
-  }, [graphData, nodeContextId, setSelectionSource, setBottomPanelTab, selectNode])
+  }, [graphData, nodeContextId, setSelectionSource, setWorkspaceViewMode, selectNode])
 
   const doOpenNodeCodeTab = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
@@ -230,7 +229,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     selectNode(nodeContextId)
     const prov = node ? resolveMarkdownProvenance(node.metadata) : null
     if (!prov) {
-      setBottomPanelTab('curation')
+      setWorkspaceViewMode('table')
       return
     }
     try {
@@ -246,7 +245,6 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     nodeContextId,
     resolveMarkdownProvenance,
     selectNode,
-    setBottomPanelTab,
     setSelectionSource,
     setWorkspaceViewMode,
   ])
@@ -434,9 +432,9 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doOpenEdgeEdgesTab = React.useCallback(() => {
     if (!graphData || !edgeContextId) return
     setSelectionSource('toolbar')
-    setBottomPanelTab('curation')
+    setWorkspaceViewMode('table')
     selectEdge(edgeContextId)
-  }, [edgeContextId, graphData, selectEdge, setBottomPanelTab, setSelectionSource])
+  }, [edgeContextId, graphData, selectEdge, setSelectionSource, setWorkspaceViewMode])
 
   const doOpenEdgeCodeTab = React.useCallback(() => {
     if (!graphData || !edgeContextId) return
@@ -445,7 +443,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     selectEdge(edgeContextId)
     const prov = edge ? resolveMarkdownProvenance(edge.metadata) : null
     if (!prov) {
-      setBottomPanelTab('curation')
+      setWorkspaceViewMode('table')
       return
     }
     try {
@@ -461,7 +459,6 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     graphData,
     resolveMarkdownProvenance,
     selectEdge,
-    setBottomPanelTab,
     setSelectionSource,
     setWorkspaceViewMode,
   ])

@@ -2,6 +2,9 @@ import { GraphData } from '@/lib/graph/types';
 import type { GraphState, RecentFileEntry } from '@/hooks/store/types'
 import type { GraphFieldSettingsById } from '@/features/graph-fields/graphFields'
 import type { StoreApi } from 'zustand';
+import { LS_KEYS } from '@/lib/config'
+import { lsSetJson } from '@/lib/persistence'
+import { withGraphDataRevision } from './graphDataSliceUtils'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -59,10 +62,17 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     if (!entry) return;
     const graphCopy: GraphData = JSON.parse(JSON.stringify(entry.graphData));
     const fieldSettingsCopy: GraphFieldSettingsById = JSON.parse(JSON.stringify(entry.graphFieldSettingsById || {}));
-    set({ graphData: graphCopy, historyIndex: index });
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: index });
     setGraphFieldSettingsById(fieldSettingsCopy);
     try {
       get().resyncGraphFieldsFromGraphData?.()
+    } catch {
+      void 0
+    }
+    try {
+      const persisted = get().graphData
+      if (persisted) lsSetJson(LS_KEYS.graphData, persisted)
     } catch {
       void 0
     }
@@ -76,10 +86,17 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     if (!entry) return;
     const graphCopy: GraphData = JSON.parse(JSON.stringify(entry.graphData));
     const fieldSettingsCopy: GraphFieldSettingsById = JSON.parse(JSON.stringify(entry.graphFieldSettingsById || {}));
-    set({ graphData: graphCopy, historyIndex: nextIndex });
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: nextIndex });
     setGraphFieldSettingsById(fieldSettingsCopy);
     try {
       get().resyncGraphFieldsFromGraphData?.()
+    } catch {
+      void 0
+    }
+    try {
+      const persisted = get().graphData
+      if (persisted) lsSetJson(LS_KEYS.graphData, persisted)
     } catch {
       void 0
     }
@@ -93,10 +110,17 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     if (!entry) return;
     const graphCopy: GraphData = JSON.parse(JSON.stringify(entry.graphData));
     const fieldSettingsCopy: GraphFieldSettingsById = JSON.parse(JSON.stringify(entry.graphFieldSettingsById || {}));
-    set({ graphData: graphCopy, historyIndex: nextIndex });
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: nextIndex });
     setGraphFieldSettingsById(fieldSettingsCopy);
     try {
       get().resyncGraphFieldsFromGraphData?.()
+    } catch {
+      void 0
+    }
+    try {
+      const persisted = get().graphData
+      if (persisted) lsSetJson(LS_KEYS.graphData, persisted)
     } catch {
       void 0
     }
@@ -121,6 +145,11 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
         graphFieldSettingsById: fieldSettingsCopy,
       };
       set({ history: [...trimmed, entry], historyIndex: trimmed.length, historyTimer: null });
+      try {
+        lsSetJson(LS_KEYS.graphData, graphData)
+      } catch {
+        void 0
+      }
     }, historyDebounceMs);
     set({ historyTimer: t });
   },
@@ -159,12 +188,25 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
       return idx;
     })();
 
-    const nextGraphData = boundedIndex >= 0 && safeHistory[boundedIndex] ? safeHistory[boundedIndex].graphData : graphData;
+    const nextGraphDataBase: GraphData | null =
+      boundedIndex >= 0 && safeHistory[boundedIndex]
+        ? safeHistory[boundedIndex].graphData
+        : graphData || null
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData: GraphData | null = nextGraphDataBase
+      ? withGraphDataRevision(JSON.parse(JSON.stringify(nextGraphDataBase)) as GraphData, nextRevision)
+      : null
     const nextFieldSettings = boundedIndex >= 0 && safeHistory[boundedIndex] ? safeHistory[boundedIndex].graphFieldSettingsById : get().graphFieldSettingsById || {};
-    set({ history: safeHistory, historyIndex: boundedIndex, historyTimer: null, graphData: nextGraphData });
+    set({ history: safeHistory, historyIndex: boundedIndex, historyTimer: null, graphData: nextGraphData, graphDataRevision: nextRevision });
     setGraphFieldSettingsById(JSON.parse(JSON.stringify(nextFieldSettings || {})) as GraphFieldSettingsById);
     try {
       get().resyncGraphFieldsFromGraphData?.()
+    } catch {
+      void 0
+    }
+    try {
+      const persisted = get().graphData
+      if (persisted) lsSetJson(LS_KEYS.graphData, persisted)
     } catch {
       void 0
     }

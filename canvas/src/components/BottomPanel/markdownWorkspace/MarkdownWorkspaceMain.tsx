@@ -449,7 +449,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         </main>
       ) : (
         <section className="flex-1 min-h-0 flex" aria-label="Split view">
-          <section className="flex-1 min-w-0 min-h-0" aria-label="Editor">
+          <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Editor">
             <MarkdownEditor
               value={activeText}
               onChange={setActiveText}
@@ -459,8 +459,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               uiPanelTextFontClass={uiPanelTextFontClass}
             />
           </section>
-          <hr className="w-px bg-[color:var(--kg-border)] border-0" aria-hidden="true" />
-          <section className="flex-1 min-w-0 min-h-0" aria-label="Viewer">
+          <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" />
+          <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Viewer">
             {viewer}
           </section>
         </section>

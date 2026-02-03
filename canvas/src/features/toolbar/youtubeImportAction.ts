@@ -268,7 +268,7 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
 
     await runImportFlow({
       ...parseTarget,
-      openTab: 'curation',
+      openWorkspaceViewMode: 'editor',
       onSuccess: (res) => {
         if (!res.input) return
       },

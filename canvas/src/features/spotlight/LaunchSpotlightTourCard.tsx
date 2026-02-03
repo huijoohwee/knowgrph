@@ -57,7 +57,11 @@ export function LaunchSpotlightTourCard({
     if (currentStep.id === 1) {
       openBottomPanel('parser')
     } else if (currentStep.id === 2) {
-      openBottomPanel('curation')
+      try {
+        useGraphStore.getState().setWorkspaceViewMode('table')
+      } catch {
+        void 0
+      }
     } else if (currentStep.id === 3) {
       openBottomPanel('schema')
     } else if (currentStep.id === 4) {
@@ -212,7 +216,13 @@ export function LaunchSpotlightTourCard({
                 <button
                   type="button"
                   className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50`}
-                  onClick={() => openBottomPanel('curation')}
+                  onClick={() => {
+                    try {
+                      useGraphStore.getState().setWorkspaceViewMode('table')
+                    } catch {
+                      void 0
+                    }
+                  }}
                 >
                   Open Graph Data Table
                 </button>

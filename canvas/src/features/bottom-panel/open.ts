@@ -4,7 +4,6 @@ import { getLocalStorage, readBoolFromStorage, writeBoolToStorage } from '@/lib/
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 
 export type BottomTab =
-  | 'curation'
   | 'stats'
   | 'parser'
   | 'schema'
@@ -23,7 +22,7 @@ function clearBottomPanelCollapsed(storage: Storage | null): void {
   writeBoolToStorage(storage, COLLAPSE_STORAGE_KEY, false)
 }
 
-export function openBottomPanel(tab: BottomTab = 'curation') {
+export function openBottomPanel(tab: BottomTab = 'stats') {
   try {
     if (tab === 'render') {
       emitRendererPanelOpen()

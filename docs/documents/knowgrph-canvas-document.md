@@ -79,6 +79,29 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - The host syncs preview state via same-origin messaging (`kind: 'kg-preview-sync'` for graph/schema/render/selection) and via persisted geospatial state (`kg:ui:geospatial:overlayEnabled` via `storage` events) so the preview reflects the active mode.
 - The host must avoid rendering graph canvases in the background when the active view mode is Editor (mount only what is visible).
 
+### Editor Workspace Sections (Markdown vs Graph Data Table)
+
+- The Editor workspace left pane is a **workspace section switcher**:
+  - **Markdown Workspace** (Editor/Viewer/Split/Presentation/Slides) remains the SSOT for document text.
+  - **Graph Data Table** is an embedded, lightweight table inspector for the active `GraphData`.
+- Section selection is persisted by the host under `LS_KEYS.workspaceEditorSection` so returning to Editor mode restores the last workspace section.
+
+### Graph Data Table (Editor Workspace) Contract
+
+- The Graph Data Table inside Editor mode is **not** the extracted `curagrph` Graph Data Table surface; it is a host-owned workspace tool.
+- The table surface must remain self-contained and drift-resistant:
+  - Semantic DOM: `<header>`, `<nav>`, `<form>`, `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th scope="col">`, `<td>`.
+  - View shaping is toolbar-driven (Fields/Filter/Group/Sort/Row height) and persisted via namespaced LS keys (`kg:ui:graphTable:*`).
+  - Column resizing uses `<colgroup><col style="width:..."/></colgroup>` + a `<button>` resize handle inside each header cell.
+- Split/Inspector:
+  - The table grid and the Record Inspector are split by a draggable vertical `<hr>`; inspector open state and width persist via `LS_KEYS.graphTableInspectorOpen` and `LS_KEYS.graphTableInspectorWidthPx`.
+
+### Selection Sync (Table ↔ Preview ↔ TOC)
+
+- Table → Preview: selecting a row sets `selectionSource='table'`; the preview auto-zooms to the corresponding node/edge.
+- Preview → Table: the preview posts selection changes (same-origin) and the host updates table focus without inducing scroll-jump.
+- Table → TOC: when a node row provides a stable TOC id (e.g. `anchorId` or `anchor`), the host requests TOC focus so the Explorer scrolls to and highlights the matching heading.
+
 ---
 
 ## Repository Architecture

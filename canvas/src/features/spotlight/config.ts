@@ -31,7 +31,7 @@ export interface SpotlightStepConfig {
 
 const graphJsonTabLabel = getBottomTabLabel('data')
 const validateTabLabel = getBottomTabLabel('table')
-const curatorTabLabel = getBottomTabLabel('curation')
+const graphTableLabel = 'Graph Data Table'
 
 export const SPOTLIGHT_STEPS: SpotlightStepConfig[] = [
   {
@@ -46,7 +46,7 @@ export const SPOTLIGHT_STEPS: SpotlightStepConfig[] = [
     id: 2,
     title: 'Step 2 – Validate & Inspect',
     body:
-      `Review parsed graph structure in the ${graphJsonTabLabel} and ${validateTabLabel} tabs. Use ${curatorTabLabel} to curate nodes, edges, and metadata upstream of the Loader and Parser. ${curatorTabLabel} provides a unified grid over the current in-memory GraphData. Check node and edge counts, inspect metadata summaries, read validation reports for errors and warnings, and preview sample nodes and edges so you can verify node ID uniqueness, edge references, schema conformance, and quality metrics.`,
+      `Review parsed graph structure in the ${graphJsonTabLabel} and ${validateTabLabel} tabs. Use ${graphTableLabel} to curate nodes and edges upstream of the Loader and Parser. ${graphTableLabel} provides a unified grid over the current in-memory GraphData. Check node and edge counts, inspect metadata summaries, read validation reports for errors and warnings, and preview sample nodes and edges so you can verify node ID uniqueness, edge references, schema conformance, and quality metrics.`,
     targetSelector: '[data-kg-spotlight="load-data"]',
     variant: 'secondary',
     requires: ['datasetLoaded'],

@@ -13,6 +13,18 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
+export function withGraphDataRevision(graphData: GraphData, nextRevision: number): GraphData {
+  const base = graphData as unknown as { metadata?: unknown }
+  const metaRaw = base.metadata
+  const meta = isRecord(metaRaw) ? metaRaw : {}
+  const nextMeta: Record<string, unknown> = {
+    ...meta,
+    graphDataRevision: nextRevision,
+    hash: `rev:${nextRevision}`,
+  }
+  return { ...(graphData as unknown as Record<string, unknown>), metadata: nextMeta } as unknown as GraphData
+}
+
 export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unknown) {
   if (!isRecord(metadata)) return
   const rawMode =
