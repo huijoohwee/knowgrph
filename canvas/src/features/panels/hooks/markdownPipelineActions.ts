@@ -178,7 +178,7 @@ export async function runMarkdownPipelineAndLoadArtifacts(): Promise<boolean> {
     }
 
     try {
-      openBottomPanel('data');
+      openBottomPanel('curation');
     } catch {
       void 0;
     }

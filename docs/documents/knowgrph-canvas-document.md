@@ -74,8 +74,9 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 ### Preview Contract (SSOT)
 
-- Editor mode previews the Canvas using an embedded `iframe` pointed at `/?kgPreview=1`.
-- `kgPreview=1` must force preview-only rendering (no Toolbar, no BottomPanel, no side panels) so the preview cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
+- Editor mode previews the Canvas using an embedded `iframe` marked with `data-kg-preview="1"` (the host may also use `?kgPreview=1`).
+- Preview mode must force preview-only rendering (no Toolbar, no BottomPanel, no side panels) so the preview cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
+- The host syncs preview state via same-origin messaging (`kind: 'kg-preview-sync'` for graph/schema/render/selection) and via persisted geospatial state (`kg:ui:geospatial:overlayEnabled` via `storage` events) so the preview reflects the active mode.
 - The host must avoid rendering graph canvases in the background when the active view mode is Editor (mount only what is visible).
 
 ---

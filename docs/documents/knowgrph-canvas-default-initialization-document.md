@@ -95,7 +95,7 @@
   - Must ensure `layout.mode` is 'force'.
   - Must ensure `frontmatterModeEnabled` is true.
   - Must ensure Frontmatter Mode never yields an empty canvas: if no frontmatter Mermaid nodes exist, render the full graph.
-  - Must default to Document Mode by disabling Geospatial Mode on init (forbid persisted geospatial drift producing an empty graph canvas).
+  - Must default to Document Mode by treating Geospatial Mode as opt-in (`kg:ui:geospatial:overlayEnabled` defaults to false) and reading the persisted value for consistency across tabs and embedded previews.
   - Must ensure `graphLayersVisible` is true.
 
 ---

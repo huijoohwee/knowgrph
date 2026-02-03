@@ -57,7 +57,7 @@ export function LaunchSpotlightTourCard({
     if (currentStep.id === 1) {
       openBottomPanel('parser')
     } else if (currentStep.id === 2) {
-      openBottomPanel('data')
+      openBottomPanel('curation')
     } else if (currentStep.id === 3) {
       openBottomPanel('schema')
     } else if (currentStep.id === 4) {

@@ -152,7 +152,7 @@
   - Node label anchoring and baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)
   - Edge label baseline: [edgeLabels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/edgeLabels.ts)
   - UI icon baseline alignment (Lucide): [index.css](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/index.css)
-  - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
+  - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 
 **Invariant**: UI toggles that affect presentation only (node shape, port handles, group overlay shape, media-as-nodes) update layers in-place and do not trigger re-layout or simulation rebuild.
 

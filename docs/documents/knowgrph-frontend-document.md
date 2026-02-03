@@ -592,7 +592,7 @@ ZOOM_MAX: number
 - Show in Editor: Switches to Markdown Editor
 - Show in Presentation: Enters Presentation mode
 - Show in Slides Gallery: Switches to Slides Gallery view
-- Show in Graph Data Table: Opens Graph Data Table tab
+- Show in Graph Data Table: Opens BottomPanel → Curation (Graph Data) table view
 
 **Conditional Availability**: Irrelevant options disabled based on current view
 

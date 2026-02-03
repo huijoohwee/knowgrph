@@ -99,6 +99,8 @@ import {
   testMarkdownPreviewViewerForcesPrimaryTextColor,
   testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses,
 } from '@/__tests__/markdownWorkspaceTheme.test'
+import { testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument } from '@/__tests__/markdownSelectionTargetEmptyDocPath.test'
+import { testGraphDataMetadataHashIncludesRevision } from '@/__tests__/graphDataHashRevision.test'
 import {
   testGympgrphApplyMediaProxyNormalizesGithubBlobUrl,
   testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost,
@@ -618,6 +620,9 @@ export const runAllTests = async () => {
   await exec('workspace.import.localFolder', testWorkspaceImportLocalFolderCreatesNestedFolders)
   await exec('workspace.path.normalizeCollapsesSlashes', testNormalizeWorkspacePathCollapsesExtraSlashes)
   await exec('workspace.import.skipsUnsupportedContinues', testWorkspaceImportSkipsUnsupportedFilesButContinues)
+
+  await exec('markdown.selectionTarget.emptyDocumentPath', testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument)
+  await exec('graph.data.hashIncludesRevision', testGraphDataMetadataHashIncludesRevision)
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')

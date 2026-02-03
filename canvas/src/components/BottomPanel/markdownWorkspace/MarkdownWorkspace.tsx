@@ -9,7 +9,6 @@ import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceDocumentKey } fro
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import { computeMarkdownOutline } from '@/features/markdown-explorer/outline'
 import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
 import { parseMarkdownWorkspaceLayoutMode, type MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
@@ -28,6 +27,9 @@ import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFs
 import { shouldAutosaveWorkspaceFile } from './workspaceAutosave'
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
+import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 
 const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
@@ -688,26 +690,11 @@ export function MarkdownWorkspace() {
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
 
-  const normalizeDocKey = React.useCallback((raw: unknown) => {
-    const text = String(raw || '').trim()
-    if (!text) return ''
-    const hashIndex = text.indexOf('#')
-    const noHash = hashIndex >= 0 ? text.slice(0, hashIndex).trim() : text
-    return noHash.replace(/^\/+/, '').trim()
-  }, [])
-
   const matchesActiveDoc = React.useCallback(
     (documentPath: unknown) => {
-      const activeKey = normalizeDocKey(activeDocumentKey)
-      const targetKey = normalizeDocKey(documentPath)
-      if (!activeKey) return !targetKey
-      if (!targetKey) return true
-      if (activeKey === targetKey) return true
-      if (activeKey.endsWith(`/${targetKey}`)) return true
-      if (targetKey.endsWith(`/${activeKey}`)) return true
-      return false
+      return matchesMarkdownDocumentPath(activeDocumentKey, documentPath)
     },
-    [activeDocumentKey, normalizeDocKey],
+    [activeDocumentKey],
   )
 
   const lastCaretLineRef = React.useRef<number | null>(null)
@@ -763,7 +750,27 @@ export function MarkdownWorkspace() {
     ],
   )
 
-  const outline = React.useMemo(() => computeMarkdownOutline(outlineText), [outlineText])
+  const tocTokens = React.useMemo(() => {
+    try {
+      return lexMarkdown(outlineText).tokens
+    } catch {
+      return []
+    }
+  }, [outlineText])
+
+  const onTocReorder = React.useCallback(
+    (parentId: string | null, fromIndex: number, toIndex: number) => {
+      try {
+        const tokens = lexMarkdown(activeText).tokens
+        const next = reorderMarkdownHeadings(activeText, tokens, parentId, fromIndex, toIndex)
+        if (next === activeText) return
+        setActiveText(next)
+      } catch {
+        void 0
+      }
+    },
+    [activeText, setActiveText],
+  )
   const backlinksJobRef = React.useRef(0)
   React.useEffect(() => {
     if (backlinksCollapsed || !activePath) {
@@ -946,6 +953,7 @@ export function MarkdownWorkspace() {
       aria-label="Markdown Workspace"
     >
       <MarkdownWorkspaceExplorer
+        uiPanelTextFontClass={uiPanelTextFontClass}
         sidebarWidthPx={sidebarWidthPx}
         sidebarWidthMinPx={SIDEBAR_MIN_PX}
         sidebarWidthMaxPx={SIDEBAR_MAX_PX}
@@ -967,10 +975,11 @@ export function MarkdownWorkspace() {
         setTocCollapsed={setTocCollapsed}
         backlinksCollapsed={backlinksCollapsed}
         setBacklinksCollapsed={setBacklinksCollapsed}
-        outline={outline}
+        tocTokens={tocTokens}
         backlinks={backlinks}
         onRevealLine={revealLineInEditor}
         onOpenBacklink={openBacklink}
+        onTocReorder={onTocReorder}
         onCreateNewFile={() => void fileActions.createNewFile({ parentPath: createParentPath })}
         onCreateNewFolder={() => void fileActions.createNewFolder({ parentPath: createParentPath })}
         onRefresh={() => void refresh()}
@@ -1018,7 +1027,6 @@ export function MarkdownWorkspace() {
         onImportUrl={fileActions.handleImportUrl}
         activeText={activeText}
         setActiveText={setActiveText}
-        outlineText={outlineText}
         activeDocumentKey={activeDocumentKey}
         highlightedLineRange={highlightedLineRange}
         revealLineInEditor={revealLineInEditor}

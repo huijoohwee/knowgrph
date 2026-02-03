@@ -36,7 +36,6 @@ import {
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 
@@ -50,7 +49,7 @@ export default function PreviewPanelView() {
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const selectNode = useGraphStore(s => s.selectNode)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
-  const setBottomPanelCurationView = useGraphStore(s => s.setBottomPanelCurationView)
+  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )

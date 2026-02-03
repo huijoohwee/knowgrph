@@ -111,13 +111,11 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
         bottomPanelCurationView: s.bottomPanelCurationView,
       })),
     setBottomPanelCurationView: (view: 'grid' | 'markdown') =>
-      set(s => {
+      set(() => {
         if (view === 'markdown') {
-          const current = s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'
-          const nextMode = current === 'editor' ? current : 'editor'
           return {
             bottomPanelCurationView: 'grid',
-            workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode),
+            workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, 'editor'),
           }
         }
         return {

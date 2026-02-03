@@ -287,14 +287,16 @@ Key behaviors:
 - Gympgrph applies snapshots via `applyHostSnapshot(snapshot)` and routes selection/zoom/toasts back through handler callbacks.
 
 **Mode separation**:
-- Canvas controls geospatial mounting via `sidePanelTab` (`'node' | 'chat' | 'geo'`) and `geospatialHostMounted`:
-  - The MapLibre overlay is only active when `sidePanelTab === 'geo'`.
-  - Changing tabs does not change `graphData`, editor contents, or Document Mode configuration.
+- Canvas controls geospatial mounting via `geospatialModeEnabled`, derived from persisted UI state (`kg:ui:geospatial:overlayEnabled`) and updated via:
+  - In-window `kg:geospatialModeChanged` CustomEvent (same-document updates)
+  - `storage` events (cross-tab + embedded preview iframe sync)
+- The MapLibre overlay is only mounted when `geospatialModeEnabled === true`, independent of SidePanel expand/collapse and tab selection.
+- Switching SidePanel tabs does not change `graphData`, editor contents, or Document Mode configuration.
 - Gympgrph’s `setGeospatialModeEnabled(enabled)` toggles overlay state and interaction mode without mutating Knowgrph’s document parsers or markdown/JSON editors.
 
 **Result**:
 - URL imports and dataset URLs flow through one shared normalization and proxy pipeline.
-- GraphData, markdown editor, JSON editor, and geospatial overlay all consume the same underlying `GraphData` and dataset descriptors, ensuring that Document Mode and Geospatial Mode remain synchronized but independently toggled.
+- GraphData, markdown editor, JSON editor, and geospatial overlay all consume the same underlying `GraphData` and dataset descriptors, ensuring that Document Mode and Geospatial Mode remain synchronized but independently toggled (including embedded preview sync).
 
 ---
 

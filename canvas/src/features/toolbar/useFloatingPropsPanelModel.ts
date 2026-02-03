@@ -190,20 +190,6 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     selectNode(nodeContextId)
   }, [graphData, nodeContextId, setSelectionSource, setSidebarOpen, selectNode])
 
-  const doOpenNodeNodesTab = React.useCallback(() => {
-    if (!graphData || !nodeContextId) return
-    setSelectionSource('toolbar')
-    setBottomPanelTab('nodes')
-    selectNode(nodeContextId)
-  }, [graphData, nodeContextId, setSelectionSource, setBottomPanelTab, selectNode])
-
-  const doOpenNodeCodeTab = React.useCallback(() => {
-    if (!graphData || !nodeContextId) return
-    setSelectionSource('toolbar')
-    setBottomPanelTab('data')
-    selectNode(nodeContextId)
-  }, [graphData, nodeContextId, setSelectionSource, setBottomPanelTab, selectNode])
-
   const resolveMarkdownProvenance = React.useCallback(
     (meta: unknown) => {
       const record = meta && typeof meta === 'object' && !Array.isArray(meta) ? (meta as Record<string, unknown>) : {}
@@ -229,6 +215,41 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     },
     [],
   )
+
+  const doOpenNodeNodesTab = React.useCallback(() => {
+    if (!graphData || !nodeContextId) return
+    setSelectionSource('toolbar')
+    setBottomPanelTab('curation')
+    selectNode(nodeContextId)
+  }, [graphData, nodeContextId, setSelectionSource, setBottomPanelTab, selectNode])
+
+  const doOpenNodeCodeTab = React.useCallback(() => {
+    if (!graphData || !nodeContextId) return
+    const node = graphData.nodes.find(n => n.id === nodeContextId)
+    setSelectionSource('toolbar')
+    selectNode(nodeContextId)
+    const prov = node ? resolveMarkdownProvenance(node.metadata) : null
+    if (!prov) {
+      setBottomPanelTab('curation')
+      return
+    }
+    try {
+      setWorkspaceViewMode('editor')
+      const path = normalizeWorkspacePath(prov.documentPath)
+      useMarkdownExplorerStore.getState().setActivePath(path)
+      useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
+    } catch {
+      void 0
+    }
+  }, [
+    graphData,
+    nodeContextId,
+    resolveMarkdownProvenance,
+    selectNode,
+    setBottomPanelTab,
+    setSelectionSource,
+    setWorkspaceViewMode,
+  ])
 
   const doShowNodeInMarkdown = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
@@ -413,16 +434,37 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doOpenEdgeEdgesTab = React.useCallback(() => {
     if (!graphData || !edgeContextId) return
     setSelectionSource('toolbar')
-    setBottomPanelTab('edges')
+    setBottomPanelTab('curation')
     selectEdge(edgeContextId)
   }, [edgeContextId, graphData, selectEdge, setBottomPanelTab, setSelectionSource])
 
   const doOpenEdgeCodeTab = React.useCallback(() => {
     if (!graphData || !edgeContextId) return
+    const edge = graphData.edges.find(e => e.id === edgeContextId)
     setSelectionSource('toolbar')
-    setBottomPanelTab('data')
     selectEdge(edgeContextId)
-  }, [edgeContextId, graphData, selectEdge, setBottomPanelTab, setSelectionSource])
+    const prov = edge ? resolveMarkdownProvenance(edge.metadata) : null
+    if (!prov) {
+      setBottomPanelTab('curation')
+      return
+    }
+    try {
+      setWorkspaceViewMode('editor')
+      const path = normalizeWorkspacePath(prov.documentPath)
+      useMarkdownExplorerStore.getState().setActivePath(path)
+      useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
+    } catch {
+      void 0
+    }
+  }, [
+    edgeContextId,
+    graphData,
+    resolveMarkdownProvenance,
+    selectEdge,
+    setBottomPanelTab,
+    setSelectionSource,
+    setWorkspaceViewMode,
+  ])
 
   const doShowEdgeInMarkdown = React.useCallback(() => {
     if (!graphData || !edgeContextId) return

@@ -40,7 +40,6 @@ export async function testMarkdownEditorTextareaHeightAlignsAndSyncScrollsInSpli
         onImportUrl={() => {}}
         activeText={'# Title\n\nLine 1\n\nLine 2\n'}
         setActiveText={() => {}}
-        outlineText=""
         activeDocumentKey="doc"
         highlightedLineRange={{ start: null, end: null }}
         revealLineInEditor={() => {}}

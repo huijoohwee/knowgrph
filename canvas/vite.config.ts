@@ -920,6 +920,10 @@ export default defineConfig(({ command }) => ({
         find: /^grph-shared\/markdown\/mermaidBlocks$/,
         replacement: path.resolve(__dirname, '../grph-shared/dist/markdown/mermaidBlocks.js'),
       },
+      {
+        find: /^grph-shared\/markdown\/documentPath$/,
+        replacement: path.resolve(__dirname, '../grph-shared/dist/markdown/documentPath.js'),
+      },
       { find: /^gympgrph$/, replacement: path.resolve(__dirname, '../../gympgrph/src/index.ts') },
       { find: /^gympgrph\/datasets$/, replacement: path.resolve(__dirname, '../../gympgrph/src/geospatialDatasets.ts') },
       { find: /^gympgrph\/datasets-ui$/, replacement: path.resolve(__dirname, '../../gympgrph/src/geospatialDatasetsUi.ts') },

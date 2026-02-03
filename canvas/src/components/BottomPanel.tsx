@@ -22,7 +22,6 @@ export default function BottomPanel() {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectionSource = useGraphStore(s => s.selectionSource)
-  const bottomPanelCurationView = useGraphStore(s => s.bottomPanelCurationView)
   const bottomPanelHeightRatio = useGraphStore(s => s.bottomPanelHeightRatio)
   const setBottomPanelHeightRatio = useGraphStore(s => s.setBottomPanelHeightRatio)
   const setBottomPanelCollapsed = useGraphStore(s => s.setBottomPanelCollapsed)
@@ -41,7 +40,7 @@ export default function BottomPanel() {
   const edgeRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
   const lastCenteredRef = useRef<string | null>(null)
 
-  const tab: typeof rawTab = rawTab === 'data' ? 'curation' : rawTab
+  const tab: typeof rawTab = rawTab
 
   const keepBodyMountedWhenCollapsed = false
 
@@ -174,7 +173,7 @@ export default function BottomPanel() {
   useEffect(() => {
     if (!selectedNodeId) return
     setCollapsed(false)
-    if (tab !== 'nodes') return
+    if (tab !== 'curation') return
     if (selectionSource === 'canvas') return
     centerNodeRow(selectedNodeId)
   }, [centerNodeRow, selectedNodeId, selectionSource, setCollapsed, tab])
@@ -182,7 +181,7 @@ export default function BottomPanel() {
   useEffect(() => {
     if (!selectedEdgeId) return
     setCollapsed(false)
-    if (tab !== 'edges') return
+    if (tab !== 'curation') return
     if (selectionSource === 'canvas') return
     centerEdgeRow(selectedEdgeId)
   }, [centerEdgeRow, selectedEdgeId, selectionSource, setCollapsed, tab])

@@ -206,15 +206,29 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       if (!nodeIds.has(src) || !nodeIds.has(tgt)) return false
       return true
     })
-    const nextGraphData = filteredEdges.length === (graphData.edges || []).length ? graphData : { ...graphData, edges: filteredEdges }
+    const nextGraphDataBase = filteredEdges.length === (graphData.edges || []).length ? graphData : { ...graphData, edges: filteredEdges }
 
-    set(s => ({
-      graphData: nextGraphData,
-      graphDataRevision: (s.graphDataRevision || 0) + 1,
+    set(s => {
+      const nextRevision = (s.graphDataRevision || 0) + 1
+      const metaRaw = (nextGraphDataBase as unknown as { metadata?: unknown })?.metadata
+      const metaObj = metaRaw && typeof metaRaw === 'object' && !Array.isArray(metaRaw) ? (metaRaw as Record<string, unknown>) : {}
+      const nextMetadata: Record<string, unknown> = {
+        ...metaObj,
+        graphDataRevision: nextRevision,
+        hash: `rev:${nextRevision}`,
+      }
+      const nextGraphData = { ...(nextGraphDataBase as unknown as Record<string, unknown>), metadata: nextMetadata } as unknown as GraphData
+      return {
+        graphData: nextGraphData,
+        graphDataRevision: nextRevision,
       layoutPositionCacheByMode: {},
       graphValidationStatus: null,
       graphValidationTimestamp: null,
-    }));
+      }
+    });
+    const stateNow = get()
+    const nextGraphData = stateNow.graphData as GraphData
+
     try {
       const nextWorkflowText = readGraphRagWorkflowJsonTextFromGraphData(nextGraphData)
       const currentWorkflowText = get().graphRagWorkflowJsonText

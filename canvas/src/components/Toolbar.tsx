@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, ListTree, FileCode } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, ListTree, FileCode, Table } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -20,6 +20,7 @@ import {
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
 import { GEOSPATIAL_MODE_CHANGED_EVENT, type GeospatialModeChangedDetail } from '@/features/geospatial/events'
+import { openBottomPanel } from '@/features/bottom-panel/open'
 
 import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
 import { FitToViewButton } from '@/features/toolbar/ui/FitToViewButton';
@@ -105,6 +106,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'polygon' : 'rect'
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode || 'document')
   const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
+  const bottomPanelTab = useGraphStore(s => s.bottomPanelTab)
+  const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
 
   const actions = useToolbarActions(
     schema,
@@ -181,10 +184,23 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         onClick={toggleWorkspaceViewMode}
         showTooltip
       >
-        <div className="flex items-center gap-1">
-          <FileCode className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-          <span className="text-xs">Editor</span>
-        </div>
+        <FileCode className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+
+      <IconButton
+        className={`App-toolbar__btn ${
+          bottomPanelTab === 'curation' && !bottomPanelCollapsed ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={UI_COPY.toolbarGraphDataTableToggleTitle}
+        tooltipContent={
+          bottomPanelTab === 'curation' && !bottomPanelCollapsed
+            ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip
+            : UI_COPY.toolbarGraphDataTableWorkspaceOffTooltip
+        }
+        onClick={() => openBottomPanel('curation')}
+        showTooltip
+      >
+        <Table className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
 
       <IconButton

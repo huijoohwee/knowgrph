@@ -269,6 +269,22 @@ export default function CanvasPage() {
     }
   }, [])
 
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = (ev: StorageEvent) => {
+      if (!ev || ev.key !== LS_KEYS.geospatialOverlayEnabled) return
+      try {
+        setGeospatialModeEnabled(lsBool(LS_KEYS.geospatialOverlayEnabled, false))
+      } catch {
+        setGeospatialModeEnabled(false)
+      }
+    }
+    window.addEventListener('storage', handler)
+    return () => {
+      window.removeEventListener('storage', handler)
+    }
+  }, [])
+
   void setSidebarOpen
 
   React.useEffect(() => {
@@ -663,13 +679,13 @@ export default function CanvasPage() {
                       )}
                       <LaunchSpotlight />
                       {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
-                        <section
+                        <aside
                           className="fixed left-3 z-[201] pointer-events-auto"
                           style={{ bottom: 'calc(40px + 12px)' }}
                           aria-label="Minimap Overlay"
                         >
                           <MinimapLazy />
-                        </section>
+                        </aside>
                       )}
                       <BottomPanelLazy />
                       <MarkdownMetricsDevOverlay />
@@ -750,11 +766,11 @@ export default function CanvasPage() {
                                   }}
                                 />
                               ) : (
-                                <section className="p-3" aria-label="Geospatial Disabled">
+                                <aside className="p-3" aria-label="Geospatial Disabled">
                                   <p className="text-sm text-gray-600 dark:text-gray-300">
                                     Enable Geospatial Mode to view this panel.
                                   </p>
-                                </section>
+                                </aside>
                               )}
                             </div>
                           </React.Suspense>

@@ -93,7 +93,7 @@
 
 **Reference implementations**
 - Global Lucide icon alignment: [index.css](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/index.css)
-- Icon+text combobox controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
+- Icon+text combobox controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 - Canvas node label anchoring/baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)
 
 ---

@@ -11,6 +11,9 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MarkdownWorkspaceToolbar } from '../MarkdownWorkspaceToolbar'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi } from './markdownWorkspaceTypes'
+import { lexMarkdown, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
+import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
+import { splitMarkdownLines } from '@/lib/markdown'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -38,10 +41,9 @@ export type MarkdownWorkspaceMainProps = {
 
   activeText: string
   setActiveText: (next: string) => void
-  outlineText: string
   activeDocumentKey: string
   highlightedLineRange: HighlightedLineRange
-  revealLineInEditor: (line: number) => void
+  revealLineInEditor: (line: number, endLine?: number) => void
   showInViewer: (line: number) => void
   showInPresentation: (line: number) => void
   showInSlidesGallery: (line: number) => void
@@ -54,7 +56,7 @@ export type MarkdownWorkspaceMainProps = {
 
 const md = (() => {
   const instance = new MarkdownIt({
-    html: false,
+    html: true,
     linkify: true,
     highlight: (code, lang) => {
       const raw = String(code || '')
@@ -111,35 +113,13 @@ const splitSlides = (raw: string): Slide[] => {
 
 import { useSyncScroll } from './useSyncScroll'
 
-function MarkdownViewer(props: {
-  markdownText: string
-  uiPanelTextFontClass: string
-  uiPanelMonospaceTextClass: string
-  scrollable: boolean
-  viewerRef?: React.MutableRefObject<HTMLElement | null>
-}) {
-  const html = React.useMemo(() => md.render(String(props.markdownText || '')), [props.markdownText])
-  return (
-    <section
-      ref={props.viewerRef}
-      className={`relative flex-1 min-h-0 px-8 ${props.scrollable ? 'overflow-auto' : 'overflow-hidden'} ${props.uiPanelTextFontClass} text-[color:var(--kg-text-primary)]`}
-      data-testid="markdown-preview-root"
-      aria-label="Markdown Preview Content"
-    >
-      <article
-        className="w-full max-w-4xl mx-auto min-w-0"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </section>
-  )
-}
-
 function MarkdownEditor(props: {
   value: string
   onChange: (next: string) => void
   wordWrap: boolean
   editorRef: React.MutableRefObject<HTMLTextAreaElement | null>
   onCaretLine?: (line: number) => void
+  uiPanelTextFontClass: string
 }) {
   const emitCaretLine = React.useCallback(() => {
     const onCaretLine = props.onCaretLine
@@ -162,7 +142,7 @@ function MarkdownEditor(props: {
         ref={el => {
           props.editorRef.current = el
         }}
-        className={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 font-mono text-xs ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
+        className={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 ${props.uiPanelTextFontClass} text-[11px] leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
         value={props.value}
         onChange={e => props.onChange(e.target.value)}
         spellCheck={false}
@@ -216,6 +196,7 @@ function SlideCanvas(props: { html: string; scale: number; zoomLabel: string }) 
 
 export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(props: MarkdownWorkspaceMainProps) {
   const {
+    themeMode,
     uiPanelTextFontClass,
     uiPanelMonospaceTextClass,
     layoutMode,
@@ -236,6 +217,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     onImportUrl,
     activeText,
     setActiveText,
+    activeDocumentKey,
+    highlightedLineRange,
+    revealLineInEditor,
     editorRef,
     onEditorCaretLine,
   } = props
@@ -291,13 +275,90 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const zoomLabel = `${Math.round(scale * 100)}%`
 
+  const viewerVisible = layoutMode === 'viewer' || layoutMode === 'split'
+
+  const lexed = React.useMemo(() => {
+    if (!viewerVisible) return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
+    try {
+      return lexMarkdown(activeText)
+    } catch {
+      return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
+    }
+  }, [activeText, viewerVisible])
+
+  const tokens = lexed.tokens
+  void lexed.startLineOffset
+  void lexed.meta
+
+  const handleInsertLineAfter = React.useCallback(
+    (afterLine: number) => {
+      const line = Math.max(1, Math.floor(afterLine))
+      const lines = splitMarkdownLines(activeText)
+      const idx = Math.min(lines.length, line)
+      const next = [...lines.slice(0, idx), '', ...lines.slice(idx)].join('\n')
+      setActiveText(next)
+      try {
+        revealLineInEditor(line + 1)
+      } catch {
+        void 0
+      }
+    },
+    [activeText, revealLineInEditor, setActiveText],
+  )
+
+  const handleReorderLineBlock = React.useCallback(
+    (
+      source: { startLine: number; endLine: number },
+      target: { startLine: number; endLine: number },
+      position: 'before' | 'after',
+    ) => {
+      const srcStart = Math.max(1, Math.floor(source.startLine))
+      const srcEnd = Math.max(srcStart, Math.floor(source.endLine))
+      const tgtStart = Math.max(1, Math.floor(target.startLine))
+      const tgtEnd = Math.max(tgtStart, Math.floor(target.endLine))
+      if (srcStart === tgtStart && srcEnd === tgtEnd) return
+
+      const lines = splitMarkdownLines(activeText)
+      if (srcStart > lines.length) return
+
+      const safeSrcEnd = Math.min(lines.length, srcEnd)
+      const srcChunk = lines.slice(srcStart - 1, safeSrcEnd)
+      const rest = [...lines.slice(0, srcStart - 1), ...lines.slice(safeSrcEnd)]
+
+      const insertionLine = position === 'before' ? tgtStart : tgtEnd + 1
+      const insertionIndex = Math.max(0, Math.min(rest.length, insertionLine - 1))
+
+      const next = [...rest.slice(0, insertionIndex), ...srcChunk, ...rest.slice(insertionIndex)].join('\n')
+      setActiveText(next)
+    },
+    [activeText, setActiveText],
+  )
+
   const viewer = (
-    <MarkdownViewer
-      markdownText={activeText}
+    <MarkdownPreviewViewer
+      rootRef={el => {
+        viewerRef.current = el
+      }}
+      tokens={tokens}
+      activeDocumentPath={activeDocumentKey}
+      highlightedLineRange={highlightedLineRange}
+      markdownWordWrap={markdownWordWrap}
+      markdownTextHighlight={markdownTextHighlight}
+      selectionKind={null}
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-      scrollable={true}
-      viewerRef={viewerRef}
+      mermaidFrontmatterConfig={null}
+      rootThemeMode={themeMode}
+      previewOverlayScope="container"
+      previewOverlayPortalTarget={null}
+      effectiveHighlightBackgroundColor={null}
+      effectiveHighlightUnderlineColor={null}
+      scrollClass="overflow-auto"
+      showSidebar={false}
+      onContextMenu={() => void 0}
+      onClick={() => void 0}
+      onInsertLineAfter={handleInsertLineAfter}
+      onReorderLineBlock={handleReorderLineBlock}
     />
   )
 
@@ -329,6 +390,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           wordWrap={markdownWordWrap}
           editorRef={editorRef}
           onCaretLine={onEditorCaretLine}
+          uiPanelTextFontClass={uiPanelTextFontClass}
         />
       ) : layoutMode === 'viewer' ? (
         viewer
@@ -394,6 +456,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               wordWrap={markdownWordWrap}
               editorRef={editorRef}
               onCaretLine={onEditorCaretLine}
+              uiPanelTextFontClass={uiPanelTextFontClass}
             />
           </section>
           <hr className="w-px bg-[color:var(--kg-border)] border-0" aria-hidden="true" />

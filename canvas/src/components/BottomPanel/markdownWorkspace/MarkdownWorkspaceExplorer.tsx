@@ -1,13 +1,18 @@
 import React from 'react'
-import { FolderPlus, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText, Folder, FolderPlus, GripVertical, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { MarkdownExplorerSection } from '../MarkdownExplorerSection'
 import { MarkdownFileTree } from '../MarkdownFileTree'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
-import type { WorkspaceOutlineItem, WorkspaceBacklink } from '@/features/workspace-fs/types'
+import type { WorkspaceBacklink } from '@/features/workspace-fs/types'
+import { buildTocTree, type TocItem } from '@/features/markdown/ui/markdownSectionUtils'
+import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
+import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
 
 export type MarkdownWorkspaceExplorerProps = {
+  uiPanelTextFontClass: string
+
   sidebarWidthPx: number
   sidebarWidthMinPx: number
   sidebarWidthMaxPx: number
@@ -33,10 +38,12 @@ export type MarkdownWorkspaceExplorerProps = {
   backlinksCollapsed: boolean
   setBacklinksCollapsed: (next: boolean) => void
 
-  outline: WorkspaceOutlineItem[]
+  tocTokens: TokenWithLines[]
   backlinks: WorkspaceBacklink[]
   onRevealLine: (line: number) => void
   onOpenBacklink: (args: { path: WorkspacePath; line: number }) => void
+
+  onTocReorder: (parentId: string | null, fromIndex: number, toIndex: number) => void
 
   onCreateNewFile: () => void
   onCreateNewFolder: () => void
@@ -54,8 +61,116 @@ export type MarkdownWorkspaceExplorerProps = {
   onDeleteActive: () => void
 }
 
+function TocTreeItem(props: {
+  item: TocItem
+  depth: number
+  isExpanded: boolean
+  isActive: boolean
+  onToggleExpanded: (id: string) => void
+  onSelect: (id: string) => void
+  onReorder: (sourceId: string, targetId: string, position: 'before' | 'after') => void
+  uiPanelTextFontClass: string
+  uiPanelKeyValueTextSizeClass: string
+}) {
+  const { item, depth, isExpanded, isActive, onToggleExpanded, onSelect, onReorder, uiPanelTextFontClass, uiPanelKeyValueTextSizeClass } = props
+  const [dragState, setDragState] = React.useState<'none' | 'top' | 'bottom'>('none')
+  const [isDragging, setIsDragging] = React.useState(false)
+
+  const hasChildren = item.children.length > 0
+  const indent = Math.min(28, depth * 12)
+
+  const handleDragStart = (e: React.DragEvent) => {
+    setIsDragging(true)
+    e.dataTransfer.setData('text/plain', item.id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragEnd = () => {
+    setIsDragging(false)
+    setDragState('none')
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    if (e.clientY < midY) setDragState('top')
+    else setDragState('bottom')
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+    setDragState('none')
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const sourceId = e.dataTransfer.getData('text/plain')
+    setDragState('none')
+    if (!sourceId || sourceId === item.id) return
+    onReorder(sourceId, item.id, dragState === 'bottom' ? 'after' : 'before')
+  }
+
+  return (
+    <section
+      className="group flex items-center relative"
+      aria-label={hasChildren ? `Heading ${item.text}` : `Heading leaf ${item.text}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+        {dragState === 'top' ? (
+          <span className={`absolute left-0 right-0 -top-1 h-2 ${UI_THEME_TOKENS.button.activeBg} border-t-2 ${UI_THEME_TOKENS.button.activeBorder} z-10 pointer-events-none`} />
+        ) : null}
+        {dragState === 'bottom' ? (
+          <span className={`absolute left-0 right-0 -bottom-1 h-2 ${UI_THEME_TOKENS.button.activeBg} border-b-2 ${UI_THEME_TOKENS.button.activeBorder} z-10 pointer-events-none`} />
+        ) : null}
+
+        <button
+          type="button"
+          className={`flex-1 min-w-0 flex items-center gap-1 rounded px-1 py-[2px] ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${uiPanelTextFontClass} ${isDragging ? 'opacity-50' : ''} ${isActive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : ''}`}
+          style={{ paddingLeft: 6 + indent }}
+          onClick={() => {
+            onSelect(item.id)
+            if (hasChildren) onToggleExpanded(item.id)
+          }}
+          aria-label={`Heading ${item.text}`}
+        >
+          {hasChildren ? (
+            isExpanded ? (
+              <ChevronDown className="w-3 h-3 shrink-0" aria-hidden="true" />
+            ) : (
+              <ChevronRight className="w-3 h-3 shrink-0" aria-hidden="true" />
+            )
+          ) : (
+            <span className="w-3 h-3 shrink-0" aria-hidden="true" />
+          )}
+          {hasChildren ? <Folder className="w-3 h-3 shrink-0" aria-hidden="true" /> : <FileText className="w-3 h-3 shrink-0" aria-hidden="true" />}
+          <span className="truncate">{item.text}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing w-4 h-4 shrink-0 flex items-center justify-center rounded ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-600 dark:hover:text-gray-400`}
+          draggable
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+          aria-label="Reorder heading"
+          title="Reorder heading"
+        >
+          <GripVertical className="w-3 h-3" aria-hidden="true" />
+        </button>
+    </section>
+  )
+}
+
 export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceExplorer(props: MarkdownWorkspaceExplorerProps) {
   const {
+    uiPanelTextFontClass,
     sidebarWidthPx,
     sidebarWidthMinPx,
     sidebarWidthMaxPx,
@@ -77,10 +192,11 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     setTocCollapsed,
     backlinksCollapsed,
     setBacklinksCollapsed,
-    outline,
+    tocTokens,
     backlinks,
     onRevealLine,
     onOpenBacklink,
+    onTocReorder,
     onCreateNewFile,
     onCreateNewFolder,
     onRefresh,
@@ -96,6 +212,77 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
   } = props
 
   const clearLabel = activeEntryKind === 'folder' ? 'Clear files' : 'Clear'
+
+  const tocItems = React.useMemo(() => buildTocTree(tocTokens), [tocTokens])
+  const tocLineById = React.useMemo(() => {
+    const out = new Map<string, number>()
+    const walk = (items: TocItem[]) => {
+      for (const item of items) {
+        const id = String(item.id || '').trim()
+        if (id) out.set(id, Math.max(1, Math.floor(item.startLine || 1)))
+        if (item.children.length) walk(item.children)
+      }
+    }
+    walk(tocItems)
+    return out
+  }, [tocItems])
+
+  const [tocCollapsedIds, setTocCollapsedIds] = React.useState<Set<string>>(() => new Set())
+  const [activeTocId, setActiveTocId] = React.useState<string>('')
+  React.useEffect(() => {
+    setTocCollapsedIds(new Set())
+    setActiveTocId('')
+  }, [activePath])
+
+  const toggleTocExpanded = React.useCallback((id: string) => {
+    setTocCollapsedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const handleTocReorderByIds = React.useCallback(
+    (sourceId: string, targetId: string, position: 'before' | 'after') => {
+      const move = computeMarkdownTocReorder({ root: tocItems, sourceId, targetId, position })
+      if (!move) return
+      onTocReorder(move.parentId, move.fromIndex, move.toIndex)
+    },
+    [onTocReorder, tocItems],
+  )
+
+  const renderTocNode = React.useCallback(
+    (item: TocItem, depth: number): React.ReactNode => {
+      const isCollapsed = tocCollapsedIds.has(item.id)
+      const isExpanded = !isCollapsed
+      const hasChildren = item.children.length > 0
+      return (
+        <li key={item.id} className="list-none">
+          <TocTreeItem
+            item={item}
+            depth={depth}
+            isExpanded={isExpanded}
+            isActive={!!activeTocId && activeTocId === item.id}
+            onToggleExpanded={toggleTocExpanded}
+            onSelect={id => {
+              setActiveTocId(id)
+              const line = tocLineById.get(id)
+              if (!line) return
+              onRevealLine(line)
+            }}
+            onReorder={handleTocReorderByIds}
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            uiPanelKeyValueTextSizeClass="text-xs"
+          />
+          {hasChildren && isExpanded ? (
+            <ul className="list-none m-0 p-0">{item.children.map(child => renderTocNode(child, depth + 1))}</ul>
+          ) : null}
+        </li>
+      )
+    },
+    [activeTocId, handleTocReorderByIds, onRevealLine, tocCollapsedIds, tocLineById, toggleTocExpanded, uiPanelTextFontClass],
+  )
 
   const hasSelectionActions = canClearActiveSelection || canRefreshActiveFromSource || canDeleteActive
   const [selectionMenuOpen, setSelectionMenuOpen] = React.useState(false)
@@ -306,25 +493,11 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
         </MarkdownExplorerSection>
 
         <MarkdownExplorerSection title="TOC" collapsed={tocCollapsed} setCollapsed={setTocCollapsed}>
-          {outline.length === 0 ? (
+          {tocItems.length === 0 ? (
             <p className={`px-2 py-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>No headings.</p>
           ) : (
-            <nav className="max-h-64 overflow-auto" aria-label="Table of contents">
-              <ul className="list-none m-0 p-0">
-                {outline.map(item => (
-                  <li key={item.id} className="list-none">
-                    <button
-                      type="button"
-                      className={`w-full text-left rounded px-2 py-[2px] text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                      style={{ paddingLeft: 6 + Math.min(20, (item.level - 1) * 10) }}
-                      onClick={() => onRevealLine(item.line)}
-                      aria-label={`Heading ${item.text}`}
-                    >
-                      <span className="truncate">{item.text}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            <nav className="min-h-0 overflow-auto" aria-label="Table of contents">
+              <ul className="list-none m-0 p-0">{tocItems.map(item => renderTocNode(item, 0))}</ul>
             </nav>
           )}
         </MarkdownExplorerSection>

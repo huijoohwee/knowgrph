@@ -63,7 +63,7 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
     const graph = buildGraphWithMediaNode()
     state.setGraphData(graph)
     state.setMarkdownDocument('doc.md', buildMarkdown())
-    state.setBottomPanelTab('data')
+    state.setBottomPanelTab('curation')
     state.setBottomPanelCurationView('grid')
     state.selectNode(null)
     state.setSelectionSource(null)
@@ -116,4 +116,3 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
     restoreWindow()
   }
 }
-

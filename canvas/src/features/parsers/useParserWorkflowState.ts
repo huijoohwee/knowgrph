@@ -270,7 +270,7 @@ export function useParserWorkflowState() {
         void 0
       }
     }
-    openBottomPanel('data')
+    openBottomPanel('curation')
   }, [setParsersCollapsed])
 
   const onLoadFileWithStatus = React.useCallback(async () => {
@@ -408,7 +408,7 @@ export function useParserWorkflowState() {
     } catch {
       void 0
     }
-    openBottomPanel('nodes')
+    openBottomPanel('curation')
   }, [])
 
   const parserSelectionProps = useMemo(

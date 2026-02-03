@@ -22,7 +22,7 @@ export function testBottomPanelCollapsePersistence() {
 
   const state = useGraphStore.getState()
   state.setBottomPanelHeightRatio(0)
-  state.setBottomPanelTab('nodes')
+  state.setBottomPanelTab('curation')
 
   storage.setItem(LS_KEYS.bottomPanelCollapsed, '1')
 

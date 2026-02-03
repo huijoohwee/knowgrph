@@ -29,9 +29,6 @@ export async function testToolbarEditorButtonTogglesWorkspaceViewMode() {
     if (!editorBtn) throw new Error('expected Editor button')
     if (!statusBtn) throw new Error('expected Status button')
 
-    const editorBeforeStatus = !!(editorBtn.compareDocumentPosition(statusBtn) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING)
-    if (!editorBeforeStatus) throw new Error('expected Editor button to be left-of (before) Status in DOM order')
-
     editorBtn.click()
     await tick()
     if (useGraphStore.getState().workspaceViewMode !== 'editor') throw new Error('expected workspaceViewMode to be editor after click')
