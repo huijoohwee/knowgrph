@@ -117,7 +117,9 @@ export const createGroupBboxCollideForceByDepth = (args: {
     const topLabelExtra = readGroupLabelTopExtra(schema)
     const gapPadX = Math.max(0, paddingX + extraGapPx)
     const gapPadY = Math.max(0, paddingY + extraGapPx)
-    const gapPad = Math.max(gapPadX, gapPadY)
+    const gapSideX = gapPadX * 0.5
+    const gapSideY = gapPadY * 0.5
+    const gapSide = Math.max(gapSideX, gapSideY)
 
     for (let i = 0; i < groupStates.length; i += 1) {
       const g = groupStates[i]!
@@ -126,9 +128,9 @@ export const createGroupBboxCollideForceByDepth = (args: {
       const borderGapPx = computeBorderGapPx(strokeWidthPx, borderGapMinPx)
       
       const visualPad = Math.max(0, groupPad + depthExtra + borderGapPx)
-      g.gap = gapPad
-      g.gapX = gapPadX
-      g.gapY = gapPadY
+      g.gap = gapSide
+      g.gapX = gapSideX
+      g.gapY = gapSideY
 
       let minX = Infinity
       let maxX = -Infinity

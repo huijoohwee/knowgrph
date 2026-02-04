@@ -62,7 +62,9 @@ export const createGroupBboxCollideForce = (args: {
     const visualPad = Math.max(0, groupPad + borderGapPx)
     const gapPadX = Math.max(0, paddingX + extraGapPx)
     const gapPadY = Math.max(0, paddingY + extraGapPx)
-    const gapPad = Math.max(gapPadX, gapPadY)
+    const gapSideX = gapPadX * 0.5
+    const gapSideY = gapPadY * 0.5
+    const gapSide = Math.max(gapSideX, gapSideY)
 
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
@@ -108,9 +110,9 @@ export const createGroupBboxCollideForce = (args: {
         halfW: w / 2,
         halfH: h / 2,
         movableIdxs: v.movableIdxs,
-        gap: gapPad,
-        gapX: gapPadX,
-        gapY: gapPadY,
+        gap: gapSide,
+        gapX: gapSideX,
+        gapY: gapSideY,
       })
     })
     return out

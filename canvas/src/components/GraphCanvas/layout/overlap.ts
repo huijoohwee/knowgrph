@@ -5,8 +5,7 @@ import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
 import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
-import { applyAabbOverlapPush } from '@/lib/graph/collision/aabbPush'
-import { SpatialIndex } from '@/lib/graph/collision/spatialIndex'
+import { applyAabbOverlapPush, PackedRTree } from '@/lib/graph/collision/boxCollision'
 import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 import { readNodeStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
 import {
@@ -102,7 +101,7 @@ export const createBboxCollideForce = (args: {
 
       if (items.length < 2) continue
 
-      const index = new SpatialIndex(items)
+      const index = new PackedRTree(items)
 
       for (let aIdx = 0; aIdx < items.length; aIdx += 1) {
         const a = items[aIdx]!
@@ -114,7 +113,7 @@ export const createBboxCollideForce = (args: {
         const minY = a.cy - a.halfH
         const maxY = a.cy + a.halfH
 
-        index.query(minX, minY, maxX, maxY, (b) => {
+        index.query(minX, minY, -Infinity, maxX, maxY, Infinity, (b) => {
           if (b.id <= aNodeIdx) return
           if (aPinned && b.pinned) return
 
@@ -131,8 +130,10 @@ export const createBboxCollideForce = (args: {
               bMovableIdxs: b.pinned ? [] : [b.id],
               dx,
               dy,
+              dz: 0,
               ox: oxAdj,
               oy: oyAdj,
+              oz: Infinity,
               k,
             })
           }

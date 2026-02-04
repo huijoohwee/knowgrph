@@ -25,7 +25,7 @@
 
 - **Mermaid Parser**: `markdownJsonLdMermaidParser.ts` processes Mermaid code blocks, tagging nodes with `mermaidScope` and (for frontmatter) `isMermaidFrontmatter: true`.
 - **Layer Filter**: `layerDerivation.ts` derives a frontmatter-focused graph view: frontmatter Mermaid nodes/subgraphs plus any tied in-doc anchors/internal links/callouts reachable via `pointsTo` (e.g., Mermaid `click ... "#anchor"`).
-- **Force Layout Engine**: Disjoint force layout separates disconnected components using `forceX`/`forceY` targets with `d3.quadtree` for O(n log n) overlap resolution.
+- **Force Layout Engine**: Disjoint force layout separates disconnected components using `forceX`/`forceY` targets with `PackedRTree` for O(n log n) overlap broadphase.
 - **Mermaid Seed Layout**: A fast, topology-aware seed that spreads top-level subgraphs across the 16:9 frame and recenters the centroid before simulation.
 - **Port Handle System**: When enabled, edge endpoints route to cardinal handles; input/output nodes can be border-anchored using Mermaid direction (LR/RL/TB/BT).
 - **Subgraph Renderer**: Visual group boxes rendered behind member nodes with support for nesting and z-ordering.
@@ -54,7 +54,7 @@
 | Mermaid Seed Layout   | `canvas/src/components/GraphCanvas/layout/mermaidSeed.ts` | Mermaid Seed | `applyMermaidSeedLayout` | Seed → orders subgraphs → spreads bands → recenters centroid → forbids clustered layouts | Mermaid topology + grouping props     | Sets initial node positions                       | ~300   |
 | Port Handle System    | `canvas/src/components/GraphCanvas/portHandles.ts` | Port Handles    | `getEdgeEndpointFromPorts`  | System → routes edge endpoints to handles → supports cardinal placement                         | Rect sizing + schema flags            | Computes edge endpoints for render tick           | ~100   |
 | Subgraph Renderer     | `canvas/src/components/GraphCanvas/layers/groups.ts` | Group Renderer        | `createGroupsLayer`          | Renderer → computes group bounds/outlines → renders nested containers → manages z-order → draws group visuals | Canvas 2D context, geometry helpers    | Draws group overlays behind nodes                 | ~300   |
-| Overlap Resolver      | `canvas/src/components/GraphCanvas/layout/overlap.ts` | Quadtree Collision  | `resolveOverlaps`           | Resolver → builds quadtree → detects collisions → adjusts positions → achieves O(n log n)      | d3-quadtree                           | Mutates node positions to eliminate overlaps      | ~250   |
+| Overlap Resolver      | `canvas/src/components/GraphCanvas/layout/overlap.ts` | Packed R-tree Collision  | `createBboxCollideForce`           | Resolver → builds packed R-tree → queries candidates → applies AABB push → achieves O(n log n)      | `PackedRTree` (local)                           | Mutates node velocities to eliminate overlaps      | ~250   |
 
 ---
 
@@ -226,7 +226,7 @@ layerDerivation.frontmatterFilter:
 
 ### Component Separation Algorithm
 
-**From Disconnected Graph → Separated Components**: Detect connected components → assign cluster centers → apply `forceX`/`forceY` to separate → resolve overlaps with quadtree.
+**From Disconnected Graph → Separated Components**: Detect connected components → assign cluster centers → apply `forceX`/`forceY` to separate → resolve overlaps with packed R-tree broadphase.
 
 **Configuration Schema**:
 
@@ -253,7 +253,7 @@ layout.forces.componentSeparation:
 | Component Detection      | Graph nodes and edges          | Component clusters             | Identify disconnected components via BFS/DFS                | O(n + m) graph traversal                     |
 | Center Assignment        | Component clusters             | Target positions               | Compute cluster centers on circle or grid                   | O(k) where k = components                    |
 | Force Application        | Nodes, target positions        | Force vectors                  | Apply `forceX`/`forceY` toward cluster centers              | O(n) per simulation tick                     |
-| Overlap Resolution       | Positioned nodes               | Collision-free positions       | Build quadtree, detect overlaps, adjust positions           | O(n log n) quadtree-based collision detection|
+| Overlap Resolution       | Positioned nodes               | Collision-free positions       | Build packed R-tree, query candidates, adjust positions     | O(n log n) packed R-tree broadphase|
 
 **Design Compliance**:
 
@@ -262,7 +262,7 @@ layout.forces.componentSeparation:
 | Component Detection   | Find disconnected parts       | - [ ] Use BFS/DFS to identify components; forbid missing components                        | Force layout              | `detectComponents`   | nodes, edges              | component clusters    | graph traversal algorithm               |
 | Target Computation    | Position component centers    | - [ ] Arrange centers on circle or grid; forbid overlapping centers                        | Force layout              | `computeCenters`     | component count           | center positions      | circular or grid layout of centers      |
 | Force Configuration   | Apply separation forces       | - [ ] Set `forceX`/`forceY` strengths; apply to nodes; forbid unforced components          | Force layout              | `applyComponentForces` | nodes, centers          | force simulation      | d3.forceX/forceY with target positions  |
-| Quadtree Overlap      | Resolve collisions            | - [ ] Build quadtree; detect nearby nodes; adjust positions; forbid O(n²) collision checks | Overlap resolver          | `resolveOverlaps`    | node positions            | adjusted positions    | quadtree.visit + collision resolution   |
+| Packed R-tree Overlap      | Resolve collisions            | - [ ] Build packed R-tree; query nearby nodes; adjust positions; forbid O(n²) collision checks | Overlap resolver          | `createBboxCollideForce`    | node positions            | adjusted positions    | packed R-tree query + AABB push   |
 
 ---
 
@@ -386,7 +386,7 @@ layout.groups.strokeWidth:
 | Component Detection      | Filtered nodes                 | Component clusters             | Identify disconnected subgraphs                             | O(n + m) graph traversal                     |
 | Force Layout             | Component clusters             | Positioned nodes               | Apply separation forces and standard physics                | O(n) per tick, multiple ticks                |
 | Port Positioning         | Positioned nodes, topology     | Constrained positions          | Apply X constraints for input/output nodes                  | O(n) degree calculation + positioning        |
-| Overlap Resolution       | Constrained positions          | Collision-free positions       | Quadtree-based overlap detection and adjustment             | O(n log n) quadtree operations               |
+| Overlap Resolution       | Constrained positions          | Collision-free positions       | Packed R-tree broadphase overlap detection and adjustment   | O(n log n) packed R-tree operations          |
 | Subgraph Rendering       | Final positions, subgraph data | Visual group boxes/outlines    | Compute bounds, render behind nodes                         | O(k) group rendering                         |
 | Canvas Display           | Final scene                    | Rendered visualization         | Draw nodes, edges, group outlines to canvas                 | O(n + m) drawing operations                  |
 
@@ -406,7 +406,7 @@ layout.groups.strokeWidth:
 
 - **Unit Tests**: Mermaid parser, layer filter, degree calculator, bounds calculator.
 - **Integration Tests**: Full frontmatter → filtered layout → rendering pipeline.
-- **Performance Tests**: Quadtree overlap resolution with large graphs (>1000 nodes).
+- **Performance Tests**: Packed R-tree broadphase overlap resolution with large graphs (>1000 nodes).
 
 **Quality Gates**:
 
@@ -434,7 +434,7 @@ layout.groups.strokeWidth:
 |----------------------|--------|---------------------------------------------------------------------------------------------|
 | Component Separation | ☐      | - [ ] Disconnected components visually separated; forbid overlapping clusters              |
 | Port Handle Accuracy | ☐      | - [ ] Input nodes on left, output nodes on right; forbid incorrect topology classification|
-| Overlap Resolution   | ☐      | - [ ] Quadtree overlap detection active; forbid O(n²) collision checks                     |
+| Overlap Resolution   | ☐      | - [ ] Packed R-tree overlap broadphase active; forbid O(n²) collision checks               |
 
 **Rendering Health**:
 
@@ -451,7 +451,7 @@ layout.groups.strokeWidth:
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
 | Hardcoded Node Types | Enable generic diagrams         | - [ ] Use topology for layout; forbid assuming specific types like "Idea" or "Task"        |
 | Manual Tag Setting   | Automate tagging                | - [ ] Parser sets `isMermaidFrontmatter`; forbid manual tag assignment in UI               |
-| O(n²) Collision Detection | Use efficient algorithms    | - [ ] Use quadtree for overlap resolution; forbid nested loop collision checks             |
+| O(n²) Collision Detection | Use efficient algorithms    | - [ ] Use packed R-tree broadphase for overlap; forbid nested loop collision checks        |
 | Fixed Layout Dimensions | Support responsive sizing    | - [ ] Use dynamic `frameW`/`frameH`; forbid hardcoded pixel values for layout bounds       |
 | Mixed Mode Rendering | Maintain isolation              | - [ ] When frontmatter mode active, show only tagged nodes; forbid mixing content and diagram|
 
@@ -459,41 +459,26 @@ layout.groups.strokeWidth:
 
 ## Performance Optimization
 
-### Quadtree Collision Detection
+### Packed R-tree Collision Broadphase
 
-**Algorithm**: O(n log n) collision detection using d3.quadtree instead of O(n²) pairwise checks.
+**Algorithm**: O(n log n) broadphase collision candidate lookup using a packed static R-tree (Morton/Z-order sorting), instead of O(n²) pairwise checks.
 
 **Implementation**:
 
 ```typescript
-const quadtree = d3.quadtree()
-  .x(d => d.x)
-  .y(d => d.y)
-  .addAll(nodes);
+const index = new PackedRTree(items)
 
-nodes.forEach(node => {
-  quadtree.visit((quad, x1, y1, x2, y2) => {
-    if (!quad.length) { // Leaf node
-      const other = quad.data;
-      if (other !== node) {
-        const dx = node.x - other.x;
-        const dy = node.y - other.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const minDist = node.radius + other.radius;
-        
-        if (distance < minDist) {
-          // Resolve collision
-          const angle = Math.atan2(dy, dx);
-          const overlap = minDist - distance;
-          node.x += Math.cos(angle) * overlap / 2;
-          node.y += Math.sin(angle) * overlap / 2;
-        }
-      }
-    }
-    return x1 > node.x + radius || x2 < node.x - radius ||
-           y1 > node.y + radius || y2 < node.y - radius;
-  });
-});
+for (const a of items) {
+  const minX = a.cx - a.halfW
+  const maxX = a.cx + a.halfW
+  const minY = a.cy - a.halfH
+  const maxY = a.cy + a.halfH
+
+  index.query(minX, minY, -Infinity, maxX, maxY, Infinity, (b) => {
+    if (b.id <= a.id) return
+    // compute overlap; apply least-penetration-axis push (respect pinned)
+  })
+}
 ```
 
 **Performance Gain**: ~100x speedup for 1000+ nodes compared to nested loop approach.
@@ -502,8 +487,8 @@ nodes.forEach(node => {
 
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
-| Quadtree Construction | Build spatial index           | - [ ] Create quadtree from node positions; forbid incomplete indexing                       | Overlap resolver          | `buildQuadtree`      | node positions            | d3.quadtree           | d3.quadtree().addAll(nodes)             |
-| Collision Detection   | Find nearby nodes             | - [ ] Use quadtree.visit; check distances; forbid pairwise iteration                       | Overlap resolver          | `detectCollisions`   | quadtree, target node     | colliding nodes       | quadtree.visit with radius bounds       |
+| Packed R-tree Construction | Build spatial index       | - [ ] Create packed R-tree from AABB items; forbid incomplete indexing                      | Overlap resolver          | `new PackedRTree`    | AABB items                | packed R-tree         | Morton sort + packed levels             |
+| Collision Detection   | Find candidate pairs          | - [ ] Query the index by AABB; forbid pairwise iteration                                   | Overlap resolver          | `query`              | packed R-tree, target AABB | candidate items       | bounding-box query
 | Position Adjustment   | Resolve overlaps              | - [ ] Compute overlap vector; adjust positions; forbid incomplete resolution                | Overlap resolver          | `adjustPositions`    | collision pairs           | adjusted positions    | vector math + position update           |
 
 ---

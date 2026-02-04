@@ -36,10 +36,12 @@ layout:
     bboxCollide: boolean
     bboxCollideStrength: number
     bboxCollidePadding: number
+    bboxCollideTouchEpsilonPx: number
     bboxCollideIterations: number
     groupBboxCollide: boolean
     groupBboxCollideStrength: number
     groupBboxCollidePadding: number
+    groupBboxCollideTouchEpsilonPx: number
     groupBboxCollideIterations: number
     structuredRelaxSteps: number
   groups:

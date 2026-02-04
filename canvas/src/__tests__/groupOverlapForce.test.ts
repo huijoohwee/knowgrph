@@ -21,7 +21,8 @@ const computeGroupAabb = (args: {
   const strokeWidthRaw = args.schema.layout?.groups?.strokeWidth
   const strokeWidth = typeof strokeWidthRaw === 'number' && Number.isFinite(strokeWidthRaw) ? Math.max(0, strokeWidthRaw) : DEFAULT_GROUP_STROKE_WIDTH
   const borderGapPx = computeBorderGapPx(strokeWidth, groupBbox.borderGapPx)
-  const pad = Math.max(0, args.padding + groupPad + borderGapPx + groupBbox.extraGapPx)
+  const gapSide = Math.max(0, (args.padding + groupBbox.extraGapPx) * 0.5)
+  const pad = Math.max(0, groupPad + borderGapPx + gapSide)
   let minX = Infinity
   let maxX = -Infinity
   let minY = Infinity
@@ -112,9 +113,9 @@ export function testGroupBboxCollideSeparatesTopParentGroups() {
   }
 
   const eps = readCollisionConfig(schema).groupBbox.touchEpsilonPx
-  const allowedOverlap = pad + eps
+  const allowedOverlap = eps
   
   if (ox1 > allowedOverlap && oy1 > allowedOverlap) {
-    throw new Error(`expected groups to respect X-Index spacing (max gap), found overlap ${ox1} > ${allowedOverlap}`)
+    throw new Error(`expected groups to respect X-Index spacing, found overlap ${ox1} > ${allowedOverlap}`)
   }
 }

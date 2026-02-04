@@ -41,7 +41,8 @@ const computeGroupAabb = (args: {
 
   const depth = typeof group.depth === 'number' && Number.isFinite(group.depth) ? Math.max(0, Math.floor(group.depth)) : 0
   const depthExtra = nestedPaddingStep > 0 ? nestedPaddingStep * Math.max(0, maxDepth - depth) : 0
-  const pad = Math.max(0, args.padding + groupPad + depthExtra + borderGapPx + groupBbox.extraGapPx)
+  const gapSide = Math.max(0, (args.padding + groupBbox.extraGapPx) * 0.5)
+  const pad = Math.max(0, groupPad + depthExtra + borderGapPx + gapSide)
 
   const memberNodeIds = Array.isArray(group.memberNodeIds) ? group.memberNodeIds : []
   const nodeById = new Map<string, GraphNode>()

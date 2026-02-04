@@ -9,6 +9,21 @@
       "import": "./dist/graph/types.js",
       "default": "./dist/graph/types.js"
     },
+    "./collision/boxCollision": {
+      "types": "./dist/collision/boxCollision.d.ts",
+      "import": "./dist/collision/boxCollision.js",
+      "default": "./dist/collision/boxCollision.js"
+    },
+    "./collision/types": {
+      "types": "./dist/collision/types.d.ts",
+      "import": "./dist/collision/types.js",
+      "default": "./dist/collision/types.js"
+    },
+    "./collision/PackedRTree": {
+      "types": "./dist/collision/PackedRTree.d.ts",
+      "import": "./dist/collision/PackedRTree.js",
+      "default": "./dist/collision/PackedRTree.js"
+    },
     "./array/reorderList": {
       "types": "./dist/array/reorderList.d.ts",
       "import": "./dist/array/reorderList.js",

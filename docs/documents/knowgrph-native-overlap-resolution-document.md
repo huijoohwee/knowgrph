@@ -42,14 +42,15 @@
 
 **Algorithm Summary**
 
-- **Enhanced Spatial Indexing**: Uses `d3.quadtree` (O(n log n)) to efficiently query potential collisions.
-- Build a `d3.quadtree` every iteration over current node positions.
-- For each node `a`, visit quadtree nodes that intersect `a`’s expanded bounds.
+- **Enhanced Spatial Indexing**: Uses `PackedRTree` (O(n log n)) to efficiently query potential collisions.
+- Build a packed static R-tree every iteration over current node positions (Morton/Z-order sorting).
+- For each node `a`, query candidate neighbors intersecting `a`’s expanded bounds.
 - For each neighbor `b` in intersecting leaves, compute overlap `(ox, oy)`:
   - `ox = (aHalfW + bHalfW) - abs(dx)`
   - `oy = (aHalfH + bHalfH) - abs(dy)`
 - If overlap exists, push along the smaller axis (x if `ox < oy`, else y).
 - Respect pinned nodes (`fx`/`fy`) by redirecting impulse to the unpinned counterpart.
+- Use `touchEpsilonPx` to treat near-touch as a collision (stabilizes “snap/stick” at exact contact).
 
 **Implementation**: [createBboxCollideForce](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/overlap.ts)
 
@@ -65,10 +66,12 @@ layout:
     bboxCollide: boolean
     bboxCollideStrength: number
     bboxCollidePadding: number
+    bboxCollideTouchEpsilonPx: number
     bboxCollideIterations: number
     groupBboxCollide: boolean
     groupBboxCollideStrength: number
     groupBboxCollidePadding: number
+    groupBboxCollideTouchEpsilonPx: number
     groupBboxCollideIterations: number
     structuredRelaxSteps: number
 ```
@@ -93,7 +96,7 @@ Notes:
 | Context | Intent | Directive |
 |---|---|---|
 | Type safety | Prevent drift | - [ ] Add new force keys to schemaTypes; forbid untyped force config |
-| Performance | Avoid regressions | - [ ] Keep iterations low; prune quadtree visits; forbid heavy per-tick work |
+| Performance | Avoid regressions | - [ ] Keep iterations low; prune spatial-index queries; forbid heavy per-tick work |
 | Stability | Avoid jitter | - [ ] Use small impulses scaled by alpha; forbid abrupt position jumps |
 
 ---

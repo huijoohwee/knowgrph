@@ -68,7 +68,7 @@
 - Link cohesion: `d3.forceLink`
 - Repulsion: `d3.forceManyBody`
 - Positioning: `d3.forceX` + `d3.forceY` targeting component anchors when `disjointComponents` is enabled
-- Overlap: `d3.forceCollide` (radius) + native `bboxCollide` (label-aware AABB with Quadtree acceleration) + group-level bbox collision (label-aware group boxes)
+- Overlap: `d3.forceCollide` (radius) + native `bboxCollide` (label-aware AABB with packed R-tree broadphase) + group-level bbox collision (label-aware group boxes)
 
 **Implementation**: [buildSimulation](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
 
@@ -89,11 +89,13 @@ layout:
     bboxCollide: boolean               # default true
     bboxCollideStrength: number        # default 0.7
     bboxCollidePadding: number         # default 10
+    bboxCollideTouchEpsilonPx: number  # default schema-driven
     bboxCollideIterations: number      # default 2
 
     groupBboxCollide: boolean          # deprecated for disabling; enforced when groups enabled
     groupBboxCollideStrength: number   # default 0.385
     groupBboxCollidePadding: number    # default 10
+    groupBboxCollideTouchEpsilonPx: number # default schema-driven
     groupBboxCollideIterations: number # default 2
 ```
 
@@ -128,7 +130,7 @@ layout:
 | Decision | Rationale | Pros | Cons | Mitigation |
 |---|---|---|---|---|
 | Soft component anchors via forceX/Y | Natural separation; stable during drag | organic, tunable | requires target placement | deterministic spiral packing |
-| Native AABB overlap | Handle labels + rect nodes better than radius | fewer label collisions | extra per-tick work | quadtree broadphase + low iterations |
+| Native AABB overlap | Handle labels + rect nodes better than radius | fewer label collisions | extra per-tick work | packed R-tree broadphase + low iterations |
 | Keep seed step | Preserve readability at init | stable first-frame | heuristic | only used when skipInitialLayout is false |
 
 ---
