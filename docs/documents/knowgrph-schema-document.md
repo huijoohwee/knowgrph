@@ -95,7 +95,7 @@ layers.schema:
 ```yaml
 schema.layout.mode:
   scope: schema_global
-  type: string (enum: "force" | "radial")
+  type: string (enum: "force" | "radial" | "stratify")
   mutability: runtime_configurable
   validation: must be valid layout algorithm
   impact: selects 2D graph layout algorithm (force-directed vs radial)
@@ -107,6 +107,25 @@ schema.layout.mode:
 |-----------|----------------------------|------------------------------|----------------|
 | `force`   | Force-directed simulation  | General-purpose graph layout | O(n²) per tick |
 | `radial`  | Circular hierarchy         | Emphasize centrality         | O(n log n)     |
+| `stratify` | Structured tree + constraints | Document hierarchy / Mermaid subgraphs | O(n log n) + bounded relax |
+
+### Flow Renderer Layout Configuration
+
+**Configuration Schema**:
+
+```yaml
+schema.layout.flow.engine:
+  scope: layout_global
+  type: string (enum: "auto" | "elk" | "dagre" | "grid")
+  mutability: runtime_configurable
+  impact: selects which Flow layout engine to use (bounded fallbacks apply)
+
+schema.layout.flow.elkLayout:
+  scope: layout_global
+  type: string (enum: "elk" | "elk.layered" | "elk.force" | "elk.mrtree" | "elk.stress")
+  mutability: runtime_configurable
+  impact: selects ELK algorithm when Flow uses ELK
+```
 
 ---
 
@@ -156,7 +175,7 @@ schema.layout.fitEnforceAspectRatio:
 
 ### Structured Layout Position Caching
 
-**Cache Key Pattern**: `(frontmatterMode, schema.layout.mode)` → node position map
+**Cache Key Pattern**: `(semanticMode, frontmatterMode, layoutMode, renderMode, renderVariant, layoutVariant?)` → node position map
 
 **Caching Behavior**:
 

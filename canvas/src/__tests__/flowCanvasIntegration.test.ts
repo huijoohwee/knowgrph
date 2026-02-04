@@ -65,6 +65,8 @@ const installDomStubs = (dom: JSDOM) => {
   anyWindow.cancelAnimationFrame = g.cancelAnimationFrame
 
   const ctx: Ctx2d = {
+    save: () => {},
+    restore: () => {},
     setTransform: () => {},
     clearRect: () => {},
     fillRect: () => {},
@@ -79,6 +81,7 @@ const installDomStubs = (dom: JSDOM) => {
     lineTo: () => {},
     closePath: () => {},
     bezierCurveTo: () => {},
+    quadraticCurveTo: () => {},
     fillText: () => {},
   }
 

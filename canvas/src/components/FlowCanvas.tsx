@@ -9,6 +9,7 @@ import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layo
 import { buildLayoutPositionCacheKey } from '@/components/GraphCanvas/layout/positioning'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
+import { pickInitialZoomTransform } from '@/components/GraphCanvas/zoomState'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { buildElkLayout } from '@/components/FlowCanvas/elkLayout'
 import { computeFlowHandlesByNode, buildFlowHandleId } from '@/components/FlowCanvas/handles'
@@ -23,6 +24,7 @@ import type { ZoomRequest } from '@/lib/zoom/requests'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
+import { buildStratifyLayoutVariant } from '@/components/GraphCanvas/layout/stratifyVariant'
 import {
   clampScale,
   createFlowNativeRuntime,
@@ -37,6 +39,7 @@ import {
   type FlowNativeScene,
 } from '@/components/FlowCanvas/nativeRuntime'
 import type { FlowHandleId } from '@/components/FlowCanvas/handles'
+import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
 
 export const __flowCanvasDebug: {
   lastBuiltSceneNodeCount: number
@@ -187,24 +190,6 @@ function hasCacheCoverage(args: {
   return ok / Math.max(1, nodes.length) >= args.minCoverage
 }
 
-function coverageOfPositions(
-  nodes: ReadonlyArray<{ id: unknown }>,
-  positions: Record<string, { x: number; y: number }> | null,
-): number {
-  if (!positions) return 0
-  if (!Array.isArray(nodes) || nodes.length === 0) return 0
-  let ok = 0
-  for (let i = 0; i < nodes.length; i += 1) {
-    const id = String(nodes[i]?.id ?? '')
-    if (!id) continue
-    const p = positions[id]
-    if (!p) continue
-    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
-    ok += 1
-  }
-  return ok / Math.max(1, nodes.length)
-}
-
 export function extractNodePositions(nodes: ReadonlyArray<{ id?: unknown; x?: unknown; y?: unknown }>): Record<string, { x: number; y: number }> | null {
   if (!Array.isArray(nodes) || nodes.length === 0) return null
   const out: Record<string, { x: number; y: number }> = {}
@@ -279,6 +264,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     selectedEdgeIds,
     zoomRequest,
     zoomState,
+    viewPinned,
     setZoomState,
     setZoomStateForKey,
   } = useGraphStore(
@@ -299,6 +285,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       selectedEdgeIds: s.selectedEdgeIds,
       zoomRequest: s.zoomRequest,
       zoomState: s.zoomState,
+      viewPinned: s.viewPinned === true,
       setZoomState: s.setZoomState,
       setZoomStateForKey: s.setZoomStateForKey,
     })),
@@ -319,7 +306,13 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     const mode = schema ? readLayoutMode(schema) : 'force'
     const forces = schema?.layout?.forces || null
     const fitPadding = schema?.layout?.fitPadding ?? null
-    return JSON.stringify({ mode, forces, fitPadding })
+    return JSON.stringify({
+      mode,
+      forces,
+      fitPadding,
+      stratify: schema?.layout?.stratify || null,
+      flow: schema?.layout?.flow || null,
+    })
   }, [schema])
 
   const schemaNodesPresentationJson = React.useMemo(() => {
@@ -444,13 +437,20 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
 
   const layoutVariant = React.useMemo(() => {
     return [
+      `e=${flowConfig.engine}`,
       `rd=${rankdir}`,
       `dir=${flowConfig.elk.direction}`,
+      `alg=${flowConfig.elk.algorithm}`,
       `n=${flowConfig.node.widthPx}x${flowConfig.node.heightPx}`,
       `s=${flowConfig.elk.nodeNodeSpacingPx},${flowConfig.elk.layerSpacingPx},${flowConfig.elk.edgeNodeSpacingPx}`,
       `h=${flowConfig.handle.sizePx},${flowConfig.handle.lineHeightPx}`,
     ].join('|')
   }, [flowConfig, rankdir])
+
+  const d3StratifyLayoutVariant = React.useMemo(() => {
+    if (layoutMode !== 'stratify') return ''
+    return buildStratifyLayoutVariant(schema)
+  }, [layoutMode, schema])
 
   const cacheKey = React.useMemo(() => {
     return buildLayoutPositionCacheKey({
@@ -527,53 +527,42 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     const g = sceneGraphData
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
-    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${rankdir}:${flowConfig.elk.direction}:${flowConfig.node.widthPx}x${flowConfig.node.heightPx}`
+    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}`
     if (graphKey === lastLayoutGraphKeyRef.current && computedPositions) return
     lastLayoutGraphKeyRef.current = graphKey
 
     const run = async () => {
       const cached = layoutPositionsForMode || null
       const seededFromOtherRenderer = (() => {
-        const seedKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${String(documentSemanticMode || 'document')}:${effectiveFrontmatter ? '1' : '0'}:${layoutMode}`
+        const seedKey = `${graphKey}:${String(documentSemanticMode || 'document')}:${effectiveFrontmatter ? '1' : '0'}:${layoutMode}`
         if (seededFromOtherRendererKeyRef.current === seedKey) return seededFromOtherRendererPositionsRef.current
         seededFromOtherRendererKeyRef.current = seedKey
 
         const cache = useGraphStore.getState().layoutPositionCacheByMode || null
-        if (!cache) {
-          seededFromOtherRendererPositionsRef.current = null
-          return null
-        }
-
-        const exactKey = buildLayoutPositionCacheKey({
+        const baseKey = buildLayoutPositionCacheKey({
           mode: layoutMode,
           frontmatterMode: effectiveFrontmatter,
           semanticMode: String(documentSemanticMode || 'document'),
           renderMode: '2d',
           renderVariant: 'd3',
         })
-
-        const exact = cache[exactKey]
-        if (exact && typeof exact === 'object') {
-          seededFromOtherRendererPositionsRef.current = exact
-          return exact
-        }
-
-        const prefix = `${exactKey}:`
-        let best: Record<string, { x: number; y: number }> | null = null
-        let bestCoverage = 0
-        const keys = Object.keys(cache)
-        for (let i = 0; i < keys.length; i += 1) {
-          const k = keys[i]
-          if (!k.startsWith(prefix)) continue
-          const entry = cache[k]
-          if (!entry || typeof entry !== 'object') continue
-          const coverage = coverageOfPositions(nodeList, entry)
-          if (coverage > bestCoverage) {
-            bestCoverage = coverage
-            best = entry
-            if (bestCoverage >= 0.98) break
-          }
-        }
+        const expectedKey = d3StratifyLayoutVariant
+          ? buildLayoutPositionCacheKey({
+              mode: layoutMode,
+              frontmatterMode: effectiveFrontmatter,
+              semanticMode: String(documentSemanticMode || 'document'),
+              renderMode: '2d',
+              renderVariant: 'd3',
+              layoutVariant: d3StratifyLayoutVariant,
+            })
+          : ''
+        const best = pickSeedFromOtherRendererCache({
+          nodes: nodeList,
+          cache,
+          baseKey,
+          expectedKey,
+          expectedLayoutVariant: d3StratifyLayoutVariant,
+        })
         seededFromOtherRendererPositionsRef.current = best
         return best
       })()
@@ -592,24 +581,40 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
               })
             }
 
-            if (nodeList.length > DEFAULT_FLOW_ELK_MAX_NODES) {
-              return buildDagreLayout({
+            const dagre = () =>
+              buildDagreLayout({
                 nodes: nodeList.map(n => ({ id: String(n.id) })),
                 edges: edgeList.map(e => ({ source: String(e.source), target: String(e.target) })),
                 rankdir,
                 nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
               })
+
+            const grid = () =>
+              buildFastGridLayout({
+                nodes: nodeList.map(n => ({ id: String(n.id) })),
+                nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
+              })
+
+            const allowElk = nodeList.length <= DEFAULT_FLOW_ELK_MAX_NODES
+            const allowDagre = nodeList.length <= DEFAULT_FLOW_DAGRE_MAX_NODES
+
+            if (flowConfig.engine === 'grid') return grid()
+            if (flowConfig.engine === 'dagre') return allowDagre ? dagre() : grid()
+            if (flowConfig.engine === 'elk') {
+              if (!allowElk) return allowDagre ? dagre() : grid()
+              try {
+                return await buildElkLayout({ graphData: { nodes: nodeList, edges: edgeList }, config: flowConfig })
+              } catch {
+                return dagre()
+              }
             }
 
+            if (!allowDagre) return grid()
+            if (!allowElk) return dagre()
             try {
               return await buildElkLayout({ graphData: { nodes: nodeList, edges: edgeList }, config: flowConfig })
             } catch {
-              return buildDagreLayout({
-                nodes: nodeList.map(n => ({ id: String(n.id) })),
-                edges: edgeList.map(e => ({ source: String(e.source), target: String(e.target) })),
-                rankdir,
-                nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
-              })
+              return dagre()
             }
           })()
 
@@ -623,7 +628,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     return () => {
       cancelled = true
     }
-  }, [active, cacheKey, computedPositions, documentSemanticMode, effectiveFrontmatter, flowConfig, layoutMode, layoutPositionsForMode, rankdir, sceneGraphData, setLayoutPositionsForMode])
+  }, [active, cacheKey, computedPositions, d3StratifyLayoutVariant, documentSemanticMode, effectiveFrontmatter, flowConfig, layoutMode, layoutPositionsForMode, layoutVariant, rankdir, sceneGraphData, setLayoutPositionsForMode])
 
   React.useEffect(() => {
     if (!active) return
@@ -709,15 +714,22 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     if (lastAppliedZoomKeyRef.current === zoomViewKey) return
     lastAppliedZoomKeyRef.current = zoomViewKey
     const z = zoomStateForKey || zoomState
-    if (z && Number.isFinite(z.k) && Number.isFinite(z.x) && Number.isFinite(z.y)) {
-      setFlowNativeTransform(runtime, d3.zoomIdentity.translate(z.x, z.y).scale(z.k))
+    const initial = pickInitialZoomTransform({
+      zoomState: z,
+      pinned: viewPinned,
+      graphDataRevision,
+      nextViewportW: viewportW,
+      nextViewportH: viewportH,
+    })
+    if (initial) {
+      setFlowNativeTransform(runtime, d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k))
       return
     }
     const schema = useGraphStore.getState().schema
     const mode = readLayoutMode(schema)
     const opts = readFitAllOptions({ schema, mode, intent: 'initialFit' })
     setFlowNativeTransform(runtime, fitAllTransform(graphDataForZoom.nodes, viewportW, viewportH, opts))
-  }, [active, graphDataForZoom, viewportH, viewportW, zoomState, zoomStateForKey, zoomViewKey])
+  }, [active, graphDataForZoom, graphDataRevision, viewportH, viewportW, viewPinned, zoomState, zoomStateForKey, zoomViewKey])
 
   React.useEffect(() => {
     if (!active) return
@@ -758,7 +770,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
     const pos = computedPositions || null
-    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${rankdir}:${flowConfig.elk.direction}:${flowConfig.node.widthPx}x${flowConfig.node.heightPx}`
+    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}`
     if (graphKey === lastBuiltGraphKeyRef.current && (runtime.scene?.nodes.length || 0) > 0) {
       return
     }

@@ -11,6 +11,8 @@ export interface LayoutPositionConfig {
   prevFrontmatterMode: boolean | null;
   prevSemanticMode: string | null;
   prevRenderMode: '2d' | '3d' | null;
+  prevRenderVariant?: string | null;
+  prevLayoutVariant?: string | null;
   nodes: GraphNode[];
   layoutPositionCacheByMode: Record<string, Record<string, { x: number; y: number }>> | null;
 }
@@ -49,6 +51,8 @@ export const determineLayoutPositions = ({
   prevFrontmatterMode,
   prevSemanticMode,
   prevRenderMode,
+  prevRenderVariant,
+  prevLayoutVariant,
   nodes,
   layoutPositionCacheByMode,
 }: LayoutPositionConfig): LayoutPositionResult => {
@@ -56,6 +60,8 @@ export const determineLayoutPositions = ({
   const isFrontmatterChange = prevFrontmatterMode !== frontmatterMode;
   const isSemanticChange = prevSemanticMode !== semanticMode;
   const isRenderModeChange = prevRenderMode !== renderMode;
+  const isRenderVariantChange = (prevRenderVariant ?? null) !== (renderVariant ?? null)
+  const isLayoutVariantChange = (prevLayoutVariant ?? null) !== (layoutVariant ?? null)
   const cacheKey = buildLayoutPositionCacheKey({
     mode,
     frontmatterMode,
@@ -97,15 +103,16 @@ export const determineLayoutPositions = ({
     return matches / Math.max(1, nodes.length);
   })();
 
+  const isLayoutEngineChange = isModeChange || isRenderModeChange || isRenderVariantChange || isLayoutVariantChange
   const shouldUseCache =
     !!cachedPositions &&
     coverageFromCache >= 0.95 &&
-    (isModeChange || isFrontmatterChange || isSemanticChange || isRenderModeChange || coverageFromNodes < 0.95);
+    (isModeChange || isFrontmatterChange || isSemanticChange || isRenderModeChange || isRenderVariantChange || isLayoutVariantChange || coverageFromNodes < 0.95);
 
   const layoutPositionsForMode = shouldUseCache ? cachedPositions : null;
 
   const skipInitialLayout =
-    shouldUseCache || (!isModeChange && !isRenderModeChange && mode !== 'radial' && coverageFromNodes >= 0.95);
+    shouldUseCache || (!isLayoutEngineChange && mode !== 'radial' && coverageFromNodes >= 0.95);
 
   return {
     layoutPositionsForMode,

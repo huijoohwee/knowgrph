@@ -26,6 +26,7 @@
     "agenticrag:trace-codebase-index": "tsx src/cli/agenticrag-trace-codebase-index.ts"
   },
   "dependencies": {
+    "@mermaid-js/layout-elk": "^0.2.0",
     "@react-three/fiber": "^8.17.8",
     "@types/d3": "^7.4.3",
     "clsx": "^2.1.1",

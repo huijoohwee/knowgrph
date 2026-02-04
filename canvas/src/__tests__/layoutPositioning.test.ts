@@ -120,3 +120,30 @@ export const testLayoutPositioningCacheKeyUsesRenderVariant = () => {
     throw new Error(`expected stratify horizontal cacheKey document:default:stratify:2d:d3:o=horizontal, got ${stratifyHorizontal.cacheKey}`)
   }
 }
+
+export const testLayoutPositioningForcesLayoutWhenVariantChanges = () => {
+  const nodes: GraphNode[] = [
+    { id: 'a', label: 'a', type: 'T', x: 10, y: 20, properties: {} },
+    { id: 'b', label: 'b', type: 'T', x: 30, y: 40, properties: {} },
+  ]
+
+  const res = determineLayoutPositions({
+    mode: 'stratify',
+    frontmatterMode: false,
+    semanticMode: 'document',
+    renderMode: '2d',
+    renderVariant: 'd3',
+    layoutVariant: 'o=horizontal',
+    prevMode: 'stratify',
+    prevFrontmatterMode: false,
+    prevSemanticMode: 'document',
+    prevRenderMode: '2d',
+    prevLayoutVariant: 'o=vertical',
+    nodes,
+    layoutPositionCacheByMode: {},
+  })
+
+  if (res.skipInitialLayout !== false) {
+    throw new Error('expected variant change to force initial layout when no cache exists')
+  }
+}

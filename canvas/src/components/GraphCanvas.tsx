@@ -22,7 +22,8 @@ import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect'
 import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight'
 import { useGroupSelectionHighlight } from '@/components/GraphCanvas/hooks/useGroupSelectionHighlight'
-import { determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
+import { buildLayoutPositionCacheKey, determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
+import { buildStratifyLayoutVariant } from '@/components/GraphCanvas/layout/stratifyVariant'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
@@ -38,6 +39,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'stratify'>(null);
   const lastFrontmatterModeRef = useRef<boolean | null>(null);
   const lastSemanticModeRef = useRef<'document' | 'keyword' | null>(null)
+  const lastLayoutVariantRef = useRef<string | null>(null)
   const activeRef = useRef<boolean>(true)
   activeRef.current = !!active
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
@@ -112,6 +114,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       mode,
       forces,
       fitPadding,
+      stratify: schema?.layout?.stratify || null,
     })
   }, [schema])
 
@@ -263,7 +266,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const mode = schemaValue ? readLayoutMode(schemaValue) : 'force'
     const semanticMode = String(state.documentSemanticMode || 'document')
     const frontmatter = state.frontmatterModeEnabled === true && semanticMode !== 'keyword'
-    const baseKey = `${semanticMode}:${frontmatter ? 'frontmatter' : 'default'}:${mode}:2d`
     const layoutVariant = (() => {
       if (mode !== 'stratify') return ''
       const stratify = schemaValue?.layout?.stratify || null
@@ -288,7 +290,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       ]
       return parts.join('|')
     })()
-    const cacheKey = `${baseKey}:d3${layoutVariant ? `:${layoutVariant}` : ''}`
+    const cacheKey = buildLayoutPositionCacheKey({
+      mode,
+      frontmatterMode: frontmatter,
+      semanticMode,
+      renderMode: '2d',
+      renderVariant: 'd3',
+      layoutVariant,
+    })
 
     try {
       state.setLayoutPositionsForMode(cacheKey, positions)
@@ -438,29 +447,10 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
       const prevSemanticMode = lastSemanticModeRef.current
+      const prevLayoutVariant = lastLayoutVariantRef.current
       const layoutVariant = (() => {
         if (mode !== 'stratify') return ''
-        const stratify = schemaValue?.layout?.stratify || null
-        const orientation = stratify?.orientation === 'horizontal' ? 'horizontal' : 'vertical'
-        const groupRoots = stratify?.groupRoots !== false ? '1' : '0'
-        const grid = stratify?.grid || null
-        const gridEnabled = grid?.enabled !== false ? '1' : '0'
-        const gridSize = typeof grid?.size === 'number' && Number.isFinite(grid.size) ? String(Math.floor(grid.size)) : ''
-        const antiLine = stratify?.antiLine || null
-        const antiLineEnabled = antiLine?.enabled !== false ? '1' : '0'
-        const wrapRows =
-          typeof antiLine?.wrapRows === 'number' && Number.isFinite(antiLine.wrapRows) ? String(Math.floor(antiLine.wrapRows)) : ''
-        const maxAspectRatio =
-          typeof antiLine?.maxAspectRatio === 'number' && Number.isFinite(antiLine.maxAspectRatio)
-            ? String(Math.round(antiLine.maxAspectRatio * 100) / 100)
-            : ''
-        const parts = [
-          `o=${orientation}`,
-          `gr=${groupRoots}`,
-          `g=${gridEnabled}${gridSize ? `:${gridSize}` : ''}`,
-          `al=${antiLineEnabled}${wrapRows || maxAspectRatio ? `:${wrapRows || ''}:${maxAspectRatio || ''}` : ''}`,
-        ]
-        return parts.join('|')
+        return buildStratifyLayoutVariant(schemaValue)
       })()
       const initialZoomTransform = pickInitialZoomTransform({
         zoomState: z,
@@ -484,6 +474,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         prevFrontmatterMode,
         prevSemanticMode,
         prevRenderMode: prevCanvasRenderModeRef.current,
+        prevLayoutVariant,
         nodes: Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes : [],
         layoutPositionCacheByMode,
       });
@@ -500,6 +491,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       lastLayoutModeRef.current = mode
       lastFrontmatterModeRef.current = !!effectiveFrontmatterModeEnabled
       lastSemanticModeRef.current = documentSemanticMode
+      lastLayoutVariantRef.current = layoutVariant
       sceneCleanupRef.current = setupGraphScene({
         svgEl: svgRef.current,
         svgRef,

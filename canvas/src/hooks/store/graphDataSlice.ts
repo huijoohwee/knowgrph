@@ -6,6 +6,7 @@ import { LS_KEYS } from '@/lib/config'
 import { lsSetJson, lsRemove } from '@/lib/persistence'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import { isJsonValue } from '@/lib/graph/jsonValue'
+import { normalizeGraphData } from '@/lib/graph/normalize'
 import {
   applyLayoutAutosuggestFromMetadata,
   syncGraphFieldsWithGraphData,
@@ -205,15 +206,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   setGraphData: (graphData: GraphData) => {
-    const nodeIds = new Set<string>((graphData.nodes || []).map(n => n.id))
-    const filteredEdges = (graphData.edges || []).filter(e => {
+    const normalized = normalizeGraphData(graphData)
+    const nodeIds = new Set<string>((normalized.nodes || []).map(n => n.id))
+    const filteredEdges = (normalized.edges || []).filter(e => {
       const src = String(e.source || '')
       const tgt = String(e.target || '')
       if (!src || !tgt) return false
       if (!nodeIds.has(src) || !nodeIds.has(tgt)) return false
       return true
     })
-    const nextGraphDataBase = filteredEdges.length === (graphData.edges || []).length ? graphData : { ...graphData, edges: filteredEdges }
+    const nextGraphDataBase = filteredEdges.length === (normalized.edges || []).length ? normalized : { ...normalized, edges: filteredEdges }
 
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
@@ -300,8 +302,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   setGraphDataPreservingLayout: (graphData: GraphData) => {
-    const nodeIds = new Set<string>((graphData.nodes || []).map(n => n.id))
-    const filteredEdges = (graphData.edges || []).filter(e => {
+    const normalized = normalizeGraphData(graphData)
+    const nodeIds = new Set<string>((normalized.nodes || []).map(n => n.id))
+    const filteredEdges = (normalized.edges || []).filter(e => {
       const src = String(e.source || '')
       const tgt = String(e.target || '')
       if (!src || !tgt) return false
@@ -309,7 +312,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       return true
     })
     const nextGraphData =
-      filteredEdges.length === (graphData.edges || []).length ? graphData : { ...graphData, edges: filteredEdges }
+      filteredEdges.length === (normalized.edges || []).length ? normalized : { ...normalized, edges: filteredEdges }
 
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1

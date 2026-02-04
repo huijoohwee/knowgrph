@@ -138,6 +138,10 @@ export const validateSchema = (s: Partial<GraphSchema>): GraphSchema => {
     layout: {
       ...(base.layout || {}),
       ...(s.layout || {}),
+      flow: {
+        ...((base.layout as NonNullable<GraphSchema['layout']>)?.flow || {}),
+        ...((s.layout as Partial<NonNullable<GraphSchema['layout']>>)?.flow || {}),
+      },
       forces: {
         ...(base.layout?.forces || {}),
         ...(s.layout?.forces || {}),

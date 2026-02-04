@@ -28,9 +28,10 @@ export const testFlowHandlesByNodeDeterministicOrdering = () => {
 
 export const testElkLayoutTimeoutIsBounded = async () => {
   const config: FlowConfig = {
+    engine: 'auto',
     node: { widthPx: 180, heightPx: 48, paddingX: 12, paddingY: 8 },
     handle: { sizePx: 10, lineHeightPx: 16 },
-    elk: { direction: 'RIGHT' as const, layoutTimeoutMs: 200, nodeNodeSpacingPx: 24, layerSpacingPx: 48, edgeNodeSpacingPx: 16 },
+    elk: { direction: 'RIGHT' as const, algorithm: 'layered', layoutTimeoutMs: 200, nodeNodeSpacingPx: 24, layerSpacingPx: 48, edgeNodeSpacingPx: 16 },
   }
 
   const graphData: Pick<GraphData, 'nodes' | 'edges'> = {
@@ -58,9 +59,10 @@ export const testElkLayoutTimeoutIsBounded = async () => {
 
 export const testElkLayoutReturnsNodePositions = async () => {
   const config: FlowConfig = {
+    engine: 'auto',
     node: { widthPx: 180, heightPx: 48, paddingX: 12, paddingY: 8 },
     handle: { sizePx: 10, lineHeightPx: 16 },
-    elk: { direction: 'RIGHT' as const, layoutTimeoutMs: 200, nodeNodeSpacingPx: 24, layerSpacingPx: 48, edgeNodeSpacingPx: 16 },
+    elk: { direction: 'RIGHT' as const, algorithm: 'layered', layoutTimeoutMs: 200, nodeNodeSpacingPx: 24, layerSpacingPx: 48, edgeNodeSpacingPx: 16 },
   }
 
   const out = await buildElkLayout({

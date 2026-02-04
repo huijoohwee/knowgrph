@@ -2,6 +2,13 @@
 
 **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 
+## 2026-02-04
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Import→Render SSOT / Cross-repo alignment | Remove GraphData shape drift and keep Geospatial/Mermaid surfaces consistent | Move `GraphData/GraphNode/GraphEdge/JSONValue` SSOT into `grph-shared/graph/types`; normalize incoming GraphData before commit; pass `useActiveGraphRenderData()` into geospatial snapshots; enable Mermaid ELK layouts by registering `@mermaid-js/layout-elk` loaders before Mermaid init. | `knowgrph/grph-shared/{src,dist}/graph/types.*`, `knowgrph/canvas/src/{lib/graph/normalize.ts,hooks/store/graphDataSlice.ts,pages/Canvas.tsx}`, `curagrph/src/features/panels/views/preview-panel/ui/MermaidDiagram.tsx` | - | `normalizeGraphData`, `setGraphData*`, `MermaidDiagram` | Parser outputs, store commits, geospatial snapshot, Mermaid config | Drift-resistant cross-surface rendering + ELK-capable flowcharts | Shared type export is the contract boundary; normalization is shallow and clone-on-change; geospatial/mermaid consume the derived active view to avoid panel drift. | Add a bounded render smoke test that uses `config.layout: elk` and verifies SVG renders without errors. | 2026-02-04 |
+| Mode/layout switching / Cache isolation | Prevent D3/Flow/Keyword/Frontmatter/Stratify switching from reusing stale positions/zoom | Key Flow layout+scene rebuild by `layoutVariant`; seed Flow from D3 using matching stratify `layoutVariant`; include `layout.stratify` + `layout.flow` in Flow zoom view key; add bounded regression test. | `canvas/src/components/{GraphCanvas.tsx,FlowCanvas.tsx,FlowCanvas/seed.ts}`, `canvas/src/components/GraphCanvas/layout/{positioning.ts,stratifyVariant.ts}` | - | `determineLayoutPositions`, `pickInitialZoomTransform`, `pickSeedFromOtherRendererCache` | mode/renderer/layout toggles | Stable mode switching without layout bleed | Only reuse cached positions/zoom when full cache key matches and layout engine unchanged. | Add an interaction-level smoke test that toggles stratify orientation + Flow engine and asserts re-layout. | 2026-02-04 |
+
 ## 2026-02-03
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

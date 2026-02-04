@@ -53,6 +53,7 @@ export const DEFAULT_FLOW_ELK_MAX_NODES = 400
 export const DEFAULT_FLOW_DAGRE_MAX_NODES = 250
 
 export type FlowLayoutKnobs = {
+  engine: 'auto' | 'elk' | 'dagre' | 'grid'
   node: {
     widthPx: number
     heightPx: number
@@ -65,6 +66,7 @@ export type FlowLayoutKnobs = {
   }
   elk: {
     direction: 'RIGHT' | 'DOWN'
+    algorithm: 'layered' | 'force' | 'mrtree' | 'stress'
     layoutTimeoutMs: number
     nodeNodeSpacingPx: number
     layerSpacingPx: number
@@ -82,6 +84,18 @@ export const readFlowLayoutKnobs = (args: {
   rankdir: 'TB' | 'LR'
 }): FlowLayoutKnobs => {
   const padding = args.schema ? readFitPadding(args.schema) : DEFAULT_FIT_PADDING
+
+  const engineRaw = args.schema?.layout?.flow?.engine
+  const engine: FlowLayoutKnobs['engine'] =
+    engineRaw === 'elk' || engineRaw === 'dagre' || engineRaw === 'grid' ? engineRaw : 'auto'
+
+  const elkLayoutRaw = args.schema?.layout?.flow?.elkLayout
+  const algorithm: FlowLayoutKnobs['elk']['algorithm'] = (() => {
+    if (elkLayoutRaw === 'elk.force') return 'force'
+    if (elkLayoutRaw === 'elk.mrtree') return 'mrtree'
+    if (elkLayoutRaw === 'elk.stress') return 'stress'
+    return 'layered'
+  })()
 
   const node = {
     widthPx: DEFAULT_FLOW_NODE_WIDTH_PX,
@@ -101,6 +115,7 @@ export const readFlowLayoutKnobs = (args: {
   const elkEdgeNodeSpacing = 24 + Math.floor(padding / 3)
 
   const scaled = {
+    engine,
     node: {
       ...node,
       widthPx: Math.max(24, node.widthPx),
@@ -115,6 +130,7 @@ export const readFlowLayoutKnobs = (args: {
     },
     elk: {
       direction: elkDirection,
+      algorithm,
       layoutTimeoutMs: Math.max(200, clampInt(DEFAULT_FLOW_ELK_LAYOUT_TIMEOUT_MS, 200, 20_000) ?? 1500),
       nodeNodeSpacingPx: Math.max(24, elkNodeNodeSpacing),
       layerSpacingPx: Math.max(48, elkLayerSpacing),

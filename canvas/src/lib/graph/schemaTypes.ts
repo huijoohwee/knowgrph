@@ -84,6 +84,10 @@ export interface GraphSchema {
   };
   layout?: {
     mode?: 'force' | 'radial' | 'stratify' | 'mermaid';
+    flow?: {
+      engine?: 'auto' | 'elk' | 'dagre' | 'grid'
+      elkLayout?: 'elk' | 'elk.layered' | 'elk.stress' | 'elk.force' | 'elk.mrtree'
+    }
     forces?: {
       linkDistanceByLabel?: Record<string, number>;
       charge?: number;

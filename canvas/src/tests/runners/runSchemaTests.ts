@@ -17,6 +17,7 @@ import {
 } from '@/__tests__/schema.test'
 import {
   testLayoutPositioningCacheKeyUsesRenderVariant,
+  testLayoutPositioningForcesLayoutWhenVariantChanges,
   testLayoutPositioningSkipsReseedOnToggle,
 } from '@/__tests__/layoutPositioning.test'
 
@@ -30,6 +31,7 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'schema.semanticNodeRadiusUsesProps', testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance)
   await execTest(results, 'layout.positioning.cacheKeyAndSkip', testLayoutPositioningSkipsReseedOnToggle)
   await execTest(results, 'layout.positioning.cacheKeyUsesRenderVariant', testLayoutPositioningCacheKeyUsesRenderVariant)
+  await execTest(results, 'layout.positioning.variantChangeForcesLayout', testLayoutPositioningForcesLayoutWhenVariantChanges)
   await execTest(results, 'schema.tabEnterText', testSchemaTabEnterText)
   await execTest(results, 'schema.persistenceWrites', testSchemaPersistenceWrites)
   await execTest(results, 'schema.resetImportTextSync', testResetImportSchemaTabTextSync)

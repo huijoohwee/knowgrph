@@ -157,6 +157,10 @@ export const defaultSchema: GraphSchema = {
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {
     mode: 'force',
+    flow: {
+      engine: 'auto',
+      elkLayout: 'elk',
+    },
     forces: {
       linkDistanceByLabel: { relatedTo: 80 },
       charge: DEFAULT_CHARGE,

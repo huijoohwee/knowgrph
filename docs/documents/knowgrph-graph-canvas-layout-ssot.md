@@ -29,6 +29,9 @@ All overlap/collision behavior must be configured via schema only.
 
 ```yaml
 layout:
+  flow:
+    engine: auto | elk | dagre | grid
+    elkLayout: elk | elk.layered | elk.force | elk.mrtree | elk.stress
   forces:
     bboxCollide: boolean
     bboxCollideStrength: number
@@ -60,6 +63,7 @@ Notes:
 - `layout.stratify.grid` enables bounded grid-snapping via constraint forces; rank rows align by hierarchy depth.
 - When `layout.stratify.grid.size` is set too small for label-aware node AABBs and `layout.forces.bboxCollidePadding`, the effective grid size is clamped up to forbid overlap.
 - Layout position caches must be isolated by the full key `(semanticMode, frontmatterMode, layoutMode, renderMode, renderVariant, layoutVariant?)` (no fallback to partial/legacy keys).
+- Flow treats `layoutVariant` as a hard layout-change trigger: it must participate in layout recompute keys, render-scene rebuild keys, and cross-renderer seed selection.
 - Stratify must use collision-safe synthetic root/group IDs to avoid corrupting graphs that contain reserved-like IDs.
 - Group collision is always enforced when `layout.groups.enabled !== false` (schema may keep `groupBboxCollide` for backward compatibility, but it does not disable the constraint).
 - Group collision accounts for group label overhead (top padding) to reduce label-region overlap and to prevent group box overlap.

@@ -131,16 +131,20 @@ export async function buildElkLayout(args: {
   const graph: ElkGraph = {
     id: 'root',
     layoutOptions: {
-      'elk.algorithm': 'layered',
+      'elk.algorithm': config.elk.algorithm,
       'elk.direction': config.elk.direction,
-      'elk.edgeRouting': 'ORTHOGONAL',
-      'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-      'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
       'elk.spacing.nodeNode': String(config.elk.nodeNodeSpacingPx),
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(config.elk.layerSpacingPx),
       'elk.spacing.edgeNode': String(config.elk.edgeNodeSpacingPx),
       'elk.portConstraints': 'FIXED_SIDE',
+      ...(config.elk.algorithm === 'layered'
+        ? {
+            'elk.edgeRouting': 'ORTHOGONAL',
+            'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+            'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+            'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+            'elk.layered.spacing.nodeNodeBetweenLayers': String(config.elk.layerSpacingPx),
+          }
+        : {}),
     },
     children: elkNodes,
     edges: elkEdges,

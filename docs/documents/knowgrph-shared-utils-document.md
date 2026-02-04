@@ -17,6 +17,7 @@
 
 **Exports (public subpaths)**:
 - `grph-shared/array/reorderList`
+- `grph-shared/graph/types`
 - `grph-shared/markdown/formatting`
 - `grph-shared/markdown/backlinks`
 - `grph-shared/markdown/slugify`

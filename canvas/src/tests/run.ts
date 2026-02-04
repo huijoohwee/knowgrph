@@ -158,6 +158,7 @@ import {
   testFlowCanvasUsesActiveGraphRenderDataAndZoomState,
 } from '@/__tests__/flowCanvasIntegration.test'
 import { testFlowExtractNodePositionsExtractsFinitePositions, testFlowExtractNodePositionsReturnsNullWhenNone } from '@/__tests__/flowSeedPositions.test'
+import { testFlowSeedFromOtherRendererPrefersMatchingStratifyVariant } from '@/__tests__/flowSeedOtherRendererVariant.test'
 import {
   testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback,
   testGeoJsonMapPreviewSupportsContainerHeightMode,
@@ -394,6 +395,7 @@ export const runAllTests = async () => {
   await exec('flowCanvas.zoom.autoZoomToSelection', testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer)
   await exec('flow.seed.extractNodePositions.extractsFinite', testFlowExtractNodePositionsExtractsFinitePositions)
   await exec('flow.seed.extractNodePositions.nullWhenNone', testFlowExtractNodePositionsReturnsNullWhenNone)
+  await exec('flow.seed.otherRenderer.prefersMatchingStratifyVariant', testFlowSeedFromOtherRendererPrefersMatchingStratifyVariant)
 
   await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
   await exec('sourceFiles.naming.normalizeParentPath', testNormalizeParentPath)

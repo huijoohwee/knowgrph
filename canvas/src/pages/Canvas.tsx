@@ -9,6 +9,7 @@ import { LS_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { hashText } from '@/features/parsers/hash'
 import { autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty } from '@/features/parsers/loader'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
@@ -367,9 +368,10 @@ export default function CanvasPage() {
       requestThreeCamera: s.requestThreeCamera,
     })),
   )
+
+  const activeGraphData = useActiveGraphRenderData(!isEmbeddedPreview)
   const gympgrphBridge = useGraphStore(
     useShallow(s => ({
-      graphData: s.graphData,
       zoomState: s.zoomState,
       canvasRenderMode: s.canvasRenderMode,
       selectedNodeId: s.selectedNodeId,
@@ -660,7 +662,10 @@ export default function CanvasPage() {
     <>
       <SourceFilesPersistenceBootstrap />
       <SsotEventBridge />
-      <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300">
+      <section
+        className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
+        aria-label="Knowgrph Canvas"
+      >
         {isEmbeddedPreview ? (
           <main className="flex-1 relative overflow-hidden" aria-label="Canvas Preview Only">
             <React.Suspense fallback={null}>
@@ -668,7 +673,7 @@ export default function CanvasPage() {
                 <GeospatialOverlayHostLazy
                   active
                   snapshot={{
-                    graphData: gympgrphBridge.graphData,
+                    graphData: activeGraphData,
                     zoomState: gympgrphBridge.zoomState,
                     canvasRenderMode: gympgrphBridge.canvasRenderMode,
                     selectedNodeId: gympgrphBridge.selectedNodeId,
@@ -775,7 +780,7 @@ export default function CanvasPage() {
                         <GeospatialOverlayHostLazy
                           active
                           snapshot={{
-                            graphData: gympgrphBridge.graphData,
+                            graphData: activeGraphData,
                             zoomState: gympgrphBridge.zoomState,
                             canvasRenderMode: gympgrphBridge.canvasRenderMode,
                             selectedNodeId: gympgrphBridge.selectedNodeId,
@@ -883,7 +888,7 @@ export default function CanvasPage() {
                                   active
                                   showDatasetsManager={false}
                                   snapshot={{
-                                    graphData: gympgrphBridge.graphData,
+                                    graphData: activeGraphData,
                                     zoomState: gympgrphBridge.zoomState,
                                     canvasRenderMode: gympgrphBridge.canvasRenderMode,
                                     selectedNodeId: gympgrphBridge.selectedNodeId,
@@ -919,7 +924,7 @@ export default function CanvasPage() {
             </div>
           </main>
         )}
-      </div>
+      </section>
     </>
   )
 }

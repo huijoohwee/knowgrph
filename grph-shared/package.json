@@ -4,6 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
+    "./graph/types": {
+      "types": "./dist/graph/types.d.ts",
+      "import": "./dist/graph/types.js",
+      "default": "./dist/graph/types.js"
+    },
     "./array/reorderList": {
       "types": "./dist/array/reorderList.d.ts",
       "import": "./dist/array/reorderList.js",
