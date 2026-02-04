@@ -6,6 +6,7 @@ import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/lab
 import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
 import { applyAabbOverlapPush } from '@/lib/graph/collision/aabbPush'
+import { SpatialIndex } from '@/lib/graph/collision/spatialIndex'
 import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 import { readNodeStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
 import {
@@ -54,96 +55,87 @@ export function readBboxCollideConfig(schema: GraphSchema): {
 
 export const createBboxCollideForce = (args: {
   schema: GraphSchema
-  padding: number
+  paddingX: number
+  paddingY: number
+  touchEpsilonPx?: number
   strength: number
   iterations: number
 }): d3.Force<GraphNode, GraphEdge> => {
   const { schema } = args
   let nodes: GraphNode[] = []
-  const nodeIndex = new Map<GraphNode, number>()
   const borderGapMinPx = readCollisionConfig(schema).nodeBbox.borderGapPx
+  const touchEpsilonPx = typeof args.touchEpsilonPx === 'number' && Number.isFinite(args.touchEpsilonPx) ? Math.max(0, args.touchEpsilonPx) : 0
   let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : DEFAULT_BBOX_COLLIDE_STRENGTH
   let iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : DEFAULT_BBOX_COLLIDE_ITERATIONS
-  let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : DEFAULT_BBOX_COLLIDE_PADDING
-  let maxHalf = 64
+  let paddingX = Number.isFinite(args.paddingX) ? Math.max(0, args.paddingX) : DEFAULT_BBOX_COLLIDE_PADDING
+  let paddingY = Number.isFinite(args.paddingY) ? Math.max(0, args.paddingY) : DEFAULT_BBOX_COLLIDE_PADDING
 
   const isPinned = (n: GraphNode): boolean =>
     (typeof (n as { fx?: unknown }).fx === 'number' && Number.isFinite((n as { fx: number }).fx)) ||
     (typeof (n as { fy?: unknown }).fy === 'number' && Number.isFinite((n as { fy: number }).fy))
 
-  const computeMaxHalf = () => {
-    let m = 0
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
-      const borderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, n), borderGapMinPx)
-      m = Math.max(m, ext.halfW + padding + borderGapPx, ext.halfH + padding + borderGapPx)
-    }
-    maxHalf = Math.max(16, m)
+  type NodeBoxItem = {
+    cx: number
+    cy: number
+    halfW: number
+    halfH: number
+    id: number
+    pinned: boolean
   }
 
   const force = (alpha: number) => {
     const k = alpha * strength
     if (k <= 0 || nodes.length < 2) return
     for (let iter = 0; iter < iterations; iter += 1) {
-      const qt = d3.quadtree(nodes as GraphNode[], d => (typeof d.x === 'number' ? d.x : 0), d => (typeof d.y === 'number' ? d.y : 0))
+      const items: NodeBoxItem[] = []
       for (let i = 0; i < nodes.length; i += 1) {
-        const a = nodes[i]
-        const ax = typeof a.x === 'number' && Number.isFinite(a.x) ? a.x : null
-        const ay = typeof a.y === 'number' && Number.isFinite(a.y) ? a.y : null
-        if (ax == null || ay == null) continue
-        const aExt = getNodeAabbHalfExtentsWithLabel(a, schema)
-        const aBorderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, a), borderGapMinPx)
-        const aHalfW = aExt.halfW + padding + aBorderGapPx
-        const aHalfH = aExt.halfH + padding + aBorderGapPx
-        const aPinned = isPinned(a)
+        const n = nodes[i]
+        const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+        const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+        if (x == null || y == null) continue
+        const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+        const borderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, n), borderGapMinPx)
+        const halfW = ext.halfW + paddingX + borderGapPx
+        const halfH = ext.halfH + paddingY + borderGapPx
+        items.push({ cx: x, cy: y, halfW, halfH, id: i, pinned: isPinned(n) })
+      }
 
-        qt.visit((quad, x0, y0, x1, y1) => {
-          if (x0 > ax + aHalfW + maxHalf) return true
-          if (x1 < ax - aHalfW - maxHalf) return true
-          if (y0 > ay + aHalfH + maxHalf) return true
-          if (y1 < ay - aHalfH - maxHalf) return true
-          if (!('data' in quad)) return false
-          const leaf = quad as d3.QuadtreeLeaf<GraphNode>
-          let cur: d3.QuadtreeLeaf<GraphNode> | undefined = leaf
-          while (cur) {
-            const b = cur.data
-            if (b && b !== a) {
-              const bIdx = nodeIndex.get(b)
-              if (bIdx == null || bIdx <= i) {
-                cur = (cur as unknown as { next?: d3.QuadtreeLeaf<GraphNode> }).next
-                continue
-              }
-              const bx = typeof b.x === 'number' && Number.isFinite(b.x) ? b.x : null
-              const by = typeof b.y === 'number' && Number.isFinite(b.y) ? b.y : null
-              if (bx != null && by != null) {
-                const bExt = getNodeAabbHalfExtentsWithLabel(b, schema)
-                const bBorderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, b), borderGapMinPx)
-                const bHalfW = bExt.halfW + padding + bBorderGapPx
-                const bHalfH = bExt.halfH + padding + bBorderGapPx
+      if (items.length < 2) continue
 
-                const dx = ax - bx
-                const dy = ay - by
-                const ox = aHalfW + bHalfW - Math.abs(dx)
-                const oy = aHalfH + bHalfH - Math.abs(dy)
-                if (ox > 0 && oy > 0) {
-                  const bPinned = isPinned(b)
-                  applyAabbOverlapPush({
-                    nodes,
-                    aMovableIdxs: aPinned ? [] : [i],
-                    bMovableIdxs: bPinned ? [] : [bIdx],
-                    dx,
-                    dy,
-                    ox,
-                    oy,
-                    k,
-                  })
-                }
-              }
-            }
-            cur = (cur as unknown as { next?: d3.QuadtreeLeaf<GraphNode> }).next
+      const index = new SpatialIndex(items)
+
+      for (let aIdx = 0; aIdx < items.length; aIdx += 1) {
+        const a = items[aIdx]!
+        const aNodeIdx = a.id
+        const aPinned = a.pinned
+
+        const minX = a.cx - a.halfW
+        const maxX = a.cx + a.halfW
+        const minY = a.cy - a.halfH
+        const maxY = a.cy + a.halfH
+
+        index.query(minX, minY, maxX, maxY, (b) => {
+          if (b.id <= aNodeIdx) return
+          if (aPinned && b.pinned) return
+
+          const dx = a.cx - b.cx
+          const dy = a.cy - b.cy
+          const ox = a.halfW + b.halfW - Math.abs(dx)
+          const oy = a.halfH + b.halfH - Math.abs(dy)
+          const oxAdj = ox + touchEpsilonPx
+          const oyAdj = oy + touchEpsilonPx
+          if (oxAdj > 0 && oyAdj > 0) {
+            applyAabbOverlapPush({
+              nodes,
+              aMovableIdxs: aPinned ? [] : [aNodeIdx],
+              bMovableIdxs: b.pinned ? [] : [b.id],
+              dx,
+              dy,
+              ox: oxAdj,
+              oy: oyAdj,
+              k,
+            })
           }
-          return false
         })
       }
     }
@@ -151,11 +143,6 @@ export const createBboxCollideForce = (args: {
 
   force.initialize = (ns: GraphNode[]) => {
     nodes = ns || []
-    nodeIndex.clear()
-    for (let i = 0; i < nodes.length; i += 1) {
-      nodeIndex.set(nodes[i]!, i)
-    }
-    computeMaxHalf()
   }
 
   ;(force as unknown as { strength: (v: number) => unknown }).strength = (v: number) => {
@@ -167,8 +154,21 @@ export const createBboxCollideForce = (args: {
     return force
   }
   ;(force as unknown as { padding: (v: number) => unknown }).padding = (v: number) => {
-    padding = Number.isFinite(v) ? Math.max(0, v) : padding
-    computeMaxHalf()
+    const next = Number.isFinite(v) ? Math.max(0, v) : null
+    if (next != null) {
+      paddingX = next
+      paddingY = next
+    }
+    return force
+  }
+
+  ;(force as unknown as { paddingX: (v: number) => unknown }).paddingX = (v: number) => {
+    paddingX = Number.isFinite(v) ? Math.max(0, v) : paddingX
+    return force
+  }
+
+  ;(force as unknown as { paddingY: (v: number) => unknown }).paddingY = (v: number) => {
+    paddingY = Number.isFinite(v) ? Math.max(0, v) : paddingY
     return force
   }
 

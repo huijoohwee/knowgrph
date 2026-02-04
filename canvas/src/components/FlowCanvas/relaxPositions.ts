@@ -92,7 +92,9 @@ export function relaxFlowPositionsWithCollision(args: {
   const nodeForce = collision.nodeBbox.enabled
     ? createBboxCollideForce({
         schema,
-        padding: collision.nodeBbox.padding,
+        paddingX: collision.nodeBbox.paddingX,
+        paddingY: collision.nodeBbox.paddingY,
+        touchEpsilonPx: collision.nodeBbox.touchEpsilonPx,
         strength: collision.nodeBbox.strength,
         iterations: collision.nodeBbox.iterations,
       })
@@ -105,7 +107,8 @@ export function relaxFlowPositionsWithCollision(args: {
     const f = createGroupBboxCollideForceByDepth({
       schema,
       groups,
-      padding: collision.groupBbox.padding,
+      paddingX: collision.groupBbox.paddingX,
+      paddingY: collision.groupBbox.paddingY,
       extraGapPx: collision.groupBbox.extraGapPx,
       strength: collision.groupBbox.strength,
       iterations: collision.groupBbox.iterations,

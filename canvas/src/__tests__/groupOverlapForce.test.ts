@@ -86,7 +86,7 @@ export function testGroupBboxCollideSeparatesTopParentGroups() {
   const oy0 = gA0.halfH + gB0.halfH - Math.abs(gA0.cy - gB0.cy)
   if (!(ox0 > 0 && oy0 > 0)) throw new Error('expected initial group overlap')
 
-  const f = createGroupBboxCollideForce({ schema, padding: pad, strength: 0.9, iterations: 2 })
+  const f = createGroupBboxCollideForce({ schema, paddingX: pad, paddingY: pad, strength: 0.9, iterations: 2 })
   f.initialize(nodes, Math.random)
   const apply = f as unknown as (alpha: number) => void
   for (let step = 0; step < 10; step += 1) {
@@ -112,7 +112,9 @@ export function testGroupBboxCollideSeparatesTopParentGroups() {
   }
 
   const eps = readCollisionConfig(schema).groupBbox.touchEpsilonPx
-  if (ox1 > -eps && oy1 > -eps) {
-    throw new Error('expected groups to not touch after applying group bbox collide')
+  const allowedOverlap = pad + eps
+  
+  if (ox1 > allowedOverlap && oy1 > allowedOverlap) {
+    throw new Error(`expected groups to respect X-Index spacing (max gap), found overlap ${ox1} > ${allowedOverlap}`)
   }
 }

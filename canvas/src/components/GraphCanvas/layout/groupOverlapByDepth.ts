@@ -4,26 +4,21 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
 import { readCollisionConfig, readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
-import { applyAabbOverlapPush } from '@/lib/graph/collision/aabbPush'
 import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 import { readGroupStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
+import { resolveGroupCollisions, CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 import {
   DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS,
   DEFAULT_GROUP_BBOX_COLLIDE_PADDING,
   DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH,
   DEFAULT_GROUP_NESTED_PADDING_STEP,
   DEFAULT_GROUP_PADDING,
+  DEFAULT_GROUP_STROKE_WIDTH,
 } from '@/lib/graph/layoutDefaults'
 
-type GroupState = {
-  id: string
+type GroupState = CollisionGroupItem & {
   depth: number
   memberIdxs: number[]
-  movableIdxs: number[]
-  cx: number
-  cy: number
-  halfW: number
-  halfH: number
   empty: boolean
 }
 
@@ -34,7 +29,8 @@ const isPinned = (n: GraphNode): boolean =>
 export const createGroupBboxCollideForceByDepth = (args: {
   schema: GraphSchema
   groups: GraphGroup[]
-  padding: number
+  paddingX: number
+  paddingY: number
   extraGapPx?: number
   strength: number
   iterations: number
@@ -45,7 +41,8 @@ export const createGroupBboxCollideForceByDepth = (args: {
   const borderGapMinPx = groupBboxCfg.borderGapPx
   const touchEpsilonPx = groupBboxCfg.touchEpsilonPx
 
-  let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
+  let paddingX = Number.isFinite(args.paddingX) ? Math.max(0, args.paddingX) : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
+  let paddingY = Number.isFinite(args.paddingY) ? Math.max(0, args.paddingY) : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
   let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH
   let iterations = Number.isFinite(args.iterations)
     ? Math.max(1, Math.floor(args.iterations))
@@ -100,6 +97,9 @@ export const createGroupBboxCollideForceByDepth = (args: {
         halfW: 1,
         halfH: 1,
         empty: false,
+        gap: 0,
+        gapX: 0,
+        gapY: 0,
       }
       groupStates.push(state)
     }
@@ -115,13 +115,20 @@ export const createGroupBboxCollideForceByDepth = (args: {
         ? Math.max(0, schema.layout.groups.nestedPaddingStep)
         : DEFAULT_GROUP_NESTED_PADDING_STEP
     const topLabelExtra = readGroupLabelTopExtra(schema)
+    const gapPadX = Math.max(0, paddingX + extraGapPx)
+    const gapPadY = Math.max(0, paddingY + extraGapPx)
+    const gapPad = Math.max(gapPadX, gapPadY)
 
     for (let i = 0; i < groupStates.length; i += 1) {
       const g = groupStates[i]!
       const depthExtra = nestedPaddingStep > 0 ? nestedPaddingStep * Math.max(0, maxDepth - g.depth) : 0
       const strokeWidthPx = readGroupStrokeWidthPx(schema, g.depth, maxDepth)
       const borderGapPx = computeBorderGapPx(strokeWidthPx, borderGapMinPx)
-      const pad = Math.max(0, padding + groupPad + depthExtra + extraGapPx + borderGapPx)
+      
+      const visualPad = Math.max(0, groupPad + depthExtra + borderGapPx)
+      g.gap = gapPad
+      g.gapX = gapPadX
+      g.gapY = gapPadY
 
       let minX = Infinity
       let maxX = -Infinity
@@ -137,10 +144,10 @@ export const createGroupBboxCollideForceByDepth = (args: {
         const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
         if (x == null || y == null) continue
         const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
-        const loX = x - ext.halfW - pad
-        const hiX = x + ext.halfW + pad
-        const loY = y - ext.halfH - pad - topLabelExtra
-        const hiY = y + ext.halfH + pad
+        const loX = x - ext.halfW - visualPad
+        const hiX = x + ext.halfW + visualPad
+        const loY = y - ext.halfH - visualPad - topLabelExtra
+        const hiY = y + ext.halfH + visualPad
         if (loX < minX) minX = loX
         if (hiX > maxX) maxX = hiX
         if (loY < minY) minY = loY
@@ -163,9 +170,12 @@ export const createGroupBboxCollideForceByDepth = (args: {
     }
   }
 
-  const groupsShareAnyMember = (a: GroupState, b: GroupState): boolean => {
-    const aIdxs = a.memberIdxs
-    const bIdxs = b.memberIdxs
+  const groupsShareAnyMember = (a: CollisionGroupItem, b: CollisionGroupItem): boolean => {
+    const aState = a as GroupState
+    const bState = b as GroupState
+    
+    const aIdxs = aState.memberIdxs
+    const bIdxs = bState.memberIdxs
     let i = 0
     let j = 0
     while (i < aIdxs.length && j < bIdxs.length) {
@@ -181,77 +191,19 @@ export const createGroupBboxCollideForceByDepth = (args: {
     return false
   }
 
-  const resolveAllPairs = (k: number) => {
-    if (groupStates.length < 2) return
-    const active: number[] = []
-    let maxHalfW = 1
-    let maxHalfH = 1
-    for (let i = 0; i < groupStates.length; i += 1) {
-      const g = groupStates[i]!
-      if (g.empty) continue
-      active.push(i)
-      maxHalfW = Math.max(maxHalfW, g.halfW)
-      maxHalfH = Math.max(maxHalfH, g.halfH)
-    }
-    if (active.length < 2) return
-
-    const qt = d3
-      .quadtree<number>()
-      .x(i => groupStates[i]!.cx)
-      .y(i => groupStates[i]!.cy)
-      .addAll(active)
-
-    for (let ai = 0; ai < active.length; ai += 1) {
-      const aIdx = active[ai]!
-      const a = groupStates[aIdx]!
-      const minX = a.cx - a.halfW - maxHalfW
-      const maxX = a.cx + a.halfW + maxHalfW
-      const minY = a.cy - a.halfH - maxHalfH
-      const maxY = a.cy + a.halfH + maxHalfH
-
-      qt.visit((node, x0, y0, x1, y1) => {
-        if (x0 > maxX || x1 < minX || y0 > maxY || y1 < minY) return true
-        const leaf = node as unknown as { data?: number; next?: unknown }
-        let d: { data?: number; next?: unknown } | null = leaf
-        while (d) {
-          const bIdx = d.data
-          if (typeof bIdx === 'number' && bIdx > aIdx) {
-            const b = groupStates[bIdx]
-            if (b && !b.empty) {
-              const dx = a.cx - b.cx
-              const dy = a.cy - b.cy
-              const ox = a.halfW + b.halfW - Math.abs(dx)
-              const oy = a.halfH + b.halfH - Math.abs(dy)
-              const oxAdj = ox + touchEpsilonPx
-              const oyAdj = oy + touchEpsilonPx
-              if (oxAdj > 0 && oyAdj > 0 && !groupsShareAnyMember(a, b)) {
-                applyAabbOverlapPush({
-                  nodes,
-                  aMovableIdxs: a.movableIdxs,
-                  bMovableIdxs: b.movableIdxs,
-                  dx,
-                  dy,
-                  ox: oxAdj,
-                  oy: oyAdj,
-                  k,
-                })
-              }
-            }
-          }
-          d = (d.next as { data?: number; next?: unknown } | undefined) ?? null
-        }
-        return false
-      })
-    }
-  }
-
   const force = (alpha: number) => {
     const k = alpha * strength
     if (k <= 0 || nodes.length < 2 || groupStates.length < 2) return
 
     for (let iter = 0; iter < iterations; iter += 1) {
       updateGroupAabbs()
-      resolveAllPairs(k)
+      resolveGroupCollisions({
+        groups: groupStates,
+        nodes,
+        strength: k,
+        touchEpsilon: touchEpsilonPx,
+        groupsShareAnyMember
+      })
     }
   }
 
@@ -275,7 +227,21 @@ export const createGroupBboxCollideForceByDepth = (args: {
     return force
   }
   ;(force as unknown as { padding: (v: number) => unknown }).padding = (v: number) => {
-    padding = Number.isFinite(v) ? Math.max(0, v) : padding
+    const next = Number.isFinite(v) ? Math.max(0, v) : null
+    if (next != null) {
+      paddingX = next
+      paddingY = next
+    }
+    return force
+  }
+
+  ;(force as unknown as { paddingX: (v: number) => unknown }).paddingX = (v: number) => {
+    paddingX = Number.isFinite(v) ? Math.max(0, v) : paddingX
+    return force
+  }
+
+  ;(force as unknown as { paddingY: (v: number) => unknown }).paddingY = (v: number) => {
+    paddingY = Number.isFinite(v) ? Math.max(0, v) : paddingY
     return force
   }
 

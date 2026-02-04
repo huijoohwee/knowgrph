@@ -166,7 +166,8 @@ export function applyStratifyGridEnhancements(args: {
     const ext = getNodeAabbHalfExtentsWithLabel(nodes[i], schema)
     maxHalfForGrid = Math.max(maxHalfForGrid, ext.halfW, ext.halfH)
   }
-  const minSafeGridSize = 2 * (maxHalfForGrid + (collisionForGrid.nodeBbox.padding || 0)) + 2
+  const nodePad = Math.max(0, collisionForGrid.nodeBbox.paddingX, collisionForGrid.nodeBbox.paddingY)
+  const minSafeGridSize = 2 * (maxHalfForGrid + nodePad) + 2
   const autoGridSize = Math.max(12, Math.min(256, Math.floor(Math.min(breadthStep, depthStep) * scale)))
   const gridCfg = readStratifyGridConfig(schema, autoGridSize, minSafeGridSize)
   if (!gridCfg.enabled || !(gridCfg.steps > 0) || !(gridCfg.size > 0)) return
@@ -340,7 +341,9 @@ export function applyStratifyGridEnhancements(args: {
   const nodeForce = collision.nodeBbox.enabled
     ? createBboxCollideForce({
         schema,
-        padding: collision.nodeBbox.padding,
+        paddingX: collision.nodeBbox.paddingX,
+        paddingY: collision.nodeBbox.paddingY,
+        touchEpsilonPx: collision.nodeBbox.touchEpsilonPx,
         strength: collision.nodeBbox.strength,
         iterations: collision.nodeBbox.iterations,
       })
@@ -348,7 +351,8 @@ export function applyStratifyGridEnhancements(args: {
   const groupForce = collision.groupBbox.enabled
     ? createGroupBboxCollideForce({
         schema,
-        padding: collision.groupBbox.padding,
+        paddingX: collision.groupBbox.paddingX,
+        paddingY: collision.groupBbox.paddingY,
         strength: collision.groupBbox.strength,
         iterations: collision.groupBbox.iterations,
         groupKeyOf: groupKey,

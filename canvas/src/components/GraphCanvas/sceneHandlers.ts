@@ -426,7 +426,8 @@ export const attachSimulationTick = (args: {
         const placedEdgeLabelRects: AabbRect[] = []
         const nodeBlockers: { id: string; rect: AabbRect }[] = stratifyNoOverlap
           ? (() => {
-              const collisionPad = readCollisionConfig(schema).nodeBbox.padding
+              const collisionCfg = readCollisionConfig(schema).nodeBbox
+              const collisionPad = Math.max(0, collisionCfg.paddingX, collisionCfg.paddingY)
               const clearance = Math.max(2, Math.min(16, Math.floor(collisionPad)))
               const out: { id: string; rect: AabbRect }[] = []
               for (let i = 0; i < nodes.length; i += 1) {

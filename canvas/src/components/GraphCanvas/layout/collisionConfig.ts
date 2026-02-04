@@ -6,6 +6,7 @@ import {
   DEFAULT_GROUP_COLLISION_BORDER_GAP_PX,
   DEFAULT_GROUP_COLLISION_TOUCH_EPSILON_PX,
   DEFAULT_NODE_COLLISION_BORDER_GAP_PX,
+  DEFAULT_NODE_COLLISION_TOUCH_EPSILON_PX,
   DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS,
   DEFAULT_GROUP_BBOX_COLLIDE_PADDING,
   DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH,
@@ -15,7 +16,10 @@ import { readGroupBboxCollideExtraGapPx } from '@/lib/graph/collision/groupColli
 export type BboxCollideConfig = {
   enabled: boolean
   padding: number
+  paddingX: number
+  paddingY: number
   borderGapPx: number
+  touchEpsilonPx: number
   strength: number
   iterations: number
 }
@@ -23,6 +27,8 @@ export type BboxCollideConfig = {
 export type GroupBboxCollideConfig = {
   enabled: boolean
   padding: number
+  paddingX: number
+  paddingY: number
   borderGapPx: number
   extraGapPx: number
   touchEpsilonPx: number
@@ -50,11 +56,16 @@ export function readCollisionConfig(schema: GraphSchema): CollisionConfig {
     bboxCollide?: boolean
     bboxCollideStrength?: number
     bboxCollidePadding?: number
+    bboxCollidePaddingX?: number
+    bboxCollidePaddingY?: number
     bboxCollideBorderGapPx?: number
+    bboxCollideTouchEpsilonPx?: number
     bboxCollideIterations?: number
     groupBboxCollide?: boolean
     groupBboxCollideStrength?: number
     groupBboxCollidePadding?: number
+    groupBboxCollidePaddingX?: number
+    groupBboxCollidePaddingY?: number
     groupBboxCollideBorderGapPx?: number
     groupBboxCollideExtraGapPx?: number
     groupBboxCollideTouchEpsilonPx?: number
@@ -63,13 +74,21 @@ export function readCollisionConfig(schema: GraphSchema): CollisionConfig {
 
   const nodeBboxEnabled = forces.bboxCollide !== false
   const nodeBboxPadding = clampNonNegative(forces.bboxCollidePadding, DEFAULT_BBOX_COLLIDE_PADDING)
+  const nodeBboxPaddingX = clampNonNegative(forces.bboxCollidePaddingX, nodeBboxPadding)
+  const nodeBboxPaddingY = clampNonNegative(forces.bboxCollidePaddingY, nodeBboxPadding)
   const nodeBboxBorderGapPx = clampNonNegative(forces.bboxCollideBorderGapPx, DEFAULT_NODE_COLLISION_BORDER_GAP_PX)
+  const nodeBboxTouchEpsilonPx = clampNonNegative(
+    forces.bboxCollideTouchEpsilonPx,
+    DEFAULT_NODE_COLLISION_TOUCH_EPSILON_PX,
+  )
   const nodeBboxStrength = clampNonNegative(forces.bboxCollideStrength, DEFAULT_BBOX_COLLIDE_STRENGTH)
   const nodeBboxIterations = clampPositiveInt(forces.bboxCollideIterations, DEFAULT_BBOX_COLLIDE_ITERATIONS)
 
   const groupsEnabled = schema.layout?.groups?.enabled !== false
   const groupBboxEnabled = groupsEnabled && forces.groupBboxCollide !== false
   const groupBboxPadding = clampNonNegative(forces.groupBboxCollidePadding, DEFAULT_GROUP_BBOX_COLLIDE_PADDING)
+  const groupBboxPaddingX = clampNonNegative(forces.groupBboxCollidePaddingX, groupBboxPadding)
+  const groupBboxPaddingY = clampNonNegative(forces.groupBboxCollidePaddingY, groupBboxPadding)
   const groupBboxBorderGapPx = Math.max(
     1,
     clampNonNegative(forces.groupBboxCollideBorderGapPx, DEFAULT_GROUP_COLLISION_BORDER_GAP_PX),
@@ -91,13 +110,18 @@ export function readCollisionConfig(schema: GraphSchema): CollisionConfig {
     nodeBbox: {
       enabled: nodeBboxEnabled,
       padding: nodeBboxPadding,
+      paddingX: nodeBboxPaddingX,
+      paddingY: nodeBboxPaddingY,
       borderGapPx: nodeBboxBorderGapPx,
+      touchEpsilonPx: nodeBboxTouchEpsilonPx,
       strength: nodeBboxStrength,
       iterations: nodeBboxIterations,
     },
     groupBbox: {
       enabled: groupBboxEnabled,
       padding: groupBboxPadding,
+      paddingX: groupBboxPaddingX,
+      paddingY: groupBboxPaddingY,
       borderGapPx: groupBboxBorderGapPx,
       extraGapPx: groupBboxExtraGapPx,
       touchEpsilonPx: groupBboxTouchEpsilonPx,

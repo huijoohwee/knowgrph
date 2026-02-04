@@ -241,7 +241,14 @@ export const buildSimulation = (
       .force(
         'bboxCollide',
         bboxCfg.enabled
-          ? createBboxCollideForce({ schema, padding: bboxCfg.padding, strength: bboxCfg.strength, iterations: bboxCfg.iterations })
+          ? createBboxCollideForce({
+              schema,
+              paddingX: bboxCfg.paddingX,
+              paddingY: bboxCfg.paddingY,
+              touchEpsilonPx: bboxCfg.touchEpsilonPx,
+              strength: bboxCfg.strength,
+              iterations: bboxCfg.iterations,
+            })
           : null,
       )
       .force(
@@ -251,14 +258,16 @@ export const buildSimulation = (
               ? createGroupBboxCollideForceByDepth({
                   schema,
                   groups: options.groupsForBboxCollide,
-                  padding: collisionCfg.groupBbox.padding,
+                  paddingX: collisionCfg.groupBbox.paddingX,
+                  paddingY: collisionCfg.groupBbox.paddingY,
                   extraGapPx: collisionCfg.groupBbox.extraGapPx,
                   strength: collisionCfg.groupBbox.strength,
                   iterations: collisionCfg.groupBbox.iterations,
                 })
               : createGroupBboxCollideForce({
                   schema,
-                  padding: collisionCfg.groupBbox.padding,
+                  paddingX: collisionCfg.groupBbox.paddingX,
+                  paddingY: collisionCfg.groupBbox.paddingY,
                   strength: collisionCfg.groupBbox.strength,
                   iterations: collisionCfg.groupBbox.iterations,
                   groupKeyOf,
@@ -444,7 +453,14 @@ export const updateForceSimulationPresentation = (args: {
   simulation.force(
     'bboxCollide',
     bboxCfg.enabled
-      ? createBboxCollideForce({ schema, padding: bboxCfg.padding, strength: bboxCfg.strength, iterations: bboxCfg.iterations })
+      ? createBboxCollideForce({
+          schema,
+          paddingX: bboxCfg.paddingX,
+          paddingY: bboxCfg.paddingY,
+          touchEpsilonPx: bboxCfg.touchEpsilonPx,
+          strength: bboxCfg.strength,
+          iterations: bboxCfg.iterations,
+        })
       : null,
   )
   simulation.force(
@@ -454,13 +470,16 @@ export const updateForceSimulationPresentation = (args: {
           ? createGroupBboxCollideForceByDepth({
               schema,
               groups: args.groupsForBboxCollide,
-              padding: collisionCfg.groupBbox.padding,
+              paddingX: collisionCfg.groupBbox.paddingX,
+              paddingY: collisionCfg.groupBbox.paddingY,
+              extraGapPx: collisionCfg.groupBbox.extraGapPx,
               strength: collisionCfg.groupBbox.strength,
               iterations: collisionCfg.groupBbox.iterations,
             })
           : createGroupBboxCollideForce({
               schema,
-              padding: collisionCfg.groupBbox.padding,
+              paddingX: collisionCfg.groupBbox.paddingX,
+              paddingY: collisionCfg.groupBbox.paddingY,
               strength: collisionCfg.groupBbox.strength,
               iterations: collisionCfg.groupBbox.iterations,
               groupKeyOf: args.groupKeyOf,

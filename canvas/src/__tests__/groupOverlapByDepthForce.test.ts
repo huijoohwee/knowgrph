@@ -129,7 +129,8 @@ export function testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings() {
   const f = createGroupBboxCollideForceByDepth({
     schema,
     groups,
-    padding: pad,
+    paddingX: pad,
+    paddingY: pad,
     extraGapPx: groupBbox.extraGapPx,
     strength: 0.9,
     iterations: 2,
