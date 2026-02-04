@@ -160,6 +160,10 @@ export const defaultSchema: GraphSchema = {
     flow: {
       engine: 'auto',
       elkLayout: 'elk',
+      edges: {
+        routing: { enabled: true, mode: 'ortho', obstacleAvoidance: true, marginPx: 10, laneStepPx: 56, maxLanes: 10 },
+        underlay: { enabled: true, groupFadeAlpha: 0.65 },
+      },
     },
     forces: {
       linkDistanceByLabel: { relatedTo: 80 },
@@ -188,6 +192,7 @@ export const defaultSchema: GraphSchema = {
       labelPadding: DEFAULT_GROUP_LABEL_PADDING,
       strokeWidth: DEFAULT_GROUP_STROKE_WIDTH,
       fillOpacity: DEFAULT_GROUP_FILL_OPACITY,
+      depthStyle: { enabled: true, outerMaxBoostSteps: 3, outerStrokeWidthStepPx: 0.55, outerFillOpacityStep: 0.035 },
     },
     stratify: {
       edgeLabels: [],

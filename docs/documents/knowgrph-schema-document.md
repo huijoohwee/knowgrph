@@ -177,6 +177,9 @@ schema.layout.fitEnforceAspectRatio:
 
 **Cache Key Pattern**: `(semanticMode, frontmatterMode, layoutMode, renderMode, renderVariant, layoutVariant?)` → node position map
 
+**Frontmatter Note**:
+- Frontmatter mode is “effective” only when the active graph contains frontmatter Mermaid seed nodes; if there are no seeds, filtering is a no-op and caches should not change namespaces.
+
 **Caching Behavior**:
 
 | Scenario                              | Cache Action                                              | Rationale                                                    |

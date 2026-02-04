@@ -245,12 +245,15 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
 
   const layoutMode = next.schema?.layout?.mode === 'radial' ? 'radial' : 'force'
   const renderMode = next.canvasRenderMode === '3d' ? '3d' : '2d'
+  const datasetKey = 'graphId:youtube'
   const layout = determineLayoutPositions({
+    datasetKey,
     mode: layoutMode,
     frontmatterMode: !!next.frontmatterModeEnabled,
     semanticMode: String(next.documentSemanticMode || 'document'),
     renderMode,
     renderVariant: renderMode === '2d' ? String(next.canvas2dRenderer || 'd3') : '',
+    prevDatasetKey: null,
     prevMode: null,
     prevFrontmatterMode: null,
     prevSemanticMode: null,

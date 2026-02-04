@@ -22,7 +22,7 @@ import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect'
 import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight'
 import { useGroupSelectionHighlight } from '@/components/GraphCanvas/hooks/useGroupSelectionHighlight'
-import { buildLayoutPositionCacheKey, determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
+import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey, determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
 import { buildStratifyLayoutVariant } from '@/components/GraphCanvas/layout/stratifyVariant'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
@@ -32,6 +32,7 @@ import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { pickInitialZoomTransform } from '@/components/GraphCanvas/zoomState'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -40,6 +41,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const lastFrontmatterModeRef = useRef<boolean | null>(null);
   const lastSemanticModeRef = useRef<'document' | 'keyword' | null>(null)
   const lastLayoutVariantRef = useRef<string | null>(null)
+  const lastDatasetKeyRef = useRef<string | null>(null)
   const activeRef = useRef<boolean>(true)
   activeRef.current = !!active
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
@@ -95,6 +97,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
+  const prevRenderVariantRef = useRef<string>(canvasRenderMode === '2d' ? String(canvas2dRenderer || '') : '')
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
   const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
   const selectedEdgeIdRef = useGraphStoreKeyRef('selectedEdgeId')
@@ -155,7 +158,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   ])
 
   const renderGraphData = useActiveGraphRenderData(active)
-  const effectiveFrontmatterModeEnabled = !!frontmatterModeEnabled && documentSemanticMode !== 'keyword'
+  const effectiveFrontmatterModeEnabled = useMemo(() => {
+    return computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      documentSemanticMode,
+      graphData: renderGraphData,
+    })
+  }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
 
   const collapsedGroupIdsKey = useMemo(() => {
     const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
@@ -265,7 +274,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const schemaValue = schemaRef.current
     const mode = schemaValue ? readLayoutMode(schemaValue) : 'force'
     const semanticMode = String(state.documentSemanticMode || 'document')
-    const frontmatter = state.frontmatterModeEnabled === true && semanticMode !== 'keyword'
+    const frontmatter = computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: state.frontmatterModeEnabled === true,
+      documentSemanticMode: semanticMode as 'document' | 'keyword',
+      graphData: (state.graphData as unknown as import('@/lib/graph/types').GraphData | null) ?? null,
+    })
+    const datasetKey = computeLayoutDatasetKey({
+      graphData: state.graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null,
+      graphDataRevision: state.graphDataRevision || 0,
+    })
     const layoutVariant = (() => {
       if (mode !== 'stratify') return ''
       const stratify = schemaValue?.layout?.stratify || null
@@ -290,11 +307,56 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       ]
       return parts.join('|')
     })()
+    const graphMetaKey = String(state.graphData?.metadata && typeof state.graphData.metadata === 'object'
+      ? `${String((state.graphData.metadata as Record<string, unknown>).kind ?? '')}:${String((state.graphData.metadata as Record<string, unknown>).source ?? '')}`
+      : '')
+    const collapsedGroupIdsKey = (() => {
+      const ids = Array.isArray(state.collapsedGroupIds) ? state.collapsedGroupIds : []
+      const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
+      if (normalized.length === 0) return ''
+      normalized.sort((a, b) => a.localeCompare(b))
+      return normalized.join('|')
+    })()
+    const schemaLayoutEngineJson = JSON.stringify({
+      mode,
+      forces: schemaValue?.layout?.forces || null,
+      fitPadding: schemaValue?.layout?.fitPadding ?? null,
+      stratify: schemaValue?.layout?.stratify || null,
+    })
+    const schemaNodesPresentationJson = JSON.stringify({
+      nodeShapeMode: schemaValue?.behavior?.nodeShapeMode || 'auto',
+      portHandles: schemaValue?.behavior?.portHandles || null,
+      nodeShapes: schemaValue?.nodeShapes || null,
+      allowNodeDrag: schemaValue?.behavior?.allowNodeDrag !== false,
+      hoverEnabled: schemaValue?.behavior?.hover?.enabled !== false,
+      expansion: schemaValue?.behavior?.expansion || null,
+      renderMediaAsNodes: state.renderMediaAsNodes === true,
+      mediaPanelDensity: String(state.mediaPanelDensity),
+    })
+    const schemaGroupsPresentationJson = JSON.stringify({
+      groups: schemaValue?.layout?.groups || null,
+      labelStyles: schemaValue?.labelStyles || null,
+      nodeShapeMode: schemaValue?.behavior?.nodeShapeMode || 'auto',
+      portHandles: schemaValue?.behavior?.portHandles || null,
+    })
+    const viewKey = buildLayoutViewKey({
+      schemaLayoutEngineJson,
+      frontmatterModeEnabled: frontmatter,
+      documentSemanticMode: semanticMode,
+      graphMetaKey,
+      renderMediaAsNodes: state.renderMediaAsNodes === true,
+      mediaPanelDensity: String(state.mediaPanelDensity),
+      collapsedGroupIdsKey,
+      schemaNodesPresentationJson,
+      schemaGroupsPresentationJson,
+    })
     const cacheKey = buildLayoutPositionCacheKey({
+      datasetKey,
       mode,
       frontmatterMode: frontmatter,
       semanticMode,
       renderMode: '2d',
+      viewKey,
       renderVariant: 'd3',
       layoutVariant,
     })
@@ -423,15 +485,27 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       }
       nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
       groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
+      const graphMetaKey = String(sceneGraphData?.metadata && typeof sceneGraphData.metadata === 'object'
+        ? `${String((sceneGraphData.metadata as Record<string, unknown>).kind ?? '')}:${String((sceneGraphData.metadata as Record<string, unknown>).source ?? '')}`
+        : '')
       const zoomViewKey = buildZoomViewKey({
         canvasRenderMode,
         canvas2dRenderer,
         schemaLayoutEngineJson,
         frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
         documentSemanticMode: String(documentSemanticMode),
-        graphMetaKey: String(sceneGraphData?.metadata && typeof sceneGraphData.metadata === 'object'
-          ? `${String((sceneGraphData.metadata as Record<string, unknown>).kind ?? '')}:${String((sceneGraphData.metadata as Record<string, unknown>).source ?? '')}`
-          : ''),
+        graphMetaKey,
+        renderMediaAsNodes: renderMediaAsNodes === true,
+        mediaPanelDensity: String(mediaPanelDensity),
+        collapsedGroupIdsKey,
+        schemaNodesPresentationJson,
+        schemaGroupsPresentationJson,
+      })
+      const layoutViewKey = buildLayoutViewKey({
+        schemaLayoutEngineJson,
+        frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
+        documentSemanticMode: String(documentSemanticMode),
+        graphMetaKey,
         renderMediaAsNodes: renderMediaAsNodes === true,
         mediaPanelDensity: String(mediaPanelDensity),
         collapsedGroupIdsKey,
@@ -448,6 +522,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       const prevFrontmatterMode = lastFrontmatterModeRef.current
       const prevSemanticMode = lastSemanticModeRef.current
       const prevLayoutVariant = lastLayoutVariantRef.current
+      const prevDatasetKey = lastDatasetKeyRef.current
+      const datasetKey = computeLayoutDatasetKey({
+        graphData: sceneGraphData,
+        graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
+      })
       const layoutVariant = (() => {
         if (mode !== 'stratify') return ''
         return buildStratifyLayoutVariant(schemaValue)
@@ -464,16 +543,20 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         skipInitialLayout,
         cacheKey,
       } = determineLayoutPositions({
+        datasetKey,
         mode,
         frontmatterMode: !!effectiveFrontmatterModeEnabled,
         semanticMode: documentSemanticMode,
         renderMode: canvasRenderMode,
         renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
         layoutVariant,
+        viewKey: layoutViewKey,
+        prevDatasetKey,
         prevMode,
         prevFrontmatterMode,
         prevSemanticMode,
         prevRenderMode: prevCanvasRenderModeRef.current,
+        prevRenderVariant: prevRenderVariantRef.current,
         prevLayoutVariant,
         nodes: Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes : [],
         layoutPositionCacheByMode,
@@ -492,6 +575,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       lastFrontmatterModeRef.current = !!effectiveFrontmatterModeEnabled
       lastSemanticModeRef.current = documentSemanticMode
       lastLayoutVariantRef.current = layoutVariant
+      lastDatasetKeyRef.current = datasetKey
       sceneCleanupRef.current = setupGraphScene({
         svgEl: svgRef.current,
         svgRef,
@@ -618,6 +702,10 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   useEffect(() => {
     prevCanvasRenderModeRef.current = canvasRenderMode
   }, [canvasRenderMode])
+
+  useEffect(() => {
+    prevRenderVariantRef.current = canvasRenderMode === '2d' ? String(canvas2dRenderer || '') : ''
+  }, [canvas2dRenderer, canvasRenderMode])
 
   useEffect(() => {
     const g = gRef.current

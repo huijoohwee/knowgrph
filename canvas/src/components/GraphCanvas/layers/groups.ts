@@ -13,6 +13,7 @@ import { isDisplayNode } from '@/components/GraphCanvas/displayFilter'
 import { collapsedGroupNodeIdFor } from '@/components/GraphCanvas/viewDerivation'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
+import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 
 type GroupDatum = GraphGroup
@@ -95,17 +96,41 @@ export const createGroupsLayer = (args: {
   const baseFontSize = schema.labelStyles?.fontSize ?? 12
   const themeEdgeStroke = UI_THEME_COLORS_CSS.edgeStroke
 
+  let maxDepth = 0
+  for (let i = 0; i < groups.length; i += 1) {
+    const d = groups[i]
+    const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+    maxDepth = Math.max(maxDepth, depth)
+  }
+  const depthCfg = cfg.depthStyle || null
+
   rectSel
-    .attr('stroke-width', strokeWidth)
+    .attr('stroke-width', d => {
+      const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+      const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
+      return d.style.strokeWidth ?? derived.strokeWidthPx
+    })
     .attr('stroke', d => d.style.stroke ?? themeEdgeStroke)
     .attr('fill', d => d.style.fill ?? themeEdgeStroke)
-    .attr('fill-opacity', fillOpacity)
+    .attr('fill-opacity', d => {
+      const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+      const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
+      return derived.fillOpacity
+    })
 
   geoSel
-    .attr('stroke-width', strokeWidth)
+    .attr('stroke-width', d => {
+      const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+      const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
+      return d.style.strokeWidth ?? derived.strokeWidthPx
+    })
     .attr('stroke', d => d.style.stroke ?? themeEdgeStroke)
     .attr('fill', d => d.style.fill ?? themeEdgeStroke)
-    .attr('fill-opacity', fillOpacity)
+    .attr('fill-opacity', d => {
+      const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+      const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
+      return derived.fillOpacity
+    })
 
   const getGroupLabelFontSizePx = (d: GroupDatum): number => {
     const mdLevel = headingLevelByGroupId.get(String(d.id))

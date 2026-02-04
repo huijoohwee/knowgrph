@@ -30,6 +30,10 @@
 
 ### P0-Critical
 
+#### 2026-02-04
+
+generate a MECE “store API surface map” (action → slice → primary callers) by extracting the top ~30 most-used selectors from the 80+ useGraphStore(...) call sites (components + panels)
+
 #### 2026-01-29
 
 - sync, diff across multiple devices

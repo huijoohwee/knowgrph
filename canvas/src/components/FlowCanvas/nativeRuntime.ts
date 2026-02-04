@@ -4,6 +4,8 @@ import type { FlowHandleId, FlowNodeHandles } from '@/components/FlowCanvas/hand
 import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
+import { routeFlowEdgeOrtho, type Rect } from '@/components/FlowCanvas/edgeRouting'
+import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 
@@ -33,6 +35,7 @@ export type FlowNativeScene = {
   edges: FlowNativeEdge[]
   nodeById: Map<string, FlowNativeNode>
   groups?: GraphGroup[]
+  groupIdsByNodeId?: Map<string, string[]>
 }
 
 export type FlowNativePortHandlesPresentation = {
@@ -47,14 +50,35 @@ export type FlowNativeGroupsPresentation = {
   enabled: boolean
   shape: 'rect' | 'geo'
   paddingPx: number
+  labelTopExtraPx: number
   cornerRadiusPx: number
   strokeWidthPx: number
   fillOpacity: number
+  depthStyle: {
+    enabled: boolean
+    outerMaxBoostSteps: number
+    outerStrokeWidthStepPx: number
+    outerFillOpacityStep: number
+  }
 }
 
 export type FlowNativePresentation = {
   portHandles: FlowNativePortHandlesPresentation
   groups: FlowNativeGroupsPresentation
+  edges: {
+    routing: {
+      enabled: boolean
+      mode: 'bezier' | 'ortho'
+      obstacleAvoidance: boolean
+      marginPx: number
+      laneStepPx: number
+      maxLanes: number
+    }
+    underlay: {
+      enabled: boolean
+      groupFadeAlpha: number
+    }
+  }
 }
 
 export type FlowNativeTheme = {
@@ -148,11 +172,58 @@ export const createFlowNativeRuntime = (args: {
     fontFamily: readFlowFontFamilyFromCss(),
     presentation: {
       portHandles: { enabled: false, placement: 'cardinal', sizePx: 4, offsetPx: 2, strokeWidthPx: 1.5 },
-      groups: { enabled: false, shape: 'rect', paddingPx: 24, cornerRadiusPx: 12, strokeWidthPx: 1.5, fillOpacity: 0.08 },
+      groups: {
+        enabled: false,
+        shape: 'rect',
+        paddingPx: 24,
+        labelTopExtraPx: 0,
+        cornerRadiusPx: 12,
+        strokeWidthPx: 1.5,
+        fillOpacity: 0.08,
+        depthStyle: { enabled: true, outerMaxBoostSteps: 3, outerStrokeWidthStepPx: 0.55, outerFillOpacityStep: 0.035 },
+      },
+      edges: {
+        routing: { enabled: true, mode: 'ortho', obstacleAvoidance: true, marginPx: 10, laneStepPx: 56, maxLanes: 10 },
+        underlay: { enabled: true, groupFadeAlpha: 0.65 },
+      },
     },
     pendingRaf: null,
     dirty: true,
   }
+}
+
+export const computeFlowGroupAabb = (args: {
+  scene: FlowNativeScene
+  group: GraphGroup
+  paddingPx: number
+  labelTopExtraPx: number
+}): { minX: number; minY: number; maxX: number; maxY: number } | null => {
+  const memberIds = Array.isArray(args.group.memberNodeIds) ? args.group.memberNodeIds : []
+  if (memberIds.length === 0) return null
+  const padding = Math.max(0, args.paddingPx)
+  const topExtra = Math.max(0, args.labelTopExtraPx)
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+
+  for (let j = 0; j < memberIds.length; j += 1) {
+    const id = String(memberIds[j] || '').trim()
+    if (!id) continue
+    const n = args.scene.nodeById.get(id)
+    if (!n) continue
+    const x0 = n.x - padding
+    const y0 = n.y - padding
+    const x1 = n.x + n.width + padding
+    const y1 = n.y + n.height + padding
+    minX = Math.min(minX, x0)
+    minY = Math.min(minY, y0)
+    maxX = Math.max(maxX, x1)
+    maxY = Math.max(maxY, y1)
+  }
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null
+  return { minX, minY: minY - topExtra, maxX, maxY }
 }
 
 export const setFlowNativePresentation = (rt: FlowNativeRuntime, p: FlowNativePresentation) => {
@@ -194,6 +265,24 @@ export const hitTestNode = (rt: FlowNativeRuntime, p: { sx: number; sy: number }
   for (let i = scene.nodes.length - 1; i >= 0; i -= 1) {
     const n = scene.nodes[i]
     if (w.x >= n.x && w.x <= n.x + n.width && w.y >= n.y && w.y <= n.y + n.height) return n.id
+  }
+  return null
+}
+
+export const hitTestGroup = (rt: FlowNativeRuntime, p: { sx: number; sy: number }): string | null => {
+  const cfg = rt.presentation.groups
+  if (!cfg.enabled) return null
+  const scene = rt.scene
+  if (!scene?.groups || scene.groups.length === 0) return null
+  const w = screenToWorld(rt, p)
+  const padding = Math.max(0, cfg.paddingPx)
+  const topExtra = Math.max(0, cfg.labelTopExtraPx)
+  const groups = scene.groups
+  for (let i = groups.length - 1; i >= 0; i -= 1) {
+    const g = groups[i]
+    const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
+    if (!aabb) continue
+    if (w.x >= aabb.minX && w.x <= aabb.maxX && w.y >= aabb.minY && w.y <= aabb.maxY) return String(g.id || '')
   }
   return null
 }
@@ -257,7 +346,6 @@ const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: bo
     const cx = n.x + n.width / 2
     const cy = n.y + n.height / 2
     const rx = n.width / 2
-    const ry = n.height / 2
     const k = 0.58
     ctx.moveTo(cx - rx * k, n.y)
     ctx.lineTo(cx + rx * k, n.y)
@@ -369,12 +457,120 @@ const drawEdge = (
   const c2x = rankdir === 'LR' ? txx - dx * c : txx
   const c2y = rankdir === 'LR' ? tyy : tyy - dy * c
 
+  const edgesCfg = rt.presentation.edges
+  const routingCfg = edgesCfg.routing
+  const obstacles: Rect[] = []
+  const scene = rt.scene
+  if (scene) {
+    for (let i = 0; i < scene.nodes.length; i += 1) {
+      const n = scene.nodes[i]
+      if (n.id === s.id || n.id === t.id) continue
+      obstacles.push({ x: n.x, y: n.y, w: n.width, h: n.height })
+    }
+    const gCfg = rt.presentation.groups
+    if (gCfg.enabled && scene.groups && scene.groups.length > 0) {
+      const groupIdsByNodeId = scene.groupIdsByNodeId || null
+      const nodeGroups = (id: string): string[] => groupIdsByNodeId?.get(id) || []
+      const sGroups = new Set(nodeGroups(s.id))
+      const tGroups = new Set(nodeGroups(t.id))
+      for (let i = 0; i < scene.groups.length; i += 1) {
+        const g = scene.groups[i]
+        const gid = String(g.id || '').trim()
+        if (gid && (sGroups.has(gid) || tGroups.has(gid))) continue
+        const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: gCfg.paddingPx, labelTopExtraPx: gCfg.labelTopExtraPx })
+        if (!aabb) continue
+        obstacles.push({ x: aabb.minX, y: aabb.minY, w: aabb.maxX - aabb.minX, h: aabb.maxY - aabb.minY })
+      }
+    }
+  }
+
+  const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
+  const useObstacles = useOrtho && routingCfg.obstacleAvoidance
+  const points = useOrtho
+    ? routeFlowEdgeOrtho({
+        rankdir,
+        start: { x: sxx, y: syy },
+        end: { x: txx, y: tyy },
+        obstacles: useObstacles ? obstacles : [],
+        marginPx: routingCfg.marginPx,
+        laneStepPx: routingCfg.laneStepPx,
+        maxLanes: routingCfg.maxLanes,
+      })
+    : []
+
   ctx.beginPath()
-  ctx.moveTo(sxx, syy)
-  ctx.bezierCurveTo(c1x, c1y, c2x, c2y, txx, tyy)
+  if (points.length >= 2) {
+    ctx.moveTo(points[0].x, points[0].y)
+    for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i].x, points[i].y)
+  } else {
+    ctx.moveTo(sxx, syy)
+    ctx.bezierCurveTo(c1x, c1y, c2x, c2y, txx, tyy)
+  }
   ctx.lineWidth = 1
+  ctx.lineJoin = 'round'
   ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : rt.theme.edge
   ctx.stroke()
+}
+
+const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime) => {
+  const ctx = rt.ctx
+  const scene = rt.scene
+  if (!scene) return
+
+  const underlayCfg = rt.presentation.edges.underlay
+  if (!underlayCfg.enabled) return
+
+  ctx.save()
+  ctx.fillStyle = rt.theme.bg
+
+  const gCfg = rt.presentation.groups
+  const padding = Math.max(0, gCfg.paddingPx)
+  const topExtra = Math.max(0, gCfg.labelTopExtraPx)
+  const radius = Math.max(0, gCfg.cornerRadiusPx)
+
+  if (gCfg.enabled && scene.groups && scene.groups.length > 0) {
+    const groups = scene.groups
+    for (let i = 0; i < groups.length; i += 1) {
+      const g = groups[i]
+      const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
+      if (!aabb) continue
+      const w = Math.max(1, aabb.maxX - aabb.minX)
+      const h = Math.max(1, aabb.maxY - aabb.minY)
+      ctx.save()
+      ctx.globalAlpha = Math.max(0, Math.min(1, underlayCfg.groupFadeAlpha))
+      ctx.beginPath()
+      if (gCfg.shape === 'rect') {
+        roundRectPath(ctx, aabb.minX, aabb.minY, w, h, radius)
+      } else {
+        const memberIds = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
+        const geoPoints: Point2d[] = []
+        for (let j = 0; j < memberIds.length; j += 1) {
+          const id = String(memberIds[j] || '').trim()
+          if (!id) continue
+          const n = scene.nodeById.get(id)
+          if (!n) continue
+          const x0 = n.x - padding
+          const y0 = n.y - padding
+          const x1 = n.x + n.width + padding
+          const y1 = n.y + n.height + padding
+          geoPoints.push({ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 })
+        }
+        const ring = computeConvexRing(geoPoints)
+        if (ring.length >= 3) {
+          ctx.moveTo(ring[0].x, ring[0].y)
+          for (let k = 1; k < ring.length; k += 1) ctx.lineTo(ring[k].x, ring[k].y)
+          ctx.closePath()
+        } else {
+          roundRectPath(ctx, aabb.minX, aabb.minY, w, h, radius)
+        }
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
+  }
+
+  ctx.restore()
 }
 
 const drawGroups = (rt: FlowNativeRuntime) => {
@@ -386,22 +582,33 @@ const drawGroups = (rt: FlowNativeRuntime) => {
 
   const stroke = rt.theme.edge
   const fill = rt.theme.edge
-  const strokeWidth = Math.max(0, cfg.strokeWidthPx)
-  const fillOpacity = Math.max(0, Math.min(1, cfg.fillOpacity))
+  const baseStrokeWidth = Math.max(0, cfg.strokeWidthPx)
+  const baseFillOpacity = Math.max(0, Math.min(1, cfg.fillOpacity))
   const padding = Math.max(0, cfg.paddingPx)
+  const topExtra = Math.max(0, cfg.labelTopExtraPx)
   const radius = Math.max(0, cfg.cornerRadiusPx)
   const labelFill = resolveCssVar('--kg-text-secondary', rt.theme.text)
 
   const groups = scene.groups
+  let maxDepth = 0
+  for (let i = 0; i < groups.length; i += 1) {
+    const g = groups[i]
+    const depth = typeof g.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
+    maxDepth = Math.max(maxDepth, depth)
+  }
+  const depthCfg = cfg.depthStyle
   for (let i = 0; i < groups.length; i += 1) {
     const g = groups[i]
     const memberIds = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
     if (memberIds.length === 0) continue
 
-    let minX = Infinity
-    let minY = Infinity
-    let maxX = -Infinity
-    let maxY = -Infinity
+    const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
+    if (!aabb) continue
+
+    const minX = aabb.minX
+    const minY = aabb.minY
+    const maxX = aabb.maxX
+    const maxY = aabb.maxY
     const geoPoints: Point2d[] = []
 
     for (let j = 0; j < memberIds.length; j += 1) {
@@ -413,10 +620,6 @@ const drawGroups = (rt: FlowNativeRuntime) => {
       const y0 = n.y - padding
       const x1 = n.x + n.width + padding
       const y1 = n.y + n.height + padding
-      minX = Math.min(minX, x0)
-      minY = Math.min(minY, y0)
-      maxX = Math.max(maxX, x1)
-      maxY = Math.max(maxY, y1)
       geoPoints.push({ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 })
     }
     if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) continue
@@ -425,10 +628,19 @@ const drawGroups = (rt: FlowNativeRuntime) => {
 
     const gStroke = resolveColor(g.style?.stroke, stroke)
     const gFill = resolveColor(g.style?.fill, fill)
-    const gStrokeWidth = typeof g.style?.strokeWidth === 'number' && Number.isFinite(g.style.strokeWidth) ? Math.max(0, g.style.strokeWidth) : strokeWidth
+    const depth = typeof g.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
+    const depthStyle = computeGroupDepthStyle({
+      depth,
+      maxDepth,
+      baseStrokeWidthPx: baseStrokeWidth,
+      baseFillOpacity,
+      config: depthCfg,
+    })
+    const gStrokeWidth =
+      typeof g.style?.strokeWidth === 'number' && Number.isFinite(g.style.strokeWidth) ? Math.max(0, g.style.strokeWidth) : depthStyle.strokeWidthPx
 
     ctx.save()
-    ctx.globalAlpha = fillOpacity
+    ctx.globalAlpha = depthStyle.fillOpacity
     ctx.fillStyle = gFill
     ctx.strokeStyle = gStroke
     ctx.lineWidth = gStrokeWidth
@@ -487,8 +699,6 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: { selectedNodeIds: s
   const selectedNodeIds = new Set<string>(args.selectedNodeIds || [])
   const selectedEdgeIds = new Set<string>(args.selectedEdgeIds || [])
 
-  drawGroups(rt)
-
   for (let i = 0; i < scene.edges.length; i += 1) {
     const e = scene.edges[i]
     const s = scene.nodeById.get(e.source)
@@ -496,6 +706,10 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: { selectedNodeIds: s
     if (!s || !t) continue
     drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t })
   }
+
+  fadeEdgesUnderGeometry(rt)
+
+  drawGroups(rt)
 
   for (let i = 0; i < scene.nodes.length; i += 1) {
     const n = scene.nodes[i]

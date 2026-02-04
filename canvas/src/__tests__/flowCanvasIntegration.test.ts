@@ -19,6 +19,10 @@ const waitFor = async (args: { ms: number; pollMs: number; ok: () => boolean }) 
 }
 
 const installDomStubs = (dom: JSDOM) => {
+  __flowCanvasDebug.lastBuiltSceneNodeCount = 0
+  __flowCanvasDebug.lastBuiltSceneKey = ''
+  __flowCanvasDebug.lastZoomViewKey = ''
+
   const g = globalThis as unknown as {
     window?: unknown
     document?: unknown

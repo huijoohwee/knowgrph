@@ -60,9 +60,11 @@ layout:
 
 Notes:
 - `layout.mode: stratify` is a structured tree layout that derives parent→child hierarchy from configured edge labels.
+- Frontmatter mode is only “effective” when the active graph contains frontmatter Mermaid seed nodes; otherwise filtering is a no-op and cache keys must not change.
 - `layout.stratify.grid` enables bounded grid-snapping via constraint forces; rank rows align by hierarchy depth.
 - When `layout.stratify.grid.size` is set too small for label-aware node AABBs and `layout.forces.bboxCollidePadding`, the effective grid size is clamped up to forbid overlap.
-- Layout position caches must be isolated by the full key `(semanticMode, frontmatterMode, layoutMode, renderMode, renderVariant, layoutVariant?)` (no fallback to partial/legacy keys).
+- Layout position caches must be isolated by the full key `(datasetKey, semanticMode, frontmatterMode, layoutMode, renderMode, renderVariant, layoutVariant?, viewKey, mediaPanelDensity, renderMediaAsNodes)` (no fallback to partial/legacy keys).
+- Layout recompute/skip logic must account for previous renderVariant so toggling D3 ↔ Flow cannot incorrectly skip a required layout refresh.
 - Flow treats `layoutVariant` as a hard layout-change trigger: it must participate in layout recompute keys, render-scene rebuild keys, and cross-renderer seed selection.
 - Stratify must use collision-safe synthetic root/group IDs to avoid corrupting graphs that contain reserved-like IDs.
 - Group collision is always enforced when `layout.groups.enabled !== false` (schema may keep `groupBboxCollide` for backward compatibility, but it does not disable the constraint).

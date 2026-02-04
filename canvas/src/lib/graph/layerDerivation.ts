@@ -1,22 +1,36 @@
 import { GraphData } from './types';
 
+const isFrontmatterMermaidNode = (n: { properties?: unknown } | null | undefined): boolean => {
+  if (!n) return false
+  const props = (n as { properties?: unknown }).properties
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return false
+  const p = props as Record<string, unknown>
+  return p.isMermaidFrontmatter === true || p.mermaidScope === 'frontmatter'
+}
+
+export const hasFrontmatterMermaidSeeds = (data: GraphData): boolean => {
+  const nodes = Array.isArray(data.nodes) ? data.nodes : []
+  for (let i = 0; i < nodes.length; i += 1) {
+    if (isFrontmatterMermaidNode(nodes[i])) return true
+  }
+  return false
+}
+
 export const filterGraphToFrontmatterMermaid = (data: GraphData): GraphData => {
   const allNodes = data.nodes || []
   const allEdges = data.edges || []
-  const nodeById = new Map(allNodes.map(n => [String(n.id), n]))
 
-  const isFrontmatterMermaidNode = (id: string): boolean => {
-    const n = nodeById.get(id)
-    if (!n) return false
-    const props = (n.properties || {}) as Record<string, unknown>
-    return props.isMermaidFrontmatter === true || props.mermaidScope === 'frontmatter'
+  const seedIds: string[] = []
+  for (let i = 0; i < allNodes.length; i += 1) {
+    const n = allNodes[i]
+    const id = String(n?.id || '').trim()
+    if (!id) continue
+    if (isFrontmatterMermaidNode(n)) seedIds.push(id)
   }
 
-  const seedIds = allNodes
-    .map(n => String(n.id))
-    .filter(id => isFrontmatterMermaidNode(id))
-
   if (seedIds.length === 0) return data
+
+  const nodeById = new Map(allNodes.map(n => [String(n.id), n]))
 
   const normalizeEndpointId = (v: unknown): string => {
     if (!v) return ''

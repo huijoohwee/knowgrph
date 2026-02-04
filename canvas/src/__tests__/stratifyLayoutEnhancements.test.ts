@@ -149,24 +149,28 @@ export const testStratifyLayoutDefaultsMatchFlowSpacing = () => {
 }
 
 export const testStratifyLayoutDoesNotReuseForceCacheKey = () => {
+  const datasetKey = 'graphId:test'
   const nodes: GraphNode[] = [
     { id: 'a', label: 'a', type: 'T', x: 10, y: 20, properties: {} },
     { id: 'b', label: 'b', type: 'T', x: 30, y: 40, properties: {} },
   ]
 
+  const forceKey = `${datasetKey}:document:default:force:2d:d3`
   const cache = {
-    'document:default:force:2d:d3': {
+    [forceKey]: {
       a: { x: 1, y: 2 },
       b: { x: 3, y: 4 },
     },
   }
 
   const res = determineLayoutPositions({
+    datasetKey,
     mode: 'stratify',
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
     renderVariant: 'd3',
+    prevDatasetKey: datasetKey,
     prevMode: 'force',
     prevFrontmatterMode: false,
     prevSemanticMode: 'document',
@@ -175,8 +179,8 @@ export const testStratifyLayoutDoesNotReuseForceCacheKey = () => {
     layoutPositionCacheByMode: cache,
   })
 
-  if (res.cacheKey !== 'document:default:stratify:2d:d3') {
-    throw new Error(`expected cacheKey document:default:stratify:2d:d3, got ${res.cacheKey}`)
+  if (res.cacheKey !== `${datasetKey}:document:default:stratify:2d:d3`) {
+    throw new Error(`expected cacheKey ${datasetKey}:document:default:stratify:2d:d3, got ${res.cacheKey}`)
   }
   if (res.layoutPositionsForMode !== null) {
     throw new Error('expected stratify mode not to reuse force cache')

@@ -8,6 +8,7 @@ import { hashText } from '@/features/parsers/hash'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 
 const buildKeywordSourceTextFromGraph = (graph: GraphData): string => {
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
@@ -110,10 +111,13 @@ export function deriveGraphDataForActiveView(args: {
   documentSemanticMode: string
   collapsedGroupIds: string[]
 }): GraphData {
-  const base =
-    args.frontmatterModeEnabled && String(args.documentSemanticMode) !== 'keyword'
-      ? filterGraphToFrontmatterMermaid(args.graphData)
-      : args.graphData
+  const base = computeEffectiveFrontmatterMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled,
+    documentSemanticMode: args.documentSemanticMode,
+    graphData: args.graphData,
+  })
+    ? filterGraphToFrontmatterMermaid(args.graphData)
+    : args.graphData
 
   const collapsedGroupIds = Array.isArray(args.collapsedGroupIds) ? args.collapsedGroupIds : []
   if (collapsedGroupIds.length === 0) return base
@@ -156,7 +160,8 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
 
   const frontmatterGraphData = React.useMemo(() => {
     if (!graphData) return null
-    if (!frontmatterModeEnabled || String(documentSemanticMode) === 'keyword') return graphData
+    const effective = computeEffectiveFrontmatterMode({ frontmatterModeEnabled, documentSemanticMode, graphData })
+    if (!effective) return graphData
     return filterGraphToFrontmatterMermaid(graphData)
   }, [documentSemanticMode, frontmatterModeEnabled, graphData])
 

@@ -87,6 +87,20 @@ export interface GraphSchema {
     flow?: {
       engine?: 'auto' | 'elk' | 'dagre' | 'grid'
       elkLayout?: 'elk' | 'elk.layered' | 'elk.stress' | 'elk.force' | 'elk.mrtree'
+      edges?: {
+        routing?: {
+          enabled?: boolean
+          mode?: 'bezier' | 'ortho'
+          obstacleAvoidance?: boolean
+          marginPx?: number
+          laneStepPx?: number
+          maxLanes?: number
+        }
+        underlay?: {
+          enabled?: boolean
+          groupFadeAlpha?: number
+        }
+      }
     }
     forces?: {
       linkDistanceByLabel?: Record<string, number>;
@@ -124,6 +138,12 @@ export interface GraphSchema {
       labelPadding?: number;
       strokeWidth?: number;
       fillOpacity?: number;
+      depthStyle?: {
+        enabled?: boolean
+        outerMaxBoostSteps?: number
+        outerStrokeWidthStepPx?: number
+        outerFillOpacityStep?: number
+      }
     };
     stratify?: {
       edgeLabels?: string[];

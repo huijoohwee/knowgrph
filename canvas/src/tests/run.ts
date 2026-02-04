@@ -148,6 +148,19 @@ import {
   testStratifyLayoutNoOverlapAfterGridSnap,
 } from '@/__tests__/stratifyLayoutEnhancements.test'
 import {
+  testLayoutPositioningCacheKeyIncludesViewKey,
+  testLayoutPositioningCacheKeyIsolatesMediaDensity,
+  testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes,
+  testLayoutPositioningCacheKeyUsesRenderVariant,
+  testLayoutPositioningDoesNotReuseCacheAcrossDatasets,
+  testLayoutPositioningForcesLayoutWhenVariantChanges,
+  testLayoutPositioningSkipsReseedOnToggle,
+} from '@/__tests__/layoutPositioning.test'
+import {
+  testFrontmatterModeEffectiveNoopWhenNoSeeds,
+  testFrontmatterModeEffectiveWhenSeedsExist,
+} from '@/__tests__/frontmatterModeEffective.test'
+import {
   testElkLayoutReturnsNodePositions,
   testElkLayoutTimeoutIsBounded,
   testFlowHandlesByNodeDeterministicOrdering,
@@ -165,6 +178,11 @@ import {
   testInlineMarkdownGeoJsonMapReusesSharedBasemapHook,
   testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnly,
 } from '@/__tests__/geojsonMapPreviewRegressionGuards.test'
+import { testFlowCollisionRelaxSeparatesOverlappingNodes } from '@/__tests__/flowCollisionRelax.test'
+import { testFlowHitTestGroupUsesLabelTopExtra } from '@/__tests__/flowGroupHitTest.test'
+import { testFlowGroupRelaxAddsGapBetweenSingleNodeGroups } from '@/__tests__/flowGroupSpacingRelax.test'
+import { testFlowNestedGroupRelaxAddsGapAtMultipleDepths } from '@/__tests__/flowNestedGroupSpacingRelax.test'
+import { testFlowEdgeRoutingAvoidsObstacleByShiftingLaneLR, testFlowEdgeRoutingAvoidsObstacleByShiftingLaneTB } from '@/__tests__/flowEdgeRouting.test'
 import {
   testCuragrphAliasContractInViteConfig,
   testCanvas2dRendererSwitchWarmsInactiveRenderer,
@@ -387,6 +405,16 @@ export const runAllTests = async () => {
   await exec('layout.stratify.noForceCacheReuse', testStratifyLayoutDoesNotReuseForceCacheKey)
   await exec('layout.stratify.gridSnap', testStratifyLayoutSnapsToGrid)
   await exec('layout.stratify.gridNoOverlap', testStratifyLayoutNoOverlapAfterGridSnap)
+  await exec('layout.positioning.skipsReseedOnToggle', testLayoutPositioningSkipsReseedOnToggle)
+  await exec('layout.positioning.cacheKeyUsesRenderVariant', testLayoutPositioningCacheKeyUsesRenderVariant)
+  await exec('layout.positioning.forcesLayoutWhenVariantChanges', testLayoutPositioningForcesLayoutWhenVariantChanges)
+  await exec('layout.positioning.doesNotReuseCacheAcrossDatasets', testLayoutPositioningDoesNotReuseCacheAcrossDatasets)
+  await exec('layout.positioning.cacheKeyIncludesViewKey', testLayoutPositioningCacheKeyIncludesViewKey)
+  await exec('layout.positioning.isolatesMediaDensity', testLayoutPositioningCacheKeyIsolatesMediaDensity)
+  await exec('layout.positioning.isolatesRenderMediaAsNodes', testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes)
+
+  await exec('frontmatterMode.effective.noopWhenNoSeeds', testFrontmatterModeEffectiveNoopWhenNoSeeds)
+  await exec('frontmatterMode.effective.whenSeedsExist', testFrontmatterModeEffectiveWhenSeedsExist)
   await exec('layout.flow.elkMultipleHandles.deterministicOrdering', testFlowHandlesByNodeDeterministicOrdering)
   await exec('layout.flow.elkMultipleHandles.timeoutBounded', testElkLayoutTimeoutIsBounded)
   await exec('layout.flow.elkMultipleHandles.returnsNodePositions', testElkLayoutReturnsNodePositions)
@@ -396,6 +424,14 @@ export const runAllTests = async () => {
   await exec('flow.seed.extractNodePositions.extractsFinite', testFlowExtractNodePositionsExtractsFinitePositions)
   await exec('flow.seed.extractNodePositions.nullWhenNone', testFlowExtractNodePositionsReturnsNullWhenNone)
   await exec('flow.seed.otherRenderer.prefersMatchingStratifyVariant', testFlowSeedFromOtherRendererPrefersMatchingStratifyVariant)
+
+  await exec('flow.collision.relax.separatesOverlappingNodes', testFlowCollisionRelaxSeparatesOverlappingNodes)
+  await exec('flow.groups.hitTest.usesLabelTopExtra', testFlowHitTestGroupUsesLabelTopExtra)
+  await exec('flow.groups.relax.addsGapBetweenSingleNodeGroups', testFlowGroupRelaxAddsGapBetweenSingleNodeGroups)
+  await exec('flow.groups.relax.nestedAddsGapAtMultipleDepths', testFlowNestedGroupRelaxAddsGapAtMultipleDepths)
+
+  await exec('flow.edges.routing.avoidsObstacleLR', testFlowEdgeRoutingAvoidsObstacleByShiftingLaneLR)
+  await exec('flow.edges.routing.avoidsObstacleTB', testFlowEdgeRoutingAvoidsObstacleByShiftingLaneTB)
 
   await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
   await exec('sourceFiles.naming.normalizeParentPath', testNormalizeParentPath)

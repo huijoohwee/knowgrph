@@ -5,9 +5,12 @@ import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number; paused?: boolean }) {
+  const scheduleFitRef = React.useRef<(() => void) | null>(null)
   const dimsRef = React.useRef({ viewportW: args.viewportW, viewportH: args.viewportH })
   React.useEffect(() => {
     dimsRef.current = { viewportW: args.viewportW, viewportH: args.viewportH }
+    const schedule = scheduleFitRef.current
+    if (schedule) schedule()
   }, [args.viewportH, args.viewportW])
 
   const pausedRef = React.useRef<boolean>(!!args.paused)
@@ -30,6 +33,10 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
           lastFitSigRef.current = null
           return
         }
+        if (state.zoomToSelectionMode) {
+          lastFitSigRef.current = null
+          return
+        }
         if (!state.fitToScreenMode) {
           lastFitSigRef.current = null
           return
@@ -47,18 +54,22 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
         const fitSig = schema
           ? `${String(schema.layout?.fitPadding ?? '')}|${String(schema.layout?.fitDetectClusters ?? '')}|${String(
               schema.layout?.fitTargetAspectRatio ?? '',
-            )}|${String(schema.layout?.fitEnforceAspectRatio ?? '')}|${minScale}|${maxScale}`
-          : `${minScale}|${maxScale}`
+            )}|${String(schema.layout?.fitEnforceAspectRatio ?? '')}|${minScale}|${maxScale}|${String(state.mediaPanelDensity ?? '')}|${String(
+              state.renderMediaAsNodes ? 1 : 0,
+            )}`
+          : `${minScale}|${maxScale}|${String(state.mediaPanelDensity ?? '')}|${String(state.renderMediaAsNodes ? 1 : 0)}`
         const sig = `${nodes.length}|${panelDims.width}x${panelDims.height}|${state.graphDataRevision}|${fitSig}`
         if (lastFitSigRef.current === sig) return
         lastFitSigRef.current = sig
         state.requestZoom('fit', { intent: 'fitToScreen' })
       })
     }
+    scheduleFitRef.current = schedule
     schedule()
     const unsub = useGraphStore.subscribe(
       s => ({
         fitToScreenMode: s.fitToScreenMode,
+        zoomToSelectionMode: s.zoomToSelectionMode,
         viewPinned: s.viewPinned,
         graphDataRevision: s.graphDataRevision,
         graphNodeCount: Array.isArray(s.graphData?.nodes) ? s.graphData.nodes.length : 0,
@@ -70,11 +81,14 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
         fitEnforceAspectRatio: s.schema?.layout?.fitEnforceAspectRatio,
         zoomMinScale: s.schema?.performance?.zoom?.minScale,
         zoomMaxScale: s.schema?.performance?.zoom?.maxScale,
+        mediaPanelDensity: s.mediaPanelDensity,
+        renderMediaAsNodes: s.renderMediaAsNodes,
       }),
       () => schedule(),
     )
     return () => {
       unsub()
+      scheduleFitRef.current = null
       if (rafId != null) cancelAnimationFrame(rafId)
     }
   }, [])
