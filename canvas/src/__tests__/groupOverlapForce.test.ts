@@ -3,6 +3,9 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { defaultSchema } from '@/lib/graph/schema'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
 import { createGroupBboxCollideForce } from '@/components/GraphCanvas/layout/groupOverlap'
+import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
+import { DEFAULT_GROUP_STROKE_WIDTH } from '@/lib/graph/layoutDefaults'
+import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 
 const computeGroupAabb = (args: {
   nodes: GraphNode[]
@@ -14,7 +17,11 @@ const computeGroupAabb = (args: {
     typeof args.schema.layout?.groups?.padding === 'number' && Number.isFinite(args.schema.layout.groups.padding)
       ? Math.max(0, args.schema.layout.groups.padding)
       : 24
-  const pad = Math.max(0, args.padding + groupPad)
+  const groupBbox = readCollisionConfig(args.schema).groupBbox
+  const strokeWidthRaw = args.schema.layout?.groups?.strokeWidth
+  const strokeWidth = typeof strokeWidthRaw === 'number' && Number.isFinite(strokeWidthRaw) ? Math.max(0, strokeWidthRaw) : DEFAULT_GROUP_STROKE_WIDTH
+  const borderGapPx = computeBorderGapPx(strokeWidth, groupBbox.borderGapPx)
+  const pad = Math.max(0, args.padding + groupPad + borderGapPx + groupBbox.extraGapPx)
   let minX = Infinity
   let maxX = -Infinity
   let minY = Infinity
@@ -102,5 +109,10 @@ export function testGroupBboxCollideSeparatesTopParentGroups() {
   const overlapped1 = ox1 > 0 && oy1 > 0
   if (overlapped1 && ox1 >= ox0 && oy1 >= oy0) {
     throw new Error('expected group overlap to decrease after applying group bbox collide')
+  }
+
+  const eps = readCollisionConfig(schema).groupBbox.touchEpsilonPx
+  if (ox1 > -eps && oy1 > -eps) {
+    throw new Error('expected groups to not touch after applying group bbox collide')
   }
 }

@@ -6,7 +6,8 @@ import { createZoom } from '@/components/GraphCanvas/zoom'
 import { buildSimulation } from '@/components/GraphCanvas/simulation'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { createLayoutGroupKeyOfNode } from '@/components/GraphCanvas/layout/layoutGroupKey'
+import { createLayoutGroupKeyOfNode, selectLayoutGroups } from '@/components/GraphCanvas/layout/layoutGroupKey'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
@@ -203,9 +204,13 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyCachedPositions()
   }
 
+  const allGroups = deriveGraphGroups(graphDataForDisplay)
+  const layoutGroups = selectLayoutGroups({ graphData: graphDataForDisplay, schema, groups: allGroups })
+  const groupKeyOf = createLayoutGroupKeyOfNode({ graphData: graphDataForDisplay, schema, groups: layoutGroups })
   const simulation = buildSimulation(displayNodes, edgesForDisplay, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
     skipInitialLayout: !!skipInitialLayout,
-    groupKeyOf: createLayoutGroupKeyOfNode({ graphData: graphDataForDisplay, schema }),
+    groupKeyOf,
+    groupsForBboxCollide: allGroups,
   })
   simulationRef.current = simulation
 

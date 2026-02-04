@@ -23,6 +23,7 @@ import {
   testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
 import { testGroupBboxCollideSeparatesTopParentGroups } from '@/__tests__/groupOverlapForce.test'
+import { testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings } from '@/__tests__/groupOverlapByDepthForce.test'
 import {
   testIsNodePointerTargetAcceptsPathNodes,
   testNodesLayerRendersDiamondAndHexPaths,
@@ -193,6 +194,7 @@ import {
   testForbidGympgrphHookUsageInHost,
   testHostGympgrphIntegrationUsesPackageRootOnly,
   testForbidReactFlowAndLiteGraphDependencies,
+  testForbidHardcodedSandboxAbsolutePaths,
   testForbidTopLevelElkImportInFlowLayout,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
 import {
@@ -287,6 +289,14 @@ import {
 import { testMarkdownSlideThemeNeversinkAliasesToAcademic } from '@/__tests__/markdownThemeAlias.test'
 import { testMarkdownViewerShowsMissingDocumentPathMessage } from '@/__tests__/markdownMissingDocumentPathMessage.test'
 import { testWorkspaceFolderSelectionDoesNotClearMarkdownDocument } from '@/__tests__/workspaceImportFolderDoesNotClearMarkdownDocument.test'
+import {
+  testLayoutGroupKeyPrefersDeepestMermaidSubgraph,
+  testSemanticModeSchemaIsolationRestoresSchemaAndClearsSelection,
+} from '@/__tests__/semanticModeSchemaIsolation.test'
+import {
+  testEdgeOpacityUsesBaseOpacityWhenGroupsDisabled,
+  testEdgeOpacityUsesUnderGroupOpacityWhenGroupsEnabled,
+} from '@/__tests__/edgeOpacityDefaults.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -387,6 +397,7 @@ export const runAllTests = async () => {
   await exec('policy.boundary.hostGympgrphRootOnly', testHostGympgrphIntegrationUsesPackageRootOnly)
   await exec('policy.boundary.forbidGympgrphHookUsage', testForbidGympgrphHookUsageInHost)
   await exec('policy.boundary.forbidFlowLibs', testForbidReactFlowAndLiteGraphDependencies)
+  await exec('policy.boundary.forbidHardcodedSandboxAbsolutePaths', testForbidHardcodedSandboxAbsolutePaths)
   await exec('policy.boundary.canvas2dSwitchWarmsInactiveRenderer', testCanvas2dRendererSwitchWarmsInactiveRenderer)
   await exec('policy.boundary.forbidTopLevelElkImport', testForbidTopLevelElkImportInFlowLayout)
   await exec('policy.persistence.forbidMagicLocalStorageKeys', testForbidMagicLocalStorageKeysOutsideCentralConstants)
@@ -412,6 +423,10 @@ export const runAllTests = async () => {
   await exec('layout.positioning.cacheKeyIncludesViewKey', testLayoutPositioningCacheKeyIncludesViewKey)
   await exec('layout.positioning.isolatesMediaDensity', testLayoutPositioningCacheKeyIsolatesMediaDensity)
   await exec('layout.positioning.isolatesRenderMediaAsNodes', testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes)
+  await exec('layout.groupKey.prefersDeepestMermaidSubgraph', testLayoutGroupKeyPrefersDeepestMermaidSubgraph)
+  await exec('semanticMode.schemaIsolation.restoresAndClears', testSemanticModeSchemaIsolationRestoresSchemaAndClearsSelection)
+  await exec('layout.edges.opacity.usesUnderGroups', testEdgeOpacityUsesUnderGroupOpacityWhenGroupsEnabled)
+  await exec('layout.edges.opacity.usesBaseWhenGroupsDisabled', testEdgeOpacityUsesBaseOpacityWhenGroupsDisabled)
 
   await exec('frontmatterMode.effective.noopWhenNoSeeds', testFrontmatterModeEffectiveNoopWhenNoSeeds)
   await exec('frontmatterMode.effective.whenSeedsExist', testFrontmatterModeEffectiveWhenSeedsExist)
@@ -570,6 +585,7 @@ export const runAllTests = async () => {
     testForceSimulationSeedsClusterAwarePositionsWhenMissing,
   )
   await exec('graph.groups.bboxCollide.separatesTopParentGroups', testGroupBboxCollideSeparatesTopParentGroups)
+  await exec('graph.groups.bboxCollideByDepth.separatesSiblings', testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings)
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)

@@ -88,8 +88,15 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
         set({ canvasRenderModeIsAuto: false })
       }
     }
-    set({ schema: next })
-    writeSchemaToStorage(getLocalStorage(), next)
+    const documentSemanticMode = (get().documentSemanticMode || 'document') as GraphState['documentSemanticMode']
+    const prevByMode = get().schemaBySemanticMode
+    const nextByMode = {
+      document: (prevByMode && prevByMode.document) ? prevByMode.document : next,
+      keyword: (prevByMode && prevByMode.keyword) ? prevByMode.keyword : next,
+      [documentSemanticMode]: next,
+    }
+    set({ schema: next, schemaBySemanticMode: nextByMode })
+    if (documentSemanticMode === 'document') writeSchemaToStorage(getLocalStorage(), next)
   }
 
   return {

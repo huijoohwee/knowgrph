@@ -244,6 +244,90 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     default: () => true,
   },
   {
+    key: 'schema.layout.groups.nestedPaddingStep',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw = schema.layout?.groups && typeof schema.layout.groups === 'object'
+        ? (schema.layout.groups as { nestedPaddingStep?: unknown }).nestedPaddingStep
+        : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(80, Math.floor(next))) : 0
+      const current = s().schema
+      const layout = current.layout || {}
+      const groups = layout.groups || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          groups: { ...groups, nestedPaddingStep: clamped },
+        },
+      })
+    },
+    docKey: 'schema.layout.groups.nestedPaddingStep',
+    default: () => 10,
+  },
+  {
+    key: 'schema.layout.edges.opacity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw = schema.layout?.edges && typeof schema.layout.edges === 'object'
+        ? (schema.layout.edges as { opacity?: unknown }).opacity
+        : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0.6
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(1, next)) : 0.6
+      const current = s().schema
+      const layout = current.layout || {}
+      const edges = layout.edges || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          edges: { ...edges, opacity: clamped },
+        },
+      })
+    },
+    docKey: 'schema.layout.edges.opacity',
+    default: () => 0.6,
+  },
+  {
+    key: 'schema.layout.edges.opacityUnderGroups',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw = schema.layout?.edges && typeof schema.layout.edges === 'object'
+        ? (schema.layout.edges as { opacityUnderGroups?: unknown }).opacityUnderGroups
+        : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0.45
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(1, next)) : 0.45
+      const current = s().schema
+      const layout = current.layout || {}
+      const edges = layout.edges || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          edges: { ...edges, opacityUnderGroups: clamped },
+        },
+      })
+    },
+    docKey: 'schema.layout.edges.opacityUnderGroups',
+    default: () => 0.45,
+  },
+  {
     key: 'graphHoverPreview.showNodeId',
     type: 'boolean',
     source: 'store',

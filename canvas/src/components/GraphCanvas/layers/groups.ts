@@ -15,6 +15,7 @@ import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { DEFAULT_GROUP_NESTED_PADDING_STEP } from '@/lib/graph/layoutDefaults'
 
 type GroupDatum = GraphGroup
 
@@ -87,6 +88,9 @@ export const createGroupsLayer = (args: {
     .style('display', shape === 'geo' ? null : 'none')
 
   const padding = typeof cfg.padding === 'number' && Number.isFinite(cfg.padding) ? Math.max(0, cfg.padding) : 24
+  const nestedPaddingStep = typeof cfg.nestedPaddingStep === 'number' && Number.isFinite(cfg.nestedPaddingStep)
+    ? Math.max(0, cfg.nestedPaddingStep)
+    : DEFAULT_GROUP_NESTED_PADDING_STEP
   const labelPadding =
     typeof cfg.labelPadding === 'number' && Number.isFinite(cfg.labelPadding) ? Math.max(0, cfg.labelPadding) : 10
   const strokeWidth =
@@ -343,6 +347,9 @@ export const createGroupsLayer = (args: {
   const eps = 0.5
 
   const computeBoundsAndLabel = (d: GroupDatum) => {
+    const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+    const extraPad = nestedPaddingStep > 0 ? nestedPaddingStep * Math.max(0, maxDepth - depth) : 0
+    const effectivePadding = padding + extraPad
     let minX = Infinity
     let maxX = -Infinity
     let minY = Infinity
@@ -365,8 +372,8 @@ export const createGroupsLayer = (args: {
       if (x1 > maxX) maxX = x1
       if (y0 < minY) minY = y0
       if (y1 > maxY) maxY = y1
-      const px = halfW + padding
-      const py = halfH + padding
+      const px = halfW + effectivePadding
+      const py = halfH + effectivePadding
       geoPoints.push({ x: n.x - px, y: n.y - py })
       geoPoints.push({ x: n.x + px, y: n.y - py })
       geoPoints.push({ x: n.x + px, y: n.y + py })
@@ -378,11 +385,11 @@ export const createGroupsLayer = (args: {
     }
     const labelText = computeGroupLabelText(d)
     const fontSize = labelText.fontSize
-    const topPad = padding + labelPadding + fontSize * 1.25
-    const x = minX - padding
+    const topPad = effectivePadding + labelPadding + fontSize * 1.25
+    const x = minX - effectivePadding
     const y = minY - topPad
-    const w0 = Math.max(1, maxX - minX + padding * 2)
-    const h = Math.max(1, maxY - minY + padding + topPad)
+    const w0 = Math.max(1, maxX - minX + effectivePadding * 2)
+    const h = Math.max(1, maxY - minY + effectivePadding + topPad)
     const chevronCx = x + labelPadding + chevronSizePx * 0.5
     const chevronCy = y + labelPadding + fontSize * 0.55
     const labelX = x + labelPadding + chevronSizePx + chevronGapPx

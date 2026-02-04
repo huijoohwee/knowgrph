@@ -7,7 +7,8 @@ import { type GraphSchema } from '@/lib/graph/schema'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { normalizeEdgesForSim, updateForceSimulationPresentation } from '@/components/GraphCanvas/simulation'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { createLayoutGroupKeyOfNode } from '@/components/GraphCanvas/layout/layoutGroupKey'
+import { createLayoutGroupKeyOfNode, selectLayoutGroups } from '@/components/GraphCanvas/layout/layoutGroupKey'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import {
@@ -718,13 +719,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const expansionCfg = schemaValue.behavior?.expansion || {}
     const expansionEnabled = expansionCfg.enabled !== false
     const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false
+
+    const allGroups = deriveGraphGroups(sceneGraphDataRef.current)
+    const layoutGroups = selectLayoutGroups({ graphData: sceneGraphDataRef.current, schema: schemaValue, groups: allGroups })
+    const groupKeyOf = createLayoutGroupKeyOfNode({ graphData: sceneGraphDataRef.current, schema: schemaValue, groups: layoutGroups })
     updateForceSimulationPresentation({
       simulation: simulationRef.current,
       nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
       width: sceneWidth,
       height: sceneHeight,
       schema: schemaValue,
-      groupKeyOf: createLayoutGroupKeyOfNode({ graphData: sceneGraphDataRef.current, schema: schemaValue }),
+      groupKeyOf,
+      groupsForBboxCollide: allGroups,
     })
     updateGraphSceneNodesPresentation({
       gRef,

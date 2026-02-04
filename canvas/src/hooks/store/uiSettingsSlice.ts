@@ -16,8 +16,9 @@ import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
 import { ThemeMode, ResolvedThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode, resolveThemeMode, getSystemTheme } from '@/lib/ui/theme';
 
 type SetGraph = StoreApi<GraphState>['setState'];
+type GetGraph = StoreApi<GraphState>['getState'];
 
-export const createUiSettingsSlice = (set: SetGraph) => {
+export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   const themeMode = getInitialThemeMode(getLocalStorage())
   applyThemeMode(themeMode)
   const resolvedThemeMode: ResolvedThemeMode = resolveThemeMode(themeMode)
@@ -140,7 +141,32 @@ export const createUiSettingsSlice = (set: SetGraph) => {
   setSidebarWidthRatio: (v: number) => set({ sidebarWidthRatio: v }),
   setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
   setFrontmatterModeEnabled: (v: boolean) => set({ frontmatterModeEnabled: v }),
-  setDocumentSemanticMode: (v: DocumentSemanticMode) => set({ documentSemanticMode: v }),
+  setDocumentSemanticMode: (v: DocumentSemanticMode) => {
+    const nextMode: DocumentSemanticMode = v === 'keyword' ? 'keyword' : 'document'
+    const prevMode: DocumentSemanticMode = (get().documentSemanticMode || 'document') as DocumentSemanticMode
+    if (nextMode === prevMode) return
+    set(state => {
+      const prevSchemaByMode = state.schemaBySemanticMode
+      const schemaByMode = {
+        document: prevSchemaByMode?.document || state.schema,
+        keyword: prevSchemaByMode?.keyword || state.schema,
+        [prevMode]: state.schema,
+      }
+      const nextSchema = schemaByMode[nextMode] || state.schema
+      return {
+        documentSemanticMode: nextMode,
+        schema: nextSchema,
+        schemaBySemanticMode: schemaByMode,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        selectedGroupId: null,
+        selectedNodeIds: [],
+        selectedEdgeIds: [],
+        selectedGroupIds: [],
+        collapsedGroupIds: [],
+      } as Partial<GraphState>
+    })
+  },
   setSchemaDeriveCacheCapacity: (n: number) => set({ schemaDeriveCacheCapacity: n }),
   setGraphFieldSettingsById: (next: GraphFieldSettingsById) => set({ graphFieldSettingsById: next }),
   setSelectedGraphFieldId: (id: GraphFieldId | null) => set({ selectedGraphFieldId: id }),

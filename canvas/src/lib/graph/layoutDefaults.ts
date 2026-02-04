@@ -34,6 +34,15 @@ export const DEFAULT_GROUP_CORNER_RADIUS = 12
 export const DEFAULT_GROUP_LABEL_PADDING = 10
 export const DEFAULT_GROUP_STROKE_WIDTH = 1.5
 export const DEFAULT_GROUP_FILL_OPACITY = 0.08
+export const DEFAULT_GROUP_NESTED_PADDING_STEP = 10
+
+export const DEFAULT_NODE_COLLISION_BORDER_GAP_PX = 4
+export const DEFAULT_GROUP_COLLISION_BORDER_GAP_PX = 12
+export const DEFAULT_GROUP_COLLISION_TOUCH_EPSILON_PX = 2
+export const DEFAULT_COLLISION_BORDER_GAP_PX = DEFAULT_NODE_COLLISION_BORDER_GAP_PX
+
+export const DEFAULT_EDGE_OPACITY_2D = 0.6
+export const DEFAULT_EDGE_OPACITY_2D_UNDER_GROUPS = 0.45
 
 export const DEFAULT_STRATIFY_REUSE_SEED_STRENGTH = 0.75
 export const DEFAULT_STRATIFY_FIT_FILL_RATIO = 0.8
@@ -158,6 +167,19 @@ export const readFitPadding = (schema: GraphSchema): number => {
   return typeof padding === 'number' && Number.isFinite(padding)
     ? Math.max(20, Math.min(160, Math.floor(padding)))
     : DEFAULT_FIT_PADDING
+}
+
+export const readEdgeOpacity2d = (schema: GraphSchema): number => {
+  const cfg = schema.layout?.edges || null
+  const baseRaw = cfg && typeof (cfg as { opacity?: unknown }).opacity === 'number' ? (cfg as { opacity: number }).opacity : null
+  const underRaw = cfg && typeof (cfg as { opacityUnderGroups?: unknown }).opacityUnderGroups === 'number'
+    ? (cfg as { opacityUnderGroups: number }).opacityUnderGroups
+    : null
+  const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v)
+  const base = typeof baseRaw === 'number' && Number.isFinite(baseRaw) ? clamp01(baseRaw) : DEFAULT_EDGE_OPACITY_2D
+  const under = typeof underRaw === 'number' && Number.isFinite(underRaw) ? clamp01(underRaw) : DEFAULT_EDGE_OPACITY_2D_UNDER_GROUPS
+  const groupsEnabled = schema.layout?.groups?.enabled !== false
+  return groupsEnabled ? Math.min(base, under) : base
 }
 
 export const readZoomScaleExtent = (schema: GraphSchema): [number, number] => {

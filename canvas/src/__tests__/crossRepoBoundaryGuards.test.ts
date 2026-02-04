@@ -290,6 +290,48 @@ export function testForbidReactFlowAndLiteGraphDependencies() {
   }
 }
 
+export function testForbidHardcodedSandboxAbsolutePaths() {
+  const ignoreDirNames = new Set(['node_modules', 'dist', 'build', 'coverage', '.git', '.trae'])
+  const repoRoot = resolve(process.cwd(), '..', '..', '..')
+  const repoSrcDirs = [
+    SRC_DIR,
+    resolve(repoRoot, 'curagrph', 'src'),
+    resolve(repoRoot, 'gympgrph', 'src'),
+    resolve(repoRoot, 'grph-shared', 'src'),
+  ]
+  const files = repoSrcDirs
+    .flatMap(dir => {
+      try {
+        return listFilesRecursively(dir, { ignoreDirNames })
+      } catch {
+        return []
+      }
+    })
+    .filter(f => /\.(ts|tsx|js|jsx|json)$/.test(f))
+
+  const violations: Array<{ file: string; snippet: string }> = []
+  const patterns: RegExp[] = [
+    /\/Users\/[^\n]+\/Documents\/GitHub\/sandbox\//,
+    /\/Users\/[^\n]+\/GitHub\/sandbox\//,
+  ]
+  for (const file of files) {
+    const st = statSync(file)
+    if (!st.isFile()) continue
+    const text = readFileSync(file, 'utf8')
+    for (const re of patterns) {
+      const m = text.match(re)
+      if (m && m[0]) {
+        violations.push({ file, snippet: m[0] })
+        break
+      }
+    }
+  }
+  if (violations.length) {
+    const msg = violations.map(v => `${v.file} contains ${JSON.stringify(v.snippet)}`).join('\n')
+    throw new Error(`Forbidden hardcoded absolute sandbox paths detected. Use sandboxRoot helpers + basenames or local test fixtures:\n${msg}`)
+  }
+}
+
 export function testCanvas2dRendererSwitchWarmsInactiveRenderer() {
   const canvasPath = resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
   const text = readFileSync(canvasPath, 'utf8')

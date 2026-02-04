@@ -84,6 +84,10 @@ export interface GraphSchema {
   };
   layout?: {
     mode?: 'force' | 'radial' | 'stratify' | 'mermaid';
+    edges?: {
+      opacity?: number
+      opacityUnderGroups?: number
+    }
     flow?: {
       engine?: 'auto' | 'elk' | 'dagre' | 'grid'
       elkLayout?: 'elk' | 'elk.layered' | 'elk.stress' | 'elk.force' | 'elk.mrtree'
@@ -115,10 +119,14 @@ export interface GraphSchema {
       bboxCollide?: boolean;
       bboxCollideStrength?: number;
       bboxCollidePadding?: number;
+      bboxCollideBorderGapPx?: number;
       bboxCollideIterations?: number;
       groupBboxCollide?: boolean;
       groupBboxCollideStrength?: number;
       groupBboxCollidePadding?: number;
+      groupBboxCollideBorderGapPx?: number;
+      groupBboxCollideExtraGapPx?: number;
+      groupBboxCollideTouchEpsilonPx?: number;
       groupBboxCollideIterations?: number;
       structuredRelaxSteps?: number;
     };
@@ -134,6 +142,7 @@ export interface GraphSchema {
       enabled?: boolean;
       shape?: 'rect' | 'geo';
       padding?: number;
+      nestedPaddingStep?: number;
       cornerRadius?: number;
       labelPadding?: number;
       strokeWidth?: number;

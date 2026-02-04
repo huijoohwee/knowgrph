@@ -53,17 +53,20 @@ const applyCanvasDefaultInitSchema = (schema: GraphSchema): GraphSchema => {
   return { ...schema, behavior: nextBehavior, layout: nextLayout }
 }
 
+const initialSchema: GraphSchema = (() => {
+  try {
+    const storage = getLocalStorage();
+    const fromStorage = readSchemaFromStorage(storage)
+    return applyCanvasDefaultInitSchema(fromStorage || defaultSchema);
+  } catch {
+    return applyCanvasDefaultInitSchema(defaultSchema);
+  }
+})()
+
 export const useGraphStore = create<GraphState>()(
   subscribeWithSelector((set, get, api) => ({
-  schema: (() => {
-    try {
-      const storage = getLocalStorage();
-      const fromStorage = readSchemaFromStorage(storage)
-      return applyCanvasDefaultInitSchema(fromStorage || defaultSchema);
-    } catch {
-      return applyCanvasDefaultInitSchema(defaultSchema);
-    }
-  })(),
+  schema: initialSchema,
+  schemaBySemanticMode: { document: initialSchema, keyword: initialSchema },
   layoutPositionCacheByMode: {},
   graphFieldsOpOk: null,
   graphFieldsOpMsg: '',
@@ -104,9 +107,11 @@ export const useGraphStore = create<GraphState>()(
   lifecycleStage: 'idle',
   setLifecycleStage: (v) => set({ lifecycleStage: v }),
   resetAll: () => {
+    const schema = applyCanvasDefaultInitSchema(defaultSchema)
     set({
       graphData: { nodes: [], edges: [], type: 'application/json' },
-      schema: applyCanvasDefaultInitSchema(defaultSchema),
+      schema,
+      schemaBySemanticMode: { document: schema, keyword: schema },
       layoutPositionCacheByMode: {},
       history: [],
       historyIndex: -1,
@@ -128,7 +133,7 @@ export const useGraphStore = create<GraphState>()(
       frontmatterModeEnabled: true,
     });
   },
-  ...createUiSettingsSlice(set),
+  ...createUiSettingsSlice(set, get),
   ...createGraphDataSlice(set, get),
   ...createMinimapSlice(set, get),
   ...createSelectionSlice(set, get),

@@ -137,6 +137,25 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 | Zoom centering | Prevent drift between fit and user zoom | - [ ] Scale centered on graph centroid; forbid bbox-bias centering | GraphCanvas | scaleCenteredOnGraphCentroidTransform | centroid, scale | transform | Always compute centroid from rendered nodes |
 | Zoom state | Avoid stale transforms when switching views | - [ ] Cache zoom state per viewKey; forbid cross-mode reuse | GraphCanvas | setZoomStateForKey | viewKey, zoomState | persisted state | viewKey includes presentation toggles |
 
+### Module: semantic mode isolation (Document ↔ Keyword)
+
+**Goal**: switching semantic modes must not mutate the canonical document schema or reuse stale selection/collapse state.
+
+| Context | Intent | Directive | Module | Function/Method | Input | Output | Decision Logic |
+|---|---|---|---|---|---|---|---|
+| Semantic mode switch | Prevent schema/layout bleed across modes | - [ ] Restore schema snapshot per semantic mode; clear selection + collapsed groups on switch | store | setDocumentSemanticMode | next mode | schema + cleared view state | Schema snapshots are stored in-memory as `schemaBySemanticMode` |
+| Schema persistence | Keep Document Structure Mode as baseline | - [ ] Persist schema writes only in Document mode; keyword-mode tweaks are non-persistent | store | setSchema | schema edits | persisted schema | Gate `writeSchemaToStorage` by `documentSemanticMode==='document'` |
+
+### Module: layering + group separation knobs
+
+**Goal**: keep nested group borders readable and edges visually subordinate, without hardcoded constants.
+
+| Context | Intent | Directive | Module | Function/Method | Input | Output | Decision Logic |
+|---|---|---|---|---|---|---|---|
+| Nested group spacing | Prevent group-of-groups borders snapping together | - [ ] Apply depth-based padding using `layout.groups.nestedPaddingStep` | GraphCanvas | createGroupsLayer | schema.layout.groups | separated group boxes | Outer groups get more padding than inner groups |
+| Edge underlay readability | Keep edges beneath groups/nodes | - [ ] Use schema-driven 2D edge opacity (`layout.edges.opacity`, `layout.edges.opacityUnderGroups`) | GraphCanvas | useGraphCanvasStyles | schema.layout.edges | readable edges | When groups enabled, pick the lower opacity |
+| Fixture neutrality | Avoid local absolute paths | - [ ] Forbid hardcoded `/Users/.../GitHub/sandbox/...` paths in code/tests | policy | testForbidHardcodedSandboxAbsolutePaths | source scan | CI guard | Use sandbox-root helpers + basenames or repo-local fixtures |
+
 ### Module: collision + overlap SSOT
 
 **Goal**: ensure no node/group overlap and keep collision knobs schema-driven.

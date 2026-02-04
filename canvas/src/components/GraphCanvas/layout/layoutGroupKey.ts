@@ -2,6 +2,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GroupKeyOfNode } from '@/components/GraphCanvas/layout/grouping'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
 type GroupKind = 'mermaid' | 'markdown' | 'keywordLayer' | 'community' | 'other'
 
@@ -13,15 +14,38 @@ const classifyGroupId = (id: string): GroupKind => {
   return 'mermaid'
 }
 
-export function createLayoutGroupKeyOfNode(args: { graphData: GraphData; schema: GraphSchema }): GroupKeyOfNode {
+export function selectLayoutGroups(args: { graphData: GraphData; schema: GraphSchema; groups?: GraphGroup[] }): GraphGroup[] {
+  const { graphData, schema } = args
+  const groupsEnabled = schema.layout?.groups?.enabled !== false
+  if (!groupsEnabled) return []
+
+  const allGroups = args.groups ?? deriveGraphGroups(graphData)
+  if (!allGroups.length) return []
+
+  const byKind = new Map<GroupKind, GraphGroup[]>()
+  for (const g of allGroups) {
+    const kind = classifyGroupId(String(g.id || ''))
+    const arr = byKind.get(kind) || []
+    arr.push(g)
+    byKind.set(kind, arr)
+  }
+
+  const priority: GroupKind[] = ['mermaid', 'markdown', 'keywordLayer', 'community', 'other']
+  for (const kind of priority) {
+    const arr = byKind.get(kind)
+    if (arr && arr.length > 0) return arr
+  }
+  return []
+}
+
+export function createLayoutGroupKeyOfNode(args: { graphData: GraphData; schema: GraphSchema; groups?: GraphGroup[] }): GroupKeyOfNode {
   const { graphData, schema } = args
   const groupsEnabled = schema.layout?.groups?.enabled !== false
   if (!groupsEnabled) return () => null
 
-  const groups = deriveGraphGroups(graphData)
+  const groups = selectLayoutGroups(args)
   if (!groups.length) return () => null
 
-  const priority: GroupKind[] = ['mermaid', 'markdown', 'keywordLayer', 'community', 'other']
   const nodeIdSet = new Set<string>()
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
   for (let i = 0; i < nodes.length; i += 1) {
@@ -30,35 +54,23 @@ export function createLayoutGroupKeyOfNode(args: { graphData: GraphData; schema:
     nodeIdSet.add(id)
   }
 
-  const byKind = new Map<GroupKind, typeof groups>()
-  for (const g of groups) {
-    const kind = classifyGroupId(String(g.id || ''))
-    const arr = byKind.get(kind) || []
-    arr.push(g)
-    byKind.set(kind, arr)
-  }
-
   const nodeToGroupId = new Map<string, string>()
+  const nodeToGroupDepth = new Map<string, number>()
 
-  for (const kind of priority) {
-    const arr = byKind.get(kind)
-    if (!arr || arr.length === 0) continue
-
-    for (let i = 0; i < arr.length; i += 1) {
-      const g = arr[i]
-      if ((kind === 'mermaid' || kind === 'markdown' || kind === 'community') && g.depth !== 0) continue
-      const gid = String(g.id || '').trim()
-      if (!gid) continue
-      const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
-      for (let j = 0; j < members.length; j += 1) {
-        const nid = String(members[j] || '').trim()
-        if (!nid || !nodeIdSet.has(nid)) continue
-        if (nodeToGroupId.has(nid)) continue
-        nodeToGroupId.set(nid, gid)
-      }
+  for (let i = 0; i < groups.length; i += 1) {
+    const g = groups[i]
+    const gid = String(g.id || '').trim()
+    if (!gid) continue
+    const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
+    for (let j = 0; j < members.length; j += 1) {
+      const nid = String(members[j] || '').trim()
+      if (!nid || !nodeIdSet.has(nid)) continue
+      const depth = typeof g.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
+      const prevDepth = nodeToGroupDepth.get(nid)
+      if (prevDepth != null && prevDepth > depth) continue
+      nodeToGroupId.set(nid, gid)
+      nodeToGroupDepth.set(nid, depth)
     }
-
-    if (nodeToGroupId.size > 0) break
   }
 
   const groupKeyOf: GroupKeyOfNode = (n: GraphNode): string | null => {

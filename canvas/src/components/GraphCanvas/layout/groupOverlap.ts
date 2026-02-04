@@ -3,13 +3,16 @@ import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
 import type { GroupKeyOfNode } from '@/components/GraphCanvas/layout/grouping'
-import { readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
+import { readCollisionConfig, readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
+import { applyAabbOverlapPush } from '@/lib/graph/collision/aabbPush'
 import {
   DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS,
   DEFAULT_GROUP_BBOX_COLLIDE_PADDING,
   DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH,
   DEFAULT_GROUP_PADDING,
+  DEFAULT_GROUP_STROKE_WIDTH,
 } from '@/lib/graph/layoutDefaults'
+import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 
 export const getDefaultGroupKeyOfNode: GroupKeyOfNode = (n: GraphNode): string | null => {
   const p = (n.properties || {}) as Record<string, unknown>
@@ -38,6 +41,10 @@ export const createGroupBboxCollideForce = (args: {
 }): d3.Force<GraphNode, GraphEdge> => {
   const { schema } = args
   const groupKeyOf = args.groupKeyOf || getDefaultGroupKeyOfNode
+  const groupBboxCfg = readCollisionConfig(schema).groupBbox
+  const borderGapMinPx = groupBboxCfg.borderGapPx
+  const extraGapPx = groupBboxCfg.extraGapPx
+  const touchEpsilonPx = groupBboxCfg.touchEpsilonPx
   let nodes: GraphNode[] = []
   let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
   let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH
@@ -55,8 +62,11 @@ export const createGroupBboxCollideForce = (args: {
       typeof schema.layout?.groups?.padding === 'number' && Number.isFinite(schema.layout.groups.padding)
         ? Math.max(0, schema.layout.groups.padding)
         : DEFAULT_GROUP_PADDING
+    const strokeWidthRaw = schema.layout?.groups?.strokeWidth
+    const strokeWidth = typeof strokeWidthRaw === 'number' && Number.isFinite(strokeWidthRaw) ? Math.max(0, strokeWidthRaw) : DEFAULT_GROUP_STROKE_WIDTH
+    const borderGapPx = computeBorderGapPx(strokeWidth, borderGapMinPx)
     const topLabelExtra = readGroupLabelTopExtra(schema)
-    const pad = Math.max(0, padding + groupPad)
+    const pad = Math.max(0, padding + groupPad + borderGapPx + extraGapPx)
 
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
@@ -123,48 +133,23 @@ export const createGroupBboxCollideForce = (args: {
           const dy = a.cy - b.cy
           const ox = a.halfW + b.halfW - Math.abs(dx)
           const oy = a.halfH + b.halfH - Math.abs(dy)
-          if (ox <= 0 || oy <= 0) continue
+          const oxAdj = ox + touchEpsilonPx
+          const oyAdj = oy + touchEpsilonPx
+          if (oxAdj <= 0 || oyAdj <= 0) continue
 
           const aMovable = a.movableIdxs.length
           const bMovable = b.movableIdxs.length
-          const splitA = aMovable === 0 ? 0 : bMovable === 0 ? 1 : 0.5
-          const splitB = aMovable === 0 ? 1 : bMovable === 0 ? 0 : 0.5
-
-          if (ox < oy) {
-            const sx = dx < 0 ? -1 : 1
-            const push = ox * sx
-            if (aMovable > 0) {
-              const per = (push * k * splitA) / aMovable
-              for (let m = 0; m < aMovable; m += 1) {
-                const n = nodes[a.movableIdxs[m]!]!
-                n.vx = (n.vx ?? 0) + per
-              }
-            }
-            if (bMovable > 0) {
-              const per = (-push * k * splitB) / bMovable
-              for (let m = 0; m < bMovable; m += 1) {
-                const n = nodes[b.movableIdxs[m]!]!
-                n.vx = (n.vx ?? 0) + per
-              }
-            }
-          } else {
-            const sy = dy < 0 ? -1 : 1
-            const push = oy * sy
-            if (aMovable > 0) {
-              const per = (push * k * splitA) / aMovable
-              for (let m = 0; m < aMovable; m += 1) {
-                const n = nodes[a.movableIdxs[m]!]!
-                n.vy = (n.vy ?? 0) + per
-              }
-            }
-            if (bMovable > 0) {
-              const per = (-push * k * splitB) / bMovable
-              for (let m = 0; m < bMovable; m += 1) {
-                const n = nodes[b.movableIdxs[m]!]!
-                n.vy = (n.vy ?? 0) + per
-              }
-            }
-          }
+          if (aMovable === 0 && bMovable === 0) continue
+          applyAabbOverlapPush({
+            nodes,
+            aMovableIdxs: a.movableIdxs,
+            bMovableIdxs: b.movableIdxs,
+            dx,
+            dy,
+            ox: oxAdj,
+            oy: oyAdj,
+            k,
+          })
         }
       }
     }

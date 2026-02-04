@@ -5,6 +5,9 @@ import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
 import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
+import { applyAabbOverlapPush } from '@/lib/graph/collision/aabbPush'
+import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
+import { readNodeStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
 import {
   DEFAULT_BBOX_COLLIDE_ITERATIONS,
   DEFAULT_BBOX_COLLIDE_PADDING,
@@ -57,6 +60,8 @@ export const createBboxCollideForce = (args: {
 }): d3.Force<GraphNode, GraphEdge> => {
   const { schema } = args
   let nodes: GraphNode[] = []
+  const nodeIndex = new Map<GraphNode, number>()
+  const borderGapMinPx = readCollisionConfig(schema).nodeBbox.borderGapPx
   let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : DEFAULT_BBOX_COLLIDE_STRENGTH
   let iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : DEFAULT_BBOX_COLLIDE_ITERATIONS
   let padding = Number.isFinite(args.padding) ? Math.max(0, args.padding) : DEFAULT_BBOX_COLLIDE_PADDING
@@ -71,7 +76,8 @@ export const createBboxCollideForce = (args: {
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
-      m = Math.max(m, ext.halfW + padding, ext.halfH + padding)
+      const borderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, n), borderGapMinPx)
+      m = Math.max(m, ext.halfW + padding + borderGapPx, ext.halfH + padding + borderGapPx)
     }
     maxHalf = Math.max(16, m)
   }
@@ -87,8 +93,9 @@ export const createBboxCollideForce = (args: {
         const ay = typeof a.y === 'number' && Number.isFinite(a.y) ? a.y : null
         if (ax == null || ay == null) continue
         const aExt = getNodeAabbHalfExtentsWithLabel(a, schema)
-        const aHalfW = aExt.halfW + padding
-        const aHalfH = aExt.halfH + padding
+        const aBorderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, a), borderGapMinPx)
+        const aHalfW = aExt.halfW + padding + aBorderGapPx
+        const aHalfH = aExt.halfH + padding + aBorderGapPx
         const aPinned = isPinned(a)
 
         qt.visit((quad, x0, y0, x1, y1) => {
@@ -102,12 +109,18 @@ export const createBboxCollideForce = (args: {
           while (cur) {
             const b = cur.data
             if (b && b !== a) {
+              const bIdx = nodeIndex.get(b)
+              if (bIdx == null || bIdx <= i) {
+                cur = (cur as unknown as { next?: d3.QuadtreeLeaf<GraphNode> }).next
+                continue
+              }
               const bx = typeof b.x === 'number' && Number.isFinite(b.x) ? b.x : null
               const by = typeof b.y === 'number' && Number.isFinite(b.y) ? b.y : null
               if (bx != null && by != null) {
                 const bExt = getNodeAabbHalfExtentsWithLabel(b, schema)
-                const bHalfW = bExt.halfW + padding
-                const bHalfH = bExt.halfH + padding
+                const bBorderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, b), borderGapMinPx)
+                const bHalfW = bExt.halfW + padding + bBorderGapPx
+                const bHalfH = bExt.halfH + padding + bBorderGapPx
 
                 const dx = ax - bx
                 const dy = ay - by
@@ -115,19 +128,16 @@ export const createBboxCollideForce = (args: {
                 const oy = aHalfH + bHalfH - Math.abs(dy)
                 if (ox > 0 && oy > 0) {
                   const bPinned = isPinned(b)
-                  const splitA = aPinned ? 0 : bPinned ? 1 : 0.5
-                  const splitB = aPinned ? 1 : bPinned ? 0 : 0.5
-                  if (ox < oy) {
-                    const sx = dx < 0 ? -1 : 1
-                    const push = ox * sx
-                    if (!aPinned) a.vx = (a.vx ?? 0) + push * k * splitA
-                    if (!bPinned) b.vx = (b.vx ?? 0) - push * k * splitB
-                  } else {
-                    const sy = dy < 0 ? -1 : 1
-                    const push = oy * sy
-                    if (!aPinned) a.vy = (a.vy ?? 0) + push * k * splitA
-                    if (!bPinned) b.vy = (b.vy ?? 0) - push * k * splitB
-                  }
+                  applyAabbOverlapPush({
+                    nodes,
+                    aMovableIdxs: aPinned ? [] : [i],
+                    bMovableIdxs: bPinned ? [] : [bIdx],
+                    dx,
+                    dy,
+                    ox,
+                    oy,
+                    k,
+                  })
                 }
               }
             }
@@ -141,6 +151,10 @@ export const createBboxCollideForce = (args: {
 
   force.initialize = (ns: GraphNode[]) => {
     nodes = ns || []
+    nodeIndex.clear()
+    for (let i = 0; i < nodes.length; i += 1) {
+      nodeIndex.set(nodes[i]!, i)
+    }
     computeMaxHalf()
   }
 

@@ -1,7 +1,7 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createBboxCollideForce } from '@/components/GraphCanvas/layout/overlap'
-import { createGroupBboxCollideForce } from '@/components/GraphCanvas/layout/groupOverlap'
+import { createGroupBboxCollideForceByDepth } from '@/components/GraphCanvas/layout/groupOverlapByDepth'
 import { readCollisionConfig, readStructuredRelaxSteps } from '@/components/GraphCanvas/layout/collisionConfig'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
@@ -102,75 +102,16 @@ export function relaxFlowPositionsWithCollision(args: {
 
   const groupForces: Array<(alpha: number) => void> = []
   if (collision.groupBbox.enabled && groups.length > 0) {
-    const byDepth = new Map<number, GraphGroup[]>()
-    for (let i = 0; i < groups.length; i += 1) {
-      const g = groups[i]
-      const depth = typeof g?.depth === 'number' && Number.isFinite(g.depth) ? g.depth : 0
-      const arr = byDepth.get(depth) || []
-      arr.push(g)
-      byDepth.set(depth, arr)
-    }
-
-    const depths = Array.from(byDepth.keys()).filter(d => Number.isFinite(d)).sort((a, b) => a - b)
-    const maxDepth = depths.length > 0 ? Math.max(...depths) : 0
-    const maxDepthPasses = 12
-    const selectedDepths = (() => {
-      if (depths.length <= maxDepthPasses) return depths
-      const head = depths.slice(0, Math.floor(maxDepthPasses / 2))
-      const tail = depths.slice(depths.length - Math.ceil(maxDepthPasses / 2))
-      const uniq: number[] = []
-      const seen = new Set<number>()
-      for (const d of [...head, ...tail]) {
-        if (seen.has(d)) continue
-        seen.add(d)
-        uniq.push(d)
-      }
-      return uniq.sort((a, b) => a - b)
-    })()
-
-    const groupPadRaw = schema.layout?.groups?.padding
-    const groupPad = typeof groupPadRaw === 'number' && Number.isFinite(groupPadRaw) ? Math.max(0, groupPadRaw) : 24
-    const baseExtraGapPx = Math.max(12, Math.min(96, Math.floor(groupPad * 0.75 + collision.groupBbox.padding * 0.5 + 6)))
-    for (let di = 0; di < selectedDepths.length; di += 1) {
-      const depth = selectedDepths[di]
-      const arr = byDepth.get(depth) || []
-      if (arr.length === 0) continue
-      arr.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
-
-      const nodeToGroupId = new Map<string, string>()
-      for (let gi = 0; gi < arr.length; gi += 1) {
-        const g = arr[gi]
-        const gid = String(g?.id || '').trim()
-        if (!gid) continue
-        const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
-        for (let mi = 0; mi < members.length; mi += 1) {
-          const nid = String(members[mi] || '').trim()
-          if (!nid) continue
-          if (nodeToGroupId.has(nid)) continue
-          nodeToGroupId.set(nid, gid)
-        }
-      }
-      if (nodeToGroupId.size === 0) continue
-      const groupKeyOf = (n: GraphNode): string | null => {
-        const id = String(n.id || '').trim()
-        if (!id) return null
-        return nodeToGroupId.get(id) || null
-      }
-
-      const outerBoost = Math.max(0, Math.min(72, (maxDepth - depth) * 8))
-      const innerBoost = Math.max(0, Math.min(64, depth * 6))
-      const extraGapPx = Math.max(12, Math.min(180, baseExtraGapPx + outerBoost + innerBoost))
-
-      const f = createGroupBboxCollideForce({
-        schema,
-        padding: collision.groupBbox.padding + extraGapPx,
-        strength: collision.groupBbox.strength,
-        iterations: collision.groupBbox.iterations,
-        groupKeyOf,
-      })
-      f.initialize(proxyNodes, Math.random)
-      groupForces.push(f as unknown as (alpha: number) => void)
-    }
+    const f = createGroupBboxCollideForceByDepth({
+      schema,
+      groups,
+      padding: collision.groupBbox.padding,
+      extraGapPx: collision.groupBbox.extraGapPx,
+      strength: collision.groupBbox.strength,
+      iterations: collision.groupBbox.iterations,
+    })
+    f.initialize(proxyNodes, Math.random)
+    groupForces.push(f as unknown as (alpha: number) => void)
   }
 
   for (let step = 0; step < steps; step += 1) {

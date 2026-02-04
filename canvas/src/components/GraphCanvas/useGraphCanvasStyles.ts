@@ -6,6 +6,7 @@ import { getRenderNodeRadius2d, getEdgeBaseStroke, getEdgeStrokeWidth } from '@/
 import { type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d';
+import { readEdgeOpacity2d } from '@/lib/graph/layoutDefaults'
 
 type UseGraphCanvasStylesProps = {
   gRef?: MutableRefObject<d3.Selection<SVGGElement, unknown, null, undefined> | null>;
@@ -68,7 +69,7 @@ export function useGraphCanvasStyles({
         return getEdgeBaseStroke(d, schema) || colors.edgeStroke;
       });
       linksSelRef.current.attr('stroke-opacity', () => {
-        return 0.6;
+        return readEdgeOpacity2d(schema)
       });
       linksSelRef.current.attr('stroke-width', (d: GraphEdge) => {
         return getEdgeStrokeWidth(d as EdgeWithRuntime, schema);

@@ -9,11 +9,13 @@ import { applyForceModeSeeds } from './layout/seeding';
 import { readMermaidAxisFromNodes } from './layout/mermaidDirection';
 import { createBboxCollideForce, getNodeCollisionRadius } from './layout/overlap';
 import { createGroupBboxCollideForce } from './layout/groupOverlap';
+import { createGroupBboxCollideForceByDepth } from './layout/groupOverlapByDepth'
 import { createGroupKeyOfNode, computeGroupTargets, type GroupKeyOfNode } from './layout/grouping';
 import { readCollisionConfig } from './layout/collisionConfig';
 import { readLayoutMode } from './layout/fitConfig';
 import { DEFAULT_CENTER_STRENGTH, readFitPadding, readForceCharge, readForceLinkDistance } from '@/lib/graph/layoutDefaults';
 import { computeFitFrame, ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined;
 
@@ -54,7 +56,7 @@ export const buildSimulation = (
   width: number,
   height: number,
   schema: GraphSchema,
-  options?: { skipInitialLayout?: boolean; groupKeyOf?: GroupKeyOfNode }
+  options?: { skipInitialLayout?: boolean; groupKeyOf?: GroupKeyOfNode; groupsForBboxCollide?: GraphGroup[] }
 ) => {
   const viewW = width > 0 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
   const viewH = height > 0 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
@@ -245,13 +247,22 @@ export const buildSimulation = (
       .force(
         'groupBboxCollide',
         collisionCfg.groupBbox.enabled
-          ? createGroupBboxCollideForce({
-              schema,
-              padding: collisionCfg.groupBbox.padding,
-              strength: collisionCfg.groupBbox.strength,
-              iterations: collisionCfg.groupBbox.iterations,
-              groupKeyOf,
-            })
+          ? (options?.groupsForBboxCollide && options.groupsForBboxCollide.length > 0
+              ? createGroupBboxCollideForceByDepth({
+                  schema,
+                  groups: options.groupsForBboxCollide,
+                  padding: collisionCfg.groupBbox.padding,
+                  extraGapPx: collisionCfg.groupBbox.extraGapPx,
+                  strength: collisionCfg.groupBbox.strength,
+                  iterations: collisionCfg.groupBbox.iterations,
+                })
+              : createGroupBboxCollideForce({
+                  schema,
+                  padding: collisionCfg.groupBbox.padding,
+                  strength: collisionCfg.groupBbox.strength,
+                  iterations: collisionCfg.groupBbox.iterations,
+                  groupKeyOf,
+                }))
           : null,
       )
       .force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
@@ -413,6 +424,7 @@ export const updateForceSimulationPresentation = (args: {
   height: number
   schema: GraphSchema
   groupKeyOf?: GroupKeyOfNode
+  groupsForBboxCollide?: GraphGroup[]
 }) => {
   const { simulation, nodes, width, height, schema } = args
   const mode = readLayoutMode(schema)
@@ -438,13 +450,21 @@ export const updateForceSimulationPresentation = (args: {
   simulation.force(
     'groupBboxCollide',
     collisionCfg.groupBbox.enabled
-      ? createGroupBboxCollideForce({
-          schema,
-          padding: collisionCfg.groupBbox.padding,
-          strength: collisionCfg.groupBbox.strength,
-          iterations: collisionCfg.groupBbox.iterations,
-          groupKeyOf: args.groupKeyOf,
-        })
+      ? (args.groupsForBboxCollide && args.groupsForBboxCollide.length > 0
+          ? createGroupBboxCollideForceByDepth({
+              schema,
+              groups: args.groupsForBboxCollide,
+              padding: collisionCfg.groupBbox.padding,
+              strength: collisionCfg.groupBbox.strength,
+              iterations: collisionCfg.groupBbox.iterations,
+            })
+          : createGroupBboxCollideForce({
+              schema,
+              padding: collisionCfg.groupBbox.padding,
+              strength: collisionCfg.groupBbox.strength,
+              iterations: collisionCfg.groupBbox.iterations,
+              groupKeyOf: args.groupKeyOf,
+            }))
       : null,
   )
   simulation.force('box', () => {

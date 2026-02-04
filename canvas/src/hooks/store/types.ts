@@ -32,6 +32,8 @@ export type LayoutPositionCacheKey = string;
 
 export type DocumentSemanticMode = 'document' | 'keyword'
 
+export type SchemaBySemanticMode = Record<DocumentSemanticMode, GraphSchema>
+
 export type WorkspaceViewMode = 'canvas' | 'editor' | 'table'
 
 export type EditorWorkspaceSection = 'markdown' | 'graphTable'
@@ -158,6 +160,7 @@ export interface GraphState {
   historyDebounceMs: number;
   historyTimer: ReturnType<typeof setTimeout> | null;
   schema: GraphSchema;
+  schemaBySemanticMode?: SchemaBySemanticMode | null;
   layoutPositionCacheByMode: Partial<Record<LayoutPositionCacheKey, Record<string, NodePosition2d>>>;
   setLayoutPositionsForMode: (key: LayoutPositionCacheKey, positions: Record<string, NodePosition2d> | null) => void;
   schemaImportLabel: string | null;

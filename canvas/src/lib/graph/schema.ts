@@ -14,10 +14,13 @@ import {
   DEFAULT_GROUP_CORNER_RADIUS,
   DEFAULT_GROUPS_ENABLED,
   DEFAULT_GROUP_FILL_OPACITY,
+  DEFAULT_GROUP_NESTED_PADDING_STEP,
   DEFAULT_GROUP_LABEL_PADDING,
   DEFAULT_GROUP_PADDING,
   DEFAULT_GROUP_SHAPE,
   DEFAULT_GROUP_STROKE_WIDTH,
+  DEFAULT_EDGE_OPACITY_2D,
+  DEFAULT_EDGE_OPACITY_2D_UNDER_GROUPS,
   DEFAULT_STRATIFY_FIT_FILL_RATIO,
   DEFAULT_STRATIFY_REUSE_SEED_STRENGTH,
   DEFAULT_STRATIFY_SEPARATION,
@@ -157,6 +160,10 @@ export const defaultSchema: GraphSchema = {
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {
     mode: 'force',
+    edges: {
+      opacity: DEFAULT_EDGE_OPACITY_2D,
+      opacityUnderGroups: DEFAULT_EDGE_OPACITY_2D_UNDER_GROUPS,
+    },
     flow: {
       engine: 'auto',
       elkLayout: 'elk',
@@ -188,6 +195,7 @@ export const defaultSchema: GraphSchema = {
       enabled: DEFAULT_GROUPS_ENABLED,
       shape: DEFAULT_GROUP_SHAPE,
       padding: DEFAULT_GROUP_PADDING,
+      nestedPaddingStep: DEFAULT_GROUP_NESTED_PADDING_STEP,
       cornerRadius: DEFAULT_GROUP_CORNER_RADIUS,
       labelPadding: DEFAULT_GROUP_LABEL_PADDING,
       strokeWidth: DEFAULT_GROUP_STROKE_WIDTH,

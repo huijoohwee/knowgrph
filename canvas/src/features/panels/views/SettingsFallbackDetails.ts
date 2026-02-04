@@ -192,6 +192,21 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     notes:
       'Edge creator → choose shift-drag, click-source-target, or panel-only edge creation → align edge gestures with selection-aware overlays so you can inspect distributions, hierarchies, clusters, and paths without losing predictable zoom and node-drag behavior.',
   },
+  'schema.layout.groups.nestedPaddingStep': {
+    area: 'Canvas Layout (2D)',
+    responsibility: 'Extra padding to visually separate nested groups',
+    notes: 'Higher values increase outer-group breathing room to prevent nested group borders from visually snapping together.',
+  },
+  'schema.layout.edges.opacity': {
+    area: 'Canvas Layering (2D)',
+    responsibility: 'Base edge opacity in D3 renderer',
+    notes: 'clamps to [0,1]. For readability, keep this lower than node/group prominence.',
+  },
+  'schema.layout.edges.opacityUnderGroups': {
+    area: 'Canvas Layering (2D)',
+    responsibility: 'Edge opacity when groups are enabled',
+    notes: 'clamps to [0,1]. Used to keep edges visually beneath group underlays.',
+  },
   'three.selection.selectedNodeGlowIntensity': { area: '3D Selection', responsibility: 'Selected node emissive glow intensity' },
   'three.selection.dimmedNodeOpacity': { area: '3D Selection', responsibility: 'Dimmed unselected node opacity' },
   'three.selection.dimmedEdgeOpacity': { area: '3D Selection', responsibility: 'Dimmed non‑selected edge opacity' },

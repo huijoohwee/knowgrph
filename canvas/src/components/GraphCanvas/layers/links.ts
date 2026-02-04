@@ -63,7 +63,7 @@ export const createLinksLayer = (args: {
 
   ;(link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
     .attr('stroke', (d: GraphEdge) => getEdgeBaseStroke(d, schema))
-    .attr('stroke-opacity', 0.8)
+    .attr('stroke-opacity', 1)
     .attr('stroke-width', (d: GraphEdge) => getEdgeStrokeWidth(d, schema))
     .style('pointer-events', 'none')
 
