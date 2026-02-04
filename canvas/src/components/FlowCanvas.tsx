@@ -24,7 +24,6 @@ import type { ZoomRequest } from '@/lib/zoom/requests'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
-import { buildStratifyLayoutVariant } from '@/components/GraphCanvas/layout/stratifyVariant'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import {
   clampScale,
@@ -264,6 +263,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     schema,
     frontmatterModeEnabled,
     documentSemanticMode,
+    documentStructureBaselineLock,
     collapsedGroupIds,
     renderMediaAsNodes,
     mediaPanelDensity,
@@ -285,6 +285,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       schema: s.schema,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+      documentStructureBaselineLock: s.documentStructureBaselineLock === true,
       collapsedGroupIds: s.collapsedGroupIds || [],
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
@@ -323,7 +324,6 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       mode,
       forces,
       fitPadding,
-      stratify: schema?.layout?.stratify || null,
       flow: schema?.layout?.flow || null,
     })
   }, [schema])
@@ -367,11 +367,11 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
   const renderGraphData = useActiveGraphRenderData(active)
   const effectiveFrontmatter = React.useMemo(() => {
     return computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
       documentSemanticMode,
       graphData: renderGraphData,
     })
-  }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
+  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, renderGraphData])
 
   const collapsedGroupIdsKey = React.useMemo(() => {
     const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
@@ -394,7 +394,6 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       mode,
       forces,
       fitPadding,
-      stratify: schema?.layout?.stratify || null,
     })
     return buildLayoutViewKey({
       schemaLayoutEngineJson,
@@ -453,7 +452,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
 
   const zoomStateForKey = useGraphStore(s => (zoomViewKey ? (s.zoomStateByKey?.[zoomViewKey] ?? null) : null))
 
-  const rankdir = deriveRankdir({ schemaOrientation: schema?.layout?.stratify?.orientation })
+  const rankdir = deriveRankdir({ flowRankdir: schema?.layout?.flow?.rankdir })
   const flowConfig = React.useMemo(() => readFlowConfig({ schema, rankdir }), [rankdir, schema])
   const layoutMode = schema ? readLayoutMode(schema) : 'force'
 
@@ -547,11 +546,6 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       `h=${flowConfig.handle.sizePx},${flowConfig.handle.lineHeightPx}`,
     ].join('|')
   }, [flowConfig, rankdir])
-
-  const d3StratifyLayoutVariant = React.useMemo(() => {
-    if (layoutMode !== 'stratify') return ''
-    return buildStratifyLayoutVariant(schema)
-  }, [layoutMode, schema])
 
   const sceneGroups = React.useMemo(() => {
     if (!flowPresentation.groups.enabled) return []
@@ -717,24 +711,10 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
           viewKey: layoutViewKey,
           renderVariant: 'd3',
         })
-        const expectedKey = d3StratifyLayoutVariant
-          ? buildLayoutPositionCacheKey({
-              datasetKey,
-              mode: layoutMode,
-              frontmatterMode: effectiveFrontmatter,
-              semanticMode: String(documentSemanticMode || 'document'),
-              renderMode: '2d',
-              viewKey: layoutViewKey,
-              renderVariant: 'd3',
-              layoutVariant: d3StratifyLayoutVariant,
-            })
-          : ''
         const best = pickSeedFromOtherRendererCache({
           nodes: nodeList,
           cache,
           baseKey,
-          expectedKey,
-          expectedLayoutVariant: d3StratifyLayoutVariant,
         })
         seededFromOtherRendererPositionsRef.current = best
         return best
@@ -822,7 +802,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     return () => {
       cancelled = true
     }
-  }, [active, cacheKey, computedPositions, d3StratifyLayoutVariant, documentSemanticMode, effectiveFrontmatter, flowConfig, layoutMode, layoutPositionsForMode, layoutVariant, rankdir, sceneGraphData, setLayoutPositionsForMode])
+  }, [active, cacheKey, computedPositions, documentSemanticMode, effectiveFrontmatter, flowConfig, layoutMode, layoutPositionsForMode, layoutVariant, rankdir, sceneGraphData, setLayoutPositionsForMode])
 
   React.useEffect(() => {
     if (!active) return

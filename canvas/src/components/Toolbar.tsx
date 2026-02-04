@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, ListTree, FileCode, Table } from 'lucide-react';
+import React, { useCallback, useRef, useState } from 'react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, ListTree, FileCode, Table, Lock, Unlock } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -99,6 +99,20 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const launchIconClass = uiIconAnimationEnabled ? 'LaunchButton__icon' : '';
   const layoutMode = schema.layout?.mode || 'force';
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false);
+  const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
+  const setDocumentStructureBaselineLock = useGraphStore(s => s.setDocumentStructureBaselineLock)
+  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
+
+  const ensureBaselineUnlocked = useCallback((): boolean => {
+    if (documentStructureBaselineLock !== true) return true
+    upsertUiToast({
+      id: 'baseline-locked',
+      kind: 'warning',
+      message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+      ttlMs: 6000,
+    })
+    return false
+  }, [documentStructureBaselineLock, upsertUiToast])
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
   const rawNodeShapeMode = schema.behavior?.nodeShapeMode
@@ -218,6 +232,27 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <BarChart3 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
+
+      <IconButton
+        className={`App-toolbar__btn ${
+          documentStructureBaselineLock ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={documentStructureBaselineLock ? 'Baseline lock on' : 'Baseline lock off'}
+        tooltipContent={
+          documentStructureBaselineLock
+            ? 'Mode switches are locked to keep surfaces aligned. Click to unlock.'
+            : 'Mode switches are unlocked. Click to lock to the baseline.'
+        }
+        onClick={() => setDocumentStructureBaselineLock(!documentStructureBaselineLock)}
+        showTooltip
+      >
+        {documentStructureBaselineLock ? (
+          <Lock className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        ) : (
+          <Unlock className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        )}
+      </IconButton>
+
       <IconButton
         className={`App-toolbar__btn ${
           canvasRenderMode === '2d' && canvas2dRenderer === 'flow'
@@ -228,6 +263,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         tooltipContent={UI_COPY.twoDRendererToggleTooltip}
         disabled={canvasRenderMode !== '2d' || geospatialEnabled}
         onClick={() => {
+          if (!ensureBaselineUnlocked()) return
           const next = canvas2dRenderer === 'flow' ? 'd3' : 'flow'
           setCanvas2dRenderer(next)
         }}
@@ -251,7 +287,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={documentSemanticMode === 'keyword' ? UI_LABELS.keywordMode : UI_LABELS.documentStructureMode}
         tooltipContent={documentSemanticMode === 'keyword' ? UI_COPY.keywordModeTooltip : UI_COPY.documentStructureModeTooltip}
-        onClick={() => setDocumentSemanticMode(documentSemanticMode === 'keyword' ? 'document' : 'keyword')}
+        onClick={() => {
+          if (!ensureBaselineUnlocked()) return
+          setDocumentSemanticMode(documentSemanticMode === 'keyword' ? 'document' : 'keyword')
+        }}
         showTooltip
       >
         {documentSemanticMode === 'keyword' ? (
@@ -266,7 +305,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={UI_LABELS.nodeShapeMode}
         tooltipContent={UI_COPY.nodeShapeModeTooltip}
-        onClick={actions.handleToggleNodeShapeMode}
+        onClick={() => {
+          if (!ensureBaselineUnlocked()) return
+          actions.handleToggleNodeShapeMode()
+        }}
         showTooltip
       >
         {nodeShapeMode === 'rect' ? (
@@ -290,6 +332,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
             : UI_COPY.frontmatterModeToggleTooltip
         }
         onClick={() => {
+          if (!ensureBaselineUnlocked()) return
           const next = !frontmatterModeEnabled;
           setFrontmatterModeEnabled(next);
         }}
@@ -303,7 +346,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={groupShapeMode === 'rect' ? UI_LABELS.groupShapeRect : UI_LABELS.groupShapePolygon}
         tooltipContent={groupShapeMode === 'rect' ? UI_COPY.groupShapeRectTooltip : UI_COPY.groupShapePolygonTooltip}
-        onClick={actions.handleToggleGroupShapeMode}
+        onClick={() => {
+          if (!ensureBaselineUnlocked()) return
+          actions.handleToggleGroupShapeMode()
+        }}
         showTooltip
       >
         {groupShapeMode === 'rect' ? (
@@ -321,6 +367,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         title={UI_LABELS.multiSelectMode}
         tooltipContent={UI_LABELS.multiSelectMode}
         onClick={() => {
+          if (!ensureBaselineUnlocked()) return
           setSelectMode(selectMode === 'multi' || selectMode === 'lasso' ? 'single' : 'multi')
         }}
         showTooltip
@@ -333,7 +380,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={UI_LABELS.portHandles}
         tooltipContent={UI_COPY.portHandlesTooltip}
-        onClick={actions.handleTogglePortHandles}
+        onClick={() => {
+          if (!ensureBaselineUnlocked()) return
+          actions.handleTogglePortHandles()
+        }}
         showTooltip
       >
         <Share2 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
@@ -346,23 +396,13 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }`}
         title={UI_LABELS.radialLayoutMode}
         tooltipContent={UI_LABELS.radialLayoutMode}
-        onClick={actions.handleToggleRadialLayout}
+        onClick={() => {
+          if (!ensureBaselineUnlocked()) return
+          actions.handleToggleRadialLayout()
+        }}
         showTooltip
       >
         <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          canvasRenderMode === '2d' && layoutMode === 'stratify'
-            ? uiPrimaryIconActiveClassName
-            : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.stratifyLayoutMode}
-        tooltipContent={UI_COPY.stratifyLayoutTooltip}
-        onClick={actions.handleToggleStratifyLayout}
-        showTooltip
-      >
-        <ListTree className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className="App-toolbar__btn"
@@ -492,7 +532,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           canvasRenderMode === '3d' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
         title={canvasRenderMode === '3d' ? UI_COPY.threeDModeOnTitle : UI_COPY.threeDModeOffTitle}
-        onClick={actions.handleToggle3DMode}
+        onClick={() => {
+          if (!ensureBaselineUnlocked()) return
+          actions.handleToggle3DMode()
+        }}
+        disabled={geospatialEnabled}
         showTooltip
       >
         <Box className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
@@ -502,7 +546,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           geospatialEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
         }`}
         title={geospatialEnabled ? UI_COPY.geospatialModeOnTitle : UI_COPY.geospatialModeOffTitle}
-        onClick={actions.handleOpenGeospatialMode}
+        onClick={() => {
+          if (!ensureBaselineUnlocked()) return
+          actions.handleOpenGeospatialMode()
+        }}
         showTooltip
       >
         {geospatialEnabled ? (

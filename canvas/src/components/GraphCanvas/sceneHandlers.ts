@@ -422,27 +422,7 @@ export const attachSimulationTick = (args: {
         edgeLabelSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
       } else {
         edgeLabelSel.attr('data-zoom-lod-hidden', '0').style('display', null)
-        const stratifyNoOverlap = schema.layout?.mode === 'stratify'
         const placedEdgeLabelRects: AabbRect[] = []
-        const nodeBlockers: { id: string; rect: AabbRect }[] = stratifyNoOverlap
-          ? (() => {
-              const collisionCfg = readCollisionConfig(schema).nodeBbox
-              const collisionPad = Math.max(0, collisionCfg.paddingX, collisionCfg.paddingY)
-              const clearance = Math.max(2, Math.min(16, Math.floor(collisionPad)))
-              const out: { id: string; rect: AabbRect }[] = []
-              for (let i = 0; i < nodes.length; i += 1) {
-                const n = nodes[i]
-                const id = String(n.id || '')
-                if (!id) continue
-                const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-                const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-                if (x == null || y == null) continue
-                const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
-                out.push({ id, rect: { x, y, halfW: ext.halfW + clearance, halfH: ext.halfH + clearance } })
-              }
-              return out
-            })()
-          : []
         edgeLabelSel.each(function (d: GraphEdge) {
           const el = this as unknown as SVGTextElement
           const edge = d as unknown as EdgeWithRuntime
@@ -465,63 +445,41 @@ export const attachSimulationTick = (args: {
           const labelHalfW = Math.max(2, (String(text).length * estimateLabelCharWidthPx(labelFontSize)) / 2)
           const labelHalfH = Math.max(2, labelFontSize * 0.6)
           const x = (() => {
-            if (!stratifyNoOverlap) {
-              const mx = (p1.x + p2.x) / 2
-              const my = (p1.y + p2.y) / 2
-              const dx = p2.x - p1.x
-              const dy = p2.y - p1.y
-              const len = Math.hypot(dx, dy)
-              if (!Number.isFinite(len) || len < 1e-6) return null
-              const nx = -dy / len
-              const ny = dx / len
+            const mx = (p1.x + p2.x) / 2
+            const my = (p1.y + p2.y) / 2
+            const dx = p2.x - p1.x
+            const dy = p2.y - p1.y
+            const len = Math.hypot(dx, dy)
+            if (!Number.isFinite(len) || len < 1e-6) return null
+            const nx = -dy / len
+            const ny = dx / len
 
-              const overlapsEndpoint = (x: number, y: number) => {
-                const os = Math.abs(x - sx) < srcExt.halfW + labelHalfW && Math.abs(y - sy) < srcExt.halfH + labelHalfH
-                const ot = Math.abs(x - tx) < tgtExt.halfW + labelHalfW && Math.abs(y - ty) < tgtExt.halfH + labelHalfH
-                return os || ot
-              }
+            const overlapsEndpoint = (x: number, y: number) => {
+              const os = Math.abs(x - sx) < srcExt.halfW + labelHalfW && Math.abs(y - sy) < srcExt.halfH + labelHalfH
+              const ot = Math.abs(x - tx) < tgtExt.halfW + labelHalfW && Math.abs(y - ty) < tgtExt.halfH + labelHalfH
+              return os || ot
+            }
 
-              let x = mx + nx * (labelFontSize * 0.9)
-              let y = my + ny * (labelFontSize * 0.9)
-              let found = !overlapsEndpoint(x, y)
-              if (!found) {
-                for (let attempt = 1; attempt <= 4; attempt += 1) {
-                  const off = labelFontSize * (0.9 + attempt * 0.9)
-                  const x1 = mx + nx * off
-                  const y1 = my + ny * off
-                  if (!overlapsEndpoint(x1, y1)) {
-                    x = x1
-                    y = y1
-                    found = true
-                    break
-                  }
+            let x = mx + nx * (labelFontSize * 0.9)
+            let y = my + ny * (labelFontSize * 0.9)
+            let found = !overlapsEndpoint(x, y)
+            if (!found) {
+              for (let attempt = 1; attempt <= 4; attempt += 1) {
+                const off = labelFontSize * (0.9 + attempt * 0.9)
+                const x1 = mx + nx * off
+                const y1 = my + ny * off
+                if (!overlapsEndpoint(x1, y1)) {
+                  x = x1
+                  y = y1
+                  found = true
+                  break
                 }
               }
-              if (!found) return null
-              return { x, y }
             }
-
-            const srcRect: AabbRect = { x: sx, y: sy, halfW: srcExt.halfW, halfH: srcExt.halfH }
-            const tgtRect: AabbRect = { x: tx, y: ty, halfW: tgtExt.halfW, halfH: tgtExt.halfH }
-            const blockers: AabbRect[] = []
-            for (let i = 0; i < nodeBlockers.length; i += 1) {
-              const b = nodeBlockers[i]
-              if (b.id === String(srcNode.id) || b.id === String(tgtNode.id)) continue
-              blockers.push(b.rect)
-            }
-            const placement = pickEdgeLabelPlacement({
-              p1,
-              p2,
-              text,
-              fontSize: labelFontSize,
-              srcRect,
-              tgtRect,
-              blockerRects: blockers,
-              placedLabelRects: placedEdgeLabelRects,
-            })
-            if (!placement) return null
-            placedEdgeLabelRects.push(placement)
-            return { x: placement.x, y: placement.y }
+            if (!found) return null
+            const rect = { x, y, halfW: labelHalfW, halfH: labelHalfH }
+            placedEdgeLabelRects.push(rect)
+            return { x, y }
           })()
 
           if (!x) {

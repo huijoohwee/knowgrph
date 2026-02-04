@@ -7,7 +7,9 @@ export function buildGraphMetaKey(graph: { metadata?: unknown } | null): string 
   return `${String(rec.kind ?? '')}:${String(rec.source ?? '')}`
 }
 
-export function deriveRankdir(args: { schemaOrientation: unknown }): 'TB' | 'LR' {
+export function deriveRankdir(args: { flowRankdir: unknown; schemaOrientation?: unknown }): 'TB' | 'LR' {
+  const r = String(args.flowRankdir || '').toUpperCase()
+  if (r === 'LR') return 'LR'
   const o = args.schemaOrientation
   if (o === 'horizontal') return 'LR'
   return 'TB'

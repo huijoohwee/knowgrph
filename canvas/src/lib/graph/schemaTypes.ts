@@ -83,13 +83,14 @@ export interface GraphSchema {
     }>;
   };
   layout?: {
-    mode?: 'force' | 'radial' | 'stratify' | 'mermaid';
+    mode?: 'force' | 'radial' | 'mermaid';
     edges?: {
       opacity?: number
       opacityUnderGroups?: number
     }
     flow?: {
       engine?: 'auto' | 'elk' | 'dagre' | 'grid'
+      rankdir?: 'TB' | 'LR'
       elkLayout?: 'elk' | 'elk.layered' | 'elk.stress' | 'elk.force' | 'elk.mrtree'
       edges?: {
         routing?: {
@@ -153,27 +154,6 @@ export interface GraphSchema {
         outerStrokeWidthStepPx?: number
         outerFillOpacityStep?: number
       }
-    };
-    stratify?: {
-      edgeLabels?: string[];
-      orientation?: 'vertical' | 'horizontal';
-      separation?: number;
-      nodeGap?: number;
-      rankGap?: number;
-      reuseSeedStrength?: number;
-      fitFillRatio?: number;
-      groupRoots?: boolean;
-      antiLine?: {
-        enabled?: boolean;
-        maxAspectRatio?: number;
-        wrapRows?: number;
-      };
-      grid?: {
-        enabled?: boolean;
-        size?: number;
-        strength?: number;
-        steps?: number;
-      };
     };
     mermaid?: {
       renderOrder?: Record<string, number>

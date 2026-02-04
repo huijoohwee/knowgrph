@@ -27,6 +27,18 @@ export function useToolbarActions(
   canvasRenderMode?: '2d' | '3d',
   onGeospatialEnabledChange?: (enabled: boolean) => void,
 ) {
+  const ensureBaselineUnlocked = useCallback((): boolean => {
+    const state = useGraphStore.getState()
+    if (state.documentStructureBaselineLock !== true) return true
+    state.upsertUiToast({
+      id: 'baseline-locked',
+      kind: 'warning',
+      message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+      ttlMs: 6000,
+    })
+    return false
+  }, [])
+
   const handleLaunchStats = useCallback(() => {
     launchSpotlight('stats')
   }, [launchSpotlight])
@@ -36,6 +48,7 @@ export function useToolbarActions(
   }, [launchSpotlight])
 
   const handleTogglePortHandles = useCallback(() => {
+    if (!ensureBaselineUnlocked()) return
     const current = schema
     const behavior = current.behavior
     const portHandles = behavior.portHandles || {}
@@ -54,6 +67,7 @@ export function useToolbarActions(
   }, [schema, setSchema])
 
   const handleToggleNodeShapeMode = useCallback(() => {
+    if (!ensureBaselineUnlocked()) return
     const current = schema
     const behavior = current.behavior
     const rawCur = behavior.nodeShapeMode
@@ -78,6 +92,7 @@ export function useToolbarActions(
   }, [schema, setSchema])
 
   const handleToggleGroupShapeMode = useCallback(() => {
+    if (!ensureBaselineUnlocked()) return
     const current = schema
     const layout = current.layout || {}
     const groups = layout.groups || {}
@@ -97,6 +112,7 @@ export function useToolbarActions(
   }, [schema, setSchema])
 
   const handleToggleRadialLayout = useCallback(() => {
+    if (!ensureBaselineUnlocked()) return
     const current = schema
     const layout = current.layout || {}
     const nextMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
@@ -109,19 +125,7 @@ export function useToolbarActions(
     if (nextMode === 'radial') {
       setCanvasRenderMode('2d')
     }
-  }, [schema, setSchema, setCanvasRenderMode])
-
-  const handleToggleStratifyLayout = useCallback(() => {
-    const current = schema
-    const layout = current.layout || {}
-    const nextMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-      layout.mode === 'stratify' ? 'force' : 'stratify'
-    const next = {
-      ...current,
-      layout: { ...layout, mode: nextMode },
-    }
-    setSchema(next as GraphSchema)
-  }, [schema, setSchema])
+  }, [ensureBaselineUnlocked, schema, setSchema, setCanvasRenderMode])
 
   const handleOpenGraphFields = useCallback(() => {
     openMainPanel('graphFields')
@@ -176,15 +180,17 @@ export function useToolbarActions(
   }, [renderMediaAsNodes, setRenderMediaAsNodes])
 
   const handleToggle3DMode = useCallback(() => {
+    if (!ensureBaselineUnlocked()) return
     const next = canvasRenderMode === '3d' ? '2d' : '3d'
     setCanvasRenderMode(next)
-  }, [canvasRenderMode, setCanvasRenderMode])
+  }, [canvasRenderMode, ensureBaselineUnlocked, setCanvasRenderMode])
 
   const handleOpenChat = useCallback(() => {
     emitSidePanelOpen({ tab: 'chat', open: true })
   }, [])
 
   const handleOpenGeospatialMode = useCallback(() => {
+    if (!ensureBaselineUnlocked()) return
     void toggleGeospatialModeEnabled()
       .then(nextEnabled => {
         onGeospatialEnabledChange?.(nextEnabled)
@@ -203,7 +209,7 @@ export function useToolbarActions(
           void 0
         }
       })
-  }, [onGeospatialEnabledChange])
+  }, [ensureBaselineUnlocked, onGeospatialEnabledChange])
 
   const handleToggleTheme = useCallback(() => {
     setThemeMode(getNextThemeMode(themeMode))
@@ -216,7 +222,6 @@ export function useToolbarActions(
     handleToggleGroupShapeMode,
     handleTogglePortHandles,
     handleToggleRadialLayout,
-    handleToggleStratifyLayout,
     handleOpenGraphFields,
     handleOpenSettings,
     handleOpenHistory,

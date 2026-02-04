@@ -2,7 +2,7 @@ import { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import { validateSchema } from '@/features/schema/validation'
 import { LS_KEYS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
-import { layoutModeRequires2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
+import { layoutModeRequires2d, readLayoutMode2d } from '@/lib/graph/layoutMode'
 import type { GraphState } from '@/hooks/store/types'
 import type { JSONValue } from '@/lib/graph/types'
 import type { StoreApi } from 'zustand';
@@ -70,8 +70,8 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
 export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
   const setSchemaState = (schema: GraphSchema) => {
     const next = { ...schema }
-    const prevMode = (get().schema.layout?.mode || 'force') as LayoutMode2d
-    const nextMode = (next.layout?.mode || 'force') as LayoutMode2d
+    const prevMode = readLayoutMode2d(get().schema)
+    const nextMode = readLayoutMode2d(next)
     const prevRequires2d = layoutModeRequires2d(prevMode)
     const nextRequires2d = layoutModeRequires2d(nextMode)
     const canvasRenderMode = get().canvasRenderMode
@@ -278,11 +278,29 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     setSchemaState(next);
   },
   setSelectMode: (mode: 'single' | 'multi' | 'lasso') => {
+    if (get().documentStructureBaselineLock === true) {
+      get().upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        ttlMs: 6000,
+      })
+      return
+    }
     const { schema } = get();
     const next: GraphSchema = { ...schema, behavior: { ...schema.behavior, selectMode: mode } };
     setSchemaState(next);
   },
   setCreateMode: (mode: 'shift-drag' | 'click-source-target' | 'panel-only') => {
+    if (get().documentStructureBaselineLock === true) {
+      get().upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        ttlMs: 6000,
+      })
+      return
+    }
     const { schema } = get();
     const next: GraphSchema = { ...schema, behavior: { ...schema.behavior, createMode: mode } };
     setSchemaState(next);

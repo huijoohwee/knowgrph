@@ -64,7 +64,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       enabled
         ? (s: GraphState) => ({
             baseGraphData: s.graphData as GraphData | null,
-            mode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+            mode: (s.documentStructureBaselineLock === true ? 'document' : (s.documentSemanticMode || 'document')) as 'document' | 'keyword',
             markdownName: s.markdownDocumentName || null,
             markdownText: s.markdownDocumentText || null,
             revision: s.graphDataRevision || 0,
@@ -109,10 +109,11 @@ export function deriveGraphDataForActiveView(args: {
   graphData: GraphData
   frontmatterModeEnabled: boolean
   documentSemanticMode: string
+  documentStructureBaselineLock: boolean
   collapsedGroupIds: string[]
 }): GraphData {
   const base = computeEffectiveFrontmatterMode({
-    frontmatterModeEnabled: args.frontmatterModeEnabled,
+    frontmatterModeEnabled: args.frontmatterModeEnabled && args.documentStructureBaselineLock !== true,
     documentSemanticMode: args.documentSemanticMode,
     graphData: args.graphData,
   })
@@ -127,6 +128,7 @@ export function deriveGraphDataForActiveView(args: {
 const INACTIVE_RENDER_SLICE = {
   frontmatterModeEnabled: false,
   documentSemanticMode: 'document',
+  documentStructureBaselineLock: false,
   collapsedGroupIds: [] as string[],
 } as const
 
@@ -139,13 +141,14 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
         ? (s: GraphState) => ({
             frontmatterModeEnabled: s.frontmatterModeEnabled === true,
             documentSemanticMode: String(s.documentSemanticMode || 'document'),
+            documentStructureBaselineLock: s.documentStructureBaselineLock === true,
             collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
           })
         : () => INACTIVE_RENDER_SLICE,
     [enabled],
   )
 
-  const { frontmatterModeEnabled, documentSemanticMode, collapsedGroupIds } = useGraphStore(useShallow(selector))
+  const { frontmatterModeEnabled, documentSemanticMode, documentStructureBaselineLock, collapsedGroupIds } = useGraphStore(useShallow(selector))
 
   const lastRef = React.useRef<GraphData | null>(null)
 
@@ -160,10 +163,14 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
 
   const frontmatterGraphData = React.useMemo(() => {
     if (!graphData) return null
-    const effective = computeEffectiveFrontmatterMode({ frontmatterModeEnabled, documentSemanticMode, graphData })
+    const effective = computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: frontmatterModeEnabled && documentStructureBaselineLock !== true,
+      documentSemanticMode,
+      graphData,
+    })
     if (!effective) return graphData
     return filterGraphToFrontmatterMermaid(graphData)
-  }, [documentSemanticMode, frontmatterModeEnabled, graphData])
+  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData])
 
   const computed = React.useMemo(() => {
     if (!frontmatterGraphData) return null

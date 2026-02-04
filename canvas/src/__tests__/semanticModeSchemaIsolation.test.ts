@@ -6,6 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 export const testSemanticModeSchemaIsolationRestoresSchemaAndClearsSelection = () => {
   const api = useGraphStore.getState()
   api.resetAll()
+  api.setDocumentStructureBaselineLock(false)
 
   api.selectNode('n1')
   api.selectEdge('e1')

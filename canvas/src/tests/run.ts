@@ -142,13 +142,6 @@ import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingIn
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
 import { testGraphCanvasDisplayFilterFallback } from '@/__tests__/graphCanvasDisplayFilterFallback.test'
 import {
-  testStratifyLayoutDoesNotReuseForceCacheKey,
-  testStratifyLayoutDefaultsMatchFlowSpacing,
-  testStratifyLayoutProducesStableLayering,
-  testStratifyLayoutSnapsToGrid,
-  testStratifyLayoutNoOverlapAfterGridSnap,
-} from '@/__tests__/stratifyLayoutEnhancements.test'
-import {
   testLayoutPositioningCacheKeyIncludesViewKey,
   testLayoutPositioningCacheKeyIsolatesMediaDensity,
   testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes,
@@ -172,7 +165,7 @@ import {
   testFlowCanvasUsesActiveGraphRenderDataAndZoomState,
 } from '@/__tests__/flowCanvasIntegration.test'
 import { testFlowExtractNodePositionsExtractsFinitePositions, testFlowExtractNodePositionsReturnsNullWhenNone } from '@/__tests__/flowSeedPositions.test'
-import { testFlowSeedFromOtherRendererPrefersMatchingStratifyVariant } from '@/__tests__/flowSeedOtherRendererVariant.test'
+import { testFlowSeedFromOtherRendererPrefersExpectedVariant } from '@/__tests__/flowSeedOtherRendererVariant.test'
 import {
   testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback,
   testGeoJsonMapPreviewSupportsContainerHeightMode,
@@ -411,11 +404,6 @@ export const runAllTests = async () => {
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
 
-  await exec('layout.stratify.layeringStable', testStratifyLayoutProducesStableLayering)
-  await exec('layout.stratify.defaultsMatchFlowSpacing', testStratifyLayoutDefaultsMatchFlowSpacing)
-  await exec('layout.stratify.noForceCacheReuse', testStratifyLayoutDoesNotReuseForceCacheKey)
-  await exec('layout.stratify.gridSnap', testStratifyLayoutSnapsToGrid)
-  await exec('layout.stratify.gridNoOverlap', testStratifyLayoutNoOverlapAfterGridSnap)
   await exec('layout.positioning.skipsReseedOnToggle', testLayoutPositioningSkipsReseedOnToggle)
   await exec('layout.positioning.cacheKeyUsesRenderVariant', testLayoutPositioningCacheKeyUsesRenderVariant)
   await exec('layout.positioning.forcesLayoutWhenVariantChanges', testLayoutPositioningForcesLayoutWhenVariantChanges)
@@ -438,7 +426,7 @@ export const runAllTests = async () => {
   await exec('flowCanvas.zoom.autoZoomToSelection', testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer)
   await exec('flow.seed.extractNodePositions.extractsFinite', testFlowExtractNodePositionsExtractsFinitePositions)
   await exec('flow.seed.extractNodePositions.nullWhenNone', testFlowExtractNodePositionsReturnsNullWhenNone)
-  await exec('flow.seed.otherRenderer.prefersMatchingStratifyVariant', testFlowSeedFromOtherRendererPrefersMatchingStratifyVariant)
+  await exec('flow.seed.otherRenderer.prefersExpectedVariant', testFlowSeedFromOtherRendererPrefersExpectedVariant)
 
   await exec('flow.collision.relax.separatesOverlappingNodes', testFlowCollisionRelaxSeparatesOverlappingNodes)
   await exec('flow.groups.hitTest.usesLabelTopExtra', testFlowHitTestGroupUsesLabelTopExtra)

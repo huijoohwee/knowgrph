@@ -104,35 +104,11 @@ export const testLayoutPositioningCacheKeyUsesRenderVariant = () => {
     layoutPositionCacheByMode: {},
   })
 
-  const baseStratify = {
-    datasetKey,
-    mode: 'stratify',
-    frontmatterMode: false,
-    semanticMode: 'document',
-    renderMode: '2d',
-    renderVariant: 'd3',
-    prevDatasetKey: null,
-    prevMode: null,
-    prevFrontmatterMode: null,
-    prevSemanticMode: null,
-    prevRenderMode: null,
-    nodes,
-    layoutPositionCacheByMode: {},
-  } as const
-  const stratifyVertical = determineLayoutPositions({ ...baseStratify, layoutVariant: 'o=vertical' })
-  const stratifyHorizontal = determineLayoutPositions({ ...baseStratify, layoutVariant: 'o=horizontal' })
-
   if (d3.cacheKey !== `${datasetKey}:document:default:force:2d:d3`) {
     throw new Error(`expected d3 cacheKey ${datasetKey}:document:default:force:2d:d3, got ${d3.cacheKey}`)
   }
   if (flow.cacheKey !== `${datasetKey}:document:default:force:2d:flow`) {
     throw new Error(`expected flow cacheKey ${datasetKey}:document:default:force:2d:flow, got ${flow.cacheKey}`)
-  }
-  if (stratifyVertical.cacheKey !== `${datasetKey}:document:default:stratify:2d:d3:o=vertical`) {
-    throw new Error(`expected stratify vertical cacheKey ${datasetKey}:document:default:stratify:2d:d3:o=vertical, got ${stratifyVertical.cacheKey}`)
-  }
-  if (stratifyHorizontal.cacheKey !== `${datasetKey}:document:default:stratify:2d:d3:o=horizontal`) {
-    throw new Error(`expected stratify horizontal cacheKey ${datasetKey}:document:default:stratify:2d:d3:o=horizontal, got ${stratifyHorizontal.cacheKey}`)
   }
 }
 
@@ -145,19 +121,19 @@ export const testLayoutPositioningForcesLayoutWhenVariantChanges = () => {
 
   const res = determineLayoutPositions({
     datasetKey,
-    mode: 'stratify',
+    mode: 'force',
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
     renderVariant: 'd3',
-    layoutVariant: 'o=horizontal',
+    layoutVariant: 'variant:a',
     prevDatasetKey: datasetKey,
-    prevMode: 'stratify',
+    prevMode: 'force',
     prevFrontmatterMode: false,
     prevSemanticMode: 'document',
     prevRenderMode: '2d',
     prevRenderVariant: 'd3',
-    prevLayoutVariant: 'o=vertical',
+    prevLayoutVariant: 'variant:b',
     nodes,
     layoutPositionCacheByMode: {},
   })

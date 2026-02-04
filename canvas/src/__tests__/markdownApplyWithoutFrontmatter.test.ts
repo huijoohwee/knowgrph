@@ -2,6 +2,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 
 export async function testMarkdownApplyWithoutFrontmatterBuildsGraph() {
   const state = useGraphStore.getState()
+  state.setDocumentStructureBaselineLock(false)
   const prevFrontmatterModeEnabled = !!state.frontmatterModeEnabled
   try {
     state.clearGraphData()

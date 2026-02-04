@@ -153,6 +153,8 @@ export interface GraphState {
   setEditorWorkspaceSection: (section: EditorWorkspaceSection) => void
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;
+  documentStructureBaselineLock: boolean;
+  setDocumentStructureBaselineLock: (enabled: boolean) => void;
   isSidebarOpen: boolean;
   history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>;
   historyIndex: number;

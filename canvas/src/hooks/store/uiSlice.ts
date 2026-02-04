@@ -4,6 +4,7 @@ import type { GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage';
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice';
+import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config'
 
 type SetGraph = StoreApi<GraphState>['setState'];
 
@@ -18,6 +19,29 @@ export const createUiSlice = (set: SetGraph) => {
       'canvas',
       value => (value === 'editor' || value === 'canvas' || value === 'table' ? value : 'canvas'),
     ),
+
+    documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, true),
+    setDocumentStructureBaselineLock: (enabled: boolean) =>
+      set(state => {
+        const next = enabled === false ? false : true
+        if (state.documentStructureBaselineLock === next) return {}
+        lsSetBool(LS_KEYS.documentStructureBaselineLock, next)
+        if (!next) return { documentStructureBaselineLock: false } as Partial<GraphState>
+        lsSetJson(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER)
+        return {
+          documentStructureBaselineLock: true,
+          documentSemanticMode: 'document',
+          frontmatterModeEnabled: false,
+          canvasRenderMode: '2d',
+          canvas2dRenderer: DEFAULT_CANVAS_2D_RENDERER,
+          selectedNodeId: null,
+          selectedEdgeId: null,
+          selectedGroupId: null,
+          selectedNodeIds: [],
+          selectedEdgeIds: [],
+          selectedGroupIds: [],
+        } as Partial<GraphState>
+      }),
 
     editorWorkspaceSection: lsJson<'markdown' | 'graphTable'>(
       LS_KEYS.workspaceEditorSection,

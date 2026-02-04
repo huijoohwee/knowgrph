@@ -128,11 +128,25 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   ),
   canvasRenderModeLastFree: '2d' as '2d' | '3d',
   canvasRenderModeIsAuto: false as boolean,
-  setCanvasRenderMode: (m: '2d' | '3d') =>
+  setCanvasRenderMode: (m: '2d' | '3d') => {
+    const cur = get()
+    if (cur.documentStructureBaselineLock === true) {
+      if (cur.canvasRenderMode !== '2d') {
+        set({ canvasRenderMode: '2d', canvasRenderModeLastFree: '2d', canvasRenderModeIsAuto: false })
+        return
+      }
+      cur.upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        ttlMs: 6000,
+      })
+      return
+    }
     set(state => {
       const requested = m === '3d' ? '3d' : '2d'
       const layoutMode = state.schema?.layout?.mode
-      const enforce2d = layoutMode === 'radial' || layoutMode === 'stratify'
+      const enforce2d = layoutMode === 'radial'
       if (enforce2d) {
         if (requested === '3d') {
           const nextLastFree = state.canvasRenderMode === '3d' ? '3d' : (state.canvasRenderModeLastFree || '2d')
@@ -141,14 +155,26 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
         return { canvasRenderMode: '2d', canvasRenderModeIsAuto: false }
       }
       return { canvasRenderMode: requested, canvasRenderModeLastFree: requested, canvasRenderModeIsAuto: false }
-    }),
-  setCanvas2dRenderer: (id: 'd3' | 'flow') =>
+    })
+  },
+  setCanvas2dRenderer: (id: 'd3' | 'flow') => {
+    const cur = get()
+    if (cur.documentStructureBaselineLock === true) {
+      cur.upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        ttlMs: 6000,
+      })
+      return
+    }
     set(state => {
       const next: 'd3' | 'flow' = id === 'flow' ? 'flow' : 'd3'
       if (state.canvas2dRenderer === next) return {}
       lsSetJson(LS_KEYS.canvas2dRenderer, next)
       return { canvas2dRenderer: next }
-    }),
+    })
+  },
   canvasSnapshotFns: {} as { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns },
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) =>
     set(state => ({

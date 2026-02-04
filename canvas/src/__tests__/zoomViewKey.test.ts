@@ -3,7 +3,7 @@ import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 export const testZoomViewKeyIncludesPresentationKeys = () => {
   const base = {
     canvasRenderMode: '2d',
-    schemaLayoutEngineJson: '{"layout":{"mode":"stratify"}}',
+    schemaLayoutEngineJson: '{"layout":{"mode":"force"}}',
     frontmatterModeEnabled: true,
     documentSemanticMode: 'document',
     graphMetaKey: 'markdown:local',
@@ -21,4 +21,3 @@ export const testZoomViewKeyIncludesPresentationKeys = () => {
   const k3 = buildZoomViewKey({ ...base, schemaGroupsPresentationJson: '{"groups":{"enabled":false}}' })
   if (k1 === k3) throw new Error('expected zoom view key to change when groups presentation changes')
 }
-

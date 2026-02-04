@@ -355,7 +355,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   simulation.on('end.layoutCache', storeLayoutPositions)
 
   const layoutMode = readLayoutMode(schema)
-  if (layoutMode === 'radial' || layoutMode === 'stratify') {
+  if (layoutMode === 'radial') {
     simulation.stop()
     storeLayoutPositions()
   }

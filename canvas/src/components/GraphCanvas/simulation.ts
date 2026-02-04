@@ -2,7 +2,6 @@ import * as d3 from 'd3';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
 import { applyRadialClusterLayout } from './layout/radial';
-import { applyStratifyLayout } from './layout/stratify'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { computeDisjointComponentTargets } from './layout/disjoint';
 import { applyForceModeSeeds } from './layout/seeding';
@@ -107,12 +106,6 @@ export const buildSimulation = (
         n.vy = 0
       }
     }
-    if (mode === 'stratify') {
-      const ok = applyStratifyLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf)
-      if (!ok) {
-        applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
-      }
-    }
     if (mode === 'force') {
       applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
     }
@@ -123,7 +116,7 @@ export const buildSimulation = (
     .id(d => d.id)
     .distance(linkDist);
   
-  if (mode === 'radial' || mode === 'stratify') {
+  if (mode === 'radial') {
     const simulation = d3.forceSimulation<GraphNode>(nodes)
     simulation.stop()
     return simulation
@@ -437,7 +430,7 @@ export const updateForceSimulationPresentation = (args: {
 }) => {
   const { simulation, nodes, width, height, schema } = args
   const mode = readLayoutMode(schema)
-  if (mode === 'radial' || mode === 'stratify') return
+  if (mode === 'radial') return
 
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
   const collideRadiusFn = (d: GraphNode) => {

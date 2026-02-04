@@ -68,6 +68,7 @@
 
 - Workspace view mode and Editor layout state:
   - `LS_KEYS.workspaceViewMode` (Canvas | Editor)
+  - `LS_KEYS.documentStructureBaselineLock` (default on; disables mode switches that can desync surfaces)
   - `LS_KEYS.workspacePreviewWidthPx` (Editor preview split width)
   - `LS_KEYS.workspaceEditorSection` (Editor left pane section: Markdown | Graph Table)
 

@@ -66,13 +66,6 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
           'Canvas clusters → toggle the toolbar button to render or hide outline clusters around nodes linked by document/subgraph structure → styling comes from schema.metadata["canvas:graphLayers"] (defaultStyle, byOwnerType, byPropertyKey) or falls back to the owner node type color for domain-agnostic grouping.',
       },
       {
-        mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.stratifyLayoutMode}`,
-        gesture: 'Toggle Stratify layout (UI only)',
-        zoomDrag: 'Zoom and node drag behave normally; behavior matches Force layout',
-        tools:
-          'Stratify layout → toolbar toggle is kept for compatibility, but the renderer behaves like Force layout (no tree layout and no edge filtering).',
-      },
-      {
         mode: 'Create: shift-drag',
         gesture: 'Shift + drag from source node to target node',
         zoomDrag: 'Zoom and basic node drag follow general behavior settings',

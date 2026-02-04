@@ -144,6 +144,7 @@ export const LS_KEYS = {
   chatSystemPrompt: 'kg:chat:systemPrompt',
   chatHistoryPrefix: 'kg:chat:history:',
   workspaceViewMode: 'kg:ui:workspace:viewMode',
+  documentStructureBaselineLock: 'kg:ui:baseline:documentStructureLock',
   workspacePreviewWidthPx: 'kg:ui:workspace:previewWidthPx',
   graphTablePreviewCollapsed: 'kg:ui:graphTable:preview:collapsed',
   graphTablePreviewWidthPx: 'kg:ui:graphTable:preview:widthPx',
@@ -191,6 +192,7 @@ export type LsKeyOwner =
   | 'ui.mainPanel'
   | 'ui.floatingPanel'
   | 'ui.sidebar'
+  | 'ui.baseline'
   | 'ui.geospatial'
   | 'ui.preview'
   | 'parsers.treeSitter'
@@ -376,6 +378,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   chatSystemPrompt: 'ui.chat',
   chatHistoryPrefix: 'ui.chat',
   workspaceViewMode: 'ui.workspace',
+  documentStructureBaselineLock: 'ui.baseline',
   workspacePreviewWidthPx: 'ui.workspace',
 };
 

@@ -24,7 +24,6 @@ import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCre
 import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight'
 import { useGroupSelectionHighlight } from '@/components/GraphCanvas/hooks/useGroupSelectionHighlight'
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey, determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
-import { buildStratifyLayoutVariant } from '@/components/GraphCanvas/layout/stratifyVariant'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
@@ -38,7 +37,7 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const lastLayoutModeRef = useRef<null | 'force' | 'radial' | 'stratify'>(null);
+  const lastLayoutModeRef = useRef<null | 'force' | 'radial'>(null);
   const lastFrontmatterModeRef = useRef<boolean | null>(null);
   const lastSemanticModeRef = useRef<'document' | 'keyword' | null>(null)
   const lastLayoutVariantRef = useRef<string | null>(null)
@@ -72,6 +71,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     setLayoutPositionsForMode,
     frontmatterModeEnabled,
     documentSemanticMode,
+    documentStructureBaselineLock,
     canvasRenderMode,
     canvas2dRenderer,
     collapsedGroupIds,
@@ -89,6 +89,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+      documentStructureBaselineLock: s.documentStructureBaselineLock === true,
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
       collapsedGroupIds: s.collapsedGroupIds || [],
@@ -118,7 +119,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       mode,
       forces,
       fitPadding,
-      stratify: schema?.layout?.stratify || null,
     })
   }, [schema])
 
@@ -161,11 +161,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const renderGraphData = useActiveGraphRenderData(active)
   const effectiveFrontmatterModeEnabled = useMemo(() => {
     return computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
       documentSemanticMode,
       graphData: renderGraphData,
     })
-  }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
+  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, renderGraphData])
 
   const collapsedGroupIdsKey = useMemo(() => {
     const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
@@ -276,7 +276,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const mode = schemaValue ? readLayoutMode(schemaValue) : 'force'
     const semanticMode = String(state.documentSemanticMode || 'document')
     const frontmatter = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: state.frontmatterModeEnabled === true,
+      frontmatterModeEnabled: state.frontmatterModeEnabled === true && state.documentStructureBaselineLock !== true,
       documentSemanticMode: semanticMode as 'document' | 'keyword',
       graphData: (state.graphData as unknown as import('@/lib/graph/types').GraphData | null) ?? null,
     })
@@ -284,30 +284,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       graphData: state.graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null,
       graphDataRevision: state.graphDataRevision || 0,
     })
-    const layoutVariant = (() => {
-      if (mode !== 'stratify') return ''
-      const stratify = schemaValue?.layout?.stratify || null
-      const orientation = stratify?.orientation === 'horizontal' ? 'horizontal' : 'vertical'
-      const groupRoots = stratify?.groupRoots !== false ? '1' : '0'
-      const grid = stratify?.grid || null
-      const gridEnabled = grid?.enabled !== false ? '1' : '0'
-      const gridSize = typeof grid?.size === 'number' && Number.isFinite(grid.size) ? String(Math.floor(grid.size)) : ''
-      const antiLine = stratify?.antiLine || null
-      const antiLineEnabled = antiLine?.enabled !== false ? '1' : '0'
-      const wrapRows =
-        typeof antiLine?.wrapRows === 'number' && Number.isFinite(antiLine.wrapRows) ? String(Math.floor(antiLine.wrapRows)) : ''
-      const maxAspectRatio =
-        typeof antiLine?.maxAspectRatio === 'number' && Number.isFinite(antiLine.maxAspectRatio)
-          ? String(Math.round(antiLine.maxAspectRatio * 100) / 100)
-          : ''
-      const parts = [
-        `o=${orientation}`,
-        `gr=${groupRoots}`,
-        `g=${gridEnabled}${gridSize ? `:${gridSize}` : ''}`,
-        `al=${antiLineEnabled}${wrapRows || maxAspectRatio ? `:${wrapRows || ''}:${maxAspectRatio || ''}` : ''}`,
-      ]
-      return parts.join('|')
-    })()
+    const layoutVariant = ''
     const graphMetaKey = String(state.graphData?.metadata && typeof state.graphData.metadata === 'object'
       ? `${String((state.graphData.metadata as Record<string, unknown>).kind ?? '')}:${String((state.graphData.metadata as Record<string, unknown>).source ?? '')}`
       : '')
@@ -322,7 +299,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       mode,
       forces: schemaValue?.layout?.forces || null,
       fitPadding: schemaValue?.layout?.fitPadding ?? null,
-      stratify: schemaValue?.layout?.stratify || null,
     })
     const schemaNodesPresentationJson = JSON.stringify({
       nodeShapeMode: schemaValue?.behavior?.nodeShapeMode || 'auto',
@@ -464,7 +440,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       if (sceneCleanupRef.current && sceneBuildKeyRef.current === buildKey) {
         const sim = simulationRef.current
         const effectiveMode = readLayoutMode(schemaValue)
-        if (sim && effectiveMode !== 'radial' && effectiveMode !== 'stratify') {
+        if (sim && effectiveMode !== 'radial') {
           try {
             sim.alphaTarget(0.08).restart()
           } catch {
@@ -528,10 +504,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         graphData: sceneGraphData,
         graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
       })
-      const layoutVariant = (() => {
-        if (mode !== 'stratify') return ''
-        return buildStratifyLayoutVariant(schemaValue)
-      })()
+      const layoutVariant = ''
       const initialZoomTransform = pickInitialZoomTransform({
         zoomState: z,
         pinned: isPinned,

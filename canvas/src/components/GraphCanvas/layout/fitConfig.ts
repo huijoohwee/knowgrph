@@ -35,12 +35,7 @@ export function readFitAllOptions(args: {
 
   const [minScale, maxScale] = readZoomScaleExtent(schema)
   const detectClustersEffective = args.intent === 'fitSelection' ? false : detectClusters !== false
-  const targetFillRatio = (() => {
-    const isStratify = (mode as LayoutMode2d) === 'stratify'
-    const v = isStratify ? schema.layout?.stratify?.fitFillRatio : null
-    if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0.2, Math.min(0.95, v))
-    return DEFAULT_FIT_TO_SCREEN_FILL_RATIO
-  })()
+  const targetFillRatio = DEFAULT_FIT_TO_SCREEN_FILL_RATIO
 
   return {
     pad,

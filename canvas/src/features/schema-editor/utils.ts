@@ -20,9 +20,6 @@ import {
   DEFAULT_GROUPS_ENABLED,
   DEFAULT_GROUP_SHAPE,
   DEFAULT_GROUP_STROKE_WIDTH,
-  DEFAULT_STRATIFY_FIT_FILL_RATIO,
-  DEFAULT_STRATIFY_REUSE_SEED_STRENGTH,
-  DEFAULT_STRATIFY_SEPARATION,
 } from '@/lib/graph/layoutDefaults'
 import {
   canUseSchemaUiApplyRegistration,
@@ -86,13 +83,6 @@ export const buildCleanSchema = (): GraphSchema => ({
       labelPadding: DEFAULT_GROUP_LABEL_PADDING,
       strokeWidth: DEFAULT_GROUP_STROKE_WIDTH,
       fillOpacity: DEFAULT_GROUP_FILL_OPACITY,
-    },
-    stratify: {
-      edgeLabels: [],
-      orientation: 'vertical',
-      separation: DEFAULT_STRATIFY_SEPARATION,
-      reuseSeedStrength: DEFAULT_STRATIFY_REUSE_SEED_STRENGTH,
-      fitFillRatio: DEFAULT_STRATIFY_FIT_FILL_RATIO,
     },
   },
   endpointMatrix: {},

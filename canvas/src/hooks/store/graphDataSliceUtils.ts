@@ -40,7 +40,6 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
   const curLayout = schema.layout || {}
   if ((curLayout.mode || 'force') !== 'force') return
   if (modeSuggestion === 'force') return
-  if (modeSuggestion === 'stratify') return
 
   const nextLayout: NonNullable<typeof schema.layout> = { ...curLayout, mode: modeSuggestion }
   get().setSchema({ ...schema, layout: nextLayout })

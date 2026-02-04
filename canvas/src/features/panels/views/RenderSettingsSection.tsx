@@ -45,6 +45,8 @@ export default function RenderSettingsSection({
   const setSchema = useGraphStore(s => s.setSchema)
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
+  const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
+  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const setThreeConfig = useGraphStore(s => s.setThreeConfig)
   const setCharge = useGraphStore(s => s.setCharge)
   const setCollisionByType = useGraphStore(s => s.setCollisionByType)
@@ -53,6 +55,17 @@ export default function RenderSettingsSection({
   const setEdgeArrow = useGraphStore(s => s.setEdgeArrow)
   const setSelectMode = useGraphStore(s => s.setSelectMode)
   const setCreateMode = useGraphStore(s => s.setCreateMode)
+
+  const ensureBaselineUnlocked = React.useCallback((): boolean => {
+    if (documentStructureBaselineLock !== true) return true
+    upsertUiToast({
+      id: 'baseline-locked',
+      kind: 'warning',
+      message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+      ttlMs: 6000,
+    })
+    return false
+  }, [documentStructureBaselineLock, upsertUiToast])
 
   const [pipelineStatus, setPipelineStatus] = React.useState<string | null>(null)
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -74,7 +87,7 @@ export default function RenderSettingsSection({
   )
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-    schema.layout?.mode === 'radial' || schema.layout?.mode === 'stratify' ? schema.layout.mode : 'force'
+    schema.layout?.mode === 'radial' ? schema.layout.mode : 'force'
 
   const setLayoutMode = React.useCallback(
     (mode: NonNullable<NonNullable<GraphSchema['layout']>['mode']>) => {
@@ -318,7 +331,10 @@ export default function RenderSettingsSection({
               <select
                 className={uiPanelKeyValueInputClass}
                 value={canvasRenderMode}
-                onChange={e => setCanvasRenderMode(e.target.value === '3d' ? '3d' : '2d')}
+                onChange={e => {
+                  if (!ensureBaselineUnlocked()) return
+                  setCanvasRenderMode(e.target.value === '3d' ? '3d' : '2d')
+                }}
               >
                 <option value="2d">2d</option>
                 <option value="3d">3d</option>
@@ -332,6 +348,7 @@ export default function RenderSettingsSection({
                 className={uiPanelKeyValueInputClass}
                 value={(schema.behavior?.selectMode ?? 'single') as GraphSelectMode}
                 onChange={e => {
+                  if (!ensureBaselineUnlocked()) return
                   const raw = e.target.value
                   const next: GraphSelectMode =
                     raw === 'multi' || raw === 'lasso' ? (raw as GraphSelectMode) : 'single'
@@ -351,6 +368,7 @@ export default function RenderSettingsSection({
                 className={uiPanelKeyValueInputClass}
                 value={(schema.behavior?.createMode ?? 'shift-drag') as GraphCreateMode}
                 onChange={e => {
+                  if (!ensureBaselineUnlocked()) return
                   const raw = e.target.value
                   const next: GraphCreateMode =
                     raw === 'click-source-target' || raw === 'panel-only'
@@ -396,9 +414,10 @@ export default function RenderSettingsSection({
                       className={uiPanelKeyValueInputClass}
                       value={layoutMode}
                       onChange={e => {
+                        if (!ensureBaselineUnlocked()) return
                         const raw = e.target.value
                         const next: typeof layoutMode =
-                          raw === 'radial' ? 'radial' : raw === 'stratify' ? 'stratify' : 'force'
+                          raw === 'radial' ? 'radial' : 'force'
                         setLayoutMode(next)
                         if (next === 'radial') {
                           setCanvasRenderMode('2d')
@@ -407,7 +426,6 @@ export default function RenderSettingsSection({
                     >
                       <option value="force">force</option>
                       <option value="radial">radial</option>
-                      <option value="stratify">stratify</option>
                     </select>
                   </RightAlignedValueCell>
                 )}

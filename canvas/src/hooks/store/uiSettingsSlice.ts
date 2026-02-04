@@ -140,8 +140,28 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setFloatingPanelZIndex: (v: number) => set({ floatingPanelZIndex: v }),
   setSidebarWidthRatio: (v: number) => set({ sidebarWidthRatio: v }),
   setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
-  setFrontmatterModeEnabled: (v: boolean) => set({ frontmatterModeEnabled: v }),
+  setFrontmatterModeEnabled: (v: boolean) => {
+    if (get().documentStructureBaselineLock === true) {
+      get().upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        ttlMs: 6000,
+      })
+      return
+    }
+    set({ frontmatterModeEnabled: v })
+  },
   setDocumentSemanticMode: (v: DocumentSemanticMode) => {
+    if (get().documentStructureBaselineLock === true) {
+      get().upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        ttlMs: 6000,
+      })
+      return
+    }
     const nextMode: DocumentSemanticMode = v === 'keyword' ? 'keyword' : 'document'
     const prevMode: DocumentSemanticMode = (get().documentSemanticMode || 'document') as DocumentSemanticMode
     if (nextMode === prevMode) return

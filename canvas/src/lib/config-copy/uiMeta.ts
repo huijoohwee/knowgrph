@@ -117,7 +117,6 @@ export const UI_LABELS = {
   graphLayersMode: 'Clusters',
   portHandles: 'Port Handles',
   radialLayoutMode: 'Radial Layout',
-  stratifyLayoutMode: 'Stratify Layout',
   dragToReorder: 'Drag to reorder',
   removeOption: 'Remove option',
   fieldSettings: 'Field Settings',

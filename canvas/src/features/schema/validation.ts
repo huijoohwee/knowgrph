@@ -162,18 +162,6 @@ export const validateSchema = (s: Partial<GraphSchema>): GraphSchema => {
         ...(base.layout?.groups || {}),
         ...(s.layout?.groups || {}),
       },
-      stratify: {
-        ...(base.layout?.stratify || {}),
-        ...(s.layout?.stratify || {}),
-        antiLine: {
-          ...(base.layout?.stratify?.antiLine || {}),
-          ...(s.layout?.stratify?.antiLine || {}),
-        },
-        grid: {
-          ...(base.layout?.stratify?.grid || {}),
-          ...(s.layout?.stratify?.grid || {}),
-        },
-      },
       mermaid: {
         ...(base.layout?.mermaid || {}),
         ...(s.layout?.mermaid || {}),
@@ -209,6 +197,24 @@ export const validateSchema = (s: Partial<GraphSchema>): GraphSchema => {
       layerOpacityByLayer: { ...(base.three?.layerOpacityByLayer || {}), ...(s.three?.layerOpacityByLayer || {}) },
       selection: { ...(base.three?.selection || {}), ...(s.three?.selection || {}) },
     },
+  }
+
+  const layoutAny = (next.layout && typeof next.layout === 'object' && !Array.isArray(next.layout))
+    ? (next.layout as unknown as Record<string, unknown>)
+    : null
+  if (layoutAny) {
+    const mode = layoutAny.mode
+    if (mode === 'stratify') layoutAny.mode = 'force'
+    if (Object.prototype.hasOwnProperty.call(layoutAny, 'stratify')) {
+      delete layoutAny.stratify
+    }
+    const flowAny = (layoutAny.flow && typeof layoutAny.flow === 'object' && !Array.isArray(layoutAny.flow))
+      ? (layoutAny.flow as Record<string, unknown>)
+      : null
+    if (flowAny && flowAny.rankdir != null) {
+      const raw = String(flowAny.rankdir || '').toUpperCase()
+      flowAny.rankdir = raw === 'LR' ? 'LR' : 'TB'
+    }
   }
 
   const toStringArray = (value: unknown): string[] => {
