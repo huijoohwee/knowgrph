@@ -6,26 +6,15 @@ import { LS_KEYS } from '@/lib/config'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { MarkdownWorkspace } from './BottomPanel/markdownWorkspace/MarkdownWorkspace'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
+import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
 
 export function EmbeddedEditorShell(props: { previewSrc: string }) {
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
-  const graphData = useGraphStore(s => s.graphData)
-  const graphDataRevision = useGraphStore(s => s.graphDataRevision)
-  const schema = useGraphStore(s => s.schema)
-  const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
-  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
-  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
-  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const selectedGroupId = useGraphStore(s => s.selectedGroupId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
-  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
-  const selectedGroupIds = useGraphStore(s => s.selectedGroupIds)
   const [previewWidthPx, setPreviewWidthPx] = React.useState(() => lsInt(LS_KEYS.workspacePreviewWidthPx, 520))
   const dragHandleRef = React.useRef<HTMLHRElement | null>(null)
   const previewWidthPxRef = React.useRef(previewWidthPx)
   previewWidthPxRef.current = previewWidthPx
-  const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
 
   React.useEffect(() => {
     const el = dragHandleRef.current
@@ -62,90 +51,6 @@ export function EmbeddedEditorShell(props: { previewSrc: string }) {
     return () => el.removeEventListener('pointerdown', onDown)
   }, [])
 
-  const sendPreviewSnapshot = React.useCallback(() => {
-    const iframe = iframeRef.current
-    const target = iframe?.contentWindow
-    if (!target) return
-    try {
-      target.postMessage(
-        {
-          kind: 'kg-preview-sync',
-          payload: {
-            graphData,
-            schema,
-            canvasRenderMode,
-            canvas2dRenderer,
-            selectedNodeId,
-            selectedEdgeId,
-            selectedGroupId,
-            selectedNodeIds,
-            selectedEdgeIds,
-            selectedGroupIds,
-          },
-        },
-        window.location.origin,
-      )
-    } catch {
-      void 0
-    }
-  }, [
-    canvas2dRenderer,
-    canvasRenderMode,
-    graphData,
-    schema,
-    selectedEdgeId,
-    selectedEdgeIds,
-    selectedGroupId,
-    selectedGroupIds,
-    selectedNodeId,
-    selectedNodeIds,
-  ])
-
-  React.useEffect(() => {
-    void graphDataRevision
-    sendPreviewSnapshot()
-  }, [graphDataRevision, sendPreviewSnapshot])
-
-  React.useEffect(() => {
-    sendPreviewSnapshot()
-  }, [
-    canvas2dRenderer,
-    canvasRenderMode,
-    schema,
-    selectedEdgeId,
-    selectedEdgeIds,
-    selectedGroupId,
-    selectedGroupIds,
-    selectedNodeId,
-    selectedNodeIds,
-    sendPreviewSnapshot,
-  ])
-
-  React.useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      try {
-        if (event.origin !== window.location.origin) return
-        const data = event.data as unknown
-        if (!data || typeof data !== 'object') return
-        const msg = data as { kind?: unknown; payload?: unknown }
-        if (msg.kind !== 'kg-preview-selection') return
-        const payload = msg.payload as { selectedNodeId?: unknown; selectedEdgeId?: unknown; selectedGroupId?: unknown }
-        const nextNodeId = typeof payload.selectedNodeId === 'string' ? payload.selectedNodeId : ''
-        const nextEdgeId = typeof payload.selectedEdgeId === 'string' ? payload.selectedEdgeId : ''
-        const nextGroupId = typeof payload.selectedGroupId === 'string' ? payload.selectedGroupId : ''
-        const store = useGraphStore.getState()
-        store.setSelectionSource('canvas')
-        if (nextNodeId) store.selectNode(nextNodeId)
-        else if (nextEdgeId) store.selectEdge(nextEdgeId)
-        else if (nextGroupId) store.selectGroup(nextGroupId)
-      } catch {
-        void 0
-      }
-    }
-    window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
-  }, [])
-
   return (
     <section className="flex-1 min-h-0 flex overflow-hidden" aria-label="Embedded Editor Workspace">
       <main className={`flex-1 min-w-0 min-h-0 flex ${uiPanelTextFontClass}`} aria-label="Editor and Preview">
@@ -169,20 +74,8 @@ export function EmbeddedEditorShell(props: { previewSrc: string }) {
             <h2 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>Canvas Preview</h2>
             <p className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} ${uiPanelMonospaceTextClass}`}>Embedded</p>
           </header>
-          <section className="flex-1 min-h-0 overflow-hidden bg-white dark:bg-[#0d1117]" aria-label="Preview frame">
-            <iframe
-              title="Canvas Preview"
-              src={props.previewSrc}
-              className="block w-full h-full border-0 bg-white dark:bg-[#0d1117]"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
-              data-kg-preview="1"
-              ref={el => {
-                iframeRef.current = el
-              }}
-              onLoad={() => {
-                sendPreviewSnapshot()
-              }}
-            />
+          <section className="flex-1 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]" aria-label="Preview frame">
+            <EmbeddedCanvasPreviewFrame previewSrc={props.previewSrc} className="block w-full h-full border-0 bg-[var(--kg-canvas-bg)]" />
           </section>
         </aside>
       </main>

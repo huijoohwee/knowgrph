@@ -3,7 +3,7 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphColumnDoc, GraphTableId } from '@/features/graph-table-db/graphTableDb'
 import type { GraphTableGridRow } from './GraphTableGrid'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from 'lucide-react'
 import type {
   GraphTableColumnVisibilityById,
   GraphTableColumnWidthsPxById,
@@ -149,6 +149,17 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
 
   const rowCellPaddingClass = props.rowHeightPreset === 'compact' ? 'py-1' : 'py-2'
 
+  const sortIndexByColumnId = React.useMemo(() => {
+    const out: Record<string, { dir: 'asc' | 'desc'; index: number }> = {}
+    for (let i = 0; i < props.sortRules.length; i += 1) {
+      const r = props.sortRules[i]
+      const columnId = String(r.columnId || '').trim()
+      if (!columnId) continue
+      out[columnId] = { dir: r.direction === 'desc' ? 'desc' : 'asc', index: i + 1 }
+    }
+    return out
+  }, [props.sortRules])
+
   const columnWidths = props.columnWidthsPxById
 
   const startResize = (columnId: string, th: HTMLElement, ev: React.PointerEvent) => {
@@ -200,8 +211,11 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
           ))}
         </colgroup>
         <thead className="sticky top-0 z-10">
-          <tr className={`${UI_THEME_TOKENS.panel.bg} border-b ${UI_THEME_TOKENS.panel.divider}`}>
-            <th scope="col" className={`px-2 ${rowCellPaddingClass} text-left border-b ${UI_THEME_TOKENS.panel.divider}`}>
+          <tr className={`${UI_THEME_TOKENS.panel.headerBg} border-b ${UI_THEME_TOKENS.panel.divider}`}>
+            <th
+              scope="col"
+              className={`px-2 ${rowCellPaddingClass} text-left border-b border-r ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.secondary}`}
+            >
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -216,28 +230,44 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
                 aria-label="Select all rows"
               />
             </th>
-            <th scope="col" className={`px-2 ${rowCellPaddingClass} text-left border-b ${UI_THEME_TOKENS.panel.divider}`}>
+            <th
+              scope="col"
+              className={`px-2 ${rowCellPaddingClass} text-left border-b border-r ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.secondary}`}
+            >
               #
             </th>
-            {visibleColumns.map(c => (
-              <th
-                key={c.columnId}
-                scope="col"
-                className={`px-2 ${rowCellPaddingClass} text-left font-semibold border-b ${UI_THEME_TOKENS.panel.divider} relative`}
-              >
-                <span className="pr-3">{c.name}</span>
-                <button
-                  type="button"
-                  aria-label={`Resize ${c.name} column`}
-                  className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize"
-                  onPointerDown={ev => {
-                    const th = ev.currentTarget.parentElement
-                    if (!th) return
-                    startResize(c.columnId, th, ev)
-                  }}
-                />
-              </th>
-            ))}
+            {visibleColumns.map(c => {
+              const sortMeta = sortIndexByColumnId[c.columnId]
+              const isSorted = !!sortMeta
+              const SortIcon = sortMeta?.dir === 'desc' ? ArrowDown : ArrowUp
+              return (
+                <th
+                  key={c.columnId}
+                  scope="col"
+                  className={`px-2 ${rowCellPaddingClass} text-left border-b border-r ${UI_THEME_TOKENS.panel.divider} relative select-none ${UI_THEME_TOKENS.text.secondary} hover:bg-black/5 dark:hover:bg-white/5`}
+                >
+                  <span className="pr-3 inline-flex items-center gap-1">
+                    <span className={`font-semibold ${isSorted ? UI_THEME_TOKENS.text.primary : ''}`}>{c.name}</span>
+                    {isSorted ? (
+                      <span className={`inline-flex items-center gap-1 ${UI_THEME_TOKENS.text.tertiary}`}>
+                        <SortIcon className="w-3 h-3" aria-hidden="true" />
+                        <span className="text-[10px]">{sortMeta.index}</span>
+                      </span>
+                    ) : null}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Resize ${c.name} column`}
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize"
+                    onPointerDown={ev => {
+                      const th = ev.currentTarget.parentElement
+                      if (!th) return
+                      startResize(c.columnId, th, ev)
+                    }}
+                  />
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody
@@ -255,7 +285,7 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
                   className={`${isSelected ? 'bg-[rgba(59,130,246,0.12)]' : ''} hover:bg-black/5 dark:hover:bg-white/5`}
                   onClick={() => props.onRowClicked(row.id)}
                 >
-                  <td className={`px-2 ${rowCellPaddingClass} border-b ${UI_THEME_TOKENS.panel.divider}`}>
+                  <td className={`px-2 ${rowCellPaddingClass} border-b border-r ${UI_THEME_TOKENS.panel.divider}`}>
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -269,11 +299,11 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
                       aria-label={`Select row ${row.id}`}
                     />
                   </td>
-                  <td className={`px-2 ${rowCellPaddingClass} border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.tertiary}`}>
+                  <td className={`px-2 ${rowCellPaddingClass} border-b border-r ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.tertiary}`}>
                     {row.__order ?? 0}
                   </td>
                   {visibleColumns.map(c => (
-                    <td key={c.columnId} className={`px-2 ${rowCellPaddingClass} border-b ${UI_THEME_TOKENS.panel.divider}`}>
+                    <td key={c.columnId} className={`px-2 ${rowCellPaddingClass} border-b border-r ${UI_THEME_TOKENS.panel.divider}`}>
                       <span className="block truncate" title={getCellText(getRowValue(row, c.columnId))}>
                         {getCellText(getRowValue(row, c.columnId))}
                       </span>
@@ -313,7 +343,7 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
                             className={`${isSelected ? 'bg-[rgba(59,130,246,0.12)]' : ''} hover:bg-black/5 dark:hover:bg-white/5`}
                             onClick={() => props.onRowClicked(row.id)}
                           >
-                            <td className={`px-2 ${rowCellPaddingClass} border-b ${UI_THEME_TOKENS.panel.divider}`}>
+                            <td className={`px-2 ${rowCellPaddingClass} border-b border-r ${UI_THEME_TOKENS.panel.divider}`}>
                               <input
                                 type="checkbox"
                                 checked={isSelected}
@@ -327,11 +357,11 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
                                 aria-label={`Select row ${row.id}`}
                               />
                             </td>
-                            <td className={`px-2 ${rowCellPaddingClass} border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.tertiary}`}>
+                            <td className={`px-2 ${rowCellPaddingClass} border-b border-r ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.tertiary}`}>
                               {row.__order ?? 0}
                             </td>
                             {visibleColumns.map(c => (
-                              <td key={c.columnId} className={`px-2 ${rowCellPaddingClass} border-b ${UI_THEME_TOKENS.panel.divider}`}>
+                              <td key={c.columnId} className={`px-2 ${rowCellPaddingClass} border-b border-r ${UI_THEME_TOKENS.panel.divider}`}>
                                 <span className="block truncate" title={getCellText(getRowValue(row, c.columnId))}>
                                   {getCellText(getRowValue(row, c.columnId))}
                                 </span>

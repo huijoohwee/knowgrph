@@ -39,7 +39,9 @@ export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
     throw new Error('Legacy ui:geospatial keys must not exist (collision risk)')
   }
   if (text.includes('LS_KEYS_LEGACY')) throw new Error('Legacy key map must not exist (collision risk)')
-  if (!text.includes('kg:ui:geospatial:')) throw new Error('Expected namespaced kg:ui:geospatial keys')
+  if (!text.includes('kg:ui:geospatial:') && !text.includes('grph-shared/geospatial/constants')) {
+    throw new Error('Expected namespaced kg:ui:geospatial keys (direct) or shared GEOSPATIAL_LS_KEYS import')
+  }
   if (!text.includes('geospatialViewMode')) throw new Error('Expected persisted geospatialViewMode key to exist')
 }
 
@@ -88,5 +90,43 @@ export const testHostTailwindScansGympgrphClasses = () => {
   const text = readUtf8(tailwindConfigPath)
   if (!text.includes('../../gympgrph/src/**/*.{js,ts,jsx,tsx}')) {
     throw new Error('Expected knowgrph host Tailwind config to scan gympgrph sources for class generation')
+  }
+}
+
+export const testGeospatialModeEventContractIsShared = () => {
+  const hostEventsPath = path.resolve(process.cwd(), 'src', 'features', 'geospatial', 'events.ts')
+  const hostEventsText = readUtf8(hostEventsPath)
+  if (!hostEventsText.includes("from 'grph-shared/geospatial/events'")) {
+    throw new Error('Expected host geospatial events to re-export from grph-shared/geospatial/events')
+  }
+  if (hostEventsText.includes('export type GeospatialModeChangedDetail')) {
+    throw new Error('Host must not redefine GeospatialModeChangedDetail (cross-repo drift risk)')
+  }
+
+  const canvasPath = path.resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
+  const canvasText = readUtf8(canvasPath)
+  if (!canvasText.includes('onGeospatialModeChanged')) {
+    throw new Error('Expected Canvas to subscribe via onGeospatialModeChanged helper')
+  }
+  if (canvasText.includes('addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT')) {
+    throw new Error('Canvas must not attach raw GEOSPATIAL_MODE_CHANGED_EVENT listener (use helper)')
+  }
+
+  const toolbarPath = path.resolve(process.cwd(), 'src', 'components', 'Toolbar.tsx')
+  const toolbarText = readUtf8(toolbarPath)
+  if (!toolbarText.includes('onGeospatialModeChanged')) {
+    throw new Error('Expected Toolbar to subscribe via onGeospatialModeChanged helper')
+  }
+  if (toolbarText.includes('addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT')) {
+    throw new Error('Toolbar must not attach raw GEOSPATIAL_MODE_CHANGED_EVENT listener (use helper)')
+  }
+
+  const slicePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const sliceText = readUtf8(slicePath)
+  if (!sliceText.includes("emitGeospatialModeChanged({")) {
+    throw new Error('Expected gympgrph geospatialSlice to emit via emitGeospatialModeChanged helper')
+  }
+  if (sliceText.includes('new CustomEvent(UI_EVENTS.geospatialModeChanged')) {
+    throw new Error('gympgrph must not emit raw UI_EVENTS.geospatialModeChanged CustomEvent (drift risk)')
   }
 }

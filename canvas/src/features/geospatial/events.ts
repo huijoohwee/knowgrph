@@ -1,5 +1,5 @@
-export const GEOSPATIAL_MODE_CHANGED_EVENT = 'kg:geospatialModeChanged' as const
+export { GEOSPATIAL_MODE_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
 
-export type GeospatialModeChangedDetail = {
-  enabled?: boolean
-}
+export type { GeospatialModeChangedDetail } from 'grph-shared/geospatial/events'
+
+export { onGeospatialModeChanged } from 'grph-shared/geospatial/events'

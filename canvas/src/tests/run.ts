@@ -87,6 +87,7 @@ import {
   testHostEnableForcesAlwaysInteractionMode,
   testHostTailwindScansGympgrphClasses,
   testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs,
+  testGeospatialModeEventContractIsShared,
 } from '@/__tests__/geospatialHostIntegration.test'
 import {
   testMarkdownPreviewViewerForcesPrimaryTextColor,
@@ -96,6 +97,8 @@ import { testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument } from '@
 import { testGraphDataMetadataHashIncludesRevision } from '@/__tests__/graphDataHashRevision.test'
 import {
   testGraphTableDbAllocatesAndCreatesRows,
+  testGraphTableDbConcurrentSyncDoesNotConflict,
+  testGraphTableDbNoopSyncDoesNotRewriteRows,
   testGraphTableDbSyncsCollapsedGraphViewRows,
   testGraphTableDbSeedsBaseTablesAndColumns,
   testGraphTableDbSyncsGraphAndInfersPropertyColumns,
@@ -150,6 +153,12 @@ import {
   testFlowHandlesByNodeDeterministicOrdering,
 } from '@/__tests__/flowElkMultipleHandles.test'
 import {
+  testFlowCanvasAutoFitToScreenRunsInFlowRenderer,
+  testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer,
+  testFlowCanvasUsesActiveGraphRenderDataAndZoomState,
+} from '@/__tests__/flowCanvasIntegration.test'
+import { testFlowExtractNodePositionsExtractsFinitePositions, testFlowExtractNodePositionsReturnsNullWhenNone } from '@/__tests__/flowSeedPositions.test'
+import {
   testGeoJsonMapPreviewRendersMapContainerAboveSvgFallback,
   testGeoJsonMapPreviewSupportsContainerHeightMode,
   testInlineMarkdownGeoJsonMapReusesSharedBasemapHook,
@@ -157,12 +166,15 @@ import {
 } from '@/__tests__/geojsonMapPreviewRegressionGuards.test'
 import {
   testCuragrphAliasContractInViteConfig,
+  testCanvas2dRendererSwitchWarmsInactiveRenderer,
   testForbidEditorJsDependencies,
   testForbidMagicLocalStorageKeysOutsideCentralConstants,
   testForbidSiblingRepoSourceImports,
   testForbidLegacyToolbarToolMenuAreasSystem,
   testForbidGympgrphHookUsageInHost,
   testHostGympgrphIntegrationUsesPackageRootOnly,
+  testForbidReactFlowAndLiteGraphDependencies,
+  testForbidTopLevelElkImportInFlowLayout,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
 import {
   testWorkflowPresetPipelinesAreSelfConsistent,
@@ -236,6 +248,7 @@ import {
   testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned,
 } from '@/__tests__/zoomStatePick.test'
 import { testZoomViewKeyIncludesPresentationKeys } from '@/__tests__/zoomViewKey.test'
+import { testZoomStateEqMatchesAllFields, testZoomStateEqRejectsNulls } from '@/__tests__/zoomStateEq.test'
 import {
   testCoerceMediaUrlAcceptsSafeRelative,
   testCoerceMediaUrlRejectsExplicitScheme,
@@ -354,6 +367,9 @@ export const runAllTests = async () => {
   await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)
   await exec('policy.boundary.hostGympgrphRootOnly', testHostGympgrphIntegrationUsesPackageRootOnly)
   await exec('policy.boundary.forbidGympgrphHookUsage', testForbidGympgrphHookUsageInHost)
+  await exec('policy.boundary.forbidFlowLibs', testForbidReactFlowAndLiteGraphDependencies)
+  await exec('policy.boundary.canvas2dSwitchWarmsInactiveRenderer', testCanvas2dRendererSwitchWarmsInactiveRenderer)
+  await exec('policy.boundary.forbidTopLevelElkImport', testForbidTopLevelElkImportInFlowLayout)
   await exec('policy.persistence.forbidMagicLocalStorageKeys', testForbidMagicLocalStorageKeysOutsideCentralConstants)
   await exec('policy.curagrph.aliasContractInViteConfig', testCuragrphAliasContractInViteConfig)
   await exec('policy.markdown.forbidEditorJs', testForbidEditorJsDependencies)
@@ -373,6 +389,11 @@ export const runAllTests = async () => {
   await exec('layout.flow.elkMultipleHandles.deterministicOrdering', testFlowHandlesByNodeDeterministicOrdering)
   await exec('layout.flow.elkMultipleHandles.timeoutBounded', testElkLayoutTimeoutIsBounded)
   await exec('layout.flow.elkMultipleHandles.returnsNodePositions', testElkLayoutReturnsNodePositions)
+  await exec('flowCanvas.integration.renderDataAndZoomState', testFlowCanvasUsesActiveGraphRenderDataAndZoomState)
+  await exec('flowCanvas.zoom.autoFitToScreen', testFlowCanvasAutoFitToScreenRunsInFlowRenderer)
+  await exec('flowCanvas.zoom.autoZoomToSelection', testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer)
+  await exec('flow.seed.extractNodePositions.extractsFinite', testFlowExtractNodePositionsExtractsFinitePositions)
+  await exec('flow.seed.extractNodePositions.nullWhenNone', testFlowExtractNodePositionsReturnsNullWhenNone)
 
   await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
   await exec('sourceFiles.naming.normalizeParentPath', testNormalizeParentPath)
@@ -392,6 +413,7 @@ export const runAllTests = async () => {
 
   await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
   await exec('geospatial.canvas.forbidGraphWhenGeoEnabled', testCanvasForbidsGraphWhenGeospatialEnabled)
+  await exec('geospatial.contract.modeEventIsShared', testGeospatialModeEventContractIsShared)
   await exec('geospatial.persistence.keysAreNamespacedOnly', testGympgrphGeospatialKeysAreNamespacedOnly)
   await exec('geospatial.persistence.defaultViewModeIs2d', testGympgrphDefaultViewModeIs2d)
   await exec('geospatial.interaction.defaultAlways', testGympgrphDefaultInteractionModeIsAlways)
@@ -540,6 +562,8 @@ export const runAllTests = async () => {
   await exec('ui.bottomPanelCollapsePersistence', testBottomPanelCollapsePersistence)
   await exec('rxdb.graphTable.seed', testGraphTableDbSeedsBaseTablesAndColumns)
   await exec('rxdb.graphTable.sync', testGraphTableDbSyncsGraphAndInfersPropertyColumns)
+  await exec('rxdb.graphTable.syncConcurrentNoConflict', testGraphTableDbConcurrentSyncDoesNotConflict)
+  await exec('rxdb.graphTable.noopSyncNoRewrite', testGraphTableDbNoopSyncDoesNotRewriteRows)
   await exec('rxdb.graphTable.syncCollapsedView', testGraphTableDbSyncsCollapsedGraphViewRows)
   await exec('rxdb.graphTable.updateCell', testGraphTableDbUpdatesCellValues)
   await exec('rxdb.graphTable.createRow', testGraphTableDbAllocatesAndCreatesRows)
@@ -556,6 +580,8 @@ export const runAllTests = async () => {
   await exec('zoom.pick.reusesAcrossPresentationChanges', testPickInitialZoomTransformReusesZoomAcrossPresentationChanges)
   await exec('zoom.pick.rejectsStaleWhenNotPinned', testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned)
   await exec('zoom.viewKey.includesPresentation', testZoomViewKeyIncludesPresentationKeys)
+  await exec('zoom.state.eq.matchesAllFields', testZoomStateEqMatchesAllFields)
+  await exec('zoom.state.eq.rejectsNulls', testZoomStateEqRejectsNulls)
   await exec('url.coerceMediaUrl.acceptsSafeRelative', testCoerceMediaUrlAcceptsSafeRelative)
   await exec('url.coerceMediaUrl.rejectsExplicitScheme', testCoerceMediaUrlRejectsExplicitScheme)
   await exec('url.normalizeImportName.jsonUrlDerivation', testNormalizeImportNameDerivesJsonNameFromUrlAndFormat)

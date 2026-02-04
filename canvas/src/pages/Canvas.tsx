@@ -12,7 +12,7 @@ import { autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty } from '@/features/pa
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import TabHeader from '@/features/panels/ui/TabHeader'
 import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
-import { GEOSPATIAL_MODE_CHANGED_EVENT, type GeospatialModeChangedDetail } from '@/features/geospatial/events'
+import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
@@ -394,18 +394,76 @@ export default function CanvasPage() {
   })
   const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
 
+  const [mounted2dRenderers, setMounted2dRenderers] = React.useState<{ d3: boolean; flow: boolean }>(() => ({
+    d3: canvas2dRenderer === 'd3',
+    flow: canvas2dRenderer === 'flow',
+  }))
+
+  React.useEffect(() => {
+    if (canvas2dRenderer === 'd3') {
+      setMounted2dRenderers(prev => (prev.d3 ? prev : { ...prev, d3: true }))
+      return
+    }
+    if (canvas2dRenderer === 'flow') {
+      setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
+    }
+  }, [canvas2dRenderer])
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    const handler = (ev: Event) => {
-      const e = ev as CustomEvent<GeospatialModeChangedDetail | undefined>
-      const enabled = e.detail && typeof e.detail.enabled === 'boolean' ? e.detail.enabled : null
+    if (geospatialModeEnabled) return
+    if (canvasRenderMode !== '2d') return
+
+    const other = canvas2dRenderer === 'flow' ? 'd3' : 'flow'
+    if (other === 'd3' && mounted2dRenderers.d3) return
+    if (other === 'flow' && mounted2dRenderers.flow) return
+
+    let cancelled = false
+    const prefetch = () => {
+      if (cancelled) return
+      if (canvas2dRenderer === 'flow') {
+        void import('@/components/GraphCanvas').then(() => {
+          if (cancelled) return
+          setMounted2dRenderers(prev => (prev.d3 ? prev : { ...prev, d3: true }))
+        })
+        return
+      }
+      void import('@/components/FlowCanvas').then(() => {
+        if (cancelled) return
+        setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
+      })
+    }
+
+    const anyWindow = window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }
+
+    if (typeof anyWindow.requestIdleCallback === 'function') {
+      const id = anyWindow.requestIdleCallback(prefetch, { timeout: 1000 })
+      return () => {
+        cancelled = true
+        try {
+          anyWindow.cancelIdleCallback?.(id)
+        } catch {
+          void 0
+        }
+      }
+    }
+
+    const timeoutId = window.setTimeout(prefetch, 200)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+    }
+  }, [canvas2dRenderer, canvasRenderMode, geospatialModeEnabled, mounted2dRenderers.d3, mounted2dRenderers.flow])
+
+  React.useEffect(() => {
+    return onGeospatialModeChanged(detail => {
+      const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
       if (enabled == null) return
       setGeospatialModeEnabled(enabled)
-    }
-    window.addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT, handler as EventListener)
-    return () => {
-      window.removeEventListener(GEOSPATIAL_MODE_CHANGED_EVENT, handler as EventListener)
-    }
+    })
   }, [])
 
   React.useEffect(() => {
@@ -600,13 +658,9 @@ export default function CanvasPage() {
 
   return (
     <>
-      <style>{`
-        :root { --panel-bg-rgb: 255, 255, 255; }
-        .dark { --panel-bg-rgb: 13, 17, 23; }
-      `}</style>
       <SourceFilesPersistenceBootstrap />
       <SsotEventBridge />
-      <div className="flex h-screen w-screen flex-col overflow-hidden bg-white dark:bg-[#0d1117] transition-colors duration-300">
+      <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300">
         {isEmbeddedPreview ? (
           <main className="flex-1 relative overflow-hidden" aria-label="Canvas Preview Only">
             <React.Suspense fallback={null}>
@@ -633,15 +687,19 @@ export default function CanvasPage() {
                   }}
                 />
               )}
-              {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
-                <div className="absolute inset-0 z-[10]">
-                  <GraphCanvasLazy active />
-                </div>
-              )}
-              {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'flow' && (
-                <div className="absolute inset-0 z-[10]">
-                  <FlowCanvasLazy active />
-                </div>
+              {!geospatialModeEnabled && canvasRenderMode === '2d' && (
+                <>
+                  <div
+                    className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}
+                  >
+                    {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
+                  </div>
+                  <div
+                    className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}
+                  >
+                    {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
+                  </div>
+                </>
               )}
               {!geospatialModeEnabled && canvasRenderMode === '3d' && (
                 <div className="absolute inset-0 z-[10]">
@@ -736,15 +794,19 @@ export default function CanvasPage() {
                           }}
                         />
                       )}
-                      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
-                        <div className="absolute inset-0 z-[10]">
-                          <GraphCanvasLazy active />
-                        </div>
-                      )}
-                      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'flow' && (
-                        <div className="absolute inset-0 z-[10]">
-                          <FlowCanvasLazy active />
-                        </div>
+                      {!geospatialModeEnabled && canvasRenderMode === '2d' && (
+                        <>
+                          <div
+                            className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}
+                          >
+                            {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
+                          </div>
+                          <div
+                            className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}
+                          >
+                            {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
+                          </div>
+                        </>
                       )}
                       {!geospatialModeEnabled && canvasRenderMode === '3d' && (
                         <div className="absolute inset-0 z-[10]">

@@ -115,6 +115,9 @@
 
 - The extracted module keeps the original persistence/config design (LS-backed settings + optional env overrides) for future reuse.
 - Knowgrph defines and reads the Geospatial Mode persistence keys so the host can gate rendering and keep embedded previews in sync, but the write-path lives in `gympgrph`’s store actions (e.g. `setGeospatialOverlayEnabled`).
+- Runtime sync uses a shared UI event contract in `grph-shared`:
+  - Event name: `GEOSPATIAL_MODE_CHANGED_EVENT`
+  - Helpers: `emitGeospatialModeChanged` and `onGeospatialModeChanged`
 - Persistence keys are namespaced to avoid collisions when multiple apps share the same origin:
   - `kg:ui:geospatial:*`
   - The primary host gate is `kg:ui:geospatial:overlayEnabled` (boolean).

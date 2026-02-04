@@ -9,15 +9,18 @@ import {
 } from '@/features/edge-creation'
 
 interface UseEdgeCreationEffectProps {
+  paused?: boolean
   tempLinkSelRef: React.MutableRefObject<TempLinkSelection>
   linkDragRef: React.MutableRefObject<PendingLink | null>
 }
 
 export function useEdgeCreationEffect({
+  paused,
   tempLinkSelRef,
   linkDragRef,
 }: UseEdgeCreationEffectProps) {
   useEffect(() => {
+    if (paused) return
     const unsub = useGraphStore.subscribe(
       s => s.edgeCreationRequest,
       edgeCreationRequest => {
@@ -55,5 +58,5 @@ export function useEdgeCreationEffect({
     return () => {
       unsub()
     }
-  }, [tempLinkSelRef, linkDragRef])
+  }, [paused, tempLinkSelRef, linkDragRef])
 }

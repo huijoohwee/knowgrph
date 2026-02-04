@@ -890,7 +890,7 @@ export default defineConfig(({ command }) => ({
     CESIUM_BASE_URL: JSON.stringify('/cesium/'),
   },
   optimizeDeps: {
-    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'reactflow', 'dagre', 'elkjs', 'cesium'],
+    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'dagre', 'elkjs', 'cesium'],
     exclude: ['gympgrph', 'curagrph', 'grph-shared'],
   },
   build: {

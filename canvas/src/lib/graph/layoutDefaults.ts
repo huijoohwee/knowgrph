@@ -49,6 +49,9 @@ export const DEFAULT_FLOW_HANDLE_LINE_HEIGHT_PX = 16
 
 export const DEFAULT_FLOW_ELK_LAYOUT_TIMEOUT_MS = 1500
 
+export const DEFAULT_FLOW_ELK_MAX_NODES = 400
+export const DEFAULT_FLOW_DAGRE_MAX_NODES = 250
+
 export type FlowLayoutKnobs = {
   node: {
     widthPx: number

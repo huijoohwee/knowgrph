@@ -18,6 +18,7 @@ import { setupGraphScene, updateGraphSceneGroupsPresentation, updateGraphSceneNo
 import { emitPropsPanelOpen } from '@/features/canvas/utils'
 import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasStyles'
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
+import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect'
 import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight'
 import { useGroupSelectionHighlight } from '@/components/GraphCanvas/hooks/useGroupSelectionHighlight'
@@ -29,6 +30,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { pickInitialZoomTransform } from '@/components/GraphCanvas/zoomState'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
+import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -97,6 +99,9 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
   const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
   const graphDataRevisionRef = useGraphStoreKeyRef('graphDataRevision')
+  const zoomCommitRafIdRef = useRef<number | null>(null)
+  const zoomCommitPendingRef = useRef(false)
+  const zoomCommitLatestTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
   const schemaRef = useRef(schema)
 
   const schemaLayoutEngineJson = useMemo(() => {
@@ -146,7 +151,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     schema?.behavior?.portHandles,
   ])
 
-  const renderGraphData = useActiveGraphRenderData()
+  const renderGraphData = useActiveGraphRenderData(active)
   const effectiveFrontmatterModeEnabled = !!frontmatterModeEnabled && documentSemanticMode !== 'keyword'
 
   const collapsedGroupIdsKey = useMemo(() => {
@@ -233,6 +238,65 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     }
   }, [active])
 
+  const prevActiveRef = useRef<boolean>(active)
+  useEffect(() => {
+    const prev = prevActiveRef.current
+    prevActiveRef.current = active
+    if (!prev || active) return
+    const sel = nodesSelRef.current
+    if (!sel) return
+
+    const positions: Record<string, { x: number; y: number }> = {}
+    sel.each((d: GraphNode) => {
+      const id = String(d?.id || '').trim()
+      const x = (d as unknown as { x?: unknown }).x
+      const y = (d as unknown as { y?: unknown }).y
+      if (!id) return
+      if (typeof x !== 'number' || typeof y !== 'number') return
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return
+      positions[id] = { x, y }
+    })
+    if (Object.keys(positions).length === 0) return
+
+    const state = useGraphStore.getState()
+    const schemaValue = schemaRef.current
+    const mode = schemaValue ? readLayoutMode(schemaValue) : 'force'
+    const semanticMode = String(state.documentSemanticMode || 'document')
+    const frontmatter = state.frontmatterModeEnabled === true && semanticMode !== 'keyword'
+    const baseKey = `${semanticMode}:${frontmatter ? 'frontmatter' : 'default'}:${mode}:2d`
+    const layoutVariant = (() => {
+      if (mode !== 'stratify') return ''
+      const stratify = schemaValue?.layout?.stratify || null
+      const orientation = stratify?.orientation === 'horizontal' ? 'horizontal' : 'vertical'
+      const groupRoots = stratify?.groupRoots !== false ? '1' : '0'
+      const grid = stratify?.grid || null
+      const gridEnabled = grid?.enabled !== false ? '1' : '0'
+      const gridSize = typeof grid?.size === 'number' && Number.isFinite(grid.size) ? String(Math.floor(grid.size)) : ''
+      const antiLine = stratify?.antiLine || null
+      const antiLineEnabled = antiLine?.enabled !== false ? '1' : '0'
+      const wrapRows =
+        typeof antiLine?.wrapRows === 'number' && Number.isFinite(antiLine.wrapRows) ? String(Math.floor(antiLine.wrapRows)) : ''
+      const maxAspectRatio =
+        typeof antiLine?.maxAspectRatio === 'number' && Number.isFinite(antiLine.maxAspectRatio)
+          ? String(Math.round(antiLine.maxAspectRatio * 100) / 100)
+          : ''
+      const parts = [
+        `o=${orientation}`,
+        `gr=${groupRoots}`,
+        `g=${gridEnabled}${gridSize ? `:${gridSize}` : ''}`,
+        `al=${antiLineEnabled}${wrapRows || maxAspectRatio ? `:${wrapRows || ''}:${maxAspectRatio || ''}` : ''}`,
+      ]
+      return parts.join('|')
+    })()
+    const cacheKey = `${baseKey}:d3${layoutVariant ? `:${layoutVariant}` : ''}`
+
+    try {
+      state.setLayoutPositionsForMode(cacheKey, positions)
+    } catch {
+      void 0
+    }
+  }, [active])
+
   useEffect(() => {
     return () => {
       try {
@@ -254,7 +318,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     paused: !active,
   });
 
+  useAutoZoomModes2d({
+    viewportW: width,
+    viewportH: height,
+    paused: !active,
+  })
+
   useEdgeCreationEffect({
+    paused: !active,
     tempLinkSelRef,
     linkDragRef,
   });
@@ -268,14 +339,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   useEffect(() => {
     if (active) return
-    if (!sceneCleanupRef.current) return
+    const sim = simulationRef.current
+    if (!sim) return
     try {
-      sceneCleanupRef.current()
+      sim.alphaTarget(0)
+      sim.stop()
     } catch {
       void 0
-    } finally {
-      sceneCleanupRef.current = null
-      sceneBuildKeyRef.current = null
     }
   }, [active])
 
@@ -478,15 +548,34 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
         requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
         onZoomTransform: t => {
-          const pinned = useGraphStore.getState().viewPinned === true
-          const next = {
-            ...t,
-            graphDataRevision: pinned ? undefined : graphDataRevisionRef.current,
-            viewportW: sceneWidth,
-            viewportH: sceneHeight,
+          zoomCommitLatestTransformRef.current = t
+          if (zoomCommitPendingRef.current) return
+          zoomCommitPendingRef.current = true
+          if (zoomCommitRafIdRef.current != null) {
+            try {
+              cancelAnimationFrame(zoomCommitRafIdRef.current)
+            } catch {
+              void 0
+            }
           }
-          useGraphStore.getState().setZoomState(next)
-          useGraphStore.getState().setZoomStateForKey(zoomViewKey, next)
+          zoomCommitRafIdRef.current = requestAnimationFrame(() => {
+            zoomCommitRafIdRef.current = null
+            zoomCommitPendingRef.current = false
+            const latest = zoomCommitLatestTransformRef.current
+            if (!latest) return
+            const state = useGraphStore.getState()
+            const pinned = state.viewPinned === true
+            const next = {
+              ...latest,
+              graphDataRevision: pinned ? undefined : graphDataRevisionRef.current,
+              viewportW: sceneWidth,
+              viewportH: sceneHeight,
+            }
+            const existing = state.zoomStateByKey?.[zoomViewKey] || state.zoomState
+            if (isSameZoomState(existing || null, next)) return
+            state.setZoomState(next)
+            state.setZoomStateForKey(zoomViewKey, next)
+          })
         },
         getSchema: () => schemaRef.current,
         getRenderMediaAsNodes: () => useGraphStore.getState().renderMediaAsNodes === true,
@@ -498,6 +587,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     });
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
+      if (zoomCommitRafIdRef.current != null) {
+        try {
+          cancelAnimationFrame(zoomCommitRafIdRef.current)
+        } catch {
+          void 0
+        }
+      }
+      zoomCommitRafIdRef.current = null
+      zoomCommitPendingRef.current = false
     };
   }, [
     active,
@@ -601,14 +699,16 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
 
   useSelectionHighlight({
+    paused: !active,
     nodesSelRef,
     mediaSelRef,
     labelsSelRef,
     linksSelRef,
   });
-  useGroupSelectionHighlight({ gRef })
+  useGroupSelectionHighlight({ gRef, paused: !active })
 
   useEffect(() => {
+    if (!active) return
     if (!labelsSelRef.current || !sceneGraphData) return;
     const { valuesByNodeId, kindsByNodeId } = flowState;
     if (Object.keys(kindsByNodeId).length === 0) return;
@@ -621,7 +721,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         const rounded = Math.round(rawValue * 100) / 100;
         return `${d.label} (${rounded})`;
       });
-  }, [flowState, sceneGraphData, schemaNodesPresentationJson]);
+  }, [active, flowState, sceneGraphData, schemaNodesPresentationJson]);
 
   useGraphCanvasStyles({
     gRef,
@@ -629,6 +729,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     linksSelRef,
     labelsSelRef,
     schema,
+    paused: !active,
     graphDataRevision: graphDataRevisionRef.current ?? 0,
   });
 

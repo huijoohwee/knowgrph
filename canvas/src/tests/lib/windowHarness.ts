@@ -20,7 +20,11 @@ type WindowHarnessOptions = {
 export function initWindowHarness(options?: WindowHarnessOptions): WindowHarnessEnv {
   const g = globalThis as unknown as HarnessWindow
   const originalWindow = g.window
+  const hadLocalStorageOnGlobal = Object.prototype.hasOwnProperty.call(g, 'localStorage')
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(g, 'localStorage')
   const originalLocalStorage = g.localStorage
+  const hadLocalStorageOnWindow = !!g.window && Object.prototype.hasOwnProperty.call(g.window, 'localStorage')
+  const originalWindowLocalStorageDescriptor = g.window ? Object.getOwnPropertyDescriptor(g.window, 'localStorage') : undefined
   const originalNavigator = Object.prototype.hasOwnProperty.call(g, 'navigator') ? g.navigator : undefined
   const originalCustomEvent = g.CustomEvent
   const originalDispatchEvent = g.dispatchEvent
@@ -31,8 +35,28 @@ export function initWindowHarness(options?: WindowHarnessOptions): WindowHarness
   if (!g.window) {
     g.window = g
   }
-  g.localStorage = resolvedStorage
-  g.window.localStorage = resolvedStorage
+
+  const setLocalStorage = (target: unknown, value: Storage) => {
+    if (!target) return
+    try {
+      Object.defineProperty(target as object, 'localStorage', {
+        value,
+        configurable: true,
+        writable: true,
+      })
+      return
+    } catch {
+      void 0
+    }
+    try {
+      ;(target as { localStorage?: Storage }).localStorage = value
+    } catch {
+      void 0
+    }
+  }
+
+  setLocalStorage(g, resolvedStorage)
+  setLocalStorage(g.window, resolvedStorage)
 
   if (typeof options?.navigatorOnline === 'boolean') {
     try {
@@ -60,19 +84,41 @@ export function initWindowHarness(options?: WindowHarnessOptions): WindowHarness
 
   const restore = () => {
     g.window = originalWindow
-    if (typeof originalLocalStorage === 'undefined') {
-      if ('localStorage' in g) {
-        g.localStorage = undefined as unknown as Storage
+
+    try {
+      if (hadLocalStorageOnGlobal && originalLocalStorageDescriptor) {
+        Object.defineProperty(g, 'localStorage', originalLocalStorageDescriptor)
+      } else if (!hadLocalStorageOnGlobal) {
+        delete (g as unknown as { localStorage?: unknown }).localStorage
+      } else {
+        Object.defineProperty(g, 'localStorage', {
+          value: originalLocalStorage,
+          configurable: true,
+          writable: true,
+        })
       }
-      if (g.window && 'localStorage' in g.window) {
-        g.window.localStorage = undefined as unknown as Storage
-      }
-    } else {
-      g.localStorage = originalLocalStorage
-      if (g.window) {
-        g.window.localStorage = originalLocalStorage
+    } catch {
+      void 0
+    }
+
+    if (g.window) {
+      try {
+        if (hadLocalStorageOnWindow && originalWindowLocalStorageDescriptor) {
+          Object.defineProperty(g.window, 'localStorage', originalWindowLocalStorageDescriptor)
+        } else if (!hadLocalStorageOnWindow) {
+          delete (g.window as unknown as { localStorage?: unknown }).localStorage
+        } else {
+          Object.defineProperty(g.window, 'localStorage', {
+            value: originalLocalStorage,
+            configurable: true,
+            writable: true,
+          })
+        }
+      } catch {
+        void 0
       }
     }
+
     if (typeof originalNavigator !== 'undefined') {
       try {
         Object.defineProperty(g, 'navigator', {

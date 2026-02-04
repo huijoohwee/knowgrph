@@ -1,5 +1,9 @@
+export type FlowHandleDir = 'in' | 'out'
+
+export type FlowHandleId = `${FlowHandleDir}:${string}`
+
 export type FlowPortHandle = {
-  id: string
+  id: FlowHandleId
   topPct: number
 }
 
@@ -8,10 +12,10 @@ export type FlowNodeHandles = {
   out: FlowPortHandle[]
 }
 
-export function buildFlowHandleId(args: { dir: 'in' | 'out'; edgeId: string }): string {
+export function buildFlowHandleId(args: { dir: FlowHandleDir; edgeId: string }): FlowHandleId {
   const edgeId = String(args.edgeId || '').trim()
   const dir = args.dir === 'in' ? 'in' : 'out'
-  return `${dir}:${edgeId || 'edge'}`
+  return `${dir}:${edgeId || 'edge'}` as FlowHandleId
 }
 
 export function computeFlowHandlesByNode(args: {

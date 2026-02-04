@@ -1,5 +1,7 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import IconButton from '@/components/IconButton'
+import { ArrowUpDown, Columns2, Filter, PanelLeftClose, PanelLeftOpen, Ruler } from 'lucide-react'
 import {
   makeGraphTableRuleId,
   type GraphTableColumnVisibilityById,
@@ -39,6 +41,8 @@ export type GraphTableToolbarProps = {
 }
 
 export function GraphTableToolbar(props: GraphTableToolbarProps) {
+  const iconButtonClass = `${UI_THEME_TOKENS.button.square}`
+  const iconSummaryClass = `list-none ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} h-7 w-7 inline-flex items-center justify-center rounded cursor-pointer select-none`
   const toggleColumn = (columnId: string) => {
     const next = { ...props.columnVisibilityById }
     const current = props.columnVisibilityById[columnId]
@@ -81,17 +85,19 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
 
   return (
     <nav aria-label="Table toolbar" className="flex items-center gap-2 flex-wrap">
-      <button
-        type="button"
-        aria-expanded={!props.tableCollapsed}
-        className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+      <IconButton
+        title={props.tableCollapsed ? 'Expand table' : 'Collapse table'}
+        showTooltip
         onClick={() => props.setTableCollapsed(!props.tableCollapsed)}
+        className={iconButtonClass}
       >
-        {props.tableCollapsed ? 'Expand' : 'Collapse'}
-      </button>
+        {props.tableCollapsed ? <PanelLeftOpen className="w-4 h-4" aria-hidden="true" /> : <PanelLeftClose className="w-4 h-4" aria-hidden="true" />}
+      </IconButton>
 
       <details className="relative">
-        <summary className={`list-none App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}>Fields</summary>
+        <summary className={iconSummaryClass} title="Fields" aria-label="Fields">
+          <Columns2 className="w-4 h-4" aria-hidden="true" />
+        </summary>
         <form className="absolute mt-1 z-10 rounded border bg-[color:var(--kg-panel-bg)] p-2 min-w-44">
           <fieldset className="space-y-1">
             <legend className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>Visible columns</legend>
@@ -106,7 +112,9 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
       </details>
 
       <details className="relative">
-        <summary className={`list-none App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}>Filter</summary>
+        <summary className={iconSummaryClass} title="Filter" aria-label="Filter">
+          <Filter className="w-4 h-4" aria-hidden="true" />
+        </summary>
         <form className="absolute mt-1 z-10 rounded border bg-[color:var(--kg-panel-bg)] p-2 min-w-72">
           <fieldset className="space-y-2">
             <label className="flex items-center gap-2 text-xs">
@@ -203,7 +211,9 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
       </label>
 
       <details className="relative">
-        <summary className={`list-none App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}>Sort</summary>
+        <summary className={iconSummaryClass} title="Sort" aria-label="Sort">
+          <ArrowUpDown className="w-4 h-4" aria-hidden="true" />
+        </summary>
         <form className="absolute mt-1 z-10 rounded border bg-[color:var(--kg-panel-bg)] p-2 min-w-64">
           <fieldset className="space-y-2">
             {props.sortRules.map(rule => (
@@ -274,14 +284,15 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         </select>
       </label>
 
-      <button
-        type="button"
-        className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+      <IconButton
+        title="Reset column widths"
+        showTooltip
         onClick={props.resetColumnWidths}
         disabled={!hasCustomWidths}
+        className={iconButtonClass}
       >
-        Column width: Reset
-      </button>
+        <Ruler className="w-4 h-4" aria-hidden="true" />
+      </IconButton>
     </nav>
   )
 }

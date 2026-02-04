@@ -79,6 +79,16 @@
       "import": "./dist/dom/pointerDrag.js",
       "default": "./dist/dom/pointerDrag.js"
     },
+    "./geospatial/constants": {
+      "types": "./dist/geospatial/constants.d.ts",
+      "import": "./dist/geospatial/constants.js",
+      "default": "./dist/geospatial/constants.js"
+    },
+    "./geospatial/events": {
+      "types": "./dist/geospatial/events.d.ts",
+      "import": "./dist/geospatial/events.js",
+      "default": "./dist/geospatial/events.js"
+    },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",

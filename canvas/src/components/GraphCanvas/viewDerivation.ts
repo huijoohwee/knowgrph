@@ -2,6 +2,8 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { hashText } from '@/features/parsers/hash'
 
+const GROUP_COLLAPSE_CACHE = new WeakMap<GraphData, Map<string, GraphData>>()
+
 const clampNumber = (v: number, min: number, max: number): number => {
   if (!Number.isFinite(v)) return min
   return Math.max(min, Math.min(max, v))
@@ -40,7 +42,18 @@ export const deriveGraphDataWithGroupCollapse = (args: {
   graphData: GraphData
   collapsedGroupIds: string[]
 }): GraphData => {
-  const collapsedSet = new Set<string>((args.collapsedGroupIds || []).map(x => String(x || '').trim()).filter(Boolean))
+  const normalizedCollapsedGroupIds = Array.isArray(args.collapsedGroupIds)
+    ? args.collapsedGroupIds.map(x => String(x || '').trim()).filter(Boolean)
+    : []
+  const collapsedKey = normalizedCollapsedGroupIds.length ? normalizedCollapsedGroupIds.join('|') : ''
+
+  if (collapsedKey) {
+    const byKey = GROUP_COLLAPSE_CACHE.get(args.graphData)
+    const cached = byKey?.get(collapsedKey)
+    if (cached) return cached
+  }
+
+  const collapsedSet = new Set<string>(normalizedCollapsedGroupIds)
   if (collapsedSet.size === 0) return args.graphData
 
   const groups = deriveGraphGroups(args.graphData)
@@ -208,7 +221,7 @@ export const deriveGraphDataWithGroupCollapse = (args: {
   })
   outEdges.sort((a, b) => String(a.id).localeCompare(String(b.id)))
 
-  return {
+  const out = {
     ...args.graphData,
     nodes: outNodes,
     edges: outEdges,
@@ -217,4 +230,11 @@ export const deriveGraphDataWithGroupCollapse = (args: {
       'kg:view': { collapsedGroupIds: Array.from(collapsedSet).sort((a, b) => a.localeCompare(b)) } as unknown as JSONValue,
     },
   }
+
+  if (collapsedKey) {
+    const byKey = GROUP_COLLAPSE_CACHE.get(args.graphData) || new Map<string, GraphData>()
+    byKey.set(collapsedKey, out)
+    GROUP_COLLAPSE_CACHE.set(args.graphData, byKey)
+  }
+  return out
 }

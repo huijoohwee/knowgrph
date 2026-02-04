@@ -1,9 +1,8 @@
-import ELK from 'elkjs/lib/elk.bundled.js'
 import type { GraphData } from '@/lib/graph/types'
 import type { FlowConfig } from './config'
 import { buildFlowHandleId, computeFlowHandlesByNode } from './handles'
 
-type ElkPortSide = 'WEST' | 'EAST'
+type ElkPortSide = 'WEST' | 'EAST' | 'NORTH' | 'SOUTH'
 
 type ElkNode = {
   id: string
@@ -28,6 +27,33 @@ type ElkGraph = {
 type ElkLayoutChild = { id?: unknown; x?: unknown; y?: unknown }
 type ElkLayoutResult = { children?: unknown }
 
+type ElkInstance = { layout: (graph: ElkGraph) => Promise<unknown> }
+type ElkConstructor = new (opts?: { workerUrl?: string }) => ElkInstance
+
+let elkInstancePromise: Promise<ElkInstance> | null = null
+
+async function getElkInstance(args?: { requireWorker?: boolean }): Promise<ElkInstance> {
+  if (elkInstancePromise) return elkInstancePromise
+  elkInstancePromise = (async () => {
+    const mod = (await import('elkjs/lib/elk.bundled.js')) as unknown as { default?: unknown }
+    const ElkCtor = (mod?.default ?? mod) as ElkConstructor
+    let workerUrl: string | null = null
+    try {
+      const workerMod = (await import('elkjs/lib/elk-worker.min.js?url')) as unknown as { default?: unknown }
+      workerUrl = typeof workerMod?.default === 'string' ? workerMod.default : null
+    } catch {
+      workerUrl = null
+    }
+
+    if (workerUrl) return new ElkCtor({ workerUrl })
+    if (args?.requireWorker) {
+      throw new Error('elk worker unavailable')
+    }
+    return new ElkCtor()
+  })()
+  return elkInstancePromise
+}
+
 export async function buildElkLayout(args: {
   graphData: Pick<GraphData, 'nodes' | 'edges'>
   config: FlowConfig
@@ -38,6 +64,8 @@ export async function buildElkLayout(args: {
 
   const config = args.config
   const portId = (nodeId: string, handleId: string) => `${nodeId}:${handleId}`
+  const inPortSide: ElkPortSide = config.elk.direction === 'RIGHT' ? 'WEST' : 'NORTH'
+  const outPortSide: ElkPortSide = config.elk.direction === 'RIGHT' ? 'EAST' : 'SOUTH'
 
   const nodeById = new Set<string>()
   for (let i = 0; i < nodeList.length; i += 1) {
@@ -60,7 +88,7 @@ export async function buildElkLayout(args: {
         ports.push({
           id: portId(id, handles.in[i].id),
           properties: {
-            'elk.port.side': 'WEST' satisfies ElkPortSide,
+            'elk.port.side': inPortSide,
             'elk.port.index': String(i),
           },
         })
@@ -69,7 +97,7 @@ export async function buildElkLayout(args: {
         ports.push({
           id: portId(id, handles.out[i].id),
           properties: {
-            'elk.port.side': 'EAST' satisfies ElkPortSide,
+            'elk.port.side': outPortSide,
             'elk.port.index': String(i),
           },
         })
@@ -120,7 +148,13 @@ export async function buildElkLayout(args: {
 
   const timeoutMs = Math.max(200, Math.floor(config.elk.layoutTimeoutMs))
 
-  const layout = typeof args.layout === 'function' ? args.layout : (g: ElkGraph) => new ELK().layout(g)
+  const layout =
+    typeof args.layout === 'function'
+      ? args.layout
+      : async (g: ElkGraph) => {
+          const elk = await getElkInstance({ requireWorker: true })
+          return elk.layout(g)
+        }
   const layoutPromise = layout(graph)
   const timed = await Promise.race([
     layoutPromise,

@@ -56,6 +56,39 @@ export async function testGraphTableDbSyncsGraphAndInfersPropertyColumns() {
   }
 }
 
+export async function testGraphTableDbConcurrentSyncDoesNotConflict() {
+  const graph: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n1', type: 'Entity', label: 'Node', properties: { isMermaidFrontmatter: true } }],
+    edges: [],
+  }
+  await Promise.all([syncGraphDataToGraphTableDb(graph), syncGraphDataToGraphTableDb(graph)])
+  const { collections } = await getGraphTableDb()
+  const col = await collections.columns.findOne('nodes:isMermaidFrontmatter').exec()
+  if (!col) throw new Error('expected concurrent sync to create column without conflicts')
+}
+
+export async function testGraphTableDbNoopSyncDoesNotRewriteRows() {
+  const graph: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n1', type: 'Person', label: 'Alice', properties: { age: 3 } }],
+    edges: [],
+  }
+  await syncGraphDataToGraphTableDb(graph)
+  const { collections } = await getGraphTableDb()
+  const row1 = await collections.rows.findOne('nodes:n1').exec()
+  if (!row1) throw new Error('expected nodes:n1 to exist')
+  const updatedAt1 = Number(row1.get('updatedAtMs'))
+  await new Promise(resolve => setTimeout(resolve, 2))
+  await syncGraphDataToGraphTableDb(graph)
+  const row2 = await collections.rows.findOne('nodes:n1').exec()
+  if (!row2) throw new Error('expected nodes:n1 to exist after noop sync')
+  const updatedAt2 = Number(row2.get('updatedAtMs'))
+  if (updatedAt2 !== updatedAt1) {
+    throw new Error('expected noop sync to avoid rewriting unchanged rows')
+  }
+}
+
 export async function testGraphTableDbUpdatesCellValues() {
   const graph: GraphData = {
     type: 'Graph',

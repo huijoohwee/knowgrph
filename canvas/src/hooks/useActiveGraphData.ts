@@ -2,6 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import type { GraphData } from '@/lib/graph/types'
+import type { GraphState } from '@/hooks/useGraphStore'
 import { keywordGraphCache, deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
 import { hashText } from '@/features/parsers/hash'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
@@ -48,18 +49,34 @@ export const mergeKeywordGraphWithMediaNodes = (args: {
   return { ...args.keywordGraph, nodes: [...(args.keywordGraph.nodes || []), ...mergedMedia] }
 }
 
-export function useActiveGraphData(): GraphData | null {
-  const { baseGraphData, mode, markdownName, markdownText, revision } = useGraphStore(
-    useShallow(s => ({
-      baseGraphData: s.graphData as GraphData | null,
-      mode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
-      markdownName: s.markdownDocumentName || null,
-      markdownText: s.markdownDocumentText || null,
-      revision: s.graphDataRevision || 0,
-    })),
+const INACTIVE_GRAPH_SLICE = {
+  baseGraphData: null as GraphData | null,
+  mode: 'document' as 'document' | 'keyword',
+  markdownName: null as string | null,
+  markdownText: null as string | null,
+  revision: 0,
+} as const
+
+export function useActiveGraphData(enabled: boolean = true): GraphData | null {
+  const selector = React.useMemo(
+    () =>
+      enabled
+        ? (s: GraphState) => ({
+            baseGraphData: s.graphData as GraphData | null,
+            mode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+            markdownName: s.markdownDocumentName || null,
+            markdownText: s.markdownDocumentText || null,
+            revision: s.graphDataRevision || 0,
+          })
+        : () => INACTIVE_GRAPH_SLICE,
+    [enabled],
   )
 
-  return React.useMemo(() => {
+  const { baseGraphData, mode, markdownName, markdownText, revision } = useGraphStore(useShallow(selector))
+
+  const lastRef = React.useRef<GraphData | null>(null)
+
+  const computed = React.useMemo(() => {
     if (!baseGraphData) return null
     if (mode !== 'keyword') return baseGraphData
     const sourceText = typeof markdownText === 'string' && markdownText.trim()
@@ -78,6 +95,13 @@ export function useActiveGraphData(): GraphData | null {
     keywordGraphCache.set(cacheKey, { ...derived, graph })
     return graph
   }, [baseGraphData, markdownName, markdownText, mode, revision])
+
+  React.useEffect(() => {
+    if (!enabled) return
+    lastRef.current = computed
+  }, [computed, enabled])
+
+  return enabled ? computed : lastRef.current
 }
 
 export function deriveGraphDataForActiveView(args: {
@@ -96,33 +120,59 @@ export function deriveGraphDataForActiveView(args: {
   return deriveGraphDataWithGroupCollapse({ graphData: base, collapsedGroupIds })
 }
 
-export function useActiveGraphRenderData(): GraphData | null {
-  const graphData = useActiveGraphData()
-  const { frontmatterModeEnabled, documentSemanticMode, collapsedGroupIds } = useGraphStore(
-    useShallow(s => ({
-      frontmatterModeEnabled: s.frontmatterModeEnabled === true,
-      documentSemanticMode: String(s.documentSemanticMode || 'document'),
-      collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
-    })),
+const INACTIVE_RENDER_SLICE = {
+  frontmatterModeEnabled: false,
+  documentSemanticMode: 'document',
+  collapsedGroupIds: [] as string[],
+} as const
+
+export function useActiveGraphRenderData(enabled: boolean = true): GraphData | null {
+  const graphData = useActiveGraphData(enabled)
+
+  const selector = React.useMemo(
+    () =>
+      enabled
+        ? (s: GraphState) => ({
+            frontmatterModeEnabled: s.frontmatterModeEnabled === true,
+            documentSemanticMode: String(s.documentSemanticMode || 'document'),
+            collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
+          })
+        : () => INACTIVE_RENDER_SLICE,
+    [enabled],
   )
+
+  const { frontmatterModeEnabled, documentSemanticMode, collapsedGroupIds } = useGraphStore(useShallow(selector))
+
+  const lastRef = React.useRef<GraphData | null>(null)
 
   const collapsedGroupIdsKey = React.useMemo(() => {
     const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
     const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
     if (normalized.length === 0) return ''
-    normalized.sort((a, b) => a.localeCompare(b))
-    return normalized.join('|')
+    const unique = Array.from(new Set(normalized))
+    unique.sort((a, b) => a.localeCompare(b))
+    return unique.join('|')
   }, [collapsedGroupIds])
 
-  return React.useMemo(() => {
+  const frontmatterGraphData = React.useMemo(() => {
     if (!graphData) return null
-    if (!frontmatterModeEnabled && !collapsedGroupIdsKey) return graphData
-    const normalizedCollapsedGroupIds = collapsedGroupIdsKey ? collapsedGroupIdsKey.split('|').filter(Boolean) : []
-    return deriveGraphDataForActiveView({
-      graphData,
-      frontmatterModeEnabled,
-      documentSemanticMode,
-      collapsedGroupIds: normalizedCollapsedGroupIds,
+    if (!frontmatterModeEnabled || String(documentSemanticMode) === 'keyword') return graphData
+    return filterGraphToFrontmatterMermaid(graphData)
+  }, [documentSemanticMode, frontmatterModeEnabled, graphData])
+
+  const computed = React.useMemo(() => {
+    if (!frontmatterGraphData) return null
+    if (!collapsedGroupIdsKey) return frontmatterGraphData
+    return deriveGraphDataWithGroupCollapse({
+      graphData: frontmatterGraphData,
+      collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean),
     })
-  }, [collapsedGroupIdsKey, documentSemanticMode, frontmatterModeEnabled, graphData])
+  }, [collapsedGroupIdsKey, frontmatterGraphData])
+
+  React.useEffect(() => {
+    if (!enabled) return
+    lastRef.current = computed
+  }, [computed, enabled])
+
+  return enabled ? computed : lastRef.current
 }

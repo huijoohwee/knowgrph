@@ -1,3 +1,5 @@
+import { GEOSPATIAL_LS_KEYS } from 'grph-shared/geospatial/constants'
+
 export const LS_KEYS = {
   overlayOpacity: 'kg:ui:overlayOpacity',
   panelOpacity: 'kg:ui:panelOpacity',
@@ -55,7 +57,7 @@ export const LS_KEYS = {
   floatingPanelHeightRatio: 'kg:ui:floatingPanelHeightRatio',
   floatingPanelZIndex: 'kg:ui:floatingPanelZIndex',
   sidebarWidthRatio: 'kg:ui:sidebarWidthRatio',
-  geospatialOverlayEnabled: 'kg:ui:geospatial:overlayEnabled',
+  geospatialOverlayEnabled: GEOSPATIAL_LS_KEYS.geospatialOverlayEnabled,
   orchestratorView: 'kg:orchestrator:view',
   orchestratorTraversalDelayMs: 'kg:orchestrator:traversalDelayMs',
   orchestratorTraversalLegendGraphRagMaxFull: 'kg:orchestrator:traversalLegend:graphRagMaxFull',
@@ -143,6 +145,8 @@ export const LS_KEYS = {
   chatHistoryPrefix: 'kg:chat:history:',
   workspaceViewMode: 'kg:ui:workspace:viewMode',
   workspacePreviewWidthPx: 'kg:ui:workspace:previewWidthPx',
+  graphTablePreviewCollapsed: 'kg:ui:graphTable:preview:collapsed',
+  graphTablePreviewWidthPx: 'kg:ui:graphTable:preview:widthPx',
   graphTablePanelCollapsed: 'kg:ui:graphTable:panelCollapsed',
   graphTableInspectorOpen: 'kg:ui:graphTable:inspector:open',
   graphTableInspectorWidthPx: 'kg:ui:graphTable:inspector:widthPx',
@@ -333,6 +337,8 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   launchSpotlightEnabled: 'ui.launchSpotlight',
   statusPanelPinned: 'ui.statusPanelPinned',
   workspaceEditorSection: 'ui.workspace',
+  graphTablePreviewCollapsed: 'ui.workspace',
+  graphTablePreviewWidthPx: 'ui.workspace',
   graphTablePanelCollapsed: 'ui.workspace',
   graphTableInspectorOpen: 'ui.workspace',
   graphTableInspectorWidthPx: 'ui.workspace',

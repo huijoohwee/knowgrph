@@ -24,6 +24,7 @@ import type { GraphTableGridRow } from '@/features/graph-table/ui/GraphTableGrid
 import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/graph-table/ui/GraphTableInspector'
 import { GraphTableToolbar } from '@/features/graph-table/ui/GraphTableToolbar'
 import { GraphTableSemanticTable } from '@/features/graph-table/ui/GraphTableSemanticTable'
+import { GraphTableCanvasPreviewDock } from '@/features/graph-table/ui/GraphTableCanvasPreviewDock'
 import {
   makeGraphTableRuleId,
   parseColumnVisibilityById,
@@ -103,8 +104,10 @@ const applyCellUpdateToGraphStore = (
   s.updateEdge(rowId, { properties })
 }
 
-export default function GraphTableWorkspace() {
+export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const previewSrc = String(props.previewSrc || '/').trim() || '/'
   const baseGraphData = useGraphStore(s => s.graphData)
   const renderGraphData = useActiveGraphRenderData()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
@@ -507,77 +510,80 @@ export default function GraphTableWorkspace() {
         </section>
       </header>
 
-      <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Table body">
-        {!tableCollapsed ? (
-          <GraphTableSemanticTable
-            tableId={activeTableId}
-            columns={columns}
-            rows={rows}
-            selectedRowIds={selectedRowIds}
-            focusRowId={inspectorRowId}
-            autoScrollToFocusRow={selectionSource !== 'table'}
-            columnVisibilityById={columnVisibilityById}
-            filterMatch={filterMatch}
-            filterClauses={filterClauses}
-            groupBy={groupBy}
-            sortRules={sortRules}
-            rowHeightPreset={rowHeightPreset}
-            columnWidthsPxById={columnWidthsPxById}
-            onColumnWidthChanged={handleColumnWidthChanged}
-            onRowClicked={rowId => {
-            setInspectorRowId(rowId)
-            setSelectedRowIds([rowId])
-            try {
-              const store = useGraphStore.getState()
-              store.setSelectionSource('table')
-              if (activeTableId === 'nodes') store.selectNode(rowId)
-              else store.selectEdge(rowId)
-            } catch {
-              void 0
-            }
-
-            if (activeTableId === 'nodes') {
-              const row = rows.find(r => r.id === rowId) || null
-              const tocId = getRowTocId(row)
-              if (tocId) {
+      <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Table workspace">
+        <section className="flex-1 min-w-0 min-h-0 overflow-hidden flex" aria-label="Table and inspector">
+          {!tableCollapsed ? (
+            <GraphTableSemanticTable
+              tableId={activeTableId}
+              columns={columns}
+              rows={rows}
+              selectedRowIds={selectedRowIds}
+              focusRowId={inspectorRowId}
+              autoScrollToFocusRow={selectionSource !== 'table'}
+              columnVisibilityById={columnVisibilityById}
+              filterMatch={filterMatch}
+              filterClauses={filterClauses}
+              groupBy={groupBy}
+              sortRules={sortRules}
+              rowHeightPreset={rowHeightPreset}
+              columnWidthsPxById={columnWidthsPxById}
+              onColumnWidthChanged={handleColumnWidthChanged}
+              onRowClicked={rowId => {
+                setInspectorRowId(rowId)
+                setSelectedRowIds([rowId])
                 try {
-                  window.dispatchEvent(new CustomEvent('kg:tocFocus', { detail: { id: tocId } }))
+                  const store = useGraphStore.getState()
+                  store.setSelectionSource('table')
+                  if (activeTableId === 'nodes') store.selectNode(rowId)
+                  else store.selectEdge(rowId)
                 } catch {
                   void 0
                 }
-              }
-            }
-          }}
-            onSelectionChanged={setSelectedRowIds}
-          />
-        ) : (
-          <section className="flex-1 min-h-0 overflow-hidden" aria-label="Collapsed table" />
-        )}
-        {showInspector && (
-          <>
-            <VerticalResizeSeparatorHr
-              ref={el => {
-                inspectorDragHandleRef.current = el
+
+                if (activeTableId === 'nodes') {
+                  const row = rows.find(r => r.id === rowId) || null
+                  const tocId = getRowTocId(row)
+                  if (tocId) {
+                    try {
+                      window.dispatchEvent(new CustomEvent('kg:tocFocus', { detail: { id: tocId } }))
+                    } catch {
+                      void 0
+                    }
+                  }
+                }
               }}
-              ariaLabel="Resize inspector"
+              onSelectionChanged={setSelectedRowIds}
             />
-            <GraphTableInspector
-              widthPx={inspectorWidthPx}
-              columns={columns}
-              row={selectedRow}
-              onClose={() => setInspectorRowId(null)}
-              onChangeCell={(columnId, next) => {
-                if (!selectedRow) return
-                handleCellValueChanged(selectedRow.rowId, columnId, next)
-              }}
-              onDeleteRow={() => {
-                if (!selectedRow) return
-                setSelectedRowIds([selectedRow.rowId])
-                handleDeleteSelected()
-              }}
-            />
-          </>
-        )}
+          ) : (
+            <section className="flex-1 min-h-0 overflow-hidden" aria-label="Collapsed table" />
+          )}
+          {showInspector && (
+            <>
+              <VerticalResizeSeparatorHr
+                ref={el => {
+                  inspectorDragHandleRef.current = el
+                }}
+                ariaLabel="Resize inspector"
+              />
+              <GraphTableInspector
+                widthPx={inspectorWidthPx}
+                columns={columns}
+                row={selectedRow}
+                onClose={() => setInspectorRowId(null)}
+                onChangeCell={(columnId, next) => {
+                  if (!selectedRow) return
+                  handleCellValueChanged(selectedRow.rowId, columnId, next)
+                }}
+                onDeleteRow={() => {
+                  if (!selectedRow) return
+                  setSelectedRowIds([selectedRow.rowId])
+                  handleDeleteSelected()
+                }}
+              />
+            </>
+          )}
+        </section>
+        {workspaceViewMode === 'table' ? <GraphTableCanvasPreviewDock previewSrc={previewSrc} /> : null}
       </section>
     </main>
   )

@@ -219,6 +219,100 @@ export function testForbidEditorJsDependencies() {
   }
 }
 
+export function testForbidReactFlowAndLiteGraphDependencies() {
+  const ignoreDirNames = new Set(['node_modules', 'dist', 'build', 'coverage', '.git'])
+  const repoRoot = resolve(process.cwd(), '..', '..', '..')
+  const repoSrcDirs = [
+    SRC_DIR,
+    resolve(repoRoot, 'curagrph', 'src'),
+    resolve(repoRoot, 'gympgrph', 'src'),
+  ]
+  const pkgJsonPaths = [
+    resolve(repoRoot, 'knowgrph', 'canvas', 'package.json'),
+    resolve(repoRoot, 'curagrph', 'package.json'),
+    resolve(repoRoot, 'gympgrph', 'package.json'),
+  ]
+
+  const files = repoSrcDirs
+    .flatMap(dir => {
+      try {
+        return listFilesRecursively(dir, { ignoreDirNames })
+      } catch {
+        return []
+      }
+    })
+    .filter(f => /\.(ts|tsx|js|jsx|json)$/.test(f))
+    .filter(f => !f.includes(join('src', '__tests__')))
+    .filter(f => !f.includes(join('src', 'tests')))
+    .filter(f => !f.includes(join('src', 'cli')))
+
+  const patterns: RegExp[] = [
+    /\breactflow\b/i,
+    /@xyflow\/react/i,
+    /\blitegraph\.js\b/i,
+    /jagenjo\/litegraph/i,
+  ]
+  const violations: Array<{ file: string; snippet: string }> = []
+
+  for (const file of files) {
+    const st = statSync(file)
+    if (!st.isFile()) continue
+    const text = readFileSync(file, 'utf8')
+    for (const re of patterns) {
+      const m = text.match(re)
+      if (m && m[0]) {
+        violations.push({ file, snippet: m[0] })
+        break
+      }
+    }
+  }
+
+  for (const file of pkgJsonPaths) {
+    try {
+      const text = readFileSync(file, 'utf8')
+      for (const re of patterns) {
+        const m = text.match(re)
+        if (m && m[0]) {
+          violations.push({ file, snippet: m[0] })
+          break
+        }
+      }
+    } catch {
+      void 0
+    }
+  }
+
+  if (violations.length) {
+    const msg = violations.map(v => `${v.file} contains ${JSON.stringify(v.snippet)}`).join('\n')
+    throw new Error(
+      `Forbidden Flow dependency/reference detected (Flow must remain native Canvas2D; do not import/copy React Flow or LiteGraph):\n${msg}`,
+    )
+  }
+}
+
+export function testCanvas2dRendererSwitchWarmsInactiveRenderer() {
+  const canvasPath = resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
+  const text = readFileSync(canvasPath, 'utf8')
+  const requiredSnippets = [
+    "mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} />",
+    "mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} />",
+    "canvasRenderMode === '2d' && (",
+  ]
+  const missing = requiredSnippets.filter(s => !text.includes(s))
+  if (missing.length) {
+    const msg = missing.map(s => `missing: ${s}`).join('\n')
+    throw new Error(`Canvas.tsx must warm-mount the inactive 2D renderer after prefetch, while toggling via active/visibility:\n${msg}`)
+  }
+}
+
+export function testForbidTopLevelElkImportInFlowLayout() {
+  const elkPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'elkLayout.ts')
+  const text = readFileSync(elkPath, 'utf8')
+  if (/\bimport\s+ELK\s+from\s+['"]elkjs\//.test(text)) {
+    throw new Error('Flow ELK must be lazy-loaded via dynamic import to avoid switch-time main-thread stalls')
+  }
+}
+
 export function testForbidLegacyToolbarToolMenuAreasSystem() {
   const toolbarDir = resolve(SRC_DIR, 'features', 'toolbar')
   let files: string[] = []

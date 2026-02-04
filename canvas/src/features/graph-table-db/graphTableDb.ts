@@ -3,6 +3,7 @@ import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
 import { getRxStorageMemory } from 'rxdb/plugins/storage-memory'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import { hashString32 } from 'grph-shared/hash/stringHash'
 
 export type GraphTableId = 'nodes' | 'edges'
 
@@ -68,6 +69,26 @@ export type GraphTableDb = {
 }
 
 export const GRAPH_TABLE_DB_NAME = 'kg:graph-table'
+
+let graphTableDbWriteQueue: Promise<void> = Promise.resolve()
+
+const withGraphTableDbWrite = async <T>(fn: () => Promise<T>): Promise<T> => {
+  const prev = graphTableDbWriteQueue
+  let release: (() => void) | null = null
+  graphTableDbWriteQueue = new Promise<void>(resolve => {
+    release = resolve
+  })
+  await prev.catch(() => void 0)
+  try {
+    return await fn()
+  } finally {
+    try {
+      release?.()
+    } catch {
+      void 0
+    }
+  }
+}
 
 let rxdbPluginsInitialized = false
 const ensureRxdbPlugins = () => {
@@ -251,6 +272,79 @@ export const ensureGraphTableSeed = async (): Promise<void> => {
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
+const toJsonValueForDb = (v: unknown): JSONValue => {
+  if (v == null) return null
+  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return v
+  if (v instanceof Date) {
+    const t = v.getTime()
+    if (Number.isFinite(t)) return new Date(t).toISOString()
+  }
+  if (Array.isArray(v)) return v.map(item => toJsonValueForDb(item)) as JSONValue
+  if (isPlainObject(v)) {
+    const out: Record<string, JSONValue> = {}
+    for (const k of Object.keys(v).sort((a, b) => a.localeCompare(b))) {
+      out[k] = toJsonValueForDb(v[k])
+    }
+    return out as JSONValue
+  }
+  return String(v)
+}
+
+const isJsonValueEqual = (a: JSONValue, b: JSONValue): boolean => {
+  if (Object.is(a, b)) return true
+  if (a == null || b == null) return a === b
+  if (typeof a !== typeof b) return false
+  if (typeof a === 'string' || typeof a === 'number' || typeof a === 'boolean') return a === b
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b)) return false
+    if (a.length !== b.length) return false
+    for (let i = 0; i < a.length; i += 1) {
+      if (!isJsonValueEqual(a[i] as JSONValue, b[i] as JSONValue)) return false
+    }
+    return true
+  }
+  if (!isPlainObject(a) || !isPlainObject(b)) return false
+  const ak = Object.keys(a)
+  const bk = Object.keys(b)
+  if (ak.length !== bk.length) return false
+  const bSet = new Set(bk)
+  for (const k of ak) {
+    if (!bSet.has(k)) return false
+    if (!isJsonValueEqual(a[k] as JSONValue, b[k] as JSONValue)) return false
+  }
+  return true
+}
+
+const isJsonRecordEqual = (a: Record<string, JSONValue>, b: Record<string, JSONValue>): boolean => {
+  const ak = Object.keys(a)
+  const bk = Object.keys(b)
+  if (ak.length !== bk.length) return false
+  const bSet = new Set(bk)
+  for (const k of ak) {
+    if (!bSet.has(k)) return false
+    if (!isJsonValueEqual(a[k], b[k])) return false
+  }
+  return true
+}
+
+const isConflictError = (err: unknown): boolean => {
+  if (!err || typeof err !== 'object') return false
+  const rec = err as Record<string, unknown>
+  if (rec.code === 'CONFLICT') return true
+  const name = typeof rec.name === 'string' ? rec.name : ''
+  if (name === 'RxError' && typeof rec.message === 'string' && rec.message.includes('CONFLICT')) return true
+  const params = rec.parameters as unknown
+  if (params && typeof params === 'object') {
+    const p = params as Record<string, unknown>
+    const writeError = p.writeError as unknown
+    if (writeError && typeof writeError === 'object') {
+      const status = (writeError as Record<string, unknown>).status
+      if (status === 409) return true
+    }
+  }
+  return false
+}
+
 const inferKind = (v: JSONValue): GraphColumnKind => {
   if (typeof v === 'string') return 'text'
   if (typeof v === 'number') return 'number'
@@ -267,23 +361,34 @@ const normalizeColumnId = (key: string): string => {
 }
 
 const toRowDataForNode = (n: GraphNode): Record<string, JSONValue> => {
-  const data: Record<string, JSONValue> = { id: n.id, label: n.label, type: n.type }
+  const data: Record<string, JSONValue> = {
+    id: toJsonValueForDb(n.id),
+    label: toJsonValueForDb(n.label),
+    type: toJsonValueForDb(n.type),
+  }
   const props = n.properties || {}
-  for (const [k, v] of Object.entries(props)) {
+  const sortedKeys = Object.keys(props).sort((a, b) => a.localeCompare(b))
+  for (const k of sortedKeys) {
     const key = normalizeColumnId(k)
     if (!key) continue
-    data[key] = v
+    data[key] = toJsonValueForDb((props as Record<string, unknown>)[k])
   }
   return data
 }
 
 const toRowDataForEdge = (e: GraphEdge): Record<string, JSONValue> => {
-  const data: Record<string, JSONValue> = { id: e.id, label: e.label, source: e.source, target: e.target }
+  const data: Record<string, JSONValue> = {
+    id: toJsonValueForDb(e.id),
+    label: toJsonValueForDb(e.label),
+    source: toJsonValueForDb(e.source),
+    target: toJsonValueForDb(e.target),
+  }
   const props = e.properties || {}
-  for (const [k, v] of Object.entries(props)) {
+  const sortedKeys = Object.keys(props).sort((a, b) => a.localeCompare(b))
+  for (const k of sortedKeys) {
     const key = normalizeColumnId(k)
     if (!key) continue
-    data[key] = v
+    data[key] = toJsonValueForDb((props as Record<string, unknown>)[k])
   }
   return data
 }
@@ -315,10 +420,11 @@ const ensureColumnsForRowData = async (tableId: GraphTableId, rows: Array<Record
 
   const maxOrder = Math.max(0, ...Array.from(existing.values()).map(c => c.order))
   let order = maxOrder
+  const planned: GraphColumnDoc[] = []
   for (const [columnId, kind] of observed.entries()) {
     if (existing.has(columnId)) continue
     order += 1
-    await collections.columns.insert({
+    planned.push({
       pk: pkOfColumn(tableId, columnId),
       tableId,
       columnId,
@@ -330,79 +436,101 @@ const ensureColumnsForRowData = async (tableId: GraphTableId, rows: Array<Record
       updatedAtMs: now,
     })
   }
+  if (planned.length === 0) return
+  planned.sort((a, b) => a.order - b.order)
+  for (const col of planned) {
+    try {
+      await collections.columns.insert(col)
+    } catch (err) {
+      if (isConflictError(err)) continue
+      throw err
+    }
+  }
 }
 
 export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Promise<void> => {
-  await ensureGraphTableSeed()
-  if (!graph) return
-  const { collections } = await getGraphTableDb()
-  const now = Date.now()
+  await withGraphTableDbWrite(async () => {
+    await ensureGraphTableSeed()
+    if (!graph) return
+    const { collections } = await getGraphTableDb()
+    const now = Date.now()
 
-  const nodeRows = graph.nodes.map(toRowDataForNode)
-  const edgeRows = graph.edges.map(toRowDataForEdge)
+    const nodeRows = graph.nodes.map(toRowDataForNode)
+    const edgeRows = graph.edges.map(toRowDataForEdge)
 
-  await ensureColumnsForRowData('nodes', nodeRows)
-  await ensureColumnsForRowData('edges', edgeRows)
+    await ensureColumnsForRowData('nodes', nodeRows)
+    await ensureColumnsForRowData('edges', edgeRows)
 
-  const existingNodes = await collections.rows.find({ selector: { tableId: 'nodes' } }).exec()
-  const existingEdges = await collections.rows.find({ selector: { tableId: 'edges' } }).exec()
-  const existingNodeIds = new Set(existingNodes.map(d => d.get('rowId')))
-  const existingEdgeIds = new Set(existingEdges.map(d => d.get('rowId')))
+    const existingNodes = await collections.rows.find({ selector: { tableId: 'nodes' } }).exec()
+    const existingEdges = await collections.rows.find({ selector: { tableId: 'edges' } }).exec()
+    const existingNodeIds = new Set(existingNodes.map(d => d.get('rowId')))
+    const existingEdgeIds = new Set(existingEdges.map(d => d.get('rowId')))
 
-  for (let i = 0; i < graph.nodes.length; i += 1) {
-    const n = graph.nodes[i]
-    const rowId = n.id
-    existingNodeIds.delete(rowId)
-    const pk = pkOfRow('nodes', rowId)
-    const doc = await collections.rows.findOne(pk).exec()
-    const next: GraphRowDoc = {
-      pk,
-      tableId: 'nodes',
-      rowId,
-      order: i + 1,
-      data: nodeRows[i],
-      createdAtMs: doc ? doc.get('createdAtMs') : now,
-      updatedAtMs: now,
+    for (let i = 0; i < graph.nodes.length; i += 1) {
+      const n = graph.nodes[i]
+      const rowId = String(n.id)
+      existingNodeIds.delete(rowId)
+      const pk = pkOfRow('nodes', rowId)
+      const doc = await collections.rows.findOne(pk).exec()
+      const nextData = nodeRows[i]
+      if (!doc) {
+        await collections.rows.insert({
+          pk,
+          tableId: 'nodes',
+          rowId,
+          order: i + 1,
+          data: nextData,
+          createdAtMs: now,
+          updatedAtMs: now,
+        })
+        continue
+      }
+      const prevOrder = Number(doc.get('order'))
+      const prevData = doc.get('data') as unknown
+      const prevDataRec = isPlainObject(prevData) ? (prevData as Record<string, JSONValue>) : {}
+      const nextOrder = i + 1
+      if (prevOrder === nextOrder && isJsonRecordEqual(prevDataRec, nextData)) continue
+      await doc.incrementalPatch({ order: nextOrder, data: nextData, updatedAtMs: now })
     }
-    if (!doc) {
-      await collections.rows.insert(next)
-    } else {
-      await doc.incrementalPatch({ order: next.order, data: next.data, updatedAtMs: next.updatedAtMs })
-    }
-  }
 
-  for (let i = 0; i < graph.edges.length; i += 1) {
-    const e = graph.edges[i]
-    const rowId = e.id
-    existingEdgeIds.delete(rowId)
-    const pk = pkOfRow('edges', rowId)
-    const doc = await collections.rows.findOne(pk).exec()
-    const next: GraphRowDoc = {
-      pk,
-      tableId: 'edges',
-      rowId,
-      order: i + 1,
-      data: edgeRows[i],
-      createdAtMs: doc ? doc.get('createdAtMs') : now,
-      updatedAtMs: now,
+    for (let i = 0; i < graph.edges.length; i += 1) {
+      const e = graph.edges[i]
+      const rowId = String(e.id)
+      existingEdgeIds.delete(rowId)
+      const pk = pkOfRow('edges', rowId)
+      const doc = await collections.rows.findOne(pk).exec()
+      const nextData = edgeRows[i]
+      if (!doc) {
+        await collections.rows.insert({
+          pk,
+          tableId: 'edges',
+          rowId,
+          order: i + 1,
+          data: nextData,
+          createdAtMs: now,
+          updatedAtMs: now,
+        })
+        continue
+      }
+      const prevOrder = Number(doc.get('order'))
+      const prevData = doc.get('data') as unknown
+      const prevDataRec = isPlainObject(prevData) ? (prevData as Record<string, JSONValue>) : {}
+      const nextOrder = i + 1
+      if (prevOrder === nextOrder && isJsonRecordEqual(prevDataRec, nextData)) continue
+      await doc.incrementalPatch({ order: nextOrder, data: nextData, updatedAtMs: now })
     }
-    if (!doc) {
-      await collections.rows.insert(next)
-    } else {
-      await doc.incrementalPatch({ order: next.order, data: next.data, updatedAtMs: next.updatedAtMs })
-    }
-  }
 
-  for (const rowId of existingNodeIds) {
-    const pk = pkOfRow('nodes', rowId)
-    const doc = await collections.rows.findOne(pk).exec()
-    if (doc) await doc.remove()
-  }
-  for (const rowId of existingEdgeIds) {
-    const pk = pkOfRow('edges', rowId)
-    const doc = await collections.rows.findOne(pk).exec()
-    if (doc) await doc.remove()
-  }
+    for (const rowId of existingNodeIds) {
+      const pk = pkOfRow('nodes', rowId)
+      const doc = await collections.rows.findOne(pk).exec()
+      if (doc) await doc.remove()
+    }
+    for (const rowId of existingEdgeIds) {
+      const pk = pkOfRow('edges', rowId)
+      const doc = await collections.rows.findOne(pk).exec()
+      if (doc) await doc.remove()
+    }
+  })
 }
 
 export const updateGraphTableCell = async (
@@ -411,46 +539,62 @@ export const updateGraphTableCell = async (
   columnId: string,
   value: unknown,
 ): Promise<void> => {
-  const { collections } = await getGraphTableDb()
-  const pk = pkOfRow(tableId, rowId)
-  const doc = await collections.rows.findOne(pk).exec()
-  if (!doc) return
-  const raw = doc.toJSON() as GraphRowDoc
-  const data = isPlainObject(raw.data) ? { ...(raw.data as Record<string, JSONValue>) } : {}
-  data[columnId] = value as JSONValue
-  await doc.incrementalPatch({ data, updatedAtMs: Date.now() })
+  await withGraphTableDbWrite(async () => {
+    const { collections } = await getGraphTableDb()
+    const pk = pkOfRow(tableId, rowId)
+    const doc = await collections.rows.findOne(pk).exec()
+    if (!doc) return
+    const raw = doc.toJSON() as GraphRowDoc
+    const data = isPlainObject(raw.data) ? { ...(raw.data as Record<string, JSONValue>) } : {}
+    data[columnId] = toJsonValueForDb(value)
+    const prev = isPlainObject(raw.data) ? (raw.data as Record<string, JSONValue>) : {}
+    if (isJsonRecordEqual(prev, data)) return
+    await doc.incrementalPatch({ data, updatedAtMs: Date.now() })
+  })
 }
 
 export const allocateNewRowId = async (tableId: GraphTableId): Promise<string> => {
-  const { collections } = await getGraphTableDb()
-  const key = `counter:${tableId}`
-  const now = Date.now()
-  const doc = await collections.meta.findOne(key).exec()
-  const prevValue = doc ? (doc.get('value') as unknown) : null
-  const prev = typeof prevValue === 'number' && Number.isFinite(prevValue) ? Math.max(0, Math.floor(prevValue)) : 0
-  const next = prev + 1
-  if (!doc) {
-    await collections.meta.insert({ key, value: next, updatedAtMs: now })
-  } else {
-    await doc.incrementalPatch({ value: next, updatedAtMs: now })
-  }
-  return tableId === 'nodes' ? `node-${next}` : `edge-${next}`
+  return withGraphTableDbWrite(async () => {
+    const { collections } = await getGraphTableDb()
+    const key = `counter:${tableId}`
+    const now = Date.now()
+    const doc = await collections.meta.findOne(key).exec()
+    const prevValue = doc ? (doc.get('value') as unknown) : null
+    const prev = typeof prevValue === 'number' && Number.isFinite(prevValue) ? Math.max(0, Math.floor(prevValue)) : 0
+    const next = prev + 1
+    if (!doc) {
+      await collections.meta.insert({ key, value: next, updatedAtMs: now })
+    } else {
+      await doc.incrementalPatch({ value: next, updatedAtMs: now })
+    }
+    return tableId === 'nodes' ? `node-${next}` : `edge-${next}`
+  })
 }
 
 export const createRowFromGraphEntity = async (tableId: GraphTableId, rowId: string, graph: GraphNode | GraphEdge): Promise<void> => {
-  const { collections } = await getGraphTableDb()
-  const now = Date.now()
-  const count = await collections.rows.find({ selector: { tableId } }).exec()
-  const order = count.length + 1
-  const data = tableId === 'nodes' ? toRowDataForNode(graph as GraphNode) : toRowDataForEdge(graph as GraphEdge)
-  await ensureColumnsForRowData(tableId, [data])
-  await collections.rows.insert({
-    pk: pkOfRow(tableId, rowId),
-    tableId,
-    rowId,
-    order,
-    data,
-    createdAtMs: now,
-    updatedAtMs: now,
+  await withGraphTableDbWrite(async () => {
+    const { collections } = await getGraphTableDb()
+    const now = Date.now()
+    const count = await collections.rows.find({ selector: { tableId } }).exec()
+    const order = count.length + 1
+    const data = tableId === 'nodes' ? toRowDataForNode(graph as GraphNode) : toRowDataForEdge(graph as GraphEdge)
+    await ensureColumnsForRowData(tableId, [data])
+    await collections.rows.insert({
+      pk: pkOfRow(tableId, rowId),
+      tableId,
+      rowId,
+      order,
+      data,
+      createdAtMs: now,
+      updatedAtMs: now,
+    })
   })
+}
+
+export const __debugGraphTableRowHash = (data: Record<string, JSONValue>): number => {
+  try {
+    return hashString32(JSON.stringify(data || {}))
+  } catch {
+    return 0
+  }
 }

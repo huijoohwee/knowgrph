@@ -52,8 +52,8 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
   - `2d` (graph)
   - `3d` (graph)
 - **2D renderer**: `canvas2dRenderer` selects the active 2D implementation:
-  - `d3` (existing `GraphCanvas`)
-  - `flow` (React Flow renderer)
+  - `d3` (`GraphCanvas` SVG/D3 renderer)
+  - `flow` (`FlowCanvas` native Canvas2D renderer)
 - **Geospatial Mode**: hosted by `gympgrph` and treated as a mutually exclusive overlay mode.
 
 ### Exclusivity Rules (Non-Negotiable)

@@ -21,6 +21,23 @@ export interface LayoutPositionResult {
   cacheKey: string;
 }
 
+export const buildLayoutPositionCacheKey = (args: {
+  mode: string
+  frontmatterMode: boolean
+  semanticMode: string
+  renderMode: '2d' | '3d'
+  renderVariant?: string
+  layoutVariant?: string
+}): string => {
+  const baseKey = `${String(args.semanticMode || 'document')}:${args.frontmatterMode ? 'frontmatter' : 'default'}:${args.mode}:${args.renderMode}`
+  const parts = [baseKey]
+  const rv = typeof args.renderVariant === 'string' ? args.renderVariant.trim() : ''
+  const lv = typeof args.layoutVariant === 'string' ? args.layoutVariant.trim() : ''
+  if (rv) parts.push(rv)
+  if (lv) parts.push(lv)
+  return parts.join(':')
+}
+
 export const determineLayoutPositions = ({
   mode,
   frontmatterMode,
@@ -39,13 +56,14 @@ export const determineLayoutPositions = ({
   const isFrontmatterChange = prevFrontmatterMode !== frontmatterMode;
   const isSemanticChange = prevSemanticMode !== semanticMode;
   const isRenderModeChange = prevRenderMode !== renderMode;
-  const baseKey = `${String(semanticMode || 'document')}:${frontmatterMode ? 'frontmatter' : 'default'}:${mode}:${renderMode}`
-  const parts = [baseKey]
-  const rv = typeof renderVariant === 'string' ? renderVariant.trim() : ''
-  const lv = typeof layoutVariant === 'string' ? layoutVariant.trim() : ''
-  if (rv) parts.push(rv)
-  if (lv) parts.push(lv)
-  const cacheKey = parts.join(':')
+  const cacheKey = buildLayoutPositionCacheKey({
+    mode,
+    frontmatterMode,
+    semanticMode,
+    renderMode,
+    renderVariant,
+    layoutVariant,
+  })
 
   // Calculate coverage of current node positions (are they valid?)
   const coverageFromNodes = (() => {
