@@ -304,6 +304,8 @@ import {
   testNoStickDoesNotAccidentallyPushInZFromXyGaps,
   testNoStickUsesZAxisWhenGapZProvidedEvenWithZeroDepth,
 } from '@/__tests__/groupBoxNoStickRegression.test'
+import { testCorrectlyNestsH2InsideH1AndEnforcesContainmentSeparation } from '@/__tests__/flowCollisionSticking.test'
+import { testMarkdownDocumentPathNormalization } from '@/__tests__/markdownDocumentPathNormalization.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -397,6 +399,9 @@ export const runAllTests = async () => {
   await runMarkdownTests(results)
   await runSchemaTests(results)
   await runJsonLdTests(results)
+
+  await exec('flowCollisionSticking: testCorrectlyNestsH2InsideH1AndEnforcesContainmentSeparation', testCorrectlyNestsH2InsideH1AndEnforcesContainmentSeparation)
+  await exec('markdownDocumentPathNormalization: testMarkdownDocumentPathNormalization', testMarkdownDocumentPathNormalization)
   await runParserTests(results)
 
   // Remaining tests

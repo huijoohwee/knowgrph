@@ -12,7 +12,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - [ ] Fit; apply aspect ratio and fill policies; forbid viewport-specific assumptions
 - [ ] Locality; keep layout logic modular; forbid sprawling responsibilities
 - [ ] Neutrality; operate on any graph; forbid dataset-tied behavior
-- [ ] Non-Overlap; enforce node and group bbox collision; forbid visual intersections
+- [x] Non-Overlap; enforce node and group bbox collision; forbid visual intersections
 - [ ] Observability; keep options discoverable; forbid undocumented defaults
 ```
 
@@ -37,7 +37,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 | Rectangular Nodes | Keep node sizing stable across layout modes | - [ ] Size via minimap-relative defaults (tree and port handles); forbid drift across layouts |
 | Scaling | Keep zoom limits safe and predictable | - [ ] Clamp zoom scale via `schema.performance.zoom.{minScale,maxScale}`; forbid hardcoded scale extents |
 | Schema | Centralize layout and sizing policies | - [ ] Route layout and label sizing through `schema.layout.*`; forbid embedded constants or dataset ties |
-| Subgraph Containment | Prevent nodes escaping group bounds | - [ ] Clamp member nodes within group bounds; forbid escape or touching borders |
+| Subgraph Containment | Prevent nodes escaping group bounds | - [x] Clamp member nodes within group bounds; forbid escape or touching borders |
 | Verification | Make layout and fit changes regression-resistant | - [ ] Cover fit and layout behaviors via bounded tests; forbid brittle dataset-specific assertions |
 | Zoom State | Prevent stale transforms across view toggles | - [ ] Cache zoom state by viewKey across mode/layout/presentation toggles; forbid stale transforms when switching layers/modes/labels/groups |
 | Renderer Exclusivity | Prevent inactive/off mode interference | - [ ] Mount exactly one active renderer/mode at a time (D3 / Flow / 3D / Geospatial); forbid inactive/off layers from rendering, consuming requests, or recalculating in the background |
@@ -162,6 +162,6 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 | Context | Intent | Directive | Module | Function/Method | Input | Output | Decision Logic |
 |---|---|---|---|---|---|---|---|
-| Collision config | Centralize tunables | - [ ] Read bbox collision settings from schema; forbid ad-hoc constants | layout | readCollisionConfig | schema.layout | config | Single config reader used by all modes |
-| Group overlap | Prevent group bbox intersections | - [ ] Enforce group bbox collision whenever groups enabled; forbid disabling via legacy knobs | layout | createGroupBboxCollideForce | schema.layout.groups | force | Group membership derived from rendered group key |
-| Nested containment | Prevent child inner border touching parent outer envelope | - [ ] Use indexed borders (x1..x5 vs x2..x4) with axis-aware nested touch-epsilon; gate Z by explicit depth | layout | createGroupBboxCollideForceByDepth | schema.layout.groups | stable nested spacing | Parent outer uses gap; child inner uses half extents |
+| Collision config | Centralize tunables | - [x] Read bbox collision settings from schema; forbid ad-hoc constants | layout | readCollisionConfig | schema.layout | config | Single config reader used by all modes |
+| Group overlap | Prevent group bbox intersections | - [x] Enforce group bbox collision whenever groups enabled; forbid disabling via legacy knobs | layout | createGroupBboxCollideForce | schema.layout.groups | force | Group membership derived from rendered group key |
+| Nested containment | Prevent child inner border touching parent outer envelope | - [x] Use indexed borders (x1..x5 vs x2..x4) with axis-aware nested touch-epsilon; gate Z by explicit depth | layout | createGroupBboxCollideForceByDepth | schema.layout.groups | stable nested spacing | Parent outer uses gap; child inner uses half extents |

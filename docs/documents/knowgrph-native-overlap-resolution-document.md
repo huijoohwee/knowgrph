@@ -139,6 +139,7 @@ Notes:
 | Type safety | Prevent drift | - [ ] Add new force keys to schemaTypes; forbid untyped force config |
 | Performance | Avoid regressions | - [ ] Keep iterations low; prune spatial-index queries; forbid heavy per-tick work |
 | Stability | Avoid jitter | - [ ] Use small impulses scaled by alpha; forbid abrupt position jumps |
+| Nested Groups | Prevent sticking | - [ ] Verify inner group containment; forbid disjoint sibling collisions; see [flowCollisionSticking.test.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/__tests__/flowCollisionSticking.test.ts) |
 
 ---
 

@@ -68,6 +68,11 @@
 | `runJsonLdTests.ts`       | JSON-LD roundtrip, edge inference, persistence    | ~450       | JSON-LD parsing, edge derivation, export           |
 | `runParserTests.ts`       | Parser registry, custom parsers, wildcards        | ~500       | Parser loading, transform chaining, aggregation    |
 
+**Test Registration**:
+- New test files must be explicitly registered in `canvas/src/tests/run.ts` to be executed by the CI runner.
+- Individual tests can be imported and registered via `exec('name', testFunction)`.
+- Large groups of related tests should be organized into a dedicated runner module (e.g., `runCollisionTests.ts`) and called from `runAllTests`.
+
 **Aggregation Pattern**:
 
 ```typescript

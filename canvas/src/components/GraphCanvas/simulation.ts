@@ -99,7 +99,7 @@ export const buildSimulation = (
   if (!options?.skipInitialLayout) {
     const seedGroupKeyOf = options?.groupKeyOf || createGroupKeyOfNode({ nodes, edges: edgesForSim })
     if (mode === 'radial') {
-      applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf);
+      applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf, options?.groupsForBboxCollide);
       for (let i = 0; i < nodes.length; i += 1) {
         const n = nodes[i]
         n.vx = 0

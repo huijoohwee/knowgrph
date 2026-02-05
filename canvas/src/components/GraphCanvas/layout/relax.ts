@@ -2,8 +2,10 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createBboxCollideForce } from './overlap'
 import { createGroupBboxCollideForce } from './groupOverlap'
+import { createGroupBboxCollideForceByDepth } from './groupOverlapByDepth'
 import { createGroupKeyOfNode, type GroupKeyOfNode } from './grouping'
 import { readCollisionConfig, readStructuredRelaxSteps } from './collisionConfig'
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
 export function relaxNodesWithCollision(args: {
   nodes: GraphNode[]
@@ -11,6 +13,7 @@ export function relaxNodesWithCollision(args: {
   schema: GraphSchema
   defaultSteps: number
   groupKeyOf?: GroupKeyOfNode
+  groups?: GraphGroup[]
 }): void {
   const { nodes, edges, schema } = args
   if (!nodes.length) return
@@ -38,14 +41,34 @@ export function relaxNodesWithCollision(args: {
 
   const groupKeyOf = args.groupKeyOf || createGroupKeyOfNode({ nodes, edges })
   const groupForce = collision.groupBbox.enabled
-    ? createGroupBboxCollideForce({
-        schema,
-        paddingX: collision.groupBbox.paddingX,
-        paddingY: collision.groupBbox.paddingY,
-        strength: collision.groupBbox.strength,
-        iterations: collision.groupBbox.iterations,
-        groupKeyOf,
-      })
+    ? (args.groups && args.groups.length > 0
+        ? createGroupBboxCollideForceByDepth({
+            schema,
+            groups: args.groups,
+            paddingX: collision.groupBbox.paddingX,
+            paddingY: collision.groupBbox.paddingY,
+            paddingZ: collision.groupBbox.paddingZ,
+            extraGapPx: collision.groupBbox.extraGapPx,
+            extraGapZPx: collision.groupBbox.extraGapZPx,
+            touchEpsilonPx: collision.groupBbox.touchEpsilonPx,
+            touchEpsilonXPx: collision.groupBbox.touchEpsilonXPx,
+            touchEpsilonYPx: collision.groupBbox.touchEpsilonYPx,
+            touchEpsilonZPx: collision.groupBbox.touchEpsilonZPx,
+            nestedTouchEpsilonPx: collision.groupBbox.nestedTouchEpsilonPx,
+            nestedTouchEpsilonXPx: collision.groupBbox.nestedTouchEpsilonXPx,
+            nestedTouchEpsilonYPx: collision.groupBbox.nestedTouchEpsilonYPx,
+            nestedTouchEpsilonZPx: collision.groupBbox.nestedTouchEpsilonZPx,
+            strength: collision.groupBbox.strength,
+            iterations: collision.groupBbox.iterations,
+          })
+        : createGroupBboxCollideForce({
+            schema,
+            paddingX: collision.groupBbox.paddingX,
+            paddingY: collision.groupBbox.paddingY,
+            strength: collision.groupBbox.strength,
+            iterations: collision.groupBbox.iterations,
+            groupKeyOf,
+          }))
     : null
   if (groupForce) groupForce.initialize(nodes, Math.random)
   const applyGroupForce = groupForce as unknown as ((alpha: number) => void) | null

@@ -90,6 +90,14 @@ export const createGroupBboxCollideForceByDepth = (args: {
   paddingZ?: number
   extraGapPx?: number
   extraGapZPx?: number
+  touchEpsilonPx?: number
+  touchEpsilonXPx?: number
+  touchEpsilonYPx?: number
+  touchEpsilonZPx?: number
+  nestedTouchEpsilonPx?: number
+  nestedTouchEpsilonXPx?: number
+  nestedTouchEpsilonYPx?: number
+  nestedTouchEpsilonZPx?: number
   strength: number
   iterations: number
 }): d3.Force<GraphNode, GraphEdge> => {
@@ -97,13 +105,34 @@ export const createGroupBboxCollideForceByDepth = (args: {
   let nodes: GraphNode[] = []
   const groupBboxCfg = readCollisionConfig(schema).groupBbox
   const borderGapMinPx = groupBboxCfg.borderGapPx
-  const touchEpsilonPx = groupBboxCfg.touchEpsilonPx
-  const touchEpsilonXPx = groupBboxCfg.touchEpsilonXPx
-  const touchEpsilonYPx = groupBboxCfg.touchEpsilonYPx
-  const touchEpsilonZPx = groupBboxCfg.touchEpsilonZPx
-  const nestedTouchEpsilonXPx = groupBboxCfg.nestedTouchEpsilonXPx
-  const nestedTouchEpsilonYPx = groupBboxCfg.nestedTouchEpsilonYPx
-  const nestedTouchEpsilonZPx = groupBboxCfg.nestedTouchEpsilonZPx
+  const touchEpsilonPx =
+    typeof args.touchEpsilonPx === 'number' && Number.isFinite(args.touchEpsilonPx)
+      ? Math.max(0, args.touchEpsilonPx)
+      : groupBboxCfg.touchEpsilonPx
+  const touchEpsilonXPx =
+    typeof args.touchEpsilonXPx === 'number' && Number.isFinite(args.touchEpsilonXPx)
+      ? Math.max(0, args.touchEpsilonXPx)
+      : groupBboxCfg.touchEpsilonXPx
+  const touchEpsilonYPx =
+    typeof args.touchEpsilonYPx === 'number' && Number.isFinite(args.touchEpsilonYPx)
+      ? Math.max(0, args.touchEpsilonYPx)
+      : groupBboxCfg.touchEpsilonYPx
+  const touchEpsilonZPx =
+    typeof args.touchEpsilonZPx === 'number' && Number.isFinite(args.touchEpsilonZPx)
+      ? Math.max(0, args.touchEpsilonZPx)
+      : groupBboxCfg.touchEpsilonZPx
+  const nestedTouchEpsilonXPx =
+    typeof args.nestedTouchEpsilonXPx === 'number' && Number.isFinite(args.nestedTouchEpsilonXPx)
+      ? Math.max(0, args.nestedTouchEpsilonXPx)
+      : groupBboxCfg.nestedTouchEpsilonXPx
+  const nestedTouchEpsilonYPx =
+    typeof args.nestedTouchEpsilonYPx === 'number' && Number.isFinite(args.nestedTouchEpsilonYPx)
+      ? Math.max(0, args.nestedTouchEpsilonYPx)
+      : groupBboxCfg.nestedTouchEpsilonYPx
+  const nestedTouchEpsilonZPx =
+    typeof args.nestedTouchEpsilonZPx === 'number' && Number.isFinite(args.nestedTouchEpsilonZPx)
+      ? Math.max(0, args.nestedTouchEpsilonZPx)
+      : groupBboxCfg.nestedTouchEpsilonZPx
   const zEnabled = groupBboxCfg.zEnabled === true
 
   const nodeBboxCfg = readCollisionConfig(schema).nodeBbox
@@ -400,10 +429,10 @@ export const createGroupBboxCollideForceByDepth = (args: {
           child.gapZ,
         )
 
-        const vLeftX = parentIndices.x1 + nestedTouchEpsilonXPx - childIndices.x2
-        const vRightX = childIndices.x4 - (parentIndices.x5 - nestedTouchEpsilonXPx)
-        const vBottomY = parentIndices.y1 + nestedTouchEpsilonYPx - childIndices.y2
-        const vTopY = childIndices.y4 - (parentIndices.y5 - nestedTouchEpsilonYPx)
+        const vLeftX = parentIndices.x2 + nestedTouchEpsilonXPx - childIndices.x2
+        const vRightX = childIndices.x4 - (parentIndices.x4 - nestedTouchEpsilonXPx)
+        const vBottomY = parentIndices.y2 + nestedTouchEpsilonYPx - childIndices.y2
+        const vTopY = childIndices.y4 - (parentIndices.y4 - nestedTouchEpsilonYPx)
 
         let pushX = (vLeftX > 0 ? vLeftX : 0) - (vRightX > 0 ? vRightX : 0)
         let pushY = (vBottomY > 0 ? vBottomY : 0) - (vTopY > 0 ? vTopY : 0)
@@ -411,8 +440,8 @@ export const createGroupBboxCollideForceByDepth = (args: {
         const useZ = zEnabled && bestParent.hasZ && child.hasZ
         let pushZ = 0
         if (useZ) {
-          const vNearZ = parentIndices.z1 + nestedTouchEpsilonZPx - childIndices.z2
-          const vFarZ = childIndices.z4 - (parentIndices.z5 - nestedTouchEpsilonZPx)
+          const vNearZ = parentIndices.z2 + nestedTouchEpsilonZPx - childIndices.z2
+          const vFarZ = childIndices.z4 - (parentIndices.z4 - nestedTouchEpsilonZPx)
           pushZ = (vNearZ > 0 ? vNearZ : 0) - (vFarZ > 0 ? vFarZ : 0)
         }
 

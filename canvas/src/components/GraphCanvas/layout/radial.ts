@@ -6,6 +6,7 @@ import { relaxNodesWithCollision } from './relax'
 import type { GroupKeyOfNode } from './grouping'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import { computeFitFrame, ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
 type RadialClusterNode = {
   id: string
@@ -19,6 +20,7 @@ export const applyRadialClusterLayout = (
   height: number,
   schema: GraphSchema,
   groupKeyOf?: GroupKeyOfNode,
+  groups?: GraphGroup[],
 ) => {
   if (!nodes.length) return
   const graphLike = { nodes, edges: edgesForSim }
@@ -95,5 +97,5 @@ export const applyRadialClusterLayout = (
     node.y = p.y
   }
 
-  relaxNodesWithCollision({ nodes, edges: edgesForSim, schema, defaultSteps: 6, groupKeyOf })
+  relaxNodesWithCollision({ nodes, edges: edgesForSim, schema, defaultSteps: 6, groupKeyOf, groups })
 }
