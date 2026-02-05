@@ -18,6 +18,7 @@ import FieldSettingsPanel from '@/features/panels/views/graph-fields/FieldSettin
 import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamplesPanel'
 import { normalized } from '@/features/panels/utils/json'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import GraphStatsPanel from '@/components/BottomPanel/BottomPanelStatsTab'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -236,6 +237,9 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
               onApplyAsSelectOptions={applySamplesAsSelectOptions}
               onStatusChange={onStatusChange}
             />
+            <section className="min-h-0 overflow-hidden" aria-label="Graph stats">
+              <GraphStatsPanel />
+            </section>
           </div>
         </div>
       </article>

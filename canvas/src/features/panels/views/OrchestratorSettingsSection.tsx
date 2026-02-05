@@ -41,20 +41,14 @@ import { buildOrchestratorTraversalSectionViewModel } from '@/features/panels/vi
 import AgenticRagContextSection from '@/features/panels/views/AgenticRagContextSection'
 import { OrchestratorTraversalSection } from '@/features/panels/views/OrchestratorTraversalStackSection'
 import { useOrchestratorTraversalEditState } from '@/features/panels/hooks/useOrchestratorTraversalEditState'
-import Tooltip from '@/features/panels/ui/Tooltip'
 import {
-  ORCHESTRATOR_TRAVERSAL_TOOLTIP,
-  ZERO_TO_ONE_GRAPH_TRAVERSAL_LABEL,
   AGENTIC_RAG_NODE_JSON_STATUS_NONE,
   AGENTIC_RAG_NODE_JSON_STATUS_COPIED,
   UI_COPY,
 } from '@/lib/config'
-import { getOrchestratorSectionListLabel } from '@/features/panels/config'
-import { getPillClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type OrchestratorSettingsSectionProps = {
-  variant: 'floatingPanel' | 'bottomPanel'
   graphRagCollapsed: boolean
   presetsCollapsed: boolean
   editorCollapsed: boolean
@@ -70,7 +64,6 @@ type OrchestratorSettingsSectionProps = {
 }
 
 export default function OrchestratorSettingsSection({
-  variant,
   graphRagCollapsed,
   presetsCollapsed,
   editorCollapsed,
@@ -100,8 +93,6 @@ export default function OrchestratorSettingsSection({
   const selectEdge = useGraphStore(s => s.selectEdge)
   const requestAiKgTraversal = useGraphStore(s => s.requestAiKgTraversal)
   const setRequestAiKgTraversal = useGraphStore(s => s.setRequestAiKgTraversal)
-  const uiIconPillClass = useGraphStore(s => s.uiIconPillClass)
-  const uiIconPillBadgeTextSizeClass = useGraphStore(s => s.uiIconPillBadgeTextSizeClass)
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
   )
@@ -506,49 +497,15 @@ export default function OrchestratorSettingsSection({
   })
 
   return (
-    <div
-      className={
-        variant === 'floatingPanel'
-          ? [
-              `mt-1 ${UI_THEME_TOKENS.text.primary}`,
-              uiPanelKeyValueTextSizeClass,
-              uiPanelTextFontClass,
-            ].join(' ')
-          : 'mt-1'
-      }
+    <section
+      className={[
+        `mt-1 ${UI_THEME_TOKENS.text.primary}`,
+        uiPanelKeyValueTextSizeClass,
+        uiPanelTextFontClass,
+      ].join(' ')}
+      aria-label="Orchestrator settings"
     >
-      {variant === 'bottomPanel' && (
-        <div
-          className={
-            [
-              'flex items-center justify-between gap-2 px-0.5 py-1 text-gray-700',
-              uiPanelKeyValueTextSizeClass,
-              uiPanelTextFontClass,
-            ].join(' ')
-          }
-        >
-          <Tooltip
-            content={ORCHESTRATOR_TRAVERSAL_TOOLTIP}
-            maxWidthPx={280}
-            contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-          >
-            <div className="flex items-center gap-1">
-              <div
-                className={getPillClass('badge', {
-                  baseClass: `${uiIconPillClass} inline-flex items-center px-1.5 py-[1px] font-medium uppercase tracking-wide`,
-                  badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: 'text-blue-700',
-                })}
-              >
-                {`${ZERO_TO_ONE_GRAPH_TRAVERSAL_LABEL} · ${getOrchestratorSectionListLabel()}`}
-              </div>
-            </div>
-          </Tooltip>
-        </div>
-      )}
       <OrchestratorTraversalSection
-        variant={variant}
-        showPresetsAndEditor={variant === 'floatingPanel'}
         graphRagCollapsed={graphRagCollapsed}
         presetsCollapsed={presetsCollapsed}
         editorCollapsed={editorCollapsed}
@@ -600,13 +557,11 @@ export default function OrchestratorSettingsSection({
           onChangeTraversalDelayMs: handleSetTraversalDelayMs,
         }}
       />
-      {variant === 'bottomPanel' && (
-        <AgenticRagContextSection
-          collapsed={contextCollapsed}
-          onToggle={setContextCollapsed}
-          graphData={data as GraphData | null}
-        />
-      )}
-    </div>
+      <AgenticRagContextSection
+        collapsed={contextCollapsed}
+        onToggle={setContextCollapsed}
+        graphData={data as GraphData | null}
+      />
+    </section>
   )
 }

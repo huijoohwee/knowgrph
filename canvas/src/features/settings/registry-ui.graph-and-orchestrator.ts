@@ -1,5 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { lsInt, lsJson, lsSetInt, lsSetJson } from '@/lib/persistence'
+import { lsInt, lsSetInt } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
 import {
   ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS,
@@ -92,24 +92,6 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     },
     docKey: 'orchestratorTraversalDelayMs',
     default: () => ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS,
-  },
-  {
-    key: 'orchestratorView',
-    type: 'string',
-    source: 'localStorage',
-    read: () =>
-      lsJson<'ui' | 'text'>(LS_KEYS.orchestratorView, 'ui', raw => {
-        if (raw === 'ui' || raw === 'text') return raw
-        return null
-      }) || 'ui',
-    write: (v) => {
-      const raw = String(v || '')
-      const next: 'ui' | 'text' = raw === 'text' ? 'text' : 'ui'
-      lsSetJson(LS_KEYS.orchestratorView, next)
-    },
-    docKey: 'orchestratorView',
-    default: () => 'ui',
-    options: ['ui', 'text'],
   },
   {
     key: 'graph.behavior.selectMode',

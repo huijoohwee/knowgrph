@@ -1,5 +1,3 @@
-import type { BottomTab } from '@/features/bottom-panel/open'
-import { openBottomPanel } from '@/features/bottom-panel/open'
 import type { WorkspaceViewMode } from '@/hooks/store/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { LoaderResult } from '@/features/parsers/loader'
@@ -10,7 +8,6 @@ export async function runImportFlow(args: {
   nameForParse: string
   textForParse: string
   applyToStore?: boolean
-  openTab?: BottomTab
   openWorkspaceViewMode?: WorkspaceViewMode
   ui?: {
     collapsePanelsOnSuccess?: boolean
@@ -26,13 +23,6 @@ export async function runImportFlow(args: {
     if (args.onSuccess) {
       try {
         args.onSuccess(res)
-      } catch {
-        void 0
-      }
-    }
-    if (args.openTab) {
-      try {
-        openBottomPanel(args.openTab)
       } catch {
         void 0
       }

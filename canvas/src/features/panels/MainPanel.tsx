@@ -6,16 +6,17 @@ import GraphFieldsView from '@/features/panels/views/GraphFieldsView'
 import PreviewPanelView from './views/PreviewPanelView'
 import WorkflowSection from '@/features/panels/views/WorkflowSection'
 import SettingsView from '@/features/panels/views/SettingsView'
+import HistoryView from '@/features/panels/views/HistoryView'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeader'
 import MainPanelWorkflowHeader from '@/features/panels/ui/MainPanelWorkflowHeader'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { HelpCircle, MonitorPlay, Settings, Workflow } from 'lucide-react'
+import { HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon } from 'lucide-react'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
-type MainPanelTab = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings'
+type MainPanelTab = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history'
 
 function isMainPanelTab(key: string): key is MainPanelTab {
   return (
@@ -23,7 +24,8 @@ function isMainPanelTab(key: string): key is MainPanelTab {
     key === 'help' ||
     key === 'graphFields' ||
     key === 'preview' ||
-    key === 'settings'
+    key === 'settings' ||
+    key === 'history'
   )
 }
 
@@ -122,7 +124,7 @@ export default function MainPanel({
       collapsed={collapsed}
       searchVisible={
         searchOpen &&
-        (tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow')
+        (tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow' || tab === 'history')
       }
       searchPlaceholder={
         tab === 'help'
@@ -131,6 +133,8 @@ export default function MainPanel({
           ? UI_COPY.searchFieldsPlaceholder
           : tab === 'settings'
           ? UI_COPY.searchSettingsPlaceholder
+          : tab === 'history'
+          ? UI_LABELS.search
           : tab === 'workflow'
           ? UI_LABELS.search
           : 'Search'
@@ -142,6 +146,7 @@ export default function MainPanel({
         { key: 'graphFields', label: UI_LABELS.graphFields },
         { key: 'preview', label: UI_LABELS.previewPanel },
         { key: 'settings', label: UI_LABELS.settings },
+        { key: 'history', label: UI_LABELS.history },
         { key: 'help', label: UI_LABELS.help },
       ]}
       tabVariant="icon"
@@ -164,6 +169,7 @@ export default function MainPanel({
         },
         preview: MonitorPlay,
         settings: Settings,
+        history: HistoryIcon,
         help: HelpCircle,
       }}
       activeTab={tab}
@@ -179,7 +185,7 @@ export default function MainPanel({
           onPinToggle={onPinToggle}
           pinned={pinned}
           onSearchToggle={
-            tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow'
+            tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow' || tab === 'history'
               ? () => setSearchOpen(v => !v)
               : undefined
           }
@@ -209,6 +215,8 @@ export default function MainPanel({
               ? UI_LABELS.previewPanel
               : tab === 'settings'
               ? UI_LABELS.settings
+              : tab === 'history'
+              ? UI_LABELS.history
               : UI_LABELS.help}
           </div>
           {traversalChip && (
@@ -269,6 +277,7 @@ export default function MainPanel({
             </div>
           </MainPanelBody>
         )}
+        {tab === 'history' && <HistoryView searchQuery={search} />}
       </div>
     </MainPanelFrame>
   )

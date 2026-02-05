@@ -1,7 +1,6 @@
 import type { StoreApi } from 'zustand';
-import type { GraphState, GraphDataTableScope, GraphDataTableFreezeMode, GraphHoverPreviewConfig, DocumentSemanticMode } from './types';
+import type { GraphState, GraphDataTableScope, GraphDataTableFreezeMode, GraphHoverPreviewConfig, DocumentSemanticMode, BottomTab } from './types';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
-import type { BottomTab } from '@/features/bottom-panel/open';
 import type {
   GraphDataTableColumnKey,
   GraphDataTableColumnVisibilityByKey,

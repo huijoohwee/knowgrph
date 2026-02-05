@@ -14,7 +14,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphRagWorkflowJsonLd, DuckDbQueryConfig } from '@/features/panels/utils/graphragConfig'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
-import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { GraphRagWorkflowSection } from '@/features/panels/views/GraphRagWorkflowSection'
 import {
   OrchestratorTraversalPresetsSection,
@@ -75,11 +74,9 @@ interface OrchestratorTraversalEditorProps {
 }
 
 interface OrchestratorTraversalSectionProps {
-  variant: 'floatingPanel' | 'bottomPanel'
   graphRagCollapsed: boolean
   presetsCollapsed: boolean
   editorCollapsed: boolean
-  showPresetsAndEditor: boolean
   setGraphRagCollapsed: (next: boolean) => void
   setPresetsCollapsed: (next: boolean) => void
   setEditorCollapsed: (next: boolean) => void
@@ -89,11 +86,9 @@ interface OrchestratorTraversalSectionProps {
 }
 
 export function OrchestratorTraversalSection({
-  variant,
   graphRagCollapsed,
   presetsCollapsed,
   editorCollapsed,
-  showPresetsAndEditor,
   setGraphRagCollapsed,
   setPresetsCollapsed,
   setEditorCollapsed,
@@ -133,98 +128,26 @@ export function OrchestratorTraversalSection({
         collapsed={graphRagCollapsed}
         onToggle={setGraphRagCollapsed}
       >
-        {variant === 'floatingPanel' && (
-          <GraphRagWorkflowSection
-            mode="floatingPanel"
-            workflowDoc={workflowProps.workflowDoc}
-            workflowSource={workflowProps.workflowSource}
-            workflowError={workflowProps.workflowError}
-            workflowValidationErrors={workflowProps.workflowValidationErrors}
-            traversalDelayMs={workflowProps.traversalDelayMs}
-            onChangeTraversalDelayMs={workflowProps.onChangeTraversalDelayMs}
-            lastTraversal={workflowProps.lastTraversal}
-            onUpdateWorkflow={workflowProps.onUpdateWorkflow}
-            indexingCollapsed={workflowProps.indexingCollapsed}
-            onToggleIndexingCollapsed={workflowProps.onToggleIndexingCollapsed}
-            tracingCollapsed={workflowProps.tracingCollapsed}
-            onToggleTracingCollapsed={workflowProps.onToggleTracingCollapsed}
-            agenticContext={workflowProps.agenticContext}
-            ignoreFilters={workflowProps.ignoreFilters}
-            onChangeAgenticContextUrl={workflowProps.onChangeAgenticContextUrl}
-            onChangeIgnoreCodebasePaths={workflowProps.onChangeIgnoreCodebasePaths}
-          />
-        )}
-        {variant === 'bottomPanel' && (
-          <div
-            className={[
-              'mt-1 mb-1 flex flex-col gap-2 text-gray-600',
-              uiPanelKeyValueTextSizeClass,
-              uiPanelTextFontClass,
-            ].join(' ')}
-          >
-            <div className="flex flex-col gap-1">
-              <div
-                className={[
-                  'font-semibold uppercase tracking-wide text-gray-500',
-                  uiPanelKeyValueTextSizeClass,
-                  uiPanelTextFontClass,
-                ].join(' ')}
-              >
-                {UI_COPY.orchestratorTraversalFlowLabel}
-              </div>
-              <div>
-                {UI_COPY.orchestratorTraversalLiveTogetherSentence(
-                  UI_LABELS.ragGraphRAGWorkflow,
-                  getOrchestratorSectionListLabel(),
-                  UI_LABELS.graphTraversal,
-                )}
-              </div>
-              <div className="flex items-center justify-start">
-                <button
-                  type="button"
-                  className={[
-                    'App-toolbar__btn bg-gray-50 text-gray-700',
-                    uiPanelKeyValueTextSizeClass,
-                    uiPanelTextFontClass,
-                  ].join(' ')}
-                  onClick={() => {
-                    try {
-                      if (typeof window !== 'undefined') {
-                        window.dispatchEvent(new CustomEvent(GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT))
-                      }
-                    } catch {
-                      void 0
-                    }
-                  }}
-                >
-                  {UI_COPY.orchestratorTraversalOpenFloatingPanelButtonLabel}
-                </button>
-              </div>
-            </div>
-            <GraphRagWorkflowSection
-              mode="bottomPanel"
-              workflowDoc={workflowProps.workflowDoc}
-              workflowSource={workflowProps.workflowSource}
-              workflowError={workflowProps.workflowError}
-              workflowValidationErrors={workflowProps.workflowValidationErrors}
-              traversalDelayMs={workflowProps.traversalDelayMs}
-              onChangeTraversalDelayMs={workflowProps.onChangeTraversalDelayMs}
-              lastTraversal={workflowProps.lastTraversal}
-              onUpdateWorkflow={workflowProps.onUpdateWorkflow}
-              indexingCollapsed={workflowProps.indexingCollapsed}
-              onToggleIndexingCollapsed={workflowProps.onToggleIndexingCollapsed}
-              tracingCollapsed={workflowProps.tracingCollapsed}
-              onToggleTracingCollapsed={workflowProps.onToggleTracingCollapsed}
-              agenticContext={workflowProps.agenticContext}
-              ignoreFilters={workflowProps.ignoreFilters}
-              onChangeAgenticContextUrl={workflowProps.onChangeAgenticContextUrl}
-              onChangeIgnoreCodebasePaths={workflowProps.onChangeIgnoreCodebasePaths}
-            />
-          </div>
-        )}
+        <GraphRagWorkflowSection
+          workflowDoc={workflowProps.workflowDoc}
+          workflowSource={workflowProps.workflowSource}
+          workflowError={workflowProps.workflowError}
+          workflowValidationErrors={workflowProps.workflowValidationErrors}
+          traversalDelayMs={workflowProps.traversalDelayMs}
+          onChangeTraversalDelayMs={workflowProps.onChangeTraversalDelayMs}
+          lastTraversal={workflowProps.lastTraversal}
+          onUpdateWorkflow={workflowProps.onUpdateWorkflow}
+          indexingCollapsed={workflowProps.indexingCollapsed}
+          onToggleIndexingCollapsed={workflowProps.onToggleIndexingCollapsed}
+          tracingCollapsed={workflowProps.tracingCollapsed}
+          onToggleTracingCollapsed={workflowProps.onToggleTracingCollapsed}
+          agenticContext={workflowProps.agenticContext}
+          ignoreFilters={workflowProps.ignoreFilters}
+          onChangeAgenticContextUrl={workflowProps.onChangeAgenticContextUrl}
+          onChangeIgnoreCodebasePaths={workflowProps.onChangeIgnoreCodebasePaths}
+        />
       </CollapsibleSection>
-      {showPresetsAndEditor && (
-        <CollapsibleSection
+      <CollapsibleSection
           title={(
           <Tooltip
             content={TRAVERSAL_PRESETS_SECTION_TOOLTIP}
@@ -269,9 +192,7 @@ export function OrchestratorTraversalSection({
             duckdbQueriesFromConfig={presetsProps.duckdbQueriesFromConfig}
           />
         </CollapsibleSection>
-      )}
-      {showPresetsAndEditor && (
-        <CollapsibleSection
+      <CollapsibleSection
           title={(
             <Tooltip
               content={TRAVERSAL_EDITOR_AND_LAYERS_SECTION_TOOLTIP}
@@ -290,7 +211,6 @@ export function OrchestratorTraversalSection({
             traversalViewModel={editorProps.traversalViewModel}
           />
         </CollapsibleSection>
-      )}
     </>
   )
 }

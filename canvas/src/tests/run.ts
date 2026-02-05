@@ -52,7 +52,6 @@ import {
 } from '@/__tests__/webkitRelativePath.test'
 import { testUnifiedPanelExport } from '@/__tests__/panel.test'
 import { testSettingsViewCollapsePersistence } from '@/__tests__/settingsCollapse.test'
-import { testBottomPanelCollapsePersistence } from '@/__tests__/bottomPanelPersistence.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
 import {
@@ -250,7 +249,6 @@ import {
 } from '@/__tests__/workspaceAutosave.test'
 import { testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile } from '@/__tests__/markdownWorkspaceCrudActions.test'
 import { testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles } from '@/__tests__/workspaceSeedPersistence.test'
-import { testBottomPanelMarkdownCollapseKeepsEditorContentMounted } from '@/__tests__/bottomPanelMarkdownCollapseKeepsContent.test'
 import {
   testEmbeddedEditorShellRendersCanvasPreviewIframe,
   testToolbarEditorButtonTogglesWorkspaceViewMode,
@@ -480,7 +478,6 @@ export const runAllTests = async () => {
   await exec('markdownWorkspace.autosave.guardsAgainstPathSwitchOverwrite', testWorkspaceAutosaveGuardsAgainstPathSwitchOverwrite)
   await exec('markdownWorkspace.preview.splitFlushesOnDocKeyChange', testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange)
   await exec('markdownWorkspace.explorer.crudActions.createDelete', testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile)
-  await exec('bottomPanel.markdown.collapseKeepsContent', testBottomPanelMarkdownCollapseKeepsEditorContentMounted)
   await exec('workspaceFs.seed.noReseedAfterUserDeletesAll', testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles)
   await exec('workspaceFs.events.batch.coalescesNotifications', testWorkspaceFsChangedBatchCoalescesNotifications)
   await exec('workspaceFs.memory.initialEntries', testWorkspaceFsMemoryInitialEntries)
@@ -635,7 +632,6 @@ export const runAllTests = async () => {
   await exec('util.reorderList.noopAndBounds', testReorderListNoopAndBounds)
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
-  await exec('ui.bottomPanelCollapsePersistence', testBottomPanelCollapsePersistence)
   await exec('rxdb.graphTable.seed', testGraphTableDbSeedsBaseTablesAndColumns)
   await exec('rxdb.graphTable.sync', testGraphTableDbSyncsGraphAndInfersPropertyColumns)
   await exec('rxdb.graphTable.syncConcurrentNoConflict', testGraphTableDbConcurrentSyncDoesNotConflict)

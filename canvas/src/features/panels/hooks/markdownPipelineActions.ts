@@ -2,7 +2,8 @@ import { useGraphStore } from '@/hooks/useGraphStore';
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader';
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput';
 import { parseSchemaText } from '@/features/schema/io';
-import { openBottomPanel } from '@/features/bottom-panel/open';
+import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
+import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
 import {
   CODEBASE_INDEX_PIPELINE_GRAPH_REL_PATH,
   CODEBASE_INDEX_PIPELINE_SCHEMA_REL_PATH,
@@ -183,12 +184,12 @@ export async function runMarkdownPipelineAndLoadArtifacts(): Promise<boolean> {
       void 0;
     }
     try {
-      openBottomPanel('schema');
+      openSchemaConfigWorkspaceFile()
     } catch {
       void 0;
     }
     try {
-      openBottomPanel('orchestrator');
+      emitGraphTraversalFloatingPanelOpen()
     } catch {
       void 0;
     }

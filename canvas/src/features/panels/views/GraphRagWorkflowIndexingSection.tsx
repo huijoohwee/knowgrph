@@ -21,7 +21,7 @@ import {
   buildDefaultTooltip,
   UI_COPY,
 } from '@/lib/config'
-import { openBottomPanel } from '@/features/bottom-panel/open'
+import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
@@ -524,7 +524,7 @@ export function GraphRagWorkflowIndexingSection({
                       ].join(' ')}
                       onClick={() => {
                         try {
-                          openBottomPanel('orchestrator')
+                          emitGraphTraversalFloatingPanelOpen()
                         } catch {
                           void 0
                         }

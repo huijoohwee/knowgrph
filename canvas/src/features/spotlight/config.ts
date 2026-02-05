@@ -1,24 +1,14 @@
-import { getBottomTabLabel, type BottomTabRoleKey, type WorkflowStepId } from '@/features/panels/config'
+import { getBottomTabLabel, type WorkflowStepId } from '@/features/panels/config'
 import { ORCHESTRATOR_TRAVERSAL_TOOLTIP, GRAPH_FIELDS_ICON_LEGEND_TOOLTIP } from '@/lib/config'
 
 export type SpotlightStepVariant = 'primary' | 'secondary'
 
 export type SpotlightRequirementKey =
-  | 'parserOpen'
-  | 'schemaOpen'
   | 'renderOpen'
-  | 'orchestratorOpen'
   | 'traversalRan'
   | 'datasetLoaded'
 
 export type SpotlightRequirementStatus = Record<SpotlightRequirementKey, boolean>
-
-export type SpotlightBottomTabRequirementKey = Extract<
-  SpotlightRequirementKey,
-  'parserOpen' | 'schemaOpen' | 'renderOpen' | 'orchestratorOpen'
->
-
-export type SpotlightBottomTabRequirementMap = Record<SpotlightBottomTabRequirementKey, BottomTabRoleKey>
 
 export interface SpotlightStepConfig {
   id: WorkflowStepId
@@ -55,18 +45,17 @@ export const SPOTLIGHT_STEPS: SpotlightStepConfig[] = [
     id: 3,
     title: 'Step 3 – Configure Visualization',
     body:
-      'Apply styling and layout rules in the Schema Configurator tab. Use schema templates to configure node styling, edge styling, layout algorithms, and interaction behavior, customize rules in the Schema UI Editor, and keep templates reusable and domain-agnostic across datasets.',
+      'Configure styling and layout rules in the Workflow schema configurator. Edit the schema file in the Editor workspace (no embedded text editor) so changes stay SSOT-aligned and reusable across datasets.',
     targetSelector: '[data-kg-spotlight-tab="schema"]',
     variant: 'secondary',
-    requires: ['schemaOpen'],
   },
   {
     id: 4,
     title: 'Step 4 – Orchestrate Agentic Traversal',
     body: `${ORCHESTRATOR_TRAVERSAL_TOOLTIP} Start from graphRAGPath.traverse metadata or generic traversal queries so multi-hop paths stay grounded in the current GraphData, schema, and Orchestrator selection state.`,
-    targetSelector: '[data-kg-spotlight-tab="orchestrator"]',
+    targetSelector: '[data-kg-spotlight-view="graphTraversal"]',
     variant: 'secondary',
-    requires: ['orchestratorOpen'],
+    requires: ['datasetLoaded'],
   },
   {
     id: 5,

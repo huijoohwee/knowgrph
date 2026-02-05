@@ -7,11 +7,15 @@ import {
   RUN_CODEBASE_INDEX_PIPELINE_LABEL,
   WORKFLOW_STEP3_PARSER_TOOLTIP,
   WORKFLOW_STEP6_ORCHESTRATOR_TOOLTIP,
-  WORKFLOW_STEP8_BOTTOM_TABS_TOOLTIP,
 } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import WorkspaceActionsStep from '@/features/workspace-actions/WorkspaceActionsStep';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { ParserSelectionSection, ParserDataSection } from '@/features/panels/views/ParserSections'
+import GraphRagTextPipelineSection from '@/features/panels/views/GraphRagTextPipelineSection'
+import type { ParserSelectionSectionProps, ParserDataSectionProps } from '@/features/panels/views/ParserSectionsModel'
+import { useSchemaConfiguratorUiState } from '@/features/schema-editor/useSchemaConfiguratorUiState'
+import SchemaUiEditorPane from '@/features/schema/ui/SchemaUiEditorPane'
 
 type CollapsedByStep = {
   1: boolean;
@@ -34,6 +38,8 @@ interface ParserWorkflowProps {
   onApplyExample: (exampleId: ExampleId) => void;
   presets: ParserPreset[];
   onApplyPreset: (presetId: string) => void;
+  selectionProps: ParserSelectionSectionProps;
+  dataProps: ParserDataSectionProps;
 }
 
 interface WorkflowStepsProps {
@@ -43,6 +49,7 @@ interface WorkflowStepsProps {
   graphDataLoaded: boolean;
   searchQuery?: string;
   onOpenSchemaTab: () => void;
+  onOpenParserScript: () => void;
   onOpenRenderTab: () => void;
   onOpenOrchestratorTab: () => void;
   onRunAiKgTraversal: () => void;
@@ -74,6 +81,7 @@ export function WorkflowSteps({
   graphDataLoaded,
   searchQuery,
   onOpenSchemaTab,
+  onOpenParserScript,
   onOpenRenderTab,
   onOpenOrchestratorTab,
   onRunAiKgTraversal,
@@ -89,11 +97,14 @@ export function WorkflowSteps({
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   );
+  const schemaOpOk = useGraphStore(s => s.schemaOpOk)
+  const schemaOpMsg = useGraphStore(s => s.schemaOpMsg)
+  const schemaUi = useSchemaConfiguratorUiState()
   const [selectedPresetId, setSelectedPresetId] = React.useState<string>('')
   const contentTooltipClassName = `${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`
   const statusPillClassName = `inline-flex items-center h-6 max-w-[14rem] rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} px-2 text-xs`
   return (
-    <div className="mt-0">
+    <section className="mt-0" aria-label="Workflow steps">
       <CollapsibleSection
         title={(
           <Tooltip
@@ -110,15 +121,33 @@ export function WorkflowSteps({
         onToggle={next => onToggleStep(1, next)}
         className="mt-0 border-t-0 pt-0"
       >
-        <button
-          type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${
-            hasSchema ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-          }`}
-          onClick={onOpenSchemaTab}
-        >
-          Open Schema Tab
-        </button>
+        <section aria-label="Schema configuration" className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
+          <button
+            type="button"
+            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${
+              hasSchema ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+            }`}
+            onClick={onOpenSchemaTab}
+          >
+            Open schema file
+          </button>
+          <p className="text-xs text-gray-600">
+            Edit schema in the Editor workspace (no embedded text editors).
+          </p>
+        </section>
+        <section aria-label="Schema UI configurator" className="mt-3">
+          <SchemaUiEditorPane
+            schemaError={schemaOpOk === false ? String(schemaOpMsg || 'Schema error') : ''}
+            schemaUiStep31Collapsed={schemaUi.schemaUiStep31Collapsed}
+            schemaUiStep32Collapsed={schemaUi.schemaUiStep32Collapsed}
+            schemaUiStep33Collapsed={schemaUi.schemaUiStep33Collapsed}
+            schemaUiStep332Collapsed={schemaUi.schemaUiStep332Collapsed}
+            onToggleStep31={schemaUi.setSchemaUiStep31Collapsed}
+            onToggleStep32={schemaUi.setSchemaUiStep32Collapsed}
+            onToggleStep33={schemaUi.setSchemaUiStep33Collapsed}
+            onToggleStep332={schemaUi.setSchemaUiStep332Collapsed}
+          />
+        </section>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -136,7 +165,9 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[2]}
         onToggle={next => onToggleStep(2, next)}
       >
-        <div />
+        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+          Run the pipeline after schema + data are ready.
+        </p>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -159,9 +190,29 @@ export function WorkflowSteps({
           examples={parserWorkflow.examples}
           onApplyExample={parserWorkflow.onApplyExample}
         />
+        <section aria-label="Parser configuration" className={`mt-3 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
+          <header className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-50 text-gray-700`}
+              onClick={onOpenParserScript}
+              data-kg-spotlight-tab="parser"
+            >
+              Open parser script file
+            </button>
+            <p className="text-xs text-gray-600">
+              Script edits happen in the Editor workspace; this panel stays UI-only.
+            </p>
+          </header>
+          <section className="space-y-3" aria-label="Parser UI editor">
+            <ParserSelectionSection {...parserWorkflow.selectionProps} />
+            <ParserDataSection {...parserWorkflow.dataProps} />
+            <GraphRagTextPipelineSection />
+          </section>
+        </section>
         {parserWorkflow.presets.length > 0 && (
-          <div className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
-            <div className="mb-1">Or apply a curated workflow preset:</div>
+          <section aria-label="Workflow presets" className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+            <p className="mb-1">Or apply a curated workflow preset:</p>
             <select
               className={`w-full min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
               value={selectedPresetId}
@@ -178,7 +229,7 @@ export function WorkflowSteps({
                 <option key={preset.id} value={preset.id}>{preset.label}</option>
               ))}
             </select>
-          </div>
+          </section>
         )}
       </CollapsibleSection>
 
@@ -197,7 +248,9 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[4]}
         onToggle={next => onToggleStep(4, next)}
       >
-        <div />
+        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+          Use Renderer + Orchestrator to explore traversal overlays.
+        </p>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -215,7 +268,7 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[5]}
         onToggle={next => onToggleStep(5, next)}
       >
-        <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
+        <section className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
           <button
             type="button"
             className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${
@@ -223,7 +276,7 @@ export function WorkflowSteps({
             }`}
             onClick={onOpenRenderTab}
           >
-            Open Renderer Tab
+            Open Renderer Panel
           </button>
           <button
             type="button"
@@ -232,7 +285,7 @@ export function WorkflowSteps({
           >
             Run traversal preset
           </button>
-        </div>
+        </section>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -250,7 +303,7 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[6]}
         onToggle={next => onToggleStep(6, next)}
       >
-        <div className={`flex items-center gap-2 mb-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
+        <section className={`flex items-center gap-2 mb-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
           <button
             type="button"
             className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-600 text-white`}
@@ -258,8 +311,8 @@ export function WorkflowSteps({
           >
             Open Orchestrator Tab
           </button>
-        </div>
-        <div className="flex items-center gap-2 mb-2">
+        </section>
+        <section className="flex items-center gap-2 mb-2" aria-label="Codebase indexing">
           <button
             type="button"
             className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
@@ -274,7 +327,7 @@ export function WorkflowSteps({
               </span>
             </span>
           )}
-        </div>
+        </section>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -313,7 +366,7 @@ export function WorkflowSteps({
       <CollapsibleSection
         title={(
           <Tooltip
-            content={WORKFLOW_STEP8_BOTTOM_TABS_TOOLTIP}
+            content={WORKFLOW_STEP_COPY[8].descriptionShort}
             maxWidthPx={280}
             contentClassName={contentTooltipClassName}
           >
@@ -325,8 +378,10 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[8]}
         onToggle={next => onToggleStep(8, next)}
       >
-        <div />
+        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+          Stats now live in Graph Fields, History lives in the History tab, and rendering controls open in the floating Renderer panel.
+        </p>
       </CollapsibleSection>
-    </div>
+    </section>
   );
 }

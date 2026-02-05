@@ -109,7 +109,6 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     responsibility: 'Opacity of canvas-driven selection flash highlights',
     notes: 'clamps to [0,1]',
   },
-  bottomPanelHeightRatio: { area: 'Bottom Panel Layout', responsibility: 'Bottom panel height ratio' },
   floatingPanelWidthRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel width ratio (viewport)' },
   floatingPanelHeightRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel height ratio (viewport)' },
   floatingPanelZIndex: { area: 'Floating Panel Layout', responsibility: 'Floating panel z-index' },
@@ -174,10 +173,6 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   orchestratorTraversalDelayMs: {
     area: 'Orchestrator Traversal',
     responsibility: 'Delay between traversal steps in Orchestrator (ms)',
-  },
-  orchestratorView: {
-    area: 'Orchestrator UI',
-    responsibility: 'Default Orchestrator bottom panel view (UI or Text)',
   },
   'graph.behavior.selectMode': {
     area: 'Canvas Interaction',

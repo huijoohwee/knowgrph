@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+import { MarkdownWorkspace } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspace'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -33,7 +33,7 @@ export async function testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex() {
     state.setMarkdownDocument(null, null)
     state.setMarkdownDocumentSourceUrl(null)
 
-    root.render(React.createElement(BottomPanelMarkdownSection))
+    root.render(React.createElement(MarkdownWorkspace))
 
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
     const tick = () =>

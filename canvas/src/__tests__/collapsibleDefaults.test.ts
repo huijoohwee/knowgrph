@@ -37,7 +37,7 @@ export function testCollapsibleDefaultsCompactAndAnchoredToLsKeys() {
     'features',
     'panels',
     'hooks',
-    'useOrchestratorBottomPanelState.ts',
+    'useOrchestratorPanelState.ts',
   )
   const hookText = fs.readFileSync(orchestratorHookPath, 'utf8')
 
@@ -52,7 +52,7 @@ export function testCollapsibleDefaultsCompactAndAnchoredToLsKeys() {
 
   for (const snippet of requiredSnippets) {
     if (!hookText.includes(snippet)) {
-      throw new Error(`Missing compact default snippet in useOrchestratorBottomPanelState: ${snippet}`)
+      throw new Error(`Missing compact default snippet in useOrchestratorPanelState: ${snippet}`)
     }
   }
 }

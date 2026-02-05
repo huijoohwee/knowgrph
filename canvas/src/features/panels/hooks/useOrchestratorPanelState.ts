@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import {
   LS_KEYS,
   ORCHESTRATOR_SECTION_IDS,
@@ -6,26 +6,21 @@ import {
   buildOrchestratorSectionToggleAnalyticsEvent,
   type OrchestratorSectionToggleAnalyticsEvent,
 } from '@/lib/config'
-import { lsJson, lsSetJson } from '@/lib/persistence'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 
-export type OrchestratorView = 'ui' | 'text'
-
-interface OrchestratorBottomPanelStateSections {
+interface OrchestratorPanelStateSections {
   byId: Record<OrchestratorSectionId, boolean>
   setters: Record<OrchestratorSectionId, (next: boolean) => void>
 }
 
-export interface OrchestratorBottomPanelState {
-  view: OrchestratorView
-  setView: (next: OrchestratorView) => void
-  sections: OrchestratorBottomPanelStateSections
+export interface OrchestratorPanelState {
+  sections: OrchestratorPanelStateSections
   areAllSectionsCollapsed: boolean
   setAllSectionsCollapsed: (next: boolean) => void
 }
 
 type OrchestratorSectionToggleEventDetail = OrchestratorSectionToggleAnalyticsEvent & {
-  source: 'bottomPanel'
+  source: 'floatingPanel'
 }
 
 function emitOrchestratorSectionToggle(sectionId: OrchestratorSectionId, collapsed: boolean) {
@@ -34,7 +29,7 @@ function emitOrchestratorSectionToggle(sectionId: OrchestratorSectionId, collaps
     const payload = buildOrchestratorSectionToggleAnalyticsEvent(sectionId, collapsed)
     if (!payload) return
     const event = new CustomEvent<OrchestratorSectionToggleEventDetail>('kg-orchestrator-section-toggle', {
-      detail: { ...payload, collapsed, source: 'bottomPanel' },
+      detail: { ...payload, collapsed, source: 'floatingPanel' },
     })
     window.dispatchEvent(event)
   } catch {
@@ -42,27 +37,19 @@ function emitOrchestratorSectionToggle(sectionId: OrchestratorSectionId, collaps
   }
 }
 
-export function useOrchestratorBottomPanelState(): OrchestratorBottomPanelState {
-  const [viewState, setViewState] = useState<OrchestratorView>(() =>
-    lsJson<OrchestratorView>(LS_KEYS.orchestratorView, 'ui', raw => {
-      if (raw === 'ui' || raw === 'text') return raw
-      return null
-    }),
-  )
-
-  const setView = useCallback((next: OrchestratorView) => {
-    lsSetJson(LS_KEYS.orchestratorView, next)
-    setViewState(next)
-  }, [])
-
+export function useOrchestratorPanelState(): OrchestratorPanelState {
   const [graphRagCollapsed, setGraphRagCollapsed] = usePersistedBoolean(LS_KEYS.orchestratorGraphRagCollapsed, true)
   const [presetsCollapsed, setPresetsCollapsed] = usePersistedBoolean(LS_KEYS.orchestratorPresetsCollapsed, true)
   const [editorCollapsed, setEditorCollapsed] = usePersistedBoolean(LS_KEYS.orchestratorEditorCollapsed, true)
   const [contextCollapsed, setContextCollapsed] = usePersistedBoolean(LS_KEYS.orchestratorContextCollapsed, true)
   const [workflowIndexingCollapsed, setWorkflowIndexingCollapsed] = usePersistedBoolean(
-    LS_KEYS.orchestratorWorkflowIndexingCollapsed, true)
+    LS_KEYS.orchestratorWorkflowIndexingCollapsed,
+    true,
+  )
   const [workflowTracingCollapsed, setWorkflowTracingCollapsed] = usePersistedBoolean(
-    LS_KEYS.orchestratorWorkflowTracingCollapsed, true)
+    LS_KEYS.orchestratorWorkflowTracingCollapsed,
+    true,
+  )
 
   const handleSetGraphRagCollapsed = useCallback(
     (next: boolean) => {
@@ -112,7 +99,7 @@ export function useOrchestratorBottomPanelState(): OrchestratorBottomPanelState 
     [setWorkflowTracingCollapsed],
   )
 
-  const sections: OrchestratorBottomPanelStateSections = useMemo(
+  const sections: OrchestratorPanelStateSections = useMemo(
     () => ({
       byId: {
         graphRag: graphRagCollapsed,
@@ -132,18 +119,18 @@ export function useOrchestratorBottomPanelState(): OrchestratorBottomPanelState 
       },
     }),
     [
-      graphRagCollapsed,
-      presetsCollapsed,
-      editorCollapsed,
       contextCollapsed,
-      workflowIndexingCollapsed,
-      workflowTracingCollapsed,
+      editorCollapsed,
+      graphRagCollapsed,
+      handleSetContextCollapsed,
+      handleSetEditorCollapsed,
       handleSetGraphRagCollapsed,
       handleSetPresetsCollapsed,
-      handleSetEditorCollapsed,
-      handleSetContextCollapsed,
       handleSetWorkflowIndexingCollapsed,
       handleSetWorkflowTracingCollapsed,
+      presetsCollapsed,
+      workflowIndexingCollapsed,
+      workflowTracingCollapsed,
     ],
   )
 
@@ -162,10 +149,9 @@ export function useOrchestratorBottomPanelState(): OrchestratorBottomPanelState 
   )
 
   return {
-    view: viewState,
-    setView,
     sections,
     areAllSectionsCollapsed,
     setAllSectionsCollapsed,
   }
 }
+

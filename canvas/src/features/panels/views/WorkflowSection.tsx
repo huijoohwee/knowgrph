@@ -2,11 +2,15 @@ import React from 'react';
 import { useWorkflowExportActions } from '@/features/panels/hooks/useWorkflowExportActions';
 import { useParserWorkflowState } from '@/features/parsers/useParserWorkflowState';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { openBottomPanel } from '@/features/bottom-panel/open';
+import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { EXAMPLE_DATASETS } from '@/features/parsers/examplesCatalog';
 import { SHARE_BACKEND_URL, UI_COPY } from '@/lib/config';
 import { WorkflowSteps } from '@/features/panels/views/WorkflowSteps';
 import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions';
+import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
+import { openParserScriptWorkspaceFile } from '@/features/panels/utils/parserWorkspaceFiles'
+import { emitRendererPanelOpen } from '@/features/canvas/utils'
+import { Database, FileCode } from 'lucide-react'
 
 type WorkflowActions = {
   collapseAll?: () => void;
@@ -36,19 +40,22 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
     return nodes > 0 || edges > 0;
   });
   const handleOpenSchemaTab = React.useCallback(() => {
-    openBottomPanel('schema');
+    openSchemaConfigWorkspaceFile()
   }, []);
+  const handleOpenParserScript = React.useCallback(() => {
+    openParserScriptWorkspaceFile()
+  }, [])
   const handleOpenOrchestratorTab = React.useCallback(() => {
-    openBottomPanel('orchestrator');
+    emitGraphTraversalFloatingPanelOpen()
   }, []);
   const handleOpenRenderTab = React.useCallback(() => {
-    openBottomPanel('render');
+    emitRendererPanelOpen()
   }, []);
   const handleRunAiKgTraversal = React.useCallback(() => {
-    openBottomPanel('render');
+    emitRendererPanelOpen()
     setRequestAiKgTraversal(true);
   }, [setRequestAiKgTraversal]);
-  const { parserDataProps, applyExampleById } = useParserWorkflowState();
+  const { parserSelectionProps, parserDataProps, applyExampleById } = useParserWorkflowState();
   const [collapsedByStep, setCollapsedByStep] = React.useState({
     1: true,
     2: true,
@@ -170,26 +177,51 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
   }, [allStepsCollapsed, collapseAll, expandAll, onRegisterActions]);
 
   return (
-    <WorkflowSteps
-      collapsedByStep={collapsedByStep}
-      onToggleStep={handleToggleStep}
-      hasSchema={hasSchema}
-      graphDataLoaded={graphDataLoaded}
-      searchQuery={searchQuery}
-      onOpenSchemaTab={handleOpenSchemaTab}
-      onOpenRenderTab={handleOpenRenderTab}
-      onOpenOrchestratorTab={handleOpenOrchestratorTab}
-      onRunAiKgTraversal={handleRunAiKgTraversal}
-      parserWorkflow={{
-        examples: EXAMPLE_DATASETS,
-        onApplyExample: applyExampleById,
-        presets: parserDataProps.presets || [],
-        onApplyPreset: parserDataProps.onApplyPreset,
-      }}
-      shareStatus={shareStatus}
-      onCopyShareLink={handleCopyShareLink}
-      pipelineStatus={pipelineStatus}
-      onRunCodebaseIndexPipeline={handleRunCodebaseIndexPipeline}
-    />
+    <section aria-label="Workflow" className="min-h-0">
+      <nav aria-label="Workflow tools" className="flex items-center gap-2 mb-2">
+        <button
+          data-kg-spotlight-tab="parser"
+          type="button"
+          className="group relative select-none rounded inline-flex items-center justify-center p-2 hover:bg-gray-100 App-toolbar__btn text-[color:var(--kg-text-secondary)]"
+          aria-label="Parser"
+          onClick={handleOpenParserScript}
+        >
+          <FileCode className="w-4 h-4" aria-hidden="true" />
+        </button>
+        <button
+          data-kg-spotlight-tab="schema"
+          type="button"
+          className="group relative select-none rounded inline-flex items-center justify-center p-2 hover:bg-gray-100 App-toolbar__btn text-[color:var(--kg-text-secondary)]"
+          aria-label="Schema Configurator"
+          onClick={handleOpenSchemaTab}
+        >
+          <Database className="w-4 h-4" aria-hidden="true" />
+        </button>
+      </nav>
+      <WorkflowSteps
+        collapsedByStep={collapsedByStep}
+        onToggleStep={handleToggleStep}
+        hasSchema={hasSchema}
+        graphDataLoaded={graphDataLoaded}
+        searchQuery={searchQuery}
+        onOpenSchemaTab={handleOpenSchemaTab}
+        onOpenParserScript={handleOpenParserScript}
+        onOpenRenderTab={handleOpenRenderTab}
+        onOpenOrchestratorTab={handleOpenOrchestratorTab}
+        onRunAiKgTraversal={handleRunAiKgTraversal}
+        parserWorkflow={{
+          examples: EXAMPLE_DATASETS,
+          onApplyExample: applyExampleById,
+          presets: parserDataProps.presets || [],
+          onApplyPreset: parserDataProps.onApplyPreset,
+          selectionProps: parserSelectionProps,
+          dataProps: parserDataProps,
+        }}
+        shareStatus={shareStatus}
+        onCopyShareLink={handleCopyShareLink}
+        pipelineStatus={pipelineStatus}
+        onRunCodebaseIndexPipeline={handleRunCodebaseIndexPipeline}
+      />
+    </section>
   );
 }

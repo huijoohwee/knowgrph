@@ -6,7 +6,6 @@ import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
-import { PANEL_MAX_RATIO } from '@/features/panels/config'
 
 const SceneLazy = React.lazy(() =>
   import('./Scene').then(mod => ({
@@ -27,8 +26,6 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     selectEdge,
     setSelectionSource,
   } = useGraphStore()
-  const bottomPanelHeightRatio = useGraphStore(s => s.bottomPanelHeightRatio)
-  const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const glCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const [webglSupported, setWebglSupported] = useState<boolean | null>(null)
@@ -48,7 +45,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       setWebglSupported(false)
     }
   }, [])
-  const paused = !active || (!bottomPanelCollapsed && bottomPanelHeightRatio >= PANEL_MAX_RATIO - 0.001)
+  const paused = !active
   const graph = useActiveGraphRenderData() as GraphData | null
   const s = schema as GraphSchema | null
   const effectiveSchema = useMemo<GraphSchema>(() => s || defaultSchema, [s])

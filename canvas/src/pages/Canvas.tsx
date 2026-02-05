@@ -23,16 +23,10 @@ const GeospatialOverlayHostLazy = React.lazy(async () => {
   return { default: m.GeospatialOverlayHost }
 })
 
-const GeospatialPanelHostLazy = React.lazy(async () => {
-  const m = await import('gympgrph')
-  return { default: m.GeospatialPanelHost }
-})
-
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const FlowCanvasLazy = React.lazy(() => import('@/components/FlowCanvas'))
 const FlowEditorCanvasLazy = React.lazy(() => import('@/components/FlowEditorCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
-const BottomPanelLazy = React.lazy(() => import('@/components/BottomPanel'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
@@ -771,7 +765,6 @@ export default function CanvasPage() {
                           <MinimapLazy />
                         </aside>
                       )}
-                      <BottomPanelLazy />
                       <MarkdownMetricsDevOverlay />
                     </React.Suspense>
                   </>

@@ -98,7 +98,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
     descriptionShort:
       `Orchestrator \u2192 run traversal presets and inspect AgenticRAG context \u2192 keep multi-hop graphRAGPath reasoning grounded in schema and provenance.`,
     descriptionLong:
-      `Use an orchestrator to plan and run multi-step workflows that combine SQL over DuckDB, vector search, and subgraph traversal over the indexed store. In the Orchestrator bottom-panel tab, run AgenticRAG traversal presets, inspect Traversal sequence and the AgenticRAG node inspector, and review ${AGENTIC_RAG_CONTEXT_AND_IGNORE_FILTERS_LABEL} so graphRAGPath IRI chains remain traceable, reproducible, and aligned with AgenticRAG JSON-LD schema and context.`,
+      `Use an orchestrator to plan and run multi-step workflows that combine SQL over DuckDB, vector search, and subgraph traversal over the indexed store. In the Floating Panel → Graph Traversal view, run AgenticRAG traversal presets, inspect Traversal sequence and the AgenticRAG node inspector, and review ${AGENTIC_RAG_CONTEXT_AND_IGNORE_FILTERS_LABEL} so graphRAGPath IRI chains remain traceable, reproducible, and aligned with AgenticRAG JSON-LD schema and context.`,
   },
   7: {
     id: 7,
@@ -123,7 +123,6 @@ export type BottomTabRoleKey =
   | 'parser'
   | 'schema'
   | 'data'
-  | 'orchestrator'
   | 'render'
   | 'table'
   | 'history'
@@ -136,7 +135,6 @@ export type BottomTabOwner =
   | 'bottomPanel.edges'
   | 'bottomPanel.parser'
   | 'bottomPanel.schema'
-  | 'bottomPanel.orchestrator'
   | 'bottomPanel.render'
   | 'bottomPanel.history'
 
@@ -145,7 +143,6 @@ export function getBottomTabLabel(key: BottomTabRoleKey): string {
   if (key === 'parser') return 'Parser'
   if (key === 'schema') return 'Schema Configurator'
   if (key === 'data') return 'Text Editor'
-  if (key === 'orchestrator') return 'Orchestrator'
   if (key === 'render') return 'Renderer'
   if (key === 'history') return 'History'
   return WORKFLOW_STEP_COPY[2].label
@@ -221,7 +218,7 @@ export const ORCHESTRATOR_AGENTIC_COPY: OrchestratorAgenticCopy = {
   nodeInspectorEmptyProvenance:
     'When provenance includes a codebasePath value, click it to open the referenced file in the Bottom Panel code editor and keep AgenticRAG inspection grounded in the source.',
   contextSectionTooltip:
-    'AgenticRAG context and ignore filters → compare dataset @context and ignore patterns against canonical AgenticRAG context IRI → keep Bottom Panel Orchestrator runs aligned with RACI catalog, schema, and markdown pipeline filters.',
+    'AgenticRAG context and ignore filters → compare dataset @context and ignore patterns against canonical AgenticRAG context IRI → keep Floating Panel Graph Traversal runs aligned with RACI catalog, schema, and markdown pipeline filters.',
   schemaLabel: AGENTIC_RAG_SCHEMA_LABEL,
   contextLabel: AGENTIC_RAG_CONTEXT_LABEL,
   datasetContextVocabLabel: AGENTIC_RAG_DATASET_CONTEXT_VOCAB_LABEL,
@@ -250,7 +247,6 @@ export const BOTTOM_TAB_ROLE_OWNERS: Record<BottomTabRoleKey, BottomTabOwner> = 
   parser: 'bottomPanel.parser',
   schema: 'bottomPanel.schema',
   data: 'bottomPanel.data',
-  orchestrator: 'bottomPanel.orchestrator',
   render: 'bottomPanel.render',
   table: 'bottomPanel.nodes',
   history: 'bottomPanel.history',

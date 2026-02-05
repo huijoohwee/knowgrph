@@ -277,15 +277,6 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     options: ['light', 'dark', 'system'],
   },
   {
-    key: 'bottomPanelHeightRatio',
-    type: 'number',
-    source: 'localStorage',
-    read: () => s().bottomPanelHeightRatio,
-    write: (v) => s().setBottomPanelHeightRatio(Number(v)),
-    docKey: 'bottomPanelHeight',
-    default: () => 0.35,
-  },
-  {
     key: 'floatingPanelWidthRatio',
     type: 'number',
     source: 'localStorage',

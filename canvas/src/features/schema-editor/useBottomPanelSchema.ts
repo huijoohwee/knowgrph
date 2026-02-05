@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSchemaTab } from '@/features/schema-editor/useSchemaTab'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { BottomTab } from '@/features/bottom-panel/open'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS } from '@/lib/config'
 
-type TabKey = BottomTab
+type TabKey = 'schema'
 
 export type SchemaUiApplyRegistration = {
   apply: () => void

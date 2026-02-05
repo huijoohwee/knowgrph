@@ -8,7 +8,7 @@ import StatusBadge from '@/features/panels/ui/StatusBadge'
 import SchemaSummary from '@/features/panels/ui/SchemaSummary'
 import { UI_LABELS } from '@/lib/config'
 import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
-import { openBottomPanel } from '@/features/bottom-panel/open'
+import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
 
 type LaunchSpotlightStatusCardProps = {
   dismissed: boolean
@@ -251,7 +251,7 @@ export function LaunchSpotlightStatusCard({
                       showSchemaSummary={false}
                       showDataSummary={false}
                       showLintSummary
-                      onOpenSchemaUiEditor={() => openBottomPanel('schema')}
+                      onOpenSchemaUiEditor={() => openSchemaConfigWorkspaceFile()}
                     />
                   </div>
                   {typeof schemaLintCount === 'number' && schemaLintCount > 0 && (

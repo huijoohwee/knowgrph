@@ -1,7 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { FileCode, GitBranch, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
-import { useOrchestratorBottomPanelState } from '@/features/panels/hooks/useOrchestratorBottomPanelState'
+import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
 import IconButton from '@/components/IconButton'
@@ -10,6 +10,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { cn } from '@/lib/utils'
 import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   LS_KEYS,
@@ -23,6 +24,7 @@ import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTyp
 import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 
 type FloatingPanelView = 'propsPanel' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 
@@ -157,7 +159,7 @@ export function ToolbarToolMenu({
   )
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
 
-  const { sections: orchestratorSections } = useOrchestratorBottomPanelState()
+  const { sections: orchestratorSections } = useOrchestratorPanelState()
   const orchestratorSectionCollapsedById = orchestratorSections.byId
   const orchestratorSectionSetters = orchestratorSections.setters
 
@@ -290,6 +292,7 @@ export function ToolbarToolMenu({
           floatingPanelView === 'graphTraversal' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
         showTooltip
+        data-kg-spotlight-view="graphTraversal"
       >
         <GitBranch className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
@@ -416,20 +419,28 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView />}
             {floatingPanelView === 'graphTraversal' && (
               <section className="space-y-2" aria-label="Graph traversal">
-                <section className="flex items-center justify-between gap-2" aria-label="Geospatial traversal">
+                <header className="flex items-center justify-between gap-2" aria-label="Graph traversal actions">
+                  <nav className="flex items-center gap-2" aria-label="Traversal tools">
+                    <button
+                      type="button"
+                      className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+                      onClick={() => openOrchestratorWorkflowWorkspaceFile()}
+                    >
+                      Open `orchestrator/graphrag-workflow.jsonld`
+                    </button>
+                    <button
+                      type="button"
+                      className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+                      onClick={() => {
+                        void requestGeospatialTraversalRun().catch(() => void 0)
+                      }}
+                    >
+                      Run airplane on selected edge
+                    </button>
+                  </nav>
                   <p className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>Geospatial</p>
-                  <button
-                    type="button"
-                    className="rounded px-2 py-1 bg-gray-100 text-gray-700 text-xs hover:bg-gray-200"
-                    onClick={() => {
-                      void requestGeospatialTraversalRun().catch(() => void 0)
-                    }}
-                  >
-                    Run airplane on selected edge
-                  </button>
-                </section>
+                </header>
                 <OrchestratorSettingsSection
-                  variant="floatingPanel"
                   graphRagCollapsed={orchestratorGraphRagCollapsed}
                   presetsCollapsed={orchestratorPresetsCollapsed}
                   editorCollapsed={orchestratorEditorCollapsed}

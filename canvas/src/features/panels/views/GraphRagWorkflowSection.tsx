@@ -14,7 +14,7 @@ import type { TraversalSummary } from '@/features/panels/utils/orchestratorTrave
 import { type AgenticRagContextComparison, type AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld/index'
 import { applyIgnoreCodebasePathsUpdate, computeInvalidIgnorePrefixes } from '@/features/panels/utils/agenticRagIgnoreFilters'
 import { GraphRagWorkflowIndexingSection } from '@/features/panels/views/GraphRagWorkflowIndexingSection'
-import { openBottomPanel } from '@/features/bottom-panel/open'
+import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { OrchestratorTraversalDelayRow } from '@/features/panels/ui/OrchestratorTraversalDelayRow'
@@ -79,11 +79,7 @@ export function AgenticContextGraphContextUrlRow({
                 type="button"
                 className={`App-toolbar__btn ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary}`}
                 onClick={() => {
-                  try {
-                    openBottomPanel('orchestrator')
-                  } catch {
-                    void 0
-                  }
+                  emitGraphTraversalFloatingPanelOpen()
                 }}
               >
                 {UI_COPY.graphRagOpenOrchestratorAgenticContextButtonLabel}
@@ -98,7 +94,6 @@ export function AgenticContextGraphContextUrlRow({
 }
 
 interface GraphRagWorkflowSectionProps {
-  mode: 'floatingPanel' | 'bottomPanel'
   workflowDoc: GraphRagWorkflowJsonLd
   workflowSource: 'loaded' | 'generated' | 'invalid' | 'parse-error'
   workflowError: string | null
@@ -118,7 +113,6 @@ interface GraphRagWorkflowSectionProps {
 }
 
 export function GraphRagWorkflowSection({
-  mode,
   workflowDoc,
   workflowSource,
   workflowError,
@@ -219,7 +213,7 @@ export function GraphRagWorkflowSection({
       <AgenticContextGraphContextUrlRow
         agenticContext={agenticContext}
         onChangeAgenticContextUrl={onChangeAgenticContextUrl}
-        mode={mode === 'bottomPanel' ? 'edit' : 'redirect'}
+        mode="edit"
       />
       {workflowError && (
         <div className="mt-1 text-red-600">
@@ -233,7 +227,7 @@ export function GraphRagWorkflowSection({
         </div>
       )}
       <GraphRagWorkflowIndexingSection
-        mode={mode}
+        mode="floatingPanel"
         workflowDoc={workflowDoc}
         indexingCollapsed={indexingCollapsed}
         onToggleIndexingCollapsed={onToggleIndexingCollapsed}

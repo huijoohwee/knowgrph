@@ -31,6 +31,11 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
+import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
+import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
+import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
+import { useParserUIState } from '@/features/parsers/uiState'
+import { parseSchemaText } from '@/features/schema/io'
 
 const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
@@ -51,6 +56,7 @@ export function MarkdownWorkspace() {
   const applyMarkdownDocumentToGraph = useGraphStore(s => s.applyMarkdownDocumentToGraph)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const setMarkdownDocumentSourceUrl = useGraphStore(s => s.setMarkdownDocumentSourceUrl)
+  const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
 
   const activePath = useMarkdownExplorerStore(s => s.activePath)
   const setActivePath = useMarkdownExplorerStore(s => s.setActivePath)
@@ -575,6 +581,35 @@ export function MarkdownWorkspace() {
         const inlineText = debouncedText.length <= maxInline ? debouncedText : undefined
         setEntries(prev => prev.map(e => (e.path === path ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
         if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, debouncedText)
+        if (path === ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH) {
+          try {
+            setGraphRagWorkflowJsonText(debouncedText)
+          } catch {
+            void 0
+          }
+        }
+        if (path === PARSER_SCRIPT_WORKSPACE_PATH) {
+          try {
+            useParserUIState.getState().setScriptText(debouncedText)
+          } catch {
+            void 0
+          }
+        }
+        if (path === SCHEMA_CONFIG_WORKSPACE_PATH) {
+          try {
+            const next = parseSchemaText(debouncedText)
+            const store = useGraphStore.getState()
+            store.setSchema(next)
+            store.setSchemaOpStatus(true, 'Applied schema from workspace file')
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err ?? '')
+            try {
+              useGraphStore.getState().setSchemaOpStatus(false, `Schema parse failed: ${msg}`)
+            } catch {
+              void 0
+            }
+          }
+        }
         setStatusWithAutoClear('Saved')
       } catch (e) {
         setStatusLabel(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
@@ -587,6 +622,7 @@ export function MarkdownWorkspace() {
     activeText,
     debouncedText,
     getFs,
+    setGraphRagWorkflowJsonText,
     setMarkdownDocument,
     setStatusWithAutoClear,
     setStatusLabel,

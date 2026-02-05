@@ -3,15 +3,16 @@ import type { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   SPOTLIGHT_STEPS,
-  type SpotlightBottomTabRequirementMap,
   type SpotlightRequirementStatus,
 } from '@/features/spotlight/config'
 import { useSpotlightAnchor } from '@/features/spotlight/useSpotlightAnchor'
 import { getSpotlightCardStyle } from '@/features/spotlight/positioning'
-import { openBottomPanel } from '@/features/bottom-panel/open'
+import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { getGraphCapabilities } from '@/lib/graph/helpers'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { LAUNCH_SPOTLIGHT_TOUR_TOOLTIP } from '@/lib/config'
+import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 
 type LaunchSpotlightTourCardProps = {
   dismissed: boolean
@@ -34,7 +35,6 @@ export function LaunchSpotlightTourCard({
 }: LaunchSpotlightTourCardProps) {
   const enableSpotlight = useGraphStore(s => s.enableLaunchSpotlight)
   const mode = useGraphStore(s => s.launchSpotlightMode)
-  const bottomPanelTab = useGraphStore(s => s.bottomPanelTab)
   const traversalHasRun = useGraphStore(s => s.aiKgTraversalRan)
   const graphData = useGraphStore(s => s.graphData)
   const setEnableLaunchSpotlight = useGraphStore(s => s.setEnableLaunchSpotlight)
@@ -55,7 +55,11 @@ export function LaunchSpotlightTourCard({
     const idx = Math.min(Math.max(step, 0), total - 1)
     const currentStep = steps[idx]
     if (currentStep.id === 1) {
-      openBottomPanel('parser')
+      try {
+        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflow' } }))
+      } catch {
+        void 0
+      }
     } else if (currentStep.id === 2) {
       try {
         useGraphStore.getState().setWorkspaceViewMode('table')
@@ -63,9 +67,15 @@ export function LaunchSpotlightTourCard({
         void 0
       }
     } else if (currentStep.id === 3) {
-      openBottomPanel('schema')
+      try {
+        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflow' } }))
+      } catch {
+        void 0
+      }
     } else if (currentStep.id === 4) {
-      openBottomPanel('render')
+      emitGraphTraversalFloatingPanelOpen()
+    } else if (currentStep.id === 5) {
+      emitRendererPanelOpen()
     }
   }, [enableSpotlight, dismissed, ready, step, steps, mode])
 
@@ -73,31 +83,13 @@ export function LaunchSpotlightTourCard({
   const clampedIndex = Math.min(Math.max(step, 0), total - 1)
   const current = steps[clampedIndex]
 
-  const bottomTabRequirementMap: SpotlightBottomTabRequirementMap = React.useMemo(
-    () => ({
-      parserOpen: 'parser',
-      schemaOpen: 'schema',
-      renderOpen: 'render',
-      orchestratorOpen: 'orchestrator',
-    }),
-    [],
-  )
-
   const requirementStatus: SpotlightRequirementStatus = React.useMemo(
     () => ({
-      parserOpen: bottomPanelTab === bottomTabRequirementMap.parserOpen,
-      schemaOpen: bottomPanelTab === bottomTabRequirementMap.schemaOpen,
-      renderOpen: bottomPanelTab === bottomTabRequirementMap.renderOpen,
-      orchestratorOpen: bottomPanelTab === bottomTabRequirementMap.orchestratorOpen,
+      renderOpen: true,
       traversalRan: !graphCapabilities.supportsTraversalTour || traversalHasRun,
       datasetLoaded: !!graphData,
     }),
     [
-      bottomPanelTab,
-      bottomTabRequirementMap.orchestratorOpen,
-      bottomTabRequirementMap.parserOpen,
-      bottomTabRequirementMap.renderOpen,
-      bottomTabRequirementMap.schemaOpen,
       traversalHasRun,
       graphCapabilities.supportsTraversalTour,
       graphData,

@@ -1,7 +1,6 @@
 import { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types';
 import { GraphSchema, GraphBehavior, PropertySpec } from '@/lib/graph/schema';
 import { ThemeMode, ResolvedThemeMode } from '@/lib/ui/theme';
-import type { BottomTab } from '@/features/bottom-panel/open';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
 import type {
   GraphDataTableColumnKey,
@@ -31,6 +30,8 @@ export type NodePosition2d = { x: number; y: number };
 export type LayoutPositionCacheKey = string;
 
 export type DocumentSemanticMode = 'document' | 'keyword'
+
+export type BottomTab = 'stats' | 'render' | 'settings' | 'history'
 
 export type SchemaBySemanticMode = Record<DocumentSemanticMode, GraphSchema>
 

@@ -155,6 +155,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           || detailTab === 'help'
           || detailTab === 'preview'
           || detailTab === 'settings'
+          || detailTab === 'history'
           ? detailTab
           : 'help';
       openMainPanel(tab);

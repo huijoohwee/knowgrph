@@ -1,7 +1,6 @@
 import { lsNum, lsSetNum, lsInt, lsSetInt, lsJson, lsSetJson, lsBool, lsSetBool } from '@/lib/persistence';
 import { LS_KEYS } from '@/lib/config';
-import type { BottomTab } from '@/features/bottom-panel/open';
-import type { GraphState } from '@/hooks/store/types';
+import type { BottomTab, GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
 
