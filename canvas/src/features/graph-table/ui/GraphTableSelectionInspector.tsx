@@ -152,7 +152,7 @@ export default function GraphTableSelectionInspector() {
   )
 
   if (!selection) {
-    return <p className={`p-4 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>{SELECTION_INSPECTOR_EMPTY_TEXT}</p>
+    return <p className={`p-4 ${UI_THEME_TOKENS.text.tertiary}`}>{SELECTION_INSPECTOR_EMPTY_TEXT}</p>
   }
 
   return (

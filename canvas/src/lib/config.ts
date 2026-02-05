@@ -29,3 +29,4 @@ export const WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS = 50_000
 export * from './config.ls';
 export * from './config.copy';
 export * from './config.render';
+export * from './config.flow-editor';

@@ -1,6 +1,8 @@
 import { Fragment, useMemo } from 'react'
 import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { cn } from '@/lib/utils'
 
 export type GraphTableInspectorRow = {
   tableId: 'nodes' | 'edges'
@@ -28,6 +30,7 @@ const coreColumnOrder = (id: string): number => {
 }
 
 export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCell, onDeleteRow }: GraphTableInspectorProps) {
+  const { panelTextClass, microLabelClass, textSizeClass, keyValueInputClass } = usePanelTypography()
   const ordered = useMemo(() => {
     const visible = columns.filter(c => !c.hidden)
     return visible
@@ -45,26 +48,26 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
 
   return (
     <section
-      className={`h-full min-h-0 ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col`}
+      className={cn('h-full min-h-0 overflow-hidden flex flex-col', UI_THEME_TOKENS.panel.bg, panelTextClass)}
       style={widthPx ? { width: `${widthPx}px` } : undefined}
       aria-label="Record inspector"
     >
       <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider} flex items-center justify-between gap-2`}>
         <section className="min-w-0" aria-label="Record title">
-          <p className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{row.tableId}</p>
-          <p className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{row.rowId}</p>
+          <p className={cn(microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{row.tableId}</p>
+          <p className={`font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{row.rowId}</p>
         </section>
         <nav className="flex items-center gap-2" aria-label="Inspector actions">
           <button
             type="button"
-            className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={onDeleteRow}
           >
             Delete
           </button>
           <button
             type="button"
-            className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={onClose}
           >
             Close
@@ -80,10 +83,17 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
             const disabled = col.columnId === 'id'
             return (
               <Fragment key={col.pk}>
-                <dt className={`text-xs ${UI_THEME_TOKENS.text.tertiary} truncate`}>{col.name}</dt>
+                <dt className={cn(textSizeClass, UI_THEME_TOKENS.text.tertiary, 'truncate')}>{col.name}</dt>
                 <dd>
                   <input
-                    className={`w-full h-7 px-2 text-xs rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary}`}
+                    className={cn(
+                      'w-full',
+                      keyValueInputClass,
+                      textSizeClass,
+                      UI_THEME_TOKENS.input.border,
+                      UI_THEME_TOKENS.input.bg,
+                      UI_THEME_TOKENS.input.text,
+                    )}
                     value={raw}
                     disabled={disabled}
                     onChange={e => onChangeCell(col.columnId, e.target.value)}

@@ -4,13 +4,19 @@ import { createPortal } from 'react-dom'
 
 import FlowCanvas from '@/components/FlowCanvas'
 import FlowEditorInspector, { type InspectorTab } from '@/components/FlowEditor/FlowEditorInspector'
+import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
 import { coerceJsonObject, safeJsonStringify, tryParseJson } from '@/components/FlowEditor/flowEditorJson'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import { createUniqueId } from '@/lib/ids'
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
-import { FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
+import {
+  FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
+  FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
+  type FlowEditorSmartNodeProperties,
+} from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type ToolMode = 'select' | 'addEdge'
@@ -53,24 +59,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const zoomState = useGraphStore(s => s.zoomState)
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
-  const selectedNodeIdsRaw = useGraphStore(s => s.selectedNodeIds)
   const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
-  const selectedEdgeIdsRaw = useGraphStore(s => s.selectedEdgeIds)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
   const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
 
-  const selectedNodeIds = React.useMemo(
-    () => (Array.isArray(selectedNodeIdsRaw) ? selectedNodeIdsRaw.map(String) : []),
-    [selectedNodeIdsRaw],
-  )
-
-  const selectedEdgeIds = React.useMemo(
-    () => (Array.isArray(selectedEdgeIdsRaw) ? selectedEdgeIdsRaw.map(String) : []),
-    [selectedEdgeIdsRaw],
-  )
+  const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
+  const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
 
   const [toolMode, setToolMode] = React.useState<ToolMode>('select')
   const [pendingEdgeSourceId, setPendingEdgeSourceId] = React.useState<string | null>(null)
@@ -200,6 +197,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const deleteSelection = React.useCallback(() => {
     if (!draftGraphData) return
+    const selectedNodeIds = Array.isArray(selectedNodeIdsRef.current) ? selectedNodeIdsRef.current.map(String) : []
+    const selectedEdgeIds = Array.isArray(selectedEdgeIdsRef.current) ? selectedEdgeIdsRef.current.map(String) : []
     const nodeIdSet = new Set(selectedNodeIds)
     const edgeIdSet = new Set(selectedEdgeIds)
     if (selectedNodeId) nodeIdSet.add(selectedNodeId)
@@ -227,7 +226,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     setSelectionSource('canvas')
     selectNode(null)
     selectEdge(null)
-  }, [draftGraphData, selectEdge, selectNode, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds, setSelectionSource])
+  }, [draftGraphData, selectEdge, selectNode, selectedEdgeId, selectedEdgeIdsRef, selectedNodeId, selectedNodeIdsRef, setSelectionSource])
 
   const commitDraft = React.useCallback(() => {
     if (!draftGraphData || !draftDirty || draftConflict) return
@@ -325,6 +324,66 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     },
     [draftGraphData, selectedNodeId],
   )
+
+  const patchSelectedNodeProperties = React.useCallback(
+    (patch: Partial<FlowEditorSmartNodeProperties>) => {
+      if (!draftGraphData || !selectedNodeId) return
+      const nodes = (draftGraphData.nodes || []).map(n => {
+        if (String(n.id || '') !== selectedNodeId) return n
+        const prevProps = (n.properties || {}) as Record<string, unknown>
+        const nextProps: Record<string, unknown> = { ...prevProps }
+        for (const [key, value] of Object.entries(patch)) {
+          if (typeof value === 'undefined') {
+            delete nextProps[key]
+            continue
+          }
+          nextProps[key] = value as unknown
+        }
+        return { ...n, properties: nextProps as never }
+      })
+      const next = normalizeGraphData({ ...draftGraphData, nodes })
+      setDraftGraphData(next)
+      setDraftGraphDataRevision(r => r + 1)
+      setDraftDirty(true)
+    },
+    [draftGraphData, selectedNodeId],
+  )
+
+  const validateSelectedNode = React.useCallback(() => {
+    if (!selectedDraftNode) return
+    const props = (selectedDraftNode.properties || {}) as Record<string, unknown>
+    const missing: string[] = []
+    for (const key of FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS) {
+      const v = props[key]
+      if (key === 'duration') {
+        if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) missing.push(String(key))
+        continue
+      }
+      if (typeof v === 'string') {
+        if (v.trim().length === 0) missing.push(String(key))
+        continue
+      }
+      if (typeof v === 'undefined' || v === null) {
+        missing.push(String(key))
+        continue
+      }
+    }
+    if (missing.length > 0) {
+      upsertUiToast({
+        id: `flow-editor-node-validate-${String(selectedDraftNode.id || '')}`,
+        kind: 'warning',
+        message: `Missing required fields: ${missing.join(', ')}`,
+        ttlMs: 4500,
+      })
+      return
+    }
+    upsertUiToast({
+      id: `flow-editor-node-validate-${String(selectedDraftNode.id || '')}`,
+      kind: 'success',
+      message: 'Node validated.',
+      ttlMs: 2500,
+    })
+  }, [selectedDraftNode, upsertUiToast])
 
   const setSelectedEdgeLabel = React.useCallback(
     (label: string) => {
@@ -476,6 +535,21 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     />
   )
 
+  const overlayEditorElement =
+    active && selectedDraftNode ? (
+      <NodeOverlayEditor
+        active={active}
+        node={selectedDraftNode}
+        zoomState={zoomState || null}
+        viewportW={viewportW}
+        viewportH={viewportH}
+        onSetLabel={setSelectedNodeLabel}
+        onSetType={setSelectedNodeType}
+        onPatchProperties={patchSelectedNodeProperties}
+        onValidate={validateSelectedNode}
+      />
+    ) : null
+
   return (
     <section ref={rootRef} className="absolute inset-0" aria-label="Flow Editor">
       <FlowCanvas
@@ -484,6 +558,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         graphDataRevisionOverride={draftGraphDataRevision}
         collisionDuringDrag
       />
+
+      {overlayEditorElement}
 
       <nav className="absolute top-3 left-3 z-[220]" aria-label="Flow Editor Tools">
         <section className={`flex items-center gap-2 rounded-xl border px-2 py-2 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border}`}>

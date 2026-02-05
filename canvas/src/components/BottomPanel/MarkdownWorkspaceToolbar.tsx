@@ -25,8 +25,9 @@ import {
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
+import { SOURCE_FILES_COPY, SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import type { MarkdownPresentationApi } from './markdownWorkspace/markdownWorkspaceTypes'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 export type MarkdownWorkspaceToolbarProps = {
   layoutMode: MarkdownWorkspaceLayoutMode
@@ -69,6 +70,7 @@ export function MarkdownWorkspaceToolbar({
   onImportLocalFolder,
   onImportUrl,
 }: MarkdownWorkspaceToolbarProps) {
+  const panelTypography = usePanelTypography()
   const canNavigateSlides = layoutMode === 'presentation'
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -113,9 +115,9 @@ export function MarkdownWorkspaceToolbar({
       aria-label="Markdown Toolbar"
     >
       <span className="min-w-0">
-        <span className={`text-[11px] uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Markdown</span>
+        <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Markdown</span>
         {applyStatusLabel ? (
-          <output className={`ml-2 text-[11px] ${UI_THEME_TOKENS.text.secondary}`} aria-label="Apply status">
+          <output className={`ml-2 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label="Apply status">
             {applyStatusLabel}
           </output>
         ) : null}
@@ -217,8 +219,8 @@ export function MarkdownWorkspaceToolbar({
             >
               <input
                 ref={urlInputRef}
-                className={`w-72 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} font-sans text-sm`}
-                placeholder="https://… (or YouTube)"
+                className={`w-72 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`}
+                placeholder={SOURCE_FILES_COPY.urlPlaceholder}
                 aria-label="Import URL"
                 value={urlDraft}
                 onChange={e => setUrlDraft(e.target.value)}

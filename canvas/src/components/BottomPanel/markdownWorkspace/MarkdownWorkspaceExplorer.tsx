@@ -9,6 +9,7 @@ import type { WorkspaceBacklink } from '@/features/workspace-fs/types'
 import { buildTocTree, type TocItem } from '@/features/markdown/ui/markdownSectionUtils'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 export type MarkdownWorkspaceExplorerProps = {
   uiPanelTextFontClass: string
@@ -211,6 +212,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     canDeleteActive,
     onDeleteActive,
   } = props
+  const panelTypography = usePanelTypography()
 
   const clearLabel = activeEntryKind === 'folder' ? 'Clear files' : 'Clear'
 
@@ -317,7 +319,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
             }}
             onReorder={handleTocReorderByIds}
             uiPanelTextFontClass={uiPanelTextFontClass}
-            uiPanelKeyValueTextSizeClass="text-xs"
+            uiPanelKeyValueTextSizeClass={panelTypography.textSizeClass}
           />
           {hasChildren && isExpanded ? (
             <ul className="list-none m-0 p-0">{item.children.map(child => renderTocNode(child, depth + 1))}</ul>
@@ -325,7 +327,16 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
         </li>
       )
     },
-    [activeTocId, handleTocReorderByIds, onRevealLine, tocCollapsedIds, tocLineById, toggleTocExpanded, uiPanelTextFontClass],
+    [
+      activeTocId,
+      handleTocReorderByIds,
+      onRevealLine,
+      panelTypography.textSizeClass,
+      tocCollapsedIds,
+      tocLineById,
+      toggleTocExpanded,
+      uiPanelTextFontClass,
+    ],
   )
 
   const hasSelectionActions = canClearActiveSelection || canRefreshActiveFromSource || canDeleteActive
@@ -370,9 +381,9 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
         aria-label="Explorer header"
       >
         <section className="min-w-0 flex-1 flex items-center gap-2" aria-label="Explorer title">
-          <h2 className={`shrink-0 text-[11px] font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Explorer</h2>
+          <h2 className={`shrink-0 ${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Explorer</h2>
           {statusLabel ? (
-            <output className={`min-w-0 text-[11px] ${UI_THEME_TOKENS.text.secondary} truncate`} aria-label="Workspace status">
+            <output className={`min-w-0 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary} truncate`} aria-label="Workspace status">
               {statusLabel}
             </output>
           ) : null}
@@ -394,7 +405,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
                 </button>
                 {selectionMenuOpen ? (
                   <section
-                    className={`absolute right-0 mt-1 min-w-40 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md text-xs ${UI_THEME_TOKENS.text.primary} p-1 z-50`}
+                    className={`absolute right-0 mt-1 min-w-40 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.primary} p-1 z-50`}
                     role="menu"
                     aria-label="Selection actions menu"
                   >
@@ -507,7 +518,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search"
-            className={`w-full min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+            className={`w-full min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.panelTextClass}`}
           />
         </label>
       </form>
@@ -517,12 +528,12 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
           title="Source Files"
           collapsed={sourceFilesCollapsed}
           setCollapsed={setSourceFilesCollapsed}
-          right={<span className={`text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>{entries.filter(e => e.kind === 'file').length}</span>}
+          right={<span className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>{entries.filter(e => e.kind === 'file').length}</span>}
         >
           {loading ? (
-            <p className={`px-2 py-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Loading…</p>
+            <p className={`px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>Loading…</p>
           ) : loadError ? (
-            <p className={`px-2 py-1 text-xs ${UI_THEME_TOKENS.status.error}`}>Failed: {loadError}</p>
+            <p className={`px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.status.error}`}>Failed: {loadError}</p>
           ) : (
             <MarkdownFileTree
               entries={filteredEntries}
@@ -538,7 +549,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
 
         <MarkdownExplorerSection title="TOC" collapsed={tocCollapsed} setCollapsed={setTocCollapsed}>
           {tocItems.length === 0 ? (
-            <p className={`px-2 py-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>No headings.</p>
+            <p className={`px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>No headings.</p>
           ) : (
             <nav
               ref={el => {
@@ -554,14 +565,14 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
 
         <MarkdownExplorerSection title="Backlinks" collapsed={backlinksCollapsed} setCollapsed={setBacklinksCollapsed}>
           {activePath && backlinks.length === 0 ? (
-            <p className={`px-2 py-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>No backlinks.</p>
+            <p className={`px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>No backlinks.</p>
           ) : (
             <ul className="space-y-1 list-none m-0 p-0" aria-label="Backlinks list">
               {backlinks.slice(0, 50).map((b, idx) => (
                 <li key={`${b.fromPath}:${b.line}:${idx}`} className="list-none">
                   <button
                     type="button"
-                    className={`w-full flex items-start gap-2 rounded px-2 py-1 text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                    className={`w-full flex items-start gap-2 rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                     onClick={() => onOpenBacklink({ path: b.fromPath, line: b.line })}
                     aria-label={`Backlink from ${b.fromPath}`}
                   >

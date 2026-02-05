@@ -4,6 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphColumnDoc, GraphTableId } from '@/features/graph-table-db/graphTableDb'
 import type { GraphTableGridRow } from './GraphTableGrid'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from 'lucide-react'
+import type { PanelTypography } from '@/lib/ui/panelTypography'
 import type {
   GraphTableColumnVisibilityById,
   GraphTableColumnWidthsPxById,
@@ -30,6 +31,7 @@ export type GraphTableSemanticTableProps = {
   onColumnWidthChanged: (columnId: string, widthPx: number) => void
   onRowClicked: (rowId: string) => void
   onSelectionChanged: (selectedRowIds: string[]) => void
+  panelTypography?: PanelTypography
 }
 
 const getCellText = (value: unknown): string => {
@@ -198,7 +200,7 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
 
   return (
     <section className="flex-1 min-h-0 overflow-auto" aria-label={`${props.tableId} semantic table`}>
-      <table className={`w-full border-separate border-spacing-0 text-xs ${UI_THEME_TOKENS.text.primary}`}>
+      <table className={`w-full border-separate border-spacing-0 ${UI_THEME_TOKENS.text.primary} ${props.panelTypography?.panelTextClass || ''}`}>
         <caption className="sr-only">Graph entities table</caption>
         <colgroup>
           <col style={{ width: 44 }} />
@@ -251,7 +253,7 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
                     {isSorted ? (
                       <span className={`inline-flex items-center gap-1 ${UI_THEME_TOKENS.text.tertiary}`}>
                         <SortIcon className="w-3 h-3" aria-hidden="true" />
-                        <span className="text-[10px]">{sortMeta.index}</span>
+                        <span className={props.panelTypography?.microLabelClass || ''}>{sortMeta.index}</span>
                       </span>
                     ) : null}
                   </span>
@@ -325,7 +327,7 @@ export function GraphTableSemanticTable(props: GraphTableSemanticTableProps) {
                       <button
                         type="button"
                         aria-expanded={!collapsed}
-                        className={`text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} rounded px-2 py-1`}
+                        className={`${props.panelTypography?.microLabelClass || ''} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} rounded px-2 py-1`}
                         onClick={() => toggleGroupCollapsed(label)}
                       >
                         {collapsed ? <ChevronRight className="inline-block w-3 h-3 mr-1" aria-hidden="true" /> : <ChevronDown className="inline-block w-3 h-3 mr-1" aria-hidden="true" />}

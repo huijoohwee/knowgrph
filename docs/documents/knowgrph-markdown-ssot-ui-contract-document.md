@@ -90,9 +90,20 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Sidebar labels use `uiPanelMicroLabelTextSizeClass` (default `text-[10px]`) and the shared builder:
   - `curagrph/src/features/markdown/ui/markdownSidebarText.ts`
 - Viewer and Presentation must pass the same micro label sizing into `MarkdownPanelLayout`.
+- Floating panel (Inspector / Props / Tool Menu) is the baseline typography ladder for non-markdown panels.
+  - Host must apply `uiPanelTextFontClass` + `uiPanelKeyValueTextSizeClass` at the floating panel content root.
+  - Inspector implementations must not hardcode `text-*` or `font-*`; they must inherit and only apply semantic emphasis (e.g. `font-semibold`).
+  - Record Inspector key labels must use the same key/value text size as inputs (no micro-label sizing on `dt`).
+  - Shared selector: `knowgrph/canvas/src/lib/ui/panelTypography.ts`.
+  - Cross-repo panels rendered inside Floating Panel (e.g. `gympgrph` geospatial panel) must receive the same ladder via an explicit `panelTypography` prop (typed by `grph-shared/ui/panelTypography`).
+  - MainPanel / Editor workspace / Graph Data Table surfaces must also use the same ladder (`usePanelTypography`) and avoid hardcoded `text-*` / `font-*`.
+  - Portal content (dropdowns/popovers) must explicitly apply `microLabelClass` when it cannot inherit from a panel root.
 
 ## Shared Utilities (SSOT)
 Shared markdown logic is contractually owned by `knowgrph/grph-shared`.
+
+- **Panel typography contract**: `grph-shared/ui/panelTypography`
+- **Tailwind text size mapping (px)**: `grph-shared/ui/tailwindTextSize`
 
 - **Wikilinks**: `grph-shared/markdown/wikiLinks`
   - Parse + normalize wiki link targets and build safe in-app hrefs.

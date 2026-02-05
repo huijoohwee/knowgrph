@@ -13,11 +13,14 @@ import {
   type GraphTableSortRule,
   type GraphTableSortDirection,
 } from './graphTableViewState'
+import type { PanelTypography } from '@/lib/ui/panelTypography'
 
 export type GraphTableToolbarProps = {
   columns: { columnId: string; name: string }[]
   tableCollapsed: boolean
   setTableCollapsed: (next: boolean) => void
+
+  panelTypography?: PanelTypography
 
   columnVisibilityById: GraphTableColumnVisibilityById
   setColumnVisibilityById: (next: GraphTableColumnVisibilityById) => void
@@ -43,6 +46,7 @@ export type GraphTableToolbarProps = {
 export function GraphTableToolbar(props: GraphTableToolbarProps) {
   const iconButtonClass = `${UI_THEME_TOKENS.button.square}`
   const iconSummaryClass = `list-none ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} h-7 w-7 inline-flex items-center justify-center rounded cursor-pointer select-none`
+  const microLabelClass = props.panelTypography?.microLabelClass || ''
   const toggleColumn = (columnId: string) => {
     const next = { ...props.columnVisibilityById }
     const current = props.columnVisibilityById[columnId]
@@ -84,7 +88,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
   const hasCustomWidths = Object.keys(props.columnWidthsPxById || {}).length > 0
 
   return (
-    <nav aria-label="Table toolbar" className="flex items-center gap-2 flex-wrap">
+    <nav aria-label="Table toolbar" className={`flex items-center gap-2 flex-wrap ${microLabelClass}`}>
       <IconButton
         title={props.tableCollapsed ? 'Expand table' : 'Collapse table'}
         showTooltip
@@ -100,9 +104,9 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         </summary>
         <form className="absolute mt-1 z-10 rounded border bg-[color:var(--kg-panel-bg)] p-2 min-w-44">
           <fieldset className="space-y-1">
-            <legend className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>Visible columns</legend>
+            <legend className={`${UI_THEME_TOKENS.text.tertiary}`}>Visible columns</legend>
             {props.columns.map(c => (
-              <label key={c.columnId} className="flex items-center gap-2 text-xs">
+              <label key={c.columnId} className="flex items-center gap-2">
                 <input type="checkbox" checked={props.columnVisibilityById[c.columnId] !== false} onChange={() => toggleColumn(c.columnId)} />
                 <span>{c.name}</span>
               </label>
@@ -117,7 +121,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         </summary>
         <form className="absolute mt-1 z-10 rounded border bg-[color:var(--kg-panel-bg)] p-2 min-w-72">
           <fieldset className="space-y-2">
-            <label className="flex items-center gap-2 text-xs">
+            <label className="flex items-center gap-2">
               <span>Match</span>
               <select
                 value={props.filterMatch}
@@ -130,7 +134,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
             </label>
             {props.filterClauses.map(clause => (
               <section key={clause.id} className="flex items-center gap-2">
-                <label className="text-xs">
+                <label>
                   Field
                   <select
                     value={clause.columnId}
@@ -144,7 +148,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                     ))}
                   </select>
                 </label>
-                <label className="text-xs">
+                <label>
                   Op
                   <select
                     value={clause.operator}
@@ -157,7 +161,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                     <option value="endsWith">endsWith</option>
                   </select>
                 </label>
-                <label className="text-xs">
+                <label>
                   Value
                   <input
                     value={clause.value}
@@ -167,7 +171,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                 </label>
                 <button
                   type="button"
-                  className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={() => removeFilterClause(clause.id)}
                 >
                   Remove
@@ -177,14 +181,14 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
             <section className="flex items-center gap-2">
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={addFilterClause}
               >
                 Add filter
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={() => props.setFilterClauses([])}
               >
                 Clear all
@@ -194,7 +198,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         </form>
       </details>
 
-      <label className="flex items-center gap-2 text-xs">
+      <label className="flex items-center gap-2">
         <span>Group</span>
         <select
           value={props.groupBy}
@@ -218,7 +222,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
           <fieldset className="space-y-2">
             {props.sortRules.map(rule => (
               <section key={rule.id} className="flex items-center gap-2">
-                <label className="text-xs">
+                <label>
                   Field
                   <select
                     value={rule.columnId}
@@ -232,7 +236,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                     ))}
                   </select>
                 </label>
-                <label className="text-xs">
+                <label>
                   Dir
                   <select
                     value={rule.direction}
@@ -245,7 +249,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                 </label>
                 <button
                   type="button"
-                  className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={() => removeSortRule(rule.id)}
                 >
                   Remove
@@ -255,14 +259,14 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
             <section className="flex items-center gap-2">
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={addSortRule}
               >
                 Add sort
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={() => props.setSortRules([])}
               >
                 Clear sort
@@ -272,7 +276,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         </form>
       </details>
 
-      <label className="flex items-center gap-2 text-xs">
+      <label className="flex items-center gap-2">
         <span>Row height</span>
         <select
           value={props.rowHeightPreset}

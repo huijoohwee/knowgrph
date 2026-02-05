@@ -2,11 +2,12 @@ export type Point2d = { x: number; y: number }
 
 export type Rect = { x: number; y: number; w: number; h: number }
 
-const rectIntersectsSegment = (r: Rect, a: Point2d, b: Point2d): boolean => {
-  const x0 = r.x
-  const y0 = r.y
-  const x1 = r.x + r.w
-  const y1 = r.y + r.h
+const rectIntersectsSegment = (r: Rect, a: Point2d, b: Point2d, pad: number): boolean => {
+  const p = Math.max(0, pad)
+  const x0 = r.x - p
+  const y0 = r.y - p
+  const x1 = r.x + r.w + p
+  const y1 = r.y + r.h + p
 
   if (a.x === b.x) {
     const x = a.x
@@ -31,15 +32,33 @@ const rectIntersectsSegment = (r: Rect, a: Point2d, b: Point2d): boolean => {
   return true
 }
 
-const expandRect = (r: Rect, pad: number): Rect => ({ x: r.x - pad, y: r.y - pad, w: r.w + pad * 2, h: r.h + pad * 2 })
+const rectContainsPoint = (r: Rect, p: Point2d, pad: number): boolean => {
+  const d = Math.max(0, pad)
+  const x0 = r.x - d
+  const y0 = r.y - d
+  const x1 = r.x + r.w + d
+  const y1 = r.y + r.h + d
+  return p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1
+}
 
-const pathHitsAnyObstacle = (points: Point2d[], obstacles: Rect[]): boolean => {
+const pathHitsAnyObstacle = (points: Point2d[], obstacles: Rect[], pad: number, ignorePoints: Point2d[] | null): boolean => {
   if (points.length < 2 || obstacles.length === 0) return false
   for (let i = 1; i < points.length; i += 1) {
     const a = points[i - 1]
     const b = points[i]
     for (let j = 0; j < obstacles.length; j += 1) {
-      if (rectIntersectsSegment(obstacles[j], a, b)) return true
+      const o = obstacles[j]
+      if (ignorePoints && ignorePoints.length > 0) {
+        let shouldIgnore = false
+        for (let k = 0; k < ignorePoints.length; k += 1) {
+          if (rectContainsPoint(o, ignorePoints[k], pad)) {
+            shouldIgnore = true
+            break
+          }
+        }
+        if (shouldIgnore) continue
+      }
+      if (rectIntersectsSegment(o, a, b, pad)) return true
     }
   }
   return false
@@ -77,11 +96,13 @@ export function routeFlowEdgeOrtho(args: {
   marginPx: number
   laneStepPx: number
   maxLanes: number
+  ignorePoints?: Point2d[]
 }): Point2d[] {
   const margin = Math.max(0, args.marginPx)
   const step = Math.max(4, args.laneStepPx)
   const maxLanes = Math.max(1, Math.floor(args.maxLanes))
-  const obstacles = args.obstacles.map(r => expandRect(r, margin))
+  const obstacles = args.obstacles
+  const ignorePoints = Array.isArray(args.ignorePoints) && args.ignorePoints.length > 0 ? args.ignorePoints : null
 
   const s = args.start
   const t = args.end
@@ -135,13 +156,13 @@ export function routeFlowEdgeOrtho(args: {
   const primaryCandidates = candidatesFor(midPrimary)
   for (let i = 0; i < primaryCandidates.length; i += 1) {
     const pts = buildPrimary(primaryCandidates[i])
-    if (!pathHitsAnyObstacle(pts, obstacles)) return pts
+    if (!pathHitsAnyObstacle(pts, obstacles, margin, ignorePoints)) return pts
   }
 
   const secondaryCandidates = candidatesFor(midSecondary)
   for (let i = 0; i < secondaryCandidates.length; i += 1) {
     const pts = buildSecondary(secondaryCandidates[i])
-    if (!pathHitsAnyObstacle(pts, obstacles)) return pts
+    if (!pathHitsAnyObstacle(pts, obstacles, margin, ignorePoints)) return pts
   }
 
   return buildPrimary(midPrimary)

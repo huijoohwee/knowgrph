@@ -114,6 +114,8 @@ import {
   testGympgrphCoerceFetchUrlAcceptsAbsolutePath,
   testGympgrphCoerceFetchUrlRejectsFileScheme,
 } from '@/__tests__/gympgrphUrlInterop.test'
+import { testMainPanelTypographyUsesUiSettings } from '@/__tests__/mainPanelTypography.test'
+import { testGraphTableTypographyUsesUiSettings } from '@/__tests__/graphTableTypography.test'
 import {
   testFetchRemoteTextPreflightHeadGuardsTooLarge,
   testFetchRemoteTextValidateSupportsStringAndArgs,
@@ -143,6 +145,7 @@ import { testWorkspaceFsMemoryInitialEntries } from '@/__tests__/workspaceFsMemo
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
 import { testGraphCanvasDisplayFilterFallback } from '@/__tests__/graphCanvasDisplayFilterFallback.test'
+import { testDocumentStructureBaselineLockGuardsModeSwitches } from '@/__tests__/baselineLockGuardsModeSwitch.test'
 import {
   testLayoutPositioningCacheKeyIncludesViewKey,
   testLayoutPositioningCacheKeyIsolatesMediaDensity,
@@ -181,7 +184,11 @@ import { testGroupNodeNoStickSeparatesExternalNodeFromGroupBorder } from '@/__te
 import { testFlowHitTestGroupUsesLabelTopExtra } from '@/__tests__/flowGroupHitTest.test'
 import { testFlowGroupRelaxAddsGapBetweenSingleNodeGroups } from '@/__tests__/flowGroupSpacingRelax.test'
 import { testFlowNestedGroupRelaxAddsGapAtMultipleDepths } from '@/__tests__/flowNestedGroupSpacingRelax.test'
-import { testFlowEdgeRoutingAvoidsObstacleByShiftingLaneLR, testFlowEdgeRoutingAvoidsObstacleByShiftingLaneTB } from '@/__tests__/flowEdgeRouting.test'
+import {
+  testFlowEdgeRoutingAvoidsObstacleByShiftingLaneLR,
+  testFlowEdgeRoutingAvoidsObstacleByShiftingLaneTB,
+  testFlowEdgeRoutingIgnorePointsSkipsEndpointObstacles,
+} from '@/__tests__/flowEdgeRouting.test'
 import {
   testCuragrphAliasContractInViteConfig,
   testCanvas2dRendererSwitchWarmsInactiveRenderer,
@@ -195,6 +202,8 @@ import {
   testForbidHardcodedSandboxAbsolutePaths,
   testForbidTopLevelElkImportInFlowLayout,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
+import { testFloatingPanelInspectorTypographyUsesUiSettings } from '@/__tests__/floatingPanelInspectorTypography.test'
+import { testFlowNodeQuickEditorTypographyInheritsPanelSettings } from '@/__tests__/flowNodeQuickEditorTypography.test'
 import {
   testWorkflowPresetPipelinesAreSelfConsistent,
   testExportFunctionsAcceptBrandedPaths,
@@ -419,6 +428,13 @@ export const runAllTests = async () => {
   await exec('toolbar.editorToggle.togglesWorkspaceViewMode', testToolbarEditorButtonTogglesWorkspaceViewMode)
   await exec('editorShell.rendersCanvasPreviewIframe', testEmbeddedEditorShellRendersCanvasPreviewIframe)
 
+  await exec('modeLock.baseline.guardsModeSwitches', testDocumentStructureBaselineLockGuardsModeSwitches)
+
+  await exec('ui.typography.floatingPanelInspector.usesUiSettings', testFloatingPanelInspectorTypographyUsesUiSettings)
+  await exec('ui.typography.flowNodeQuickEditor.usesUiSettings', testFlowNodeQuickEditorTypographyInheritsPanelSettings)
+  await exec('ui.typography.mainPanel.usesUiSettings', testMainPanelTypographyUsesUiSettings)
+  await exec('ui.typography.graphTable.usesUiSettings', testGraphTableTypographyUsesUiSettings)
+
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
   await exec('ingest.markdown.importActionWiresStore', testMarkdownImportActionAppliesImportedMarkdownToStore)
@@ -467,6 +483,7 @@ export const runAllTests = async () => {
 
   await exec('flow.edges.routing.avoidsObstacleLR', testFlowEdgeRoutingAvoidsObstacleByShiftingLaneLR)
   await exec('flow.edges.routing.avoidsObstacleTB', testFlowEdgeRoutingAvoidsObstacleByShiftingLaneTB)
+  await exec('flow.edges.routing.ignorePoints.skipsEndpointObstacles', testFlowEdgeRoutingIgnorePointsSkipsEndpointObstacles)
 
   await exec('sourceFiles.composition.orderAndVisibility', testSourceFilesCompositionOrderAndVisibility)
   await exec('sourceFiles.naming.normalizeParentPath', testNormalizeParentPath)

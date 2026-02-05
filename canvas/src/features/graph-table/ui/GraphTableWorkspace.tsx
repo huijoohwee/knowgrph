@@ -41,6 +41,8 @@ import {
 } from '@/features/graph-table/ui/graphTableViewState'
 import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCellUpdateToGraphStore'
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { UI_LABELS } from '@/lib/config'
 
 const mapRowDocToGridRow = (doc: GraphRowDoc): GraphTableGridRow => ({
   id: doc.rowId,
@@ -61,7 +63,7 @@ const getRowTocId = (row: GraphTableGridRow | null): string | null => {
 }
 
 export default function GraphTableWorkspace(props: { previewSrc?: string }) {
-  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
+  const panelTypography = usePanelTypography()
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const previewSrc = String(props.previewSrc || '/').trim() || '/'
   const baseGraphData = useGraphStore(s => s.graphData)
@@ -367,50 +369,50 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
 
   return (
     <main
-      className={`flex flex-col flex-1 min-h-0 overflow-hidden ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}
+      className={`flex flex-col flex-1 min-h-0 overflow-hidden ${panelTypography.panelTextClass} ${UI_THEME_TOKENS.text.primary}`}
       aria-label="Graph Data Table"
     >
       <header className={`h-12 shrink-0 border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg}`} aria-label="Table header">
         <section className="h-full px-3 flex items-center justify-between gap-3">
           <section className="min-w-0 flex items-center gap-3" aria-label="Table navigation">
-            <h1 className="text-sm font-semibold">Graph Data</h1>
+            <h1 className="font-semibold">{UI_LABELS.graphDataTable}</h1>
             <nav className="flex items-center gap-2" aria-label="Dataset selector">
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${activeTableId === 'nodes' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+                className={`App-toolbar__btn ${panelTypography.microLabelClass} ${activeTableId === 'nodes' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
                 onClick={() => setActiveTableId('nodes')}
               >
                 Nodes
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${activeTableId === 'edges' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+                className={`App-toolbar__btn ${panelTypography.microLabelClass} ${activeTableId === 'edges' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
                 onClick={() => setActiveTableId('edges')}
               >
                 Edges
               </button>
             </nav>
-            <output className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{rowCountLabel}</output>
+            <output className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{rowCountLabel}</output>
           </section>
 
           <nav className="flex items-center gap-2" aria-label="Table actions">
             <button
               type="button"
-              className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={`App-toolbar__btn ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={() => setInspectorOpen(v => !v)}
             >
               {showInspector ? 'Single' : 'Split'}
             </button>
             <button
               type="button"
-              className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={`App-toolbar__btn ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={handleAddRow}
             >
               + Row
             </button>
             <button
               type="button"
-              className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={`App-toolbar__btn ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={handleDeleteSelected}
               disabled={selectedRowIds.length === 0}
             >
@@ -423,6 +425,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
       <header className={`shrink-0 border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg}`} aria-label="Table toolbar header">
         <section className="px-3 py-2 flex items-center justify-between gap-3">
           <GraphTableToolbar
+            panelTypography={panelTypography}
             columns={columns
               .filter(c => !c.hidden)
               .slice()
@@ -453,6 +456,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
           {!tableCollapsed ? (
             <GraphTableSemanticTable
               tableId={activeTableId}
+              panelTypography={panelTypography}
               columns={columns}
               rows={rows}
               selectedRowIds={selectedRowIds}
@@ -521,7 +525,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
             </>
           )}
         </section>
-        {workspaceViewMode === 'table' ? <GraphTableCanvasPreviewDock previewSrc={previewSrc} /> : null}
+        {workspaceViewMode === 'table' ? <GraphTableCanvasPreviewDock previewSrc={previewSrc} panelTypography={panelTypography} /> : null}
       </section>
     </main>
   )

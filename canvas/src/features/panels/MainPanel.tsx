@@ -15,6 +15,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon } from 'lucide-react'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { useShallow } from 'zustand/react/shallow'
 
 type MainPanelTab = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history'
 
@@ -67,16 +69,9 @@ export default function MainPanel({
     allCollapsed?: boolean
   }>({ allCollapsed: true })
 
-  const lastTraversalSummary = useGraphStore(s => s.lastTraversalSummary)
-  const graphData = useGraphStore(s => s.graphData)
-  const uiPanelMonospaceTextClass = useGraphStore(
-    s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
-  )
-  const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-sm',
-  )
-  const uiPanelTextFontClass = useGraphStore(
-    s => s.uiPanelTextFontClass || 'font-sans',
+  const panelTypography = usePanelTypography()
+  const { lastTraversalSummary, graphData } = useGraphStore(
+    useShallow(s => ({ lastTraversalSummary: s.lastTraversalSummary, graphData: s.graphData })),
   )
 
   const traversalChip = React.useMemo(() => {
@@ -137,7 +132,7 @@ export default function MainPanel({
           ? UI_LABELS.search
           : tab === 'workflow'
           ? UI_LABELS.search
-          : 'Search'
+          : UI_LABELS.search
       }
       searchQuery={search}
       onSearchChange={setSearch}
@@ -197,16 +192,8 @@ export default function MainPanel({
         />
       }
       footer={(
-        <div
-          className={
-            [
-              'w-full flex items-center justify-between text-gray-600',
-              uiPanelKeyValueTextSizeClass,
-              uiPanelTextFontClass,
-            ].join(' ')
-          }
-        >
-          <div>
+        <footer className={`w-full flex items-center justify-between ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}>
+          <p>
             {tab === 'graphFields'
               ? graphFieldsStatus
               : tab === 'workflow'
@@ -218,45 +205,34 @@ export default function MainPanel({
               : tab === 'history'
               ? UI_LABELS.history
               : UI_LABELS.help}
-          </div>
+          </p>
           {traversalChip && (
-            <div
-              className={
-                [
-                  'inline-flex items-center px-2 py-[1px] rounded border border-gray-300 bg-gray-50 text-[9px] text-gray-600',
-                  uiPanelTextFontClass,
-                ].join(' ')
-              }
-            >
-              <span className="font-semibold mr-1">Traversal</span>
+            <section className={`inline-flex items-center px-2 py-[1px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label={UI_LABELS.graphTraversal}>
+              <span className="font-semibold mr-1">{UI_LABELS.graphTraversal}</span>
               <span className="mr-1">{traversalChip.modeLabel}</span>
               <span className="mx-0.5">•</span>
-              <span className={uiPanelMonospaceTextClass}>{traversalChip.edgesLabel}</span>
+              <span className={panelTypography.monospaceTextClass}>{traversalChip.edgesLabel}</span>
               {traversalChip.nodesLabel && (
                 <>
                   <span className="mx-0.5">•</span>
-                  <span className={uiPanelMonospaceTextClass}>{traversalChip.nodesLabel}</span>
+                  <span className={panelTypography.monospaceTextClass}>{traversalChip.nodesLabel}</span>
                 </>
               )}
-            </div>
+            </section>
           )}
-        </div>
+        </footer>
       )}
     >
-      <div className="h-full min-h-0 px-3 py-2 overflow-hidden">
+      <section className="h-full min-h-0 px-3 py-2 overflow-hidden" aria-label="Main panel content">
         {tab === 'help' && <HelpView searchQuery={search} />}
         {tab === 'workflow' && (
           <MainPanelBody header={<MainPanelWorkflowHeader workflowActions={workflowActions} />}>
-            <div
-              className={[
-                `min-h-0 py-2 ${UI_THEME_TOKENS.text.primary}`,
-                uiPanelKeyValueTextSizeClass,
-                uiPanelTextFontClass,
-              ].join(' ')}
+            <section
+              className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass}`}
               data-kg-anchor={UI_ANCHORS.workflowPanel}
             >
               <WorkflowSection searchQuery={search} onRegisterActions={setWorkflowActions} />
-            </div>
+            </section>
           </MainPanelBody>
         )}
         {tab === 'graphFields' && (
@@ -265,20 +241,16 @@ export default function MainPanel({
         {tab === 'preview' && <PreviewPanelView />}
         {tab === 'settings' && (
           <MainPanelBody header={<MainPanelSettingsHeader settingsActions={settingsActions} />}>
-            <div
-              className={[
-                'min-h-0 py-2 text-gray-600',
-                uiPanelKeyValueTextSizeClass,
-                uiPanelTextFontClass,
-              ].join(' ')}
+            <section
+              className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
               data-kg-anchor={UI_ANCHORS.settingsPanel}
             >
               <SettingsView searchQuery={search} onRegisterActions={setSettingsActions} />
-            </div>
+            </section>
           </MainPanelBody>
         )}
         {tab === 'history' && <HistoryView searchQuery={search} />}
-      </div>
+      </section>
     </MainPanelFrame>
   )
 }

@@ -61,6 +61,9 @@
   - Key tooltips follow Role → Actions → Outcome.
   - Value tooltips follow Default/Min/Max/Interval (when applicable) + short impact (≤ 15 words).
 
+- Flow Editor supports an in-canvas Node Quick Editor overlay (semantic HTML) for fast field edits and validation.
+  - `canvas/src/components/FlowEditor/NodeOverlayEditor.tsx`
+
 ---
 
 ## Performance & Stability Strategies
@@ -189,7 +192,7 @@
 - **Port clearance**: collision extents include port handle offset/size so handles don’t visually overlap.
 - **Sizing SSOT**: default rect sizing derives from schema node radius (no minimap-driven sizing side-effects).
 - **Flow parity**: the 2D Flow renderer must (1) route endpoints to per-edge handles only when Port Handles are enabled, (2) distribute handle positions along the correct axis (`LR`: along node height, `TB`: along node width), and (3) optionally draw handle glyphs using the same port-handle config knobs.
-- **Edge routing parity**: Flow edge routing is schema-driven via `schema.layout.flow.edges.routing` and should avoid node/group obstacles to reduce spaghetti, while excluding endpoint-containing groups from obstacle sets.
+- **Edge routing parity**: Flow edge routing is schema-driven via `schema.layout.flow.edges.routing`, avoids node/group obstacles to reduce spaghetti, and ignores obstacles that contain the edge endpoints (so endpoint nodes/groups never block their own routes). Obstacles are built once per draw to avoid E×N recomputation.
 - **Underlay parity**: edge visibility beneath group fills is schema-driven via `schema.layout.flow.edges.underlay.groupFadeAlpha` and should match D3’s group fill semantics.
 - **Nested group visibility**: group stroke/opacity should scale by outer depth consistently across D3 and Flow via `schema.layout.groups.depthStyle`.
 

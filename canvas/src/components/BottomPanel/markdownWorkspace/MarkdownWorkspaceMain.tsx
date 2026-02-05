@@ -8,6 +8,7 @@ import sup from 'markdown-it-sup'
 import hljs from 'highlight.js'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { usePanelTypography, type PanelTypography } from '@/lib/ui/panelTypography'
 import { MarkdownWorkspaceToolbar } from '../MarkdownWorkspaceToolbar'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi } from './markdownWorkspaceTypes'
@@ -119,7 +120,7 @@ function MarkdownEditor(props: {
   wordWrap: boolean
   editorRef: React.MutableRefObject<HTMLTextAreaElement | null>
   onCaretLine?: (line: number) => void
-  uiPanelTextFontClass: string
+  panelTypography: PanelTypography
 }) {
   const emitCaretLine = React.useCallback(() => {
     const onCaretLine = props.onCaretLine
@@ -142,7 +143,7 @@ function MarkdownEditor(props: {
         ref={el => {
           props.editorRef.current = el
         }}
-        className={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 ${props.uiPanelTextFontClass} text-[11px] leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
+        className={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 ${props.panelTypography.panelTextClass} leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
         value={props.value}
         onChange={e => props.onChange(e.target.value)}
         spellCheck={false}
@@ -156,12 +157,12 @@ function MarkdownEditor(props: {
   )
 }
 
-function SlideCanvas(props: { html: string; scale: number; zoomLabel: string }) {
+function SlideCanvas(props: { html: string; scale: number; zoomLabel: string; panelTypography: PanelTypography }) {
   const scale = Number.isFinite(props.scale) && props.scale > 0 ? props.scale : 0.05
   return (
     <section className="w-full h-full flex items-center justify-center" aria-label="Slide Canvas Frame">
       <section
-        className={`relative overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} shadow ${UI_THEME_TOKENS.panel.bg} text-[color:var(--kg-text-primary)] font-sans`}
+        className={`relative overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} shadow ${UI_THEME_TOKENS.panel.bg} text-[color:var(--kg-text-primary)] ${props.panelTypography.fontClass}`}
         style={{ width: 1920 * scale, height: 1080 * scale, touchAction: 'none' }}
         aria-label="Slide Canvas Preview"
       >
@@ -183,10 +184,7 @@ function SlideCanvas(props: { html: string; scale: number; zoomLabel: string }) 
             </section>
           </section>
         </section>
-        <output
-          className="absolute right-2 bottom-2 rounded bg-black/60 text-white text-[11px] px-1.5 py-0.5 pointer-events-none"
-          aria-label="Slide zoom"
-        >
+        <output className={`absolute right-2 bottom-2 rounded bg-black/60 text-white px-1.5 py-0.5 pointer-events-none ${props.panelTypography.microLabelClass}`} aria-label="Slide zoom">
           {props.zoomLabel}
         </output>
       </section>
@@ -195,6 +193,7 @@ function SlideCanvas(props: { html: string; scale: number; zoomLabel: string }) 
 }
 
 export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(props: MarkdownWorkspaceMainProps) {
+  const panelTypography = usePanelTypography()
   const {
     themeMode,
     uiPanelTextFontClass,
@@ -390,7 +389,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           wordWrap={markdownWordWrap}
           editorRef={editorRef}
           onCaretLine={onEditorCaretLine}
-          uiPanelTextFontClass={uiPanelTextFontClass}
+          panelTypography={panelTypography}
         />
       ) : layoutMode === 'viewer' ? (
         viewer
@@ -403,9 +402,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             className="w-full h-full flex flex-col"
             aria-label="Presentation Viewport"
           >
-            <SlideCanvas html={slideHtml} scale={scale} zoomLabel={zoomLabel} />
+            <SlideCanvas html={slideHtml} scale={scale} zoomLabel={zoomLabel} panelTypography={panelTypography} />
             <footer className="mt-3 w-full max-w-4xl" aria-label="Presentation footer">
-              <output className={`text-xs ${UI_THEME_TOKENS.text.secondary}`} aria-label="Slide index">
+              <output className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label="Slide index">
                 Slide {Math.min(slides.length, slideIndex + 1)} / {Math.max(1, slides.length)}
               </output>
             </footer>
@@ -414,8 +413,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       ) : layoutMode === 'slides-gallery' ? (
         <main className="flex-1 min-h-0 overflow-auto p-4" aria-label="Slides Gallery">
           <header className="max-w-5xl mx-auto w-full" aria-label="Slides Gallery header">
-            <h3 className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>Slides</h3>
-            <p className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Click a slide to open presentation.</p>
+            <h3 className={`font-semibold ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass}`}>Slides</h3>
+            <p className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>Click a slide to open presentation.</p>
           </header>
           <section className="max-w-5xl mx-auto w-full mt-3" aria-label="Slides Gallery grid">
             <ul className="grid grid-cols-3 gap-3 list-none m-0 p-0" aria-label="Slides list">
@@ -438,7 +437,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
                         </article>
                       </section>
                       <footer className="px-3 py-2 border-t border-[color:var(--kg-border)]" aria-label="Slide thumbnail footer">
-                        <span className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Slide {s.index + 1}</span>
+                        <span className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>Slide {s.index + 1}</span>
                       </footer>
                     </button>
                   </li>
@@ -456,7 +455,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               wordWrap={markdownWordWrap}
               editorRef={editorRef}
               onCaretLine={onEditorCaretLine}
-              uiPanelTextFontClass={uiPanelTextFontClass}
+              panelTypography={panelTypography}
             />
           </section>
           <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" />

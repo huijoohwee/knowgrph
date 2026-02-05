@@ -432,6 +432,7 @@ const drawEdge = (
     selected: boolean
     source: FlowNativeNode
     target: FlowNativeNode
+    routingObstacles: Rect[] | null
   },
 ) => {
   const ctx = rt.ctx
@@ -459,42 +460,19 @@ const drawEdge = (
 
   const edgesCfg = rt.presentation.edges
   const routingCfg = edgesCfg.routing
-  const obstacles: Rect[] = []
-  const scene = rt.scene
-  if (scene) {
-    for (let i = 0; i < scene.nodes.length; i += 1) {
-      const n = scene.nodes[i]
-      if (n.id === s.id || n.id === t.id) continue
-      obstacles.push({ x: n.x, y: n.y, w: n.width, h: n.height })
-    }
-    const gCfg = rt.presentation.groups
-    if (gCfg.enabled && scene.groups && scene.groups.length > 0) {
-      const groupIdsByNodeId = scene.groupIdsByNodeId || null
-      const nodeGroups = (id: string): string[] => groupIdsByNodeId?.get(id) || []
-      const sGroups = new Set(nodeGroups(s.id))
-      const tGroups = new Set(nodeGroups(t.id))
-      for (let i = 0; i < scene.groups.length; i += 1) {
-        const g = scene.groups[i]
-        const gid = String(g.id || '').trim()
-        if (gid && (sGroups.has(gid) || tGroups.has(gid))) continue
-        const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: gCfg.paddingPx, labelTopExtraPx: gCfg.labelTopExtraPx })
-        if (!aabb) continue
-        obstacles.push({ x: aabb.minX, y: aabb.minY, w: aabb.maxX - aabb.minX, h: aabb.maxY - aabb.minY })
-      }
-    }
-  }
-
   const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
   const useObstacles = useOrtho && routingCfg.obstacleAvoidance
+  const obstacles = useObstacles && args.routingObstacles ? args.routingObstacles : []
   const points = useOrtho
     ? routeFlowEdgeOrtho({
         rankdir,
         start: { x: sxx, y: syy },
         end: { x: txx, y: tyy },
-        obstacles: useObstacles ? obstacles : [],
+        obstacles,
         marginPx: routingCfg.marginPx,
         laneStepPx: routingCfg.laneStepPx,
         maxLanes: routingCfg.maxLanes,
+        ignorePoints: useObstacles ? [{ x: sxx, y: syy }, { x: txx, y: tyy }] : undefined,
       })
     : []
 
@@ -510,6 +488,34 @@ const drawEdge = (
   ctx.lineJoin = 'round'
   ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : rt.theme.edge
   ctx.stroke()
+}
+
+const buildRoutingObstacles = (rt: FlowNativeRuntime, scene: FlowNativeScene): Rect[] => {
+  const obstacles: Rect[] = []
+  for (let i = 0; i < scene.nodes.length; i += 1) {
+    const n = scene.nodes[i]
+    obstacles.push({ x: n.x, y: n.y, w: n.width, h: n.height })
+  }
+
+  const gCfg = rt.presentation.groups
+  if (!gCfg.enabled || !scene.groups || scene.groups.length === 0) return obstacles
+
+  for (let i = 0; i < scene.groups.length; i += 1) {
+    const g = scene.groups[i]
+    const aabb = computeFlowGroupAabb({
+      scene,
+      group: g,
+      paddingPx: gCfg.paddingPx,
+      labelTopExtraPx: gCfg.labelTopExtraPx,
+    })
+    if (!aabb) continue
+    const w = aabb.maxX - aabb.minX
+    const h = aabb.maxY - aabb.minY
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) continue
+    obstacles.push({ x: aabb.minX, y: aabb.minY, w, h })
+  }
+
+  return obstacles
 }
 
 const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime) => {
@@ -699,12 +705,17 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: { selectedNodeIds: s
   const selectedNodeIds = new Set<string>(args.selectedNodeIds || [])
   const selectedEdgeIds = new Set<string>(args.selectedEdgeIds || [])
 
+  const routingCfg = rt.presentation.edges.routing
+  const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
+  const useObstacles = useOrtho && routingCfg.obstacleAvoidance
+  const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene) : null
+
   for (let i = 0; i < scene.edges.length; i += 1) {
     const e = scene.edges[i]
     const s = scene.nodeById.get(e.source)
     const t = scene.nodeById.get(e.target)
     if (!s || !t) continue
-    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t })
+    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
   }
 
   fadeEdgesUnderGeometry(rt)

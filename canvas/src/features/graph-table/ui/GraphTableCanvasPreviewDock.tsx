@@ -7,8 +7,10 @@ import IconButton from '@/components/IconButton'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
 import { PanelRightClose, PanelRightOpen } from 'lucide-react'
+import type { PanelTypography } from '@/lib/ui/panelTypography'
 
-export function GraphTableCanvasPreviewDock(props: { previewSrc: string }) {
+export function GraphTableCanvasPreviewDock(props: { previewSrc: string; panelTypography?: PanelTypography }) {
+  const titleClassName = props.panelTypography?.microLabelClass || ''
   const [collapsed, setCollapsed] = React.useState(() => lsBool(LS_KEYS.graphTablePreviewCollapsed, false))
   const [widthPx, setWidthPx] = React.useState(() => lsInt(LS_KEYS.graphTablePreviewWidthPx, 520))
   const widthRef = React.useRef(widthPx)
@@ -79,7 +81,7 @@ export function GraphTableCanvasPreviewDock(props: { previewSrc: string }) {
           {collapsed ? (
             <span />
           ) : (
-            <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>Canvas Preview</div>
+            <h2 className={`font-semibold ${UI_THEME_TOKENS.text.primary} ${titleClassName}`}>Canvas Preview</h2>
           )}
           <IconButton
             title={collapsed ? 'Show Canvas Preview' : 'Hide Canvas Preview'}

@@ -12,6 +12,8 @@ import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
 import type { GraphColumnDoc, GraphTableId } from '@/features/graph-table-db/graphTableDb'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import type { PanelTypography } from '@/lib/ui/panelTypography'
+import { tailwindTextSizeClassToPx } from 'grph-shared/ui/tailwindTextSize'
 
 export type GraphTableGridRow = {
   id: string
@@ -25,6 +27,7 @@ type GraphTableGridProps = {
   focusRowId?: string | null
   themeMode?: 'light' | 'dark'
   autoScrollToFocusRow?: boolean
+  panelTypography?: PanelTypography
   onCellValueChanged: (rowId: string, columnId: string, next: unknown) => void
   onRowClicked: (rowId: string) => void
   onSelectionChanged: (selectedRowIds: string[]) => void
@@ -37,6 +40,7 @@ export function GraphTableGrid({
   focusRowId,
   themeMode = 'light',
   autoScrollToFocusRow = true,
+  panelTypography,
   onCellValueChanged,
   onRowClicked,
   onSelectionChanged,
@@ -93,8 +97,8 @@ export function GraphTableGrid({
       resizable: true,
       sortable: true,
       filter: true,
-      headerClass: 'text-xs font-semibold',
-      cellClass: 'text-xs',
+      headerClass: 'font-semibold',
+      cellClass: '',
     }),
     [],
   )
@@ -151,10 +155,11 @@ export function GraphTableGrid({
 
   const containerStyle = useMemo<Record<string, string>>(
     () => ({
+      ['--ag-font-family' as never]: 'inherit',
       width: '100%',
       height: '100%',
       colorScheme: themeMode === 'dark' ? 'dark' : 'light',
-      ['--ag-font-size' as never]: '12px',
+      ['--ag-font-size' as never]: `${tailwindTextSizeClassToPx(panelTypography?.textSizeClass) || 12}px`,
       ['--ag-row-height' as never]: '28px',
       ['--ag-header-height' as never]: '28px',
       ['--ag-grid-size' as never]: '4px',
@@ -175,7 +180,7 @@ export function GraphTableGrid({
       ['--ag-control-panel-background-color' as never]: 'var(--kg-panel-bg)',
       ['--ag-modal-overlay-background-color' as never]: themeMode === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.25)',
     }),
-    [themeMode],
+    [panelTypography?.textSizeClass, themeMode],
   )
 
   return (
@@ -183,7 +188,7 @@ export function GraphTableGrid({
       <section
         className={`h-full min-h-0 ${
           themeMode === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
-        } text-xs ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.panel.bg}`}
+        } ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.panel.bg} ${panelTypography?.panelTextClass || ''}`}
         aria-label="AG Grid"
       >
         <AgGridReact<GraphTableGridRow>

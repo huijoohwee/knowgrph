@@ -1,6 +1,7 @@
 import React from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 export function MarkdownExplorerSection(props: {
   title: string
@@ -10,11 +11,12 @@ export function MarkdownExplorerSection(props: {
   children: React.ReactNode
 }) {
   const { title, collapsed, setCollapsed, right, children } = props
+  const panelTypography = usePanelTypography()
   return (
     <section className={`border-b ${UI_THEME_TOKENS.panel.border}`} aria-label={title}>
       <button
         type="button"
-        className={`w-full flex items-center justify-between px-2 py-1 text-[11px] tracking-wide font-semibold uppercase ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+        className={`w-full flex items-center justify-between px-2 py-1 ${panelTypography.microLabelClass} tracking-wide font-semibold uppercase ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
         onClick={() => setCollapsed(!collapsed)}
         aria-expanded={!collapsed}
       >

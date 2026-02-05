@@ -9,6 +9,7 @@ import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuR
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { cn } from '@/lib/utils'
 import {
@@ -68,6 +69,7 @@ const InspectorView = React.memo(function InspectorView(props: { geospatialModeE
 const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: boolean }) {
   const { geospatialModeEnabled } = props
   const activeGraphData = useActiveGraphRenderData()
+  const panelTypography = usePanelTypography()
   const gympgrphBridge = useGraphStore(
     useShallow(s => ({
       zoomState: s.zoomState,
@@ -93,6 +95,7 @@ const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: bool
           <GeospatialPanelHostLazy
             active
             showDatasetsManager={false}
+            panelTypography={panelTypography}
             snapshot={{
               graphData: activeGraphData,
               zoomState: gympgrphBridge.zoomState,
@@ -154,10 +157,11 @@ export function ToolbarToolMenu({
     })),
   )
 
-  const uiPanelMicroLabelTextSizeClass = useGraphStore(
-    s => s.uiPanelMicroLabelTextSizeClass || s.uiIconBadgeChipTextSizeClass || 'text-[9px]',
-  )
-  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
+  const {
+    fontClass: uiPanelTextFontClass,
+    textSizeClass: uiPanelKeyValueTextSizeClass,
+    microLabelTextSizeClass: uiPanelMicroLabelTextSizeClass,
+  } = usePanelTypography()
 
   const { sections: orchestratorSections } = useOrchestratorPanelState()
   const orchestratorSectionCollapsedById = orchestratorSections.byId
@@ -405,7 +409,10 @@ export function ToolbarToolMenu({
               onClose={onClose}
             />
           </header>
-          <section className={`mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.primary}`} aria-label="Floating panel content">
+          <section
+            className={`mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}
+            aria-label="Floating panel content"
+          >
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
             {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'chat' && (

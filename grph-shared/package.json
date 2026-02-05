@@ -133,6 +133,16 @@
       "types": "./dist/spreadsheet/types.d.ts",
       "import": "./dist/spreadsheet/types.js",
       "default": "./dist/spreadsheet/types.js"
+    },
+    "./ui/panelTypography": {
+      "types": "./dist/ui/panelTypography.d.ts",
+      "import": "./dist/ui/panelTypography.js",
+      "default": "./dist/ui/panelTypography.js"
+    },
+    "./ui/tailwindTextSize": {
+      "types": "./dist/ui/tailwindTextSize.d.ts",
+      "import": "./dist/ui/tailwindTextSize.js",
+      "default": "./dist/ui/tailwindTextSize.js"
     }
   },
   "files": [

@@ -1,5 +1,4 @@
 import React from 'react'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { lsInt, lsSetInt } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
@@ -7,10 +6,10 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { MarkdownWorkspace } from './BottomPanel/markdownWorkspace/MarkdownWorkspace'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 export function EmbeddedEditorShell(props: { previewSrc: string }) {
-  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
-  const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
+  const panelTypography = usePanelTypography()
   const [previewWidthPx, setPreviewWidthPx] = React.useState(() => lsInt(LS_KEYS.workspacePreviewWidthPx, 520))
   const dragHandleRef = React.useRef<HTMLHRElement | null>(null)
   const previewWidthPxRef = React.useRef(previewWidthPx)
@@ -53,7 +52,7 @@ export function EmbeddedEditorShell(props: { previewSrc: string }) {
 
   return (
     <section className="flex-1 min-h-0 flex overflow-hidden" aria-label="Embedded Editor Workspace">
-      <main className={`flex-1 min-w-0 min-h-0 flex ${uiPanelTextFontClass}`} aria-label="Editor and Preview">
+      <main className={`flex-1 min-w-0 min-h-0 flex ${panelTypography.panelTextClass}`} aria-label="Editor and Preview">
         <section className="flex-1 min-w-0 min-h-0 overflow-hidden" aria-label="Editor">
           <MarkdownWorkspace />
         </section>
@@ -71,8 +70,8 @@ export function EmbeddedEditorShell(props: { previewSrc: string }) {
           aria-label="Canvas Preview"
         >
           <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border}`} aria-label="Preview header">
-            <h2 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>Canvas Preview</h2>
-            <p className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} ${uiPanelMonospaceTextClass}`}>Embedded</p>
+            <h2 className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Canvas Preview</h2>
+            <p className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary} ${panelTypography.monospaceTextClass}`}>Embedded</p>
           </header>
           <section className="flex-1 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]" aria-label="Preview frame">
             <EmbeddedCanvasPreviewFrame previewSrc={props.previewSrc} className="block w-full h-full border-0 bg-[var(--kg-canvas-bg)]" />

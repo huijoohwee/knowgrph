@@ -2,6 +2,8 @@ import React from 'react'
 
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { cn } from '@/lib/utils'
 
 export type InspectorTab = 'node' | 'edge' | 'workflow'
 
@@ -60,10 +62,15 @@ export default function FlowEditorInspector({
   onSetEdgeLabel: (label: string) => void
   onApplyJson: (target: 'nodeProps' | 'nodeMeta' | 'edgeProps' | 'edgeMeta' | 'workflowMeta' | 'workflowContext') => void
 }) {
+  const { panelTextClass, microLabelClass, monospaceTextClass, keyValueInputClass, textSizeClass } = usePanelTypography()
+
   return (
-    <section aria-label="Flow Editor Inspector" className={`h-full min-h-0 overflow-auto p-3 ${UI_THEME_TOKENS.panel.bg}`}>
+    <section
+      aria-label="Flow Editor Inspector"
+      className={cn('h-full min-h-0 overflow-auto p-3', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.text.primary, panelTextClass)}
+    >
       <header className="flex items-center justify-between gap-2">
-        <h2 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>Inspector</h2>
+        <h2 className={cn('font-semibold', UI_THEME_TOKENS.text.primary)}>Inspector</h2>
         <menu className="flex items-center gap-1" aria-label="Inspector tabs">
           <button
             type="button"
@@ -92,42 +99,62 @@ export default function FlowEditorInspector({
         </menu>
       </header>
 
-      {jsonError && <p className="mt-2 text-[11px] text-red-300">{jsonError}</p>}
+      {jsonError && <p className={cn('mt-2 text-red-300', microLabelClass)}>{jsonError}</p>}
 
       {tab === 'node' && (
         <section aria-label="Node editor">
           {selectedNode ? (
             <>
-              <p className={`mt-2 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>{selectedNode.id}</p>
-              <label className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`} htmlFor="flow-editor-label">
+              <p className={cn('mt-2', microLabelClass, UI_THEME_TOKENS.text.secondary)}>{selectedNode.id}</p>
+              <label className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-label">
                 Label
               </label>
               <input
                 id="flow-editor-label"
-                className={`mt-1 w-full h-8 px-2 rounded-md border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+                className={cn(
+                  'mt-1 w-full rounded-md',
+                  keyValueInputClass,
+                  textSizeClass,
+                  UI_THEME_TOKENS.input.bg,
+                  UI_THEME_TOKENS.input.border,
+                  UI_THEME_TOKENS.input.text,
+                )}
                 value={String(selectedNode.label || '')}
                 onChange={e => onSetNodeLabel(e.target.value)}
                 disabled={!active}
               />
-              <label className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`} htmlFor="flow-editor-type">
+              <label className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-type">
                 Type
               </label>
               <input
                 id="flow-editor-type"
-                className={`mt-1 w-full h-8 px-2 rounded-md border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+                className={cn(
+                  'mt-1 w-full rounded-md',
+                  keyValueInputClass,
+                  textSizeClass,
+                  UI_THEME_TOKENS.input.bg,
+                  UI_THEME_TOKENS.input.border,
+                  UI_THEME_TOKENS.input.text,
+                )}
                 value={String(selectedNode.type || 'Node')}
                 onChange={e => onSetNodeType(e.target.value)}
                 disabled={!active}
               />
               <label
-                className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`}
+                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-node-props"
               >
                 Properties (JSON)
               </label>
               <textarea
                 id="flow-editor-node-props"
-                className={`mt-1 w-full h-28 px-2 py-1 rounded-md border font-mono text-[11px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+                className={cn(
+                  'mt-1 w-full h-28 px-2 py-1 rounded-md border',
+                  monospaceTextClass,
+                  UI_THEME_TOKENS.input.bg,
+                  UI_THEME_TOKENS.input.border,
+                  UI_THEME_TOKENS.input.text,
+                )}
                 value={nodePropsJson}
                 onChange={e => setNodePropsJson(e.target.value)}
                 disabled={!active}
@@ -141,14 +168,20 @@ export default function FlowEditorInspector({
                 Apply properties
               </button>
               <label
-                className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`}
+                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-node-meta"
               >
                 Metadata (JSON)
               </label>
               <textarea
                 id="flow-editor-node-meta"
-                className={`mt-1 w-full h-24 px-2 py-1 rounded-md border font-mono text-[11px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+                className={cn(
+                  'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+                  monospaceTextClass,
+                  UI_THEME_TOKENS.input.bg,
+                  UI_THEME_TOKENS.input.border,
+                  UI_THEME_TOKENS.input.text,
+                )}
                 value={nodeMetaJson}
                 onChange={e => setNodeMetaJson(e.target.value)}
                 disabled={!active}
@@ -163,7 +196,7 @@ export default function FlowEditorInspector({
               </button>
             </>
           ) : (
-            <p className={`mt-2 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>Select a node.</p>
+            <p className={cn('mt-2', microLabelClass, UI_THEME_TOKENS.text.secondary)}>Select a node.</p>
           )}
         </section>
       )}
@@ -172,32 +205,45 @@ export default function FlowEditorInspector({
         <section aria-label="Edge editor">
           {selectedEdge ? (
             <>
-              <p className={`mt-2 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>{selectedEdge.id}</p>
-              <p className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <p className={cn('mt-2', microLabelClass, UI_THEME_TOKENS.text.secondary)}>{selectedEdge.id}</p>
+              <p className={cn('mt-1', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
                 {String(selectedEdge.source)} → {String(selectedEdge.target)}
               </p>
               <label
-                className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`}
+                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-edge-label"
               >
                 Label
               </label>
               <input
                 id="flow-editor-edge-label"
-                className={`mt-1 w-full h-8 px-2 rounded-md border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+                className={cn(
+                  'mt-1 w-full rounded-md',
+                  keyValueInputClass,
+                  textSizeClass,
+                  UI_THEME_TOKENS.input.bg,
+                  UI_THEME_TOKENS.input.border,
+                  UI_THEME_TOKENS.input.text,
+                )}
                 value={String(selectedEdge.label || '')}
                 onChange={e => onSetEdgeLabel(e.target.value)}
                 disabled={!active}
               />
               <label
-                className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`}
+                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-edge-props"
               >
                 Properties (JSON)
               </label>
               <textarea
                 id="flow-editor-edge-props"
-                className={`mt-1 w-full h-24 px-2 py-1 rounded-md border font-mono text-[11px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+                className={cn(
+                  'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+                  monospaceTextClass,
+                  UI_THEME_TOKENS.input.bg,
+                  UI_THEME_TOKENS.input.border,
+                  UI_THEME_TOKENS.input.text,
+                )}
                 value={edgePropsJson}
                 onChange={e => setEdgePropsJson(e.target.value)}
                 disabled={!active}
@@ -211,14 +257,20 @@ export default function FlowEditorInspector({
                 Apply properties
               </button>
               <label
-                className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`}
+                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-edge-meta"
               >
                 Metadata (JSON)
               </label>
               <textarea
                 id="flow-editor-edge-meta"
-                className={`mt-1 w-full h-20 px-2 py-1 rounded-md border font-mono text-[11px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+                className={cn(
+                  'mt-1 w-full h-20 px-2 py-1 rounded-md border',
+                  monospaceTextClass,
+                  UI_THEME_TOKENS.input.bg,
+                  UI_THEME_TOKENS.input.border,
+                  UI_THEME_TOKENS.input.text,
+                )}
                 value={edgeMetaJson}
                 onChange={e => setEdgeMetaJson(e.target.value)}
                 disabled={!active}
@@ -233,7 +285,7 @@ export default function FlowEditorInspector({
               </button>
             </>
           ) : (
-            <p className={`mt-2 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>Select an edge.</p>
+            <p className={cn('mt-2', microLabelClass, UI_THEME_TOKENS.text.secondary)}>Select an edge.</p>
           )}
         </section>
       )}
@@ -254,12 +306,14 @@ export default function FlowEditorInspector({
                         <header className="flex items-center justify-between gap-2">
                           <button
                             type="button"
-                            className={`min-w-0 flex-1 text-left text-xs ${UI_THEME_TOKENS.text.primary}`}
+                            className={`min-w-0 flex-1 text-left ${UI_THEME_TOKENS.text.primary}`}
                             onClick={() => onWorkflowSelectNode?.(id)}
                             disabled={!active || !onWorkflowSelectNode}
                           >
                             <span className="block truncate">{String(n.label || id)}</span>
-                            <span className={`block truncate text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>{String(n.type || 'Node')}</span>
+                            <span className={cn('block truncate', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
+                              {String(n.type || 'Node')}
+                            </span>
                           </button>
                           <button
                             type="button"
@@ -279,16 +333,22 @@ export default function FlowEditorInspector({
             </nav>
           )}
 
-          <p className={`mt-3 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>Draft graph</p>
+          <p className={cn('mt-3', microLabelClass, UI_THEME_TOKENS.text.secondary)}>Draft graph</p>
           <label
-            className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`}
+            className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
             htmlFor="flow-editor-workflow-meta"
           >
             Metadata (JSON)
           </label>
           <textarea
             id="flow-editor-workflow-meta"
-            className={`mt-1 w-full h-24 px-2 py-1 rounded-md border font-mono text-[11px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+            className={cn(
+              'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+              monospaceTextClass,
+              UI_THEME_TOKENS.input.bg,
+              UI_THEME_TOKENS.input.border,
+              UI_THEME_TOKENS.input.text,
+            )}
             value={workflowMetaJson}
             onChange={e => setWorkflowMetaJson(e.target.value)}
             disabled={!active}
@@ -302,14 +362,20 @@ export default function FlowEditorInspector({
             Apply workflow metadata
           </button>
           <label
-            className={`mt-3 block text-xs ${UI_THEME_TOKENS.text.secondary}`}
+            className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
             htmlFor="flow-editor-workflow-context"
           >
             Context (JSON)
           </label>
           <textarea
             id="flow-editor-workflow-context"
-            className={`mt-1 w-full h-24 px-2 py-1 rounded-md border font-mono text-[11px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+            className={cn(
+              'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+              monospaceTextClass,
+              UI_THEME_TOKENS.input.bg,
+              UI_THEME_TOKENS.input.border,
+              UI_THEME_TOKENS.input.text,
+            )}
             value={workflowContextJson}
             onChange={e => setWorkflowContextJson(e.target.value)}
             disabled={!active}
