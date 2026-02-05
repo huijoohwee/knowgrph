@@ -10,9 +10,8 @@ import { getEdgeEndpointFromPorts, getPortHandlePosition, getPortHandlesConfig, 
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
-import { estimateLabelCharWidthPx, pickEdgeLabelPlacement, type AabbRect } from '@/components/GraphCanvas/layout/utils'
+import { estimateLabelCharWidthPx, type AabbRect } from '@/components/GraphCanvas/layout/utils'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
-import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
 
 type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 

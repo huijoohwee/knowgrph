@@ -12,6 +12,7 @@ import {
   PackedRTree,
   applyAabbOverlapPush,
   applyAabbContainmentPush,
+  computeBoxIndices,
 } from '@/lib/graph/collision/boxCollision'
 import { readExplicitZ } from '@/lib/graph/collision/readZ'
 import { readNodeHalfD } from '@/lib/graph/collision/readNodeHalfD'
@@ -21,7 +22,6 @@ import {
   DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH,
   DEFAULT_GROUP_NESTED_PADDING_STEP,
   DEFAULT_GROUP_PADDING,
-  DEFAULT_GROUP_STROKE_WIDTH,
 } from '@/lib/graph/layoutDefaults'
 
 type GroupState = CollisionGroupItem & {
@@ -111,7 +111,12 @@ export const createGroupBboxCollideForceByDepth = (args: {
 
   let paddingX = Number.isFinite(args.paddingX) ? Math.max(0, args.paddingX) : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
   let paddingY = Number.isFinite(args.paddingY) ? Math.max(0, args.paddingY) : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
-  let paddingZ = Number.isFinite(args.paddingZ) ? Math.max(0, args.paddingZ) : Math.max(0, groupBboxCfg.paddingZ)
+  let paddingZ = Number.isFinite(args.paddingZ)
+    ? Math.max(0, args.paddingZ)
+    : Math.max(
+        0,
+        typeof groupBboxCfg.paddingZ === 'number' && Number.isFinite(groupBboxCfg.paddingZ) ? groupBboxCfg.paddingZ : 0,
+      )
   let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH
   let iterations = Number.isFinite(args.iterations)
     ? Math.max(1, Math.floor(args.iterations))
@@ -120,7 +125,10 @@ export const createGroupBboxCollideForceByDepth = (args: {
   const extraGapPx = typeof args.extraGapPx === 'number' && Number.isFinite(args.extraGapPx) ? Math.max(0, args.extraGapPx) : 0
   const extraGapZPx = typeof args.extraGapZPx === 'number' && Number.isFinite(args.extraGapZPx)
     ? Math.max(0, args.extraGapZPx)
-    : Math.max(0, groupBboxCfg.extraGapZPx)
+    : Math.max(
+        0,
+        typeof groupBboxCfg.extraGapZPx === 'number' && Number.isFinite(groupBboxCfg.extraGapZPx) ? groupBboxCfg.extraGapZPx : 0,
+      )
 
   if (!zEnabled) {
     paddingZ = 0
@@ -366,20 +374,36 @@ export const createGroupBboxCollideForceByDepth = (args: {
 
         if (!bestParent) continue
 
-        const parentBorderMinX = bestParent.cx - bestParent.halfW
-        const parentBorderMaxX = bestParent.cx + bestParent.halfW
-        const parentBorderMinY = bestParent.cy - bestParent.halfH
-        const parentBorderMaxY = bestParent.cy + bestParent.halfH
+        const parentIndices = computeBoxIndices(
+          bestParent.cx,
+          bestParent.cy,
+          bestParent.cz ?? 0,
+          bestParent.halfW,
+          bestParent.halfH,
+          bestParent.halfD ?? 0,
+          bestParent.gap,
+          bestParent.gapX,
+          bestParent.gapY,
+          bestParent.gapZ,
+        )
 
-        const childInnerMinX = child.cx - child.halfW
-        const childInnerMaxX = child.cx + child.halfW
-        const childInnerMinY = child.cy - child.halfH
-        const childInnerMaxY = child.cy + child.halfH
+        const childIndices = computeBoxIndices(
+          child.cx,
+          child.cy,
+          child.cz ?? 0,
+          child.halfW,
+          child.halfH,
+          child.halfD ?? 0,
+          child.gap,
+          child.gapX,
+          child.gapY,
+          child.gapZ,
+        )
 
-        const vLeftX = parentBorderMinX + nestedTouchEpsilonXPx - childInnerMinX
-        const vRightX = childInnerMaxX - (parentBorderMaxX - nestedTouchEpsilonXPx)
-        const vBottomY = parentBorderMinY + nestedTouchEpsilonYPx - childInnerMinY
-        const vTopY = childInnerMaxY - (parentBorderMaxY - nestedTouchEpsilonYPx)
+        const vLeftX = parentIndices.x1 + nestedTouchEpsilonXPx - childIndices.x2
+        const vRightX = childIndices.x4 - (parentIndices.x5 - nestedTouchEpsilonXPx)
+        const vBottomY = parentIndices.y1 + nestedTouchEpsilonYPx - childIndices.y2
+        const vTopY = childIndices.y4 - (parentIndices.y5 - nestedTouchEpsilonYPx)
 
         let pushX = (vLeftX > 0 ? vLeftX : 0) - (vRightX > 0 ? vRightX : 0)
         let pushY = (vBottomY > 0 ? vBottomY : 0) - (vTopY > 0 ? vTopY : 0)
@@ -387,12 +411,8 @@ export const createGroupBboxCollideForceByDepth = (args: {
         const useZ = zEnabled && bestParent.hasZ && child.hasZ
         let pushZ = 0
         if (useZ) {
-          const parentBorderMinZ = (bestParent.cz ?? 0) - (bestParent.halfD ?? 0)
-          const parentBorderMaxZ = (bestParent.cz ?? 0) + (bestParent.halfD ?? 0)
-          const childInnerMinZ = (child.cz ?? 0) - (child.halfD ?? 0)
-          const childInnerMaxZ = (child.cz ?? 0) + (child.halfD ?? 0)
-          const vNearZ = parentBorderMinZ + nestedTouchEpsilonZPx - childInnerMinZ
-          const vFarZ = childInnerMaxZ - (parentBorderMaxZ - nestedTouchEpsilonZPx)
+          const vNearZ = parentIndices.z1 + nestedTouchEpsilonZPx - childIndices.z2
+          const vFarZ = childIndices.z4 - (parentIndices.z5 - nestedTouchEpsilonZPx)
           pushZ = (vNearZ > 0 ? vNearZ : 0) - (vFarZ > 0 ? vFarZ : 0)
         }
 

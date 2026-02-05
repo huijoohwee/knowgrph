@@ -450,6 +450,7 @@ export const runAllTests = async () => {
   await exec('flow.collision.relax.separatesOverlappingNodes', testFlowCollisionRelaxSeparatesOverlappingNodes)
   await exec('flow.groups.hitTest.usesLabelTopExtra', testFlowHitTestGroupUsesLabelTopExtra)
   await exec('flow.groups.relax.addsGapBetweenSingleNodeGroups', testFlowGroupRelaxAddsGapBetweenSingleNodeGroups)
+  await exec('flow.groups.relax.nested.addsGapAtMultipleDepths', testFlowNestedGroupRelaxAddsGapAtMultipleDepths)
 
   await exec('groupBoxNoStickRegression.outerVsInner', testGroupBoxInnerDoesNotStickToOtherOuterBorder)
   await exec('groupBoxNoStickRegression.deepNesting', testDeepNestingNoStick)

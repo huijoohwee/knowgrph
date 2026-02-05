@@ -23,7 +23,7 @@ export function readFitAllOptions(args: {
   mode: LayoutMode
   intent: 'fitToScreen' | 'initialFit' | 'fitToView' | 'fitSelection'
 }): FitAllTransformOptions {
-  const { schema, mode } = args
+  const { schema } = args
   const padding = schema.layout?.fitPadding
   const detectClusters = schema.layout?.fitDetectClusters
   const targetAspectRatio = schema.layout?.fitTargetAspectRatio
