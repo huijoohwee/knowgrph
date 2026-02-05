@@ -155,7 +155,6 @@ export interface GraphState {
   workspaceViewMode: WorkspaceViewMode;
   documentStructureBaselineLock: boolean;
   setDocumentStructureBaselineLock: (enabled: boolean) => void;
-  isSidebarOpen: boolean;
   history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>;
   historyIndex: number;
   recentFiles: RecentFileEntry[];
@@ -198,8 +197,6 @@ export interface GraphState {
   setEditMode: (mode: boolean) => void;
   setWorkspaceViewMode: (mode: WorkspaceViewMode) => void;
   toggleWorkspaceViewMode: () => void;
-  setSidebarOpen: (open: boolean) => void;
-  toggleSidebar: () => void;
   addHistory: (label?: string) => void;
   addRecentFile: (entry: Omit<RecentFileEntry, 'id' | 'timestamp'>) => void;
   restoreHistory: (index: number) => void;
@@ -269,7 +266,6 @@ export interface GraphState {
   floatingPanelWidthRatio: number;
   floatingPanelHeightRatio: number;
   floatingPanelZIndex: number;
-  sidebarWidthRatio: number;
   bottomPanelTab: BottomTab;
   launchSpotlightMode: 'tour' | 'stats';
   enableLaunchSpotlight: boolean;
@@ -343,7 +339,6 @@ export interface GraphState {
   setFloatingPanelWidthRatio: (v: number) => void;
   setFloatingPanelHeightRatio: (v: number) => void;
   setFloatingPanelZIndex: (v: number) => void;
-  setSidebarWidthRatio: (v: number) => void;
   setBottomPanelTab: (tab: BottomTab) => void;
   setLaunchSpotlightMode: (mode: 'tour' | 'stats') => void;
   setEnableLaunchSpotlight: (v: boolean) => void;
@@ -517,11 +512,11 @@ export interface GraphState {
   setSchemaLintActivePath: (examplePath: string | null) => void;
   clearSchemaLintSummary: () => void;
   canvasRenderMode: '2d' | '3d';
-  canvas2dRenderer: 'd3' | 'flow';
+  canvas2dRenderer: 'd3' | 'flow' | 'flowEditor';
   canvasRenderModeLastFree: '2d' | '3d';
   canvasRenderModeIsAuto: boolean;
   setCanvasRenderMode: (m: '2d' | '3d') => void;
-  setCanvas2dRenderer: (id: 'd3' | 'flow') => void;
+  setCanvas2dRenderer: (id: 'd3' | 'flow' | 'flowEditor') => void;
   resetAll: () => void;
   canvasSnapshotFns: { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns };
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) => void;

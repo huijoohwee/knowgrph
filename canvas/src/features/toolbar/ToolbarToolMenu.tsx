@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { GitBranch, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { FileCode, GitBranch, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorBottomPanelState } from '@/features/panels/hooks/useOrchestratorBottomPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -11,6 +11,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import {
+  FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   LS_KEYS,
   UI_LABELS,
   UI_SELECTORS,
@@ -20,8 +21,102 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
+import { onGeospatialModeChanged } from '@/features/geospatial/events'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 
-type FloatingPanelView = 'propsPanel' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+
+const GeospatialPanelHostLazy = React.lazy(async () => {
+  const m = await import('gympgrph')
+  return { default: m.GeospatialPanelHost }
+})
+
+const GraphTableSelectionInspectorLazy = React.lazy(
+  () => import('@/features/graph-table/ui/GraphTableSelectionInspector'),
+)
+
+const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
+
+const InspectorView = React.memo(function InspectorView(props: { geospatialModeEnabled: boolean }) {
+  const { geospatialModeEnabled } = props
+  const { canvasRenderMode, canvas2dRenderer } = useGraphStore(
+    useShallow(s => ({
+      canvasRenderMode: s.canvasRenderMode,
+      canvas2dRenderer: s.canvas2dRenderer,
+    })),
+  )
+
+  return (
+    <section className="h-full" aria-label="Selection inspector">
+      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor' ? (
+        <section
+          id={FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID}
+          className="h-full"
+          aria-label="Flow Editor Inspector Slot"
+        />
+      ) : (
+        <React.Suspense fallback={null}>
+          <GraphTableSelectionInspectorLazy />
+        </React.Suspense>
+      )}
+    </section>
+  )
+})
+
+const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: boolean }) {
+  const { geospatialModeEnabled } = props
+  const activeGraphData = useActiveGraphRenderData()
+  const gympgrphBridge = useGraphStore(
+    useShallow(s => ({
+      zoomState: s.zoomState,
+      canvasRenderMode: s.canvasRenderMode,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
+      selectedEdgeId: s.selectedEdgeId,
+      selectNode: s.selectNode,
+      selectEdge: s.selectEdge,
+      setSelectionSource: s.setSelectionSource,
+      requestZoom: s.requestZoom,
+      requestThreeCamera: s.requestThreeCamera,
+      pushUiToast: s.pushUiToast,
+      upsertUiToast: s.upsertUiToast,
+      dismissUiToast: s.dismissUiToast,
+    })),
+  )
+
+  return (
+    <section className="h-full" aria-label="Geospatial panel">
+      {geospatialModeEnabled ? (
+        <React.Suspense fallback={null}>
+          <GeospatialPanelHostLazy
+            active
+            showDatasetsManager={false}
+            snapshot={{
+              graphData: activeGraphData,
+              zoomState: gympgrphBridge.zoomState,
+              canvasRenderMode: gympgrphBridge.canvasRenderMode,
+              selectedNodeId: gympgrphBridge.selectedNodeId,
+              selectedNodeIds: gympgrphBridge.selectedNodeIds,
+              selectedEdgeId: gympgrphBridge.selectedEdgeId,
+            }}
+            handlers={{
+              selectNode: gympgrphBridge.selectNode,
+              selectEdge: gympgrphBridge.selectEdge,
+              setSelectionSource: gympgrphBridge.setSelectionSource,
+              requestZoom: gympgrphBridge.requestZoom,
+              requestThreeCamera: gympgrphBridge.requestThreeCamera,
+              pushUiToast: gympgrphBridge.pushUiToast,
+              upsertUiToast: gympgrphBridge.upsertUiToast,
+              dismissUiToast: gympgrphBridge.dismissUiToast,
+            }}
+          />
+        </React.Suspense>
+      ) : (
+        <p className="p-3 text-sm text-gray-600 dark:text-gray-300">Enable Geospatial Mode to view this panel.</p>
+      )}
+    </section>
+  )
+})
 
 export function ToolbarToolMenu({
   pipelineStatus,
@@ -39,6 +134,14 @@ export function ToolbarToolMenu({
   const handledRequestedViewSeqRef = React.useRef<number | undefined>(undefined)
   const setFloatingPanelZIndex = useGraphStore(s => s.setFloatingPanelZIndex)
 
+  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
+    try {
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+    } catch {
+      return false
+    }
+  })
+
   const { floatingPanelWidthRatio, floatingPanelHeightRatio, floatingPanelZIndex, uiIconScale, uiIconStrokeWidth } = useGraphStore(
     useShallow(state => ({
       floatingPanelWidthRatio: state.floatingPanelWidthRatio,
@@ -48,6 +151,7 @@ export function ToolbarToolMenu({
       uiIconStrokeWidth: state.uiIconStrokeWidth,
     })),
   )
+
   const uiPanelMicroLabelTextSizeClass = useGraphStore(
     s => s.uiPanelMicroLabelTextSizeClass || s.uiIconBadgeChipTextSizeClass || 'text-[9px]',
   )
@@ -76,7 +180,7 @@ export function ToolbarToolMenu({
   }, [])
 
   const handleFloatingPanelPointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event: React.PointerEvent<HTMLElement>) => {
       if (!floatingPanelPinned) return
       const target = event.target
       if (!(target instanceof Element)) return
@@ -132,6 +236,43 @@ export function ToolbarToolMenu({
       >
         <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
+
+      {!geospatialModeEnabled && (
+        <IconButton
+          title={UI_LABELS.inspector}
+          onClick={() => handleSelectView('inspector')}
+          className={`App-toolbar__btn ${
+            floatingPanelView === 'inspector' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+          }`}
+          showTooltip
+        >
+          <FileCode className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      )}
+
+      <IconButton
+        title={UI_LABELS.chat}
+        onClick={() => handleSelectView('chat')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'chat' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <MessageCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
+      <IconButton
+        title={UI_LABELS.geo}
+        onClick={() => handleSelectView('geo')}
+        disabled={!geospatialModeEnabled}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'geo' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <Map className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
       <IconButton
         title={UI_LABELS.renderer}
         onClick={() => handleSelectView('renderer')}
@@ -156,6 +297,14 @@ export function ToolbarToolMenu({
   )
 
   React.useEffect(() => {
+    return onGeospatialModeChanged(detail => {
+      const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
+      if (enabled == null) return
+      setGeospatialModeEnabled(enabled)
+    })
+  }, [])
+
+  React.useEffect(() => {
     if (!floatingPanelPinned) return
     if (!Number.isFinite(floatingPanelZIndex)) return
     if (floatingPanelZIndex >= 1000) return
@@ -171,6 +320,14 @@ export function ToolbarToolMenu({
   }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq])
 
   React.useEffect(() => {
+    if (geospatialModeEnabled) {
+      if (floatingPanelView === 'inspector') setFloatingPanelView('geo')
+      return
+    }
+    if (floatingPanelView === 'geo') setFloatingPanelView('inspector')
+  }, [floatingPanelView, geospatialModeEnabled])
+
+  React.useEffect(() => {
     const handleOpenGraphTraversal = () => {
       setFloatingPanelMinimized(false)
       setFloatingPanelView('graphTraversal')
@@ -183,22 +340,22 @@ export function ToolbarToolMenu({
 
   if (floatingPanelMinimized) {
     return (
-      <div className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
-        <div
+      <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
+        <aside
           ref={toolMenuCardRef}
           className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-[260px] max-w-xs w-80 p-0 ${floatingPanelPinned ? 'cursor-move' : ''}`}
           style={toolMenuCardStyle}
           onPointerDown={handleFloatingPanelPointerDown}
         >
-          <div className="flex items-center justify-between gap-2 w-full">
-            <div className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`}>
+          <header className="flex items-center justify-between gap-2 w-full">
+            <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               {pipelineStatus && (
                 <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
                   {pipelineStatus}
                 </span>
               )}
-            </div>
+            </nav>
             <HeaderActions
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
@@ -207,23 +364,23 @@ export function ToolbarToolMenu({
               }}
               onClose={onClose}
             />
-          </div>
-        </div>
-      </div>
+          </header>
+        </aside>
+      </section>
     )
   }
 
   return (
-    <div className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
-      <div
+    <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
+      <aside
         ref={toolMenuCardRef}
         className={`pointer-events-auto ModalContainer flex flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
         style={{ ...toolMenuCardStyle, ...floatingPanelSizeStyle }}
         onPointerDown={handleFloatingPanelPointerDown}
       >
-        <div className="px-2 py-1 flex flex-col gap-1 min-w-[260px] min-h-[36px] h-full">
-          <div className={`flex items-center justify-between gap-2 w-full select-none ${floatingPanelPinned ? 'cursor-move' : ''}`}>
-            <div className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`}>
+        <section className="px-2 py-1 flex flex-col gap-1 min-w-[260px] min-h-[36px] h-full" aria-label="Floating panel">
+          <header className={`flex items-center justify-between gap-2 w-full select-none ${floatingPanelPinned ? 'cursor-move' : ''}`}>
+            <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               {pipelineStatus && (
                 <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
@@ -235,7 +392,7 @@ export function ToolbarToolMenu({
                   {exportStatus}
                 </span>
               )}
-            </div>
+            </nav>
             <HeaderActions
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
@@ -244,14 +401,23 @@ export function ToolbarToolMenu({
               }}
               onClose={onClose}
             />
-          </div>
-          <div className={`mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.primary}`}>
+          </header>
+          <section className={`mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.primary}`} aria-label="Floating panel content">
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
+            {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
+            {floatingPanelView === 'chat' && (
+              <section className="h-full" aria-label="Chat panel">
+                <React.Suspense fallback={null}>
+                  <SidePanelChatLazy />
+                </React.Suspense>
+              </section>
+            )}
+            {floatingPanelView === 'geo' && <GeoView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView />}
             {floatingPanelView === 'graphTraversal' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>Geospatial</div>
+              <section className="space-y-2" aria-label="Graph traversal">
+                <section className="flex items-center justify-between gap-2" aria-label="Geospatial traversal">
+                  <p className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>Geospatial</p>
                   <button
                     type="button"
                     className="rounded px-2 py-1 bg-gray-100 text-gray-700 text-xs hover:bg-gray-200"
@@ -261,7 +427,7 @@ export function ToolbarToolMenu({
                   >
                     Run airplane on selected edge
                   </button>
-                </div>
+                </section>
                 <OrchestratorSettingsSection
                   variant="floatingPanel"
                   graphRagCollapsed={orchestratorGraphRagCollapsed}
@@ -277,11 +443,11 @@ export function ToolbarToolMenu({
                   tracingCollapsed={orchestratorWorkflowTracingCollapsed}
                   setTracingCollapsed={setOrchestratorWorkflowTracingCollapsed}
                 />
-              </div>
+              </section>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
+          </section>
+        </section>
+      </aside>
+    </section>
   )
 }

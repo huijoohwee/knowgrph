@@ -42,6 +42,7 @@ import {
 import type { FlowHandleId } from '@/components/FlowCanvas/handles'
 import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
 import { relaxFlowPositionsWithCollision } from '@/components/FlowCanvas/relaxPositions'
+import { relaxFlowSceneNodePositions } from '@/components/FlowCanvas/relaxScenePositions'
 import { readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
 
 export const __flowCanvasDebug: {
@@ -216,7 +217,17 @@ export function extractNodePositions(nodes: ReadonlyArray<{ id?: unknown; x?: un
   return out
 }
 
-export default function FlowCanvas({ active = true }: { active?: boolean }) {
+export default function FlowCanvas({
+  active = true,
+  graphDataOverride,
+  graphDataRevisionOverride,
+  collisionDuringDrag = false,
+}: {
+  active?: boolean
+  graphDataOverride?: GraphData | null
+  graphDataRevisionOverride?: number
+  collisionDuringDrag?: boolean
+}) {
   const containerRef = React.useRef<HTMLElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const runtimeRef = React.useRef<FlowNativeRuntime | null>(null)
@@ -231,6 +242,10 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
   const seededFromOtherRendererPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(null)
   const selectedNodeIdsRef = React.useRef<string[]>([])
   const selectedEdgeIdsRef = React.useRef<string[]>([])
+  const collisionSchemaRef = React.useRef<typeof schema | null>(null)
+  const collisionGraphDataRef = React.useRef<GraphData | null>(null)
+  const collisionFlowConfigRef = React.useRef<typeof flowConfig | null>(null)
+  const collisionPresentationRef = React.useRef<typeof flowPresentation | null>(null)
   const dragRef = React.useRef<
     | null
     | {
@@ -275,7 +290,7 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     canvasRenderMode,
     canvas2dRenderer,
     setLayoutPositionsForMode,
-    graphDataRevision,
+    graphDataRevision: baseGraphDataRevision,
     selectedNodeId,
     selectedEdgeId,
     selectedNodeIds,
@@ -309,6 +324,8 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       setZoomStateForKey: s.setZoomStateForKey,
     })),
   )
+
+  const graphDataRevision = typeof graphDataRevisionOverride === 'number' ? graphDataRevisionOverride : baseGraphDataRevision
 
   React.useEffect(() => {
     selectedNodeIdsRef.current = (selectedNodeIds || []).map(v => String(v))
@@ -369,7 +386,8 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     schema?.layout?.groups,
   ])
 
-  const renderGraphData = useActiveGraphRenderData(active)
+  const storeGraphData = useActiveGraphRenderData(active)
+  const renderGraphData = graphDataOverride !== undefined ? graphDataOverride : storeGraphData
   const effectiveFrontmatter = React.useMemo(() => {
     return computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
@@ -604,6 +622,13 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
     return { ...sceneGraphData, nodes: nextNodes }
   }, [computedPositions, sceneGraphData])
 
+  React.useEffect(() => {
+    collisionSchemaRef.current = schema
+    collisionGraphDataRef.current = graphDataForZoom && typeof graphDataForZoom === 'object' ? (graphDataForZoom as GraphData) : null
+    collisionFlowConfigRef.current = flowConfig
+    collisionPresentationRef.current = flowPresentation
+  }, [flowConfig, flowPresentation, graphDataForZoom, schema])
+
   const requestCommit = React.useCallback(() => {
     if (pendingCommitRef.current) return
     pendingCommitRef.current = true
@@ -633,22 +658,13 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       if (!scene) return
       positionsDirtySinceCommitRef.current = false
       const prev = lastCommittedPositionsRef.current
-      const currentPositions: Record<string, { x: number; y: number }> = {}
-      for (let i = 0; i < scene.nodes.length; i += 1) {
-        const n = scene.nodes[i]
-        const x = n.x
-        const y = n.y
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-        currentPositions[n.id] = { x, y }
-      }
-      if (Object.keys(currentPositions).length === 0) return
 
       const relaxGraph = graphDataForZoom && typeof graphDataForZoom === 'object' ? (graphDataForZoom as GraphData) : null
       const relaxed = schema && relaxGraph
-        ? relaxFlowPositionsWithCollision({
+        ? relaxFlowSceneNodePositions({
             graphData: relaxGraph,
+            sceneNodes: scene.nodes,
             groups: scene.groups || [],
-            positions: currentPositions,
             schema,
             nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
             portHandles: {
@@ -656,10 +672,11 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
               sizePx: flowPresentation.portHandles.sizePx,
               offsetPx: flowPresentation.portHandles.offsetPx,
             },
-            defaultSteps: (scene.groups?.length || 0) > 0 ? 14 : 10,
+            steps: (scene.groups?.length || 0) > 0 ? 14 : 10,
           })
-        : currentPositions
-      const nextPositions = relaxed || currentPositions
+        : null
+      if (!relaxed) return
+      const nextPositions = relaxed
 
       for (let i = 0; i < scene.nodes.length; i += 1) {
         const n = scene.nodes[i]
@@ -1191,6 +1208,45 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
         }
         runtime.dirty = true
         positionsDirtySinceCommitRef.current = true
+        if (collisionDuringDrag) {
+          const schema = collisionSchemaRef.current
+          const graphDataForZoom = collisionGraphDataRef.current
+          const flowConfig = collisionFlowConfigRef.current
+          const flowPresentation = collisionPresentationRef.current
+          if (!schema || !graphDataForZoom || !flowConfig || !flowPresentation) {
+            requestFlowNativeDraw(runtime, {
+              selectedNodeIds: selectedNodeIdsRef.current,
+              selectedEdgeIds: selectedEdgeIdsRef.current,
+            })
+            return
+          }
+          const scene = runtime.scene
+          if (scene) {
+            const relaxed = relaxFlowSceneNodePositions({
+              graphData: graphDataForZoom,
+              sceneNodes: scene.nodes,
+              groups: scene.groups || [],
+              schema,
+              nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
+              portHandles: {
+                enabled: flowPresentation.portHandles.enabled,
+                sizePx: flowPresentation.portHandles.sizePx,
+                offsetPx: flowPresentation.portHandles.offsetPx,
+              },
+              steps: (scene.groups?.length || 0) > 0 ? 3 : 2,
+            })
+            if (relaxed) {
+              for (let i = 0; i < scene.nodes.length; i += 1) {
+                const n = scene.nodes[i]
+                const p = relaxed[n.id]
+                if (!p) continue
+                if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
+                n.x = p.x
+                n.y = p.y
+              }
+            }
+          }
+        }
         requestFlowNativeDraw(runtime, {
           selectedNodeIds: selectedNodeIdsRef.current,
           selectedEdgeIds: selectedEdgeIdsRef.current,
@@ -1209,6 +1265,45 @@ export default function FlowCanvas({ active = true }: { active?: boolean }) {
       node.y = drag.startNodeY + dy
       runtime.dirty = true
       positionsDirtySinceCommitRef.current = true
+      if (collisionDuringDrag) {
+        const schema = collisionSchemaRef.current
+        const graphDataForZoom = collisionGraphDataRef.current
+        const flowConfig = collisionFlowConfigRef.current
+        const flowPresentation = collisionPresentationRef.current
+        if (!schema || !graphDataForZoom || !flowConfig || !flowPresentation) {
+          requestFlowNativeDraw(runtime, {
+            selectedNodeIds: selectedNodeIdsRef.current,
+            selectedEdgeIds: selectedEdgeIdsRef.current,
+          })
+          return
+        }
+        const scene = runtime.scene
+        if (scene) {
+          const relaxed = relaxFlowSceneNodePositions({
+            graphData: graphDataForZoom,
+            sceneNodes: scene.nodes,
+            groups: scene.groups || [],
+            schema,
+            nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
+            portHandles: {
+              enabled: flowPresentation.portHandles.enabled,
+              sizePx: flowPresentation.portHandles.sizePx,
+              offsetPx: flowPresentation.portHandles.offsetPx,
+            },
+            steps: (scene.groups?.length || 0) > 0 ? 3 : 2,
+          })
+          if (relaxed) {
+            for (let i = 0; i < scene.nodes.length; i += 1) {
+              const n = scene.nodes[i]
+              const p = relaxed[n.id]
+              if (!p) continue
+              if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
+              n.x = p.x
+              n.y = p.y
+            }
+          }
+        }
+      }
       requestFlowNativeDraw(runtime, {
         selectedNodeIds: selectedNodeIdsRef.current,
         selectedEdgeIds: selectedEdgeIdsRef.current,

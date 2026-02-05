@@ -10,7 +10,9 @@ import {
   PROPS_PANEL_OPEN_EVENT,
   RENDERER_FLOATING_PANEL_OPEN_EVENT,
   RENDERER_PANEL_OPEN_EVENT,
+  SIDE_PANEL_OPEN_EVENT,
   type PropsPanelOpenEventDetail,
+  type SidePanelOpenEventDetail,
 } from '@/features/canvas/utils'
 import { LS_KEYS, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -18,6 +20,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
 import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
+import { onGeospatialModeChanged } from '@/features/geospatial/events'
 
 type ToolbarMenuLauncherProps = {
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
@@ -29,8 +32,16 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
 
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
-    { view: 'propsPanel' | 'renderer' | 'graphTraversal'; seq: number } | null
+    { view: 'propsPanel' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'; seq: number } | null
   >(null)
+
+  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
+    try {
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+    } catch {
+      return false
+    }
+  })
 
   const {
     isToolMenuOpen,
@@ -55,7 +66,16 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
   useToolMenuShortcuts(handleToolMenuShortcutAction)
 
   useEffect(() => {
+    return onGeospatialModeChanged(detail => {
+      const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
+      if (enabled == null) return
+      setGeospatialModeEnabled(enabled)
+    })
+  }, [])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
+
     const handleOpenPropsPanel = (event: Event) => {
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
@@ -84,6 +104,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
       }
       setIsToolMenuOpen(true)
     }
+
     const handleOpenRenderer = () => {
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
@@ -92,15 +113,42 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
       })
       setIsToolMenuOpen(true)
     }
+
+    const handleOpenSidePanel = (ev: Event) => {
+      const e = ev as CustomEvent<SidePanelOpenEventDetail | undefined>
+      const tab = e.detail?.tab
+      const requested =
+        tab === 'chat'
+          ? 'chat'
+          : tab === 'geo'
+            ? 'geo'
+            : tab === 'inspector' || tab === 'node'
+              ? 'inspector'
+              : null
+      if (!requested) return
+      floatingPanelRequestSeqRef.current += 1
+      setFloatingPanelRequestedView({
+        view: requested === 'geo' && !geospatialModeEnabled ? 'inspector' : requested,
+        seq: floatingPanelRequestSeqRef.current,
+      })
+      if (e.detail?.open === false) {
+        closeToolMenu()
+        return
+      }
+      setIsToolMenuOpen(true)
+    }
+
     window.addEventListener(PROPS_PANEL_OPEN_EVENT, handleOpenPropsPanel)
     window.addEventListener(RENDERER_PANEL_OPEN_EVENT, handleOpenRenderer)
     window.addEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
+    window.addEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
     return () => {
       window.removeEventListener(PROPS_PANEL_OPEN_EVENT, handleOpenPropsPanel)
       window.removeEventListener(RENDERER_PANEL_OPEN_EVENT, handleOpenRenderer)
       window.removeEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
+      window.removeEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
     }
-  }, [setIsToolMenuOpen, setToolMenuDragPos])
+  }, [closeToolMenu, geospatialModeEnabled, setIsToolMenuOpen, setToolMenuDragPos])
 
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const iconSizeClass = getIconSizeClass(uiIconScale)

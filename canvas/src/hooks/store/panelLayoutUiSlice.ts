@@ -68,21 +68,15 @@ function parseGraphFieldSettingsById(raw: unknown): GraphFieldSettingsById | nul
 
 export const createPanelLayoutUiSlice = (set: SetGraph) => {
   return {
-    isSidebarOpen: false,
-
     bottomPanelHeightRatio: lsNum(LS_KEYS.bottomPanelHeight, 0.35),
     bottomPanelCollapsed: lsBool(LS_KEYS.bottomPanelCollapsed, true),
     floatingPanelWidthRatio: lsNum(LS_KEYS.floatingPanelWidthRatio, 0.25),
     floatingPanelHeightRatio: lsNum(LS_KEYS.floatingPanelHeightRatio, 0.5),
     floatingPanelZIndex: lsInt(LS_KEYS.floatingPanelZIndex, 5000),
-    sidebarWidthRatio: lsNum(LS_KEYS.sidebarWidthRatio, 0.25),
     bottomPanelTab: 'stats' as BottomTab,
     schemaDeriveCacheCapacity: lsInt(LS_KEYS.schemaDeriveCacheCapacity, 16),
     graphFieldSettingsById: lsJson(LS_KEYS.graphFieldSettingsById, {} as GraphFieldSettingsById, parseGraphFieldSettingsById),
     selectedGraphFieldId: null as GraphFieldId | null,
-
-    setSidebarOpen: (open: boolean) => set({ isSidebarOpen: open }),
-    toggleSidebar: () => set(s => ({ isSidebarOpen: !s.isSidebarOpen })),
 
     setBottomPanelHeightRatio: (v: number) =>
       set({ bottomPanelHeightRatio: lsSetNum(LS_KEYS.bottomPanelHeight, v) }),
@@ -99,10 +93,6 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     setFloatingPanelZIndex: (v: number) =>
       set({
         floatingPanelZIndex: lsSetInt(LS_KEYS.floatingPanelZIndex, v, { min: 1, max: 100000 }),
-      }),
-    setSidebarWidthRatio: (v: number) =>
-      set({
-        sidebarWidthRatio: lsSetNum(LS_KEYS.sidebarWidthRatio, v),
       }),
     setBottomPanelTab: (tab: BottomTab) =>
       set(() => ({

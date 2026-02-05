@@ -63,34 +63,15 @@ function ToastCard({ toast, onDismiss }: { toast: UiToast; onDismiss: (id: strin
 }
 
 export function ToastHost() {
-  const { toasts, dismissUiToast, pruneUiToasts, isSidebarOpen, sidebarWidthRatio } = useGraphStore(
+  const { toasts, dismissUiToast, pruneUiToasts } = useGraphStore(
     useShallow(s => ({
       toasts: s.uiToasts,
       dismissUiToast: s.dismissUiToast,
       pruneUiToasts: s.pruneUiToasts,
-      isSidebarOpen: s.isSidebarOpen,
-      sidebarWidthRatio: s.sidebarWidthRatio,
     })),
   )
 
   const orderedToasts = Array.isArray(toasts) ? toasts : []
-
-  const [rightPx, setRightPx] = React.useState(12)
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    const compute = () => {
-      const base = 12
-      const ratio = typeof sidebarWidthRatio === 'number' && Number.isFinite(sidebarWidthRatio) ? sidebarWidthRatio : 0
-      const widthPx = isSidebarOpen ? Math.max(0, Math.min(0.9, ratio)) * window.innerWidth : 0
-      setRightPx(Math.round(base + widthPx))
-    }
-    compute()
-    window.addEventListener('resize', compute)
-    return () => {
-      window.removeEventListener('resize', compute)
-    }
-  }, [isSidebarOpen, sidebarWidthRatio])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -114,7 +95,7 @@ export function ToastHost() {
       className="fixed z-[2500] pointer-events-none"
       style={{
         top: TOAST_TOP_PX,
-        right: rightPx,
+        right: 12,
       }}
       aria-live="polite"
       aria-relevant="additions removals"

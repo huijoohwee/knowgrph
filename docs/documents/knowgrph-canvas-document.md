@@ -72,6 +72,10 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - **Canvas mode** is the default full-screen graph workspace with Toolbar, BottomPanel, and the optional right side panel.
 - **Editor mode** is a VS Code-like embedded workspace that reuses the existing Markdown Workspace SSOT (files + editor/viewer/split/presentation + import + apply-to-graph) and shows a Canvas preview.
 
+- The right SidePanel shell is a single FloatingPanel primitive (`<div role="complementary">` via `FloatingPanel as="div"`) and must not be re-implemented with ad-hoc containers.
+- Only the active SidePanel tab is mounted; inactive tabs must not render hidden panels to avoid background work and cross-mode interference.
+- SidePanel tabs header must use semantic navigation elements (`<header>` + `<nav>`/`<menu>`), not generic wrappers.
+
 ### Preview Contract (SSOT)
 
 - Editor mode previews the Canvas using an embedded `iframe` marked with `data-kg-preview="1"` (the host may also use `?kgPreview=1`).
@@ -95,6 +99,13 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
   - Column resizing uses `<colgroup><col style="width:..."/></colgroup>` + a `<button>` resize handle inside each header cell.
 - Split/Inspector:
   - The table grid and the Record Inspector are split by a draggable vertical `<hr>`; inspector open state and width persist via `LS_KEYS.graphTableInspectorOpen` and `LS_KEYS.graphTableInspectorWidthPx`.
+
+### Record Inspector (SSOT)
+
+- The Record Inspector UI is a host-owned SSOT component (`GraphTableInspector`) and must be reused across surfaces.
+- Canvas mode mounts the Record Inspector inside the **Floating Panel** (tool menu) as the "Inspector" view, rather than maintaining a separate legacy right SidePanel.
+- When the active 2D renderer is `flowEditor`, the Flow Editor Inspector is consolidated into the same Floating Panel "Inspector" surface via a portal slot id (`FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID`) to avoid duplicate inspector panels.
+- Editing a field in the inspector updates RxDB first, then applies a bounded write-through to the graph store to keep `graphDataRevision` and derived render views consistent.
 
 ### Selection Sync (Table ↔ Preview ↔ TOC)
 

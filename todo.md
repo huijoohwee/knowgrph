@@ -30,9 +30,11 @@
 
 ### P0-Critical
 
+- produce a short “current switching matrix” (what combinations are valid/disabled today: baseline lock, geospatial on/off, 2d/3d, 2d renderer d3/flow) using the exact guards in the referenced files—still without code changes
+
 #### 2026-02-04
 
-generate a MECE “store API surface map” (action → slice → primary callers) by extracting the top ~30 most-used selectors from the 80+ useGraphStore(...) call sites (components + panels)
+- generate a MECE “store API surface map” (action → slice → primary callers) by extracting the top ~30 most-used selectors from the 80+ useGraphStore(...) call sites (components + panels)
 
 #### 2026-01-29
 

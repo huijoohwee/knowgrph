@@ -27,8 +27,6 @@ export function useToolbarState() {
       uiPanelKeyValueTextSizeClass: s.uiPanelKeyValueTextSizeClass || 'text-xs',
       selectMode: s.schema.behavior?.selectMode ?? 'single',
       setSelectMode: s.setSelectMode,
-      isSidebarOpen: s.isSidebarOpen,
-      setSidebarOpen: s.setSidebarOpen,
       viewPinned: s.viewPinned,
       setViewPinned: s.setViewPinned,
       toggleViewPinned: s.toggleViewPinned,

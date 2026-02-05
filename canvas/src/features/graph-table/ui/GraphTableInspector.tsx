@@ -44,7 +44,7 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
   if (!row) return null
 
   return (
-    <aside
+    <section
       className={`h-full min-h-0 ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col`}
       style={widthPx ? { width: `${widthPx}px` } : undefined}
       aria-label="Record inspector"
@@ -94,6 +94,6 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
           })}
         </dl>
       </section>
-    </aside>
+    </section>
   )
 }

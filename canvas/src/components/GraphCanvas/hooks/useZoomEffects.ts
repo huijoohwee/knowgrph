@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
-import { computePanelAwareCanvasDims } from '@/components/GraphCanvas/helpers'
 import { applyZoomRequest, type ZoomRequest } from '@/components/GraphCanvas/zoomController'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
@@ -31,18 +30,12 @@ export function useZoomEffects({
       if (!zoomRequest || !svgRef.current || !zoomRef.current) return
       const state = useGraphStore.getState()
       const svg = d3.select(svgRef.current)
-      const panelDims = computePanelAwareCanvasDims(
-        Math.max(1, Math.floor(dimsRef.current.width)),
-        Math.max(1, Math.floor(dimsRef.current.height)),
-        !!state.isSidebarOpen,
-        state.sidebarWidthRatio,
-      )
       applyZoomRequest(zoomRequest, {
         svg,
         zoom: zoomRef.current,
         graphData: state.graphData,
-        width: panelDims.width,
-        height: panelDims.height,
+        width: Math.max(1, Math.floor(dimsRef.current.width)),
+        height: Math.max(1, Math.floor(dimsRef.current.height)),
         selectedNodeId: state.selectedNodeId,
         selectedEdgeId: state.selectedEdgeId,
         selectedNodeIds: state.selectedNodeIds,

@@ -56,7 +56,6 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   floatingPanelWidthRatio: 0.25,
   floatingPanelHeightRatio: 0.5,
   floatingPanelZIndex: 40,
-  sidebarWidthRatio: 0.2,
   bottomPanelTab: 'stats' as BottomTab,
   frontmatterModeEnabled: true,
   documentSemanticMode: 'document' as DocumentSemanticMode,
@@ -138,7 +137,6 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setFloatingPanelWidthRatio: (v: number) => set({ floatingPanelWidthRatio: v }),
   setFloatingPanelHeightRatio: (v: number) => set({ floatingPanelHeightRatio: v }),
   setFloatingPanelZIndex: (v: number) => set({ floatingPanelZIndex: v }),
-  setSidebarWidthRatio: (v: number) => set({ sidebarWidthRatio: v }),
   setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
   setFrontmatterModeEnabled: (v: boolean) => {
     if (get().documentStructureBaselineLock === true) {

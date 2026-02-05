@@ -123,8 +123,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   requestEdgeCreation: (req: { type: 'create' | 'update-source' | 'update-target'; fromId: string }) => set({ edgeCreationRequest: { ...req, at: Date.now() } }),
   clearEdgeCreationRequest: () => set({ edgeCreationRequest: null }),
   canvasRenderMode: '2d' as '2d' | '3d',
-  canvas2dRenderer: lsJson<'d3' | 'flow'>(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, v =>
-    v === 'flow' || v === 'd3' ? v : DEFAULT_CANVAS_2D_RENDERER,
+  canvas2dRenderer: lsJson<'d3' | 'flow' | 'flowEditor'>(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, v =>
+    v === 'flow' || v === 'd3' || v === 'flowEditor' ? v : DEFAULT_CANVAS_2D_RENDERER,
   ),
   canvasRenderModeLastFree: '2d' as '2d' | '3d',
   canvasRenderModeIsAuto: false as boolean,
@@ -157,7 +157,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
       return { canvasRenderMode: requested, canvasRenderModeLastFree: requested, canvasRenderModeIsAuto: false }
     })
   },
-  setCanvas2dRenderer: (id: 'd3' | 'flow') => {
+  setCanvas2dRenderer: (id: 'd3' | 'flow' | 'flowEditor') => {
     const cur = get()
     if (cur.documentStructureBaselineLock === true) {
       cur.upsertUiToast({
@@ -169,7 +169,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
       return
     }
     set(state => {
-      const next: 'd3' | 'flow' = id === 'flow' ? 'flow' : 'd3'
+      const next: 'd3' | 'flow' | 'flowEditor' = id === 'flow' ? 'flow' : id === 'flowEditor' ? 'flowEditor' : 'd3'
       if (state.canvas2dRenderer === next) return {}
       lsSetJson(LS_KEYS.canvas2dRenderer, next)
       return { canvas2dRenderer: next }

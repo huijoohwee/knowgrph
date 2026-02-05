@@ -5,17 +5,14 @@ import { useLocation } from 'react-router-dom'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import { LS_KEYS, STORAGE_CHANNELS, UI_LAYOUT } from '@/lib/config'
+import { LS_KEYS, STORAGE_CHANNELS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { hashText } from '@/features/parsers/hash'
 import { autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty } from '@/features/parsers/loader'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
-import TabHeader from '@/features/panels/ui/TabHeader'
-import { SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { FileCode, Map, MessageCircle } from 'lucide-react'
 import ToastHost from '@/components/ui/ToastHost'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
@@ -33,14 +30,12 @@ const GeospatialPanelHostLazy = React.lazy(async () => {
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const FlowCanvasLazy = React.lazy(() => import('@/components/FlowCanvas'))
+const FlowEditorCanvasLazy = React.lazy(() => import('@/components/FlowEditorCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const BottomPanelLazy = React.lazy(() => import('@/components/BottomPanel'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
-const NodeEditorLazy = React.lazy(() => import('@/components/NodeEditor'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
-const SidebarTriggerLazy = React.lazy(() => import('@/components/SidebarTrigger'))
-const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
 
 type MarkdownMetricSample = {
   ts: number
@@ -159,9 +154,6 @@ export default function CanvasPage() {
   }, [location.search])
 
   const {
-    isSidebarOpen,
-    setSidebarOpen,
-    sidebarWidthRatio,
     uiOverlayOpacity,
     uiPanelOpacity,
     uiToolbarOpacity,
@@ -178,9 +170,6 @@ export default function CanvasPage() {
     workspaceViewMode,
   } = useGraphStore(
     useShallow(s => ({
-      isSidebarOpen: s.isSidebarOpen,
-      setSidebarOpen: s.setSidebarOpen,
-      sidebarWidthRatio: s.sidebarWidthRatio,
       uiOverlayOpacity: s.uiOverlayOpacity,
       uiPanelOpacity: s.uiPanelOpacity,
       uiToolbarOpacity: s.uiToolbarOpacity,
@@ -209,14 +198,12 @@ export default function CanvasPage() {
   )
   const lastAutoAppliedMarkdownHashRef = React.useRef<string | null>(null)
   const [, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false)
-  const asideRef = React.useRef<HTMLDivElement | null>(null)
-  const sidebarToggleRef = React.useRef<HTMLButtonElement | null>(null)
   const syncRef = React.useRef<ReturnType<typeof createTabSync> | null>(null)
   const applyingRemoteRef = React.useRef(false)
   const lastSelectionRef = React.useRef<{ n: string | null; e: string | null } | null>(null)
   const lastSchemaHashRef = React.useRef<string | null>(null)
   const lastSchemaRemoteTimestampRef = React.useRef<number>(0)
-  const [sidebarTopOffsetPx, setSidebarTopOffsetPx] = React.useState(0)
+  
 
   React.useEffect(() => {
     const root = document.documentElement
@@ -252,28 +239,6 @@ export default function CanvasPage() {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    let timer: ReturnType<typeof setTimeout> | null = null
-    const measure = () => {
-      if (timer) return
-      timer = setTimeout(() => {
-        const toolbar = typeof document === 'undefined' ? null : document.querySelector('.App-toolbar')
-        const toolbarOffsetPx = UI_LAYOUT.toolbarOffsetPx
-        const toolbarBottomPx = toolbar instanceof HTMLElement ? toolbar.getBoundingClientRect().bottom : toolbarOffsetPx
-        const topOffset = toolbarBottomPx + toolbarOffsetPx
-        setSidebarTopOffsetPx(topOffset)
-        timer = null
-      }, 100)
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => {
-      window.removeEventListener('resize', measure)
-      if (timer) clearTimeout(timer)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
     const handler = (ev: StorageEvent) => {
       if (!ev || ev.key !== LS_KEYS.geospatialOverlayEnabled) return
       try {
@@ -287,8 +252,6 @@ export default function CanvasPage() {
       window.removeEventListener('storage', handler)
     }
   }, [])
-
-  void setSidebarOpen
 
   React.useEffect(() => {
     if (!enableTabSync) return
@@ -394,11 +357,11 @@ export default function CanvasPage() {
       return false
     }
   })
-  const [sidePanelTab, setSidePanelTab] = React.useState<'node' | 'chat' | 'geo'>('node')
 
-  const [mounted2dRenderers, setMounted2dRenderers] = React.useState<{ d3: boolean; flow: boolean }>(() => ({
+  const [mounted2dRenderers, setMounted2dRenderers] = React.useState<{ d3: boolean; flow: boolean; flowEditor: boolean }>(() => ({
     d3: canvas2dRenderer === 'd3',
     flow: canvas2dRenderer === 'flow',
+    flowEditor: canvas2dRenderer === 'flowEditor',
   }))
 
   React.useEffect(() => {
@@ -408,6 +371,10 @@ export default function CanvasPage() {
     }
     if (canvas2dRenderer === 'flow') {
       setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
+      return
+    }
+    if (canvas2dRenderer === 'flowEditor') {
+      setMounted2dRenderers(prev => (prev.flowEditor ? prev : { ...prev, flowEditor: true }))
     }
   }, [canvas2dRenderer])
 
@@ -416,24 +383,32 @@ export default function CanvasPage() {
     if (geospatialModeEnabled) return
     if (canvasRenderMode !== '2d') return
 
-    const other = canvas2dRenderer === 'flow' ? 'd3' : 'flow'
-    if (other === 'd3' && mounted2dRenderers.d3) return
-    if (other === 'flow' && mounted2dRenderers.flow) return
+    const shouldPrefetchD3 = canvas2dRenderer !== 'd3' && !mounted2dRenderers.d3
+    const shouldPrefetchFlow = canvas2dRenderer !== 'flow' && !mounted2dRenderers.flow
+    const shouldPrefetchFlowEditor = canvas2dRenderer !== 'flowEditor' && !mounted2dRenderers.flowEditor
+    if (!shouldPrefetchD3 && !shouldPrefetchFlow && !shouldPrefetchFlowEditor) return
 
     let cancelled = false
     const prefetch = () => {
       if (cancelled) return
-      if (canvas2dRenderer === 'flow') {
+      if (shouldPrefetchD3) {
         void import('@/components/GraphCanvas').then(() => {
           if (cancelled) return
           setMounted2dRenderers(prev => (prev.d3 ? prev : { ...prev, d3: true }))
         })
-        return
       }
-      void import('@/components/FlowCanvas').then(() => {
-        if (cancelled) return
-        setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
-      })
+      if (shouldPrefetchFlow) {
+        void import('@/components/FlowCanvas').then(() => {
+          if (cancelled) return
+          setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
+        })
+      }
+      if (shouldPrefetchFlowEditor) {
+        void import('@/components/FlowEditorCanvas').then(() => {
+          if (cancelled) return
+          setMounted2dRenderers(prev => (prev.flowEditor ? prev : { ...prev, flowEditor: true }))
+        })
+      }
     }
 
     const anyWindow = window as unknown as {
@@ -483,35 +458,6 @@ export default function CanvasPage() {
     void autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty({ name: markdownDocumentName, text })
   }, [documentSemanticMode, frontmatterModeEnabled, graphData, markdownDocumentName, markdownDocumentText])
 
-  React.useEffect(() => {
-    if (geospatialModeEnabled) {
-      if (sidePanelTab === 'node') setSidePanelTab('geo')
-      return
-    }
-    if (sidePanelTab === 'geo') setSidePanelTab('node')
-  }, [geospatialModeEnabled, sidePanelTab])
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ tab?: 'node' | 'chat' | 'geo'; open?: boolean } | undefined>
-      const detail = e.detail
-      const tab =
-        detail?.tab === 'chat' ? 'chat' : detail?.tab === 'geo' ? 'geo' : detail?.tab === 'node' ? 'node' : null
-      if (tab) {
-        if (tab === 'geo' && !geospatialModeEnabled) {
-          setSidePanelTab('node')
-        } else {
-          setSidePanelTab(tab)
-        }
-      }
-      if (detail?.open) setSidebarOpen(true)
-    }
-    window.addEventListener(SIDE_PANEL_OPEN_EVENT, handler as EventListener)
-    return () => {
-      window.removeEventListener(SIDE_PANEL_OPEN_EVENT, handler as EventListener)
-    }
-  }, [geospatialModeEnabled, setSidebarOpen])
   const makeZoomHandler = (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => () => {
     if (geospatialModeEnabled) {
       requestZoom(type)
@@ -694,15 +640,14 @@ export default function CanvasPage() {
               )}
               {!geospatialModeEnabled && canvasRenderMode === '2d' && (
                 <>
-                  <div
-                    className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}
-                  >
+                  <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}>
                     {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
                   </div>
-                  <div
-                    className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}
-                  >
+                  <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
                     {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
+                  </div>
+                  <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
+                    {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
                   </div>
                 </>
               )}
@@ -770,7 +715,6 @@ export default function CanvasPage() {
                         onReset={handleReset}
                         onZoomSelection={handleZoomSelection}
                       />
-                      <SidebarTriggerLazy ref={sidebarToggleRef} className="absolute right-3" />
                     </React.Suspense>
                   </nav>
                   <ToastHost />
@@ -801,15 +745,14 @@ export default function CanvasPage() {
                       )}
                       {!geospatialModeEnabled && canvasRenderMode === '2d' && (
                         <>
-                          <div
-                            className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}
-                          >
+                          <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}>
                             {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
                           </div>
-                          <div
-                            className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}
-                          >
+                          <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
                             {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
+                          </div>
+                          <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
+                            {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
                           </div>
                         </>
                       )}
@@ -831,93 +774,6 @@ export default function CanvasPage() {
                       <BottomPanelLazy />
                       <MarkdownMetricsDevOverlay />
                     </React.Suspense>
-                    <aside
-                      className={`absolute right-0 z-30 transition-all duration-200 flex flex-col ${
-                        isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                      }`}
-                      style={{
-                        width: isSidebarOpen ? `${Math.round(((sidebarWidthRatio || 0.25) * 100))}vw` : 0,
-                        top: `${Math.max(0, Math.round(sidebarTopOffsetPx))}px`,
-                        bottom: 'var(--bottom-panel-height-px, 40px)',
-                      }}
-                      aria-hidden={!isSidebarOpen}
-                      ref={asideRef}
-                    >
-                      <div className="ModalContainer h-full flex flex-col rounded-none shadow-none p-0 border-l border-gray-200 border-t-0 border-b-0 border-r-0">
-                        <TabHeader
-                          collapsed={false}
-                          tabs={
-                            geospatialModeEnabled
-                              ? [
-                                  { key: 'chat', label: 'Chat' },
-                                  { key: 'geo', label: 'Geo' },
-                                ]
-                              : [
-                                  { key: 'node', label: 'Node' },
-                                  { key: 'chat', label: 'Chat' },
-                                  { key: 'geo', label: 'Geo' },
-                                ]
-                          }
-                          tabVariant="icon"
-                          tabIconByKey={{
-                            node: FileCode,
-                            chat: MessageCircle,
-                            geo: Map,
-                          }}
-                          activeTab={sidePanelTab}
-                          onTabChange={key => {
-                            const next = key === 'chat' ? 'chat' : key === 'geo' ? 'geo' : 'node'
-                            if (next === 'geo' && !geospatialModeEnabled) {
-                              setSidePanelTab('node')
-                              return
-                            }
-                            setSidePanelTab(next)
-                          }}
-                        />
-                        <div className="flex-1 overflow-y-auto">
-                          <React.Suspense fallback={null}>
-                            <div className={sidePanelTab === 'chat' ? 'h-full' : 'hidden'}>
-                              <SidePanelChatLazy />
-                            </div>
-                            <div className={sidePanelTab === 'node' ? 'h-full' : 'hidden'}>
-                              {!geospatialModeEnabled && <NodeEditorLazy />}
-                            </div>
-                            <div className={sidePanelTab === 'geo' ? 'h-full' : 'hidden'}>
-                              {geospatialModeEnabled ? (
-                                <GeospatialPanelHostLazy
-                                  active
-                                  showDatasetsManager={false}
-                                  snapshot={{
-                                    graphData: activeGraphData,
-                                    zoomState: gympgrphBridge.zoomState,
-                                    canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                                    selectedNodeId: gympgrphBridge.selectedNodeId,
-                                    selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                                    selectedEdgeId: gympgrphBridge.selectedEdgeId,
-                                  }}
-                                  handlers={{
-                                    selectNode: gympgrphBridge.selectNode,
-                                    selectEdge: gympgrphBridge.selectEdge,
-                                    setSelectionSource: gympgrphBridge.setSelectionSource,
-                                    requestZoom: gympgrphBridge.requestZoom,
-                                    requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                                    pushUiToast: gympgrphBridge.pushUiToast,
-                                    upsertUiToast: gympgrphBridge.upsertUiToast,
-                                    dismissUiToast: gympgrphBridge.dismissUiToast,
-                                  }}
-                                />
-                              ) : (
-                                <aside className="p-3" aria-label="Geospatial Disabled">
-                                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                                    Enable Geospatial Mode to view this panel.
-                                  </p>
-                                </aside>
-                              )}
-                            </div>
-                          </React.Suspense>
-                        </div>
-                      </div>
-                    </aside>
                   </>
                 </>
               </div>

@@ -14,7 +14,6 @@ import {
   allocateNewRowId,
   createRowFromGraphEntity,
   getGraphTableDb,
-  syncGraphDataToGraphTableDb,
   updateGraphTableCell,
   type GraphColumnDoc,
   type GraphRowDoc,
@@ -40,6 +39,8 @@ import {
   type GraphTableRowHeightPreset,
   type GraphTableSortRule,
 } from '@/features/graph-table/ui/graphTableViewState'
+import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCellUpdateToGraphStore'
+import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
 
 const mapRowDocToGridRow = (doc: GraphRowDoc): GraphTableGridRow => ({
   id: doc.rowId,
@@ -57,51 +58,6 @@ const getRowTocId = (row: GraphTableGridRow | null): string | null => {
   const heading = typeof anyRow.heading === 'string' ? anyRow.heading.trim() : ''
   if (heading) return heading
   return null
-}
-
-const applyCellUpdateToGraphStore = (
-  tableId: GraphTableId,
-  rowId: string,
-  columnId: string,
-  value: unknown,
-): void => {
-  const s = useGraphStore.getState()
-  if (tableId === 'nodes') {
-    if (columnId === 'label') {
-      s.updateNode(rowId, { label: String(value ?? '') })
-      return
-    }
-    if (columnId === 'type') {
-      s.updateNode(rowId, { type: String(value ?? '') })
-      return
-    }
-    if (columnId === 'id') return
-    const key = columnId.startsWith('prop:') ? columnId.slice('prop:'.length) : columnId
-    const current = s.graphData?.nodes.find(n => n.id === rowId)
-    const properties = { ...(current?.properties || {}) }
-    properties[key] = value as never
-    s.updateNode(rowId, { properties })
-    return
-  }
-
-  if (columnId === 'label') {
-    s.updateEdge(rowId, { label: String(value ?? '') })
-    return
-  }
-  if (columnId === 'source') {
-    s.updateEdge(rowId, { source: String(value ?? '') })
-    return
-  }
-  if (columnId === 'target') {
-    s.updateEdge(rowId, { target: String(value ?? '') })
-    return
-  }
-  if (columnId === 'id') return
-  const key = columnId.startsWith('prop:') ? columnId.slice('prop:'.length) : columnId
-  const current = s.graphData?.edges.find(e => e.id === rowId)
-  const properties = { ...(current?.properties || {}) }
-  properties[key] = value as never
-  s.updateEdge(rowId, { properties })
 }
 
 export default function GraphTableWorkspace(props: { previewSrc?: string }) {
@@ -142,29 +98,11 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   const inspectorWidthPxRef = useRef(inspectorWidthPx)
   inspectorWidthPxRef.current = inspectorWidthPx
   const inspectorDragHandleRef = useRef<HTMLHRElement | null>(null)
-  const lastSyncedRevisionRef = useRef<number>(-1)
-  const lastGraphWriteRevisionRef = useRef<number | null>(null)
+  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, renderGraphData)
   const rowCacheRef = useRef<{ hashById: Map<string, number>; rowById: Map<string, GraphTableGridRow> }>({
     hashById: new Map(),
     rowById: new Map(),
   })
-
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      if (lastGraphWriteRevisionRef.current === graphDataRevision) {
-        lastGraphWriteRevisionRef.current = null
-        return
-      }
-      if (lastSyncedRevisionRef.current === graphDataRevision) return
-      await syncGraphDataToGraphTableDb(renderGraphData)
-      if (cancelled) return
-      lastSyncedRevisionRef.current = graphDataRevision
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [graphDataRevision, renderGraphData])
 
   useEffect(() => {
     let sub: Subscription | null = null
@@ -344,11 +282,11 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
       void (async () => {
         await updateGraphTableCell(activeTableId, rowId, columnId, next)
         const prev = useGraphStore.getState().graphDataRevision
-        lastGraphWriteRevisionRef.current = prev + 1
+        noteGraphWrite(prev + 1)
         applyCellUpdateToGraphStore(activeTableId, rowId, columnId, next)
       })()
     },
-    [activeTableId],
+    [activeTableId, noteGraphWrite],
   )
 
   const handleAddRow = useCallback(() => {
@@ -358,7 +296,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
         const node: GraphNode = { id: rowId, label: rowId, type: 'Entity', properties: {} }
         await createRowFromGraphEntity('nodes', rowId, node)
         const prev = useGraphStore.getState().graphDataRevision
-        lastGraphWriteRevisionRef.current = prev + 1
+        noteGraphWrite(prev + 1)
         useGraphStore.getState().addNode(node)
         return
       }
@@ -368,10 +306,10 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
       const edge: GraphEdge = { id: rowId, label: 'relates_to', source, target, properties: {} }
       await createRowFromGraphEntity('edges', rowId, edge)
       const prev = useGraphStore.getState().graphDataRevision
-      lastGraphWriteRevisionRef.current = prev + 1
+      noteGraphWrite(prev + 1)
       useGraphStore.getState().addEdge(edge)
     })()
-  }, [activeTableId, baseGraphData])
+  }, [activeTableId, baseGraphData, noteGraphWrite])
 
   const handleDeleteSelected = useCallback(() => {
     void (async () => {
@@ -382,14 +320,14 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
         const doc = await collections.rows.findOne(pk).exec()
         if (doc) await doc.remove()
         const prev = useGraphStore.getState().graphDataRevision
-        lastGraphWriteRevisionRef.current = prev + 1
+        noteGraphWrite(prev + 1)
         if (activeTableId === 'nodes') useGraphStore.getState().removeNode(rowId)
         else useGraphStore.getState().removeEdge(rowId)
       }
       setSelectedRowIds([])
       setInspectorRowId(null)
     })()
-  }, [activeTableId, selectedRowIds])
+  }, [activeTableId, noteGraphWrite, selectedRowIds])
 
   const rowCountLabel = useMemo(() => `${rows.length} rows`, [rows.length])
   const showInspector = inspectorOpen && !!selectedRow

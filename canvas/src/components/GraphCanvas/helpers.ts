@@ -8,56 +8,6 @@ import { coerceMediaUrl } from '@/lib/url'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { getEdgeBaseStroke as getEdgeBaseStrokeRaw, getNodeBaseFill as getNodeBaseFillRaw } from '@/lib/graph/visualStyles'
 
-function getBottomPanelHeightPx(): number {
-  if (typeof window === 'undefined') return 0
-  try {
-    const root = document.documentElement
-    const style = window.getComputedStyle(root)
-    const raw = style.getPropertyValue('--bottom-panel-height-px')
-    if (!raw) return 0
-    const trimmed = raw.trim()
-    if (!trimmed) return 0
-    const match = trimmed.match(/^(-?\d+(\.\d+)?)/)
-    if (!match) return 0
-    const n = parseFloat(match[1])
-    if (!Number.isFinite(n) || n <= 0) return 0
-    return n
-  } catch {
-    return 0
-  }
-}
-
-export function computePanelAwareCanvasDims(
-  width: number,
-  height: number,
-  isSidebarOpen: boolean,
-  sidebarWidthRatio: number | null | undefined,
-): { width: number; height: number } {
-  if (width <= 0 || height <= 0) {
-    return { width: 0, height: 0 }
-  }
-  if (typeof window === 'undefined') {
-    return {
-      width: Math.max(1, Math.floor(width)),
-      height: Math.max(1, Math.floor(height)),
-    }
-  }
-  let bottomPx = getBottomPanelHeightPx()
-  if (!Number.isFinite(bottomPx) || bottomPx < 0) bottomPx = 0
-  let sidebarPx = 0
-  if (isSidebarOpen) {
-    const vw = window.innerWidth || width
-    const ratio =
-      typeof sidebarWidthRatio === 'number' && sidebarWidthRatio > 0 && sidebarWidthRatio < 1
-        ? sidebarWidthRatio
-        : 0.25
-    sidebarPx = Math.max(0, Math.min(vw, Math.round(vw * ratio)))
-  }
-  const panelAwareWidth = Math.max(1, Math.floor(width - sidebarPx))
-  const panelAwareHeight = Math.max(1, Math.floor(height - bottomPx))
-  return { width: panelAwareWidth, height: panelAwareHeight }
-}
-
 export function create2dSvgSnapshotFns(
   svgRef: RefObject<SVGSVGElement | null>,
 ): {

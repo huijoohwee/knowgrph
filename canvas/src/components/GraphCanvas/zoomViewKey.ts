@@ -13,7 +13,6 @@ export function buildZoomViewKey(args: {
 }): string {
   return [
     String(args.canvasRenderMode),
-    String(args.canvas2dRenderer || ''),
     String(args.schemaLayoutEngineJson),
     String(args.frontmatterModeEnabled ? 1 : 0),
     String(args.documentSemanticMode),

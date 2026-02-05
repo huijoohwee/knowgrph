@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from 'vitest'
-import { resolveGroupCollisions, CollisionGroupItem, BoxIndices, computeBoxIndices } from '@/lib/graph/collision/boxCollision'
+import { resolveGroupCollisions, CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 
 interface MovableNode {
   id: string
@@ -68,14 +68,6 @@ describe('Group Collision Border Constraints', () => {
     
     expect(v1).toBeLessThan(0)
     expect(v2).toBeGreaterThan(0)
-    
-    // Simulate movement
-    const newX1 = nodes[0].x + v1
-    const newX2 = nodes[1].x + v2
-    
-    // Recompute bounds
-    const newCxA = groupA.cx + v1 // Assuming group follows nodes roughly (simplified)
-    const newCxB = groupB.cx + v2
     
     // Actually, in real sim, group position is derived from nodes.
     // Here we just want to verify the force vector direction and magnitude logic.

@@ -709,7 +709,7 @@ export const PIPELINE_COMMAND_LOADED_STATUS_TEXT =
 
 export const DATASET_EMPTY_TEXT = 'No dataset loaded.';
 
-export const NODE_EDITOR_EMPTY_TEXT = 'Select a node to edit its properties.';
+export const SELECTION_INSPECTOR_EMPTY_TEXT = 'Select a node or edge to edit its properties.';
 
 export const PARSER_JSONLD_EDGE_MAPPING_PIPELINE_DESCRIPTION =
   'Load into GraphData \u2192 JSON-LD \u2192 Graph edges/@id \u2192 Orchestrator. Checked relations become allowedRelations in the generated GraphRAG workflow JSON-LD.';

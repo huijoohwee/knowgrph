@@ -113,7 +113,6 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   floatingPanelWidthRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel width ratio (viewport)' },
   floatingPanelHeightRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel height ratio (viewport)' },
   floatingPanelZIndex: { area: 'Floating Panel Layout', responsibility: 'Floating panel z-index' },
-  sidebarWidthRatio: { area: 'Side Panel Layout', responsibility: 'Side panel width ratio (viewport)' },
   enableTabSync: { area: 'Tab Sync', responsibility: 'Enable cross‑tab sync' },
   enableVirtualTables: { area: 'Graph Data Table Virtualization', responsibility: 'Virtualized tables' },
   'graphDataTable.overscanMultiplier': {

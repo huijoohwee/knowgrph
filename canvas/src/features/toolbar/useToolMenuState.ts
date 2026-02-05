@@ -12,7 +12,7 @@ export function useToolMenuState() {
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false)
 
   const toolMenuButtonRef = useRef<HTMLButtonElement | null>(null)
-  const toolMenuCardRef = useRef<HTMLDivElement | null>(null)
+  const toolMenuCardRef = useRef<HTMLElement | null>(null)
   const [toolMenuDragPos, setToolMenuDragPos] = useState<ToolMenuDragPosition | null>(null)
   const toolMenuDragStateRef = useRef<{
     startX: number
@@ -40,7 +40,7 @@ export function useToolMenuState() {
     }
   }, [])
 
-  const handleToolMenuCardPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+  const handleToolMenuCardPointerDown = (event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return
     const el = toolMenuCardRef.current
     if (!el) return

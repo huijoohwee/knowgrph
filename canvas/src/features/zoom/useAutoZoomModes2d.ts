@@ -1,6 +1,5 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { computePanelAwareCanvasDims } from '@/components/GraphCanvas/helpers'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
@@ -43,12 +42,10 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
         }
         const nodes = Array.isArray(state.graphData?.nodes) ? state.graphData.nodes : []
         if (nodes.length === 0) return
-        const panelDims = computePanelAwareCanvasDims(
-          Math.max(1, Math.floor(dimsRef.current.viewportW)),
-          Math.max(1, Math.floor(dimsRef.current.viewportH)),
-          !!state.isSidebarOpen,
-          state.sidebarWidthRatio,
-        )
+        const panelDims = {
+          width: Math.max(1, Math.floor(dimsRef.current.viewportW)),
+          height: Math.max(1, Math.floor(dimsRef.current.viewportH)),
+        }
         const schema = state.schema as GraphSchema | null
         const [minScale, maxScale] = schema ? readZoomScaleExtent(schema) : [0.1, 4]
         const fitSig = schema
@@ -73,8 +70,6 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
         viewPinned: s.viewPinned,
         graphDataRevision: s.graphDataRevision,
         graphNodeCount: Array.isArray(s.graphData?.nodes) ? s.graphData.nodes.length : 0,
-        isSidebarOpen: s.isSidebarOpen,
-        sidebarWidthRatio: s.sidebarWidthRatio,
         fitPadding: s.schema?.layout?.fitPadding,
         fitDetectClusters: s.schema?.layout?.fitDetectClusters,
         fitTargetAspectRatio: s.schema?.layout?.fitTargetAspectRatio,

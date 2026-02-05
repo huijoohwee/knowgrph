@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, PanelsTopLeft, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -50,8 +50,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     uiIconAnimationEnabled,
     selectMode,
     setSelectMode,
-    isSidebarOpen,
-    setSidebarOpen,
   } = useToolbarState();
 
   const {
@@ -255,21 +253,32 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
       <IconButton
         className={`App-toolbar__btn ${
-          canvasRenderMode === '2d' && canvas2dRenderer === 'flow'
+          canvasRenderMode === '2d' && (canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor')
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
         }`}
-        title={canvas2dRenderer === 'flow' ? UI_COPY.twoDRendererFlowTitle : UI_COPY.twoDRendererD3Title}
+        title={
+          canvas2dRenderer === 'flowEditor'
+            ? UI_COPY.twoDRendererFlowEditorTitle
+            : canvas2dRenderer === 'flow'
+              ? UI_COPY.twoDRendererFlowTitle
+              : UI_COPY.twoDRendererD3Title
+        }
         tooltipContent={UI_COPY.twoDRendererToggleTooltip}
         disabled={canvasRenderMode !== '2d' || geospatialEnabled}
         onClick={() => {
           if (!ensureBaselineUnlocked()) return
-          const next = canvas2dRenderer === 'flow' ? 'd3' : 'flow'
+          const next = canvas2dRenderer === 'd3' ? 'flow' : canvas2dRenderer === 'flow' ? 'flowEditor' : 'd3'
           setCanvas2dRenderer(next)
         }}
         showTooltip
       >
-        {canvas2dRenderer === 'flow' ? (
+        {canvas2dRenderer === 'flowEditor' ? (
+          <div className="flex items-center gap-1">
+            <Pencil className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+            <span className="text-xs">Edit</span>
+          </div>
+        ) : canvas2dRenderer === 'flow' ? (
           <div className="flex items-center gap-1">
             <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
             <span className="text-xs">Flow</span>
@@ -460,17 +469,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
 
       <div className="App-toolbar__divider" />
-
-      <IconButton
-        className={`App-toolbar__btn ${
-          isSidebarOpen ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.sidebar}
-        onClick={() => setSidebarOpen(!isSidebarOpen)}
-        showTooltip
-      >
-        <PanelsTopLeft className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
       <IconButton
         className="App-toolbar__btn"
         title={UI_LABELS.propsPanel}

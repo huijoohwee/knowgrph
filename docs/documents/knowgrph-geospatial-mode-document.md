@@ -9,14 +9,14 @@
 ## Status (2026-01-24)
 
 - Knowgrph keeps Geospatial Mode logic out of its codebase and loads it on-demand from the sibling repo `gympgrph` (implementation lives in `gympgrph/src/`).
-- Knowgrph exposes a toolbar entrypoint (**Geospatial Mode**, right of **3D Mode**) that opens the Geo side-panel tab and toggles the gympgrph overlay.
+- Knowgrph exposes a toolbar entrypoint (**Geospatial Mode**, right of **3D Mode**) that opens the Floating Panel **Geo** view and toggles the gympgrph overlay.
 
 ## Current Status (Runtime Overlay)
 
 - In the extracted module, a MapLibre GL basemap renders as a translucent layer on top of the canvas.
 - The overlay supports interaction gating (**Off / Hold Space / Always**). Default interaction mode is **Always** for immediate navigation, and users can switch in the Geo panel.
 - Geospatial Mode is a canvas rendering mode: when **ON**, the canvas suppresses knowledge-graph rendering (nodes/edges/layers/rich media) so the map overlay and geospatial datasets are the primary surface.
-- SidePanel expand/collapse does not toggle Geospatial Mode.
+- Floating Panel open/close does not toggle Geospatial Mode.
 - MapLibre’s required CSS is loaded by the extracted module so host runtimes do not need to remember to import it separately (restores reliable drag/pan/zoom + pointer hit-testing).
 - **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
 - **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.
@@ -44,7 +44,7 @@
 - A persistent “blank overlay” state is prevented by warning when overlay opacity is `0%` and by timing out basemap load with a bounded error message.
 - Cross-origin asset proxying is **dev-only**: on localhost, cross-origin map assets (style JSON, sprites, glyphs, tiles, and dataset fetches) can be routed through `/__fetch_remote` to avoid CORS issues; in production/static deploys the proxy does not exist, so assets must load directly.
 - Style-relative URLs are resolved against a trailing-slash base (for example `.../styles/liberty/`) so `sprite`, `glyphs`, and `source.url` relative paths resolve correctly.
-- Runtime overlay status is surfaced via a native in-app toast (top-right, below the toolbar) so it stays visible above the SidePanel and other UI layers.
+- Runtime overlay status is surfaced via a native in-app toast (top-right, below the toolbar) so it stays visible above the Floating Panel and other UI layers.
 - Hover and click popups are rendered by MapLibre (not by the host UI) to keep POI feedback colocated with the map.
 - If the basemap stays blank after refresh while requests succeed, the most common cause is a **0px-height overlay container** (e.g. `canvas=1728x0`). The overlay is mounted via a portal and forces viewport-sized layout (`100vw/100vh` with px fallbacks) and calls `map.resize()` to avoid this dead state.
 

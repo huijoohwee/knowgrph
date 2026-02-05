@@ -153,6 +153,7 @@ import {
   testLayoutPositioningForcesLayoutWhenVariantChanges,
   testLayoutPositioningSkipsReseedOnToggle,
 } from '@/__tests__/layoutPositioning.test'
+import { testZoomViewKeyIsSharedAcross2dRenderers } from '@/__tests__/zoomViewKeySharedAcross2dRenderers.test'
 import {
   testFrontmatterModeEffectiveNoopWhenNoSeeds,
   testFrontmatterModeEffectiveWhenSeedsExist,
@@ -431,6 +432,7 @@ export const runAllTests = async () => {
   await exec('layout.positioning.cacheKeyIncludesViewKey', testLayoutPositioningCacheKeyIncludesViewKey)
   await exec('layout.positioning.isolatesMediaDensity', testLayoutPositioningCacheKeyIsolatesMediaDensity)
   await exec('layout.positioning.isolatesRenderMediaAsNodes', testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes)
+  await exec('zoom.viewKey.sharedAcross2dRenderers', testZoomViewKeyIsSharedAcross2dRenderers)
   await exec('layout.groupKey.prefersDeepestMermaidSubgraph', testLayoutGroupKeyPrefersDeepestMermaidSubgraph)
   await exec('semanticMode.schemaIsolation.restoresAndClears', testSemanticModeSchemaIsolationRestoresSchemaAndClearsSelection)
   await exec('layout.edges.opacity.usesUnderGroups', testEdgeOpacityUsesUnderGroupOpacityWhenGroupsEnabled)

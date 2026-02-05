@@ -313,15 +313,6 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     default: () => 5000,
   },
   {
-    key: 'sidebarWidthRatio',
-    type: 'number',
-    source: 'localStorage',
-    read: () => s().sidebarWidthRatio,
-    write: (v) => s().setSidebarWidthRatio(Number(v)),
-    docKey: 'sidebarWidthRatio',
-    default: () => 0.25,
-  },
-  {
     key: 'enableLaunchSpotlight',
     type: 'boolean',
     source: 'store',

@@ -125,12 +125,11 @@ function TabHeaderImpl({
       onPointerDown={handlePointerDown}
       aria-expanded={typeof collapsed === 'boolean' ? !collapsed : undefined}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <nav className="flex items-center gap-2 min-w-0" aria-label="Panel tabs">
         {tabs.length > 0 && (
-          <div
-            className={`flex items-center gap-1 min-w-0 ${
-              tabVariant === 'icon' ? '' : 'overflow-x-auto whitespace-nowrap'
-            }`}
+          <menu
+            className={`flex items-center gap-1 min-w-0 ${tabVariant === 'icon' ? '' : 'overflow-x-auto whitespace-nowrap'}`}
+            aria-label="Tabs"
           >
             {tabs.map(t => {
               if (tabVariant === 'icon') {
@@ -167,12 +166,12 @@ function TabHeaderImpl({
                 </button>
               )
             })}
-          </div>
+          </menu>
         )}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
+      </nav>
+      <section className="flex items-center gap-2 shrink-0" aria-label="Panel tools">
         {onSearchChange && (
-          <div
+          <section
             className={`overflow-hidden transition-[width] duration-200 ease-out ${
               searchVisible ? 'w-72' : 'w-0'
             }`}
@@ -185,10 +184,10 @@ function TabHeaderImpl({
                 searchVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             />
-          </div>
+          </section>
         )}
         {rightSlot}
-      </div>
+      </section>
     </header>
   )
 }

@@ -9,12 +9,12 @@ interface MainPanelBodyProps {
 
 export default function MainPanelBody({ header, children, scrollRef, scrollable = true }: MainPanelBodyProps) {
   return (
-    <aside className="h-full w-full min-h-0 flex flex-col overflow-hidden" aria-label="Sidebar Panel">
+    <aside className="h-full w-full min-h-0 flex flex-col overflow-hidden" aria-label="Main Panel">
       {header}
       <section
         ref={scrollRef}
         className={`flex-1 min-h-0 w-full ${scrollable ? 'overflow-auto' : 'overflow-hidden'}`}
-        aria-label="Sidebar Content"
+        aria-label="Main Panel Content"
       >
         {children}
       </section>

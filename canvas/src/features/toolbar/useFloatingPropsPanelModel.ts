@@ -76,7 +76,6 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
-  const setSidebarOpen = useGraphStore(s => s.setSidebarOpen)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const addNode = useGraphStore(s => s.addNode)
   const addEdge = useGraphStore(s => s.addEdge)
@@ -186,9 +185,9 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doOpenNodeSide = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
     setSelectionSource('toolbar')
-    setSidebarOpen(true)
+    emitSidePanelOpen({ tab: 'node', open: true })
     selectNode(nodeContextId)
-  }, [graphData, nodeContextId, setSelectionSource, setSidebarOpen, selectNode])
+  }, [graphData, nodeContextId, selectNode, setSelectionSource])
 
   const resolveMarkdownProvenance = React.useCallback(
     (meta: unknown) => {
@@ -394,9 +393,9 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!e) return
     const srcId = e.source
     setSelectionSource('toolbar')
-    setSidebarOpen(true)
+    emitSidePanelOpen({ tab: 'node', open: true })
     selectNode(srcId)
-  }, [edgeContextId, graphData, selectNode, setSelectionSource, setSidebarOpen])
+  }, [edgeContextId, graphData, selectNode, setSelectionSource])
 
   const doOpenTargetSide = React.useCallback(() => {
     if (!graphData || !edgeContextId) return
@@ -404,9 +403,9 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!e) return
     const tgtId = e.target
     setSelectionSource('toolbar')
-    setSidebarOpen(true)
+    emitSidePanelOpen({ tab: 'node', open: true })
     selectNode(tgtId)
-  }, [edgeContextId, graphData, selectNode, setSelectionSource, setSidebarOpen])
+  }, [edgeContextId, graphData, selectNode, setSelectionSource])
 
   const doUpdateSource = React.useCallback(() => {
     if (!graphData || !edgeContextId) return

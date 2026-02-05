@@ -92,12 +92,14 @@
 ### 5. Preserve Inactive Renderers
 ### 5. Forbid Inactive Renderer Interference
 - **Issue**: When multiple renderer layers remain mounted (even if visually hidden), they can still run effects (zoomRequest consumption, timers, layout recalculation, MapLibre lifecycle) and interfere with the active mode.
-- **Solution**: Canvas mounts renderers **mutually exclusively** and unmounts inactive layers.
-  - Active mode is the only mounted renderer and the only consumer of shared requests.
-  - Switching renderer must preserve selection and reuse cached layout/zoom state keyed by mode/renderer.
+- **Solution**: Canvas may **warm-mount** inactive renderers to reduce switch lag, but enforces strict **active gating**:
+  - Only the active renderer consumes shared requests (zoom/selection) and owns interactive listeners.
+  - Inactive renderers must short-circuit hot-path effects (draw loops, request consumption, store writes) when `active=false`.
+  - Caches remain SSOT-keyed: zoom state is restored via a stable view key; layout caches remain isolated by render variant.
   - UI container: `canvas/src/pages/Canvas.tsx`
   - 2D D3 renderer entry: `canvas/src/components/GraphCanvas.tsx`
   - 2D Flow renderer entry: `canvas/src/components/FlowCanvas.tsx`
+  - 2D Flow Editor (draft + commit) entry: `canvas/src/components/FlowEditorCanvas.tsx`
   - 3D renderer entry: `canvas/src/features/three/ThreeGraph.tsx`
   - Geospatial overlay host: `gympgrph` host surface mounted only when Geospatial Mode is enabled.
 
