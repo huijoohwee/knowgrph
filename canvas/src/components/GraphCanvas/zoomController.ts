@@ -50,6 +50,15 @@ export const applyZoomRequest = (
   const node = svg.node();
   const t = node ? d3.zoomTransform(node) : d3.zoomIdentity;
   const type: ZoomType = zoomRequest.type;
+
+  const lowerMinZoomIfNeeded = (targetMinK: number) => {
+    const nextMin = typeof targetMinK === 'number' && Number.isFinite(targetMinK) ? targetMinK : null
+    if (nextMin == null) return
+    const [minK0, maxK0] = zoom.scaleExtent()
+    if (nextMin < minK0) {
+      zoom.scaleExtent([nextMin, maxK0])
+    }
+  }
   const clear = () => {
     try {
       useGraphStore.getState().clearZoomRequest()
@@ -96,6 +105,10 @@ export const applyZoomRequest = (
     return;
   }
   if (type === 'out') {
+    if (graphData && (graphData.nodes || []).length > 0) {
+      const fitT = computeFitTransform()
+      if (fitT) lowerMinZoomIfNeeded(fitT.k)
+    }
     const [minK] = zoom.scaleExtent();
     const k2 = Math.max(minK, t.k / 1.2);
     if (graphData && (graphData.nodes || []).length > 0) {
@@ -126,6 +139,7 @@ export const applyZoomRequest = (
       clear()
       return
     }
+    lowerMinZoomIfNeeded(next.k)
     applyTransform(svg, zoom, next, 300)
     try { useGraphStore.getState().setLifecycleStage('zoomUpdate'); } catch { void 0; }
     clear()

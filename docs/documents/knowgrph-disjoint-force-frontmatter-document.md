@@ -90,12 +90,21 @@ layout:
     bboxCollideStrength: number        # default 0.7
     bboxCollidePadding: number         # default 10
     bboxCollideTouchEpsilonPx: number  # default schema-driven
+    bboxCollideTouchEpsilonXPx: number # optional axis-specific
+    bboxCollideTouchEpsilonYPx: number # optional axis-specific
+    bboxCollideTouchEpsilonZPx: number # optional axis-specific
+    bboxCollideZEnabled: boolean       # default false
     bboxCollideIterations: number      # default 2
 
     groupBboxCollide: boolean          # deprecated for disabling; enforced when groups enabled
     groupBboxCollideStrength: number   # default 0.385
     groupBboxCollidePadding: number    # default 10
     groupBboxCollideTouchEpsilonPx: number # default schema-driven
+    groupBboxCollideTouchEpsilonXPx: number # optional axis-specific
+    groupBboxCollideTouchEpsilonYPx: number # optional axis-specific
+    groupBboxCollideTouchEpsilonZPx: number # optional axis-specific
+    groupBboxCollideZEnabled: boolean       # default false
+    groupBboxCollideExtraGapZPx: number     # optional Z gap
     groupBboxCollideIterations: number # default 2
 ```
 

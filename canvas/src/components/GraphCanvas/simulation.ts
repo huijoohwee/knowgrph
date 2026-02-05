@@ -238,7 +238,9 @@ export const buildSimulation = (
               schema,
               paddingX: bboxCfg.paddingX,
               paddingY: bboxCfg.paddingY,
+              paddingZ: bboxCfg.paddingZ,
               touchEpsilonPx: bboxCfg.touchEpsilonPx,
+              touchEpsilonZPx: bboxCfg.touchEpsilonZPx,
               strength: bboxCfg.strength,
               iterations: bboxCfg.iterations,
             })
@@ -450,7 +452,9 @@ export const updateForceSimulationPresentation = (args: {
           schema,
           paddingX: bboxCfg.paddingX,
           paddingY: bboxCfg.paddingY,
+          paddingZ: bboxCfg.paddingZ,
           touchEpsilonPx: bboxCfg.touchEpsilonPx,
+          touchEpsilonZPx: bboxCfg.touchEpsilonZPx,
           strength: bboxCfg.strength,
           iterations: bboxCfg.iterations,
         })

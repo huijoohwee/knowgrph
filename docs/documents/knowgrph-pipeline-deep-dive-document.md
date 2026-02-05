@@ -62,6 +62,7 @@
   - JSON/JSON-LD/CSV: [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
 - Local/URL loader bridge (Bottom Panel): [useMarkdownLoader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/BottomPanel/useMarkdownLoader.ts)
 - Parser loader (text → GraphData): [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+- Import side-effects (SSOT sync into Markdown Editor + Recents): [importSideEffects.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importSideEffects.ts) (`applyImportedMarkdownToStore`)
 - Responsibility (S-V-O): Import action reads source → resolves text → hands off to parser loader → updates store.
 
 **YouTube import**:
@@ -135,6 +136,9 @@
 
 - Layout selection and caching: [positioning.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/positioning.ts)
 - Layout execution (seed + forces): [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
+- Collision stabilization (node + group AABB, nested no-touch): [collisionConfig.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/collisionConfig.ts), [groupOverlapByDepth.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/groupOverlapByDepth.ts)
+  - Broadphase: packed R-tree (Morton/Z-order), O(n log n) neighborhood queries.
+  - Nested containment: when a child group is a subset of a parent group, enforce an axis-specific inset margin (`layout.forces.groupBboxCollideNestedTouchEpsilon*`) so the child inner border never touches the parent border; Z only when `groupBboxCollideZEnabled` and both groups have explicit Z.
 - Mermaid seeded placement (subgraph spread + centroid recenter): [mermaidSeed.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/mermaidSeed.ts)
 - Mermaid direction parsing (LR/RL/TB/BT): [mermaidDirection.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/mermaidDirection.ts)
 - Cache surface: `layoutPositionCacheByMode` keyed by `(semanticMode, frontmatterMode, layoutMode)` (e.g. `document:default:force`, `keyword:frontmatter:radial`)

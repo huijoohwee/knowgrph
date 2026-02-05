@@ -11,6 +11,7 @@ import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { ensureMarkdownFileName, upsertWorkspaceTextDocument } from '@/features/workspace-fs/upsertWorkspaceTextDocument'
+import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -82,10 +83,15 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
         const isHttp = /^https?:\/\//i.test(rawSourceName)
         const name = isHttp ? deriveMarkdownNameFromUrl(rawSourceName) : ensureMarkdownFileName(res.input.name || first.displayName || first.name)
 
-        const store = useGraphStore.getState()
-        store.setWorkspaceViewMode('editor')
-        if (isHttp) store.addRecentFile({ name, url: rawSourceName, type: 'url' })
-        else store.addRecentFile({ name, path: type === 'local' ? first.name : undefined, type: 'markdown' })
+        applyImportedMarkdownToStore({
+          name,
+          text: res.input.text,
+          sourceUrl: isHttp ? rawSourceName : null,
+          recent: isHttp
+            ? { name, url: rawSourceName, type: 'url' }
+            : { name, path: type === 'local' ? first.name : undefined, type: 'markdown' },
+          curationView: 'markdown',
+        })
 
         void (async () => {
           try {

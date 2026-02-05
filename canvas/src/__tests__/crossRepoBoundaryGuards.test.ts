@@ -313,6 +313,8 @@ export function testForbidHardcodedSandboxAbsolutePaths() {
   const patterns: RegExp[] = [
     /\/Users\/[^\n]+\/Documents\/GitHub\/sandbox\//,
     /\/Users\/[^\n]+\/GitHub\/sandbox\//,
+    /\/Users\/[^\n]+\/Documents\/GitHub\/sandbox\/demo\/abc123\.md/,
+    /\/Users\/[^\n]+\/Documents\/GitHub\/sandbox\/demo\/trip-demo-mmd\.md/,
   ]
   for (const file of files) {
     const st = statSync(file)

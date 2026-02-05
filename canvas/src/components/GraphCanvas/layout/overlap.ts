@@ -8,6 +8,8 @@ import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionCo
 import { applyAabbOverlapPush, PackedRTree } from '@/lib/graph/collision/boxCollision'
 import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 import { readNodeStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
+import { readExplicitZ } from '@/lib/graph/collision/readZ'
+import { readNodeHalfD } from '@/lib/graph/collision/readNodeHalfD'
 import {
   DEFAULT_BBOX_COLLIDE_ITERATIONS,
   DEFAULT_BBOX_COLLIDE_PADDING,
@@ -56,7 +58,11 @@ export const createBboxCollideForce = (args: {
   schema: GraphSchema
   paddingX: number
   paddingY: number
+  paddingZ?: number
   touchEpsilonPx?: number
+  touchEpsilonXPx?: number
+  touchEpsilonYPx?: number
+  touchEpsilonZPx?: number
   strength: number
   iterations: number
 }): d3.Force<GraphNode, GraphEdge> => {
@@ -64,10 +70,24 @@ export const createBboxCollideForce = (args: {
   let nodes: GraphNode[] = []
   const borderGapMinPx = readCollisionConfig(schema).nodeBbox.borderGapPx
   const touchEpsilonPx = typeof args.touchEpsilonPx === 'number' && Number.isFinite(args.touchEpsilonPx) ? Math.max(0, args.touchEpsilonPx) : 0
+  const touchEpsilonXPx =
+    typeof args.touchEpsilonXPx === 'number' && Number.isFinite(args.touchEpsilonXPx) ? Math.max(0, args.touchEpsilonXPx) : touchEpsilonPx
+  const touchEpsilonYPx =
+    typeof args.touchEpsilonYPx === 'number' && Number.isFinite(args.touchEpsilonYPx) ? Math.max(0, args.touchEpsilonYPx) : touchEpsilonPx
+  const touchEpsilonZPx = typeof args.touchEpsilonZPx === 'number' && Number.isFinite(args.touchEpsilonZPx) ? Math.max(0, args.touchEpsilonZPx) : touchEpsilonPx
   let strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : DEFAULT_BBOX_COLLIDE_STRENGTH
   let iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : DEFAULT_BBOX_COLLIDE_ITERATIONS
   let paddingX = Number.isFinite(args.paddingX) ? Math.max(0, args.paddingX) : DEFAULT_BBOX_COLLIDE_PADDING
   let paddingY = Number.isFinite(args.paddingY) ? Math.max(0, args.paddingY) : DEFAULT_BBOX_COLLIDE_PADDING
+  let paddingZ = Number.isFinite(args.paddingZ) ? Math.max(0, args.paddingZ) : 0
+
+  const nodeBboxCfg = readCollisionConfig(schema).nodeBbox
+  const zEnabled = nodeBboxCfg.zEnabled === true
+  if (!zEnabled) {
+    paddingZ = 0
+  } else if (!Number.isFinite(args.paddingZ)) {
+    paddingZ = Math.max(0, nodeBboxCfg.paddingZ)
+  }
 
   const isPinned = (n: GraphNode): boolean =>
     (typeof (n as { fx?: unknown }).fx === 'number' && Number.isFinite((n as { fx: number }).fx)) ||
@@ -76,69 +96,93 @@ export const createBboxCollideForce = (args: {
   type NodeBoxItem = {
     cx: number
     cy: number
+    cz: number
+    hasZ: boolean
     halfW: number
     halfH: number
+    halfD: number
+    gapZ: number
     id: number
     pinned: boolean
   }
 
+  const items: NodeBoxItem[] = []
+
   const force = (alpha: number) => {
     const k = alpha * strength
     if (k <= 0 || nodes.length < 2) return
-    for (let iter = 0; iter < iterations; iter += 1) {
-      const items: NodeBoxItem[] = []
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-        const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-        if (x == null || y == null) continue
-        const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
-        const borderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, n), borderGapMinPx)
-        const halfW = ext.halfW + paddingX + borderGapPx
-        const halfH = ext.halfH + paddingY + borderGapPx
-        items.push({ cx: x, cy: y, halfW, halfH, id: i, pinned: isPinned(n) })
-      }
 
-      if (items.length < 2) continue
+    const kScaled = k * iterations
 
-      const index = new PackedRTree(items)
+    items.length = 0
+    let nonZCount = 0
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+      if (x == null || y == null) continue
+      const zInfo = zEnabled ? readExplicitZ(n) : { z: 0, hasZ: false }
+      if (!zInfo.hasZ) nonZCount += 1
+      const cz = zInfo.hasZ ? zInfo.z : 0
+      const halfD = zInfo.hasZ ? readNodeHalfD(n) : 0
+      const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+      const borderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, n), borderGapMinPx)
+      const halfW = ext.halfW + paddingX + borderGapPx
+      const halfH = ext.halfH + paddingY + borderGapPx
+      const gapZ = zInfo.hasZ ? paddingZ : 0
+      items.push({ cx: x, cy: y, cz, hasZ: zInfo.hasZ, halfW, halfH, halfD, gapZ, id: i, pinned: isPinned(n) })
+    }
 
-      for (let aIdx = 0; aIdx < items.length; aIdx += 1) {
-        const a = items[aIdx]!
-        const aNodeIdx = a.id
-        const aPinned = a.pinned
+    if (items.length < 2) return
 
-        const minX = a.cx - a.halfW
-        const maxX = a.cx + a.halfW
-        const minY = a.cy - a.halfH
-        const maxY = a.cy + a.halfH
+    const broadphaseUsesZ = zEnabled && nonZCount === 0
+    const minZ = broadphaseUsesZ ? 0 : -Infinity
+    const maxZ = broadphaseUsesZ ? 0 : Infinity
+    const index = new PackedRTree(items)
 
-        index.query(minX, minY, -Infinity, maxX, maxY, Infinity, (b) => {
-          if (b.id <= aNodeIdx) return
-          if (aPinned && b.pinned) return
+    for (let aIdx = 0; aIdx < items.length; aIdx += 1) {
+      const a = items[aIdx]!
+      const aNodeIdx = a.id
+      const aPinned = a.pinned
 
-          const dx = a.cx - b.cx
-          const dy = a.cy - b.cy
-          const ox = a.halfW + b.halfW - Math.abs(dx)
-          const oy = a.halfH + b.halfH - Math.abs(dy)
-          const oxAdj = ox + touchEpsilonPx
-          const oyAdj = oy + touchEpsilonPx
-          if (oxAdj > 0 && oyAdj > 0) {
-            applyAabbOverlapPush({
-              nodes,
-              aMovableIdxs: aPinned ? [] : [aNodeIdx],
-              bMovableIdxs: b.pinned ? [] : [b.id],
-              dx,
-              dy,
-              dz: 0,
-              ox: oxAdj,
-              oy: oyAdj,
-              oz: Infinity,
-              k,
-            })
-          }
-        })
-      }
+      const aMinX = a.cx - a.halfW
+      const aMaxX = a.cx + a.halfW
+      const aMinY = a.cy - a.halfH
+      const aMaxY = a.cy + a.halfH
+      const aMinZ = broadphaseUsesZ ? (a.cz - a.halfD - a.gapZ) : minZ
+      const aMaxZ = broadphaseUsesZ ? (a.cz + a.halfD + a.gapZ) : maxZ
+
+      index.query(aMinX, aMinY, aMinZ, aMaxX, aMaxY, aMaxZ, (b) => {
+        if (b.id <= aNodeIdx) return
+        if (aPinned && b.pinned) return
+
+        const dx = a.cx - b.cx
+        const dy = a.cy - b.cy
+        const dz = a.cz - b.cz
+        const ox = a.halfW + b.halfW - Math.abs(dx)
+        const oy = a.halfH + b.halfH - Math.abs(dy)
+        const oz = a.halfD + b.halfD + (a.gapZ + b.gapZ) - Math.abs(dz)
+        const oxAdj = ox + touchEpsilonXPx
+        const oyAdj = oy + touchEpsilonYPx
+
+        const useZPair = zEnabled && a.hasZ && b.hasZ
+        const ozAdj = oz + touchEpsilonZPx
+
+        if (oxAdj > 0 && oyAdj > 0 && (!useZPair || ozAdj > 0)) {
+          applyAabbOverlapPush({
+            nodes,
+            aMovableIdxs: aPinned ? [] : [aNodeIdx],
+            bMovableIdxs: b.pinned ? [] : [b.id],
+            dx,
+            dy,
+            dz,
+            ox: oxAdj,
+            oy: oyAdj,
+            oz: useZPair ? ozAdj : Infinity,
+            k: kScaled,
+          })
+        }
+      })
     }
   }
 

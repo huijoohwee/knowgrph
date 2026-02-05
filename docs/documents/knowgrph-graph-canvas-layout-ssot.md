@@ -10,7 +10,7 @@ Graph Canvas layout behavior is defined by a small set of SSOT modules. All mode
 | Node extents (render + labels) | `canvas/src/components/GraphCanvas/layout/overlap.ts` | `getNodeAabbHalfExtentsWithLabel` is the canonical AABB used by collision + group bounds (schema-aware cache to avoid stale extents). |
 | Collision knobs (node + group) | `canvas/src/components/GraphCanvas/layout/collisionConfig.ts` | `readCollisionConfig` is the only knob reader; schema-driven and shared across Force/Radial. |
 | Node collision (AABB) | `canvas/src/components/GraphCanvas/layout/overlap.ts` | `createBboxCollideForce` must only be created with knobs from `readCollisionConfig(...).nodeBbox`. |
-| Group collision (AABB) | `canvas/src/components/GraphCanvas/layout/groupOverlap.ts` | `createGroupBboxCollideForce` must only be created with knobs from `readCollisionConfig(...).groupBbox`. |
+| Group collision (AABB) | `canvas/src/components/GraphCanvas/layout/groupOverlap.ts` | `createGroupBboxCollideForce` must only be created with knobs from `readCollisionConfig(...).groupBbox`. Group collision also repels non-member nodes from group borders. |
 | Fit-to-screen options | `canvas/src/components/GraphCanvas/layout/fitConfig.ts` | `readFitAllOptions` is the only schema→fit mapping. |
 | Fit frame + zoom presets | `grph-shared/src/zoom/presets.ts` | `ZOOM_VIEWPORT_PRESET_16_9` + `computeFitFrame` are reused by fit + simulation seeding (avoid hardcoded `1920×1080`). |
 | Group key derivation (Group boxes) | `canvas/src/components/GraphCanvas/layout/layoutGroupKey.ts` | `createLayoutGroupKeyOfNode` derives a single collision grouping from rendered graph groups (Mermaid subgraphs → Markdown headings → keyword layers → communities). |
@@ -36,12 +36,27 @@ layout:
     bboxCollide: boolean
     bboxCollideStrength: number
     bboxCollidePadding: number
+    bboxCollidePaddingX: number
+    bboxCollidePaddingY: number
+    bboxCollidePaddingZ: number
     bboxCollideTouchEpsilonPx: number
+    bboxCollideTouchEpsilonXPx: number
+    bboxCollideTouchEpsilonYPx: number
+    bboxCollideTouchEpsilonZPx: number
+    bboxCollideZEnabled: boolean
     bboxCollideIterations: number
     groupBboxCollide: boolean
     groupBboxCollideStrength: number
     groupBboxCollidePadding: number
+    groupBboxCollidePaddingX: number
+    groupBboxCollidePaddingY: number
+    groupBboxCollidePaddingZ: number
     groupBboxCollideTouchEpsilonPx: number
+    groupBboxCollideTouchEpsilonXPx: number
+    groupBboxCollideTouchEpsilonYPx: number
+    groupBboxCollideTouchEpsilonZPx: number
+    groupBboxCollideZEnabled: boolean
+    groupBboxCollideExtraGapZPx: number
     groupBboxCollideIterations: number
     structuredRelaxSteps: number
   groups:

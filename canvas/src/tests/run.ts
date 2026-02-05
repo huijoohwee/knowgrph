@@ -23,7 +23,10 @@ import {
   testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
 import { testGroupBboxCollideSeparatesTopParentGroups } from '@/__tests__/groupOverlapForce.test'
-import { testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings } from '@/__tests__/groupOverlapByDepthForce.test'
+import {
+  testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings,
+  testNestedGroupInnerBorderDoesNotTouchParentOuterBorder,
+} from '@/__tests__/groupOverlapByDepthForce.test'
 import {
   testIsNodePointerTargetAcceptsPathNodes,
   testNodesLayerRendersDiamondAndHexPaths,
@@ -173,6 +176,8 @@ import {
   testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnly,
 } from '@/__tests__/geojsonMapPreviewRegressionGuards.test'
 import { testFlowCollisionRelaxSeparatesOverlappingNodes } from '@/__tests__/flowCollisionRelax.test'
+import { testNodeBboxCollideZRespectsSchemaGating, testNodeBboxCollideZRequiresExplicitZ } from '@/__tests__/bboxCollisionZNode.test'
+import { testGroupNodeNoStickSeparatesExternalNodeFromGroupBorder } from '@/__tests__/groupNodeNoStickRegression.test'
 import { testFlowHitTestGroupUsesLabelTopExtra } from '@/__tests__/flowGroupHitTest.test'
 import { testFlowGroupRelaxAddsGapBetweenSingleNodeGroups } from '@/__tests__/flowGroupSpacingRelax.test'
 import { testFlowNestedGroupRelaxAddsGapAtMultipleDepths } from '@/__tests__/flowNestedGroupSpacingRelax.test'
@@ -236,6 +241,7 @@ import { testMediaInteractiveDefaults } from '@/__tests__/mediaInteractiveDefaul
 import { testKeywordModeDerivesEntitiesAndPredicateEdges, testKeywordModeMergesMediaNodesForOverlays } from '@/__tests__/keywordMode.test'
 import { testToolMenuDoesNotExposeCuratorArea } from '@/__tests__/toolMenuCuratorActions.test'
 import { testForbidHardcodedYouTubeUrlLiteral, testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
+import { testMarkdownImportActionAppliesImportedMarkdownToStore } from '@/__tests__/markdownImportActionWiresStore.test'
 import { testGroupCollapseDerivationCollapsesCommunityIntoGroupNode } from '@/__tests__/groupCollapse.test'
 import {
   testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange,
@@ -257,6 +263,7 @@ import {
   testDensityClusteringRespectsMaxSteps,
 } from '@/__tests__/densityClusteringBounded.test'
 import { testPinnedZoomAdjustKeepsWorldCenter } from '@/__tests__/pinnedZoomNoJump.test'
+import { testFitToViewAllowsZoomOutBelowSchemaMinScale } from '@/__tests__/zoomOutFitAll.test'
 import {
   testPickInitialZoomTransformReusesZoomAcrossPresentationChanges,
   testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned,
@@ -290,6 +297,13 @@ import {
   testEdgeOpacityUsesBaseOpacityWhenGroupsDisabled,
   testEdgeOpacityUsesUnderGroupOpacityWhenGroupsEnabled,
 } from '@/__tests__/edgeOpacityDefaults.test'
+import {
+  testGroupBoxInnerDoesNotStickToOtherOuterBorder,
+  testDeepNestingNoStick,
+  testNoStickUsesZAxisWhenProvided,
+  testNoStickDoesNotAccidentallyPushInZFromXyGaps,
+  testNoStickUsesZAxisWhenGapZProvidedEvenWithZeroDepth,
+} from '@/__tests__/groupBoxNoStickRegression.test'
 
 type GraphDataTablePerfSample = {
   durationMs: number
@@ -403,6 +417,7 @@ export const runAllTests = async () => {
 
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
+  await exec('ingest.markdown.importActionWiresStore', testMarkdownImportActionAppliesImportedMarkdownToStore)
 
   await exec('layout.positioning.skipsReseedOnToggle', testLayoutPositioningSkipsReseedOnToggle)
   await exec('layout.positioning.cacheKeyUsesRenderVariant', testLayoutPositioningCacheKeyUsesRenderVariant)
@@ -416,6 +431,8 @@ export const runAllTests = async () => {
   await exec('layout.edges.opacity.usesUnderGroups', testEdgeOpacityUsesUnderGroupOpacityWhenGroupsEnabled)
   await exec('layout.edges.opacity.usesBaseWhenGroupsDisabled', testEdgeOpacityUsesBaseOpacityWhenGroupsDisabled)
 
+  await exec('graph.groups.nestedBorder.noTouchParentOuter', testNestedGroupInnerBorderDoesNotTouchParentOuterBorder)
+
   await exec('frontmatterMode.effective.noopWhenNoSeeds', testFrontmatterModeEffectiveNoopWhenNoSeeds)
   await exec('frontmatterMode.effective.whenSeedsExist', testFrontmatterModeEffectiveWhenSeedsExist)
   await exec('layout.flow.elkMultipleHandles.deterministicOrdering', testFlowHandlesByNodeDeterministicOrdering)
@@ -428,10 +445,19 @@ export const runAllTests = async () => {
   await exec('flow.seed.extractNodePositions.nullWhenNone', testFlowExtractNodePositionsReturnsNullWhenNone)
   await exec('flow.seed.otherRenderer.prefersExpectedVariant', testFlowSeedFromOtherRendererPrefersExpectedVariant)
 
+  await exec('collision.nodeBbox.zAxis.gated', testNodeBboxCollideZRespectsSchemaGating)
+  await exec('collision.nodeBbox.zAxis.requiresExplicitZ', testNodeBboxCollideZRequiresExplicitZ)
   await exec('flow.collision.relax.separatesOverlappingNodes', testFlowCollisionRelaxSeparatesOverlappingNodes)
   await exec('flow.groups.hitTest.usesLabelTopExtra', testFlowHitTestGroupUsesLabelTopExtra)
   await exec('flow.groups.relax.addsGapBetweenSingleNodeGroups', testFlowGroupRelaxAddsGapBetweenSingleNodeGroups)
-  await exec('flow.groups.relax.nestedAddsGapAtMultipleDepths', testFlowNestedGroupRelaxAddsGapAtMultipleDepths)
+
+  await exec('groupBoxNoStickRegression.outerVsInner', testGroupBoxInnerDoesNotStickToOtherOuterBorder)
+  await exec('groupBoxNoStickRegression.deepNesting', testDeepNestingNoStick)
+  await exec('groupBoxNoStickRegression.zAxis', testNoStickUsesZAxisWhenProvided)
+  await exec('groupBoxNoStickRegression.noAccidentalZ', testNoStickDoesNotAccidentallyPushInZFromXyGaps)
+  await exec('groupBoxNoStickRegression.gapZEnablesZEvenWithZeroDepth', testNoStickUsesZAxisWhenGapZProvidedEvenWithZeroDepth)
+
+  await exec('groupNodeNoStickRegression.externalVsGroupBorder', testGroupNodeNoStickSeparatesExternalNodeFromGroupBorder)
 
   await exec('flow.edges.routing.avoidsObstacleLR', testFlowEdgeRoutingAvoidsObstacleByShiftingLaneLR)
   await exec('flow.edges.routing.avoidsObstacleTB', testFlowEdgeRoutingAvoidsObstacleByShiftingLaneTB)
@@ -619,6 +645,7 @@ export const runAllTests = async () => {
   await exec('densityClustering.maxNodesExceededReturnsEmpty', testDensityClusteringReturnsEmptyWhenMaxNodesExceeded)
   await exec('densityClustering.respectsMaxSteps', testDensityClusteringRespectsMaxSteps)
   await exec('zoom.pinned.adjustKeepsWorldCenterOnResize', testPinnedZoomAdjustKeepsWorldCenter)
+  await exec('zoom.fitToView.allowsBelowSchemaMinScale', testFitToViewAllowsZoomOutBelowSchemaMinScale)
   await exec('zoom.pick.reusesAcrossPresentationChanges', testPickInitialZoomTransformReusesZoomAcrossPresentationChanges)
   await exec('zoom.pick.rejectsStaleWhenNotPinned', testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned)
   await exec('zoom.viewKey.includesPresentation', testZoomViewKeyIncludesPresentationKeys)

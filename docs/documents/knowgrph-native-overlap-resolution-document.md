@@ -43,16 +43,37 @@
 **Algorithm Summary**
 
 - **Enhanced Spatial Indexing**: Uses `PackedRTree` (O(n log n)) to efficiently query potential collisions.
-- Build a packed static R-tree every iteration over current node positions (Morton/Z-order sorting).
+- Build a packed static R-tree once per tick over current node positions (Morton/Z-order sorting).
 - For each node `a`, query candidate neighbors intersecting `a`’s expanded bounds.
-- For each neighbor `b` in intersecting leaves, compute overlap `(ox, oy)`:
-  - `ox = (aHalfW + bHalfW) - abs(dx)`
-  - `oy = (aHalfH + bHalfH) - abs(dy)`
-- If overlap exists, push along the smaller axis (x if `ox < oy`, else y).
+- For each neighbor `b` in intersecting leaves, compute overlap `(ox, oy, oz)`:
+  - `requiredGapX = aGapX + bGapX` (sum of axis-aware gaps; enforces stricter separation than max)
+  - `ox = (aHalfW + bHalfW + requiredGapX) - abs(dx)`
+  - `oy = (aHalfH + bHalfH + requiredGapY) - abs(dy)`
+  - `oz = (aHalfD + bHalfD + requiredGapZ) - abs(dz)` (only when Z is explicitly used)
+- If overlap exists (adjusted by `touchEpsilonX/Y/Z`), push along the smallest axis (x/y and z when enabled).
+- **Deep Nesting No-Stick**: Apply the same separation rule at every nesting level so inner groups do not snap/touch/stick to outer group borders.
 - Respect pinned nodes (`fx`/`fy`) by redirecting impulse to the unpinned counterpart.
-- Use `touchEpsilonPx` to treat near-touch as a collision (stabilizes “snap/stick” at exact contact).
+- Use `touchEpsilonPx` (or axis-specific `touchEpsilonX/Y`) to treat near-touch as a collision (stabilizes “snap/stick” at exact contact).
 
 **Implementation**: [createBboxCollideForce](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/overlap.ts)
+
+### Module: Group Box Collision (No-Stick)
+
+**Responsibility**: Prevent group boxes (clusters/subgraphs) from snapping/touching/sticking to each other, including deep nesting (inner group vs outer group).
+
+**Interface**: `resolveGroupCollisions({ groups, nodes, strength, touchEpsilon })`
+
+**Algorithm Summary**
+
+- Use a packed spatial index (`PackedRTree`, Morton/Z-order) for broadphase candidate queries.
+- Compute axis-aware overlap using **sum-of-gaps** (`gapA + gapB`) per axis so separation is stricter than `max`.
+- Apply `touchEpsilon` so near-touch is treated as overlap, preventing exact-contact sticking.
+- Model each box with indexed borders: inner `x2..x4 / y2..y4 / z2..z4` and outer envelope `x1..x5 / y1..y5 / z1..z5` (gap expands outer envelope); forbid inner borders from touching/snap-sticking to any other box's outer envelope.
+- Apply the same separation rule at every nesting level (L3 vs L2, L2 vs L1).
+- Also repel non-member nodes away from group outer borders (member nodes are excluded so containment is preserved).
+- Z axis is only enabled when both boxes explicitly provide Z (a finite `cz`, `halfD`, or explicit `gapZ`/`hasZ`); otherwise the solver treats Z as infinite overlap so 2D flows never accidentally push in Z.
+
+**Implementation**: [boxCollision.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/grph-shared/src/collision/boxCollision.ts)
 
 ---
 
@@ -66,12 +87,32 @@ layout:
     bboxCollide: boolean
     bboxCollideStrength: number
     bboxCollidePadding: number
+    bboxCollidePaddingX: number
+    bboxCollidePaddingY: number
+    bboxCollidePaddingZ: number
     bboxCollideTouchEpsilonPx: number
+    bboxCollideTouchEpsilonXPx: number
+    bboxCollideTouchEpsilonYPx: number
+    bboxCollideTouchEpsilonZPx: number
+    bboxCollideZEnabled: boolean
     bboxCollideIterations: number
     groupBboxCollide: boolean
     groupBboxCollideStrength: number
     groupBboxCollidePadding: number
+    groupBboxCollidePaddingX: number
+    groupBboxCollidePaddingY: number
+    groupBboxCollidePaddingZ: number
     groupBboxCollideTouchEpsilonPx: number
+    groupBboxCollideTouchEpsilonXPx: number
+    groupBboxCollideTouchEpsilonYPx: number
+    groupBboxCollideTouchEpsilonZPx: number
+    groupBboxCollideNestedTouchEpsilonPx: number
+    groupBboxCollideNestedTouchEpsilonXPx: number
+    groupBboxCollideNestedTouchEpsilonYPx: number
+    groupBboxCollideNestedTouchEpsilonZPx: number
+    groupBboxCollideZEnabled: boolean
+    groupBboxCollideExtraGapPx: number
+    groupBboxCollideExtraGapZPx: number
     groupBboxCollideIterations: number
     structuredRelaxSteps: number
 ```

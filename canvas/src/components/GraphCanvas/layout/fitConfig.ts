@@ -4,6 +4,7 @@ import {
   DEFAULT_FIT_PADDING,
   DEFAULT_FIT_TO_SCREEN_FILL_RATIO,
   DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
+  DEFAULT_ZOOM_MIN_SCALE_HARD_CAP,
   readZoomScaleExtent,
 } from '@/lib/graph/layoutDefaults'
 
@@ -34,8 +35,10 @@ export function readFitAllOptions(args: {
       : DEFAULT_FIT_PADDING
 
   const [minScale, maxScale] = readZoomScaleExtent(schema)
-  const detectClustersEffective = args.intent === 'fitSelection' ? false : detectClusters !== false
+  const detectClustersEffective =
+    args.intent === 'fitToScreen' || args.intent === 'initialFit' ? detectClusters !== false : false
   const targetFillRatio = DEFAULT_FIT_TO_SCREEN_FILL_RATIO
+  const minScaleEffective = args.intent === 'fitToView' ? Math.min(minScale, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP) : minScale
 
   return {
     pad,
@@ -44,7 +47,7 @@ export function readFitAllOptions(args: {
     targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : ZOOM_VIEWPORT_PRESET_16_9.aspectRatio,
     enforceAspectRatio: enforceAspectRatio !== false,
     targetFillRatio,
-    minScale,
+    minScale: minScaleEffective,
     maxScale,
     maxScaleHardCap: DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
     schema,

@@ -4,6 +4,7 @@ import { createBboxCollideForce } from '@/components/GraphCanvas/layout/overlap'
 import { createGroupBboxCollideForceByDepth } from '@/components/GraphCanvas/layout/groupOverlapByDepth'
 import { readCollisionConfig, readStructuredRelaxSteps } from '@/components/GraphCanvas/layout/collisionConfig'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { readExplicitZ } from '@/lib/graph/collision/readZ'
 
 export function relaxFlowPositionsWithCollision(args: {
   graphData: GraphData
@@ -54,7 +55,7 @@ export function relaxFlowPositionsWithCollision(args: {
     return { dx: sx, dy: sy }
   }
 
-  const proxyNodes: GraphNode[] = []
+  const proxyNodes: Array<GraphNode & { z?: number; vz?: number; hasExplicitZ?: boolean }> = []
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]
     const id = String(n?.id || '').trim()
@@ -71,12 +72,16 @@ export function relaxFlowPositionsWithCollision(args: {
       'visual:height': height,
       'visual:shape': 'rect',
     }
+    const zInfo = readExplicitZ(n)
     proxyNodes.push({
       ...n,
       x: p.x + width / 2 + jitter.dx,
       y: p.y + height / 2 + jitter.dy,
+      ...(zInfo.hasZ ? { z: zInfo.z } : {}),
+      hasExplicitZ: zInfo.hasZ,
       vx: 0,
       vy: 0,
+      vz: 0,
       properties: properties as unknown as GraphNode['properties'],
     })
   }
@@ -94,7 +99,11 @@ export function relaxFlowPositionsWithCollision(args: {
         schema,
         paddingX: collision.nodeBbox.paddingX,
         paddingY: collision.nodeBbox.paddingY,
+        paddingZ: collision.nodeBbox.paddingZ,
         touchEpsilonPx: collision.nodeBbox.touchEpsilonPx,
+        touchEpsilonXPx: collision.nodeBbox.touchEpsilonXPx,
+        touchEpsilonYPx: collision.nodeBbox.touchEpsilonYPx,
+        touchEpsilonZPx: collision.nodeBbox.touchEpsilonZPx,
         strength: collision.nodeBbox.strength,
         iterations: collision.nodeBbox.iterations,
       })
@@ -109,7 +118,9 @@ export function relaxFlowPositionsWithCollision(args: {
       groups,
       paddingX: collision.groupBbox.paddingX,
       paddingY: collision.groupBbox.paddingY,
+      paddingZ: collision.groupBbox.paddingZ,
       extraGapPx: collision.groupBbox.extraGapPx,
+      extraGapZPx: collision.groupBbox.extraGapZPx,
       strength: collision.groupBbox.strength,
       iterations: collision.groupBbox.iterations,
     })
@@ -126,10 +137,15 @@ export function relaxFlowPositionsWithCollision(args: {
       const n = proxyNodes[i]
       const vx = typeof n.vx === 'number' && Number.isFinite(n.vx) ? n.vx : 0
       const vy = typeof n.vy === 'number' && Number.isFinite(n.vy) ? n.vy : 0
+      const vz = typeof n.vz === 'number' && Number.isFinite(n.vz) ? n.vz : 0
       n.x = (typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0) + vx
       n.y = (typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : 0) + vy
+      if (n.hasExplicitZ === true) {
+        n.z = (typeof n.z === 'number' && Number.isFinite(n.z) ? n.z : 0) + vz
+      }
       n.vx = vx * 0.25
       n.vy = vy * 0.25
+      n.vz = vz * 0.25
     }
   }
 

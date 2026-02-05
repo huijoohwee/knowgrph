@@ -1,7 +1,8 @@
 
 import { PackedRTree } from './PackedRTree.js'
 import { applyAabbOverlapPush } from './aabbPush.js'
-export { PackedRTree, applyAabbOverlapPush }
+import { applyAabbContainmentPush } from './aabbContain.js'
+export { PackedRTree, applyAabbOverlapPush, applyAabbContainmentPush }
 import type { BoxItem, MovableNode } from './types.js'
 
 export interface BoxIndices {
@@ -26,6 +27,7 @@ export interface BoxIndices {
 
 export interface CollisionGroupItem extends BoxItem {
   movableIdxs: number[]
+  hasZ?: boolean
   gap: number
   gapX?: number
   gapY?: number
@@ -73,19 +75,53 @@ export function resolveGroupCollisions(args: {
   nodes: MovableNode[]
   strength: number
   touchEpsilon: number
+  touchEpsilonX?: number
+  touchEpsilonY?: number
+  touchEpsilonZ?: number
   skipSameGroup?: boolean
   groupsShareAnyMember?: (a: CollisionGroupItem, b: CollisionGroupItem) => boolean
 }) {
   const { groups, nodes, strength, touchEpsilon, groupsShareAnyMember } = args
   if (groups.length < 2) return
 
+  const touchEpsilonX = typeof args.touchEpsilonX === 'number' && Number.isFinite(args.touchEpsilonX) ? args.touchEpsilonX : touchEpsilon
+  const touchEpsilonY = typeof args.touchEpsilonY === 'number' && Number.isFinite(args.touchEpsilonY) ? args.touchEpsilonY : touchEpsilon
+  const touchEpsilonZ = typeof args.touchEpsilonZ === 'number' && Number.isFinite(args.touchEpsilonZ) ? args.touchEpsilonZ : touchEpsilon
+
+  const axisGap = (g: CollisionGroupItem, axis: 'x' | 'y' | 'z'): number => {
+    const raw =
+      axis === 'x'
+        ? g.gapX
+        : axis === 'y'
+          ? g.gapY
+          : g.gapZ
+    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, raw)
+    return Math.max(0, g.gap)
+  }
+
+  const explicitGapZ = (g: CollisionGroupItem): number | null => {
+    const raw = g.gapZ
+    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, raw)
+    return null
+  }
+
+  const explicitZ = (g: CollisionGroupItem): boolean => {
+    if (g.hasZ === true) return true
+    if (typeof g.cz === 'number' && Number.isFinite(g.cz)) return true
+    if (typeof g.halfD === 'number' && Number.isFinite(g.halfD)) return true
+    const gapZExplicit = explicitGapZ(g)
+    return gapZExplicit != null
+  }
+
+  const shouldUseZAxis = (a: CollisionGroupItem, b: CollisionGroupItem): boolean => explicitZ(a) && explicitZ(b)
+
   const indexByItem = new Map<CollisionGroupItem, number>()
   for (let i = 0; i < groups.length; i += 1) indexByItem.set(groups[i]!, i)
 
   const expandedItems: ExpandedBoxItem[] = groups.map(g => {
-    const gapX = typeof g.gapX === 'number' && Number.isFinite(g.gapX) ? Math.max(0, g.gapX) : Math.max(0, g.gap)
-    const gapY = typeof g.gapY === 'number' && Number.isFinite(g.gapY) ? Math.max(0, g.gapY) : Math.max(0, g.gap)
-    const gapZ = typeof g.gapZ === 'number' && Number.isFinite(g.gapZ) ? Math.max(0, g.gapZ) : Math.max(0, g.gap)
+    const gapX = axisGap(g, 'x')
+    const gapY = axisGap(g, 'y')
+    const gapZ = axisGap(g, 'z')
     
     return {
       cx: g.cx,
@@ -102,20 +138,22 @@ export function resolveGroupCollisions(args: {
   // Use our new PackedRTree (3D aware)
   const spatialIndex = new PackedRTree(expandedItems)
 
+  const broadphaseUsesZ = groups.every(explicitZ)
+
   for (let i = 0; i < groups.length; i++) {
     const a = groups[i]
     const aIdx = i
     
-    const aGapX = typeof a.gapX === 'number' && Number.isFinite(a.gapX) ? Math.max(0, a.gapX) : Math.max(0, a.gap)
-    const aGapY = typeof a.gapY === 'number' && Number.isFinite(a.gapY) ? Math.max(0, a.gapY) : Math.max(0, a.gap)
-    const aGapZ = typeof a.gapZ === 'number' && Number.isFinite(a.gapZ) ? Math.max(0, a.gapZ) : Math.max(0, a.gap)
+    const aGapX = axisGap(a, 'x')
+    const aGapY = axisGap(a, 'y')
+    const aGapZ = axisGap(a, 'z')
 
     const aMinX = a.cx - a.halfW - aGapX
     const aMaxX = a.cx + a.halfW + aGapX
     const aMinY = a.cy - a.halfH - aGapY
     const aMaxY = a.cy + a.halfH + aGapY
-    const aMinZ = (a.cz ?? 0) - (a.halfD ?? 0) - aGapZ
-    const aMaxZ = (a.cz ?? 0) + (a.halfD ?? 0) + aGapZ
+    const aMinZ = broadphaseUsesZ ? (a.cz ?? 0) - (a.halfD ?? 0) - aGapZ : -Infinity
+    const aMaxZ = broadphaseUsesZ ? (a.cz ?? 0) + (a.halfD ?? 0) + aGapZ : Infinity
 
     spatialIndex.query(aMinX, aMinY, aMinZ, aMaxX, aMaxY, aMaxZ, (bWrapper) => {
       const b = bWrapper.original
@@ -129,9 +167,9 @@ export function resolveGroupCollisions(args: {
 
       if (groupsShareAnyMember && groupsShareAnyMember(a, b)) return
 
-      const bGapX = typeof b.gapX === 'number' && Number.isFinite(b.gapX) ? Math.max(0, b.gapX) : Math.max(0, b.gap)
-      const bGapY = typeof b.gapY === 'number' && Number.isFinite(b.gapY) ? Math.max(0, b.gapY) : Math.max(0, b.gap)
-      const bGapZ = typeof b.gapZ === 'number' && Number.isFinite(b.gapZ) ? Math.max(0, b.gapZ) : Math.max(0, b.gap)
+      const bGapX = axisGap(b, 'x')
+      const bGapY = axisGap(b, 'y')
+      const bGapZ = axisGap(b, 'z')
       
       const requiredGapX = aGapX + bGapX
       const requiredGapY = aGapY + bGapY
@@ -145,16 +183,11 @@ export function resolveGroupCollisions(args: {
       const oy = a.halfH + b.halfH + requiredGapY - Math.abs(dy)
       const oz = (a.halfD ?? 0) + (b.halfD ?? 0) + requiredGapZ - Math.abs(dz)
       
-      const oxAdj = ox + touchEpsilon
-      const oyAdj = oy + touchEpsilon
-      const ozAdj = oz + touchEpsilon
+      const oxAdj = ox + touchEpsilonX
+      const oyAdj = oy + touchEpsilonY
+      const ozAdj = oz + touchEpsilonZ
 
-      // For 2D-only objects (halfD=0, cz=0), oz might be just requiredGapZ?
-      // If halfD is 0, we effectively have infinite depth? Or 0 depth?
-      // If we assume 2D objects have 0 depth but live on same Z plane, then collision happens if Z matches.
-      // But if we want strictly 2D behavior when Z is not used, we should pass Infinity for oz.
-      
-      const useZ = (a.halfD !== undefined && a.halfD > 0) || (b.halfD !== undefined && b.halfD > 0) || (a.cz !== undefined && a.cz !== 0) || (b.cz !== undefined && b.cz !== 0)
+      const useZ = shouldUseZAxis(a, b)
       
       if (oxAdj > 0 && oyAdj > 0 && (!useZ || ozAdj > 0)) {
         applyAabbOverlapPush({

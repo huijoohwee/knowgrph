@@ -109,7 +109,12 @@ const applyZoomRequestNative = (args: {
   }
 
   if (type === 'out') {
-    const k2 = clampScale(t0.k / 1.2, { minK: minScale, maxK: maxScale })
+    const autoMinScale = (() => {
+      const fitT = computeFitTransform('fitToView')
+      if (!fitT) return minScale
+      return Math.min(minScale, fitT.k)
+    })()
+    const k2 = clampScale(t0.k / 1.2, { minK: autoMinScale, maxK: maxScale })
     if (args.graphData && (args.graphData.nodes || []).length > 0) {
       setFlowNativeTransform(args.runtime, scaleCenteredOnGraphCentroidTransform(args.graphData.nodes, w, h, k2))
     } else {

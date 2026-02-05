@@ -26,7 +26,9 @@ export function relaxNodesWithCollision(args: {
         schema,
         paddingX: collision.nodeBbox.paddingX,
         paddingY: collision.nodeBbox.paddingY,
+        paddingZ: collision.nodeBbox.paddingZ,
         touchEpsilonPx: collision.nodeBbox.touchEpsilonPx,
+        touchEpsilonZPx: collision.nodeBbox.touchEpsilonZPx,
         strength: collision.nodeBbox.strength,
         iterations: collision.nodeBbox.iterations,
       })
@@ -57,10 +59,14 @@ export function relaxNodesWithCollision(args: {
       const n = nodes[i]
       const vx = typeof n.vx === 'number' && Number.isFinite(n.vx) ? n.vx : 0
       const vy = typeof n.vy === 'number' && Number.isFinite(n.vy) ? n.vy : 0
+      const anyNode = n as unknown as { z?: unknown; vz?: unknown }
+      const vz = typeof anyNode.vz === 'number' && Number.isFinite(anyNode.vz) ? anyNode.vz : 0
       n.x = (typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0) + vx
       n.y = (typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : 0) + vy
+      anyNode.z = (typeof anyNode.z === 'number' && Number.isFinite(anyNode.z) ? (anyNode.z as number) : 0) + vz
       n.vx = vx * 0.25
       n.vy = vy * 0.25
+      anyNode.vz = vz * 0.25
     }
   }
 }

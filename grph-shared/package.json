@@ -24,6 +24,11 @@
       "import": "./dist/collision/PackedRTree.js",
       "default": "./dist/collision/PackedRTree.js"
     },
+    "./collision/readZ": {
+      "types": "./dist/collision/readZ.d.ts",
+      "import": "./dist/collision/readZ.js",
+      "default": "./dist/collision/readZ.js"
+    },
     "./array/reorderList": {
       "types": "./dist/array/reorderList.d.ts",
       "import": "./dist/array/reorderList.js",
