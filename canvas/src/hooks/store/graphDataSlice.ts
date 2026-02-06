@@ -9,6 +9,7 @@ import { isJsonValue } from '@/lib/graph/jsonValue'
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import {
   applyLayoutAutosuggestFromMetadata,
+  applyNodeQuickEditorRegistryFromMetadata,
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
   withGraphDataRevision,
@@ -280,6 +281,11 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
 
       try {
         applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
+      } catch {
+        void 0
+      }
+      try {
+        applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata)
       } catch {
         void 0
       }

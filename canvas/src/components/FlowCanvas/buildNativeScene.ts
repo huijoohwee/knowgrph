@@ -13,6 +13,7 @@ import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 
 export function buildAndSetFlowNativeScene(args: {
   runtime: FlowNativeRuntime
@@ -23,6 +24,7 @@ export function buildAndSetFlowNativeScene(args: {
   flowConfig: FlowConfig
   sceneGroups: GraphGroup[]
   rankdir: 'TB' | 'LR'
+  nodeQuickEditorRegistry?: ReadonlyArray<NodeQuickEditorRegistryEntry> | null
 }): { nodeCount: number; graphKeyParts: { nodeCount: number; edgeCount: number } } {
   const g = args.graphData
   const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
@@ -32,8 +34,9 @@ export function buildAndSetFlowNativeScene(args: {
   setFlowNativeRankdir(args.runtime, args.rankdir)
 
   const handlesByNode = computeFlowHandlesByNode({
-    nodes: nodeList as ReadonlyArray<{ id: unknown }>,
+    nodes: nodeList as ReadonlyArray<{ id: unknown; type?: unknown; properties?: unknown }>,
     edges: edgeList as ReadonlyArray<{ id: unknown; source: unknown; target: unknown }>,
+    nodeQuickEditorRegistry: args.nodeQuickEditorRegistry || null,
   })
 
   const nodeById = new Map<string, NonNullable<FlowNativeScene['nodes']>[number]>()

@@ -115,6 +115,7 @@ export default function FlowCanvas({
     viewPinned,
     setZoomState,
     setZoomStateForKey,
+    nodeQuickEditorRegistry,
   } = useGraphStore(
     useShallow(s => ({
       schema: s.schema,
@@ -136,6 +137,7 @@ export default function FlowCanvas({
       viewPinned: s.viewPinned === true,
       setZoomState: s.setZoomState,
       setZoomStateForKey: s.setZoomStateForKey,
+      nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
     })),
   )
 
@@ -540,6 +542,7 @@ export default function FlowCanvas({
       flowConfig,
       sceneGroups,
       rankdir,
+      nodeQuickEditorRegistry,
     })
     __flowCanvasDebug.lastBuiltSceneNodeCount = res.nodeCount
     requestFlowNativeDraw(runtime, buildDrawArgs())
@@ -557,6 +560,7 @@ export default function FlowCanvas({
     schema,
     schemaGroupsPresentationJson,
     schemaNodesPresentationJson,
+    nodeQuickEditorRegistry,
   ])
 
   React.useEffect(() => {

@@ -17,7 +17,6 @@ import {
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
   LS_KEYS,
   UI_COPY,
-  type FlowEditorSmartNodeProperties,
 } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -52,6 +51,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
   onPatchProperties: (patch: Record<string, unknown>) => void
+  onSetProperties: (properties: Record<string, unknown>) => void
   onValidate: () => void
   onDuplicate: () => void
   onRemove: () => void
@@ -76,6 +76,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       onSetLabel={args.onSetLabel}
       onSetType={args.onSetType}
       onPatchProperties={args.onPatchProperties}
+      onSetProperties={args.onSetProperties}
       onValidate={args.onValidate}
       onDuplicate={args.onDuplicate}
       onRemove={args.onRemove}
@@ -150,7 +151,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const [jsonError, setJsonError] = React.useState<string | null>(null)
 
 
-  const inspectorPortalHost = (() => {
+  const [inspectorPortalHost, setInspectorPortalHost] = React.useState<HTMLElement | null>(null)
+
+  const resolveInspectorPortalHost = React.useCallback(() => {
     if (!active) return null
     if (typeof document === 'undefined') return null
     try {
@@ -162,7 +165,23 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     } catch {
       return null
     }
-  })()
+  }, [active])
+
+  React.useEffect(() => {
+    if (!active) {
+      setInspectorPortalHost(null)
+      return
+    }
+    const resolved = resolveInspectorPortalHost()
+    setInspectorPortalHost(prev => (prev === resolved ? prev : resolved))
+    if (typeof MutationObserver === 'undefined') return
+    const observer = new MutationObserver(() => {
+      const nextResolved = resolveInspectorPortalHost()
+      setInspectorPortalHost(prev => (prev === nextResolved ? prev : nextResolved))
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [active, resolveInspectorPortalHost])
 
   const ensureDraft = React.useCallback(() => {
     const base = baseGraphData as GraphData | null
@@ -477,7 +496,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   )
 
   const patchSelectedNodeProperties = React.useCallback(
-    (patch: Partial<FlowEditorSmartNodeProperties>) => {
+    (patch: Record<string, unknown>) => {
       if (!draftGraphData || !selectedNodeId) return
       const nodes = (draftGraphData.nodes || []).map(n => {
         if (String(n.id || '') !== selectedNodeId) return n
@@ -491,6 +510,21 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           nextProps[key] = value as unknown
         }
         return { ...n, properties: nextProps as never }
+      })
+      const next = normalizeGraphData({ ...draftGraphData, nodes })
+      setDraftGraphData(next)
+      setDraftGraphDataRevision(r => r + 1)
+      setDraftDirty(true)
+    },
+    [draftGraphData, selectedNodeId],
+  )
+
+  const setSelectedNodeProperties = React.useCallback(
+    (properties: Record<string, unknown>) => {
+      if (!draftGraphData || !selectedNodeId) return
+      const nodes = (draftGraphData.nodes || []).map(n => {
+        if (String(n.id || '') !== selectedNodeId) return n
+        return { ...n, properties: (properties || {}) as never }
       })
       const next = normalizeGraphData({ ...draftGraphData, nodes })
       setDraftGraphData(next)
@@ -812,6 +846,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         onSetLabel={setSelectedNodeLabel}
         onSetType={setSelectedNodeType}
         onPatchProperties={patchSelectedNodeProperties}
+        onSetProperties={setSelectedNodeProperties}
         onValidate={validateSelectedNode}
         onDuplicate={duplicateSelectedNode}
         onRemove={deleteSelection}

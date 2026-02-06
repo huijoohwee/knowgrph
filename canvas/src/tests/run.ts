@@ -177,6 +177,11 @@ import {
 } from '@/__tests__/flowElkMultipleHandles.test'
 import { testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields } from '@/__tests__/flowSchemaFieldPortKeys.test'
 import { testFlowSchemaPortsBuildDisplayLabel, testFlowSchemaPortsInfluenceEdgeValidation } from '@/__tests__/flowSchemaPortEdgeValidation.test'
+import { testFlowHandlesIncludeRegistryPortsWithoutEdges } from '@/__tests__/flowHandlesRegistryPorts.test'
+import {
+  testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride,
+  testFlowNodeQuickEditorRegistryResolvePrefersDefault,
+} from '@/__tests__/flowNodeQuickEditorRegistryResolve.test'
 import {
   testFlowPortHandlesCanBeHiddenForSelectedNodesWhenRequested,
   testFlowPortHandlesRenderWhenSelectedNodeGlyphHidden,
@@ -223,7 +228,19 @@ import {
   testForbidHardcodedSandboxAbsolutePaths,
   testForbidTopLevelElkImportInFlowLayout,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
-import { testFlowEditorManagerRegistryStorageRoundTrip, testFlowEditorManagerRegistryValidatesAndNormalizes } from '@/__tests__/flowEditorManagerRegistry.test'
+import {
+  testFlowEditorManagerRegistryStorageRoundTrip,
+  testFlowEditorManagerRegistryValidatesAndNormalizes,
+  testFlowEditorManagerSeedsGenerateVideoRegistryEntry,
+} from '@/__tests__/flowEditorManagerRegistry.test'
+import {
+  testFlowEditorManagerMappingRowsRoundTripPreservesLabels,
+  testFlowEditorManagerMappingRowsValidationDetectsDuplicates,
+} from '@/__tests__/flowEditorManagerMappingRows.test'
+import {
+  testFlowEditorSpecNodeValidationAcceptsDefault,
+  testFlowEditorSpecWorkflowValidationRejectsDuplicateNodeIds,
+} from '@/__tests__/flowEditorSpecSchemas.test'
 import { testFloatingPanelInspectorTypographyUsesUiSettings } from '@/__tests__/floatingPanelInspectorTypography.test'
 import { testFlowNodeQuickEditorTypographyInheritsPanelSettings } from '@/__tests__/flowNodeQuickEditorTypography.test'
 import { testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel } from '@/__tests__/flowNodeQuickEditorZoomRerenderGuard.test'
@@ -523,8 +540,16 @@ export const runAllTests = async () => {
   await exec('layout.flow.schemaFieldPortKeys.stableHandles', testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields)
   await exec('schema.flowPorts.validation.schemaPortsAffectCanAddEdge', testFlowSchemaPortsInfluenceEdgeValidation)
   await exec('schema.flowPorts.label.buildDisplayLabelFromPorts', testFlowSchemaPortsBuildDisplayLabel)
+  await exec('flow.handles.registryPorts.presentWithoutEdges', testFlowHandlesIncludeRegistryPortsWithoutEdges)
+  await exec('flow.quickEditor.registry.resolve.prefersDefault', testFlowNodeQuickEditorRegistryResolvePrefersDefault)
+  await exec('flow.quickEditor.registry.resolve.honorsNodeOverride', testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride)
   await exec('mainPanel.flowEditorManager.registry.validateAndNormalize', testFlowEditorManagerRegistryValidatesAndNormalizes)
   await exec('mainPanel.flowEditorManager.registry.storageRoundTrip', testFlowEditorManagerRegistryStorageRoundTrip)
+  await exec('mainPanel.flowEditorManager.registry.seedGenerateVideo', testFlowEditorManagerSeedsGenerateVideoRegistryEntry)
+  await exec('mainPanel.flowEditorManager.mappingRows.roundTripPreservesLabels', testFlowEditorManagerMappingRowsRoundTripPreservesLabels)
+  await exec('mainPanel.flowEditorManager.mappingRows.detectsDuplicateKeys', testFlowEditorManagerMappingRowsValidationDetectsDuplicates)
+  await exec('mainPanel.flowEditorManager.spec.node.acceptsDefault', testFlowEditorSpecNodeValidationAcceptsDefault)
+  await exec('mainPanel.flowEditorManager.spec.workflow.rejectsDuplicateNodeIds', testFlowEditorSpecWorkflowValidationRejectsDuplicateNodeIds)
   await exec('layout.flow.elkMultipleHandles.timeoutBounded', testElkLayoutTimeoutIsBounded)
   await exec('layout.flow.elkMultipleHandles.returnsNodePositions', testElkLayoutReturnsNodePositions)
   await exec('flowEditor.actions.enableHandlesForAllInputs.idempotent', testFlowEditorEnableHandlesForAllInputsIsIdempotent)

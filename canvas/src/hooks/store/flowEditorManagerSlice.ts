@@ -4,6 +4,8 @@ import { LS_KEYS } from '@/lib/config'
 import { lsSetJson, getLocalStorage } from '@/lib/persistence'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphState } from '@/hooks/store/types'
+import { buildGenerateVideoRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
 import type {
   NodeQuickEditorRegistryEntry,
   NodeQuickEditorRegistryField,
@@ -155,9 +157,45 @@ export function normalizeNodeQuickEditorRegistryEntries(
   return out
 }
 
+export function ensureDefaultGenerateVideoRegistryEntry(
+  entries: NodeQuickEditorRegistryEntry[],
+  nowIso?: string,
+): { entries: NodeQuickEditorRegistryEntry[]; changed: boolean } {
+  const prev = Array.isArray(entries) ? entries : []
+  const exists = prev.some(e => {
+    if (!e) return false
+    return e.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID && e.quickEditorTypeId === 'default' && e.formId === 'videoGeneration'
+  })
+  if (exists) return { entries: prev, changed: false }
+
+  const usedIds = new Set(prev.map(e => String(e?.id || '')).filter(Boolean))
+  const id = createUniqueId('qer', usedIds)
+  const updatedAt = String(nowIso || '').trim() || new Date().toISOString()
+  const draft = buildGenerateVideoRegistryDraft()
+
+  const nextEntry: NodeQuickEditorRegistryEntry = {
+    id,
+    isEnabled: true,
+    nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+    quickEditorTypeId: 'default',
+    formId: 'videoGeneration',
+    fields: Array.isArray(draft.fields) ? (draft.fields as NodeQuickEditorRegistryField[]) : [],
+    ports: Array.isArray(draft.ports) ? (draft.ports as NodeQuickEditorRegistryPort[]) : [],
+    ...(Array.isArray(draft.schemaMappings) ? { schemaMappings: draft.schemaMappings as NodeQuickEditorRegistrySchemaMapping[] } : {}),
+    updatedAt,
+  }
+
+  const validated = validateNodeQuickEditorRegistryEntry(nextEntry)
+  if (!validated) return { entries: prev, changed: false }
+  const next = normalizeNodeQuickEditorRegistryEntries([...prev, validated])
+  return { entries: next, changed: true }
+}
+
 export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
   const storage = getLocalStorage()
-  const initial = readNodeQuickEditorRegistryFromStorage(storage)
+  const rawInitial = readNodeQuickEditorRegistryFromStorage(storage)
+  const seeded = ensureDefaultGenerateVideoRegistryEntry(rawInitial)
+  const initial = seeded.entries
 
   const persist = (next: NodeQuickEditorRegistryEntry[]) => {
     try {
@@ -166,6 +204,8 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
       void 0
     }
   }
+
+  if (seeded.changed) persist(initial)
 
   const upsert = (entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null }) => {
     const state = get()

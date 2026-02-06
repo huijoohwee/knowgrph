@@ -8,7 +8,8 @@ import { emitSidePanelOpen } from '@/features/canvas/utils'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
-import { UI_COPY, UI_LABELS, type FlowEditorSmartNodeProperties } from '@/lib/config'
+import { UI_COPY, UI_LABELS } from '@/lib/config'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,8 @@ import {
 export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel(args: {
   active: boolean
   node: GraphNode
+  registryEntry: NodeQuickEditorRegistryEntry | null
+  registryEntries: ReadonlyArray<NodeQuickEditorRegistryEntry>
   minimized: boolean
   hideFields: boolean
   pinned: boolean
@@ -60,8 +63,10 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   onEnableHandlesForAllInputs: () => void
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
-  onPatchProperties: (patch: Partial<FlowEditorSmartNodeProperties>) => void
+  onPatchProperties: (patch: Record<string, unknown>) => void
+  onSetProperties: (properties: Record<string, unknown>) => void
   onValidate: () => void
+  onRegistrySelectionChange?: (args: { entry: NodeQuickEditorRegistryEntry | null }) => void
 
   portHandleEdges: ReadonlyArray<GraphEdge>
   schema: GraphSchema | null
@@ -73,6 +78,8 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   const {
     active,
     node,
+    registryEntry,
+    registryEntries,
     minimized,
     hideFields,
     pinned,
@@ -104,7 +111,9 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     onSetLabel,
     onSetType,
     onPatchProperties,
+    onSetProperties,
     onValidate,
+    onRegistrySelectionChange,
 
     portHandleEdges,
     schema,
@@ -400,8 +409,13 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
           onSetLabel={onSetLabel}
           onSetType={onSetType}
           onPatchProperties={onPatchProperties}
+          onSetProperties={onSetProperties}
           onValidate={onValidate}
           onSchemaPortHandleClick={handleSchemaPortHandleClick}
+          onRegistrySelectionChange={onRegistrySelectionChange}
+
+          registryEntry={registryEntry}
+          registryEntries={registryEntries}
         />
       )}
     </FloatingPanel>

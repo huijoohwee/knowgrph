@@ -39,6 +39,7 @@ export const testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles = async () 
       onSetLabel: () => void 0,
       onSetType: () => void 0,
       onPatchProperties: () => void 0,
+      onSetProperties: () => void 0,
       onValidate: () => void 0,
       onSchemaPortHandleClick: () => void 0,
     }),
@@ -53,4 +54,3 @@ export const testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles = async () 
 
   root.unmount()
 }
-

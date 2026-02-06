@@ -3,8 +3,6 @@ import type { Subscription } from 'rxjs'
 import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { SELECTION_INSPECTOR_EMPTY_TEXT } from '@/lib/config'
 import {
   getGraphTableDb,
   type GraphColumnDoc,
@@ -150,10 +148,6 @@ export default function GraphTableSelectionInspector() {
     },
     [noteGraphWrite, selection],
   )
-
-  if (!selection) {
-    return <p className={`p-4 ${UI_THEME_TOKENS.text.tertiary}`}>{SELECTION_INSPECTOR_EMPTY_TEXT}</p>
-  }
 
   return (
     <GraphTableInspector

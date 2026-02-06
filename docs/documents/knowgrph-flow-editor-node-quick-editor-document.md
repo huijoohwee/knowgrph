@@ -67,6 +67,65 @@
 - Optional UI label override for port-bound edges: `edge.properties['flow:displayLabel']` (e.g., `warehouse_id → id`).
 - When the Node Quick Editor is open, the selected node’s native FlowCanvas port handles are hidden to avoid duplicate “detached” dots; the quick editor is the active port UI surface.
 
+### Registry-Driven Forms (Flow Editor Manager)
+
+- When a matching **enabled** entry exists in the Node Quick Editor Registry (Flow Editor Manager), the Node Quick Editor renders an additional **Registry** section for the selected node type.
+- Registry fields read/write values via `schemaPath` (defaulting to `properties.<fieldKey>` when omitted).
+- Registry ports render as clickable in/out ports and create edges bound via `flow:sourcePortKey` / `flow:targetPortKey`.
+- Optional per-node overrides:
+  - `node.properties['flow:quickEditorTypeId']`
+  - `node.properties['flow:quickEditorFormId']`
+- The mapping selector stays visible even when the quick editor fields are hidden; clearing the selection removes the override keys.
+- The Smart Fields section includes a registry selector filtered to enabled mappings for the node type; selection updates the two override keys and emits a lightweight toast with the mapping label for visual confirmation.
+
+---
+
+## Import / Export JSON Contract (Node Quick Editor Bundle)
+
+### Canonical Bundle Shape
+
+- **Kind**: `kg:flow:nodeQuickEditorBundle`
+- **Version**: `1`
+- **Purpose**: a project-agnostic JSON envelope that can carry:
+  - a Node Quick Editor registry snapshot (`registry`)
+  - an optional graph payload (`graph`) for import→render round-trips
+
+```json
+{
+  "kind": "kg:flow:nodeQuickEditorBundle",
+  "version": 1,
+  "registry": [
+    {
+      "id": "qer-VideoGeneration-default-videoGeneration",
+      "isEnabled": true,
+      "nodeTypeId": "VideoGeneration",
+      "quickEditorTypeId": "default",
+      "formId": "videoGeneration",
+      "fields": [{ "fieldKey": "prompt", "fieldType": "textarea", "schemaPath": "properties.prompt" }],
+      "ports": [{ "portKey": "videoUrl", "direction": "output" }],
+      "updatedAt": "2026-02-06T00:00:00.000Z"
+    }
+  ],
+  "graph": { "type": "Graph", "nodes": [], "edges": [] }
+}
+```
+
+### Import → Render Wiring
+
+- On import, parsers may emit registry entries into `GraphData.metadata['flow:nodeQuickEditorRegistry']`.
+- The graph commit path reads this metadata and applies it via the store action `setNodeQuickEditorRegistry(...)` (validated + normalized), enabling immediate Node Quick Editor rendering for matching `node.type`.
+
+### Export Surface
+
+- Flow Editor Manager exports either:
+  - the selected mapping (preferred), or
+  - all mappings (fallback)
+  as a `kg:flow:nodeQuickEditorBundle` JSON.
+
+### Manager Shortcut (Add From Quick Editor)
+
+- Flow Editor Manager provides an "Add from Quick Editor" action that seeds a new registry mapping using the currently selected node type and the Node Quick Editor smart fields schema paths.
+
 ## Loop Node Semantics (Flow Editor)
 
 - Convert-to-loop sets `node.type='Loop'` and `node.properties['workflow:kind']='loop'` for the selected node (draft graph only until commit).

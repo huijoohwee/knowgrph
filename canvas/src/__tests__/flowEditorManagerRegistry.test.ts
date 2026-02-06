@@ -1,10 +1,12 @@
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import {
   normalizeNodeQuickEditorRegistryEntries,
+  ensureDefaultGenerateVideoRegistryEntry,
   readNodeQuickEditorRegistryFromStorage,
   validateNodeQuickEditorRegistryEntry,
   writeNodeQuickEditorRegistryToStorage,
 } from '@/hooks/store/flowEditorManagerSlice'
+import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
 
 export function testFlowEditorManagerRegistryValidatesAndNormalizes() {
   const valid = validateNodeQuickEditorRegistryEntry({
@@ -77,4 +79,17 @@ export function testFlowEditorManagerRegistryStorageRoundTrip() {
   if (reread.length !== 1) throw new Error('expected one entry after read')
   if (reread[0].id !== 'e1') throw new Error('expected id to round trip')
   if (reread[0].ports.length !== 1) throw new Error('expected ports to round trip')
+}
+
+export function testFlowEditorManagerSeedsGenerateVideoRegistryEntry() {
+  const empty = ensureDefaultGenerateVideoRegistryEntry([], '2026-02-06T00:00:00.000Z')
+  if (!empty.changed) throw new Error('expected seeding to report changed=true')
+  const seeded = empty.entries
+  const found = seeded.find(
+    e => e.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID && e.quickEditorTypeId === 'default' && e.formId === 'videoGeneration',
+  )
+  if (!found) throw new Error('expected Generate Video mapping')
+
+  const stable = ensureDefaultGenerateVideoRegistryEntry(seeded, '2026-02-06T00:00:00.000Z')
+  if (stable.changed) throw new Error('expected seeding to be idempotent')
 }

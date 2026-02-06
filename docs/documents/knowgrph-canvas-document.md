@@ -105,6 +105,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - The Record Inspector UI is a host-owned SSOT component (`GraphTableInspector`) and must be reused across surfaces.
 - Canvas mode mounts the Record Inspector inside the **Floating Panel** (tool menu) as the "Inspector" view, rather than maintaining a separate legacy right SidePanel.
 - When the active 2D renderer is `flowEditor`, the Flow Editor Inspector is consolidated into the same Floating Panel "Inspector" surface via a portal slot id (`FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID`) to avoid duplicate inspector panels.
+- The Inspector view must render its layout even with no active selection so the Floating Panel always shows stable structure; inputs may be disabled but the surface must stay visible.
 - Editing a field in the inspector updates RxDB first, then applies a bounded write-through to the graph store to keep `graphDataRevision` and derived render views consistent.
 
 ### Selection Sync (Table ↔ Preview ↔ TOC)

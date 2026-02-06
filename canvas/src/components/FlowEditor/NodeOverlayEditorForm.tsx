@@ -16,6 +16,12 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
 import { buildSchemaFieldPortKey, readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import {
+  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
+  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
+} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import { getObjectPath, setObjectPath } from '@/lib/data/objectPath'
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -38,8 +44,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   onSetLabel,
   onSetType,
   onPatchProperties,
+  onSetProperties,
   onValidate,
   onSchemaPortHandleClick,
+  onRegistrySelectionChange,
+  registryEntry = null,
+  registryEntries = [],
 }: {
   active: boolean
   node: GraphNode
@@ -48,12 +58,17 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   labelInputRef: React.RefObject<HTMLInputElement>
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
-  onPatchProperties: (patch: Partial<FlowEditorSmartNodeProperties>) => void
+  onPatchProperties: (patch: Record<string, unknown>) => void
+  onSetProperties: (properties: Record<string, unknown>) => void
   onValidate: () => void
   onSchemaPortHandleClick?: (args: { dir: 'in' | 'out'; portKey: string }) => void
+  onRegistrySelectionChange?: (args: { entry: NodeQuickEditorRegistryEntry | null }) => void
+  registryEntry?: NodeQuickEditorRegistryEntry | null
+  registryEntries?: ReadonlyArray<NodeQuickEditorRegistryEntry>
 }) {
   const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()
   const properties = (node.properties || {}) as Record<string, unknown>
+  const nodeTypeId = pickString(node.type).trim()
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled)
@@ -69,6 +84,47 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const generateAudio = pickBool(properties.generate_audio)
   const fast = pickBool(properties.fast)
   const referenceImage = pickString(properties.reference_image)
+
+  const normalizeRegistrySchemaPath = React.useCallback((schemaPath: string | undefined, fallbackKey: string) => {
+    const raw = String(schemaPath || fallbackKey || '').trim()
+    if (!raw) return ''
+    if (raw.startsWith('properties') || raw.startsWith('metadata') || raw.startsWith('label') || raw.startsWith('type')) return raw
+    return `properties.${raw}`
+  }, [])
+
+  const registryFields = registryEntry?.fields || []
+  const registryPorts = registryEntry?.ports || []
+  const registryOptions = React.useMemo(
+    () =>
+      (registryEntries || []).filter(
+        entry => entry && entry.isEnabled && entry.nodeTypeId === nodeTypeId,
+      ),
+    [nodeTypeId, registryEntries],
+  )
+  const registrySelectionId = registryEntry?.id || ''
+  const hasRegistryOptions = registryOptions.length > 0
+  const handleRegistrySelect = React.useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const nextId = String(event.target.value || '').trim()
+      if (nextId === registrySelectionId) return
+      if (!nextId) {
+        onPatchProperties({
+          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: undefined,
+          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: undefined,
+        })
+        onRegistrySelectionChange?.({ entry: null })
+        return
+      }
+      const nextEntry = registryOptions.find(entry => entry.id === nextId)
+      if (!nextEntry) return
+      onPatchProperties({
+        [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: nextEntry.quickEditorTypeId,
+        [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: nextEntry.formId,
+      })
+      onRegistrySelectionChange?.({ entry: nextEntry })
+    },
+    [onPatchProperties, onRegistrySelectionChange, registryOptions, registrySelectionId],
+  )
 
   return (
     <form
@@ -300,6 +356,239 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             placeholder={UI_COPY.flowNodeQuickEditorReferenceImagePlaceholder}
             disabled={!active}
           />
+        </fieldset>
+      )}
+
+      <fieldset className="min-w-0 mt-4" aria-label="Node Quick Editor Mapping">
+        <legend className={cn(microLabelClass, 'font-medium', UI_THEME_TOKENS.text.secondary)}>
+          {UI_LABELS.flowEditorMapping}
+        </legend>
+        <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-registry">
+          {UI_LABELS.flowNodeQuickEditor}
+        </label>
+        <select
+          id="flow-node-quick-registry"
+          className={cn(
+            'mt-1 w-full h-9 rounded-md',
+            keyValueInputClass,
+            textSizeClass,
+            'text-left',
+            UI_THEME_TOKENS.input.bg,
+            UI_THEME_TOKENS.input.border,
+            UI_THEME_TOKENS.input.text,
+          )}
+          value={registrySelectionId}
+          onChange={handleRegistrySelect}
+          disabled={!active || !hasRegistryOptions}
+        >
+          <option value="">{hasRegistryOptions ? UI_COPY.flowNodeQuickEditorSelectPlaceholder : UI_LABELS.noneLabel}</option>
+          {registryOptions.map(entry => (
+            <option key={entry.id} value={entry.id}>
+              {entry.quickEditorTypeId} · {entry.formId}
+            </option>
+          ))}
+        </select>
+        {registryEntry ? (
+          <p className={cn('mt-1', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
+            {registryEntry.nodeTypeId} · {registryEntry.quickEditorTypeId} · {registryEntry.formId}
+          </p>
+        ) : null}
+      </fieldset>
+
+      {!hideFields && registryEntry && (registryFields.length > 0 || registryPorts.length > 0) && (
+        <fieldset className="min-w-0 mt-4" aria-label="Node Quick Editor Registry">
+          <legend className={cn(microLabelClass, 'font-medium', UI_THEME_TOKENS.text.secondary)}>
+            Registry
+          </legend>
+
+          <p className={cn('mt-1', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
+            {registryEntry.nodeTypeId} · {registryEntry.quickEditorTypeId} · {registryEntry.formId}
+          </p>
+
+          {registryFields.length > 0 && (
+            <section className="mt-2" aria-label="Registry fields">
+              {registryFields.map((f, idx) => {
+                const rowKey = `${String(f.fieldKey || '')}:${idx}`
+                const path = normalizeRegistrySchemaPath(f.schemaPath, f.fieldKey)
+                const cur = path ? getObjectPath({ properties }, path) : undefined
+                const label = String(f.label || f.fieldKey)
+                const fieldType = String(f.fieldType || '').trim().toLowerCase()
+                const id = `flow-node-quick-registry-field-${String(f.fieldKey || idx).replace(/[^a-zA-Z0-9_-]/g, '_')}`
+
+                const setValue = (nextValue: unknown) => {
+                  if (!path) return
+                  const nextRoot = setObjectPath({ properties }, path, nextValue)
+                  const nextProps = (nextRoot as { properties?: Record<string, unknown> }).properties || {}
+                  onSetProperties(nextProps)
+                }
+
+                if (fieldType === 'boolean' || fieldType === 'bool') {
+                  const checked = typeof cur === 'boolean' ? cur : false
+                  return (
+                    <React.Fragment key={rowKey}>
+                      <label className={cn('mt-2 flex items-center gap-2', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={id}>
+                        <input
+                          id={id}
+                          type="checkbox"
+                          checked={checked}
+                          onChange={e => setValue(e.target.checked)}
+                          disabled={!active}
+                        />
+                        {label}
+                      </label>
+                    </React.Fragment>
+                  )
+                }
+
+                if (fieldType === 'number' || fieldType === 'int' || fieldType === 'integer' || fieldType === 'float') {
+                  const v = typeof cur === 'number' && Number.isFinite(cur) ? String(cur) : ''
+                  return (
+                    <React.Fragment key={rowKey}>
+                      <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={id}>
+                        {label}
+                      </label>
+                      <input
+                        id={id}
+                        type="number"
+                        className={cn(
+                          'mt-1 w-full h-8 rounded-md',
+                          keyValueInputClass,
+                          textSizeClass,
+                          'text-left',
+                          UI_THEME_TOKENS.input.bg,
+                          UI_THEME_TOKENS.input.border,
+                          UI_THEME_TOKENS.input.text,
+                        )}
+                        value={v}
+                        onChange={e => {
+                          const raw = e.target.value
+                          if (!raw.trim()) {
+                            setValue(undefined)
+                            return
+                          }
+                          const num = Number.parseFloat(raw)
+                          setValue(Number.isFinite(num) ? num : undefined)
+                        }}
+                        disabled={!active}
+                      />
+                    </React.Fragment>
+                  )
+                }
+
+                if (fieldType === 'json') {
+                  const v = typeof cur === 'string' ? cur : typeof cur === 'undefined' ? '' : JSON.stringify(cur)
+                  return (
+                    <React.Fragment key={rowKey}>
+                      <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={id}>
+                        {label}
+                      </label>
+                      <textarea
+                        id={id}
+                        className={cn(
+                          'mt-1 w-full h-24 px-2 py-1 rounded-md border',
+                          monospaceTextClass,
+                          UI_THEME_TOKENS.input.bg,
+                          UI_THEME_TOKENS.input.border,
+                          UI_THEME_TOKENS.input.text,
+                        )}
+                        value={v}
+                        onChange={e => setValue(e.target.value || undefined)}
+                        disabled={!active}
+                      />
+                    </React.Fragment>
+                  )
+                }
+
+                const v = typeof cur === 'string' ? cur : typeof cur === 'number' ? String(cur) : ''
+                return (
+                  <React.Fragment key={rowKey}>
+                    <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={id}>
+                      {label}
+                    </label>
+                    <input
+                      id={id}
+                      className={cn(
+                        'mt-1 w-full h-8 rounded-md',
+                        keyValueInputClass,
+                        textSizeClass,
+                        'text-left',
+                        UI_THEME_TOKENS.input.bg,
+                        UI_THEME_TOKENS.input.border,
+                        UI_THEME_TOKENS.input.text,
+                      )}
+                      value={v}
+                      onChange={e => {
+                        const raw = e.target.value
+                        setValue(raw.trim() ? raw : undefined)
+                      }}
+                      disabled={!active}
+                    />
+                  </React.Fragment>
+                )
+              })}
+            </section>
+          )}
+
+          {registryPorts.length > 0 && (
+            <section className={cn('mt-3 rounded-lg border', UI_THEME_TOKENS.input.border)} aria-label="Registry ports">
+              <ul className="list-none m-0 p-0">
+                {registryPorts.map((p, idx) => {
+                  const portKey = String(p.portKey || '').trim()
+                  if (!portKey) return null
+                  const isIn = p.direction === 'input'
+                  const aria = `${isIn ? 'Input' : 'Output'} port: ${portKey}`
+                  return (
+                    <li key={`${p.direction}:${portKey}:${idx}`} className={cn('relative flex items-center gap-2 px-3 py-2 border-b last:border-b-0', UI_THEME_TOKENS.panel.border)}>
+                      {isIn ? (
+                        <button
+                          type="button"
+                          aria-label={aria}
+                          title={aria}
+                          className={cn('absolute top-1/2 left-0', UI_THEME_TOKENS.button.text)}
+                          style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px`, transform: 'translate(-50%, -50%)' }}
+                          onPointerDown={e => {
+                            try { e.stopPropagation() } catch { void 0 }
+                          }}
+                          onClick={e => {
+                            try { e.stopPropagation() } catch { void 0 }
+                            if (!active || !portHandlesEnabled) return
+                            onSchemaPortHandleClick?.({ dir: 'in', portKey })
+                          }}
+                          disabled={!active || !portHandlesEnabled}
+                        >
+                          <span aria-hidden={true} className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.input.border)} style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }} />
+                        </button>
+                      ) : null}
+
+                      <span className={cn('min-w-0 flex-1 truncate', UI_THEME_TOKENS.text.primary)}>{portKey}</span>
+                      <span className={cn('shrink-0 text-xs', UI_THEME_TOKENS.text.secondary)}>{isIn ? 'in' : 'out'}</span>
+
+                      {!isIn ? (
+                        <button
+                          type="button"
+                          aria-label={aria}
+                          title={aria}
+                          className={cn('absolute top-1/2 right-0', UI_THEME_TOKENS.button.text)}
+                          style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px`, transform: 'translate(50%, -50%)' }}
+                          onPointerDown={e => {
+                            try { e.stopPropagation() } catch { void 0 }
+                          }}
+                          onClick={e => {
+                            try { e.stopPropagation() } catch { void 0 }
+                            if (!active || !portHandlesEnabled) return
+                            onSchemaPortHandleClick?.({ dir: 'out', portKey })
+                          }}
+                          disabled={!active || !portHandlesEnabled}
+                        >
+                          <span aria-hidden={true} className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.input.border)} style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }} />
+                        </button>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
         </fieldset>
       )}
 

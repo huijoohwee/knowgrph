@@ -8,9 +8,19 @@ import {
   type GraphDataTableColumnKey,
   type GraphDataTableColumnVisibilityByKey,
 } from '@/features/graph-data-table/graphDataTable'
+import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { validateNodeQuickEditorRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function computeRegistrySignature(entries: Array<{ id: string; updatedAt: string }>): string {
+  const pairs = entries
+    .map(e => `${String(e.id || '').trim()}@${String(e.updatedAt || '').trim()}`)
+    .filter(Boolean)
+    .sort()
+  return `${pairs.length}:${pairs.join('|')}`
 }
 
 export function withGraphDataRevision(graphData: GraphData, nextRevision: number): GraphData {
@@ -47,6 +57,27 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
     const setCanvasRenderMode = get().setCanvasRenderMode
     if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
   }
+}
+
+export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata: unknown) {
+  if (!isRecord(metadata)) return
+  const raw = metadata[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+  if (!Array.isArray(raw) || raw.length === 0) return
+
+  const validated = raw
+    .map(item => validateNodeQuickEditorRegistryEntry(item))
+    .filter((e): e is NonNullable<typeof e> => !!e)
+
+  if (validated.length === 0) return
+
+  const current = Array.isArray(get().nodeQuickEditorRegistry) ? get().nodeQuickEditorRegistry : []
+  const currentSig = computeRegistrySignature(current)
+  const nextSig = computeRegistrySignature(validated)
+  if (currentSig === nextSig) return
+
+  const setRegistry = get().setNodeQuickEditorRegistry
+  if (typeof setRegistry !== 'function') return
+  setRegistry(validated)
 }
 
 export function syncGraphFieldsWithGraphData(

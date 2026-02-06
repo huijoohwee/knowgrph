@@ -1,6 +1,7 @@
 import { Fragment, useMemo } from 'react'
 import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { SELECTION_INSPECTOR_EMPTY_TEXT } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
 
@@ -44,7 +45,9 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
       })
   }, [columns])
 
-  if (!row) return null
+  const isEmpty = !row
+  const headerKind = row ? row.tableId : 'selection'
+  const headerLabel = row ? row.rowId : SELECTION_INSPECTOR_EMPTY_TEXT
 
   return (
     <section
@@ -54,14 +57,15 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
     >
       <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider} flex items-center justify-between gap-2`}>
         <section className="min-w-0" aria-label="Record title">
-          <p className={cn(microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{row.tableId}</p>
-          <p className={`font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{row.rowId}</p>
+          <p className={cn(microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{headerKind}</p>
+          <p className={`font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{headerLabel}</p>
         </section>
         <nav className="flex items-center gap-2" aria-label="Inspector actions">
           <button
             type="button"
             className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={onDeleteRow}
+            disabled={isEmpty}
           >
             Delete
           </button>
@@ -69,6 +73,7 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
             type="button"
             className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={onClose}
+            disabled={isEmpty}
           >
             Close
           </button>
@@ -76,33 +81,37 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
       </header>
 
       <section className="flex-1 min-h-0 overflow-auto" aria-label="Record fields">
-        <dl className="px-3 py-2 grid grid-cols-[120px_1fr] gap-x-2 gap-y-2 items-center">
-          {ordered.map(col => {
-            const value = (row.data || {})[col.columnId]
-            const raw = value == null ? '' : String(value)
-            const disabled = col.columnId === 'id'
-            return (
-              <Fragment key={col.pk}>
-                <dt className={cn(textSizeClass, UI_THEME_TOKENS.text.tertiary, 'truncate')}>{col.name}</dt>
-                <dd>
-                  <input
-                    className={cn(
-                      'w-full',
-                      keyValueInputClass,
-                      textSizeClass,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    value={raw}
-                    disabled={disabled}
-                    onChange={e => onChangeCell(col.columnId, e.target.value)}
-                  />
-                </dd>
-              </Fragment>
-            )
-          })}
-        </dl>
+        {isEmpty ? (
+          <p className={cn('px-3 py-2', microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{SELECTION_INSPECTOR_EMPTY_TEXT}</p>
+        ) : (
+          <dl className="px-3 py-2 grid grid-cols-[120px_1fr] gap-x-2 gap-y-2 items-center">
+            {ordered.map(col => {
+              const value = (row.data || {})[col.columnId]
+              const raw = value == null ? '' : String(value)
+              const disabled = col.columnId === 'id'
+              return (
+                <Fragment key={col.pk}>
+                  <dt className={cn(textSizeClass, UI_THEME_TOKENS.text.tertiary, 'truncate')}>{col.name}</dt>
+                  <dd>
+                    <input
+                      className={cn(
+                        'w-full',
+                        keyValueInputClass,
+                        textSizeClass,
+                        UI_THEME_TOKENS.input.border,
+                        UI_THEME_TOKENS.input.bg,
+                        UI_THEME_TOKENS.input.text,
+                      )}
+                      value={raw}
+                      disabled={disabled}
+                      onChange={e => onChangeCell(col.columnId, e.target.value)}
+                    />
+                  </dd>
+                </Fragment>
+              )
+            })}
+          </dl>
+        )}
       </section>
     </section>
   )

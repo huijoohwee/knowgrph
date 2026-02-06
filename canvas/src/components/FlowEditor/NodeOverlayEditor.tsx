@@ -8,18 +8,16 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import {
   LS_KEYS,
+  UI_COPY,
   UI_LABELS,
   UI_SELECTORS,
-  type FlowEditorSmartNodeProperties,
 } from '@/lib/config'
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
 import { lsBool, lsInt, lsSetBool, lsSetInt } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { usePinnedLs } from '@/lib/ui/panelPinned'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
-import { cn } from '@/lib/utils'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import {
   computeNodeQuickEditorScale,
@@ -27,10 +25,9 @@ import {
   NODE_QUICK_EDITOR_BASE_SIZE,
 } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import {
-  X,
-} from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
+import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 
 const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   active,
@@ -45,6 +42,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   onSetLabel,
   onSetType,
   onPatchProperties,
+  onSetProperties,
   onValidate,
   onDuplicate,
   onRemove,
@@ -66,7 +64,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   onFinalizeAddEdgeToNode?: (nodeId: string, portKey?: string | null) => void
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
-  onPatchProperties: (patch: Partial<FlowEditorSmartNodeProperties>) => void
+  onPatchProperties: (patch: Record<string, unknown>) => void
+  onSetProperties: (properties: Record<string, unknown>) => void
   onValidate: () => void
   onDuplicate: () => void
   onRemove: () => void
@@ -78,14 +77,29 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   onPinnedToNodeChange?: (pinnedToNode: boolean) => void
 }) {
   const { panelTextClass, microLabelClass } = usePanelTypography()
-  const { uiIconScale, uiIconStrokeWidth, uiPanelOpacity, schema, documentStructureBaselineLock } = useGraphStore(
+  const {
+    uiIconScale,
+    uiIconStrokeWidth,
+    uiPanelOpacity,
+    schema,
+    documentStructureBaselineLock,
+    nodeQuickEditorRegistry,
+    upsertUiToast,
+  } = useGraphStore(
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       uiPanelOpacity: s.uiPanelOpacity,
       schema: s.schema,
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
+      nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
+      upsertUiToast: s.upsertUiToast,
     })),
+  )
+
+  const registryEntry: NodeQuickEditorRegistryEntry | null = React.useMemo(
+    () => resolveNodeQuickEditorRegistryEntry({ node, registry: nodeQuickEditorRegistry }),
+    [node, nodeQuickEditorRegistry],
   )
 
   const asideRef = React.useRef<HTMLElement | null>(null)
@@ -359,6 +373,29 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     [],
   )
 
+  const handleRegistrySelectionChange = React.useCallback(
+    ({ entry }: { entry: NodeQuickEditorRegistryEntry | null }) => {
+      if (!active) return
+      if (!entry) {
+        upsertUiToast({
+          id: `flow-node-quick-editor-registry-clear-${String(node.id || '')}`,
+          kind: 'neutral',
+          message: UI_COPY.flowNodeQuickEditorRegistryClearedToast,
+          ttlMs: 2200,
+        })
+        return
+      }
+      const label = `${entry.nodeTypeId} · ${entry.quickEditorTypeId} · ${entry.formId}`
+      upsertUiToast({
+        id: `flow-node-quick-editor-registry-${entry.id}`,
+        kind: 'neutral',
+        message: UI_COPY.flowNodeQuickEditorRegistryToast(label),
+        ttlMs: 2500,
+      })
+    },
+    [active, node.id, upsertUiToast],
+  )
+
   return (
     <aside
       ref={asideRef}
@@ -400,7 +437,12 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         onSetLabel={onSetLabel}
         onSetType={onSetType}
         onPatchProperties={onPatchProperties}
+        onSetProperties={onSetProperties}
         onValidate={onValidate}
+        onRegistrySelectionChange={handleRegistrySelectionChange}
+
+        registryEntry={registryEntry}
+        registryEntries={nodeQuickEditorRegistry}
 
         portHandleEdges={edges}
         schema={schema}

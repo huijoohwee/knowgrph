@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 
 import { UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -8,11 +8,16 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { createUniqueId } from '@/lib/ids'
 
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
-import NodeQuickEditorRegistryFieldsEditor from '@/features/flow-editor-manager/NodeQuickEditorRegistryFieldsEditor'
-import NodeQuickEditorRegistryPortsEditor from '@/features/flow-editor-manager/NodeQuickEditorRegistryPortsEditor'
-import NodeQuickEditorRegistrySchemaMappingsEditor from '@/features/flow-editor-manager/NodeQuickEditorRegistrySchemaMappingsEditor'
+import FlowMappingRowsTable from '@/features/flow-editor-manager/FlowMappingRowsTable'
+import {
+  applyMappingRowsToRegistryEntry,
+  buildMappingRowsFromRegistryEntry,
+  validateMappingRows,
+  type FlowEditorMappingRow,
+} from '@/features/flow-editor-manager/mappingRows'
 
 const clean = (v: unknown): string => String(v || '').trim()
 
@@ -20,7 +25,7 @@ const buildBlankDraft = (): Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> => (
   id: '',
   isEnabled: true,
   nodeTypeId: '',
-  quickEditorTypeId: 'NodeQuickEditor',
+  quickEditorTypeId: 'default',
   formId: 'default',
   fields: [{ fieldKey: 'label', fieldType: 'text', schemaPath: 'label' }],
   ports: [],
@@ -32,6 +37,7 @@ export default function NodeQuickEditorRegistryDrawer({
   mode,
   entryId,
   entries,
+  initialDraft,
   onClose,
   onSave,
   onDelete,
@@ -40,6 +46,7 @@ export default function NodeQuickEditorRegistryDrawer({
   mode: 'create' | 'edit'
   entryId: string | null
   entries: NodeQuickEditorRegistryEntry[]
+  initialDraft?: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> | null
   onClose: () => void
   onSave: (draft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> & { updatedAt?: string | null }) =>
     | { ok: true; id: string }
@@ -60,13 +67,16 @@ export default function NodeQuickEditorRegistryDrawer({
   }, [entries, entryId, mode, open])
 
   const [draft, setDraft] = React.useState<Omit<NodeQuickEditorRegistryEntry, 'updatedAt'>>(() => buildBlankDraft())
+  const [rows, setRows] = React.useState<FlowEditorMappingRow[]>(() =>
+    buildMappingRowsFromRegistryEntry({ ...buildBlankDraft(), updatedAt: new Date().toISOString() } as NodeQuickEditorRegistryEntry),
+  )
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!open) return
     setError(null)
     if (mode === 'edit' && activeEntry) {
-      setDraft({
+      const nextDraft = {
         id: activeEntry.id,
         isEnabled: activeEntry.isEnabled,
         nodeTypeId: activeEntry.nodeTypeId,
@@ -75,11 +85,30 @@ export default function NodeQuickEditorRegistryDrawer({
         fields: Array.isArray(activeEntry.fields) ? activeEntry.fields : [],
         ports: Array.isArray(activeEntry.ports) ? activeEntry.ports : [],
         schemaMappings: Array.isArray(activeEntry.schemaMappings) ? activeEntry.schemaMappings : [],
-      })
+      }
+      setDraft(nextDraft)
+      setRows(buildMappingRowsFromRegistryEntry({ ...nextDraft, updatedAt: activeEntry.updatedAt } as NodeQuickEditorRegistryEntry))
       return
     }
-    setDraft(buildBlankDraft())
-  }, [activeEntry, mode, open])
+    if (mode === 'create' && initialDraft) {
+      const nextDraft = {
+        id: clean(initialDraft.id),
+        isEnabled: !!initialDraft.isEnabled,
+        nodeTypeId: clean(initialDraft.nodeTypeId),
+        quickEditorTypeId: clean(initialDraft.quickEditorTypeId) || 'default',
+        formId: clean(initialDraft.formId) || 'default',
+        fields: Array.isArray(initialDraft.fields) ? initialDraft.fields : [],
+        ports: Array.isArray(initialDraft.ports) ? initialDraft.ports : [],
+        schemaMappings: Array.isArray(initialDraft.schemaMappings) ? initialDraft.schemaMappings : [],
+      }
+      setDraft(nextDraft)
+      setRows(buildMappingRowsFromRegistryEntry({ ...nextDraft, updatedAt: new Date().toISOString() } as NodeQuickEditorRegistryEntry))
+      return
+    }
+    const blank = buildBlankDraft()
+    setDraft(blank)
+    setRows(buildMappingRowsFromRegistryEntry({ ...blank, updatedAt: new Date().toISOString() } as NodeQuickEditorRegistryEntry))
+  }, [activeEntry, initialDraft, mode, open])
 
   const close = React.useCallback(() => {
     setError(null)
@@ -94,35 +123,28 @@ export default function NodeQuickEditorRegistryDrawer({
     if (!quickEditorTypeId) return 'Quick Editor Type is required.'
     if (!formId) return 'Form ID is required.'
 
-    const fields = Array.isArray(draft.fields) ? draft.fields : []
-    const ports = Array.isArray(draft.ports) ? draft.ports : []
-    if (fields.length === 0 && ports.length === 0) return 'Add at least one field or port.'
+    return validateMappingRows(rows)
+  }, [draft.formId, draft.nodeTypeId, draft.quickEditorTypeId, rows])
 
-    const fieldKeySet = new Set<string>()
-    for (let i = 0; i < fields.length; i += 1) {
-      const f = fields[i]
-      const fk = clean(f.fieldKey)
-      const ft = clean(f.fieldType)
-      if (!fk) return 'Every field needs a fieldKey.'
-      if (!ft) return 'Every field needs a fieldType.'
-      if (fieldKeySet.has(fk)) return `Duplicate fieldKey: ${fk}`
-      fieldKeySet.add(fk)
-    }
+  const addRow = React.useCallback(() => {
+    setRows(prev => {
+      const used = new Set(prev.map(r => r.id))
+      const id = createUniqueId('qerRow', used)
+      return [...prev, { id, key: '', type: 'text', value: '', required: false, direction: 'none' }]
+    })
+  }, [])
 
-    const portKeySet = new Set<string>()
-    for (let i = 0; i < ports.length; i += 1) {
-      const p = ports[i]
-      const pk = clean(p.portKey)
-      const dir = clean(p.direction)
-      if (!pk) return 'Every port needs a portKey.'
-      if (dir !== 'input' && dir !== 'output') return 'Every port needs a direction.'
-      const uniq = `${dir}:${pk}`
-      if (portKeySet.has(uniq)) return `Duplicate port: ${uniq}`
-      portKeySet.add(uniq)
-    }
+  const updateRow = React.useCallback((id: string, patch: Partial<FlowEditorMappingRow>) => {
+    const target = clean(id)
+    if (!target) return
+    setRows(prev => prev.map(r => (r.id === target ? { ...r, ...patch } : r)))
+  }, [])
 
-    return null
-  }, [draft])
+  const deleteRow = React.useCallback((id: string) => {
+    const target = clean(id)
+    if (!target) return
+    setRows(prev => prev.filter(r => r.id !== target))
+  }, [])
 
   const handleSave = React.useCallback(() => {
     const localErr = validateLocal()
@@ -131,24 +153,17 @@ export default function NodeQuickEditorRegistryDrawer({
       return
     }
 
+    const baseEntry = { ...draft, updatedAt: new Date().toISOString() } as NodeQuickEditorRegistryEntry
+    const nextEntry = applyMappingRowsToRegistryEntry({ entry: baseEntry, rows })
+
     const res = onSave({
       id: clean(draft.id) || undefined,
       isEnabled: !!draft.isEnabled,
       nodeTypeId: clean(draft.nodeTypeId),
       quickEditorTypeId: clean(draft.quickEditorTypeId),
       formId: clean(draft.formId),
-      fields: (draft.fields || []).map(f => ({
-        fieldKey: clean(f.fieldKey),
-        label: clean(f.label) || undefined,
-        fieldType: clean(f.fieldType),
-        schemaPath: clean(f.schemaPath) || undefined,
-        required: !!f.required,
-      })),
-      ports: (draft.ports || []).map(p => ({
-        portKey: clean(p.portKey),
-        direction: (clean(p.direction) === 'output' ? 'output' : 'input') as 'input' | 'output',
-        schemaPath: clean(p.schemaPath) || undefined,
-      })),
+      fields: nextEntry.fields,
+      ports: nextEntry.ports,
       schemaMappings: (draft.schemaMappings || [])
         .map(m => ({ fromPath: clean(m.fromPath), toPath: clean(m.toPath) }))
         .filter(m => m.fromPath && m.toPath),
@@ -158,7 +173,7 @@ export default function NodeQuickEditorRegistryDrawer({
       return
     }
     setError(null)
-  }, [draft, onSave, validateLocal])
+  }, [draft, onSave, rows, validateLocal])
 
   const handleDelete = React.useCallback(() => {
     const id = clean(draft.id)
@@ -254,18 +269,22 @@ export default function NodeQuickEditorRegistryDrawer({
             </div>
           </section>
 
-          <NodeQuickEditorRegistryFieldsEditor
-            fields={draft.fields}
-            onChange={fields => setDraft(prev => ({ ...prev, fields }))}
-          />
-          <NodeQuickEditorRegistryPortsEditor
-            ports={draft.ports}
-            onChange={ports => setDraft(prev => ({ ...prev, ports }))}
-          />
-          <NodeQuickEditorRegistrySchemaMappingsEditor
-            mappings={draft.schemaMappings || []}
-            onChange={schemaMappings => setDraft(prev => ({ ...prev, schemaMappings }))}
-          />
+          <section aria-label="Rows" className="space-y-2">
+            <section className="flex items-center justify-between gap-2" aria-label="Rows header">
+              <h4 className={cn('text-xs font-semibold uppercase tracking-wider', UI_THEME_TOKENS.text.secondary)}>Rows</h4>
+              <button
+                type="button"
+                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={addRow}
+                aria-label="Add row"
+              >
+                <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+              </button>
+            </section>
+            <section className="overflow-auto" aria-label="Rows table">
+              <FlowMappingRowsTable rows={rows} onChange={updateRow} onDelete={deleteRow} />
+            </section>
+          </section>
         </section>
 
         <footer className={cn('px-3 py-2 border-t flex items-center justify-between gap-2', UI_THEME_TOKENS.panel.border)}>

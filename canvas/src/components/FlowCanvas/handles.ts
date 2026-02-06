@@ -4,6 +4,8 @@ import {
   buildSchemaFieldPortKey,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 
 export type FlowHandleDir = 'in' | 'out'
 
@@ -45,11 +47,13 @@ export function ensureFlowHandlesHaveDefaults(handles: FlowNodeHandles): FlowNod
 }
 
 export function computeFlowHandlesByNode(args: {
-  nodes: ReadonlyArray<{ id: unknown; properties?: unknown }>
+  nodes: ReadonlyArray<{ id: unknown; type?: unknown; properties?: unknown }>
   edges: ReadonlyArray<{ id: unknown; source: unknown; target: unknown; properties?: unknown }>
+  nodeQuickEditorRegistry?: ReadonlyArray<NodeQuickEditorRegistryEntry> | null
 }): Record<string, FlowNodeHandles> {
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   const edges = Array.isArray(args.edges) ? args.edges : []
+  const registry = Array.isArray(args.nodeQuickEditorRegistry) ? args.nodeQuickEditorRegistry : []
 
   const nodeIds: string[] = []
   const nodeIdSet = new Set<string>()
@@ -65,12 +69,34 @@ export function computeFlowHandlesByNode(args: {
   const outgoingByNode = new Map<string, Array<{ handleKey: string; otherId: string }>>()
 
   const schemaFieldsByNodeId = new Map<string, string[]>()
+  const registryPortsByNodeId = new Map<string, Array<{ dir: FlowHandleDir; portKey: string }>>()
   for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i] as unknown as { id?: unknown; properties?: unknown }
+    const n = nodes[i] as unknown as { id?: unknown; type?: unknown; properties?: unknown }
     const id = String(n?.id ?? '').trim()
     if (!id) continue
     const fields = readSchemaFieldSpecs({ properties: (n as { properties?: unknown }).properties as never }).map(f => f.id).filter(Boolean)
     if (fields.length) schemaFieldsByNodeId.set(id, fields)
+
+    const entry = resolveNodeQuickEditorRegistryEntry({
+      node: { type: String(n?.type ?? ''), properties: (n as { properties?: unknown }).properties as never },
+      registry,
+    })
+    const ports = entry?.ports || []
+    if (ports.length > 0) {
+      const list: Array<{ dir: FlowHandleDir; portKey: string }> = []
+      const seen = new Set<string>()
+      for (let j = 0; j < ports.length; j += 1) {
+        const p = ports[j]
+        const portKey = String(p?.portKey || '').trim()
+        if (!portKey) continue
+        const dir: FlowHandleDir = p.direction === 'input' ? 'in' : 'out'
+        const uniq = `${dir}:${portKey}`
+        if (seen.has(uniq)) continue
+        seen.add(uniq)
+        list.push({ dir, portKey })
+      }
+      if (list.length > 0) registryPortsByNodeId.set(id, list)
+    }
   }
 
   for (let i = 0; i < edges.length; i += 1) {
@@ -146,12 +172,24 @@ export function computeFlowHandlesByNode(args: {
       return { in: sin, out: sout } satisfies FlowNodeHandles
     })()
 
-    if (!schemaHandles) {
-      out[nodeId] = { in: toHandles('in', incoming), out: toHandles('out', outgoing) }
-      continue
-    }
+    const registryHandles = (() => {
+      const ports = registryPortsByNodeId.get(nodeId) || []
+      if (ports.length === 0) return null
+      const sin: FlowPortHandle[] = []
+      const sout: FlowPortHandle[] = []
+      const ins = ports.filter(p => p.dir === 'in')
+      const outs = ports.filter(p => p.dir === 'out')
+      for (let j = 0; j < ins.length; j += 1) {
+        const pct = ((j + 1) / (ins.length + 1)) * 100
+        sin.push({ id: buildFlowHandleId({ dir: 'in', edgeId: ins[j].portKey }), topPct: pct })
+      }
+      for (let j = 0; j < outs.length; j += 1) {
+        const pct = ((j + 1) / (outs.length + 1)) * 100
+        sout.push({ id: buildFlowHandleId({ dir: 'out', edgeId: outs[j].portKey }), topPct: pct })
+      }
+      return { in: sin, out: sout } satisfies FlowNodeHandles
+    })()
 
-    const dyn = { in: toHandles('in', incoming), out: toHandles('out', outgoing) }
     const merge = (base: FlowPortHandle[], extra: FlowPortHandle[]): FlowPortHandle[] => {
       const seen = new Set<string>(base.map(h => h.id))
       const merged = base.slice()
@@ -162,7 +200,15 @@ export function computeFlowHandlesByNode(args: {
       }
       return merged
     }
-    out[nodeId] = { in: merge(schemaHandles.in, dyn.in), out: merge(schemaHandles.out, dyn.out) }
+
+    const dyn = { in: toHandles('in', incoming), out: toHandles('out', outgoing) }
+    const base = schemaHandles || dyn
+    const merged = registryHandles ? { in: merge(base.in, registryHandles.in), out: merge(base.out, registryHandles.out) } : base
+    if (!schemaHandles) {
+      out[nodeId] = merged
+      continue
+    }
+    out[nodeId] = { in: merge(merged.in, dyn.in), out: merge(merged.out, dyn.out) }
   }
   return out
 }

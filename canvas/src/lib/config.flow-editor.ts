@@ -1,5 +1,13 @@
 export type FlowEditorSmartNodeModel = 'generate_image' | 'generate_video'
 
+export const FLOW_NODE_QUICK_EDITOR_BUNDLE_KIND = 'kg:flow:nodeQuickEditorBundle' as const
+export const FLOW_NODE_QUICK_EDITOR_BUNDLE_VERSION = 1 as const
+
+export const FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY = 'flow:nodeQuickEditorRegistry' as const
+
+export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
+export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'Generate Video' as const
+
 export const FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
   { value: 'generate_image', label: 'Generate Image' },
   { value: 'generate_video', label: 'Generate Video' },

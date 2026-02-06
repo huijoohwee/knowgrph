@@ -4,6 +4,7 @@ import { rawToGraphData } from '@/lib/graph/rawToGraph'
 import { parseJsonLd, toJsonLd } from '@/lib/graph/jsonld/index'
 import { isN8nWorkflow, parseN8nWorkflow } from '@/lib/graph/n8n'
 import { isGraphRagBundle, parseGraphRagBundle } from '@/lib/graph/graphrag'
+import { tryParseQuickEditorImportGraphData } from '@/lib/graph/io/quickEditorImport'
 
 export type ParseDiagnostics = {
   format: 'csv' | 'json' | 'jsonld'
@@ -18,6 +19,12 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
   }
   try {
     const json = JSON.parse(text)
+
+    const quickEditor = tryParseQuickEditorImportGraphData(json)
+    if (quickEditor) {
+      return { data: quickEditor.graphData, diag: { format: 'json', warnings: quickEditor.warnings } }
+    }
+
     if (json && Array.isArray(json.nodes) && Array.isArray(json.edges)) {
       const n0 = json.nodes[0] || {}
       const e0 = json.edges[0] || {}

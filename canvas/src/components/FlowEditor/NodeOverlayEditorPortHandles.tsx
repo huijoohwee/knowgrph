@@ -33,11 +33,6 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   onBeginAddEdgeFromNode?: (nodeId: string, portKey?: string | null) => void
   onFinalizeAddEdgeToNode?: (nodeId: string, portKey?: string | null) => void
 }) {
-  const enabled = Boolean(args.schema?.behavior?.portHandles?.enabled)
-  if (!enabled) return null
-  if (args.minimized) return null
-  if (!args.nodeId) return null
-
   const edges = React.useMemo(() => coerceEdgeEndpoints(args.edges), [args.edges])
 
   const handles = React.useMemo(() => {
@@ -45,6 +40,11 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     if (!shouldInjectDefaultFlowHandles(args.schema)) return base
     return ensureFlowHandlesHaveDefaults(base)
   }, [args.nodeId, edges, args.schema])
+
+  const enabled = Boolean(args.schema?.behavior?.portHandles?.enabled)
+  if (!enabled) return null
+  if (args.minimized) return null
+  if (!args.nodeId) return null
 
   const rawSize = args.schema?.behavior?.portHandles?.size
   const sizePx = typeof rawSize === 'number' && Number.isFinite(rawSize) ? Math.max(8, Math.floor(rawSize * 2 + 4)) : 12
