@@ -38,6 +38,10 @@ export type FlowEditorSmartNodeProperties = {
   reference_image?: string
 }
 
+export const FLOW_EDITOR_LOOP_NODE_TYPE = 'Loop'
+export const FLOW_EDITOR_NODE_KIND_PROPERTY_KEY = 'workflow:kind' as const
+export const FLOW_EDITOR_NODE_KIND_LOOP_VALUE = 'loop' as const
+
 export const FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS: ReadonlyArray<keyof FlowEditorSmartNodeProperties> = [
   'model',
   'prompt',
@@ -45,4 +49,3 @@ export const FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS: ReadonlyArray<keyof FlowEdi
   'duration',
   'resolution',
 ]
-

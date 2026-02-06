@@ -1,9 +1,11 @@
 import { useCallback } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
+import { UI_COPY } from '@/lib/config'
 import { getNextThemeMode, type ThemeMode } from '@/lib/ui/theme'
 import { type GraphSchema } from '@/lib/graph/schema'
 import { toggleGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
 
 export function useToolbarActions(
   schema: GraphSchema,
@@ -33,7 +35,7 @@ export function useToolbarActions(
     state.upsertUiToast({
       id: 'baseline-locked',
       kind: 'warning',
-      message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+      message: UI_COPY.baselineLockedToast,
       ttlMs: 6000,
     })
     return false
@@ -49,21 +51,8 @@ export function useToolbarActions(
 
   const handleTogglePortHandles = useCallback(() => {
     if (!ensureBaselineUnlocked()) return
-    const current = schema
-    const behavior = current.behavior
-    const portHandles = behavior.portHandles || {}
-    const enabled = Boolean(portHandles.enabled)
-    const next = {
-      ...current,
-      behavior: {
-        ...behavior,
-        portHandles: {
-          ...portHandles,
-          enabled: !enabled,
-        },
-      },
-    }
-    setSchema(next as GraphSchema)
+    const next = togglePortHandlesEnabledInSchema(schema)
+    if (next.changed) setSchema(next.schema)
   }, [schema, setSchema])
 
   const handleToggleNodeShapeMode = useCallback(() => {

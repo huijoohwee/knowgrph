@@ -1,7 +1,7 @@
 import type { GraphState, CanvasSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
-import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config'
+import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER, UI_COPY } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 
 type SetGraph = StoreApi<GraphState>['setState']
@@ -138,7 +138,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
       cur.upsertUiToast({
         id: 'baseline-locked',
         kind: 'warning',
-        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        message: UI_COPY.baselineLockedToast,
         ttlMs: 6000,
       })
       return
@@ -163,7 +163,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
       cur.upsertUiToast({
         id: 'baseline-locked',
         kind: 'warning',
-        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        message: UI_COPY.baselineLockedToast,
         ttlMs: 6000,
       })
       return

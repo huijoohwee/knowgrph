@@ -249,6 +249,7 @@ export function testForbidReactFlowAndLiteGraphDependencies() {
   const patterns: RegExp[] = [
     /\breactflow\b/i,
     /@xyflow\/react/i,
+    /react-flow__handle/i,
     /\blitegraph\.js\b/i,
     /jagenjo\/litegraph/i,
   ]

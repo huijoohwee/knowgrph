@@ -10,7 +10,7 @@ import type {
   GraphDataTableSortRule,
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
-import { SESSION_KEYS } from '@/lib/config';
+import { SESSION_KEYS, UI_COPY } from '@/lib/config';
 import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
 import { ThemeMode, ResolvedThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode, resolveThemeMode, getSystemTheme } from '@/lib/ui/theme';
 
@@ -142,7 +142,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
       get().upsertUiToast({
         id: 'baseline-locked',
         kind: 'warning',
-        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        message: UI_COPY.baselineLockedToast,
         ttlMs: 6000,
       })
       return
@@ -154,7 +154,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
       get().upsertUiToast({
         id: 'baseline-locked',
         kind: 'warning',
-        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        message: UI_COPY.baselineLockedToast,
         ttlMs: 6000,
       })
       return

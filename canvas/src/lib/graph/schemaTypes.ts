@@ -16,6 +16,7 @@ export interface GraphBehavior {
     size?: number;
     offset?: number;
     strokeWidth?: number;
+    showAllInputs?: boolean;
   };
   hover?: {
     enabled?: boolean;

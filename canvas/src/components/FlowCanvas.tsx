@@ -44,6 +44,7 @@ export default function FlowCanvas({
   collisionDuringDrag = false,
   allowNodeDragOverride,
   hideSelectedNodeGlyph = false,
+  hideSelectedNodePortHandles,
   forbidCircleNodes = false,
 }: {
   active?: boolean
@@ -52,6 +53,7 @@ export default function FlowCanvas({
   collisionDuringDrag?: boolean
   allowNodeDragOverride?: boolean
   hideSelectedNodeGlyph?: boolean
+  hideSelectedNodePortHandles?: boolean
   forbidCircleNodes?: boolean
 }) {
   const containerRef = React.useRef<HTMLElement>(null)
@@ -64,10 +66,16 @@ export default function FlowCanvas({
   const positionsDirtySinceCommitRef = React.useRef(false)
   const selectedNodeIdsRef = React.useRef<string[]>([])
   const selectedEdgeIdsRef = React.useRef<string[]>([])
-  const drawArgsRef = React.useRef<{ selectedNodeIds: string[]; selectedEdgeIds: string[]; hideNodeIds?: string[] }>({
+  const drawArgsRef = React.useRef<{
+    selectedNodeIds: string[]
+    selectedEdgeIds: string[]
+    hideNodeIds?: string[]
+    hidePortHandleNodeIds?: string[]
+  }>({
     selectedNodeIds: [],
     selectedEdgeIds: [],
     hideNodeIds: undefined,
+    hidePortHandleNodeIds: undefined,
   })
   const lastPointerInCanvasRef = React.useRef<null | { sx: number; sy: number; ts: number }>(null)
   const lastWheelIntentRef = React.useRef<null | { dir: 'in' | 'out'; ts: number }>(null)
@@ -141,7 +149,8 @@ export default function FlowCanvas({
     drawArgsRef.current.selectedNodeIds = nextSelectedNodeIds
     drawArgsRef.current.selectedEdgeIds = nextSelectedEdgeIds
     drawArgsRef.current.hideNodeIds = hideSelectedNodeGlyph ? nextSelectedNodeIds : undefined
-  }, [hideSelectedNodeGlyph, selectedEdgeIds, selectedNodeIds])
+    drawArgsRef.current.hidePortHandleNodeIds = hideSelectedNodePortHandles ? nextSelectedNodeIds : undefined
+  }, [hideSelectedNodeGlyph, hideSelectedNodePortHandles, selectedEdgeIds, selectedNodeIds])
 
   useAutoZoomModes2d({
     viewportW,
@@ -518,7 +527,7 @@ export default function FlowCanvas({
     const g = sceneGraphData
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
-    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}`
+    const graphKey = `${graphDataRevision}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}:${schemaNodesPresentationJson}:${schemaGroupsPresentationJson}`
     if (graphKey === lastBuiltGraphKeyRef.current && (runtime.scene?.nodes.length || 0) > 0) return
     lastBuiltGraphKeyRef.current = graphKey
     __flowCanvasDebug.lastBuiltSceneKey = graphKey
@@ -540,6 +549,7 @@ export default function FlowCanvas({
     computedPositions,
     flowConfig,
     forbidCircleNodes,
+    graphDataRevision,
     layoutVariant,
     rankdir,
     sceneGraphData,

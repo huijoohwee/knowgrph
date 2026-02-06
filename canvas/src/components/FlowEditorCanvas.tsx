@@ -16,19 +16,31 @@ import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
   LS_KEYS,
+  UI_COPY,
   type FlowEditorSmartNodeProperties,
 } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { viewportCenterToWorld } from '@/lib/zoom/viewport'
+import {
+  convertNodeToLoopInGraphData,
+  enableHandlesForAllInputsInSchema,
+  isHandlesForAllInputsEnabled,
+} from '@/lib/flowEditor/flowEditorActions'
+import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
 
 type ToolMode = 'select' | 'addEdge'
 
 const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuickEditorOverlay(args: {
   active: boolean
   node: GraphNode
+  edges: ReadonlyArray<GraphEdge>
   viewportW: number
   viewportH: number
+  toolMode: ToolMode
+  pendingEdgeSourceId: string | null
+  onBeginAddEdgeFromNode: (nodeId: string) => void
+  onFinalizeAddEdgeToNode: (nodeId: string) => void
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
   onPatchProperties: (patch: Record<string, unknown>) => void
@@ -38,6 +50,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   onClearOutput: () => void
   onHelp: () => void
   onConvertToLoopNode: () => void
+  onTogglePortHandles: () => void
   onEnableHandlesForAllInputs: () => void
   onPinnedToNodeChange: (pinnedToNode: boolean) => void
 }) {
@@ -45,6 +58,11 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
     <NodeOverlayEditor
       active={args.active}
       node={args.node}
+      edges={args.edges}
+      toolMode={args.toolMode}
+      pendingEdgeSourceId={args.pendingEdgeSourceId}
+      onBeginAddEdgeFromNode={args.onBeginAddEdgeFromNode}
+      onFinalizeAddEdgeToNode={args.onFinalizeAddEdgeToNode}
       viewportW={args.viewportW}
       viewportH={args.viewportH}
       onSetLabel={args.onSetLabel}
@@ -56,6 +74,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       onClearOutput={args.onClearOutput}
       onHelp={args.onHelp}
       onConvertToLoopNode={args.onConvertToLoopNode}
+      onTogglePortHandles={args.onTogglePortHandles}
       onEnableHandlesForAllInputs={args.onEnableHandlesForAllInputs}
       onPinnedToNodeChange={args.onPinnedToNodeChange}
     />
@@ -92,6 +111,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const selectEdge = useGraphStore(s => s.selectEdge)
   const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
+  const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
+  const schema = useGraphStore(s => s.schema)
+  const setSchema = useGraphStore(s => s.setSchema)
 
   const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
   const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
@@ -169,38 +191,66 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     selectEdge(null)
   }, [active, draftDirty, selectedEdgeId, selectedNodeId, selectEdge, selectNode, setSelectionSource])
 
+  const beginAddEdgeFromNode = React.useCallback(
+    (nodeId: string) => {
+      const id = String(nodeId || '').trim()
+      if (!id) return
+      if (!active) return
+      if (!draftGraphData) return
+      const nodeIds = new Set((draftGraphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
+      if (!nodeIds.has(id)) return
+      setSelectionSource('canvas')
+      selectEdge(null)
+      selectNode(id)
+      setToolMode('addEdge')
+      setPendingEdgeSourceId(id)
+    },
+    [active, draftGraphData, selectEdge, selectNode, setSelectionSource],
+  )
+
+  const finalizePendingEdge = React.useCallback(
+    (nodeId: string) => {
+      const id = String(nodeId || '').trim()
+      if (!id) return
+      if (!active) return
+      if (toolMode !== 'addEdge') return
+      if (!draftGraphData) return
+      const nodeIds = new Set((draftGraphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
+      if (!nodeIds.has(id)) return
+      if (!pendingEdgeSourceId) {
+        setPendingEdgeSourceId(id)
+        return
+      }
+      if (pendingEdgeSourceId === id) return
+
+      const usedEdgeIds = new Set((draftGraphData.edges || []).map(e => String(e.id || '')).filter(Boolean))
+      const edgeId = createUniqueId('e', usedEdgeIds)
+      const nextEdge: GraphEdge = {
+        id: edgeId,
+        source: pendingEdgeSourceId,
+        target: id,
+        label: 'linksTo',
+        properties: {},
+      }
+      const next: GraphData = {
+        ...draftGraphData,
+        edges: [...(draftGraphData.edges || []), nextEdge],
+      }
+      setDraftGraphData(normalizeGraphData(next))
+      setDraftGraphDataRevision(r => r + 1)
+      setDraftDirty(true)
+      setPendingEdgeSourceId(null)
+      setToolMode('select')
+    },
+    [active, draftGraphData, pendingEdgeSourceId, toolMode],
+  )
+
   React.useEffect(() => {
     if (!active) return
     if (toolMode !== 'addEdge') return
-    if (!draftGraphData) return
     if (!selectedNodeId) return
-    const nodeIds = new Set((draftGraphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
-    if (!nodeIds.has(selectedNodeId)) return
-    if (!pendingEdgeSourceId) {
-      setPendingEdgeSourceId(selectedNodeId)
-      return
-    }
-    if (pendingEdgeSourceId === selectedNodeId) return
-
-    const usedEdgeIds = new Set((draftGraphData.edges || []).map(e => String(e.id || '')).filter(Boolean))
-    const id = createUniqueId('e', usedEdgeIds)
-    const nextEdge: GraphEdge = {
-      id,
-      source: pendingEdgeSourceId,
-      target: selectedNodeId,
-      label: 'linksTo',
-      properties: {},
-    }
-    const next: GraphData = {
-      ...draftGraphData,
-      edges: [...(draftGraphData.edges || []), nextEdge],
-    }
-    setDraftGraphData(normalizeGraphData(next))
-    setDraftGraphDataRevision(r => r + 1)
-    setDraftDirty(true)
-    setPendingEdgeSourceId(null)
-    setToolMode('select')
-  }, [active, draftGraphData, pendingEdgeSourceId, selectedNodeId, toolMode])
+    finalizePendingEdge(selectedNodeId)
+  }, [active, finalizePendingEdge, selectedNodeId, toolMode])
 
   const addNode = React.useCallback(() => {
     if (!draftGraphData) return
@@ -456,28 +506,78 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     upsertUiToast({
       id: 'flow-editor-node-editor-help',
       kind: 'neutral',
-      message: 'Node Quick Editor: pin to detach, drag header to move, drag to resize.',
+      message: UI_COPY.flowNodeQuickEditorHelpToast,
       ttlMs: 2800,
     })
   }, [upsertUiToast])
 
   const enableHandlesForAllInputs = React.useCallback(() => {
+    if (documentStructureBaselineLock === true) {
+      upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: UI_COPY.baselineLockedToast,
+        ttlMs: 6000,
+      })
+      return
+    }
+
+    if (isHandlesForAllInputsEnabled(schema)) {
+      upsertUiToast({
+        id: 'flow-editor-enable-handles',
+        kind: 'neutral',
+        message: UI_COPY.flowNodeQuickEditorEnableHandlesAlreadyOnToast,
+        ttlMs: 2200,
+      })
+      return
+    }
+
+    const next = enableHandlesForAllInputsInSchema(schema)
+    if (next.changed) setSchema(next.schema)
     upsertUiToast({
       id: 'flow-editor-enable-handles',
-      kind: 'neutral',
-      message: 'Enable handles is not implemented in MVP.',
-      ttlMs: 2200,
+      kind: 'success',
+      message: UI_COPY.flowNodeQuickEditorEnableHandlesToast,
+      ttlMs: 2600,
     })
-  }, [upsertUiToast])
+  }, [documentStructureBaselineLock, schema, setSchema, upsertUiToast])
+
+  const togglePortHandles = React.useCallback(() => {
+    if (documentStructureBaselineLock === true) {
+      upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: UI_COPY.baselineLockedToast,
+        ttlMs: 6000,
+      })
+      return
+    }
+    const next = togglePortHandlesEnabledInSchema(schema)
+    if (next.changed) setSchema(next.schema)
+  }, [documentStructureBaselineLock, schema, setSchema, upsertUiToast])
 
   const convertSelectedNodeToLoop = React.useCallback(() => {
+    if (!draftGraphData || !selectedNodeId) return
+    const converted = convertNodeToLoopInGraphData(draftGraphData, selectedNodeId)
+    if (!converted.changed) {
+      upsertUiToast({
+        id: 'flow-editor-convert-loop',
+        kind: 'neutral',
+        message: UI_COPY.flowNodeQuickEditorConvertToLoopAlreadyLoopToast,
+        ttlMs: 2200,
+      })
+      return
+    }
+    setDraftGraphData(converted.graphData)
+    setDraftGraphDataRevision(r => r + 1)
+    setDraftDirty(true)
     upsertUiToast({
       id: 'flow-editor-convert-loop',
-      kind: 'neutral',
-      message: 'Convert to loop node is not implemented in MVP.',
-      ttlMs: 2200,
+      kind: 'success',
+      message: UI_COPY.flowNodeQuickEditorConvertToLoopToast,
+      ttlMs: 2600,
     })
-  }, [upsertUiToast])
+  }, [draftGraphData, selectedNodeId, upsertUiToast])
 
   const setSelectedEdgeLabel = React.useCallback(
     (label: string) => {
@@ -634,6 +734,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       <FlowEditorNodeQuickEditorOverlay
         active={active}
         node={selectedDraftNode}
+        edges={(draftGraphData?.edges || []) as GraphEdge[]}
+        toolMode={toolMode}
+        pendingEdgeSourceId={pendingEdgeSourceId}
+        onBeginAddEdgeFromNode={beginAddEdgeFromNode}
+        onFinalizeAddEdgeToNode={finalizePendingEdge}
         viewportW={viewportW}
         viewportH={viewportH}
         onSetLabel={setSelectedNodeLabel}
@@ -645,6 +750,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         onClearOutput={clearSelectedNodeOutput}
         onHelp={showNodeEditorHelp}
         onConvertToLoopNode={convertSelectedNodeToLoop}
+        onTogglePortHandles={togglePortHandles}
         onEnableHandlesForAllInputs={enableHandlesForAllInputs}
         onPinnedToNodeChange={setNodeEditorPinnedToNode}
       />
@@ -659,6 +765,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         collisionDuringDrag
         allowNodeDragOverride={nodeEditorPinnedToNode ? false : undefined}
         hideSelectedNodeGlyph={Boolean(overlayEditorElement)}
+        hideSelectedNodePortHandles={Boolean(overlayEditorElement)}
         forbidCircleNodes
       />
 

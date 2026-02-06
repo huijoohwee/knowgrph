@@ -1,9 +1,15 @@
-import { computeFlowHandlesByNode, buildFlowHandleId, type FlowHandleId } from '@/components/FlowCanvas/handles'
+import {
+  computeFlowHandlesByNode,
+  buildFlowHandleId,
+  ensureFlowHandlesHaveDefaults,
+  type FlowHandleId,
+} from '@/components/FlowCanvas/handles'
 import { coerceFlowNativeNodeShape } from '@/components/FlowCanvas/shape'
 import { setFlowNativeScene, setFlowNativeRankdir, type FlowNativeRuntime, type FlowNativeScene } from '@/components/FlowCanvas/nativeRuntime'
 import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
@@ -38,7 +44,8 @@ export function buildAndSetFlowNativeScene(args: {
     const label = String((n as { label?: unknown })?.label || id)
     const rawShape = args.schema ? getNodeRenderShape2d(n as GraphNode, args.schema) : 'rect'
     const shape = coerceFlowNativeNodeShape({ shape: rawShape, forbidCircle: args.forbidCircleNodes })
-    const handles = handlesByNode[id] || { in: [], out: [] }
+    const baseHandles = handlesByNode[id] || { in: [], out: [] }
+    const handles = shouldInjectDefaultFlowHandles(args.schema) ? ensureFlowHandlesHaveDefaults(baseHandles) : baseHandles
     const p = pos ? pos[id] : null
     const x = p && Number.isFinite(p.x) ? p.x : 0
     const y = p && Number.isFinite(p.y) ? p.y : 0

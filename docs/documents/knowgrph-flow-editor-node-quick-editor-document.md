@@ -18,10 +18,12 @@
 ## Supported Behaviors (MVP)
 
 - **Pin/Unpin**: detaches the overlay from node-anchored positioning and persists a viewport position.
-- **Drag**: when unpinned, header drag moves the overlay (ignores pointerdown on interactive elements).
+- **Drag**: when pinned (detached), header drag moves the overlay (ignores pointerdown on interactive elements).
 - **Minimize/Restore**: collapses the editor body to header-only.
 - **Opacity**: inherits `uiPanelOpacity` from UI settings.
 - **Scroll isolation**: scrolling inside the editor must not zoom the canvas; mark the overlay as a wheel-ignore zone and guard wheel-zoom handlers via SSOT selector `UI_SELECTORS.canvasWheelIgnore`.
+- **More actions**: open selected node in Sidepane, enable Port Handles for all nodes, convert selected node to a Loop node (schema + draft-graph edits only; no hidden background work; idempotent updates).
+- **Baseline lock**: enable-handles action is gated when Document Structure baseline lock is enabled.
 
 ## Performance Invariants
 
@@ -41,6 +43,19 @@
 - Scale is computed from the schema zoom extent (`minK/maxK`) and current zoom `k`, then applied via CSS `transform` (translate + scale) to keep updates on the compositor path.
 - **Macro view rule**: at **max zoom-out** and **max zoom-in**, the panel stays **small** (same size at both extremes) so the user can keep a wide overview.
 - SSOT implementation lives in `canvas/src/components/FlowEditor/nodeQuickEditorZoom.ts` and must be reused by any future quick-editor overlays.
+
+---
+
+## Port Handles (Flow Editor)
+
+- Port Handles are toggled via `schema.behavior.portHandles.enabled`.
+- Node Quick Editor “Enable Handles for All Inputs” sets `schema.behavior.portHandles.enabled=true` and `schema.behavior.portHandles.showAllInputs=true` so Flow nodes without edges still render default in/out handles (visual + routing parity, bounded work).
+- Shared gating helper is `isPortHandlesShowAllInputsEnabled(schema)` so Flow scene-building and UI actions cannot drift.
+
+## Loop Node Semantics (Flow Editor)
+
+- Convert-to-loop sets `node.type='Loop'` and `node.properties['workflow:kind']='loop'` for the selected node (draft graph only until commit).
+- Conversion is idempotent (re-running does not churn graph objects).
 
 ---
 

@@ -1,6 +1,6 @@
 import { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import { validateSchema } from '@/features/schema/validation'
-import { LS_KEYS } from '@/lib/config'
+import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import { layoutModeRequires2d, readLayoutMode2d } from '@/lib/graph/layoutMode'
 import type { GraphState } from '@/hooks/store/types'
@@ -282,7 +282,7 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
       get().upsertUiToast({
         id: 'baseline-locked',
         kind: 'warning',
-        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        message: UI_COPY.baselineLockedToast,
         ttlMs: 6000,
       })
       return
@@ -296,7 +296,7 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
       get().upsertUiToast({
         id: 'baseline-locked',
         kind: 'warning',
-        message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+        message: UI_COPY.baselineLockedToast,
         ttlMs: 6000,
       })
       return

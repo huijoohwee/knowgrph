@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 
 import FlowCanvas, { __flowCanvasDebug } from '@/components/FlowCanvas'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { defaultSchema } from '@/lib/graph/schema'
 
 type Ctx2d = Partial<CanvasRenderingContext2D>
 
@@ -300,6 +301,82 @@ export const testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer = async () => {
     selectedEdgeId: priorState.selectedEdgeId,
     selectedNodeIds: priorState.selectedNodeIds,
     selectedEdgeIds: priorState.selectedEdgeIds,
+    zoomRequest: priorState.zoomRequest,
+    zoomStateByKey: priorState.zoomStateByKey,
+    zoomState: priorState.zoomState,
+  })
+}
+
+export const testFlowCanvasRebuildsSceneWhenPortHandlesToggleChangesSchemaPresentation = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  installDomStubs(dom)
+
+  const priorState = useGraphStore.getState()
+
+  const baseGraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n1', label: 'Alpha', type: 'Note', properties: {} }],
+    edges: [],
+    metadata: { kind: 'test', source: 'flowCanvasPortHandlesRebuild' },
+  }
+
+  const baseSchema = {
+    ...defaultSchema,
+    behavior: {
+      ...defaultSchema.behavior,
+      portHandles: { ...defaultSchema.behavior.portHandles, enabled: false },
+    },
+  }
+
+  useGraphStore.setState({
+    graphData: baseGraphData,
+    graphDataRevision: (priorState.graphDataRevision || 0) + 1,
+    schema: baseSchema,
+    frontmatterModeEnabled: false,
+    documentSemanticMode: 'document',
+    zoomRequest: null,
+    zoomStateByKey: {},
+    zoomState: { k: 1, x: 0, y: 0 },
+  })
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+
+  const root = createRoot(host)
+  root.render(React.createElement(FlowCanvas, { active: true }))
+
+  await waitFor({
+    ms: 5_000,
+    pollMs: 25,
+    ok: () => __flowCanvasDebug.lastBuiltSceneKey.length > 0 && __flowCanvasDebug.lastBuiltSceneNodeCount === 1,
+  })
+
+  const before = String(__flowCanvasDebug.lastBuiltSceneKey || '')
+  if (!before) throw new Error('expected FlowCanvas to publish a scene key')
+
+  useGraphStore.setState({
+    schema: {
+      ...baseSchema,
+      behavior: {
+        ...baseSchema.behavior,
+        portHandles: { ...(baseSchema.behavior?.portHandles || {}), enabled: true },
+      },
+    },
+  })
+
+  await waitFor({
+    ms: 10_000,
+    pollMs: 25,
+    ok: () => String(__flowCanvasDebug.lastBuiltSceneKey || '') !== before,
+  })
+
+  root.unmount()
+  useGraphStore.setState({
+    graphData: priorState.graphData,
+    graphDataRevision: priorState.graphDataRevision,
+    schema: priorState.schema,
+    frontmatterModeEnabled: priorState.frontmatterModeEnabled,
+    documentSemanticMode: priorState.documentSemanticMode,
     zoomRequest: priorState.zoomRequest,
     zoomStateByKey: priorState.zoomStateByKey,
     zoomState: priorState.zoomState,

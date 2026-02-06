@@ -5,7 +5,7 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphBehavior, GraphSchema } from '@/lib/graph/schema'
-import { RUN_CODEBASE_INDEX_PIPELINE_LABEL } from '@/lib/config'
+import { RUN_CODEBASE_INDEX_PIPELINE_LABEL, UI_COPY } from '@/lib/config'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
@@ -61,7 +61,7 @@ export default function RenderSettingsSection({
     upsertUiToast({
       id: 'baseline-locked',
       kind: 'warning',
-      message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+      message: UI_COPY.baselineLockedToast,
       ttlMs: 6000,
     })
     return false

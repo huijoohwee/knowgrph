@@ -1,4 +1,9 @@
-import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
+import {
+  FLOW_HANDLE_DEFAULT_EDGE_ID,
+  buildFlowHandleId,
+  computeFlowHandlesByNode,
+  ensureFlowHandlesHaveDefaults,
+} from '@/components/FlowCanvas/handles'
 import { buildElkLayout } from '@/components/FlowCanvas/elkLayout'
 import type { GraphData } from '@/lib/graph/types'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
@@ -24,6 +29,25 @@ export const testFlowHandlesByNodeDeterministicOrdering = () => {
   const approx = (value: number, expected: number, eps: number) => Math.abs(value - expected) <= eps
   if (!approx(a.in[0]?.topPct ?? NaN, 33.3333, 0.25)) throw new Error('node A incoming handle[0] topPct mismatch')
   if (!approx(a.in[1]?.topPct ?? NaN, 66.6666, 0.25)) throw new Error('node A incoming handle[1] topPct mismatch')
+}
+
+export const testFlowHandlesDefaultsAreInjectedWhenRequested = () => {
+  const next = ensureFlowHandlesHaveDefaults({ in: [], out: [] })
+  if (next.in.length !== 1) throw new Error('default incoming handle missing')
+  if (next.out.length !== 1) throw new Error('default outgoing handle missing')
+  if (next.in[0]?.id !== buildFlowHandleId({ dir: 'in', edgeId: FLOW_HANDLE_DEFAULT_EDGE_ID })) {
+    throw new Error('default incoming handle id mismatch')
+  }
+  if (next.out[0]?.id !== buildFlowHandleId({ dir: 'out', edgeId: FLOW_HANDLE_DEFAULT_EDGE_ID })) {
+    throw new Error('default outgoing handle id mismatch')
+  }
+  if ((next.in[0]?.topPct ?? -1) !== 50) throw new Error('default incoming handle topPct mismatch')
+  if ((next.out[0]?.topPct ?? -1) !== 50) throw new Error('default outgoing handle topPct mismatch')
+
+  const unchanged = { in: [{ id: buildFlowHandleId({ dir: 'in', edgeId: 'e1' }), topPct: 50 }], out: [] }
+  const withDefaults = ensureFlowHandlesHaveDefaults(unchanged)
+  if (withDefaults.in !== unchanged.in) throw new Error('should reuse existing incoming handle array')
+  if (withDefaults.out.length !== 1) throw new Error('should inject missing outgoing handle')
 }
 
 export const testElkLayoutTimeoutIsBounded = async () => {

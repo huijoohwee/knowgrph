@@ -114,7 +114,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     upsertUiToast({
       id: 'baseline-locked',
       kind: 'warning',
-      message: 'Mode switches are locked (baseline). Click the lock icon to unlock.',
+      message: UI_COPY.baselineLockedToast,
       ttlMs: 6000,
     })
     return false

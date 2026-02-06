@@ -12,10 +12,22 @@ export type FlowNodeHandles = {
   out: FlowPortHandle[]
 }
 
+export const FLOW_HANDLE_DEFAULT_EDGE_ID = '__flow_default_handle__' as const
+
 export function buildFlowHandleId(args: { dir: FlowHandleDir; edgeId: string }): FlowHandleId {
   const edgeId = String(args.edgeId || '').trim()
   const dir = args.dir === 'in' ? 'in' : 'out'
   return `${dir}:${edgeId || 'edge'}` as FlowHandleId
+}
+
+export function ensureFlowHandlesHaveDefaults(handles: FlowNodeHandles): FlowNodeHandles {
+  const hasIn = Array.isArray(handles.in) && handles.in.length > 0
+  const hasOut = Array.isArray(handles.out) && handles.out.length > 0
+  if (hasIn && hasOut) return handles
+
+  const nextIn = hasIn ? handles.in : [{ id: buildFlowHandleId({ dir: 'in', edgeId: FLOW_HANDLE_DEFAULT_EDGE_ID }), topPct: 50 }]
+  const nextOut = hasOut ? handles.out : [{ id: buildFlowHandleId({ dir: 'out', edgeId: FLOW_HANDLE_DEFAULT_EDGE_ID }), topPct: 50 }]
+  return { in: nextIn, out: nextOut }
 }
 
 export function computeFlowHandlesByNode(args: {

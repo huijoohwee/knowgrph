@@ -7,6 +7,7 @@ const COPY_FAILED = 'Copy failed'
 const MISSING_PATH = 'Missing path'
 const FAILED_TO_LOAD_MARKDOWN = 'Failed to load markdown'
 const EMPTY_RESPONSE = 'Empty response'
+const BASELINE_LOCKED_TOAST = 'Mode switches are locked (baseline). Click the lock icon to unlock.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -19,6 +20,7 @@ export const UI_COPY = {
   toolbarPrefix: 'Toolbar:',
   mainPanelPrefix: 'Main panel:',
   bottomPanelPrefix: 'Bottom panel:',
+  baselineLockedToast: BASELINE_LOCKED_TOAST,
   openSettingsUiDensityIconsButton: 'Open Settings: UI Density icons',
   openSettingsUiDensityIconsButtonCompact: 'Open Settings · UI Density: Icons',
   floatingPanelMinimize: 'Minimize floating panel',
@@ -42,6 +44,14 @@ export const UI_COPY = {
   flowNodeQuickEditorOpenInSidepane: 'Open selected node in sidepane',
   flowNodeQuickEditorEnableHandles: 'Enable handles for all inputs',
   flowNodeQuickEditorConvertToLoop: 'Convert to loop node',
+  flowNodeQuickEditorHelpToast: 'Node Quick Editor: pin to detach, drag header to move, Escape closes the menu.',
+  flowNodeQuickEditorEnableHandlesToast: 'Port Handles enabled for all nodes.',
+  flowNodeQuickEditorEnableHandlesAlreadyOnToast: 'Port Handles are already enabled for all inputs.',
+  flowNodeQuickEditorEnableHandlesBaselineLockedToast: BASELINE_LOCKED_TOAST,
+  flowNodeQuickEditorConvertToLoopToast: 'Converted node to Loop.',
+  flowNodeQuickEditorConvertToLoopAlreadyLoopToast: 'Node is already a Loop.',
+  flowNodeQuickEditorSelectPlaceholder: 'Search or select…',
+  flowNodeQuickEditorReferenceImagePlaceholder: 'Enter URL to desired file',
   shiftDragToConnect: 'Shift-drag to connect',
   propsPanelOpenInSidePanel: 'Open in Side Panel',
   propsPanelOpenInNodesTab: 'Open in Nodes Tab',

@@ -6,6 +6,7 @@ import {
   FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
   FLOW_EDITOR_RESOLUTION_OPTIONS,
   FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS,
+  UI_COPY,
   UI_LABELS,
   type FlowEditorSmartNodeProperties,
 } from '@/lib/config'
@@ -60,11 +61,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   return (
     <form
       className={cn('p-3', panelTextClass, FLOATING_PANEL_SCROLL_CLASSNAME)}
-      aria-label="Quick edit form"
+      aria-label={UI_LABELS.flowNodeQuickEditorForm}
       onSubmit={e => e.preventDefault()}
     >
       <fieldset className="min-w-0">
-        <legend className={cn(microLabelClass, 'font-medium', UI_THEME_TOKENS.text.secondary)}>Node</legend>
+        <legend className={cn(microLabelClass, 'font-medium', UI_THEME_TOKENS.text.secondary)}>
+          {UI_LABELS.flowNodeQuickEditorNodeLegend}
+        </legend>
 
         <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-label">
           {UI_LABELS.name}
@@ -108,10 +111,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
       {!hideFields && (
         <fieldset className="min-w-0 mt-4">
-          <legend className={cn(microLabelClass, 'font-medium', UI_THEME_TOKENS.text.secondary)}>Smart fields</legend>
+          <legend className={cn(microLabelClass, 'font-medium', UI_THEME_TOKENS.text.secondary)}>
+            {UI_LABELS.flowNodeQuickEditorSmartFieldsLegend}
+          </legend>
 
           <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-model">
-            Model
+            {UI_LABELS.flowNodeQuickEditorModel}
           </label>
           <select
             id="flow-node-quick-model"
@@ -130,7 +135,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             }
             disabled={!active}
           >
-            <option value="">Search or select…</option>
+            <option value="">{UI_COPY.flowNodeQuickEditorSelectPlaceholder}</option>
             {FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -139,7 +144,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           </select>
 
           <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-prompt">
-            Prompt
+            {UI_LABELS.flowNodeQuickEditorPrompt}
           </label>
           <textarea
             id="flow-node-quick-prompt"
@@ -156,7 +161,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           />
 
           <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-aspect">
-            Aspect ratio
+            {UI_LABELS.flowNodeQuickEditorAspectRatio}
           </label>
           <select
             id="flow-node-quick-aspect"
@@ -177,7 +182,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             }
             disabled={!active}
           >
-            <option value="">Search or select…</option>
+            <option value="">{UI_COPY.flowNodeQuickEditorSelectPlaceholder}</option>
             {FLOW_EDITOR_ASPECT_RATIO_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -186,7 +191,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           </select>
 
           <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-duration">
-            Duration
+            {UI_LABELS.flowNodeQuickEditorDuration}
           </label>
           <select
             id="flow-node-quick-duration"
@@ -206,7 +211,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             }}
             disabled={!active}
           >
-            <option value="">Search or select…</option>
+            <option value="">{UI_COPY.flowNodeQuickEditorSelectPlaceholder}</option>
             {FLOW_EDITOR_DURATION_SECONDS_OPTIONS.map(o => (
               <option key={o.value} value={String(o.value)}>
                 {o.label}
@@ -215,7 +220,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           </select>
 
           <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-resolution">
-            Resolution
+            {UI_LABELS.flowNodeQuickEditorResolution}
           </label>
           <select
             id="flow-node-quick-resolution"
@@ -234,7 +239,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             }
             disabled={!active}
           >
-            <option value="">Search or select…</option>
+            <option value="">{UI_COPY.flowNodeQuickEditorSelectPlaceholder}</option>
             {FLOW_EDITOR_RESOLUTION_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -250,7 +255,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               onChange={e => onPatchProperties({ generate_audio: e.target.checked })}
               disabled={!active}
             />
-            Generate audio
+            {UI_LABELS.flowNodeQuickEditorGenerateAudio}
           </label>
 
           <label className={cn('mt-2 flex items-center gap-2', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-fast">
@@ -261,11 +266,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               onChange={e => onPatchProperties({ fast: e.target.checked })}
               disabled={!active}
             />
-            Fast
+            {UI_LABELS.flowNodeQuickEditorFast}
           </label>
 
           <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-ref">
-            Reference image
+            {UI_LABELS.flowNodeQuickEditorReferenceImage}
           </label>
           <input
             id="flow-node-quick-ref"
@@ -280,21 +285,31 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             )}
             value={referenceImage}
             onChange={e => onPatchProperties({ reference_image: e.target.value || undefined })}
-            placeholder="Enter URL to desired file"
+            placeholder={UI_COPY.flowNodeQuickEditorReferenceImagePlaceholder}
             disabled={!active}
           />
         </fieldset>
       )}
 
-      <menu className="mt-4 flex items-center justify-end gap-2" aria-label="Quick edit actions">
-        <button
-          type="button"
-          className={cn('rounded-lg bg-teal-500 px-3 py-2 font-semibold text-white hover:bg-teal-400 disabled:opacity-50')}
-          onClick={onValidate}
-          disabled={!active}
-        >
-          Validate
-        </button>
+      <menu
+        className="mt-4 flex list-none items-center justify-end gap-2 p-0"
+        aria-label={UI_LABELS.flowNodeQuickEditorActions}
+      >
+        <li>
+          <button
+            type="button"
+            className={cn(
+              'rounded-lg border px-3 py-2 font-semibold disabled:opacity-50',
+              UI_THEME_TOKENS.panel.border,
+              UI_THEME_TOKENS.button.activeBg,
+              UI_THEME_TOKENS.button.activeText,
+            )}
+            onClick={onValidate}
+            disabled={!active}
+          >
+            {UI_LABELS.flowNodeQuickEditorValidate}
+          </button>
+        </li>
       </menu>
     </form>
   )

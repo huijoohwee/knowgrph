@@ -434,9 +434,13 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
   if (!cfg.enabled) return
   if (cfg.placement !== 'cardinal') return
   const ctx = rt.ctx
-  const r = Math.max(1, cfg.sizePx)
-  const offset = Math.max(0, cfg.offsetPx)
-  const strokeW = Math.max(0, cfg.strokeWidthPx)
+  const k = rt.transform.k || 1
+  const rScreen = Math.max(4, cfg.sizePx)
+  const offsetScreen = Math.max(0, cfg.offsetPx)
+  const strokeWScreen = Math.max(1, cfg.strokeWidthPx)
+  const r = rScreen / k
+  const offset = offsetScreen / k
+  const strokeW = strokeWScreen / k
 
   const fill = resolveCssVarCached(rt, '--kg-panel-bg', rt.theme.nodeFill)
   const stroke = rt.theme.nodeStrokeSelected
@@ -744,10 +748,14 @@ const drawGroups = (rt: FlowNativeRuntime) => {
   }
 }
 
-export const drawFlowNative = (
-  rt: FlowNativeRuntime,
-  args: { selectedNodeIds: string[]; selectedEdgeIds: string[]; hideNodeIds?: string[] },
-) => {
+export type FlowNativeDrawArgs = {
+  selectedNodeIds: string[]
+  selectedEdgeIds: string[]
+  hideNodeIds?: string[]
+  hidePortHandleNodeIds?: string[]
+}
+
+export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) => {
   refreshFlowNativeCss(rt)
   if (!rt.dirty) return
   rt.dirty = false
@@ -765,6 +773,7 @@ export const drawFlowNative = (
   const selectedNodeIds = new Set<string>(args.selectedNodeIds || [])
   const selectedEdgeIds = new Set<string>(args.selectedEdgeIds || [])
   const hiddenNodeIds = new Set<string>(args.hideNodeIds || [])
+  const hiddenPortHandleNodeIds = new Set<string>(args.hidePortHandleNodeIds || [])
 
   const routingCfg = rt.presentation.edges.routing
   const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
@@ -785,15 +794,18 @@ export const drawFlowNative = (
 
   for (let i = 0; i < scene.nodes.length; i += 1) {
     const n = scene.nodes[i]
-    if (hiddenNodeIds.has(n.id)) continue
+    if (hiddenNodeIds.has(n.id)) {
+      if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
+      continue
+    }
     drawNode(rt, n, { selected: selectedNodeIds.has(n.id) })
-    drawPortHandles(rt, n)
+    if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
   }
 }
 
 export const requestFlowNativeDraw = (
   rt: FlowNativeRuntime,
-  args: { selectedNodeIds: string[]; selectedEdgeIds: string[]; hideNodeIds?: string[] },
+  args: FlowNativeDrawArgs,
 ) => {
   if (rt.pendingRaf != null) return
   rt.pendingRaf = requestAnimationFrame(() => {

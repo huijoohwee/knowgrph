@@ -26,6 +26,7 @@
 ## Port Handles
 
 - Port handles are rendered as cardinal markers when enabled in schema behavior.
+- `behavior.portHandles.showAllInputs=true` forces Flow scene-building to inject default in/out handles on nodes that otherwise have no incident edges.
 - Border nodes (topology-derived input/output) render handles on border-facing sides (Input: left/top, Output: right/bottom, direction-aware).
 - Edge endpoints respect the same role/direction rules so the visible handle placement matches the rendered attachment point.
 - Toggling port handles updates rendering only and preserves node positions.

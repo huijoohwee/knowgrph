@@ -173,10 +173,20 @@ import {
   testElkLayoutReturnsNodePositions,
   testElkLayoutTimeoutIsBounded,
   testFlowHandlesByNodeDeterministicOrdering,
+  testFlowHandlesDefaultsAreInjectedWhenRequested,
 } from '@/__tests__/flowElkMultipleHandles.test'
+import {
+  testFlowPortHandlesCanBeHiddenForSelectedNodesWhenRequested,
+  testFlowPortHandlesRenderWhenSelectedNodeGlyphHidden,
+} from '@/__tests__/flowPortHandlesVisibleWhenNodeHidden.test'
+import {
+  testFlowEditorConvertToLoopSetsTypeAndKind,
+  testFlowEditorEnableHandlesForAllInputsIsIdempotent,
+} from '@/__tests__/flowNodeQuickEditorActions.test'
 import {
   testFlowCanvasAutoFitToScreenRunsInFlowRenderer,
   testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer,
+  testFlowCanvasRebuildsSceneWhenPortHandlesToggleChangesSchemaPresentation,
   testFlowCanvasUsesActiveGraphRenderDataAndZoomState,
 } from '@/__tests__/flowCanvasIntegration.test'
 import { testFlowExtractNodePositionsExtractsFinitePositions, testFlowExtractNodePositionsReturnsNullWhenNone } from '@/__tests__/flowSeedPositions.test'
@@ -214,6 +224,7 @@ import {
 import { testFloatingPanelInspectorTypographyUsesUiSettings } from '@/__tests__/floatingPanelInspectorTypography.test'
 import { testFlowNodeQuickEditorTypographyInheritsPanelSettings } from '@/__tests__/flowNodeQuickEditorTypography.test'
 import { testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel } from '@/__tests__/flowNodeQuickEditorZoomRerenderGuard.test'
+import { testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled } from '@/__tests__/flowNodeQuickEditorPortHandleGutter.test'
 import { testCanvasWheelIgnoreOverlayPreventsZoom } from '@/__tests__/canvasWheelIgnoreOverlay.test'
 import { testCanvasEventCoordsFallsBackToClientRect, testCanvasEventCoordsPrefersOffsetXY } from '@/__tests__/canvasEventCoords.test'
 import { testFlowRelaxStepPolicyBoundedAndMonotonic } from '@/__tests__/flowRelaxStepPolicy.test'
@@ -462,6 +473,7 @@ export const runAllTests = async () => {
   await exec('ui.typography.floatingPanelInspector.usesUiSettings', testFloatingPanelInspectorTypographyUsesUiSettings)
   await exec('ui.typography.flowNodeQuickEditor.usesUiSettings', testFlowNodeQuickEditorTypographyInheritsPanelSettings)
   await exec('ui.flowNodeQuickEditor.zoomUpdates.noRerender', testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel)
+  await exec('ui.flowNodeQuickEditor.portHandles.gutterRendersWhenEnabled', testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled)
   await exec('ui.wheelIgnore.overlay.preventsCanvasZoom', testCanvasWheelIgnoreOverlayPreventsZoom)
   await exec('ui.canvasEventCoords.prefersOffsetXY', testCanvasEventCoordsPrefersOffsetXY)
   await exec('ui.canvasEventCoords.fallsBackToClientRect', testCanvasEventCoordsFallsBackToClientRect)
@@ -502,11 +514,20 @@ export const runAllTests = async () => {
   await exec('frontmatterMode.effective.noopWhenNoSeeds', testFrontmatterModeEffectiveNoopWhenNoSeeds)
   await exec('frontmatterMode.effective.whenSeedsExist', testFrontmatterModeEffectiveWhenSeedsExist)
   await exec('layout.flow.elkMultipleHandles.deterministicOrdering', testFlowHandlesByNodeDeterministicOrdering)
+  await exec('layout.flow.handles.defaultsInjected', testFlowHandlesDefaultsAreInjectedWhenRequested)
   await exec('layout.flow.elkMultipleHandles.timeoutBounded', testElkLayoutTimeoutIsBounded)
   await exec('layout.flow.elkMultipleHandles.returnsNodePositions', testElkLayoutReturnsNodePositions)
+  await exec('flowEditor.actions.enableHandlesForAllInputs.idempotent', testFlowEditorEnableHandlesForAllInputsIsIdempotent)
+  await exec('flowEditor.actions.convertToLoop.idempotentAndSetsKind', testFlowEditorConvertToLoopSetsTypeAndKind)
   await exec('flowCanvas.integration.renderDataAndZoomState', testFlowCanvasUsesActiveGraphRenderDataAndZoomState)
   await exec('flowCanvas.zoom.autoFitToScreen', testFlowCanvasAutoFitToScreenRunsInFlowRenderer)
   await exec('flowCanvas.zoom.autoZoomToSelection', testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer)
+  await exec(
+    'flowCanvas.scene.rebuildsWhenPortHandlesToggleChangesSchemaPresentation',
+    testFlowCanvasRebuildsSceneWhenPortHandlesToggleChangesSchemaPresentation,
+  )
+  await exec('flowPortHandles.visibleWhenNodeHidden', testFlowPortHandlesRenderWhenSelectedNodeGlyphHidden)
+  await exec('flowPortHandles.hidePortHandlesForSelectedNodes', testFlowPortHandlesCanBeHiddenForSelectedNodesWhenRequested)
   await exec('flow.seed.extractNodePositions.extractsFinite', testFlowExtractNodePositionsExtractsFinitePositions)
   await exec('flow.seed.extractNodePositions.nullWhenNone', testFlowExtractNodePositionsReturnsNullWhenNone)
   await exec('flow.seed.otherRenderer.prefersExpectedVariant', testFlowSeedFromOtherRendererPrefersExpectedVariant)
