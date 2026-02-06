@@ -62,7 +62,7 @@ export function HelpWorkflowLinksSection({
           className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
           onClick={onOpenWorkflowTab}
         >
-          Open Workflow tab
+          Open Workflow Manager tab
         </button>
         <button
           type="button"
@@ -194,7 +194,7 @@ export function HelpWorkflowLinksSection({
                 Main panel
               </span>
               <span>
-                Workflow tab → Step 6 (Agentic reasoning) → {RUN_CODEBASE_INDEX_PIPELINE_LABEL}.
+                Workflow Manager tab → Step 6 (Agentic reasoning) → {RUN_CODEBASE_INDEX_PIPELINE_LABEL}.
               </span>
             </div>
             <div className="flex items-baseline gap-2">
@@ -253,7 +253,7 @@ export function HelpWorkflowLinksSection({
             (plus schema and orchestrator config).
           </li>
           <li>
-            Stores and workflow: canvas/src/hooks/store/schemaSlice.ts and canvas/src/hooks/store/historySlice.ts → Main Panel Workflow tab →
+            Stores and workflow: canvas/src/hooks/store/schemaSlice.ts and canvas/src/hooks/store/historySlice.ts → Main Panel Workflow Manager tab →
             python -m knowgrph_parser markdown → Agentic GraphRAG-ready markdown graph snapshot.
           </li>
         </ul>

@@ -4,6 +4,7 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
+import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 
 export type InspectorTab = 'node' | 'edge' | 'workflow'
 
@@ -205,6 +206,16 @@ export default function FlowEditorInspector({
         <section aria-label="Edge editor">
           {selectedEdge ? (
             <>
+              {(() => {
+                const displayLabel = readFlowEdgeDisplayLabel(selectedEdge)
+                if (!displayLabel) return null
+                if (displayLabel === String(selectedEdge.label || '').trim()) return null
+                return (
+                  <p className={cn('mt-2', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
+                    Display: {displayLabel}
+                  </p>
+                )
+              })()}
               <p className={cn('mt-2', microLabelClass, UI_THEME_TOKENS.text.secondary)}>{selectedEdge.id}</p>
               <p className={cn('mt-1', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
                 {String(selectedEdge.source)} → {String(selectedEdge.target)}

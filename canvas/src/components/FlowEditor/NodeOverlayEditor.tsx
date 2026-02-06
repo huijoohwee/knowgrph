@@ -62,8 +62,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   edges: ReadonlyArray<GraphEdge>
   toolMode?: 'select' | 'addEdge'
   pendingEdgeSourceId?: string | null
-  onBeginAddEdgeFromNode?: (nodeId: string) => void
-  onFinalizeAddEdgeToNode?: (nodeId: string) => void
+  onBeginAddEdgeFromNode?: (nodeId: string, portKey?: string | null) => void
+  onFinalizeAddEdgeToNode?: (nodeId: string, portKey?: string | null) => void
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
   onPatchProperties: (patch: Partial<FlowEditorSmartNodeProperties>) => void

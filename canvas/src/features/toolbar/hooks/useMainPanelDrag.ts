@@ -3,7 +3,7 @@ import { LS_KEYS, UI_LAYOUT } from '@/lib/config';
 import { lsBool, lsNum, lsSetBool, lsSetNum } from '@/lib/persistence';
 import { usePinnedLs } from '@/lib/ui/panelPinned';
 
-export type MainPanelTabKey = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history';
+export type MainPanelTabKey = 'workflow' | 'flowEditorManager' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history';
 
 export function useMainPanelDrag() {
   const [isMainPanelOpen, setIsMainPanelOpen] = useState(false);

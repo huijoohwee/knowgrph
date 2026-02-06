@@ -617,7 +617,7 @@ export const LAUNCH_SPOTLIGHT_TOUR_TOOLTIP = buildRoleActionOutcomeTooltip({
 });
 
 export const WORKFLOW_TAB_HEADER_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Workflow tab',
+  role: 'Workflow Manager tab',
   actions: [
     'organize the 8-step AgenticRAG graph pipeline across parser, schema, curation, orchestrator, and render stages',
     'anchor bottom panel tabs and exports to the same rag:GraphRAGWorkflow JSON-LD document',

@@ -294,7 +294,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     descriptionShort:
       'Jump into the guided workflow or related panels that align with the 8-step GraphRAG pipeline.',
     descriptionLong:
-      `Workflow links provide jump targets into the guided Workflow tab and Graph Fields so you can follow the Schema → Curation → Ingest → Enrich → Index → Reason → Produce → Reuse sequence from the RACI catalog without manually hunting for tabs. The Reason stage maps to the Orchestrator bottom-panel tab (${getOrchestratorSectionListLabel()}) anchored to AgenticRAG JSON-LD graphRAGPath and context IRIs.`,
+      `Workflow links provide jump targets into the guided Workflow Manager tab and Graph Fields so you can follow the Schema → Curation → Ingest → Enrich → Index → Reason → Produce → Reuse sequence from the RACI catalog without manually hunting for tabs. The Reason stage maps to the Orchestrator bottom-panel tab (${getOrchestratorSectionListLabel()}) anchored to AgenticRAG JSON-LD graphRAGPath and context IRIs.`,
   },
   icons: {
     id: 'icons',

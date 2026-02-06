@@ -35,7 +35,7 @@ export function HelpPanelTourSection({ collapsed, onToggle }: HelpPanelTourSecti
           {UI_COPY.toolbarPrefix} load data, toggle 2D and 3D modes, open {UI_LABELS.graphFields}, and launch the guided workflow.
         </li>
         <li>
-          {UI_COPY.mainPanelPrefix} switch between the Workflow tab, Help tab, and {UI_LABELS.graphFields} to guide schema and graph setup.
+          {UI_COPY.mainPanelPrefix} switch between the Workflow Manager tab, Help tab, and {UI_LABELS.graphFields} to guide schema and graph setup.
         </li>
         <li>
           {UI_COPY.bottomPanelPrefix} use Graph Data Table, Parser, Schema Configurator, Orchestrator (

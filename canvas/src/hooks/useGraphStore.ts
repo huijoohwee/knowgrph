@@ -11,6 +11,7 @@ import { createGraphViewSlice } from '@/hooks/store/graphViewSlice';
 import { createSchemaSlice, readSchemaFromStorage } from '@/hooks/store/schemaSlice';
 import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
 import { createUiToastSlice } from '@/hooks/store/uiToastSlice';
+import { createFlowEditorManagerSlice } from '@/hooks/store/flowEditorManagerSlice'
 import { createSourceFilesSlice } from '@/hooks/store/sourceFilesSlice';
 import { createLocalMarkdownFolderSlice } from '@/hooks/store/localMarkdownFolderSlice'
 import { getLocalStorage } from '@/lib/persistence';
@@ -141,6 +142,7 @@ export const useGraphStore = create<GraphState>()(
   ...createHistorySlice(set, get),
   ...createUiSlice(set),
   ...createUiToastSlice(set),
+  ...createFlowEditorManagerSlice(set, get),
   ...createSourceFilesSlice(set, get, api),
   ...createLocalMarkdownFolderSlice(set, get, api),
   ...createCanvasSlice(set, get),

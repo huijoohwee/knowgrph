@@ -2,7 +2,7 @@ import React from 'react'
 
 import type { GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { computeFlowNodeHandles, ensureFlowHandlesHaveDefaults } from '@/components/FlowCanvas/handles'
+import { computeFlowNodeHandles, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
@@ -30,8 +30,8 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   minimized: boolean
   toolMode?: FlowEditorToolMode
   pendingEdgeSourceId?: string | null
-  onBeginAddEdgeFromNode?: (nodeId: string) => void
-  onFinalizeAddEdgeToNode?: (nodeId: string) => void
+  onBeginAddEdgeFromNode?: (nodeId: string, portKey?: string | null) => void
+  onFinalizeAddEdgeToNode?: (nodeId: string, portKey?: string | null) => void
 }) {
   const enabled = Boolean(args.schema?.behavior?.portHandles?.enabled)
   if (!enabled) return null
@@ -56,28 +56,37 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   const isSource = isAddEdge && args.pendingEdgeSourceId === args.nodeId
   const canInteract = args.active && isAddEdge
 
-  const handleClick = (dir: 'in' | 'out') => {
+  const handleClick = (dir: 'in' | 'out', portKey: string) => {
     if (!args.active) return
+    const pk = String(portKey || '').trim()
+    if (!pk) return
     if (args.toolMode !== 'addEdge') {
-      args.onBeginAddEdgeFromNode?.(args.nodeId)
+      if (dir !== 'out') return
+      args.onBeginAddEdgeFromNode?.(args.nodeId, pk)
       return
     }
 
     if (!args.pendingEdgeSourceId) {
-      args.onBeginAddEdgeFromNode?.(args.nodeId)
+      if (dir !== 'out') return
+      args.onBeginAddEdgeFromNode?.(args.nodeId, pk)
       return
     }
 
     if (args.pendingEdgeSourceId === args.nodeId) {
       if (dir === 'in') return
-      args.onBeginAddEdgeFromNode?.(args.nodeId)
+      args.onBeginAddEdgeFromNode?.(args.nodeId, pk)
       return
     }
 
-    args.onFinalizeAddEdgeToNode?.(args.nodeId)
+    if (dir !== 'in') {
+      args.onBeginAddEdgeFromNode?.(args.nodeId, pk)
+      return
+    }
+
+    args.onFinalizeAddEdgeToNode?.(args.nodeId, pk)
   }
 
-  const Dot = (p: { dir: 'in' | 'out'; idx: number; topPct: number }) => {
+  const Dot = (p: { handleId: string; dir: 'in' | 'out'; idx: number; topPct: number }) => {
     const isIn = p.dir === 'in'
     const aria = isIn ? `Input handle ${p.idx + 1}` : `Output handle ${p.idx + 1}`
     const ringClass = isSource ? `ring-2 ring-inset ${UI_THEME_TOKENS.button.ring}` : ''
@@ -110,7 +119,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           } catch {
             void 0
           }
-          handleClick(p.dir)
+          handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
         }}
         disabled={!canInteract}
       >
@@ -147,17 +156,17 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   if (!hasAny) return null
 
   return (
-    <div className="absolute inset-0 pointer-events-none" aria-hidden={false}>
-      <div className={cn('absolute inset-y-0 left-0', isSource ? 'opacity-100' : 'opacity-90')} style={{ width: `${railWidthPx}px` }}>
+    <nav className="absolute inset-0 pointer-events-none" aria-label="Node port handles">
+      <section className={cn('absolute inset-y-0 left-0', isSource ? 'opacity-100' : 'opacity-90')} style={{ width: `${railWidthPx}px` }}>
         {(handles.in || []).map((h, idx) => (
-          <Dot key={h.id} dir="in" idx={idx} topPct={h.topPct} />
+          <Dot key={h.id} handleId={h.id} dir="in" idx={idx} topPct={h.topPct} />
         ))}
-      </div>
-      <div className={cn('absolute inset-y-0 right-0', isSource ? 'opacity-100' : 'opacity-90')} style={{ width: `${railWidthPx}px` }}>
+      </section>
+      <section className={cn('absolute inset-y-0 right-0', isSource ? 'opacity-100' : 'opacity-90')} style={{ width: `${railWidthPx}px` }}>
         {(handles.out || []).map((h, idx) => (
-          <Dot key={h.id} dir="out" idx={idx} topPct={h.topPct} />
+          <Dot key={h.id} handleId={h.id} dir="out" idx={idx} topPct={h.topPct} />
         ))}
-      </div>
-    </div>
+      </section>
+    </nav>
   )
 })

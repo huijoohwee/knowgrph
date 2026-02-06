@@ -4,6 +4,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
+import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -17,7 +18,9 @@ export const createEdgeLabelsLayer = (args: {
   selectEdge: (id: string | null) => void
 }): d3.Selection<SVGTextElement, GraphEdge, SVGGElement, unknown> | null => {
   const { g, edgesForDisplay, schema, hoverEnabled, setHoverInfo, setSelectionSource, selectEdge } = args
-  const edges = Array.isArray(edgesForDisplay) ? edgesForDisplay.filter(e => String(e.label || '').trim()) : []
+  const edges = Array.isArray(edgesForDisplay)
+    ? edgesForDisplay.filter(e => String(readFlowEdgeDisplayLabel(e) || e.label || '').trim())
+    : []
   if (edges.length === 0) return null
   if (edges.length > 600) return null
 
@@ -36,9 +39,9 @@ export const createEdgeLabelsLayer = (args: {
     .attr('dominant-baseline', 'middle')
     .style('user-select', 'none')
     .style('pointer-events', 'all')
-    .text(d => truncateTextWithEllipsis(String(d.label || ''), maxChars))
+    .text(d => truncateTextWithEllipsis(String(readFlowEdgeDisplayLabel(d) || d.label || ''), maxChars))
     .each(function (d) {
-      this.setAttribute('data-label-full', String(d.label || ''))
+      this.setAttribute('data-label-full', String(readFlowEdgeDisplayLabel(d) || d.label || ''))
     })
 
   attachEdgeInteractionHandlers(labelSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>, {

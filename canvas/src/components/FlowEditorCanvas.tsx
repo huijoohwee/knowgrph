@@ -28,6 +28,14 @@ import {
   isHandlesForAllInputsEnabled,
 } from '@/lib/flowEditor/flowEditorActions'
 import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
+import {
+  FLOW_EDGE_SOURCE_PORT_KEY,
+  FLOW_EDGE_TARGET_PORT_KEY,
+  FLOW_EDGE_DISPLAY_LABEL_KEY,
+  buildFlowEdgeDisplayLabelFromPorts,
+  pickDefaultSchemaFieldPortKey,
+} from '@/lib/graph/flowPorts'
+import { canAddEdge } from '@/features/schema/validation'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -39,8 +47,8 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   viewportH: number
   toolMode: ToolMode
   pendingEdgeSourceId: string | null
-  onBeginAddEdgeFromNode: (nodeId: string) => void
-  onFinalizeAddEdgeToNode: (nodeId: string) => void
+  onBeginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
+  onFinalizeAddEdgeToNode: (nodeId: string, portKey?: string | null) => void
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
   onPatchProperties: (patch: Record<string, unknown>) => void
@@ -124,6 +132,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const [toolMode, setToolMode] = React.useState<ToolMode>('select')
   const [pendingEdgeSourceId, setPendingEdgeSourceId] = React.useState<string | null>(null)
+  const [pendingEdgeSourcePortKey, setPendingEdgeSourcePortKey] = React.useState<string | null>(null)
   const [inspectorTab, setInspectorTab] = React.useState<InspectorTab>('node')
 
   const [draftGraphData, setDraftGraphData] = React.useState<GraphData | null>(null)
@@ -192,24 +201,29 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [active, draftDirty, selectedEdgeId, selectedNodeId, selectEdge, selectNode, setSelectionSource])
 
   const beginAddEdgeFromNode = React.useCallback(
-    (nodeId: string) => {
+    (nodeId: string, portKey?: string | null) => {
       const id = String(nodeId || '').trim()
       if (!id) return
       if (!active) return
       if (!draftGraphData) return
       const nodeIds = new Set((draftGraphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
       if (!nodeIds.has(id)) return
+      const nodeById = new Map((draftGraphData.nodes || []).map(n => [String(n.id || ''), n] as const))
+      const node = nodeById.get(id) || null
+      const explicit = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
+      const defaultPortKey = explicit || pickDefaultSchemaFieldPortKey(node) || null
       setSelectionSource('canvas')
       selectEdge(null)
       selectNode(id)
       setToolMode('addEdge')
       setPendingEdgeSourceId(id)
+      setPendingEdgeSourcePortKey(defaultPortKey)
     },
     [active, draftGraphData, selectEdge, selectNode, setSelectionSource],
   )
 
   const finalizePendingEdge = React.useCallback(
-    (nodeId: string) => {
+    (nodeId: string, portKey?: string | null) => {
       const id = String(nodeId || '').trim()
       if (!id) return
       if (!active) return
@@ -219,9 +233,19 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!nodeIds.has(id)) return
       if (!pendingEdgeSourceId) {
         setPendingEdgeSourceId(id)
+        setPendingEdgeSourcePortKey(null)
         return
       }
       if (pendingEdgeSourceId === id) return
+
+      const nodeById = new Map((draftGraphData.nodes || []).map(n => [String(n.id || ''), n] as const))
+      const sourceNode = nodeById.get(pendingEdgeSourceId) || null
+      const targetNode = nodeById.get(id) || null
+      const explicitSource =
+        typeof pendingEdgeSourcePortKey === 'string' && pendingEdgeSourcePortKey.trim() ? pendingEdgeSourcePortKey.trim() : null
+      const sourcePort = explicitSource || pickDefaultSchemaFieldPortKey(sourceNode) || null
+      const explicitTarget = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
+      const targetPort = explicitTarget || pickDefaultSchemaFieldPortKey(targetNode) || null
 
       const usedEdgeIds = new Set((draftGraphData.edges || []).map(e => String(e.id || '')).filter(Boolean))
       const edgeId = createUniqueId('e', usedEdgeIds)
@@ -230,7 +254,50 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         source: pendingEdgeSourceId,
         target: id,
         label: 'linksTo',
-        properties: {},
+        properties: {
+          ...(sourcePort ? { [FLOW_EDGE_SOURCE_PORT_KEY]: sourcePort } : {}),
+          ...(targetPort ? { [FLOW_EDGE_TARGET_PORT_KEY]: targetPort } : {}),
+        },
+      }
+
+      const displayLabel = buildFlowEdgeDisplayLabelFromPorts({
+        sourceNode,
+        targetNode,
+        sourcePortKey: sourcePort,
+        targetPortKey: targetPort,
+      })
+      if (displayLabel) {
+        ;(nextEdge.properties as Record<string, unknown>)[FLOW_EDGE_DISPLAY_LABEL_KEY] = displayLabel
+      }
+
+      const duplicate = (draftGraphData.edges || []).find(e => {
+        if (String(e.source) !== String(nextEdge.source)) return false
+        if (String(e.target) !== String(nextEdge.target)) return false
+        if (String(e.label || '') !== String(nextEdge.label || '')) return false
+        const sp = (e.properties as Record<string, unknown> | null | undefined)?.[FLOW_EDGE_SOURCE_PORT_KEY]
+        const tp = (e.properties as Record<string, unknown> | null | undefined)?.[FLOW_EDGE_TARGET_PORT_KEY]
+        const nsp = (nextEdge.properties as Record<string, unknown> | null | undefined)?.[FLOW_EDGE_SOURCE_PORT_KEY]
+        const ntp = (nextEdge.properties as Record<string, unknown> | null | undefined)?.[FLOW_EDGE_TARGET_PORT_KEY]
+        return String(sp || '') === String(nsp || '') && String(tp || '') === String(ntp || '')
+      })
+      if (duplicate) {
+        setSelectionSource('canvas')
+        selectEdge(String(duplicate.id || ''))
+        selectNode(null)
+        setPendingEdgeSourceId(null)
+        setPendingEdgeSourcePortKey(null)
+        setToolMode('select')
+        return
+      }
+
+      if (!canAddEdge(schema, draftGraphData, nextEdge)) {
+        upsertUiToast({
+          id: 'flow-editor-edge-denied',
+          kind: 'warning',
+          message: 'Edge blocked by schema rules.',
+          ttlMs: 2200,
+        })
+        return
       }
       const next: GraphData = {
         ...draftGraphData,
@@ -240,9 +307,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       setDraftGraphDataRevision(r => r + 1)
       setDraftDirty(true)
       setPendingEdgeSourceId(null)
+      setPendingEdgeSourcePortKey(null)
       setToolMode('select')
     },
-    [active, draftGraphData, pendingEdgeSourceId, toolMode],
+    [active, draftGraphData, pendingEdgeSourceId, pendingEdgeSourcePortKey, schema, selectEdge, selectNode, setSelectionSource, toolMode, upsertUiToast],
   )
 
   React.useEffect(() => {

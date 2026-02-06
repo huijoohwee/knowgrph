@@ -175,6 +175,8 @@ import {
   testFlowHandlesByNodeDeterministicOrdering,
   testFlowHandlesDefaultsAreInjectedWhenRequested,
 } from '@/__tests__/flowElkMultipleHandles.test'
+import { testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields } from '@/__tests__/flowSchemaFieldPortKeys.test'
+import { testFlowSchemaPortsBuildDisplayLabel, testFlowSchemaPortsInfluenceEdgeValidation } from '@/__tests__/flowSchemaPortEdgeValidation.test'
 import {
   testFlowPortHandlesCanBeHiddenForSelectedNodesWhenRequested,
   testFlowPortHandlesRenderWhenSelectedNodeGlyphHidden,
@@ -221,10 +223,12 @@ import {
   testForbidHardcodedSandboxAbsolutePaths,
   testForbidTopLevelElkImportInFlowLayout,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
+import { testFlowEditorManagerRegistryStorageRoundTrip, testFlowEditorManagerRegistryValidatesAndNormalizes } from '@/__tests__/flowEditorManagerRegistry.test'
 import { testFloatingPanelInspectorTypographyUsesUiSettings } from '@/__tests__/floatingPanelInspectorTypography.test'
 import { testFlowNodeQuickEditorTypographyInheritsPanelSettings } from '@/__tests__/flowNodeQuickEditorTypography.test'
 import { testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel } from '@/__tests__/flowNodeQuickEditorZoomRerenderGuard.test'
 import { testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled } from '@/__tests__/flowNodeQuickEditorPortHandleGutter.test'
+import { testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles } from '@/__tests__/flowNodeQuickEditorSchemaFieldPorts.test'
 import { testCanvasWheelIgnoreOverlayPreventsZoom } from '@/__tests__/canvasWheelIgnoreOverlay.test'
 import { testCanvasEventCoordsFallsBackToClientRect, testCanvasEventCoordsPrefersOffsetXY } from '@/__tests__/canvasEventCoords.test'
 import { testFlowRelaxStepPolicyBoundedAndMonotonic } from '@/__tests__/flowRelaxStepPolicy.test'
@@ -474,6 +478,7 @@ export const runAllTests = async () => {
   await exec('ui.typography.flowNodeQuickEditor.usesUiSettings', testFlowNodeQuickEditorTypographyInheritsPanelSettings)
   await exec('ui.flowNodeQuickEditor.zoomUpdates.noRerender', testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel)
   await exec('ui.flowNodeQuickEditor.portHandles.gutterRendersWhenEnabled', testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled)
+  await exec('ui.flowNodeQuickEditor.schemaFieldPorts.renderRowHandles', testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles)
   await exec('ui.wheelIgnore.overlay.preventsCanvasZoom', testCanvasWheelIgnoreOverlayPreventsZoom)
   await exec('ui.canvasEventCoords.prefersOffsetXY', testCanvasEventCoordsPrefersOffsetXY)
   await exec('ui.canvasEventCoords.fallsBackToClientRect', testCanvasEventCoordsFallsBackToClientRect)
@@ -515,6 +520,11 @@ export const runAllTests = async () => {
   await exec('frontmatterMode.effective.whenSeedsExist', testFrontmatterModeEffectiveWhenSeedsExist)
   await exec('layout.flow.elkMultipleHandles.deterministicOrdering', testFlowHandlesByNodeDeterministicOrdering)
   await exec('layout.flow.handles.defaultsInjected', testFlowHandlesDefaultsAreInjectedWhenRequested)
+  await exec('layout.flow.schemaFieldPortKeys.stableHandles', testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields)
+  await exec('schema.flowPorts.validation.schemaPortsAffectCanAddEdge', testFlowSchemaPortsInfluenceEdgeValidation)
+  await exec('schema.flowPorts.label.buildDisplayLabelFromPorts', testFlowSchemaPortsBuildDisplayLabel)
+  await exec('mainPanel.flowEditorManager.registry.validateAndNormalize', testFlowEditorManagerRegistryValidatesAndNormalizes)
+  await exec('mainPanel.flowEditorManager.registry.storageRoundTrip', testFlowEditorManagerRegistryStorageRoundTrip)
   await exec('layout.flow.elkMultipleHandles.timeoutBounded', testElkLayoutTimeoutIsBounded)
   await exec('layout.flow.elkMultipleHandles.returnsNodePositions', testElkLayoutReturnsNodePositions)
   await exec('flowEditor.actions.enableHandlesForAllInputs.idempotent', testFlowEditorEnableHandlesForAllInputsIsIdempotent)

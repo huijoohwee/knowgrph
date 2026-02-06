@@ -2,7 +2,7 @@ import React from 'react'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { WORKFLOW_TAB_HEADER_TOOLTIP } from '@/lib/config'
+import { UI_LABELS, WORKFLOW_TAB_HEADER_TOOLTIP } from '@/lib/config'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 
 type MainPanelWorkflowActions = {
@@ -47,7 +47,7 @@ export default function MainPanelWorkflowHeader({
           maxWidthPx={280}
           contentClassName={UI_THEME_TOKENS.tooltip.bg}
         >
-          <span>Workflow</span>
+          <span>{UI_LABELS.workflowManager}</span>
         </Tooltip>
       </div>
       <div className="flex items-center gap-1">
@@ -60,4 +60,3 @@ export default function MainPanelWorkflowHeader({
     </div>
   )
 }
-

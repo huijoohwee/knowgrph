@@ -52,6 +52,21 @@
 - Node Quick Editor “Enable Handles for All Inputs” sets `schema.behavior.portHandles.enabled=true` and `schema.behavior.portHandles.showAllInputs=true` so Flow nodes without edges still render default in/out handles (visual + routing parity, bounded work).
 - Shared gating helper is `isPortHandlesShowAllInputsEnabled(schema)` so Flow scene-building and UI actions cannot drift.
 
+### Schema Field Ports (Database-schema-node style)
+
+- If a node carries `node.properties['schema:fields']` (array of strings or `{id|title,type}` objects), the Node Quick Editor renders a **schema field list** and places **row-aligned input/output port dots** that intersect the panel border line.
+- When creating edges in Flow Editor, edges may bind to specific ports using:
+  - `edge.properties['flow:sourcePortKey']`
+  - `edge.properties['flow:targetPortKey']`
+  - Values are stable port keys, e.g. `field:<fieldId>`.
+- When ports are present, schema-field edges are validated by:
+  - `schema.endpointMatrix[edge.label]` (source/target node types)
+  - Schema port existence (port key must refer to a field on that node)
+  - Schema field type compatibility when both sides provide `type`
+- Flow scene building attaches edge endpoints to these handle ids (falling back to `edge.id` when absent) and handle computation generates stable `field:<id>` handles so routing + port markers remain deterministic.
+- Optional UI label override for port-bound edges: `edge.properties['flow:displayLabel']` (e.g., `warehouse_id → id`).
+- When the Node Quick Editor is open, the selected node’s native FlowCanvas port handles are hidden to avoid duplicate “detached” dots; the quick editor is the active port UI surface.
+
 ## Loop Node Semantics (Flow Editor)
 
 - Convert-to-loop sets `node.type='Loop'` and `node.properties['workflow:kind']='loop'` for the selected node (draft graph only until commit).
@@ -74,5 +89,9 @@
 
 - Panel controller (positioning + persistence + toolbar/menu):
   - `canvas/src/components/FlowEditor/NodeOverlayEditor.tsx`
+- Panel shell (FloatingPanel body + actions):
+  - `canvas/src/components/FlowEditor/NodeOverlayEditorPanel.tsx`
 - Form surface (fields mapped to `node.properties`):
   - `canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx`
+- Port-key helpers (SSOT):
+  - `canvas/src/lib/graph/flowPorts.ts`

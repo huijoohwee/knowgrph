@@ -77,6 +77,7 @@ export const UI_COPY = {
   searchNodesPlaceholder: 'Search nodes…',
   searchEdgesPlaceholder: 'Search edges…',
   searchHistoryPlaceholder: 'Search history…',
+  searchFlowEditorManagerRegistryPlaceholder: 'Search mappings…',
   noFields: 'No fields',
   noFieldsMatch: 'No fields match.',
   graphDataTableNoFilters: 'No filters.',

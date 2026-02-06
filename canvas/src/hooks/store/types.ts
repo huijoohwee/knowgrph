@@ -15,6 +15,7 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex';
 import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import type { LayoutMode2d } from '@/lib/graph/layoutMode'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -176,6 +177,14 @@ export interface GraphState {
   setGraphFieldsOpStatus: (ok: boolean | null, msg: string) => void;
   setOrchestratorOpStatus: (ok: boolean | null, msg: string) => void;
   setRenderOpStatus: (ok: boolean | null, msg: string) => void;
+
+  nodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
+  setNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => void
+  upsertNodeQuickEditorRegistryEntry: (
+    entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null },
+  ) => { ok: true; id: string } | { ok: false; message: string }
+  removeNodeQuickEditorRegistryEntry: (id: string) => void
+  toggleNodeQuickEditorRegistryEntryEnabled: (id: string, enabled?: boolean) => void
   lifecycleStage: 'idle' | 'reset' | 'hydrated' | 'committed' | 'rendering' | 'selectionUpdate' | 'edgeMutate' | 'zoomUpdate' | 'minimapQuick' | 'minimapAsync';
   setLifecycleStage: (stage: 'idle' | 'reset' | 'hydrated' | 'committed' | 'rendering' | 'selectionUpdate' | 'edgeMutate' | 'zoomUpdate' | 'minimapQuick' | 'minimapAsync') => void;
   setGraphData: (data: GraphData) => void;

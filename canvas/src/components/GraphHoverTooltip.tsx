@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { summarizePropertySpec, getNodePropSpec, getEdgePropSpec, buildEdgeSchemaBadges } from '@/lib/graph/schema'
+import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -275,6 +276,7 @@ function buildEdgeContent(
   expanded: boolean,
   onToggleExpanded: (() => void) | null,
 ): React.ReactNode {
+  const edgeLabelForDisplay = readFlowEdgeDisplayLabel(edge) || String(edge.label || '').trim()
   const sorted = sortProps(edge.properties || {}, 'edge')
   const schemaBadges = buildEdgeSchemaBadges(
     schema,
@@ -295,7 +297,7 @@ function buildEdgeContent(
       <div className="font-semibold">
         {config.showEdgeLabel && (
           <span className="block whitespace-normal break-words">
-            {edge.label}
+            {edgeLabelForDisplay}
           </span>
         )}
       </div>

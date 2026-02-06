@@ -1,6 +1,7 @@
 import React from 'react'
 
 import type { GraphNode } from '@/lib/graph/types'
+import type { GraphSchema } from '@/lib/graph/schema'
 import {
   FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
   FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
@@ -14,6 +15,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
+import { buildSchemaFieldPortKey, readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -30,24 +32,34 @@ function pickNumber(v: unknown): number | null {
 export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   active,
   node,
+  schema,
   hideFields,
   labelInputRef,
   onSetLabel,
   onSetType,
   onPatchProperties,
   onValidate,
+  onSchemaPortHandleClick,
 }: {
   active: boolean
   node: GraphNode
+  schema: GraphSchema | null
   hideFields: boolean
   labelInputRef: React.RefObject<HTMLInputElement>
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
   onPatchProperties: (patch: Partial<FlowEditorSmartNodeProperties>) => void
   onValidate: () => void
+  onSchemaPortHandleClick?: (args: { dir: 'in' | 'out'; portKey: string }) => void
 }) {
   const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()
   const properties = (node.properties || {}) as Record<string, unknown>
+
+  const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
+  const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled)
+  const portHandleSize = schema?.behavior?.portHandles?.size
+  const dotSizePx = typeof portHandleSize === 'number' && Number.isFinite(portHandleSize) ? Math.max(10, Math.floor(portHandleSize * 2 + 4)) : 12
+  const dotHitPx = Math.max(18, dotSizePx + 8)
 
   const model = pickString(properties.model)
   const prompt = pickString(properties.prompt)
@@ -288,6 +300,100 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             placeholder={UI_COPY.flowNodeQuickEditorReferenceImagePlaceholder}
             disabled={!active}
           />
+        </fieldset>
+      )}
+
+      {schemaFields.length > 0 && (
+        <fieldset className="min-w-0 mt-4" aria-label={UI_LABELS.flowNodeQuickEditorSchemaLegend}>
+          <legend className={cn(microLabelClass, 'font-medium', UI_THEME_TOKENS.text.secondary)}>
+            {UI_LABELS.flowNodeQuickEditorSchemaLegend}
+          </legend>
+
+          <section className={cn('mt-2 rounded-lg border', UI_THEME_TOKENS.input.border)} aria-label={UI_LABELS.flowNodeQuickEditorSchemaFieldsLegend}>
+            <ul className="list-none m-0 p-0">
+              {schemaFields.map((f, idx) => {
+                const portKey = buildSchemaFieldPortKey(f.id)
+                const label = f.label || f.id
+                const type = f.type || ''
+                const inAria = `Input port: ${label}`
+                const outAria = `Output port: ${label}`
+
+                return (
+                  <li
+                    key={`${f.id}:${idx}`}
+                    className={cn('relative flex items-center gap-2 px-3 py-2 border-b last:border-b-0', UI_THEME_TOKENS.panel.border)}
+                  >
+                    <button
+                      type="button"
+                      aria-label={inAria}
+                      title={inAria}
+                      className={cn('absolute top-1/2 left-0', UI_THEME_TOKENS.button.text)}
+                      style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px`, transform: 'translate(-50%, -50%)' }}
+                      onPointerDown={e => {
+                        try {
+                          e.stopPropagation()
+                        } catch {
+                          void 0
+                        }
+                      }}
+                      onClick={e => {
+                        try {
+                          e.stopPropagation()
+                        } catch {
+                          void 0
+                        }
+                        if (!active || !portHandlesEnabled) return
+                        onSchemaPortHandleClick?.({ dir: 'in', portKey })
+                      }}
+                      disabled={!active || !portHandlesEnabled}
+                    >
+                      <span
+                        aria-hidden={true}
+                        className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.input.border)}
+                        style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
+                      />
+                    </button>
+
+                    <span className={cn('min-w-0 flex-1 truncate', UI_THEME_TOKENS.text.primary)}>{label}</span>
+                    {type ? (
+                      <span className={cn('shrink-0 text-xs', UI_THEME_TOKENS.text.secondary)}>{type}</span>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      aria-label={outAria}
+                      title={outAria}
+                      className={cn('absolute top-1/2 right-0', UI_THEME_TOKENS.button.text)}
+                      style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px`, transform: 'translate(50%, -50%)' }}
+                      onPointerDown={e => {
+                        try {
+                          e.stopPropagation()
+                        } catch {
+                          void 0
+                        }
+                      }}
+                      onClick={e => {
+                        try {
+                          e.stopPropagation()
+                        } catch {
+                          void 0
+                        }
+                        if (!active || !portHandlesEnabled) return
+                        onSchemaPortHandleClick?.({ dir: 'out', portKey })
+                      }}
+                      disabled={!active || !portHandlesEnabled}
+                    >
+                      <span
+                        aria-hidden={true}
+                        className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.input.border)}
+                        style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
+                      />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
         </fieldset>
       )}
 

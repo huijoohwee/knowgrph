@@ -7,22 +7,24 @@ import PreviewPanelView from './views/PreviewPanelView'
 import WorkflowSection from '@/features/panels/views/WorkflowSection'
 import SettingsView from '@/features/panels/views/SettingsView'
 import HistoryView from '@/features/panels/views/HistoryView'
+import FlowEditorManagerView from '@/features/panels/views/FlowEditorManagerView'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeader'
 import MainPanelWorkflowHeader from '@/features/panels/ui/MainPanelWorkflowHeader'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon } from 'lucide-react'
+import { HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon, Table } from 'lucide-react'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
 
-type MainPanelTab = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history'
+type MainPanelTab = 'workflow' | 'flowEditorManager' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history'
 
 function isMainPanelTab(key: string): key is MainPanelTab {
   return (
     key === 'workflow' ||
+    key === 'flowEditorManager' ||
     key === 'help' ||
     key === 'graphFields' ||
     key === 'preview' ||
@@ -119,7 +121,7 @@ export default function MainPanel({
       collapsed={collapsed}
       searchVisible={
         searchOpen &&
-        (tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow' || tab === 'history')
+        (tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow' || tab === 'history' || tab === 'flowEditorManager')
       }
       searchPlaceholder={
         tab === 'help'
@@ -132,12 +134,15 @@ export default function MainPanel({
           ? UI_LABELS.search
           : tab === 'workflow'
           ? UI_LABELS.search
+          : tab === 'flowEditorManager'
+          ? UI_COPY.searchFlowEditorManagerRegistryPlaceholder
           : UI_LABELS.search
       }
       searchQuery={search}
       onSearchChange={setSearch}
       tabs={[
-        { key: 'workflow', label: 'Workflow' },
+        { key: 'workflow', label: UI_LABELS.workflowManager },
+        { key: 'flowEditorManager', label: UI_LABELS.flowEditorManager },
         { key: 'graphFields', label: UI_LABELS.graphFields },
         { key: 'preview', label: UI_LABELS.previewPanel },
         { key: 'settings', label: UI_LABELS.settings },
@@ -147,6 +152,7 @@ export default function MainPanel({
       tabVariant="icon"
       tabIconByKey={{
         workflow: Workflow,
+        flowEditorManager: Table,
         graphFields: ({ className, strokeWidth }) => {
           const resolvedStrokeWidth =
             typeof strokeWidth === 'number'
@@ -180,7 +186,7 @@ export default function MainPanel({
           onPinToggle={onPinToggle}
           pinned={pinned}
           onSearchToggle={
-            tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow' || tab === 'history'
+            tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow' || tab === 'history' || tab === 'flowEditorManager'
               ? () => setSearchOpen(v => !v)
               : undefined
           }
@@ -198,6 +204,8 @@ export default function MainPanel({
               ? graphFieldsStatus
               : tab === 'workflow'
               ? UI_LABELS.ragGraphRAGWorkflow
+              : tab === 'flowEditorManager'
+              ? UI_LABELS.flowEditorManager
               : tab === 'preview'
               ? UI_LABELS.previewPanel
               : tab === 'settings'
@@ -235,6 +243,7 @@ export default function MainPanel({
             </section>
           </MainPanelBody>
         )}
+        {tab === 'flowEditorManager' && <FlowEditorManagerView searchQuery={search} />}
         {tab === 'graphFields' && (
           <GraphFieldsView onStatusChange={setGraphFieldsStatus} searchQuery={search} />
         )}

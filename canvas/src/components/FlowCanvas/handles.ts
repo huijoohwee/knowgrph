@@ -1,3 +1,10 @@
+import {
+  FLOW_EDGE_SOURCE_PORT_KEY,
+  FLOW_EDGE_TARGET_PORT_KEY,
+  buildSchemaFieldPortKey,
+  readSchemaFieldSpecs,
+} from '@/lib/graph/flowPorts'
+
 export type FlowHandleDir = 'in' | 'out'
 
 export type FlowHandleId = `${FlowHandleDir}:${string}`
@@ -10,6 +17,13 @@ export type FlowPortHandle = {
 export type FlowNodeHandles = {
   in: FlowPortHandle[]
   out: FlowPortHandle[]
+}
+
+export function parseFlowHandleKey(handleId: FlowHandleId): string {
+  const raw = String(handleId || '')
+  const idx = raw.indexOf(':')
+  if (idx < 0) return ''
+  return raw.slice(idx + 1)
 }
 
 export const FLOW_HANDLE_DEFAULT_EDGE_ID = '__flow_default_handle__' as const
@@ -31,8 +45,8 @@ export function ensureFlowHandlesHaveDefaults(handles: FlowNodeHandles): FlowNod
 }
 
 export function computeFlowHandlesByNode(args: {
-  nodes: ReadonlyArray<{ id: unknown }>
-  edges: ReadonlyArray<{ id: unknown; source: unknown; target: unknown }>
+  nodes: ReadonlyArray<{ id: unknown; properties?: unknown }>
+  edges: ReadonlyArray<{ id: unknown; source: unknown; target: unknown; properties?: unknown }>
 }): Record<string, FlowNodeHandles> {
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   const edges = Array.isArray(args.edges) ? args.edges : []
@@ -47,8 +61,17 @@ export function computeFlowHandlesByNode(args: {
     nodeIds.push(id)
   }
 
-  const incomingByNode = new Map<string, Array<{ edgeId: string; otherId: string }>>()
-  const outgoingByNode = new Map<string, Array<{ edgeId: string; otherId: string }>>()
+  const incomingByNode = new Map<string, Array<{ handleKey: string; otherId: string }>>()
+  const outgoingByNode = new Map<string, Array<{ handleKey: string; otherId: string }>>()
+
+  const schemaFieldsByNodeId = new Map<string, string[]>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i] as unknown as { id?: unknown; properties?: unknown }
+    const id = String(n?.id ?? '').trim()
+    if (!id) continue
+    const fields = readSchemaFieldSpecs({ properties: (n as { properties?: unknown }).properties as never }).map(f => f.id).filter(Boolean)
+    if (fields.length) schemaFieldsByNodeId.set(id, fields)
+  }
 
   for (let i = 0; i < edges.length; i += 1) {
     const e = edges[i]
@@ -57,25 +80,45 @@ export function computeFlowHandlesByNode(args: {
     const target = String(e?.target ?? '').trim()
     if (!edgeId || !source || !target) continue
 
+    const props = (e as unknown as { properties?: unknown }).properties
+    const sourcePortKey = (() => {
+      if (props && typeof props === 'object' && !Array.isArray(props)) {
+        const raw = (props as Record<string, unknown>)[FLOW_EDGE_SOURCE_PORT_KEY]
+        if (typeof raw === 'string' && raw.trim()) return raw.trim()
+      }
+      const first = schemaFieldsByNodeId.get(source)?.[0] || null
+      if (first) return buildSchemaFieldPortKey(first)
+      return edgeId
+    })()
+    const targetPortKey = (() => {
+      if (props && typeof props === 'object' && !Array.isArray(props)) {
+        const raw = (props as Record<string, unknown>)[FLOW_EDGE_TARGET_PORT_KEY]
+        if (typeof raw === 'string' && raw.trim()) return raw.trim()
+      }
+      const first = schemaFieldsByNodeId.get(target)?.[0] || null
+      if (first) return buildSchemaFieldPortKey(first)
+      return edgeId
+    })()
+
     if (nodeIdSet.has(target)) {
       const list = incomingByNode.get(target) || []
-      list.push({ edgeId, otherId: source })
+      list.push({ handleKey: targetPortKey, otherId: source })
       incomingByNode.set(target, list)
     }
     if (nodeIdSet.has(source)) {
       const list = outgoingByNode.get(source) || []
-      list.push({ edgeId, otherId: target })
+      list.push({ handleKey: sourcePortKey, otherId: target })
       outgoingByNode.set(source, list)
     }
   }
 
-  const toHandles = (dir: 'in' | 'out', list: Array<{ edgeId: string }>): FlowPortHandle[] => {
+  const toHandles = (dir: 'in' | 'out', list: Array<{ handleKey: string }>): FlowPortHandle[] => {
     const n = list.length
     if (n <= 0) return []
     const out: FlowPortHandle[] = []
     for (let i = 0; i < n; i += 1) {
       const pct = ((i + 1) / (n + 1)) * 100
-      out.push({ id: buildFlowHandleId({ dir, edgeId: list[i].edgeId }), topPct: pct })
+      out.push({ id: buildFlowHandleId({ dir, edgeId: list[i].handleKey }), topPct: pct })
     }
     return out
   }
@@ -85,9 +128,41 @@ export function computeFlowHandlesByNode(args: {
     const nodeId = nodeIds[i]
     const incoming = incomingByNode.get(nodeId) || []
     const outgoing = outgoingByNode.get(nodeId) || []
-    incoming.sort((a, b) => (a.otherId === b.otherId ? a.edgeId.localeCompare(b.edgeId) : a.otherId.localeCompare(b.otherId)))
-    outgoing.sort((a, b) => (a.otherId === b.otherId ? a.edgeId.localeCompare(b.edgeId) : a.otherId.localeCompare(b.otherId)))
-    out[nodeId] = { in: toHandles('in', incoming), out: toHandles('out', outgoing) }
+    incoming.sort((a, b) => (a.otherId === b.otherId ? a.handleKey.localeCompare(b.handleKey) : a.otherId.localeCompare(b.otherId)))
+    outgoing.sort((a, b) => (a.otherId === b.otherId ? a.handleKey.localeCompare(b.handleKey) : a.otherId.localeCompare(b.otherId)))
+
+    const schemaFields = schemaFieldsByNodeId.get(nodeId) || []
+    const schemaHandles = (() => {
+      const n = schemaFields.length
+      if (n <= 0) return null
+      const sin: FlowPortHandle[] = []
+      const sout: FlowPortHandle[] = []
+      for (let j = 0; j < n; j += 1) {
+        const pct = ((j + 1) / (n + 1)) * 100
+        const key = buildSchemaFieldPortKey(schemaFields[j])
+        sin.push({ id: buildFlowHandleId({ dir: 'in', edgeId: key }), topPct: pct })
+        sout.push({ id: buildFlowHandleId({ dir: 'out', edgeId: key }), topPct: pct })
+      }
+      return { in: sin, out: sout } satisfies FlowNodeHandles
+    })()
+
+    if (!schemaHandles) {
+      out[nodeId] = { in: toHandles('in', incoming), out: toHandles('out', outgoing) }
+      continue
+    }
+
+    const dyn = { in: toHandles('in', incoming), out: toHandles('out', outgoing) }
+    const merge = (base: FlowPortHandle[], extra: FlowPortHandle[]): FlowPortHandle[] => {
+      const seen = new Set<string>(base.map(h => h.id))
+      const merged = base.slice()
+      for (let k = 0; k < extra.length; k += 1) {
+        const h = extra[k]
+        if (seen.has(h.id)) continue
+        merged.push(h)
+      }
+      return merged
+    }
+    out[nodeId] = { in: merge(schemaHandles.in, dyn.in), out: merge(schemaHandles.out, dyn.out) }
   }
   return out
 }

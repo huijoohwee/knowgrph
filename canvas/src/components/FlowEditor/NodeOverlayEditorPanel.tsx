@@ -7,6 +7,7 @@ import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverla
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
 import { UI_COPY, UI_LABELS, type FlowEditorSmartNodeProperties } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
@@ -66,8 +67,8 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   schema: GraphSchema | null
   toolMode?: 'select' | 'addEdge'
   pendingEdgeSourceId?: string | null
-  onBeginAddEdgeFromNode?: (nodeId: string) => void
-  onFinalizeAddEdgeToNode?: (nodeId: string) => void
+  onBeginAddEdgeFromNode?: (nodeId: string, portKey?: string | null) => void
+  onFinalizeAddEdgeToNode?: (nodeId: string, portKey?: string | null) => void
 }) {
   const {
     active,
@@ -116,6 +117,27 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const menuId = `flow-node-quick-menu-${String(node.id || 'node').replace(/[^a-zA-Z0-9_-]/g, '_')}`
 
+  const hasSchemaFields = React.useMemo(() => readSchemaFieldSpecs(node).length > 0, [node])
+  const handleSchemaPortHandleClick = React.useCallback(
+    (evt: { dir: 'in' | 'out'; portKey: string }) => {
+      if (!active) return
+      const nodeId = String(node.id || '').trim()
+      if (!nodeId) return
+      const portKey = String(evt.portKey || '').trim()
+      if (!portKey) return
+
+      if (evt.dir === 'out') {
+        onBeginAddEdgeFromNode?.(nodeId, portKey)
+        return
+      }
+
+      if (!pendingEdgeSourceId) return
+      if (pendingEdgeSourceId === nodeId) return
+      onFinalizeAddEdgeToNode?.(nodeId, portKey)
+    },
+    [active, node.id, onBeginAddEdgeFromNode, onFinalizeAddEdgeToNode, pendingEdgeSourceId],
+  )
+
   return (
     <FloatingPanel
       as="section"
@@ -148,17 +170,19 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         if (btn) btn.focus()
       }}
     >
-      <NodeOverlayEditorPortHandles
-        active={active}
-        nodeId={String(node.id || '')}
-        schema={schema}
-        edges={portHandleEdges}
-        minimized={minimized}
-        toolMode={toolMode}
-        pendingEdgeSourceId={pendingEdgeSourceId}
-        onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
-        onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
-      />
+      {!hasSchemaFields && (
+        <NodeOverlayEditorPortHandles
+          active={active}
+          nodeId={String(node.id || '')}
+          schema={schema}
+          edges={portHandleEdges}
+          minimized={minimized}
+          toolMode={toolMode}
+          pendingEdgeSourceId={pendingEdgeSourceId}
+          onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
+          onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
+        />
+      )}
 
       <header
         className={cn('px-3 py-2 border-b', UI_THEME_TOKENS.panel.border, pinned ? 'cursor-move select-none' : '')}
@@ -370,12 +394,14 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         <NodeOverlayEditorForm
           active={active}
           node={node}
+          schema={schema}
           hideFields={hideFields}
           labelInputRef={labelInputRef}
           onSetLabel={onSetLabel}
           onSetType={onSetType}
           onPatchProperties={onPatchProperties}
           onValidate={onValidate}
+          onSchemaPortHandleClick={handleSchemaPortHandleClick}
         />
       )}
     </FloatingPanel>

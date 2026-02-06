@@ -1,5 +1,6 @@
 import { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { GraphSchema, defaultSchema } from '@/lib/graph/schema'
+import { parseSchemaFieldPortKey, readFlowEdgePortKey, readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
 
 export type SchemaLintWarning = {
   path: string
@@ -89,10 +90,48 @@ export const validateEdgeProperties = (schema: GraphSchema, id: string, nextEdge
   return true
 }
 
+const canonicalizeSchemaFieldType = (raw: string | null | undefined): string => {
+  const s = String(raw || '').trim().toLowerCase()
+  if (!s) return ''
+  if (s === 'int' || s === 'int4' || s === 'integer') return 'integer'
+  if (s === 'bigint' || s === 'int8' || s === 'long') return 'bigint'
+  if (s === 'float' || s === 'float4' || s === 'real') return 'real'
+  if (s === 'double' || s === 'float8') return 'double'
+  if (s === 'varchar' || s === 'character varying' || s === 'text' || s === 'string') return 'string'
+  if (s === 'bool' || s === 'boolean') return 'boolean'
+  return s
+}
+
+const validateSchemaPortKeysIfPresent = (edge: GraphEdge, srcNode: GraphNode, tgtNode: GraphNode): boolean => {
+  const sourcePortKey = readFlowEdgePortKey(edge, 'source')
+  const targetPortKey = readFlowEdgePortKey(edge, 'target')
+  const srcFieldId = parseSchemaFieldPortKey(sourcePortKey)
+  const tgtFieldId = parseSchemaFieldPortKey(targetPortKey)
+
+  if (!srcFieldId && !tgtFieldId) return true
+
+  const srcFields = readSchemaFieldSpecs(srcNode)
+  const tgtFields = readSchemaFieldSpecs(tgtNode)
+  const src = srcFieldId ? srcFields.find(f => f.id === srcFieldId) || null : null
+  const tgt = tgtFieldId ? tgtFields.find(f => f.id === tgtFieldId) || null : null
+
+  if (srcFieldId && !src) return false
+  if (tgtFieldId && !tgt) return false
+
+  if (src && tgt) {
+    const st = canonicalizeSchemaFieldType(src.type)
+    const tt = canonicalizeSchemaFieldType(tgt.type)
+    if (st && tt && st !== tt) return false
+  }
+
+  return true
+}
+
 export const canAddEdge = (schema: GraphSchema, data: GraphData, edge: GraphEdge) => {
   const srcNode = data.nodes.find(n => n.id === String(edge.source))
   const tgtNode = data.nodes.find(n => n.id === String(edge.target))
   if (!srcNode || !tgtNode) return false
+  if (!validateSchemaPortKeysIfPresent(edge, srcNode, tgtNode)) return false
   const em = schema.endpointMatrix?.[edge.label] || undefined
   if (em) {
     if (em.sources.length > 0 && !em.sources.includes(srcNode.type)) return false

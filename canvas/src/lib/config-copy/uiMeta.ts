@@ -69,6 +69,8 @@ export const UI_LABELS = {
   aiKgLayers: 'AI KG Layers',
   history: 'History',
   help: 'Help',
+  workflowManager: 'Workflow Manager',
+  flowEditorManager: 'Flow Editor Manager',
   sidebar: 'Sidebar',
   propsPanel: 'Props Panel',
   geo: 'Geo',
@@ -178,6 +180,9 @@ export const UI_LABELS = {
   flowNodeQuickEditorReferenceImage: 'Reference image',
   flowNodeQuickEditorValidate: 'Validate',
   flowNodeQuickEditorActions: 'Quick edit actions',
+
+  flowNodeQuickEditorSchemaLegend: 'Schema',
+  flowNodeQuickEditorSchemaFieldsLegend: 'Fields',
   hideFields: 'Hide Fields',
   showFields: 'Show Fields',
   changeName: 'Change name',

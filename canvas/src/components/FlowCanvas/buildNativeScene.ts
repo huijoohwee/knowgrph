@@ -10,6 +10,7 @@ import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
+import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
@@ -77,18 +78,22 @@ export function buildAndSetFlowNativeScene(args: {
 
   const edges: NonNullable<FlowNativeScene['edges']> = []
   for (let i = 0; i < edgeList.length; i += 1) {
-    const e = edgeList[i] as { id?: unknown; source?: unknown; target?: unknown }
+    const e = edgeList[i] as { id?: unknown; source?: unknown; target?: unknown; properties?: unknown }
     const edgeId = String(e?.id || '').trim()
     const source = String(e?.source || '').trim()
     const target = String(e?.target || '').trim()
     if (!edgeId || !source || !target) continue
     if (!nodeById.has(source) || !nodeById.has(target)) continue
+
+    const sourcePortKey = readFlowEdgePortKey({ properties: e.properties as never } as never, 'source') || ''
+    const targetPortKey = readFlowEdgePortKey({ properties: e.properties as never } as never, 'target') || ''
+
     edges.push({
       id: edgeId,
       source,
       target,
-      outHandleId: buildFlowHandleId({ dir: 'out', edgeId }),
-      inHandleId: buildFlowHandleId({ dir: 'in', edgeId }),
+      outHandleId: buildFlowHandleId({ dir: 'out', edgeId: sourcePortKey || edgeId }),
+      inHandleId: buildFlowHandleId({ dir: 'in', edgeId: targetPortKey || edgeId }),
     })
   }
 
