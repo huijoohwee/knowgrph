@@ -15,11 +15,52 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
+  LS_KEYS,
   type FlowEditorSmartNodeProperties,
 } from '@/lib/config'
+import { lsBool } from '@/lib/persistence'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { viewportCenterToWorld } from '@/lib/zoom/viewport'
 
 type ToolMode = 'select' | 'addEdge'
+
+const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuickEditorOverlay(args: {
+  active: boolean
+  node: GraphNode
+  viewportW: number
+  viewportH: number
+  onSetLabel: (label: string) => void
+  onSetType: (type: string) => void
+  onPatchProperties: (patch: Record<string, unknown>) => void
+  onValidate: () => void
+  onDuplicate: () => void
+  onRemove: () => void
+  onClearOutput: () => void
+  onHelp: () => void
+  onConvertToLoopNode: () => void
+  onEnableHandlesForAllInputs: () => void
+  onPinnedToNodeChange: (pinnedToNode: boolean) => void
+}) {
+  return (
+    <NodeOverlayEditor
+      active={args.active}
+      node={args.node}
+      viewportW={args.viewportW}
+      viewportH={args.viewportH}
+      onSetLabel={args.onSetLabel}
+      onSetType={args.onSetType}
+      onPatchProperties={args.onPatchProperties}
+      onValidate={args.onValidate}
+      onDuplicate={args.onDuplicate}
+      onRemove={args.onRemove}
+      onClearOutput={args.onClearOutput}
+      onHelp={args.onHelp}
+      onConvertToLoopNode={args.onConvertToLoopNode}
+      onEnableHandlesForAllInputs={args.onEnableHandlesForAllInputs}
+      onPinnedToNodeChange={args.onPinnedToNodeChange}
+    />
+  )
+})
 
 const cloneGraphDataForDraft = (graphData: GraphData): GraphData => {
   const normalized = normalizeGraphData(graphData)
@@ -36,19 +77,6 @@ const cloneGraphDataForDraft = (graphData: GraphData): GraphData => {
   return { ...normalized, nodes, edges }
 }
 
-const computeWorldCenter = (args: {
-  zoomState: { k: number; x: number; y: number } | null
-  viewportW: number
-  viewportH: number
-}): { x: number; y: number } => {
-  const k = args.zoomState && Number.isFinite(args.zoomState.k) ? Math.max(0.001, args.zoomState.k) : 1
-  const tx = args.zoomState && Number.isFinite(args.zoomState.x) ? args.zoomState.x : 0
-  const ty = args.zoomState && Number.isFinite(args.zoomState.y) ? args.zoomState.y : 0
-  const sx = args.viewportW / 2
-  const sy = args.viewportH / 2
-  return { x: (sx - tx) / k, y: (sy - ty) / k }
-}
-
 export default function FlowEditorCanvas({ active = true }: { active?: boolean }) {
   const rootRef = React.useRef<HTMLElement | null>(null)
   const { width, height } = useContainerDims(rootRef)
@@ -57,7 +85,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const baseGraphData = useGraphStore(s => s.graphData)
   const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
-  const zoomState = useGraphStore(s => s.zoomState)
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
   const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
@@ -68,6 +95,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
   const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
+
+  const [nodeEditorPinnedToNode, setNodeEditorPinnedToNode] = React.useState<boolean>(
+    () => !lsBool(LS_KEYS.flowNodeQuickEditorPinned, false),
+  )
 
   const [toolMode, setToolMode] = React.useState<ToolMode>('select')
   const [pendingEdgeSourceId, setPendingEdgeSourceId] = React.useState<string | null>(null)
@@ -86,6 +117,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const [workflowMetaJson, setWorkflowMetaJson] = React.useState('')
   const [workflowContextJson, setWorkflowContextJson] = React.useState('')
   const [jsonError, setJsonError] = React.useState<string | null>(null)
+
 
   const inspectorPortalHost = (() => {
     if (!active) return null
@@ -174,7 +206,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!draftGraphData) return
     const nodeIds = new Set((draftGraphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
     const id = createUniqueId('n', nodeIds)
-    const pos = computeWorldCenter({ zoomState: zoomState || null, viewportW, viewportH })
+    const st = useGraphStore.getState()
+    const pos = viewportCenterToWorld({ transform: (st.zoomState as unknown as { k: number; x: number; y: number } | null) || null, viewportW, viewportH })
     const nextNode: GraphNode = {
       id,
       label: id,
@@ -193,7 +226,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     setSelectionSource('canvas')
     selectEdge(null)
     selectNode(id)
-  }, [draftGraphData, selectEdge, selectNode, setSelectionSource, viewportH, viewportW, zoomState])
+  }, [draftGraphData, selectEdge, selectNode, setSelectionSource, viewportH, viewportW])
 
   const deleteSelection = React.useCallback(() => {
     if (!draftGraphData) return
@@ -385,6 +418,67 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     })
   }, [selectedDraftNode, upsertUiToast])
 
+  const duplicateSelectedNode = React.useCallback(() => {
+    if (!draftGraphData || !selectedDraftNode) return
+    const nodeIds = new Set((draftGraphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
+    const nextId = createUniqueId('n', nodeIds)
+    const baseLabel = String(selectedDraftNode.label || selectedDraftNode.id || nextId)
+    const nextNode: GraphNode = {
+      ...selectedDraftNode,
+      id: nextId,
+      label: `${baseLabel} copy`,
+      x: (Number.isFinite(selectedDraftNode.x) ? selectedDraftNode.x : 0) + 40,
+      y: (Number.isFinite(selectedDraftNode.y) ? selectedDraftNode.y : 0) + 40,
+    }
+    const next: GraphData = {
+      ...draftGraphData,
+      nodes: [...(draftGraphData.nodes || []), nextNode],
+    }
+    setDraftGraphData(normalizeGraphData(next))
+    setDraftGraphDataRevision(r => r + 1)
+    setDraftDirty(true)
+    setSelectionSource('canvas')
+    selectEdge(null)
+    selectNode(nextId)
+  }, [draftGraphData, selectEdge, selectNode, selectedDraftNode, setSelectionSource])
+
+  const clearSelectedNodeOutput = React.useCallback(() => {
+    if (!selectedDraftNode) return
+    upsertUiToast({
+      id: `flow-editor-clear-output-${String(selectedDraftNode.id || '')}`,
+      kind: 'neutral',
+      message: 'Clear output is not implemented in MVP.',
+      ttlMs: 2200,
+    })
+  }, [selectedDraftNode, upsertUiToast])
+
+  const showNodeEditorHelp = React.useCallback(() => {
+    upsertUiToast({
+      id: 'flow-editor-node-editor-help',
+      kind: 'neutral',
+      message: 'Node Quick Editor: pin to detach, drag header to move, drag to resize.',
+      ttlMs: 2800,
+    })
+  }, [upsertUiToast])
+
+  const enableHandlesForAllInputs = React.useCallback(() => {
+    upsertUiToast({
+      id: 'flow-editor-enable-handles',
+      kind: 'neutral',
+      message: 'Enable handles is not implemented in MVP.',
+      ttlMs: 2200,
+    })
+  }, [upsertUiToast])
+
+  const convertSelectedNodeToLoop = React.useCallback(() => {
+    upsertUiToast({
+      id: 'flow-editor-convert-loop',
+      kind: 'neutral',
+      message: 'Convert to loop node is not implemented in MVP.',
+      ttlMs: 2200,
+    })
+  }, [upsertUiToast])
+
   const setSelectedEdgeLabel = React.useCallback(
     (label: string) => {
       if (!draftGraphData || !selectedEdgeId) return
@@ -537,16 +631,22 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const overlayEditorElement =
     active && selectedDraftNode ? (
-      <NodeOverlayEditor
+      <FlowEditorNodeQuickEditorOverlay
         active={active}
         node={selectedDraftNode}
-        zoomState={zoomState || null}
         viewportW={viewportW}
         viewportH={viewportH}
         onSetLabel={setSelectedNodeLabel}
         onSetType={setSelectedNodeType}
         onPatchProperties={patchSelectedNodeProperties}
         onValidate={validateSelectedNode}
+        onDuplicate={duplicateSelectedNode}
+        onRemove={deleteSelection}
+        onClearOutput={clearSelectedNodeOutput}
+        onHelp={showNodeEditorHelp}
+        onConvertToLoopNode={convertSelectedNodeToLoop}
+        onEnableHandlesForAllInputs={enableHandlesForAllInputs}
+        onPinnedToNodeChange={setNodeEditorPinnedToNode}
       />
     ) : null
 
@@ -557,6 +657,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         graphDataOverride={draftGraphData}
         graphDataRevisionOverride={draftGraphDataRevision}
         collisionDuringDrag
+        allowNodeDragOverride={nodeEditorPinnedToNode ? false : undefined}
+        hideSelectedNodeGlyph={Boolean(overlayEditorElement)}
+        forbidCircleNodes
       />
 
       {overlayEditorElement}

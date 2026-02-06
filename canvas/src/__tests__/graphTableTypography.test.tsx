@@ -32,6 +32,7 @@ export async function testGraphTableTypographyUsesUiSettings() {
       microLabelTextSizeClass: 'text-[10px]',
       monospaceTextClass: 'font-mono text-[13px]',
       keyValueInputClass: 'text-[15px]',
+      keyLabelClass: 'font-serif text-[15px]',
       panelTextClass: 'font-serif text-[15px]',
       microLabelClass: 'font-serif text-[10px]',
     }

@@ -74,6 +74,27 @@
 
 ---
 
+## Floating Panels (Tool Menu)
+
+- Floating panel shell and layout state:
+  - `LS_KEYS.floatingPanelPinned`
+  - `LS_KEYS.floatingPanelWidthRatio`
+  - `LS_KEYS.floatingPanelHeightRatio`
+  - `LS_KEYS.floatingPanelZIndex`
+
+---
+
+## Flow Editor (Node Quick Editor)
+
+- Node Quick Editor overlay state:
+  - `LS_KEYS.flowNodeQuickEditorPinned`
+  - `LS_KEYS.flowNodeQuickEditorMinimized`
+  - `LS_KEYS.flowNodeQuickEditorHideFields`
+  - `LS_KEYS.flowNodeQuickEditorTopPx`
+  - `LS_KEYS.flowNodeQuickEditorLeftPx`
+
+---
+
 ## Geospatial Mode (Extracted)
 
 - Knowgrph keeps Geospatial Mode keys out of `canvas/src/lib/config.ls.ts` to preserve a geospatial-free core.

@@ -25,6 +25,7 @@ export async function testFlowNodeQuickEditorTypographyInheritsPanelSettings() {
     api.setUiPanelKeyValueTextSizeClass('text-[15px]')
     api.setUiPanelMicroLabelTextSizeClass('text-[10px]')
     api.setUiPanelMonospaceTextClass('font-mono text-[13px]')
+    api.setZoomState({ k: 1, x: 0, y: 0 })
 
     const doc = dom.window.document
     const container = doc.createElement('div')
@@ -36,7 +37,6 @@ export async function testFlowNodeQuickEditorTypographyInheritsPanelSettings() {
       React.createElement(NodeOverlayEditor, {
         active: true,
         node: { id: 'n1', label: '890', type: 'Anchor', x: 10, y: 10, properties: {} },
-        zoomState: { k: 1, x: 0, y: 0 },
         viewportW: 800,
         viewportH: 600,
         onSetLabel: () => void 0,
@@ -85,4 +85,3 @@ export async function testFlowNodeQuickEditorTypographyInheritsPanelSettings() {
     restoreWindow()
   }
 }
-

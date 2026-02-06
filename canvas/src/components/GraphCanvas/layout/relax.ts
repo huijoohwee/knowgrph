@@ -6,6 +6,7 @@ import { createGroupBboxCollideForceByDepth } from './groupOverlapByDepth'
 import { createGroupKeyOfNode, type GroupKeyOfNode } from './grouping'
 import { readCollisionConfig, readStructuredRelaxSteps } from './collisionConfig'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/collision/relaxRunner'
 
 export function relaxNodesWithCollision(args: {
   nodes: GraphNode[]
@@ -73,23 +74,11 @@ export function relaxNodesWithCollision(args: {
   if (groupForce) groupForce.initialize(nodes, Math.random)
   const applyGroupForce = groupForce as unknown as ((alpha: number) => void) | null
 
-  for (let step = 0; step < steps; step += 1) {
-    const alpha = Math.max(0.05, 0.9 - step * 0.12)
-    if (applyNodeForce) applyNodeForce(alpha)
-    if (applyGroupForce) applyGroupForce(alpha)
-
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const vx = typeof n.vx === 'number' && Number.isFinite(n.vx) ? n.vx : 0
-      const vy = typeof n.vy === 'number' && Number.isFinite(n.vy) ? n.vy : 0
-      const anyNode = n as unknown as { z?: unknown; vz?: unknown }
-      const vz = typeof anyNode.vz === 'number' && Number.isFinite(anyNode.vz) ? anyNode.vz : 0
-      n.x = (typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0) + vx
-      n.y = (typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : 0) + vy
-      anyNode.z = (typeof anyNode.z === 'number' && Number.isFinite(anyNode.z) ? (anyNode.z as number) : 0) + vz
-      n.vx = vx * 0.25
-      n.vy = vy * 0.25
-      anyNode.vz = vz * 0.25
-    }
-  }
+  const forces = [applyNodeForce, applyGroupForce].filter(Boolean) as Array<(alpha: number) => void>
+  runRelaxSteps({
+    nodes,
+    steps,
+    forces,
+    integrate: (node) => integrateNodePositionWithVelocity(node, { damping: 0.25, z: { mode: 'always' } }),
+  })
 }

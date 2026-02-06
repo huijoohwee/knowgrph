@@ -62,7 +62,7 @@ export default function FlowEditorInspector({
   onSetEdgeLabel: (label: string) => void
   onApplyJson: (target: 'nodeProps' | 'nodeMeta' | 'edgeProps' | 'edgeMeta' | 'workflowMeta' | 'workflowContext') => void
 }) {
-  const { panelTextClass, microLabelClass, monospaceTextClass, keyValueInputClass, textSizeClass } = usePanelTypography()
+  const { panelTextClass, microLabelClass, monospaceTextClass, keyValueInputClass, textSizeClass, keyLabelClass } = usePanelTypography()
 
   return (
     <section
@@ -106,7 +106,7 @@ export default function FlowEditorInspector({
           {selectedNode ? (
             <>
               <p className={cn('mt-2', microLabelClass, UI_THEME_TOKENS.text.secondary)}>{selectedNode.id}</p>
-              <label className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-label">
+              <label className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-label">
                 Label
               </label>
               <input
@@ -123,7 +123,7 @@ export default function FlowEditorInspector({
                 onChange={e => onSetNodeLabel(e.target.value)}
                 disabled={!active}
               />
-              <label className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-type">
+              <label className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-type">
                 Type
               </label>
               <input
@@ -141,7 +141,7 @@ export default function FlowEditorInspector({
                 disabled={!active}
               />
               <label
-                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
+                className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-node-props"
               >
                 Properties (JSON)
@@ -168,7 +168,7 @@ export default function FlowEditorInspector({
                 Apply properties
               </button>
               <label
-                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
+                className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-node-meta"
               >
                 Metadata (JSON)
@@ -210,7 +210,7 @@ export default function FlowEditorInspector({
                 {String(selectedEdge.source)} → {String(selectedEdge.target)}
               </p>
               <label
-                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
+                className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-edge-label"
               >
                 Label
@@ -230,7 +230,7 @@ export default function FlowEditorInspector({
                 disabled={!active}
               />
               <label
-                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
+                className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-edge-props"
               >
                 Properties (JSON)
@@ -257,7 +257,7 @@ export default function FlowEditorInspector({
                 Apply properties
               </button>
               <label
-                className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
+                className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
                 htmlFor="flow-editor-edge-meta"
               >
                 Metadata (JSON)
@@ -335,7 +335,7 @@ export default function FlowEditorInspector({
 
           <p className={cn('mt-3', microLabelClass, UI_THEME_TOKENS.text.secondary)}>Draft graph</p>
           <label
-            className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
+            className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
             htmlFor="flow-editor-workflow-meta"
           >
             Metadata (JSON)
@@ -362,7 +362,7 @@ export default function FlowEditorInspector({
             Apply workflow metadata
           </button>
           <label
-            className={cn('mt-3 block', microLabelClass, UI_THEME_TOKENS.text.secondary)}
+            className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
             htmlFor="flow-editor-workflow-context"
           >
             Context (JSON)

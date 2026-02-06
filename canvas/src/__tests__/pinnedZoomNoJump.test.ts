@@ -1,4 +1,4 @@
-import { adjustPinnedZoomForViewportChange } from '@/components/GraphCanvas/zoomState'
+import { adjustPinnedZoomForViewportChange } from '@/lib/zoom/viewport'
 
 export const testPinnedZoomAdjustKeepsWorldCenter = () => {
   const z = { k: 2, x: -100, y: -50, viewportW: 800, viewportH: 600 }
@@ -10,4 +10,3 @@ export const testPinnedZoomAdjustKeepsWorldCenter = () => {
   if (Math.abs(screenCx - 500) > 1e-6) throw new Error('expected world center to remain at new viewport center x')
   if (Math.abs(screenCy - 300) > 1e-6) throw new Error('expected world center to remain at new viewport center y')
 }
-

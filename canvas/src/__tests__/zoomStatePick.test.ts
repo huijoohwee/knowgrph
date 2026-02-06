@@ -1,4 +1,4 @@
-import { pickInitialZoomTransform } from '@/components/GraphCanvas/zoomState'
+import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 
 export const testPickInitialZoomTransformReusesZoomAcrossPresentationChanges = () => {
   const z = { k: 1.5, x: 10, y: 20, graphDataRevision: 7, viewportW: 800, viewportH: 600 }
@@ -24,4 +24,3 @@ export const testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned = () => {
   })
   if (picked != null) throw new Error('expected null when graph revision differs and not pinned')
 }
-

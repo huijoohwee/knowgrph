@@ -9,6 +9,7 @@ import { HelpWorkflowLinksSection } from './HelpWorkflowLinksSection';
 interface HelpSectionsProps {
   collapsedBySection: Record<HelpStepKey, boolean>;
   onToggleSection: (key: HelpStepKey, next: boolean) => void;
+  searchQuery: string;
   shortcuts: string[];
   onCopyAllShortcuts: () => void;
   onLaunchSpotlight: () => void;
@@ -20,6 +21,7 @@ interface HelpSectionsProps {
 export function HelpSections({
   collapsedBySection,
   onToggleSection,
+  searchQuery,
   shortcuts,
   onCopyAllShortcuts,
   onLaunchSpotlight,
@@ -28,10 +30,11 @@ export function HelpSections({
   onOpenSettingsTab,
 }: HelpSectionsProps) {
   return (
-    <div className="mt-3">
+    <section className="mt-3" aria-label="Help sections">
       <HelpShortcutsSection
         collapsed={collapsedBySection.shortcuts}
         onToggle={next => onToggleSection('shortcuts', next)}
+        searchQuery={searchQuery}
         shortcuts={shortcuts}
         onCopyAllShortcuts={onCopyAllShortcuts}
         onLaunchSpotlight={onLaunchSpotlight}
@@ -55,6 +58,6 @@ export function HelpSections({
         onToggle={next => onToggleSection('icons', next)}
         onOpenSettingsTab={onOpenSettingsTab}
       />
-    </div>
+    </section>
   );
 }

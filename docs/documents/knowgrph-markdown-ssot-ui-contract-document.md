@@ -94,7 +94,10 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - Host must apply `uiPanelTextFontClass` + `uiPanelKeyValueTextSizeClass` at the floating panel content root.
   - Inspector implementations must not hardcode `text-*` or `font-*`; they must inherit and only apply semantic emphasis (e.g. `font-semibold`).
   - Record Inspector key labels must use the same key/value text size as inputs (no micro-label sizing on `dt`).
-  - Shared selector: `knowgrph/canvas/src/lib/ui/panelTypography.ts`.
+  - Shared selector: `knowgrph/canvas/src/lib/ui/panelTypography.ts` (returns `PanelTypography`).
+  - `PanelTypography` SSOT type: `knowgrph/grph-shared/src/ui/panelTypography.ts`.
+  - `PanelTypography.keyLabelClass` is the canonical class for “Key label” typography (align with value inputs).
+  - `PANEL_TYPOGRAPHY_DEFAULTS` centralizes fallback classes (avoid string drift across repos).
   - Cross-repo panels rendered inside Floating Panel (e.g. `gympgrph` geospatial panel) must receive the same ladder via an explicit `panelTypography` prop (typed by `grph-shared/ui/panelTypography`).
   - MainPanel / Editor workspace / Graph Data Table surfaces must also use the same ladder (`usePanelTypography`) and avoid hardcoded `text-*` / `font-*`.
   - Portal content (dropdowns/popovers) must explicitly apply `microLabelClass` when it cannot inherit from a panel root.

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
+import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 
 type ToolMenuDragPosition = {
   top: number
@@ -27,17 +28,12 @@ export function useToolMenuState() {
     const rect = el ? el.getBoundingClientRect() : null
     const w = rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : 320
     const h = rect && Number.isFinite(rect.height) && rect.height > 0 ? rect.height : 420
-    const visible = 32
-    const minLeft = visible - w
-    const maxLeft = window.innerWidth - visible
-    const minTop = visible - h
-    const maxTop = window.innerHeight - visible
-    const clampedTop = Math.min(Math.max(pos.top, minTop), maxTop)
-    const clampedLeft = Math.min(Math.max(pos.left, minLeft), maxLeft)
-    return {
-      top: clampedTop,
-      left: clampedLeft,
-    }
+    return clampOverlayTopLeftToViewport({
+      pos,
+      size: { width: w, height: h },
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      visiblePx: 32,
+    })
   }, [])
 
   const handleToolMenuCardPointerDown = (event: React.PointerEvent<HTMLElement>) => {

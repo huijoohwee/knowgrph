@@ -5,11 +5,13 @@ import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestrat
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
 import IconButton from '@/components/IconButton'
+import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
 import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { cn } from '@/lib/utils'
 import {
@@ -18,7 +20,7 @@ import {
   UI_LABELS,
   UI_SELECTORS,
 } from '@/lib/config'
-import { lsBool, lsSetBool } from '@/lib/persistence'
+import { lsBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
@@ -133,7 +135,7 @@ export function ToolbarToolMenu({
   requestedFloatingPanelViewSeq,
   onClose,
 }: ToolbarToolMenuProps) {
-  const [floatingPanelPinned, setFloatingPanelPinned] = React.useState(() => lsBool(LS_KEYS.floatingPanelPinned, true))
+  const { pinned: floatingPanelPinned, togglePinned: toggleFloatingPanelPinned } = usePinnedLs(LS_KEYS.floatingPanelPinned, true)
   const [floatingPanelMinimized, setFloatingPanelMinimized] = React.useState(false)
   const [floatingPanelView, setFloatingPanelView] = React.useState<FloatingPanelView>('propsPanel')
   const handledRequestedViewSeqRef = React.useRef<number | undefined>(undefined)
@@ -204,13 +206,7 @@ export function ToolbarToolMenu({
 
   const floatingPanelRootClassName = 'fixed inset-0 pointer-events-none'
 
-  const handlePinToggle = React.useCallback(() => {
-    setFloatingPanelPinned(prev => {
-      const next = !prev
-      lsSetBool(LS_KEYS.floatingPanelPinned, next)
-      return next
-    })
-  }, [])
+  const handlePinToggle = toggleFloatingPanelPinned
 
   const floatingPanelRootStyle = React.useMemo(() => {
     const safeZ = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : 5000
@@ -410,8 +406,14 @@ export function ToolbarToolMenu({
             />
           </header>
           <section
-            className={`mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}
-            aria-label="Floating panel content"
+            className={cn(
+              'mt-1',
+              FLOATING_PANEL_SCROLL_CLASSNAME,
+              uiPanelTextFontClass,
+              uiPanelKeyValueTextSizeClass,
+              UI_THEME_TOKENS.text.primary,
+            )}
+            aria-label={UI_LABELS.floatingPanel}
           >
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
             {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}

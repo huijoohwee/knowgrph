@@ -62,7 +62,10 @@
   - Value tooltips follow Default/Min/Max/Interval (when applicable) + short impact (≤ 15 words).
 
 - Flow Editor supports an in-canvas Node Quick Editor overlay (semantic HTML) for fast field edits and validation.
+  - Reuses the host FloatingPanel shell patterns (pin/unpin, drag-when-unpinned, minimize/restore + SSOT opacity).
+  - Zoom/pan positioning updates are applied via rAF-batched DOM style updates (no editor-form rerender on zoom commits).
   - `canvas/src/components/FlowEditor/NodeOverlayEditor.tsx`
+  - `canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx`
 
 ---
 
@@ -112,6 +115,10 @@
   - Cache node geometry per tick keyed by node id and schema reference (avoids repeated dimension/radius recomputation).
   - Gate heavy custom forces at low alpha and reduce anti-line work frequency.
   - Persist layout positions when the simulation ends to improve reuse on mode switches and rebuild boundaries.
+
+### 7. Canvas2D Theme/Token Read Caching
+- **Issue**: Per-frame `getComputedStyle()` / CSS var reads in Canvas2D draw loops cause avoidable main-thread work and can amplify interaction lag.
+- **Solution**: Flow/Flow Editor Canvas2D runtime caches theme + font by a lightweight CSS “key” (`data-theme`/class/style) and only re-reads CSS vars when the key changes; individual `var(--*)` resolutions are memoized per key.
 
 ---
 
@@ -234,6 +241,20 @@
   - Focuses camera on selected node/edge.
 - **Zoom State Caching**:
   - Caches zoom state per viewKey to prevent cross-mode/layout/presentation contamination.
+- **Wheel parity (2D D3 + Flow + Flow Editor)**:
+  - Wheel delta normalization and zoom factor are SSOT (`canvas/src/lib/canvas/zoom-input.ts`) and must be reused by all 2D renderers.
+  - Wheel anchor uses event position, else a *recent* last-pointer fallback, else viewport center (prevents “jump zoom” when events lack coordinates).
+  - If the wheel event is slightly outside the viewport, clamp to the nearest edge before falling back (prevents viewport-edge bounce).
+  - When clamped at min zoom, a small reverse delta is ignored briefly to prevent trackpad bounce-back zoom-in.
+- **Zoom commands (toolbar/keyboard)**:
+  - Zoom-in/out scales about the current viewport center (preserve the world point at `viewportW/2, viewportH/2`) so panning does not “bounce” back toward the graph centroid.
+  - Only explicit `fit/reset` operations recenter on graph bounds/centroid.
+- **Drag vs Zoom**:
+  - While dragging nodes/groups in Flow Editor, wheel zoom is blocked to avoid node movement discontinuities.
+  - Pointer drag and wheel handlers prevent default page scroll/zoom while the canvas is active.
+- **Overlay viewport clamping**:
+  - Screen-space overlays may be node-attached (track world→screen position and can leave the viewport like nodes) or detached (clamp using the active renderer viewport `viewportW/viewportH`). Detached overlays must avoid post-paint “snap back” corrections (layout-effect clamp to prevent border bounce).
+  - Shared utilities: prefer `canvas/src/lib/ui/overlayClamp.ts` (viewport clamp) and `canvas/src/lib/react/useIsomorphicLayoutEffect.ts` (pre-paint correction without SSR hazards).
 - **New Node Placement**:
   - New nodes appear at viewport center to prevent disorientation.
 

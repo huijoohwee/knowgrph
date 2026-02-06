@@ -18,6 +18,7 @@ Graph Canvas layout behavior is defined by a small set of SSOT modules. All mode
 | Cohesion targets (X/Y anchors) | `canvas/src/components/GraphCanvas/layout/grouping.ts` | `computeGroupTargets` provides stable centroids for force anchoring. |
 | Force-mode seeding | `canvas/src/components/GraphCanvas/layout/seeding.ts` | `applyForceModeSeeds` defines the only allowed seed order (Mermaid → Markdown headings → heuristic cluster). |
 | Structured-mode relaxation | `canvas/src/components/GraphCanvas/layout/relax.ts` | `relaxNodesWithCollision` is the only allowed post-layout relaxation pass for structured modes (Radial). |
+| Relax step runner | `canvas/src/lib/graph/collision/relaxRunner.ts` | Shared alpha schedule + integrate/damping loop used by both Graph and Flow collision relaxation passes. |
 | Group bounds rendering | `canvas/src/components/GraphCanvas/layers/groups.ts` | Group boxes use label-aware AABBs so outlines don’t clip labels; forbid ad-hoc sizing. |
 | Render Z-order | `canvas/src/components/GraphCanvas/zOrder.ts` | `applyGraphCanvasZOrder` is the only z-layer ordering entry point. |
 | Update timing | `canvas/src/components/GraphCanvas/scene.ts` | Group outlines update via `beforeRenderFrameRef` so they track simulation without influencing it. |

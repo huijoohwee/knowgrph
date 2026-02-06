@@ -26,6 +26,8 @@ import {
   GRAPHRAG_PATH_TRAVERSAL_METADATA_MISSING_TEXT,
 } from '@/lib/config'
 
+import { CANVAS_SHORTCUT_COPY_LINES } from '@/lib/canvas/interaction-ssot'
+
 export const PANEL_MIN_PX = 120
 export const PANEL_MAX_RATIO = 1.0
 export const PANEL_MIN_RATIO = 0.35
@@ -161,6 +163,7 @@ export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   `Cmd/Ctrl + Shift + Z — ${UI_LABELS.redo}`,
   'Editor caret on an object id selects the entity.',
   'In 3D mode, toolbar zoom buttons control the camera.',
+  ...CANVAS_SHORTCUT_COPY_LINES,
   'Canvas: Shift + drag from one node to another creates an edge (createMode: shift-drag).',
   'Canvas: Use edge tools in the toolbar to click a source node then a target node (createMode: click-source-target).',
   'Canvas: Prefer creating edges from side panels or context menus when createMode is panel-only.',

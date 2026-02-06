@@ -2,6 +2,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import {
   computeTooltipMaxWidthPx,
   computeTooltipPositionFromAnchor,
@@ -20,11 +21,6 @@ interface TooltipProps {
   anchorStyle?: React.CSSProperties
   onContentMouseLeave?: () => void
 }
-
-const useIsomorphicLayoutEffect =
-  typeof window !== 'undefined' && typeof document !== 'undefined' && typeof document.createElement === 'function'
-    ? React.useLayoutEffect
-    : React.useEffect
 
 export default function Tooltip({ content, className, children, maxWidthFromPrevSibling, maxWidthPx, contentClassName, open: controlledOpen, anchorStyle, onContentMouseLeave }: TooltipProps) {
   const anchorRef = React.useRef<HTMLSpanElement | null>(null)

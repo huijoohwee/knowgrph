@@ -5,6 +5,7 @@ import { createGroupBboxCollideForceByDepth } from '@/components/GraphCanvas/lay
 import { readCollisionConfig, readStructuredRelaxSteps } from '@/components/GraphCanvas/layout/collisionConfig'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { readExplicitZ } from '@/lib/graph/collision/readZ'
+import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/collision/relaxRunner'
 
 export function relaxFlowPositionsWithCollision(args: {
   graphData: GraphData
@@ -136,26 +137,17 @@ export function relaxFlowPositionsWithCollision(args: {
     groupForces.push(f as unknown as (alpha: number) => void)
   }
 
-  for (let step = 0; step < steps; step += 1) {
-    const alpha = Math.max(0.05, 0.9 - step * 0.12)
-    if (applyNodeForce) applyNodeForce(alpha)
-    for (let i = 0; i < groupForces.length; i += 1) groupForces[i](alpha)
-
-    for (let i = 0; i < proxyNodes.length; i += 1) {
-      const n = proxyNodes[i]
-      const vx = typeof n.vx === 'number' && Number.isFinite(n.vx) ? n.vx : 0
-      const vy = typeof n.vy === 'number' && Number.isFinite(n.vy) ? n.vy : 0
-      const vz = typeof n.vz === 'number' && Number.isFinite(n.vz) ? n.vz : 0
-      n.x = (typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0) + vx
-      n.y = (typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : 0) + vy
-      if (n.hasExplicitZ === true) {
-        n.z = (typeof n.z === 'number' && Number.isFinite(n.z) ? n.z : 0) + vz
-      }
-      n.vx = vx * 0.25
-      n.vy = vy * 0.25
-      n.vz = vz * 0.25
-    }
-  }
+  const forces = [applyNodeForce, ...groupForces].filter(Boolean) as Array<(alpha: number) => void>
+  runRelaxSteps({
+    nodes: proxyNodes,
+    steps,
+    forces,
+    integrate: (node) =>
+      integrateNodePositionWithVelocity(node, {
+        damping: 0.25,
+        z: { mode: 'predicate', enabled: (n) => (n as { hasExplicitZ?: unknown }).hasExplicitZ === true },
+      }),
+  })
 
   const next: Record<string, { x: number; y: number }> = { ...positions }
   for (let i = 0; i < proxyNodes.length; i += 1) {

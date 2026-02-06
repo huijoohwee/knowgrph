@@ -4,8 +4,9 @@ import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createZoom } from '@/components/GraphCanvas/zoom'
 import { buildSimulation } from '@/components/GraphCanvas/simulation'
-import { fitAllTransform } from '@/components/GraphCanvas/fit'
-import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
+import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { createLayoutGroupKeyOfNode, selectLayoutGroups } from '@/components/GraphCanvas/layout/layoutGroupKey'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
@@ -24,6 +25,7 @@ type SetupGraphSceneArgs = {
   svgEl: SVGSVGElement
   svgRef: RefObject<SVGSVGElement>
   graphData: GraphData
+  graphDataRevision: number
   schema: GraphSchema
   edgesForSim: GraphEdge[]
   width: number
@@ -80,6 +82,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     svgEl,
     svgRef,
     graphData,
+    graphDataRevision,
     schema,
     edgesForSim,
     width,
@@ -232,9 +235,24 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   // Fit to screen logic for clean slate
   if (fitToScreenMode !== false && !initialZoomTransform) {
-    const mode = readLayoutMode(schema)
-    const opts = readFitAllOptions({ schema, mode, intent: 'initialFit' })
-    const t = fitAllTransform(graphDataForDisplay.nodes, width, height, opts)
+    const [minK, maxK] = readZoomScaleExtent(schema)
+    const res = computeZoomTransformFromRequest(
+      { type: 'fit', intent: 'initialFit', at: Date.now() },
+      {
+        graphData: graphDataForDisplay,
+        schema,
+        graphDataRevision,
+        viewportW: width,
+        viewportH: height,
+        pinned: false,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        currentTransform: d3.zoomIdentity,
+        scaleExtent: { minK, maxK },
+        cacheKeyBase: '2d',
+      },
+    )
+    const t = res?.nextTransform || d3.zoomIdentity
     svg.call(zoom.transform as unknown as (
       sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
       t: d3.ZoomTransform,

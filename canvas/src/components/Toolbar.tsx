@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil, Compass } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -20,6 +20,8 @@ import {
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
+
+import { CANVAS_INTERACTION_MODE_LABELS } from '@/lib/canvas/interaction-ssot'
 
 import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
 import { FitToViewButton } from '@/features/toolbar/ui/FitToViewButton';
@@ -91,6 +93,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
+  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
+  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
+  const selectedGroupId = useGraphStore(s => s.selectedGroupId)
+  const selectNode = useGraphStore(s => s.selectNode)
+  const selectEdge = useGraphStore(s => s.selectEdge)
+  const selectGroup = useGraphStore(s => s.selectGroup)
   const launchSpotlight = useLaunchSpotlight();
   const iconSizeClass = getIconSizeClass(uiIconScale);
   const iconStrokeWidth = uiIconStrokeWidth;
@@ -111,6 +119,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     })
     return false
   }, [documentStructureBaselineLock, upsertUiToast])
+
+  const hasAnySelection = Boolean(selectedNodeId || selectedEdgeId || selectedGroupId)
+  const isNavigateModeActive = !hasAnySelection && !(selectMode === 'multi' || selectMode === 'lasso')
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
   const rawNodeShapeMode = schema.behavior?.nodeShapeMode
@@ -230,6 +241,24 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <BarChart3 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+
+      <IconButton
+        className={`App-toolbar__btn ${
+          isNavigateModeActive ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={CANVAS_INTERACTION_MODE_LABELS.navigate}
+        tooltipContent="Navigate (clear selection)"
+        onClick={() => {
+          if (!ensureBaselineUnlocked()) return
+          setSelectMode('single')
+          selectNode(null)
+          selectEdge(null)
+          selectGroup(null)
+        }}
+        showTooltip
+      >
+        <Compass className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
 
       <IconButton
@@ -449,7 +478,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           >
             <MainPanel
               onClose={() => setIsMainPanelOpen(false)}
-              onHeaderDragStart={handleMainPanelHeaderDragStart}
+              onHeaderDragStart={mainPanelPinned ? handleMainPanelHeaderDragStart : undefined}
               requestedTab={mainPanelRequestedTab}
               collapsed={mainPanelCollapsed}
               pinned={mainPanelPinned}

@@ -29,9 +29,10 @@ import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
-import { pickInitialZoomTransform } from '@/components/GraphCanvas/zoomState'
+import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
+import { quantizeZoomStateForCommit } from '@/lib/zoom/zoomStateQuantize'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
@@ -554,6 +555,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         svgEl: svgRef.current,
         svgRef,
         graphData: sceneGraphData,
+        graphDataRevision: graphDataRevision || 0,
         schema: schemaValue,
         edgesForSim,
         width: sceneWidth,
@@ -615,12 +617,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
             if (!latest) return
             const state = useGraphStore.getState()
             const pinned = state.viewPinned === true
-            const next = {
+            const next = quantizeZoomStateForCommit({
               ...latest,
               graphDataRevision: pinned ? undefined : graphDataRevisionRef.current,
               viewportW: sceneWidth,
               viewportH: sceneHeight,
-            }
+            })
             const existing = state.zoomStateByKey?.[zoomViewKey] || state.zoomState
             if (isSameZoomState(existing || null, next)) return
             state.setZoomState(next)
@@ -795,7 +797,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   return (
     <main
       ref={containerRef}
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 overflow-hidden overscroll-none"
       role="main"
       aria-label="Graph Canvas"
     >

@@ -694,8 +694,8 @@ export default function CanvasPage() {
           </>
         ) : (
           <main className="flex-1 flex overflow-hidden" aria-label="Canvas Workspace">
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 relative overflow-hidden">
+            <section className="flex-1 flex flex-col overflow-hidden" aria-label="Canvas stage">
+              <section className="flex-1 relative overflow-hidden" aria-label="Canvas renderer stack">
                 <>
                   <nav
                     className="absolute top-2 inset-x-0 z-[200] flex items-center justify-center"
@@ -769,8 +769,8 @@ export default function CanvasPage() {
                     </React.Suspense>
                   </>
                 </>
-              </div>
-            </div>
+              </section>
+            </section>
           </main>
         )}
       </section>

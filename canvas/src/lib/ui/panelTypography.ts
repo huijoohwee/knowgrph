@@ -1,26 +1,27 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
 import { useShallow } from 'zustand/react/shallow'
-import type { PanelTypography } from 'grph-shared/ui/panelTypography'
+import { PANEL_TYPOGRAPHY_DEFAULTS, type PanelTypography } from 'grph-shared/ui/panelTypography'
 
 export type { PanelTypography } from 'grph-shared/ui/panelTypography'
 
 export function usePanelTypography(): PanelTypography {
   return useGraphStore(
     useShallow(state => {
-      const fontClass = state.uiPanelTextFontClass || 'font-sans'
-      const textSizeClass = state.uiPanelKeyValueTextSizeClass || 'text-sm'
+      const fontClass = state.uiPanelTextFontClass || PANEL_TYPOGRAPHY_DEFAULTS.fontClass
+      const textSizeClass = state.uiPanelKeyValueTextSizeClass || PANEL_TYPOGRAPHY_DEFAULTS.textSizeClass
       const microLabelTextSizeClass =
-        state.uiPanelMicroLabelTextSizeClass || state.uiIconBadgeChipTextSizeClass || 'text-[9px]'
-      const monospaceTextClass = state.uiPanelMonospaceTextClass || 'font-mono text-xs'
+        state.uiPanelMicroLabelTextSizeClass || state.uiIconBadgeChipTextSizeClass || PANEL_TYPOGRAPHY_DEFAULTS.microLabelTextSizeClass
+      const monospaceTextClass = state.uiPanelMonospaceTextClass || PANEL_TYPOGRAPHY_DEFAULTS.monospaceTextClass
       const keyValueInputClass =
-        state.uiPanelKeyValueInputClass || 'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right'
+        state.uiPanelKeyValueInputClass || PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass
       return {
         fontClass,
         textSizeClass,
         microLabelTextSizeClass,
         monospaceTextClass,
         keyValueInputClass,
+        keyLabelClass: cn(fontClass, textSizeClass),
         panelTextClass: cn(fontClass, textSizeClass),
         microLabelClass: cn(fontClass, microLabelTextSizeClass),
       }

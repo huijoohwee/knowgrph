@@ -116,6 +116,15 @@ import {
 } from '@/__tests__/gympgrphUrlInterop.test'
 import { testMainPanelTypographyUsesUiSettings } from '@/__tests__/mainPanelTypography.test'
 import { testGraphTableTypographyUsesUiSettings } from '@/__tests__/graphTableTypography.test'
+import { testCanvasZoomWheelParityBetweenD3AndNative } from '@/__tests__/canvasZoomWheelParity.test'
+import {
+  testWheelAnchorFallsBackWhenClientCoordsOutsideRect,
+  testWheelAnchorClampsNearEdgeToPreventJump,
+  testWheelAnchorUsesCenterWhenNoFallback,
+  testWheelFallbackAcceptsFreshPoint,
+  testWheelFallbackRejectsStalePoint,
+} from '@/__tests__/canvasWheelAnchor.test'
+import { testZoomWheelGuardBlocksBounceAtMinScale } from '@/__tests__/canvasZoomWheelGuard.test'
 import {
   testFetchRemoteTextPreflightHeadGuardsTooLarge,
   testFetchRemoteTextValidateSupportsStringAndArgs,
@@ -204,6 +213,14 @@ import {
 } from '@/__tests__/crossRepoBoundaryGuards.test'
 import { testFloatingPanelInspectorTypographyUsesUiSettings } from '@/__tests__/floatingPanelInspectorTypography.test'
 import { testFlowNodeQuickEditorTypographyInheritsPanelSettings } from '@/__tests__/flowNodeQuickEditorTypography.test'
+import { testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel } from '@/__tests__/flowNodeQuickEditorZoomRerenderGuard.test'
+import { testCanvasWheelIgnoreOverlayPreventsZoom } from '@/__tests__/canvasWheelIgnoreOverlay.test'
+import { testCanvasEventCoordsFallsBackToClientRect, testCanvasEventCoordsPrefersOffsetXY } from '@/__tests__/canvasEventCoords.test'
+import { testFlowRelaxStepPolicyBoundedAndMonotonic } from '@/__tests__/flowRelaxStepPolicy.test'
+import {
+  testCanvasHelpShortcutsSsotHasUniqueIdsAndLines,
+  testHelpTabSearchAndCopyIncludesCanvasShortcutLines,
+} from '@/__tests__/canvasHelpShortcutsSsot.test'
 import {
   testWorkflowPresetPipelinesAreSelfConsistent,
   testExportFunctionsAcceptBrandedPaths,
@@ -272,12 +289,19 @@ import {
 } from '@/__tests__/densityClusteringBounded.test'
 import { testPinnedZoomAdjustKeepsWorldCenter } from '@/__tests__/pinnedZoomNoJump.test'
 import { testFitToViewAllowsZoomOutBelowSchemaMinScale } from '@/__tests__/zoomOutFitAll.test'
+import { testZoomActionsZoomInOutPreserveViewportCenterNoBounce } from '@/__tests__/zoomInOutViewportCenterNoBounce.test'
+import { testNodeQuickEditorScaledSizeTracksZoomK } from '@/__tests__/nodeQuickEditorZoom.test'
+import {
+  testZoomActionsFitTransformIsCachedAcrossRequests,
+  testZoomActionsZoomOutAutoMinScaleTracksFitToView,
+} from '@/__tests__/zoomActionsSsot.test'
 import {
   testPickInitialZoomTransformReusesZoomAcrossPresentationChanges,
   testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned,
 } from '@/__tests__/zoomStatePick.test'
 import { testZoomViewKeyIncludesPresentationKeys } from '@/__tests__/zoomViewKey.test'
 import { testZoomStateEqMatchesAllFields, testZoomStateEqRejectsNulls } from '@/__tests__/zoomStateEq.test'
+import { testZoomStateQuantizeCustomSteps, testZoomStateQuantizeDefaults } from '@/__tests__/zoomStateQuantize.test'
 import {
   testCoerceMediaUrlAcceptsSafeRelative,
   testCoerceMediaUrlRejectsExplicitScheme,
@@ -290,6 +314,11 @@ import {
 } from '@/__tests__/mediaProxySrc.test'
 import { testUiToastUpsertDoesNotExtendExpiry, testUiToastUpsertMovesToastToFront } from '@/__tests__/uiToastSlice.test'
 import { testIconButtonStopsPropagation, testToolbarIconTooltipsDoNotInterceptClicks } from '@/__tests__/toolbarButtons.test'
+import { testOverlayClampKeepsPanelInViewport, testOverlayClampSnapPxRoundsToGrid } from '@/__tests__/overlayClamp.test'
+import {
+  testFlowNativeNodeShapeForbidCircleCoercesToRect,
+  testFlowNativeNodeShapeForbidCircleLeavesNonCircleUnchanged,
+} from '@/__tests__/flowNodeShapeForbidCircle.test'
 import {
   testNormalizeMermaidMmdToMarkdownKeepsFencedMarkdown,
   testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid,
@@ -432,6 +461,14 @@ export const runAllTests = async () => {
 
   await exec('ui.typography.floatingPanelInspector.usesUiSettings', testFloatingPanelInspectorTypographyUsesUiSettings)
   await exec('ui.typography.flowNodeQuickEditor.usesUiSettings', testFlowNodeQuickEditorTypographyInheritsPanelSettings)
+  await exec('ui.flowNodeQuickEditor.zoomUpdates.noRerender', testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel)
+  await exec('ui.wheelIgnore.overlay.preventsCanvasZoom', testCanvasWheelIgnoreOverlayPreventsZoom)
+  await exec('ui.canvasEventCoords.prefersOffsetXY', testCanvasEventCoordsPrefersOffsetXY)
+  await exec('ui.canvasEventCoords.fallsBackToClientRect', testCanvasEventCoordsFallsBackToClientRect)
+  await exec('flow.relaxStepPolicy.boundedAndMonotonic', testFlowRelaxStepPolicyBoundedAndMonotonic)
+
+  await exec('ui.help.canvasShortcuts.ssot.uniqueIdsAndLines', testCanvasHelpShortcutsSsotHasUniqueIdsAndLines)
+  await exec('ui.help.canvasShortcuts.helpSearchIncludesSsotLines', testHelpTabSearchAndCopyIncludesCanvasShortcutLines)
   await exec('ui.typography.mainPanel.usesUiSettings', testMainPanelTypographyUsesUiSettings)
   await exec('ui.typography.graphTable.usesUiSettings', testGraphTableTypographyUsesUiSettings)
 
@@ -447,6 +484,14 @@ export const runAllTests = async () => {
   await exec('layout.positioning.isolatesMediaDensity', testLayoutPositioningCacheKeyIsolatesMediaDensity)
   await exec('layout.positioning.isolatesRenderMediaAsNodes', testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes)
   await exec('zoom.viewKey.sharedAcross2dRenderers', testZoomViewKeyIsSharedAcross2dRenderers)
+  await exec('zoom.actions.inOut.preserveViewportCenterNoBounce', testZoomActionsZoomInOutPreserveViewportCenterNoBounce)
+  await exec('zoom.wheel.parity.d3AndNative', testCanvasZoomWheelParityBetweenD3AndNative)
+  await exec('zoom.wheel.anchor.fallbackWhenOutside', testWheelAnchorFallsBackWhenClientCoordsOutsideRect)
+  await exec('zoom.wheel.anchor.clampsNearEdge', testWheelAnchorClampsNearEdgeToPreventJump)
+  await exec('zoom.wheel.anchor.centerWhenNoFallback', testWheelAnchorUsesCenterWhenNoFallback)
+  await exec('zoom.wheel.fallback.rejectsStale', testWheelFallbackRejectsStalePoint)
+  await exec('zoom.wheel.fallback.acceptsFresh', testWheelFallbackAcceptsFreshPoint)
+  await exec('zoom.wheel.guard.blocksMinBounce', testZoomWheelGuardBlocksBounceAtMinScale)
   await exec('layout.groupKey.prefersDeepestMermaidSubgraph', testLayoutGroupKeyPrefersDeepestMermaidSubgraph)
   await exec('semanticMode.schemaIsolation.restoresAndClears', testSemanticModeSchemaIsolationRestoresSchemaAndClearsSelection)
   await exec('layout.edges.opacity.usesUnderGroups', testEdgeOpacityUsesUnderGroupOpacityWhenGroupsEnabled)
@@ -667,11 +712,16 @@ export const runAllTests = async () => {
   await exec('densityClustering.respectsMaxSteps', testDensityClusteringRespectsMaxSteps)
   await exec('zoom.pinned.adjustKeepsWorldCenterOnResize', testPinnedZoomAdjustKeepsWorldCenter)
   await exec('zoom.fitToView.allowsBelowSchemaMinScale', testFitToViewAllowsZoomOutBelowSchemaMinScale)
+  await exec('ui.flowNodeQuickEditor.scalesWithZoomK', testNodeQuickEditorScaledSizeTracksZoomK)
+  await exec('zoom.ssot.fit.cachedAcrossRequests', testZoomActionsFitTransformIsCachedAcrossRequests)
+  await exec('zoom.ssot.out.autoMinScaleTracksFitToView', testZoomActionsZoomOutAutoMinScaleTracksFitToView)
   await exec('zoom.pick.reusesAcrossPresentationChanges', testPickInitialZoomTransformReusesZoomAcrossPresentationChanges)
   await exec('zoom.pick.rejectsStaleWhenNotPinned', testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned)
   await exec('zoom.viewKey.includesPresentation', testZoomViewKeyIncludesPresentationKeys)
   await exec('zoom.state.eq.matchesAllFields', testZoomStateEqMatchesAllFields)
   await exec('zoom.state.eq.rejectsNulls', testZoomStateEqRejectsNulls)
+  await exec('zoom.state.quantize.defaults', testZoomStateQuantizeDefaults)
+  await exec('zoom.state.quantize.customSteps', testZoomStateQuantizeCustomSteps)
   await exec('url.coerceMediaUrl.acceptsSafeRelative', testCoerceMediaUrlAcceptsSafeRelative)
   await exec('url.coerceMediaUrl.rejectsExplicitScheme', testCoerceMediaUrlRejectsExplicitScheme)
   await exec('url.normalizeImportName.jsonUrlDerivation', testNormalizeImportNameDerivesJsonNameFromUrlAndFormat)
@@ -827,6 +877,10 @@ export const runAllTests = async () => {
   await exec('ui.toast.upsertMovesToastToFront', testUiToastUpsertMovesToastToFront)
   await exec('ui.toolbar.tooltipsDoNotInterceptClicks', testToolbarIconTooltipsDoNotInterceptClicks)
   await exec('ui.toolbar.iconButtonStopsPropagation', testIconButtonStopsPropagation)
+  await exec('ui.overlayClamp.keepsPanelInViewport', testOverlayClampKeepsPanelInViewport)
+  await exec('ui.overlayClamp.snapPxRoundsToGrid', testOverlayClampSnapPxRoundsToGrid)
+  await exec('flow.shape.forbidCircle.coercesToRect', testFlowNativeNodeShapeForbidCircleCoercesToRect)
+  await exec('flow.shape.forbidCircle.preservesNonCircle', testFlowNativeNodeShapeForbidCircleLeavesNonCircleUnchanged)
   await exec('parser.mmd.wrapsPlainMermaid', testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid)
   await exec('parser.mmd.keepsFencedMarkdown', testNormalizeMermaidMmdToMarkdownKeepsFencedMarkdown)
   await exec('markdown.slide.theme.neversinkAliasesToAcademic', testMarkdownSlideThemeNeversinkAliasesToAcademic)

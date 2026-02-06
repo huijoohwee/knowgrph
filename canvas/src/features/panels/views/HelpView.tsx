@@ -58,6 +58,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
         <HelpSections
           collapsedBySection={collapsedBySection}
           onToggleSection={handleToggleSection}
+          searchQuery={searchQuery}
           shortcuts={filteredShortcuts}
           onCopyAllShortcuts={applyShortcutsCopy}
           onLaunchSpotlight={launch}

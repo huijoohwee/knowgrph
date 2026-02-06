@@ -34,6 +34,7 @@ export const UI_SELECTORS = {
     '[data-floating-panel-no-drag="true"]',
     '[data-main-panel-no-drag="true"]',
   ].join(', '),
+  canvasWheelIgnore: '[data-kg-canvas-wheel-ignore="true"]',
 } as const;
 
 export const UI_LABELS = {
@@ -162,7 +163,29 @@ export const UI_LABELS = {
   noneLabel: 'None',
   perfButtonLabel: 'Perf',
   statusBarAriaLabel: 'Status Bar',
+
+  flowNodeQuickEditor: 'Node Quick Editor',
+  hideFields: 'Hide Fields',
+  showFields: 'Show Fields',
+  changeName: 'Change name',
+  duplicate: 'Duplicate',
+  clearOutput: 'Clear Output',
+  removeNode: 'Remove Node',
+  more: 'More',
+  openInSidepane: 'Open in sidepane',
+  enableHandlesForAllInputs: 'Enable Handles for All Inputs',
+  convertToLoopNode: 'Convert to Loop Node',
+  pinPanel: 'Pin panel',
+  unpinPanel: 'Unpin panel',
+  minimizePanel: 'Minimize panel',
+  restorePanel: 'Restore panel',
 } as const;
+
+export const COPY_ZOOM_FIT_SCREEN = UI_LABELS.fitToScreen
+export const COPY_ZOOM_FIT_VIEW = UI_LABELS.fitToView
+export const COPY_ZOOM_TO_SELECTION = UI_LABELS.zoomToSelection
+export const COPY_ZOOM_PIN = UI_LABELS.pinToView
+export const COPY_ZOOM_RESET = UI_LABELS.reset
 
 export type UiLabelId = (typeof UI_LABELS)[keyof typeof UI_LABELS];
 

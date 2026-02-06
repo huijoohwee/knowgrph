@@ -5,6 +5,7 @@ import type { StoreApi } from 'zustand';
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage';
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice';
 import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 type SetGraph = StoreApi<GraphState>['setState'];
 
@@ -67,11 +68,11 @@ export const createUiSlice = (set: SetGraph) => {
 
     uiPanelKeyValueInputClass: lsJson<string>(
       LS_KEYS.panelKeyValueInputClass,
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
       value =>
         typeof value === 'string'
           ? value
-          : 'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+          : PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
     ),
 
     uiPanelRowDensityDefaultClass: lsJson<string>(

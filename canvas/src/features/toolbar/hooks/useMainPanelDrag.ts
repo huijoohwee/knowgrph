@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config';
 import { lsBool, lsNum, lsSetBool, lsSetNum } from '@/lib/persistence';
+import { usePinnedLs } from '@/lib/ui/panelPinned';
 
 export type MainPanelTabKey = 'workflow' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history';
 
@@ -15,7 +16,7 @@ export function useMainPanelDrag() {
     startLeft: number;
   } | null>(null);
   const mainPanelDragPosRef = useRef<{ top: number; left: number } | null>(null);
-  const [mainPanelPinned, setMainPanelPinned] = useState<boolean>(() => lsBool(LS_KEYS.mainPanelPinned, true));
+  const { pinned: mainPanelPinned, setPinned: setMainPanelPinned } = usePinnedLs(LS_KEYS.mainPanelPinned, true);
   const [mainPanelCollapsed, setMainPanelCollapsed] = useState<boolean>(() => lsBool(LS_KEYS.mainPanelCollapsed, false));
   const [mainPanelDragPos, setMainPanelDragPos] = useState<{ top: number; left: number }>(() => {
     const toolbarOffsetPx = UI_LAYOUT.toolbarOffsetPx;
@@ -53,10 +54,6 @@ export function useMainPanelDrag() {
     },
     [],
   );
-
-  useEffect(() => {
-    lsSetBool(LS_KEYS.mainPanelPinned, mainPanelPinned);
-  }, [mainPanelPinned]);
 
   useEffect(() => {
     lsSetBool(LS_KEYS.mainPanelCollapsed, mainPanelCollapsed);

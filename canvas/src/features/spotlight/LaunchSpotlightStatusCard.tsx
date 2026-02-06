@@ -9,6 +9,7 @@ import SchemaSummary from '@/features/panels/ui/SchemaSummary'
 import { UI_LABELS } from '@/lib/config'
 import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
+import { formatSignedPx, formatZoomPercent } from '@/lib/canvas/viewport-format'
 
 type LaunchSpotlightStatusCardProps = {
   dismissed: boolean
@@ -26,6 +27,12 @@ export function LaunchSpotlightStatusCard({
   const enableSpotlight = useGraphStore(s => s.enableLaunchSpotlight)
   const graphData = useGraphStore(s => s.graphData)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
+  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
+  const selectedGroupIds = useGraphStore(s => s.selectedGroupIds || [])
+  const zoomState = useGraphStore(s => s.zoomState)
+  const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const schema = useGraphStore(s => s.schema)
   const schemaImportLabel = useGraphStore(s => s.schemaImportLabel)
   const schemaOpOk = useGraphStore(s => s.schemaOpOk)
@@ -55,6 +62,18 @@ export function LaunchSpotlightStatusCard({
   const uiIconBadgeChipTextSizeClass = useGraphStore(
     s => s.uiIconBadgeChipTextSizeClass || s.uiPanelMicroLabelTextSizeClass || 'text-[9px]',
   )
+
+  const selectionCount =
+    (Array.isArray(selectedNodeIds) ? selectedNodeIds.length : 0)
+    + (Array.isArray(selectedEdgeIds) ? selectedEdgeIds.length : 0)
+    + (Array.isArray(selectedGroupIds) ? selectedGroupIds.length : 0)
+
+  const rendererLabel =
+    canvasRenderMode === '2d'
+      ? `2d${canvas2dRenderer ? `/${canvas2dRenderer}` : ''}`
+      : canvasRenderMode === '3d'
+        ? '3d'
+        : String(canvasRenderMode)
 
   const graphValidationStatusText = React.useMemo(() => {
     const status = graphValidationStatus
@@ -235,6 +254,24 @@ export function LaunchSpotlightStatusCard({
                   </div>
                   <div>Selected: {selectedLabel}</div>
                   {schemaImport ? <div>Import: {schemaImport}</div> : null}
+
+                  <section className="mt-2" aria-label="Viewport status">
+                    <h3 className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide text-gray-500 mb-0.5`}>
+                      Viewport
+                    </h3>
+                    <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
+                      <dt className="font-semibold">Zoom</dt>
+                      <dd className="font-mono">{formatZoomPercent(zoomState?.k)}</dd>
+                      <dt className="font-semibold">Pan</dt>
+                      <dd className="font-mono">
+                        {formatSignedPx(zoomState?.x)} {formatSignedPx(zoomState?.y)}
+                      </dd>
+                      <dt className="font-semibold">Selection</dt>
+                      <dd className="font-mono">{selectionCount.toLocaleString()}</dd>
+                      <dt className="font-semibold">Renderer</dt>
+                      <dd className="font-mono">{rendererLabel}</dd>
+                    </dl>
+                  </section>
                 </div>
                 <div>
                   <div className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide text-gray-500 mb-0.5`}>

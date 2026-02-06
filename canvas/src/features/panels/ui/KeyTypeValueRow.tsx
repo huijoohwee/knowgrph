@@ -2,6 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 export interface KeyTypeValueRowProps {
   keyNode: React.ReactNode
@@ -223,12 +224,16 @@ export function RightAlignedTooltipInput({
   containerClassName,
   ...inputProps
 }: RightAlignedTooltipInputProps) {
+  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || PANEL_TYPOGRAPHY_DEFAULTS.fontClass)
+  const uiPanelKeyValueTextSizeClass = useGraphStore(
+    s => s.uiPanelKeyValueTextSizeClass || PANEL_TYPOGRAPHY_DEFAULTS.textSizeClass,
+  )
   const uiPanelKeyValueInputClass = useGraphStore(
-    s =>
-      s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+    s => s.uiPanelKeyValueInputClass || PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
   const mergedClassName = [
+    uiPanelTextFontClass,
+    uiPanelKeyValueTextSizeClass,
     uiPanelKeyValueInputClass,
     className || '',
   ]

@@ -3,7 +3,7 @@
 - Keep "Zoom In/Out" behavior consistent and smooth
 - Preserve the current public API; align store typings with actual usage
 - Unblock minimap pan/center and viewport tracking
-- Keep files under 600 lines by extracting zoom orchestration into feature-scoped utilities
+- Keep zoom logic unified across 2D renderers (D3 + Flow) and Flow Editor overlays
 
 ## Root Cause (Summary)
 - Toolbar dispatches `zoomRequest`, but `canvas/src/components/GraphCanvas.tsx` does not consume or apply the request
@@ -13,34 +13,26 @@
 - `fitAllTransform` exists but isn’t used for "Fit to Screen"
 
 ## Targeted Changes
-1. Store typing alignment (`canvas/src/hooks/useGraphStore.ts`)
-   - Extend `zoomRequest.type` to `'in' | 'out' | 'fit' | 'reset' | 'selection' | 'transform'`
-   - Add `payload?: { k: number; x: number; y: number }` for `transform`
-   - Expose `requestZoomTransform(payload)` and `zoomState`/`setZoomState(t)`
+1. SSOT viewport math (`canvas/src/lib/zoom/viewport.ts`)
+   - Centralize `worldToScreen`, `screenToWorld`, and viewport-center conversion
+   - Provide pinned-viewport resize adjustment and initial zoom picking
+   - Remove the legacy `canvas/src/components/GraphCanvas/zoomState.ts`
 
-2. Wire D3 zoom to the store (`canvas/src/components/GraphCanvas.tsx`)
-   - Pass `onZoomTransform` into `createZoom(...)` to call `setZoomState({k,x,y})` on every zoom event
-   - Add a `useEffect` that reacts to `zoomRequest` and applies actions via the existing `d3.zoom` instance:
-     - `in/out`: read current transform; scale by factor (e.g., ×1.2 / ×0.8) with transition
-     - `fit`: use `fitAllTransform(nodes, width, height)` and apply
-     - `reset`: apply `d3.zoomIdentity`
-     - `selection`: re-apply current selected node/edge fit without requiring a selection change
-     - `transform`: apply `translate(x, y).scale(k)` from minimap payload
-   - Clear or acknowledge the processed request (e.g., by timestamp/sequence) to avoid repeated application
+2. Shared zoom action engine (`canvas/src/lib/zoom/actions.ts`)
+   - Compute the next `d3.ZoomTransform` for `in/out/fit/reset/selection/transform`
+   - Use an LRU cache for fit transforms keyed by:
+     - `graphDataRevision`, `viewportW/H`, zoom intent, selection signature
+     - schema fit-affecting fields (layout + label + behavior)
+   - Keep behavior consistent across D3 GraphCanvas and FlowCanvas
 
-3. Use fit utilities (`canvas/src/components/GraphCanvas/fit.ts`)
-   - Import and use `fitAllTransform` for "Fit to Screen"
-   - Continue using `fitNodeTransform` / `fitEdgeTransform` for selection-based focusing
+3. Wire renderers to the shared engine
+   - D3 GraphCanvas request consumption stays in `canvas/src/components/GraphCanvas/zoomController.ts` and delegates to the shared engine
+   - Initial auto-fit in `canvas/src/components/GraphCanvas/scene.ts` uses the same shared engine (no ad-hoc fit math)
+   - FlowCanvas request consumption in `canvas/src/components/FlowCanvas.tsx` delegates to the shared engine
 
-4. Extract orchestration utility (keep files <600 lines)
-   - Create `canvas/src/components/GraphCanvas/zoomController.ts` to host:
-     - `applyTransform(svg, g, zoom, {k,x,y}, opts)` — central helper with transition
-     - `applyZoomRequest(zoomRequest, context)` — switch that computes target transform and calls `applyTransform`
-   - Keep `GraphCanvas.tsx` thin: initialize refs, pass `onZoomTransform`, and delegate to `zoomController`
-   - Preserve existing public APIs (store functions, component props) unchanged
-
-5. Minimap integration (`canvas/src/features/minimap/Minimap.tsx`)
-   - No changes required; once `zoomState` updates and `transform` requests are consumed, minimap viewport and click-to-pan work
+4. SSOT tokens
+   - Copy tokens: `COPY_ZOOM_*` exported from `canvas/src/lib/config-copy/uiMeta.ts`
+   - Local storage tokens: viewport-related keys centralized in `canvas/src/lib/config.ls.ts`
 
 ## Validation & QA
 - Manual verification in the running app:
@@ -50,9 +42,8 @@
   - Confirm `zoomState` updates on wheel/drag (store inspector/log)
   - Verify no infinite re-render loops: ensure `useEffect` depends only on `zoomRequest` identity
   - Confirm cleanup of D3 listeners on unmount in `createZoom`
-- Optional tests (lightweight):
-  - Store-level unit tests for `requestZoom(type)` and `requestZoomTransform(payload)`
-  - Component-level smoke test ensuring effect runs when `zoomRequest` changes (mock D3 API)
+- Tests:
+  - Add unit coverage for pinned viewport adjustment, initial zoom pick, and SSOT zoom action caching
 
 ## Cleanup & Hardening
 - Remove stale guards in `GraphCanvas.tsx` that reference `zoomRequest` only to suppress auto-zoom; replace with explicit request consumption
@@ -64,7 +55,7 @@
 - Functional toolbar: Fit to Screen, Reset Zoom, Zoom to Selection, Zoom In/Out
 - Minimap works: viewport reflects live zoom; click-to-pan applies immediately
 - Aligned store typings and consistent zoom orchestration
-- `GraphCanvas.tsx` kept concise with logic extracted to `zoomController.ts`
+- Unified zoom behavior across 2D renderers and Flow Editor overlays
 
 ## Files Involved (no API changes)
 - `canvas/src/components/Toolbar.tsx` (no change expected)
@@ -72,7 +63,9 @@
 - `canvas/src/components/GraphCanvas.tsx` (wire requests and state)
 - `canvas/src/components/GraphCanvas/fit.ts` (already present; import/use)
 - `canvas/src/components/GraphCanvas/zoom.ts` (pass `onZoomTransform`)
-- `canvas/src/components/GraphCanvas/zoomController.ts` (new utility)
+- `canvas/src/components/GraphCanvas/zoomController.ts` (request applier)
+- `canvas/src/lib/zoom/actions.ts` (shared compute engine)
+- `canvas/src/lib/zoom/viewport.ts` (viewport SSOT math)
 - `canvas/src/hooks/useGraphStore.ts` (typing and selectors)
 
 ## Risks & Mitigations

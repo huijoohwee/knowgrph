@@ -2,6 +2,9 @@ import * as d3 from 'd3';
 import { GraphNode } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { computeD3WheelDelta } from '@/lib/canvas/zoom-input'
+import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
+import { UI_SELECTORS } from '@/lib/config'
 
 export const createZoom = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
@@ -21,7 +24,29 @@ export const createZoom = (
   const haloWidthRaw = schema.labelStyles?.halo?.width
   const baseHaloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3
   const zoom = d3.zoom<SVGSVGElement, unknown>()
+    .filter(event => {
+      const anyEvent = event as unknown as { type?: unknown; ctrlKey?: unknown; button?: unknown }
+      if (anyEvent.type === 'wheel') {
+        if (shouldIgnoreCanvasWheelEvent({ event: event as WheelEvent, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })) {
+          try {
+            ;(event as WheelEvent).preventDefault()
+          } catch {
+            void 0
+          }
+          try {
+            ;(event as WheelEvent).stopPropagation()
+          } catch {
+            void 0
+          }
+          return false
+        }
+      }
+      const ctrlKey = anyEvent.ctrlKey === true
+      const button = typeof anyEvent.button === 'number' ? anyEvent.button : 0
+      return (!ctrlKey || anyEvent.type === 'wheel') && button === 0
+    })
     .scaleExtent([minScale, maxScale])
+    .wheelDelta(event => computeD3WheelDelta(event as WheelEvent))
     .on('zoom', (event) => {
       g.attr('transform', event.transform);
       const now = Date.now();

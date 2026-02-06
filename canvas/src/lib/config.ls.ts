@@ -56,6 +56,12 @@ export const LS_KEYS = {
   floatingPanelWidthRatio: 'kg:ui:floatingPanelWidthRatio',
   floatingPanelHeightRatio: 'kg:ui:floatingPanelHeightRatio',
   floatingPanelZIndex: 'kg:ui:floatingPanelZIndex',
+
+  flowNodeQuickEditorPinned: 'kg:ui:flowEditor:nodeQuickEditor:pinned',
+  flowNodeQuickEditorMinimized: 'kg:ui:flowEditor:nodeQuickEditor:minimized',
+  flowNodeQuickEditorHideFields: 'kg:ui:flowEditor:nodeQuickEditor:hideFields',
+  flowNodeQuickEditorTopPx: 'kg:ui:flowEditor:nodeQuickEditor:topPx',
+  flowNodeQuickEditorLeftPx: 'kg:ui:flowEditor:nodeQuickEditor:leftPx',
   geospatialOverlayEnabled: GEOSPATIAL_LS_KEYS.geospatialOverlayEnabled,
   orchestratorTraversalDelayMs: 'kg:orchestrator:traversalDelayMs',
   orchestratorTraversalLegendGraphRagMaxFull: 'kg:orchestrator:traversalLegend:graphRagMaxFull',
@@ -80,6 +86,10 @@ export const LS_KEYS = {
   renderThreeCameraCollapsed: 'kg:render:three:cameraCollapsed',
   renderThreeSelectionCollapsed: 'kg:render:three:selectionCollapsed',
   canvas2dRenderer: 'kg:render:2dRenderer',
+  viewportLast: 'kg:ui:viewport:last',
+  viewportPinned: 'kg:ui:viewport:pinned',
+  viewportFitToScreen: 'kg:ui:viewport:fitToScreen',
+  viewportZoomToSelection: 'kg:ui:viewport:zoomToSelection',
   parserTreeSitterEnabled: 'kg:parsers:treeSitterEnabled',
   graphragTextCentralityConfig: 'kg:graphragText:centralityConfig',
   graphData: 'kg:data',
@@ -157,6 +167,10 @@ export const LS_KEYS = {
   graphTableColumnWidthsPx: 'kg:ui:graphTable:columnWidthsPx',
 } as const;
 
+export const LS_KEY_VIEWPORT_LAST = LS_KEYS.viewportLast
+export const LS_KEY_VIEWPORT_PINNED = LS_KEYS.viewportPinned
+
+
 export const SESSION_KEYS = {
   tabId: 'kg:session:tabId',
 } as const;
@@ -219,6 +233,7 @@ export type LsKeyOwner =
   | 'ui.chat'
   | 'ui.workspace';
 
+
 export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   overlayOpacity: 'ui.overlayOpacity',
   panelOpacity: 'ui.panelOpacity',
@@ -275,6 +290,11 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   floatingPanelWidthRatio: 'ui.floatingPanel',
   floatingPanelHeightRatio: 'ui.floatingPanel',
   floatingPanelZIndex: 'ui.floatingPanel',
+  flowNodeQuickEditorPinned: 'ui.floatingPanel',
+  flowNodeQuickEditorMinimized: 'ui.floatingPanel',
+  flowNodeQuickEditorHideFields: 'ui.floatingPanel',
+  flowNodeQuickEditorTopPx: 'ui.floatingPanel',
+  flowNodeQuickEditorLeftPx: 'ui.floatingPanel',
   geospatialOverlayEnabled: 'ui.geospatial',
   orchestratorTraversalDelayMs: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagMaxFull: 'orchestrator.prefs',
@@ -299,6 +319,10 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   renderThreeCameraCollapsed: 'render.prefs',
   renderThreeSelectionCollapsed: 'render.prefs',
   canvas2dRenderer: 'render.prefs',
+  viewportLast: 'ui.workspace',
+  viewportPinned: 'ui.workspace',
+  viewportFitToScreen: 'ui.workspace',
+  viewportZoomToSelection: 'ui.workspace',
   parserTreeSitterEnabled: 'parsers.treeSitter',
   graphragTextCentralityConfig: 'graphragText.analytics',
   graphData: 'data.graph',

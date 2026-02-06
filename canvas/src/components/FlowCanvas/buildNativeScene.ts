@@ -1,0 +1,110 @@
+import { computeFlowHandlesByNode, buildFlowHandleId, type FlowHandleId } from '@/components/FlowCanvas/handles'
+import { coerceFlowNativeNodeShape } from '@/components/FlowCanvas/shape'
+import { setFlowNativeScene, setFlowNativeRankdir, type FlowNativeRuntime, type FlowNativeScene } from '@/components/FlowCanvas/nativeRuntime'
+import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { GraphSchema } from '@/lib/graph/schema'
+import type { FlowConfig } from '@/components/FlowCanvas/config'
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+
+export function buildAndSetFlowNativeScene(args: {
+  runtime: FlowNativeRuntime
+  graphData: GraphData | null
+  positions: Record<string, { x: number; y: number }> | null
+  schema: GraphSchema | null
+  forbidCircleNodes: boolean
+  flowConfig: FlowConfig
+  sceneGroups: GraphGroup[]
+  rankdir: 'TB' | 'LR'
+}): { nodeCount: number; graphKeyParts: { nodeCount: number; edgeCount: number } } {
+  const g = args.graphData
+  const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
+  const edgeList = Array.isArray(g?.edges) ? g?.edges : []
+  const pos = args.positions || null
+
+  setFlowNativeRankdir(args.runtime, args.rankdir)
+
+  const handlesByNode = computeFlowHandlesByNode({
+    nodes: nodeList as ReadonlyArray<{ id: unknown }>,
+    edges: edgeList as ReadonlyArray<{ id: unknown; source: unknown; target: unknown }>,
+  })
+
+  const nodeById = new Map<string, NonNullable<FlowNativeScene['nodes']>[number]>()
+  const nodes: NonNullable<FlowNativeScene['nodes']> = []
+  for (let i = 0; i < nodeList.length; i += 1) {
+    const n = nodeList[i]
+    const id = String(n?.id || '').trim()
+    if (!id) continue
+    const label = String((n as { label?: unknown })?.label || id)
+    const rawShape = args.schema ? getNodeRenderShape2d(n as GraphNode, args.schema) : 'rect'
+    const shape = coerceFlowNativeNodeShape({ shape: rawShape, forbidCircle: args.forbidCircleNodes })
+    const handles = handlesByNode[id] || { in: [], out: [] }
+    const p = pos ? pos[id] : null
+    const x = p && Number.isFinite(p.x) ? p.x : 0
+    const y = p && Number.isFinite(p.y) ? p.y : 0
+    const inHandleTopPctById: Partial<Record<FlowHandleId, number>> = {}
+    const outHandleTopPctById: Partial<Record<FlowHandleId, number>> = {}
+    for (let j = 0; j < handles.in.length; j += 1) {
+      const h = handles.in[j]
+      inHandleTopPctById[h.id] = h.topPct
+    }
+    for (let j = 0; j < handles.out.length; j += 1) {
+      const h = handles.out[j]
+      outHandleTopPctById[h.id] = h.topPct
+    }
+    const node = {
+      id,
+      label,
+      x,
+      y,
+      width: args.flowConfig.node.widthPx,
+      height: args.flowConfig.node.heightPx,
+      shape,
+      handles,
+      inHandleTopPctById,
+      outHandleTopPctById,
+    }
+    nodes.push(node)
+    nodeById.set(id, node)
+  }
+
+  const edges: NonNullable<FlowNativeScene['edges']> = []
+  for (let i = 0; i < edgeList.length; i += 1) {
+    const e = edgeList[i] as { id?: unknown; source?: unknown; target?: unknown }
+    const edgeId = String(e?.id || '').trim()
+    const source = String(e?.source || '').trim()
+    const target = String(e?.target || '').trim()
+    if (!edgeId || !source || !target) continue
+    if (!nodeById.has(source) || !nodeById.has(target)) continue
+    edges.push({
+      id: edgeId,
+      source,
+      target,
+      outHandleId: buildFlowHandleId({ dir: 'out', edgeId }),
+      inHandleId: buildFlowHandleId({ dir: 'in', edgeId }),
+    })
+  }
+
+  const groups = args.sceneGroups
+  const groupIdsByNodeId = (() => {
+    if (!groups || groups.length === 0) return new Map<string, string[]>()
+    const m = new Map<string, string[]>()
+    for (let i = 0; i < groups.length; i += 1) {
+      const g = groups[i] as { id?: unknown; memberNodeIds?: unknown }
+      const gid = String(g.id || '').trim()
+      if (!gid) continue
+      const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
+      for (let j = 0; j < members.length; j += 1) {
+        const id = String(members[j] || '').trim()
+        if (!id) continue
+        const arr = m.get(id) || []
+        if (!arr.includes(gid)) arr.push(gid)
+        m.set(id, arr)
+      }
+    }
+    return m
+  })()
+
+  setFlowNativeScene(args.runtime, { nodes, edges, nodeById, groups, groupIdsByNodeId })
+  return { nodeCount: nodes.length, graphKeyParts: { nodeCount: nodeList.length, edgeCount: edgeList.length } }
+}

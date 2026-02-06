@@ -14,13 +14,15 @@ export function relaxFlowSceneNodePositions(args: {
   steps: number
 }): Record<string, { x: number; y: number }> | null {
   const currentPositions: Record<string, { x: number; y: number }> = {}
+  let count = 0
   for (let i = 0; i < args.sceneNodes.length; i += 1) {
     const n = args.sceneNodes[i]
     if (!n?.id) continue
     if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) continue
     currentPositions[n.id] = { x: n.x, y: n.y }
+    count += 1
   }
-  if (Object.keys(currentPositions).length === 0) return null
+  if (count === 0) return null
 
   const relaxed = relaxFlowPositionsWithCollision({
     graphData: args.graphData,
@@ -34,4 +36,3 @@ export function relaxFlowSceneNodePositions(args: {
 
   return relaxed || currentPositions
 }
-

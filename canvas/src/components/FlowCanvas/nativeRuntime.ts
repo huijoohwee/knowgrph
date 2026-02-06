@@ -1,11 +1,11 @@
 import * as d3 from 'd3'
 
 import type { FlowHandleId, FlowNodeHandles } from '@/components/FlowCanvas/handles'
-import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { routeFlowEdgeOrtho, type Rect } from '@/components/FlowCanvas/edgeRouting'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
+import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 
@@ -102,6 +102,7 @@ export type FlowNativeRuntime = {
   scene: FlowNativeScene | null
   theme: FlowNativeTheme
   fontFamily: string
+  cssKey: string
   presentation: FlowNativePresentation
   pendingRaf: number | null
   dirty: boolean
@@ -128,19 +129,70 @@ export const readFlowFontFamilyFromCss = (): string => {
   }
 }
 
+export const readFlowCssKey = (): string => {
+  if (typeof document === 'undefined') return ''
+  const root = document.documentElement
+  const theme = root.getAttribute('data-theme') || ''
+  const className = root.className || ''
+  const style = root.getAttribute('style') || ''
+  return `${theme}|${className}|${style}`
+}
+
 export const readFlowThemeFromCss = (): FlowNativeTheme => {
   try {
+    if (typeof document === 'undefined') return defaultFlowTheme()
+    const styles = getComputedStyle(document.documentElement)
+    const resolve = (name: string, fallback: string): string => {
+      const v = styles.getPropertyValue(name).trim()
+      return v || fallback
+    }
     return {
-      bg: resolveCssVar('--kg-canvas-bg', defaultFlowTheme().bg),
-      nodeFill: resolveCssVar('--kg-surface-bg', defaultFlowTheme().nodeFill),
-      nodeStroke: resolveCssVar('--kg-canvas-node-stroke', defaultFlowTheme().nodeStroke),
-      nodeStrokeSelected: resolveCssVar('--kg-canvas-accent', defaultFlowTheme().nodeStrokeSelected),
-      text: resolveCssVar('--kg-text-primary', defaultFlowTheme().text),
-      edge: resolveCssVar('--kg-canvas-edge-stroke', defaultFlowTheme().edge),
-      edgeSelected: resolveCssVar('--kg-canvas-accent', defaultFlowTheme().edgeSelected),
+      bg: resolve('--kg-canvas-bg', defaultFlowTheme().bg),
+      nodeFill: resolve('--kg-surface-bg', defaultFlowTheme().nodeFill),
+      nodeStroke: resolve('--kg-canvas-node-stroke', defaultFlowTheme().nodeStroke),
+      nodeStrokeSelected: resolve('--kg-canvas-accent', defaultFlowTheme().nodeStrokeSelected),
+      text: resolve('--kg-text-primary', defaultFlowTheme().text),
+      edge: resolve('--kg-canvas-edge-stroke', defaultFlowTheme().edge),
+      edgeSelected: resolve('--kg-canvas-accent', defaultFlowTheme().edgeSelected),
     }
   } catch {
     return defaultFlowTheme()
+  }
+}
+
+export const refreshFlowNativeCss = (rt: FlowNativeRuntime): void => {
+  const nextKey = readFlowCssKey()
+  if (nextKey && nextKey !== rt.cssKey) {
+    rt.cssKey = nextKey
+    rt.theme = readFlowThemeFromCss()
+    rt.fontFamily = readFlowFontFamilyFromCss()
+    rt.dirty = true
+  }
+}
+
+let cachedCssVarKey = ''
+let cachedCssVarValues: Map<string, string> | null = null
+
+const resolveCssVarCached = (rt: FlowNativeRuntime, name: string, fallback: string): string => {
+  if (typeof document === 'undefined') return fallback
+  if (!name) return fallback
+  if (!rt.cssKey) return fallback
+
+  if (rt.cssKey !== cachedCssVarKey) {
+    cachedCssVarKey = rt.cssKey
+    cachedCssVarValues = new Map()
+  }
+  const cache = cachedCssVarValues
+  const cached = cache?.get(name)
+  if (cached) return cached
+  try {
+    const styles = getComputedStyle(document.documentElement)
+    const v = styles.getPropertyValue(name).trim()
+    const resolved = v || fallback
+    cache?.set(name, resolved)
+    return resolved
+  } catch {
+    return fallback
   }
 }
 
@@ -159,6 +211,7 @@ export const createFlowNativeRuntime = (args: {
   rankdir: 'TB' | 'LR'
   initialTransform?: d3.ZoomTransform
 }): FlowNativeRuntime => {
+  const cssKey = readFlowCssKey()
   return {
     canvas: args.canvas,
     ctx: args.ctx,
@@ -170,6 +223,7 @@ export const createFlowNativeRuntime = (args: {
     scene: null,
     theme: readFlowThemeFromCss(),
     fontFamily: readFlowFontFamilyFromCss(),
+    cssKey,
     presentation: {
       portHandles: { enabled: false, placement: 'cardinal', sizePx: 4, offsetPx: 2, strokeWidthPx: 1.5 },
       groups: {
@@ -302,11 +356,11 @@ const applyDprAndWorldTransform = (rt: FlowNativeRuntime) => {
   ctx.scale(t.k, t.k)
 }
 
-const resolveColor = (value: string | null | undefined, fallback: string): string => {
+const resolveColor = (rt: FlowNativeRuntime, value: string | null | undefined, fallback: string): string => {
   const v = typeof value === 'string' ? value.trim() : ''
   if (!v) return fallback
   const m = v.match(/^var\((--[^)\s]+)\)$/)
-  if (m) return resolveCssVar(m[1], fallback)
+  if (m) return resolveCssVarCached(rt, m[1], fallback)
   return v
 }
 
@@ -366,10 +420,12 @@ const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: bo
   const label = String(n.label || '').trim()
   if (!label) return
   ctx.fillStyle = rt.theme.text
-  ctx.font = `12px ${rt.fontFamily}`
+  const fontSizePx = 12
+  ctx.font = `${fontSizePx}px ${rt.fontFamily}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const clipped = label.length > 64 ? `${label.slice(0, 61)}…` : label
+  const maxChars = estimateMaxCharsForWidthPx(Math.max(0, n.width - 12), fontSizePx)
+  const clipped = truncateTextWithEllipsis(label, maxChars)
   ctx.fillText(clipped, n.x + n.width / 2, n.y + n.height / 2)
 }
 
@@ -382,7 +438,7 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
   const offset = Math.max(0, cfg.offsetPx)
   const strokeW = Math.max(0, cfg.strokeWidthPx)
 
-  const fill = resolveCssVar('--kg-panel-bg', rt.theme.nodeFill)
+  const fill = resolveCssVarCached(rt, '--kg-panel-bg', rt.theme.nodeFill)
   const stroke = rt.theme.nodeStrokeSelected
 
   const axisFor = (pct: number, length: number) => (Math.max(0, Math.min(100, pct)) / 100) * length
@@ -593,7 +649,7 @@ const drawGroups = (rt: FlowNativeRuntime) => {
   const padding = Math.max(0, cfg.paddingPx)
   const topExtra = Math.max(0, cfg.labelTopExtraPx)
   const radius = Math.max(0, cfg.cornerRadiusPx)
-  const labelFill = resolveCssVar('--kg-text-secondary', rt.theme.text)
+  const labelFill = resolveCssVarCached(rt, '--kg-text-secondary', rt.theme.text)
 
   const groups = scene.groups
   let maxDepth = 0
@@ -632,8 +688,8 @@ const drawGroups = (rt: FlowNativeRuntime) => {
     const w = Math.max(1, maxX - minX)
     const h = Math.max(1, maxY - minY)
 
-    const gStroke = resolveColor(g.style?.stroke, stroke)
-    const gFill = resolveColor(g.style?.fill, fill)
+    const gStroke = resolveColor(rt, g.style?.stroke, stroke)
+    const gFill = resolveColor(rt, g.style?.fill, fill)
     const depth = typeof g.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
     const depthStyle = computeGroupDepthStyle({
       depth,
@@ -677,23 +733,27 @@ const drawGroups = (rt: FlowNativeRuntime) => {
     if (label) {
       ctx.save()
       ctx.fillStyle = labelFill
-      ctx.font = `600 12px ${rt.fontFamily}`
+      const fontSizePx = 12
+      ctx.font = `600 ${fontSizePx}px ${rt.fontFamily}`
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
-      ctx.fillText(label.length > 48 ? `${label.slice(0, 45)}…` : label, minX + 10, minY + 8)
+      const maxChars = estimateMaxCharsForWidthPx(Math.max(0, w - 20), fontSizePx)
+      ctx.fillText(truncateTextWithEllipsis(label, maxChars), minX + 10, minY + 8)
       ctx.restore()
     }
   }
 }
 
-export const drawFlowNative = (rt: FlowNativeRuntime, args: { selectedNodeIds: string[]; selectedEdgeIds: string[] }) => {
+export const drawFlowNative = (
+  rt: FlowNativeRuntime,
+  args: { selectedNodeIds: string[]; selectedEdgeIds: string[]; hideNodeIds?: string[] },
+) => {
+  refreshFlowNativeCss(rt)
   if (!rt.dirty) return
   rt.dirty = false
   clearCanvas(rt)
 
   const ctx = rt.ctx
-  rt.theme = readFlowThemeFromCss()
-  rt.fontFamily = readFlowFontFamilyFromCss()
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.fillStyle = rt.theme.bg
   ctx.fillRect(0, 0, rt.canvas.width, rt.canvas.height)
@@ -704,6 +764,7 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: { selectedNodeIds: s
   if (!scene) return
   const selectedNodeIds = new Set<string>(args.selectedNodeIds || [])
   const selectedEdgeIds = new Set<string>(args.selectedEdgeIds || [])
+  const hiddenNodeIds = new Set<string>(args.hideNodeIds || [])
 
   const routingCfg = rt.presentation.edges.routing
   const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
@@ -724,12 +785,16 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: { selectedNodeIds: s
 
   for (let i = 0; i < scene.nodes.length; i += 1) {
     const n = scene.nodes[i]
+    if (hiddenNodeIds.has(n.id)) continue
     drawNode(rt, n, { selected: selectedNodeIds.has(n.id) })
     drawPortHandles(rt, n)
   }
 }
 
-export const requestFlowNativeDraw = (rt: FlowNativeRuntime, args: { selectedNodeIds: string[]; selectedEdgeIds: string[] }) => {
+export const requestFlowNativeDraw = (
+  rt: FlowNativeRuntime,
+  args: { selectedNodeIds: string[]; selectedEdgeIds: string[]; hideNodeIds?: string[] },
+) => {
   if (rt.pendingRaf != null) return
   rt.pendingRaf = requestAnimationFrame(() => {
     rt.pendingRaf = null

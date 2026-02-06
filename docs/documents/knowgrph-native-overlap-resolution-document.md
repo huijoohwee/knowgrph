@@ -128,6 +128,7 @@ Notes:
 |---|---|---|
 | [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('bboxCollide', ...)` | Adds label-aware overlap resolution in force mode |
 | [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('groupBboxCollide', ...)` | Prevents group-box overlap in force mode (enforced when groups enabled; schema-driven group knobs) |
+| [relaxRunner.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/collision/relaxRunner.ts) | `runRelaxSteps` | SSOT relax step runner used by Graph structured layout relax and Flow post-layout collision settling |
 | [schema.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schema.ts) | defaults | Enables bbox collide by default |
 
 ---

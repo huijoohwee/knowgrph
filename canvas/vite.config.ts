@@ -925,6 +925,14 @@ export default defineConfig(({ command }) => ({
         replacement: path.resolve(__dirname, '../grph-shared/dist/markdown/documentPath.js'),
       },
       {
+        find: /^grph-shared\/ui\/panelTypography$/,
+        replacement: path.resolve(__dirname, '../grph-shared/dist/ui/panelTypography.js'),
+      },
+      {
+        find: /^grph-shared\/ui\/tailwindTextSize$/,
+        replacement: path.resolve(__dirname, '../grph-shared/dist/ui/tailwindTextSize.js'),
+      },
+      {
         find: /^grph-shared\/collision\/boxCollision$/,
         replacement: path.resolve(__dirname, '../grph-shared/dist/collision/boxCollision.js'),
       },
