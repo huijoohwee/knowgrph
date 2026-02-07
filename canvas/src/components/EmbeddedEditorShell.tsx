@@ -10,10 +10,23 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 export function EmbeddedEditorShell(props: { previewSrc: string }) {
   const panelTypography = usePanelTypography()
-  const [previewWidthPx, setPreviewWidthPx] = React.useState(() => lsInt(LS_KEYS.workspacePreviewWidthPx, 520))
+  const [previewWidthPx, setPreviewWidthPx] = React.useState(() => {
+    const raw = lsInt(LS_KEYS.workspacePreviewWidthPx, 520)
+    const next = Math.max(320, Math.min(960, raw))
+    if (next !== raw) lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
+    return next
+  })
   const dragHandleRef = React.useRef<HTMLHRElement | null>(null)
   const previewWidthPxRef = React.useRef(previewWidthPx)
   previewWidthPxRef.current = previewWidthPx
+
+  React.useEffect(() => {
+    if (!Number.isFinite(previewWidthPx) || previewWidthPx < 320 || previewWidthPx > 960) {
+      const next = Math.max(320, Math.min(960, Number.isFinite(previewWidthPx) ? previewWidthPx : 520))
+      setPreviewWidthPx(next)
+      lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
+    }
+  }, [previewWidthPx])
 
   React.useEffect(() => {
     const el = dragHandleRef.current

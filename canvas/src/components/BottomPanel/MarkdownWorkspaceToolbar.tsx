@@ -38,8 +38,16 @@ export type MarkdownWorkspaceToolbarProps = {
   setMarkdownTextHighlight: (next: boolean) => void
   onApply: () => void
   applyStatusLabel?: string
+  applyDisabled?: boolean
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
+
+  contentMode?: 'document' | 'nodeQuickEditor'
+  setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
+  nodeQuickEditorAvailable?: boolean
+  nodeQuickEditorFormat?: 'json' | 'markdown'
+  setNodeQuickEditorFormat?: (format: 'json' | 'markdown') => void
+  onCopyNodeQuickEditor?: () => void
 
   isEditing: boolean
   isMarkdown: boolean
@@ -61,8 +69,15 @@ export function MarkdownWorkspaceToolbar({
   setMarkdownTextHighlight,
   onApply,
   applyStatusLabel,
+  applyDisabled,
   onToggleFullscreen,
   presentationApiRef,
+  contentMode = 'document',
+  setContentMode,
+  nodeQuickEditorAvailable,
+  nodeQuickEditorFormat = 'json',
+  setNodeQuickEditorFormat,
+  onCopyNodeQuickEditor,
   isEditing,
   isMarkdown,
   onFormatAction,
@@ -241,6 +256,72 @@ export function MarkdownWorkspaceToolbar({
             </section>
           </li>
         </menu>
+        {typeof setContentMode === 'function' ? (
+          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Content">
+            <li className="list-none">
+              <button
+                type="button"
+                className={TOOLBAR_BUTTON_CLASSNAME}
+                aria-pressed={contentMode === 'document'}
+                title="Document"
+                onClick={() => setContentMode('document')}
+              >
+                <Edit3 className="w-4 h-4" strokeWidth={1.6} />
+              </button>
+            </li>
+            <li className="list-none">
+              <button
+                type="button"
+                className={TOOLBAR_BUTTON_CLASSNAME}
+                aria-pressed={contentMode === 'nodeQuickEditor'}
+                title="Node Quick Editor"
+                disabled={!nodeQuickEditorAvailable}
+                onClick={() => {
+                  if (!nodeQuickEditorAvailable) return
+                  setContentMode('nodeQuickEditor')
+                }}
+              >
+                <Code className="w-4 h-4" strokeWidth={1.6} />
+              </button>
+            </li>
+          </menu>
+        ) : null}
+        {contentMode === 'nodeQuickEditor' ? (
+          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Node Quick Editor format">
+            <li className="list-none">
+              <button
+                type="button"
+                className={TOOLBAR_BUTTON_CLASSNAME}
+                aria-pressed={nodeQuickEditorFormat === 'json'}
+                title="JSON"
+                onClick={() => setNodeQuickEditorFormat?.('json')}
+              >
+                <span className={panelTypography.microLabelClass}>JSON</span>
+              </button>
+            </li>
+            <li className="list-none">
+              <button
+                type="button"
+                className={TOOLBAR_BUTTON_CLASSNAME}
+                aria-pressed={nodeQuickEditorFormat === 'markdown'}
+                title="Markdown"
+                onClick={() => setNodeQuickEditorFormat?.('markdown')}
+              >
+                <span className={panelTypography.microLabelClass}>MD</span>
+              </button>
+            </li>
+            <li className="list-none">
+              <button
+                type="button"
+                className={TOOLBAR_BUTTON_CLASSNAME}
+                title="Copy"
+                onClick={() => onCopyNodeQuickEditor?.()}
+              >
+                <span className={panelTypography.microLabelClass}>Copy</span>
+              </button>
+            </li>
+          </menu>
+        ) : null}
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Layout mode">
           <li className="list-none">
             <button
@@ -449,7 +530,7 @@ export function MarkdownWorkspaceToolbar({
         </menu>
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Actions">
           <li className="list-none">
-            <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Apply" onClick={onApply}>
+            <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Apply" onClick={onApply} disabled={applyDisabled}>
               <Check className="w-4 h-4" strokeWidth={1.6} />
             </button>
           </li>

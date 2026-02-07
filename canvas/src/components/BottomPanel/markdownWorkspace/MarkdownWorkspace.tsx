@@ -36,6 +36,12 @@ import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWork
 import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
+import {
+  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
+  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
+  resolveNodeQuickEditorRegistryEntry,
+} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
 
 const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
@@ -57,6 +63,15 @@ export function MarkdownWorkspace() {
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const setMarkdownDocumentSourceUrl = useGraphStore(s => s.setMarkdownDocumentSourceUrl)
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
+
+  const graphData = useGraphStore(s => s.graphData) as GraphData | null
+  const nodeQuickEditorRegistry = useGraphStore(s => s.nodeQuickEditorRegistry || [])
+  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
+  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
+  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
+  const selectNode = useGraphStore(s => s.selectNode)
+  const selectEdge = useGraphStore(s => s.selectEdge)
+  const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
 
   const activePath = useMarkdownExplorerStore(s => s.activePath)
   const setActivePath = useMarkdownExplorerStore(s => s.setActivePath)
@@ -116,6 +131,97 @@ export function MarkdownWorkspace() {
   const lastRequestedActivePathRef = React.useRef<{ path: WorkspacePath; atMs: number } | null>(null)
   const lastSetActivePath = useMarkdownExplorerStore(s => s.lastSetActivePath)
 
+  const [contentMode, setContentMode] = React.useState<'document' | 'nodeQuickEditor'>('document')
+  const userForcedDocumentRef = React.useRef(false)
+  const setContentModeSafe = React.useCallback((mode: 'document' | 'nodeQuickEditor') => {
+    userForcedDocumentRef.current = mode === 'document'
+    setContentMode(mode)
+  }, [])
+  const [nodeQuickEditorFormat, setNodeQuickEditorFormat] = React.useState<'json' | 'markdown'>('json')
+
+  const activeQuickEditorNodeId = React.useMemo(() => {
+    const gd = graphData as unknown as { nodes?: unknown[] } | null
+    const nodes = Array.isArray(gd?.nodes) ? (gd?.nodes as Array<{ id?: unknown; type?: unknown; properties?: unknown }>) : []
+    const byId = new Map(nodes.map(n => [String(n.id || ''), n] as const))
+
+    const selectedId = typeof selectedNodeId === 'string' ? selectedNodeId.trim() : ''
+    if (selectedId) {
+      const node = byId.get(selectedId) || null
+      const reg = node ? resolveNodeQuickEditorRegistryEntry({ node: node as never, registry: nodeQuickEditorRegistry }) : null
+      const props = node && typeof node === 'object' ? ((node as { properties?: unknown }).properties as Record<string, unknown> | undefined) : undefined
+      const hasHint =
+        !!(typeof props?.[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY] === 'string' && String(props?.[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY] || '').trim()) ||
+        !!(typeof props?.[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' && String(props?.[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim())
+      if (reg || hasHint) return selectedId
+    }
+
+    for (let i = openQuickEditorNodeIds.length - 1; i >= 0; i -= 1) {
+      const id = String(openQuickEditorNodeIds[i] || '').trim()
+      if (!id) continue
+      if (!byId.has(id)) continue
+      return id
+    }
+    return ''
+  }, [graphData, nodeQuickEditorRegistry, openQuickEditorNodeIds, selectedNodeId])
+
+  const nodeQuickEditorAvailable = Boolean(activeQuickEditorNodeId)
+
+  React.useEffect(() => {
+    if (contentMode !== 'nodeQuickEditor') return
+    if (nodeQuickEditorAvailable) return
+    setContentModeSafe('document')
+  }, [contentMode, nodeQuickEditorAvailable])
+
+  React.useEffect(() => {
+    if (!nodeQuickEditorAvailable) return
+    if (contentMode === 'nodeQuickEditor') return
+    if (userForcedDocumentRef.current) return
+    setContentModeSafe('nodeQuickEditor')
+  }, [contentMode, nodeQuickEditorAvailable, setContentModeSafe])
+
+  const quickEditorBundleJsonText = React.useMemo(() => {
+    if (!activeQuickEditorNodeId) return ''
+    const gd = graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
+    const nodes = Array.isArray(gd?.nodes) ? (gd?.nodes as GraphNode[]) : []
+    const edges = Array.isArray(gd?.edges) ? (gd?.edges as GraphEdge[]) : []
+    const node = nodes.find(n => String(n.id || '') === activeQuickEditorNodeId) || null
+    if (!node) return ''
+
+    const nodeType = String(node.type || '').trim()
+    const registryForType = (nodeQuickEditorRegistry || []).filter((e: unknown) => {
+      if (!e || typeof e !== 'object') return false
+      const rec = e as { isEnabled?: unknown; nodeTypeId?: unknown }
+      if (rec.isEnabled !== true) return false
+      return String(rec.nodeTypeId || '').trim() === nodeType
+    })
+
+    const connectedEdges = edges.filter(e => String(e.source || '') === activeQuickEditorNodeId || String(e.target || '') === activeQuickEditorNodeId)
+    const graph: GraphData = {
+      type: 'application/json',
+      nodes: [node],
+      edges: connectedEdges,
+    }
+    return nodeQuickEditorBundleToJsonText(buildNodeQuickEditorBundleV1({ registryEntries: registryForType, graphData: graph }))
+  }, [activeQuickEditorNodeId, graphData, nodeQuickEditorRegistry])
+
+  const quickEditorEditorText = React.useMemo(() => {
+    if (!nodeQuickEditorAvailable) return ''
+    if (!quickEditorBundleJsonText) return ''
+    if (nodeQuickEditorFormat === 'markdown') return `\`\`\`json\n${quickEditorBundleJsonText}\n\`\`\``
+    return quickEditorBundleJsonText
+  }, [nodeQuickEditorAvailable, nodeQuickEditorFormat, quickEditorBundleJsonText])
+
+  const quickEditorViewerText = React.useMemo(() => {
+    if (!nodeQuickEditorAvailable) return ''
+    if (!quickEditorBundleJsonText) return ''
+    return `\`\`\`json\n${quickEditorBundleJsonText}\n\`\`\``
+  }, [nodeQuickEditorAvailable, quickEditorBundleJsonText])
+
+  const onCopyNodeQuickEditorRef = React.useRef<(() => void) | null>(null)
+  const onCopyNodeQuickEditor = React.useCallback(() => {
+    onCopyNodeQuickEditorRef.current?.()
+  }, [])
+
   const activePathRef = React.useRef<WorkspacePath | null>(null)
   activePathRef.current = activePath
 
@@ -163,6 +269,21 @@ export function MarkdownWorkspace() {
     if (statusClearRef.current != null) window.clearTimeout(statusClearRef.current)
     statusClearRef.current = window.setTimeout(() => setStatusLabel(''), ttlMs)
   }, [])
+
+  React.useEffect(() => {
+    onCopyNodeQuickEditorRef.current = () => {
+      const text = contentMode === 'nodeQuickEditor' ? quickEditorEditorText : ''
+      if (!text) return
+      if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+        setStatusWithAutoClear('Clipboard not available', 2000)
+        return
+      }
+      void navigator.clipboard
+        .writeText(text)
+        .then(() => setStatusWithAutoClear('Copied', 1200))
+        .catch(() => setStatusWithAutoClear('Copy failed', 2200))
+    }
+  }, [contentMode, quickEditorEditorText, setStatusWithAutoClear])
 
   React.useEffect(() => {
     void refresh()
@@ -723,13 +844,6 @@ export function MarkdownWorkspace() {
     [setLayoutMode],
   )
 
-  const graphData = useGraphStore(s => s.graphData) as GraphData | null
-  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
-  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
-  const selectNode = useGraphStore(s => s.selectNode)
-  const selectEdge = useGraphStore(s => s.selectEdge)
-
   const matchesActiveDoc = React.useCallback(
     (documentPath: unknown) => {
       return matchesMarkdownDocumentPath(activeDocumentKey, documentPath)
@@ -988,6 +1102,18 @@ export function MarkdownWorkspace() {
 
   const showGraphTable = workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable'
 
+  const effectiveActiveText = contentMode === 'nodeQuickEditor' ? quickEditorEditorText : activeText
+  const effectiveSetActiveText = React.useCallback(
+    (next: string) => {
+      if (contentMode === 'nodeQuickEditor') return
+      setActiveText(next)
+    },
+    [contentMode],
+  )
+  const effectiveViewerTextOverride = contentMode === 'nodeQuickEditor' && nodeQuickEditorFormat === 'json' ? quickEditorViewerText : null
+  const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing
+  const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown
+
   return (
     <section
       ref={workspaceRootRef}
@@ -1060,14 +1186,22 @@ export function MarkdownWorkspace() {
           onApply={() => void handleApply()}
           onToggleFullscreen={toggleFullscreen}
           presentationApiRef={presentationApiRef}
-          isEditing={isEditing}
-          isMarkdown={isMarkdown}
+          contentMode={contentMode}
+          setContentMode={setContentModeSafe}
+          nodeQuickEditorAvailable={nodeQuickEditorAvailable}
+          nodeQuickEditorFormat={nodeQuickEditorFormat}
+          setNodeQuickEditorFormat={setNodeQuickEditorFormat}
+          onCopyNodeQuickEditor={onCopyNodeQuickEditor}
+          isEditing={effectiveIsEditing}
+          isMarkdown={effectiveIsMarkdown}
           onFormatAction={handleFormatAction}
           onImportLocalFiles={fileActions.handleImportLocalFiles}
           onImportLocalFolder={fileActions.handleImportLocalFolder}
           onImportUrl={fileActions.handleImportUrl}
-          activeText={activeText}
-          setActiveText={setActiveText}
+          activeText={effectiveActiveText}
+          setActiveText={effectiveSetActiveText}
+          viewerTextOverride={effectiveViewerTextOverride}
+          disableViewerMutations={contentMode === 'nodeQuickEditor'}
           activeDocumentKey={activeDocumentKey}
           highlightedLineRange={highlightedLineRange}
           revealLineInEditor={revealLineInEditor}

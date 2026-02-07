@@ -30,7 +30,7 @@
 
 - **Open state SSOT**: `openQuickEditorNodeIds` is stored in shared graph view state, not local component state.
 - **Canvas + Table parity**: Flow Editor canvas and Graph Table Inspector render the same Node Quick Editor panel when a node id is in the open list.
-- **Editor Workspace reuse**: Editor Workspace Graph Table must reuse `GraphTableInspector` to keep quick editor UI identical across surfaces.
+- **Editor Workspace codes**: Editor Workspace surfaces Node Quick Editor as bundle codes inside the Markdown editor/viewer (JSON/Markdown), without mounting a second quick-editor panel.
 - **Prune on data change**: when `GraphData` changes, prune the open list to ids that still exist.
 
 ## Performance Invariants

@@ -19,7 +19,8 @@ import {
   setWorkspaceEntrySource,
 } from '@/features/workspace-fs/sourceIndex'
 import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsEvents'
-import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
+import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function useWorkspaceFileActions(args: {
   getFs: () => Promise<WorkspaceFs>
@@ -63,6 +64,42 @@ export function useWorkspaceFileActions(args: {
 
   const importJobRef = React.useRef(0)
 
+  const applyImportedTextToGraph = React.useCallback(
+    async (args: { nameForParse: string; text: string }) => {
+      const storeBefore = useGraphStore.getState()
+      const okMarkdown = await applyMarkdownDocumentToGraph(args.nameForParse, args.text, { force: true })
+      if (!okMarkdown) {
+        const { loadGraphDataFromTextViaParser } =
+          (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
+        await loadGraphDataFromTextViaParser(args.nameForParse, args.text, { applyToStore: true })
+      }
+
+      const store = useGraphStore.getState()
+      const graphData = store.graphData
+      const hasAnyGraph = !!(
+        graphData && (((graphData.nodes || []).length > 0) || ((graphData.edges || []).length > 0))
+      )
+      if (!hasAnyGraph) return
+
+      const meta = (graphData?.metadata || {}) as Record<string, unknown>
+      const hasQuickEditorRegistry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
+        ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as unknown[]).length > 0
+        : false
+
+      if (hasQuickEditorRegistry) {
+        store.setCanvasRenderMode('2d')
+        store.setCanvas2dRenderer('flowEditor')
+        store.setWorkspaceViewMode('canvas')
+        return
+      }
+
+      if (storeBefore.workspaceViewMode !== 'table') {
+        store.setWorkspaceViewMode('table')
+      }
+    },
+    [applyMarkdownDocumentToGraph],
+  )
+
   const focusAfterImport = React.useCallback(
     async (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => {
       if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
@@ -85,14 +122,14 @@ export function useWorkspaceFileActions(args: {
           setActiveText(content)
           if (docKey && content.trim()) {
             setMarkdownDocument(docKey, content)
-            await applyMarkdownDocumentToGraph(docKey, content, { force: true })
+            await applyImportedTextToGraph({ nameForParse: docKey, text: content })
           }
         } catch (e) {
           setStatusLabel(`Apply failed: ${String((e as { message?: unknown })?.message ?? e)}`)
         }
       }
     },
-    [applyMarkdownDocumentToGraph, getFs, lastLoadedRef, setActivePathSafe, setActiveText, setExpandedPaths, setMarkdownDocument, setMarkdownDocumentSourceUrl, setSelectionPathSafe, setStatusLabel],
+    [applyImportedTextToGraph, getFs, lastLoadedRef, setActivePathSafe, setActiveText, setExpandedPaths, setMarkdownDocument, setMarkdownDocumentSourceUrl, setSelectionPathSafe, setStatusLabel],
   )
 
   const createNewFile = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
@@ -250,7 +287,7 @@ export function useWorkspaceFileActions(args: {
           if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, fetched.text)
           setMarkdownDocumentSourceUrl(fetched.normalizedUrl)
           if (activeDocumentKey && String(fetched.text || '').trim()) {
-            await applyMarkdownDocumentToGraph(activeDocumentKey, fetched.text, { force: true })
+            await applyImportedTextToGraph({ nameForParse: activeDocumentKey, text: fetched.text })
           }
         }
         setStatusLabel('Refreshed')
@@ -258,7 +295,7 @@ export function useWorkspaceFileActions(args: {
         setStatusLabel(`Refresh failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, openedPath, applyMarkdownDocumentToGraph, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setMarkdownDocumentSourceUrl, setStatusLabel],
+    [activeDocumentKey, openedPath, applyImportedTextToGraph, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setMarkdownDocumentSourceUrl, setStatusLabel],
   )
 
   const deleteEntry = React.useCallback(

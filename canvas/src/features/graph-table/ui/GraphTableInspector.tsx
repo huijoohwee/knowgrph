@@ -7,12 +7,17 @@ import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
-import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import {
+  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
+  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
+  resolveNodeQuickEditorRegistryEntry,
+} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { useShallow } from 'zustand/react/shallow'
 import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
 import { enableHandlesForAllInputsInSchema } from '@/lib/flowEditor/flowEditorActions'
 import { createUniqueId } from '@/lib/ids'
 import { normalizeGraphData } from '@/lib/graph/normalize'
+import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
 
 export type GraphTableInspectorRow = {
   tableId: 'nodes' | 'edges'
@@ -40,12 +45,13 @@ const coreColumnOrder = (id: string): number => {
 }
 
 export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCell, onDeleteRow }: GraphTableInspectorProps) {
-  const { panelTextClass, microLabelClass, textSizeClass, keyValueInputClass } = usePanelTypography()
+  const { panelTextClass, microLabelClass, textSizeClass, keyValueInputClass, monospaceTextClass } = usePanelTypography()
   const {
     graphData,
     schema,
     nodeQuickEditorRegistry,
     openQuickEditorNodeIds,
+    selectedNodeId,
     uiIconScale,
     uiIconStrokeWidth,
     setSchema,
@@ -57,6 +63,7 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
       schema: s.schema,
       nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
       openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
+      selectedNodeId: s.selectedNodeId,
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       setSchema: s.setSchema,
@@ -79,8 +86,60 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
     if (!node) return false
     const id = String(node.id || '').trim()
     if (!id) return false
-    return openQuickEditorNodeIds.includes(id)
-  }, [node, openQuickEditorNodeIds])
+    const props = (node.properties || {}) as Record<string, unknown>
+    const hasHint =
+      (typeof props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY] === 'string' && String(props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]).trim()) ||
+      (typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' && String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]).trim())
+    const isSelected = id === String(selectedNodeId || '')
+    const isPinned = openQuickEditorNodeIds.includes(id)
+    const isQuickEditorNode = hasHint || !!registryEntry
+    return isQuickEditorNode && (isSelected || isPinned)
+  }, [node, openQuickEditorNodeIds, registryEntry, selectedNodeId])
+
+  const [codeFormat, setCodeFormat] = useState<'json' | 'markdown'>('json')
+  const quickEditorCodeText = useMemo(() => {
+    if (!node || !showQuickEditor) return ''
+    const nodeId = String(node.id || '').trim()
+    if (!nodeId) return ''
+
+    const safeType = String(node.type || '').trim()
+    const registryForType = (nodeQuickEditorRegistry || []).filter((e: unknown) => {
+      if (!e || typeof e !== 'object') return false
+      const rec = e as { isEnabled?: unknown; nodeTypeId?: unknown }
+      if (rec.isEnabled !== true) return false
+      return String(rec.nodeTypeId || '').trim() === safeType
+    })
+
+    const edges = (allEdges || []).filter(e => String(e.source || '') === nodeId || String(e.target || '') === nodeId)
+    const graph = {
+      context: '',
+      type: 'Graph',
+      nodes: [node],
+      edges,
+    }
+    const bundleText = nodeQuickEditorBundleToJsonText(
+      buildNodeQuickEditorBundleV1({ registryEntries: registryForType, graphData: graph as never }),
+    )
+    if (codeFormat === 'markdown') return `\`\`\`json\n${bundleText}\n\`\`\``
+    return bundleText
+  }, [allEdges, codeFormat, node, nodeQuickEditorRegistry, showQuickEditor])
+
+  const copyQuickEditorCode = () => {
+    const text = quickEditorCodeText
+    if (!text) return
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      upsertUiToast({ id: 'qe-code-copy-unavailable', kind: 'neutral', message: 'Clipboard not available.', ttlMs: 2200 })
+      return
+    }
+    void navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        upsertUiToast({ id: 'qe-code-copied', kind: 'success', message: 'Copied.', ttlMs: 1400 })
+      })
+      .catch(() => {
+        upsertUiToast({ id: 'qe-code-copy-failed', kind: 'neutral', message: 'Copy failed.', ttlMs: 2200 })
+      })
+  }
 
   const [panelMinimized, setPanelMinimized] = useState(false)
   const [panelPinned, setPanelPinned] = useState(true)
@@ -265,6 +324,61 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
                   portHandleEdges={allEdges}
                   schema={schema}
                 />
+
+                <section className={cn('mt-3 rounded border overflow-hidden', UI_THEME_TOKENS.panel.border)} aria-label="Node Quick Editor codes">
+                  <header className={cn('px-2 py-2 border-b flex items-center justify-between gap-2', UI_THEME_TOKENS.panel.border)}>
+                    <div className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Codes</div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        className={cn(
+                          'App-toolbar__btn',
+                          microLabelClass,
+                          codeFormat === 'json' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+                        )}
+                        onClick={() => setCodeFormat('json')}
+                      >
+                        JSON
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          'App-toolbar__btn',
+                          microLabelClass,
+                          codeFormat === 'markdown'
+                            ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                            : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
+                        )}
+                        onClick={() => setCodeFormat('markdown')}
+                      >
+                        Markdown
+                      </button>
+                      <button
+                        type="button"
+                        className={cn('App-toolbar__btn', microLabelClass, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+                        onClick={copyQuickEditorCode}
+                        disabled={!quickEditorCodeText}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </header>
+                  <div className="p-2">
+                    <textarea
+                      className={cn(
+                        'w-full h-[220px] rounded border px-2 py-1',
+                        monospaceTextClass,
+                        textSizeClass,
+                        UI_THEME_TOKENS.input.bg,
+                        UI_THEME_TOKENS.input.border,
+                        UI_THEME_TOKENS.input.text,
+                      )}
+                      value={quickEditorCodeText}
+                      readOnly
+                      spellCheck={false}
+                    />
+                  </div>
+                </section>
               </div>
             ) : null}
           <dl className="px-3 py-2 grid grid-cols-[120px_1fr] gap-x-2 gap-y-2 items-center">

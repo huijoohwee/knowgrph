@@ -40,8 +40,17 @@ export type MarkdownWorkspaceMainProps = {
   onImportLocalFolder: (files: FileList | null) => void
   onImportUrl: (url: string) => void
 
+  contentMode?: 'document' | 'nodeQuickEditor'
+  setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
+  nodeQuickEditorAvailable?: boolean
+  nodeQuickEditorFormat?: 'json' | 'markdown'
+  setNodeQuickEditorFormat?: (format: 'json' | 'markdown') => void
+  onCopyNodeQuickEditor?: () => void
+
   activeText: string
   setActiveText: (next: string) => void
+  viewerTextOverride?: string | null
+  disableViewerMutations?: boolean
   activeDocumentKey: string
   highlightedLineRange: HighlightedLineRange
   revealLineInEditor: (line: number, endLine?: number) => void
@@ -214,8 +223,16 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     onImportLocalFiles,
     onImportLocalFolder,
     onImportUrl,
+    contentMode,
+    setContentMode,
+    nodeQuickEditorAvailable,
+    nodeQuickEditorFormat,
+    setNodeQuickEditorFormat,
+    onCopyNodeQuickEditor,
     activeText,
     setActiveText,
+    viewerTextOverride,
+    disableViewerMutations,
     activeDocumentKey,
     highlightedLineRange,
     revealLineInEditor,
@@ -275,15 +292,16 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const zoomLabel = `${Math.round(scale * 100)}%`
 
   const viewerVisible = layoutMode === 'viewer' || layoutMode === 'split'
+  const viewerText = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
 
   const lexed = React.useMemo(() => {
     if (!viewerVisible) return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
     try {
-      return lexMarkdown(activeText)
+      return lexMarkdown(viewerText)
     } catch {
       return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
     }
-  }, [activeText, viewerVisible])
+  }, [viewerText, viewerVisible])
 
   const tokens = lexed.tokens
   void lexed.startLineOffset
@@ -291,6 +309,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const handleInsertLineAfter = React.useCallback(
     (afterLine: number) => {
+      if (disableViewerMutations) return
       const line = Math.max(1, Math.floor(afterLine))
       const lines = splitMarkdownLines(activeText)
       const idx = Math.min(lines.length, line)
@@ -302,7 +321,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         void 0
       }
     },
-    [activeText, revealLineInEditor, setActiveText],
+    [activeText, disableViewerMutations, revealLineInEditor, setActiveText],
   )
 
   const handleReorderLineBlock = React.useCallback(
@@ -311,6 +330,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       target: { startLine: number; endLine: number },
       position: 'before' | 'after',
     ) => {
+      if (disableViewerMutations) return
       const srcStart = Math.max(1, Math.floor(source.startLine))
       const srcEnd = Math.max(srcStart, Math.floor(source.endLine))
       const tgtStart = Math.max(1, Math.floor(target.startLine))
@@ -330,7 +350,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const next = [...rest.slice(0, insertionIndex), ...srcChunk, ...rest.slice(insertionIndex)].join('\n')
       setActiveText(next)
     },
-    [activeText, setActiveText],
+    [activeText, disableViewerMutations, setActiveText],
   )
 
   const viewer = (
@@ -372,8 +392,15 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         setMarkdownTextHighlight={setMarkdownTextHighlight}
         onApply={onApply}
         applyStatusLabel={statusLabel}
+        applyDisabled={!isEditing}
         onToggleFullscreen={onToggleFullscreen}
         presentationApiRef={presentationApiRef}
+        contentMode={contentMode}
+        setContentMode={setContentMode}
+        nodeQuickEditorAvailable={nodeQuickEditorAvailable}
+        nodeQuickEditorFormat={nodeQuickEditorFormat}
+        setNodeQuickEditorFormat={setNodeQuickEditorFormat}
+        onCopyNodeQuickEditor={onCopyNodeQuickEditor}
         isEditing={isEditing}
         isMarkdown={isMarkdown}
         onFormatAction={onFormatAction}

@@ -245,6 +245,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [active, baseGraphData, baseGraphDataRevision])
 
   React.useEffect(() => {
+    if (!draftGraphData) return
     const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
     const idSet = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
     updateOpenQuickEditorNodeIds(prev => prev.filter(id => idSet.has(String(id || ''))))
@@ -591,7 +592,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
       lastDroppedQuickEditorNodeIdRef.current = id
       setLastDroppedQuickEditorToken(Date.now())
-      updateOpenQuickEditorNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))
       useGraphStore.setState({
         selectionSource: 'canvas',
         selectedNodeId: id,
@@ -604,6 +604,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       scheduleForceSelect(id, { minHoldMs: 700 })
       setPendingOverlayNode({ id, type: entry.nodeTypeId, label, x, y, properties: properties as never })
       appendDraftNode({ id, type: entry.nodeTypeId, label, x, y, properties })
+      updateOpenQuickEditorNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))
       try {
         setTimeout(() => {
           if (pendingOverlayNodeIdRef.current !== id) return

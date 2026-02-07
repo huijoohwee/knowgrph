@@ -72,6 +72,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   const selectionSource = useGraphStore(s => s.selectionSource)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
+  const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
   const [activeTableId, setActiveTableId] = useState<GraphTableId>('nodes')
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])
   const [rows, setRows] = useState<GraphTableGridRow[]>([])
@@ -194,6 +195,14 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
       return
     }
   }, [selectedEdgeId, selectedNodeId, selectionSource])
+
+  useEffect(() => {
+    const id = typeof selectedNodeId === 'string' ? selectedNodeId : ''
+    if (!id) return
+    if (!openQuickEditorNodeIds.includes(id)) return
+    if (inspectorOpen) return
+    setInspectorOpen(true)
+  }, [inspectorOpen, openQuickEditorNodeIds, selectedNodeId])
 
   useEffect(() => {
     lsSetBool(LS_KEYS.graphTableInspectorOpen, inspectorOpen)

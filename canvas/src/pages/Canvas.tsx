@@ -133,6 +133,7 @@ export default function CanvasPage() {
   const location = useLocation()
   const lastInboundPreviewSelectionKeyRef = React.useRef<string>('')
   const lastInboundPreviewGraphHashRef = React.useRef<string>('')
+  const lastInboundPreviewSchemaHashRef = React.useRef<string>('')
   const isEmbeddedPreviewRef = React.useRef<boolean>(false)
   const detectEmbeddedPreview = React.useCallback(() => {
     try {
@@ -508,14 +509,6 @@ export default function CanvasPage() {
         }
         const store = useGraphStore.getState()
         const lockRenderer = store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor'
-        if (payload.schema) {
-          try {
-            const setSchema = store.setSchema
-            if (typeof setSchema === 'function') setSchema(payload.schema as never)
-          } catch {
-            void 0
-          }
-        }
         if (!lockRenderer && payload.canvasRenderMode) {
           try {
             const setCanvasRenderMode = store.setCanvasRenderMode
@@ -532,12 +525,36 @@ export default function CanvasPage() {
             void 0
           }
         }
+        if (payload.schema) {
+          try {
+            const nextSchemaHash = hashText(JSON.stringify(payload.schema))
+            const alreadyApplied = nextSchemaHash === lastInboundPreviewSchemaHashRef.current
+            if (!alreadyApplied) {
+              lastInboundPreviewSchemaHashRef.current = nextSchemaHash
+              const currentSchemaHash = hashText(JSON.stringify(store.schema))
+              if (nextSchemaHash !== currentSchemaHash) {
+                const setSchema = store.setSchema
+                if (typeof setSchema === 'function') setSchema(payload.schema as never)
+              }
+            }
+          } catch {
+            void 0
+          }
+        }
         if (payload.graphData) {
           try {
             const setGraphData = store.setGraphData
-            if (typeof setGraphData === 'function') setGraphData(payload.graphData as never)
+            let nextGraphHash = ''
             try {
-              lastInboundPreviewGraphHashRef.current = hashText(JSON.stringify(payload.graphData))
+              nextGraphHash = hashText(JSON.stringify(payload.graphData))
+            } catch {
+              nextGraphHash = ''
+            }
+            if (!nextGraphHash || nextGraphHash !== lastInboundPreviewGraphHashRef.current) {
+              if (typeof setGraphData === 'function') setGraphData(payload.graphData as never)
+            }
+            try {
+              if (nextGraphHash) lastInboundPreviewGraphHashRef.current = nextGraphHash
             } catch {
               void 0
             }

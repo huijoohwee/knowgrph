@@ -25,9 +25,49 @@ const toInspectorRow = (tableId: GraphTableId, doc: GraphRowDoc): GraphTableInsp
   },
 })
 
+const buildFallbackInspectorRow = (selection: { tableId: GraphTableId; rowId: string } | null): GraphTableInspectorRow | null => {
+  if (!selection) return null
+  const { tableId, rowId } = selection
+  const store = useGraphStore.getState()
+  const graphData = store.graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
+  if (!graphData) return { tableId, rowId, order: 0, data: { id: rowId } }
+
+  if (tableId === 'nodes') {
+    const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as Array<{ id?: unknown; label?: unknown; type?: unknown }>) : []
+    const node = nodes.find(n => String(n.id || '') === rowId) || null
+    return {
+      tableId,
+      rowId,
+      order: 0,
+      data: {
+        id: rowId,
+        label: node ? String(node.label || '') : '',
+        type: node ? String(node.type || '') : '',
+      },
+    }
+  }
+
+  const edges = Array.isArray(graphData.edges)
+    ? (graphData.edges as Array<{ id?: unknown; label?: unknown; source?: unknown; target?: unknown }>)
+    : []
+  const edge = edges.find(e => String(e.id || '') === rowId) || null
+  return {
+    tableId,
+    rowId,
+    order: 0,
+    data: {
+      id: rowId,
+      label: edge ? String(edge.label || '') : '',
+      source: edge ? String(edge.source || '') : '',
+      target: edge ? String(edge.target || '') : '',
+    },
+  }
+}
+
 export default function GraphTableSelectionInspector() {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
+  const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const baseGraphData = useGraphStore(s => s.graphData)
@@ -41,8 +81,19 @@ export default function GraphTableSelectionInspector() {
   const selection = useMemo(() => {
     if (selectedNodeId) return { tableId: 'nodes' as const, rowId: selectedNodeId }
     if (selectedEdgeId) return { tableId: 'edges' as const, rowId: selectedEdgeId }
+    if (openQuickEditorNodeIds.length > 0) {
+      const graphData = baseGraphData as unknown as { nodes?: unknown[] } | null
+      const nodes = Array.isArray(graphData?.nodes) ? (graphData?.nodes as Array<{ id?: unknown }>) : []
+      const nodeIdSet = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
+      for (let i = openQuickEditorNodeIds.length - 1; i >= 0; i -= 1) {
+        const id = String(openQuickEditorNodeIds[i] || '').trim()
+        if (!id) continue
+        if (!nodeIdSet.has(id)) continue
+        return { tableId: 'nodes' as const, rowId: id }
+      }
+    }
     return null
-  }, [selectedEdgeId, selectedNodeId])
+  }, [baseGraphData, openQuickEditorNodeIds, selectedEdgeId, selectedNodeId])
 
   useEffect(() => {
     if (!selection) {
@@ -50,6 +101,12 @@ export default function GraphTableSelectionInspector() {
       setRow(null)
       rowHashRef.current = 0
       return
+    }
+    const fallback = buildFallbackInspectorRow(selection)
+    if (fallback) {
+      const fallbackHash = hashString32(JSON.stringify(fallback.data || {}))
+      rowHashRef.current = fallbackHash
+      setRow(fallback)
     }
     let cancelled = false
     let colSub: Subscription | null = null
@@ -68,7 +125,18 @@ export default function GraphTableSelectionInspector() {
       const doc = await collections.rows.findOne(pk).exec()
       if (cancelled) return
       if (!doc) {
-        setRow(null)
+        const nextFallback = buildFallbackInspectorRow(selection)
+        if (!nextFallback) {
+          rowHashRef.current = 0
+          setRow(null)
+          return
+        }
+        const nextHash = hashString32(JSON.stringify(nextFallback.data || {}))
+        setRow(prevRow => {
+          if (nextHash === rowHashRef.current && prevRow) return prevRow
+          rowHashRef.current = nextHash
+          return nextFallback
+        })
       } else {
         const json = doc.toJSON() as GraphRowDoc
         rowHashRef.current = hashString32(JSON.stringify(json.data || {}))

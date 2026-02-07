@@ -81,14 +81,14 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - Editor mode previews the Canvas using an embedded `iframe` marked with `data-kg-preview="1"` (the host may also use `?kgPreview=1`).
 - Preview mode must force preview-only rendering (no Toolbar, no BottomPanel, no side panels) so the preview cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
 - The host syncs preview state via same-origin messaging (`kind: 'kg-preview-sync'` for graph/schema/render/selection) and via persisted geospatial state (`kg:ui:geospatial:overlayEnabled` via `storage` events) so the preview reflects the active mode.
+- Preview sync handlers must ignore identical schema/graph payloads (hash/signature compare) to prevent rerender loops and React update-depth errors.
 - The host must avoid rendering graph canvases in the background when the active view mode is Editor (mount only what is visible).
 
 ### Editor Workspace Sections (Markdown vs Graph Data Table)
 
-- The Editor workspace left pane is a **workspace section switcher**:
-  - **Markdown Workspace** (Editor/Viewer/Split/Presentation/Slides) remains the SSOT for document text.
-  - **Graph Data Table** is an embedded, lightweight table inspector for the active `GraphData`.
-- Section selection is persisted by the host under `LS_KEYS.workspaceEditorSection` so returning to Editor mode restores the last workspace section.
+- The Editor workspace reuses the **Markdown Workspace** as the SSOT for document text (Explorer + Editor/Viewer/Split/Presentation/Slides).
+- Editor mode must not mount any separate Selection/Record Inspector dock (forbid extra inspector `<header>/<section>` surfaces in Editor mode).
+- If a Graph Table section exists, it is treated as an optional tool surface; it must not introduce a second inspector dock outside the table workspace.
 
 ### Graph Data Table (Editor Workspace) Contract
 
@@ -102,8 +102,8 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 ### Record Inspector (SSOT)
 
-- The Record Inspector UI is a host-owned SSOT component (`GraphTableInspector`) and must be reused across surfaces.
-- Canvas mode mounts the Record Inspector inside the **Floating Panel** (tool menu) as the "Inspector" view, rather than maintaining a separate legacy right SidePanel.
+- The Record Inspector UI is a host-owned SSOT component (`GraphTableInspector`) and must be reused across Canvas mode (Floating Panel) and Graph Table workspaces.
+- Editor mode must not mount a standalone inspector dock; inspector surfaces belong to Canvas mode (Floating Panel) or Graph Table workspaces only.
 - When the active 2D renderer is `flowEditor`, the Flow Editor Inspector is consolidated into the same Floating Panel "Inspector" surface via a portal slot id (`FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID`) to avoid duplicate inspector panels.
 - The Inspector view must render its layout even with no active selection so the Floating Panel always shows stable structure; inputs may be disabled but the surface must stay visible.
 - Editing a field in the inspector updates RxDB first, then applies a bounded write-through to the graph store to keep `graphDataRevision` and derived render views consistent.
@@ -112,7 +112,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 - Node Quick Editor open state is stored in the shared graph view state (`openQuickEditorNodeIds`) and must not be local to a single renderer.
 - Flow Editor canvas and Graph Table Inspector must consult the same open list to render quick editor panels for node rows.
-- Editor Workspace Graph Table must reuse the host `GraphTableInspector` so the quick editor surface is identical across Canvas and Editor.
+- Editor Workspace must surface Node Quick Editor **as codes** inside the Markdown editor/viewer (JSON/Markdown), not as a second quick editor panel.
 - Switching workspace view modes must preserve the open list unless the underlying nodes are removed from `GraphData`.
 
 ### Selection Sync (Table ↔ Preview ↔ TOC)

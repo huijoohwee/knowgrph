@@ -42,7 +42,6 @@ export function useFlowComputedPositions(args: {
 
   React.useEffect(() => {
     if (!args.active) return
-    lastLayoutGraphKeyRef.current = ''
     const next = args.layoutPositionsForMode || null
     setComputedPositions(prev => (prev === next ? prev : next))
   }, [args.active, args.cacheKey, args.layoutPositionsForMode])
