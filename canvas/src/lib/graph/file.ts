@@ -1,5 +1,6 @@
 import { GraphData, type SelectionAnchorIds } from './types';
 import { exportAsJsonLdBlob, exportAsCombinedCsvBlob, exportAsRawJsonBlob, exportAsGraphMlBlob, exportAsCypherBlob } from './io/adapter';
+import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonBlob, nodeQuickEditorBundleToJsonText } from './io/nodeQuickEditorBundle'
 import { readExportPrefs, writeExportPrefs, saveBlobWithPicker, downloadBlob } from './save';
 import type { GraphValidationSummary } from './validation';
 export { pickTextFile, pickTextFileWithExtensions, pickTextFilesWithExtensions } from './filePicker';
@@ -461,5 +462,46 @@ export async function copyGraphJsonLdToClipboard(data: GraphData | null): Promis
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function exportNodeQuickEditorBundleAsJson(args: {
+  graphData: GraphData | null
+  registryEntries: unknown[]
+  suggestedName?: string
+}): Promise<void> {
+  try {
+    const graphData = args.graphData
+    if (!graphData) return
+    const bundle = buildNodeQuickEditorBundleV1({ registryEntries: args.registryEntries, graphData })
+    const blob = nodeQuickEditorBundleToJsonBlob(bundle)
+    const base = String(args.suggestedName || 'flow-node-quick-editor.bundle.json')
+    const name = ensureExt(base, ['.json'], 'flow-node-quick-editor.bundle.json')
+    const saved = await saveBlobWithPicker(blob, name, { description: 'JSON Files', accept: { 'application/json': ['.json'] } })
+    if (saved === '') return
+    if (saved) {
+      writeExportPrefs({ format: 'flow-node-quick-editor-bundle', filename: saved })
+      return
+    }
+    downloadBlob(blob, 'flow-node-quick-editor.bundle.json')
+  } catch {
+    void 0
+  }
+}
+
+export async function copyNodeQuickEditorBundleJsonToClipboard(args: {
+  graphData: GraphData | null
+  registryEntries: unknown[]
+}): Promise<boolean> {
+  try {
+    if (!args.graphData) return false
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return false
+    const bundle = buildNodeQuickEditorBundleV1({ registryEntries: args.registryEntries, graphData: args.graphData })
+    const text = nodeQuickEditorBundleToJsonText(bundle)
+    if (!text.trim()) return false
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
   }
 }

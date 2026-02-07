@@ -1,6 +1,7 @@
 import React from 'react'
 
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
+import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
@@ -18,6 +19,7 @@ export default function FlowEditorInspector({
   workflowSelectedNodeId,
   onWorkflowSelectNode,
   onWorkflowRunNode,
+  onWorkflowExportBundle,
   jsonError,
   nodePropsJson,
   setNodePropsJson,
@@ -45,6 +47,7 @@ export default function FlowEditorInspector({
   workflowSelectedNodeId?: string | null
   onWorkflowSelectNode?: (nodeId: string) => void
   onWorkflowRunNode?: (nodeId: string) => void
+  onWorkflowExportBundle?: () => void
   jsonError: string | null
   nodePropsJson: string
   setNodePropsJson: (v: string) => void
@@ -295,6 +298,16 @@ export default function FlowEditorInspector({
 
       {tab === 'workflow' && (
         <section aria-label="Workflow editor">
+          <menu className="mt-2 flex items-center gap-2" aria-label="Workflow actions">
+            <button
+              type="button"
+              className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+              onClick={() => onWorkflowExportBundle?.()}
+              disabled={!active || !onWorkflowExportBundle}
+            >
+              {UI_COPY.flowEditorExportBundleButton}
+            </button>
+          </menu>
           {Array.isArray(workflowNodes) && workflowNodes.length > 0 && (
             <nav className="mt-2" aria-label="Workflow node list">
               <ul className="flex flex-col gap-2">

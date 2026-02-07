@@ -1,4 +1,4 @@
-import { UI_COPY } from '@/lib/config'
+import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY } from '@/lib/config'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { normalizeImportName, promptForUrl } from './ingestUtils'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
@@ -6,6 +6,7 @@ import { coerceHttpUrl, normalizeGitHubBlobLikeUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { applyImportedCsvToStore, applyImportedJsonToStore } from '@/features/toolbar/importSideEffects'
 import { runImportFlow } from '@/features/toolbar/importFlow'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type JsonImportFormat = 'jsonld' | 'json'
 export type JsonImportType = 'url' | 'local'
@@ -44,18 +45,32 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
     await runImportFlow({
       nameForParse: picked.name,
       textForParse: picked.text,
-      openWorkspaceViewMode: 'table',
       ui: { collapsePanelsOnSuccess: true },
       onSuccess: (res) => {
         if (!res.input || !res.input.text.trim()) return
         const rawName = String(res.input.name || '')
         const baseName = rawName.trim() || (format === 'jsonld' ? 'graph.jsonld' : 'graph.json')
+        const hasQuickEditorRegistry = (() => {
+          const meta = res.graphData?.metadata
+          if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+          const raw = (meta as Record<string, unknown>)[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+          return Array.isArray(raw) && raw.length > 0
+        })()
+
         applyImportedJsonToStore({
           name: baseName,
           text: String(res.input.text || ''),
           fallbackFenceLang: format === 'jsonld' ? 'jsonld' : 'json',
           sourceUrl: type === 'url' ? picked.sourceUrl ?? null : null,
         })
+        const store = useGraphStore.getState()
+        if (hasQuickEditorRegistry) {
+          store.setCanvasRenderMode('2d')
+          store.setCanvas2dRenderer('flowEditor')
+          store.setWorkspaceViewMode('canvas')
+          return
+        }
+        store.setWorkspaceViewMode('table')
       },
     })
   } catch {

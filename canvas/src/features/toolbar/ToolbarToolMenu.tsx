@@ -44,8 +44,9 @@ const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat
 
 const InspectorView = React.memo(function InspectorView(props: { geospatialModeEnabled: boolean }) {
   const { geospatialModeEnabled } = props
-  const { canvasRenderMode, canvas2dRenderer } = useGraphStore(
+  const { workspaceViewMode, canvasRenderMode, canvas2dRenderer } = useGraphStore(
     useShallow(s => ({
+      workspaceViewMode: s.workspaceViewMode,
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
     })),
@@ -53,7 +54,7 @@ const InspectorView = React.memo(function InspectorView(props: { geospatialModeE
 
   return (
     <section className="h-full" aria-label="Selection inspector">
-      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor' ? (
+      {!geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor' ? (
         <section
           id={FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID}
           className="h-full"

@@ -29,8 +29,11 @@ export default function GraphTableSelectionInspector() {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const baseGraphData = useGraphStore(s => s.graphData)
   const renderGraphData = useActiveGraphRenderData()
-  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, renderGraphData)
+  const syncGraphData = workspaceViewMode === 'editor' ? baseGraphData : renderGraphData
+  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, syncGraphData)
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])
   const [row, setRow] = useState<GraphTableInspectorRow | null>(null)
   const rowHashRef = useRef<number>(0)

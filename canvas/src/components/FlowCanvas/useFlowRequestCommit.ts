@@ -5,7 +5,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
-import type { FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
+import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { requestFlowNativeDraw } from '@/components/FlowCanvas/nativeRuntime'
 import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
 import { quantizeZoomStateForCommit } from '@/lib/zoom/zoomStateQuantize'
@@ -28,7 +28,7 @@ export function useFlowRequestCommit(args: {
   zoomViewKey: string
   positionsDirtySinceCommitRef: React.MutableRefObject<boolean>
   lastCommittedPositionsRef: React.MutableRefObject<Record<string, { x: number; y: number }> | null>
-  buildDrawArgs: () => { selectedNodeIds: string[]; selectedEdgeIds: string[]; hideNodeIds?: string[] }
+  buildDrawArgs: () => FlowNativeDrawArgs
 }) {
   const pendingCommitRef = React.useRef(false)
 

@@ -24,6 +24,14 @@
 - **Scroll isolation**: scrolling inside the editor must not zoom the canvas; mark the overlay as a wheel-ignore zone and guard wheel-zoom handlers via SSOT selector `UI_SELECTORS.canvasWheelIgnore`.
 - **More actions**: open selected node in Sidepane, enable Port Handles for all nodes, convert selected node to a Loop node (schema + draft-graph edits only; no hidden background work; idempotent updates).
 - **Baseline lock**: enable-handles action is gated when Document Structure baseline lock is enabled.
+- **Multi-node overlays**: multiple Node Quick Editors may be open at the same time; overlays must remain visible and operable without DOM id collisions.
+
+## Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
+
+- **Open state SSOT**: `openQuickEditorNodeIds` is stored in shared graph view state, not local component state.
+- **Canvas + Table parity**: Flow Editor canvas and Graph Table Inspector render the same Node Quick Editor panel when a node id is in the open list.
+- **Editor Workspace reuse**: Editor Workspace Graph Table must reuse `GraphTableInspector` to keep quick editor UI identical across surfaces.
+- **Prune on data change**: when `GraphData` changes, prune the open list to ids that still exist.
 
 ## Performance Invariants
 
@@ -34,6 +42,7 @@
 - **Collision settling**: during node/group drag, collision relaxation must be rAF-throttled and step-bounded; large graphs may disable drag-time relaxation and rely on commit-time settling.
 - **Render isolation**: zoom/pan should not re-render the editor form. Keep zoom-dependent work in a thin layout wrapper and memoize the panel body.
 - **Anchor stability**: avoid rounding anchor positions during pan/zoom; use subpixel translate to prevent shimmy.
+- **Multi-overlay safety**: all form control `id` values must be scoped per node to prevent label/input targeting collisions.
 
 ---
 
@@ -114,6 +123,15 @@
 
 - On import, parsers may emit registry entries into `GraphData.metadata['flow:nodeQuickEditorRegistry']`.
 - The graph commit path reads this metadata and applies it via the store action `setNodeQuickEditorRegistry(...)` (validated + normalized), enabling immediate Node Quick Editor rendering for matching `node.type`.
+- The JSON import UX auto-switches to **Canvas → 2D → Flow Editor** when this metadata key is present so the imported workflow opens in an editor-first surface.
+
+### Supported Import Shapes (Project-Agnostic)
+
+- **Node Quick Editor bundle**: `kg:flow:nodeQuickEditorBundle` (registry + optional graph payload).
+- **AI-Flow processor list**: array of processors that can be normalized into:
+  - `GraphData.nodes[]` for processors
+  - `GraphData.metadata['flow:nodeQuickEditorRegistry']` for per-processor quick editor fields/ports
+- **ComfyUI workflow**: workflow JSON normalized into a minimal `VideoGeneration` graph plus a default registry entry for immediate Quick Editor rendering.
 
 ### Export Surface
 
@@ -121,6 +139,22 @@
   - the selected mapping (preferred), or
   - all mappings (fallback)
   as a `kg:flow:nodeQuickEditorBundle` JSON.
+- Flow Editor Inspector exports a full workflow bundle (draft graph + current registry snapshot).
+- Flow Editor Inspector “Run” exports a per-node bundle (subgraph around the node + matching registry entries).
+
+---
+
+## Workflow Editor-like Drag-and-Drop (Palette → Canvas)
+
+- **Surface**: Flow Editor Manager (MainPanel) exposes a **Node Quick Editor palette** sidebar.
+- **Drag payload SSOT**:
+  - `kind='kg:flow:nodeQuickEditorDrag'`
+  - `version=1`
+  - `mime='application/x-kg-flow-node-quick-editor'`
+- **Drop target**: Flow Editor canvas accepts drops and creates a new node at the drop location (world coordinates).
+- **Node binding**: created nodes set the per-node override keys so the registry entry is selected deterministically:
+  - `node.properties['flow:quickEditorTypeId']=<entry.quickEditorTypeId>`
+  - `node.properties['flow:quickEditorFormId']=<entry.formId>`
 
 ### Manager Shortcut (Add From Quick Editor)
 

@@ -753,6 +753,9 @@ export type FlowNativeDrawArgs = {
   selectedEdgeIds: string[]
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
+  renderEdges?: boolean
+  renderGroups?: boolean
+  renderNodes?: boolean
 }
 
 export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) => {
@@ -774,32 +777,39 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   const selectedEdgeIds = new Set<string>(args.selectedEdgeIds || [])
   const hiddenNodeIds = new Set<string>(args.hideNodeIds || [])
   const hiddenPortHandleNodeIds = new Set<string>(args.hidePortHandleNodeIds || [])
+  const renderEdges = args.renderEdges !== false
+  const renderGroups = args.renderGroups !== false
+  const renderNodes = args.renderNodes !== false
 
-  const routingCfg = rt.presentation.edges.routing
-  const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
-  const useObstacles = useOrtho && routingCfg.obstacleAvoidance
-  const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene) : null
+  if (renderEdges) {
+    const routingCfg = rt.presentation.edges.routing
+    const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
+    const useObstacles = useOrtho && routingCfg.obstacleAvoidance
+    const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene) : null
 
-  for (let i = 0; i < scene.edges.length; i += 1) {
-    const e = scene.edges[i]
-    const s = scene.nodeById.get(e.source)
-    const t = scene.nodeById.get(e.target)
-    if (!s || !t) continue
-    drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
+    for (let i = 0; i < scene.edges.length; i += 1) {
+      const e = scene.edges[i]
+      const s = scene.nodeById.get(e.source)
+      const t = scene.nodeById.get(e.target)
+      if (!s || !t) continue
+      drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
+    }
+
+    fadeEdgesUnderGeometry(rt)
   }
 
-  fadeEdgesUnderGeometry(rt)
+  if (renderGroups) drawGroups(rt)
 
-  drawGroups(rt)
-
-  for (let i = 0; i < scene.nodes.length; i += 1) {
-    const n = scene.nodes[i]
-    if (hiddenNodeIds.has(n.id)) {
+  if (renderNodes) {
+    for (let i = 0; i < scene.nodes.length; i += 1) {
+      const n = scene.nodes[i]
+      if (hiddenNodeIds.has(n.id)) {
+        if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
+        continue
+      }
+      drawNode(rt, n, { selected: selectedNodeIds.has(n.id) })
       if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
-      continue
     }
-    drawNode(rt, n, { selected: selectedNodeIds.has(n.id) })
-    if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
   }
 }
 

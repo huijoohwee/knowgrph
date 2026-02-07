@@ -24,6 +24,7 @@ import {
   setFlowNativePresentation,
   setFlowNativeTransform,
   setFlowNativeViewport,
+  type FlowNativeDrawArgs,
   type FlowNativeRuntime,
 } from '@/components/FlowCanvas/nativeRuntime'
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
@@ -45,6 +46,11 @@ export default function FlowCanvas({
   allowNodeDragOverride,
   hideSelectedNodeGlyph = false,
   hideSelectedNodePortHandles,
+  hideNodeIds,
+  hidePortHandleNodeIds,
+  renderEdges,
+  renderGroups,
+  renderNodes,
   forbidCircleNodes = false,
 }: {
   active?: boolean
@@ -54,6 +60,11 @@ export default function FlowCanvas({
   allowNodeDragOverride?: boolean
   hideSelectedNodeGlyph?: boolean
   hideSelectedNodePortHandles?: boolean
+  hideNodeIds?: string[]
+  hidePortHandleNodeIds?: string[]
+  renderEdges?: boolean
+  renderGroups?: boolean
+  renderNodes?: boolean
   forbidCircleNodes?: boolean
 }) {
   const containerRef = React.useRef<HTMLElement>(null)
@@ -66,16 +77,14 @@ export default function FlowCanvas({
   const positionsDirtySinceCommitRef = React.useRef(false)
   const selectedNodeIdsRef = React.useRef<string[]>([])
   const selectedEdgeIdsRef = React.useRef<string[]>([])
-  const drawArgsRef = React.useRef<{
-    selectedNodeIds: string[]
-    selectedEdgeIds: string[]
-    hideNodeIds?: string[]
-    hidePortHandleNodeIds?: string[]
-  }>({
+  const drawArgsRef = React.useRef<FlowNativeDrawArgs>({
     selectedNodeIds: [],
     selectedEdgeIds: [],
     hideNodeIds: undefined,
     hidePortHandleNodeIds: undefined,
+    renderEdges: undefined,
+    renderGroups: undefined,
+    renderNodes: undefined,
   })
   const lastPointerInCanvasRef = React.useRef<null | { sx: number; sy: number; ts: number }>(null)
   const lastWheelIntentRef = React.useRef<null | { dir: 'in' | 'out'; ts: number }>(null)
@@ -144,15 +153,37 @@ export default function FlowCanvas({
   const graphDataRevision = typeof graphDataRevisionOverride === 'number' ? graphDataRevisionOverride : baseGraphDataRevision
 
   React.useEffect(() => {
-    const nextSelectedNodeIds = (selectedNodeIds || []).map(v => String(v))
-    const nextSelectedEdgeIds = (selectedEdgeIds || []).map(v => String(v))
+    const nodeIdSet = new Set<string>((selectedNodeIds || []).map(v => String(v)))
+    if (selectedNodeId) nodeIdSet.add(String(selectedNodeId))
+    const edgeIdSet = new Set<string>((selectedEdgeIds || []).map(v => String(v)))
+    if (selectedEdgeId) edgeIdSet.add(String(selectedEdgeId))
+    const nextSelectedNodeIds = Array.from(nodeIdSet)
+    const nextSelectedEdgeIds = Array.from(edgeIdSet)
     selectedNodeIdsRef.current = nextSelectedNodeIds
     selectedEdgeIdsRef.current = nextSelectedEdgeIds
     drawArgsRef.current.selectedNodeIds = nextSelectedNodeIds
     drawArgsRef.current.selectedEdgeIds = nextSelectedEdgeIds
-    drawArgsRef.current.hideNodeIds = hideSelectedNodeGlyph ? nextSelectedNodeIds : undefined
-    drawArgsRef.current.hidePortHandleNodeIds = hideSelectedNodePortHandles ? nextSelectedNodeIds : undefined
-  }, [hideSelectedNodeGlyph, hideSelectedNodePortHandles, selectedEdgeIds, selectedNodeIds])
+    const explicitHideNodeIds = (hideNodeIds || []).map(v => String(v)).filter(Boolean)
+    const explicitHidePortHandleNodeIds = (hidePortHandleNodeIds || []).map(v => String(v)).filter(Boolean)
+    drawArgsRef.current.hideNodeIds = hideSelectedNodeGlyph
+      ? Array.from(new Set([...nextSelectedNodeIds, ...explicitHideNodeIds]))
+      : explicitHideNodeIds.length > 0
+        ? explicitHideNodeIds
+        : undefined
+    drawArgsRef.current.hidePortHandleNodeIds = hideSelectedNodePortHandles
+      ? Array.from(new Set([...nextSelectedNodeIds, ...explicitHidePortHandleNodeIds]))
+      : explicitHidePortHandleNodeIds.length > 0
+        ? explicitHidePortHandleNodeIds
+        : undefined
+    drawArgsRef.current.renderEdges = renderEdges
+    drawArgsRef.current.renderGroups = renderGroups
+    drawArgsRef.current.renderNodes = renderNodes
+    if (!active) return
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    runtime.dirty = true
+    requestFlowNativeDraw(runtime, buildDrawArgs())
+  }, [active, hideNodeIds, hidePortHandleNodeIds, hideSelectedNodeGlyph, hideSelectedNodePortHandles, renderEdges, renderGroups, renderNodes, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
 
   useAutoZoomModes2d({
     viewportW,

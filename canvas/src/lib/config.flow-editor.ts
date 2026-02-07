@@ -5,6 +5,10 @@ export const FLOW_NODE_QUICK_EDITOR_BUNDLE_VERSION = 1 as const
 
 export const FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY = 'flow:nodeQuickEditorRegistry' as const
 
+export const FLOW_NODE_QUICK_EDITOR_DRAG_KIND = 'kg:flow:nodeQuickEditorDrag' as const
+export const FLOW_NODE_QUICK_EDITOR_DRAG_VERSION = 1 as const
+export const FLOW_NODE_QUICK_EDITOR_DRAG_MIME = 'application/x-kg-flow-node-quick-editor' as const
+
 export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
 export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'Generate Video' as const
 

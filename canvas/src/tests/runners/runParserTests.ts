@@ -37,6 +37,8 @@ import { testGraphRagTextPipelineExtractsFromAieBookSnippets } from '@/__tests__
 import {
   testQuickEditorBundleParseProducesGraphDataWithRegistryMetadata,
   testQuickEditorRegistryAppliedFromGraphMetadata,
+  testQuickEditorAiFlowImportBuildsGraphAndRegistry,
+  testQuickEditorComfyUiImportBuildsGraphAndRegistry,
 } from '@/__tests__/quickEditorBundleImport.test'
 import {
   testFlowEditorManagerBuildDraftFromSmartFields,
@@ -75,6 +77,8 @@ export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.graphragText.bestMatchPrefersGraphRagOnPlainMd', testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd)
   await execTest(results, 'parser.quickEditor.bundleParseAddsRegistryMetadata', testQuickEditorBundleParseProducesGraphDataWithRegistryMetadata)
   await execTest(results, 'parser.quickEditor.applyRegistryFromMetadata', testQuickEditorRegistryAppliedFromGraphMetadata)
+  await execTest(results, 'parser.quickEditor.aiFlowImportBuildsGraphAndRegistry', testQuickEditorAiFlowImportBuildsGraphAndRegistry)
+  await execTest(results, 'parser.quickEditor.comfyUiImportBuildsGraphAndRegistry', testQuickEditorComfyUiImportBuildsGraphAndRegistry)
   await execTest(results, 'parser.quickEditor.managerAddFromQuickEditorBuildsDraft', testFlowEditorManagerBuildDraftFromSmartFields)
   await execTest(results, 'parser.quickEditor.managerGenerateVideoDraftUsesSsotTypeId', testFlowEditorManagerBuildGenerateVideoDraftUsesSsotTypeId)
 }

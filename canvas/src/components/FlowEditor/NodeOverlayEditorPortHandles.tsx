@@ -6,6 +6,7 @@ import { computeFlowNodeHandles, ensureFlowHandlesHaveDefaults, parseFlowHandleK
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
 
@@ -46,11 +47,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   if (args.minimized) return null
   if (!args.nodeId) return null
 
-  const rawSize = args.schema?.behavior?.portHandles?.size
-  const sizePx = typeof rawSize === 'number' && Number.isFinite(rawSize) ? Math.max(8, Math.floor(rawSize * 2 + 4)) : 12
-  const hitSizePx = Math.max(18, sizePx + 6)
-  const offsetPx = Math.max(2, Math.floor(sizePx / 4))
-  const railWidthPx = Math.max(hitSizePx, hitSizePx + offsetPx)
+  const { sizePx, hitSizePx, railWidthPx } = readPortHandleUiMetrics(args.schema)
 
   const isAddEdge = args.toolMode === 'addEdge'
   const isSource = isAddEdge && args.pendingEdgeSourceId === args.nodeId
@@ -128,7 +125,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           className={cn(
             'absolute top-1/2 rounded-full border',
             UI_THEME_TOKENS.panel.bg,
-            UI_THEME_TOKENS.input.border,
+            PORT_HANDLE_STROKE_CLASS,
             ringClass,
             hoverClass,
           )}
@@ -137,15 +134,6 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
             height: `${sizePx}px`,
             transform: isIn ? 'translate(-50%, -50%)' : 'translate(50%, -50%)',
             ...(isIn ? { left: 0 } : { right: 0 }),
-          }}
-        />
-        <span
-          aria-hidden={true}
-          className={cn('absolute top-1/2 h-px', UI_THEME_TOKENS.input.border, hoverClass)}
-          style={{
-            width: `${Math.max(6, Math.floor(sizePx / 2))}px`,
-            transform: 'translateY(-50%)',
-            ...(isIn ? { left: `${Math.max(1, Math.floor(sizePx / 2))}px` } : { right: `${Math.max(1, Math.floor(sizePx / 2))}px` }),
           }}
         />
       </button>

@@ -3,7 +3,7 @@ import type React from 'react'
 import * as d3 from 'd3'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { clampScale, hitTestGroup, hitTestNode, requestFlowNativeDraw, setFlowNativeTransform, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
+import { clampScale, hitTestGroup, hitTestNode, requestFlowNativeDraw, setFlowNativeTransform, type FlowNativeDrawArgs, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { computeWheelZoomFactor, normalizeWheelDeltaYpx } from '@/lib/canvas/zoom-input'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
@@ -54,7 +54,7 @@ export function bindFlowCanvasNativeInteractions(args: {
   allowNodeDragOverride?: boolean
   collisionDuringDrag: boolean
   requestCommit: () => void
-  buildDrawArgs: () => { selectedNodeIds: string[]; selectedEdgeIds: string[]; hideNodeIds?: string[] }
+  buildDrawArgs: () => FlowNativeDrawArgs
   dragRef: React.MutableRefObject<FlowCanvasDrag>
   lastPointerInCanvasRef: React.MutableRefObject<null | { sx: number; sy: number; ts: number }>
   lastWheelIntentRef: React.MutableRefObject<null | { dir: 'in' | 'out'; ts: number }>
@@ -224,7 +224,10 @@ export function bindFlowCanvasNativeInteractions(args: {
     args.lastPointerInCanvasRef.current = { sx: local.sx, sy: local.sy, ts: Date.now() }
     const sx = local.sx
     const sy = local.sy
-    const hit = hitTestNode(runtime, { sx, sy })
+    const drawArgs = args.buildDrawArgs()
+    const allowNodeHit = drawArgs.renderNodes !== false
+    const allowGroupHit = drawArgs.renderGroups !== false
+    const hit = allowNodeHit ? hitTestNode(runtime, { sx, sy }) : null
     const pointerId = e.pointerId
     args.userSelectLockPointerIdRef.current = pointerId
     try {
@@ -266,7 +269,7 @@ export function bindFlowCanvasNativeInteractions(args: {
       return
     }
 
-    const groupHit = hitTestGroup(runtime, { sx, sy })
+    const groupHit = allowGroupHit ? hitTestGroup(runtime, { sx, sy }) : null
     if (groupHit) {
       const state = useGraphStore.getState()
       const allowDrag = typeof args.allowNodeDragOverride === 'boolean' ? args.allowNodeDragOverride : state.schema?.behavior?.allowNodeDrag !== false

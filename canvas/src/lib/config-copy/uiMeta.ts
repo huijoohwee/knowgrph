@@ -68,6 +68,7 @@ export const UI_LABELS = {
   renderer: 'Renderer',
   aiKgLayers: 'AI KG Layers',
   history: 'History',
+  log: 'Log',
   help: 'Help',
   workflowManager: 'Workflow Manager',
   flowEditorManager: 'Flow Editor Manager',

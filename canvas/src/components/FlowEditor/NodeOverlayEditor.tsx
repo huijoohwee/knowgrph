@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
 import { worldToScreen } from '@/lib/zoom/viewport'
@@ -18,7 +19,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
-import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import {
   computeNodeQuickEditorScale,
   computeNodeQuickEditorScaledSize,
@@ -34,6 +35,10 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   node,
   viewportW,
   viewportH,
+  canvasWindowOffset,
+  autoRevealKey,
+  forcePinnedToNode,
+  stackIndex,
   edges,
   toolMode,
   pendingEdgeSourceId,
@@ -57,6 +62,10 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   node: GraphNode
   viewportW: number
   viewportH: number
+  canvasWindowOffset?: { left: number; top: number } | null
+  autoRevealKey?: number
+  forcePinnedToNode?: boolean
+  stackIndex?: number
   edges: ReadonlyArray<GraphEdge>
   toolMode?: 'select' | 'addEdge'
   pendingEdgeSourceId?: string | null
@@ -81,6 +90,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     uiIconScale,
     uiIconStrokeWidth,
     uiPanelOpacity,
+    floatingPanelZIndex,
     schema,
     documentStructureBaselineLock,
     nodeQuickEditorRegistry,
@@ -90,12 +100,18 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       uiPanelOpacity: s.uiPanelOpacity,
+      floatingPanelZIndex: s.floatingPanelZIndex,
       schema: s.schema,
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
       nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
       upsertUiToast: s.upsertUiToast,
     })),
   )
+
+  const overlayZIndex = React.useMemo(() => {
+    const safeFloating = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : 5000
+    return Math.max(2600, safeFloating + 10)
+  }, [floatingPanelZIndex])
 
   const registryEntry: NodeQuickEditorRegistryEntry | null = React.useMemo(
     () => resolveNodeQuickEditorRegistryEntry({ node, registry: nodeQuickEditorRegistry }),
@@ -104,7 +120,11 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
   const asideRef = React.useRef<HTMLElement | null>(null)
   const nodeRef = React.useRef<GraphNode>(node)
-  const viewportRef = React.useRef<{ width: number; height: number }>({ width: viewportW, height: viewportH })
+  const viewportRef = React.useRef<{ width: number; height: number }>({
+    width: typeof window !== 'undefined' ? window.innerWidth : viewportW,
+    height: typeof window !== 'undefined' ? window.innerHeight : viewportH,
+  })
+  const canvasWindowOffsetRef = React.useRef<{ left: number; top: number }>({ left: 0, top: 0 })
   const schemaRef = React.useRef(schema)
   const pinnedRef = React.useRef(false)
   const pinnedPosRef = React.useRef<{ top: number; left: number }>({ top: 48, left: 16 })
@@ -128,7 +148,32 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
   const labelInputRef = React.useRef<HTMLInputElement | null>(null)
 
-  const pinnedToNode = !pinned
+  const effectivePinned = forcePinnedToNode ? false : pinned
+  const pinnedToNode = !effectivePinned
+
+  const autoStackOffset = React.useMemo(() => {
+    const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
+    if (idx <= 0) return { top: 0, left: 0 }
+    return { top: idx * 28, left: idx * 10 }
+  }, [stackIndex])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!autoRevealKey) return
+    setPinned(false)
+    setMinimized(prev => {
+      if (!prev) return prev
+      lsSetBool(LS_KEYS.flowNodeQuickEditorMinimized, false)
+      return false
+    })
+  }, [active, autoRevealKey, setPinned])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!forcePinnedToNode) return
+    if (!pinned) return
+    setPinned(false)
+  }, [active, forcePinnedToNode, pinned, setPinned])
 
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled)
   const portHandlesDisabled = documentStructureBaselineLock === true
@@ -144,16 +189,36 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   }, [node])
 
   React.useEffect(() => {
-    viewportRef.current = { width: viewportW, height: viewportH }
+    if (typeof window === 'undefined') {
+      viewportRef.current = { width: viewportW, height: viewportH }
+      return
+    }
+    const apply = () => {
+      const w = Math.max(1, Math.floor(window.innerWidth || 1))
+      const h = Math.max(1, Math.floor(window.innerHeight || 1))
+      viewportRef.current = { width: w, height: h }
+    }
+    apply()
+    window.addEventListener('resize', apply)
+    return () => {
+      window.removeEventListener('resize', apply)
+    }
   }, [viewportH, viewportW])
+
+  React.useEffect(() => {
+    const next = canvasWindowOffset && Number.isFinite(canvasWindowOffset.left) && Number.isFinite(canvasWindowOffset.top)
+      ? { left: canvasWindowOffset.left, top: canvasWindowOffset.top }
+      : { left: 0, top: 0 }
+    canvasWindowOffsetRef.current = next
+  }, [canvasWindowOffset])
 
   React.useEffect(() => {
     schemaRef.current = schema
   }, [schema])
 
   React.useEffect(() => {
-    pinnedRef.current = pinned
-  }, [pinned])
+    pinnedRef.current = effectivePinned
+  }, [effectivePinned])
 
   React.useEffect(() => {
     pinnedPosRef.current = { top: pinnedTopPx, left: pinnedLeftPx }
@@ -197,7 +262,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       zoomStateRef.current = storeZoom
     }
     const zoomK = Number.isFinite(z?.k) ? (z?.k as number) : 1
-    const [minK, maxK] = readZoomScaleExtent(schemaRef.current)
+    const schemaCur = schemaRef.current
+    const [minK, maxK] = schemaCur ? readZoomScaleExtent(schemaCur) : [DEFAULT_ZOOM_MIN_SCALE, DEFAULT_ZOOM_MAX_SCALE]
     const panelScale = computeNodeQuickEditorScale(zoomK, { minK, maxK })
     const scaled = computeNodeQuickEditorScaledSize(panelScale)
     scaledSizeRef.current = scaled
@@ -208,6 +274,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       x: Number.isFinite(n.x) ? n.x : 0,
       y: Number.isFinite(n.y) ? n.y : 0,
     })
+    const offset = canvasWindowOffsetRef.current
+    const nodeWindowX = screenX + offset.left
+    const nodeWindowY = screenY + offset.top
     const port = schemaRef.current?.behavior?.portHandles || null
     const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
     const portSizePx =
@@ -219,22 +288,22 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         ? Math.max(0, (port as { offset: number }).offset)
         : 2
     const portExtraPadScreenPx = portEnabled ? (portSizePx + portOffsetPx + 8) * zoomK : 0
-    const anchoredLeftPx = screenX + DEFAULT_FLOW_NODE_WIDTH_PX * zoomK + 16 + portExtraPadScreenPx
-    const anchoredTopPx = screenY - 12
+    const anchoredLeftPx = nodeWindowX + DEFAULT_FLOW_NODE_WIDTH_PX * zoomK + 16 + portExtraPadScreenPx
+    const anchoredTopPx = nodeWindowY - 12
     anchoredPosRef.current = { top: anchoredTopPx, left: anchoredLeftPx }
 
     const { width: viewportWidth, height: viewportHeight } = viewportRef.current
     const pinned = pinnedRef.current
-    const basePos = pinned ? pinnedPosRef.current : anchoredPosRef.current
-    const pos = pinned
-      ? clampOverlayTopLeftToViewport({
-          pos: basePos,
-          size: scaled,
-          viewport: { width: viewportWidth, height: viewportHeight },
-          visiblePx: 32,
-          snapPx: 1,
-        })
-      : basePos
+    const basePos = pinned
+      ? pinnedPosRef.current
+      : { top: anchoredPosRef.current.top + autoStackOffset.top, left: anchoredPosRef.current.left + autoStackOffset.left }
+    const pos = clampOverlayTopLeftToViewport({
+      pos: basePos,
+      size: scaled,
+      viewport: { width: viewportWidth, height: viewportHeight },
+      visiblePx: 32,
+      snapPx: 1,
+    })
 
     if (pinned && (pos.top !== basePos.top || pos.left !== basePos.left)) scheduleClampCommit(pos)
 
@@ -243,7 +312,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     lastAppliedRef.current = { left: pos.left, top: pos.top, scale: panelScale }
 
     el.style.transform = `translate3d(${pos.left}px, ${pos.top}px, 0) scale(${panelScale})`
-  }, [scheduleClampCommit])
+  }, [autoStackOffset.left, autoStackOffset.top, scheduleClampCommit])
 
   useIsomorphicLayoutEffect(() => {
     applyOverlayPosition()
@@ -396,19 +465,20 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     [active, node.id, upsertUiToast],
   )
 
-  return (
+  const overlayElement = (
     <aside
       ref={asideRef}
       aria-label={UI_LABELS.flowNodeQuickEditor}
       data-kg-canvas-wheel-ignore="true"
-      className="absolute z-[240]"
+      className="fixed"
+      style={{ zIndex: overlayZIndex }}
     >
       <NodeOverlayEditorPanel
         active={active}
         node={node}
         minimized={minimized}
         hideFields={hideFields}
-        pinned={pinned}
+        pinned={effectivePinned}
         portHandlesEnabled={portHandlesEnabled}
         portHandlesDisabled={portHandlesDisabled}
         enableHandlesDisabled={enableHandlesDisabled}
@@ -444,7 +514,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         registryEntry={registryEntry}
         registryEntries={nodeQuickEditorRegistry}
 
-        portHandleEdges={edges}
+        portHandleEdges={Array.isArray(edges) ? edges : []}
         schema={schema}
         toolMode={toolMode}
         pendingEdgeSourceId={pendingEdgeSourceId}
@@ -453,6 +523,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       />
     </aside>
   )
+
+  if (typeof document === 'undefined') return overlayElement
+  return createPortal(overlayElement, document.body)
 })
 
 export default NodeOverlayEditor

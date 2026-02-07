@@ -131,21 +131,30 @@ function MarkdownMetricsDevOverlay() {
 
 export default function CanvasPage() {
   const location = useLocation()
-  const isEmbeddedPreview = React.useMemo(() => {
+  const lastInboundPreviewSelectionKeyRef = React.useRef<string>('')
+  const lastInboundPreviewGraphHashRef = React.useRef<string>('')
+  const isEmbeddedPreviewRef = React.useRef<boolean>(false)
+  const detectEmbeddedPreview = React.useCallback(() => {
     try {
       const q = new URLSearchParams(String(location.search || '')).get('kgPreview') === '1'
       if (q) return true
-      const w = window as unknown as { frameElement?: Element | null }
+      const w = window as unknown as { frameElement?: Element | null; parent?: Window | null }
+      const parent = w?.parent
+      if (!parent || parent === window) return false
       const frameEl = w?.frameElement
       if (!frameEl) return false
-      if (frameEl instanceof HTMLIFrameElement) {
-        return String(frameEl.getAttribute('data-kg-preview') || '') === '1'
-      }
       return String(frameEl.getAttribute('data-kg-preview') || '') === '1'
     } catch {
       return false
     }
   }, [location.search])
+  const [isEmbeddedPreview, setIsEmbeddedPreview] = React.useState<boolean>(() => detectEmbeddedPreview())
+  React.useEffect(() => {
+    setIsEmbeddedPreview(prev => prev || detectEmbeddedPreview())
+  }, [detectEmbeddedPreview])
+  React.useEffect(() => {
+    isEmbeddedPreviewRef.current = isEmbeddedPreview
+  }, [isEmbeddedPreview])
 
   const {
     uiOverlayOpacity,
@@ -440,6 +449,7 @@ export default function CanvasPage() {
   React.useEffect(() => {
     if (documentSemanticMode !== 'document') return
     if (!frontmatterModeEnabled) return
+    if (canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor') return
     const text = String(markdownDocumentText || '')
     if (!text.trim()) return
     const base = graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
@@ -474,14 +484,19 @@ export default function CanvasPage() {
   }, [])
 
   React.useEffect(() => {
-    if (!isEmbeddedPreview) return
     const handler = (event: MessageEvent) => {
       try {
         if (event.origin !== window.location.origin) return
+        if (!window.parent || window.parent === window) return
+        if (event.source && event.source !== window.parent) return
         const data = event.data as unknown
         if (!data || typeof data !== 'object') return
         const msg = data as { kind?: unknown; payload?: unknown }
         if (msg.kind !== 'kg-preview-sync') return
+        if (!isEmbeddedPreviewRef.current) {
+          isEmbeddedPreviewRef.current = true
+          setIsEmbeddedPreview(true)
+        }
         const payload = msg.payload as {
           graphData?: unknown
           schema?: unknown
@@ -492,6 +507,7 @@ export default function CanvasPage() {
           selectedGroupId?: unknown
         }
         const store = useGraphStore.getState()
+        const lockRenderer = store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor'
         if (payload.schema) {
           try {
             const setSchema = store.setSchema
@@ -500,7 +516,7 @@ export default function CanvasPage() {
             void 0
           }
         }
-        if (payload.canvasRenderMode) {
+        if (!lockRenderer && payload.canvasRenderMode) {
           try {
             const setCanvasRenderMode = store.setCanvasRenderMode
             if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode(payload.canvasRenderMode as never)
@@ -508,7 +524,7 @@ export default function CanvasPage() {
             void 0
           }
         }
-        if (payload.canvas2dRenderer) {
+        if (!lockRenderer && payload.canvas2dRenderer) {
           try {
             const setCanvas2dRenderer = store.setCanvas2dRenderer
             if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer(payload.canvas2dRenderer as never)
@@ -520,29 +536,54 @@ export default function CanvasPage() {
           try {
             const setGraphData = store.setGraphData
             if (typeof setGraphData === 'function') setGraphData(payload.graphData as never)
+            try {
+              lastInboundPreviewGraphHashRef.current = hashText(JSON.stringify(payload.graphData))
+            } catch {
+              void 0
+            }
           } catch {
             void 0
           }
         }
 
-        const selectedNodeId = typeof payload.selectedNodeId === 'string' ? payload.selectedNodeId : ''
-        const selectedEdgeId = typeof payload.selectedEdgeId === 'string' ? payload.selectedEdgeId : ''
-        const selectedGroupId = typeof payload.selectedGroupId === 'string' ? payload.selectedGroupId : ''
-        if (selectedNodeId || selectedEdgeId || selectedGroupId) {
+        const hasSelectionPayload =
+          Object.prototype.hasOwnProperty.call(payload, 'selectedNodeId') ||
+          Object.prototype.hasOwnProperty.call(payload, 'selectedEdgeId') ||
+          Object.prototype.hasOwnProperty.call(payload, 'selectedGroupId')
+
+        if (hasSelectionPayload) {
+          const selectedNodeId = typeof payload.selectedNodeId === 'string' ? payload.selectedNodeId : ''
+          const selectedEdgeId = typeof payload.selectedEdgeId === 'string' ? payload.selectedEdgeId : ''
+          const selectedGroupId = typeof payload.selectedGroupId === 'string' ? payload.selectedGroupId : ''
+          lastInboundPreviewSelectionKeyRef.current = `${selectedNodeId}:${selectedEdgeId}:${selectedGroupId}`
           try {
             store.setSelectionSource('editor')
           } catch {
             void 0
           }
           try {
-            if (selectedNodeId) store.selectNode(selectedNodeId)
-            else if (selectedEdgeId) store.selectEdge(selectedEdgeId)
-            else if (selectedGroupId) store.selectGroup(selectedGroupId)
+            if (selectedNodeId) {
+              store.selectEdge(null)
+              store.selectGroup(null)
+              store.selectNode(selectedNodeId)
+            } else if (selectedEdgeId) {
+              store.selectNode(null)
+              store.selectGroup(null)
+              store.selectEdge(selectedEdgeId)
+            } else if (selectedGroupId) {
+              store.selectNode(null)
+              store.selectEdge(null)
+              store.selectGroup(selectedGroupId)
+            } else {
+              store.selectNode(null)
+              store.selectEdge(null)
+              store.selectGroup(null)
+            }
           } catch {
             void 0
           }
           try {
-            store.requestZoom('selection')
+            if (selectedNodeId || selectedEdgeId || selectedGroupId) store.requestZoom('selection')
           } catch {
             void 0
           }
@@ -553,6 +594,44 @@ export default function CanvasPage() {
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
+  }, [])
+
+  React.useEffect(() => {
+    if (!isEmbeddedPreview) return
+    const parentWin = window.parent
+    if (!parentWin || parentWin === window) return
+
+    const lastSentRef = { hash: '' }
+    const unsubscribe = useGraphStore.subscribe(
+      s => ({ graphData: s.graphData, graphDataRevision: s.graphDataRevision }),
+      next => {
+        if (!next.graphData) return
+        try {
+          const nextHash = hashText(JSON.stringify(next.graphData))
+          if (nextHash === lastInboundPreviewGraphHashRef.current) return
+          if (nextHash === lastSentRef.hash) return
+          lastSentRef.hash = nextHash
+          parentWin.postMessage(
+            {
+              kind: 'kg-preview-graph',
+              payload: {
+                graphData: next.graphData,
+              },
+            },
+            window.location.origin,
+          )
+        } catch {
+          void 0
+        }
+      },
+    )
+    return () => {
+      try {
+        unsubscribe()
+      } catch {
+        void 0
+      }
+    }
   }, [isEmbeddedPreview])
 
   React.useEffect(() => {
@@ -568,7 +647,8 @@ export default function CanvasPage() {
         selectionSource: s.selectionSource,
       }),
       next => {
-        if (next.selectionSource === 'editor') return
+        const nextIdsKey = `${next.selectedNodeId || ''}:${next.selectedEdgeId || ''}:${next.selectedGroupId || ''}`
+        if (next.selectionSource === 'editor' && nextIdsKey === lastInboundPreviewSelectionKeyRef.current) return
         const key = `${next.selectionSource || ''}:${next.selectedNodeId || ''}:${next.selectedEdgeId || ''}:${next.selectedGroupId || ''}`
         if (key === lastRef.key) return
         lastRef.key = key

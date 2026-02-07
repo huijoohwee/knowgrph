@@ -108,6 +108,13 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - The Inspector view must render its layout even with no active selection so the Floating Panel always shows stable structure; inputs may be disabled but the surface must stay visible.
 - Editing a field in the inspector updates RxDB first, then applies a bounded write-through to the graph store to keep `graphDataRevision` and derived render views consistent.
 
+### Node Quick Editor Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
+
+- Node Quick Editor open state is stored in the shared graph view state (`openQuickEditorNodeIds`) and must not be local to a single renderer.
+- Flow Editor canvas and Graph Table Inspector must consult the same open list to render quick editor panels for node rows.
+- Editor Workspace Graph Table must reuse the host `GraphTableInspector` so the quick editor surface is identical across Canvas and Editor.
+- Switching workspace view modes must preserve the open list unless the underlying nodes are removed from `GraphData`.
+
 ### Selection Sync (Table ↔ Preview ↔ TOC)
 
 - Table → Preview: selecting a row sets `selectionSource='table'`; the preview auto-zooms to the corresponding node/edge.

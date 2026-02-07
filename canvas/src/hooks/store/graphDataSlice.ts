@@ -260,6 +260,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         })
       }
     } catch { void 0 }
+    try {
+      get().setOpenQuickEditorNodeIds(get().openQuickEditorNodeIds || [])
+    } catch { void 0 }
     set({ lifecycleStage: 'committed' });
     set({ aiKgTraversalRan: false });
     set({ minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } }, minimapWorkerRef: null });
@@ -353,6 +356,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     } catch {
       void 0
     }
+    try {
+      get().setOpenQuickEditorNodeIds(get().openQuickEditorNodeIds || [])
+    } catch { void 0 }
 
     set({ lifecycleStage: 'committed' })
     try {
@@ -371,6 +377,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       selectedEdgeId: null,
       selectedNodeIds: [],
       selectedEdgeIds: [],
+      openQuickEditorNodeIds: [],
       aiKgTraversalRan: false,
       layoutPositionCacheByMode: {},
       minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } },
@@ -459,6 +466,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       graphValidationStatus: null,
       graphValidationTimestamp: null,
     });
+    try {
+      get().updateOpenQuickEditorNodeIds(prev => prev.filter(nodeId => nodeId !== id))
+    } catch { void 0 }
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
     } catch { void 0 }

@@ -4,6 +4,8 @@ import { UI_COPY } from '@/lib/config'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { useFloatingPropsPanelModel } from '@/features/toolbar/useFloatingPropsPanelModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import NodeQuickEditorPalette from '@/features/toolbar/NodeQuickEditorPalette'
+import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
 
 export function FloatingPropsPanel() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -20,6 +22,15 @@ export function FloatingPropsPanel() {
       s.uiPanelKeyValueInputClass
       || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
+
+  const nodeQuickEditorRegistry = useGraphStore(s => s.nodeQuickEditorRegistry || [])
+  const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
+  const quickEditorPaletteEntries = React.useMemo(
+    () => (Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : []).filter(e => e && e.isEnabled),
+    [nodeQuickEditorRegistry],
+  )
+  const quickEditorDragEnabled = canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor'
 
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
@@ -68,27 +79,12 @@ export function FloatingPropsPanel() {
     doAddMediaNode,
   } = useFloatingPropsPanelModel()
 
-  const MenuButton = ({
-    onClick,
-    children,
-    disabled,
-  }: {
-    onClick: () => void
-    children: React.ReactNode
-    disabled?: boolean
-  }) => (
-    <button
-      type="button"
-      className={`block w-full text-left px-3 py-2 ${UI_THEME_TOKENS.table.rowHover} disabled:opacity-50 disabled:cursor-not-allowed ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.primary}`}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
-  )
-
   return (
     <div className={`min-w-56 ${UI_THEME_TOKENS.panel.bg}`}>
+      <section className="border-b border-[color:var(--kg-border)]" aria-label="Node Quick Editors">
+        <NodeQuickEditorPalette entries={quickEditorPaletteEntries} dragEnabled={quickEditorDragEnabled} />
+      </section>
+
       <CollapsibleSection
         title="Add"
         stickyHeader={false}
@@ -162,21 +158,25 @@ export function FloatingPropsPanel() {
             </select>
           </div>
         </div>
-        <MenuButton onClick={doAddNode}>
+        <FloatingPropsPanelMenuButton onClick={doAddNode} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelAddNode}
-        </MenuButton>
-        <MenuButton
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton
           onClick={doAddNodePlusEdgeFromSelected}
           disabled={!canUseNodeContext}
+          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+          uiPanelTextFontClass={uiPanelTextFontClass}
         >
           {UI_COPY.propsPanelAddNodeAndEdgeFromSelected}
-        </MenuButton>
-        <MenuButton
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton
           onClick={doStartEdgeFromSelected}
           disabled={!canUseNodeContext}
+          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+          uiPanelTextFontClass={uiPanelTextFontClass}
         >
           {UI_COPY.propsPanelStartEdgeFromSelected}
-        </MenuButton>
+        </FloatingPropsPanelMenuButton>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -185,30 +185,30 @@ export function FloatingPropsPanel() {
         className="mt-0 border-t-0 pt-0"
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
-        <MenuButton onClick={doOpenNodeSide} disabled={!canUseNodeContext}>
+        <FloatingPropsPanelMenuButton onClick={doOpenNodeSide} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelOpenInSidePanel}
-        </MenuButton>
-        <MenuButton onClick={doOpenNodeNodesTab} disabled={!canUseNodeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doOpenNodeNodesTab} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelOpenInNodesTab}
-        </MenuButton>
-        <MenuButton onClick={doOpenNodeCodeTab} disabled={!canUseNodeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doOpenNodeCodeTab} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelOpenInEditor}
-        </MenuButton>
-        <MenuButton onClick={doShowNodeInMarkdown} disabled={!canUseNodeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doShowNodeInMarkdown} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelShowInMarkdown}
-        </MenuButton>
-        <MenuButton onClick={doAddToChat} disabled={!canUseNodeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doAddToChat} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelAddToChat}
-        </MenuButton>
-        <MenuButton onClick={doStartEdgeFromNode} disabled={!canUseNodeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doStartEdgeFromNode} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelStartEdgeFromNode}
-        </MenuButton>
-        <MenuButton onClick={doCreateNodeAndEdge} disabled={!canUseNodeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doCreateNodeAndEdge} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelCreateNodeAndEdgeSelectToEdit}
-        </MenuButton>
-        <MenuButton onClick={doDeleteNode} disabled={!canUseNodeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doDeleteNode} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelDeleteNode}
-        </MenuButton>
+        </FloatingPropsPanelMenuButton>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -341,15 +341,17 @@ export function FloatingPropsPanel() {
             </div>
           </div>
         </div>
-        <MenuButton onClick={doUpdateMedia} disabled={!canUseNodeContext}>
+        <FloatingPropsPanelMenuButton onClick={doUpdateMedia} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           Update Media
-        </MenuButton>
-        <MenuButton
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton
           onClick={doAddMediaNode}
           disabled={!mediaUrl.trim()}
+          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+          uiPanelTextFontClass={uiPanelTextFontClass}
         >
           Add Media Node
-        </MenuButton>
+        </FloatingPropsPanelMenuButton>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -358,30 +360,30 @@ export function FloatingPropsPanel() {
         className="mt-0 border-t-0 pt-0"
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
-        <MenuButton onClick={doAddToChat} disabled={!canUseEdgeContext}>
+        <FloatingPropsPanelMenuButton onClick={doAddToChat} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelAddToChat}
-        </MenuButton>
-        <MenuButton onClick={doOpenSourceSide} disabled={!canUseEdgeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doOpenSourceSide} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelOpenSourceInSidePanel}
-        </MenuButton>
-        <MenuButton onClick={doOpenTargetSide} disabled={!canUseEdgeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doOpenTargetSide} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelOpenTargetInSidePanel}
-        </MenuButton>
-        <MenuButton onClick={doUpdateSource} disabled={!canUseEdgeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doUpdateSource} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelUpdateSource}
-        </MenuButton>
-        <MenuButton onClick={doUpdateTarget} disabled={!canUseEdgeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doUpdateTarget} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelUpdateTarget}
-        </MenuButton>
-        <MenuButton onClick={doOpenEdgeEdgesTab} disabled={!canUseEdgeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doOpenEdgeEdgesTab} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelOpenInEdgesTab}
-        </MenuButton>
-        <MenuButton onClick={doOpenEdgeCodeTab} disabled={!canUseEdgeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doOpenEdgeCodeTab} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelOpenInEditor}
-        </MenuButton>
-        <MenuButton onClick={doShowEdgeInMarkdown} disabled={!canUseEdgeContext}>
+        </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelMenuButton onClick={doShowEdgeInMarkdown} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelShowInMarkdown}
-        </MenuButton>
+        </FloatingPropsPanelMenuButton>
       </CollapsibleSection>
     </div>
   )

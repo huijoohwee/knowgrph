@@ -80,16 +80,31 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
         const data = event.data as unknown
         if (!data || typeof data !== 'object') return
         const msg = data as { kind?: unknown; payload?: unknown }
-        if (msg.kind !== 'kg-preview-selection') return
-        const payload = msg.payload as { selectedNodeId?: unknown; selectedEdgeId?: unknown; selectedGroupId?: unknown }
-        const nextNodeId = typeof payload.selectedNodeId === 'string' ? payload.selectedNodeId : ''
-        const nextEdgeId = typeof payload.selectedEdgeId === 'string' ? payload.selectedEdgeId : ''
-        const nextGroupId = typeof payload.selectedGroupId === 'string' ? payload.selectedGroupId : ''
-        const store = useGraphStore.getState()
-        store.setSelectionSource('canvas')
-        if (nextNodeId) store.selectNode(nextNodeId)
-        else if (nextEdgeId) store.selectEdge(nextEdgeId)
-        else if (nextGroupId) store.selectGroup(nextGroupId)
+        if (msg.kind === 'kg-preview-selection') {
+          const payload = msg.payload as { selectedNodeId?: unknown; selectedEdgeId?: unknown; selectedGroupId?: unknown }
+          const nextNodeId = typeof payload.selectedNodeId === 'string' ? payload.selectedNodeId : ''
+          const nextEdgeId = typeof payload.selectedEdgeId === 'string' ? payload.selectedEdgeId : ''
+          const nextGroupId = typeof payload.selectedGroupId === 'string' ? payload.selectedGroupId : ''
+          const store = useGraphStore.getState()
+          store.setSelectionSource('canvas')
+          if (nextNodeId) store.selectNode(nextNodeId)
+          else if (nextEdgeId) store.selectEdge(nextEdgeId)
+          else if (nextGroupId) store.selectGroup(nextGroupId)
+          else {
+            store.selectNode(null)
+            store.selectEdge(null)
+            store.selectGroup(null)
+          }
+          return
+        }
+
+        if (msg.kind === 'kg-preview-graph') {
+          const payload = msg.payload as { graphData?: unknown }
+          if (!payload || !payload.graphData) return
+          const store = useGraphStore.getState()
+          const setGraphData = store.setGraphData
+          if (typeof setGraphData === 'function') setGraphData(payload.graphData as never)
+        }
       } catch {
         void 0
       }
@@ -114,4 +129,3 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
     />
   )
 }
-

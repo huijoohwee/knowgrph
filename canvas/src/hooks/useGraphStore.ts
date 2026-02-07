@@ -11,6 +11,7 @@ import { createGraphViewSlice } from '@/hooks/store/graphViewSlice';
 import { createSchemaSlice, readSchemaFromStorage } from '@/hooks/store/schemaSlice';
 import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
 import { createUiToastSlice } from '@/hooks/store/uiToastSlice';
+import { createUiLogSlice } from '@/hooks/store/uiLogSlice'
 import { createFlowEditorManagerSlice } from '@/hooks/store/flowEditorManagerSlice'
 import { createSourceFilesSlice } from '@/hooks/store/sourceFilesSlice';
 import { createLocalMarkdownFolderSlice } from '@/hooks/store/localMarkdownFolderSlice'
@@ -123,6 +124,7 @@ export const useGraphStore = create<GraphState>()(
       selectedEdgeIds: [],
       selectedGroupIds: [],
       collapsedGroupIds: [],
+      openQuickEditorNodeIds: [],
       graphFieldsOpOk: null,
       graphFieldsOpMsg: '',
       orchestratorOpOk: null,
@@ -132,6 +134,7 @@ export const useGraphStore = create<GraphState>()(
       lifecycleStage: 'idle',
       documentSemanticMode: 'document',
       frontmatterModeEnabled: true,
+      uiLogEntries: [],
     });
   },
   ...createUiSettingsSlice(set, get),
@@ -142,6 +145,7 @@ export const useGraphStore = create<GraphState>()(
   ...createHistorySlice(set, get),
   ...createUiSlice(set),
   ...createUiToastSlice(set),
+  ...createUiLogSlice(set),
   ...createFlowEditorManagerSlice(set, get),
   ...createSourceFilesSlice(set, get, api),
   ...createLocalMarkdownFolderSlice(set, get, api),

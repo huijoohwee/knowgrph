@@ -22,6 +22,7 @@ import {
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { getObjectPath, setObjectPath } from '@/lib/data/objectPath'
+import { PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -33,6 +34,10 @@ function pickBool(v: unknown): boolean {
 
 function pickNumber(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
+function cleanDomIdPart(v: unknown): string {
+  return String(typeof v === 'string' ? v : '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
 }
 
 export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
@@ -69,12 +74,35 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()
   const properties = (node.properties || {}) as Record<string, unknown>
   const nodeTypeId = pickString(node.type).trim()
+  const idBase = React.useMemo(() => {
+    const nodeId = cleanDomIdPart(node.id) || 'node'
+    return `flow-node-quick-${nodeId}`
+  }, [node.id])
+
+  const ids = React.useMemo(() => {
+    return {
+      label: `${idBase}-label`,
+      type: `${idBase}-type`,
+      model: `${idBase}-model`,
+      prompt: `${idBase}-prompt`,
+      aspect: `${idBase}-aspect`,
+      duration: `${idBase}-duration`,
+      resolution: `${idBase}-resolution`,
+      generateAudio: `${idBase}-generate-audio`,
+      fast: `${idBase}-fast`,
+      referenceImage: `${idBase}-reference-image`,
+      registrySelect: `${idBase}-registry-select`,
+      registryField: (fieldKey: string) => `${idBase}-registry-field-${cleanDomIdPart(fieldKey) || 'field'}`,
+      portHandle: (portKey: string, dir: 'in' | 'out') => `${idBase}-port-${dir}-${cleanDomIdPart(portKey) || 'port'}`,
+    }
+  }, [idBase])
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled)
-  const portHandleSize = schema?.behavior?.portHandles?.size
-  const dotSizePx = typeof portHandleSize === 'number' && Number.isFinite(portHandleSize) ? Math.max(10, Math.floor(portHandleSize * 2 + 4)) : 12
-  const dotHitPx = Math.max(18, dotSizePx + 8)
+  const { sizePx: dotSizePx, hitSizePx: dotHitPx } = React.useMemo(() => {
+    const m = readPortHandleUiMetrics(schema)
+    return { sizePx: Math.max(10, m.sizePx), hitSizePx: Math.max(18, m.hitSizePx + 2) }
+  }, [schema])
 
   const model = pickString(properties.model)
   const prompt = pickString(properties.prompt)
@@ -137,12 +165,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           {UI_LABELS.flowNodeQuickEditorNodeLegend}
         </legend>
 
-        <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-label">
+        <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.label}>
           {UI_LABELS.name}
         </label>
         <input
           ref={labelInputRef}
-          id="flow-node-quick-label"
+          id={ids.label}
           className={cn(
             'mt-1 w-full h-8 rounded-md',
             keyValueInputClass,
@@ -157,11 +185,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           disabled={!active}
         />
 
-        <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-type">
+        <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.type}>
           {UI_LABELS.type}
         </label>
         <input
-          id="flow-node-quick-type"
+          id={ids.type}
           className={cn(
             'mt-1 w-full h-8 rounded-md',
             keyValueInputClass,
@@ -183,11 +211,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             {UI_LABELS.flowNodeQuickEditorSmartFieldsLegend}
           </legend>
 
-          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-model">
+          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.model}>
             {UI_LABELS.flowNodeQuickEditorModel}
           </label>
           <select
-            id="flow-node-quick-model"
+            id={ids.model}
             className={cn(
               'mt-1 w-full h-9 rounded-md',
               keyValueInputClass,
@@ -211,11 +239,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             ))}
           </select>
 
-          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-prompt">
+          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.prompt}>
             {UI_LABELS.flowNodeQuickEditorPrompt}
           </label>
           <textarea
-            id="flow-node-quick-prompt"
+            id={ids.prompt}
             className={cn(
               'mt-1 w-full h-32 px-2 py-1 rounded-md border',
               monospaceTextClass,
@@ -228,11 +256,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             disabled={!active}
           />
 
-          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-aspect">
+          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.aspect}>
             {UI_LABELS.flowNodeQuickEditorAspectRatio}
           </label>
           <select
-            id="flow-node-quick-aspect"
+            id={ids.aspect}
             className={cn(
               'mt-1 w-full h-9 rounded-md',
               keyValueInputClass,
@@ -258,11 +286,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             ))}
           </select>
 
-          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-duration">
+          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.duration}>
             {UI_LABELS.flowNodeQuickEditorDuration}
           </label>
           <select
-            id="flow-node-quick-duration"
+            id={ids.duration}
             className={cn(
               'mt-1 w-full h-9 rounded-md',
               keyValueInputClass,
@@ -287,11 +315,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             ))}
           </select>
 
-          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-resolution">
+          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.resolution}>
             {UI_LABELS.flowNodeQuickEditorResolution}
           </label>
           <select
-            id="flow-node-quick-resolution"
+            id={ids.resolution}
             className={cn(
               'mt-1 w-full h-9 rounded-md',
               keyValueInputClass,
@@ -315,9 +343,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             ))}
           </select>
 
-          <label className={cn('mt-3 flex items-center gap-2', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-audio">
+          <label className={cn('mt-3 flex items-center gap-2', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.generateAudio}>
             <input
-              id="flow-node-quick-audio"
+              id={ids.generateAudio}
               type="checkbox"
               checked={generateAudio}
               onChange={e => onPatchProperties({ generate_audio: e.target.checked })}
@@ -326,9 +354,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             {UI_LABELS.flowNodeQuickEditorGenerateAudio}
           </label>
 
-          <label className={cn('mt-2 flex items-center gap-2', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-fast">
+          <label className={cn('mt-2 flex items-center gap-2', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.fast}>
             <input
-              id="flow-node-quick-fast"
+              id={ids.fast}
               type="checkbox"
               checked={fast}
               onChange={e => onPatchProperties({ fast: e.target.checked })}
@@ -337,11 +365,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             {UI_LABELS.flowNodeQuickEditorFast}
           </label>
 
-          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-ref">
+          <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.referenceImage}>
             {UI_LABELS.flowNodeQuickEditorReferenceImage}
           </label>
           <input
-            id="flow-node-quick-ref"
+            id={ids.referenceImage}
             className={cn(
               'mt-1 w-full h-8 rounded-md',
               keyValueInputClass,
@@ -363,11 +391,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         <legend className={cn(microLabelClass, 'font-medium', UI_THEME_TOKENS.text.secondary)}>
           {UI_LABELS.flowEditorMapping}
         </legend>
-        <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-node-quick-registry">
+        <label className={cn('mt-2 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.registrySelect}>
           {UI_LABELS.flowNodeQuickEditor}
         </label>
         <select
-          id="flow-node-quick-registry"
+          id={ids.registrySelect}
           className={cn(
             'mt-1 w-full h-9 rounded-md',
             keyValueInputClass,
@@ -413,7 +441,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                 const cur = path ? getObjectPath({ properties }, path) : undefined
                 const label = String(f.label || f.fieldKey)
                 const fieldType = String(f.fieldType || '').trim().toLowerCase()
-                const id = `flow-node-quick-registry-field-${String(f.fieldKey || idx).replace(/[^a-zA-Z0-9_-]/g, '_')}`
+                const id = ids.registryField(String(f.fieldKey || idx))
 
                 const setValue = (nextValue: unknown) => {
                   if (!path) return
@@ -556,7 +584,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                           }}
                           disabled={!active || !portHandlesEnabled}
                         >
-                          <span aria-hidden={true} className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.input.border)} style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }} />
+                          <span aria-hidden={true} className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, PORT_HANDLE_STROKE_CLASS)} style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }} />
                         </button>
                       ) : null}
 
@@ -580,7 +608,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                           }}
                           disabled={!active || !portHandlesEnabled}
                         >
-                          <span aria-hidden={true} className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.input.border)} style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }} />
+                          <span aria-hidden={true} className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, PORT_HANDLE_STROKE_CLASS)} style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }} />
                         </button>
                       ) : null}
                     </li>
@@ -638,7 +666,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     >
                       <span
                         aria-hidden={true}
-                        className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.input.border)}
+                        className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, PORT_HANDLE_STROKE_CLASS)}
                         style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
                       />
                     </button>
@@ -674,7 +702,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     >
                       <span
                         aria-hidden={true}
-                        className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.input.border)}
+                        className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, PORT_HANDLE_STROKE_CLASS)}
                         style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
                       />
                     </button>

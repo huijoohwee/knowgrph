@@ -59,6 +59,23 @@ export type UiToastInput = {
   dismissible?: boolean
 }
 
+export type UiLogKind = UiToastKind
+
+export type UiLogEntry = {
+  id: string
+  kind: UiLogKind
+  message: string
+  tsMs: number
+  source: string | null
+}
+
+export type UiLogEntryInput = {
+  kind?: UiLogKind
+  message: string
+  tsMs?: number
+  source?: string | null
+}
+
 export type GraphHoverPreviewConfig = {
   showNodeId: boolean;
   showNodeName: boolean;
@@ -142,6 +159,7 @@ export interface GraphState {
   selectedEdgeIds: string[];
   selectedGroupIds: string[];
   collapsedGroupIds: string[];
+  openQuickEditorNodeIds: string[];
   graphFieldsOpOk: boolean | null;
   graphFieldsOpMsg: string;
   orchestratorOpOk: boolean | null;
@@ -204,6 +222,8 @@ export interface GraphState {
   setCollapsedGroupIds: (ids: string[]) => void;
   clearCollapsedGroups: () => void;
   toggleGroupCollapsed: (id: string) => void;
+  setOpenQuickEditorNodeIds: (ids: string[]) => void;
+  updateOpenQuickEditorNodeIds: (updater: (prev: string[]) => string[]) => void;
   setEditMode: (mode: boolean) => void;
   setWorkspaceViewMode: (mode: WorkspaceViewMode) => void;
   toggleWorkspaceViewMode: () => void;
@@ -266,6 +286,9 @@ export interface GraphState {
   upsertUiToast: (toast: UiToastInput) => void;
   dismissUiToast: (id: string) => void;
   pruneUiToasts: (nowMs: number) => void;
+  uiLogEntries: UiLogEntry[];
+  pushUiLog: (entry: UiLogEntryInput) => void;
+  clearUiLog: () => void;
   mediaNodeOpacity: number;
   chatEndpointUrl: string | null;
   chatModel: string | null;

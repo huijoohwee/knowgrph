@@ -182,6 +182,7 @@ import {
   testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride,
   testFlowNodeQuickEditorRegistryResolvePrefersDefault,
 } from '@/__tests__/flowNodeQuickEditorRegistryResolve.test'
+import { testNodeQuickEditorBundleRoundtripParsesWithRegistryMetadata } from '@/__tests__/nodeQuickEditorBundleRoundtrip.test'
 import {
   testFlowPortHandlesCanBeHiddenForSelectedNodesWhenRequested,
   testFlowPortHandlesRenderWhenSelectedNodeGlyphHidden,
@@ -246,6 +247,13 @@ import { testFlowNodeQuickEditorTypographyInheritsPanelSettings } from '@/__test
 import { testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel } from '@/__tests__/flowNodeQuickEditorZoomRerenderGuard.test'
 import { testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled } from '@/__tests__/flowNodeQuickEditorPortHandleGutter.test'
 import { testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles } from '@/__tests__/flowNodeQuickEditorSchemaFieldPorts.test'
+import {
+  testFlowNodeQuickEditorDragPayloadReadsFromApplicationJsonFallback,
+  testFlowNodeQuickEditorDragPayloadReadsFromTextPlainFallback,
+  testFlowNodeQuickEditorDragPayloadReadsFromUriListFallback,
+  testFlowNodeQuickEditorDragPayloadReturnsNullWhenMissing,
+  testFlowNodeQuickEditorDragPayloadRoundTrip,
+} from '@/__tests__/flowNodeQuickEditorDrag.test'
 import { testCanvasWheelIgnoreOverlayPreventsZoom } from '@/__tests__/canvasWheelIgnoreOverlay.test'
 import { testCanvasEventCoordsFallsBackToClientRect, testCanvasEventCoordsPrefersOffsetXY } from '@/__tests__/canvasEventCoords.test'
 import { testFlowRelaxStepPolicyBoundedAndMonotonic } from '@/__tests__/flowRelaxStepPolicy.test'
@@ -309,6 +317,8 @@ import { testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile } from '@/_
 import { testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles } from '@/__tests__/workspaceSeedPersistence.test'
 import {
   testEmbeddedEditorShellRendersCanvasPreviewIframe,
+  testEmbeddedPreviewGraphUpdatesApplyToParentStore,
+  testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted,
   testToolbarEditorButtonTogglesWorkspaceViewMode,
 } from '@/__tests__/embeddedEditorMode.test'
 import {
@@ -488,6 +498,11 @@ export const runAllTests = async () => {
 
   await exec('toolbar.editorToggle.togglesWorkspaceViewMode', testToolbarEditorButtonTogglesWorkspaceViewMode)
   await exec('editorShell.rendersCanvasPreviewIframe', testEmbeddedEditorShellRendersCanvasPreviewIframe)
+  await exec(
+    'ui.editorWorkspace.inspector.usesSelectionInspectorWhenFlowEditorNotMounted',
+    testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted,
+  )
+  await exec('ui.editorWorkspace.previewGraphUpdates.applyToParentStore', testEmbeddedPreviewGraphUpdatesApplyToParentStore)
 
   await exec('modeLock.baseline.guardsModeSwitches', testDocumentStructureBaselineLockGuardsModeSwitches)
 
@@ -496,6 +511,12 @@ export const runAllTests = async () => {
   await exec('ui.flowNodeQuickEditor.zoomUpdates.noRerender', testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel)
   await exec('ui.flowNodeQuickEditor.portHandles.gutterRendersWhenEnabled', testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled)
   await exec('ui.flowNodeQuickEditor.schemaFieldPorts.renderRowHandles', testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles)
+  await exec('dnd.flowNodeQuickEditorDragPayload.roundTrip', testFlowNodeQuickEditorDragPayloadRoundTrip)
+  await exec('dnd.flowNodeQuickEditorDragPayload.missingReturnsNull', testFlowNodeQuickEditorDragPayloadReturnsNullWhenMissing)
+  await exec('dnd.flowNodeQuickEditorDragPayload.applicationJsonFallback', testFlowNodeQuickEditorDragPayloadReadsFromApplicationJsonFallback)
+  await exec('dnd.flowNodeQuickEditorDragPayload.textPlainFallback', testFlowNodeQuickEditorDragPayloadReadsFromTextPlainFallback)
+  await exec('dnd.flowNodeQuickEditorDragPayload.uriListFallback', testFlowNodeQuickEditorDragPayloadReadsFromUriListFallback)
+  await exec('io.nodeQuickEditorBundle.roundtrip.includesRegistryMetadata', testNodeQuickEditorBundleRoundtripParsesWithRegistryMetadata)
   await exec('ui.wheelIgnore.overlay.preventsCanvasZoom', testCanvasWheelIgnoreOverlayPreventsZoom)
   await exec('ui.canvasEventCoords.prefersOffsetXY', testCanvasEventCoordsPrefersOffsetXY)
   await exec('ui.canvasEventCoords.fallsBackToClientRect', testCanvasEventCoordsFallsBackToClientRect)

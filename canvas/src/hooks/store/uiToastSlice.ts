@@ -1,4 +1,5 @@
 import type { GraphState, UiToast, UiToastInput } from '@/hooks/store/types'
+import { createId } from '@/lib/id'
 
 const MAX_TOASTS = 3
 const DEFAULT_TTL_MS = 10_000
@@ -38,6 +39,21 @@ const buildToast = (input: UiToastInput, nowMs: number): UiToast => {
   return { id, kind, message, createdAtMs: nowMs, expiresAtMs, dismissible }
 }
 
+const appendToastLog = (args: { state: GraphState; toast: UiToast; source: string }): Partial<GraphState> => {
+  const cur = args.state.uiLogEntries || []
+  const next = [
+    {
+      id: createId('log'),
+      kind: args.toast.kind,
+      message: args.toast.message,
+      tsMs: args.toast.createdAtMs,
+      source: args.source,
+    },
+    ...cur,
+  ].slice(0, 250)
+  return { uiLogEntries: next }
+}
+
 export const createUiToastSlice = (
   set: (fn: (state: GraphState) => Partial<GraphState>) => void,
 ): Pick<GraphState, 'uiToasts' | 'pushUiToast' | 'upsertUiToast' | 'dismissUiToast' | 'pruneUiToasts'> => {
@@ -53,7 +69,7 @@ export const createUiToastSlice = (
         const cur = state.uiToasts || []
         const deduped = cur.filter(t => t.id !== id)
         const next = [nextToast, ...deduped].slice(0, MAX_TOASTS)
-        return { uiToasts: next }
+        return { uiToasts: next, ...appendToastLog({ state, toast: nextToast, source: 'toast:push' }) }
       })
     },
     upsertUiToast: (toast) => {
@@ -68,7 +84,7 @@ export const createUiToastSlice = (
         if (idx < 0) {
           const deduped = cur.filter(t => t.id !== id)
           const next = [nextToast, ...deduped].slice(0, MAX_TOASTS)
-          return { uiToasts: next }
+          return { uiToasts: next, ...appendToastLog({ state, toast: nextToast, source: 'toast:upsert' }) }
         }
         const prev = cur[idx]
         const ttlMs = nextToast.expiresAtMs == null ? null : Math.max(0, nextToast.expiresAtMs - nowMs)
@@ -81,7 +97,10 @@ export const createUiToastSlice = (
           expiresAtMs: nextExpiresAtMs,
         }
         const rest = cur.filter(t => t.id !== id)
-        return { uiToasts: [merged, ...rest].slice(0, MAX_TOASTS) }
+        return {
+          uiToasts: [merged, ...rest].slice(0, MAX_TOASTS),
+          ...appendToastLog({ state, toast: nextToast, source: 'toast:upsert' }),
+        }
       })
     },
     dismissUiToast: (id) => {

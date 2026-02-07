@@ -42,12 +42,21 @@ export async function testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel() {
         React.createElement(NodeOverlayEditor, {
           active: true,
           node: { id: 'n1', label: 'node', type: 'Anchor', x: 10, y: 10, properties: {} },
+          edges: [],
           viewportW: 800,
           viewportH: 600,
           onSetLabel: () => void 0,
           onSetType: () => void 0,
           onPatchProperties: () => void 0,
+          onSetProperties: () => void 0,
           onValidate: () => void 0,
+          onDuplicate: () => void 0,
+          onRemove: () => void 0,
+          onClearOutput: () => void 0,
+          onHelp: () => void 0,
+          onConvertToLoopNode: () => void 0,
+          onTogglePortHandles: () => void 0,
+          onEnableHandlesForAllInputs: () => void 0,
         } as never),
       ),
     )
@@ -60,8 +69,9 @@ export async function testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel() {
       })
 
     await tick()
+    await tick()
 
-    const panel = container.querySelector('aside[data-kg-canvas-wheel-ignore="true"]')
+    const panel = document.body.querySelector('aside[data-kg-canvas-wheel-ignore="true"]')
     if (!panel) throw new Error('expected quick editor to render an overlay aside')
     const initialTransform = String((panel as HTMLElement).style.transform || '')
     const initialCommits = commits
@@ -87,4 +97,3 @@ export async function testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel() {
     restoreWindow()
   }
 }
-

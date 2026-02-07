@@ -14,6 +14,13 @@ const normalizeIds = (ids: string[]): string[] => {
   return Array.from(unique).sort((a, b) => a.localeCompare(b))
 }
 
+const normalizeOpenQuickEditorNodeIds = (ids: string[], graphData: GraphState['graphData'] | null): string[] => {
+  const normalized = normalizeIds(Array.isArray(ids) ? ids : [])
+  if (!graphData) return normalized
+  const nodeIds = new Set<string>((graphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
+  return normalized.filter(id => nodeIds.has(id))
+}
+
 export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
   collapsedGroupIds: [] as string[],
   setCollapsedGroupIds: (ids: string[]) => {
@@ -37,5 +44,17 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
       return { collapsedGroupIds: normalizeIds(next) }
     })
   },
+  openQuickEditorNodeIds: [] as string[],
+  setOpenQuickEditorNodeIds: (ids: string[]) => {
+    const next = normalizeOpenQuickEditorNodeIds(ids, get().graphData)
+    const prev = get().openQuickEditorNodeIds || []
+    if (prev.length === next.length && prev.every((v, i) => v === next[i])) return
+    set({ openQuickEditorNodeIds: next })
+  },
+  updateOpenQuickEditorNodeIds: (updater: (prev: string[]) => string[]) => {
+    const prev = get().openQuickEditorNodeIds || []
+    const next = normalizeOpenQuickEditorNodeIds(updater([...prev]), get().graphData)
+    if (prev.length === next.length && prev.every((v, i) => v === next[i])) return
+    set({ openQuickEditorNodeIds: next })
+  },
 })
-

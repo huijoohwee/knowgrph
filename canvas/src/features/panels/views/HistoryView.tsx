@@ -11,6 +11,8 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { RecentFileEntry } from '@/hooks/store/types'
 
+type HistorySubTab = 'history' | 'log'
+
 function getFileIcon(type: RecentFileEntry['type']) {
   switch (type) {
     case 'json':
@@ -36,9 +38,12 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
     undoHistory,
     redoHistory,
     restoreHistory,
+    uiLogEntries,
+    clearUiLog,
     uiIconScale,
     uiIconStrokeWidth,
   } = useGraphStore()
+  const [tab, setTab] = React.useState<HistorySubTab>('history')
   const normalizedQuery = normalizeText(searchQuery).trim()
   const filteredHistory = React.useMemo(
     () =>
@@ -60,6 +65,11 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
         : recentFiles,
     [recentFiles, normalizedQuery],
   )
+  const filteredLog = React.useMemo(() => {
+    const rows = Array.isArray(uiLogEntries) ? uiLogEntries : []
+    if (!normalizedQuery) return rows
+    return rows.filter(r => normalizeText([r.kind, r.message, String(r.tsMs), r.source || ''].join(' ')).includes(normalizedQuery))
+  }, [normalizedQuery, uiLogEntries])
 
   const applySnapshot = React.useCallback(() => { addHistory('Manual Snapshot') }, [addHistory])
   const iconSizeClass = getIconSizeClass(uiIconScale)
@@ -77,20 +87,47 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
   return (
     <article className="h-full flex flex-col">
       <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border}`}>
-        <div className="flex items-center gap-2">
-          <IconButton className="App-toolbar__btn" title={UI_LABELS.undo} onClick={() => undoHistory()} showTooltip>
-            <ResetIcon className={`${iconSizeClass} rotate-180`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-          </IconButton>
-          <IconButton className="App-toolbar__btn" title={UI_LABELS.redo} onClick={() => redoHistory()} showTooltip>
-            <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-          </IconButton>
-          <IconButton className="App-toolbar__btn" title="Snapshot" onClick={applySnapshot} showTooltip>
-            <SaveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-          </IconButton>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <IconButton className="App-toolbar__btn" title={UI_LABELS.undo} onClick={() => undoHistory()} showTooltip>
+              <ResetIcon className={`${iconSizeClass} rotate-180`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+            </IconButton>
+            <IconButton className="App-toolbar__btn" title={UI_LABELS.redo} onClick={() => redoHistory()} showTooltip>
+              <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+            </IconButton>
+            <IconButton className="App-toolbar__btn" title="Snapshot" onClick={applySnapshot} showTooltip>
+              <SaveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+            </IconButton>
+            {tab === 'log' && (
+              <IconButton className="App-toolbar__btn" title={UI_LABELS.clear} onClick={() => clearUiLog()} showTooltip>
+                <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
+            )}
+          </div>
+          <nav className="flex items-center gap-1" aria-label="History tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'history'}
+              className={`App-toolbar__btn ${tab === 'history' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+              onClick={() => setTab('history')}
+            >
+              {UI_LABELS.history}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'log'}
+              className={`App-toolbar__btn ${tab === 'log' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+              onClick={() => setTab('log')}
+            >
+              {UI_LABELS.log}
+            </button>
+          </nav>
         </div>
       </header>
       <section className="flex-1 overflow-auto px-3 py-2 space-y-6">
-        {filteredRecent.length > 0 && (
+        {tab === 'history' && filteredRecent.length > 0 && (
           <div>
             <h3 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.secondary} mb-2 uppercase tracking-wider`}>
               Recent Files
@@ -120,7 +157,8 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
           </div>
         )}
 
-        <div>
+        {tab === 'history' && (
+          <div>
           <h3 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.secondary} mb-2 uppercase tracking-wider`}>
             Edit History
           </h3>
@@ -151,7 +189,32 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
               ))}
             </ul>
           )}
-        </div>
+          </div>
+        )}
+
+        {tab === 'log' && (
+          <div>
+            <h3 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.secondary} mb-2 uppercase tracking-wider`}>
+              {UI_LABELS.log}
+            </h3>
+            {filteredLog.length === 0 ? (
+              <div className={`px-3 py-2 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>No log entries.</div>
+            ) : (
+              <ul className="space-y-1">
+                {filteredLog.map(row => (
+                  <li key={row.id} className={`px-3 py-2 text-sm rounded hover:${UI_THEME_TOKENS.table.rowHover}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`${UI_THEME_TOKENS.text.tertiary} text-xs`}>{formatTimestamp(row.tsMs)}</span>
+                      <span className={`${UI_THEME_TOKENS.text.secondary} text-xs`}>{row.kind}</span>
+                    </div>
+                    <div className={`${UI_THEME_TOKENS.text.primary} break-words`}>{row.message}</div>
+                    {row.source && <div className={`${UI_THEME_TOKENS.text.tertiary} text-xs`}>{row.source}</div>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </section>
     </article>
   )
