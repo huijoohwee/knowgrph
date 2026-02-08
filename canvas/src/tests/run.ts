@@ -149,6 +149,7 @@ import {
   testNormalizeWorkspacePathCollapsesExtraSlashes,
   testWorkspaceImportSkipsUnsupportedFilesButContinues,
 } from '@/__tests__/workspaceImportLocal.test'
+import { testEditorWorkspaceImportForcesDocumentModeForGraphFiles } from '@/__tests__/editorWorkspaceImportSemanticMode.test'
 import { testWorkspaceFsChangedBatchCoalescesNotifications } from '@/__tests__/workspaceFsEventsBatch.test'
 import { testWorkspaceFsMemoryInitialEntries } from '@/__tests__/workspaceFsMemoryInitialEntries.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
@@ -178,7 +179,12 @@ import {
 import { testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields } from '@/__tests__/flowSchemaFieldPortKeys.test'
 import { testFlowSchemaPortsBuildDisplayLabel, testFlowSchemaPortsInfluenceEdgeValidation } from '@/__tests__/flowSchemaPortEdgeValidation.test'
 import { testFlowHandlesIncludeRegistryPortsWithoutEdges } from '@/__tests__/flowHandlesRegistryPorts.test'
-import { testFlowDataflowConnectedValuesBySchemaPath } from '@/__tests__/flowDataflowConnectedValues.test'
+import {
+  testFlowDataflowConnectedValuesBySchemaPath,
+  testComputingDataFlowsDemoBundleParsesAndComputes,
+  testFlowDataflowConnectedValuesRgbTransforms,
+  testFlowDataflowConnectedValuesTransformsAndPropagation,
+} from '@/__tests__/flowDataflowConnectedValues.test'
 import {
   testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride,
   testFlowNodeQuickEditorRegistryResolvePrefersDefault,
@@ -564,6 +570,9 @@ export const runAllTests = async () => {
   await exec('schema.flowPorts.label.buildDisplayLabelFromPorts', testFlowSchemaPortsBuildDisplayLabel)
   await exec('flow.handles.registryPorts.presentWithoutEdges', testFlowHandlesIncludeRegistryPortsWithoutEdges)
   await exec('flow.dataflow.connectedValues.bySchemaPath', testFlowDataflowConnectedValuesBySchemaPath)
+  await exec('flow.dataflow.connectedValues.transformsAndPropagation', testFlowDataflowConnectedValuesTransformsAndPropagation)
+  await exec('flow.dataflow.connectedValues.rgbTransforms', testFlowDataflowConnectedValuesRgbTransforms)
+  await exec('flow.dataflow.demo.computingDataFlows.bundleParsesAndComputes', testComputingDataFlowsDemoBundleParsesAndComputes)
   await exec('flow.quickEditor.registry.resolve.prefersDefault', testFlowNodeQuickEditorRegistryResolvePrefersDefault)
   await exec('flow.quickEditor.registry.resolve.honorsNodeOverride', testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride)
   await exec('mainPanel.flowEditorManager.registry.validateAndNormalize', testFlowEditorManagerRegistryValidatesAndNormalizes)
@@ -856,6 +865,7 @@ export const runAllTests = async () => {
   await exec('workspace.import.localFolder', testWorkspaceImportLocalFolderCreatesNestedFolders)
   await exec('workspace.path.normalizeCollapsesSlashes', testNormalizeWorkspacePathCollapsesExtraSlashes)
   await exec('workspace.import.skipsUnsupportedContinues', testWorkspaceImportSkipsUnsupportedFilesButContinues)
+  await exec('workspace.import.semanticMode.forcesDocumentForGraphFiles', testEditorWorkspaceImportForcesDocumentModeForGraphFiles)
 
   await exec('markdown.selectionTarget.emptyDocumentPath', testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument)
   await exec('graph.data.hashIncludesRevision', testGraphDataMetadataHashIncludesRevision)

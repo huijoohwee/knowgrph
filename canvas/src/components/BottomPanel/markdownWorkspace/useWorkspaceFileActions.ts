@@ -21,6 +21,14 @@ import {
 import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsEvents'
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
+
+export function shouldForceDocumentSemanticModeForImport(nameForParse: string): boolean {
+  const lower = String(nameForParse || '').trim().toLowerCase()
+  if (!lower) return false
+  if (isMarkdownLikeFileName(lower)) return false
+  return lower.endsWith('.json') || lower.endsWith('.jsonld') || lower.endsWith('.csv') || lower.endsWith('.geojson') || lower.endsWith('.yaml') || lower.endsWith('.yml')
+}
 
 export function useWorkspaceFileActions(args: {
   getFs: () => Promise<WorkspaceFs>
@@ -81,12 +89,23 @@ export function useWorkspaceFileActions(args: {
       )
       if (!hasAnyGraph) return
 
+      if (shouldForceDocumentSemanticModeForImport(args.nameForParse)) {
+        store.setDocumentSemanticMode('document')
+      }
+
       const meta = (graphData?.metadata || {}) as Record<string, unknown>
       const hasQuickEditorRegistry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
         ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as unknown[]).length > 0
         : false
 
       if (hasQuickEditorRegistry) {
+        const schema = store.schema
+        if (schema) {
+          const { enableHandlesForAllInputsInSchema } =
+            (await import('@/lib/flowEditor/flowEditorActions')) as typeof import('@/lib/flowEditor/flowEditorActions')
+          const res = enableHandlesForAllInputsInSchema(schema)
+          if (res.changed) store.setSchema(res.schema)
+        }
         store.setCanvasRenderMode('2d')
         store.setCanvas2dRenderer('flowEditor')
         store.setWorkspaceViewMode('canvas')

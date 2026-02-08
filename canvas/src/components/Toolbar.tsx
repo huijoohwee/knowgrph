@@ -478,7 +478,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           >
             <MainPanel
               onClose={() => setIsMainPanelOpen(false)}
-              onHeaderDragStart={mainPanelPinned ? handleMainPanelHeaderDragStart : undefined}
+                onHeaderDragStart={!mainPanelPinned ? handleMainPanelHeaderDragStart : undefined}
               requestedTab={mainPanelRequestedTab}
               collapsed={mainPanelCollapsed}
               pinned={mainPanelPinned}

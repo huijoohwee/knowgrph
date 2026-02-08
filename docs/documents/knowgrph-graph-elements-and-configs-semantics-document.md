@@ -64,6 +64,7 @@
   - Connected-data semantics:
     - Connected values are derived from port-bound edges and registry port `schemaPath` (plus optional `schemaMappings`).
     - The UI may surface computed “Connected” hints and an explicit “Apply” action, but the compute pipeline must not silently mutate `GraphData`.
+    - Connected-value computation is shared across Flow Editor and Table Inspector to prevent cross-mode semantic drift.
   - More actions contract:
     - Open in sidepane dispatches the side panel open event (no graph mutation).
     - Enable Handles sets `schema.behavior.portHandles.enabled=true` and `schema.behavior.portHandles.showAllInputs=true` (gated by baseline lock).

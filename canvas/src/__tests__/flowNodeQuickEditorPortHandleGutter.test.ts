@@ -27,7 +27,7 @@ export const testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled = async (
       { style: { position: 'relative', width: 360, height: 320 } },
       React.createElement(NodeOverlayEditorPortHandles, {
         active: true,
-        nodeId: 'n1',
+        node: { id: 'n1', type: 'Node', properties: {} },
         schema,
         edges: [],
         minimized: false,
@@ -46,4 +46,3 @@ export const testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled = async (
 
   root.unmount()
 }
-

@@ -184,6 +184,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
   const updateOpenQuickEditorNodeIds = useGraphStore(s => s.updateOpenQuickEditorNodeIds)
+  const setOpenQuickEditorNodeIds = useGraphStore(s => s.setOpenQuickEditorNodeIds)
   const pinnedToNodeByIdRef = React.useRef<Map<string, boolean>>(new Map())
   const [anyEditorPinnedToNode, setAnyEditorPinnedToNode] = React.useState<boolean>(false)
 
@@ -250,6 +251,28 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const base = baseGraphData as GraphData | null
     setDraftGraphData(prev => (prev === base ? prev : base))
   }, [active, baseGraphData, baseGraphDataRevision])
+
+  const overlayOnlyModeEnabled = React.useMemo(() => {
+    return Array.isArray(nodeQuickEditorRegistry) && nodeQuickEditorRegistry.length > 0
+  }, [nodeQuickEditorRegistry])
+
+  const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
+    if (!overlayOnlyModeEnabled) return undefined
+    const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
+    return nodes.map(n => String((n as { id?: unknown })?.id || '')).filter(Boolean)
+  }, [draftGraphData?.nodes, overlayOnlyModeEnabled])
+
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!overlayOnlyModeEnabled) return
+    if (!draftGraphData) return
+    const nodes = Array.isArray(draftGraphData.nodes) ? (draftGraphData.nodes as GraphNode[]) : []
+    const ids = nodes.map(n => String(n?.id || '').trim()).filter(Boolean)
+    if (ids.length === 0) return
+    if (ids.length > 120) return
+    setOpenQuickEditorNodeIds(ids)
+  }, [active, draftGraphData, overlayOnlyModeEnabled, setOpenQuickEditorNodeIds])
 
   React.useEffect(() => {
     if (!draftGraphData) return
@@ -1366,7 +1389,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!active) return []
     const edges = (draftGraphData?.edges || []) as GraphEdge[]
     const nodes = Array.isArray(draftGraphData?.nodes) ? (draftGraphData?.nodes as GraphNode[]) : []
-    const forcePinnedToNode = overlayEditorNodeIds.length > 1
+    const forcePinnedToNode = !overlayOnlyModeEnabled && overlayEditorNodeIds.length > 1
     const resolveNode = (id: string) => {
       const found = nodes.find(n => String(n.id || '') === id) || null
       if (found) return found
@@ -1503,10 +1526,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         graphDataRevisionOverride={baseGraphDataRevision}
         collisionDuringDrag
         allowNodeDragOverride={anyEditorPinnedToNode ? false : undefined}
-        renderEdges={false}
-        renderGroups={false}
-        renderNodes={false}
-        forbidCircleNodes
+        renderEdges={true}
+        renderGroups={overlayOnlyModeEnabled ? false : true}
+        renderNodes={overlayOnlyModeEnabled ? false : true}
+        hidePortHandleNodeIds={overlayOnlyHidePortHandleNodeIds}
       />
 
       {overlayEditorElements as unknown as React.ReactNode}

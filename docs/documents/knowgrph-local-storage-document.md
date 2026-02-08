@@ -87,11 +87,12 @@
 ## Flow Editor (Node Quick Editor)
 
 - Node Quick Editor overlay state:
-  - `LS_KEYS.flowNodeQuickEditorPinned`
+  - `LS_KEYS.flowNodeQuickEditorPinned` (legacy single-flag; do not use for multi-node overlays)
+  - `LS_KEYS.flowNodeQuickEditorPinnedByNodeId` (per-node pinned-to-node state; pinned locks, unpinned detaches)
   - `LS_KEYS.flowNodeQuickEditorMinimized`
   - `LS_KEYS.flowNodeQuickEditorHideFields`
-  - `LS_KEYS.flowNodeQuickEditorTopPx`
-  - `LS_KEYS.flowNodeQuickEditorLeftPx`
+  - `LS_KEYS.flowNodeQuickEditorTopPx` / `LS_KEYS.flowNodeQuickEditorLeftPx` (legacy single-position; do not use for multi-node overlays)
+  - `LS_KEYS.flowNodeQuickEditorPosByNodeId` (per-node detached position)
 
 ---
 

@@ -84,6 +84,22 @@ When changing shared packages that are wired via `file:` links (for example `cur
 - `Canvas` snapshots `selectedNodeId/selectedNodeIds` back into gympgrph → `applyHostSnapshot` updates gympgrph store
 - `GeospatialOverlay` reacts to `selectedNodeId/selectedNodeIds` → `map.setFilter(GRAPH_SELECTED_LAYER_ID, ...)` highlights the selected node layer
 
+#### Journey 3: Import Quick Editor Bundle → Open Flow Editor → See Port-bound Edges
+
+- Toolbar import action reads local JSON and routes through the shared parser loader:
+  - [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
+  - [importFlow.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importFlow.ts)
+  - [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+- JSON adapter detects `kg:flow:nodeQuickEditorBundle` (kind/version) and writes registry entries to `GraphData.metadata['flow:nodeQuickEditorRegistry']`:
+  - [quickEditorImport.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/quickEditorImport.ts)
+  - [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
+- Store commit applies registry metadata into the Flow Editor Manager snapshot and enables immediate Node Quick Editor rendering:
+  - [graphDataSlice.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSlice.ts)
+  - [graphDataSliceUtils.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSliceUtils.ts)
+- Flow Editor renders the graph using the native Flow renderer (edges are rendered by the same 2D Flow edge path; no overlay-only edge renderer):
+  - [FlowEditorCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/FlowEditorCanvas.tsx)
+  - [FlowCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/FlowCanvas.tsx)
+
 ### Import
 
 - Toolbar import actions read local files/URLs and call the parser loader:

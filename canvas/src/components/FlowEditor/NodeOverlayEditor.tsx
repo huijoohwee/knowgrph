@@ -15,9 +15,8 @@ import {
   UI_SELECTORS,
 } from '@/lib/config'
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
-import { lsBool, lsInt, lsSetBool, lsSetInt } from '@/lib/persistence'
+import { lsBool, lsInt, lsJson, lsSetBool, lsSetJson } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
-import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
@@ -146,43 +145,144 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const cssInitRef = React.useRef(false)
   const pendingClampCommitRef = React.useRef<number | null>(null)
 
-  const { pinned, setPinned } = usePinnedLs(LS_KEYS.flowNodeQuickEditorPinned, false)
+  const nodeId = React.useMemo(() => String(node.id || '').trim(), [node.id])
+
+  const parsePinnedByNodeId = React.useCallback((raw: unknown): Record<string, boolean> | null => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+    const out: Record<string, boolean> = {}
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const id = String(k || '').trim()
+      if (!id) continue
+      out[id] = !!v
+    }
+    return out
+  }, [])
+
+  const parsePosByNodeId = React.useCallback((raw: unknown): Record<string, { top: number; left: number }> | null => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+    const out: Record<string, { top: number; left: number }> = {}
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const id = String(k || '').trim()
+      if (!id) continue
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue
+      const o = v as { top?: unknown; left?: unknown }
+      const top = typeof o.top === 'number' && Number.isFinite(o.top) ? o.top : null
+      const left = typeof o.left === 'number' && Number.isFinite(o.left) ? o.left : null
+      if (top == null || left == null) continue
+      out[id] = { top, left }
+    }
+    return out
+  }, [])
+
+  const readLockedToNode = React.useCallback(
+    (id: string): boolean => {
+      if (!id) return false
+      const map = lsJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {} as Record<string, boolean>, parsePinnedByNodeId)
+      const v = map[id]
+      return typeof v === 'boolean' ? v : false
+    },
+    [parsePinnedByNodeId],
+  )
+
+  const [lockedToNode, setLockedToNodeState] = React.useState<boolean>(() => readLockedToNode(nodeId))
+
+  React.useEffect(() => {
+    setLockedToNodeState(readLockedToNode(nodeId))
+  }, [nodeId, readLockedToNode])
+
+  const setLockedToNode = React.useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) => {
+      setLockedToNodeState(prev => {
+        const resolved = typeof next === 'function' ? (next as (v: boolean) => boolean)(prev) : next
+        const map = lsJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {} as Record<string, boolean>, parsePinnedByNodeId)
+        const out = nodeId ? { ...map, [nodeId]: !!resolved } : map
+        if (nodeId) lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, out)
+        return !!resolved
+      })
+    },
+    [nodeId, parsePinnedByNodeId],
+  )
+
   const [minimized, setMinimized] = React.useState<boolean>(() => lsBool(LS_KEYS.flowNodeQuickEditorMinimized, false))
   const [hideFields, setHideFields] = React.useState<boolean>(() => lsBool(LS_KEYS.flowNodeQuickEditorHideFields, false))
-  const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => lsInt(LS_KEYS.flowNodeQuickEditorTopPx, 48))
-  const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => lsInt(LS_KEYS.flowNodeQuickEditorLeftPx, 16))
+
+  const readFloatingPos = React.useCallback(
+    (id: string): { top: number; left: number } => {
+      if (!id) return { top: 48, left: 16 }
+      const map = lsJson(
+        LS_KEYS.flowNodeQuickEditorPosByNodeId,
+        {} as Record<string, { top: number; left: number }>,
+        parsePosByNodeId,
+      )
+      const v = map[id]
+      if (v && Number.isFinite(v.top) && Number.isFinite(v.left)) return v
+      return { top: lsInt(LS_KEYS.flowNodeQuickEditorTopPx, 48), left: lsInt(LS_KEYS.flowNodeQuickEditorLeftPx, 16) }
+    },
+    [parsePosByNodeId],
+  )
+
+  const defaultFloatingPos = React.useMemo(() => {
+    const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
+    const w = viewportRef.current.width
+    const h = viewportRef.current.height
+    const gap = 18
+    const cellW = NODE_QUICK_EDITOR_BASE_SIZE.width + gap
+    const cellH = Math.round(NODE_QUICK_EDITOR_BASE_SIZE.height * 0.72) + gap
+    const cols = Math.max(1, Math.min(4, Math.floor(Math.max(1, w - 40) / cellW)))
+    const col = idx % cols
+    const row = Math.floor(idx / cols)
+    const left = 20 + col * cellW
+    const top = 96 + row * cellH
+    const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
+    return {
+      left: clamp(left, 8, Math.max(8, w - NODE_QUICK_EDITOR_BASE_SIZE.width - 8)),
+      top: clamp(top, 8, Math.max(8, h - NODE_QUICK_EDITOR_BASE_SIZE.height - 8)),
+    }
+  }, [stackIndex])
+
+  const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => (nodeId ? readFloatingPos(nodeId).top : defaultFloatingPos.top))
+  const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => (nodeId ? readFloatingPos(nodeId).left : defaultFloatingPos.left))
+
+  React.useEffect(() => {
+    const pos = nodeId ? readFloatingPos(nodeId) : defaultFloatingPos
+    setPinnedTopPx(prev => (prev === pos.top ? prev : pos.top))
+    setPinnedLeftPx(prev => (prev === pos.left ? prev : pos.left))
+  }, [defaultFloatingPos, nodeId, readFloatingPos])
 
   const [toolbarVisible, setToolbarVisible] = React.useState(false)
   useOutsideClose(toolbarVisible, setToolbarVisible, asideRef)
 
   const labelInputRef = React.useRef<HTMLInputElement | null>(null)
 
-  const effectivePinned = forcePinnedToNode ? false : pinned
-  const pinnedToNode = !effectivePinned
+  const floating = forcePinnedToNode ? false : !lockedToNode
+  const pinnedToNode = !floating
 
   const autoStackOffset = React.useMemo(() => {
     const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
     if (idx <= 0) return { top: 0, left: 0 }
-    return { top: idx * 28, left: idx * 10 }
+    const cols = 3
+    const col = idx % cols
+    const row = Math.floor(idx / cols)
+    return { top: row * 54 + col * 8, left: col * 54 }
   }, [stackIndex])
 
   React.useEffect(() => {
     if (!active) return
     if (!autoRevealKey) return
-    setPinned(false)
+    setLockedToNode(true)
     setMinimized(prev => {
       if (!prev) return prev
       lsSetBool(LS_KEYS.flowNodeQuickEditorMinimized, false)
       return false
     })
-  }, [active, autoRevealKey, setPinned])
+  }, [active, autoRevealKey, setLockedToNode])
 
   React.useEffect(() => {
     if (!active) return
     if (!forcePinnedToNode) return
-    if (!pinned) return
-    setPinned(false)
-  }, [active, forcePinnedToNode, pinned, setPinned])
+    if (lockedToNode) return
+    setLockedToNode(true)
+  }, [active, forcePinnedToNode, lockedToNode, setLockedToNode])
 
   const enableHandlesDisabled = documentStructureBaselineLock === true || isHandlesForAllInputsEnabled(schema)
   const convertToLoopDisabled = isLoopNode(node)
@@ -235,12 +335,26 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   }, [schema])
 
   React.useEffect(() => {
-    pinnedRef.current = effectivePinned
-  }, [effectivePinned])
+    pinnedRef.current = floating
+  }, [floating])
 
   React.useEffect(() => {
     pinnedPosRef.current = { top: pinnedTopPx, left: pinnedLeftPx }
   }, [pinnedLeftPx, pinnedTopPx])
+
+  const persistFloatingPos = React.useCallback(
+    (pos: { top: number; left: number }) => {
+      if (!nodeId) return
+      const map = lsJson(
+        LS_KEYS.flowNodeQuickEditorPosByNodeId,
+        {} as Record<string, { top: number; left: number }>,
+        parsePosByNodeId,
+      )
+      const out = { ...map, [nodeId]: { top: pos.top, left: pos.left } }
+      lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, out)
+    },
+    [nodeId, parsePosByNodeId],
+  )
 
   const scheduleClampCommit = React.useCallback((next: { top: number; left: number }) => {
     if (pendingClampCommitRef.current != null) {
@@ -257,10 +371,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       if (cur.top === next.top && cur.left === next.left) return
       setPinnedTopPx(prev => (prev === next.top ? prev : next.top))
       setPinnedLeftPx(prev => (prev === next.left ? prev : next.left))
-      lsSetInt(LS_KEYS.flowNodeQuickEditorTopPx, next.top, { min: -4096, max: 4096 })
-      lsSetInt(LS_KEYS.flowNodeQuickEditorLeftPx, next.left, { min: -4096, max: 4096 })
+      persistFloatingPos(next)
     }, 140) as unknown as number
-  }, [])
+  }, [persistFloatingPos])
 
   const applyOverlayPosition = React.useCallback(() => {
     const el = asideRef.current
@@ -334,7 +447,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
   useIsomorphicLayoutEffect(() => {
     applyOverlayPosition()
-  }, [applyOverlayPosition, pinned, pinnedLeftPx, pinnedTopPx, viewportH, viewportW, node.x, node.y])
+  }, [applyOverlayPosition, lockedToNode, pinnedLeftPx, pinnedTopPx, viewportH, viewportW, node.x, node.y])
 
   React.useEffect(() => {
     const unsub = useGraphStore.subscribe(
@@ -354,9 +467,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   }, [applyOverlayPosition])
 
   const handleTogglePinned = React.useCallback(() => {
-    setPinned(prev => {
-      const next = !prev
-      if (next) {
+    setLockedToNode(prev => {
+      const nextLocked = !prev
+      if (!nextLocked) {
         const anchor = anchoredPosRef.current
         const scaled = scaledSizeRef.current
         const { width: viewportWidth, height: viewportHeight } = viewportRef.current
@@ -367,12 +480,13 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
           visiblePx: 32,
           snapPx: 1,
         })
-        setPinnedTopPx(lsSetInt(LS_KEYS.flowNodeQuickEditorTopPx, pos.top, { min: -4096, max: 4096 }))
-        setPinnedLeftPx(lsSetInt(LS_KEYS.flowNodeQuickEditorLeftPx, pos.left, { min: -4096, max: 4096 }))
+        setPinnedTopPx(prevTop => (prevTop === pos.top ? prevTop : pos.top))
+        setPinnedLeftPx(prevLeft => (prevLeft === pos.left ? prevLeft : pos.left))
+        persistFloatingPos(pos)
       }
-      return next
+      return nextLocked
     })
-  }, [setPinned])
+  }, [persistFloatingPos, setLockedToNode])
 
   const handleToggleMinimized = React.useCallback(() => {
     setMinimized(prev => {
@@ -397,6 +511,17 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       const target = event.target
       if (!(target instanceof Element)) return
       if (target.closest(UI_SELECTORS.draggablePanelIgnorePointerDown)) return
+
+      try {
+        event.preventDefault()
+      } catch {
+        void 0
+      }
+      try {
+        event.stopPropagation()
+      } catch {
+        void 0
+      }
 
       const startTop = pinnedPosRef.current.top
       const startLeft = pinnedPosRef.current.left
@@ -440,8 +565,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
             }
             flush()
           }
-          lsSetInt(LS_KEYS.flowNodeQuickEditorTopPx, pendingTop, { min: -4096, max: 4096 })
-          lsSetInt(LS_KEYS.flowNodeQuickEditorLeftPx, pendingLeft, { min: -4096, max: 4096 })
+          persistFloatingPos({ top: pendingTop, left: pendingLeft })
         },
         onCancel: () => {
           if (raf != null) {
@@ -452,12 +576,11 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
             }
             flush()
           }
-          lsSetInt(LS_KEYS.flowNodeQuickEditorTopPx, pendingTop, { min: -4096, max: 4096 })
-          lsSetInt(LS_KEYS.flowNodeQuickEditorLeftPx, pendingLeft, { min: -4096, max: 4096 })
+          persistFloatingPos({ top: pendingTop, left: pendingLeft })
         },
       })
     },
-    [],
+    [persistFloatingPos],
   )
 
   const handleRegistrySelectionChange = React.useCallback(
@@ -522,7 +645,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         node={node}
         minimized={minimized}
         hideFields={hideFields}
-        pinned={effectivePinned}
+        pinned={lockedToNode}
         uiPanelOpacity={uiPanelOpacity}
         panelTextClass={panelTextClass}
         microLabelClass={microLabelClass}

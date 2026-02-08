@@ -1,4 +1,6 @@
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { parseGraph } from '@/lib/graph/io/adapter'
+import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 
 export const testFlowDataflowConnectedValuesBySchemaPath = () => {
@@ -190,4 +192,209 @@ export const testFlowDataflowConnectedValuesTransformsAndPropagation = () => {
   const cx = c['properties.x']
   if (!cx) throw new Error('expected connected value at properties.x')
   if (cx.value !== 'HELLO') throw new Error(`expected properties.x to be "HELLO", got ${String(cx.value)}`)
+}
+
+export const testFlowDataflowConnectedValuesRgbTransforms = () => {
+  const graphData = {
+    type: 'GraphData',
+    nodes: [
+      {
+        id: 'r',
+        type: 'Node',
+        label: 'R',
+        properties: { value: 255, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+      },
+      {
+        id: 'g',
+        type: 'Node',
+        label: 'G',
+        properties: { value: 0, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+      },
+      {
+        id: 'b',
+        type: 'Node',
+        label: 'B',
+        properties: { value: 128, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+      },
+      {
+        id: 'color',
+        type: 'Node',
+        label: 'Color',
+        properties: { [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'color', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'color' },
+      },
+    ],
+    edges: [
+      {
+        id: 'e-r',
+        source: 'r',
+        target: 'color',
+        label: 'linksTo',
+        properties: { 'flow:sourcePortKey': 'out', 'flow:targetPortKey': 'r' },
+      },
+      {
+        id: 'e-g',
+        source: 'g',
+        target: 'color',
+        label: 'linksTo',
+        properties: { 'flow:sourcePortKey': 'out', 'flow:targetPortKey': 'g' },
+      },
+      {
+        id: 'e-b',
+        source: 'b',
+        target: 'color',
+        label: 'linksTo',
+        properties: { 'flow:sourcePortKey': 'out', 'flow:targetPortKey': 'b' },
+      },
+    ],
+  }
+
+  const registry = [
+    {
+      id: 'q-out',
+      isEnabled: true,
+      nodeTypeId: 'Node',
+      quickEditorTypeId: 'out',
+      formId: 'out',
+      fields: [],
+      ports: [{ portKey: 'out', direction: 'output' as const, schemaPath: 'properties.value' }],
+      schemaMappings: [],
+      updatedAt: '2026-02-08T00:00:00.000Z',
+    },
+    {
+      id: 'q-color',
+      isEnabled: true,
+      nodeTypeId: 'Node',
+      quickEditorTypeId: 'color',
+      formId: 'color',
+      fields: [],
+      ports: [
+        { portKey: 'r', direction: 'input' as const, schemaPath: 'properties.r' },
+        { portKey: 'g', direction: 'input' as const, schemaPath: 'properties.g' },
+        { portKey: 'b', direction: 'input' as const, schemaPath: 'properties.b' },
+        { portKey: 'color', direction: 'output' as const, schemaPath: 'properties.color' },
+        { portKey: 'textColor', direction: 'output' as const, schemaPath: 'properties.textColor' },
+      ],
+      schemaMappings: [
+        { fromPath: 'in', toPath: 'properties.color', transformId: 'rgb_css' },
+        { fromPath: 'in', toPath: 'properties.textColor', transformId: 'contrast_text' },
+      ],
+      updatedAt: '2026-02-08T00:00:00.000Z',
+    },
+  ]
+
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({ graphData: graphData as never, registry, targetNodeIds: new Set(['color']) })
+  const color = byNodeId.get('color')
+  if (!color) throw new Error('expected connected values for node color')
+
+  const r = color['properties.r']
+  if (!r) throw new Error('expected connected value at properties.r')
+  if (r.value !== 255) throw new Error(`expected properties.r to be 255, got ${String(r.value)}`)
+
+  const css = color['properties.color']
+  if (!css) throw new Error('expected derived mapping at properties.color')
+  if (css.value !== 'rgb(255, 0, 128)') throw new Error(`expected properties.color to be rgb(255, 0, 128), got ${String(css.value)}`)
+
+  const textColor = color['properties.textColor']
+  if (!textColor) throw new Error('expected derived mapping at properties.textColor')
+  if (textColor.value !== 'white') throw new Error(`expected properties.textColor to be white, got ${String(textColor.value)}`)
+}
+
+export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
+  const bundle = {
+    kind: 'kg:flow:nodeQuickEditorBundle',
+    version: 1,
+    registry: [
+      {
+        id: 'qer-NumberInput-default-value',
+        isEnabled: true,
+        nodeTypeId: 'NumberInput',
+        quickEditorTypeId: 'default',
+        formId: 'value',
+        fields: [{ fieldKey: 'value', fieldType: 'number', label: 'Value', schemaPath: 'properties.value' }],
+        ports: [{ portKey: 'value', direction: 'output', schemaPath: 'properties.value' }],
+        schemaMappings: [],
+        updatedAt: '2026-02-08T00:00:00.000Z',
+      },
+      {
+        id: 'qer-ColorPreview-default-color',
+        isEnabled: true,
+        nodeTypeId: 'ColorPreview',
+        quickEditorTypeId: 'default',
+        formId: 'color',
+        fields: [
+          { fieldKey: 'r', fieldType: 'number', label: 'Red', schemaPath: 'properties.r' },
+          { fieldKey: 'g', fieldType: 'number', label: 'Green', schemaPath: 'properties.g' },
+          { fieldKey: 'b', fieldType: 'number', label: 'Blue', schemaPath: 'properties.b' },
+          { fieldKey: 'color', fieldType: 'text', label: 'Background', schemaPath: 'properties.color' },
+          { fieldKey: 'textColor', fieldType: 'text', label: 'Text', schemaPath: 'properties.textColor' },
+        ],
+        ports: [
+          { portKey: 'r', direction: 'input', schemaPath: 'properties.r' },
+          { portKey: 'g', direction: 'input', schemaPath: 'properties.g' },
+          { portKey: 'b', direction: 'input', schemaPath: 'properties.b' },
+          { portKey: 'color', direction: 'output', schemaPath: 'properties.color' },
+          { portKey: 'textColor', direction: 'output', schemaPath: 'properties.textColor' },
+        ],
+        schemaMappings: [
+          { fromPath: 'in', toPath: 'properties.color', transformId: 'rgb_css' },
+          { fromPath: 'in', toPath: 'properties.textColor', transformId: 'contrast_text' },
+        ],
+        updatedAt: '2026-02-08T00:00:00.000Z',
+      },
+    ],
+    graph: {
+      type: 'Graph',
+      nodes: [
+        {
+          id: 'red',
+          type: 'NumberInput',
+          label: 'R',
+          properties: { value: 255, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'value' },
+        },
+        {
+          id: 'green',
+          type: 'NumberInput',
+          label: 'G',
+          properties: { value: 0, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'value' },
+        },
+        {
+          id: 'blue',
+          type: 'NumberInput',
+          label: 'B',
+          properties: { value: 128, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'value' },
+        },
+        {
+          id: 'preview',
+          type: 'ColorPreview',
+          label: 'ColorPreview',
+          properties: { [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'color' },
+        },
+      ],
+      edges: [
+        { id: 'e-r', source: 'red', target: 'preview', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'r' } },
+        { id: 'e-g', source: 'green', target: 'preview', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'g' } },
+        { id: 'e-b', source: 'blue', target: 'preview', label: 'linksTo', properties: { 'flow:sourcePortKey': 'value', 'flow:targetPortKey': 'b' } },
+      ],
+    },
+  }
+
+  const text = JSON.stringify(bundle)
+  const res = parseGraph('computing-data-flows.json', text)
+  const graphData = res.data
+
+  const meta = graphData.metadata as unknown as Record<string, unknown> | undefined
+  const registry = (meta?.[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as unknown[]) || []
+  if (!Array.isArray(registry) || registry.length === 0) throw new Error('expected registry metadata to be present')
+
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData: graphData as never,
+    registry: registry as never,
+    targetNodeIds: new Set(['preview']),
+  })
+  const preview = byNodeId.get('preview')
+  if (!preview) throw new Error('expected connected values for node preview')
+
+  const css = preview['properties.color']
+  if (!css) throw new Error('expected derived mapping at properties.color')
+  if (css.value !== 'rgb(255, 0, 128)') throw new Error(`expected properties.color to be rgb(255, 0, 128), got ${String(css.value)}`)
 }

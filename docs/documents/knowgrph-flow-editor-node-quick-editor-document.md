@@ -18,14 +18,19 @@
 
 ## Supported Behaviors (MVP)
 
-- **Pin/Unpin**: detaches the overlay from node-anchored positioning and persists a viewport position.
-- **Drag**: when pinned (detached), header drag moves the overlay (ignores pointerdown on interactive elements).
+- **Pin/Unpin**: pin locks the overlay to node-anchored positioning; unpin detaches and persists a viewport position.
+- **Drag**: when unpinned (detached), header drag moves the overlay (ignores pointerdown on interactive elements).
 - **Minimize/Restore**: collapses the editor body to header-only.
 - **Opacity**: inherits `uiPanelOpacity` from UI settings.
 - **Scroll isolation**: scrolling inside the editor must not zoom the canvas; mark the overlay as a wheel-ignore zone and guard wheel-zoom handlers via SSOT selector `UI_SELECTORS.canvasWheelIgnore`.
 - **Toolbar actions**: open selected node in Sidepane, enable Handles for all inputs, convert selected node to a Loop node (schema + draft-graph edits only; no hidden background work; idempotent updates). The toolbar hides on unselect or outside click.
 - **Baseline lock**: enable-handles action is gated when Document Structure baseline lock is enabled.
 - **Multi-node overlays**: multiple Node Quick Editors may be open at the same time; overlays must remain visible and operable without DOM id collisions.
+
+### Multi-node layout (detached)
+
+- Detached overlays must avoid full overlap. Default placement should use a deterministic grid/stack derived from the open-list order.
+- Persist detached positions per node id so reopening multiple editors restores a stable layout.
 
 ## Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
 
@@ -44,6 +49,11 @@
 - **Render isolation**: zoom/pan should not re-render the editor form. Keep zoom-dependent work in a thin layout wrapper and memoize the panel body.
 - **Anchor stability**: avoid rounding anchor positions during pan/zoom; use subpixel translate to prevent shimmy.
 - **Multi-overlay safety**: all form control `id` values must be scoped per node to prevent label/input targeting collisions.
+
+## Edge Rendering (Flow Editor)
+
+- Flow Editor must reuse the native Flow renderer edge drawing (routing + style) for port-bound edges; avoid a second overlay-only edge rendering path that can drift.
+- When Node Quick Editors are open, edges remain visible in the Flow renderer; the Quick Editor contributes the port-dot interaction surface.
 
 ---
 
@@ -113,6 +123,7 @@
 - **Port schemaPath**: registry `ports[].schemaPath` defines how a port reads/writes values on the node shape (defaults to `properties.<portKey>`).
 - **Compute model (MVP)**:
   - For each node open in the Node Quick Editor overlay, compute a `connectedValuesBySchemaPath` map.
+  - The compute path is shared across Flow Editor and Table Inspector so connected-value semantics do not drift across modes.
   - For each connected input port, the UI surfaces a **Connected:** hint next to the mapped field and provides an **Apply** action.
   - Applying writes the value into `node.properties` at the field schemaPath (using object-path setters), making the value explicit and exportable.
 - **Propagation model (MVP)**:
@@ -127,6 +138,7 @@
   - Optional `reduceId` applies when `fromPath` resolves to an array, then optional `transformId` applies to the reduced value.
   - Built-in ids are defined in `canvas/src/lib/flowEditor/flowDataflowTransforms.ts` and include:
     - Transforms: `identity`, `trim`, `lower`, `upper`, `to_number`, `to_boolean`, `stringify_json`, `json_parse`, `first`, `last`, `length`, `join_lines`, `join_comma`.
+    - Transforms (computed preview helpers): `rgb_css`, `rgb_hex`, `contrast_text`.
     - Reducers: `first`, `last`, `concat_array`, `join_lines`, `join_comma`.
 - **Auto-apply (MVP)**:
   - The Registry section includes an Apply All action that fills empty fields from connected values.

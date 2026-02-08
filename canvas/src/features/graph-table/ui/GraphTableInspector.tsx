@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
+import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import {
   FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
@@ -91,6 +92,18 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
     const isQuickEditorNode = hasHint || !!registryEntry
     return isQuickEditorNode && (isSelected || isPinned)
   }, [node, openQuickEditorNodeIds, registryEntry, selectedNodeId])
+
+  const connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | undefined = useMemo(() => {
+    if (!node || !showQuickEditor) return undefined
+    const nodeId = String(node.id || '').trim()
+    if (!nodeId) return undefined
+    const byNodeId = computeFlowConnectedValuesBySchemaPath({
+      graphData,
+      registry: Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : [],
+      targetNodeIds: new Set([nodeId]),
+    })
+    return byNodeId.get(nodeId)
+  }, [graphData, node, nodeQuickEditorRegistry, showQuickEditor])
 
   const [codeFormat, setCodeFormat] = useState<'json' | 'markdown'>('json')
   const quickEditorCodeText = useMemo(() => {
@@ -238,7 +251,7 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
         ) : (
           <>
             {row?.tableId === 'nodes' && node && showQuickEditor ? (
-              <div className="px-3 py-2">
+              <section className="px-3 py-2" aria-label="Node Quick Editor">
                 <NodeOverlayEditorPanel
                   active={true}
                   node={node}
@@ -262,14 +275,15 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
                   onPatchProperties={handlePatchProperties}
                   onSetProperties={handleSetProperties}
                   onValidate={handleValidate}
+                  connectedValuesBySchemaPath={connectedValuesBySchemaPath}
                   portHandleEdges={allEdges}
                   schema={schema}
                 />
 
                 <section className={cn('mt-3 rounded border overflow-hidden', UI_THEME_TOKENS.panel.border)} aria-label="Node Quick Editor codes">
                   <header className={cn('px-2 py-2 border-b flex items-center justify-between gap-2', UI_THEME_TOKENS.panel.border)}>
-                    <div className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Codes</div>
-                    <div className="flex items-center gap-1">
+                    <p className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Codes</p>
+                    <section className="flex items-center gap-1" aria-label="Code format">
                       <button
                         type="button"
                         className={cn(
@@ -302,9 +316,9 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
                       >
                         Copy
                       </button>
-                    </div>
+                    </section>
                   </header>
-                  <div className="p-2">
+                  <section className="p-2" aria-label="Code">
                     <textarea
                       className={cn(
                         'w-full h-[220px] rounded border px-2 py-1',
@@ -318,9 +332,9 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
                       readOnly
                       spellCheck={false}
                     />
-                  </div>
+                  </section>
                 </section>
-              </div>
+              </section>
             ) : null}
           <dl className="px-3 py-2 grid grid-cols-[120px_1fr] gap-x-2 gap-y-2 items-center">
             {ordered.map(col => {

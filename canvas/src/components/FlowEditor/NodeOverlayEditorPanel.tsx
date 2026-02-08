@@ -114,6 +114,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     <FloatingPanel
       as="section"
       ariaLabel={UI_LABELS.flowNodeQuickEditor}
+      data-kg-node-quick-editor={String(node.id || '')}
       className={cn(
         'rounded-xl border shadow-lg flex flex-col relative',
         UI_THEME_TOKENS.panel.bg,
@@ -136,8 +137,9 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
       {!hasSchemaFields && (
         <NodeOverlayEditorPortHandles
           active={active}
-          nodeId={String(node.id || '')}
+          node={node}
           schema={schema}
+          registryEntries={registryEntries}
           edges={portHandleEdges}
           minimized={minimized}
           toolMode={toolMode}
@@ -148,7 +150,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
       )}
 
       <header
-        className={cn('px-3 py-2 border-b', UI_THEME_TOKENS.panel.border, pinned ? 'cursor-move select-none' : '')}
+        className={cn('px-3 py-2 border-b', UI_THEME_TOKENS.panel.border, pinned ? 'select-none' : 'cursor-move select-none')}
         onPointerDown={onHeaderPointerDown}
       >
         <section className="flex items-start justify-between gap-2" aria-label="Node editor header">

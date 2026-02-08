@@ -1,8 +1,10 @@
 import React from 'react'
 
 import type { GraphEdge } from '@/lib/graph/types'
+import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { computeFlowNodeHandles, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
@@ -10,23 +12,24 @@ import { PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/
 
 type FlowEditorToolMode = 'select' | 'addEdge'
 
-function coerceEdgeEndpoints(raw: ReadonlyArray<GraphEdge>): Array<{ id: string; source: string; target: string }> {
-  const out: Array<{ id: string; source: string; target: string }> = []
+function coerceEdgeEndpoints(raw: ReadonlyArray<GraphEdge>): Array<{ id: string; source: string; target: string; properties?: unknown }> {
+  const out: Array<{ id: string; source: string; target: string; properties?: unknown }> = []
   for (let i = 0; i < raw.length; i += 1) {
-    const e = raw[i] as unknown as { id?: unknown; source?: unknown; target?: unknown }
+    const e = raw[i] as unknown as { id?: unknown; source?: unknown; target?: unknown; properties?: unknown }
     const id = String(e?.id || '').trim()
     const source = String(e?.source || '').trim()
     const target = String(e?.target || '').trim()
     if (!id || !source || !target) continue
-    out.push({ id, source, target })
+    out.push({ id, source, target, properties: e.properties })
   }
   return out
 }
 
 export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEditorPortHandles(args: {
   active: boolean
-  nodeId: string
+  node: Pick<GraphNode, 'id' | 'type' | 'properties'>
   schema: GraphSchema | null
+  registryEntries?: ReadonlyArray<NodeQuickEditorRegistryEntry>
   edges: ReadonlyArray<GraphEdge>
   minimized: boolean
   toolMode?: FlowEditorToolMode
@@ -36,21 +39,29 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
 }) {
   const edges = React.useMemo(() => coerceEdgeEndpoints(args.edges), [args.edges])
 
+  const nodeId = React.useMemo(() => String(args.node?.id || '').trim(), [args.node?.id])
+
   const handles = React.useMemo(() => {
-    const base = computeFlowNodeHandles({ nodeId: args.nodeId, edges })
+    if (!nodeId) return { in: [], out: [] }
+    const byNode = computeFlowHandlesByNode({
+      nodes: [{ id: nodeId, type: args.node?.type, properties: args.node?.properties }],
+      edges,
+      nodeQuickEditorRegistry: args.registryEntries || null,
+    })
+    const base = byNode[nodeId] || { in: [], out: [] }
     if (!shouldInjectDefaultFlowHandles(args.schema)) return base
     return ensureFlowHandlesHaveDefaults(base)
-  }, [args.nodeId, edges, args.schema])
+  }, [args.node?.properties, args.node?.type, args.registryEntries, args.schema, edges, nodeId])
 
   const enabled = Boolean(args.schema?.behavior?.portHandles?.enabled)
   if (!enabled) return null
   if (args.minimized) return null
-  if (!args.nodeId) return null
+  if (!nodeId) return null
 
   const { sizePx, hitSizePx, railWidthPx } = readPortHandleUiMetrics(args.schema)
 
   const isAddEdge = args.toolMode === 'addEdge'
-  const isSource = isAddEdge && args.pendingEdgeSourceId === args.nodeId
+  const isSource = isAddEdge && args.pendingEdgeSourceId === nodeId
   const canInteract = args.active && isAddEdge
 
   const handleClick = (dir: 'in' | 'out', portKey: string) => {
@@ -59,28 +70,28 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     if (!pk) return
     if (args.toolMode !== 'addEdge') {
       if (dir !== 'out') return
-      args.onBeginAddEdgeFromNode?.(args.nodeId, pk)
+      args.onBeginAddEdgeFromNode?.(nodeId, pk)
       return
     }
 
     if (!args.pendingEdgeSourceId) {
       if (dir !== 'out') return
-      args.onBeginAddEdgeFromNode?.(args.nodeId, pk)
+      args.onBeginAddEdgeFromNode?.(nodeId, pk)
       return
     }
 
-    if (args.pendingEdgeSourceId === args.nodeId) {
+    if (args.pendingEdgeSourceId === nodeId) {
       if (dir === 'in') return
-      args.onBeginAddEdgeFromNode?.(args.nodeId, pk)
+      args.onBeginAddEdgeFromNode?.(nodeId, pk)
       return
     }
 
     if (dir !== 'in') {
-      args.onBeginAddEdgeFromNode?.(args.nodeId, pk)
+      args.onBeginAddEdgeFromNode?.(nodeId, pk)
       return
     }
 
-    args.onFinalizeAddEdgeToNode?.(args.nodeId, pk)
+    args.onFinalizeAddEdgeToNode?.(nodeId, pk)
   }
 
   const Dot = (p: { handleId: string; dir: 'in' | 'out'; idx: number; topPct: number }) => {

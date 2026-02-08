@@ -5,6 +5,58 @@ function cleanString(v: unknown): string {
   return typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : ''
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function clampByte(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number.parseFloat(v) : NaN
+  if (!Number.isFinite(n)) return null
+  return Math.max(0, Math.min(255, Math.round(n)))
+}
+
+function parseRgb(v: unknown): { r: number; g: number; b: number } | null {
+  if (Array.isArray(v) && v.length >= 3) {
+    const r = clampByte(v[0])
+    const g = clampByte(v[1])
+    const b = clampByte(v[2])
+    if (r == null || g == null || b == null) return null
+    return { r, g, b }
+  }
+
+  if (isRecord(v)) {
+    const r = clampByte(v.r ?? v.red)
+    const g = clampByte(v.g ?? v.green)
+    const b = clampByte(v.b ?? v.blue)
+    if (r == null || g == null || b == null) return null
+    return { r, g, b }
+  }
+
+  if (typeof v === 'string') {
+    const s = v.trim()
+    if (!s) return null
+    const rgbMatch = s.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i)
+    if (rgbMatch) {
+      const r = clampByte(rgbMatch[1])
+      const g = clampByte(rgbMatch[2])
+      const b = clampByte(rgbMatch[3])
+      if (r == null || g == null || b == null) return null
+      return { r, g, b }
+    }
+
+    const hex = s.startsWith('#') ? s.slice(1) : s
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+      const r = clampByte(Number.parseInt(hex.slice(0, 2), 16))
+      const g = clampByte(Number.parseInt(hex.slice(2, 4), 16))
+      const b = clampByte(Number.parseInt(hex.slice(4, 6), 16))
+      if (r == null || g == null || b == null) return null
+      return { r, g, b }
+    }
+  }
+
+  return null
+}
+
 function tryJsonParse(v: unknown): unknown {
   if (typeof v !== 'string') return undefined
   const s = v.trim()
@@ -61,6 +113,24 @@ export const FLOW_DATAFLOW_TRANSFORMS: Record<string, FlowDataflowTransformFn> =
     const parts = v.map(cleanString).filter(Boolean)
     return parts.length > 0 ? parts.join(', ') : ''
   },
+
+  rgb_css: (v) => {
+    const rgb = parseRgb(v)
+    if (!rgb) return undefined
+    return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+  },
+  rgb_hex: (v) => {
+    const rgb = parseRgb(v)
+    if (!rgb) return undefined
+    const toHex = (n: number) => n.toString(16).padStart(2, '0').toUpperCase()
+    return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`
+  },
+  contrast_text: (v) => {
+    const rgb = parseRgb(v)
+    if (!rgb) return undefined
+    const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000
+    return brightness >= 128 ? 'black' : 'white'
+  },
 }
 
 export const FLOW_DATAFLOW_REDUCERS: Record<string, FlowDataflowReducerFn> = {
@@ -92,4 +162,3 @@ export function applyFlowDataflowReducer(args: { reduceId?: string; values: Read
   if (!fn) return args.values
   return fn(args.values)
 }
-
