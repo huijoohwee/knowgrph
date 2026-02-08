@@ -11,7 +11,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import { createUniqueId } from '@/lib/ids'
 import { normalizeGraphData } from '@/lib/graph/normalize'
-import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
@@ -26,11 +26,16 @@ import {
   enableHandlesForAllInputsInSchema,
   isHandlesForAllInputsEnabled,
 } from '@/lib/flowEditor/flowEditorActions'
-import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
+import {
+  computeFlowConnectedValuesBySchemaPath,
+  type FlowConnectedValuesBySchemaPath,
+} from '@/lib/flowEditor/flowDataflow'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
   FLOW_EDGE_DISPLAY_LABEL_KEY,
+  FLOW_SCHEMA_FIELDS_PROPERTY_KEY,
+  buildSchemaFieldPortKey,
   buildFlowEdgeDisplayLabelFromPorts,
   pickDefaultSchemaFieldPortKey,
 } from '@/lib/graph/flowPorts'
@@ -53,6 +58,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   active: boolean
   node: GraphNode
   edges: ReadonlyArray<GraphEdge>
+  connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   viewportW: number
   viewportH: number
   canvasWindowOffset: { left: number; top: number }
@@ -73,15 +79,16 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   onClearOutput: () => void
   onHelp: () => void
   onConvertToLoopNode: () => void
-  onTogglePortHandles: () => void
   onEnableHandlesForAllInputs: () => void
   onPinnedToNodeChange: (pinnedToNode: boolean) => void
+  onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
 }) {
   return (
     <NodeOverlayEditor
       active={args.active}
       node={args.node}
       edges={args.edges}
+      connectedValuesBySchemaPath={args.connectedValuesBySchemaPath}
       toolMode={args.toolMode}
       pendingEdgeSourceId={args.pendingEdgeSourceId}
       onBeginAddEdgeFromNode={args.onBeginAddEdgeFromNode}
@@ -102,9 +109,9 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       onClearOutput={args.onClearOutput}
       onHelp={args.onHelp}
       onConvertToLoopNode={args.onConvertToLoopNode}
-      onTogglePortHandles={args.onTogglePortHandles}
       onEnableHandlesForAllInputs={args.onEnableHandlesForAllInputs}
       onPinnedToNodeChange={args.onPinnedToNodeChange}
+      onRenameSchemaFieldId={args.onRenameSchemaFieldId}
     />
   )
 })
@@ -921,6 +928,74 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     [draftGraphData, setGraphDataPreservingLayout],
   )
 
+  const renameSchemaFieldIdByNodeId = React.useCallback(
+    (nodeId: string, prevId: string, nextId: string) => {
+      const id = String(nodeId || '').trim()
+      const from = String(prevId || '').trim()
+      const to = String(nextId || '').trim()
+      if (!id || !from || !to || from === to) return
+      if (!draftGraphData) return
+
+      const prevPort = buildSchemaFieldPortKey(from)
+      const nextPort = buildSchemaFieldPortKey(to)
+
+      const nodeById = new Map((draftGraphData.nodes || []).map(n => [String(n.id || ''), n] as const))
+      const rawNode = nodeById.get(id) || null
+      const rawProps = (rawNode?.properties || {}) as Record<string, JSONValue>
+      const rawFields = rawProps[FLOW_SCHEMA_FIELDS_PROPERTY_KEY]
+      const patchedFields = Array.isArray(rawFields)
+        ? rawFields.map(item => {
+            if (typeof item === 'string') return (item === from ? to : item) as JSONValue
+            if (!item || typeof item !== 'object' || Array.isArray(item)) return item as JSONValue
+            const rec = item as Record<string, JSONValue>
+            const nextRec: Record<string, JSONValue> = { ...rec }
+            if (typeof nextRec.id === 'string' && nextRec.id.trim() === from) nextRec.id = to
+            if (typeof nextRec.title === 'string' && nextRec.title.trim() === from) nextRec.title = to
+            return nextRec as unknown as JSONValue
+          })
+        : rawFields
+      const patchedNodeForLabel: Pick<GraphNode, 'properties'> | null = rawNode
+        ? { properties: { ...rawProps, [FLOW_SCHEMA_FIELDS_PROPERTY_KEY]: patchedFields as JSONValue } }
+        : null
+
+      let anyEdgeUpdated = false
+      const nextEdges = (draftGraphData.edges || []).map(edge => {
+        const isSource = String(edge.source || '') === id
+        const isTarget = String(edge.target || '') === id
+        if (!isSource && !isTarget) return edge
+
+        const prevProps = (edge.properties || {}) as Record<string, unknown>
+        const curSourcePort = String(prevProps[FLOW_EDGE_SOURCE_PORT_KEY] || '')
+        const curTargetPort = String(prevProps[FLOW_EDGE_TARGET_PORT_KEY] || '')
+        const nextSourcePort = isSource && curSourcePort === prevPort ? nextPort : curSourcePort
+        const nextTargetPort = isTarget && curTargetPort === prevPort ? nextPort : curTargetPort
+        if (nextSourcePort === curSourcePort && nextTargetPort === curTargetPort) return edge
+        anyEdgeUpdated = true
+
+        const nextProps: Record<string, unknown> = { ...prevProps }
+        nextProps[FLOW_EDGE_SOURCE_PORT_KEY] = nextSourcePort
+        nextProps[FLOW_EDGE_TARGET_PORT_KEY] = nextTargetPort
+
+        const sourceNode = String(edge.source || '') === id ? patchedNodeForLabel : nodeById.get(String(edge.source || '')) || null
+        const targetNode = String(edge.target || '') === id ? patchedNodeForLabel : nodeById.get(String(edge.target || '')) || null
+        const displayLabel = buildFlowEdgeDisplayLabelFromPorts({
+          sourceNode,
+          targetNode,
+          sourcePortKey: nextSourcePort,
+          targetPortKey: nextTargetPort,
+        })
+        if (displayLabel) nextProps[FLOW_EDGE_DISPLAY_LABEL_KEY] = displayLabel
+        else delete nextProps[FLOW_EDGE_DISPLAY_LABEL_KEY]
+
+        return { ...edge, properties: nextProps as never }
+      })
+
+      if (!anyEdgeUpdated) return
+      setGraphDataPreservingLayout(normalizeGraphData({ ...draftGraphData, edges: nextEdges }))
+    },
+    [draftGraphData, setGraphDataPreservingLayout],
+  )
+
   const setNodePropertiesById = React.useCallback(
     (nodeId: string, properties: Record<string, unknown>) => {
       const id = String(nodeId || '').trim()
@@ -1049,20 +1124,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       message: UI_COPY.flowNodeQuickEditorEnableHandlesToast,
       ttlMs: 2600,
     })
-  }, [documentStructureBaselineLock, schema, setSchema, upsertUiToast])
-
-  const togglePortHandles = React.useCallback(() => {
-    if (documentStructureBaselineLock === true) {
-      upsertUiToast({
-        id: 'baseline-locked',
-        kind: 'warning',
-        message: UI_COPY.baselineLockedToast,
-        ttlMs: 6000,
-      })
-      return
-    }
-    const next = togglePortHandlesEnabledInSchema(schema)
-    if (next.changed) setSchema(next.schema)
   }, [documentStructureBaselineLock, schema, setSchema, upsertUiToast])
 
   const convertNodeToLoopById = React.useCallback(
@@ -1292,6 +1353,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     return next
   }, [openQuickEditorNodeIds, overlayDraftNode?.id])
 
+  const connectedValuesByNodeId = React.useMemo(() => {
+    const targetNodeIds = new Set(overlayEditorNodeIds)
+    return computeFlowConnectedValuesBySchemaPath({
+      graphData: draftGraphData,
+      registry: Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : [],
+      targetNodeIds,
+    })
+  }, [draftGraphData, nodeQuickEditorRegistry, overlayEditorNodeIds])
+
   const overlayEditorElements = React.useMemo(() => {
     if (!active) return []
     const edges = (draftGraphData?.edges || []) as GraphEdge[]
@@ -1309,12 +1379,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const node = resolveNode(id)
         if (!node) return null
         const autoRevealKey = id === String(lastDroppedQuickEditorNodeIdRef.current || '') ? lastDroppedQuickEditorToken : 0
+        const connectedValuesBySchemaPath = connectedValuesByNodeId.get(id) || undefined
         return (
           <FlowEditorNodeQuickEditorOverlay
             key={`qe-${id}`}
             active={active}
             node={node}
             edges={edges}
+            connectedValuesBySchemaPath={connectedValuesBySchemaPath}
             toolMode={toolMode}
             pendingEdgeSourceId={pendingEdgeSourceId}
             onBeginAddEdgeFromNode={beginAddEdgeFromNode}
@@ -1335,12 +1407,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             onClearOutput={() => clearNodeOutputById(id)}
             onHelp={showNodeEditorHelp}
             onConvertToLoopNode={() => convertNodeToLoopById(id)}
-            onTogglePortHandles={togglePortHandles}
             onEnableHandlesForAllInputs={enableHandlesForAllInputs}
             onPinnedToNodeChange={(pinnedToNode) => {
               pinnedToNodeByIdRef.current.set(id, pinnedToNode)
               setAnyEditorPinnedToNode(Array.from(pinnedToNodeByIdRef.current.values()).some(Boolean))
             }}
+            onRenameSchemaFieldId={({ prevId, nextId }) => renameSchemaFieldIdByNodeId(id, prevId, nextId)}
           />
         )
       })
@@ -1351,6 +1423,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     canvasWindowOffset,
     clearNodeOutputById,
     convertNodeToLoopById,
+    connectedValuesByNodeId,
     draftGraphData?.edges,
     draftGraphData?.nodes,
     duplicateNodeById,
@@ -1362,11 +1435,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     pendingEdgeSourceId,
     pendingOverlayNode,
     removeNodeById,
+    renameSchemaFieldIdByNodeId,
     setNodeLabelById,
     setNodePropertiesById,
     setNodeTypeById,
     showNodeEditorHelp,
-    togglePortHandles,
     toolMode,
     validateNodeById,
     viewportH,

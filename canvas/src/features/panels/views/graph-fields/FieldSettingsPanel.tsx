@@ -38,6 +38,7 @@ import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphField
 import { FieldGraphLayersSection, GraphLayerMetadataPresetsSection } from '@/features/panels/views/graph-fields/FieldGraphLayersSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
 
 type FieldSettingsPanelProps = {
   graphData: GraphData | null
@@ -253,23 +254,21 @@ export default function FieldSettingsPanel({
   }, [selectedField, selectedSettings, setGraphFieldSettingsById, settingsById, suggestedFieldType])
 
   return (
-    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden flex flex-col min-h-0 min-w-0`}>
-      <div className={`border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 py-1.5 ${UI_THEME_TOKENS.text.primary} flex items-center justify-between gap-2`}>
-        <div className="flex-1 min-w-0">
-            <Tooltip
-              content={UI_COPY.graphFieldsAgenticFieldSettingsDescription}
-              maxWidthPx={420}
-              contentClassName="bg-gray-800/90"
-              className="min-w-0"
-            >
-              <div className={`${uiPanelKeyValueTextSizeClass} truncate`}>{UI_LABELS.fieldSettings}</div>
-            </Tooltip>
-          </div>
-        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap max-w-[55%] truncate text-right`}>
-          {secondaryLabel}
-        </div>
-      </div>
-      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2 ${UI_THEME_TOKENS.panel.bg}`}>
+    <MainPanelSettingsPanelShell
+      ariaLabel={UI_LABELS.fieldSettings}
+      uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+      titleNode={
+        <Tooltip
+          content={UI_COPY.graphFieldsAgenticFieldSettingsDescription}
+          maxWidthPx={420}
+          contentClassName="bg-gray-800/90"
+          className="min-w-0"
+        >
+          <section className={`${uiPanelKeyValueTextSizeClass} truncate`}>{UI_LABELS.fieldSettings}</section>
+        </Tooltip>
+      }
+      secondaryNode={secondaryLabel}
+    >
         {selectedGlobalView?.kind === 'globalSchema' ? (
           <div className="p-3 space-y-3">
             <SchemaUiEditor schema={schema} setSchema={setSchema} mode="globalOnly" />
@@ -484,7 +483,6 @@ export default function FieldSettingsPanel({
             </form>
           </>
         )}
-      </div>
-    </div>
+    </MainPanelSettingsPanelShell>
   )
 }

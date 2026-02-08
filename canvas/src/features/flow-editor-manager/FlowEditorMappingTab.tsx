@@ -13,11 +13,13 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
+import { cn } from '@/lib/utils'
 import { pickFilesWithExtensions } from '@/lib/graph/filePicker'
 import { downloadBlob } from '@/lib/graph/save'
 import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonBlob } from '@/lib/graph/io/nodeQuickEditorBundle'
 import { normalizeNodeQuickEditorRegistryEntries, validateNodeQuickEditorRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
 import { tryParseQuickEditorImportGraphData } from '@/lib/graph/io/quickEditorImport'
+import { createUniqueId } from '@/lib/ids'
 import {
   buildGenerateVideoRegistryDraft,
   buildNodeQuickEditorDraftFromSmartFields,
@@ -26,16 +28,29 @@ import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-mana
 
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import NodeQuickEditorRegistryTable from '@/features/flow-editor-manager/NodeQuickEditorRegistryTable'
-import NodeQuickEditorRegistryDrawer from '@/features/flow-editor-manager/NodeQuickEditorRegistryDrawer'
-import FlowMappingRowsEditor from '@/features/flow-editor-manager/FlowMappingRowsEditor'
+import { FlowEditorMappingSettingsPanel } from '@/features/flow-editor-manager/FlowEditorMappingSettingsPanel'
+import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
-export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: string }) {
+export default function FlowEditorMappingTab({
+  searchQuery,
+  onRegisterActions,
+}: {
+  searchQuery: string
+  onRegisterActions?: (actions: {
+    apply?: () => void
+    reset?: () => void
+    applyDisabled?: boolean
+    resetDisabled?: boolean
+  }) => void
+}) {
   const panelTypography = usePanelTypography()
   const {
+    uiIconScale,
+    uiIconStrokeWidth,
     nodeQuickEditorRegistry,
     setNodeQuickEditorRegistry,
     graphData,
@@ -47,6 +62,8 @@ export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: str
     toggleNodeQuickEditorRegistryEntryEnabled,
   } = useGraphStore(
     useShallow(s => ({
+      uiIconScale: s.uiIconScale,
+      uiIconStrokeWidth: s.uiIconStrokeWidth,
       nodeQuickEditorRegistry: s.nodeQuickEditorRegistry,
       setNodeQuickEditorRegistry: s.setNodeQuickEditorRegistry,
       graphData: s.graphData,
@@ -62,11 +79,32 @@ export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: str
   const normalizedQuery = normalizeText(searchQuery).trim()
   const [enabledOnly, setEnabledOnly] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
-  const [drawer, setDrawer] = React.useState<{
-    mode: 'create' | 'edit'
-    id: string | null
-    initialDraft?: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> | null
-  } | null>(null)
+  const [selectionMode, setSelectionMode] = React.useState<'auto' | 'manual'>('auto')
+  const [editorMode, setEditorMode] = React.useState<'none' | 'create' | 'edit'>('none')
+  const [editorDraft, setEditorDraft] = React.useState<Omit<NodeQuickEditorRegistryEntry, 'updatedAt'>>(() => ({
+    id: '',
+    isEnabled: true,
+    nodeTypeId: '',
+    quickEditorTypeId: 'default',
+    formId: 'default',
+    fields: [{ fieldKey: 'label', fieldType: 'text', schemaPath: 'label' }],
+    ports: [],
+    schemaMappings: [],
+  }))
+  const [editorRows, setEditorRows] = React.useState<FlowEditorMappingRow[]>(() =>
+    buildMappingRowsFromRegistryEntry({
+      id: '',
+      isEnabled: true,
+      nodeTypeId: '',
+      quickEditorTypeId: 'default',
+      formId: 'default',
+      fields: [{ fieldKey: 'label', fieldType: 'text', schemaPath: 'label' }],
+      ports: [],
+      schemaMappings: [],
+      updatedAt: new Date().toISOString(),
+    }),
+  )
+  const [editorError, setEditorError] = React.useState<string | null>(null)
 
   const filtered = React.useMemo(() => {
     const src = Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : []
@@ -88,6 +126,31 @@ export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: str
     return (nodeQuickEditorRegistry || []).find(e => e.id === id) || null
   }, [nodeQuickEditorRegistry, selectedId])
 
+  React.useEffect(() => {
+    if (!selectedId) {
+      if (editorMode === 'edit') setEditorMode('none')
+      return
+    }
+    if (!selected) {
+      if (editorMode === 'edit') setEditorMode('none')
+      return
+    }
+    setEditorError(null)
+    setEditorMode('edit')
+    const nextDraft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> = {
+      id: selected.id,
+      isEnabled: selected.isEnabled,
+      nodeTypeId: selected.nodeTypeId,
+      quickEditorTypeId: selected.quickEditorTypeId,
+      formId: selected.formId,
+      fields: Array.isArray(selected.fields) ? selected.fields : [],
+      ports: Array.isArray(selected.ports) ? selected.ports : [],
+      schemaMappings: Array.isArray(selected.schemaMappings) ? selected.schemaMappings : [],
+    }
+    setEditorDraft(nextDraft)
+    setEditorRows(buildMappingRowsFromRegistryEntry({ ...nextDraft, updatedAt: selected.updatedAt }))
+  }, [editorMode, selected, selectedId])
+
   const selectedNode = React.useMemo(() => {
     const nodeId = String(selectedNodeId || '').trim()
     if (!nodeId) return null
@@ -108,22 +171,54 @@ export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: str
   }, [selected, selectedId])
 
   React.useEffect(() => {
+    if (selectionMode !== 'auto') return
+    if (editorMode !== 'none') return
     const nextId = resolvedFromSelection?.id || null
     if (selectedId === nextId) return
     setSelectedId(nextId)
-  }, [resolvedFromSelection, selectedId])
+  }, [editorMode, resolvedFromSelection, selectedId, selectionMode])
 
-  const openCreate = React.useCallback(() => {
-    setDrawer({ mode: 'create', id: null })
+  const handleSelect = React.useCallback((id: string | null) => {
+    setSelectionMode('manual')
+    setSelectedId(id)
   }, [])
 
-  const openEdit = React.useCallback((id: string) => {
-    const cleanId = String(id || '').trim()
-    if (!cleanId) return
-    setDrawer({ mode: 'edit', id: cleanId })
+  const closeEditor = React.useCallback(() => {
+    setEditorError(null)
+    setEditorMode('none')
+    setSelectionMode('auto')
+    setSelectedId(null)
   }, [])
 
-  const closeDrawer = React.useCallback(() => setDrawer(null), [])
+  const openCreate = React.useCallback((initialDraft?: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> | null) => {
+    setEditorError(null)
+    setSelectionMode('manual')
+    setSelectedId(null)
+    setEditorMode('create')
+    const nextDraft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> = initialDraft
+      ? {
+          id: String(initialDraft.id || '').trim(),
+          isEnabled: !!initialDraft.isEnabled,
+          nodeTypeId: String(initialDraft.nodeTypeId || '').trim(),
+          quickEditorTypeId: String(initialDraft.quickEditorTypeId || '').trim() || 'default',
+          formId: String(initialDraft.formId || '').trim() || 'default',
+          fields: Array.isArray(initialDraft.fields) ? initialDraft.fields : [],
+          ports: Array.isArray(initialDraft.ports) ? initialDraft.ports : [],
+          schemaMappings: Array.isArray(initialDraft.schemaMappings) ? initialDraft.schemaMappings : [],
+        }
+      : {
+          id: '',
+          isEnabled: true,
+          nodeTypeId: '',
+          quickEditorTypeId: 'default',
+          formId: 'default',
+          fields: [{ fieldKey: 'label', fieldType: 'text', schemaPath: 'label' }],
+          ports: [],
+          schemaMappings: [],
+        }
+    setEditorDraft(nextDraft)
+    setEditorRows(buildMappingRowsFromRegistryEntry({ ...nextDraft, updatedAt: new Date().toISOString() } as NodeQuickEditorRegistryEntry))
+  }, [])
 
   const openCreateFromNodeQuickEditor = React.useCallback(() => {
     const cur = graphData
@@ -144,8 +239,8 @@ export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: str
       model === 'generate_video'
         ? { ...buildGenerateVideoRegistryDraft(), nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID }
         : buildNodeQuickEditorDraftFromSmartFields({ nodeTypeId })
-    setDrawer({ mode: 'create', id: null, initialDraft: inferredDraft })
-  }, [graphData, selectedNodeId, upsertUiToast])
+    openCreate(inferredDraft)
+  }, [graphData, openCreate, selectedNodeId, upsertUiToast])
 
   const registerGenerateVideoFromSelection = React.useCallback(() => {
     const cur = graphData
@@ -224,52 +319,157 @@ export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: str
     downloadBlob(blob, filename)
   }, [nodeQuickEditorRegistry, selected])
 
-  const saveEntry = React.useCallback((next: NodeQuickEditorRegistryEntry) => {
+
+
+  const addEditorRow = React.useCallback(() => {
+    setEditorRows(prev => {
+      const used = new Set(prev.map(r => r.id))
+      const id = createUniqueId('qerRow', used)
+      return [...prev, { id, key: '', type: 'text', value: '', required: false, direction: 'default' }]
+    })
+  }, [])
+
+  const updateEditorRow = React.useCallback((id: string, patch: Partial<FlowEditorMappingRow>) => {
+    const target = String(id || '').trim()
+    if (!target) return
+    setEditorRows(prev => prev.map(r => (r.id === target ? { ...r, ...patch } : r)))
+  }, [])
+
+  const deleteEditorRow = React.useCallback((id: string) => {
+    const target = String(id || '').trim()
+    if (!target) return
+    setEditorRows(prev => prev.filter(r => r.id !== target))
+  }, [])
+
+  const reorderEditorRow = React.useCallback((fromId: string, toId: string) => {
+    const from = String(fromId || '').trim()
+    const to = String(toId || '').trim()
+    if (!from || !to || from === to) return
+    setEditorRows(prev => {
+      const fromIndex = prev.findIndex(r => r.id === from)
+      const toIndex = prev.findIndex(r => r.id === to)
+      if (fromIndex < 0 || toIndex < 0) return prev
+      if (fromIndex === toIndex) return prev
+      const next = prev.slice()
+      const [moved] = next.splice(fromIndex, 1)
+      const insertIndex = fromIndex < toIndex ? Math.max(0, toIndex - 1) : toIndex
+      next.splice(insertIndex, 0, moved)
+      return next
+    })
+  }, [])
+
+  const resetEditor = React.useCallback(() => {
+    setEditorError(null)
+    if (editorMode === 'edit' && selected) {
+      const nextDraft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> = {
+        id: selected.id,
+        isEnabled: selected.isEnabled,
+        nodeTypeId: selected.nodeTypeId,
+        quickEditorTypeId: selected.quickEditorTypeId,
+        formId: selected.formId,
+        fields: Array.isArray(selected.fields) ? selected.fields : [],
+        ports: Array.isArray(selected.ports) ? selected.ports : [],
+        schemaMappings: Array.isArray(selected.schemaMappings) ? selected.schemaMappings : [],
+      }
+      setEditorDraft(nextDraft)
+      setEditorRows(buildMappingRowsFromRegistryEntry({ ...nextDraft, updatedAt: selected.updatedAt }))
+      return
+    }
+    openCreate(null)
+  }, [editorMode, openCreate, selected])
+
+  const validateEditor = React.useCallback((): string | null => {
+    const nodeTypeId = String(editorDraft.nodeTypeId || '').trim()
+    const quickEditorTypeId = String(editorDraft.quickEditorTypeId || '').trim()
+    const formId = String(editorDraft.formId || '').trim()
+    if (!nodeTypeId) return 'Node Type is required.'
+    if (!quickEditorTypeId) return 'Quick Editor Type is required.'
+    if (!formId) return 'Form ID is required.'
+    return validateMappingRows(editorRows)
+  }, [editorDraft.formId, editorDraft.nodeTypeId, editorDraft.quickEditorTypeId, editorRows])
+
+  const saveEditor = React.useCallback(() => {
+    if (editorMode === 'none') return
+    const localErr = validateEditor()
+    if (localErr) {
+      setEditorError(localErr)
+      return
+    }
+    setEditorError(null)
+    const baseEntry = { ...editorDraft, updatedAt: new Date().toISOString() } as NodeQuickEditorRegistryEntry
+    const nextEntry = applyMappingRowsToRegistryEntry({ entry: baseEntry, rows: editorRows })
+
     const res = upsertNodeQuickEditorRegistryEntry({
-      id: next.id,
-      isEnabled: next.isEnabled,
-      nodeTypeId: next.nodeTypeId,
-      quickEditorTypeId: next.quickEditorTypeId,
-      formId: next.formId,
-      fields: next.fields,
-      ports: next.ports,
-      ...(Array.isArray(next.schemaMappings) ? { schemaMappings: next.schemaMappings } : {}),
+      ...(editorMode === 'edit' ? { id: String(editorDraft.id || '').trim() || undefined } : { id: String(editorDraft.id || '').trim() || undefined }),
+      isEnabled: !!editorDraft.isEnabled,
+      nodeTypeId: String(editorDraft.nodeTypeId || '').trim(),
+      quickEditorTypeId: String(editorDraft.quickEditorTypeId || '').trim(),
+      formId: String(editorDraft.formId || '').trim(),
+      fields: nextEntry.fields,
+      ports: nextEntry.ports,
+      schemaMappings: [],
     })
     if (res.ok !== true) {
-      upsertUiToast({ id: 'flow-editor-manager-save-mapping-failed', kind: 'warning', message: 'message' in res ? String(res.message || '').trim() : 'Save failed.', ttlMs: 4000 })
+      setEditorError('message' in res ? String(res.message || '').trim() : 'Save failed.')
       return
     }
     setSelectedId(res.id)
-    upsertUiToast({ id: 'flow-editor-manager-save-mapping-ok', kind: 'neutral', message: 'Saved mapping.', ttlMs: 2000 })
-  }, [upsertNodeQuickEditorRegistryEntry, upsertUiToast])
+    setEditorMode('edit')
+  }, [editorDraft, editorMode, editorRows, upsertNodeQuickEditorRegistryEntry, validateEditor])
 
-  const handleSave = React.useCallback(
-    (draft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> & { updatedAt?: string | null }) => {
-      const res = upsertNodeQuickEditorRegistryEntry({
-        id: draft.id,
-        isEnabled: draft.isEnabled,
-        nodeTypeId: draft.nodeTypeId,
-        quickEditorTypeId: draft.quickEditorTypeId,
-        formId: draft.formId,
-        fields: draft.fields,
-        ports: draft.ports,
-        ...(Array.isArray(draft.schemaMappings) ? { schemaMappings: draft.schemaMappings } : {}),
-      })
-      if (!res.ok) return res
-      setSelectedId(res.id)
-      setDrawer(null)
-      return res
-    },
-    [upsertNodeQuickEditorRegistryEntry],
-  )
+  const deleteEditor = React.useCallback(() => {
+    if (editorMode !== 'edit') return
+    const id = String(editorDraft.id || '').trim()
+    if (!id) return
+    removeNodeQuickEditorRegistryEntry(id)
+    closeEditor()
+  }, [closeEditor, editorDraft.id, editorMode, removeNodeQuickEditorRegistryEntry])
 
-  const handleDelete = React.useCallback((id: string) => {
-    const cleanId = String(id || '').trim()
-    if (!cleanId) return
-    removeNodeQuickEditorRegistryEntry(cleanId)
-    setSelectedId(prev => (prev === cleanId ? null : prev))
-    setDrawer(null)
-  }, [removeNodeQuickEditorRegistryEntry])
+  const isDirty = React.useMemo(() => {
+    if (editorMode === 'none') return false
+    if (editorMode === 'create') return true
+    if (!selected) return true
+
+    const currentBase = { ...editorDraft, updatedAt: selected.updatedAt } as NodeQuickEditorRegistryEntry
+    const current = applyMappingRowsToRegistryEntry({ entry: currentBase, rows: editorRows })
+
+    const comparableCurrent = {
+      isEnabled: !!current.isEnabled,
+      nodeTypeId: String(current.nodeTypeId || '').trim(),
+      quickEditorTypeId: String(current.quickEditorTypeId || '').trim(),
+      formId: String(current.formId || '').trim(),
+      fields: Array.isArray(current.fields) ? current.fields : [],
+      ports: Array.isArray(current.ports) ? current.ports : [],
+    }
+    const comparableSelected = {
+      isEnabled: !!selected.isEnabled,
+      nodeTypeId: String(selected.nodeTypeId || '').trim(),
+      quickEditorTypeId: String(selected.quickEditorTypeId || '').trim(),
+      formId: String(selected.formId || '').trim(),
+      fields: Array.isArray(selected.fields) ? selected.fields : [],
+      ports: Array.isArray(selected.ports) ? selected.ports : [],
+    }
+
+    try {
+      return JSON.stringify(comparableCurrent) !== JSON.stringify(comparableSelected)
+    } catch {
+      return true
+    }
+  }, [editorDraft, editorMode, editorRows, selected])
+
+  React.useEffect(() => {
+    if (!onRegisterActions) return
+    if (editorMode === 'none') {
+      onRegisterActions({ apply: undefined, reset: undefined, applyDisabled: true, resetDisabled: true })
+      return
+    }
+    onRegisterActions({
+      apply: saveEditor,
+      reset: resetEditor,
+      applyDisabled: !isDirty,
+      resetDisabled: false,
+    })
+  }, [editorMode, isDirty, onRegisterActions, resetEditor, saveEditor])
 
   return (
     <section className="h-full min-h-0 flex flex-col" aria-label="Flow Editor Mapping">
@@ -301,7 +501,7 @@ export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: str
               </button>
             </li>
             <li>
-              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={openCreate}>
+              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={() => openCreate(null)}>
                 {UI_LABELS.add} mapping
               </button>
             </li>
@@ -310,39 +510,46 @@ export default function FlowEditorMappingTab({ searchQuery }: { searchQuery: str
       </header>
 
       <section className="flex-1 min-h-0 overflow-hidden" aria-label="Mapping content">
-        <section className="h-full min-h-0 grid grid-cols-1 xl:grid-cols-[1fr_520px]" aria-label="Mapping layout">
+        <section className="h-full min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_520px]" aria-label="Mapping layout">
           <section className="min-h-0 overflow-hidden" aria-label="Mapping list">
             <NodeQuickEditorRegistryTable
               entries={filtered}
               selectedId={selectedId}
-              onSelect={setSelectedId}
-              onEdit={openEdit}
+              onSelect={handleSelect}
               onToggleEnabled={toggleNodeQuickEditorRegistryEntryEnabled}
               emptyLabel={emptyLabel}
             />
           </section>
-          <aside className={`hidden xl:block min-h-0 border-l ${UI_THEME_TOKENS.panel.border} overflow-hidden`} aria-label="Edit mapping panel">
-            <section className="h-full min-h-0 p-3">
-              {selected ? (
-                <FlowMappingRowsEditor entry={selected} onSaveEntry={saveEntry} />
-              ) : (
-                <p className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>Select a mapping to edit.</p>
-              )}
-            </section>
-          </aside>
+          <section
+            className={cn(`min-h-0 border-l ${UI_THEME_TOKENS.panel.border} overflow-hidden p-3`, 'hidden lg:block')}
+            aria-label="Edit mapping panel"
+          >
+            <FlowEditorMappingSettingsPanel
+              mode={editorMode}
+              draft={{
+                id: editorDraft.id,
+                isEnabled: editorDraft.isEnabled,
+                nodeTypeId: editorDraft.nodeTypeId,
+                quickEditorTypeId: editorDraft.quickEditorTypeId,
+                formId: editorDraft.formId,
+              }}
+              rows={editorRows}
+              error={editorError}
+              uiIconScale={uiIconScale}
+              uiIconStrokeWidth={uiIconStrokeWidth}
+              onClose={closeEditor}
+              onChangeDraft={patch => setEditorDraft(prev => ({ ...prev, ...patch }))}
+              onAddRow={addEditorRow}
+              onReset={resetEditor}
+              onSave={saveEditor}
+              onDelete={deleteEditor}
+              onChangeRow={updateEditorRow}
+              onDeleteRow={deleteEditorRow}
+              onReorderRow={reorderEditorRow}
+            />
+          </section>
         </section>
       </section>
-
-      <NodeQuickEditorRegistryDrawer
-        open={!!drawer}
-        mode={drawer?.mode || 'create'}
-        entryId={drawer?.id || null}
-        entries={nodeQuickEditorRegistry}
-        initialDraft={drawer?.mode === 'create' ? drawer?.initialDraft || null : null}
-        onClose={closeDrawer}
-        onSave={handleSave}
-        onDelete={handleDelete}
-      />
     </section>
   )
 }

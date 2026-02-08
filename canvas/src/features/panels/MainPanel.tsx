@@ -3,6 +3,7 @@ import MainPanelFrame from '@/features/panels/ui/MainPanelFrame'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import HelpView from '@/features/panels/views/HelpView'
 import GraphFieldsView from '@/features/panels/views/GraphFieldsView'
+import DashboardView from '@/features/panels/views/DashboardView'
 import PreviewPanelView from './views/PreviewPanelView'
 import WorkflowSection from '@/features/panels/views/WorkflowSection'
 import SettingsView from '@/features/panels/views/SettingsView'
@@ -13,13 +14,21 @@ import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeade
 import MainPanelWorkflowHeader from '@/features/panels/ui/MainPanelWorkflowHeader'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon, Table } from 'lucide-react'
+import { BarChart3, HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon, Table } from 'lucide-react'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
 
-type MainPanelTab = 'workflow' | 'flowEditorManager' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history'
+type MainPanelTab =
+  | 'workflow'
+  | 'flowEditorManager'
+  | 'help'
+  | 'graphFields'
+  | 'dashboard'
+  | 'preview'
+  | 'settings'
+  | 'history'
 
 function isMainPanelTab(key: string): key is MainPanelTab {
   return (
@@ -27,6 +36,7 @@ function isMainPanelTab(key: string): key is MainPanelTab {
     key === 'flowEditorManager' ||
     key === 'help' ||
     key === 'graphFields' ||
+    key === 'dashboard' ||
     key === 'preview' ||
     key === 'settings' ||
     key === 'history'
@@ -64,6 +74,13 @@ export default function MainPanel({
     expandAll?: () => void
     allCollapsed?: boolean
   }>({ allCollapsed: true })
+
+  const [flowEditorManagerActions, setFlowEditorManagerActions] = React.useState<{
+    apply?: () => void
+    reset?: () => void
+    applyDisabled?: boolean
+    resetDisabled?: boolean
+  }>({ applyDisabled: true, resetDisabled: true })
 
   const [workflowActions, setWorkflowActions] = React.useState<{
     collapseAll?: () => void
@@ -144,6 +161,7 @@ export default function MainPanel({
         { key: 'workflow', label: UI_LABELS.workflowManager },
         { key: 'flowEditorManager', label: UI_LABELS.flowEditorManager },
         { key: 'graphFields', label: UI_LABELS.graphFields },
+        { key: 'dashboard', label: UI_LABELS.dashboard },
         { key: 'preview', label: UI_LABELS.previewPanel },
         { key: 'settings', label: UI_LABELS.settings },
         { key: 'history', label: UI_LABELS.history },
@@ -168,6 +186,7 @@ export default function MainPanel({
             />
           )
         },
+        dashboard: BarChart3,
         preview: MonitorPlay,
         settings: Settings,
         history: HistoryIcon,
@@ -190,11 +209,35 @@ export default function MainPanel({
               ? () => setSearchOpen(v => !v)
               : undefined
           }
-          onApply={tab === 'settings' ? settingsActions.apply : undefined}
-          onReset={tab === 'settings' ? settingsActions.reset : undefined}
+          onApply={
+            tab === 'settings'
+              ? settingsActions.apply
+              : tab === 'flowEditorManager'
+                ? flowEditorManagerActions.apply
+                : undefined
+          }
+          onReset={
+            tab === 'settings'
+              ? settingsActions.reset
+              : tab === 'flowEditorManager'
+                ? flowEditorManagerActions.reset
+                : undefined
+          }
           onClose={onClose}
-          applyDisabled={!(tab === 'settings' && settingsActions.apply)}
-          resetDisabled={!(tab === 'settings' && settingsActions.reset)}
+          applyDisabled={
+            tab === 'settings'
+              ? !settingsActions.apply
+              : tab === 'flowEditorManager'
+                ? flowEditorManagerActions.applyDisabled
+                : true
+          }
+          resetDisabled={
+            tab === 'settings'
+              ? !settingsActions.reset
+              : tab === 'flowEditorManager'
+                ? flowEditorManagerActions.resetDisabled
+                : true
+          }
         />
       }
       footer={(
@@ -202,6 +245,8 @@ export default function MainPanel({
           <p>
             {tab === 'graphFields'
               ? graphFieldsStatus
+              : tab === 'dashboard'
+              ? UI_LABELS.dashboard
               : tab === 'workflow'
               ? UI_LABELS.ragGraphRAGWorkflow
               : tab === 'flowEditorManager'
@@ -243,10 +288,13 @@ export default function MainPanel({
             </section>
           </MainPanelBody>
         )}
-        {tab === 'flowEditorManager' && <FlowEditorManagerView searchQuery={search} />}
+        {tab === 'flowEditorManager' && (
+          <FlowEditorManagerView searchQuery={search} onRegisterActions={setFlowEditorManagerActions} />
+        )}
         {tab === 'graphFields' && (
           <GraphFieldsView onStatusChange={setGraphFieldsStatus} searchQuery={search} />
         )}
+        {tab === 'dashboard' && <DashboardView />}
         {tab === 'preview' && <PreviewPanelView />}
         {tab === 'settings' && (
           <MainPanelBody header={<MainPanelSettingsHeader settingsActions={settingsActions} />}>

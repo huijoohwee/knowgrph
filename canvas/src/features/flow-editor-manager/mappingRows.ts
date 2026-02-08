@@ -2,7 +2,7 @@ import { createUniqueId } from '@/lib/ids'
 
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 
-export type FlowMappingRowDirection = 'none' | 'input' | 'output'
+export type FlowMappingRowDirection = 'default' | 'input' | 'output'
 
 export type FlowMappingRowType =
   | 'text'
@@ -21,6 +21,7 @@ export interface FlowEditorMappingRow {
   required: boolean
   direction: FlowMappingRowDirection
   label?: string
+  isHidden?: boolean
 }
 
 const clean = (v: unknown): string => String(v || '').trim()
@@ -36,14 +37,16 @@ export function buildMappingRowsFromRegistryEntry(entry: NodeQuickEditorRegistry
     if (!key) return
     const id = createUniqueId('qerRow', used)
     used.add(id)
+    const isHidden = (f as unknown as { isHidden?: unknown }).isHidden === true
     out.push({
       id,
       key,
       type: (clean(f.fieldType).toLowerCase() as FlowMappingRowType) || 'text',
       value: clean(f.schemaPath),
       required: !!f.required,
-      direction: 'none',
+      direction: 'default',
       ...(clean(f.label) ? { label: clean(f.label) } : {}),
+      ...(isHidden ? { isHidden: true } : {}),
     })
   })
 
@@ -54,6 +57,7 @@ export function buildMappingRowsFromRegistryEntry(entry: NodeQuickEditorRegistry
     if (direction !== 'input' && direction !== 'output') return
     const id = createUniqueId('qerRow', used)
     used.add(id)
+    const isHidden = (p as unknown as { isHidden?: unknown }).isHidden === true
     out.push({
       id,
       key,
@@ -61,6 +65,7 @@ export function buildMappingRowsFromRegistryEntry(entry: NodeQuickEditorRegistry
       value: clean(p.schemaPath),
       required: false,
       direction: direction as 'input' | 'output',
+      ...(isHidden ? { isHidden: true } : {}),
     })
   })
 
@@ -88,7 +93,7 @@ export function validateMappingRows(rows: FlowEditorMappingRow[]): string | null
       continue
     }
 
-    if (r.direction !== 'none') return 'Non-port rows must use Direction=none.'
+    if (r.direction !== 'default') return 'Non-port rows must use Direction=default.'
     if (fieldKeySet.has(key)) return `Duplicate key: ${key}`
     fieldKeySet.add(key)
   }
@@ -116,6 +121,7 @@ export function applyMappingRowsToRegistryEntry(args: {
     const key = clean(r.key)
     if (!key) return
     const value = clean(r.value)
+    const isHidden = r.isHidden === true
 
     if (r.type === 'port' || r.direction === 'input' || r.direction === 'output') {
       const direction = r.direction === 'input' || r.direction === 'output' ? r.direction : 'input'
@@ -123,6 +129,7 @@ export function applyMappingRowsToRegistryEntry(args: {
         portKey: key,
         direction,
         ...(value ? { schemaPath: value } : {}),
+        ...(isHidden ? { isHidden: true } : {}),
       })
       return
     }
@@ -134,6 +141,7 @@ export function applyMappingRowsToRegistryEntry(args: {
       ...(value ? { schemaPath: value } : {}),
       ...(r.required ? { required: true } : {}),
       ...(label ? { label } : {}),
+      ...(isHidden ? { isHidden: true } : {}),
     })
   })
 

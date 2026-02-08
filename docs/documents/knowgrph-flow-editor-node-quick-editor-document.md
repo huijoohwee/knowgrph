@@ -10,8 +10,9 @@
 
 - **Surface**: an in-canvas overlay positioned near the selected Flow Editor node.
 - **Shell**: reuse the host `FloatingPanel` element wrapper for consistent ARIA + theming.
-- **Semantics**: semantic HTML only (`aside/section/header/nav/menu/form/fieldset/legend/label/input/select/textarea/button`).
-- **Toolbar**: AI-Flow-style icon toolbar for quick actions and a click-to-open “More” menu.
+- **Semantics**: semantic HTML only (`aside/section/header/nav/menu/form/fieldset/legend/label/input/select/textarea/button/table/thead/tbody/tr/th/td`).
+- **Key/Value rows**: Node, Smart fields, Mapping, and Registry fields render as schema-like rows with **In Port / Key / Type / Value / Out Port** columns (1%/29%/10%/59%/1%) using SSOT typography/tokens; port dots render for every key row and value inputs/selects align to the same left/right borders without horizontal scrolling.
+- **Toolbar**: AI-Flow-style icon toolbar for quick actions; hidden by default and shown only when the node is selected (top-center, outside the panel border), with no “More” menu.
 
 ---
 
@@ -22,7 +23,7 @@
 - **Minimize/Restore**: collapses the editor body to header-only.
 - **Opacity**: inherits `uiPanelOpacity` from UI settings.
 - **Scroll isolation**: scrolling inside the editor must not zoom the canvas; mark the overlay as a wheel-ignore zone and guard wheel-zoom handlers via SSOT selector `UI_SELECTORS.canvasWheelIgnore`.
-- **More actions**: open selected node in Sidepane, enable Port Handles for all nodes, convert selected node to a Loop node (schema + draft-graph edits only; no hidden background work; idempotent updates).
+- **Toolbar actions**: open selected node in Sidepane, enable Handles for all inputs, convert selected node to a Loop node (schema + draft-graph edits only; no hidden background work; idempotent updates). The toolbar hides on unselect or outside click.
 - **Baseline lock**: enable-handles action is gated when Document Structure baseline lock is enabled.
 - **Multi-node overlays**: multiple Node Quick Editors may be open at the same time; overlays must remain visible and operable without DOM id collisions.
 
@@ -63,7 +64,9 @@
 
 ### Schema Field Ports (Database-schema-node style)
 
-- If a node carries `node.properties['schema:fields']` (array of strings or `{id|title,type}` objects), the Node Quick Editor renders a **schema field list** and places **row-aligned input/output port dots** that intersect the panel border line.
+- If a node carries `node.properties['schema:fields']` (array of strings or `{id|title,type}` objects), the Node Quick Editor renders a **schema field list** and places **row-aligned input/output port dots** that intersect the panel border line; in/out dots appear for every key row to keep the port grid continuous.
+- The schema field surface is an inline **schema table editor** (semantic `table/thead/tbody/tr/th/td`), allowing users to add/remove fields and edit field name + type without leaving the canvas.
+- When a schema field is renamed, any port-bound edges attached to that field must be rewritten to the new port key (`field:<nextId>`) and `edge.properties['flow:displayLabel']` must be recomputed to match.
 - When creating edges in Flow Editor, edges may bind to specific ports using:
   - `edge.properties['flow:sourcePortKey']`
   - `edge.properties['flow:targetPortKey']`
@@ -76,16 +79,65 @@
 - Optional UI label override for port-bound edges: `edge.properties['flow:displayLabel']` (e.g., `warehouse_id → id`).
 - When the Node Quick Editor is open, the selected node’s native FlowCanvas port handles are hidden to avoid duplicate “detached” dots; the quick editor is the active port UI surface.
 
+### Edge Creation Paths
+
+- Flow Editor canvas handle drags create edges; when a port dot is the source/target, edges set `edge.properties['flow:sourcePortKey']` / `edge.properties['flow:targetPortKey']` (else fall back to `edge.id`).
+- Node Quick Editor port dots are the edge-creation surface for the selected node while the overlay is open.
+- Port-bound edges may set `edge.properties['flow:displayLabel']` to surface a stable UI label (e.g., `sourceKey → targetKey`).
+
 ### Registry-Driven Forms (Flow Editor Manager)
 
 - When a matching **enabled** entry exists in the Node Quick Editor Registry (Flow Editor Manager), the Node Quick Editor renders an additional **Registry** section for the selected node type.
 - Registry fields read/write values via `schemaPath` (defaulting to `properties.<fieldKey>` when omitted).
 - Registry ports render as clickable in/out ports and create edges bound via `flow:sourcePortKey` / `flow:targetPortKey`.
+- Optional per-field/per-port visibility: `isHidden: true` hides the field/port from the Node Quick Editor UI and suppresses Flow port handles.
 - Optional per-node overrides:
   - `node.properties['flow:quickEditorTypeId']`
   - `node.properties['flow:quickEditorFormId']`
 - The mapping selector stays visible even when the quick editor fields are hidden; clearing the selection removes the override keys.
 - The Smart Fields section includes a registry selector filtered to enabled mappings for the node type; selection updates the two override keys and emits a lightweight toast with the mapping label for visual confirmation.
+
+### Mapping Editor (Flow Editor Manager)
+
+- Mapping rows render in a schema-like table with **Key / Type / JSON Key / Direction** columns (SSOT typography + tokens).
+- Direction options are `Default` (show input + output in Quick Editor), `input` (input-only), and `output` (output-only); values persist in registry entries.
+- Apply/Reset in the MainPanel header gates persistence; Apply is enabled only when edits are dirty.
+- The editor header owns the Add Row action; avoid nested section headers in the editor body.
+
+---
+
+## In-Editor Dataflow (Connected Inputs → Quick Editor)
+
+- **Goal**: allow a node editor to reflect upstream values in real time, without copying external Flow libraries.
+- **Inputs**: edges bound to ports via `edge.properties['flow:sourcePortKey']` / `edge.properties['flow:targetPortKey']`.
+- **Port schemaPath**: registry `ports[].schemaPath` defines how a port reads/writes values on the node shape (defaults to `properties.<portKey>`).
+- **Compute model (MVP)**:
+  - For each node open in the Node Quick Editor overlay, compute a `connectedValuesBySchemaPath` map.
+  - For each connected input port, the UI surfaces a **Connected:** hint next to the mapped field and provides an **Apply** action.
+  - Applying writes the value into `node.properties` at the field schemaPath (using object-path setters), making the value explicit and exportable.
+- **Propagation model (MVP)**:
+  - Connected values are computed across upstream chains (A → B → C) without requiring intermediate nodes to mutate their stored properties.
+  - The dataflow iteration is bounded and converges to a stable connected-value map (no unbounded loops).
+- **Transform model (MVP)**:
+  - Optional `registryEntry.schemaMappings[]` applies simple path-to-path transforms during compute.
+  - `fromPath` is evaluated against a node-local context object `{ in, node }` where:
+    - `in.<portKey>` is the current connected input value for that port key.
+    - `node.<label|type|properties|metadata>` is the node’s own data.
+  - `toPath` targets the node shape (normalized to `properties.*` when needed) and is surfaced as another computed connected value.
+  - Optional `reduceId` applies when `fromPath` resolves to an array, then optional `transformId` applies to the reduced value.
+  - Built-in ids are defined in `canvas/src/lib/flowEditor/flowDataflowTransforms.ts` and include:
+    - Transforms: `identity`, `trim`, `lower`, `upper`, `to_number`, `to_boolean`, `stringify_json`, `json_parse`, `first`, `last`, `length`, `join_lines`, `join_comma`.
+    - Reducers: `first`, `last`, `concat_array`, `join_lines`, `join_comma`.
+- **Auto-apply (MVP)**:
+  - The Registry section includes an Apply All action that fills empty fields from connected values.
+  - Optional Auto-apply continuously fills empty fields as connected values update, without mutating GraphData during compute.
+- **Non-mutation rule**: connected values are computed at render time; the pipeline must not silently mutate `GraphData` while computing.
+
+### Code Locations
+
+- Dataflow compute: `canvas/src/lib/flowEditor/flowDataflow.ts`
+- Overlay wiring: `canvas/src/components/FlowEditorCanvas.tsx`
+- Connected-value UI hints: `canvas/src/components/FlowEditor/NodeOverlayEditorRegistrySection.tsx`
 
 ---
 
@@ -110,8 +162,11 @@
       "nodeTypeId": "VideoGeneration",
       "quickEditorTypeId": "default",
       "formId": "videoGeneration",
-      "fields": [{ "fieldKey": "prompt", "fieldType": "textarea", "schemaPath": "properties.prompt" }],
-      "ports": [{ "portKey": "videoUrl", "direction": "output" }],
+      "fields": [{ "fieldKey": "prompt", "fieldType": "textarea", "schemaPath": "properties.prompt", "isHidden": false }],
+      "ports": [{ "portKey": "videoUrl", "direction": "output", "isHidden": false }],
+      "schemaMappings": [
+        { "fromPath": "in.image", "toPath": "properties.reference_image", "transformId": "first" }
+      ],
       "updatedAt": "2026-02-06T00:00:00.000Z"
     }
   ],
@@ -186,5 +241,11 @@
   - `canvas/src/components/FlowEditor/NodeOverlayEditorPanel.tsx`
 - Form surface (fields mapped to `node.properties`):
   - `canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx`
+- Schema field table editor:
+  - `canvas/src/components/FlowEditor/NodeOverlayEditorSchemaTable.tsx`
+- Registry section extraction:
+  - `canvas/src/components/FlowEditor/NodeOverlayEditorRegistrySection.tsx`
+- Key/Type/Value schema-like row table:
+  - `canvas/src/components/FlowEditor/NodeOverlayEditorKvTable.tsx`
 - Port-key helpers (SSOT):
   - `canvas/src/lib/graph/flowPorts.ts`

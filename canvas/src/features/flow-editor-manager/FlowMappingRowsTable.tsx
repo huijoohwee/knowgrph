@@ -5,6 +5,8 @@ import { Trash2 } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_RING_PRIMARY_BLUE_INDICATOR } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { GripDotsIcon, VisibilityIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 
 import type { FlowEditorMappingRow, FlowMappingRowDirection, FlowMappingRowType } from '@/features/flow-editor-manager/mappingRows'
 
@@ -19,7 +21,7 @@ const TYPE_OPTIONS: Array<{ value: FlowMappingRowType; label: string }> = [
 ]
 
 const DIRECTION_OPTIONS: Array<{ value: FlowMappingRowDirection; label: string }> = [
-  { value: 'none', label: 'none' },
+  { value: 'default', label: 'Default' },
   { value: 'input', label: 'input' },
   { value: 'output', label: 'output' },
 ]
@@ -28,10 +30,12 @@ export default function FlowMappingRowsTable({
   rows,
   onChange,
   onDelete,
+  onReorder,
 }: {
   rows: FlowEditorMappingRow[]
   onChange: (id: string, patch: Partial<FlowEditorMappingRow>) => void
   onDelete: (id: string) => void
+  onReorder: (fromId: string, toId: string) => void
 }) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
@@ -40,13 +44,57 @@ export default function FlowMappingRowsTable({
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass)
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
+  const [draggingRowId, setDraggingRowId] = React.useState<string | null>(null)
+  const [dragOverRowId, setDragOverRowId] = React.useState<string | null>(null)
+
+  const onDragStart = React.useCallback(
+    (rowId: string, e: React.DragEvent) => {
+      const id = String(rowId || '').trim()
+      if (!id) return
+      setDraggingRowId(id)
+      setDragOverRowId(id)
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', id)
+    },
+    [],
+  )
+
+  const onDragEnd = React.useCallback(() => {
+    setDraggingRowId(null)
+    setDragOverRowId(null)
+  }, [])
+
+  const onDragOverRow = React.useCallback((rowId: string, e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverRowId(String(rowId || '').trim() || null)
+  }, [])
+
+  const onDropRow = React.useCallback(
+    (rowId: string, e: React.DragEvent) => {
+      e.preventDefault()
+      const toId = String(rowId || '').trim()
+      const fromId = String(e.dataTransfer.getData('text/plain') || '').trim()
+      if (!fromId || !toId || fromId === toId) {
+        setDraggingRowId(null)
+        setDragOverRowId(null)
+        return
+      }
+      onReorder(fromId, toId)
+      setDraggingRowId(null)
+      setDragOverRowId(null)
+    },
+    [onReorder],
+  )
+
   return (
     <table className={`w-full border-separate border-spacing-0 ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}>
       <thead>
         <tr>
+          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Move</th>
           <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</th>
           <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</th>
-          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Value</th>
+          <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>JSON Key</th>
           <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Required</th>
           <th className={`text-left px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Direction</th>
           <th className={`text-right px-2 py-2 text-xs font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Actions</th>
@@ -60,8 +108,40 @@ export default function FlowMappingRowsTable({
           const reqId = `flow-map-required-${r.id}`
           const dirId = `flow-map-direction-${r.id}`
           const isPort = r.type === 'port'
+          const visible = r.isHidden !== true
+          const isDragOver = !!dragOverRowId && dragOverRowId === r.id
+          const isDragging = !!draggingRowId && draggingRowId === r.id
           return (
-            <tr key={r.id} className={UI_THEME_TOKENS.table.rowHoverAmber}>
+            <tr
+              key={r.id}
+              className={[
+                UI_THEME_TOKENS.table.rowHoverAmber,
+                isDragOver ? ['ring-1', UI_RING_PRIMARY_BLUE_INDICATOR].join(' ') : '',
+                !visible ? 'opacity-60' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onDragOver={e => onDragOverRow(r.id, e)}
+              onDrop={e => onDropRow(r.id, e)}
+              onDragLeave={e => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOverRowId(null)
+              }}
+            >
+              <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
+                <button
+                  type="button"
+                  className={`${UI_THEME_TOKENS.button.text} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} inline-flex items-center justify-center h-7 w-7 rounded ${UI_THEME_TOKENS.button.hoverBg}`}
+                  draggable
+                  onDragStart={e => onDragStart(r.id, e)}
+                  onDragEnd={onDragEnd}
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => e.stopPropagation()}
+                  aria-label="Reorder row"
+                  title="Reorder row"
+                >
+                  <GripDotsIcon className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} />
+                </button>
+              </td>
               <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
                 <label className="sr-only" htmlFor={keyId}>Key</label>
                 <input
@@ -80,7 +160,8 @@ export default function FlowMappingRowsTable({
                   value={r.type}
                   onChange={e => {
                     const nextType = e.target.value as FlowMappingRowType
-                    const nextDirection: FlowMappingRowDirection = nextType === 'port' ? (r.direction === 'none' ? 'output' : r.direction) : 'none'
+                    const nextDirection: FlowMappingRowDirection =
+                      nextType === 'port' ? (r.direction === 'default' ? 'output' : r.direction) : 'default'
                     onChange(r.id, { type: nextType, direction: nextDirection })
                   }}
                 >
@@ -90,7 +171,7 @@ export default function FlowMappingRowsTable({
                 </select>
               </td>
               <td className={`px-2 py-1 align-top border-t ${UI_THEME_TOKENS.panel.border}`}>
-                <label className="sr-only" htmlFor={valueId}>Value</label>
+                <label className="sr-only" htmlFor={valueId}>JSON Key</label>
                 <input
                   id={valueId}
                   className={`w-full h-7 px-2 rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueInputClass}`}
@@ -115,8 +196,12 @@ export default function FlowMappingRowsTable({
                   id={dirId}
                   className={`w-full h-7 px-2 rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text} ${uiPanelKeyValueInputClass}`}
                   value={r.direction}
-                  onChange={e => onChange(r.id, { direction: e.target.value as FlowMappingRowDirection, type: e.target.value === 'none' ? r.type : 'port' })}
-                  disabled={!isPort && r.direction === 'none'}
+                  onChange={e => {
+                    const nextDirection = e.target.value as FlowMappingRowDirection
+                    const nextType = nextDirection === 'default' ? (r.type === 'port' ? 'text' : r.type) : 'port'
+                    onChange(r.id, { direction: nextDirection, type: nextType })
+                  }}
+                  disabled={!isPort && r.direction === 'default'}
                 >
                   {DIRECTION_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -124,6 +209,15 @@ export default function FlowMappingRowsTable({
                 </select>
               </td>
               <td className={`px-2 py-1 align-top text-right border-t ${UI_THEME_TOKENS.panel.border}`}>
+                <button
+                  type="button"
+                  className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} mr-1`}
+                  onClick={() => onChange(r.id, { isHidden: visible })}
+                  aria-label={visible ? 'Hide row' : 'Show row'}
+                  title={visible ? 'Hide row' : 'Show row'}
+                >
+                  <VisibilityIcon hidden={!visible} iconClassName={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+                </button>
                 <button
                   type="button"
                   className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -141,4 +235,3 @@ export default function FlowMappingRowsTable({
     </table>
   )
 }
-

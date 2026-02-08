@@ -4,17 +4,21 @@ export type NodeQuickEditorRegistryField = {
   fieldType: string
   schemaPath?: string
   required?: boolean
+  isHidden?: boolean
 }
 
 export type NodeQuickEditorRegistryPort = {
   portKey: string
   direction: 'input' | 'output'
   schemaPath?: string
+  isHidden?: boolean
 }
 
 export type NodeQuickEditorRegistrySchemaMapping = {
   fromPath: string
   toPath: string
+  transformId?: string
+  reduceId?: string
 }
 
 export type NodeQuickEditorRegistryEntry = {
@@ -28,4 +32,3 @@ export type NodeQuickEditorRegistryEntry = {
   schemaMappings?: NodeQuickEditorRegistrySchemaMapping[]
   updatedAt: string
 }
-

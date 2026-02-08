@@ -1,6 +1,5 @@
 import React from 'react'
 
-import { UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
@@ -11,14 +10,12 @@ export default function NodeQuickEditorRegistryTable({
   entries,
   selectedId,
   onSelect,
-  onEdit,
   onToggleEnabled,
   emptyLabel,
 }: {
   entries: NodeQuickEditorRegistryEntry[]
   selectedId: string | null
   onSelect: (id: string | null) => void
-  onEdit: (id: string) => void
   onToggleEnabled: (id: string, enabled?: boolean) => void
   emptyLabel?: string
 }) {
@@ -37,7 +34,6 @@ export default function NodeQuickEditorRegistryTable({
             <th className={cn('text-left px-3 py-2 text-xs font-semibold', UI_THEME_TOKENS.text.secondary)}>Fields</th>
             <th className={cn('text-left px-3 py-2 text-xs font-semibold', UI_THEME_TOKENS.text.secondary)}>Ports</th>
             <th className={cn('text-left px-3 py-2 text-xs font-semibold', UI_THEME_TOKENS.text.secondary)}>Updated</th>
-            <th className={cn('text-right px-3 py-2 text-xs font-semibold', UI_THEME_TOKENS.text.secondary)}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -86,25 +82,13 @@ export default function NodeQuickEditorRegistryTable({
                 <td className={cn('px-3 py-2 text-xs', UI_THEME_TOKENS.text.tertiary)}>
                   <span className={cn(panelTypography.monospaceTextClass)}>{String(e.updatedAt || '').slice(0, 19).replace('T', ' ')}</span>
                 </td>
-                <td className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                    onClick={ev => {
-                      ev.stopPropagation()
-                      onEdit(e.id)
-                    }}
-                  >
-                    {UI_LABELS.edit}
-                  </button>
-                </td>
               </tr>
             )
           })}
 
           {entries.length === 0 && (
             <tr>
-              <td colSpan={8} className={cn('px-3 py-6 text-center', panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
+              <td colSpan={7} className={cn('px-3 py-6 text-center', panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)}>
                 {emptyLabel || 'No mappings yet.'}
               </td>
             </tr>

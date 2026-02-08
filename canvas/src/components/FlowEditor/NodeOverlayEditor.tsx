@@ -2,6 +2,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
+import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
 import { worldToScreen } from '@/lib/zoom/viewport'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { useOutsideClose } from '@/hooks/useOutsideClose'
@@ -25,10 +26,12 @@ import {
   computeNodeQuickEditorScaledSize,
   NODE_QUICK_EDITOR_BASE_SIZE,
 } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { getIconSizeClass } from '@/lib/ui'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { useShallow } from 'zustand/react/shallow'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 
 const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   active,
@@ -40,6 +43,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   forcePinnedToNode,
   stackIndex,
   edges,
+  connectedValuesBySchemaPath,
   toolMode,
   pendingEdgeSourceId,
   onBeginAddEdgeFromNode,
@@ -54,9 +58,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   onClearOutput,
   onHelp,
   onConvertToLoopNode,
-  onTogglePortHandles,
   onEnableHandlesForAllInputs,
   onPinnedToNodeChange,
+  onRenameSchemaFieldId,
 }: {
   active: boolean
   node: GraphNode
@@ -67,6 +71,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   forcePinnedToNode?: boolean
   stackIndex?: number
   edges: ReadonlyArray<GraphEdge>
+  connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   toolMode?: 'select' | 'addEdge'
   pendingEdgeSourceId?: string | null
   onBeginAddEdgeFromNode?: (nodeId: string, portKey?: string | null) => void
@@ -81,9 +86,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   onClearOutput: () => void
   onHelp: () => void
   onConvertToLoopNode: () => void
-  onTogglePortHandles: () => void
   onEnableHandlesForAllInputs: () => void
   onPinnedToNodeChange?: (pinnedToNode: boolean) => void
+  onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
 }) {
   const { panelTextClass, microLabelClass } = usePanelTypography()
   const {
@@ -95,6 +100,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     documentStructureBaselineLock,
     nodeQuickEditorRegistry,
     upsertUiToast,
+    selectNode,
+    setSelectionSource,
+    selectedNodeId,
   } = useGraphStore(
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
@@ -105,6 +113,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
       nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
       upsertUiToast: s.upsertUiToast,
+      selectNode: s.selectNode,
+      setSelectionSource: s.setSelectionSource,
+      selectedNodeId: s.selectedNodeId,
     })),
   )
 
@@ -141,10 +152,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => lsInt(LS_KEYS.flowNodeQuickEditorTopPx, 48))
   const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => lsInt(LS_KEYS.flowNodeQuickEditorLeftPx, 16))
 
-  const [menuOpen, setMenuOpen] = React.useState(false)
-  const menuRef = React.useRef<HTMLElement | null>(null)
-  const moreButtonRef = React.useRef<HTMLButtonElement | null>(null)
-  useOutsideClose(menuOpen, setMenuOpen, menuRef, [moreButtonRef])
+  const [toolbarVisible, setToolbarVisible] = React.useState(false)
+  useOutsideClose(toolbarVisible, setToolbarVisible, asideRef)
 
   const labelInputRef = React.useRef<HTMLInputElement | null>(null)
 
@@ -175,8 +184,6 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     setPinned(false)
   }, [active, forcePinnedToNode, pinned, setPinned])
 
-  const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled)
-  const portHandlesDisabled = documentStructureBaselineLock === true
   const enableHandlesDisabled = documentStructureBaselineLock === true || isHandlesForAllInputsEnabled(schema)
   const convertToLoopDisabled = isLoopNode(node)
 
@@ -187,6 +194,17 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   React.useEffect(() => {
     nodeRef.current = node
   }, [node])
+
+  React.useEffect(() => {
+    if (!toolbarVisible) return
+    if (!active) {
+      setToolbarVisible(false)
+      return
+    }
+    const id = String(node.id || '').trim()
+    if (!id) return
+    if (selectedNodeId !== id) setToolbarVisible(false)
+  }, [active, node.id, selectedNodeId, toolbarVisible])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -472,47 +490,61 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       data-kg-canvas-wheel-ignore="true"
       className="fixed"
       style={{ zIndex: overlayZIndex }}
+      onPointerDownCapture={() => {
+        if (!active) return
+        const id = String(node.id || '').trim()
+        if (!id) return
+        setSelectionSource('editor')
+        selectNode(id)
+        setToolbarVisible(true)
+      }}
     >
+      <div className="relative">
+        <div className="absolute left-1/2 -translate-x-1/2" style={{ top: -40 }}>
+          <NodeOverlayEditorActionsToolbar
+            visible={toolbarVisible && selectedNodeId === String(node.id || '').trim()}
+            iconSizeClass={getIconSizeClass(uiIconScale)}
+            iconStrokeWidth={uiIconStrokeWidth}
+            active={active}
+            enableHandlesDisabled={enableHandlesDisabled}
+            convertToLoopDisabled={convertToLoopDisabled}
+            onDuplicate={onDuplicate}
+            onClearOutput={onClearOutput}
+            onHelp={onHelp}
+            onRemove={onRemove}
+            onEnableHandlesForAllInputs={onEnableHandlesForAllInputs}
+            onConvertToLoopNode={onConvertToLoopNode}
+          />
+        </div>
+
       <NodeOverlayEditorPanel
         active={active}
         node={node}
         minimized={minimized}
         hideFields={hideFields}
         pinned={effectivePinned}
-        portHandlesEnabled={portHandlesEnabled}
-        portHandlesDisabled={portHandlesDisabled}
-        enableHandlesDisabled={enableHandlesDisabled}
-        convertToLoopDisabled={convertToLoopDisabled}
         uiPanelOpacity={uiPanelOpacity}
         panelTextClass={panelTextClass}
         microLabelClass={microLabelClass}
         uiIconScale={uiIconScale}
         uiIconStrokeWidth={uiIconStrokeWidth}
         labelInputRef={labelInputRef}
-        menuOpen={menuOpen}
-        setMenuOpen={setMenuOpen}
-        menuRef={menuRef}
-        moreButtonRef={moreButtonRef}
         onHeaderPointerDown={handleHeaderPointerDown}
         onToggleHideFields={handleToggleHideFields}
         onTogglePinned={handleTogglePinned}
         onToggleMinimized={handleToggleMinimized}
-        onTogglePortHandles={onTogglePortHandles}
-        onDuplicate={onDuplicate}
-        onRemove={onRemove}
-        onClearOutput={onClearOutput}
-        onHelp={onHelp}
-        onConvertToLoopNode={onConvertToLoopNode}
-        onEnableHandlesForAllInputs={onEnableHandlesForAllInputs}
         onSetLabel={onSetLabel}
         onSetType={onSetType}
         onPatchProperties={onPatchProperties}
         onSetProperties={onSetProperties}
         onValidate={onValidate}
         onRegistrySelectionChange={handleRegistrySelectionChange}
+        onRenameSchemaFieldId={onRenameSchemaFieldId}
 
         registryEntry={registryEntry}
         registryEntries={nodeQuickEditorRegistry}
+
+        connectedValuesBySchemaPath={connectedValuesBySchemaPath}
 
         portHandleEdges={Array.isArray(edges) ? edges : []}
         schema={schema}
@@ -521,6 +553,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
         onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
       />
+      </div>
     </aside>
   )
 

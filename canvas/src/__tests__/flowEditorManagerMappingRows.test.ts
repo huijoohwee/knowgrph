@@ -39,9 +39,8 @@ export function testFlowEditorManagerMappingRowsRoundTripPreservesLabels() {
 
 export function testFlowEditorManagerMappingRowsValidationDetectsDuplicates() {
   const err = validateMappingRows([
-    { id: '1', key: 'x', type: 'text', value: '', required: false, direction: 'none' },
-    { id: '2', key: 'x', type: 'number', value: '', required: false, direction: 'none' },
+    { id: '1', key: 'x', type: 'text', value: '', required: false, direction: 'default' },
+    { id: '2', key: 'x', type: 'number', value: '', required: false, direction: 'default' },
   ])
   if (!err) throw new Error('expected duplicate key error')
 }
-

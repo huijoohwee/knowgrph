@@ -23,7 +23,16 @@ import {
 
 type SpecTab = 'node' | 'workflow'
 
-export default function FlowEditorSpecificationTab() {
+export default function FlowEditorSpecificationTab({
+  onRegisterActions,
+}: {
+  onRegisterActions?: (actions: {
+    apply?: () => void
+    reset?: () => void
+    applyDisabled?: boolean
+    resetDisabled?: boolean
+  }) => void
+}) {
   const panelTypography = usePanelTypography()
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
@@ -104,6 +113,16 @@ export default function FlowEditorSpecificationTab() {
     }
     writeFlowWorkflowSpecToStorage(res.value)
   }, [workflowText])
+
+  React.useEffect(() => {
+    if (!onRegisterActions) return
+    onRegisterActions({
+      apply: tab === 'node' ? saveNode : saveWorkflow,
+      reset: tab === 'node' ? resetNode : resetWorkflow,
+      applyDisabled: false,
+      resetDisabled: false,
+    })
+  }, [onRegisterActions, resetNode, resetWorkflow, saveNode, saveWorkflow, tab])
 
   return (
     <section className="h-full min-h-0 flex flex-col" aria-label="Flow Editor Specification">

@@ -28,7 +28,7 @@ type RegistryEntryLike = {
   formId: string
   fields: RegistryFieldLike[]
   ports: RegistryPortLike[]
-  schemaMappings?: Array<{ fromPath: string; toPath: string }>
+  schemaMappings?: Array<{ fromPath: string; toPath: string; transformId?: string; reduceId?: string }>
   updatedAt: string
 }
 
@@ -273,4 +273,3 @@ export function tryParseQuickEditorImportGraphData(json: unknown): { graphData: 
 
   return null
 }
-

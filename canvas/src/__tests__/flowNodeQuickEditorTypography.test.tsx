@@ -72,11 +72,11 @@ export async function testFlowNodeQuickEditorTypographyInheritsPanelSettings() {
       throw new Error(`expected form to inherit base panel text size, got ${JSON.stringify(formClass)}`)
     }
 
-    const legend = form.querySelector('legend')
-    if (!legend) throw new Error('expected quick editor to render a legend')
-    const legendClass = String(legend.getAttribute('class') || '')
-    if (!legendClass.includes('text-[10px]')) {
-      throw new Error(`expected legend to use micro label class, got ${JSON.stringify(legendClass)}`)
+    const caption = form.querySelector('caption')
+    if (!caption) throw new Error('expected quick editor to render a table caption')
+    const captionClass = String(caption.getAttribute('class') || '')
+    if (!captionClass.includes('text-[10px]')) {
+      throw new Error(`expected caption to use micro label class, got ${JSON.stringify(captionClass)}`)
     }
 
     const textarea = form.querySelector('textarea')

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { UI_ANCHORS, UI_COPY } from '@/lib/config'
+import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelGraphFieldsHeader from '@/features/panels/ui/MainPanelGraphFieldsHeader'
 import {
@@ -18,7 +18,6 @@ import FieldSettingsPanel from '@/features/panels/views/graph-fields/FieldSettin
 import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamplesPanel'
 import { normalized } from '@/features/panels/utils/json'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import GraphStatsPanel from '@/components/BottomPanel/BottomPanelStatsTab'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -230,15 +229,14 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
               onResync={resync}
               onStatusChange={onStatusChange}
             />
-            <FieldSamplesPanel
-              graphData={graphData}
-              selectedField={selectedField}
-              selectedSettings={selectedSettings}
-              onApplyAsSelectOptions={applySamplesAsSelectOptions}
-              onStatusChange={onStatusChange}
-            />
-            <section className="min-h-0 overflow-hidden" aria-label="Graph stats">
-              <GraphStatsPanel />
+            <section className="min-h-0 overflow-hidden col-span-2" aria-label={UI_LABELS.samples}>
+              <FieldSamplesPanel
+                graphData={graphData}
+                selectedField={selectedField}
+                selectedSettings={selectedSettings}
+                onApplyAsSelectOptions={applySamplesAsSelectOptions}
+                onStatusChange={onStatusChange}
+              />
             </section>
           </div>
         </div>

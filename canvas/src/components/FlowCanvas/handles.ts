@@ -87,6 +87,7 @@ export function computeFlowHandlesByNode(args: {
       const seen = new Set<string>()
       for (let j = 0; j < ports.length; j += 1) {
         const p = ports[j]
+        if ((p as { isHidden?: boolean }).isHidden === true) continue
         const portKey = String(p?.portKey || '').trim()
         if (!portKey) continue
         const dir: FlowHandleDir = p.direction === 'input' ? 'in' : 'out'

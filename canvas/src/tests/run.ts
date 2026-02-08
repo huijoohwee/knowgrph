@@ -178,6 +178,7 @@ import {
 import { testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields } from '@/__tests__/flowSchemaFieldPortKeys.test'
 import { testFlowSchemaPortsBuildDisplayLabel, testFlowSchemaPortsInfluenceEdgeValidation } from '@/__tests__/flowSchemaPortEdgeValidation.test'
 import { testFlowHandlesIncludeRegistryPortsWithoutEdges } from '@/__tests__/flowHandlesRegistryPorts.test'
+import { testFlowDataflowConnectedValuesBySchemaPath } from '@/__tests__/flowDataflowConnectedValues.test'
 import {
   testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride,
   testFlowNodeQuickEditorRegistryResolvePrefersDefault,
@@ -562,6 +563,7 @@ export const runAllTests = async () => {
   await exec('schema.flowPorts.validation.schemaPortsAffectCanAddEdge', testFlowSchemaPortsInfluenceEdgeValidation)
   await exec('schema.flowPorts.label.buildDisplayLabelFromPorts', testFlowSchemaPortsBuildDisplayLabel)
   await exec('flow.handles.registryPorts.presentWithoutEdges', testFlowHandlesIncludeRegistryPortsWithoutEdges)
+  await exec('flow.dataflow.connectedValues.bySchemaPath', testFlowDataflowConnectedValuesBySchemaPath)
   await exec('flow.quickEditor.registry.resolve.prefersDefault', testFlowNodeQuickEditorRegistryResolvePrefersDefault)
   await exec('flow.quickEditor.registry.resolve.honorsNodeOverride', testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride)
   await exec('mainPanel.flowEditorManager.registry.validateAndNormalize', testFlowEditorManagerRegistryValidatesAndNormalizes)

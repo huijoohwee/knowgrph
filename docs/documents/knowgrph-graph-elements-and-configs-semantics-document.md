@@ -17,7 +17,14 @@
 
 ---
 
-## Graph Elements (SSOT Semantics)
+## GRAPHS Elements (SSOT Semantics)
+
+- **Nodes**
+- **Node Quick Editors**
+- **Edges**
+- **Graph layers**: subgraphs, groups, clusters, communities
+- **Labels**
+- **Text**
 
 ### Nodes
 
@@ -51,6 +58,12 @@
   - Token-driven typography + icon sizing (`usePanelTypography`, `UI_THEME_TOKENS`).
   - Scroll isolation: overlay scroll must not trigger canvas zoom (wheel-ignore zone).
   - Render isolation: zoom/pan must not re-render heavy form subtrees (DOM transform updates only).
+  - Registry-driven fields/ports:
+    - Registry entries are authored via Flow Editor Manager and resolved per-node by node type + overrides.
+    - `isHidden: true` on registry fields/ports hides them in the quick editor and suppresses Flow port handles.
+  - Connected-data semantics:
+    - Connected values are derived from port-bound edges and registry port `schemaPath` (plus optional `schemaMappings`).
+    - The UI may surface computed “Connected” hints and an explicit “Apply” action, but the compute pipeline must not silently mutate `GraphData`.
   - More actions contract:
     - Open in sidepane dispatches the side panel open event (no graph mutation).
     - Enable Handles sets `schema.behavior.portHandles.enabled=true` and `schema.behavior.portHandles.showAllInputs=true` (gated by baseline lock).
@@ -58,7 +71,13 @@
 
 ---
 
-## Graph Configs (SSOT Semantics)
+## GRAPHS Configs (SSOT Semantics)
+
+- **Grouping**
+- **Positioning**
+- **Collisions**
+- **Timing**
+- **Knobs**
 
 ### Grouping
 

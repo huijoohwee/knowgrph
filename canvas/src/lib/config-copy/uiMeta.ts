@@ -40,6 +40,7 @@ export const UI_SELECTORS = {
 export const UI_LABELS = {
   sourceFiles: 'Source Files',
   csv: 'CSV',
+  dashboard: 'Dashboard',
   graphFields: 'Graph Fields',
   previewPanel: 'Preview Panel',
   search: 'Graph Search',
@@ -192,6 +193,14 @@ export const UI_LABELS = {
 
   flowNodeQuickEditorSchemaLegend: 'Schema',
   flowNodeQuickEditorSchemaFieldsLegend: 'Fields',
+  flowNodeQuickEditorSchemaColumnLabel: 'Column',
+  flowNodeQuickEditorSchemaTypeLabel: 'Type',
+  flowNodeQuickEditorSchemaActionsLabel: 'Actions',
+  flowNodeQuickEditorSchemaAddField: 'Add field',
+  flowNodeQuickEditorSchemaRemoveField: 'Remove field',
+  flowNodeQuickEditorKeyLabel: 'Key',
+  flowNodeQuickEditorTypeLabel: 'Type',
+  flowNodeQuickEditorValueLabel: 'Value',
   hideFields: 'Hide Fields',
   showFields: 'Show Fields',
   changeName: 'Change name',

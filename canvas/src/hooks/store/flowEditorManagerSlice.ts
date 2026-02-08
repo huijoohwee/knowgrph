@@ -49,7 +49,15 @@ export function validateNodeQuickEditorRegistryEntry(raw: unknown): NodeQuickEdi
     const label = trimOrEmpty(it.label) || undefined
     const schemaPath = trimOrEmpty(it.schemaPath) || undefined
     const required = typeof it.required === 'boolean' ? it.required : undefined
-    fields.push({ fieldKey, fieldType, ...(label ? { label } : {}), ...(schemaPath ? { schemaPath } : {}), ...(required != null ? { required } : {}) })
+    const isHidden = typeof it.isHidden === 'boolean' ? it.isHidden : undefined
+    fields.push({
+      fieldKey,
+      fieldType,
+      ...(label ? { label } : {}),
+      ...(schemaPath ? { schemaPath } : {}),
+      ...(required != null ? { required } : {}),
+      ...(isHidden === true ? { isHidden: true } : {}),
+    })
   }
 
   const ports: NodeQuickEditorRegistryPort[] = []
@@ -65,7 +73,13 @@ export function validateNodeQuickEditorRegistryEntry(raw: unknown): NodeQuickEdi
     if (portKeySet.has(uniq)) continue
     portKeySet.add(uniq)
     const schemaPath = trimOrEmpty(it.schemaPath) || undefined
-    ports.push({ portKey, direction: direction as 'input' | 'output', ...(schemaPath ? { schemaPath } : {}) })
+    const isHidden = typeof it.isHidden === 'boolean' ? it.isHidden : undefined
+    ports.push({
+      portKey,
+      direction: direction as 'input' | 'output',
+      ...(schemaPath ? { schemaPath } : {}),
+      ...(isHidden === true ? { isHidden: true } : {}),
+    })
   }
 
   const schemaMappings: NodeQuickEditorRegistrySchemaMapping[] | undefined = (() => {
@@ -78,7 +92,9 @@ export function validateNodeQuickEditorRegistryEntry(raw: unknown): NodeQuickEdi
       const fromPath = trimOrEmpty(it.fromPath)
       const toPath = trimOrEmpty(it.toPath)
       if (!fromPath || !toPath) continue
-      out.push({ fromPath, toPath })
+      const transformId = trimOrEmpty(it.transformId) || undefined
+      const reduceId = trimOrEmpty(it.reduceId) || undefined
+      out.push({ fromPath, toPath, ...(transformId ? { transformId } : {}), ...(reduceId ? { reduceId } : {}) })
     }
     return out.length > 0 ? out : undefined
   })()

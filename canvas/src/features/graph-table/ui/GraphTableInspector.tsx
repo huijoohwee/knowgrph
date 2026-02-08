@@ -13,9 +13,7 @@ import {
   resolveNodeQuickEditorRegistryEntry,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { useShallow } from 'zustand/react/shallow'
-import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
-import { enableHandlesForAllInputsInSchema } from '@/lib/flowEditor/flowEditorActions'
-import { createUniqueId } from '@/lib/ids'
+
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
 
@@ -54,7 +52,6 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
     selectedNodeId,
     uiIconScale,
     uiIconStrokeWidth,
-    setSchema,
     upsertUiToast,
     setGraphDataPreservingLayout,
   } = useGraphStore(
@@ -66,7 +63,6 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
       selectedNodeId: s.selectedNodeId,
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
-      setSchema: s.setSchema,
       upsertUiToast: s.upsertUiToast,
       setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
     })),
@@ -144,9 +140,6 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
   const [panelMinimized, setPanelMinimized] = useState(false)
   const [panelPinned, setPanelPinned] = useState(true)
   const [panelHideFields, setPanelHideFields] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLElement | null>(null)
-  const moreButtonRef = useRef<HTMLButtonElement | null>(null)
   const labelInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleSetLabel = (label: string) => {
@@ -190,43 +183,6 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
   const handleValidate = () => {
     if (!node) return
     upsertUiToast({ id: `table-node-validate-${node.id}`, kind: 'success', message: 'Node validated.', ttlMs: 2000 })
-  }
-  const handleDuplicate = () => {
-    if (!node || !graphData) return
-    const nodes = (graphData.nodes || []) as GraphNode[]
-    const used = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
-    const nextId = createUniqueId('n', used)
-    const baseLabel = String(node.label || node.id || nextId)
-    const nextNode: GraphNode = { ...node, id: nextId, label: `${baseLabel} copy` }
-    const next = normalizeGraphData({ ...graphData, nodes: [...nodes, nextNode] })
-    setGraphDataPreservingLayout(next)
-  }
-  const handleRemove = () => {
-    onDeleteRow()
-  }
-  const handleClearOutput = () => {
-    if (!node) return
-    upsertUiToast({ id: `table-node-clear-output-${node.id}`, kind: 'neutral', message: 'Clear output not implemented.', ttlMs: 2200 })
-  }
-  const handleHelp = () => {
-    upsertUiToast({ id: `table-node-help-${row?.rowId || 'node'}`, kind: 'neutral', message: 'Open help from toolbar.', ttlMs: 2200 })
-  }
-  const handleConvertToLoop = () => {
-    if (!node || !graphData) return
-    const id = String(node.id || '').trim()
-    if (!id) return
-    const nextNodes = (graphData.nodes || []).map(n => (String(n.id || '') === id ? { ...n, type: 'Loop' } : n))
-    setGraphDataPreservingLayout(normalizeGraphData({ ...graphData, nodes: nextNodes }))
-  }
-  const handleTogglePortHandles = () => {
-    if (!schema || !setSchema) return
-    const next = togglePortHandlesEnabledInSchema(schema)
-    if (next.changed) setSchema(next.schema)
-  }
-  const handleEnableHandlesForAllInputs = () => {
-    if (!schema || !setSchema) return
-    const next = enableHandlesForAllInputsInSchema(schema)
-    if (next.changed) setSchema(next.schema)
   }
   const ordered = useMemo(() => {
     const visible = columns.filter(c => !c.hidden)
@@ -291,31 +247,16 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
                   minimized={panelMinimized}
                   hideFields={panelHideFields}
                   pinned={panelPinned}
-                  portHandlesEnabled={Boolean(schema?.behavior?.portHandles?.enabled)}
-                  portHandlesDisabled={false}
-                  enableHandlesDisabled={false}
-                  convertToLoopDisabled={false}
                   uiPanelOpacity={1}
                   panelTextClass={panelTextClass}
                   microLabelClass={microLabelClass}
                   uiIconScale={uiIconScale}
                   uiIconStrokeWidth={uiIconStrokeWidth}
                   labelInputRef={labelInputRef}
-                  menuOpen={menuOpen}
-                  setMenuOpen={setMenuOpen}
-                  menuRef={menuRef}
-                  moreButtonRef={moreButtonRef}
                   onHeaderPointerDown={() => void 0}
                   onToggleHideFields={() => setPanelHideFields(v => !v)}
                   onTogglePinned={() => setPanelPinned(v => !v)}
                   onToggleMinimized={() => setPanelMinimized(v => !v)}
-                  onTogglePortHandles={handleTogglePortHandles}
-                  onDuplicate={handleDuplicate}
-                  onRemove={handleRemove}
-                  onClearOutput={handleClearOutput}
-                  onHelp={handleHelp}
-                  onConvertToLoopNode={handleConvertToLoop}
-                  onEnableHandlesForAllInputs={handleEnableHandlesForAllInputs}
                   onSetLabel={handleSetLabel}
                   onSetType={handleSetType}
                   onPatchProperties={handlePatchProperties}
