@@ -198,7 +198,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   wheelZoomCtrlMetaBoostMultiplier: {
     area: 'Canvas Interaction (Wheel Zoom)',
     responsibility: 'Ctrl/Meta wheel zoom boost multiplier (trackpad pinch)',
-    notes: 'clamps to [1,40]. Used by D3, Flow, and FlowEditor 2D renderers.',
+    notes: 'clamps to [1,400]. Used by D3, Flow, and FlowEditor 2D renderers.',
   },
   flowWheelZoomSpeedMultiplier: {
     area: 'Canvas Interaction (Flow Zoom)',

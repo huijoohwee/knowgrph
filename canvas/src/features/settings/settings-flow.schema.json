@@ -1187,7 +1187,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L76; canvas/src/hooks/store/canvasSlice.ts:L246"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L76; canvas/src/hooks/store/canvasSlice.ts:L284"
   },
   "viewPinned": {
     "area": "Canvas Zoom Modes",
@@ -1204,7 +1204,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L90; canvas/src/hooks/store/canvasSlice.ts:L104"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L90; canvas/src/hooks/store/canvasSlice.ts:L142"
   },
   "fitToScreenMode": {
     "area": "Canvas Zoom Modes",
@@ -1221,7 +1221,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L99; canvas/src/hooks/store/canvasSlice.ts:L128"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L99; canvas/src/hooks/store/canvasSlice.ts:L166"
   },
   "zoomToSelectionMode": {
     "area": "Canvas Zoom Modes",
@@ -1238,7 +1238,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L108; canvas/src/hooks/store/canvasSlice.ts:L150"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L108; canvas/src/hooks/store/canvasSlice.ts:L188"
   },
   "zoomDurationFitMs": {
     "area": "Canvas Zoom Actions",
@@ -1255,7 +1255,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L117; canvas/src/hooks/store/canvasSlice.ts:L381"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L117; canvas/src/hooks/store/canvasSlice.ts:L419"
   },
   "zoomDurationSelectionMs": {
     "area": "Canvas Zoom Actions",
@@ -1272,7 +1272,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L126; canvas/src/hooks/store/canvasSlice.ts:L387"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L126; canvas/src/hooks/store/canvasSlice.ts:L425"
   },
   "wheelZoomCtrlMetaBoostMultiplier": {
     "area": "Canvas Interaction (Wheel Zoom)",
@@ -1289,7 +1289,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L135; canvas/src/hooks/store/canvasSlice.ts:L393"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L135; canvas/src/hooks/store/canvasSlice.ts:L431"
   },
   "flowWheelZoomSpeedMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -1306,7 +1306,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L144; canvas/src/hooks/store/canvasSlice.ts:L321"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L144; canvas/src/hooks/store/canvasSlice.ts:L359"
   },
   "flowWheelZoomIncrementMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -1323,7 +1323,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L153; canvas/src/hooks/store/canvasSlice.ts:L332"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L153; canvas/src/hooks/store/canvasSlice.ts:L370"
   },
   "flowWheelZoomSmoothMinDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -1340,7 +1340,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L162; canvas/src/hooks/store/canvasSlice.ts:L343"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L162; canvas/src/hooks/store/canvasSlice.ts:L381"
   },
   "flowWheelZoomSmoothMaxDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -1357,7 +1357,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L171; canvas/src/hooks/store/canvasSlice.ts:L362"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L171; canvas/src/hooks/store/canvasSlice.ts:L400"
   },
   "orchestratorTraversalDelayMs": {
     "area": "Orchestrator Traversal",
@@ -2312,7 +2312,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L246; canvas/src/hooks/store/schemaSlice.ts:L258"
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L284; canvas/src/hooks/store/schemaSlice.ts:L258"
   },
   "CLICK_URL": {
     "area": "Config Constants",

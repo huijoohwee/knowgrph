@@ -74,6 +74,29 @@
 
 ---
 
+## Canvas Zoom & Viewport (2D)
+
+- Zoom modes (mutually exclusive):
+  - `LS_KEYS.viewportPinned`
+  - `LS_KEYS.viewportFitToScreen`
+  - `LS_KEYS.viewportZoomToSelection`
+
+- Zoom action durations:
+  - `LS_KEYS.zoomDurationFitMs`
+  - `LS_KEYS.zoomDurationSelectionMs`
+
+- Wheel / trackpad pinch zoom tuning (shared across D3, Flow, Flow Editor):
+  - `LS_KEYS.wheelZoomCtrlMetaBoostMultiplier`
+  - `LS_KEYS.flowWheelZoomSpeedMultiplier`
+  - `LS_KEYS.flowWheelZoomIncrementMultiplier`
+  - `LS_KEYS.flowWheelZoomSmoothMinDurationMs`
+  - `LS_KEYS.flowWheelZoomSmoothMaxDurationMs`
+
+- Defaults migration guard:
+  - `LS_KEYS.flowWheelZoomDefaultsVersion` (one-time upgrade for prior default values; does not override custom settings)
+
+---
+
 ## Floating Panels (Tool Menu)
 
 - Floating panel shell and layout state:

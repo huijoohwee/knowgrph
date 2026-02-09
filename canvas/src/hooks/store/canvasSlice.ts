@@ -2,7 +2,7 @@ import type { GraphState, CanvasSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER, DEFAULT_VIEWPORT_CONTROLS_PRESET, UI_COPY } from '@/lib/config'
-import { lsBool, lsFloat, lsInt, lsJson, lsSetBool, lsSetFloat, lsSetInt, lsSetJson } from '@/lib/persistence'
+import { getLocalStorage, lsBool, lsFloat, lsInt, lsJson, lsSetBool, lsSetFloat, lsSetInt, lsSetJson } from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
@@ -31,6 +31,44 @@ import {
 type SetGraph = StoreApi<GraphState>['setState']
 
 export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
+  const storage = getLocalStorage()
+  const flowZoomDefaultsVersion = lsInt(LS_KEYS.flowWheelZoomDefaultsVersion, 0)
+  if (flowZoomDefaultsVersion < 3) {
+    const rawFlowSpeed = storage?.getItem(LS_KEYS.flowWheelZoomSpeedMultiplier)
+    const parsedFlowSpeed = rawFlowSpeed != null ? parseFloat(rawFlowSpeed) : null
+    if (
+      rawFlowSpeed == null
+      || (
+        parsedFlowSpeed != null
+        && Number.isFinite(parsedFlowSpeed)
+        && (Math.abs(parsedFlowSpeed - 0.25) < 1e-6 || Math.abs(parsedFlowSpeed - 0.333) < 1e-6 || Math.abs(parsedFlowSpeed - 0.6) < 1e-6)
+      )
+    ) {
+      lsSetFloat(LS_KEYS.flowWheelZoomSpeedMultiplier, FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT, {
+        min: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MIN,
+        max: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MAX,
+      })
+    }
+
+    const rawCtrlMetaBoost = storage?.getItem(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier)
+    const parsedCtrlMetaBoost = rawCtrlMetaBoost != null ? parseFloat(rawCtrlMetaBoost) : null
+    if (
+      rawCtrlMetaBoost == null
+      || (
+        parsedCtrlMetaBoost != null
+        && Number.isFinite(parsedCtrlMetaBoost)
+        && (Math.abs(parsedCtrlMetaBoost - 12) < 1e-6 || Math.abs(parsedCtrlMetaBoost - 16) < 1e-6 || Math.abs(parsedCtrlMetaBoost - 80) < 1e-6)
+      )
+    ) {
+      lsSetFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT, {
+        min: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
+        max: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
+      })
+    }
+
+    lsSetInt(LS_KEYS.flowWheelZoomDefaultsVersion, 3)
+  }
+
   const initialCanvas2dRenderer = lsJson<'d3' | 'flow' | 'flowEditor'>(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, v =>
     v === 'flow' || v === 'd3' || v === 'flowEditor' ? v : DEFAULT_CANVAS_2D_RENDERER,
   )

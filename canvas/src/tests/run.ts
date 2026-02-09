@@ -126,6 +126,12 @@ import { testD3WheelZoomIsContinuousAndUsesSharedWheelFactor } from '@/__tests__
 import { testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly } from '@/__tests__/d3ZoomScaleExtentRegression.test'
 import { testD3WheelZoomOverridesDesignPresetToZoom } from '@/__tests__/d3WheelZoomPresetOverrideRegression.test'
 import { testWheelZoomUsesCtrlKeyBoostHelper } from '@/__tests__/wheelZoomCtrlKeyBoostRegression.test'
+import {
+  testFlowZoomDefaultsMigrationUpgradesPriorDefaults,
+  testFlowZoomDefaultsMigrationDoesNotOverrideCustomValues,
+  testFlowZoomDefaultsMigrationNoopsWhenVersionAlreadySet,
+  testFlowZoomDefaultsMigrationWorksWithoutExistingKeys,
+} from '@/__tests__/flowZoomDefaultsMigration.test'
 import { testCanvasZoomDoesNotAllowPageScroll } from '@/__tests__/canvasNoScrollRegression.test'
 import { testCanvasWheelIgnoreIsAppliedToExternalPanels } from '@/__tests__/canvasWheelIgnoreExternalPanels.test'
 import { testGraphCanvasDoesNotBlockWheelPropagation } from '@/__tests__/graphCanvasNoStopPropagationRegression.test'
@@ -564,6 +570,10 @@ export const runAllTests = async () => {
   await exec('zoom.wheel.d3.scaleExtent.ssot', testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly)
   await exec('zoom.wheel.d3.presetOverride.design', testD3WheelZoomOverridesDesignPresetToZoom)
   await exec('zoom.wheel.ctrlKey.boost', testWheelZoomUsesCtrlKeyBoostHelper)
+  await exec('zoom.defaults.migration.upgradesPriorDefaults', testFlowZoomDefaultsMigrationUpgradesPriorDefaults)
+  await exec('zoom.defaults.migration.noOverrideCustom', testFlowZoomDefaultsMigrationDoesNotOverrideCustomValues)
+  await exec('zoom.defaults.migration.versionGuard', testFlowZoomDefaultsMigrationNoopsWhenVersionAlreadySet)
+  await exec('zoom.defaults.migration.missingKeys', testFlowZoomDefaultsMigrationWorksWithoutExistingKeys)
   await exec('canvas.zoom.noPageScroll', testCanvasZoomDoesNotAllowPageScroll)
   await exec('canvas.wheelIgnore.externalPanels', testCanvasWheelIgnoreIsAppliedToExternalPanels)
   await exec('canvas.zoom.scrollLock.noStopPropagation', testGraphCanvasDoesNotBlockWheelPropagation)
