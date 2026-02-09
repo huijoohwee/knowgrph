@@ -78,6 +78,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   registryEntries?: ReadonlyArray<NodeQuickEditorRegistryEntry>
 }) {
   const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()
+  void onSetType
+  void onValidate
   const properties = (node.properties || {}) as Record<string, unknown>
   const nodeTypeId = pickString(node.type).trim()
   const idBase = React.useMemo(() => {
@@ -180,7 +182,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   return (
     <form
-      className={cn('p-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTextClass)}
+      className={cn('px-3 py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTextClass)}
       aria-label={UI_LABELS.flowNodeQuickEditorForm}
       onSubmit={e => e.preventDefault()}
     >
@@ -211,28 +213,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                   )}
                   value={String(node.label || '')}
                   onChange={e => onSetLabel(e.target.value)}
-                  disabled={!active}
-                />
-              ),
-            },
-            {
-              rowKey: 'node-type',
-              labelId: `${idBase}-kv-node-type`,
-              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.type}>{UI_LABELS.type}</label>,
-              typeNode: <NodeOverlayEditorTypePill text="text" />,
-              valueNode: (
-                <input
-                  id={ids.type}
-                  className={cn(
-                    keyValueInputClass,
-                    textSizeClass,
-                    'text-left',
-                    UI_THEME_TOKENS.input.bg,
-                    UI_THEME_TOKENS.input.border,
-                    UI_THEME_TOKENS.input.text,
-                  )}
-                  value={String(node.type || 'Node')}
-                  onChange={e => onSetType(e.target.value)}
                   disabled={!active}
                 />
               ),
@@ -489,7 +469,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                   <option value="">{hasRegistryOptions ? UI_COPY.flowNodeQuickEditorSelectPlaceholder : UI_LABELS.noneLabel}</option>
                   {registryOptions.map(entry => (
                     <option key={entry.id} value={entry.id}>
-                      {entry.quickEditorTypeId} · {entry.formId}
+                      {entry.id}
                     </option>
                   ))}
                 </select>
@@ -540,26 +520,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         </section>
       )}
 
-      <menu
-        className="mt-4 flex list-none items-center justify-end gap-2 p-0"
-        aria-label={UI_LABELS.flowNodeQuickEditorActions}
-      >
-        <li>
-          <button
-            type="button"
-            className={cn(
-              'rounded-lg border px-3 py-2 font-semibold disabled:opacity-50',
-              UI_THEME_TOKENS.panel.border,
-              UI_THEME_TOKENS.button.activeBg,
-              UI_THEME_TOKENS.button.activeText,
-            )}
-            onClick={onValidate}
-            disabled={!active}
-          >
-            {UI_LABELS.flowNodeQuickEditorValidate}
-          </button>
-        </li>
-      </menu>
     </form>
   )
 })

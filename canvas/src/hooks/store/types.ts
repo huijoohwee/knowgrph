@@ -16,6 +16,7 @@ import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import type { LayoutMode2d } from '@/lib/graph/layoutMode'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -39,6 +40,24 @@ export type SchemaBySemanticMode = Record<DocumentSemanticMode, GraphSchema>
 export type WorkspaceViewMode = 'canvas' | 'editor' | 'table'
 
 export type EditorWorkspaceSection = 'markdown' | 'graphTable'
+
+export type DocumentStructureBaselineSnapshot = {
+  documentSemanticMode: DocumentSemanticMode
+  frontmatterModeEnabled: boolean
+  canvasRenderMode: '2d' | '3d'
+  canvas2dRenderer: 'd3' | 'flow' | 'flowEditor'
+  canvasRenderModeLastFree: '2d' | '3d'
+  canvasRenderModeIsAuto: boolean
+  viewPinned: boolean
+  fitToScreenMode: boolean
+  zoomToSelectionMode: boolean
+  selectedNodeId: string | null
+  selectedEdgeId: string | null
+  selectedGroupId: string | null
+  selectedNodeIds: string[]
+  selectedEdgeIds: string[]
+  selectedGroupIds: string[]
+}
 
 export type UiToastKind = 'neutral' | 'success' | 'warning' | 'error'
 
@@ -174,6 +193,7 @@ export interface GraphState {
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;
   documentStructureBaselineLock: boolean;
+  documentStructureBaselineSnapshot: DocumentStructureBaselineSnapshot | null
   setDocumentStructureBaselineLock: (enabled: boolean) => void;
   history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>;
   historyIndex: number;
@@ -216,6 +236,7 @@ export interface GraphState {
   addEdge: (edge: GraphEdge) => void;
   removeEdge: (id: string) => void;
   selectNode: (id: string | null) => void;
+  selectNodesExpanded: (args: { nodeIds: string[]; edgeIds?: string[]; groupIds?: string[]; activeNodeId?: string | null }) => void;
   selectEdge: (id: string | null) => void;
   selectGroup: (id: string | null) => void;
   selectGroupExpanded: (args: { id: string; nodeIds: string[]; edgeIds: string[] }) => void;
@@ -466,6 +487,7 @@ export interface GraphState {
   zoomRequest: ZoomRequest | null;
   requestZoom: (type: ZoomCommandType, opts?: { intent?: ZoomFitIntent }) => void;
   requestZoomTransform: (payload: { k: number; x: number; y: number }) => void;
+  requestZoomBounds: (payload: { bounds: { x: number; y: number; w: number; h: number }; insetPx?: number; origin?: { x: number; y: number } }) => void;
   clearZoomRequest: () => void;
   zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number };
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => void;
@@ -546,10 +568,26 @@ export interface GraphState {
   clearSchemaLintSummary: () => void;
   canvasRenderMode: '2d' | '3d';
   canvas2dRenderer: 'd3' | 'flow' | 'flowEditor';
+  viewportControlsPreset: ViewportControlsPreset;
+  flowWheelZoomSpeedMultiplier: number;
+  flowWheelZoomIncrementMultiplier: number;
+  flowWheelZoomSmoothMinDurationMs: number;
+  flowWheelZoomSmoothMaxDurationMs: number;
+  zoomDurationFitMs: number;
+  zoomDurationSelectionMs: number;
+  wheelZoomCtrlMetaBoostMultiplier: number;
   canvasRenderModeLastFree: '2d' | '3d';
   canvasRenderModeIsAuto: boolean;
   setCanvasRenderMode: (m: '2d' | '3d') => void;
   setCanvas2dRenderer: (id: 'd3' | 'flow' | 'flowEditor') => void;
+  setViewportControlsPreset: (preset: ViewportControlsPreset) => void;
+  setFlowWheelZoomSpeedMultiplier: (v: number) => void;
+  setFlowWheelZoomIncrementMultiplier: (v: number) => void;
+  setFlowWheelZoomSmoothMinDurationMs: (v: number) => void;
+  setFlowWheelZoomSmoothMaxDurationMs: (v: number) => void;
+  setZoomDurationFitMs: (v: number) => void;
+  setZoomDurationSelectionMs: (v: number) => void;
+  setWheelZoomCtrlMetaBoostMultiplier: (v: number) => void;
   resetAll: () => void;
   canvasSnapshotFns: { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns };
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) => void;

@@ -1,0 +1,14 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+export function testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps() {
+  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'bindNativeInteractions.ts')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes('computeWheelZoomFactor')) {
+    throw new Error('expected Flow wheel zoom to use computeWheelZoomFactor for smooth zooming')
+  }
+  if (text.includes('applyWheelStepAccumulator') || text.includes('computeSteppedZoomTarget')) {
+    throw new Error('expected Flow wheel zoom to avoid discrete step accumulator')
+  }
+}
+

@@ -9,6 +9,8 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { createId } from '@/lib/id'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 
 type FloatingPanelModel = {
   graphData: GraphData | null
@@ -57,7 +59,21 @@ const getCanvasCenterGraphPoint = () => {
   const dims = state.canvasDims || { w: 800, h: 600 }
   const w = Math.max(1, Math.floor(dims.w))
   const h = Math.max(1, Math.floor(dims.h))
-  const z = state.zoomState
+  const zoomViewKey = buildActive2dZoomViewKey({
+    canvasRenderMode: state.canvasRenderMode,
+    canvas2dRenderer: state.canvas2dRenderer,
+    schema: state.schema,
+    graphData: state.graphData,
+    documentSemanticMode: state.documentSemanticMode,
+    frontmatterModeEnabled: state.frontmatterModeEnabled,
+    documentStructureBaselineLock: state.documentStructureBaselineLock,
+    renderMediaAsNodes: state.renderMediaAsNodes,
+    mediaPanelDensity: state.mediaPanelDensity,
+    collapsedGroupIds: state.collapsedGroupIds,
+  })
+  const z = zoomViewKey
+    ? getZoomStateForKey({ zoomViewKey, zoomStateByKey: state.zoomStateByKey })
+    : state.zoomState
   const k = z && typeof z.k === 'number' && Number.isFinite(z.k) && z.k !== 0 ? z.k : 1
   const tx = z && typeof z.x === 'number' && Number.isFinite(z.x) ? z.x : 0
   const ty = z && typeof z.y === 'number' && Number.isFinite(z.y) ? z.y : 0

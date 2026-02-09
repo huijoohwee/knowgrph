@@ -196,6 +196,10 @@ export interface GraphSchema {
     zoom?: {
       minScale?: number
       maxScale?: number
+      wheelBehavior?: 'pan' | 'zoom'
+      panSpeed?: number
+      zoomSpeed?: number
+      steps?: number[]
     }
     caps?: { maxNodes?: number; maxEdges?: number };
   };

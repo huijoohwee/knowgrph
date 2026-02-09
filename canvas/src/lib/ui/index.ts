@@ -2,3 +2,4 @@ export * from './overlay';
 export * from './theme';
 export * from './icons';
 export * from './text';
+export * from './pinToggle'

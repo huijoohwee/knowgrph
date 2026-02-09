@@ -56,6 +56,7 @@
 - **Contract**:
   - Semantic HTML only (`aside/section/header/nav/menu/form/...`), no generic wrapper sprawl.
   - Token-driven typography + icon sizing (`usePanelTypography`, `UI_THEME_TOKENS`).
+  - Pin semantics: pinned anchors to node (drag disabled, blue pin icon); unpinned detaches (floating) and enables header drag.
   - Scroll isolation: overlay scroll must not trigger canvas zoom (wheel-ignore zone).
   - Render isolation: zoom/pan must not re-render heavy form subtrees (DOM transform updates only).
   - Registry-driven fields/ports:

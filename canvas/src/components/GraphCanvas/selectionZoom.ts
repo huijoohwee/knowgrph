@@ -1,12 +1,10 @@
 import * as d3 from 'd3'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'
-import { getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { callZoomTransform } from '@/components/GraphCanvas/helpers'
-import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { computeZoomSubset as computeZoomSubsetCore, computeZoomTargetNodeIds as computeZoomTargetNodeIdsCore } from '@/lib/zoom/selectionTargets'
 
 type ZoomOnSelectionParams = {
   graphData: GraphData
@@ -34,58 +32,15 @@ export const computeZoomTargetNodeIds = ({
   selectedEdgeId,
   selectedNodeIds,
   selectedEdgeIds,
-}: ZoomSelectionLogicParams): Set<string> => {
-  const ids = new Set<string>()
-  const { selectionNodeIds, selectionEdgeIds } = normalizeSelectionIds({
-    selectedNodeId,
-    selectedEdgeId,
-    selectedNodeIds,
-    selectedEdgeIds,
-  })
-  if (selectionNodeIds.length === 0 && selectionEdgeIds.length === 0) {
-    return ids
-  }
-  const adj = getAdjacencyMap(graphData)
-  if (selectionNodeIds.length > 0) {
-    for (const id of selectionNodeIds) {
-      if (!id) continue
-      ids.add(id)
-      const neighbors = adj.get(id)
-      if (neighbors) {
-        neighbors.forEach(n => ids.add(n))
-      }
-    }
-    return ids
-  }
-  for (const edgeId of selectionEdgeIds) {
-    if (!edgeId) continue
-    const e = graphData.edges.find(x => x.id === edgeId)
-    if (!e) continue
-    const endpoints = getEdgeEndpoints(e as EdgeWithRuntime)
-    const sId = endpoints.src
-    const tId = endpoints.tgt
-    if (!sId || !tId) continue
-    ids.add(sId)
-    ids.add(tId)
-    const sNeighbors = adj.get(sId)
-    if (sNeighbors) {
-      sNeighbors.forEach(n => ids.add(n))
-    }
-    const tNeighbors = adj.get(tId)
-    if (tNeighbors) {
-      tNeighbors.forEach(n => ids.add(n))
-    }
-  }
-  return ids
-}
+}: ZoomSelectionLogicParams): Set<string> => computeZoomTargetNodeIdsCore({
+  graphData,
+  selectedNodeId,
+  selectedEdgeId,
+  selectedNodeIds,
+  selectedEdgeIds,
+})
 
-export const computeZoomSubset = (params: ZoomSelectionLogicParams): GraphNode[] => {
-  const ids = computeZoomTargetNodeIds(params)
-  if (ids.size === 0) {
-    return []
-  }
-  return params.graphData.nodes.filter(n => ids.has(n.id))
-}
+export const computeZoomSubset = (params: ZoomSelectionLogicParams): GraphNode[] => computeZoomSubsetCore(params)
 
 export const applyZoomOnSelection = ({
   graphData,

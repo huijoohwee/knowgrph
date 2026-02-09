@@ -101,7 +101,11 @@
 - **Solution**: Canvas may **warm-mount** inactive renderers to reduce switch lag, but enforces strict **active gating**:
   - Only the active renderer consumes shared requests (zoom/selection) and owns interactive listeners.
   - Inactive renderers must short-circuit hot-path effects (draw loops, request consumption, store writes) when `active=false`.
-  - Caches remain SSOT-keyed: zoom state is restored via a stable view key; layout caches remain isolated by render variant.
+  - Caches remain SSOT-keyed: zoom state is restored via a stable view key that isolates 2D renderers; layout caches remain isolated by render variant.
+  - Viewport controls are preset-driven (`map` vs `design`) and reused across 2D and Geospatial surfaces to avoid drift.
+  - Node/edge visibility is renderer-parity SSOT: both D3 and Flow first derive `graphDataForDisplay` via the shared display filter helper (`getGraphDataForDisplay`) before fit/layout/scene build.
+  - Flow initial zoom uses a bounds guard: if node bounds cannot be computed yet (no finite positions), do not apply stored transforms (prevents "blank" due to stale pan); prefer fit/identity.
+  - 2D wheel + pinch zoom (D3, Flow, Flow Editor) uses SSOT normalization and a shared continuous zoom factor, honoring the same user-tunable settings in MainPanel Settings (`wheelZoomCtrlMetaBoostMultiplier`, `flowWheelZoomSpeedMultiplier`, `flowWheelZoomIncrementMultiplier`, `flowWheelZoomSmoothMinDurationMs`, `flowWheelZoomSmoothMaxDurationMs`). While the pointer is over the active canvas, default page scroll/zoom is prevented so zooming never triggers horizontal/vertical page scrolling. All 2D renderers apply a short anchored easing animation for wheel deltas (rAF-driven) to prevent per-frame delta clumping; cancel on pan/drag and cleanup RAF on unmount. Zoom actions and modes are also shared (`zoomDurationFitMs`, `zoomDurationSelectionMs`, `viewPinned`, `fitToScreenMode`, `zoomToSelectionMode`).
   - UI container: `canvas/src/pages/Canvas.tsx`
   - 2D D3 renderer entry: `canvas/src/components/GraphCanvas.tsx`
   - 2D Flow renderer entry: `canvas/src/components/FlowCanvas.tsx`
@@ -243,9 +247,14 @@
   - Caches zoom state per viewKey to prevent cross-mode/layout/presentation contamination.
 - **Wheel parity (2D D3 + Flow + Flow Editor)**:
   - Wheel delta normalization and zoom factor are SSOT (`canvas/src/lib/canvas/zoom-input.ts`) and must be reused by all 2D renderers.
+  - Stepped zoom accumulation uses SSOT helpers and constants in `canvas/src/lib/zoom/steps.ts` (threshold px + max steps) to keep wheel behavior aligned across renderers.
   - Wheel anchor uses event position, else a *recent* last-pointer fallback, else viewport center (prevents “jump zoom” when events lack coordinates).
   - If the wheel event is slightly outside the viewport, clamp to the nearest edge before falling back (prevents viewport-edge bounce).
   - When clamped at min zoom, a small reverse delta is ignored briefly to prevent trackpad bounce-back zoom-in.
+- **Viewport controls presets (2D)**:
+  - Preset SSOT lives in `canvas/src/lib/canvas/viewport-controls.ts` and must be honored by D3/Flow/Flow Editor.
+  - `map`: pan = pointer drag; zoom = scroll/pinch; select = shift + pointer drag.
+  - `design`: pan = scroll + middle/right drag + space+drag; zoom = ctrl/cmd+scroll; select = pointer drag.
 - **Zoom commands (toolbar/keyboard)**:
   - Zoom-in/out scales about the current viewport center (preserve the world point at `viewportW/2, viewportH/2`) so panning does not “bounce” back toward the graph centroid.
   - Only explicit `fit/reset` operations recenter on graph bounds/centroid.

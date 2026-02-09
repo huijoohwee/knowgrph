@@ -81,6 +81,49 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
       void 0
     }
   },
+  selectNodesExpanded: (args: { nodeIds: string[]; edgeIds?: string[]; groupIds?: string[]; activeNodeId?: string | null }) => {
+    const state = get()
+    const mode = state.schema.behavior?.selectMode || 'single'
+    const rawNodeIds = Array.isArray(args.nodeIds) ? args.nodeIds : []
+    const nodeIdSet = new Set<string>(rawNodeIds.map(v => String(v)).filter(Boolean))
+    const nodeIds = Array.from(nodeIdSet)
+    if (nodeIds.length === 0) {
+      set({
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        selectedGroupId: null,
+        selectedNodeIds: [],
+        selectedEdgeIds: [],
+        selectedGroupIds: [],
+      })
+      return
+    }
+    const activeRaw = typeof args.activeNodeId === 'string' ? args.activeNodeId : null
+    const activeNodeId = activeRaw && nodeIdSet.has(activeRaw) ? activeRaw : nodeIds[nodeIds.length - 1]
+    const rawEdgeIds = Array.isArray(args.edgeIds) ? args.edgeIds : []
+    const edgeIds = rawEdgeIds.map(v => String(v)).filter(Boolean)
+    const rawGroupIds = Array.isArray(args.groupIds) ? args.groupIds : []
+    const groupIds = rawGroupIds.map(v => String(v)).filter(Boolean)
+    if (mode === 'single') {
+      set({
+        selectedNodeId: activeNodeId,
+        selectedEdgeId: null,
+        selectedGroupId: null,
+        selectedNodeIds: [activeNodeId],
+        selectedEdgeIds: [],
+        selectedGroupIds: [],
+      })
+      return
+    }
+    set({
+      selectedNodeId: activeNodeId,
+      selectedEdgeId: edgeIds.length > 0 ? edgeIds[edgeIds.length - 1] : null,
+      selectedGroupId: groupIds.length > 0 ? groupIds[groupIds.length - 1] : null,
+      selectedNodeIds: nodeIds,
+      selectedEdgeIds: edgeIds,
+      selectedGroupIds: groupIds,
+    })
+  },
   selectEdge: (id: string | null) => {
     const state = get()
     const mode = state.schema.behavior?.selectMode || 'single'

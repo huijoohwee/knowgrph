@@ -19,6 +19,7 @@ import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/Grap
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d';
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
+import { createEdgeScrollController } from '@/lib/canvas/edge-scroll'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -53,6 +54,7 @@ export const createNodesLayer = (args: {
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void;
   requestZoomSelection: () => void;
   toggleGroupCollapsed: (id: string) => void;
+  edgeScroll?: { enabled: () => boolean; panByPx: (dx: number, dy: number) => void };
 }): {
   nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>;
   mediaSel: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null;
@@ -390,6 +392,44 @@ export const createNodesLayer = (args: {
 
   if (schema.behavior.allowNodeDrag) {
     const dragBehavior = nodeDragBehavior(simulation, schema);
+
+    if (args.edgeScroll) {
+      const edgeScroll = createEdgeScrollController()
+      dragBehavior.on('start.kgEdgeScroll', () => edgeScroll.reset())
+      dragBehavior.on('drag.kgEdgeScroll', (event: unknown) => {
+        if (!args.edgeScroll) return
+        if (!args.edgeScroll.enabled()) {
+          edgeScroll.reset()
+          return
+        }
+        const ev = event as { sourceEvent?: unknown }
+        const src = ev?.sourceEvent as { clientX?: unknown; clientY?: unknown; pointerType?: unknown } | undefined
+        const clientX = typeof src?.clientX === 'number' ? src.clientX : NaN
+        const clientY = typeof src?.clientY === 'number' ? src.clientY : NaN
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return
+        const svgEl = args.g.node()?.ownerSVGElement
+        if (!svgEl) return
+        const rect = svgEl.getBoundingClientRect()
+        const sx = clientX - rect.left
+        const sy = clientY - rect.top
+        const d = edgeScroll.update({
+          nowMs: Date.now(),
+          pointer: {
+            sx,
+            sy,
+            kind: src?.pointerType === 'touch' ? 'touch' : src?.pointerType === 'pen' ? 'pen' : 'mouse',
+          },
+          viewport: { w: rect.width, h: rect.height },
+          zoomK: d3.zoomTransform(svgEl).k || 1,
+          enabled: true,
+        })
+        if (Math.abs(d.dx) > 1e-6 || Math.abs(d.dy) > 1e-6) {
+          args.edgeScroll.panByPx(d.dx, d.dy)
+        }
+      })
+      dragBehavior.on('end.kgEdgeScroll', () => edgeScroll.reset())
+    }
+
     const draggable = (node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>)
     draggable.call(dragBehavior as d3.DragBehavior<SVGElement, GraphNode, unknown>)
     if (mediaInteractiveSel) {

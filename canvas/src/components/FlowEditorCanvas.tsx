@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link2, Plus, Trash2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import { useShallow } from 'zustand/react/shallow'
 
 import FlowCanvas from '@/components/FlowCanvas'
 import FlowEditorInspector, { type InspectorTab } from '@/components/FlowEditor/FlowEditorInspector'
@@ -17,10 +18,13 @@ import {
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+  LS_KEYS,
   UI_COPY,
 } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { screenToWorld, viewportCenterToWorld } from '@/lib/zoom/viewport'
+import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import {
   convertNodeToLoopInGraphData,
   enableHandlesForAllInputsInSchema,
@@ -45,6 +49,12 @@ import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY 
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { hasFlowNodeQuickEditorDragType, readFlowNodeQuickEditorDragPayloadFromDataTransfer } from '@/lib/flowEditor/nodeQuickEditorDrag'
 import { buildSelectionSubgraph, exportNodeQuickEditorBundleAsJson } from '@/lib/graph/file'
+import { lsJson, lsSetJson } from '@/lib/persistence'
+import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
+import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { resolveOverlayPanelCollisions } from '@/lib/ui/overlayPanelCollision'
+import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -62,9 +72,12 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   viewportW: number
   viewportH: number
   canvasWindowOffset: { left: number; top: number }
+  zoomViewKey: string | null
   autoRevealKey?: number
   forcePinnedToNode?: boolean
   stackIndex?: number
+  liveInteractionTick?: number
+  getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
   toolMode: ToolMode
   pendingEdgeSourceId: string | null
   onBeginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
@@ -91,6 +104,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       connectedValuesBySchemaPath={args.connectedValuesBySchemaPath}
       toolMode={args.toolMode}
       pendingEdgeSourceId={args.pendingEdgeSourceId}
+      zoomViewKey={args.zoomViewKey}
       onBeginAddEdgeFromNode={args.onBeginAddEdgeFromNode}
       onFinalizeAddEdgeToNode={args.onFinalizeAddEdgeToNode}
       viewportW={args.viewportW}
@@ -99,6 +113,8 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       autoRevealKey={args.autoRevealKey}
       forcePinnedToNode={args.forcePinnedToNode}
       stackIndex={args.stackIndex}
+      liveInteractionTick={args.liveInteractionTick}
+      getLiveNodeWorldPos={args.getLiveNodeWorldPos}
       onSetLabel={args.onSetLabel}
       onSetType={args.onSetType}
       onPatchProperties={args.onPatchProperties}
@@ -163,6 +179,25 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const baseGraphData = useGraphStore(s => s.graphData)
   const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
+  const {
+    canvasRenderMode,
+    canvas2dRenderer,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    collapsedGroupIds,
+  } = useGraphStore(
+    useShallow(s => ({
+      canvasRenderMode: s.canvasRenderMode,
+      canvas2dRenderer: s.canvas2dRenderer,
+      documentSemanticMode: s.documentSemanticMode,
+      frontmatterModeEnabled: s.frontmatterModeEnabled,
+      renderMediaAsNodes: s.renderMediaAsNodes,
+      mediaPanelDensity: s.mediaPanelDensity,
+      collapsedGroupIds: s.collapsedGroupIds,
+    })),
+  )
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
   const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
@@ -173,6 +208,37 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
   const schema = useGraphStore(s => s.schema)
   const setSchema = useGraphStore(s => s.setSchema)
+
+  const zoomViewKey = React.useMemo(() => {
+    return buildActive2dZoomViewKey({
+      canvasRenderMode,
+      canvas2dRenderer,
+      schema,
+      graphData: (baseGraphData || null) as GraphData | null,
+      documentSemanticMode,
+      frontmatterModeEnabled,
+      documentStructureBaselineLock,
+      renderMediaAsNodes,
+      mediaPanelDensity,
+      collapsedGroupIds,
+    })
+  }, [
+    baseGraphData,
+    canvas2dRenderer,
+    canvasRenderMode,
+    collapsedGroupIds,
+    documentSemanticMode,
+    documentStructureBaselineLock,
+    frontmatterModeEnabled,
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    schema,
+  ])
+
+  const zoomViewKeyRef = React.useRef<string | null>(zoomViewKey)
+  React.useEffect(() => {
+    zoomViewKeyRef.current = zoomViewKey
+  }, [zoomViewKey])
 
   const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
   const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
@@ -187,6 +253,29 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const setOpenQuickEditorNodeIds = useGraphStore(s => s.setOpenQuickEditorNodeIds)
   const pinnedToNodeByIdRef = React.useRef<Map<string, boolean>>(new Map())
   const [anyEditorPinnedToNode, setAnyEditorPinnedToNode] = React.useState<boolean>(false)
+
+  const flowRuntimeRefRef = React.useRef<React.MutableRefObject<import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime | null> | null>(null)
+  const getLiveNodeWorldPos = React.useCallback((nodeId: string) => {
+    const id = String(nodeId || '').trim()
+    if (!id) return null
+    const runtime = flowRuntimeRefRef.current?.current
+    const n = runtime?.scene?.nodeById?.get(id) || null
+    if (!n) return null
+    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+    if (x == null || y == null) return null
+    return { x, y }
+  }, [])
+
+  const [liveInteractionTick, setLiveInteractionTick] = React.useState(0)
+  const liveInteractionRafRef = React.useRef<number | null>(null)
+  const scheduleLiveInteractionTick = React.useCallback(() => {
+    if (liveInteractionRafRef.current != null) return
+    liveInteractionRafRef.current = requestAnimationFrame(() => {
+      liveInteractionRafRef.current = null
+      setLiveInteractionTick(v => (v + 1) % 1_000_000)
+    })
+  }, [])
 
   const [toolMode, setToolMode] = React.useState<ToolMode>('select')
   const [pendingEdgeSourceId, setPendingEdgeSourceId] = React.useState<string | null>(null)
@@ -261,6 +350,309 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
     return nodes.map(n => String((n as { id?: unknown })?.id || '')).filter(Boolean)
   }, [draftGraphData?.nodes, overlayOnlyModeEnabled])
+
+  const parsePinnedByNodeId = React.useCallback((raw: unknown): Record<string, boolean> | null => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+    const out: Record<string, boolean> = {}
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const id = String(k || '').trim()
+      if (!id) continue
+      out[id] = !!v
+    }
+    return out
+  }, [])
+
+  const parsePosByNodeId = React.useCallback((raw: unknown): Record<string, { top: number; left: number }> | null => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+    const out: Record<string, { top: number; left: number }> = {}
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const id = String(k || '').trim()
+      if (!id) continue
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue
+      const o = v as { top?: unknown; left?: unknown }
+      const top = typeof o.top === 'number' && Number.isFinite(o.top) ? o.top : null
+      const left = typeof o.left === 'number' && Number.isFinite(o.left) ? o.left : null
+      if (top == null || left == null) continue
+      out[id] = { top, left }
+    }
+    return out
+  }, [])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!overlayOnlyModeEnabled) return
+    if (openQuickEditorNodeIds.length < 2) return
+
+    const schemaCur = schema
+    const st = useGraphStore.getState()
+    const zoomKRaw = getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey })?.k
+    const zoomK = typeof zoomKRaw === 'number' && Number.isFinite(zoomKRaw) ? zoomKRaw : 1
+    const [minK, maxK] = schemaCur ? readZoomScaleExtent(schemaCur) : [DEFAULT_ZOOM_MIN_SCALE, DEFAULT_ZOOM_MAX_SCALE]
+    const panelScale = computeNodeQuickEditorScale(zoomK, { minK, maxK })
+    const scaled = computeNodeQuickEditorScaledSize(panelScale)
+
+    const pinnedById = lsJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {} as Record<string, boolean>, parsePinnedByNodeId)
+    const posById = lsJson(
+      LS_KEYS.flowNodeQuickEditorPosByNodeId,
+      {} as Record<string, { top: number; left: number }>,
+      parsePosByNodeId,
+    )
+
+    const gap = 18
+    const cellW = scaled.width + gap
+    const cellH = Math.round(scaled.height * 0.72) + gap
+    const cols = Math.max(1, Math.min(4, Math.floor(Math.max(1, viewportW - 40) / cellW)))
+
+    const items: Array<{ id: string; top: number; left: number; movable: boolean }> = []
+    let anyMissing = false
+    let stack = 0
+    for (let i = 0; i < openQuickEditorNodeIds.length; i += 1) {
+      const id = String(openQuickEditorNodeIds[i] || '').trim()
+      if (!id) continue
+      if (pinnedById[id] === true) continue
+
+      const stored = posById[id]
+      const hasStored = Boolean(stored && Number.isFinite(stored.top) && Number.isFinite(stored.left))
+      anyMissing = anyMissing || !hasStored
+
+      const col = stack % cols
+      const row = Math.floor(stack / cols)
+      stack += 1
+      const fallback = { left: 20 + col * cellW, top: 96 + row * cellH }
+      const base = hasStored ? (stored as { top: number; left: number }) : fallback
+      const clamped = clampOverlayTopLeftToViewport({
+        pos: base,
+        size: scaled,
+        viewport: { width: viewportW, height: viewportH },
+        visiblePx: 32,
+        snapPx: 1,
+      })
+      items.push({ id, top: clamped.top, left: clamped.left, movable: !hasStored })
+    }
+
+    if (!anyMissing || items.length < 2) return
+
+    const resolved = resolveOverlayPanelCollisions({
+      items,
+      panelSize: { width: scaled.width, height: scaled.height },
+      gapPx: 14,
+      strength: 0.9,
+      iterations: 10,
+    })
+
+    const next = { ...posById }
+    for (let i = 0; i < resolved.length; i += 1) {
+      const r = resolved[i]
+      if (!r?.id) continue
+      next[r.id] = { top: r.top, left: r.left }
+    }
+
+    lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, next)
+  }, [
+    active,
+    openQuickEditorNodeIds,
+    overlayOnlyModeEnabled,
+    parsePinnedByNodeId,
+    parsePosByNodeId,
+    schema,
+    viewportH,
+    viewportW,
+    zoomViewKey,
+  ])
+
+  const [overlayEdgePaths, setOverlayEdgePaths] = React.useState<Array<{ id: string; d: string }>>([])
+  const overlayEdgeKeyRef = React.useRef<string>('')
+  const overlayEdgeRafRef = React.useRef<number | null>(null)
+
+  const scheduleOverlayEdgeUpdate = React.useCallback(() => {
+    if (!active) return
+    if (!overlayOnlyModeEnabled) return
+    if (overlayEdgeRafRef.current != null) return
+    overlayEdgeRafRef.current = requestAnimationFrame(() => {
+      overlayEdgeRafRef.current = null
+      const root = rootRef.current
+      if (!root) return
+      const graph = draftGraphDataRef.current
+      if (!graph) {
+        if (overlayEdgeKeyRef.current) {
+          overlayEdgeKeyRef.current = ''
+          setOverlayEdgePaths([])
+        }
+        return
+      }
+
+      const rawNodes = Array.isArray(graph.nodes) ? (graph.nodes as Array<{ id?: unknown; type?: unknown; properties?: unknown }>) : []
+      const rawEdges = Array.isArray(graph.edges)
+        ? (graph.edges as Array<{ id?: unknown; source?: unknown; target?: unknown; properties?: unknown }>)
+        : []
+
+      const nodeIds = new Set<string>()
+      const nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }> = []
+      for (let i = 0; i < rawNodes.length; i += 1) {
+        const id = String(rawNodes[i]?.id || '').trim()
+        if (!id) continue
+        nodeIds.add(id)
+        nodes.push({ id, type: rawNodes[i]?.type, properties: rawNodes[i]?.properties })
+      }
+
+      const edges: Array<{ id: unknown; source: unknown; target: unknown; properties?: unknown }> = []
+      for (let i = 0; i < rawEdges.length; i += 1) {
+        const id = String(rawEdges[i]?.id || '').trim()
+        const source = String(rawEdges[i]?.source || '').trim()
+        const target = String(rawEdges[i]?.target || '').trim()
+        if (!id || !source || !target) continue
+        edges.push({ id, source, target, properties: rawEdges[i]?.properties })
+      }
+
+      if (nodeIds.size === 0 || edges.length === 0) {
+        if (overlayEdgeKeyRef.current) {
+          overlayEdgeKeyRef.current = ''
+          setOverlayEdgePaths([])
+        }
+        return
+      }
+
+      const overlayRectsByNodeId = (() => {
+        if (typeof document === 'undefined') return new Map<string, DOMRect>()
+        const els = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-node-quick-editor]'))
+        const m = new Map<string, DOMRect>()
+        for (let i = 0; i < els.length; i += 1) {
+          const el = els[i]
+          const id = String(el.getAttribute('data-kg-node-quick-editor') || '').trim()
+          if (!id) continue
+          if (!nodeIds.has(id)) continue
+          m.set(id, el.getBoundingClientRect())
+        }
+        return m
+      })()
+
+      if (overlayRectsByNodeId.size === 0) {
+        if (overlayEdgeKeyRef.current) {
+          overlayEdgeKeyRef.current = ''
+          setOverlayEdgePaths([])
+        }
+        return
+      }
+
+      const handlesByNodeId = computeFlowHandlesByNode({
+        nodes,
+        edges,
+        nodeQuickEditorRegistry: Array.isArray(nodeQuickEditorRegistryRef.current) ? nodeQuickEditorRegistryRef.current : null,
+      })
+
+      const topPctByNodeAndHandle = new Map<string, Map<string, number>>()
+      for (const [id, handles] of Object.entries(handlesByNodeId)) {
+        const m = new Map<string, number>()
+        for (let i = 0; i < (handles.in || []).length; i += 1) m.set(handles.in[i].id, handles.in[i].topPct)
+        for (let i = 0; i < (handles.out || []).length; i += 1) m.set(handles.out[i].id, handles.out[i].topPct)
+        topPctByNodeAndHandle.set(id, m)
+      }
+
+      const rootRect = root.getBoundingClientRect()
+      const baseLeft = Number.isFinite(rootRect.left) ? rootRect.left : null
+      const baseTop = Number.isFinite(rootRect.top) ? rootRect.top : null
+      if (baseLeft == null || baseTop == null) return
+
+      const nextPaths: Array<{ id: string; d: string }> = []
+      const keyParts: string[] = []
+
+      for (let i = 0; i < edges.length; i += 1) {
+        const e = edges[i]
+        const edgeId = String(e?.id || '').trim()
+        const source = String(e?.source || '').trim()
+        const target = String(e?.target || '').trim()
+        if (!edgeId || !source || !target) continue
+
+        const sRect = overlayRectsByNodeId.get(source)
+        const tRect = overlayRectsByNodeId.get(target)
+        if (!sRect || !tRect) continue
+
+        const props = e.properties
+        const sourcePortKey =
+          props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)[FLOW_EDGE_SOURCE_PORT_KEY] === 'string'
+            ? String((props as Record<string, unknown>)[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
+            : ''
+        const targetPortKey =
+          props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)[FLOW_EDGE_TARGET_PORT_KEY] === 'string'
+            ? String((props as Record<string, unknown>)[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
+            : ''
+
+        const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: sourcePortKey || edgeId })
+        const inHandleId = buildFlowHandleId({ dir: 'in', edgeId: targetPortKey || edgeId })
+        const sPct = topPctByNodeAndHandle.get(source)?.get(outHandleId) ?? 50
+        const tPct = topPctByNodeAndHandle.get(target)?.get(inHandleId) ?? 50
+
+        const sTop = Number.isFinite(sRect.top) ? sRect.top : null
+        const tTop = Number.isFinite(tRect.top) ? tRect.top : null
+        const sRight = Number.isFinite(sRect.right) ? sRect.right : null
+        const tLeft = Number.isFinite(tRect.left) ? tRect.left : null
+        const sHeight = Number.isFinite(sRect.height) ? sRect.height : null
+        const tHeight = Number.isFinite(tRect.height) ? tRect.height : null
+        if (sTop == null || tTop == null || sRight == null || tLeft == null || sHeight == null || tHeight == null) continue
+        if (sHeight <= 0 || tHeight <= 0) continue
+
+        const sx = sRight - baseLeft
+        const tx = tLeft - baseLeft
+        const sy = sTop - baseTop + (Math.max(0, Math.min(100, sPct)) / 100) * sHeight
+        const ty = tTop - baseTop + (Math.max(0, Math.min(100, tPct)) / 100) * tHeight
+        if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) continue
+
+        const dx = tx - sx
+        const c = 0.5
+        const c1x = sx + dx * c
+        const c1y = sy
+        const c2x = tx - dx * c
+        const c2y = ty
+        const d = `M ${sx.toFixed(2)} ${sy.toFixed(2)} C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)}`
+        nextPaths.push({ id: edgeId, d })
+        keyParts.push(`${edgeId}:${sx.toFixed(1)},${sy.toFixed(1)}:${tx.toFixed(1)},${ty.toFixed(1)}`)
+      }
+
+      const key = keyParts.join('|')
+      if (key === overlayEdgeKeyRef.current) return
+      overlayEdgeKeyRef.current = key
+      setOverlayEdgePaths(nextPaths)
+    })
+  }, [active, overlayOnlyModeEnabled])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!overlayOnlyModeEnabled) return
+    scheduleOverlayEdgeUpdate()
+
+    const unsubZoom = useGraphStore.subscribe(
+      s => (zoomViewKey ? (s.zoomStateByKey?.[zoomViewKey] ?? null) : null),
+      () => scheduleOverlayEdgeUpdate(),
+    )
+
+    const onAny = () => scheduleOverlayEdgeUpdate()
+    window.addEventListener('resize', onAny)
+    window.addEventListener('scroll', onAny, true)
+
+    const observer = typeof MutationObserver !== 'undefined' ? new MutationObserver(() => scheduleOverlayEdgeUpdate()) : null
+    if (observer && typeof document !== 'undefined') {
+      observer.observe(document.body, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+      })
+    }
+
+    return () => {
+      try {
+        unsubZoom()
+      } catch {
+        void 0
+      }
+      window.removeEventListener('resize', onAny)
+      window.removeEventListener('scroll', onAny, true)
+      try {
+        observer?.disconnect()
+      } catch {
+        void 0
+      }
+    }
+  }, [active, overlayOnlyModeEnabled, scheduleOverlayEdgeUpdate, zoomViewKey])
 
 
   React.useEffect(() => {
@@ -584,7 +976,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const addNode = React.useCallback(() => {
     const st = useGraphStore.getState()
     const pos = viewportCenterToWorld({
-      transform: (st.zoomState as unknown as { k: number; x: number; y: number } | null) || null,
+      transform: getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }),
       viewportW,
       viewportH,
     })
@@ -727,7 +1119,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const entry = (nodeQuickEditorRegistryRef.current || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
       if (!entry) return
       const st = useGraphStore.getState()
-      const pos = screenToWorld({ transform: (st.zoomState as unknown as { k: number; x: number; y: number } | null) || null, sx, sy })
+      const pos = screenToWorld({
+        transform: getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }),
+        sx,
+        sy,
+      })
       addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
       upsertUiToast({
         id: 'flow-editor-drop-node-quick-editor',
@@ -1417,9 +1813,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             viewportW={viewportW}
             viewportH={viewportH}
             canvasWindowOffset={canvasWindowOffset}
+            zoomViewKey={zoomViewKey}
             autoRevealKey={autoRevealKey}
             forcePinnedToNode={forcePinnedToNode}
             stackIndex={stackIndex}
+            liveInteractionTick={liveInteractionTick}
+            getLiveNodeWorldPos={anyEditorPinnedToNode ? getLiveNodeWorldPos : undefined}
             onSetLabel={(label) => setNodeLabelById(id, label)}
             onSetType={(type) => setNodeTypeById(id, type)}
             onPatchProperties={(patch) => patchNodePropertiesById(id, patch)}
@@ -1442,6 +1841,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       .filter(Boolean)
   }, [
     active,
+    anyEditorPinnedToNode,
     beginAddEdgeFromNode,
     canvasWindowOffset,
     clearNodeOutputById,
@@ -1452,7 +1852,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     duplicateNodeById,
     enableHandlesForAllInputs,
     finalizePendingEdge,
+    getLiveNodeWorldPos,
     lastDroppedQuickEditorToken,
+    liveInteractionTick,
     overlayEditorNodeIds,
     patchNodePropertiesById,
     pendingEdgeSourceId,
@@ -1500,7 +1902,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const sy = ev.clientY - rect.top
         if (!Number.isFinite(sx) || !Number.isFinite(sy)) return
         if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
-        if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
         const dropKey = `${payload.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
         if (shouldDedupeQuickEditorDrop(dropKey)) {
           ev.preventDefault()
@@ -1508,7 +1909,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           return
         }
         const st = useGraphStore.getState()
-        const pos = screenToWorld({ transform: (st.zoomState as unknown as { k: number; x: number; y: number } | null) || null, sx, sy })
+        const pos = screenToWorld({
+          transform: getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }),
+          sx,
+          sy,
+        })
         addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
         upsertUiToast({
           id: 'flow-editor-drop-node-quick-editor',
@@ -1525,12 +1930,35 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         graphDataOverride={draftGraphData}
         graphDataRevisionOverride={baseGraphDataRevision}
         collisionDuringDrag
-        allowNodeDragOverride={anyEditorPinnedToNode ? false : undefined}
-        renderEdges={true}
+        exposeRuntimeRef={ref => {
+          flowRuntimeRefRef.current = ref
+        }}
+        onInteractionFrame={anyEditorPinnedToNode ? scheduleLiveInteractionTick : undefined}
+        renderEdges={overlayOnlyModeEnabled ? false : true}
         renderGroups={overlayOnlyModeEnabled ? false : true}
         renderNodes={overlayOnlyModeEnabled ? false : true}
         hidePortHandleNodeIds={overlayOnlyHidePortHandleNodeIds}
       />
+
+      {overlayOnlyModeEnabled && overlayEdgePaths.length > 0 && (
+        <svg
+          className="absolute inset-0 pointer-events-none"
+          style={{ zIndex: 20, color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
+          aria-hidden={true}
+        >
+          {overlayEdgePaths.map(p => (
+            <path
+              key={p.id}
+              d={p.d}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ))}
+        </svg>
+      )}
 
       {overlayEditorElements as unknown as React.ReactNode}
 

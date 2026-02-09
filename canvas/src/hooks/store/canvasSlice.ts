@@ -1,12 +1,91 @@
 import type { GraphState, CanvasSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
-import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER, UI_COPY } from '@/lib/config'
-import { lsJson, lsSetJson } from '@/lib/persistence'
+import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER, DEFAULT_VIEWPORT_CONTROLS_PRESET, UI_COPY } from '@/lib/config'
+import { lsBool, lsFloat, lsInt, lsJson, lsSetBool, lsSetFloat, lsSetInt, lsSetJson } from '@/lib/persistence'
+import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
+import {
+  FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
+  FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
+  FLOW_WHEEL_ZOOM_SMOOTH_MIN_DURATION_DEFAULT_MS,
+  FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MIN_MS,
+  FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_DEFAULT,
+  FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_MAX,
+  FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_MIN,
+  FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT,
+  FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MAX,
+  FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MIN,
+  clampFlowWheelZoomSmoothDurationMs,
+  clampFlowWheelZoomIncrementMultiplier,
+  clampFlowWheelZoomSpeedMultiplier,
+  coerceFlowWheelZoomSmoothRange,
+} from '@/lib/canvas/flow-zoom-tuning'
+import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import {
+  CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT,
+  CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
+  CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
+  clampCanvasWheelZoomCtrlMetaBoostMultiplier,
+} from '@/lib/canvas/zoom-input'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
-export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
+export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
+  const initialCanvas2dRenderer = lsJson<'d3' | 'flow' | 'flowEditor'>(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, v =>
+    v === 'flow' || v === 'd3' || v === 'flowEditor' ? v : DEFAULT_CANVAS_2D_RENDERER,
+  )
+  const initialViewportControlsPresetStored = lsJson(
+    LS_KEYS.viewportControlsPreset,
+    DEFAULT_VIEWPORT_CONTROLS_PRESET,
+    v => coerceViewportControlsPreset(v),
+  )
+  const initialViewportControlsPreset = initialViewportControlsPresetStored
+
+  const initialPinnedStored = lsBool(LS_KEYS.viewportPinned, false)
+  const initialFitToScreenStored = lsBool(LS_KEYS.viewportFitToScreen, true)
+  const initialZoomToSelectionStored = lsBool(LS_KEYS.viewportZoomToSelection, false)
+  const initialZoomModes = (() => {
+    if (initialPinnedStored) {
+      return { viewPinned: true, fitToScreenMode: false, zoomToSelectionMode: false }
+    }
+    if (initialZoomToSelectionStored) {
+      return { viewPinned: false, fitToScreenMode: false, zoomToSelectionMode: true }
+    }
+    if (initialFitToScreenStored) {
+      return { viewPinned: false, fitToScreenMode: true, zoomToSelectionMode: false }
+    }
+    return { viewPinned: false, fitToScreenMode: false, zoomToSelectionMode: false }
+  })()
+
+  const initialFlowWheelZoomSpeedMultiplier = clampFlowWheelZoomSpeedMultiplier(
+    lsFloat(LS_KEYS.flowWheelZoomSpeedMultiplier, FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT, {
+      min: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MIN,
+      max: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MAX,
+    }),
+  )
+  const initialFlowWheelZoomIncrementMultiplier = clampFlowWheelZoomIncrementMultiplier(
+    lsFloat(LS_KEYS.flowWheelZoomIncrementMultiplier, FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_DEFAULT, {
+      min: FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_MIN,
+      max: FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_MAX,
+    }),
+  )
+  const initialSmooth = coerceFlowWheelZoomSmoothRange({
+    minMs: clampFlowWheelZoomSmoothDurationMs(lsInt(LS_KEYS.flowWheelZoomSmoothMinDurationMs, FLOW_WHEEL_ZOOM_SMOOTH_MIN_DURATION_DEFAULT_MS)),
+    maxMs: clampFlowWheelZoomSmoothDurationMs(lsInt(LS_KEYS.flowWheelZoomSmoothMaxDurationMs, FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS)),
+  })
+  const initialFlowWheelZoomSmoothMinDurationMs = initialSmooth.minMs
+  const initialFlowWheelZoomSmoothMaxDurationMs = initialSmooth.maxMs
+
+  const initialZoomDurationFitMs = Math.max(0, Math.min(2000, lsInt(LS_KEYS.zoomDurationFitMs, 300)))
+  const initialZoomDurationSelectionMs = Math.max(0, Math.min(2000, lsInt(LS_KEYS.zoomDurationSelectionMs, 300)))
+  const initialWheelZoomCtrlMetaBoostMultiplier = clampCanvasWheelZoomCtrlMetaBoostMultiplier(
+    lsFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT, {
+      min: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
+      max: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
+    }),
+  )
+
+  return {
   canvasDims: { w: 800, h: 600 } as { w: number; h: number },
   canvasPos: { x: 0, y: 0 } as { x: number; y: number },
   setCanvasDims: (d: { w: number; h: number }) => {
@@ -21,11 +100,14 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
     if (cur.x === next.x && cur.y === next.y) return
     set({ canvasPos: next })
   },
-  viewPinned: false as boolean,
+  viewPinned: initialZoomModes.viewPinned as boolean,
   setViewPinned: (v: boolean) =>
     set(state => {
       const nextPinned = !!v
       if (nextPinned) {
+        lsSetBool(LS_KEYS.viewportPinned, true)
+        lsSetBool(LS_KEYS.viewportFitToScreen, false)
+        lsSetBool(LS_KEYS.viewportZoomToSelection, false)
         return {
           viewPinned: true,
           fitToScreenMode: false,
@@ -33,6 +115,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
           zoomRequest: null,
         }
       }
+      lsSetBool(LS_KEYS.viewportPinned, false)
       const z = state.zoomState
       const nextZoomState = z ? { ...z, graphDataRevision: state.graphDataRevision } : z
       return { viewPinned: false, zoomState: nextZoomState }
@@ -41,14 +124,18 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
     const current = get().viewPinned
     get().setViewPinned(!current)
   },
-  fitToScreenMode: true as boolean,
+  fitToScreenMode: initialZoomModes.fitToScreenMode as boolean,
   setFitToScreenMode: (v: boolean) =>
     set(state => {
       const next = !!v
       if (!next) {
         if (!state.fitToScreenMode) return {}
+        lsSetBool(LS_KEYS.viewportFitToScreen, false)
         return { fitToScreenMode: false }
       }
+      lsSetBool(LS_KEYS.viewportPinned, false)
+      lsSetBool(LS_KEYS.viewportFitToScreen, true)
+      lsSetBool(LS_KEYS.viewportZoomToSelection, false)
       return {
         viewPinned: false,
         fitToScreenMode: true,
@@ -59,14 +146,18 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
     const current = get().fitToScreenMode
     get().setFitToScreenMode(!current)
   },
-  zoomToSelectionMode: false as boolean,
+  zoomToSelectionMode: initialZoomModes.zoomToSelectionMode as boolean,
   setZoomToSelectionMode: (v: boolean) =>
     set(state => {
       const next = !!v
       if (!next) {
         if (!state.zoomToSelectionMode) return {}
+        lsSetBool(LS_KEYS.viewportZoomToSelection, false)
         return { zoomToSelectionMode: false }
       }
+      lsSetBool(LS_KEYS.viewportPinned, false)
+      lsSetBool(LS_KEYS.viewportFitToScreen, false)
+      lsSetBool(LS_KEYS.viewportZoomToSelection, true)
       return {
         viewPinned: false,
         zoomToSelectionMode: true,
@@ -81,14 +172,32 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   requestZoom: (type: ZoomCommandType, opts?: { intent?: ZoomFitIntent }) =>
     set(state => {
       if (state.viewPinned && type === 'selection') return {}
+      const isAutoFit = type === 'fit' && (opts?.intent || 'fitToView') === 'fitToScreen'
+      const shouldDisableAutoModes = !state.viewPinned && !isAutoFit && (type === 'in' || type === 'out' || type === 'reset' || type === 'selection' || type === 'fit')
+      const modePatch = (() => {
+        if (!shouldDisableAutoModes) return {}
+        if (!state.fitToScreenMode && !state.zoomToSelectionMode) return {}
+        try {
+          lsSetBool(LS_KEYS.viewportFitToScreen, false)
+          lsSetBool(LS_KEYS.viewportZoomToSelection, false)
+        } catch {
+          void 0
+        }
+        return { fitToScreenMode: false, zoomToSelectionMode: false }
+      })()
       if (type === 'fit') {
         const intent: ZoomFitIntent = opts?.intent || 'fitToView'
-        return { zoomRequest: { type: 'fit', intent, at: Date.now() } }
+        return { ...modePatch, zoomRequest: { type: 'fit', intent, at: Date.now() } }
       }
-      return { zoomRequest: { type, at: Date.now() } as ZoomRequest }
+      return { ...modePatch, zoomRequest: { type, at: Date.now() } as ZoomRequest }
     }),
   requestZoomTransform: (payload: { k: number; x: number; y: number }) =>
     set({ zoomRequest: { type: 'transform', at: Date.now(), payload } }),
+  requestZoomBounds: (payload: { bounds: { x: number; y: number; w: number; h: number }; insetPx?: number; origin?: { x: number; y: number } }) =>
+    set(state => {
+      if (state.viewPinned) return {}
+      return { zoomRequest: { type: 'bounds', at: Date.now(), payload } }
+    }),
   clearZoomRequest: () => set({ zoomRequest: null }),
   zoomState: null as null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number },
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => set({ zoomState: z }),
@@ -123,9 +232,15 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
   requestEdgeCreation: (req: { type: 'create' | 'update-source' | 'update-target'; fromId: string }) => set({ edgeCreationRequest: { ...req, at: Date.now() } }),
   clearEdgeCreationRequest: () => set({ edgeCreationRequest: null }),
   canvasRenderMode: '2d' as '2d' | '3d',
-  canvas2dRenderer: lsJson<'d3' | 'flow' | 'flowEditor'>(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, v =>
-    v === 'flow' || v === 'd3' || v === 'flowEditor' ? v : DEFAULT_CANVAS_2D_RENDERER,
-  ),
+  canvas2dRenderer: initialCanvas2dRenderer,
+  viewportControlsPreset: initialViewportControlsPreset,
+  flowWheelZoomSpeedMultiplier: initialFlowWheelZoomSpeedMultiplier,
+  flowWheelZoomIncrementMultiplier: initialFlowWheelZoomIncrementMultiplier,
+  flowWheelZoomSmoothMinDurationMs: initialFlowWheelZoomSmoothMinDurationMs,
+  flowWheelZoomSmoothMaxDurationMs: initialFlowWheelZoomSmoothMaxDurationMs,
+  zoomDurationFitMs: initialZoomDurationFitMs,
+  zoomDurationSelectionMs: initialZoomDurationSelectionMs,
+  wheelZoomCtrlMetaBoostMultiplier: initialWheelZoomCtrlMetaBoostMultiplier,
   canvasRenderModeLastFree: '2d' as '2d' | '3d',
   canvasRenderModeIsAuto: false as boolean,
   setCanvasRenderMode: (m: '2d' | '3d') => {
@@ -172,13 +287,125 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
       const next: 'd3' | 'flow' | 'flowEditor' = id === 'flow' ? 'flow' : id === 'flowEditor' ? 'flowEditor' : 'd3'
       if (state.canvas2dRenderer === next) return {}
       lsSetJson(LS_KEYS.canvas2dRenderer, next)
-      return { canvas2dRenderer: next }
+
+      const common = {
+        canvasRenderMode: state.canvasRenderMode,
+        schema: state.schema,
+        graphData: state.graphData,
+        documentSemanticMode: state.documentSemanticMode,
+        frontmatterModeEnabled: state.frontmatterModeEnabled,
+        documentStructureBaselineLock: state.documentStructureBaselineLock,
+        renderMediaAsNodes: state.renderMediaAsNodes,
+        mediaPanelDensity: state.mediaPanelDensity,
+        collapsedGroupIds: state.collapsedGroupIds,
+      }
+      const prevZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: state.canvas2dRenderer })
+      const nextZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: next })
+      const prevZoom = prevZoomKey ? state.zoomStateByKey?.[prevZoomKey] ?? null : null
+      const nextZoomExists = nextZoomKey ? Boolean(state.zoomStateByKey?.[nextZoomKey]) : false
+      const zoomStateByKey =
+        prevZoom && nextZoomKey && !nextZoomExists
+          ? { ...(state.zoomStateByKey || {}), [nextZoomKey]: prevZoom }
+          : state.zoomStateByKey
+
+      return { canvas2dRenderer: next, zoomStateByKey }
     })
+  },
+  setViewportControlsPreset: (preset) => {
+    const next = coerceViewportControlsPreset(preset)
+    const cur = get().viewportControlsPreset
+    if (cur === next) return
+    lsSetJson(LS_KEYS.viewportControlsPreset, next)
+    set({ viewportControlsPreset: next })
+  },
+  setFlowWheelZoomSpeedMultiplier: (v: number) => {
+    const next = clampFlowWheelZoomSpeedMultiplier(
+      lsSetFloat(LS_KEYS.flowWheelZoomSpeedMultiplier, Number(v), {
+        min: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MIN,
+        max: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MAX,
+      }),
+    )
+    const cur = get().flowWheelZoomSpeedMultiplier
+    if (cur === next) return
+    set({ flowWheelZoomSpeedMultiplier: next })
+  },
+  setFlowWheelZoomIncrementMultiplier: (v: number) => {
+    const next = clampFlowWheelZoomIncrementMultiplier(
+      lsSetFloat(LS_KEYS.flowWheelZoomIncrementMultiplier, Number(v), {
+        min: FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_MIN,
+        max: FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_MAX,
+      }),
+    )
+    const cur = get().flowWheelZoomIncrementMultiplier
+    if (cur === next) return
+    set({ flowWheelZoomIncrementMultiplier: next })
+  },
+  setFlowWheelZoomSmoothMinDurationMs: (v: number) => {
+    const curMax = get().flowWheelZoomSmoothMaxDurationMs
+    const nextMin = clampFlowWheelZoomSmoothDurationMs(
+      lsSetInt(LS_KEYS.flowWheelZoomSmoothMinDurationMs, Number(v), {
+        min: FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MIN_MS,
+        max: FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
+      }),
+    )
+    const clampedMin = Math.min(nextMin, curMax)
+    if (clampedMin !== nextMin) {
+      lsSetInt(LS_KEYS.flowWheelZoomSmoothMinDurationMs, clampedMin, {
+        min: FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MIN_MS,
+        max: FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
+      })
+    }
+    const curMin = get().flowWheelZoomSmoothMinDurationMs
+    if (curMin === clampedMin) return
+    set({ flowWheelZoomSmoothMinDurationMs: clampedMin })
+  },
+  setFlowWheelZoomSmoothMaxDurationMs: (v: number) => {
+    const curMin = get().flowWheelZoomSmoothMinDurationMs
+    const nextMax = clampFlowWheelZoomSmoothDurationMs(
+      lsSetInt(LS_KEYS.flowWheelZoomSmoothMaxDurationMs, Number(v), {
+        min: FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MIN_MS,
+        max: FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
+      }),
+    )
+    const clampedMax = Math.max(nextMax, curMin)
+    if (clampedMax !== nextMax) {
+      lsSetInt(LS_KEYS.flowWheelZoomSmoothMaxDurationMs, clampedMax, {
+        min: FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MIN_MS,
+        max: FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
+      })
+    }
+    const curMax = get().flowWheelZoomSmoothMaxDurationMs
+    if (curMax === clampedMax) return
+    set({ flowWheelZoomSmoothMaxDurationMs: clampedMax })
+  },
+  setZoomDurationFitMs: (v: number) => {
+    const next = lsSetInt(LS_KEYS.zoomDurationFitMs, Number(v), { min: 0, max: 2000 })
+    const cur = get().zoomDurationFitMs
+    if (cur === next) return
+    set({ zoomDurationFitMs: next })
+  },
+  setZoomDurationSelectionMs: (v: number) => {
+    const next = lsSetInt(LS_KEYS.zoomDurationSelectionMs, Number(v), { min: 0, max: 2000 })
+    const cur = get().zoomDurationSelectionMs
+    if (cur === next) return
+    set({ zoomDurationSelectionMs: next })
+  },
+  setWheelZoomCtrlMetaBoostMultiplier: (v: number) => {
+    const next = clampCanvasWheelZoomCtrlMetaBoostMultiplier(
+      lsSetFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, Number(v), {
+        min: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
+        max: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
+      }),
+    )
+    const cur = get().wheelZoomCtrlMetaBoostMultiplier
+    if (cur === next) return
+    set({ wheelZoomCtrlMetaBoostMultiplier: next })
   },
   canvasSnapshotFns: {} as { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns },
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) =>
     set(state => ({
       canvasSnapshotFns: {
+        ...state.canvasSnapshotFns,
         ...state.canvasSnapshotFns,
         [mode]: fns || undefined,
       },
@@ -200,4 +427,5 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => ({
     }
     return null;
   },
-});
+  }
+};

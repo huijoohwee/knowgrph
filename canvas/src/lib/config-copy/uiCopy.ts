@@ -44,7 +44,7 @@ export const UI_COPY = {
   flowNodeQuickEditorOpenInSidepane: 'Open selected node in sidepane',
   flowNodeQuickEditorEnableHandles: 'Enable handles for all inputs',
   flowNodeQuickEditorConvertToLoop: 'Convert to loop node',
-  flowNodeQuickEditorHelpToast: 'Node Quick Editor: pin to detach, drag header to move, Escape closes the menu.',
+  flowNodeQuickEditorHelpToast: 'Node Quick Editor: unpin to float and drag, pin to anchor to node. Escape closes the menu.',
   flowNodeQuickEditorEnableHandlesToast: 'Port Handles enabled for all nodes.',
   flowNodeQuickEditorEnableHandlesAlreadyOnToast: 'Port Handles are already enabled for all inputs.',
   flowNodeQuickEditorEnableHandlesBaselineLockedToast: BASELINE_LOCKED_TOAST,

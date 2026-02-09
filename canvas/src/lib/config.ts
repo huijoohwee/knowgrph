@@ -30,3 +30,4 @@ export * from './config.ls';
 export * from './config.copy';
 export * from './config.render';
 export * from './config.flow-editor';
+export * from './config.viewport-controls';

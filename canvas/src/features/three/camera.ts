@@ -4,8 +4,9 @@ import type { GraphData, GraphNode } from '../../lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
 import type { Vec3 } from './layout'
-import { computeZoomTargetNodeIds } from '@/components/GraphCanvas/selectionZoom'
+import { computeZoomTargetNodeIds } from '@/lib/zoom/selectionTargets'
 import { DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from 'grph-shared/zoom/presets'
+import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 
 export type CameraZoomType = 'in' | 'out'
 
@@ -57,7 +58,9 @@ export function getCameraConfig(schema: GraphSchema): CameraConfig {
 }
 
 export function applyZoomStep(controls: OrbitControls, camera: THREE.PerspectiveCamera, type: CameraZoomType) {
-  const factor = type === 'in' ? 0.8 : 1.25
+  const scaleFactor = DEFAULT_TOOLBAR_ZOOM_CONFIG.scaleFactor
+  const safe = typeof scaleFactor === 'number' && Number.isFinite(scaleFactor) && scaleFactor > 1 ? scaleFactor : 1.25
+  const factor = type === 'in' ? 1 / safe : safe
   const offset = new THREE.Vector3()
   offset.subVectors(camera.position, controls.target)
   offset.multiplyScalar(factor)
@@ -78,7 +81,7 @@ function collectFitIds(graph: GraphData, selectedNodeId: string | null, selected
   }
   const ids = new Set<string>()
   if (ids.size === 0) {
-    graph.nodes.forEach(n => ids.add(n.id))
+    graph.nodes.forEach(n => ids.add(String(n.id)))
   }
   return ids
 }
@@ -86,7 +89,7 @@ function collectFitIds(graph: GraphData, selectedNodeId: string | null, selected
 function toPointsFromGraph(nodes: GraphNode[], ids: Set<string>) {
   const points: THREE.Vector3[] = []
   ids.forEach(id => {
-    const node = nodes.find(x => x.id === id)
+    const node = nodes.find(x => String(x.id) === id)
     if (!node) return
     const px = typeof node.x === 'number' ? node.x : 0
     const py = typeof node.y === 'number' ? node.y : 0

@@ -15,8 +15,6 @@ export function useToolbarActions(
   setThemeMode: (mode: ThemeMode) => void,
   launchSpotlight: (mode?: 'tour' | 'stats') => void,
   openMainPanel: (tab: 'workflow' | 'flowEditorManager' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history') => void,
-  onZoomIn?: () => void,
-  onZoomOut?: () => void,
   onReset?: () => void,
   onZoomSelection?: () => void,
   setZoomToSelectionMode?: (v: boolean) => void,

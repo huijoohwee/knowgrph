@@ -24,6 +24,8 @@ export function useSettingsView({
   }) => void
 }) {
   const shouldHideSetting = React.useCallback((key: string, area?: string) => {
+    if (key === 'wheelZoomCtrlMetaBoostMultiplier') return false
+    if (key.startsWith('flowWheelZoom')) return false
     if (key === 'canvasRenderMode') return true
     if (key === 'three.preset.presentation3d') return true
     if (key.startsWith('three.')) return true

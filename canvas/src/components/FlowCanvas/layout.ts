@@ -1,11 +1,6 @@
 import dagre from 'dagre'
 
-export function buildGraphMetaKey(graph: { metadata?: unknown } | null): string {
-  const meta = graph?.metadata
-  if (!meta || typeof meta !== 'object') return ''
-  const rec = meta as Record<string, unknown>
-  return `${String(rec.kind ?? '')}:${String(rec.source ?? '')}`
-}
+export { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 
 export function deriveRankdir(args: { flowRankdir: unknown; schemaOrientation?: unknown }): 'TB' | 'LR' {
   const r = String(args.flowRankdir || '').toUpperCase()

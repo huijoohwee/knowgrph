@@ -114,6 +114,8 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
     graphDataRevision: (priorState.graphDataRevision || 0) + 1,
     frontmatterModeEnabled: false,
     documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    documentStructureBaselineSnapshot: null,
     zoomRequest: null,
     zoomStateByKey: {},
     zoomState: { k: 1, x: 0, y: 0 },
@@ -129,6 +131,8 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
     ms: 5_000,
     pollMs: 25,
     ok: () => __flowCanvasDebug.lastBuiltSceneKey.length > 0 && __flowCanvasDebug.lastBuiltSceneNodeCount === 1,
+  }).catch(e => {
+    throw new Error(`stage=initialSceneBuild ${String((e as { message?: unknown })?.message ?? e)}`)
   })
 
   useGraphStore.setState({ documentSemanticMode: 'keyword' })
@@ -136,10 +140,19 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
     ms: 10_000,
     pollMs: 25,
     ok: () => __flowCanvasDebug.lastBuiltSceneNodeCount > 1,
+  }).catch(e => {
+    throw new Error(`stage=semanticModeSwitch ${String((e as { message?: unknown })?.message ?? e)}`)
   })
 
   const key = String(__flowCanvasDebug.lastZoomViewKey || '')
   if (!key) throw new Error('expected FlowCanvas to publish a zoom view key')
+
+  const beforeZoomK = (() => {
+    const s = useGraphStore.getState()
+    const byKey = s.zoomStateByKey?.[key]
+    const k = byKey?.k
+    return typeof k === 'number' && Number.isFinite(k) ? k : 1
+  })()
 
   useGraphStore.getState().requestZoom('in')
   await waitFor({
@@ -148,8 +161,12 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
     ok: () => {
       const s = useGraphStore.getState()
       const byKey = s.zoomStateByKey?.[key]
-      return !!byKey && typeof byKey.k === 'number' && byKey.k > 1
+      return !!byKey && typeof byKey.k === 'number' && Number.isFinite(byKey.k) && byKey.k > beforeZoomK + 1e-6
     },
+  }).catch(e => {
+    const s = useGraphStore.getState()
+    const byKey = s.zoomStateByKey?.[key]
+    throw new Error(`stage=zoomInRequest ${String((e as { message?: unknown })?.message ?? e)} zoomState=${JSON.stringify(s.zoomState)} byKey=${JSON.stringify(byKey)} zoomRequest=${JSON.stringify(s.zoomRequest)}`)
   })
 
   root.unmount()

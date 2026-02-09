@@ -117,6 +117,42 @@ import {
 import { testMainPanelTypographyUsesUiSettings } from '@/__tests__/mainPanelTypography.test'
 import { testGraphTableTypographyUsesUiSettings } from '@/__tests__/graphTableTypography.test'
 import { testCanvasZoomWheelParityBetweenD3AndNative } from '@/__tests__/canvasZoomWheelParity.test'
+import { testSpacePanKeyStateTracksHeldSpace } from '@/__tests__/spacePanKeyState.test'
+import { testViewportControlsPanDragPreset } from '@/__tests__/viewportControlsPanDragPreset.test'
+import { testViewportControlsSelectionDragPreset } from '@/__tests__/viewportControlsSelectionDragPreset.test'
+import { testFlowEditorForcesDesignViewportControlsPreset } from '@/__tests__/flowEditorViewportControlsPreset.test'
+import { testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps } from '@/__tests__/flowWheelZoomSmoothRegression.test'
+import { testD3WheelZoomIsContinuousAndUsesSharedWheelFactor } from '@/__tests__/d3WheelZoomSmoothRegression.test'
+import { testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly } from '@/__tests__/d3ZoomScaleExtentRegression.test'
+import { testD3WheelZoomOverridesDesignPresetToZoom } from '@/__tests__/d3WheelZoomPresetOverrideRegression.test'
+import { testWheelZoomUsesCtrlKeyBoostHelper } from '@/__tests__/wheelZoomCtrlKeyBoostRegression.test'
+import { testCanvasZoomDoesNotAllowPageScroll } from '@/__tests__/canvasNoScrollRegression.test'
+import { testCanvasWheelIgnoreIsAppliedToExternalPanels } from '@/__tests__/canvasWheelIgnoreExternalPanels.test'
+import { testGraphCanvasDoesNotBlockWheelPropagation } from '@/__tests__/graphCanvasNoStopPropagationRegression.test'
+import { testFlowCanvasResizeMarksDirtySoCanvasDoesNotGoBlank } from '@/__tests__/flowCanvasResizeDirtyRegression.test'
+import { testFlowCanvasUsesAbsoluteSurfaceSizing } from '@/__tests__/flowCanvasSizingRegression.test'
+import {
+  testFlowTransformShowingGraphAcceptsIdentityWhenGraphNearOrigin,
+  testFlowTransformShowingGraphRejectsClearlyOffscreenTransform,
+  testFlowTransformShowingGraphRejectsUnknownBounds,
+} from '@/__tests__/flowTransformShowingGraph.test'
+import {
+  testViewportPinchZoomTransformAllowsPanWhilePinching,
+  testViewportPinchZoomTransformClampsScaleExtent,
+  testViewportPinchZoomTransformKeepsWorldMidAnchored,
+  testViewportPinchZoomTransformRespectsZoomExponentMultiplier,
+} from '@/__tests__/viewportTransformPinchZoom.test'
+import {
+  testEdgeScrollDoesNotMoveBeforeDelay,
+  testEdgeScrollMovesAfterDelayTowardInterior,
+  testEdgeScrollRespectsZoomK,
+} from '@/__tests__/edgeScrollController.test'
+import {
+  testZoomActionsUseDiscreteStepsWhenConfigured,
+  testZoomActionsDefaultToPow2StepsWhenUnset,
+  testZoomActionsToolbarZoomDoesNotNoopOnDegenerateScaleExtent,
+  testZoomToBoundsFitsWithInset,
+} from '@/__tests__/zoomStepsAndBounds.test'
 import {
   testWheelAnchorFallsBackWhenClientCoordsOutsideRect,
   testWheelAnchorClampsNearEdgeToPreventJump,
@@ -155,7 +191,9 @@ import { testWorkspaceFsMemoryInitialEntries } from '@/__tests__/workspaceFsMemo
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
 import { testGraphCanvasDisplayFilterFallback } from '@/__tests__/graphCanvasDisplayFilterFallback.test'
+import { testGraphDataForDisplayFiltersNodesAndEdgesTogether } from '@/__tests__/graphDataForDisplay.test'
 import { testDocumentStructureBaselineLockGuardsModeSwitches } from '@/__tests__/baselineLockGuardsModeSwitch.test'
+import { testDocumentStructureBaselineLockRestoresPriorState } from '@/__tests__/baselineLockRestore.test'
 import {
   testLayoutPositioningCacheKeyIncludesViewKey,
   testLayoutPositioningCacheKeyIsolatesMediaDensity,
@@ -165,7 +203,7 @@ import {
   testLayoutPositioningForcesLayoutWhenVariantChanges,
   testLayoutPositioningSkipsReseedOnToggle,
 } from '@/__tests__/layoutPositioning.test'
-import { testZoomViewKeyIsSharedAcross2dRenderers } from '@/__tests__/zoomViewKeySharedAcross2dRenderers.test'
+import { testZoomViewKeyIsIsolatedAcross2dRenderers } from '@/__tests__/zoomViewKeySharedAcross2dRenderers.test'
 import {
   testFrontmatterModeEffectiveNoopWhenNoSeeds,
   testFrontmatterModeEffectiveWhenSeedsExist,
@@ -198,6 +236,9 @@ import {
   testFlowEditorConvertToLoopSetsTypeAndKind,
   testFlowEditorEnableHandlesForAllInputsIsIdempotent,
 } from '@/__tests__/flowNodeQuickEditorActions.test'
+import { testPinnedDisablesDragAcrossPanels } from '@/__tests__/pinSemantics.test'
+import { testIconButtonPointerDownPreventsTextSelection } from '@/__tests__/iconButtonNoTextSelect.test'
+import { testNodeQuickEditorHidesIdentityAndMovesActionsToToolbar } from '@/__tests__/nodeQuickEditorUiContract.test'
 import {
   testFlowCanvasAutoFitToScreenRunsInFlowRenderer,
   testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer,
@@ -339,6 +380,7 @@ import {
 import { testPinnedZoomAdjustKeepsWorldCenter } from '@/__tests__/pinnedZoomNoJump.test'
 import { testFitToViewAllowsZoomOutBelowSchemaMinScale } from '@/__tests__/zoomOutFitAll.test'
 import { testZoomActionsZoomInOutPreserveViewportCenterNoBounce } from '@/__tests__/zoomInOutViewportCenterNoBounce.test'
+import { testDisableAutoZoomModesForUserGesture } from '@/__tests__/autoZoomModesDisable.test'
 import { testNodeQuickEditorScaledSizeTracksZoomK } from '@/__tests__/nodeQuickEditorZoom.test'
 import {
   testZoomActionsFitTransformIsCachedAcrossRequests,
@@ -512,10 +554,41 @@ export const runAllTests = async () => {
   await exec('ui.editorWorkspace.previewGraphUpdates.applyToParentStore', testEmbeddedPreviewGraphUpdatesApplyToParentStore)
 
   await exec('modeLock.baseline.guardsModeSwitches', testDocumentStructureBaselineLockGuardsModeSwitches)
+  await exec('modeLock.baseline.restoresPriorState', testDocumentStructureBaselineLockRestoresPriorState)
+
+  await exec('interaction.spacePan.keyState', testSpacePanKeyStateTracksHeldSpace)
+
+  await exec('viewport.flowEditor.forcesDesignPreset', testFlowEditorForcesDesignViewportControlsPreset)
+  await exec('zoom.wheel.flow.smooth', testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps)
+  await exec('zoom.wheel.d3.smooth', testD3WheelZoomIsContinuousAndUsesSharedWheelFactor)
+  await exec('zoom.wheel.d3.scaleExtent.ssot', testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly)
+  await exec('zoom.wheel.d3.presetOverride.design', testD3WheelZoomOverridesDesignPresetToZoom)
+  await exec('zoom.wheel.ctrlKey.boost', testWheelZoomUsesCtrlKeyBoostHelper)
+  await exec('canvas.zoom.noPageScroll', testCanvasZoomDoesNotAllowPageScroll)
+  await exec('canvas.wheelIgnore.externalPanels', testCanvasWheelIgnoreIsAppliedToExternalPanels)
+  await exec('canvas.zoom.scrollLock.noStopPropagation', testGraphCanvasDoesNotBlockWheelPropagation)
+  await exec('flowCanvas.resize.dirty', testFlowCanvasResizeMarksDirtySoCanvasDoesNotGoBlank)
+  await exec('viewport.pinchZoom.transform.worldMidAnchored', testViewportPinchZoomTransformKeepsWorldMidAnchored)
+  await exec('viewport.pinchZoom.transform.allowsPan', testViewportPinchZoomTransformAllowsPanWhilePinching)
+  await exec('viewport.pinchZoom.transform.clampsScale', testViewportPinchZoomTransformClampsScaleExtent)
+  await exec('viewport.pinchZoom.transform.multiplier', testViewportPinchZoomTransformRespectsZoomExponentMultiplier)
+  await exec('viewport.edgeScroll.delay', testEdgeScrollDoesNotMoveBeforeDelay)
+  await exec('viewport.edgeScroll.direction', testEdgeScrollMovesAfterDelayTowardInterior)
+  await exec('viewport.edgeScroll.zoomScaling', testEdgeScrollRespectsZoomK)
+
+  await exec('zoom.steps.discrete', testZoomActionsUseDiscreteStepsWhenConfigured)
+  await exec('zoom.steps.defaultPow2', testZoomActionsDefaultToPow2StepsWhenUnset)
+  await exec('zoom.toolbar.degenerateExtent.noNoop', testZoomActionsToolbarZoomDoesNotNoopOnDegenerateScaleExtent)
+  await exec('zoom.bounds.fitsInset', testZoomToBoundsFitsWithInset)
+  await exec('viewport.preset.panDrag.gating', testViewportControlsPanDragPreset)
+  await exec('viewport.preset.selectionDrag.gating', testViewportControlsSelectionDragPreset)
 
   await exec('ui.typography.floatingPanelInspector.usesUiSettings', testFloatingPanelInspectorTypographyUsesUiSettings)
   await exec('ui.typography.flowNodeQuickEditor.usesUiSettings', testFlowNodeQuickEditorTypographyInheritsPanelSettings)
   await exec('ui.flowNodeQuickEditor.zoomUpdates.noRerender', testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel)
+  await exec('ui.pinSemantics.pinnedDisablesDrag', testPinnedDisablesDragAcrossPanels)
+  await exec('ui.iconButton.preventsTextSelection', testIconButtonPointerDownPreventsTextSelection)
+  await exec('ui.flowNodeQuickEditor.uiContract', testNodeQuickEditorHidesIdentityAndMovesActionsToToolbar)
   await exec('ui.flowNodeQuickEditor.portHandles.gutterRendersWhenEnabled', testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled)
   await exec('ui.flowNodeQuickEditor.schemaFieldPorts.renderRowHandles', testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles)
   await exec('dnd.flowNodeQuickEditorDragPayload.roundTrip', testFlowNodeQuickEditorDragPayloadRoundTrip)
@@ -545,7 +618,7 @@ export const runAllTests = async () => {
   await exec('layout.positioning.cacheKeyIncludesViewKey', testLayoutPositioningCacheKeyIncludesViewKey)
   await exec('layout.positioning.isolatesMediaDensity', testLayoutPositioningCacheKeyIsolatesMediaDensity)
   await exec('layout.positioning.isolatesRenderMediaAsNodes', testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes)
-  await exec('zoom.viewKey.sharedAcross2dRenderers', testZoomViewKeyIsSharedAcross2dRenderers)
+  await exec('zoom.viewKey.isolates2dRenderers', testZoomViewKeyIsIsolatedAcross2dRenderers)
   await exec('zoom.actions.inOut.preserveViewportCenterNoBounce', testZoomActionsZoomInOutPreserveViewportCenterNoBounce)
   await exec('zoom.wheel.parity.d3AndNative', testCanvasZoomWheelParityBetweenD3AndNative)
   await exec('zoom.wheel.anchor.fallbackWhenOutside', testWheelAnchorFallsBackWhenClientCoordsOutsideRect)
@@ -632,6 +705,11 @@ export const runAllTests = async () => {
   await exec('workspaceFs.events.batch.coalescesNotifications', testWorkspaceFsChangedBatchCoalescesNotifications)
   await exec('workspaceFs.memory.initialEntries', testWorkspaceFsMemoryInitialEntries)
   await exec('graphCanvas.displayFilter.fallback', testGraphCanvasDisplayFilterFallback)
+  await exec('graphCanvas.displayFilter.graphDataForDisplay.filtersNodesAndEdgesTogether', testGraphDataForDisplayFiltersNodesAndEdgesTogether)
+  await exec('flowCanvas.transformShowingGraph.rejectsUnknownBounds', testFlowTransformShowingGraphRejectsUnknownBounds)
+  await exec('flowCanvas.transformShowingGraph.rejectsOffscreenTransform', testFlowTransformShowingGraphRejectsClearlyOffscreenTransform)
+  await exec('flowCanvas.transformShowingGraph.acceptsIdentityNearOrigin', testFlowTransformShowingGraphAcceptsIdentityWhenGraphNearOrigin)
+  await exec('flowCanvas.sizing.usesAbsoluteSurfaceSizing', testFlowCanvasUsesAbsoluteSurfaceSizing)
 
   await exec('geospatial.host.overlayNotGatedBySidebar', testGeospatialOverlayHostNotGatedBySidebar)
   await exec('geospatial.canvas.forbidGraphWhenGeoEnabled', testCanvasForbidsGraphWhenGeospatialEnabled)
@@ -800,6 +878,7 @@ export const runAllTests = async () => {
   await exec('densityClustering.respectsMaxSteps', testDensityClusteringRespectsMaxSteps)
   await exec('zoom.pinned.adjustKeepsWorldCenterOnResize', testPinnedZoomAdjustKeepsWorldCenter)
   await exec('zoom.fitToView.allowsBelowSchemaMinScale', testFitToViewAllowsZoomOutBelowSchemaMinScale)
+  await exec('zoom.autoModes.disableOnGesture', testDisableAutoZoomModesForUserGesture)
   await exec('ui.flowNodeQuickEditor.scalesWithZoomK', testNodeQuickEditorScaledSizeTracksZoomK)
   await exec('zoom.ssot.fit.cachedAcrossRequests', testZoomActionsFitTransformIsCachedAcrossRequests)
   await exec('zoom.ssot.out.autoMinScaleTracksFitToView', testZoomActionsZoomOutAutoMinScaleTracksFitToView)

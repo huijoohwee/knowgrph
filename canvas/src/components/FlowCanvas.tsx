@@ -8,12 +8,15 @@ import { useContainerDims } from '@/hooks/useContainerDims'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
+import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
+import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { buildGraphMetaKey, deriveRankdir } from '@/components/FlowCanvas/layout'
+import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphData } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
@@ -28,6 +31,8 @@ import {
   type FlowNativeRuntime,
 } from '@/components/FlowCanvas/nativeRuntime'
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
+import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
+import { enforceDesignPresetWhenSelectionOnDrag } from '@/lib/canvas/viewport-controls'
 import { applyZoomRequestNative } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/components/FlowCanvas/bindNativeInteractions'
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
@@ -35,6 +40,7 @@ import { extractNodePositions } from '@/components/FlowCanvas/seedPositions'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestCommit'
+import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 
 export { __flowCanvasDebug, extractNodePositions }
 
@@ -44,6 +50,8 @@ export default function FlowCanvas({
   graphDataRevisionOverride,
   collisionDuringDrag = false,
   allowNodeDragOverride,
+  exposeRuntimeRef,
+  onInteractionFrame,
   hideSelectedNodeGlyph = false,
   hideSelectedNodePortHandles,
   hideNodeIds,
@@ -58,6 +66,8 @@ export default function FlowCanvas({
   graphDataRevisionOverride?: number
   collisionDuringDrag?: boolean
   allowNodeDragOverride?: boolean
+  exposeRuntimeRef?: (ref: React.MutableRefObject<FlowNativeRuntime | null>) => void
+  onInteractionFrame?: () => void
   hideSelectedNodeGlyph?: boolean
   hideSelectedNodePortHandles?: boolean
   hideNodeIds?: string[]
@@ -71,7 +81,7 @@ export default function FlowCanvas({
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const runtimeRef = React.useRef<FlowNativeRuntime | null>(null)
   const lastBuiltGraphKeyRef = React.useRef<string>('')
-  const lastAppliedZoomKeyRef = React.useRef<string | null>(null)
+  const lastUserInteractionAtMsRef = React.useRef<number>(0)
   const lastAppliedPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(null)
   const lastCommittedPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(null)
   const positionsDirtySinceCommitRef = React.useRef(false)
@@ -90,6 +100,33 @@ export default function FlowCanvas({
   const lastWheelIntentRef = React.useRef<null | { dir: 'in' | 'out'; ts: number }>(null)
   const zoomWheelGuardRef = React.useRef(createZoomWheelGuardState())
   const userSelectLockPointerIdRef = React.useRef<number | null>(null)
+
+  const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
+  const selectionBoxRafRef = React.useRef<number | null>(null)
+  const requestSetSelectionBox = React.useCallback((next: null | { left: number; top: number; width: number; height: number }) => {
+    if (selectionBoxRafRef.current != null) cancelAnimationFrame(selectionBoxRafRef.current)
+    selectionBoxRafRef.current = requestAnimationFrame(() => {
+      selectionBoxRafRef.current = null
+      setSelectionBox(prev => {
+        if (!prev && !next) return prev
+        if (prev && next && prev.left === next.left && prev.top === next.top && prev.width === next.width && prev.height === next.height) return prev
+        return next
+      })
+    })
+  }, [])
+
+  React.useEffect(() => {
+    ensureSpacePanKeyListenerInstalled()
+  }, [])
+
+  React.useEffect(() => {
+    exposeRuntimeRef?.(runtimeRef)
+  }, [exposeRuntimeRef])
+
+  const handleInteractionFrame = React.useCallback(() => {
+    lastUserInteractionAtMsRef.current = Date.now()
+    onInteractionFrame?.()
+  }, [onInteractionFrame])
 
   const buildDrawArgs = React.useCallback(
     () => drawArgsRef.current,
@@ -114,6 +151,7 @@ export default function FlowCanvas({
     mediaPanelDensity,
     canvasRenderMode,
     canvas2dRenderer,
+    viewportControlsPreset,
     setLayoutPositionsForMode,
     graphDataRevision: baseGraphDataRevision,
     selectedNodeId,
@@ -122,6 +160,8 @@ export default function FlowCanvas({
     selectedEdgeIds,
     zoomRequest,
     viewPinned,
+    fitToScreenMode,
+    zoomToSelectionMode,
     setZoomState,
     setZoomStateForKey,
     nodeQuickEditorRegistry,
@@ -136,6 +176,7 @@ export default function FlowCanvas({
       mediaPanelDensity: s.mediaPanelDensity,
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
+      viewportControlsPreset: s.viewportControlsPreset,
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
       graphDataRevision: s.graphDataRevision || 0,
       selectedNodeId: s.selectedNodeId,
@@ -144,6 +185,8 @@ export default function FlowCanvas({
       selectedEdgeIds: s.selectedEdgeIds,
       zoomRequest: s.zoomRequest,
       viewPinned: s.viewPinned === true,
+      fitToScreenMode: s.fitToScreenMode === true,
+      zoomToSelectionMode: s.zoomToSelectionMode === true,
       setZoomState: s.setZoomState,
       setZoomStateForKey: s.setZoomStateForKey,
       nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
@@ -259,7 +302,8 @@ export default function FlowCanvas({
 
   const sceneGraphData = React.useMemo(() => {
     if (!renderGraphData) return null
-    return cloneGraphDataForRender(renderGraphData)
+    const cloned = cloneGraphDataForRender(renderGraphData)
+    return getGraphDataForDisplay({ graphData: cloned as GraphData })
   }, [renderGraphData])
 
   const layoutViewKey = React.useMemo(() => {
@@ -489,8 +533,10 @@ export default function FlowCanvas({
     const canvasEl = runtime.canvas
     const nextW = Math.max(1, Math.floor(viewportW * dpr))
     const nextH = Math.max(1, Math.floor(viewportH * dpr))
+    const resized = canvasEl.width !== nextW || canvasEl.height !== nextH
     if (canvasEl.width !== nextW) canvasEl.width = nextW
     if (canvasEl.height !== nextH) canvasEl.height = nextH
+    if (resized) runtime.dirty = true
     requestFlowNativeDraw(runtime, buildDrawArgs())
   }, [active, dpr, viewportH, viewportW])
 
@@ -499,11 +545,17 @@ export default function FlowCanvas({
     const runtime = runtimeRef.current
     if (!runtime) return
     if (!graphDataForZoom) return
-    if (lastAppliedZoomKeyRef.current === zoomViewKey) return
-    lastAppliedZoomKeyRef.current = zoomViewKey
+    const now = Date.now()
+    const lastInteraction = lastUserInteractionAtMsRef.current
+    if (lastInteraction && now - lastInteraction < 500) return
     const st = useGraphStore.getState()
-    const zForKey = zoomViewKey ? (st.zoomStateByKey?.[zoomViewKey] ?? null) : null
-    const z = zForKey || st.zoomState
+    const z = pickZoomStateForView({
+      zoomViewKey,
+      zoomStateByKey: st.zoomStateByKey,
+      viewPinned,
+      fitToScreenMode,
+      zoomToSelectionMode,
+    })
     const initial = pickInitialZoomTransform({
       zoomState: z,
       pinned: viewPinned,
@@ -511,15 +563,39 @@ export default function FlowCanvas({
       nextViewportW: viewportW,
       nextViewportH: viewportH,
     })
-    if (initial) {
-      setFlowNativeTransform(runtime, d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k))
-      return
-    }
     const schema = useGraphStore.getState().schema
     const mode = readLayoutMode(schema)
-    const opts = readFitAllOptions({ schema, mode, intent: 'initialFit' })
-    setFlowNativeTransform(runtime, fitAllTransform(graphDataForZoom.nodes, viewportW, viewportH, opts))
-  }, [active, graphDataForZoom, graphDataRevision, viewportH, viewportW, viewPinned, zoomViewKey])
+    const opts = readFitAllOptions({ schema, mode, intent: fitToScreenMode ? 'fitToScreen' : 'initialFit' })
+    const nodesForFit = Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []
+    const fit = fitAllTransform(nodesForFit, viewportW, viewportH, opts)
+    if (initial) {
+      const candidate = d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k)
+      const ok = isFlowTransformShowingGraph(
+        { k: candidate.k, x: candidate.x, y: candidate.y },
+        { nodes: nodesForFit as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
+      )
+      setFlowNativeTransform(runtime, ok ? candidate : fit)
+      requestCommit()
+      return
+    }
+    setFlowNativeTransform(runtime, fit)
+    requestCommit()
+  }, [
+    active,
+    fitToScreenMode,
+    flowConfig.node.heightPx,
+    flowConfig.node.widthPx,
+    graphDataForZoom,
+    graphDataRevision,
+    isFlowTransformShowingGraph,
+    lastUserInteractionAtMsRef,
+    requestCommit,
+    viewportH,
+    viewportW,
+    viewPinned,
+    zoomToSelectionMode,
+    zoomViewKey,
+  ])
 
   React.useEffect(() => {
     if (!active) return
@@ -536,13 +612,17 @@ export default function FlowCanvas({
       selectedEdgeId: selectedEdgeId ? String(selectedEdgeId) : null,
       selectedNodeIds: (selectedNodeIds || []).map(v => String(v)),
       selectedEdgeIds: (selectedEdgeIds || []).map(v => String(v)),
+      onFrame: () => {
+        requestFlowNativeDraw(runtime, buildDrawArgs())
+        requestCommit()
+        handleInteractionFrame()
+      },
     })
-    requestFlowNativeDraw(runtime, buildDrawArgs())
-    requestCommit()
   }, [
     active,
     buildDrawArgs,
     graphDataForZoom,
+    handleInteractionFrame,
     requestCommit,
     selectedEdgeId,
     selectedEdgeIds,
@@ -607,14 +687,20 @@ export default function FlowCanvas({
     const runtime = runtimeRef.current
     const canvasEl = canvasRef.current
     if (!runtime || !canvasEl) return
+    const selectionOnDrag = canvas2dRenderer === 'flowEditor'
+    const effectiveViewportControlsPreset = enforceDesignPresetWhenSelectionOnDrag(viewportControlsPreset, selectionOnDrag)
     return bindFlowCanvasNativeInteractions({
       active,
       canvasEl,
       runtime,
+      viewportControlsPreset: effectiveViewportControlsPreset,
+      selectionOnDrag,
       allowNodeDragOverride,
       collisionDuringDrag,
       requestCommit,
       buildDrawArgs,
+      setSelectionBox: requestSetSelectionBox,
+      onInteractionFrame: handleInteractionFrame,
       dragRef,
       lastPointerInCanvasRef,
       lastWheelIntentRef,
@@ -626,16 +712,24 @@ export default function FlowCanvas({
       collisionFlowConfigRef,
       collisionPresentationRef,
     })
-  }, [active, allowNodeDragOverride, buildDrawArgs, collisionDuringDrag, requestCommit])
+  }, [active, allowNodeDragOverride, buildDrawArgs, canvas2dRenderer, collisionDuringDrag, onInteractionFrame, requestCommit, requestSetSelectionBox, viewportControlsPreset])
 
   return (
-    <section ref={containerRef} className="absolute inset-0 overscroll-none">
+    <section ref={containerRef} className={CANVAS_SURFACE_CLASS}>
       <canvas
         ref={canvasRef}
         aria-label="Flow renderer"
-        className="h-full w-full touch-none select-none"
+        data-kg-canvas-interactive="1"
+        className={CANVAS_INTERACTIVE_CLASS}
         draggable={false}
       />
+      {selectionBox && (
+        <div
+          aria-hidden={true}
+          className="absolute pointer-events-none border border-[var(--kg-canvas-node-selected)] bg-[color-mix(in_srgb,var(--kg-canvas-node-selected)_15%,transparent)]"
+          style={{ left: selectionBox.left, top: selectionBox.top, width: selectionBox.width, height: selectionBox.height }}
+        />
+      )}
     </section>
   )
 }

@@ -190,7 +190,7 @@ export function ToolbarToolMenu({
 
   const handleFloatingPanelPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
-      if (!floatingPanelPinned) return
+      if (floatingPanelPinned) return
       const target = event.target
       if (!(target instanceof Element)) return
       if (
@@ -347,7 +347,7 @@ export function ToolbarToolMenu({
       <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
         <aside
           ref={toolMenuCardRef}
-          className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-[260px] max-w-xs w-80 p-0 ${floatingPanelPinned ? 'cursor-move' : ''}`}
+          className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-[260px] max-w-xs w-80 p-0 ${!floatingPanelPinned ? 'cursor-move' : ''}`}
           style={toolMenuCardStyle}
           onPointerDown={handleFloatingPanelPointerDown}
         >
@@ -383,7 +383,7 @@ export function ToolbarToolMenu({
         onPointerDown={handleFloatingPanelPointerDown}
       >
         <section className="px-2 py-1 flex flex-col gap-1 min-w-[260px] min-h-[36px] h-full" aria-label="Floating panel">
-          <header className={`flex items-center justify-between gap-2 w-full select-none ${floatingPanelPinned ? 'cursor-move' : ''}`}>
+          <header className={`flex items-center justify-between gap-2 w-full select-none ${!floatingPanelPinned ? 'cursor-move' : ''}`}>
             <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               {pipelineStatus && (

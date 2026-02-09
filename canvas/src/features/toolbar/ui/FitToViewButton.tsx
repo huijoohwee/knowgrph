@@ -5,20 +5,29 @@ import { getIconSizeClass } from '@/lib/ui';
 import { UI_COPY, UI_LABELS } from '@/lib/config';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { useShallow } from 'zustand/react/shallow'
 
 export const FitToViewButton = () => {
   const {
     uiIconScale,
     uiIconStrokeWidth,
   } = useToolbarState();
-  const requestZoom = useGraphStore(s => s.requestZoom);
+  const { requestZoom, requestThreeCamera, canvasRenderMode, viewPinned } = useGraphStore(
+    useShallow(s => ({
+      requestZoom: s.requestZoom,
+      requestThreeCamera: s.requestThreeCamera,
+      canvasRenderMode: s.canvasRenderMode,
+      viewPinned: s.viewPinned === true,
+    })),
+  )
 
   const handleFitToView = useCallback(() => {
-    // "Fit to View" triggers a one-time zoom-to-fit calculation
-    // This uses the same logic as the initial load auto-fit (fitAllTransform)
-    // but triggered explicitly by the user.
-    requestZoom('fit', { intent: 'fitToView' });
-  }, [requestZoom]);
+    if (canvasRenderMode === '3d') {
+      requestThreeCamera('fit')
+      return
+    }
+    requestZoom('fit', { intent: 'fitToView' })
+  }, [canvasRenderMode, requestThreeCamera, requestZoom]);
 
   const iconSizeClass = getIconSizeClass(uiIconScale);
 
@@ -29,6 +38,7 @@ export const FitToViewButton = () => {
       tooltipContent={UI_COPY.fitToViewTooltip}
       onClick={handleFitToView}
       showTooltip
+      disabled={canvasRenderMode !== '3d' && viewPinned}
     >
       <Scan className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
     </IconButton>

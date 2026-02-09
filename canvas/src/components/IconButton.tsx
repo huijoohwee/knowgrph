@@ -69,10 +69,24 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         type="button"
         disabled={isDisabled}
         onPointerDown={e => {
+          if (e.button === 0) {
+            try {
+              e.preventDefault()
+            } catch {
+              void 0
+            }
+          }
           e.stopPropagation()
           onPointerDown?.(e)
         }}
         onMouseDown={e => {
+          if (e.button === 0) {
+            try {
+              e.preventDefault()
+            } catch {
+              void 0
+            }
+          }
           e.stopPropagation()
           onMouseDown?.(e)
         }}

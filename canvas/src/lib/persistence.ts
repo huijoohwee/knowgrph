@@ -56,6 +56,43 @@ export function readIntFromStorage(storage: Storage | null, key: string, fallbac
   }
 }
 
+export function readFloatFromStorage(
+  storage: Storage | null,
+  key: string,
+  fallback: number,
+  opts?: { min?: number; max?: number },
+): number {
+  if (!storage) return fallback
+  try {
+    const v = parseFloat(storage.getItem(key) || '')
+    if (!Number.isFinite(v)) return fallback
+    const min = typeof opts?.min === 'number' && Number.isFinite(opts.min) ? opts.min : -Number.MAX_SAFE_INTEGER
+    const max = typeof opts?.max === 'number' && Number.isFinite(opts.max) ? opts.max : Number.MAX_SAFE_INTEGER
+    return Math.max(min, Math.min(max, v))
+  } catch {
+    return fallback
+  }
+}
+
+export function writeFloatToStorage(
+  storage: Storage | null,
+  key: string,
+  value: number,
+  opts?: { min?: number; max?: number },
+): number {
+  const safe = Number.isFinite(value) ? value : 0
+  const min = typeof opts?.min === 'number' && Number.isFinite(opts.min) ? opts.min : -Number.MAX_SAFE_INTEGER
+  const max = typeof opts?.max === 'number' && Number.isFinite(opts.max) ? opts.max : Number.MAX_SAFE_INTEGER
+  const x = Math.max(min, Math.min(max, safe))
+  if (!storage) return x
+  try {
+    storage.setItem(key, String(x))
+  } catch {
+    void 0
+  }
+  return x
+}
+
 export function writeIntToStorage(
   storage: Storage | null,
   key: string,
@@ -139,6 +176,16 @@ export const lsSetInt = (key: LsStorageKey, value: number, opts?: { min?: number
   const storage = getLocalStorage()
   return writeIntToStorage(storage, key, value, opts)
 };
+
+export const lsFloat = (key: LsStorageKey, fallback: number, opts?: { min?: number; max?: number }) => {
+  const storage = getLocalStorage()
+  return readFloatFromStorage(storage, key, fallback, opts)
+}
+
+export const lsSetFloat = (key: LsStorageKey, value: number, opts?: { min?: number; max?: number }) => {
+  const storage = getLocalStorage()
+  return writeFloatToStorage(storage, key, value, opts)
+}
 
 export const lsJson = <T>(key: LsStorageKey, fallback: T, parse: (raw: unknown) => T | null) => {
   const storage = getLocalStorage()

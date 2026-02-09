@@ -1,8 +1,8 @@
 import IconButton from '@/components/IconButton'
-import { Search as SearchIcon, X as CloseIcon, Save as SaveIcon, RotateCcw as ResetIcon, Minimize2, Maximize2, Pin } from 'lucide-react'
+import { Search as SearchIcon, X as CloseIcon, Save as SaveIcon, RotateCcw as ResetIcon, Minimize2, Maximize2, Pin, PinOff } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { getIconSizeClass } from '@/lib/ui'
+import { getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
 
 interface HeaderActionsProps {
   onSearchToggle?: () => void
@@ -56,17 +56,17 @@ export default function HeaderActions({
       </IconButton>
       {onPinToggle && (
         <IconButton
-          className={`App-toolbar__btn ${pinned ? 'bg-blue-50' : ''}`}
+          className={getPinToggleButtonClassName(pinned)}
           title={pinned ? UI_COPY.floatingPanelUnpin : UI_COPY.floatingPanelPin}
           onClick={onPinToggle}
           showTooltip
           aria-pressed={!!pinned}
         >
-          <Pin
-            className={`${iconSizeClass} ${pinned ? 'text-blue-700' : 'text-gray-700'}`}
-            strokeWidth={uiIconStrokeWidth}
-            aria-hidden={true}
-          />
+          {pinned ? (
+            <Pin className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+          ) : (
+            <PinOff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+          )}
         </IconButton>
       )}
       <IconButton

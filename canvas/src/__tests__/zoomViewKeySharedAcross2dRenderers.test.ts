@@ -1,6 +1,6 @@
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 
-export const testZoomViewKeyIsSharedAcross2dRenderers = () => {
+export const testZoomViewKeyIsIsolatedAcross2dRenderers = () => {
   const base = {
     canvasRenderMode: '2d',
     schemaLayoutEngineJson: '{"mode":"force"}',
@@ -20,7 +20,6 @@ export const testZoomViewKeyIsSharedAcross2dRenderers = () => {
 
   if (!d3Key || !flowKey || !editorKey) throw new Error('Expected zoom keys to be non-empty')
   if (d3Key !== flowKey || d3Key !== editorKey) {
-    throw new Error('Expected zoom view key to be shared across 2D renderers')
+    throw new Error('Expected 2D renderers to share a zoom view key')
   }
 }
-

@@ -31,9 +31,15 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
-import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
-import { quantizeZoomStateForCommit } from '@/lib/zoom/zoomStateQuantize'
+import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
+import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
+import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
+import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
+import { UI_SELECTORS } from '@/lib/config'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -62,6 +68,66 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const groupsPresentationAppliedKeyRef = useRef<string | null>(null);
   const sceneCleanupRef = useRef<null | (() => void)>(null)
   const sceneBuildKeyRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    ensureSpacePanKeyListenerInstalled()
+  }, [])
+
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+
+    const shouldIgnore = (target: EventTarget | null, e: WheelEvent | TouchEvent) => {
+      const eventTarget = (target || null) as Element | null
+      if (eventTarget && eventTarget.closest(UI_SELECTORS.canvasWheelIgnore)) return true
+      const isWheel = typeof (e as WheelEvent).deltaY === 'number'
+      if (isWheel) return shouldIgnoreCanvasWheelEvent({ event: e as WheelEvent, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
+      return false
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      if (!activeRef.current) return
+      if (shouldIgnore(e.target, e)) return
+      try {
+        e.preventDefault()
+      } catch {
+        void 0
+      }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!activeRef.current) return
+      if (shouldIgnore(e.target, e)) return
+      if (!e.touches || e.touches.length <= 0) return
+      try {
+        e.preventDefault()
+      } catch {
+        void 0
+      }
+    }
+
+    const onGesture = (e: Event) => {
+      if (!activeRef.current) return
+      try {
+        e.preventDefault()
+      } catch {
+        void 0
+      }
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false, capture: true })
+    el.addEventListener('gesturestart', onGesture as EventListener, { passive: false, capture: true })
+    el.addEventListener('gesturechange', onGesture as EventListener, { passive: false, capture: true })
+    el.addEventListener('gestureend', onGesture as EventListener, { passive: false, capture: true })
+    return () => {
+      el.removeEventListener('wheel', onWheel, true)
+      el.removeEventListener('touchmove', onTouchMove, true)
+      el.removeEventListener('gesturestart', onGesture as EventListener, true)
+      el.removeEventListener('gesturechange', onGesture as EventListener, true)
+      el.removeEventListener('gestureend', onGesture as EventListener, true)
+    }
+  }, [])
   const {
     graphDataRevision,
     setCanvasDims,
@@ -75,10 +141,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     documentStructureBaselineLock,
     canvasRenderMode,
     canvas2dRenderer,
+    viewportControlsPreset,
     collapsedGroupIds,
     viewPinned,
     zoomState,
     fitToScreenMode,
+    zoomToSelectionMode,
   } = useGraphStore(
     useShallow((s) => ({
       graphDataRevision: s.graphDataRevision,
@@ -93,10 +161,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
+      viewportControlsPreset: s.viewportControlsPreset,
       collapsedGroupIds: s.collapsedGroupIds || [],
       viewPinned: s.viewPinned === true,
       zoomState: s.zoomState || null,
       fitToScreenMode: s.fitToScreenMode === true,
+      zoomToSelectionMode: s.zoomToSelectionMode === true,
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
@@ -224,20 +294,36 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   useEffect(() => {
     if (!viewPinned) return
-    if (zoomState) return
     if (!svgRef.current) return
     if (!gRef.current) return
     if (!zoomRef.current) return
     try {
       const t = d3.zoomTransform(svgRef.current)
-      useGraphStore.getState().setZoomState({
+      const st = useGraphStore.getState()
+      const zoomViewKey = buildActive2dZoomViewKey({
+        canvasRenderMode: st.canvasRenderMode,
+        canvas2dRenderer: st.canvas2dRenderer,
+        schema: st.schema,
+        graphData: st.graphData,
+        documentSemanticMode: st.documentSemanticMode,
+        frontmatterModeEnabled: st.frontmatterModeEnabled,
+        documentStructureBaselineLock: st.documentStructureBaselineLock,
+        renderMediaAsNodes: st.renderMediaAsNodes,
+        mediaPanelDensity: st.mediaPanelDensity,
+        collapsedGroupIds: st.collapsedGroupIds,
+      })
+      const seeded = {
         k: t.k,
         x: t.x,
         y: t.y,
         graphDataRevision: undefined,
         viewportW: sceneWidth,
         viewportH: sceneHeight,
-      })
+      }
+      if (!st.zoomState) st.setZoomState(seeded)
+      if (zoomViewKey && !st.zoomStateByKey?.[zoomViewKey]) {
+        st.setZoomStateForKey(zoomViewKey, seeded)
+      }
     } catch {
       void 0
     }
@@ -463,9 +549,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       }
       nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
       groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
-      const graphMetaKey = String(sceneGraphData?.metadata && typeof sceneGraphData.metadata === 'object'
-        ? `${String((sceneGraphData.metadata as Record<string, unknown>).kind ?? '')}:${String((sceneGraphData.metadata as Record<string, unknown>).source ?? '')}`
-        : '')
+      const graphMetaKey = buildGraphMetaKey(sceneGraphData)
       const zoomViewKey = buildZoomViewKey({
         canvasRenderMode,
         canvas2dRenderer,
@@ -492,9 +576,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       })
 
       const stateForZoom = useGraphStore.getState()
-      const z = stateForZoom.zoomStateByKey[zoomViewKey] || stateForZoom.zoomState;
       const layoutPositionCacheByMode = useGraphStore.getState().layoutPositionCacheByMode;
       const isPinned = useGraphStore.getState().viewPinned === true;
+      const z = pickZoomStateForView({
+        zoomViewKey,
+        zoomStateByKey: stateForZoom.zoomStateByKey,
+        viewPinned: isPinned,
+        fitToScreenMode,
+        zoomToSelectionMode,
+      })
       const mode = readLayoutMode(schemaValue)
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
@@ -565,6 +655,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         renderMediaAsNodes,
         mediaPanelDensity,
         fitToScreenMode,
+        viewportControlsPreset,
         initialZoomTransform,
         layoutPositionsForMode,
         prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
@@ -599,6 +690,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
         setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
         requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
+        edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
         onZoomTransform: t => {
           zoomCommitLatestTransformRef.current = t
           if (zoomCommitPendingRef.current) return
@@ -616,17 +708,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
             const latest = zoomCommitLatestTransformRef.current
             if (!latest) return
             const state = useGraphStore.getState()
-            const pinned = state.viewPinned === true
-            const next = quantizeZoomStateForCommit({
-              ...latest,
-              graphDataRevision: pinned ? undefined : graphDataRevisionRef.current,
+            commitZoomTransformToStore({
+              state,
+              zoomViewKey,
+              transform: latest,
               viewportW: sceneWidth,
               viewportH: sceneHeight,
+              graphDataRevision: graphDataRevisionRef.current,
             })
-            const existing = state.zoomStateByKey?.[zoomViewKey] || state.zoomState
-            if (isSameZoomState(existing || null, next)) return
-            state.setZoomState(next)
-            state.setZoomStateForKey(zoomViewKey, next)
           })
         },
         getSchema: () => schemaRef.current,
@@ -673,6 +762,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     selectedNodeIdsRef,
     selectedEdgeIdsRef,
     fitToScreenMode,
+    zoomToSelectionMode,
   ]);
 
   useEffect(() => {
@@ -708,6 +798,9 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       groupsForBboxCollide: allGroups,
     })
     updateGraphSceneNodesPresentation({
+      svgEl: svgRef.current,
+      zoomRef,
+      edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
       gRef,
       schema: schemaValue,
       hoverEnabled,
@@ -797,13 +890,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   return (
     <main
       ref={containerRef}
-      className="absolute inset-0 overflow-hidden overscroll-none"
+      className={CANVAS_SURFACE_CLASS}
       role="main"
       aria-label="Graph Canvas"
     >
       <svg
         ref={svgRef}
-        className="absolute inset-0 w-full h-full z-0"
+        className={`${CANVAS_INTERACTIVE_CLASS} z-0`}
+        data-kg-canvas-interactive="1"
         viewBox={`0 0 ${Math.max(1, Math.floor(width))} ${Math.max(1, Math.floor(height))}`}
         preserveAspectRatio="xMidYMid meet"
       />

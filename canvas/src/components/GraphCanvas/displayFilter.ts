@@ -29,3 +29,12 @@ export const getDisplayEdges = (args: { edges: GraphEdge[]; displayNodeIdSet: Se
   })
   return preferred.length > 0 ? preferred : base
 }
+
+export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: GraphEdge[] | null }): GraphData => {
+  const graphData = args.graphData
+  const displayNodes = getDisplayNodes(graphData)
+  const displayNodeIdSet = new Set<string>(displayNodes.map(n => String(n.id)))
+  const edgesSource = Array.isArray(args.edges) ? args.edges : (Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : [])
+  const edgesForDisplay = getDisplayEdges({ edges: edgesSource, displayNodeIdSet })
+  return { ...graphData, nodes: displayNodes, edges: edgesForDisplay }
+}

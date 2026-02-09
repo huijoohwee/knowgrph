@@ -34,7 +34,7 @@ export const CANVAS_PRECEDENCE_RULES: readonly { id: string; rule: string; detai
   {
     id: 'wheel-zoom',
     rule: 'Wheel / pinch zoom anchors at the pointer when possible.',
-    detail: 'Zoom uses the pointer location as focal point; if unavailable, it falls back to viewport center.',
+    detail: 'In the default preset, wheel zooms. In the design preset, Cmd/Ctrl + wheel zooms; plain wheel pans.',
   },
   {
     id: 'modifiers-marquee',
@@ -48,7 +48,21 @@ export const CANVAS_SHORTCUTS: readonly CanvasShortcut[] = [
     id: 'pan-drag',
     category: 'Navigate',
     action: 'Pan viewport',
-    input: 'Drag empty space (or background) when available',
+    input: 'Drag empty space (map preset)',
+    modes: ['navigate'],
+  },
+  {
+    id: 'pan-scroll',
+    category: 'Navigate',
+    action: 'Pan viewport',
+    input: 'Wheel / trackpad scroll (design preset)',
+    modes: ['navigate'],
+  },
+  {
+    id: 'pan-middle-drag',
+    category: 'Navigate',
+    action: 'Pan viewport',
+    input: 'Middle/right mouse drag (design preset)',
     modes: ['navigate'],
   },
   {
@@ -62,7 +76,7 @@ export const CANVAS_SHORTCUTS: readonly CanvasShortcut[] = [
     id: 'zoom-wheel',
     category: 'Universal',
     action: 'Zoom around pointer',
-    input: 'Wheel / trackpad pinch',
+    input: 'Wheel / trackpad pinch (map preset); Cmd/Ctrl + wheel (design preset)',
     modes: ['navigate', 'select', 'multiSelect', 'layout'],
   },
   {
@@ -111,7 +125,7 @@ export const CANVAS_SHORTCUTS: readonly CanvasShortcut[] = [
     id: 'select-marquee',
     category: 'Multi-select',
     action: 'Marquee select',
-    input: 'Drag empty space',
+    input: 'Drag empty space (design preset) or Shift + drag (map preset)',
     modes: ['multiSelect'],
     notes: 'Use modifiers for add/remove/replace.',
   },
@@ -146,4 +160,3 @@ export function formatCanvasShortcutCopyLine(s: CanvasShortcut): string {
 }
 
 export const CANVAS_SHORTCUT_COPY_LINES: readonly string[] = CANVAS_SHORTCUTS.map(formatCanvasShortcutCopyLine)
-

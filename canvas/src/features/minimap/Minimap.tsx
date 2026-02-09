@@ -1,11 +1,12 @@
 import React from 'react'
 import { Map } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS } from '@/lib/config'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
-import type { GraphState } from '@/hooks/useGraphStore'
 import { defaultSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
+import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import {
   computeViewRect,
   computeGraphBounds,
@@ -28,17 +29,9 @@ type Highlight = {
 
 type ZoomTransform = ZoomT;
 
-const getGraphState = useGraphStore.getState as () => GraphState;
-
-const getZoomStateFromStore = (): ZoomTransform | null => {
-  const z = getGraphState().zoomState;
-  if (!z) return null;
-  return { k: z.k, x: z.x, y: z.y };
-};
-
 const requestZoomTransform = (t: ZoomTransform) => {
-  getGraphState().requestZoomTransform(t);
-};
+  useGraphStore.getState().requestZoomTransform(t)
+}
 
 function Minimap() {
   const [minimapCollapsed, setMinimapCollapsed] = usePersistedBoolean(LS_KEYS.minimapCollapsed, false)
@@ -47,13 +40,61 @@ function Minimap() {
   const canvasDims = useGraphStore(s => s.canvasDims)
   const miniW = MINIMAP_WIDTH
   const miniH = MINIMAP_HEIGHT
-  const zoomState = useGraphStore(s => s.zoomState)
+  const zoomStateByKey = useGraphStore(s => s.zoomStateByKey)
+  const { canvasRenderMode, canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled, documentStructureBaselineLock, renderMediaAsNodes, mediaPanelDensity, collapsedGroupIds } = useGraphStore(
+    useShallow(s => ({
+      canvasRenderMode: s.canvasRenderMode,
+      canvas2dRenderer: s.canvas2dRenderer,
+      documentSemanticMode: s.documentSemanticMode,
+      frontmatterModeEnabled: s.frontmatterModeEnabled,
+      documentStructureBaselineLock: s.documentStructureBaselineLock,
+      renderMediaAsNodes: s.renderMediaAsNodes,
+      mediaPanelDensity: s.mediaPanelDensity,
+      collapsedGroupIds: s.collapsedGroupIds,
+    })),
+  )
   const preview = useGraphStore(s => s.minimapPreview)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const uiPanelOpacity = useGraphStore(s => s.uiPanelOpacity)
 
   const schema = useGraphStore(s => s.schema)
+
+  const zoomViewKey = React.useMemo(() => {
+    return buildActive2dZoomViewKey({
+      canvasRenderMode,
+      canvas2dRenderer,
+      schema,
+      graphData,
+      documentSemanticMode,
+      frontmatterModeEnabled,
+      documentStructureBaselineLock,
+      renderMediaAsNodes,
+      mediaPanelDensity,
+      collapsedGroupIds,
+    })
+  }, [
+    canvas2dRenderer,
+    canvasRenderMode,
+    collapsedGroupIds,
+    documentSemanticMode,
+    documentStructureBaselineLock,
+    frontmatterModeEnabled,
+    graphData,
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    schema,
+  ])
+
+  const zoomState = React.useMemo(() => {
+    if (!zoomViewKey) return null
+    return zoomStateByKey?.[zoomViewKey] ?? null
+  }, [zoomStateByKey, zoomViewKey])
+
+  const zoomStateRef = React.useRef<ZoomTransform | null>(zoomState ? { k: zoomState.k, x: zoomState.x, y: zoomState.y } : null)
+  React.useEffect(() => {
+    zoomStateRef.current = zoomState ? { k: zoomState.k, x: zoomState.x, y: zoomState.y } : null
+  }, [zoomState])
   const [minScale, maxScale] = React.useMemo(() => {
     return readZoomScaleExtent(schema || defaultSchema)
   }, [schema])
@@ -243,7 +284,7 @@ function Minimap() {
       rafRef.current = requestAnimationFrame(() => {
         const p = pendingRef.current;
         if (p) {
-          const z = getZoomStateFromStore() || { k: 1, x: 0, y: 0 };
+          const z = zoomStateRef.current || { k: 1, x: 0, y: 0 };
           const t = computeTransformFromViewTopLeft(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, p.ngx, p.ngy);
           const EPS = 0.5;
           const nearlySame = Math.abs(t.x - z.x) < EPS && Math.abs(t.y - z.y) < EPS && Math.abs((t.k || 1) - (z.k || 1)) < 1e-9;
@@ -263,7 +304,7 @@ function Minimap() {
     const svgEl = (e.currentTarget as SVGGraphicsElement).ownerSVGElement as (SVGSVGElement | null);
     const rect = svgEl?.getBoundingClientRect();
     const hasPos = rect != null;
-    const z = getZoomStateFromStore() || { k: 1, x: 0, y: 0 };
+    const z = zoomStateRef.current || { k: 1, x: 0, y: 0 };
     const k = z.k || 1;
     if (hasPos) {
       const mx = e.clientX - (rect as DOMRect).left;

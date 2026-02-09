@@ -224,6 +224,10 @@ export default function CanvasPage() {
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return
+      }
       const isCmd = e.metaKey || e.ctrlKey
       if (!isCmd || !e.shiftKey) return
       const k = e.key.toLowerCase()
@@ -341,6 +345,7 @@ export default function CanvasPage() {
     useShallow(s => ({
       zoomState: s.zoomState,
       canvasRenderMode: s.canvasRenderMode,
+      viewportControlsPreset: s.viewportControlsPreset,
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
       selectedEdgeId: s.selectedEdgeId,
@@ -361,6 +366,44 @@ export default function CanvasPage() {
       return false
     }
   })
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return
+      }
+      const isCmd = e.metaKey || e.ctrlKey
+      if (!isCmd) return
+      const k = e.key
+      const isZoomIn = k === '+' || k === '='
+      const isZoomOut = k === '-' || k === '_'
+      const isReset = k === '0'
+      if (!isZoomIn && !isZoomOut && !isReset) return
+
+      e.preventDefault()
+      if (isReset) {
+        if (geospatialModeEnabled) {
+          requestZoom('reset')
+          return
+        }
+        if (canvasRenderMode === '2d') requestZoom('reset')
+        else requestThreeCamera('reset')
+        return
+      }
+
+      const type = isZoomIn ? 'in' : 'out'
+      if (geospatialModeEnabled) {
+        requestZoom(type)
+        return
+      }
+      if (canvasRenderMode === '2d') requestZoom(type)
+      else requestThreeCamera(type)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [canvasRenderMode, geospatialModeEnabled, requestThreeCamera, requestZoom])
 
   const [mounted2dRenderers, setMounted2dRenderers] = React.useState<{ d3: boolean; flow: boolean; flowEditor: boolean }>(() => ({
     d3: canvas2dRenderer === 'd3',
@@ -493,6 +536,65 @@ export default function CanvasPage() {
         const data = event.data as unknown
         if (!data || typeof data !== 'object') return
         const msg = data as { kind?: unknown; payload?: unknown }
+        if (msg.kind === 'kg-preview-zoom') {
+          const payload = msg.payload as { zoomRequest?: unknown }
+          const zr = payload && payload.zoomRequest && typeof payload.zoomRequest === 'object'
+            ? (payload.zoomRequest as { type?: unknown; intent?: unknown; payload?: unknown })
+            : null
+          if (!zr) return
+          const store = useGraphStore.getState()
+          const t = typeof zr.type === 'string' ? zr.type : ''
+          if (t === 'in' || t === 'out' || t === 'reset' || t === 'selection') {
+            store.requestZoom(t)
+            return
+          }
+          if (t === 'fit') {
+            const intent = typeof zr.intent === 'string' ? (zr.intent as never) : 'fitToView'
+            store.requestZoom('fit', { intent })
+            return
+          }
+          if (t === 'bounds') {
+            const p = (zr as { payload?: unknown }).payload as {
+              bounds?: { x?: unknown; y?: unknown; w?: unknown; h?: unknown }
+              insetPx?: unknown
+              origin?: { x?: unknown; y?: unknown }
+            } | null
+            if (!p || !p.bounds) return
+            store.requestZoomBounds({
+              bounds: {
+                x: Number(p.bounds.x),
+                y: Number(p.bounds.y),
+                w: Number(p.bounds.w),
+                h: Number(p.bounds.h),
+              },
+              insetPx: typeof p.insetPx === 'number' ? p.insetPx : undefined,
+              origin: p.origin && typeof p.origin === 'object'
+                ? { x: Number(p.origin.x), y: Number(p.origin.y) }
+                : undefined,
+            })
+            return
+          }
+          if (t === 'transform') {
+            const p = (zr as { payload?: unknown }).payload as { k?: unknown; x?: unknown; y?: unknown } | null
+            if (!p) return
+            store.requestZoomTransform({ k: Number(p.k), x: Number(p.x), y: Number(p.y) })
+          }
+          return
+        }
+
+        if (msg.kind === 'kg-preview-three-camera') {
+          const payload = msg.payload as { threeCameraRequest?: unknown }
+          const req = payload && payload.threeCameraRequest && typeof payload.threeCameraRequest === 'object'
+            ? (payload.threeCameraRequest as { type?: unknown })
+            : null
+          if (!req) return
+          const t = typeof req.type === 'string' ? req.type : ''
+          if (t === 'in' || t === 'out' || t === 'fit' || t === 'reset' || t === 'selection') {
+            useGraphStore.getState().requestThreeCamera(t)
+          }
+          return
+        }
+
         if (msg.kind !== 'kg-preview-sync') return
         if (!isEmbeddedPreviewRef.current) {
           isEmbeddedPreviewRef.current = true
@@ -713,6 +815,7 @@ export default function CanvasPage() {
                     graphData: activeGraphData,
                     zoomState: gympgrphBridge.zoomState,
                     canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                    viewportControlsPreset: gympgrphBridge.viewportControlsPreset,
                     selectedNodeId: gympgrphBridge.selectedNodeId,
                     selectedNodeIds: gympgrphBridge.selectedNodeIds,
                     selectedEdgeId: gympgrphBridge.selectedEdgeId,
@@ -818,6 +921,7 @@ export default function CanvasPage() {
                             graphData: activeGraphData,
                             zoomState: gympgrphBridge.zoomState,
                             canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                            viewportControlsPreset: gympgrphBridge.viewportControlsPreset,
                             selectedNodeId: gympgrphBridge.selectedNodeId,
                             selectedNodeIds: gympgrphBridge.selectedNodeIds,
                             selectedEdgeId: gympgrphBridge.selectedEdgeId,

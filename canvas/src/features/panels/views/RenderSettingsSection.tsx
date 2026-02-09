@@ -45,6 +45,8 @@ export default function RenderSettingsSection({
   const setSchema = useGraphStore(s => s.setSchema)
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
+  const viewportControlsPreset = useGraphStore(s => s.viewportControlsPreset)
+  const setViewportControlsPreset = useGraphStore(s => s.setViewportControlsPreset)
   const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const setThreeConfig = useGraphStore(s => s.setThreeConfig)
@@ -338,6 +340,22 @@ export default function RenderSettingsSection({
               >
                 <option value="2d">2d</option>
                 <option value="3d">3d</option>
+              </select>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
+                Viewport Controls
+              </div>
+              <select
+                className={uiPanelKeyValueInputClass}
+                value={viewportControlsPreset || 'map'}
+                onChange={e => {
+                  const raw = e.target.value
+                  setViewportControlsPreset(raw === 'design' ? 'design' : 'map')
+                }}
+              >
+                <option value="map">map</option>
+                <option value="design">design</option>
               </select>
             </div>
             <div className="flex items-center justify-between gap-2">

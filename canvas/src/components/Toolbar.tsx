@@ -140,8 +140,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setThemeMode,
     launchSpotlight,
     openMainPanel,
-    onZoomIn,
-    onZoomOut,
     onReset,
     onZoomSelection,
     setZoomToSelectionMode,
@@ -186,7 +184,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   }, [])
 
   return (
-    <nav className="Island App-toolbar App-toolbar--compact w-fit" role="navigation" aria-label="Main Toolbar">
+    <nav className="Island App-toolbar App-toolbar--compact w-fit" role="navigation" aria-label="Main Toolbar" data-kg-canvas-wheel-ignore="true">
       <ToolbarMenuLauncher onOpenMainPanel={openMainPanel} />
 
       <IconButton

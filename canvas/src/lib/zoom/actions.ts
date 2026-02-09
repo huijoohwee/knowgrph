@@ -5,9 +5,12 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { centerAllTransform, fitAllTransform } from '@/components/GraphCanvas/fit'
-import { computeZoomSubset } from '@/components/GraphCanvas/selectionZoom'
+import { computeZoomSubset } from '@/lib/zoom/selectionTargets'
 import type { ZoomRequest, ZoomFitIntent } from '@/lib/zoom/requests'
 import { computeTransformScaleAboutViewportCenter } from '@/lib/zoom/viewport'
+import { pickNextZoomStep, readZoomStepPolicy } from '@/lib/zoom/steps'
+import { computeZoomToBoundsTransform } from '@/lib/zoom/bounds'
+import type { ToolbarZoomConfig } from '@/lib/zoom/toolbarZoom'
 
 export type ZoomComputeContext = {
   graphData: GraphData | null
@@ -16,6 +19,8 @@ export type ZoomComputeContext = {
   viewportW: number
   viewportH: number
   pinned: boolean
+  durations?: Partial<{ fitMs: number; selectionMs: number; inOutMs: number; resetMs: number }>
+  toolbarZoom?: ToolbarZoomConfig
   selectedNodeId: string | null
   selectedEdgeId: string | null
   selectedNodeIds?: string[]
@@ -38,13 +43,19 @@ function safeScaleExtent(scaleExtent: { minK: number; maxK: number }): { minK: n
   const maxK = Number.isFinite(scaleExtent.maxK) ? scaleExtent.maxK : 8
   const lo = Math.max(0.001, Math.min(minK, maxK))
   const hi = Math.max(lo, maxK)
-  return { minK: lo, maxK: hi }
+  if (hi > lo + 1e-12) return { minK: lo, maxK: hi }
+  return { minK: Math.min(lo, 0.05), maxK: Math.max(lo, 8) }
 }
 
 function clampScale(k: number, extent: { minK: number; maxK: number }): number {
   const { minK, maxK } = safeScaleExtent(extent)
   const kk = Number.isFinite(k) ? k : 1
   return Math.max(minK, Math.min(maxK, kk))
+}
+
+function readDurationMs(v: unknown, fallback: number): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return fallback
+  return Math.max(0, Math.floor(v))
 }
 
 function schemaFitSig(schema: GraphSchema): string {
@@ -163,7 +174,16 @@ export function computeZoomTransformFromRequest(
   }
 
   if (type === 'in') {
-    const k2 = clampScale(ctx.currentTransform.k * 1.2, extent)
+    const toolbarFactorRaw = ctx.toolbarZoom?.scaleFactor
+    const toolbarFactor = typeof toolbarFactorRaw === 'number' && Number.isFinite(toolbarFactorRaw) && toolbarFactorRaw > 1
+      ? toolbarFactorRaw
+      : null
+    const stepPolicy = readZoomStepPolicy(ctx.schema)
+    const k2 = toolbarFactor
+      ? clampScale(ctx.currentTransform.k * toolbarFactor, extent)
+      : stepPolicy.enabled
+        ? pickNextZoomStep({ dir: 'in', currentK: ctx.currentTransform.k, steps: stepPolicy.steps, minK: extent.minK, maxK: extent.maxK })
+        : clampScale(ctx.currentTransform.k * 1.2, extent)
     const scaled = computeTransformScaleAboutViewportCenter({
       transform: ctx.currentTransform,
       viewportW: w,
@@ -172,14 +192,23 @@ export function computeZoomTransformFromRequest(
     })
     return {
       nextTransform: d3.zoomIdentity.translate(scaled.x, scaled.y).scale(scaled.k),
-      durationMs: 200,
+      durationMs: readDurationMs(ctx.durations?.inOutMs ?? ctx.toolbarZoom?.durationMs, 200),
     }
   }
 
   if (type === 'out') {
     const fitT = computeFitAll('fitToView')
     const autoMinScale = fitT ? Math.min(extent.minK, fitT.k) : extent.minK
-    const k2 = clampScale(ctx.currentTransform.k / 1.2, { minK: autoMinScale, maxK: extent.maxK })
+    const toolbarFactorRaw = ctx.toolbarZoom?.scaleFactor
+    const toolbarFactor = typeof toolbarFactorRaw === 'number' && Number.isFinite(toolbarFactorRaw) && toolbarFactorRaw > 1
+      ? toolbarFactorRaw
+      : null
+    const stepPolicy = readZoomStepPolicy(ctx.schema)
+    const k2 = toolbarFactor
+      ? clampScale(ctx.currentTransform.k / toolbarFactor, { minK: autoMinScale, maxK: extent.maxK })
+      : stepPolicy.enabled
+        ? pickNextZoomStep({ dir: 'out', currentK: ctx.currentTransform.k, steps: stepPolicy.steps, minK: autoMinScale, maxK: extent.maxK })
+        : clampScale(ctx.currentTransform.k / 1.2, { minK: autoMinScale, maxK: extent.maxK })
     const scaled = computeTransformScaleAboutViewportCenter({
       transform: ctx.currentTransform,
       viewportW: w,
@@ -188,7 +217,7 @@ export function computeZoomTransformFromRequest(
     })
     return {
       nextTransform: d3.zoomIdentity.translate(scaled.x, scaled.y).scale(scaled.k),
-      durationMs: 200,
+      durationMs: readDurationMs(ctx.durations?.inOutMs ?? ctx.toolbarZoom?.durationMs, 200),
       nextMinScale: autoMinScale,
     }
   }
@@ -197,16 +226,16 @@ export function computeZoomTransformFromRequest(
     if (graphData && (graphData.nodes || []).length > 0) {
       return {
         nextTransform: centerAllTransform(graphData.nodes, w, h),
-        durationMs: 250,
+        durationMs: readDurationMs(ctx.durations?.resetMs ?? ctx.toolbarZoom?.durationMs, 250),
       }
     }
-    return { nextTransform: d3.zoomIdentity, durationMs: 250 }
+    return { nextTransform: d3.zoomIdentity, durationMs: readDurationMs(ctx.durations?.resetMs ?? ctx.toolbarZoom?.durationMs, 250) }
   }
 
   if (type === 'fit') {
     const next = computeFitAll(zoomRequest.intent)
     if (!next) return null
-    return { nextTransform: next, durationMs: 300, nextMinScale: next.k }
+    return { nextTransform: next, durationMs: readDurationMs(ctx.durations?.fitMs, 300), nextMinScale: next.k }
   }
 
   if (type === 'selection') {
@@ -236,11 +265,11 @@ export function computeZoomTransformFromRequest(
         selectionKey,
         nodes: subset as GraphNode[],
       })
-      return { nextTransform: next, durationMs: 300, nextMinScale: next.k }
+      return { nextTransform: next, durationMs: readDurationMs(ctx.durations?.selectionMs, 300), nextMinScale: next.k }
     }
     const fallback = computeFitAll('fitToView')
     if (!fallback) return null
-    return { nextTransform: fallback, durationMs: 300, nextMinScale: fallback.k }
+    return { nextTransform: fallback, durationMs: readDurationMs(ctx.durations?.selectionMs, 300), nextMinScale: fallback.k }
   }
 
   if (type === 'transform') {
@@ -252,6 +281,23 @@ export function computeZoomTransformFromRequest(
     return {
       nextTransform: d3.zoomIdentity.translate(x, y).scale(k),
       durationMs: 0,
+    }
+  }
+
+  if (type === 'bounds') {
+    if (pinned) return null
+    const p = (zoomRequest as Extract<ZoomRequest, { type: 'bounds' }>).payload
+    if (!p || !p.bounds) return null
+    return {
+      nextTransform: computeZoomToBoundsTransform({
+        bounds: p.bounds,
+        viewportW: w,
+        viewportH: h,
+        scaleExtent: extent,
+        insetPx: p.insetPx,
+        origin: p.origin,
+      }),
+      durationMs: 250,
     }
   }
 

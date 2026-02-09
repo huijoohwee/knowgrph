@@ -90,6 +90,12 @@
   --kg-statusbar-text: #9ca3af;
 }
 
+body.kg-no-select,
+body.kg-no-select * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 body {
   background-color: var(--app-bg);
 }

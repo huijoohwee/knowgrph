@@ -21,7 +21,17 @@ export function shouldIgnoreCanvasWheelEvent(args: { event: WheelEvent; ignoreSe
     for (let i = 0; i < ignoreNodes.length; i += 1) {
       const el = ignoreNodes[i]
       if (!(el instanceof HTMLElement)) continue
+      try {
+        const styles = getComputedStyle(el)
+        if (styles.display === 'none') continue
+        if (styles.visibility === 'hidden') continue
+        const opacity = Number.parseFloat(styles.opacity)
+        if (Number.isFinite(opacity) && opacity <= 0.01) continue
+      } catch {
+        void 0
+      }
       const rect = el.getBoundingClientRect()
+      if (!(rect.width > 0 && rect.height > 0)) continue
       if (isClientPointInsideRect(clientX, clientY, rect)) return true
     }
     return false

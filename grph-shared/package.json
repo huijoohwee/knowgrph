@@ -119,6 +119,21 @@
       "import": "./dist/zoom/presets.js",
       "default": "./dist/zoom/presets.js"
     },
+    "./viewport/presets": {
+      "types": "./dist/viewport/presets.d.ts",
+      "import": "./dist/viewport/presets.js",
+      "default": "./dist/viewport/presets.js"
+    },
+    "./viewport/wheel": {
+      "types": "./dist/viewport/wheel.d.ts",
+      "import": "./dist/viewport/wheel.js",
+      "default": "./dist/viewport/wheel.js"
+    },
+    "./viewport/controls": {
+      "types": "./dist/viewport/controls.d.ts",
+      "import": "./dist/viewport/controls.js",
+      "default": "./dist/viewport/controls.js"
+    },
     "./ssot/types": {
       "types": "./dist/ssot/types.d.ts",
       "import": "./dist/ssot/types.js",

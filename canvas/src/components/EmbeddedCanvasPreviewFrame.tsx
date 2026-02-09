@@ -1,5 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { ZoomRequest } from '@/lib/zoom/requests'
 
 export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; className?: string }) {
   const graphData = useGraphStore(s => s.graphData)
@@ -13,7 +14,11 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
   const selectedGroupIds = useGraphStore(s => s.selectedGroupIds)
+  const zoomRequest = useGraphStore(s => s.zoomRequest)
+  const threeCameraRequest = useGraphStore(s => s.threeCameraRequest)
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
+  const pendingZoomRef = React.useRef<ZoomRequest | null>(null)
+  const pendingThreeRef = React.useRef<{ type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number } | null>(null)
 
   const sendPreviewSnapshot = React.useCallback(() => {
     const target = iframeRef.current?.contentWindow
@@ -53,10 +58,54 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
     selectedNodeIds,
   ])
 
+  const trySendZoomRequest = React.useCallback((req: ZoomRequest) => {
+    const target = iframeRef.current?.contentWindow
+    if (!target) return false
+    try {
+      target.postMessage({ kind: 'kg-preview-zoom', payload: { zoomRequest: req } }, window.location.origin)
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  const trySendThreeCameraRequest = React.useCallback((req: { type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number }) => {
+    const target = iframeRef.current?.contentWindow
+    if (!target) return false
+    try {
+      target.postMessage({ kind: 'kg-preview-three-camera', payload: { threeCameraRequest: req } }, window.location.origin)
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
   React.useEffect(() => {
     void graphDataRevision
     sendPreviewSnapshot()
   }, [graphDataRevision, sendPreviewSnapshot])
+
+  React.useEffect(() => {
+    if (!zoomRequest) return
+    const ok = trySendZoomRequest(zoomRequest)
+    if (!ok) pendingZoomRef.current = zoomRequest
+    try {
+      useGraphStore.getState().clearZoomRequest()
+    } catch {
+      void 0
+    }
+  }, [trySendZoomRequest, zoomRequest])
+
+  React.useEffect(() => {
+    if (!threeCameraRequest) return
+    const ok = trySendThreeCameraRequest(threeCameraRequest)
+    if (!ok) pendingThreeRef.current = threeCameraRequest
+    try {
+      useGraphStore.getState().clearThreeCameraRequest()
+    } catch {
+      void 0
+    }
+  }, [threeCameraRequest, trySendThreeCameraRequest])
 
   React.useEffect(() => {
     sendPreviewSnapshot()
@@ -125,6 +174,14 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
       }}
       onLoad={() => {
         sendPreviewSnapshot()
+        const pendingZoom = pendingZoomRef.current
+        if (pendingZoom) {
+          if (trySendZoomRequest(pendingZoom)) pendingZoomRef.current = null
+        }
+        const pendingThree = pendingThreeRef.current
+        if (pendingThree) {
+          if (trySendThreeCameraRequest(pendingThree)) pendingThreeRef.current = null
+        }
       }}
     />
   )

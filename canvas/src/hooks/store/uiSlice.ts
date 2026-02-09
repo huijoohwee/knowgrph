@@ -22,19 +22,74 @@ export const createUiSlice = (set: SetGraph) => {
     ),
 
     documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, true),
+    documentStructureBaselineSnapshot: null,
     setDocumentStructureBaselineLock: (enabled: boolean) =>
       set(state => {
         const next = enabled === false ? false : true
         if (state.documentStructureBaselineLock === next) return {}
         lsSetBool(LS_KEYS.documentStructureBaselineLock, next)
-        if (!next) return { documentStructureBaselineLock: false } as Partial<GraphState>
+        if (!next) {
+          const snap = state.documentStructureBaselineSnapshot
+          if (!snap) return { documentStructureBaselineLock: false } as Partial<GraphState>
+          lsSetJson(LS_KEYS.canvas2dRenderer, snap.canvas2dRenderer)
+          lsSetBool(LS_KEYS.viewportPinned, snap.viewPinned === true)
+          lsSetBool(LS_KEYS.viewportFitToScreen, snap.fitToScreenMode === true)
+          lsSetBool(LS_KEYS.viewportZoomToSelection, snap.zoomToSelectionMode === true)
+          return {
+            documentStructureBaselineLock: false,
+            documentStructureBaselineSnapshot: null,
+            documentSemanticMode: snap.documentSemanticMode,
+            frontmatterModeEnabled: snap.frontmatterModeEnabled,
+            canvasRenderMode: snap.canvasRenderMode,
+            canvas2dRenderer: snap.canvas2dRenderer,
+            canvasRenderModeLastFree: snap.canvasRenderModeLastFree,
+            canvasRenderModeIsAuto: snap.canvasRenderModeIsAuto,
+            viewPinned: snap.viewPinned,
+            fitToScreenMode: snap.fitToScreenMode,
+            zoomToSelectionMode: snap.zoomToSelectionMode,
+            zoomRequest: null,
+            selectedNodeId: snap.selectedNodeId,
+            selectedEdgeId: snap.selectedEdgeId,
+            selectedGroupId: snap.selectedGroupId,
+            selectedNodeIds: snap.selectedNodeIds,
+            selectedEdgeIds: snap.selectedEdgeIds,
+            selectedGroupIds: snap.selectedGroupIds,
+          } as Partial<GraphState>
+        }
+        const snapshot = state.documentStructureBaselineSnapshot || {
+          documentSemanticMode: state.documentSemanticMode,
+          frontmatterModeEnabled: state.frontmatterModeEnabled,
+          canvasRenderMode: state.canvasRenderMode,
+          canvas2dRenderer: state.canvas2dRenderer,
+          canvasRenderModeLastFree: state.canvasRenderModeLastFree,
+          canvasRenderModeIsAuto: state.canvasRenderModeIsAuto,
+          viewPinned: state.viewPinned,
+          fitToScreenMode: state.fitToScreenMode,
+          zoomToSelectionMode: state.zoomToSelectionMode,
+          selectedNodeId: state.selectedNodeId,
+          selectedEdgeId: state.selectedEdgeId,
+          selectedGroupId: state.selectedGroupId,
+          selectedNodeIds: state.selectedNodeIds,
+          selectedEdgeIds: state.selectedEdgeIds,
+          selectedGroupIds: state.selectedGroupIds,
+        }
         lsSetJson(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER)
+        lsSetBool(LS_KEYS.viewportPinned, false)
+        lsSetBool(LS_KEYS.viewportFitToScreen, true)
+        lsSetBool(LS_KEYS.viewportZoomToSelection, false)
         return {
           documentStructureBaselineLock: true,
+          documentStructureBaselineSnapshot: snapshot,
           documentSemanticMode: 'document',
           frontmatterModeEnabled: false,
           canvasRenderMode: '2d',
           canvas2dRenderer: DEFAULT_CANVAS_2D_RENDERER,
+          canvasRenderModeLastFree: '2d',
+          canvasRenderModeIsAuto: false,
+          viewPinned: false,
+          fitToScreenMode: true,
+          zoomToSelectionMode: false,
+          zoomRequest: null,
           selectedNodeId: null,
           selectedEdgeId: null,
           selectedGroupId: null,

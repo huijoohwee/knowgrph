@@ -82,13 +82,31 @@
   - `LS_KEYS.floatingPanelHeightRatio`
   - `LS_KEYS.floatingPanelZIndex`
 
+- Pin semantics (SSOT):
+  - Pinned: header drag disabled (panel is locked)
+  - Unpinned: header drag enabled (panel is floating)
+
+---
+
+## MainPanel (Floating)
+
+- MainPanel shell and layout state:
+  - `LS_KEYS.mainPanelPinned`
+  - `LS_KEYS.mainPanelCollapsed`
+  - `LS_KEYS.mainPanelTop`
+  - `LS_KEYS.mainPanelLeft`
+
+- Pin semantics (SSOT):
+  - Pinned: header drag disabled (panel is locked)
+  - Unpinned: header drag enabled (panel is floating)
+
 ---
 
 ## Flow Editor (Node Quick Editor)
 
 - Node Quick Editor overlay state:
   - `LS_KEYS.flowNodeQuickEditorPinned` (legacy single-flag; do not use for multi-node overlays)
-  - `LS_KEYS.flowNodeQuickEditorPinnedByNodeId` (per-node pinned-to-node state; pinned locks, unpinned detaches)
+  - `LS_KEYS.flowNodeQuickEditorPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)
   - `LS_KEYS.flowNodeQuickEditorMinimized`
   - `LS_KEYS.flowNodeQuickEditorHideFields`
   - `LS_KEYS.flowNodeQuickEditorTopPx` / `LS_KEYS.flowNodeQuickEditorLeftPx` (legacy single-position; do not use for multi-node overlays)

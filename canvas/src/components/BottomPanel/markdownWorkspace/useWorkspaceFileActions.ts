@@ -19,7 +19,7 @@ import {
   setWorkspaceEntrySource,
 } from '@/features/workspace-fs/sourceIndex'
 import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsEvents'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
+import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 
@@ -83,13 +83,14 @@ export function useWorkspaceFileActions(args: {
       }
 
       const store = useGraphStore.getState()
+      const baselineLocked = store.documentStructureBaselineLock === true
       const graphData = store.graphData
       const hasAnyGraph = !!(
         graphData && (((graphData.nodes || []).length > 0) || ((graphData.edges || []).length > 0))
       )
       if (!hasAnyGraph) return
 
-      if (shouldForceDocumentSemanticModeForImport(args.nameForParse)) {
+      if (!baselineLocked && shouldForceDocumentSemanticModeForImport(args.nameForParse)) {
         store.setDocumentSemanticMode('document')
       }
 
@@ -99,6 +100,15 @@ export function useWorkspaceFileActions(args: {
         : false
 
       if (hasQuickEditorRegistry) {
+        if (baselineLocked) {
+          store.upsertUiToast({
+            id: 'baseline-locked',
+            kind: 'warning',
+            message: UI_COPY.baselineLockedToast,
+            ttlMs: 6000,
+          })
+          return
+        }
         const schema = store.schema
         if (schema) {
           const { enableHandlesForAllInputsInSchema } =
@@ -112,7 +122,7 @@ export function useWorkspaceFileActions(args: {
         return
       }
 
-      if (storeBefore.workspaceViewMode !== 'table') {
+      if (!baselineLocked && storeBefore.workspaceViewMode !== 'table') {
         store.setWorkspaceViewMode('table')
       }
     },

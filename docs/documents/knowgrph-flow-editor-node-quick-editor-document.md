@@ -18,7 +18,7 @@
 
 ## Supported Behaviors (MVP)
 
-- **Pin/Unpin**: pin locks the overlay to node-anchored positioning; unpin detaches and persists a viewport position.
+- **Pin/Unpin**: pin locks the overlay to node-anchored positioning (drag disabled, blue pin icon); unpin detaches (floating) and enables header drag, persisting a viewport position.
 - **Drag**: when unpinned (detached), header drag moves the overlay (ignores pointerdown on interactive elements).
 - **Minimize/Restore**: collapses the editor body to header-only.
 - **Opacity**: inherits `uiPanelOpacity` from UI settings.
@@ -41,7 +41,7 @@
 
 ## Performance Invariants
 
-- **Drag**: pinned overlay drag must not trigger a render per raw pointermove; throttle state updates to animation frames.
+- **Drag**: unpinned overlay drag must not trigger a render per raw pointermove; throttle state updates to animation frames.
 - **Pan/Zoom**: keep screen-space overlays in sync with the renderer transform during active panning (rAF-throttled zoom-state commits).
 - **Pan/Zoom**: if interval-gating is used, keep it bounded and avoid end-of-pan snap.
 - **Pan/Zoom**: avoid forced layout reads in hot paths; prefer `offsetX/offsetY`-based local coordinates for canvas pointer/wheel interactions and only fall back to `getBoundingClientRect()` when offsets are unavailable.

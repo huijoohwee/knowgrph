@@ -170,6 +170,56 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   KG_OUTPUT_DIR: { area: 'Pipeline Env', responsibility: 'Pipeline output directory' },
   'max-lines': { area: 'ESLint Guard', responsibility: 'Max lines per file' },
   canvasRenderMode: { area: 'Canvas Rendering', responsibility: 'Render mode (2d or 3d)' },
+  viewPinned: {
+    area: 'Canvas Zoom Modes',
+    responsibility: 'Pin view (disables Fit/Selection auto-zoom + zoom-to-bounds requests)',
+    notes: 'When enabled, Fit to Screen and Zoom to Selection modes are disabled.',
+  },
+  fitToScreenMode: {
+    area: 'Canvas Zoom Modes',
+    responsibility: 'Auto-fit graph to viewport (Fit to Screen mode)',
+    notes: 'When enabled, Pin View and Zoom to Selection modes are disabled.',
+  },
+  zoomToSelectionMode: {
+    area: 'Canvas Zoom Modes',
+    responsibility: 'Auto-zoom to current selection (Zoom to Selection mode)',
+    notes: 'When enabled, Pin View and Fit to Screen modes are disabled.',
+  },
+  zoomDurationFitMs: {
+    area: 'Canvas Zoom Actions',
+    responsibility: 'Animation duration (ms) for Fit-to-View / Fit-to-Screen actions',
+    notes: 'clamps to [0,2000]. Used by both D3 and Flow 2D renderers.',
+  },
+  zoomDurationSelectionMs: {
+    area: 'Canvas Zoom Actions',
+    responsibility: 'Animation duration (ms) for Zoom-to-Selection action',
+    notes: 'clamps to [0,2000]. Used by both D3 and Flow 2D renderers.',
+  },
+  wheelZoomCtrlMetaBoostMultiplier: {
+    area: 'Canvas Interaction (Wheel Zoom)',
+    responsibility: 'Ctrl/Meta wheel zoom boost multiplier (trackpad pinch)',
+    notes: 'clamps to [1,40]. Used by D3, Flow, and FlowEditor 2D renderers.',
+  },
+  flowWheelZoomSpeedMultiplier: {
+    area: 'Canvas Interaction (Flow Zoom)',
+    responsibility: 'Wheel zoom speed multiplier for Flow renderer',
+    notes: 'clamps to [0.25,2.5]. Used by D3, Flow, and FlowEditor 2D renderers.',
+  },
+  flowWheelZoomIncrementMultiplier: {
+    area: 'Canvas Interaction (Flow Zoom)',
+    responsibility: 'Wheel zoom increment multiplier for Flow renderer',
+    notes: 'clamps to [0.25,5.0]. Values > 1 make each wheel gesture zoom more per delta; values < 1 make it more precise.',
+  },
+  flowWheelZoomSmoothMinDurationMs: {
+    area: 'Canvas Interaction (Flow Zoom)',
+    responsibility: 'Min duration (ms) for Flow wheel zoom smoothing animation',
+    notes: 'clamps to [10,400] and is coerced to ≤ flowWheelZoomSmoothMaxDurationMs.',
+  },
+  flowWheelZoomSmoothMaxDurationMs: {
+    area: 'Canvas Interaction (Flow Zoom)',
+    responsibility: 'Max duration (ms) for Flow wheel zoom smoothing animation',
+    notes: 'clamps to [10,400] and is coerced to ≥ flowWheelZoomSmoothMinDurationMs.',
+  },
   orchestratorTraversalDelayMs: {
     area: 'Orchestrator Traversal',
     responsibility: 'Delay between traversal steps in Orchestrator (ms)',

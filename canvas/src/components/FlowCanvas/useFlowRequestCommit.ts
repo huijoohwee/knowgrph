@@ -7,8 +7,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { requestFlowNativeDraw } from '@/components/FlowCanvas/nativeRuntime'
-import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
-import { quantizeZoomStateForCommit } from '@/lib/zoom/zoomStateQuantize'
+import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
 import { relaxFlowSceneNodePositions } from '@/components/FlowCanvas/relaxScenePositions'
 import { computeFlowCommitRelaxSteps } from '@/components/FlowCanvas/relaxStepPolicy'
 
@@ -60,20 +59,20 @@ export function useFlowRequestCommit(args: {
       if (!runtime) return
       const t = runtime.transform || d3.zoomIdentity
       const current = useGraphStore.getState()
-      const pinned = current.viewPinned === true
-      const existing = current.zoomStateByKey?.[zoomViewKey] || current.zoomState
-      const nextZoom = quantizeZoomStateForCommit({
-        k: t.k,
-        x: t.x,
-        y: t.y,
-        graphDataRevision: pinned ? undefined : graphDataRevision,
+      commitZoomTransformToStore({
+        state: {
+          viewPinned: current.viewPinned,
+          zoomState: current.zoomState,
+          zoomStateByKey: current.zoomStateByKey,
+          setZoomState,
+          setZoomStateForKey,
+        },
+        zoomViewKey,
+        transform: { k: t.k, x: t.x, y: t.y },
         viewportW,
         viewportH,
+        graphDataRevision,
       })
-      if (!isSameZoomState(existing || null, nextZoom)) {
-        setZoomState(nextZoom)
-        setZoomStateForKey(zoomViewKey, nextZoom)
-      }
       if (!cacheKey || typeof setLayoutPositionsForMode !== 'function') return
       if (!positionsDirtySinceCommitRef.current) return
       const scene = runtime.scene
