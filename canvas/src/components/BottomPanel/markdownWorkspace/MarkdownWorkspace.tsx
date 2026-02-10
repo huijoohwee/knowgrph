@@ -312,6 +312,21 @@ export function MarkdownWorkspace() {
     void refresh()
   }, [refresh])
 
+
+  const setActivePathSafe = React.useCallback(
+    (path: WorkspacePath) => {
+      const normalized = normalizeWorkspacePath(path)
+      lastRequestedActivePathRef.current = { path: normalized, atMs: Date.now() }
+      setActivePath(normalized)
+    },
+    [setActivePath],
+  )
+
+  const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
+    setSelectionPath(normalizeWorkspacePath(path))
+  }, [])
+
+
   const pendingExternalRefreshRef = React.useRef<number | null>(null)
   React.useEffect(() => {
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
@@ -557,19 +572,6 @@ export function MarkdownWorkspace() {
     if (selectionEntry.parentPath) return selectionEntry.parentPath
     return WORKSPACE_ROOT_PATH
   }, [selectionEntry])
-
-  const setActivePathSafe = React.useCallback(
-    (path: WorkspacePath) => {
-      const normalized = normalizeWorkspacePath(path)
-      lastRequestedActivePathRef.current = { path: normalized, atMs: Date.now() }
-      setActivePath(normalized)
-    },
-    [setActivePath],
-  )
-
-  const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
-    setSelectionPath(normalizeWorkspacePath(path))
-  }, [])
 
   const isEditing = layoutMode === 'editor' || layoutMode === 'split'
   const isMarkdown = isMarkdownPath(activePath)

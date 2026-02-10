@@ -4,10 +4,10 @@
 Local-only, deterministic **PDF → Markdown → Render** pipeline that writes artifacts into the repo under `.knowgrph-workspace/…`, and surfaces the workflow inside **MainPanel → Workflow Manager** (no dedicated `/workspace` or `/import` pages).
 
 ## User Surface (SSOT)
-- **Entry point**: `/` (Canvas) → open MainPanel → **Workflow** tab → **PDF → Markdown (Local Workspace)** section.
+- **Entry point**: `/` (Canvas) → open **Editor workspace** → **Source Files** → **PDF Workspace** addon.
 - **Legacy routes**:
-  - `/workspace` → redirects to `/?openMainPanel=workflow`
-  - `/import` → redirects to `/?openMainPanel=workflow`
+  - `/workspace` → redirects to `/?openEditorWorkspace=1`
+  - `/import` → redirects to `/?openEditorWorkspace=1`
 
 ## Settings
 - **`pdfWorkspaceOutputDirRel`** (string, localStorage-backed)
@@ -38,4 +38,3 @@ Index:
 - Anchors are derived deterministically from Markdown headings.
 - Viewer uses URL hash (`#anchorId`) as the touchpoint SSOT.
 - On mode switch, the viewer resolves `anchorId` to the next best canonical anchor (parent fallback) to preserve navigation.
-

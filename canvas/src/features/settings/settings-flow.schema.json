@@ -648,20 +648,6 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L361; canvas/src/hooks/store/uiSlice.ts:L546"
   },
-  "pdfWorkspaceOutputDirRel": {
-    "area": "—",
-    "responsibility": "pdf workspace output dir rel",
-    "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry-ui.import-pdf.ts"
-    ],
-    "classes": [],
-    "functions": [],
-    "imports": [
-      "localStorage"
-    ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L9"
-  },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",
     "responsibility": "Include extracted PDF images in Markdown output",
@@ -677,7 +663,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L20; canvas/src/hooks/store/uiSlice.ts:L554"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSlice.ts:L554"
   },
   "pdfImportConversionMode": {
     "area": "Import: PDF",
@@ -694,7 +680,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L29; canvas/src/hooks/store/uiSlice.ts:L555"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L17; canvas/src/hooks/store/uiSlice.ts:L555"
   },
   "pdfImportEmbedImages": {
     "area": "Import: PDF",
@@ -711,7 +697,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L39; canvas/src/hooks/store/uiSlice.ts:L571"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L27; canvas/src/hooks/store/uiSlice.ts:L571"
   },
   "pdfImportMaxExtractedImagesPerPage": {
     "area": "Import: PDF",
@@ -728,7 +714,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L48; canvas/src/hooks/store/uiSlice.ts:L572"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L36; canvas/src/hooks/store/uiSlice.ts:L572"
   },
   "pdfImportMaxEmbeddedImagesPerPage": {
     "area": "Import: PDF",
@@ -745,7 +731,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L57; canvas/src/hooks/store/uiSlice.ts:L574"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L45; canvas/src/hooks/store/uiSlice.ts:L574"
   },
   "pdfImportMaxEmbeddedTotalBytes": {
     "area": "Import: PDF",
@@ -762,7 +748,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L66; canvas/src/hooks/store/uiSlice.ts:L576"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L54; canvas/src/hooks/store/uiSlice.ts:L576"
   },
   "pdfImportMaxEmbeddedAssetBytes": {
     "area": "Import: PDF",
@@ -779,7 +765,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L75; canvas/src/hooks/store/uiSlice.ts:L578"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L63; canvas/src/hooks/store/uiSlice.ts:L578"
   },
   "pdfImportProvider": {
     "area": "Import: PDF",
@@ -796,7 +782,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L84; canvas/src/hooks/store/uiSlice.ts:L580"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L72; canvas/src/hooks/store/uiSlice.ts:L580"
   },
   "pdfImportDoclingEndpoint": {
     "area": "Import: PDF",
@@ -813,7 +799,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L94; canvas/src/hooks/store/uiSlice.ts:L582"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L82; canvas/src/hooks/store/uiSlice.ts:L582"
   },
   "pdfImportProviderFallbackToNative": {
     "area": "Import: PDF",
@@ -830,7 +816,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L103; canvas/src/hooks/store/uiSlice.ts:L584"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L91; canvas/src/hooks/store/uiSlice.ts:L584"
   },
   "pdfImportDeepseekOcr2Enabled": {
     "area": "Import: PDF",
@@ -847,7 +833,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L112; canvas/src/hooks/store/uiSlice.ts:L586"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L100; canvas/src/hooks/store/uiSlice.ts:L586"
   },
   "pdfImportDeepseekOcr2Mode": {
     "area": "Import: PDF",
@@ -864,7 +850,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L121; canvas/src/hooks/store/uiSlice.ts:L588"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L109; canvas/src/hooks/store/uiSlice.ts:L588"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",

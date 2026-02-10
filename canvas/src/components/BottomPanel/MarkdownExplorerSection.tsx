@@ -12,20 +12,33 @@ export function MarkdownExplorerSection(props: {
 }) {
   const { title, collapsed, setCollapsed, right, children } = props
   const panelTypography = usePanelTypography()
+
+  const onKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        setCollapsed(!collapsed)
+      }
+    },
+    [collapsed, setCollapsed],
+  )
+
   return (
     <section className={`border-b ${UI_THEME_TOKENS.panel.border}`} aria-label={title}>
-      <button
-        type="button"
+      <div
         className={`w-full flex items-center justify-between px-2 py-1 ${panelTypography.microLabelClass} tracking-wide font-semibold uppercase ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
         onClick={() => setCollapsed(!collapsed)}
+        onKeyDown={onKeyDown}
         aria-expanded={!collapsed}
+        role="button"
+        tabIndex={0}
       >
         <span className="flex items-center gap-1">
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           {title}
         </span>
         <span className="flex items-center gap-1">{right}</span>
-      </button>
+      </div>
       {!collapsed && <section className="px-1 pb-1">{children}</section>}
     </section>
   )

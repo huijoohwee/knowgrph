@@ -1,21 +1,9 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { readPdfWorkspaceOutputDirRel, writePdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import type { SettingMeta } from './types'
 
 const s = () => useGraphStore.getState()
 
 export const uiImportPdfSettingsRegistry: SettingMeta[] = [
-  {
-    key: 'pdfWorkspaceOutputDirRel',
-    type: 'string',
-    source: 'localStorage',
-    read: () => readPdfWorkspaceOutputDirRel(),
-    write: v => {
-      writePdfWorkspaceOutputDirRel(String(v || ''))
-    },
-    docKey: 'pdfWorkspaceOutputDirRel',
-    default: () => readPdfWorkspaceOutputDirRel(),
-  },
   {
     key: 'pdfImportIncludeImages',
     type: 'boolean',

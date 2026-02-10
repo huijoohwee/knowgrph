@@ -6,7 +6,6 @@ import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/gra
 import { EXAMPLE_DATASETS } from '@/features/parsers/examplesCatalog';
 import { SHARE_BACKEND_URL, UI_COPY } from '@/lib/config';
 import { WorkflowSteps } from '@/features/panels/views/WorkflowSteps';
-import PdfWorkspaceWorkflowSection from '@/features/panels/views/PdfWorkspaceWorkflowSection'
 import { runMarkdownPipelineWithStatus } from '@/features/panels/hooks/markdownPipelineActions';
 import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { openParserScriptWorkspaceFile } from '@/features/panels/utils/parserWorkspaceFiles'
@@ -199,7 +198,6 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
           <Database className="w-4 h-4" aria-hidden="true" />
         </button>
       </nav>
-      <PdfWorkspaceWorkflowSection />
       <WorkflowSteps
         collapsedByStep={collapsedByStep}
         onToggleStep={handleToggleStep}

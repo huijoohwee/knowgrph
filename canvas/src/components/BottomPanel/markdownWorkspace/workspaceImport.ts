@@ -4,7 +4,10 @@ import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativeP
 import { deriveFilenameFromUrl, isYouTubeUrl, normalizeGitHubBlobLikeUrl, unwrapUserProvidedText } from '@/lib/url'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
-import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
+import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 
@@ -43,11 +46,32 @@ function isPdfFile(file: File): boolean {
   return file.type === 'application/pdf'
 }
 
+type PdfWorkspaceImportMode = 'text-only' | 'image-heavy' | 'scan-ocr'
+
+function coercePdfWorkspaceImportMode(raw: unknown): PdfWorkspaceImportMode {
+  return raw === 'image-heavy' ? 'image-heavy' : raw === 'scan-ocr' ? 'scan-ocr' : 'text-only'
+}
+
+function yamlQuote(value: string): string {
+  return `\"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}\"`
+}
+
+function buildPdfWorkspaceFrontmatter(args: { docId: string; mode: PdfWorkspaceImportMode; outputDirRel: string }): string {
+  return `---\nkgPdfWorkspaceDocId: ${yamlQuote(args.docId)}\nkgPdfWorkspaceMode: ${yamlQuote(args.mode)}\nkgPdfWorkspaceOutputDirRel: ${yamlQuote(args.outputDirRel)}\n---\n\n`
+}
+
 async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
-  const converted = await convertPdfFileToMarkdown(args.file)
-  if (!converted) throw new Error('PDF import failed')
-  if (converted.ok === false) throw new Error(converted.error || 'PDF import failed')
-  return args.fs.createFile({ parentPath: args.parentPath, name: String(converted.name || 'document.md'), text: String(converted.markdown || '') })
+  const store = useGraphStore.getState()
+  const mode = coercePdfWorkspaceImportMode((store as unknown as { pdfImportConversionMode?: unknown }).pdfImportConversionMode)
+  const outputDirRel = readPdfWorkspaceOutputDirRel()
+  const imported = await importPdfToWorkspace({ file: args.file, conversionMode: mode, outputDirRel })
+  if (!imported) throw new Error('PDF import failed')
+  if (imported.ok !== true) throw new Error(imported.error || 'PDF import failed')
+  const fetched = await fetchPdfWorkspaceDoc({ docId: imported.docId, mode: imported.mode, outputDirRel })
+  if (!fetched) throw new Error('PDF import failed')
+  if (fetched.ok !== true) throw new Error(fetched.error || 'PDF import failed')
+  const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, mode: imported.mode, outputDirRel })}${String(fetched.markdown || '')}`
+  return args.fs.createFile({ parentPath: args.parentPath, name: String(imported.name || 'document.md'), text })
 }
 
 async function importTextFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {

@@ -133,6 +133,7 @@ function MarkdownMetricsDevOverlay() {
 export default function CanvasPage() {
   const location = useLocation()
   const openedMainPanelFromQueryRef = React.useRef(false)
+  const openedEditorWorkspaceFromQueryRef = React.useRef(false)
   const lastInboundPreviewSelectionKeyRef = React.useRef<string>('')
   const lastInboundPreviewGraphHashRef = React.useRef<string>('')
   const lastInboundPreviewSchemaHashRef = React.useRef<string>('')
@@ -174,6 +175,31 @@ export default function CanvasPage() {
     }
     try {
       params.delete('openMainPanel')
+      const next = params.toString()
+      const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash || ''}`
+      window.history.replaceState(null, '', nextUrl)
+    } catch {
+      void 0
+    }
+  }, [location.search])
+
+  React.useEffect(() => {
+    if (openedEditorWorkspaceFromQueryRef.current) return
+    const raw = String(location.search || '')
+    if (!raw) return
+    const params = new URLSearchParams(raw)
+    const flag = String(params.get('openEditorWorkspace') || '').trim()
+    if (!flag) return
+    openedEditorWorkspaceFromQueryRef.current = true
+    try {
+      const store = useGraphStore.getState()
+      store.setWorkspaceViewMode('editor')
+      store.setEditorWorkspaceSection('markdown')
+    } catch {
+      void 0
+    }
+    try {
+      params.delete('openEditorWorkspace')
       const next = params.toString()
       const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash || ''}`
       window.history.replaceState(null, '', nextUrl)

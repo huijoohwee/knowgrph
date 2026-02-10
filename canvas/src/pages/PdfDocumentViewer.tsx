@@ -214,7 +214,7 @@ export default function PdfDocumentViewer() {
             <button
               type="button"
               className={`inline-flex items-center px-2.5 py-1.5 rounded border ${UI_THEME_TOKENS.input.border} hover:opacity-90 text-xs`}
-              onClick={() => navigate('/?openMainPanel=workflow')}
+              onClick={() => navigate('/?openEditorWorkspace=1')}
             >
               Back to Canvas
             </button>
@@ -325,7 +325,7 @@ export default function PdfDocumentViewer() {
               <button
                 type="button"
                 className={`inline-flex items-center px-2.5 py-1.5 rounded border ${UI_THEME_TOKENS.input.border} hover:opacity-90 text-xs`}
-                onClick={() => navigate('/?openMainPanel=workflow')}
+                onClick={() => navigate('/?openEditorWorkspace=1')}
               >
                 Re-convert
               </button>

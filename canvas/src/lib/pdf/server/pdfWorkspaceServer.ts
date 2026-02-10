@@ -69,11 +69,11 @@ const modeOverrides = (mode: PdfConversionMode) => {
   if (mode === 'image-heavy') {
     return {
       includeImages: true,
-      embedImages: true,
+      embedImages: false,
       maxExtractedImagesPerPage: 16,
-      maxEmbeddedImagesPerPage: 12,
-      maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-      maxEmbeddedAssetBytes: 2 * 1024 * 1024,
+      maxEmbeddedImagesPerPage: 0,
+      maxEmbeddedTotalBytes: 0,
+      maxEmbeddedAssetBytes: 0,
       deepseekOcr2Enabled: false,
       deepseekOcr2Mode: 'fallback' as const,
     }

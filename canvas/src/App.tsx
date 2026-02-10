@@ -31,8 +31,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Canvas />} />
             <Route path="/canvas" element={<Navigate to="/" replace />} />
-            <Route path="/workspace" element={<Navigate to="/?openMainPanel=workflow" replace />} />
-            <Route path="/import" element={<Navigate to="/?openMainPanel=workflow" replace />} />
+            <Route path="/workspace" element={<Navigate to="/?openEditorWorkspace=1" replace />} />
+            <Route path="/import" element={<Navigate to="/?openEditorWorkspace=1" replace />} />
             <Route path="/doc/:docId" element={<PdfDocumentViewer />} />
           </Routes>
         </Suspense>
