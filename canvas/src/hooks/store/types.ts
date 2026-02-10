@@ -179,6 +179,7 @@ export interface GraphState {
   selectedGroupIds: string[];
   collapsedGroupIds: string[];
   openQuickEditorNodeIds: string[];
+  flowNodeQuickEditorAnchorOffsetByNodeId: Record<string, { dx: number; dy: number }>;
   graphFieldsOpOk: boolean | null;
   graphFieldsOpMsg: string;
   orchestratorOpOk: boolean | null;
@@ -245,6 +246,8 @@ export interface GraphState {
   toggleGroupCollapsed: (id: string) => void;
   setOpenQuickEditorNodeIds: (ids: string[]) => void;
   updateOpenQuickEditorNodeIds: (updater: (prev: string[]) => string[]) => void;
+  setFlowNodeQuickEditorAnchorOffsetByNodeId: (offsets: Record<string, { dx: number; dy: number }>) => void;
+  clearFlowNodeQuickEditorAnchorOffsetByNodeId: (id: string) => void;
   setEditMode: (mode: boolean) => void;
   setWorkspaceViewMode: (mode: WorkspaceViewMode) => void;
   toggleWorkspaceViewMode: () => void;
@@ -576,6 +579,7 @@ export interface GraphState {
   zoomDurationFitMs: number;
   zoomDurationSelectionMs: number;
   wheelZoomCtrlMetaBoostMultiplier: number;
+  canvasInteractionSpeedMultiplier: number;
   canvasPanSpeedMultiplier: number;
   canvasRenderModeLastFree: '2d' | '3d';
   canvasRenderModeIsAuto: boolean;
@@ -589,6 +593,7 @@ export interface GraphState {
   setZoomDurationFitMs: (v: number) => void;
   setZoomDurationSelectionMs: (v: number) => void;
   setWheelZoomCtrlMetaBoostMultiplier: (v: number) => void;
+  setCanvasInteractionSpeedMultiplier: (v: number) => void;
   setCanvasPanSpeedMultiplier: (v: number) => void;
   resetAll: () => void;
   canvasSnapshotFns: { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns };

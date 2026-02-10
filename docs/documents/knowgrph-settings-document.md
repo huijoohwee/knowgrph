@@ -181,6 +181,56 @@ themeMode.system:
 
 ---
 
+### `canvasInteractionSpeedMultiplier`
+
+**Area**: Canvas Interaction (2D Speed)
+
+**Responsibility**: Unified 2D interaction speed multiplier (drag/pan/zoom) for D3/Flow/FlowEditor
+
+**Configuration Schema**:
+
+```yaml
+canvasInteractionSpeedMultiplier:
+  scope: ui_global
+  type: number
+  mutability: runtime_configurable
+  validation: clamped to [0.25, 3.0]
+  default: 1
+  impact: multiplies schema-driven panSpeed/zoomSpeed at interaction points (wheel/pinch/pan)
+```
+
+**Implementation anchors**
+- Store + persistence: `canvas/src/hooks/store/canvasSlice.ts` (`setCanvasInteractionSpeedMultiplier`)
+- D3 interaction application: `canvas/src/components/GraphCanvas/zoom.ts` (wheel/pinch zoom, wheel/pointer/touch pan)
+- Flow/FlowEditor interaction application: `canvas/src/components/FlowCanvas/bindNativeInteractions.ts` (wheel/pinch zoom, wheel/pointer pan)
+
+---
+
+### `canvasPanSpeedMultiplier`
+
+**Area**: Canvas Interaction (Pan/Drag)
+
+**Responsibility**: Pan/drag-only speed multiplier for 2D renderers
+
+**Configuration Schema**:
+
+```yaml
+canvasPanSpeedMultiplier:
+  scope: ui_global
+  type: number
+  mutability: runtime_configurable
+  validation: clamped to [0.25, 3.0]
+  default: 1
+  impact: multiplies schema-driven panSpeed for wheel pan and pointer/touch panning (does not affect wheel/pinch zoom)
+```
+
+**Implementation anchors**
+- Store + persistence: `canvas/src/hooks/store/canvasSlice.ts` (`setCanvasPanSpeedMultiplier`)
+- D3 interaction application: `canvas/src/components/GraphCanvas/zoom.ts` (wheel pan, pointer/touch pan)
+- Flow/FlowEditor interaction application: `canvas/src/components/FlowCanvas/bindNativeInteractions.ts` (wheel pan, pointer pan)
+
+---
+
 ### `selectionFlashDurationMs`
 
 **Area**: Selection Flash

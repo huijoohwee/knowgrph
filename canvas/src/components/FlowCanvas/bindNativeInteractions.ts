@@ -35,7 +35,14 @@ import { UI_SELECTORS } from '@/lib/config'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { clampScale, computeAnchoredZoomTransform, computePinchZoomTransform } from '@/lib/canvas/viewport-transform'
 import { createEdgeScrollController } from '@/lib/canvas/edge-scroll'
-import { readPanSpeed, readWheelBehavior, readZoomSpeed, shouldWheelZoom } from '@/lib/canvas/camera-options-2d'
+import {
+  clampCanvasInteractionSpeedMultiplier,
+  clampCanvasPanSpeedMultiplier,
+  readPanSpeed,
+  readWheelBehavior,
+  readZoomSpeed,
+  shouldWheelZoom,
+} from '@/lib/canvas/camera-options-2d'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 
 export type FlowCanvasDrag =
@@ -312,9 +319,12 @@ export function bindFlowCanvasNativeInteractions(args: {
       cancelWheelZoomAnimation()
       const t0 = runtime.transform || d3.zoomIdentity
       const panSpeed = schemaForWheel ? readPanSpeed(schemaForWheel) : 1
+      const interactionSpeed =
+        clampCanvasPanSpeedMultiplier(storeState.canvasPanSpeedMultiplier)
+        * clampCanvasInteractionSpeedMultiplier(storeState.canvasInteractionSpeedMultiplier)
       const d = computeWheelPanDeltaPx(e)
-      const dx = d.dx * panSpeed
-      const dy = d.dy * panSpeed
+      const dx = d.dx * panSpeed * interactionSpeed
+      const dy = d.dy * panSpeed * interactionSpeed
       if (dx !== 0 || dy !== 0) {
         setFlowNativeTransform(runtime, d3.zoomIdentity.translate(t0.x - dx, t0.y - dy).scale(t0.k))
         requestFlowNativeDraw(runtime, args.buildDrawArgs())
@@ -358,7 +368,12 @@ export function bindFlowCanvasNativeInteractions(args: {
     }
     const zoomSpeed = schema ? readZoomSpeed(schema) : 1
     const speed = clampFlowWheelZoomSpeedMultiplier(storeState.flowWheelZoomSpeedMultiplier)
-    const deltaYpx = computeZoomWheelDeltaYpx(e, zoomSpeed * speed, storeState.wheelZoomCtrlMetaBoostMultiplier)
+    const interactionSpeed = clampCanvasInteractionSpeedMultiplier(storeState.canvasInteractionSpeedMultiplier)
+    const deltaYpx = computeZoomWheelDeltaYpx(
+      e,
+      zoomSpeed * speed * interactionSpeed,
+      storeState.wheelZoomCtrlMetaBoostMultiplier,
+    )
     pendingWheelZoomDeltaYpx += deltaYpx
     pendingWheelZoomAnchor = { sx, sy }
     pendingWheelZoomScaleExtent = { minK: minScale, maxK: maxScale }
@@ -653,6 +668,7 @@ export function bindFlowCanvasNativeInteractions(args: {
       const zoomSpeed = Number.isFinite(zoomSpeedRaw) && zoomSpeedRaw > 0 ? zoomSpeedRaw : 1
       const speed = clampFlowWheelZoomSpeedMultiplier(state.flowWheelZoomSpeedMultiplier)
       const increment = clampFlowWheelZoomIncrementMultiplier(state.flowWheelZoomIncrementMultiplier)
+      const interactionSpeed = clampCanvasInteractionSpeedMultiplier(state.canvasInteractionSpeedMultiplier)
       setFlowNativeTransform(
         runtime,
         computePinchZoomTransform({
@@ -662,7 +678,7 @@ export function bindFlowCanvasNativeInteractions(args: {
           curA: a,
           curB: b,
           scaleExtent: { minK: minScale, maxK: maxScale },
-          zoomExponentMultiplier: zoomSpeed * speed * increment,
+          zoomExponentMultiplier: zoomSpeed * speed * increment * interactionSpeed,
         }),
       )
       requestFlowNativeDraw(runtime, args.buildDrawArgs())
@@ -691,9 +707,15 @@ export function bindFlowCanvasNativeInteractions(args: {
       return
     }
     if (drag.type === 'pan') {
-      const dx = sx - drag.startSx
-      const dy = sy - drag.startSy
-      setFlowNativeTransform(runtime, d3.zoomIdentity.translate(drag.startTx + dx, drag.startTy + dy).scale(runtime.transform.k))
+      const st = useGraphStore.getState()
+      const interactionSpeed =
+        clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
+      const dx = (sx - drag.startSx) * interactionSpeed
+      const dy = (sy - drag.startSy) * interactionSpeed
+      setFlowNativeTransform(
+        runtime,
+        d3.zoomIdentity.translate(drag.startTx + dx, drag.startTy + dy).scale(runtime.transform.k),
+      )
       requestFlowNativeDraw(runtime, args.buildDrawArgs())
       args.requestCommit()
       args.onInteractionFrame?.()

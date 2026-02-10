@@ -28,9 +28,13 @@ import {
   clampCanvasWheelZoomCtrlMetaBoostMultiplier,
 } from '@/lib/canvas/zoom-input'
 import {
+  CANVAS_INTERACTION_SPEED_MULTIPLIER_DEFAULT,
+  CANVAS_INTERACTION_SPEED_MULTIPLIER_MAX,
+  CANVAS_INTERACTION_SPEED_MULTIPLIER_MIN,
   CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT,
   CANVAS_PAN_SPEED_MULTIPLIER_MAX,
   CANVAS_PAN_SPEED_MULTIPLIER_MIN,
+  clampCanvasInteractionSpeedMultiplier,
   clampCanvasPanSpeedMultiplier,
 } from '@/lib/canvas/camera-options-2d'
 
@@ -126,6 +130,12 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     lsFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT, {
       min: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
       max: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
+    }),
+  )
+  const initialCanvasInteractionSpeedMultiplier = clampCanvasInteractionSpeedMultiplier(
+    lsFloat(LS_KEYS.canvasInteractionSpeedMultiplier, CANVAS_INTERACTION_SPEED_MULTIPLIER_DEFAULT, {
+      min: CANVAS_INTERACTION_SPEED_MULTIPLIER_MIN,
+      max: CANVAS_INTERACTION_SPEED_MULTIPLIER_MAX,
     }),
   )
   const initialCanvasPanSpeedMultiplier = clampCanvasPanSpeedMultiplier(
@@ -291,6 +301,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   zoomDurationFitMs: initialZoomDurationFitMs,
   zoomDurationSelectionMs: initialZoomDurationSelectionMs,
   wheelZoomCtrlMetaBoostMultiplier: initialWheelZoomCtrlMetaBoostMultiplier,
+  canvasInteractionSpeedMultiplier: initialCanvasInteractionSpeedMultiplier,
   canvasPanSpeedMultiplier: initialCanvasPanSpeedMultiplier,
   canvasRenderModeLastFree: '2d' as '2d' | '3d',
   canvasRenderModeIsAuto: false as boolean,
@@ -451,6 +462,17 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     const cur = get().wheelZoomCtrlMetaBoostMultiplier
     if (cur === next) return
     set({ wheelZoomCtrlMetaBoostMultiplier: next })
+  },
+  setCanvasInteractionSpeedMultiplier: (v: number) => {
+    const next = clampCanvasInteractionSpeedMultiplier(
+      lsSetFloat(LS_KEYS.canvasInteractionSpeedMultiplier, Number(v), {
+        min: CANVAS_INTERACTION_SPEED_MULTIPLIER_MIN,
+        max: CANVAS_INTERACTION_SPEED_MULTIPLIER_MAX,
+      }),
+    )
+    const cur = get().canvasInteractionSpeedMultiplier
+    if (cur === next) return
+    set({ canvasInteractionSpeedMultiplier: next })
   },
   setCanvasPanSpeedMultiplier: (v: number) => {
     const next = clampCanvasPanSpeedMultiplier(

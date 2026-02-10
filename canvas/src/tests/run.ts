@@ -127,6 +127,7 @@ import { testD3WheelZoomIsContinuousAndUsesSharedWheelFactor } from '@/__tests__
 import { testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly } from '@/__tests__/d3ZoomScaleExtentRegression.test'
 import { testD3WheelZoomOverridesDesignPresetToZoom } from '@/__tests__/d3WheelZoomPresetOverrideRegression.test'
 import { testWheelZoomUsesCtrlKeyBoostHelper } from '@/__tests__/wheelZoomCtrlKeyBoostRegression.test'
+import { testFlowNodeQuickEditorAnchorOffsetsClearAndSet } from '@/__tests__/flowNodeQuickEditorAnchorOffsets.test'
 import {
   testFlowZoomDefaultsMigrationUpgradesPriorDefaults,
   testFlowZoomDefaultsMigrationDoesNotOverrideCustomValues,
@@ -389,6 +390,10 @@ import { testFitToViewAllowsZoomOutBelowSchemaMinScale } from '@/__tests__/zoomO
 import { testZoomActionsZoomInOutPreserveViewportCenterNoBounce } from '@/__tests__/zoomInOutViewportCenterNoBounce.test'
 import { testDisableAutoZoomModesForUserGesture } from '@/__tests__/autoZoomModesDisable.test'
 import { testNodeQuickEditorScaledSizeTracksZoomK } from '@/__tests__/nodeQuickEditorZoom.test'
+import {
+  testOverlayPanelCollisionKeepsLockedPanelFixed,
+  testOverlayPanelCollisionUsesPerItemSizes,
+} from '@/__tests__/overlayPanelCollision.test'
 import {
   testZoomActionsFitTransformIsCachedAcrossRequests,
   testZoomActionsZoomOutAutoMinScaleTracksFitToView,
@@ -1059,6 +1064,9 @@ export const runAllTests = async () => {
   await exec('ui.toolbar.iconButtonStopsPropagation', testIconButtonStopsPropagation)
   await exec('ui.overlayClamp.keepsPanelInViewport', testOverlayClampKeepsPanelInViewport)
   await exec('ui.overlayClamp.snapPxRoundsToGrid', testOverlayClampSnapPxRoundsToGrid)
+  await exec('ui.flowNodeQuickEditor.anchorOffsets', testFlowNodeQuickEditorAnchorOffsetsClearAndSet)
+  await exec('ui.overlayPanelCollision.lockedPanelFixed', testOverlayPanelCollisionKeepsLockedPanelFixed)
+  await exec('ui.overlayPanelCollision.perItemSizes', testOverlayPanelCollisionUsesPerItemSizes)
   await exec('flow.shape.forbidCircle.coercesToRect', testFlowNativeNodeShapeForbidCircleCoercesToRect)
   await exec('flow.shape.forbidCircle.preservesNonCircle', testFlowNativeNodeShapeForbidCircleLeavesNonCircleUnchanged)
   await exec('parser.mmd.wrapsPlainMermaid', testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid)

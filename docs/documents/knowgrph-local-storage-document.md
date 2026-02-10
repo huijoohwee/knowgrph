@@ -92,6 +92,10 @@
   - `LS_KEYS.flowWheelZoomSmoothMinDurationMs`
   - `LS_KEYS.flowWheelZoomSmoothMaxDurationMs`
 
+- Interaction speed multipliers (shared across D3, Flow, Flow Editor):
+  - `LS_KEYS.canvasInteractionSpeedMultiplier` (unified drag/pan/zoom speed)
+  - `LS_KEYS.canvasPanSpeedMultiplier` (pan/drag-only speed)
+
 - Defaults migration guard:
   - `LS_KEYS.flowWheelZoomDefaultsVersion` (one-time upgrade for prior default values; does not override custom settings)
 

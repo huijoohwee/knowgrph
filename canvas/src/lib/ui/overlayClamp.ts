@@ -33,3 +33,28 @@ export function clampOverlayTopLeftToViewport(args: {
   }
 }
 
+export function clampOverlayTopLeftFullyInViewport(args: {
+  pos: { top: number; left: number }
+  size: { width: number; height: number }
+  viewport: { width: number; height: number }
+  snapPx?: number
+}): { top: number; left: number } {
+  const w = Number.isFinite(args.size.width) ? Math.max(1, args.size.width) : 1
+  const h = Number.isFinite(args.size.height) ? Math.max(1, args.size.height) : 1
+  const viewportW = Number.isFinite(args.viewport.width) ? Math.max(1, Math.floor(args.viewport.width as number)) : 1
+  const viewportH = Number.isFinite(args.viewport.height) ? Math.max(1, Math.floor(args.viewport.height as number)) : 1
+
+  const maxLeft = Math.max(0, viewportW - w)
+  const maxTop = Math.max(0, viewportH - h)
+
+  const rawTop = clamp(args.pos.top, 0, maxTop)
+  const rawLeft = clamp(args.pos.left, 0, maxLeft)
+  const snapPx = Number.isFinite(args.snapPx) ? Math.max(0, args.snapPx as number) : 0
+  if (!(snapPx > 0)) {
+    return { top: rawTop, left: rawLeft }
+  }
+  return {
+    top: Math.round(rawTop / snapPx) * snapPx,
+    left: Math.round(rawLeft / snapPx) * snapPx,
+  }
+}

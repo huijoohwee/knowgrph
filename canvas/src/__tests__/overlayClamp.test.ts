@@ -1,4 +1,4 @@
-import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
+import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 
 export function testOverlayClampKeepsPanelInViewport() {
   const clamped = clampOverlayTopLeftToViewport({
@@ -25,3 +25,14 @@ export function testOverlayClampSnapPxRoundsToGrid() {
   if (Math.abs(clamped.left - Math.round(clamped.left)) > 1e-9) throw new Error('expected left snapped to integer px')
 }
 
+export function testOverlayClampFullyInViewport() {
+  const clamped = clampOverlayTopLeftFullyInViewport({
+    pos: { top: -999, left: 999 },
+    size: { width: 200, height: 120 },
+    viewport: { width: 500, height: 400 },
+  })
+  if (!(clamped.left >= 0)) throw new Error('expected left to be clamped to 0')
+  if (!(clamped.left <= 500 - 200)) throw new Error('expected left to be clamped to max inside bound')
+  if (!(clamped.top >= 0)) throw new Error('expected top to be clamped to 0')
+  if (!(clamped.top <= 400 - 120)) throw new Error('expected top to be clamped to max inside bound')
+}

@@ -9,9 +9,18 @@ export const CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT = 1
 export const CANVAS_PAN_SPEED_MULTIPLIER_MIN = 0.25
 export const CANVAS_PAN_SPEED_MULTIPLIER_MAX = 3
 
+export const CANVAS_INTERACTION_SPEED_MULTIPLIER_DEFAULT = 1
+export const CANVAS_INTERACTION_SPEED_MULTIPLIER_MIN = 0.25
+export const CANVAS_INTERACTION_SPEED_MULTIPLIER_MAX = 3
+
 export function clampCanvasPanSpeedMultiplier(v: number): number {
   const safe = typeof v === 'number' && Number.isFinite(v) ? v : CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT
   return Math.max(CANVAS_PAN_SPEED_MULTIPLIER_MIN, Math.min(CANVAS_PAN_SPEED_MULTIPLIER_MAX, safe))
+}
+
+export function clampCanvasInteractionSpeedMultiplier(v: number): number {
+  const safe = typeof v === 'number' && Number.isFinite(v) ? v : CANVAS_INTERACTION_SPEED_MULTIPLIER_DEFAULT
+  return Math.max(CANVAS_INTERACTION_SPEED_MULTIPLIER_MIN, Math.min(CANVAS_INTERACTION_SPEED_MULTIPLIER_MAX, safe))
 }
 
 export function readWheelBehavior(schema: GraphSchema): WheelBehavior {

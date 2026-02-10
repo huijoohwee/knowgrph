@@ -13,7 +13,14 @@ import {
 } from '@/lib/canvas/viewport-controls'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
-import { readPanSpeed, readWheelBehavior, readZoomSpeed, shouldWheelZoom } from '@/lib/canvas/camera-options-2d'
+import {
+  clampCanvasInteractionSpeedMultiplier,
+  clampCanvasPanSpeedMultiplier,
+  readPanSpeed,
+  readWheelBehavior,
+  readZoomSpeed,
+  shouldWheelZoom,
+} from '@/lib/canvas/camera-options-2d'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { clampFlowWheelZoomIncrementMultiplier, clampFlowWheelZoomSpeedMultiplier } from '@/lib/canvas/flow-zoom-tuning'
 import { computeAnchoredZoomTransform, computePinchZoomTransform } from '@/lib/canvas/viewport-transform'
@@ -266,11 +273,14 @@ export const createZoom = (
       cancelPointerDrag(svgEl)
       return
     }
-    disableAutoZoomModesForUserGesture(useGraphStore.getState())
+    const st = useGraphStore.getState()
+    disableAutoZoomModesForUserGesture(st)
+    const interactionSpeed =
+      clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
     const clientX = Number.isFinite(e.clientX) ? e.clientX : 0
     const clientY = Number.isFinite(e.clientY) ? e.clientY : 0
-    const dx = clientX - drag.startClientX
-    const dy = clientY - drag.startClientY
+    const dx = (clientX - drag.startClientX) * interactionSpeed
+    const dy = (clientY - drag.startClientY) * interactionSpeed
     const next = d3.zoomIdentity.translate(drag.startTransform.x + dx, drag.startTransform.y + dy).scale(drag.startTransform.k)
     svg.call(
       zoom.transform as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void,
@@ -383,6 +393,7 @@ export const createZoom = (
     const zoomSpeed = Number.isFinite(zoomSpeedRaw) && zoomSpeedRaw > 0 ? zoomSpeedRaw : 1
     const speed = clampFlowWheelZoomSpeedMultiplier(st.flowWheelZoomSpeedMultiplier)
     const increment = clampFlowWheelZoomIncrementMultiplier(st.flowWheelZoomIncrementMultiplier)
+    const interactionSpeed = clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
 
     const rect = svgEl.getBoundingClientRect()
     const localSx = (Number.isFinite(e.clientX) ? e.clientX : 0) - (Number.isFinite(rect.left) ? rect.left : 0)
@@ -396,7 +407,7 @@ export const createZoom = (
       lastPointerInCanvas = { sx: anchor.sx, sy: anchor.sy, ts: nowMs }
     }
 
-    const deltaYpx = computeZoomWheelDeltaYpx(e, zoomSpeed * speed, st.wheelZoomCtrlMetaBoostMultiplier)
+    const deltaYpx = computeZoomWheelDeltaYpx(e, zoomSpeed * speed * interactionSpeed, st.wheelZoomCtrlMetaBoostMultiplier)
     const guard = computeZoomWheelGuardDecision({
       currentK: lastK,
       minK: extent.minK,
@@ -522,7 +533,8 @@ export const createZoom = (
     const zoomSpeed = Number.isFinite(zoomSpeedRaw) && zoomSpeedRaw > 0 ? zoomSpeedRaw : 1
     const speed = clampFlowWheelZoomSpeedMultiplier(st.flowWheelZoomSpeedMultiplier)
     const increment = clampFlowWheelZoomIncrementMultiplier(st.flowWheelZoomIncrementMultiplier)
-    return zoomSpeed * speed * increment
+    const interactionSpeed = clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
+    return zoomSpeed * speed * increment * interactionSpeed
   }
 
   svg.on('touchstart.kgPinch', (event: unknown) => {
@@ -611,7 +623,12 @@ export const createZoom = (
       const p = readTouchLocal(svgEl, a)
       const dx = p.sx - drag.startSx
       const dy = p.sy - drag.startSy
-      const next = d3.zoomIdentity.translate(drag.startTransform.x + dx, drag.startTransform.y + dy).scale(drag.startTransform.k)
+      const st = useGraphStore.getState()
+      const interactionSpeed =
+        clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
+      const next = d3.zoomIdentity
+        .translate(drag.startTransform.x + dx * interactionSpeed, drag.startTransform.y + dy * interactionSpeed)
+        .scale(drag.startTransform.k)
       svg.call(
         zoom.transform as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void,
         next,
@@ -681,8 +698,10 @@ export const createZoom = (
     cancelWheelZoomAnimation()
     const d = computeWheelPanDeltaPx(e)
     const panSpeed = readPanSpeed(st.schema || schema)
-    const dx = d.dx * panSpeed
-    const dy = d.dy * panSpeed
+    const interactionSpeed =
+      clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
+    const dx = d.dx * panSpeed * interactionSpeed
+    const dy = d.dy * panSpeed * interactionSpeed
     if (dx === 0 && dy === 0) return
     svg.call(zoom.translateBy as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, x: number, y: number) => void, -dx, -dy)
     try {

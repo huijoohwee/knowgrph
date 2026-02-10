@@ -19,6 +19,9 @@ import { lsBool, lsJson, lsSetBool, lsSetJson } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
+import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
+import { isSpacePanHeld } from '@/lib/canvas/space-pan'
+import { hashStringToHex } from '@/lib/hash/stringHash'
 import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import {
   computeNodeQuickEditorScale,
@@ -124,10 +127,16 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     })),
   )
 
+  const nodeId = React.useMemo(() => String(node.id || '').trim(), [node.id])
+
   const overlayZIndex = React.useMemo(() => {
     const safeFloating = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : 5000
-    return Math.max(11, Math.min(79, safeFloating - 1))
-  }, [floatingPanelZIndex])
+    const base = safeFloating - 1
+    const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
+    const selected = String(selectedNodeId || '').trim() === nodeId
+    if (selected) return Math.max(11, base)
+    return Math.max(11, base - 1 - Math.min(24, idx))
+  }, [floatingPanelZIndex, nodeId, selectedNodeId, stackIndex])
 
   const registryEntry: NodeQuickEditorRegistryEntry | null = React.useMemo(
     () => resolveNodeQuickEditorRegistryEntry({ node, registry: nodeQuickEditorRegistry }),
@@ -137,8 +146,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const asideRef = React.useRef<HTMLElement | null>(null)
   const nodeRef = React.useRef<GraphNode>(node)
   const viewportRef = React.useRef<{ width: number; height: number }>({
-    width: typeof window !== 'undefined' ? window.innerWidth : viewportW,
-    height: typeof window !== 'undefined' ? window.innerHeight : viewportH,
+    width: viewportW,
+    height: viewportH,
   })
   const canvasWindowOffsetRef = React.useRef<{ left: number; top: number }>({ left: 0, top: 0 })
   const schemaRef = React.useRef(schema)
@@ -152,8 +161,6 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const lastAppliedRef = React.useRef<{ left: number; top: number; scale: number } | null>(null)
   const cssInitRef = React.useRef(false)
   const pendingClampCommitRef = React.useRef<number | null>(null)
-
-  const nodeId = React.useMemo(() => String(node.id || '').trim(), [node.id])
 
   const parsePinnedByNodeId = React.useCallback((raw: unknown): Record<string, boolean> | null => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -242,7 +249,27 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         parsePosByNodeId,
       )
       const v = map[id]
-      if (v && Number.isFinite(v.top) && Number.isFinite(v.left)) return v
+      if (v && Number.isFinite(v.top) && Number.isFinite(v.left)) {
+        const { width: viewportWidth, height: viewportHeight } = viewportRef.current
+        const offset = canvasWindowOffsetRef.current
+        const leftRaw = v.left
+        const topRaw = v.top
+        const looksLikeWindowCoords =
+          (offset.left !== 0 || offset.top !== 0)
+          && leftRaw >= offset.left - 2
+          && leftRaw <= offset.left + viewportWidth + 2
+          && topRaw >= offset.top - 2
+          && topRaw <= offset.top + viewportHeight + 2
+        const coerce = looksLikeWindowCoords ? { left: leftRaw - offset.left, top: topRaw - offset.top } : v
+        const clamped = clampOverlayTopLeftToViewport({
+          pos: coerce,
+          size: NODE_QUICK_EDITOR_BASE_SIZE,
+          viewport: { width: viewportWidth, height: viewportHeight },
+          visiblePx: 32,
+          snapPx: 1,
+        })
+        return clamped
+      }
       return fallback
     },
     [parsePosByNodeId],
@@ -315,20 +342,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   }, [active, node.id, selectedNodeId, toolbarVisible])
 
   React.useEffect(() => {
-    if (typeof window === 'undefined') {
-      viewportRef.current = { width: viewportW, height: viewportH }
-      return
-    }
-    const apply = () => {
-      const w = Math.max(1, Math.floor(window.innerWidth || 1))
-      const h = Math.max(1, Math.floor(window.innerHeight || 1))
-      viewportRef.current = { width: w, height: h }
-    }
-    apply()
-    window.addEventListener('resize', apply)
-    return () => {
-      window.removeEventListener('resize', apply)
-    }
+    viewportRef.current = { width: viewportW, height: viewportH }
   }, [viewportH, viewportW])
 
   React.useEffect(() => {
@@ -418,9 +432,6 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       x,
       y,
     })
-    const offset = canvasWindowOffsetRef.current
-    const nodeWindowX = screenX + offset.left
-    const nodeWindowY = screenY + offset.top
     const port = schemaRef.current?.behavior?.portHandles || null
     const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
     const portSizePx =
@@ -432,35 +443,63 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         ? Math.max(0, (port as { offset: number }).offset)
         : 2
     const portExtraPadScreenPx = portEnabled ? (portSizePx + portOffsetPx + 8) * zoomK : 0
-    const anchoredLeftPx = nodeWindowX + DEFAULT_FLOW_NODE_WIDTH_PX * zoomK + 16 + portExtraPadScreenPx
-    const anchoredTopPx = nodeWindowY - 12
+    const anchoredLeftPx = screenX + DEFAULT_FLOW_NODE_WIDTH_PX * zoomK + 16 + portExtraPadScreenPx
+    const anchoredTopPx = screenY - 12
     anchoredPosRef.current = { top: anchoredTopPx, left: anchoredLeftPx }
 
     const { width: viewportWidth, height: viewportHeight } = viewportRef.current
     const pinned = pinnedRef.current
+    const anchorOffset = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId?.[nodeId] || null
+    const anchorDx =
+      typeof anchorOffset?.dx === 'number' && Number.isFinite(anchorOffset.dx) ? (anchorOffset.dx as number) * zoomK : 0
+    const anchorDy =
+      typeof anchorOffset?.dy === 'number' && Number.isFinite(anchorOffset.dy) ? (anchorOffset.dy as number) * zoomK : 0
     const basePos = pinned
       ? pinnedPosRef.current
-      : { top: anchoredPosRef.current.top + autoStackOffset.top, left: anchoredPosRef.current.left + autoStackOffset.left }
-    const pos = clampOverlayTopLeftToViewport({
-      pos: basePos,
-      size: scaled,
-      viewport: { width: viewportWidth, height: viewportHeight },
-      visiblePx: 32,
-      snapPx: 1,
-    })
+      : {
+          top: anchoredPosRef.current.top + autoStackOffset.top + anchorDy,
+          left: anchoredPosRef.current.left + autoStackOffset.left + anchorDx,
+        }
+    const safeBasePos = {
+      top: Number.isFinite(basePos.top) ? basePos.top : 8,
+      left: Number.isFinite(basePos.left) ? basePos.left : 8,
+    }
+    const clampFloatingToViewport = (pos: { top: number; left: number }) =>
+      clampOverlayTopLeftToViewport({
+        pos,
+        size: scaled,
+        viewport: { width: viewportWidth, height: viewportHeight },
+        visiblePx: 32,
+        snapPx: 1,
+      })
 
-    if (pinned && (pos.top !== basePos.top || pos.left !== basePos.left)) scheduleClampCommit(pos)
+    const pos = pinned ? clampFloatingToViewport(safeBasePos) : safeBasePos
+
+    if (pinned && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
 
     const last = lastAppliedRef.current
     if (last && last.left === pos.left && last.top === pos.top && Math.abs(last.scale - panelScale) < 1e-6) return
     lastAppliedRef.current = { left: pos.left, top: pos.top, scale: panelScale }
 
-    el.style.transform = `translate3d(${pos.left}px, ${pos.top}px, 0) scale(${panelScale})`
+    const offset = canvasWindowOffsetRef.current
+    el.style.transform = `translate3d(${pos.left + offset.left}px, ${pos.top + offset.top}px, 0) scale(${panelScale})`
   }, [autoStackOffset.left, autoStackOffset.top, getLiveNodeWorldPos, nodeId, scheduleClampCommit, zoomViewKey])
 
   useIsomorphicLayoutEffect(() => {
     applyOverlayPosition()
-  }, [applyOverlayPosition, liveInteractionTick, lockedToNode, pinnedLeftPx, pinnedTopPx, viewportH, viewportW, node.x, node.y])
+  }, [
+    applyOverlayPosition,
+    canvasWindowOffset?.left,
+    canvasWindowOffset?.top,
+    liveInteractionTick,
+    lockedToNode,
+    pinnedLeftPx,
+    pinnedTopPx,
+    viewportH,
+    viewportW,
+    node.x,
+    node.y,
+  ])
 
   React.useEffect(() => {
     const unsub = useGraphStore.subscribe(
@@ -480,14 +519,20 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   }, [applyOverlayPosition, zoomViewKey])
 
   const handleTogglePinned = React.useCallback(() => {
+    useGraphStore.getState().clearFlowNodeQuickEditorAnchorOffsetByNodeId(nodeId)
     setLockedToNode(prev => {
       const nextLocked = !prev
       if (!nextLocked) {
         const anchor = anchoredPosRef.current
         const scaled = scaledSizeRef.current
         const { width: viewportWidth, height: viewportHeight } = viewportRef.current
+        const h = hashStringToHex(nodeId)
+        const v0 = parseInt(h.slice(0, 4), 16)
+        const v1 = parseInt(h.slice(4, 8), 16)
+        const dx = ((Number.isFinite(v0) ? v0 : 0) % 13) - 6
+        const dy = ((Number.isFinite(v1) ? v1 : 0) % 11) - 5
         const pos = clampOverlayTopLeftToViewport({
-          pos: anchor,
+          pos: { top: anchor.top + dy * 4, left: anchor.left + dx * 4 },
           size: scaled,
           viewport: { width: viewportWidth, height: viewportHeight },
           visiblePx: 32,
@@ -499,7 +544,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       }
       return nextLocked
     })
-  }, [persistFloatingPos, setLockedToNode])
+  }, [nodeId, persistFloatingPos, setLockedToNode])
 
   const handleToggleMinimized = React.useCallback(() => {
     setMinimized(prev => {
@@ -544,16 +589,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       let pendingLeft = startLeft
       let raf: number | null = null
 
-      const restoreUserSelect = () => {
-        try {
-          document.body.classList.remove('kg-no-select')
-        } catch {
-          void 0
-        }
-      }
-
       try {
-        document.body.classList.add('kg-no-select')
+        lockGlobalUserSelect()
       } catch {
         void 0
       }
@@ -593,7 +630,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
             flush()
           }
           persistFloatingPos({ top: pendingTop, left: pendingLeft })
-          restoreUserSelect()
+          unlockGlobalUserSelect()
         },
         onCancel: () => {
           if (raf != null) {
@@ -605,7 +642,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
             flush()
           }
           persistFloatingPos({ top: pendingTop, left: pendingLeft })
-          restoreUserSelect()
+          unlockGlobalUserSelect()
         },
       })
     },
@@ -642,8 +679,30 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       data-kg-canvas-wheel-ignore="true"
       className="fixed"
       style={{ zIndex: overlayZIndex }}
-      onPointerDownCapture={() => {
+      onPointerDownCapture={(ev) => {
         if (!active) return
+        if (ev.button === 0 && isSpacePanHeld()) {
+          const t = ev.target
+          const el = t instanceof Element ? t : null
+          if (!el?.closest('input,textarea,select,button,[contenteditable="true"]')) {
+            lockGlobalUserSelect()
+            const unlock = () => {
+              unlockGlobalUserSelect()
+              try {
+                window.removeEventListener('pointerup', unlock, true)
+                window.removeEventListener('pointercancel', unlock, true)
+              } catch {
+                void 0
+              }
+            }
+            try {
+              window.addEventListener('pointerup', unlock, true)
+              window.addEventListener('pointercancel', unlock, true)
+            } catch {
+              unlock()
+            }
+          }
+        }
         const id = String(node.id || '').trim()
         if (!id) return
         setSelectionSource('editor')

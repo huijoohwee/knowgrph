@@ -12,6 +12,7 @@ import {
   FLOW_WHEEL_ZOOM_SMOOTH_MIN_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT,
 } from '@/lib/canvas/flow-zoom-tuning'
+import { CANVAS_INTERACTION_SPEED_MULTIPLIER_DEFAULT, CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT } from '@/lib/canvas/camera-options-2d'
 import { CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT } from '@/lib/canvas/zoom-input'
 import type { SettingMeta } from './types'
 
@@ -139,6 +140,24 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setWheelZoomCtrlMetaBoostMultiplier(Number(v)),
     docKey: 'wheelZoomCtrlMetaBoostMultiplier',
     default: () => CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT,
+  },
+  {
+    key: 'canvasInteractionSpeedMultiplier',
+    type: 'number',
+    source: 'store',
+    read: () => s().canvasInteractionSpeedMultiplier,
+    write: (v) => s().setCanvasInteractionSpeedMultiplier(Number(v)),
+    docKey: 'canvasInteractionSpeedMultiplier',
+    default: () => CANVAS_INTERACTION_SPEED_MULTIPLIER_DEFAULT,
+  },
+  {
+    key: 'canvasPanSpeedMultiplier',
+    type: 'number',
+    source: 'store',
+    read: () => s().canvasPanSpeedMultiplier,
+    write: (v) => s().setCanvasPanSpeedMultiplier(Number(v)),
+    docKey: 'canvasPanSpeedMultiplier',
+    default: () => CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT,
   },
   {
     key: 'flowWheelZoomSpeedMultiplier',

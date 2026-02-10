@@ -125,6 +125,7 @@ export const useGraphStore = create<GraphState>()(
       selectedGroupIds: [],
       collapsedGroupIds: [],
       openQuickEditorNodeIds: [],
+      flowNodeQuickEditorAnchorOffsetByNodeId: {},
       graphFieldsOpOk: null,
       graphFieldsOpMsg: '',
       orchestratorOpOk: null,

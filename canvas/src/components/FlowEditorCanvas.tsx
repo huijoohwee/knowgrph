@@ -53,7 +53,7 @@ import { lsJson, lsSetJson } from '@/lib/persistence'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
-import { resolveOverlayPanelCollisions } from '@/lib/ui/overlayPanelCollision'
+import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOverlayPanels'
 import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 
 type ToolMode = 'select' | 'addEdge'
@@ -251,6 +251,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
   const updateOpenQuickEditorNodeIds = useGraphStore(s => s.updateOpenQuickEditorNodeIds)
   const setOpenQuickEditorNodeIds = useGraphStore(s => s.setOpenQuickEditorNodeIds)
+  const setFlowNodeQuickEditorAnchorOffsetByNodeId = useGraphStore(s => s.setFlowNodeQuickEditorAnchorOffsetByNodeId)
   const pinnedToNodeByIdRef = React.useRef<Map<string, boolean>>(new Map())
   const [anyEditorPinnedToNode, setAnyEditorPinnedToNode] = React.useState<boolean>(false)
 
@@ -380,8 +381,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   React.useEffect(() => {
     if (!active) return
-    if (!overlayOnlyModeEnabled) return
-    if (openQuickEditorNodeIds.length < 2) return
+    if (typeof document === 'undefined') return
+    if (typeof window === 'undefined') return
+
+    const overlayEls = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-node-quick-editor]'))
+    if (overlayEls.length < 2) return
 
     const schemaCur = schema
     const st = useGraphStore.getState()
@@ -398,22 +402,69 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       parsePosByNodeId,
     )
 
+    const overlayNodeIds = (() => {
+      const next: string[] = []
+      const seen = new Set<string>()
+      for (let i = 0; i < overlayEls.length; i += 1) {
+        const id = String(overlayEls[i]?.dataset?.kgNodeQuickEditor || '').trim()
+        if (!id || seen.has(id)) continue
+        seen.add(id)
+        next.push(id)
+      }
+      return next
+    })()
+    if (overlayNodeIds.length < 2) return
+    const forcePinnedToNode = !overlayOnlyModeEnabled && overlayNodeIds.length > 1
+
     const gap = 18
     const cellW = scaled.width + gap
     const cellH = Math.round(scaled.height * 0.72) + gap
     const cols = Math.max(1, Math.min(4, Math.floor(Math.max(1, viewportW - 40) / cellW)))
 
-    const items: Array<{ id: string; top: number; left: number; movable: boolean }> = []
-    let anyMissing = false
+    const rectByNodeId = (() => {
+      const canvasOffset = canvasWindowOffsetRef.current
+      const m = new Map<string, { left: number; top: number; width: number; height: number }>()
+      for (let i = 0; i < overlayEls.length; i += 1) {
+        const el = overlayEls[i]
+        const id = String(el.dataset.kgNodeQuickEditor || '').trim()
+        if (!id) continue
+        const rect = el.getBoundingClientRect()
+        const width = Number.isFinite(rect.width) ? rect.width : 0
+        const height = Number.isFinite(rect.height) ? rect.height : 0
+        const leftRaw = Number.isFinite(rect.left) ? rect.left : 0
+        const topRaw = Number.isFinite(rect.top) ? rect.top : 0
+        const left = leftRaw - (Number.isFinite(canvasOffset.left) ? canvasOffset.left : 0)
+        const top = topRaw - (Number.isFinite(canvasOffset.top) ? canvasOffset.top : 0)
+        if (width <= 0 || height <= 0) continue
+        m.set(id, { left, top, width, height })
+      }
+      return m
+    })()
+
+    const items: Array<{ id: string; top: number; left: number; movable: boolean; width?: number; height?: number; lockedToNode: boolean }> = []
     let stack = 0
-    for (let i = 0; i < openQuickEditorNodeIds.length; i += 1) {
-      const id = String(openQuickEditorNodeIds[i] || '').trim()
+    for (let i = 0; i < overlayNodeIds.length; i += 1) {
+      const id = String(overlayNodeIds[i] || '').trim()
       if (!id) continue
-      if (pinnedById[id] === true) continue
+      const lockedToNode = forcePinnedToNode || pinnedById[id] === true || pinnedToNodeByIdRef.current.get(id) === true
+      const rect = rectByNodeId.get(id) || null
+
+      if (lockedToNode) {
+        if (!rect) continue
+        items.push({
+          id,
+          top: rect.top,
+          left: rect.left,
+          movable: true,
+          width: rect.width,
+          height: rect.height,
+          lockedToNode: true,
+        })
+        continue
+      }
 
       const stored = posById[id]
       const hasStored = Boolean(stored && Number.isFinite(stored.top) && Number.isFinite(stored.left))
-      anyMissing = anyMissing || !hasStored
 
       const col = stack % cols
       const row = Math.floor(stack / cols)
@@ -422,32 +473,231 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const base = hasStored ? (stored as { top: number; left: number }) : fallback
       const clamped = clampOverlayTopLeftToViewport({
         pos: base,
-        size: scaled,
+        size: rect ? { width: rect.width, height: rect.height } : scaled,
         viewport: { width: viewportW, height: viewportH },
         visiblePx: 32,
         snapPx: 1,
       })
-      items.push({ id, top: clamped.top, left: clamped.left, movable: !hasStored })
+      items.push({
+        id,
+        top: clamped.top,
+        left: clamped.left,
+        movable: true,
+        width: rect?.width,
+        height: rect?.height,
+        lockedToNode: false,
+      })
     }
 
-    if (!anyMissing || items.length < 2) return
+    if (items.length < 2) return
 
-    const resolved = resolveOverlayPanelCollisions({
-      items,
-      panelSize: { width: scaled.width, height: scaled.height },
-      gapPx: 14,
-      strength: 0.9,
-      iterations: 10,
-    })
+    const lockedItems = items.filter(it => it.lockedToNode)
+    const floatingItems = items.filter(it => !it.lockedToNode)
+
+    const pickLockedId = (candidates: Array<{ id: string }>) => {
+      const sel = String(selectedNodeId || '').trim()
+      if (sel && candidates.some(it => it.id === sel)) return sel
+      return candidates[0]?.id || ''
+    }
+
+    const shouldResolveItems = (
+      candidates: Array<{ id: string; left: number; top: number; width?: number; height?: number }>,
+      gapPx: number,
+    ) => {
+      for (let i = 0; i < candidates.length; i += 1) {
+        const a = candidates[i]
+        if (!a) continue
+        const aw = a.width ?? scaled.width
+        const ah = a.height ?? scaled.height
+        for (let j = i + 1; j < candidates.length; j += 1) {
+          const b = candidates[j]
+          if (!b) continue
+          const bw = b.width ?? scaled.width
+          const bh = b.height ?? scaled.height
+          const ax2 = a.left + aw + gapPx
+          const ay2 = a.top + ah + gapPx
+          const bx2 = b.left + bw + gapPx
+          const by2 = b.top + bh + gapPx
+          const overlapX = a.left < bx2 && b.left < ax2
+          const overlapY = a.top < by2 && b.top < ay2
+          if (overlapX && overlapY) return true
+        }
+      }
+      return false
+    }
 
     const next = { ...posById }
-    for (let i = 0; i < resolved.length; i += 1) {
-      const r = resolved[i]
-      if (!r?.id) continue
-      next[r.id] = { top: r.top, left: r.left }
+    const prevAnchorOffsets = st.flowNodeQuickEditorAnchorOffsetByNodeId || {}
+    const nextAnchorOffsets: Record<string, { dx: number; dy: number }> = { ...prevAnchorOffsets }
+    const clampOffset = (v: number) => Math.max(-400, Math.min(400, v))
+
+    const applyLockedResolution = (resolvedLocked: Array<{ id: string; left: number; top: number }>) => {
+      const zSafe = typeof zoomK === 'number' && Number.isFinite(zoomK) && zoomK > 1e-6 ? zoomK : 1
+      for (let i = 0; i < resolvedLocked.length; i += 1) {
+        const r = resolvedLocked[i]
+        if (!r?.id) continue
+        const item = lockedItems.find(it => it.id === r.id) || null
+        if (!item) continue
+        const itemLeft = item.left / zSafe
+        const itemTop = item.top / zSafe
+        const dx = r.left - itemLeft
+        const dy = r.top - itemTop
+        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+          const prev = nextAnchorOffsets[r.id] || { dx: 0, dy: 0 }
+          nextAnchorOffsets[r.id] = { dx: clampOffset(prev.dx + dx), dy: clampOffset(prev.dy + dy) }
+        }
+      }
     }
 
-    lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, next)
+    const applyFloatingResolution = (resolvedFloating: Array<{ id: string; left: number; top: number }>) => {
+      for (let i = 0; i < resolvedFloating.length; i += 1) {
+        const r = resolvedFloating[i]
+        if (!r?.id) continue
+        const item = floatingItems.find(it => it.id === r.id) || null
+        if (!item) continue
+        const size = item.width && item.height ? { width: item.width, height: item.height } : scaled
+        const clamped = clampOverlayTopLeftToViewport({
+          pos: { top: r.top, left: r.left },
+          size,
+          viewport: { width: viewportW, height: viewportH },
+          visiblePx: 32,
+          snapPx: 1,
+        })
+        next[r.id] = { top: clamped.top, left: clamped.left }
+      }
+    }
+
+    if (lockedItems.length >= 2) {
+      const lockedId = pickLockedId(lockedItems)
+      for (let i = 0; i < lockedItems.length; i += 1) {
+        lockedItems[i].movable = lockedItems[i].id !== lockedId
+      }
+      const zSafe = typeof zoomK === 'number' && Number.isFinite(zoomK) && zoomK > 1e-6 ? zoomK : 1
+      const gapWorld = 14
+      const lockedWorld = lockedItems.map(it => ({
+        id: it.id,
+        left: it.left / zSafe,
+        top: it.top / zSafe,
+        width: (it.width ?? scaled.width) / zSafe,
+        height: (it.height ?? scaled.height) / zSafe,
+        movable: it.movable,
+      }))
+      if (shouldResolveItems(lockedWorld, gapWorld)) {
+        const resolvedLocked = schemaCur
+          ? relaxOverlayPanelsWithCollision({
+              schema: schemaCur,
+              items: lockedWorld,
+              gapPx: gapWorld,
+              strength: 0.9,
+              iterations: 10,
+              steps: 14,
+            })
+          : lockedWorld.map(r => ({ id: r.id, left: r.left, top: r.top }))
+        applyLockedResolution(resolvedLocked)
+      }
+    }
+
+    if (floatingItems.length >= 2) {
+      const floatingId = pickLockedId(floatingItems)
+      for (let i = 0; i < floatingItems.length; i += 1) {
+        floatingItems[i].movable = floatingItems[i].id !== floatingId
+      }
+      const gapPx = 14
+      if (shouldResolveItems(floatingItems, gapPx)) {
+        const resolvedFloating = schemaCur
+          ? relaxOverlayPanelsWithCollision({
+              schema: schemaCur,
+              items: floatingItems.map(it => ({
+                id: it.id,
+                left: it.left,
+                top: it.top,
+                width: it.width ?? scaled.width,
+                height: it.height ?? scaled.height,
+                movable: it.movable,
+              })),
+              gapPx,
+              strength: 0.9,
+              iterations: 10,
+              steps: 14,
+            })
+          : floatingItems.map(r => ({ id: r.id, left: r.left, top: r.top }))
+        applyFloatingResolution(resolvedFloating)
+
+        const shouldResolveAfterClamp = (() => {
+          return shouldResolveItems(
+            floatingItems
+              .map(it => {
+                const p = next[it.id]
+                if (!p) return null
+                return { id: it.id, left: p.left, top: p.top, width: it.width, height: it.height }
+              })
+              .filter(Boolean) as Array<{ id: string; left: number; top: number; width?: number; height?: number }>,
+            gapPx,
+          )
+        })()
+        if (shouldResolveAfterClamp) {
+          const pass2 = schemaCur
+            ? relaxOverlayPanelsWithCollision({
+                schema: schemaCur,
+                items: floatingItems.map(it => {
+                  const p = next[it.id]
+                  return {
+                    id: it.id,
+                    left: p?.left ?? it.left,
+                    top: p?.top ?? it.top,
+                    width: it.width ?? scaled.width,
+                    height: it.height ?? scaled.height,
+                    movable: it.id !== floatingId,
+                  }
+                }),
+                gapPx,
+                strength: 0.9,
+                iterations: 10,
+                steps: 12,
+              })
+            : floatingItems.map(r => ({ id: r.id, left: r.left, top: r.top }))
+          applyFloatingResolution(pass2)
+        }
+      }
+    }
+
+    const lockedIds = new Set<string>(lockedItems.map(it => it.id))
+    for (const id of Object.keys(nextAnchorOffsets)) {
+      if (!lockedIds.has(id)) delete nextAnchorOffsets[id]
+    }
+
+    let changed = false
+    for (const it of items) {
+      const prev = posById[it.id]
+      const cur = next[it.id]
+      if (it.lockedToNode) continue
+      if (!cur) continue
+      if (!prev) {
+        changed = true
+        break
+      }
+      if (Math.abs(prev.top - cur.top) > 0.5 || Math.abs(prev.left - cur.left) > 0.5) {
+        changed = true
+        break
+      }
+    }
+    const anchorKeysPrev = Object.keys(prevAnchorOffsets)
+    const anchorKeysNext = Object.keys(nextAnchorOffsets)
+    let anchorChanged = anchorKeysPrev.length !== anchorKeysNext.length
+    if (!anchorChanged) {
+      for (let i = 0; i < anchorKeysPrev.length; i += 1) {
+        const k = anchorKeysPrev[i]
+        const a = prevAnchorOffsets[k]
+        const b = nextAnchorOffsets[k]
+        if (!b || a.dx !== b.dx || a.dy !== b.dy) {
+          anchorChanged = true
+          break
+        }
+      }
+    }
+    if (!changed && !anchorChanged) return
+    if (changed) lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, next)
+    if (anchorChanged) setFlowNodeQuickEditorAnchorOffsetByNodeId(nextAnchorOffsets)
   }, [
     active,
     openQuickEditorNodeIds,
@@ -455,6 +705,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     parsePinnedByNodeId,
     parsePosByNodeId,
     schema,
+    setFlowNodeQuickEditorAnchorOffsetByNodeId,
+    liveInteractionTick,
+    selectedNodeId,
     viewportH,
     viewportW,
     zoomViewKey,

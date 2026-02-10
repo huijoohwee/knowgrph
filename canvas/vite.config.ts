@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
 import { unwrapUserProvidedText } from './src/lib/url'
+import { normalizePdfExtractedMarkdown } from './src/lib/pdf/normalizePdfExtractedMarkdown'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -357,10 +358,11 @@ async function convertPdfToMarkdown(opts: { url?: string; body?: Buffer; nameHin
           'PDF conversion failed. Ensure the Python parser environment is set up correctly (pip install pypdf).',
       }
     }
+    const normalizedMarkdown = normalizePdfExtractedMarkdown(markdown)
     pdfAssetCache.add({ token, assetsDir, tmpDir, createdAtMs: Date.now() })
     const name =
       (opts.nameHint && opts.nameHint.trim() ? opts.nameHint.trim() : opts.url ? derivePdfNameFromUrl(opts.url) : 'document.md') || 'document.md'
-    return { ok: true, markdown, name }
+    return { ok: true, markdown: normalizedMarkdown, name }
   } catch (error) {
     await cleanup()
     const msg =

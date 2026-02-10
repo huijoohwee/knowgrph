@@ -31,6 +31,7 @@
 
 - Detached overlays must avoid full overlap. Default placement should use a deterministic grid/stack derived from the open-list order.
 - Persist detached positions per node id so reopening multiple editors restores a stable layout.
+- When multiple detached overlays overlap, run a bounded collision pass that keeps the first overlay fixed and pushes others, using measured panel sizes and clamping back into the viewport.
 
 ## Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
 
@@ -42,6 +43,7 @@
 ## Performance Invariants
 
 - **Drag**: unpinned overlay drag must not trigger a render per raw pointermove; throttle state updates to animation frames.
+- **Drag**: overlay header drag must lock global user-select so text never gets selected while dragging.
 - **Pan/Zoom**: keep screen-space overlays in sync with the renderer transform during active panning (rAF-throttled zoom-state commits).
 - **Pan/Zoom**: if interval-gating is used, keep it bounded and avoid end-of-pan snap.
 - **Pan/Zoom**: avoid forced layout reads in hot paths; prefer `offsetX/offsetY`-based local coordinates for canvas pointer/wheel interactions and only fall back to `getBoundingClientRect()` when offsets are unavailable.
