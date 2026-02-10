@@ -83,6 +83,14 @@ export async function importWorkspaceLocalFiles(args: {
   fs: WorkspaceFs
   files: FileList | ReadonlyArray<File> | null
   parentPath?: WorkspacePath
+  onProgress?: (p: {
+    label?: string
+    current: number
+    total: number
+    name?: string
+    bytesCurrent?: number
+    bytesTotal?: number
+  }) => void
 }): Promise<WorkspaceImportResult> {
   const files = toFileArray(args.files)
   if (files.length === 0) return { createdPaths: [], sources: [], skipped: [], failed: [] }
@@ -92,14 +100,34 @@ export async function importWorkspaceLocalFiles(args: {
   const skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }> = []
   const failed: Array<{ name: string; error: string }> = []
 
-  for (const file of files) {
-    const name = String(file?.name || '').trim()
-    if (!name) {
+  const bytesTotal = files.reduce((sum, f) => sum + Math.max(0, Number(f?.size || 0)), 0)
+  let bytesCurrent = 0
+
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index]
+    const nameRaw = String(file?.name || '').trim()
+    const name = nameRaw || 'file'
+    try {
+      bytesCurrent += Math.max(0, Number(file?.size || 0))
+      args.onProgress?.({
+        label: isPdfFile(file) ? 'Converting PDF' : 'Importing',
+        current: index + 1,
+        total: files.length,
+        name,
+        bytesCurrent,
+        bytesTotal,
+      })
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+    } catch {
+      void 0
+    }
+
+    if (!nameRaw) {
       skipped.push({ name: '', reason: 'missing-name' })
       continue
     }
     if (!isSupportedWorkspaceImportFile(file)) {
-      skipped.push({ name, reason: 'unsupported' })
+      skipped.push({ name: nameRaw, reason: 'unsupported' })
       continue
     }
     try {
@@ -110,7 +138,7 @@ export async function importWorkspaceLocalFiles(args: {
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
     } catch (e) {
-      failed.push({ name, error: String((e as { message?: unknown })?.message ?? e) })
+      failed.push({ name: nameRaw, error: String((e as { message?: unknown })?.message ?? e) })
     }
   }
 
@@ -120,6 +148,14 @@ export async function importWorkspaceLocalFiles(args: {
 export async function importWorkspaceLocalFolder(args: {
   fs: WorkspaceFs
   files: FileList | ReadonlyArray<File> | null
+  onProgress?: (p: {
+    label?: string
+    current: number
+    total: number
+    name?: string
+    bytesCurrent?: number
+    bytesTotal?: number
+  }) => void
 }): Promise<WorkspaceImportResult> {
   const list = toFileArray(args.files)
   if (list.length === 0) return { createdPaths: [], sources: [], skipped: [], failed: [] }
@@ -138,14 +174,34 @@ export async function importWorkspaceLocalFolder(args: {
     return normalized
   }
 
-  for (const file of list) {
-    const name = String(file?.name || '').trim()
-    if (!name) {
+  const bytesTotal = list.reduce((sum, f) => sum + Math.max(0, Number(f?.size || 0)), 0)
+  let bytesCurrent = 0
+
+  for (let index = 0; index < list.length; index += 1) {
+    const file = list[index]
+    const nameRaw = String(file?.name || '').trim()
+    const name = nameRaw || 'file'
+    try {
+      bytesCurrent += Math.max(0, Number(file?.size || 0))
+      args.onProgress?.({
+        label: isPdfFile(file) ? 'Converting PDF' : 'Importing',
+        current: index + 1,
+        total: list.length,
+        name,
+        bytesCurrent,
+        bytesTotal,
+      })
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+    } catch {
+      void 0
+    }
+
+    if (!nameRaw) {
       skipped.push({ name: '', reason: 'missing-name' })
       continue
     }
     if (!isSupportedWorkspaceImportFile(file)) {
-      skipped.push({ name, reason: 'unsupported' })
+      skipped.push({ name: nameRaw, reason: 'unsupported' })
       continue
     }
     const rel = String((file as unknown as { webkitRelativePath?: unknown }).webkitRelativePath || '').trim()
@@ -170,7 +226,7 @@ export async function importWorkspaceLocalFolder(args: {
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
     } catch (e) {
-      failed.push({ name, error: String((e as { message?: unknown })?.message ?? e) })
+      failed.push({ name: nameRaw, error: String((e as { message?: unknown })?.message ?? e) })
     }
   }
 

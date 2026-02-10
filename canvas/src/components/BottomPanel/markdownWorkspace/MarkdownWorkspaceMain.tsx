@@ -11,7 +11,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography, type PanelTypography } from '@/lib/ui/panelTypography'
 import { MarkdownWorkspaceToolbar } from '../MarkdownWorkspaceToolbar'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import type { HighlightedLineRange, MarkdownPresentationApi } from './markdownWorkspaceTypes'
+import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 import { lexMarkdown, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
 import { splitMarkdownLines } from '@/lib/markdown'
@@ -28,7 +28,7 @@ export type MarkdownWorkspaceMainProps = {
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
 
-  statusLabel: string
+  statusLabel: MarkdownWorkspaceStatus
   onApply: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
@@ -93,6 +93,19 @@ const md = (() => {
     instance.use(sup)
   } catch {
     void 0
+  }
+
+  const originalImageRule = instance.renderer.rules.image
+  instance.renderer.rules.image = (tokens, idx, options, env, self) => {
+    const token = tokens[idx]
+    try {
+      token.attrSet('loading', 'lazy')
+      token.attrSet('decoding', 'async')
+    } catch {
+      void 0
+    }
+    if (originalImageRule) return originalImageRule(tokens, idx, options, env, self)
+    return self.renderToken(tokens, idx, options)
   }
   return instance
 })()
@@ -391,7 +404,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         markdownTextHighlight={markdownTextHighlight}
         setMarkdownTextHighlight={setMarkdownTextHighlight}
         onApply={onApply}
-        applyStatusLabel={statusLabel}
+        applyStatus={statusLabel}
         applyDisabled={!isEditing}
         onToggleFullscreen={onToggleFullscreen}
         presentationApiRef={presentationApiRef}

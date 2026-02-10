@@ -181,6 +181,19 @@ export const LS_KEYS = {
   graphTableSortRules: 'kg:ui:graphTable:sortRules',
   graphTableRowHeightPreset: 'kg:ui:graphTable:rowHeightPreset',
   graphTableColumnWidthsPx: 'kg:ui:graphTable:columnWidthsPx',
+
+  pdfImportIncludeImages: 'kg:import:pdf:includeImages',
+  pdfImportConversionMode: 'kg:import:pdf:conversionMode',
+  pdfImportEmbedImages: 'kg:import:pdf:embedImages',
+  pdfImportMaxExtractedImagesPerPage: 'kg:import:pdf:maxExtractedImagesPerPage',
+  pdfImportMaxEmbeddedImagesPerPage: 'kg:import:pdf:maxEmbeddedImagesPerPage',
+  pdfImportMaxEmbeddedTotalBytes: 'kg:import:pdf:maxEmbeddedTotalBytes',
+  pdfImportMaxEmbeddedAssetBytes: 'kg:import:pdf:maxEmbeddedAssetBytes',
+  pdfImportProvider: 'kg:import:pdf:provider',
+  pdfImportDoclingEndpoint: 'kg:import:pdf:doclingEndpoint',
+  pdfImportProviderFallbackToNative: 'kg:import:pdf:providerFallbackToNative',
+  pdfImportDeepseekOcr2Enabled: 'kg:import:pdf:deepseekOcr2:enabled',
+  pdfImportDeepseekOcr2Mode: 'kg:import:pdf:deepseekOcr2:mode',
 } as const;
 
 export const LS_KEY_VIEWPORT_LAST = LS_KEYS.viewportLast
@@ -247,7 +260,8 @@ export type LsKeyOwner =
   | 'schema.subsections'
   | 'schema.ui'
   | 'ui.chat'
-  | 'ui.workspace';
+  | 'ui.workspace'
+  | 'import.pdf';
 
 
 export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
@@ -402,6 +416,19 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   graphTableSortRules: 'ui.workspace',
   graphTableRowHeightPreset: 'ui.workspace',
   graphTableColumnWidthsPx: 'ui.workspace',
+
+  pdfImportIncludeImages: 'import.pdf',
+  pdfImportConversionMode: 'import.pdf',
+  pdfImportEmbedImages: 'import.pdf',
+  pdfImportMaxExtractedImagesPerPage: 'import.pdf',
+  pdfImportMaxEmbeddedImagesPerPage: 'import.pdf',
+  pdfImportMaxEmbeddedTotalBytes: 'import.pdf',
+  pdfImportMaxEmbeddedAssetBytes: 'import.pdf',
+  pdfImportProvider: 'import.pdf',
+  pdfImportDoclingEndpoint: 'import.pdf',
+  pdfImportProviderFallbackToNative: 'import.pdf',
+  pdfImportDeepseekOcr2Enabled: 'import.pdf',
+  pdfImportDeepseekOcr2Mode: 'import.pdf',
   mainPanelPinned: 'ui.mainPanel',
   mainPanelCollapsed: 'ui.mainPanel',
   mainPanelTop: 'ui.mainPanel',

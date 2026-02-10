@@ -7,7 +7,7 @@ import { extractPageImages } from './pdfImages'
 import type { PdfOcrEnhanceConfig } from './pdfOcrEnhance'
 import { maybeEnhancePageWithOcr } from './pdfOcrEnhance'
 import type { PdfDict, PdfRef } from './pdfObjects'
-import { deref, expandObjectStreams, getDictValue, isArray, isDict, isName, isNumber, isRef, parseIndirectObjects, readStream } from './pdfObjects'
+import { createPdfStreamDecodeCache, deref, expandObjectStreams, getDictValue, isArray, isDict, isName, isNumber, isRef, parseIndirectObjects, readStream } from './pdfObjects'
 
 export async function convertPdfFileToMarkdown(args: {
   pdfPath: string
@@ -18,10 +18,36 @@ export async function convertPdfFileToMarkdown(args: {
   maxExtractedImagesPerPage?: number
   maxEmbeddedImagesPerPage?: number
   ocrEnhance?: PdfOcrEnhanceConfig | null
+  streamDecodeCacheMaxBytes?: number
 }): Promise<{ markdown: string; assets: NativePdfAsset[] }> {
   const buf = await fs.readFile(args.pdfPath)
-  const objects = parseIndirectObjects(buf)
-  expandObjectStreams(objects)
+  return await convertPdfBytesToMarkdown({
+    pdfBytes: buf,
+    title: args.title,
+    assetUrlPrefix: args.assetUrlPrefix,
+    includeImages: args.includeImages,
+    maxPages: args.maxPages,
+    maxExtractedImagesPerPage: args.maxExtractedImagesPerPage,
+    maxEmbeddedImagesPerPage: args.maxEmbeddedImagesPerPage,
+    ocrEnhance: args.ocrEnhance,
+    streamDecodeCacheMaxBytes: args.streamDecodeCacheMaxBytes,
+  })
+}
+
+export async function convertPdfBytesToMarkdown(args: {
+  pdfBytes: Buffer
+  title: string
+  assetUrlPrefix?: string
+  includeImages?: boolean
+  maxPages?: number
+  maxExtractedImagesPerPage?: number
+  maxEmbeddedImagesPerPage?: number
+  ocrEnhance?: PdfOcrEnhanceConfig | null
+  streamDecodeCacheMaxBytes?: number
+}): Promise<{ markdown: string; assets: NativePdfAsset[] }> {
+  const objects = parseIndirectObjects(args.pdfBytes)
+  const streamDecodeCache = createPdfStreamDecodeCache(typeof args.streamDecodeCacheMaxBytes === 'number' ? args.streamDecodeCacheMaxBytes : 0)
+  expandObjectStreams(objects, streamDecodeCache)
 
   const catalogRef = (() => {
     for (const obj of objects.values()) {
@@ -78,9 +104,11 @@ export async function convertPdfFileToMarkdown(args: {
 
   const includeImages = !!args.includeImages
   const assetUrlPrefix = String(args.assetUrlPrefix || '').trim()
+  const shouldExtractImages = includeImages || !!args.ocrEnhance?.enabled
   const maxPages = typeof args.maxPages === 'number' && args.maxPages > 0 ? Math.floor(args.maxPages) : pages.length
   const maxExtractedImagesPerPage = typeof args.maxExtractedImagesPerPage === 'number' && args.maxExtractedImagesPerPage > 0 ? Math.floor(args.maxExtractedImagesPerPage) : 12
   const maxEmbeddedImagesPerPage = typeof args.maxEmbeddedImagesPerPage === 'number' && args.maxEmbeddedImagesPerPage >= 0 ? Math.floor(args.maxEmbeddedImagesPerPage) : 6
+  const maxNeededImagesPerPage = Math.min(maxExtractedImagesPerPage, Math.max(0, maxEmbeddedImagesPerPage))
   const usedPages = pages.slice(0, Math.max(0, Math.min(maxPages, pages.length)))
 
   const docLines: string[] = []
@@ -103,22 +131,25 @@ export async function convertPdfFileToMarkdown(args: {
     const contentBytes = (() => {
       const parts: Buffer[] = []
       for (const r of contentRefs) {
-        const st = readStream(objects, r)
+        const st = readStream(objects, r, streamDecodeCache)
         if (st.bytes) parts.push(st.bytes)
       }
       return parts.length > 0 ? Buffer.concat(parts) : Buffer.alloc(0)
     })()
 
-    const fragments = extractTextFragmentsFromPage({ objects, pageResources: p.resources, contentBytes, maxDepth: 5 })
+    const fragments = extractTextFragmentsFromPage({ objects, pageResources: p.resources, contentBytes, maxDepth: 5, streamDecodeCache })
 
-    const pageAssets = extractPageImages({
-      objects,
-      resources: p.resources,
-      contentBytes,
-      pageIndex: i,
-      limit: maxExtractedImagesPerPage,
-    })
-    allAssets.push(...pageAssets)
+    const pageAssets = shouldExtractImages
+      ? extractPageImages({
+          objects,
+          resources: p.resources,
+          contentBytes,
+          pageIndex: i,
+          limit: args.ocrEnhance?.enabled ? maxExtractedImagesPerPage : maxNeededImagesPerPage,
+          streamDecodeCache,
+        })
+      : []
+    if (pageAssets.length > 0) allAssets.push(...pageAssets)
 
     const ocrMarkdown = await maybeEnhancePageWithOcr({
       pageIndex: i,

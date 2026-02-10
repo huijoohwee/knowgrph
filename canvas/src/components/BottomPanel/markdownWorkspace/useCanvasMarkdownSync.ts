@@ -6,6 +6,7 @@ import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 
 const stripLineFragment = (raw: string) => {
   const text = String(raw || '').trim()
@@ -55,7 +56,7 @@ export function useCanvasMarkdownSync(args: {
   layoutMode: MarkdownWorkspaceLayoutMode
   setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
   revealLineInEditor: (line: number, endLine?: number) => void
-  setStatusLabel: (label: string) => void
+  setStatusLabel: (status: MarkdownWorkspaceStatus) => void
 }) {
   const {
     entries,
@@ -101,7 +102,7 @@ export function useCanvasMarkdownSync(args: {
     const docKey = normalizeDocumentPathKey(location.documentPath)
     const targetPath = findWorkspacePathForDocumentKey(entries, docKey)
     if (!targetPath) {
-      setStatusLabel(`Missing file: ${docKey}`)
+      setStatusLabel({ kind: 'error', label: `Missing file: ${docKey}` })
       setLastCanvasSyncSig(sig)
       return
     }

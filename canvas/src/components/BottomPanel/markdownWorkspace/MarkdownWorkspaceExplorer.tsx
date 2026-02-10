@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, ChevronRight, FileText, Folder, FolderPlus, GripVertical, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, FileText, Folder, FolderPlus, GripVertical, Loader2, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { MarkdownExplorerSection } from '../MarkdownExplorerSection'
@@ -10,6 +10,8 @@ import { buildTocTree, type TocItem } from '@/features/markdown/ui/markdownSecti
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
+import { formatMarkdownWorkspaceStatusLabel } from './markdownWorkspaceStatusUi'
 
 export type MarkdownWorkspaceExplorerProps = {
   uiPanelTextFontClass: string
@@ -50,7 +52,7 @@ export type MarkdownWorkspaceExplorerProps = {
   onCreateNewFolder: () => void
   onRefresh: () => void
 
-  statusLabel: string
+  statusLabel: MarkdownWorkspaceStatus
 
   activeEntryName: string
   activeEntryKind: 'file' | 'folder' | ''
@@ -383,9 +385,18 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
         <section className="min-w-0 flex-1 flex items-center gap-2" aria-label="Explorer title">
           <h2 className={`shrink-0 ${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Explorer</h2>
           {statusLabel ? (
-            <output className={`min-w-0 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary} truncate`} aria-label="Workspace status">
-              {statusLabel}
-            </output>
+            <span
+              className={`min-w-0 inline-flex items-center gap-1.5 h-6 rounded-full border px-2 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+              aria-label="Workspace status"
+            >
+              {statusLabel.kind === 'progress' ? <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={1.8} /> : null}
+              {statusLabel.kind === 'info' ? <Check className="w-3.5 h-3.5" strokeWidth={1.8} /> : null}
+              <span className="truncate">
+                {(() => {
+                  return formatMarkdownWorkspaceStatusLabel(statusLabel)
+                })()}
+              </span>
+            </span>
           ) : null}
         </section>
         <nav aria-label="Explorer actions">

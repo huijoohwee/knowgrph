@@ -34,20 +34,33 @@ function makeMinimalPdfWithText(text: string): Buffer {
 
 async function tryResolvePdfFixturePath(): Promise<string | null> {
   const env = String(process.env.KG_TEST_PDF_FIXTURE_PATH || '').trim()
-  const candidates = [
-    env,
-    path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'ORA_ Pre-seed deck.pdf'),
-    path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'sample.pdf'),
-  ].filter(Boolean)
-  for (const p of candidates) {
+  if (env) {
     try {
-      const st = await fs.stat(p)
-      if (st.isFile() && st.size > 0) return p
+      const st = await fs.stat(env)
+      if (st.isFile() && st.size > 0) return env
     } catch {
       void 0
     }
   }
-  return null
+  const dir = path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data')
+  try {
+    const entries = await fs.readdir(dir)
+    const pdfs = entries.filter(name => String(name || '').toLowerCase().endsWith('.pdf'))
+    let best: { path: string; size: number } | null = null
+    for (const name of pdfs) {
+      const p = path.join(dir, name)
+      try {
+        const st = await fs.stat(p)
+        if (!st.isFile() || st.size <= 0) continue
+        if (!best || st.size > best.size) best = { path: p, size: st.size }
+      } catch {
+        void 0
+      }
+    }
+    return best?.path || null
+  } catch {
+    return null
+  }
 }
 
 export async function testPdfNativeConversionExtractsBasicText() {
@@ -75,4 +88,3 @@ export async function testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixtur
   if (spacedRun.test(md)) throw new Error('expected no spaced-letter artifacts in normalized markdown')
   if (md.length < 200) throw new Error('expected non-trivial markdown output')
 }
-

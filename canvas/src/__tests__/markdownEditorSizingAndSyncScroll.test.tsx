@@ -28,7 +28,7 @@ export async function testMarkdownEditorTextareaHeightAlignsAndSyncScrollsInSpli
         setMarkdownWordWrap={() => {}}
         markdownTextHighlight={false}
         setMarkdownTextHighlight={() => {}}
-        statusLabel=""
+        statusLabel={null}
         onApply={() => {}}
         onToggleFullscreen={() => {}}
         presentationApiRef={presentationApiRef as never}

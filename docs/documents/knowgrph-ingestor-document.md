@@ -55,7 +55,7 @@
 |---------------------|--------------------------------------|----------------------------------------------|---------------------------------|
 | Markdown            | Block parsing → JSON-LD              | Markdown Parser                              | Structural + Semantic nodes     |
 | HTML                | HTML → Markdown → JSON-LD            | HTML Parser → Markdown Parser                | Structural nodes with media     |
-| PDF                 | PDF → Markdown → JSON-LD             | Server PDF Parser → Markdown Parser          | Extracted text + images         |
+| PDF                 | PDF → Markdown → JSON-LD             | Server PDF converter (provider-based) → Markdown Parser          | Extracted text + images (data URIs or same-origin cached assets)         |
 | JSON-LD             | Direct interpretation                | JSON-LD Parser                               | Nodes/edges from @graph         |
 | JSON                | Normalization → GraphData            | JSON Parser (rawToGraphData)                 | Nodes/edges from arrays         |
 | CSV                 | Tabular mapping → GraphData          | CSV Parser                                   | Row-based nodes/edges           |
@@ -234,13 +234,16 @@
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
 | Parser Registry      | Centralize format handling      | - [ ] Register all parsers; dispatch by capability; forbid scattered parser logic         |
 | Proxy Endpoint       | Enable CORS-free fetching       | - [ ] Use /__fetch_remote for cross-origin; forbid direct fetch failures                 |
-| Server Conversion    | Delegate PDF processing         | - [ ] POST to /__convert_pdf; handle server errors; forbid client-side PDF parsing       |
+| Server Conversion    | Delegate PDF processing         | - [ ] POST to /__convert_pdf; apply MainPanel Settings query overrides (including conversionMode preset); forbid client-side PDF parsing |
 
 **Integration Contracts**
 
 - **Import Actions**:
   - Must specify format parameter (markdown, html, pdf, jsonld, json, csv).
   - Return GraphData or error with descriptive message.
+- **PDF Conversion Overrides**:
+  - Client appends query params built from MainPanel → Settings (Import: PDF).
+  - Server applies explicit overrides first; `conversionMode` is a preset fallback.
 - **Media Properties**:
   - Canonical fields: `media_url`, `media_kind`, `image`, `video`, `iframe_url`, `media`.
   - Renderer inspects these fields in priority order.

@@ -20,6 +20,17 @@ export type ParsedIndirectObject = {
   rawEnd: number
 }
 
+export type PdfStreamDecodeCache = {
+  decodedByObj: Map<number, Buffer>
+  maxBytes: number
+  usedBytes: number
+}
+
+export function createPdfStreamDecodeCache(maxBytes: number): PdfStreamDecodeCache {
+  const max = Number.isFinite(maxBytes) && maxBytes > 0 ? Math.floor(maxBytes) : 0
+  return { decodedByObj: new Map<number, Buffer>(), maxBytes: max, usedBytes: 0 }
+}
+
 export function isRef(v: PdfValue | null | undefined): v is PdfRef {
   return !!v && typeof v === 'object' && 'obj' in v && 'gen' in v
 }
@@ -110,7 +121,7 @@ export function parseIndirectObjects(buf: Buffer): Map<number, ParsedIndirectObj
   return out
 }
 
-export function expandObjectStreams(objects: Map<number, ParsedIndirectObject>): void {
+export function expandObjectStreams(objects: Map<number, ParsedIndirectObject>, streamDecodeCache?: PdfStreamDecodeCache | null): void {
   const tryExpandOnce = () => {
     let added = 0
     for (const obj of objects.values()) {
@@ -124,7 +135,7 @@ export function expandObjectStreams(objects: Map<number, ParsedIndirectObject>):
       const n = Math.max(0, Math.min(5000, Math.floor(nVal.value)))
       const first = Math.max(0, Math.floor(firstVal.value))
       if (n <= 0 || first <= 0) continue
-      const decoded = readStream(objects, { obj: obj.obj, gen: obj.gen }).bytes
+      const decoded = readStream(objects, { obj: obj.obj, gen: obj.gen }, streamDecodeCache).bytes
       if (!decoded || decoded.length <= first) continue
       const header = decoded.slice(0, first).toString('latin1')
       const pairs: Array<{ obj: number; offset: number }> = []
@@ -185,10 +196,11 @@ export function parseNameToken(s: string, i: number): { name: string; next: numb
   let idx = i
   if (s[idx] !== '/') return { name: '', next: idx }
   idx += 1
+  const tokenDelims = '<>[]()/%'
   const start = idx
   while (idx < s.length) {
     const ch = s[idx]
-    if (/\s|[<>\[\]\(\)\/%]/.test(ch)) break
+    if (/\s/.test(ch) || tokenDelims.includes(ch)) break
     idx += 1
   }
   const raw = s.slice(start, idx)
@@ -200,7 +212,7 @@ export function parseNumberToken(s: string, i: number): { value: number; next: n
   const start = idx
   while (idx < s.length) {
     const ch = s[idx]
-    if (!/[0-9+\-\.]/.test(ch)) break
+    if (!/[0-9+.-]/.test(ch)) break
     idx += 1
   }
   const raw = s.slice(start, idx)
@@ -315,7 +327,7 @@ export function parseValue(s: string, i: number): { value: PdfValue; next: numbe
 
   const num = parseNumberToken(s, idx)
   if (Number.isFinite(num.value)) {
-    let j = skipWs(s, num.next)
+    const j = skipWs(s, num.next)
     const num2 = parseNumberToken(s, j)
     if (Number.isFinite(num2.value)) {
       const k = skipWs(s, num2.next)
@@ -327,7 +339,8 @@ export function parseValue(s: string, i: number): { value: PdfValue; next: numbe
   }
 
   let end = idx
-  while (end < s.length && !/\s|[<>\[\]\(\)\/%]/.test(s[end])) end += 1
+  const tokenDelims = '<>[]()/%'
+  while (end < s.length && !/\s/.test(s[end]) && !tokenDelims.includes(s[end])) end += 1
   const word = s.slice(idx, end)
   return { value: { kind: 'name', name: word }, next: end }
 }
@@ -346,7 +359,11 @@ export function deref(objects: Map<number, ParsedIndirectObject>, value: PdfValu
   return obj.dict || null
 }
 
-export function readStream(objects: Map<number, ParsedIndirectObject>, ref: PdfRef | null): { dict: PdfDict | null; bytes: Buffer | null } {
+export function readStream(
+  objects: Map<number, ParsedIndirectObject>,
+  ref: PdfRef | null,
+  cache?: PdfStreamDecodeCache | null,
+): { dict: PdfDict | null; bytes: Buffer | null } {
   if (!ref) return { dict: null, bytes: null }
   const obj = objects.get(ref.obj)
   if (!obj) return { dict: null, bytes: null }
@@ -362,8 +379,18 @@ export function readStream(objects: Map<number, ParsedIndirectObject>, ref: PdfR
   })()
   if (filters.length === 0) return { dict, bytes }
   if (filters[0] === 'FlateDecode') {
+    const cached = cache?.decodedByObj.get(ref.obj)
+    if (cached) return { dict, bytes: cached }
     try {
-      return { dict, bytes: zlib.inflateSync(bytes) }
+      const decoded = zlib.inflateSync(bytes)
+      if (cache && cache.maxBytes > 0) {
+        const size = decoded.length
+        if (size > 0 && cache.usedBytes + size <= cache.maxBytes) {
+          cache.decodedByObj.set(ref.obj, decoded)
+          cache.usedBytes += size
+        }
+      }
+      return { dict, bytes: decoded }
     } catch {
       return { dict, bytes }
     }

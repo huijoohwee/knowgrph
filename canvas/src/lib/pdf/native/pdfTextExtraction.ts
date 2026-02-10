@@ -1,6 +1,6 @@
 import type { TextFragment } from './types'
-import type { ParsedIndirectObject, PdfDict, PdfRef } from './pdfObjects'
-import { deref, getDictValue, isArray, isDict, isName, isRef, readStream } from './pdfObjects'
+import type { ParsedIndirectObject, PdfDict, PdfStreamDecodeCache } from './pdfObjects'
+import { deref, getDictValue, isDict, isName, readStream } from './pdfObjects'
 import { buildFontUnicodeMaps } from './pdfCmap'
 import { parseContentStreamText } from './pdfContentText'
 import { collectDoXObjectNames, resolveXObjectRef } from './pdfXObjects'
@@ -10,12 +10,13 @@ export function extractTextFragmentsFromPage(args: {
   pageResources: PdfDict | null
   contentBytes: Buffer
   maxDepth?: number
+  streamDecodeCache?: PdfStreamDecodeCache | null
 }): TextFragment[] {
   const maxDepth = typeof args.maxDepth === 'number' && args.maxDepth > 0 ? Math.floor(args.maxDepth) : 4
   const visited = new Set<number>()
 
   const extractFromStream = (contentBytes: Buffer, resources: PdfDict | null, depth: number): TextFragment[] => {
-    const fontMaps = buildFontUnicodeMaps(args.objects, resources)
+    const fontMaps = buildFontUnicodeMaps(args.objects, resources, args.streamDecodeCache)
     const fragments = parseContentStreamText(contentBytes, fontMaps)
     if (depth >= maxDepth) return fragments
     const names = collectDoXObjectNames(contentBytes)
@@ -33,7 +34,7 @@ export function extractTextFragmentsFromPage(args: {
         const dv = deref(args.objects, rv)
         return isDict(dv) ? dv : resources
       })()
-      const st = readStream(args.objects, ref)
+      const st = readStream(args.objects, ref, args.streamDecodeCache)
       if (!st.bytes) continue
       fragments.push(...extractFromStream(st.bytes, formResources, depth + 1))
     }

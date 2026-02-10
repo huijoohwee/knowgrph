@@ -1,5 +1,6 @@
 import { unwrapUserProvidedText } from '@/lib/url'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
+import { buildPdfConvertQueryParamsFromStore } from '@/lib/pdf/pdfImportClientPrefs'
 
 export type RemoteMarkdownConversionOk = { ok: true; name: string; markdown: string }
 export type RemoteMarkdownConversionErr = { ok: false; error: string }
@@ -31,7 +32,9 @@ export async function convertPdfUrlToMarkdown(rawUrl: string): Promise<RemoteMar
   const url = String(rawUrl || '').trim()
   if (!url) return null
   try {
-    const res = await fetch(`/__convert_pdf?url=${encodeURIComponent(url)}`, {
+    const qs = buildPdfConvertQueryParamsFromStore()
+    qs.set('url', url)
+    const res = await fetch(`/__convert_pdf?${qs.toString()}`, {
       method: 'POST',
       headers: { Accept: 'application/json' },
     })
@@ -68,7 +71,8 @@ export async function convertPdfUrlToMarkdown(rawUrl: string): Promise<RemoteMar
 export async function convertPdfFileToMarkdown(file: File): Promise<RemoteMarkdownConversionResult | null> {
   try {
     const buf = await file.arrayBuffer()
-    const res = await fetch('/__convert_pdf', {
+    const qs = buildPdfConvertQueryParamsFromStore()
+    const res = await fetch(`/__convert_pdf?${qs.toString()}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/pdf',

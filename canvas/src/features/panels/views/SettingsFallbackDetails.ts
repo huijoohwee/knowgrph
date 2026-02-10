@@ -94,6 +94,54 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'UI Density: Icons',
     responsibility: 'Enable toolbar launch/3D icon animation',
   },
+  pdfImportIncludeImages: {
+    area: 'Import: PDF',
+    responsibility: 'Include extracted PDF images in Markdown output',
+  },
+  pdfImportConversionMode: {
+    area: 'Import: PDF',
+    responsibility: 'Conversion mode preset (text-only, image-heavy, scan/OCR)',
+  },
+  pdfImportEmbedImages: {
+    area: 'Import: PDF',
+    responsibility: 'Embed eligible images as data: URIs (bounded)',
+  },
+  pdfImportMaxExtractedImagesPerPage: {
+    area: 'Import: PDF',
+    responsibility: 'Max images extracted per page (0 disables extraction)',
+  },
+  pdfImportMaxEmbeddedImagesPerPage: {
+    area: 'Import: PDF',
+    responsibility: 'Max images embedded/linked per page in Markdown',
+  },
+  pdfImportMaxEmbeddedTotalBytes: {
+    area: 'Import: PDF',
+    responsibility: 'Max total embedded image bytes per conversion',
+  },
+  pdfImportMaxEmbeddedAssetBytes: {
+    area: 'Import: PDF',
+    responsibility: 'Max bytes per embedded image asset',
+  },
+  pdfImportProvider: {
+    area: 'Import: PDF',
+    responsibility: 'PDF→Markdown provider (native local vs Docling remote)',
+  },
+  pdfImportDoclingEndpoint: {
+    area: 'Import: PDF',
+    responsibility: 'Docling HTTP endpoint (used when provider=docling-remote)',
+  },
+  pdfImportProviderFallbackToNative: {
+    area: 'Import: PDF',
+    responsibility: 'Fallback to native conversion when Docling fails',
+  },
+  pdfImportDeepseekOcr2Enabled: {
+    area: 'Import: PDF',
+    responsibility: 'Enable DeepSeek-OCR-2 enhancement for sparse text pages',
+  },
+  pdfImportDeepseekOcr2Mode: {
+    area: 'Import: PDF',
+    responsibility: 'DeepSeek-OCR-2 mode (fallback vs always)',
+  },
   themeMode: {
     area: 'UI Appearance',
     responsibility: 'Global color theme (Light, Dark, or System)',

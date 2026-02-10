@@ -22,6 +22,7 @@ import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsE
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
+import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 
 export function shouldForceDocumentSemanticModeForImport(nameForParse: string): boolean {
   const lower = String(nameForParse || '').trim().toLowerCase()
@@ -33,7 +34,7 @@ export function shouldForceDocumentSemanticModeForImport(nameForParse: string): 
 export function useWorkspaceFileActions(args: {
   getFs: () => Promise<WorkspaceFs>
   refresh: () => Promise<void>
-  setStatusLabel: (next: string) => void
+  setStatusLabel: (next: MarkdownWorkspaceStatus) => void
 
   openedPath: WorkspacePath | null
   selectionPath: WorkspacePath | null
@@ -71,6 +72,46 @@ export function useWorkspaceFileActions(args: {
   } = args
 
   const importJobRef = React.useRef(0)
+
+  const setStatusInfo = React.useCallback(
+    (label: string) => {
+      const msg = String(label || '').trim()
+      if (!msg) return
+      setStatusLabel({ kind: 'info', label: msg })
+    },
+    [setStatusLabel],
+  )
+
+  const setStatusError = React.useCallback(
+    (label: string) => {
+      const msg = String(label || '').trim()
+      if (!msg) return
+      setStatusLabel({ kind: 'error', label: msg })
+    },
+    [setStatusLabel],
+  )
+
+  const setStatusProgress = React.useCallback(
+    (
+      label: string,
+      current?: number | null,
+      total?: number | null,
+      bytesCurrent?: number | null,
+      bytesTotal?: number | null,
+    ) => {
+      const msg = String(label || '').trim()
+      if (!msg) return
+      setStatusLabel({
+        kind: 'progress',
+        label: msg,
+        current: typeof current === 'number' ? current : null,
+        total: typeof total === 'number' ? total : null,
+        bytesCurrent: typeof bytesCurrent === 'number' ? bytesCurrent : null,
+        bytesTotal: typeof bytesTotal === 'number' ? bytesTotal : null,
+      })
+    },
+    [setStatusLabel],
+  )
 
   const applyImportedTextToGraph = React.useCallback(
     async (args: { nameForParse: string; text: string }) => {
@@ -154,7 +195,7 @@ export function useWorkspaceFileActions(args: {
             await applyImportedTextToGraph({ nameForParse: docKey, text: content })
           }
         } catch (e) {
-          setStatusLabel(`Apply failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+          setStatusError(`Apply failed: ${String((e as { message?: unknown })?.message ?? e)}`)
         }
       }
     },
@@ -162,7 +203,7 @@ export function useWorkspaceFileActions(args: {
   )
 
   const createNewFile = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
-    setStatusLabel('Creating…')
+    setStatusProgress('Creating')
     try {
       const fs = await getFs()
       const parentPath = opts?.parentPath ? normalizeWorkspacePath(opts.parentPath) : WORKSPACE_ROOT_PATH
@@ -171,14 +212,14 @@ export function useWorkspaceFileActions(args: {
       await refresh()
       setActivePathSafe(path)
       setSelectionPathSafe(path)
-      setStatusLabel('Created')
+      setStatusInfo('Created')
     } catch (e) {
-      setStatusLabel(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
   }, [getFs, refresh, setActivePathSafe, setSelectionPathSafe, setStatusLabel])
 
   const createNewFolder = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
-    setStatusLabel('Creating…')
+    setStatusProgress('Creating')
     try {
       const fs = await getFs()
       const parentPath = opts?.parentPath ? normalizeWorkspacePath(opts.parentPath) : WORKSPACE_ROOT_PATH
@@ -186,9 +227,9 @@ export function useWorkspaceFileActions(args: {
       setExpandedPaths(prev => new Set(prev).add(path))
       await refresh()
       setSelectionPathSafe(path)
-      setStatusLabel('Created')
+      setStatusInfo('Created')
     } catch (e) {
-      setStatusLabel(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
   }, [getFs, refresh, setExpandedPaths, setSelectionPathSafe, setStatusLabel])
 
@@ -197,12 +238,20 @@ export function useWorkspaceFileActions(args: {
       const snapshot = files ? Array.from(files) : []
       if (snapshot.length === 0) return
       const jobId = (importJobRef.current += 1)
-      setStatusLabel('Importing…')
+      setStatusProgress('Importing', 0, snapshot.length)
       try {
         const fs = await getFs()
         await fs.ensureSeed()
         const res = await runWorkspaceFsChangedBatch(() =>
-          importWorkspaceLocalFiles({ fs, files: snapshot, parentPath: WORKSPACE_ROOT_PATH }),
+          importWorkspaceLocalFiles({
+            fs,
+            files: snapshot,
+            parentPath: WORKSPACE_ROOT_PATH,
+            onProgress: p => {
+              if (importJobRef.current !== jobId) return
+              setStatusProgress(p.label || 'Importing', p.current, p.total, p.bytesCurrent, p.bytesTotal)
+            },
+          }),
         )
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
@@ -218,10 +267,10 @@ export function useWorkspaceFileActions(args: {
           failed > 0 && firstFailure
             ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
             : ''
-        setStatusLabel(`Imported ${imported}${suffix}${failureSuffix}`)
+        setStatusInfo(`Imported ${imported}${suffix}${failureSuffix}`)
       } catch (e) {
         if (importJobRef.current !== jobId) return
-        setStatusLabel(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
     [focusAfterImport, getFs, refresh, setStatusLabel],
@@ -232,11 +281,20 @@ export function useWorkspaceFileActions(args: {
       const snapshot = files ? Array.from(files) : []
       if (snapshot.length === 0) return
       const jobId = (importJobRef.current += 1)
-      setStatusLabel('Importing folder…')
+      setStatusProgress('Importing folder', 0, snapshot.length)
       try {
         const fs = await getFs()
         await fs.ensureSeed()
-        const res = await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot }))
+        const res = await runWorkspaceFsChangedBatch(() =>
+          importWorkspaceLocalFolder({
+            fs,
+            files: snapshot,
+            onProgress: p => {
+              if (importJobRef.current !== jobId) return
+              setStatusProgress(p.label || 'Importing folder', p.current, p.total, p.bytesCurrent, p.bytesTotal)
+            },
+          }),
+        )
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
@@ -251,10 +309,10 @@ export function useWorkspaceFileActions(args: {
           failed > 0 && firstFailure
             ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
             : ''
-        setStatusLabel(`Imported ${imported}${suffix}${failureSuffix}`)
+        setStatusInfo(`Imported ${imported}${suffix}${failureSuffix}`)
       } catch (e) {
         if (importJobRef.current !== jobId) return
-        setStatusLabel(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
     [focusAfterImport, getFs, refresh, setStatusLabel],
@@ -265,7 +323,7 @@ export function useWorkspaceFileActions(args: {
       const url = String(urlRaw || '').trim()
       if (!url) return
       const jobId = (importJobRef.current += 1)
-      setStatusLabel('Importing URL…')
+      setStatusProgress('Importing URL')
       try {
         const fs = await getFs()
         await fs.ensureSeed()
@@ -277,14 +335,14 @@ export function useWorkspaceFileActions(args: {
             onProgress: p => {
               if (importJobRef.current !== jobId) return
               if (p.phase === 'listing') {
-                setStatusLabel(p.label ? `${p.label}…` : 'Listing…')
+                setStatusProgress(p.label ? String(p.label) : 'Listing')
                 return
               }
               if (p.total && p.total > 0) {
-                setStatusLabel(`${p.phase === 'fetching' ? 'Fetching' : 'Writing'} ${p.current}/${p.total}…`)
+                setStatusProgress(p.phase === 'fetching' ? 'Fetching' : 'Writing', p.current, p.total)
                 return
               }
-              setStatusLabel(`${p.phase === 'fetching' ? 'Fetching' : 'Writing'}…`)
+              setStatusProgress(p.phase === 'fetching' ? 'Fetching' : 'Writing')
             },
           }),
         )
@@ -295,10 +353,10 @@ export function useWorkspaceFileActions(args: {
         const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
         const sourceUrl = source && source.kind === 'url' ? source.url : null
         if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
-        setStatusLabel(res.createdPaths.length > 1 ? `Imported ${res.createdPaths.length}` : 'Imported URL')
+        setStatusInfo(res.createdPaths.length > 1 ? `Imported ${res.createdPaths.length}` : 'Imported URL')
       } catch (e) {
         if (importJobRef.current !== jobId) return
-        setStatusLabel(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
     [focusAfterImport, getFs, refresh, setStatusLabel],
@@ -310,10 +368,10 @@ export function useWorkspaceFileActions(args: {
       const index = loadWorkspaceSourceIndex()
       const src = index[normalized]
       if (!src || src.kind !== 'url' || !String(src.url || '').trim()) {
-        setStatusLabel('No URL source')
+        setStatusError('No URL source')
         return
       }
-      setStatusLabel('Refreshing…')
+      setStatusProgress('Refreshing')
       try {
         const fs = await getFs()
         const fetched = await fetchWorkspaceUrlContent(src.url)
@@ -329,9 +387,9 @@ export function useWorkspaceFileActions(args: {
             await applyImportedTextToGraph({ nameForParse: activeDocumentKey, text: fetched.text })
           }
         }
-        setStatusLabel('Refreshed')
+        setStatusInfo('Refreshed')
       } catch (e) {
-        setStatusLabel(`Refresh failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Refresh failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
     [activeDocumentKey, openedPath, applyImportedTextToGraph, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setMarkdownDocumentSourceUrl, setStatusLabel],
@@ -340,15 +398,15 @@ export function useWorkspaceFileActions(args: {
   const deleteEntry = React.useCallback(
     async (path: WorkspacePath) => {
       const normalized = normalizeWorkspacePath(path)
-      setStatusLabel('Deleting…')
+      setStatusProgress('Deleting')
       try {
         const fs = await getFs()
         await fs.deleteEntry(normalized)
         removeWorkspaceEntrySourcesForPrefix(normalized)
         await refresh()
-        setStatusLabel('Deleted')
+        setStatusInfo('Deleted')
       } catch (e) {
-        setStatusLabel(`Delete failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Delete failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
     [getFs, refresh, setStatusLabel],
@@ -357,7 +415,7 @@ export function useWorkspaceFileActions(args: {
   const clearFile = React.useCallback(
     async (path: WorkspacePath) => {
       const normalized = normalizeWorkspacePath(path)
-      setStatusLabel('Clearing…')
+      setStatusProgress('Clearing')
       try {
         const fs = await getFs()
         await fs.writeFileText(normalized, '')
@@ -367,9 +425,9 @@ export function useWorkspaceFileActions(args: {
           setActiveText('')
           if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, '')
         }
-        setStatusLabel('Cleared')
+        setStatusInfo('Cleared')
       } catch (e) {
-        setStatusLabel(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
     [activeDocumentKey, openedPath, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setStatusLabel],
@@ -380,7 +438,7 @@ export function useWorkspaceFileActions(args: {
       const normalized = normalizeWorkspacePath(folderPath)
       if (!normalized || normalized === WORKSPACE_ROOT_PATH) return
       const prefix = normalized.endsWith('/') ? normalized : `${normalized}/`
-      setStatusLabel('Clearing…')
+      setStatusProgress('Clearing')
       try {
         const fs = await getFs()
         const list = await fs.listEntries()
@@ -410,9 +468,9 @@ export function useWorkspaceFileActions(args: {
         if (targets.length > 0) {
           setEntries(prev => prev.map(e => (targetSet.has(e.path) ? { ...e, text: '', updatedAtMs: Date.now() } : e)))
         }
-        setStatusLabel(targets.length > 0 ? `Cleared ${targets.length} files` : 'Cleared')
+        setStatusInfo(targets.length > 0 ? `Cleared ${targets.length} files` : 'Cleared')
       } catch (e) {
-        setStatusLabel(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
     [activeDocumentKey, openedPath, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setStatusLabel],

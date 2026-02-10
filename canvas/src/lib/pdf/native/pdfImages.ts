@@ -1,7 +1,7 @@
 import zlib from 'node:zlib'
 import type { NativePdfAsset } from './types'
-import type { ParsedIndirectObject, PdfDict, PdfRef } from './pdfObjects'
-import { deref, getDictValue, isArray, isDict, isName, isNumber, isRef, readStream, sanitizeFilename } from './pdfObjects'
+import type { ParsedIndirectObject, PdfDict, PdfRef, PdfStreamDecodeCache, PdfValue } from './pdfObjects'
+import { deref, getDictValue, isArray, isDict, isName, isNumber, readStream, sanitizeFilename } from './pdfObjects'
 import { collectDoXObjectNames, listResourceXObjectRefs, resolveXObjectRef } from './pdfXObjects'
 
 function crc32(buf: Buffer): number {
@@ -84,18 +84,17 @@ function applyPngPredictor(args: { data: Buffer; width: number; height: number; 
   return out
 }
 
-function coerceColorSpaceToChannels(v: unknown): number {
-  if (v && typeof v === 'object' && 'kind' in (v as any) && (v as any).kind === 'name') {
-    const n = String((v as any).name || '')
+function coerceColorSpaceToChannels(v: PdfValue | null): number {
+  if (isName(v)) {
+    const n = v.name
     if (n === 'DeviceGray') return 1
     if (n === 'DeviceRGB') return 3
     if (n === 'DeviceCMYK') return 4
   }
-  if (v && typeof v === 'object' && 'kind' in (v as any) && (v as any).kind === 'array') {
-    const items = (v as any).items as unknown[]
-    const first = items && items[0]
-    if (first && typeof first === 'object' && 'kind' in (first as any) && (first as any).kind === 'name') {
-      const n = String((first as any).name || '')
+  if (isArray(v)) {
+    const first = v.items[0] || null
+    if (isName(first)) {
+      const n = first.name
       if (n === 'ICCBased') return 3
       if (n === 'Indexed') return 3
     }
@@ -108,6 +107,7 @@ function extractImageAsset(args: {
   ref: PdfRef
   pageIndex: number
   key: string
+  streamDecodeCache?: PdfStreamDecodeCache | null
 }): NativePdfAsset | null {
   const obj = args.objects.get(args.ref.obj)
   const dict = obj?.dict || null
@@ -138,7 +138,7 @@ function extractImageAsset(args: {
   }
 
   if (filter !== 'FlateDecode') return null
-  const st = readStream(args.objects, args.ref)
+  const st = readStream(args.objects, args.ref, args.streamDecodeCache)
   const decoded = st.bytes
   if (!decoded || decoded.length < 32) return null
 
@@ -206,9 +206,11 @@ export function extractPageImages(args: {
   contentBytes?: Buffer
   pageIndex: number
   limit?: number
+  streamDecodeCache?: PdfStreamDecodeCache | null
 }): NativePdfAsset[] {
-  const limit = typeof args.limit === 'number' && args.limit > 0 ? Math.floor(args.limit) : 12
+  const limit = typeof args.limit === 'number' && args.limit >= 0 ? Math.floor(args.limit) : 12
   const out: NativePdfAsset[] = []
+  if (limit === 0) return out
   if (!args.resources) return out
 
   const visited = new Set<number>()
@@ -236,7 +238,9 @@ export function extractPageImages(args: {
       if (!dict) continue
       const subtype = getDictValue(dict, 'Subtype')
       if (isName(subtype) && subtype.name === 'Image') {
-        pushAsset(extractImageAsset({ objects: args.objects, ref, pageIndex: args.pageIndex, key: name }))
+        pushAsset(
+          extractImageAsset({ objects: args.objects, ref, pageIndex: args.pageIndex, key: name, streamDecodeCache: args.streamDecodeCache }),
+        )
         continue
       }
       if (isName(subtype) && subtype.name === 'Form') {
@@ -245,7 +249,7 @@ export function extractPageImages(args: {
           const dv = deref(args.objects, rv)
           return isDict(dv) ? dv : resources
         })()
-        const st = readStream(args.objects, ref)
+        const st = readStream(args.objects, ref, args.streamDecodeCache)
         if (!st.bytes) continue
         walkDoNames(st.bytes, formResources, depth + 1)
       }
@@ -264,7 +268,15 @@ export function extractPageImages(args: {
       if (!dict) continue
       const subtype = getDictValue(dict, 'Subtype')
       if (isName(subtype) && subtype.name === 'Image') {
-        pushAsset(extractImageAsset({ objects: args.objects, ref, pageIndex: args.pageIndex, key: `xobj-${ref.obj}` }))
+        pushAsset(
+          extractImageAsset({
+            objects: args.objects,
+            ref,
+            pageIndex: args.pageIndex,
+            key: `xobj-${ref.obj}`,
+            streamDecodeCache: args.streamDecodeCache,
+          }),
+        )
       }
     }
   }

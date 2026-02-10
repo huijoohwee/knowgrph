@@ -22,6 +22,22 @@
 
 ---
 
+## Import Settings: PDF
+
+**Scope**: MainPanel → Settings → `Import: PDF`
+
+**Intent**: Let users tune PDF→Markdown conversion performance/fidelity without changing environment variables.
+
+**Keys**
+
+- `pdfImportIncludeImages`, `pdfImportEmbedImages`
+- `pdfImportMaxExtractedImagesPerPage`, `pdfImportMaxEmbeddedImagesPerPage`
+- `pdfImportMaxEmbeddedTotalBytes`, `pdfImportMaxEmbeddedAssetBytes`
+- `pdfImportProvider`, `pdfImportDoclingEndpoint`, `pdfImportProviderFallbackToNative`
+- `pdfImportDeepseekOcr2Enabled`, `pdfImportDeepseekOcr2Mode`
+
+---
+
 ## Settings UI Tooltip Semantics
 
 **Scope**: MainPanel → Settings → key/value rows (hover tooltips)

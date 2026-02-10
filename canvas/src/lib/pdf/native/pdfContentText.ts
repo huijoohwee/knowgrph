@@ -15,6 +15,15 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
 
   const pop = () => stack.pop()
 
+  type ContentArrayToken = { kind: 'array'; items: unknown[] }
+  const isContentArrayToken = (v: unknown): v is ContentArrayToken => {
+    if (!v || typeof v !== 'object') return false
+    if (!('kind' in v) || (v as { kind?: unknown }).kind !== 'array') return false
+    if (!('items' in v)) return false
+    return Array.isArray((v as { items?: unknown }).items)
+  }
+  const tokenDelims = '<>[]()/%'
+
   const readToken = (idx0: number): { tok: unknown; next: number } => {
     let idx = idx0
     while (idx < s.length) {
@@ -59,11 +68,11 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
     if (ch === '/') {
       idx += 1
       const start = idx
-      while (idx < s.length && !/\s|[<>\[\]\(\)\/%]/.test(s[idx])) idx += 1
+      while (idx < s.length && !/\s/.test(s[idx]) && !tokenDelims.includes(s[idx])) idx += 1
       return { tok: { kind: 'name', name: s.slice(start, idx) }, next: idx }
     }
     let end = idx
-    while (end < s.length && !/\s|[\[\]\(\)<>/%]/.test(s[end])) end += 1
+    while (end < s.length && !/\s/.test(s[end]) && !tokenDelims.includes(s[end])) end += 1
     const raw = s.slice(idx, end)
     const num = Number(raw)
     if (Number.isFinite(num) && /^[-+0-9.]+$/.test(raw)) return { tok: num, next: end }
@@ -158,8 +167,8 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
       }
       if (op === 'TJ') {
         const arr = pop()
-        if (arr && typeof arr === 'object' && (arr as any).kind === 'array') {
-          const items = (arr as any).items as unknown[]
+        if (isContentArrayToken(arr)) {
+          const items = arr.items
           const parts: Buffer[] = []
           for (const it of items) if (isPdfBytesToken(it)) parts.push(Buffer.from(it.bytes))
           if (parts.length > 0) emitBytes(Buffer.concat(parts))
@@ -191,4 +200,3 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
 
   return frags
 }
-

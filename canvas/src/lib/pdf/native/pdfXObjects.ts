@@ -1,11 +1,20 @@
 import type { ParsedIndirectObject, PdfDict, PdfRef } from './pdfObjects'
-import { deref, getDictValue, isArray, isDict, isRef } from './pdfObjects'
+import { deref, getDictValue, isDict, isRef } from './pdfObjects'
 
 export function collectDoXObjectNames(bytes: Buffer): string[] {
   const s = bytes.toString('latin1')
   const out: string[] = []
   const stack: unknown[] = []
   let idx = 0
+
+  type NameToken = { kind: 'name'; name: string }
+  const isNameToken = (v: unknown): v is NameToken => {
+    if (!v || typeof v !== 'object') return false
+    if (!('kind' in v) || (v as { kind?: unknown }).kind !== 'name') return false
+    return typeof (v as { name?: unknown }).name === 'string'
+  }
+  const tokenDelims = '<>[]()/%'
+
   const readToken = (idx0: number): { tok: unknown; next: number } => {
     let i = idx0
     while (i < s.length) {
@@ -49,11 +58,11 @@ export function collectDoXObjectNames(bytes: Buffer): string[] {
     if (ch === '/') {
       i += 1
       const start = i
-      while (i < s.length && !/\s|[<>\[\]\(\)\/%]/.test(s[i])) i += 1
+      while (i < s.length && !/\s/.test(s[i]) && !tokenDelims.includes(s[i])) i += 1
       return { tok: { kind: 'name', name: s.slice(start, i) }, next: i }
     }
     let end = i
-    while (end < s.length && !/\s|[\[\]\(\)<>\/%]/.test(s[end])) end += 1
+    while (end < s.length && !/\s/.test(s[end]) && !tokenDelims.includes(s[end])) end += 1
     return { tok: s.slice(i, end), next: end }
   }
 
@@ -65,7 +74,7 @@ export function collectDoXObjectNames(bytes: Buffer): string[] {
     if (typeof tok === 'string') {
       if (tok === 'Do') {
         const n = stack.pop()
-        if (n && typeof n === 'object' && (n as any).kind === 'name') out.push(String((n as any).name || ''))
+        if (isNameToken(n)) out.push(n.name)
         stack.length = 0
         continue
       }
@@ -118,4 +127,3 @@ export function listResourceXObjectRefs(objects: Map<number, ParsedIndirectObjec
   for (const v of Object.values(xobjDict.map)) if (isRef(v)) refs.push(v)
   return refs
 }
-

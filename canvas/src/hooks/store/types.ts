@@ -39,6 +39,12 @@ export type SchemaBySemanticMode = Record<DocumentSemanticMode, GraphSchema>
 
 export type WorkspaceViewMode = 'canvas' | 'editor' | 'table'
 
+export type PdfImportProvider = 'native' | 'docling-remote'
+
+export type PdfImportConversionMode = 'text-only' | 'image-heavy' | 'scan-ocr'
+
+export type PdfImportDeepseekOcr2Mode = 'fallback' | 'always'
+
 export type EditorWorkspaceSection = 'markdown' | 'graphTable'
 
 export type DocumentStructureBaselineSnapshot = {
@@ -318,6 +324,19 @@ export interface GraphState {
   chatModel: string | null;
   chatTemperature: number;
   chatSystemPrompt: string | null;
+
+  pdfImportIncludeImages: boolean;
+  pdfImportConversionMode: PdfImportConversionMode;
+  pdfImportEmbedImages: boolean;
+  pdfImportMaxExtractedImagesPerPage: number;
+  pdfImportMaxEmbeddedImagesPerPage: number;
+  pdfImportMaxEmbeddedTotalBytes: number;
+  pdfImportMaxEmbeddedAssetBytes: number;
+  pdfImportProvider: PdfImportProvider;
+  pdfImportDoclingEndpoint: string | null;
+  pdfImportProviderFallbackToNative: boolean;
+  pdfImportDeepseekOcr2Enabled: boolean;
+  pdfImportDeepseekOcr2Mode: PdfImportDeepseekOcr2Mode;
   bottomPanelHeightRatio: number;
   bottomPanelCollapsed: boolean;
   floatingPanelWidthRatio: number;
@@ -391,6 +410,19 @@ export interface GraphState {
   setChatModel: (model: string | null) => void;
   setChatTemperature: (v: number) => void;
   setChatSystemPrompt: (v: string | null) => void;
+
+  setPdfImportIncludeImages: (v: boolean) => void;
+  setPdfImportConversionMode: (mode: PdfImportConversionMode) => void;
+  setPdfImportEmbedImages: (v: boolean) => void;
+  setPdfImportMaxExtractedImagesPerPage: (v: number) => void;
+  setPdfImportMaxEmbeddedImagesPerPage: (v: number) => void;
+  setPdfImportMaxEmbeddedTotalBytes: (v: number) => void;
+  setPdfImportMaxEmbeddedAssetBytes: (v: number) => void;
+  setPdfImportProvider: (v: PdfImportProvider) => void;
+  setPdfImportDoclingEndpoint: (v: string | null) => void;
+  setPdfImportProviderFallbackToNative: (v: boolean) => void;
+  setPdfImportDeepseekOcr2Enabled: (v: boolean) => void;
+  setPdfImportDeepseekOcr2Mode: (v: PdfImportDeepseekOcr2Mode) => void;
   setBottomPanelHeightRatio: (v: number) => void;
   setBottomPanelCollapsed: (v: boolean) => void;
   setFloatingPanelWidthRatio: (v: number) => void;

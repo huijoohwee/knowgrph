@@ -1,5 +1,5 @@
-import type { ParsedIndirectObject, PdfDict } from './pdfObjects'
-import { deref, getDictValue, isArray, isDict, isName, isRef, readStream } from './pdfObjects'
+import type { ParsedIndirectObject, PdfDict, PdfStreamDecodeCache } from './pdfObjects'
+import { deref, getDictValue, isDict, isRef, readStream } from './pdfObjects'
 
 export function parseToUnicodeCMap(bytes: Buffer): Map<string, string> {
   const s = bytes.toString('latin1')
@@ -57,7 +57,11 @@ export function parseToUnicodeCMap(bytes: Buffer): Map<string, string> {
   return map
 }
 
-export function buildFontUnicodeMaps(objects: Map<number, ParsedIndirectObject>, resources: PdfDict | null): Record<string, Map<string, string>> {
+export function buildFontUnicodeMaps(
+  objects: Map<number, ParsedIndirectObject>,
+  resources: PdfDict | null,
+  streamDecodeCache?: PdfStreamDecodeCache | null,
+): Record<string, Map<string, string>> {
   const out: Record<string, Map<string, string>> = {}
   if (!resources) return out
   const fontVal = getDictValue(resources, 'Font')
@@ -75,7 +79,7 @@ export function buildFontUnicodeMaps(objects: Map<number, ParsedIndirectObject>,
     const toUnicodeVal = getDictValue(dict, 'ToUnicode')
     const toUnicodeRef = isRef(toUnicodeVal) ? toUnicodeVal : null
     if (!toUnicodeRef) continue
-    const st = readStream(objects, toUnicodeRef)
+    const st = readStream(objects, toUnicodeRef, streamDecodeCache)
     if (!st.bytes) continue
     try {
       out[fontKey] = parseToUnicodeCMap(st.bytes)
@@ -127,9 +131,13 @@ export function decodePdfTextBytes(bytes: Buffer, cmap: Map<string, string> | nu
 }
 
 export function isPdfBytesToken(tok: unknown): tok is { kind: 'bytes'; bytes: Buffer } {
-  return !!tok && typeof tok === 'object' && 'kind' in (tok as any) && (tok as any).kind === 'bytes'
+  if (!tok || typeof tok !== 'object') return false
+  if (!('kind' in tok) || (tok as { kind?: unknown }).kind !== 'bytes') return false
+  return Buffer.isBuffer((tok as { bytes?: unknown }).bytes)
 }
 
 export function isPdfNameToken(tok: unknown): tok is { kind: 'name'; name: string } {
-  return !!tok && typeof tok === 'object' && 'kind' in (tok as any) && (tok as any).kind === 'name'
+  if (!tok || typeof tok !== 'object') return false
+  if (!('kind' in tok) || (tok as { kind?: unknown }).kind !== 'name') return false
+  return typeof (tok as { name?: unknown }).name === 'string'
 }

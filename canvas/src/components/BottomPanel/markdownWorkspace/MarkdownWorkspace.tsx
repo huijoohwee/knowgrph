@@ -12,7 +12,7 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
 import { parseMarkdownWorkspaceLayoutMode, type MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import type { HighlightedLineRange, MarkdownPresentationApi } from './markdownWorkspaceTypes'
+import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
 import { extractFencedCodeBlocks } from '@/lib/markdown/extractFencedCodeBlocks'
@@ -92,7 +92,7 @@ export function MarkdownWorkspace() {
   const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>(() =>
     lsJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, 'viewer', parseMarkdownWorkspaceLayoutMode),
   )
-  const [statusLabel, setStatusLabel] = React.useState<string>('')
+  const [statusLabel, setStatusLabel] = React.useState<MarkdownWorkspaceStatus>(null)
   const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(() => {
     const arr = lsJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, [] as string[], parseStringArray)
     return new Set((arr || []).map(p => normalizeWorkspacePath(p)))
@@ -122,6 +122,24 @@ export function MarkdownWorkspace() {
   const [activeText, setActiveText] = React.useState('')
   const activeTextRef = React.useRef('')
   activeTextRef.current = activeText
+
+  const setStatusInfo = React.useCallback((label: string) => {
+    const msg = String(label || '').trim()
+    if (!msg) return
+    setStatusLabel({ kind: 'info', label: msg })
+  }, [])
+
+  const setStatusError = React.useCallback((label: string) => {
+    const msg = String(label || '').trim()
+    if (!msg) return
+    setStatusLabel({ kind: 'error', label: msg })
+  }, [])
+
+  const setStatusProgress = React.useCallback((label: string, current?: number | null, total?: number | null) => {
+    const msg = String(label || '').trim()
+    if (!msg) return
+    setStatusLabel({ kind: 'progress', label: msg, current: typeof current === 'number' ? current : null, total: typeof total === 'number' ? total : null })
+  }, [])
   const userEditedActiveTextRef = React.useRef(false)
   const setActiveTextProgrammatic = React.useCallback((next: string) => {
     userEditedActiveTextRef.current = false
@@ -243,7 +261,7 @@ export function MarkdownWorkspace() {
   }, [])
 
   const refresh = React.useCallback(async () => {
-    setStatusLabel('Refreshing…')
+    setStatusProgress('Refreshing')
     setLoading(true)
     setLoadError('')
     try {
@@ -260,20 +278,20 @@ export function MarkdownWorkspace() {
       setEntries(pruned)
       setSourcesByPath(loadWorkspaceSourceIndex())
       setLoading(false)
-      setStatusLabel('Ready')
+      setStatusInfo('Ready')
     } catch (e) {
       setLoading(false)
       setLoadError(String((e as { message?: unknown })?.message ?? e))
-      setStatusLabel('Refresh failed')
+      setStatusError('Refresh failed')
     }
-  }, [getFs])
+  }, [getFs, setStatusError, setStatusInfo, setStatusProgress])
 
   const statusClearRef = React.useRef<number | null>(null)
   const setStatusWithAutoClear = React.useCallback((label: string, ttlMs: number = 1400) => {
-    setStatusLabel(label)
+    setStatusInfo(label)
     if (statusClearRef.current != null) window.clearTimeout(statusClearRef.current)
-    statusClearRef.current = window.setTimeout(() => setStatusLabel(''), ttlMs)
-  }, [])
+    statusClearRef.current = window.setTimeout(() => setStatusLabel(null), ttlMs)
+  }, [setStatusInfo])
 
   React.useEffect(() => {
     onCopyNodeQuickEditorRef.current = () => {
@@ -585,7 +603,7 @@ export function MarkdownWorkspace() {
     if (activePathRef.current !== path) return
     setActiveTextProgrammatic('')
     setHighlightedLineRange(null)
-    setStatusLabel('')
+    setStatusLabel(null)
   }, [activeEntry, activePath, setMarkdownDocument, setMarkdownDocumentSourceUrl])
 
   React.useEffect(() => {
@@ -623,7 +641,7 @@ export function MarkdownWorkspace() {
     void (async () => {
       let loadingLabelTimer: number | null = null
       try {
-        loadingLabelTimer = window.setTimeout(() => setStatusLabel('Loading…'), 140)
+        loadingLabelTimer = window.setTimeout(() => setStatusProgress('Loading'), 140)
       } catch {
         void 0
       }
@@ -633,7 +651,7 @@ export function MarkdownWorkspace() {
         if (cancelled) return
         if (activePathRef.current !== scheduledFor) return
         if (text == null) {
-          setStatusLabel('Load failed: Missing file contents')
+          setStatusError('Load failed: Missing file contents')
           return
         }
         const next = String(text)
@@ -672,7 +690,7 @@ export function MarkdownWorkspace() {
       } catch (e) {
         if (cancelled) return
         if (activePathRef.current !== scheduledFor) return
-        setStatusLabel(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       } finally {
         if (loadingLabelTimer != null) window.clearTimeout(loadingLabelTimer)
       }
@@ -705,7 +723,7 @@ export function MarkdownWorkspace() {
     if (!shouldAutosaveWorkspaceFile({ path, lastLoaded: last, activeText, debouncedText })) return
     void (async () => {
       try {
-        setStatusLabel('Saving…')
+        setStatusProgress('Saving')
         const fs = await getFs()
         await fs.writeFileText(path, debouncedText)
         lastLoadedRef.current = { path, text: debouncedText }
@@ -744,7 +762,7 @@ export function MarkdownWorkspace() {
         }
         setStatusWithAutoClear('Saved')
       } catch (e) {
-        setStatusLabel(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        setStatusError(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     })()
   }, [
@@ -757,7 +775,7 @@ export function MarkdownWorkspace() {
     setGraphRagWorkflowJsonText,
     setMarkdownDocument,
     setStatusWithAutoClear,
-    setStatusLabel,
+    setStatusError,
     setEntries,
   ])
 
@@ -1000,10 +1018,10 @@ export function MarkdownWorkspace() {
   const handleApply = React.useCallback(async () => {
     const name = String(activeDocumentKey || '').trim()
     if (!name) {
-      setStatusLabel('No file selected')
+      setStatusError('No file selected')
       return
     }
-    setStatusLabel('Applying…')
+    setStatusProgress('Applying')
     try {
       const ok = await applyMarkdownDocumentToGraph(name, activeText)
       const blocks = (() => {
@@ -1028,11 +1046,11 @@ export function MarkdownWorkspace() {
           ),
         )
       }
-      setStatusLabel(ok ? 'Applied' : 'Skipped')
+      setStatusInfo(ok ? 'Applied' : 'Skipped')
     } catch (e) {
-      setStatusLabel(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [activeDocumentKey, activeText, applyMarkdownDocumentToGraph, geoDatasetIntegration])
+  }, [activeDocumentKey, activeText, applyMarkdownDocumentToGraph, geoDatasetIntegration, setStatusError, setStatusInfo, setStatusProgress])
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {

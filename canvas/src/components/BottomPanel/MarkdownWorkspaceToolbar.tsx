@@ -16,6 +16,7 @@ import {
   Link,
   List,
   ListOrdered,
+  Loader2,
   Maximize2,
   Quote,
   Strikethrough,
@@ -27,6 +28,8 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import { SOURCE_FILES_COPY, SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import type { MarkdownPresentationApi } from './markdownWorkspace/markdownWorkspaceTypes'
+import type { MarkdownWorkspaceStatus } from './markdownWorkspace/markdownWorkspaceTypes'
+import { formatMarkdownWorkspaceStatusLabel } from './markdownWorkspace/markdownWorkspaceStatusUi'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 export type MarkdownWorkspaceToolbarProps = {
@@ -37,7 +40,7 @@ export type MarkdownWorkspaceToolbarProps = {
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
   onApply: () => void
-  applyStatusLabel?: string
+  applyStatus?: MarkdownWorkspaceStatus
   applyDisabled?: boolean
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
@@ -68,7 +71,7 @@ export function MarkdownWorkspaceToolbar({
   markdownTextHighlight,
   setMarkdownTextHighlight,
   onApply,
-  applyStatusLabel,
+  applyStatus,
   applyDisabled,
   onToggleFullscreen,
   presentationApiRef,
@@ -93,6 +96,26 @@ export function MarkdownWorkspaceToolbar({
   const urlInputRef = React.useRef<HTMLInputElement | null>(null)
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
+
+  const statusNode = React.useMemo(() => {
+    if (!applyStatus) return null
+    const text = formatMarkdownWorkspaceStatusLabel(applyStatus)
+    if (!text) return null
+    const baseClass = `inline-flex items-center gap-1.5 h-6 rounded-full border px-2 ${panelTypography.microLabelClass}`
+    const toneClass =
+      applyStatus.kind === 'error'
+        ? `border-red-200 bg-red-50 text-red-700`
+        : applyStatus.kind === 'progress'
+          ? `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`
+          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`
+    return (
+      <span className={`${baseClass} ${toneClass}`} aria-label="Workspace status">
+        {applyStatus.kind === 'progress' ? <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={1.8} /> : null}
+        {applyStatus.kind === 'info' ? <Check className="w-3.5 h-3.5" strokeWidth={1.8} /> : null}
+        <span className="truncate max-w-[14rem]">{text}</span>
+      </span>
+    )
+  }, [applyStatus, panelTypography.microLabelClass])
 
   React.useEffect(() => {
     if (!urlInputOpen) return
@@ -131,11 +154,7 @@ export function MarkdownWorkspaceToolbar({
     >
       <span className="min-w-0">
         <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Markdown</span>
-        {applyStatusLabel ? (
-          <output className={`ml-2 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label="Apply status">
-            {applyStatusLabel}
-          </output>
-        ) : null}
+        {statusNode ? <span className="ml-2 inline-flex min-w-0">{statusNode}</span> : null}
       </span>
       <nav className="flex items-center gap-1 flex-wrap justify-end" aria-label="Markdown view controls">
         <input
