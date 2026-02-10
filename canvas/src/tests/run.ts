@@ -215,6 +215,10 @@ import {
   testPdfAssetEmbeddingRewritesLinksToDataUris,
   testPdfAssetEmbeddingRespectsSizeCaps,
 } from '@/__tests__/pdfAssetEmbed.test'
+import {
+  testPdfWorkspaceAnchorMapBuildsStablePageAnchors,
+  testPdfWorkspaceAnchorResolutionFallsBackToNearestParent,
+} from '@/__tests__/pdfWorkspaceAnchors.test'
 import { testGraphCanvasDisplayFilterFallback } from '@/__tests__/graphCanvasDisplayFilterFallback.test'
 import { testGraphDataForDisplayFiltersNodesAndEdgesTogether } from '@/__tests__/graphDataForDisplay.test'
 import { testDocumentStructureBaselineLockGuardsModeSwitches } from '@/__tests__/baselineLockGuardsModeSwitch.test'
@@ -569,6 +573,8 @@ export const runAllTests = async () => {
   await exec('pdf.markdown.embedsSingleImageWithoutGalleryHeader', testPdfMarkdownEmbedsSingleImageWithoutGalleryHeader)
   await exec('pdf.assets.embed.rewritesLinksToDataUris', testPdfAssetEmbeddingRewritesLinksToDataUris)
   await exec('pdf.assets.embed.respectsSizeCaps', testPdfAssetEmbeddingRespectsSizeCaps)
+  await exec('pdf.workspace.anchors.buildsStablePageAnchors', testPdfWorkspaceAnchorMapBuildsStablePageAnchors)
+  await exec('pdf.workspace.anchors.fallsBackToNearestParent', testPdfWorkspaceAnchorResolutionFallsBackToNearestParent)
 
   // Remaining tests
   await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)

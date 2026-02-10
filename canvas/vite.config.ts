@@ -12,6 +12,7 @@ import fs from 'node:fs/promises'
 import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
 import { unwrapUserProvidedText } from './src/lib/url'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
+import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -225,6 +226,16 @@ const pdfConvertDevPlugin = {
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use('/__convert_pdf', createPdfConvertHandler())
     server.middlewares.use('/__pdf_assets', createPdfAssetsHandler())
+  },
+}
+
+const pdfWorkspaceDevPlugin = {
+  name: 'knowgrph-pdf-workspace-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use(createPdfWorkspaceHandler({ repoRoot }))
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use(createPdfWorkspaceHandler({ repoRoot }))
   },
 }
 
@@ -744,6 +755,7 @@ export default defineConfig(({ command }) => ({
           remoteFetchProxyDevPlugin,
           localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,
+          pdfWorkspaceDevPlugin,
           youtubeConvertDevPlugin,
         ]),
     tsconfigPaths(),

@@ -8,6 +8,7 @@ import { subscribeToSystemThemeChanges } from '@/lib/ui/theme'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 const Canvas = lazy(() => import('@/pages/Canvas'))
+const PdfDocumentViewer = lazy(() => import('@/pages/PdfDocumentViewer'))
 
 export default function App() {
   useEffect(() => {
@@ -30,6 +31,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Canvas />} />
             <Route path="/canvas" element={<Navigate to="/" replace />} />
+            <Route path="/workspace" element={<Navigate to="/?openMainPanel=workflow" replace />} />
+            <Route path="/import" element={<Navigate to="/?openMainPanel=workflow" replace />} />
+            <Route path="/doc/:docId" element={<PdfDocumentViewer />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

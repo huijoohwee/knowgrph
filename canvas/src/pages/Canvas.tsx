@@ -2,6 +2,7 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useLocation } from 'react-router-dom'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
@@ -131,6 +132,7 @@ function MarkdownMetricsDevOverlay() {
 
 export default function CanvasPage() {
   const location = useLocation()
+  const openedMainPanelFromQueryRef = React.useRef(false)
   const lastInboundPreviewSelectionKeyRef = React.useRef<string>('')
   const lastInboundPreviewGraphHashRef = React.useRef<string>('')
   const lastInboundPreviewSchemaHashRef = React.useRef<string>('')
@@ -156,6 +158,29 @@ export default function CanvasPage() {
   React.useEffect(() => {
     isEmbeddedPreviewRef.current = isEmbeddedPreview
   }, [isEmbeddedPreview])
+
+  React.useEffect(() => {
+    if (openedMainPanelFromQueryRef.current) return
+    const raw = String(location.search || '')
+    if (!raw) return
+    const params = new URLSearchParams(raw)
+    const tab = String(params.get('openMainPanel') || '').trim()
+    if (!tab) return
+    openedMainPanelFromQueryRef.current = true
+    try {
+      window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab } }))
+    } catch {
+      void 0
+    }
+    try {
+      params.delete('openMainPanel')
+      const next = params.toString()
+      const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash || ''}`
+      window.history.replaceState(null, '', nextUrl)
+    } catch {
+      void 0
+    }
+  }, [location.search])
 
   const {
     uiOverlayOpacity,

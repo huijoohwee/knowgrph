@@ -1,0 +1,361 @@
+import React from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import type { PdfConversionMode, PdfWorkspaceAnchorMap, PdfWorkspaceDocNode } from '@/lib/pdf/pdfWorkspaceAnchors'
+import { fetchPdfWorkspaceDoc, getDefaultWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspaceClient'
+import { resolveAnchorIdAfterSwitch } from '@/lib/pdf/pdfWorkspaceAnchors'
+
+type LayoutPreset = 'reading' | 'paged'
+
+const isMode = (raw: string): raw is PdfConversionMode => raw === 'text-only' || raw === 'image-heavy' || raw === 'scan-ocr'
+const isLayout = (raw: string): raw is LayoutPreset => raw === 'reading' || raw === 'paged'
+
+const readHashAnchor = (): string | null => {
+  if (typeof window === 'undefined') return null
+  const raw = String(window.location.hash || '').replace(/^#/, '')
+  if (!raw) return null
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
+
+const writeHashAnchor = (anchorId: string | null): void => {
+  if (typeof window === 'undefined') return
+  const next = anchorId ? `#${encodeURIComponent(anchorId)}` : ''
+  try {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${next}`)
+  } catch {
+    window.location.hash = next
+  }
+}
+
+const clampZoom = (raw: number): number => {
+  if (!Number.isFinite(raw)) return 1
+  return Math.max(0.5, Math.min(2.5, raw))
+}
+
+const createMarkdownRenderer = (): MarkdownIt => {
+  return new MarkdownIt({
+    html: true,
+    linkify: true,
+    highlight: (code, lang) => {
+      const raw = String(code || '')
+      const language = String(lang || '').trim().toLowerCase()
+      if (language && hljs.getLanguage(language)) {
+        try {
+          return hljs.highlight(raw, { language }).value
+        } catch {
+          return ''
+        }
+      }
+      try {
+        return hljs.highlightAuto(raw).value
+      } catch {
+        return ''
+      }
+    },
+  })
+}
+
+const decorateHtmlWithAnchors = (args: { html: string; map: PdfWorkspaceAnchorMap }): string => {
+  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return args.html
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(args.html, 'text/html')
+  const headingEls = Array.from(doc.querySelectorAll('h1,h2,h3,h4,h5,h6')) as HTMLElement[]
+  const nodes = args.map.nodes.filter(n => n.kind === 'heading')
+  for (let i = 0; i < headingEls.length && i < nodes.length; i += 1) {
+    const el = headingEls[i]
+    const node = nodes[i]
+    const domId = args.map.domIdByAnchorId[node.id] || ''
+    if (domId) el.id = domId
+    el.setAttribute('data-anchor-id', node.id)
+  }
+  return doc.body.innerHTML
+}
+
+const buildTocTree = (nodes: PdfWorkspaceDocNode[]): PdfWorkspaceDocNode[] => {
+  return nodes.filter(n => n.kind === 'heading' && n.level >= 2 && n.level <= 4)
+}
+
+export default function PdfDocumentViewer() {
+  const navigate = useNavigate()
+  const params = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const docId = String(params.docId || '').trim()
+
+  const outputDirRel = String(searchParams.get('outputDirRel') || '').trim() || getDefaultWorkspaceOutputDirRel()
+  const mode: PdfConversionMode = isMode(String(searchParams.get('mode') || '').trim()) ? (String(searchParams.get('mode') || '').trim() as PdfConversionMode) : 'text-only'
+  const layout: LayoutPreset = isLayout(String(searchParams.get('layout') || '').trim()) ? (String(searchParams.get('layout') || '').trim() as LayoutPreset) : 'reading'
+  const zoom = clampZoom(Number(searchParams.get('zoom') || '1'))
+
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [markdown, setMarkdown] = React.useState('')
+  const [anchorMap, setAnchorMap] = React.useState<PdfWorkspaceAnchorMap | null>(null)
+  const [title, setTitle] = React.useState<string>('Document')
+  const [notice, setNotice] = React.useState<string | null>(null)
+  const [activeAnchorId, setActiveAnchorId] = React.useState<string | null>(() => readHashAnchor())
+
+  const md = React.useMemo(() => createMarkdownRenderer(), [])
+
+  const load = React.useCallback(
+    async (nextMode: PdfConversionMode, desiredAnchor: string | null) => {
+      setBusy(true)
+      setError(null)
+      const res = await fetchPdfWorkspaceDoc({ docId, mode: nextMode, outputDirRel })
+      if (res.ok !== true) {
+        setBusy(false)
+        setError(res.error)
+        return
+      }
+      const nextMap = res.anchorMap
+      const resolved = resolveAnchorIdAfterSwitch({ desired: desiredAnchor, nextMap })
+      setMarkdown(res.markdown)
+      setAnchorMap(nextMap)
+      setTitle(res.meta?.title || res.docId)
+      setActiveAnchorId(resolved)
+      writeHashAnchor(resolved)
+      if (desiredAnchor && resolved && desiredAnchor !== resolved) {
+        setNotice('Section moved under current conversion mode; resolved to nearest canonical anchor.')
+      } else {
+        setNotice(null)
+      }
+      setBusy(false)
+    },
+    [docId, outputDirRel],
+  )
+
+  React.useEffect(() => {
+    if (!docId) return
+    void load(mode, readHashAnchor())
+  }, [docId, mode, load])
+
+  const html = React.useMemo(() => {
+    if (!anchorMap) return ''
+    const raw = md.render(markdown)
+    return decorateHtmlWithAnchors({ html: raw, map: anchorMap })
+  }, [anchorMap, md, markdown])
+
+  const scrollToAnchor = React.useCallback(
+    (anchorId: string | null) => {
+      if (!anchorId || !anchorMap) return
+      const domId = anchorMap.domIdByAnchorId[anchorId]
+      if (!domId) return
+      const el = document.getElementById(domId)
+      if (!el) return
+      el.scrollIntoView({ block: 'start', behavior: 'auto' })
+    },
+    [anchorMap],
+  )
+
+  React.useEffect(() => {
+    const id = activeAnchorId
+    if (!id) return
+    const t = window.setTimeout(() => scrollToAnchor(id), 0)
+    return () => window.clearTimeout(t)
+  }, [activeAnchorId, html, layout, zoom, scrollToAnchor])
+
+  const onSelectMode = React.useCallback(
+    async (nextMode: PdfConversionMode) => {
+      const desired = activeAnchorId
+      const next = new URLSearchParams(searchParams)
+      next.set('mode', nextMode)
+      setSearchParams(next, { replace: true })
+      await load(nextMode, desired)
+    },
+    [activeAnchorId, load, searchParams, setSearchParams],
+  )
+
+  const onSetLayout = React.useCallback(
+    (nextLayout: LayoutPreset) => {
+      const next = new URLSearchParams(searchParams)
+      next.set('layout', nextLayout)
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
+
+  const onSetZoom = React.useCallback(
+    (nextZoom: number) => {
+      const z = clampZoom(nextZoom)
+      const next = new URLSearchParams(searchParams)
+      next.set('zoom', String(z))
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
+
+  const toc = React.useMemo(() => (anchorMap ? buildTocTree(anchorMap.nodes) : []), [anchorMap])
+
+  const copyLink = React.useCallback(() => {
+    const anchorId = activeAnchorId
+    const url = `${window.location.origin}/doc/${encodeURIComponent(docId)}?${searchParams.toString()}${anchorId ? `#${encodeURIComponent(anchorId)}` : ''}`
+    void navigator.clipboard.writeText(url).catch(() => void 0)
+    setNotice('Copied deep link to clipboard.')
+  }, [activeAnchorId, docId, searchParams])
+
+  return (
+    <main className={`h-full w-full ${UI_THEME_TOKENS.text.primary}`} aria-label="PDF Document Viewer">
+      <header className={`w-full border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`} aria-label="Viewer header">
+        <section className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between" aria-label="Header row">
+          <section className="min-w-0" aria-label="Header title">
+            <h1 className="text-sm font-semibold truncate" aria-label="Document title">
+              {title}
+            </h1>
+            <output className={`block text-[11px] ${UI_THEME_TOKENS.text.tertiary}`} aria-label="Viewer state summary">
+              {mode} · {layout} · {Math.round(zoom * 100)}%
+            </output>
+          </section>
+          <nav aria-label="Viewer navigation" className="flex items-center gap-2">
+            <button
+              type="button"
+              className={`inline-flex items-center px-2.5 py-1.5 rounded border ${UI_THEME_TOKENS.input.border} hover:opacity-90 text-xs`}
+              onClick={() => navigate('/?openMainPanel=workflow')}
+            >
+              Back to Canvas
+            </button>
+            <button
+              type="button"
+              className={`inline-flex items-center px-2.5 py-1.5 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} hover:opacity-90 text-xs`}
+              onClick={() => {
+                const id = activeAnchorId
+                writeHashAnchor(id)
+                scrollToAnchor(id)
+              }}
+            >
+              Re-resolve
+            </button>
+          </nav>
+        </section>
+      </header>
+
+      <section className="max-w-6xl mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4" aria-label="Viewer Grid">
+        <aside className={`lg:col-span-3 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`} aria-label="TOC">
+          <header className="flex items-center justify-between" aria-label="TOC Header">
+            <h2 className="text-xs font-semibold">Outline</h2>
+            <span className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>{toc.length}</span>
+          </header>
+          <nav className="mt-2 max-h-[70vh] overflow-auto" aria-label="TOC entries">
+            {toc.length === 0 ? (
+              <p className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>No headings.</p>
+            ) : (
+              <ul className="space-y-1" aria-label="TOC list">
+                {toc.map(n => (
+                  <li key={n.id} aria-label={`TOC ${n.text}`}>
+                    <button
+                      type="button"
+                      className={
+                        activeAnchorId === n.id
+                          ? `w-full text-left px-2 py-1 rounded border ${UI_THEME_TOKENS.button.activeBorder} ${UI_THEME_TOKENS.button.activeBg} hover:opacity-90`
+                          : 'w-full text-left px-2 py-1 rounded hover:opacity-90'
+                      }
+                      onClick={() => {
+                        setActiveAnchorId(n.id)
+                        writeHashAnchor(n.id)
+                        scrollToAnchor(n.id)
+                      }}
+                    >
+                      <span className="text-xs">{n.text}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </nav>
+        </aside>
+
+        <section className="lg:col-span-9 space-y-3" aria-label="Document Pane">
+          <header className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`} aria-label="Viewer Toolbar">
+            <form className="flex flex-wrap items-center gap-2" aria-label="Viewer Controls">
+              <label className={`text-xs ${UI_THEME_TOKENS.text.secondary}`} htmlFor="modeSel">
+                Mode
+              </label>
+              <select
+                id="modeSel"
+                className={`text-xs px-2 py-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                value={mode}
+                onChange={e => void onSelectMode(e.target.value as PdfConversionMode)}
+                disabled={busy}
+              >
+                <option value="text-only">Fast text</option>
+                <option value="image-heavy">Image-heavy</option>
+                <option value="scan-ocr">Scan / OCR</option>
+              </select>
+
+              <label className={`text-xs ${UI_THEME_TOKENS.text.secondary}`} htmlFor="layoutSel">
+                Layout
+              </label>
+              <select
+                id="layoutSel"
+                className={`text-xs px-2 py-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                value={layout}
+                onChange={e => onSetLayout(e.target.value as LayoutPreset)}
+              >
+                <option value="reading">Reading</option>
+                <option value="paged">Paged</option>
+              </select>
+
+              <label className={`text-xs ${UI_THEME_TOKENS.text.secondary}`} htmlFor="zoomSel">
+                Zoom
+              </label>
+              <input
+                id="zoomSel"
+                type="range"
+                min={0.5}
+                max={2.5}
+                step={0.1}
+                value={zoom}
+                onChange={e => onSetZoom(Number(e.target.value))}
+              />
+              <output className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`} aria-label="Zoom label">
+                {Math.round(zoom * 100)}%
+              </output>
+
+              <button
+                type="button"
+                className={`ml-auto inline-flex items-center px-2.5 py-1.5 rounded border ${UI_THEME_TOKENS.input.border} hover:opacity-90 text-xs`}
+                onClick={copyLink}
+              >
+                Copy link
+              </button>
+              <button
+                type="button"
+                className={`inline-flex items-center px-2.5 py-1.5 rounded border ${UI_THEME_TOKENS.input.border} hover:opacity-90 text-xs`}
+                onClick={() => navigate('/?openMainPanel=workflow')}
+              >
+                Re-convert
+              </button>
+            </form>
+            {notice && (
+              <output className={`mt-2 block text-[11px] ${UI_THEME_TOKENS.text.tertiary}`} aria-label="Viewer notice">
+                {notice}
+              </output>
+            )}
+            {error && (
+              <output className="mt-2 block text-xs text-red-400" aria-label="Viewer error">
+                {error}
+              </output>
+            )}
+          </header>
+
+          <article
+            className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
+            aria-label="Rendered Markdown"
+          >
+            <section
+              className={layout === 'reading' ? 'max-w-3xl mx-auto px-6 py-6' : 'px-6 py-6'}
+              style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+              aria-label="Markdown Container"
+            >
+              <article className="space-y-3" dangerouslySetInnerHTML={{ __html: html }} aria-label="Markdown HTML" />
+            </section>
+          </article>
+        </section>
+      </section>
+    </main>
+  )
+}
