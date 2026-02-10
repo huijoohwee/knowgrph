@@ -122,6 +122,11 @@ export function MarkdownWorkspace() {
   const [activeText, setActiveText] = React.useState('')
   const activeTextRef = React.useRef('')
   activeTextRef.current = activeText
+  const userEditedActiveTextRef = React.useRef(false)
+  const setActiveTextProgrammatic = React.useCallback((next: string) => {
+    userEditedActiveTextRef.current = false
+    setActiveText(next)
+  }, [])
   const [backlinks, setBacklinks] = React.useState<WorkspaceBacklink[]>([])
   const debouncedText = useDebouncedValue(activeText, 450, activePath)
   const outlineText = useDebouncedValue(activeText, 160, activePath)
@@ -578,7 +583,7 @@ export function MarkdownWorkspace() {
     if (!activeEntry) return
     if (activeEntry.kind !== 'folder') return
     if (activePathRef.current !== path) return
-    setActiveText('')
+    setActiveTextProgrammatic('')
     setHighlightedLineRange(null)
     setStatusLabel('')
   }, [activeEntry, activePath, setMarkdownDocument, setMarkdownDocumentSourceUrl])
@@ -591,7 +596,12 @@ export function MarkdownWorkspace() {
     const scheduledFor = path
 
     const lastLoaded = lastLoadedRef.current
-    const isDirty = !!(lastLoaded && lastLoaded.path === path && lastLoaded.text !== activeTextRef.current)
+    const isDirty = !!(
+      userEditedActiveTextRef.current &&
+      lastLoaded &&
+      lastLoaded.path === path &&
+      lastLoaded.text !== activeTextRef.current
+    )
     if (isDirty) return
 
     const cachedText = typeof activeEntryText === 'string' ? String(activeEntryText ?? '') : null
@@ -603,7 +613,7 @@ export function MarkdownWorkspace() {
     if (cachedText != null && (cachedText !== '' || canTrustEmptyCache)) {
       if (activePathRef.current !== scheduledFor) return
       lastLoadedRef.current = { path, text: cachedText }
-      setActiveText(cachedText)
+      setActiveTextProgrammatic(cachedText)
       if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, cachedText)
       setStatusWithAutoClear('Loaded')
       return
@@ -628,7 +638,7 @@ export function MarkdownWorkspace() {
         }
         const next = String(text)
         lastLoadedRef.current = { path, text: next }
-        setActiveText(next)
+        setActiveTextProgrammatic(next)
         const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
         const inlineText = next.length <= maxInline ? next : undefined
         setEntries(prev => {
@@ -691,6 +701,7 @@ export function MarkdownWorkspace() {
     if (!path) return
     if (activeEntryKind === 'folder') return
     const last = lastLoadedRef.current
+    if (!userEditedActiveTextRef.current) return
     if (!shouldAutosaveWorkspaceFile({ path, lastLoaded: last, activeText, debouncedText })) return
     void (async () => {
       try {
@@ -1071,7 +1082,7 @@ export function MarkdownWorkspace() {
     selectionPath,
     selectionEntryKind: selectionEntry?.kind ?? null,
     activeDocumentKey,
-    setActiveText,
+    setActiveText: setActiveTextProgrammatic,
     setEntries,
     lastLoadedRef,
     setExpandedPaths,
@@ -1106,6 +1117,7 @@ export function MarkdownWorkspace() {
   const effectiveSetActiveText = React.useCallback(
     (next: string) => {
       if (contentMode === 'nodeQuickEditor') return
+      userEditedActiveTextRef.current = true
       setActiveText(next)
     },
     [contentMode],

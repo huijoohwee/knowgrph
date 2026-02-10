@@ -674,7 +674,10 @@ export default function CanvasPage() {
           const selectedNodeId = typeof payload.selectedNodeId === 'string' ? payload.selectedNodeId : ''
           const selectedEdgeId = typeof payload.selectedEdgeId === 'string' ? payload.selectedEdgeId : ''
           const selectedGroupId = typeof payload.selectedGroupId === 'string' ? payload.selectedGroupId : ''
-          lastInboundPreviewSelectionKeyRef.current = `${selectedNodeId}:${selectedEdgeId}:${selectedGroupId}`
+          const nextSelectionKey = `${selectedNodeId}:${selectedEdgeId}:${selectedGroupId}`
+          const prevSelectionKey = lastInboundPreviewSelectionKeyRef.current
+          lastInboundPreviewSelectionKeyRef.current = nextSelectionKey
+          if (nextSelectionKey === prevSelectionKey) return
           try {
             store.setSelectionSource('editor')
           } catch {

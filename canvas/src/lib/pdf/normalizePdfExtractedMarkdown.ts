@@ -8,7 +8,7 @@ const normalizeGroup = (group: string): string => {
   const raw = String(group || '').trim()
   if (!raw) return ''
   const tokens = raw.split(/\s+/).filter(Boolean)
-  if (tokens.length < 4) return tokens.join(' ')
+  if (tokens.length < 3) return tokens.join(' ')
   const singleCharCount = tokens.reduce((acc, t) => acc + (t.length === 1 ? 1 : 0), 0)
   const ratio = singleCharCount / tokens.length
   if (ratio < 0.7) return tokens.join(' ')

@@ -80,7 +80,12 @@ def main(argv: Optional[Sequence[str]] = None, *, parser_script_path: Optional[s
         reader = PdfReader(args.input)
         assets_dir = str(getattr(args, "assets_dir", "") or "").strip()
         asset_url_prefix = _coerce_asset_url_prefix(getattr(args, "asset_url_prefix", None))
-        assets = _write_pdf_assets(reader, assets_dir) if assets_dir else []
+        assets: list[dict[str, str]] = []
+        if assets_dir:
+            try:
+                assets = _write_pdf_assets(reader, assets_dir)
+            except Exception:
+                assets = []
 
         markdown_output = []
         doc_title = str(getattr(args, "title", "") or "").strip() or os.path.basename(str(args.input or "").strip()) or "document.pdf"

@@ -213,7 +213,12 @@ export function useWorkspaceFileActions(args: {
         const skipped = res.skipped.length
         const failed = res.failed.length
         const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
-        setStatusLabel(`Imported ${imported}${suffix}`)
+        const firstFailure = res.failed[0]
+        const failureSuffix =
+          failed > 0 && firstFailure
+            ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
+            : ''
+        setStatusLabel(`Imported ${imported}${suffix}${failureSuffix}`)
       } catch (e) {
         if (importJobRef.current !== jobId) return
         setStatusLabel(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
@@ -241,7 +246,12 @@ export function useWorkspaceFileActions(args: {
         const skipped = res.skipped.length
         const failed = res.failed.length
         const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
-        setStatusLabel(`Imported ${imported}${suffix}`)
+        const firstFailure = res.failed[0]
+        const failureSuffix =
+          failed > 0 && firstFailure
+            ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
+            : ''
+        setStatusLabel(`Imported ${imported}${suffix}${failureSuffix}`)
       } catch (e) {
         if (importJobRef.current !== jobId) return
         setStatusLabel(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)

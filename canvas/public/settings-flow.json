@@ -1187,7 +1187,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L77; canvas/src/hooks/store/canvasSlice.ts:L297"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L77; canvas/src/hooks/store/canvasSlice.ts:L308"
   },
   "viewPinned": {
     "area": "Canvas Zoom Modes",
@@ -1204,7 +1204,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L91; canvas/src/hooks/store/canvasSlice.ts:L154"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L91; canvas/src/hooks/store/canvasSlice.ts:L164"
   },
   "fitToScreenMode": {
     "area": "Canvas Zoom Modes",
@@ -1221,7 +1221,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L100; canvas/src/hooks/store/canvasSlice.ts:L178"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L100; canvas/src/hooks/store/canvasSlice.ts:L188"
   },
   "zoomToSelectionMode": {
     "area": "Canvas Zoom Modes",
@@ -1238,7 +1238,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L109; canvas/src/hooks/store/canvasSlice.ts:L200"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L109; canvas/src/hooks/store/canvasSlice.ts:L210"
   },
   "zoomDurationFitMs": {
     "area": "Canvas Zoom Actions",
@@ -1255,7 +1255,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L118; canvas/src/hooks/store/canvasSlice.ts:L432"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L118; canvas/src/hooks/store/canvasSlice.ts:L443"
   },
   "zoomDurationSelectionMs": {
     "area": "Canvas Zoom Actions",
@@ -1272,7 +1272,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L127; canvas/src/hooks/store/canvasSlice.ts:L438"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L127; canvas/src/hooks/store/canvasSlice.ts:L449"
   },
   "wheelZoomCtrlMetaBoostMultiplier": {
     "area": "Canvas Interaction (Wheel Zoom)",
@@ -1289,7 +1289,24 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L136; canvas/src/hooks/store/canvasSlice.ts:L444"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L136; canvas/src/hooks/store/canvasSlice.ts:L455"
+  },
+  "canvasInteractionSpeedMultiplier": {
+    "area": "—",
+    "responsibility": "canvas interaction speed multiplier",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/hooks/store/canvasSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setCanvasInteractionSpeedMultiplier"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L145; canvas/src/hooks/store/canvasSlice.ts:L466"
   },
   "canvasPanSpeedMultiplier": {
     "area": "—",
@@ -1306,7 +1323,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L145; canvas/src/hooks/store/canvasSlice.ts:L455"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L154; canvas/src/hooks/store/canvasSlice.ts:L477"
   },
   "flowWheelZoomSpeedMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -1323,7 +1340,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L154; canvas/src/hooks/store/canvasSlice.ts:L372"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L163; canvas/src/hooks/store/canvasSlice.ts:L383"
   },
   "flowWheelZoomIncrementMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -1340,7 +1357,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L163; canvas/src/hooks/store/canvasSlice.ts:L383"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L172; canvas/src/hooks/store/canvasSlice.ts:L394"
   },
   "flowWheelZoomSmoothMinDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -1357,7 +1374,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L172; canvas/src/hooks/store/canvasSlice.ts:L394"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L181; canvas/src/hooks/store/canvasSlice.ts:L405"
   },
   "flowWheelZoomSmoothMaxDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -1374,7 +1391,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L181; canvas/src/hooks/store/canvasSlice.ts:L413"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L190; canvas/src/hooks/store/canvasSlice.ts:L424"
   },
   "orchestratorTraversalDelayMs": {
     "area": "Orchestrator Traversal",
@@ -1388,7 +1405,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L190"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L199"
   },
   "graph.behavior.selectMode": {
     "area": "Canvas Interaction",
@@ -1405,7 +1422,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L204; canvas/src/hooks/store/schemaSlice.ts:L280"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L213; canvas/src/hooks/store/schemaSlice.ts:L280"
   },
   "graph.behavior.createMode": {
     "area": "Canvas Interaction",
@@ -1422,7 +1439,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L224; canvas/src/hooks/store/schemaSlice.ts:L294"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L233; canvas/src/hooks/store/schemaSlice.ts:L294"
   },
   "schemaDeriveCacheCapacity": {
     "area": "Graph Performance (Schema Derive Cache)",
@@ -1440,7 +1457,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L246; canvas/src/hooks/store/panelLayoutUiSlice.ts:L100; canvas/src/hooks/store/uiSettingsSlice.ts:L187"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L255; canvas/src/hooks/store/panelLayoutUiSlice.ts:L100; canvas/src/hooks/store/uiSettingsSlice.ts:L187"
   },
   "schema.behavior.hover.content.type": {
     "area": "Graph Hover Preview",
@@ -1460,7 +1477,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L255; canvas/src/hooks/store/schemaSlice.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L264; canvas/src/hooks/store/schemaSlice.ts:L146"
   },
   "schema.behavior.hover.content.id": {
     "area": "Graph Hover Preview",
@@ -1480,7 +1497,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L282; canvas/src/hooks/store/schemaSlice.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L291; canvas/src/hooks/store/schemaSlice.ts:L146"
   },
   "schema.behavior.hover.content.properties": {
     "area": "Graph Hover Preview",
@@ -1500,7 +1517,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L309; canvas/src/hooks/store/schemaSlice.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L318; canvas/src/hooks/store/schemaSlice.ts:L146"
   },
   "schema.layout.groups.nestedPaddingStep": {
     "area": "Canvas Layout (2D)",
@@ -1520,7 +1537,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L336; canvas/src/hooks/store/schemaSlice.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L345; canvas/src/hooks/store/schemaSlice.ts:L146"
   },
   "schema.layout.edges.opacity": {
     "area": "Canvas Layering (2D)",
@@ -1540,7 +1557,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L364; canvas/src/hooks/store/schemaSlice.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L373; canvas/src/hooks/store/schemaSlice.ts:L146"
   },
   "schema.layout.edges.opacityUnderGroups": {
     "area": "Canvas Layering (2D)",
@@ -1560,7 +1577,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L392; canvas/src/hooks/store/schemaSlice.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L401; canvas/src/hooks/store/schemaSlice.ts:L146"
   },
   "graphHoverPreview.showNodeId": {
     "area": "Graph Hover Preview",
@@ -1577,7 +1594,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L420; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L429; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "graphHoverPreview.showNodeName": {
     "area": "Graph Hover Preview",
@@ -1594,7 +1611,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L429; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L438; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "graphHoverPreview.showNodeLabel": {
     "area": "Graph Hover Preview",
@@ -1611,7 +1628,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L438; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L447; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "graphHoverPreview.showNodeDescription": {
     "area": "Graph Hover Preview",
@@ -1628,7 +1645,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L447; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L456; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "graphHoverPreview.showNodeProperties": {
     "area": "Graph Hover Preview",
@@ -1645,7 +1662,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L456; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L465; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "graphHoverPreview.showEdgeId": {
     "area": "Graph Hover Preview",
@@ -1662,7 +1679,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L465; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L474; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "graphHoverPreview.showEdgeLabel": {
     "area": "Graph Hover Preview",
@@ -1679,7 +1696,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L474; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L483; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "graphHoverPreview.showEdgeWeight": {
     "area": "Graph Hover Preview",
@@ -1696,7 +1713,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L483; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L492; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "graphHoverPreview.showEdgeProperties": {
     "area": "Graph Hover Preview",
@@ -1713,7 +1730,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L492; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L501; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
   },
   "three.selection.selectedNodeGlowIntensity": {
     "area": "3D Selection",
@@ -2329,7 +2346,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L297; canvas/src/hooks/store/schemaSlice.ts:L258"
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L308; canvas/src/hooks/store/schemaSlice.ts:L258"
   },
   "CLICK_URL": {
     "area": "Config Constants",

@@ -131,13 +131,14 @@
 
 **Responsibility**: Imports PDF from local files or URLs via server-side conversion to Markdown.
 
-**Processing Flow**: Upload to server → pypdf conversion → Markdown response → parse as Markdown
+**Processing Flow**: Upload to server → pypdf conversion → Markdown normalization → Markdown response → parse as Markdown
 
 | Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
 | Local Upload         | Send PDF to server              | - [ ] Read file as bytes; POST to endpoint; forbid oversized files                        | pdfImport        | PDFUploader     | uploadLocalPDF          | fetch          | File object                  | Markdown text          | File size check then POST        |
 | URL Conversion       | Request server conversion       | - [ ] Encode URL; POST to endpoint; forbid malformed URLs                                 | pdfImport        | PDFConverter    | convertRemotePDF        | fetch          | PDF URL                      | Markdown text          | URL validation then POST         |
 | Server Response      | Parse conversion result         | - [ ] Check ok flag; extract markdown/name; forbid ignoring errors                        | pdfImport        | ResponseParser  | parseConversionResult   | —              | Server JSON response         | {markdown, name}       | ok check then field extraction   |
+| Text Normalization   | Improve extracted readability   | - [ ] Normalize spaced-letter runs; preserve semantics; forbid unreadable extraction      | pdfImport        | MarkdownNormalizer | normalizePdfMarkdown  | —              | Markdown text                | Markdown text          | Heuristic spaced-letter detection |
 | Image Extraction     | Preserve embedded images        | - [ ] Extract image URLs; embed in Markdown; forbid image loss                            | server (pypdf)   | ImageExtractor  | extractImages           | pypdf          | PDF bytes                    | Image URL list         | pypdf image enumeration          |
 
 ---

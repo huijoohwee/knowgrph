@@ -5,6 +5,28 @@ export type RemoteMarkdownConversionOk = { ok: true; name: string; markdown: str
 export type RemoteMarkdownConversionErr = { ok: false; error: string }
 export type RemoteMarkdownConversionResult = RemoteMarkdownConversionOk | RemoteMarkdownConversionErr
 
+async function readConversionJson(res: Response): Promise<{ ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown } | null> {
+  try {
+    return (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown }
+  } catch {
+    return null
+  }
+}
+
+async function describeNonJsonConversionFailure(res: Response): Promise<string> {
+  const status = `HTTP ${res.status}`
+  const contentType = String(res.headers.get('content-type') || '').toLowerCase()
+  if (contentType.includes('text/html')) return `${status} (conversion endpoint unavailable)`
+  try {
+    const text = await res.text()
+    const clipped = text.length > 200 ? `${text.slice(0, 200)}…` : text
+    const cleaned = clipped.replace(/\s+/g, ' ').trim()
+    return cleaned ? `${status}: ${cleaned}` : status
+  } catch {
+    return status
+  }
+}
+
 export async function convertPdfUrlToMarkdown(rawUrl: string): Promise<RemoteMarkdownConversionResult | null> {
   const url = String(rawUrl || '').trim()
   if (!url) return null
@@ -13,12 +35,15 @@ export async function convertPdfUrlToMarkdown(rawUrl: string): Promise<RemoteMar
       method: 'POST',
       headers: { Accept: 'application/json' },
     })
-    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown }
+    const json = await readConversionJson(res)
+    if (!json) return { ok: false as const, error: await describeNonJsonConversionFailure(res) }
     if (json && json.ok === true && typeof json.markdown === 'string') {
-      const name =
-        typeof json.name === 'string' && json.name.trim()
-          ? json.name.trim()
-          : (() => {
+      const serverName = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : ''
+      const name = (() => {
+        if (serverName) {
+          return /\.pdf$/i.test(serverName) ? deriveMarkdownNameFromPdfFilename(serverName) : serverName
+        }
+        return (() => {
               try {
                 const u = new URL(url)
                 const parts = u.pathname.split('/').filter(Boolean)
@@ -28,6 +53,7 @@ export async function convertPdfUrlToMarkdown(rawUrl: string): Promise<RemoteMar
                 return 'document.md'
               }
             })()
+      })()
       return { ok: true as const, name, markdown: json.markdown }
     }
     const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
@@ -35,7 +61,7 @@ export async function convertPdfUrlToMarkdown(rawUrl: string): Promise<RemoteMar
     if (!res.ok) return { ok: false as const, error: `HTTP ${res.status}` }
     return { ok: false as const, error: 'PDF conversion failed' }
   } catch {
-    return null
+    return { ok: false as const, error: 'Request failed' }
   }
 }
 
@@ -51,9 +77,15 @@ export async function convertPdfFileToMarkdown(file: File): Promise<RemoteMarkdo
       },
       body: buf,
     })
-    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown }
+    const json = await readConversionJson(res)
+    if (!json) return { ok: false as const, error: await describeNonJsonConversionFailure(res) }
     if (json && json.ok === true && typeof json.markdown === 'string') {
-      const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : deriveMarkdownNameFromPdfFilename(file.name)
+      const serverName = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : ''
+      const name = serverName
+        ? /\.pdf$/i.test(serverName)
+          ? deriveMarkdownNameFromPdfFilename(serverName)
+          : serverName
+        : deriveMarkdownNameFromPdfFilename(file.name)
       return { ok: true as const, name, markdown: json.markdown }
     }
     const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
@@ -61,7 +93,7 @@ export async function convertPdfFileToMarkdown(file: File): Promise<RemoteMarkdo
     if (!res.ok) return { ok: false as const, error: `HTTP ${res.status}` }
     return { ok: false as const, error: 'PDF conversion failed' }
   } catch {
-    return null
+    return { ok: false as const, error: 'Request failed' }
   }
 }
 

@@ -2,7 +2,7 @@ import { normalizePdfExtractedMarkdown } from '@/lib/pdf/normalizePdfExtractedMa
 
 export async function testNormalizePdfExtractedMarkdownJoinsSpacedLetters() {
   const input = [
-    '# ORA_ Pre-seed deck.pdf',
+    '# document.pdf',
     '',
     'T h e  w o r l d ’ s  o n l y  f r e e  ',
     'b a n k .',
