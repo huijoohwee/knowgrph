@@ -198,6 +198,7 @@ import { testWorkspaceFsChangedBatchCoalescesNotifications } from '@/__tests__/w
 import { testWorkspaceFsMemoryInitialEntries } from '@/__tests__/workspaceFsMemoryInitialEntries.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
+import { testNormalizePdfExtractedMarkdownJoinsSpacedLetters } from '@/__tests__/pdfExtractedTextNormalize.test'
 import { testGraphCanvasDisplayFilterFallback } from '@/__tests__/graphCanvasDisplayFilterFallback.test'
 import { testGraphDataForDisplayFiltersNodesAndEdgesTogether } from '@/__tests__/graphDataForDisplay.test'
 import { testDocumentStructureBaselineLockGuardsModeSwitches } from '@/__tests__/baselineLockGuardsModeSwitch.test'
@@ -543,6 +544,7 @@ export const runAllTests = async () => {
   await exec('flowCollisionSticking: testCorrectlyNestsH2InsideH1AndEnforcesContainmentSeparation', testCorrectlyNestsH2InsideH1AndEnforcesContainmentSeparation)
   await exec('markdownDocumentPathNormalization: testMarkdownDocumentPathNormalization', testMarkdownDocumentPathNormalization)
   await runParserTests(results)
+  await exec('pdf.normalizeExtractedMarkdown.joinsSpacedLetters', testNormalizePdfExtractedMarkdownJoinsSpacedLetters)
 
   // Remaining tests
   await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)
