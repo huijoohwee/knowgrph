@@ -7,6 +7,8 @@ export function buildMarkdownForPage(args: {
   includeImages: boolean
   imageAssets: NativePdfAsset[]
   assetUrlPrefix: string
+  maxImagesPerPage?: number
+  ocrMarkdown?: string | null
 }): string {
   const h = args.mediaBox && args.mediaBox.length >= 4 ? Math.abs(Number(args.mediaBox[3]) - Number(args.mediaBox[1])) : 0
   const yTol = (fontSize: number) => Math.max(2, Math.min(8, fontSize * 0.25))
@@ -66,18 +68,39 @@ export function buildMarkdownForPage(args: {
 
   const pageNum = args.pageIndex + 1
   const includeImage = args.includeImages || (bodyLines.length < 3 && args.imageAssets.length > 0)
+  const maxImagesPerPage = (() => {
+    const n = args.maxImagesPerPage
+    if (typeof n !== 'number' || !Number.isFinite(n)) return 6
+    return Math.max(0, Math.min(24, Math.floor(n)))
+  })()
   const linesOut: string[] = []
   linesOut.push(`## Page ${pageNum}`)
   linesOut.push('')
-  if (includeImage && args.imageAssets.length > 0) {
-    const first = args.imageAssets[0]
-    if (args.assetUrlPrefix) {
+  if (includeImage && args.assetUrlPrefix && maxImagesPerPage > 0) {
+    const assets = args.imageAssets.slice(0, maxImagesPerPage)
+    if (assets.length === 1) {
+      const first = assets[0]
       linesOut.push(`![Page ${pageNum}](${args.assetUrlPrefix}/${first.filename})`)
       linesOut.push('')
+    } else if (assets.length > 1) {
+      linesOut.push('### Images')
+      linesOut.push('')
+      for (let i = 0; i < assets.length; i += 1) {
+        const a = assets[i]
+        linesOut.push(`![Page ${pageNum} Image ${i + 1}](${args.assetUrlPrefix}/${a.filename})`)
+        linesOut.push('')
+      }
     }
+  }
+
+  const ocr = String(args.ocrMarkdown || '').trim()
+  if (ocr) {
+    linesOut.push('### OCR')
+    linesOut.push('')
+    linesOut.push(ocr)
+    linesOut.push('')
   }
   linesOut.push(...bodyLines)
   linesOut.push('')
   return linesOut.join('\n')
 }
-

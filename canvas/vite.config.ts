@@ -278,7 +278,18 @@ function createPdfAssetStoreCache() {
 
 const pdfAssetCache = createPdfAssetStoreCache()
 
-async function convertPdfToMarkdown(opts: { url?: string; body?: Buffer; nameHint?: string }): Promise<PdfConvertResult> {
+async function convertPdfToMarkdown(opts: {
+  url?: string
+  body?: Buffer
+  nameHint?: string
+  overrides?: {
+    includeImages?: boolean
+    maxExtractedImagesPerPage?: number
+    maxEmbeddedImagesPerPage?: number
+    deepseekOcr2Enabled?: boolean
+    deepseekOcr2Mode?: 'fallback' | 'always'
+  }
+}): Promise<PdfConvertResult> {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'knowgrph-pdf-'))
   const pdfPath = path.join(tmpDir, `${randomUUID()}.pdf`)
   const token = randomUUID()
@@ -320,8 +331,72 @@ async function convertPdfToMarkdown(opts: { url?: string; body?: Buffer; nameHin
           ? derivePdfTitleFromUrl(opts.url)
           : '') || 'document.pdf'
     const assetUrlPrefix = `/__pdf_assets/${token}`
-    const includeImages = String(process.env.KNOWGRPH_PDF_INCLUDE_IMAGES || '').trim() === '1'
-    const native = await convertPdfFileToMarkdown({ pdfPath, title, assetUrlPrefix, includeImages })
+    const includeImages =
+      typeof opts.overrides?.includeImages === 'boolean'
+        ? opts.overrides.includeImages
+        : String(process.env.KNOWGRPH_PDF_INCLUDE_IMAGES || '').trim() === '1'
+    const maxExtractedImagesPerPage = (() => {
+      if (typeof opts.overrides?.maxExtractedImagesPerPage === 'number' && opts.overrides.maxExtractedImagesPerPage > 0) {
+        return Math.floor(opts.overrides.maxExtractedImagesPerPage)
+      }
+      const raw = String(process.env.KNOWGRPH_PDF_MAX_EXTRACTED_IMAGES_PER_PAGE || '').trim()
+      const parsed = raw ? Number(raw) : NaN
+      return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
+    })()
+    const maxEmbeddedImagesPerPage = (() => {
+      if (typeof opts.overrides?.maxEmbeddedImagesPerPage === 'number' && opts.overrides.maxEmbeddedImagesPerPage >= 0) {
+        return Math.floor(opts.overrides.maxEmbeddedImagesPerPage)
+      }
+      const raw = String(process.env.KNOWGRPH_PDF_MAX_EMBEDDED_IMAGES_PER_PAGE || '').trim()
+      const parsed = raw ? Number(raw) : NaN
+      return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined
+    })()
+
+    const ocrEnhance = (() => {
+      const enabled =
+        typeof opts.overrides?.deepseekOcr2Enabled === 'boolean'
+          ? opts.overrides.deepseekOcr2Enabled
+          : String(process.env.KNOWGRPH_DEEPSEEK_OCR2_ENABLE || '').trim() === '1'
+      const endpoint = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_ENDPOINT || '').trim()
+      if (!enabled || !endpoint) return null
+      const mode =
+        opts.overrides?.deepseekOcr2Mode === 'always'
+          ? 'always'
+          : opts.overrides?.deepseekOcr2Mode === 'fallback'
+            ? 'fallback'
+            : String(process.env.KNOWGRPH_DEEPSEEK_OCR2_MODE || '').trim().toLowerCase() === 'always'
+              ? 'always'
+              : 'fallback'
+      const minTextChars = (() => {
+        const raw = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_MIN_TEXT_CHARS || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined
+      })()
+      const maxImagesPerPage = (() => {
+        const raw = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_MAX_IMAGES_PER_PAGE || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
+      })()
+      const timeoutMs = (() => {
+        const raw = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_TIMEOUT_MS || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
+      })()
+      const prompt = (() => {
+        const raw = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_PROMPT || '').trim()
+        return raw ? raw : undefined
+      })()
+      return { enabled, endpoint, mode, minTextChars, maxImagesPerPage, timeoutMs, prompt }
+    })()
+    const native = await convertPdfFileToMarkdown({
+      pdfPath,
+      title,
+      assetUrlPrefix,
+      includeImages,
+      maxExtractedImagesPerPage,
+      maxEmbeddedImagesPerPage,
+      ocrEnhance,
+    })
     if (native.assets.length > 0) await writePdfAssets({ assetsDir, assets: native.assets })
     const markdown = normalizePdfExtractedMarkdown(native.markdown)
     pdfAssetCache.add({ token, assetsDir, tmpDir, createdAtMs: Date.now() })
@@ -363,6 +438,31 @@ function createPdfConvertHandler(): import('vite').Connect.NextHandleFunction {
     try {
       const parsed = new URL(req.url || '', `http://${req.headers.host}`)
       const urlParam = parsed.searchParams.get('url') || undefined
+      const includeImagesOverride = (() => {
+        const raw = parsed.searchParams.get('includeImages')
+        if (raw == null) return undefined
+        return raw.trim() === '1'
+      })()
+      const maxExtractedImagesPerPage = (() => {
+        const raw = parsed.searchParams.get('maxExtractedImagesPerPage')
+        const n = raw ? Number(raw) : NaN
+        return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined
+      })()
+      const maxEmbeddedImagesPerPage = (() => {
+        const raw = parsed.searchParams.get('maxEmbeddedImagesPerPage')
+        const n = raw ? Number(raw) : NaN
+        return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined
+      })()
+      const deepseekOcr2Enabled = (() => {
+        const raw = parsed.searchParams.get('deepseekOcr2')
+        if (raw == null) return undefined
+        return raw.trim() === '1'
+      })()
+      const deepseekOcr2Mode = (() => {
+        const raw = String(parsed.searchParams.get('deepseekOcr2Mode') || '').trim().toLowerCase()
+        if (!raw) return undefined
+        return raw === 'always' ? 'always' : raw === 'fallback' ? 'fallback' : undefined
+      })()
       const nameHintHeader =
         typeof req.headers['x-import-filename'] === 'string'
           ? req.headers['x-import-filename']
@@ -384,6 +484,13 @@ function createPdfConvertHandler(): import('vite').Connect.NextHandleFunction {
         url: urlParam,
         body: body || undefined,
         nameHint: nameHintHeader,
+        overrides: {
+          includeImages: includeImagesOverride,
+          maxExtractedImagesPerPage,
+          maxEmbeddedImagesPerPage,
+          deepseekOcr2Enabled,
+          deepseekOcr2Mode,
+        },
       })
       res.statusCode = result.ok ? 200 : 400
       res.setHeader('Content-Type', 'application/json')

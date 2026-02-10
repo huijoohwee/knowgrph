@@ -207,6 +207,10 @@ import {
   testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixture,
   testPdfNativeConversionExtractsBasicText,
 } from '@/__tests__/pdfNativeConvert.test'
+import {
+  testPdfMarkdownEmbedsMultipleImagesUpToLimit,
+  testPdfMarkdownEmbedsSingleImageWithoutGalleryHeader,
+} from '@/__tests__/pdfMarkdown.test'
 import { testGraphCanvasDisplayFilterFallback } from '@/__tests__/graphCanvasDisplayFilterFallback.test'
 import { testGraphDataForDisplayFiltersNodesAndEdgesTogether } from '@/__tests__/graphDataForDisplay.test'
 import { testDocumentStructureBaselineLockGuardsModeSwitches } from '@/__tests__/baselineLockGuardsModeSwitch.test'
@@ -557,6 +561,8 @@ export const runAllTests = async () => {
   await exec('pdf.normalizeExtractedMarkdown.doesNotMergeNormalShortWords', testNormalizePdfExtractedMarkdownDoesNotMergeNormalShortWords)
   await exec('pdf.nativeConvert.extractsBasicText', testPdfNativeConversionExtractsBasicText)
   await exec('pdf.nativeConvert.avoidsSpacedLetterArtifactsOnFixture', testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixture)
+  await exec('pdf.markdown.embedsMultipleImagesUpToLimit', testPdfMarkdownEmbedsMultipleImagesUpToLimit)
+  await exec('pdf.markdown.embedsSingleImageWithoutGalleryHeader', testPdfMarkdownEmbedsSingleImageWithoutGalleryHeader)
 
   // Remaining tests
   await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)

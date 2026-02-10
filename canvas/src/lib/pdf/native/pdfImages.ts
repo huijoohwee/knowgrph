@@ -2,6 +2,7 @@ import zlib from 'node:zlib'
 import type { NativePdfAsset } from './types'
 import type { ParsedIndirectObject, PdfDict, PdfRef } from './pdfObjects'
 import { deref, getDictValue, isArray, isDict, isName, isNumber, isRef, readStream, sanitizeFilename } from './pdfObjects'
+import { collectDoXObjectNames, listResourceXObjectRefs, resolveXObjectRef } from './pdfXObjects'
 
 function crc32(buf: Buffer): number {
   let c = 0xffffffff
@@ -202,26 +203,78 @@ function extractImageAsset(args: {
 export function extractPageImages(args: {
   objects: Map<number, ParsedIndirectObject>
   resources: PdfDict | null
+  contentBytes?: Buffer
   pageIndex: number
   limit?: number
 }): NativePdfAsset[] {
   const limit = typeof args.limit === 'number' && args.limit > 0 ? Math.floor(args.limit) : 12
   const out: NativePdfAsset[] = []
   if (!args.resources) return out
-  const xobjVal = getDictValue(args.resources, 'XObject')
-  const xobjDict = (() => {
-    const v = deref(args.objects, xobjVal)
-    return isDict(v) ? v : null
-  })()
-  if (!xobjDict) return out
-  for (const [key, val] of Object.entries(xobjDict.map)) {
-    if (out.length >= limit) break
-    const ref = isRef(val) ? val : null
-    if (!ref) continue
-    const asset = extractImageAsset({ objects: args.objects, ref, pageIndex: args.pageIndex, key })
-    if (!asset) continue
+
+  const visited = new Set<number>()
+  const seenFilename = new Set<string>()
+
+  const pushAsset = (asset: NativePdfAsset | null) => {
+    if (!asset) return
+    if (out.length >= limit) return
+    const key = String(asset.filename || '').trim()
+    if (!key || seenFilename.has(key)) return
+    seenFilename.add(key)
     out.push(asset)
+  }
+
+  const walkDoNames = (contentBytes: Buffer, resources: PdfDict | null, depth: number) => {
+    if (!resources || depth > 6 || out.length >= limit) return
+    const names = collectDoXObjectNames(contentBytes)
+    for (const name of names) {
+      if (out.length >= limit) break
+      const ref = resolveXObjectRef(args.objects, resources, name)
+      if (!ref || visited.has(ref.obj)) continue
+      visited.add(ref.obj)
+      const obj = args.objects.get(ref.obj)
+      const dict = obj?.dict || null
+      if (!dict) continue
+      const subtype = getDictValue(dict, 'Subtype')
+      if (isName(subtype) && subtype.name === 'Image') {
+        pushAsset(extractImageAsset({ objects: args.objects, ref, pageIndex: args.pageIndex, key: name }))
+        continue
+      }
+      if (isName(subtype) && subtype.name === 'Form') {
+        const formResources = (() => {
+          const rv = getDictValue(dict, 'Resources')
+          const dv = deref(args.objects, rv)
+          return isDict(dv) ? dv : resources
+        })()
+        const st = readStream(args.objects, ref)
+        if (!st.bytes) continue
+        walkDoNames(st.bytes, formResources, depth + 1)
+      }
+    }
+  }
+
+  const walkResourceRefs = (resources: PdfDict | null) => {
+    if (!resources || out.length >= limit) return
+    const refs = listResourceXObjectRefs(args.objects, resources)
+    for (const ref of refs) {
+      if (out.length >= limit) break
+      if (visited.has(ref.obj)) continue
+      visited.add(ref.obj)
+      const obj = args.objects.get(ref.obj)
+      const dict = obj?.dict || null
+      if (!dict) continue
+      const subtype = getDictValue(dict, 'Subtype')
+      if (isName(subtype) && subtype.name === 'Image') {
+        pushAsset(extractImageAsset({ objects: args.objects, ref, pageIndex: args.pageIndex, key: `xobj-${ref.obj}` }))
+      }
+    }
+  }
+
+  const contentBytes = args.contentBytes
+  if (contentBytes && contentBytes.length > 0) {
+    walkDoNames(contentBytes, args.resources, 0)
+  }
+  if (out.length === 0) {
+    walkResourceRefs(args.resources)
   }
   return out
 }
-
