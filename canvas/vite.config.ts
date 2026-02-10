@@ -13,6 +13,7 @@ import fs from 'node:fs/promises'
 import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
 import { unwrapUserProvidedText } from './src/lib/url'
 import { normalizePdfExtractedMarkdown } from './src/lib/pdf/normalizePdfExtractedMarkdown'
+import { convertPdfFileToMarkdown, writePdfAssets } from './src/lib/pdf/native/nativePdfToMarkdownNode'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -249,84 +250,6 @@ function deriveMarkdownNameFromPdfFilename(name: string): string {
   return `${base}.md`
 }
 
-async function runKnowgrphParserConvertPdfToMarkdown(opts: {
-  pdfPath: string
-  assetsDir?: string
-  assetUrlPrefix?: string
-  title?: string
-}): Promise<{ ok: true; markdown: string } | { ok: false; error: string }> {
-  const args = ['-m', 'knowgrph_parser', 'pdf', '--input', opts.pdfPath]
-  if (opts.assetsDir && opts.assetsDir.trim()) {
-    args.push('--assets-dir', opts.assetsDir.trim())
-  }
-  if (opts.assetUrlPrefix && opts.assetUrlPrefix.trim()) {
-    args.push('--asset-url-prefix', opts.assetUrlPrefix.trim())
-  }
-  if (opts.title && opts.title.trim()) {
-    args.push('--title', opts.title.trim())
-  }
-
-  const env = withRepoPythonPath(process.env)
-  const candidates = (() => {
-    const fromEnv = String(process.env.KNOWGRPH_PYTHON_BIN || '').trim()
-    const list = [
-      fromEnv,
-      pythonBin,
-      'python3',
-      path.join(repoRoot, '.venv', 'bin', 'python3'),
-      path.join(repoRoot, '.venv', 'bin', 'python'),
-      path.join(repoRoot, 'venv', 'bin', 'python3'),
-      path.join(repoRoot, 'venv', 'bin', 'python'),
-      '/opt/homebrew/bin/python3',
-      '/usr/local/bin/python3',
-    ].filter(Boolean)
-    const uniq: string[] = []
-    const seen = new Set<string>()
-    for (const p of list) {
-      const key = String(p || '').trim()
-      if (!key || seen.has(key)) continue
-      seen.add(key)
-      if (key !== 'python3' && !existsSync(key)) continue
-      uniq.push(key)
-    }
-    return uniq
-  })()
-
-  const canImportPdfDeps = (bin: string) => {
-    const probe = spawnSync(bin, ['-c', 'import knowgrph_parser, pypdf'], {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      timeout: 2_000,
-      env,
-    })
-    return probe.status === 0
-  }
-
-  let lastError = ''
-  for (const bin of candidates) {
-    try {
-      if (!canImportPdfDeps(bin)) continue
-      const res = spawnSync(bin, args, {
-        cwd: repoRoot,
-        encoding: 'utf8',
-        maxBuffer: 20 * 1024 * 1024,
-        env,
-      })
-      if (res.status === 0 && typeof res.stdout === 'string' && res.stdout.trim()) {
-        return { ok: true as const, markdown: res.stdout }
-      }
-      const stderr = typeof res.stderr === 'string' ? res.stderr.trim() : ''
-      lastError = stderr || lastError
-    } catch (e) {
-      lastError = String((e as { message?: unknown })?.message ?? e)
-    }
-  }
-
-  const normalizedErr = String(lastError || '').trim()
-  if (normalizedErr) return { ok: false as const, error: normalizedErr }
-  return { ok: false as const, error: 'PDF conversion failed. Ensure the Python parser environment is set up correctly (pip install pypdf).' }
-}
-
 type PdfAssetStore = { token: string; assetsDir: string; tmpDir: string; createdAtMs: number }
 
 function createPdfAssetStoreCache() {
@@ -397,20 +320,10 @@ async function convertPdfToMarkdown(opts: { url?: string; body?: Buffer; nameHin
           ? derivePdfTitleFromUrl(opts.url)
           : '') || 'document.pdf'
     const assetUrlPrefix = `/__pdf_assets/${token}`
-    const markdownRes = await runKnowgrphParserConvertPdfToMarkdown({
-      pdfPath,
-      assetsDir,
-      assetUrlPrefix,
-      title,
-    })
-    if (markdownRes.ok === false) {
-      await cleanup()
-      return {
-        ok: false,
-        error: markdownRes.error,
-      }
-    }
-    const normalizedMarkdown = normalizePdfExtractedMarkdown(markdownRes.markdown)
+    const includeImages = String(process.env.KNOWGRPH_PDF_INCLUDE_IMAGES || '').trim() === '1'
+    const native = await convertPdfFileToMarkdown({ pdfPath, title, assetUrlPrefix, includeImages })
+    if (native.assets.length > 0) await writePdfAssets({ assetsDir, assets: native.assets })
+    const markdown = normalizePdfExtractedMarkdown(native.markdown)
     pdfAssetCache.add({ token, assetsDir, tmpDir, createdAtMs: Date.now() })
     const name =
       (opts.nameHint && opts.nameHint.trim()
@@ -418,7 +331,7 @@ async function convertPdfToMarkdown(opts: { url?: string; body?: Buffer; nameHin
         : opts.url
           ? derivePdfNameFromUrl(opts.url)
           : 'document.md') || 'document.md'
-    return { ok: true, markdown: normalizedMarkdown, name }
+    return { ok: true, markdown, name }
   } catch (error) {
     await cleanup()
     const msg =

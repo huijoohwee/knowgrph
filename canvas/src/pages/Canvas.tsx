@@ -704,11 +704,6 @@ export default function CanvasPage() {
           } catch {
             void 0
           }
-          try {
-            if (selectedNodeId || selectedEdgeId || selectedGroupId) store.requestZoom('selection')
-          } catch {
-            void 0
-          }
         }
       } catch {
         void 0

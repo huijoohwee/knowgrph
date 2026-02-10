@@ -131,15 +131,16 @@
 
 **Responsibility**: Imports PDF from local files or URLs via server-side conversion to Markdown.
 
-**Processing Flow**: Upload to server → pypdf conversion → Markdown normalization → Markdown response → parse as Markdown
+**Processing Flow**: Upload to server → native Node PDF extraction (Docling-inspired reading order + heuristics) → optional image extraction → Markdown normalization → Markdown response → parse as Markdown
 
 | Context              | Intent                          | Directive                                                                                   | Module           | Class/Object    | Function/Method         | Dependency     | Input                        | Output                 | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|------------------|-----------------|-------------------------|----------------|------------------------------|------------------------|----------------------------------|
 | Local Upload         | Send PDF to server              | - [ ] Read file as bytes; POST to endpoint; forbid oversized files                        | pdfImport        | PDFUploader     | uploadLocalPDF          | fetch          | File object                  | Markdown text          | File size check then POST        |
 | URL Conversion       | Request server conversion       | - [ ] Encode URL; POST to endpoint; forbid malformed URLs                                 | pdfImport        | PDFConverter    | convertRemotePDF        | fetch          | PDF URL                      | Markdown text          | URL validation then POST         |
 | Server Response      | Parse conversion result         | - [ ] Check ok flag; extract markdown/name; forbid ignoring errors                        | pdfImport        | ResponseParser  | parseConversionResult   | —              | Server JSON response         | {markdown, name}       | ok check then field extraction   |
+| Extraction Engine    | Extract text in reading order   | - [ ] Use layout-informed heuristics; preserve semantics; forbid dataset assumptions       | server (vite)    | NativePdfReader | convertPdfFileToMarkdown| node           | PDF bytes                    | Markdown text          | Sort by y/x, stitch fragments    |
+| Image Extraction     | Preserve embedded images        | - [ ] Extract safe embedded images; serve via asset handler; forbid path traversal         | server (vite)    | PdfAssetBridge  | writePdfAssets          | fs             | PDF objects                  | Asset files            | DCTDecode only, sanitized names  |
 | Text Normalization   | Improve extracted readability   | - [ ] Normalize spaced-letter runs; preserve semantics; forbid unreadable extraction      | pdfImport        | MarkdownNormalizer | normalizePdfMarkdown  | —              | Markdown text                | Markdown text          | Heuristic spaced-letter detection |
-| Image Extraction     | Preserve embedded images        | - [ ] Extract image URLs; embed in Markdown; forbid image loss                            | server (pypdf)   | ImageExtractor  | extractImages           | pypdf          | PDF bytes                    | Image URL list         | pypdf image enumeration          |
 
 ---
 
@@ -391,7 +392,7 @@ knowgrph_parser/
 |----------------------|------------------------------------|-------------------------------------------------------|-------------------------------------------|-----------------------------------------------|
 | Markdown as Intermediate| Unify text-based formats        | Consistent parsing, media extraction                  | Lossy for complex HTML                    | Preserve JSON-LD blocks, safe HTML rendering  |
 | CORS Proxy           | Enable remote content              | Bypass same-origin policy, support any URL            | Dev server dependency                     | Fallback to direct fetch                      |
-| Server PDF Conversion| Leverage pypdf                     | Robust text extraction, image support                 | Network round-trip                        | Async upload, progress indication             |
+| Server PDF Conversion| Native Node extraction (Docling-inspired) | Local execution, no external PDF dependencies   | Heuristics may miss complex layouts       | Normalize output, iterate heuristics + tests  |
 | JSON → MD Modes      | User control over presentation     | Flexible inspection, persistent preference            | Mode selection burden                     | Auto mode, suggested mode hints               |
 | Media View Toggle    | Decouple rendering from ingestion  | No re-parse, instant toggle                           | User confusion about data vs. view        | Clear UI labeling, tooltips                   |
 | Property Preservation| Support arbitrary workflows        | Any JSON field becomes node property                  | Potential namespace collisions            | Document canonical fields, prefix conventions |

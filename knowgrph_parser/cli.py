@@ -14,9 +14,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if cmd in {"markdown"}:
             from . import markdown_cmd
             return markdown_cmd.main(rest, parser_script_path=entrypoint)
-        if cmd in {"pdf"}:
-            from . import pdf_cmd
-            return pdf_cmd.main(rest, parser_script_path=entrypoint)
         if cmd in {"codebase-index", "parse-codebase-index"}:
             from . import codebase_index_cmd
             return codebase_index_cmd.main(rest, base_dir=base_dir, parser_script_path=entrypoint)

@@ -198,7 +198,15 @@ import { testWorkspaceFsChangedBatchCoalescesNotifications } from '@/__tests__/w
 import { testWorkspaceFsMemoryInitialEntries } from '@/__tests__/workspaceFsMemoryInitialEntries.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
-import { testNormalizePdfExtractedMarkdownJoinsSpacedLetters } from '@/__tests__/pdfExtractedTextNormalize.test'
+import {
+  testNormalizePdfExtractedMarkdownDoesNotMergeNormalShortWords,
+  testNormalizePdfExtractedMarkdownFixesBrokenWordsAndNumbers,
+  testNormalizePdfExtractedMarkdownJoinsSpacedLetters,
+} from '@/__tests__/pdfExtractedTextNormalize.test'
+import {
+  testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixture,
+  testPdfNativeConversionExtractsBasicText,
+} from '@/__tests__/pdfNativeConvert.test'
 import { testGraphCanvasDisplayFilterFallback } from '@/__tests__/graphCanvasDisplayFilterFallback.test'
 import { testGraphDataForDisplayFiltersNodesAndEdgesTogether } from '@/__tests__/graphDataForDisplay.test'
 import { testDocumentStructureBaselineLockGuardsModeSwitches } from '@/__tests__/baselineLockGuardsModeSwitch.test'
@@ -545,6 +553,10 @@ export const runAllTests = async () => {
   await exec('markdownDocumentPathNormalization: testMarkdownDocumentPathNormalization', testMarkdownDocumentPathNormalization)
   await runParserTests(results)
   await exec('pdf.normalizeExtractedMarkdown.joinsSpacedLetters', testNormalizePdfExtractedMarkdownJoinsSpacedLetters)
+  await exec('pdf.normalizeExtractedMarkdown.fixesBrokenWordsAndNumbers', testNormalizePdfExtractedMarkdownFixesBrokenWordsAndNumbers)
+  await exec('pdf.normalizeExtractedMarkdown.doesNotMergeNormalShortWords', testNormalizePdfExtractedMarkdownDoesNotMergeNormalShortWords)
+  await exec('pdf.nativeConvert.extractsBasicText', testPdfNativeConversionExtractsBasicText)
+  await exec('pdf.nativeConvert.avoidsSpacedLetterArtifactsOnFixture', testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixture)
 
   // Remaining tests
   await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)
