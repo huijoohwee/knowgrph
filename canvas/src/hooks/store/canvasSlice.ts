@@ -27,6 +27,12 @@ import {
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
   clampCanvasWheelZoomCtrlMetaBoostMultiplier,
 } from '@/lib/canvas/zoom-input'
+import {
+  CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT,
+  CANVAS_PAN_SPEED_MULTIPLIER_MAX,
+  CANVAS_PAN_SPEED_MULTIPLIER_MIN,
+  clampCanvasPanSpeedMultiplier,
+} from '@/lib/canvas/camera-options-2d'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -120,6 +126,12 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     lsFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT, {
       min: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
       max: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
+    }),
+  )
+  const initialCanvasPanSpeedMultiplier = clampCanvasPanSpeedMultiplier(
+    lsFloat(LS_KEYS.canvasPanSpeedMultiplier, CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT, {
+      min: CANVAS_PAN_SPEED_MULTIPLIER_MIN,
+      max: CANVAS_PAN_SPEED_MULTIPLIER_MAX,
     }),
   )
 
@@ -279,6 +291,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   zoomDurationFitMs: initialZoomDurationFitMs,
   zoomDurationSelectionMs: initialZoomDurationSelectionMs,
   wheelZoomCtrlMetaBoostMultiplier: initialWheelZoomCtrlMetaBoostMultiplier,
+  canvasPanSpeedMultiplier: initialCanvasPanSpeedMultiplier,
   canvasRenderModeLastFree: '2d' as '2d' | '3d',
   canvasRenderModeIsAuto: false as boolean,
   setCanvasRenderMode: (m: '2d' | '3d') => {
@@ -438,6 +451,17 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     const cur = get().wheelZoomCtrlMetaBoostMultiplier
     if (cur === next) return
     set({ wheelZoomCtrlMetaBoostMultiplier: next })
+  },
+  setCanvasPanSpeedMultiplier: (v: number) => {
+    const next = clampCanvasPanSpeedMultiplier(
+      lsSetFloat(LS_KEYS.canvasPanSpeedMultiplier, Number(v), {
+        min: CANVAS_PAN_SPEED_MULTIPLIER_MIN,
+        max: CANVAS_PAN_SPEED_MULTIPLIER_MAX,
+      }),
+    )
+    const cur = get().canvasPanSpeedMultiplier
+    if (cur === next) return
+    set({ canvasPanSpeedMultiplier: next })
   },
   canvasSnapshotFns: {} as { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns },
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) =>

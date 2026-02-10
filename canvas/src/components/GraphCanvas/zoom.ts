@@ -8,7 +8,7 @@ import { UI_SELECTORS } from '@/lib/config'
 import { computeZoomWheelGuardDecision, createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import {
   computeWheelPanDeltaPx,
-  shouldAllowPanDragForPreset,
+  shouldAllowPanDragForPointerEvent,
   shouldSuppressContextMenuForPreset,
 } from '@/lib/canvas/viewport-controls'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
@@ -20,6 +20,8 @@ import { computeAnchoredZoomTransform, computePinchZoomTransform } from '@/lib/c
 import { computeFlowWheelZoomDurationMs, easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { coerceWheelFallback, resolveWheelAnchor } from '@/lib/canvas/wheel-anchor'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
+import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
+import { isNodePointerTarget } from '@/features/canvas/utils'
 
 export const createZoom = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
@@ -61,9 +63,19 @@ export const createZoom = (
   let lastPointerInCanvas: null | { sx: number; sy: number; ts: number } = null
   const zoom = d3.zoom<SVGSVGElement, unknown>()
     .filter(event => {
-      const anyEvent = event as unknown as { type?: unknown; ctrlKey?: unknown; shiftKey?: unknown; button?: unknown }
+      const anyEvent = event as unknown as {
+        type?: unknown
+        ctrlKey?: unknown
+        shiftKey?: unknown
+        button?: unknown
+        target?: unknown
+      }
       const type = typeof anyEvent.type === 'string' ? anyEvent.type : ''
       if (type.startsWith('touch')) return false
+      const target = anyEvent.target
+      const targetEl = target instanceof Element ? target : null
+      const ignoreSelector = [UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore].filter(Boolean).join(', ')
+      if (ignoreSelector && targetEl && targetEl.closest(ignoreSelector)) return false
       if (anyEvent.type === 'wheel') {
         if (shouldIgnoreCanvasWheelEvent({ event: event as WheelEvent, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })) {
           try {
@@ -81,13 +93,11 @@ export const createZoom = (
       const button = typeof anyEvent.button === 'number' ? anyEvent.button : 0
       if (ctrlKey && anyEvent.type !== 'wheel') return false
 
-      if (viewportControlsPreset === 'map' && shiftKey && (type === 'mousedown' || type === 'pointerdown') && button === 0) {
-        return false
-      }
-      return shouldAllowPanDragForPreset({
+      return shouldAllowPanDragForPointerEvent({
         preset: viewportControlsPreset,
         eventType: type,
         button,
+        shiftKey,
         spacePanHeld: isSpacePanHeld(),
       })
     })
@@ -172,6 +182,117 @@ export const createZoom = (
   }
   svg.call(zoom);
 
+  let pointerDrag: null | { pointerId: number; startClientX: number; startClientY: number; startTransform: d3.ZoomTransform } = null
+  const cancelPointerDrag = (svgEl: SVGSVGElement) => {
+    const drag = pointerDrag
+    if (!drag) return
+    pointerDrag = null
+    try {
+      unlockGlobalUserSelect()
+    } catch {
+      void 0
+    }
+    try {
+      svgEl.releasePointerCapture(drag.pointerId)
+    } catch {
+      void 0
+    }
+  }
+
+  svg.on('pointerdown.kgPointerPan', (event: unknown) => {
+    const e = event as PointerEvent
+    if (!e) return
+    if (e.pointerType === 'touch') return
+
+    const svgEl = svg.node()
+    if (!svgEl) return
+
+    const target = e.target
+    const targetEl = target instanceof Element ? target : null
+    const ignoreSelector = [UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore].filter(Boolean).join(', ')
+    if (ignoreSelector && targetEl && targetEl.closest(ignoreSelector)) return
+
+    const st = useGraphStore.getState()
+    const preset = (st.viewportControlsPreset || viewportControlsPreset) as ViewportControlsPreset
+    const button = typeof e.button === 'number' ? e.button : 0
+    const shiftKey = e.shiftKey === true
+    if (button === 0 && isSpacePanHeld() !== true && isNodePointerTarget(targetEl)) return
+    if (
+      !shouldAllowPanDragForPointerEvent({
+        preset,
+        eventType: 'pointerdown',
+        button,
+        shiftKey,
+        spacePanHeld: isSpacePanHeld(),
+      })
+    ) {
+      return
+    }
+
+    svg.interrupt()
+    cancelWheelZoomAnimation()
+    disableAutoZoomModesForUserGesture(st)
+    pointerDrag = {
+      pointerId: e.pointerId,
+      startClientX: Number.isFinite(e.clientX) ? e.clientX : 0,
+      startClientY: Number.isFinite(e.clientY) ? e.clientY : 0,
+      startTransform: d3.zoomTransform(svgEl),
+    }
+    try {
+      lockGlobalUserSelect()
+    } catch {
+      void 0
+    }
+    try {
+      svgEl.setPointerCapture(e.pointerId)
+    } catch {
+      void 0
+    }
+    try {
+      e.preventDefault()
+    } catch {
+      void 0
+    }
+  })
+
+  svg.on('pointermove.kgPointerPan', (event: unknown) => {
+    const e = event as PointerEvent
+    const drag = pointerDrag
+    if (!drag) return
+    if (!e || e.pointerId !== drag.pointerId) return
+    const svgEl = svg.node()
+    if (!svgEl) return
+    if (typeof e.buttons === 'number' && e.buttons === 0) {
+      cancelPointerDrag(svgEl)
+      return
+    }
+    disableAutoZoomModesForUserGesture(useGraphStore.getState())
+    const clientX = Number.isFinite(e.clientX) ? e.clientX : 0
+    const clientY = Number.isFinite(e.clientY) ? e.clientY : 0
+    const dx = clientX - drag.startClientX
+    const dy = clientY - drag.startClientY
+    const next = d3.zoomIdentity.translate(drag.startTransform.x + dx, drag.startTransform.y + dy).scale(drag.startTransform.k)
+    svg.call(
+      zoom.transform as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void,
+      next,
+    )
+    try {
+      e.preventDefault()
+    } catch {
+      void 0
+    }
+  })
+
+  svg.on('pointerup.kgPointerPan pointercancel.kgPointerPan lostpointercapture.kgPointerPan', (event: unknown) => {
+    const e = event as PointerEvent | undefined
+    const drag = pointerDrag
+    if (!drag) return
+    const svgEl = svg.node()
+    if (!svgEl) return
+    if (e && typeof e.pointerId === 'number' && e.pointerId !== drag.pointerId) return
+    cancelPointerDrag(svgEl)
+  })
+
   svg.on('pointermove.kgWheelAnchor', (event: unknown) => {
     const e = event as PointerEvent
     if (!e) return
@@ -249,9 +370,7 @@ export const createZoom = (
     const schemaNow = st.schema || schema
     const extent = syncScaleExtent(schemaNow)
     const wheelBehavior = readWheelBehavior(schemaNow)
-    const wheelZoom = wheelBehavior === 'preset' && viewportControlsPreset === 'design'
-      ? true
-      : shouldWheelZoom({ event: e, preset: viewportControlsPreset, wheelBehavior })
+    const wheelZoom = shouldWheelZoom({ event: e, preset: viewportControlsPreset, wheelBehavior })
     if (!wheelZoom) return
 
     const svgEl = svg.node()
@@ -557,9 +676,7 @@ export const createZoom = (
     const st = useGraphStore.getState()
     disableAutoZoomModesForUserGesture(st)
     const wheelBehavior = readWheelBehavior(st.schema || schema)
-    const wheelZoom = wheelBehavior === 'preset' && viewportControlsPreset === 'design'
-      ? true
-      : shouldWheelZoom({ event: e, preset: viewportControlsPreset, wheelBehavior })
+    const wheelZoom = shouldWheelZoom({ event: e, preset: viewportControlsPreset, wheelBehavior })
     if (wheelZoom) return
     cancelWheelZoomAnimation()
     const d = computeWheelPanDeltaPx(e)

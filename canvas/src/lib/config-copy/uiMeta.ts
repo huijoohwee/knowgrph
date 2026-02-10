@@ -35,6 +35,7 @@ export const UI_SELECTORS = {
     '[data-main-panel-no-drag="true"]',
   ].join(', '),
   canvasWheelIgnore: '[data-kg-canvas-wheel-ignore="true"]',
+  canvasPointerIgnore: '[data-kg-canvas-pointer-ignore="true"]',
 } as const;
 
 export const UI_LABELS = {

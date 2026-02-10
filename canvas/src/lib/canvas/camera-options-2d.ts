@@ -5,6 +5,15 @@ import { shouldWheelZoomForPreset } from '@/lib/canvas/viewport-controls'
 
 export type WheelBehavior = 'pan' | 'zoom' | 'preset'
 
+export const CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT = 1
+export const CANVAS_PAN_SPEED_MULTIPLIER_MIN = 0.25
+export const CANVAS_PAN_SPEED_MULTIPLIER_MAX = 3
+
+export function clampCanvasPanSpeedMultiplier(v: number): number {
+  const safe = typeof v === 'number' && Number.isFinite(v) ? v : CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT
+  return Math.max(CANVAS_PAN_SPEED_MULTIPLIER_MIN, Math.min(CANVAS_PAN_SPEED_MULTIPLIER_MAX, safe))
+}
+
 export function readWheelBehavior(schema: GraphSchema): WheelBehavior {
   const v = schema.performance?.zoom?.wheelBehavior
   if (v === 'pan' || v === 'zoom') return v
@@ -38,4 +47,3 @@ export function computeWheelZoomFactorWithSpeed(e: Pick<WheelEvent, 'deltaY' | '
   const s = typeof zoomSpeed === 'number' && Number.isFinite(zoomSpeed) ? zoomSpeed : 1
   return computeWheelZoomFactor(deltaYpx * s)
 }
-

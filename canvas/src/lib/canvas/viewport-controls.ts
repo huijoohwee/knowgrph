@@ -4,6 +4,7 @@ export {
   computeWheelPanDeltaPx,
   isPanDragButton,
   shouldAllowPanDragForPreset,
+  shouldAllowPanDragForPointerEvent,
   shouldStartSelectionDragForPreset,
   enforceDesignPresetWhenSelectionOnDrag,
   shouldSuppressContextMenuForPreset,

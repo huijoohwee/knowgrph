@@ -576,6 +576,7 @@ export interface GraphState {
   zoomDurationFitMs: number;
   zoomDurationSelectionMs: number;
   wheelZoomCtrlMetaBoostMultiplier: number;
+  canvasPanSpeedMultiplier: number;
   canvasRenderModeLastFree: '2d' | '3d';
   canvasRenderModeIsAuto: boolean;
   setCanvasRenderMode: (m: '2d' | '3d') => void;
@@ -588,6 +589,7 @@ export interface GraphState {
   setZoomDurationFitMs: (v: number) => void;
   setZoomDurationSelectionMs: (v: number) => void;
   setWheelZoomCtrlMetaBoostMultiplier: (v: number) => void;
+  setCanvasPanSpeedMultiplier: (v: number) => void;
   resetAll: () => void;
   canvasSnapshotFns: { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns };
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) => void;

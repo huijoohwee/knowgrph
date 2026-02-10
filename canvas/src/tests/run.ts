@@ -121,6 +121,7 @@ import { testSpacePanKeyStateTracksHeldSpace } from '@/__tests__/spacePanKeyStat
 import { testViewportControlsPanDragPreset } from '@/__tests__/viewportControlsPanDragPreset.test'
 import { testViewportControlsSelectionDragPreset } from '@/__tests__/viewportControlsSelectionDragPreset.test'
 import { testFlowEditorForcesDesignViewportControlsPreset } from '@/__tests__/flowEditorViewportControlsPreset.test'
+import { testFlowEditorOverlayDoesNotFreezePanOrZoomAfterOverlayDrag } from '@/__tests__/flowEditorOverlayPointerCaptureRegression.test'
 import { testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps } from '@/__tests__/flowWheelZoomSmoothRegression.test'
 import { testD3WheelZoomIsContinuousAndUsesSharedWheelFactor } from '@/__tests__/d3WheelZoomSmoothRegression.test'
 import { testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly } from '@/__tests__/d3ZoomScaleExtentRegression.test'
@@ -565,6 +566,7 @@ export const runAllTests = async () => {
   await exec('interaction.spacePan.keyState', testSpacePanKeyStateTracksHeldSpace)
 
   await exec('viewport.flowEditor.forcesDesignPreset', testFlowEditorForcesDesignViewportControlsPreset)
+  await exec('viewport.flowEditor.overlay.pointerCaptureRegression', testFlowEditorOverlayDoesNotFreezePanOrZoomAfterOverlayDrag)
   await exec('zoom.wheel.flow.smooth', testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps)
   await exec('zoom.wheel.d3.smooth', testD3WheelZoomIsContinuousAndUsesSharedWheelFactor)
   await exec('zoom.wheel.d3.scaleExtent.ssot', testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly)

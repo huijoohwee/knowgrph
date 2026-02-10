@@ -583,6 +583,24 @@ export function bindFlowCanvasNativeInteractions(args: {
     const local = readCanvasLocalPoint({ canvasEl, event: e })
     if (local && local.inBounds) args.lastPointerInCanvasRef.current = { sx: local.sx, sy: local.sy, ts: Date.now() }
     if (!drag) return
+    if (e.pointerType !== 'touch' && e.buttons === 0) {
+      if (args.userSelectLockPointerIdRef.current === e.pointerId) {
+        args.userSelectLockPointerIdRef.current = null
+        unlockGlobalUserSelect()
+      }
+      try {
+        if (canvasEl.hasPointerCapture(e.pointerId)) {
+          canvasEl.releasePointerCapture(e.pointerId)
+        }
+      } catch {
+        void 0
+      }
+      args.dragRef.current = null
+      edgeScroll.reset()
+      args.setSelectionBox(null)
+      args.requestCommit()
+      return
+    }
     if (drag.type === 'pinch') {
       if (e.pointerId !== drag.pointerIdA && e.pointerId !== drag.pointerIdB) return
     } else {
@@ -820,17 +838,78 @@ export function bindFlowCanvasNativeInteractions(args: {
     }
   }
 
+  const onLostPointerCapture = (e: PointerEvent) => {
+    if (args.userSelectLockPointerIdRef.current === e.pointerId) {
+      args.userSelectLockPointerIdRef.current = null
+      unlockGlobalUserSelect()
+    }
+    const drag = args.dragRef.current
+    if (!drag) return
+
+    if (drag.type === 'pinch') {
+      if (e.pointerType === 'touch') {
+        touchPointsById.delete(e.pointerId)
+      }
+      if (e.pointerId !== drag.pointerIdA && e.pointerId !== drag.pointerIdB) return
+      args.dragRef.current = null
+      edgeScroll.reset()
+      args.setSelectionBox(null)
+      args.requestCommit()
+      return
+    }
+
+    if (drag.pointerId !== e.pointerId) return
+    args.dragRef.current = null
+    edgeScroll.reset()
+    if (drag.type === 'lasso') {
+      args.setSelectionBox(null)
+    }
+    args.requestCommit()
+  }
+
   canvasEl.addEventListener('wheel', onWheel, { passive: false })
   canvasEl.addEventListener('pointerdown', onPointerDown, { passive: false })
   canvasEl.addEventListener('pointermove', onPointerMove, { passive: false })
   canvasEl.addEventListener('pointerup', onPointerUp, { passive: false })
   canvasEl.addEventListener('pointercancel', onPointerUp, { passive: false })
+  canvasEl.addEventListener('lostpointercapture', onLostPointerCapture, { passive: false })
   canvasEl.addEventListener('contextmenu', onContextMenu, { passive: false })
 
   return () => {
     if (args.userSelectLockPointerIdRef.current != null) {
+      try {
+        const pointerId = args.userSelectLockPointerIdRef.current
+        if (canvasEl.hasPointerCapture(pointerId)) {
+          canvasEl.releasePointerCapture(pointerId)
+        }
+      } catch {
+        void 0
+      }
       args.userSelectLockPointerIdRef.current = null
       unlockGlobalUserSelect()
+    }
+    {
+      const drag = args.dragRef.current
+      if (drag) {
+        const pointerIds = (() => {
+          if (drag.type === 'pinch') return [drag.pointerIdA, drag.pointerIdB, drag.pointerId]
+          return [drag.pointerId]
+        })()
+        const unique = Array.from(new Set(pointerIds.filter(v => typeof v === 'number' && Number.isFinite(v))))
+        for (let i = 0; i < unique.length; i += 1) {
+          const pointerId = unique[i]
+          try {
+            if (canvasEl.hasPointerCapture(pointerId)) {
+              canvasEl.releasePointerCapture(pointerId)
+            }
+          } catch {
+            void 0
+          }
+        }
+        args.dragRef.current = null
+        touchPointsById.clear()
+        edgeScroll.reset()
+      }
     }
     args.setSelectionBox(null)
     cancelWheelZoomAnimation()
@@ -855,6 +934,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     canvasEl.removeEventListener('pointermove', onPointerMove)
     canvasEl.removeEventListener('pointerup', onPointerUp)
     canvasEl.removeEventListener('pointercancel', onPointerUp)
+    canvasEl.removeEventListener('lostpointercapture', onLostPointerCapture)
     canvasEl.removeEventListener('contextmenu', onContextMenu)
   }
 }

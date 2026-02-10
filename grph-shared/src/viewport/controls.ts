@@ -41,6 +41,24 @@ export function shouldAllowPanDragForPreset(args: {
   return isPanDragButton(args.button, args.preset)
 }
 
+export function shouldAllowPanDragForPointerEvent(args: {
+  preset: ViewportControlsPreset
+  eventType: string
+  button: number
+  shiftKey: boolean
+  spacePanHeld: boolean
+}): boolean {
+  const type = typeof args.eventType === 'string' ? args.eventType : ''
+  const isDown = type === 'pointerdown' || type === 'mousedown'
+  if (args.preset === 'map' && args.shiftKey === true && isDown && args.button === 0) return false
+  return shouldAllowPanDragForPreset({
+    preset: args.preset,
+    eventType: type,
+    button: args.button,
+    spacePanHeld: args.spacePanHeld,
+  })
+}
+
 export function shouldStartSelectionDragForPreset(args: {
   preset: ViewportControlsPreset
   button: number
