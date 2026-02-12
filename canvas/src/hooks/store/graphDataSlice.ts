@@ -56,6 +56,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const nextText = String(text || '')
     const hasFrontmatterMermaid = containsFrontmatterMermaid(nextText)
     const shouldAutoEnableFrontmatter = opts?.autoEnableFrontmatter !== false
+    const state = get()
+    const needsAutoEnable = shouldAutoEnableFrontmatter && hasFrontmatterMermaid && !(state.frontmatterModeEnabled || false)
+    if (!needsAutoEnable && state.markdownDocumentName === name && state.markdownDocumentText === text) return
     set({
       markdownDocumentName: name,
       markdownDocumentText: text,

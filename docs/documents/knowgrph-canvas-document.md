@@ -89,7 +89,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 - The Editor workspace reuses the **Markdown Workspace** as the SSOT for document text (Explorer + Editor/Viewer/Split/Presentation/Slides).
 - Import Folder in Markdown Workspace must be lazy: create file/folder entries and pending stubs without reading contents; clicking a file triggers indexing/loading/parsing/rendering (including on-demand PDF conversion) and shows an `Indexing` progress pill using the shared `label • n/n • kb/kb` formatting.
-- Switching files must not toggle `frontmatterModeEnabled` or trigger graph/layout recomputation; file open updates markdown preview state without mutating mode flags.
+- Switching files and switching webpage view modes must not toggle `frontmatterModeEnabled` or trigger graph/layout/zoom recomputation; view switches are strictly Viewer/Presentation/Slides-only and must not apply-to-graph.
 - Workspace file CRUD (create/edit/delete/clear) must sync to the Source Files list (with stable IDs keyed by `workspace:<path>`); file open should reuse cached `parsedGraphData` from Source Files when the text hash matches.
 - GeoJSON/JSON files that contain geodata must render as a normal graph by converting geodata into nodes with `properties.geo.{lat,lng}` (supporting FeatureCollection and record arrays), so both Canvas and Geospatial Mode can display the dataset.
 - Editor mode must not mount any separate Selection/Record Inspector dock (forbid extra inspector `<header>/<section>` surfaces in Editor mode).

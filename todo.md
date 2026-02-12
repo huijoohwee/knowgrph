@@ -30,6 +30,10 @@
 
 ### P0-Critical
 
+#### 2026-02-12
+
+- [ ] ASCII Wireframe Diagram view
+
 #### 2026-02-11
 
 - default state unpin, layout not messy, 

@@ -43,12 +43,15 @@
 
 **Scope**: Source Files / Markdown Workspace → Import URL; MainPanel → Settings
 
-**Intent**: Keep webpage parsing generic while letting users choose Markdown vs HTML rendering for higher visual fidelity.
+**Intent**: Keep webpage parsing generic while letting users choose Markdown/JSON/HTML view modes without mutating graph/layout/zoom.
 
 **Keys**
 
 - `webpageImportIncludeImages`
 - `webpageImportView` (`markdown` | `json` | `html`)
+  - `markdown`: editor/viewer use Markdown (graph parsing remains aligned to Markdown)
+  - `json`: editor shows conversion payload JSON; viewer/presentation render the live HTML iframe
+  - `html`: viewer/presentation render the live HTML iframe
 
 ---
 

@@ -133,7 +133,10 @@ export async function fetchYouTubeTranscriptMarkdown(rawUrl: string, opts?: { la
   }
 }
 
-export async function fetchWebpageMarkdown(rawUrl: string, opts?: { emit?: 'markdown' | 'json'; includeImages?: boolean }): Promise<RemoteMarkdownConversionResult | null> {
+export async function fetchWebpageMarkdown(
+  rawUrl: string,
+  opts?: { emit?: 'markdown' | 'json'; includeImages?: boolean; signal?: AbortSignal },
+): Promise<RemoteMarkdownConversionResult | null> {
   const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
   if (!cleaned) return null
   try {
@@ -143,6 +146,7 @@ export async function fetchWebpageMarkdown(rawUrl: string, opts?: { emit?: 'mark
     const res = await fetch(`/__webpage_convert?${qs.toString()}`, {
       method: 'POST',
       headers: { Accept: 'application/json' },
+      signal: opts?.signal,
     })
     const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown; title?: unknown; source_url?: unknown; images?: unknown }
     if (json && json.ok === true && typeof json.markdown === 'string') {

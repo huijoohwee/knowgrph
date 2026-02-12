@@ -53,3 +53,29 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
   lines.push('')
   return `${lines.join('\n')}${bodyText}`
 }
+
+export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageViewMode = 'markdown'): string {
+  const text = String(rawText || '')
+  const block = extractYamlFrontmatterBlock(text)
+  if (!block) return text
+  const url = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageUrl')
+  if (!url) return text
+
+  const nextView: WebpageViewMode = view === 'html' ? 'html' : view === 'json' ? 'json' : 'markdown'
+  const lines = block.rawBlock.split('\n')
+  let replaced = false
+  const nextLines = lines.map(line => {
+    if (/^\s*kgWebpageView\s*:/.test(line)) {
+      replaced = true
+      return `kgWebpageView: "${nextView}"`
+    }
+    return line
+  })
+  if (!replaced) {
+    const endIdx = nextLines.lastIndexOf('---')
+    if (endIdx > 0) nextLines.splice(endIdx, 0, `kgWebpageView: "${nextView}"`)
+  }
+  const nextBlock = nextLines.join('\n')
+  const suffix = text.slice(block.rawBlock.length)
+  return `${nextBlock}${suffix}`
+}

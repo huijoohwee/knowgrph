@@ -46,6 +46,8 @@ export type MarkdownWorkspaceMainProps = {
 
   activeText: string
   setActiveText: (next: string) => void
+  editorTextOverride?: string | null
+  disableEditorMutations?: boolean
   viewerTextOverride?: string | null
   disableViewerMutations?: boolean
   activeDocumentKey: string
@@ -67,7 +69,23 @@ function sanitizeInvalidDataUrls(raw: string): string {
   return s.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,<omitted>/g, 'data:,')
 }
 
-import { useSyncScroll } from './useSyncScroll'
+import { useSyncScrollElements } from './useSyncScroll'
+
+function clamp01(n: number) {
+  if (n <= 0) return 0
+  if (n >= 1) return 1
+  return n
+}
+
+function getScrollRatio(el: HTMLElement) {
+  const max = Math.max(1, el.scrollHeight - el.clientHeight)
+  return clamp01(el.scrollTop / max)
+}
+
+function setScrollRatio(el: HTMLElement, ratio: number) {
+  const max = Math.max(0, el.scrollHeight - el.clientHeight)
+  el.scrollTop = Math.round(clamp01(ratio) * max)
+}
 
 function MarkdownEditor(props: {
   value: string
@@ -76,6 +94,8 @@ function MarkdownEditor(props: {
   editorRef: React.MutableRefObject<HTMLTextAreaElement | null>
   onCaretLine?: (line: number) => void
   panelTypography: PanelTypography
+  readOnly?: boolean
+  onEditorEl?: (el: HTMLTextAreaElement | null) => void
 }) {
   const emitCaretLine = React.useCallback(() => {
     const onCaretLine = props.onCaretLine
@@ -97,10 +117,12 @@ function MarkdownEditor(props: {
       <textarea
         ref={el => {
           props.editorRef.current = el
+          props.onEditorEl?.(el)
         }}
         className={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 ${props.panelTypography.panelTextClass} leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
         value={props.value}
         onChange={e => props.onChange(e.target.value)}
+        readOnly={!!props.readOnly}
         spellCheck={false}
         wrap={props.wordWrap ? 'soft' : 'off'}
         aria-label="Markdown Editor Text"
@@ -114,6 +136,9 @@ function MarkdownEditor(props: {
 
 export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(props: MarkdownWorkspaceMainProps) {
   const panelTypography = usePanelTypography()
+  const [editorEl, setEditorEl] = React.useState<HTMLTextAreaElement | null>(null)
+  const [viewerEl, setViewerEl] = React.useState<HTMLElement | null>(null)
+  const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const {
     themeMode,
     uiPanelTextFontClass,
@@ -143,6 +168,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     onCopyNodeQuickEditor,
     activeText,
     setActiveText,
+    editorTextOverride,
+    disableEditorMutations,
     viewerTextOverride,
     disableViewerMutations,
     activeDocumentKey,
@@ -156,20 +183,78 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   } = props
   const viewerRef = React.useRef<HTMLElement | null>(null)
 
-  useSyncScroll(editorRef, viewerRef, layoutMode === 'split')
+  const viewerVisible = layoutMode === 'viewer' || layoutMode === 'split'
+  const viewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
+  const viewerText = React.useMemo(() => sanitizeInvalidDataUrls(viewerTextRaw), [viewerTextRaw])
+
+  const webpageMeta = React.useMemo(() => parseWebpageFrontmatterMeta(viewerText), [viewerText])
+  const showWebpageHtml = !!(webpageMeta && (webpageMeta.view === 'html' || webpageMeta.view === 'json') && webpageMeta.url)
+
+  React.useEffect(() => {
+    if (showWebpageHtml) setViewerEl(null)
+  }, [showWebpageHtml])
+
+  useSyncScrollElements(editorEl, viewerEl, layoutMode === 'split' && !showWebpageHtml)
+
+  React.useEffect(() => {
+    if (!showWebpageHtml) return
+    if (layoutMode !== 'split') return
+    const iframe = iframeRef.current
+    if (!iframe) return
+
+    const lockRef = { owner: null as 'editor' | 'iframe' | null, until: 0 }
+    const canSync = (owner: 'editor' | 'iframe') => {
+      const now = Date.now()
+      if (!lockRef.owner || now > lockRef.until) {
+        lockRef.owner = null
+        lockRef.until = 0
+        return true
+      }
+      return lockRef.owner === owner
+    }
+
+    const sendRatioToIframe = (ratio: number) => {
+      try {
+        iframe.contentWindow?.postMessage({ kind: 'kg-scroll-sync', ratio }, '*')
+      } catch {
+        void 0
+      }
+    }
+
+    const handleEditorScroll = () => {
+      if (!editorEl) return
+      if (!canSync('editor')) return
+      lockRef.owner = 'editor'
+      lockRef.until = Date.now() + 180
+      sendRatioToIframe(getScrollRatio(editorEl))
+    }
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.source !== iframe.contentWindow) return
+      const d = e.data as { kind?: unknown; ratio?: unknown } | null
+      if (!d || d.kind !== 'kg-scroll-sync') return
+      const ratio = typeof d.ratio === 'number' ? d.ratio : NaN
+      if (!Number.isFinite(ratio)) return
+      if (!editorEl) return
+      if (!canSync('iframe')) return
+      lockRef.owner = 'iframe'
+      lockRef.until = Date.now() + 180
+      setScrollRatio(editorEl, ratio)
+    }
+
+    editorEl?.addEventListener('scroll', handleEditorScroll, { passive: true })
+    window.addEventListener('message', handleMessage)
+    return () => {
+      editorEl?.removeEventListener('scroll', handleEditorScroll)
+      window.removeEventListener('message', handleMessage)
+    }
+  }, [editorEl, layoutMode, showWebpageHtml])
 
   React.useEffect(() => {
     if (layoutMode !== 'presentation') {
       presentationApiRef.current = null
     }
   }, [layoutMode, presentationApiRef])
-
-  const viewerVisible = layoutMode === 'viewer' || layoutMode === 'split'
-  const viewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
-  const viewerText = React.useMemo(() => sanitizeInvalidDataUrls(viewerTextRaw), [viewerTextRaw])
-
-  const webpageMeta = React.useMemo(() => parseWebpageFrontmatterMeta(viewerText), [viewerText])
-  const showWebpageHtml = !!(webpageMeta && webpageMeta.view === 'html' && webpageMeta.url)
 
   const lexed = React.useMemo(() => {
     if (!viewerVisible) return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
@@ -241,9 +326,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     >
       <iframe
         className="flex-1 min-h-0 w-full border-0"
+        ref={el => {
+          iframeRef.current = el
+        }}
         title={webpageMeta?.url || 'Webpage'}
         src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-top-navigation-by-user-activation"
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -251,6 +339,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     <MarkdownPreviewViewer
       rootRef={el => {
         viewerRef.current = el
+        setViewerEl(el)
       }}
       tokens={tokens}
       activeDocumentPath={activeDocumentKey}
@@ -380,12 +469,14 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
       {layoutMode === 'editor' ? (
         <MarkdownEditor
-          value={activeText}
-          onChange={setActiveText}
+          value={typeof editorTextOverride === 'string' ? editorTextOverride : activeText}
+          onChange={disableEditorMutations ? () => void 0 : setActiveText}
           wordWrap={markdownWordWrap}
           editorRef={editorRef}
           onCaretLine={onEditorCaretLine}
           panelTypography={panelTypography}
+          readOnly={disableEditorMutations}
+          onEditorEl={setEditorEl}
         />
       ) : layoutMode === 'viewer' ? (
         viewer
@@ -397,12 +488,14 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         <section className="flex-1 min-h-0 flex" aria-label="Split view">
           <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Editor">
             <MarkdownEditor
-              value={activeText}
-              onChange={setActiveText}
+              value={typeof editorTextOverride === 'string' ? editorTextOverride : activeText}
+              onChange={disableEditorMutations ? () => void 0 : setActiveText}
               wordWrap={markdownWordWrap}
               editorRef={editorRef}
               onCaretLine={onEditorCaretLine}
               panelTypography={panelTypography}
+              readOnly={disableEditorMutations}
+              onEditorEl={setEditorEl}
             />
           </section>
           <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" />

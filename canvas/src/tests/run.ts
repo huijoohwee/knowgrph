@@ -35,7 +35,7 @@ import {
 import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
 import { testWebpageFrontmatterRoundtrip, testWebpageFrontmatterUpsertUpdatesExisting, testWebpageFrontmatterSupportsJsonView } from '@/__tests__/webpageFrontmatter.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
-import { testMarkdownWorkspaceWebpageHtmlViewRendersIframe } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
+import { testMarkdownWorkspaceWebpageHtmlViewRendersIframe, testMarkdownWorkspaceEditorTextOverrideWorks } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -943,6 +943,7 @@ export const runAllTests = async () => {
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)
+  await exec('markdown.workspace.editorTextOverride.works', testMarkdownWorkspaceEditorTextOverrideWorks)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)

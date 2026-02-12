@@ -38,7 +38,7 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
-import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta, type WebpageViewMode } from '@/lib/markdown/frontmatter'
+import { normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta, type WebpageViewMode } from '@/lib/markdown/frontmatter'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
@@ -57,6 +57,7 @@ import {
   resolveNodeQuickEditorRegistryEntry,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
+import { WorkspaceModeSelect } from './WorkspaceModeSelect'
 
 const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
@@ -442,7 +443,7 @@ export function MarkdownWorkspace() {
   }, [activePath, activeText])
 
   const [pdfWorkspaceViewerTextOverride, setPdfWorkspaceViewerTextOverride] = React.useState<string | null>(null)
-  const [webpageWorkspaceViewerTextOverride, setWebpageWorkspaceViewerTextOverride] = React.useState<string | null>(null)
+  const [webpageWorkspaceEditorTextOverride, setWebpageWorkspaceEditorTextOverride] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (layoutMode !== 'viewer' && layoutMode !== 'split') {
@@ -478,46 +479,41 @@ export function MarkdownWorkspace() {
   }, [layoutMode, pdfWorkspaceMeta])
 
   React.useEffect(() => {
-    if (layoutMode === 'editor') {
-      setWebpageWorkspaceViewerTextOverride(null)
-      return
-    }
     if (!webpageWorkspaceMeta || webpageWorkspaceMeta.view !== 'json' || !webpageWorkspaceMeta.url) {
-      setWebpageWorkspaceViewerTextOverride(null)
+      setWebpageWorkspaceEditorTextOverride(null)
       return
     }
     let cancelled = false
+    const controller = new AbortController()
     void (async () => {
       try {
         const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
-        const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { emit: 'json', includeImages })
+        const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { emit: 'json', includeImages, signal: controller.signal })
         if (cancelled) return
         if (!res) {
-          setWebpageWorkspaceViewerTextOverride(
-            `---\nkgWebpageUrl: "${webpageWorkspaceMeta.url}"\nkgWebpageView: "json"\n---\n\n\`\`\`json\n{\n  \"ok\": false,\n  \"error\": \"Request failed\"\n}\n\`\`\`\n`,
-          )
+          setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
           return
         }
         if (res.ok !== true) {
-          setWebpageWorkspaceViewerTextOverride(
-            `---\nkgWebpageUrl: "${webpageWorkspaceMeta.url}"\nkgWebpageView: "json"\n---\n\n\`\`\`json\n{\n  \"ok\": false,\n  \"error\": ${JSON.stringify(String(res.error || 'Conversion failed'))}\n}\n\`\`\`\n`,
-          )
+          setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: String(res.error || 'Conversion failed') }, null, 2))
           return
         }
         const jsonText = res.conversionJsonText || JSON.stringify({ ok: true, name: res.name }, null, 2)
-        const viewerText = `---\nkgWebpageUrl: "${webpageWorkspaceMeta.url}"\nkgWebpageView: "json"\n---\n\n\`\`\`json\n${jsonText}\n\`\`\`\n`
-        setWebpageWorkspaceViewerTextOverride(sanitizeImportedMarkdownText(viewerText).text)
+        setWebpageWorkspaceEditorTextOverride(jsonText)
       } catch {
         if (cancelled) return
-        setWebpageWorkspaceViewerTextOverride(
-          `---\nkgWebpageUrl: "${webpageWorkspaceMeta.url}"\nkgWebpageView: "json"\n---\n\n\`\`\`json\n{\n  \"ok\": false,\n  \"error\": \"Request failed\"\n}\n\`\`\`\n`,
-        )
+        setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
       }
     })()
     return () => {
       cancelled = true
+      try {
+        controller.abort()
+      } catch {
+        void 0
+      }
     }
-  }, [layoutMode, webpageWorkspaceMeta])
+  }, [webpageWorkspaceMeta])
 
   const switchActivePdfWorkspaceMode = React.useCallback(
     async (mode: PdfConversionMode) => {
@@ -644,55 +640,51 @@ export function MarkdownWorkspace() {
 
       if (youtubeWorkspaceMeta) {
         return (
-          <select
-            className={`h-6 rounded border px-1 text-[11px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
-            value={youtubeWorkspaceMeta.format}
-            onChange={e => {
-              const next = e.target.value as 'markdown' | 'json'
-              void switchActiveYoutubeWorkspaceFormat(next)
-            }}
-            aria-label="YouTube transcript format"
-          >
-            <option value="markdown">Markdown</option>
-            <option value="json">JSON</option>
-          </select>
+          <WorkspaceModeSelect<'markdown' | 'json'>
+            ariaLabel="YouTube transcript format"
+            value={youtubeWorkspaceMeta.format as 'markdown' | 'json'}
+            isActive={args.isActive}
+            options={[
+              { value: 'markdown', label: 'Markdown' },
+              { value: 'json', label: 'JSON' },
+            ]}
+            onChange={next => void switchActiveYoutubeWorkspaceFormat(next)}
+          />
         )
       }
 
       if (webpageWorkspaceMeta) {
         return (
-          <select
-            className={`h-6 rounded border px-1 text-[11px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+          <WorkspaceModeSelect<WebpageViewMode>
+            ariaLabel="Webpage view mode"
             value={webpageWorkspaceMeta.view}
-            onChange={e => {
-              const next = e.target.value as WebpageViewMode
-              void switchActiveWebpageWorkspaceView(next)
-            }}
-            aria-label="Webpage view mode"
-          >
-            <option value="markdown">Markdown</option>
-            <option value="json">JSON</option>
-            <option value="html">HTML</option>
-          </select>
+            isActive={args.isActive}
+            options={[
+              { value: 'markdown', label: 'Markdown' },
+              { value: 'json', label: 'JSON' },
+              { value: 'html', label: 'HTML' },
+            ]}
+            onChange={next => void switchActiveWebpageWorkspaceView(next)}
+          />
         )
       }
 
       if (!pdfWorkspaceMeta) return null
       return (
-        <select
-          className={`h-6 rounded border px-1 text-[11px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+        <WorkspaceModeSelect<'text-only' | 'image-heavy' | 'scan-ocr'>
+          ariaLabel="PDF conversion mode"
           value={pdfWorkspaceMeta.mode}
-          onChange={e => {
-            const next = e.target.value as 'text-only' | 'image-heavy' | 'scan-ocr'
+          isActive={args.isActive}
+          options={[
+            { value: 'text-only', label: 'text-only' },
+            { value: 'image-heavy', label: 'image-heavy' },
+            { value: 'scan-ocr', label: 'scan/OCR' },
+          ]}
+          onChange={next => {
             handleSetPdfImportConversionMode(next)
             void switchActivePdfWorkspaceMode(next)
           }}
-          aria-label="PDF conversion mode"
-        >
-          <option value="text-only">text-only</option>
-          <option value="image-heavy">image-heavy</option>
-          <option value="scan-ocr">scan/OCR</option>
-        </select>
+        />
       )
     },
     [
@@ -929,7 +921,7 @@ export function MarkdownWorkspace() {
       if (String(activeText || '').trim()) return
       if (!String(candidate || '').trim()) return
       setActiveText(candidate)
-      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, candidate, { autoEnableFrontmatter: false })
+      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(candidate, 'markdown'), { autoEnableFrontmatter: false })
       return
     }
 
@@ -942,7 +934,7 @@ export function MarkdownWorkspace() {
     if (!snap || snap.path !== path) return
     if (!String(snap.text || '').trim()) return
     setActiveText(snap.text)
-    if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, snap.text, { autoEnableFrontmatter: false })
+    if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(snap.text, 'markdown'), { autoEnableFrontmatter: false })
   }, [
     activeDocumentKey,
     activePath,
@@ -960,7 +952,7 @@ export function MarkdownWorkspace() {
     const last = lastLoadedRef.current
     if (last && last.path === path && String(last.text || '').trim()) {
       setActiveText(last.text)
-      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, last.text, { autoEnableFrontmatter: false })
+      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(last.text, 'markdown'), { autoEnableFrontmatter: false })
       return
     }
 
@@ -972,7 +964,7 @@ export function MarkdownWorkspace() {
         if (!next.trim()) return
         lastLoadedRef.current = { path, text: next }
         setActiveText(next)
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, next, { autoEnableFrontmatter: false })
+        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(next, 'markdown'), { autoEnableFrontmatter: false })
       } catch {
         void 0
       }
@@ -1135,7 +1127,7 @@ export function MarkdownWorkspace() {
             return nextEntries
           })
         }
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, next, { autoEnableFrontmatter: false })
+        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(next, 'markdown'), { autoEnableFrontmatter: false })
 
         if (activeDocumentKey && next.trim()) {
           const hash = hashStringToHex(next)
@@ -1344,7 +1336,7 @@ export function MarkdownWorkspace() {
         const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
         const inlineText = debouncedText.length <= maxInline ? debouncedText : undefined
         setEntries(prev => prev.map(e => (e.path === path ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, debouncedText, { autoEnableFrontmatter: false })
+        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(debouncedText, 'markdown'), { autoEnableFrontmatter: false })
         try {
           const store = useGraphStore.getState()
           const wsPath = `workspace:${path}`
@@ -1773,8 +1765,10 @@ export function MarkdownWorkspace() {
     [contentMode],
   )
   const effectiveViewerTextOverride = contentMode === 'nodeQuickEditor' && nodeQuickEditorFormat === 'json' ? quickEditorViewerText : null
-  const combinedViewerTextOverride = effectiveViewerTextOverride || webpageWorkspaceViewerTextOverride || pdfWorkspaceViewerTextOverride
-  const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing
+  const combinedViewerTextOverride = effectiveViewerTextOverride || pdfWorkspaceViewerTextOverride
+  const webpageJsonModeActive = contentMode !== 'nodeQuickEditor' && webpageWorkspaceMeta?.view === 'json'
+  const effectiveEditorTextOverride = contentMode === 'nodeQuickEditor' ? null : webpageWorkspaceEditorTextOverride
+  const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing && !webpageJsonModeActive
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown
 
   return (
@@ -1865,6 +1859,8 @@ export function MarkdownWorkspace() {
           onImportUrl={fileActions.handleImportUrl}
           activeText={effectiveActiveText}
           setActiveText={effectiveSetActiveText}
+          editorTextOverride={effectiveEditorTextOverride}
+          disableEditorMutations={!!effectiveEditorTextOverride}
           viewerTextOverride={combinedViewerTextOverride}
           disableViewerMutations={contentMode === 'nodeQuickEditor'}
           activeDocumentKey={activeDocumentKey}

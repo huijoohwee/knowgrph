@@ -1,16 +1,10 @@
 import { useEffect, useRef } from 'react'
 
-export function useSyncScroll(
-  sourceRef: React.MutableRefObject<HTMLElement | null>,
-  targetRef: React.MutableRefObject<HTMLElement | null>,
-  enabled: boolean = true
-) {
+export function useSyncScrollElements(source: HTMLElement | null, target: HTMLElement | null, enabled: boolean = true) {
   const lockRef = useRef<{ owner: 'source' | 'target'; until: number } | null>(null)
   const unlockTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
-    const source = sourceRef.current
-    const target = targetRef.current
     if (!source || !target || !enabled) return
 
     const clearUnlockTimer = () => {
@@ -86,5 +80,13 @@ export function useSyncScroll(
       clearUnlockTimer()
       lockRef.current = null
     }
-  }, [enabled, sourceRef, targetRef])
+  }, [enabled, source, target])
+}
+
+export function useSyncScroll(
+  sourceRef: React.MutableRefObject<HTMLElement | null>,
+  targetRef: React.MutableRefObject<HTMLElement | null>,
+  enabled: boolean = true,
+) {
+  useSyncScrollElements(sourceRef.current, targetRef.current, enabled)
 }

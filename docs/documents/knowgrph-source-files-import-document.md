@@ -128,7 +128,7 @@ sequenceDiagram
 
 **Decision Logic**:
 - **Graph Alignment**: Webpages convert to Markdown for Document Structure parsing, preserving graph/content sync across touchpoints.
-- **View Mode**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects Markdown tokens vs JSON payload view vs proxied HTML iframe rendering.
+- **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects Markdown tokens vs HTML iframe rendering; `json` mode shows conversion payload JSON in the editor while the Viewer/Presentation renders the proxied HTML. Switching view must not mutate graph/layout/zoom/layers or trigger re-parsing/apply-to-graph.
 - **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
 
 ### Optional Geo Layer Registration

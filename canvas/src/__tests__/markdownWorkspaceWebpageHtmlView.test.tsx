@@ -14,14 +14,91 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
     const editorRef = { current: null as HTMLTextAreaElement | null }
     const presentationApiRef = { current: null }
 
-    const text = ['---', 'kgWebpageUrl: "https://www.anygen.io"', 'kgWebpageView: "html"', '---', '', '# Title', ''].join('\n')
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    const views = ['html', 'json'] as const
+    for (const view of views) {
+      const text = ['---', 'kgWebpageUrl: "https://www.anygen.io"', `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          layoutMode: 'viewer',
+          setLayoutMode: () => {},
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => {},
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => {},
+          statusLabel: null,
+          onApply: () => {},
+          onToggleFullscreen: () => {},
+          presentationApiRef: presentationApiRef as unknown as React.MutableRefObject<any>,
+          isEditing: false,
+          isMarkdown: true,
+          onFormatAction: () => {},
+          onImportLocalFiles: () => {},
+          onImportLocalFolder: () => {},
+          onImportUrl: () => {},
+          activeText: text,
+          setActiveText: () => {},
+          activeDocumentKey: '/webpage.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => {},
+          showInViewer: () => {},
+          showInPresentation: () => {},
+          showInSlidesGallery: () => {},
+          editorUri: 'inmemory://webpage.md',
+          editorLanguage: 'markdown',
+          editorRef: editorRef as unknown as React.MutableRefObject<HTMLTextAreaElement | null>,
+        }),
+      )
+
+      for (let i = 0; i < 5; i += 1) await tick()
+
+      const iframe = doc.querySelector('iframe')
+      if (!iframe) throw new Error(`expected iframe for view=${view}`)
+      const src = String(iframe.getAttribute('src') || '')
+      if (!src.startsWith('/__webpage_proxy?url=')) throw new Error(`expected proxy iframe src for view=${view}`)
+      const sandbox = String(iframe.getAttribute('sandbox') || '')
+      if (sandbox.includes('allow-top-navigation')) throw new Error('expected iframe sandbox to forbid top navigation')
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
+  const { dom, restore } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const editorRef = { current: null as HTMLTextAreaElement | null }
+    const presentationApiRef = { current: null }
+
+    const markdown = ['---', 'kgWebpageUrl: "https://www.anygen.io"', 'kgWebpageView: "json"', '---', '', '# Title', ''].join('\n')
+    const jsonText = JSON.stringify({ ok: true, mode: 'json' }, null, 2)
 
     root.render(
       React.createElement(MarkdownWorkspaceMain, {
         themeMode: 'light',
         uiPanelTextFontClass: 'font-sans',
         uiPanelMonospaceTextClass: 'font-mono',
-        layoutMode: 'viewer',
+        layoutMode: 'editor',
         setLayoutMode: () => {},
         markdownWordWrap: true,
         setMarkdownWordWrap: () => {},
@@ -31,14 +108,18 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
         onApply: () => {},
         onToggleFullscreen: () => {},
         presentationApiRef: presentationApiRef as unknown as React.MutableRefObject<any>,
-        isEditing: false,
+        isEditing: true,
         isMarkdown: true,
         onFormatAction: () => {},
         onImportLocalFiles: () => {},
         onImportLocalFolder: () => {},
         onImportUrl: () => {},
-        activeText: text,
-        setActiveText: () => {},
+        activeText: markdown,
+        setActiveText: () => {
+          throw new Error('expected editor mutations disabled')
+        },
+        editorTextOverride: jsonText,
+        disableEditorMutations: true,
         activeDocumentKey: '/webpage.md',
         highlightedLineRange: null,
         revealLineInEditor: () => {},
@@ -63,14 +144,13 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
       })
     for (let i = 0; i < 5; i += 1) await tick()
 
-    const iframe = doc.querySelector('iframe')
-    if (!iframe) throw new Error('expected iframe')
-    const src = String(iframe.getAttribute('src') || '')
-    if (!src.startsWith('/__webpage_proxy?url=')) throw new Error('expected proxy iframe src')
+    const textarea = doc.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
+    if (!textarea) throw new Error('expected editor textarea')
+    if (textarea.value !== jsonText) throw new Error('expected editorTextOverride rendered')
+    if (!textarea.readOnly) throw new Error('expected editor readonly')
 
     root.unmount()
   } finally {
     restore()
   }
 }
-
