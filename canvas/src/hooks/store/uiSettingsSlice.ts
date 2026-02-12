@@ -259,5 +259,12 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     const next = summary || null;
     set({ lastTraversalSummary: next });
   },
+  youtubeTranscriptOutputDir: '/Users/huijoohwee/Documents/GitHub/sandbox/test-data/test-youtube-transcript',
+  setYoutubeTranscriptOutputDir: (v: string | null) => set({ youtubeTranscriptOutputDir: v }),
+
+  youtubeTranscriptOutputFormat: 'markdown',
+  setYoutubeTranscriptOutputFormat: (v: 'markdown' | 'json') => set({ youtubeTranscriptOutputFormat: v }),
+
+  setPdfImportIncludeImages: (v: boolean) => set({ pdfImportIncludeImages: v }),
 });
 }

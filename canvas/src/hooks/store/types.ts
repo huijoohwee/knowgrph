@@ -325,6 +325,12 @@ export interface GraphState {
   chatTemperature: number;
   chatSystemPrompt: string | null;
 
+  youtubeTranscriptOutputDir: string | null;
+  setYoutubeTranscriptOutputDir: (v: string | null) => void;
+
+  youtubeTranscriptOutputFormat: 'markdown' | 'json';
+  setYoutubeTranscriptOutputFormat: (v: 'markdown' | 'json') => void;
+
   pdfImportIncludeImages: boolean;
   pdfImportConversionMode: PdfImportConversionMode;
   pdfImportMaxPages: number;

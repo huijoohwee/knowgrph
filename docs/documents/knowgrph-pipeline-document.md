@@ -105,8 +105,9 @@ When changing shared packages that are wired via `file:` links (for example `cur
 - Toolbar import actions read local files/URLs and call the parser loader:
   - [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
   - [importSideEffects.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importSideEffects.ts)
-- YouTube import converts transcripts to Markdown/JSON and then follows the same loader path:
+- YouTube import uses an end-to-end native local in-repo pipeline (no external API dependencies) to fetch transcripts/metadata via `youtube_cmd.py` (timedtext/InnerTube) and convert them to Markdown/JSON before following the standard loader path:
   - [youtubeImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts)
+  - [youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py)
 
 ### Parse + Normalize
 

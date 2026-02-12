@@ -37,6 +37,7 @@ import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWork
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
+import { fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -114,6 +115,32 @@ function parsePdfWorkspaceFrontmatter(text: string): { docId: string; mode: PdfC
   const mode: PdfConversionMode = modeRaw === 'image-heavy' ? 'image-heavy' : modeRaw === 'scan-ocr' ? 'scan-ocr' : 'text-only'
   if (!docId) return null
   return { docId, mode, outputDirRel: outputDirRel || readPdfWorkspaceOutputDirRel() }
+}
+
+function parseYoutubeWorkspaceFrontmatter(text: string): { videoId: string; format: 'markdown' | 'json' } | null {
+  const raw = String(text || '')
+  if (!raw.startsWith('---')) return null
+  const end = raw.indexOf('\n---')
+  if (end < 0) return null
+  const fm = raw.slice(0, end + 4)
+  const readVal = (key: string): string => {
+    const m = fm.match(new RegExp(`^${key}:\\s*(.+)\\s*$`, 'm'))
+    const v = m ? String(m[1] || '').trim() : ''
+    if (!v) return ''
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1)
+    return v
+  }
+  const videoId = readVal('kgYoutubeVideoId')
+  const formatRaw = readVal('kgYoutubeFormat')
+  const format: 'markdown' | 'json' = formatRaw === 'json' ? 'json' : 'markdown'
+  if (!videoId) return null
+  return { videoId, format }
+}
+
+function inferYoutubeVideoIdFromPath(path: string): string | null {
+  const base = path.split('/').pop() || ''
+  const m = base.match(/^(?:transcript|youtube)-([a-zA-Z0-9_-]{11})(?:\.(?:txt|md|markdown|json))?$/i)
+  return m ? m[1] : null
 }
 
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
@@ -416,6 +443,27 @@ export function MarkdownWorkspace() {
     return parsePdfWorkspaceFrontmatter(t)
   }, [activePath, activeText])
 
+  const youtubeWorkspaceMeta = React.useMemo(() => {
+    if (!activePath) return null
+    // Allow .md, .markdown, .txt, .json for YouTube transcripts
+    const ext = activePath.split('.').pop()?.toLowerCase() || ''
+    const allowed = ['md', 'markdown', 'txt', 'json']
+    if (!allowed.includes(ext)) return null
+
+    const t = String(activeText || '')
+    // Priority 1: Frontmatter
+    if (t.startsWith('---')) {
+      const parsed = parseYoutubeWorkspaceFrontmatter(t)
+      if (parsed) return parsed
+    }
+    // Priority 2: Filename inference
+    const inferredId = inferYoutubeVideoIdFromPath(activePath)
+    if (inferredId) {
+      return { videoId: inferredId, format: 'markdown' }
+    }
+    return null
+  }, [activePath, activeText])
+
   const [pdfWorkspaceViewerTextOverride, setPdfWorkspaceViewerTextOverride] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -487,9 +535,79 @@ export function MarkdownWorkspace() {
     [activePath, getFs, pdfWorkspaceMeta, setActiveTextProgrammatic, setEntries, setMarkdownDocument, setStatusError, setStatusProgress, setStatusWithAutoClear],
   )
 
+  const switchActiveYoutubeWorkspaceFormat = React.useCallback(
+    async (format: 'markdown' | 'json') => {
+      if (!activePath || !youtubeWorkspaceMeta) return
+      setStatusProgress('Loading YouTube transcript')
+      try {
+        setPdfWorkspaceViewerTextOverride(null)
+        const res = await fetchYouTubeTranscriptMarkdown(`https://youtu.be/${youtubeWorkspaceMeta.videoId}`)
+        if (!res) {
+          setStatusError('Request failed')
+          return
+        }
+        if (res.ok !== true) {
+          setStatusError(res.error)
+          return
+        }
+
+        const frontmatter = `---\nkgYoutubeVideoId: "${youtubeWorkspaceMeta.videoId}"\nkgYoutubeFormat: "${format}"\n---\n\n`
+        let nextText = ''
+
+        if (format === 'json' && res.transcriptJsonText) {
+          nextText = `${frontmatter}\`\`\`json\n${res.transcriptJsonText}\n\`\`\`\n`
+        } else {
+          nextText = `${frontmatter}${res.markdown}`
+        }
+
+        const fs = await getFs()
+        await fs.writeFileText(activePath, nextText)
+        lastLoadedRef.current = { path: activePath, text: nextText }
+        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+        const inlineText = nextText.length <= maxInline ? nextText : undefined
+        setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+        setActiveTextProgrammatic(nextText)
+        const docKey = workspaceDocumentKey(activePath)
+        if (docKey) setMarkdownDocument(docKey, nextText)
+        setStatusWithAutoClear('Loaded', 1200)
+      } catch (e) {
+        setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      }
+    },
+    [
+      activePath,
+      getFs,
+      youtubeWorkspaceMeta,
+      setActiveTextProgrammatic,
+      setEntries,
+      setMarkdownDocument,
+      setStatusError,
+      setStatusProgress,
+      setStatusWithAutoClear,
+    ],
+  )
+
   const renderSourceFileRight = React.useCallback(
     (args: { entry: WorkspaceEntry; isActive: boolean }) => {
       if (!args.isActive) return null
+
+      if (youtubeWorkspaceMeta) {
+        return (
+          <select
+            className={`h-6 rounded border px-1 text-[11px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+            value={youtubeWorkspaceMeta.format}
+            onChange={e => {
+              const next = e.target.value as 'markdown' | 'json'
+              void switchActiveYoutubeWorkspaceFormat(next)
+            }}
+            aria-label="YouTube transcript format"
+          >
+            <option value="markdown">Markdown</option>
+            <option value="json">JSON</option>
+          </select>
+        )
+      }
+
       if (!pdfWorkspaceMeta) return null
       return (
         <select
@@ -508,7 +626,13 @@ export function MarkdownWorkspace() {
         </select>
       )
     },
-    [handleSetPdfImportConversionMode, pdfWorkspaceMeta, switchActivePdfWorkspaceMode],
+    [
+      handleSetPdfImportConversionMode,
+      pdfWorkspaceMeta,
+      switchActivePdfWorkspaceMode,
+      youtubeWorkspaceMeta,
+      switchActiveYoutubeWorkspaceFormat,
+    ],
   )
 
   React.useEffect(() => {

@@ -111,6 +111,17 @@ sequenceDiagram
 
 ## Specifications
 
+### YouTube Import (End-to-End Native Local In-Repo Pipeline)
+
+**From/To**: Source Files Import URL -> `youtube_cmd.py` -> Native Fetch (HTML scrape/InnerTube/XML/JSON) -> Markdown/JSON output.
+
+**Decision Logic**:
+- **End-to-End Native Implementation**: Uses a dependency-free native Python implementation (`youtube_cmd.py`) to fetch transcripts via the YouTube `timedtext` API or InnerTube API, avoiding external library breakage (`youtube-transcript-api`) and ensuring fully local execution.
+- **Fallbacks**: Tries native fetch first, then InnerTube API (Android client emulation), then `yt-dlp` (if installed), then `whisper` (if installed/configured).
+- **Output Format**: Respects the `youtubeTranscriptOutputFormat` setting (Markdown with embedded thumbnail or raw JSON).
+- **Error Handling**: Returns structured JSON errors (`{ "ok": false, "error": "..." }`) even on failure, ensuring the UI displays specific messages (e.g., "Transcript unavailable" due to IP blocking) instead of generic request failures.
+- **Thumbnail**: Extracts high-res thumbnails via oEmbed or fallback URL construction.
+
 ### Optional Geo Layer Registration
 
 **From/To**: Source Files Import → registers dataset URLs → enables multi-dataset overlay rendering.

@@ -2,6 +2,7 @@
 
 | Area | Responsibility | Modules | Classes/Objects | Functions/Methods | Key | Imports | Notes | Line Range |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| — | transcript output dir | `canvas/src/features/settings/registry.ts` | `` | `` | `app.youtube.transcriptOutputDir` | `zustand` |  | `canvas/src/features/settings/registry.ts:L12` |
 | — | canvas interaction speed multiplier | `canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts, canvas/src/hooks/store/canvasSlice.ts` | `` | `setCanvasInteractionSpeedMultiplier` | `canvasInteractionSpeedMultiplier` | `zustand` |  | `canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L145; canvas/src/hooks/store/canvasSlice.ts:L466` |
 | — | canvas pan speed multiplier | `canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts, canvas/src/hooks/store/canvasSlice.ts` | `` | `setCanvasPanSpeedMultiplier` | `canvasPanSpeedMultiplier` | `zustand` |  | `canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L154; canvas/src/hooks/store/canvasSlice.ts:L477` |
 | Canvas Rendering | Render mode (2d or 3d) | `canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts, canvas/src/hooks/store/canvasSlice.ts, canvas/src/hooks/store/graphDataSlice.ts, canvas/src/hooks/store/graphDataSliceUtils.ts` | `` | `setCanvasRenderMode` | `canvasRenderMode` | `zustand` |  | `canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L77; canvas/src/hooks/store/canvasSlice.ts:L308` |

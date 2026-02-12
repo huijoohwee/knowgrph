@@ -3006,5 +3006,19 @@
       "eslint"
     ],
     "lineRange": "canvas/src/features/settings/registry-presets.ts:L75"
+  },
+  "app.youtube.transcriptOutputDir": {
+    "area": "—",
+    "responsibility": "transcript output dir",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry.ts:L12"
   }
 }

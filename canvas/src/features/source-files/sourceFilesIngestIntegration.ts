@@ -287,7 +287,7 @@ async function importLocalIntoActive(args: { fileId: string | null }): Promise<v
   await parseAndApplySourceFile(id)
 }
 
-async function importUrlIntoActive(args: { fileId: string | null; url: string }): Promise<void> {
+async function importUrlIntoActive(args: { fileId: string | null; url: string; format?: 'markdown' | 'json' }): Promise<void> {
   const store = useGraphStore.getState()
   const { geospatialDatasetTimeoutMs, geospatialDatasetMaxBytes } = useGympgrphStore.getState()
   const rawUrl = unwrapUserProvidedText(String(args.url || '').trim()) || String(args.url || '').trim()
@@ -310,9 +310,48 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string })
         store.updateSourceFile(id, { status: 'error', error: yt.error })
         return
       }
+
+      let videoId = ''
+      try {
+        if (yt.transcriptJsonText) {
+          const parsed = JSON.parse(yt.transcriptJsonText)
+          if (parsed && typeof parsed.video_id === 'string') {
+            videoId = parsed.video_id
+          }
+        }
+      } catch {
+        void 0
+      }
+
+      const effectiveFormat = args.format === 'json' ? 'json' : 'markdown'
+      const frontmatter = videoId
+        ? `---\nkgYoutubeVideoId: "${videoId}"\nkgYoutubeFormat: "${effectiveFormat}"\n---\n\n`
+        : ''
+
+      // Handle JSON format preference
+      if (effectiveFormat === 'json' && yt.transcriptJsonText) {
+        // Keep .md extension so it opens in Markdown Workspace
+        const content = `${frontmatter}\`\`\`json\n${yt.transcriptJsonText}\n\`\`\`\n`
+        store.updateSourceFile(id, {
+          name: yt.name,
+          text: content,
+          status: 'idle',
+          error: undefined,
+          parsedParserId: undefined,
+          parsedTextHash: undefined,
+          parsedGraphData: undefined,
+          source: { kind: 'url', url: normalizedUrl },
+          enabled: true,
+        })
+        syncDocumentViewFromSourceFile({ name: yt.name, text: content, source: { kind: 'url', url: normalizedUrl } })
+        await parseAndApplySourceFile(id)
+        return
+      }
+
+      const content = `${frontmatter}${yt.markdown}`
       store.updateSourceFile(id, {
         name: yt.name,
-        text: yt.markdown,
+        text: content,
         status: 'idle',
         error: undefined,
         parsedParserId: undefined,
@@ -321,7 +360,8 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string })
         source: { kind: 'url', url: normalizedUrl },
         enabled: true,
       })
-      syncDocumentViewFromSourceFile({ name: yt.name, text: yt.markdown, source: { kind: 'url', url: normalizedUrl } })
+
+      syncDocumentViewFromSourceFile({ name: yt.name, text: content, source: { kind: 'url', url: normalizedUrl } })
       await parseAndApplySourceFile(id)
       return
     }

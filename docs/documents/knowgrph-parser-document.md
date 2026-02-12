@@ -63,7 +63,7 @@ Transcript JSON payload (for Bottom Panel JSON Editor + UI Editor node propertie
 - metadata: `title`, `video_id`, `source_url`, requested/selected language, `is_generated`, `is_translatable`, `translation_languages`, `oembed`, timing metrics (`start_s`/`end_s`/`duration_s`), `segment_count`, `generated_at_ms`
 - segments: `{text,start,duration}` entries (`segments`)
 
-Implementation note: `knowgrph_parser youtube` supports youtube-transcript-api variants where transcript selection is accessed via either class-level helpers or an instance (`YouTubeTranscriptApi().list(...)`).
+Implementation note: `knowgrph_parser youtube` uses a robust native implementation to fetch transcripts via the YouTube `timedtext` API (parsing XML/JSON) or InnerTube API (Android client emulation), with fallbacks to `yt-dlp` and `whisper`. It avoids external dependency breakage (`youtube-transcript-api`) and handles session cookies/signatures natively.
 
 | Surface | Responsibility (S-V-O) | Implementation |
 |---------|-------------------------|----------------|

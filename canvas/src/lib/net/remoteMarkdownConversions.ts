@@ -2,7 +2,7 @@ import { unwrapUserProvidedText } from '@/lib/url'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { buildPdfConvertQueryParamsFromStore } from '@/lib/pdf/pdfImportClientPrefs'
 
-export type RemoteMarkdownConversionOk = { ok: true; name: string; markdown: string }
+export type RemoteMarkdownConversionOk = { ok: true; name: string; markdown: string; transcriptJsonText?: string }
 export type RemoteMarkdownConversionErr = { ok: false; error: string }
 export type RemoteMarkdownConversionResult = RemoteMarkdownConversionOk | RemoteMarkdownConversionErr
 
@@ -105,17 +105,18 @@ export async function fetchYouTubeTranscriptMarkdown(rawUrl: string, opts?: { la
   const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
   if (!cleaned) return null
   try {
-    const qs = new URLSearchParams({ url: cleaned })
+    const qs = new URLSearchParams({ url: cleaned, emit: 'json' })
     const lang = typeof opts?.lang === 'string' ? opts.lang.trim() : ''
     if (lang && lang !== 'en') qs.set('lang', lang)
     const res = await fetch(`/__youtube_transcript?${qs.toString()}`, {
       method: 'POST',
       headers: { Accept: 'application/json' },
     })
-    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown }
+    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown; transcriptJsonText?: unknown }
     if (json && json.ok === true && typeof json.markdown === 'string') {
       const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : 'youtube-transcript.md'
-      return { ok: true as const, name, markdown: json.markdown }
+      const transcriptJsonText = typeof json.transcriptJsonText === 'string' ? json.transcriptJsonText : undefined
+      return { ok: true as const, name, markdown: json.markdown, transcriptJsonText }
     }
     const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
     if (err) return { ok: false as const, error: err }

@@ -116,6 +116,7 @@ function buildYouTubeTranscriptGraphData(transcript: Record<string, JSONValue>):
   const videoId = typeof transcript.video_id === 'string' ? transcript.video_id.trim() : ''
   const sourceUrl = typeof transcript.source_url === 'string' ? transcript.source_url.trim() : ''
   const title = typeof transcript.title === 'string' ? transcript.title.trim() : ''
+  const thumbnail_url = typeof transcript.thumbnail_url === 'string' ? transcript.thumbnail_url.trim() : ''
 
   const id = (() => {
     if (videoId) return `youtube:${videoId}`
@@ -127,7 +128,10 @@ function buildYouTubeTranscriptGraphData(transcript: Record<string, JSONValue>):
     id,
     label: title || (videoId ? `YouTube Transcript: ${videoId}` : 'YouTube Transcript'),
     type: 'YouTubeTranscript',
-    properties: transcript,
+    properties: {
+      ...transcript,
+      image: thumbnail_url || undefined,
+    },
   }
 
   return {
@@ -241,14 +245,37 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
       try {
         const fs = await getWorkspaceFs()
         await fs.ensureSeed()
-        const path = await upsertWorkspaceTextDocument({
-          fs,
-          parentPath: WORKSPACE_ROOT_PATH,
-          name: markdownName,
-          text: markdownForEditors,
-        })
-        setWorkspaceEntrySource(path, { kind: 'url', url: converted.sourceUrl })
-        useMarkdownExplorerStore.getState().setActivePath(path)
+        const state = useGraphStore.getState()
+        const outputDir = state.youtubeTranscriptOutputDir && state.youtubeTranscriptOutputDir.trim()
+          ? state.youtubeTranscriptOutputDir.trim()
+          : WORKSPACE_ROOT_PATH
+        
+        const format = state.youtubeTranscriptOutputFormat || 'markdown'
+
+        if (format === 'json') {
+           const jsonNameForEditors = `${converted.displayName.replace(/\.(md|markdown)$/i, '') || converted.displayName}.json`
+           const jsonContent = converted.transcriptJsonText || '{}'
+           const path = await upsertWorkspaceTextDocument({
+             fs,
+             parentPath: outputDir,
+             name: jsonNameForEditors,
+             text: jsonContent,
+           })
+           setWorkspaceEntrySource(path, { kind: 'url', url: converted.sourceUrl })
+           useMarkdownExplorerStore.getState().setActivePath(path)
+           state.setWorkspaceViewMode('editor')
+        } else {
+           // Markdown (default)
+           const path = await upsertWorkspaceTextDocument({
+             fs,
+             parentPath: outputDir,
+             name: markdownName,
+             text: markdownForEditors,
+           })
+           setWorkspaceEntrySource(path, { kind: 'url', url: converted.sourceUrl })
+           useMarkdownExplorerStore.getState().setActivePath(path)
+           state.setWorkspaceViewMode('editor')
+        }
       } catch {
         void 0
       }
