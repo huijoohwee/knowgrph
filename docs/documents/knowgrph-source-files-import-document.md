@@ -131,11 +131,15 @@ sequenceDiagram
 - **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects `markdown | json | html | wireframe`.
 - **Active-row dropdown contract**:
   - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-  - `JSON`: Editor shows conversion payload JSON (read-only); Viewer/Presentation/Slides render HTML via `/__webpage_proxy`.
-  - `HTML`: Editor shows Markdown; Viewer/Presentation/Slides render HTML via `/__webpage_proxy`.
-  - `Wireframe`: Editor shows Markdown ASCII wireframe (read-only); Viewer/Presentation/Slides render HTML via `/__webpage_proxy`.
+  - `JSON`: Editor shows conversion payload JSON (read-only); Viewer/Presentation/Slides render HTML via a sandboxed iframe.
+  - `HTML`: Editor stays Markdown; Viewer/Presentation/Slides render HTML via a sandboxed iframe.
+  - `Wireframe`: Editor shows ASCII wireframe (read-only); Viewer/Presentation/Slides render HTML via a sandboxed iframe.
+- **Iframe implementation**:
+  - Default is `srcdoc`: fetch HTML once (same-origin proxy or stored artifact), inject `<base>` + scroll-sync, then render in a sandboxed iframe.
+  - Optional `src`: render with `src="/__webpage_proxy?url=..."`.
+- **Iframe sandbox policy**: Use `sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"` with `referrerPolicy="no-referrer"`; forbid top-level navigation.
 - **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers or trigger re-parsing/apply-to-graph.
-- **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, and can proxy media assets via `/__webpage_asset_proxy` to preserve rich media/animations.
+- **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy` for same-origin loading, and sets a self-origin `<base>` to prevent accidental navigation to the remote site.
 - **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
 
 ### Website Import (Sitemap/Tree → Workspace Pages + Artifact-Backed View Switching)
@@ -147,12 +151,17 @@ sequenceDiagram
 - `kgWebpageView`: `markdown | json | html | wireframe`
 - `kgWebsiteImportId`: website import job id
 - `kgWebsiteNodeId`: stable node id (hash of URL)
+- `kgWebsiteOutputDirRel`: optional override for the in-repo artifact root directory
 
 **Decision Logic**:
 - **Tree fidelity**: Workspace path is derived from URL pathname so the Explorer reflects the website’s directory structure.
 - **View switching (active-row dropdown)**: `Markdown | JSON | HTML | Wireframe` is strictly view-only (no apply-to-graph, no layout/zoom mutation).
 - **Artifact mapping (editor text)**: `json→conversionJson`, `wireframe→wireframeMarkdown`, else `markdown`; fetched from `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`.
-- **HTML fidelity**: For `kgWebpageView ∈ {json, html, wireframe}`, Viewer/Presentation/Slides render 100% fidelity HTML via `/__webpage_proxy` iframe.
+- **HTML fidelity**: For `kgWebpageView ∈ {json, html, wireframe}`, Viewer/Presentation/Slides render 100% fidelity HTML in a sandboxed iframe. The HTML payload is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy.
+- **Wireframe LOD**: Website import passes `wireframeDetailLevel` and stores `wireframe.md` per page for deterministic wireframe view switching.
+
+**Single-URL Artifact Path (non-sitemap)**:
+- Source Files / Markdown Workspace “Import URL” can also persist per-URL artifacts via `POST /__website_import/import-url`, writing `raw.html`, `page.md`, `conversion.json`, `wireframe.md` under `.knowgrph-workspace/...`.
 
 ### Optional Geo Layer Registration
 

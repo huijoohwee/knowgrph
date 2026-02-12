@@ -53,6 +53,9 @@
   - `json`: editor shows conversion payload JSON (read-only); viewer/presentation/slides render HTML via iframe proxy
   - `html`: editor stays Markdown; viewer/presentation/slides render HTML via iframe proxy
   - `wireframe`: editor shows ASCII wireframe (read-only); viewer/presentation/slides render HTML via iframe proxy
+- `webpageHtmlIframeMode` (`srcdoc` | `src`)
+  - `srcdoc` (default): fetch HTML once (same-origin proxy or stored artifact), inject `<base>` + scroll-sync, then render via sandboxed iframe `srcdoc`
+  - `src`: render via sandboxed iframe `src="/__webpage_proxy?url=..."`
 
 ---
 
@@ -71,7 +74,9 @@
 
 **Derived rules**
 - Website import uses `webpageImportIncludeImages` for conversion and `webpageImportView` as the default per-page view (stored in each stub’s `kgWebpageView`).
-- In the active-row dropdown, Viewer/Presentation/Slides render HTML via `/__webpage_proxy` when `kgWebpageView ∈ {json, html, wireframe}`.
+- In the active-row dropdown, Viewer/Presentation/Slides render HTML in a sandboxed iframe when `kgWebpageView ∈ {json, html, wireframe}`.
+- When `kgWebsiteImportId/kgWebsiteNodeId` exist, Viewer prefers rendering from stored `raw.html` artifacts (in-repo) instead of proxying live HTML.
+- If `kgWebsiteOutputDirRel` is present, it overrides the artifact root directory for resolving `raw.html/page.md/conversion.json/wireframe.md`.
 
 ---
 

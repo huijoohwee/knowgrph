@@ -83,7 +83,7 @@ export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageVi
   return `${nextBlock}${suffix}`
 }
 
-export type WebsiteImportFrontmatterMeta = { importId: string; nodeId: string }
+export type WebsiteImportFrontmatterMeta = { importId: string; nodeId: string; outputDirRel?: string }
 
 export function parseWebsiteImportFrontmatterMeta(rawText: string): WebsiteImportFrontmatterMeta | null {
   const block = extractYamlFrontmatterBlock(rawText)
@@ -91,5 +91,7 @@ export function parseWebsiteImportFrontmatterMeta(rawText: string): WebsiteImpor
   const importId = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteImportId')
   const nodeId = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteNodeId')
   if (!importId || !nodeId) return null
-  return { importId, nodeId }
+  const outputDirRelRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteOutputDirRel')
+  const outputDirRel = outputDirRelRaw && outputDirRelRaw.trim() ? outputDirRelRaw.trim() : undefined
+  return { importId, nodeId, outputDirRel }
 }

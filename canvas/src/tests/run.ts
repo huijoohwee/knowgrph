@@ -50,9 +50,14 @@ import {
   testWebsiteImportWireframeDetectsTimecodes,
   testWebsiteImportWireframeClassifiesMediaAndAnimTags,
   testWebsiteImportWireframeRendersPageLevelNavDetails,
+  testWebsiteImportWireframeDetailLevelCapsSectionDetails,
 } from '@/__tests__/websiteImportSitemap.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
-import { testMarkdownWorkspaceWebpageHtmlViewRendersIframe, testMarkdownWorkspaceEditorTextOverrideWorks } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
+import {
+  testMarkdownWorkspaceWebpageHtmlViewRendersIframe,
+  testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml,
+  testMarkdownWorkspaceEditorTextOverrideWorks,
+} from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -968,9 +973,11 @@ export const runAllTests = async () => {
   await exec('websiteImport.wireframe.detectsTimecodes', testWebsiteImportWireframeDetectsTimecodes)
   await exec('websiteImport.wireframe.classifiesMediaAndAnimTags', testWebsiteImportWireframeClassifiesMediaAndAnimTags)
   await exec('websiteImport.wireframe.rendersPageLevelNavDetails', testWebsiteImportWireframeRendersPageLevelNavDetails)
+  await exec('websiteImport.wireframe.detailLevelCapsSectionDetails', testWebsiteImportWireframeDetailLevelCapsSectionDetails)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)
+  await exec('markdown.workspace.webpageHtmlView.websiteImportArtifactHtml', testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml)
   await exec('markdown.workspace.editorTextOverride.works', testMarkdownWorkspaceEditorTextOverrideWorks)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)

@@ -1,10 +1,19 @@
-export function buildWireframeMarkdownFromMarkdown(args: { markdown: string; url: string }): string {
-  const MAX_LABEL_WIDTH = 72
-  const MAX_HEADINGS = 120
-  const MAX_DETAIL_BOXES_PER_SECTION = 6
-  const MAX_DETAIL_TEXT = 52
+export type WebpageWireframeDetailLevel = 'compact' | 'standard' | 'detailed'
+
+export function buildWireframeMarkdownFromMarkdown(args: {
+  markdown: string
+  url: string
+  detailLevel?: WebpageWireframeDetailLevel
+  title?: string
+}): string {
+  const detailLevel: WebpageWireframeDetailLevel =
+    args.detailLevel === 'compact' ? 'compact' : args.detailLevel === 'detailed' ? 'detailed' : 'standard'
+  const MAX_LABEL_WIDTH = detailLevel === 'compact' ? 56 : detailLevel === 'detailed' ? 88 : 72
+  const MAX_HEADINGS = detailLevel === 'compact' ? 80 : detailLevel === 'detailed' ? 240 : 120
+  const MAX_DETAIL_BOXES_PER_SECTION = detailLevel === 'compact' ? 3 : detailLevel === 'detailed' ? 12 : 6
+  const MAX_DETAIL_TEXT = detailLevel === 'compact' ? 36 : detailLevel === 'detailed' ? 72 : 52
   const MAX_INPUT_CHARS = 2_000_000
-  const MAX_SCAN_LINES = 30_000
+  const MAX_SCAN_LINES = detailLevel === 'compact' ? 20_000 : detailLevel === 'detailed' ? 40_000 : 30_000
 
   type Stats = {
     paragraphs: number
@@ -164,14 +173,6 @@ export function buildWireframeMarkdownFromMarkdown(args: { markdown: string; url
     return 'lnk'
   }
 
-  const tagNameFromHtmlLine = (line: string) => {
-    const s = String(line || '').trimStart()
-    if (!s.startsWith('<')) return null
-    const m = s.match(/^<\s*([a-zA-Z][a-zA-Z0-9-]*)\b/)
-    if (!m) return null
-    return String(m[1] || '').toLowerCase()
-  }
-
   const classifyHtmlTag = (tag: string): Detail | null => {
     switch (tag) {
       case 'header':
@@ -201,9 +202,33 @@ export function buildWireframeMarkdownFromMarkdown(args: { markdown: string; url
       case 'select':
       case 'form':
         return { kind: 'ui', label: `[UI] ${tag}` }
+      case 'table':
+        return { kind: 'tbl', label: `[TABLE] html` }
       default:
         return null
     }
+  }
+
+  const addInlineHtmlTags = (sec: SectionNode, line: string): boolean => {
+    const s = String(line || '')
+    if (!s.includes('<')) return false
+    let matched = false
+    const re = /<\s*([a-zA-Z][a-zA-Z0-9-]*)\b/g
+    while (true) {
+      const m = re.exec(s)
+      if (!m) break
+      const tag = String(m[1] || '').toLowerCase()
+      const d = classifyHtmlTag(tag)
+      if (!d) continue
+      matched = true
+      if (d.kind === 'emb') sec.stats.embeds += 1
+      if (d.kind === 'med') sec.stats.media += 1
+      if (d.kind === 'ani') sec.stats.anim += 1
+      if (d.kind === 'ui') sec.stats.ui += 1
+      if (d.kind === 'tbl') sec.stats.tables += 1
+      trackDetail(sec, d)
+    }
+    return matched
   }
 
   const addInlineLinksAndImages = (sec: SectionNode, line: string) => {
@@ -268,9 +293,8 @@ export function buildWireframeMarkdownFromMarkdown(args: { markdown: string; url
       sec.stats.ui += 1
       trackDetail(sec, { kind: 'ui', label })
     }
-    if (s.includes('drag and drop')) push('[UI] drag-and-drop')
-    if (s.includes('choose an emoji') || s.includes('choose emoji')) push('[UI] emoji-picker')
-    if (s.includes('switch to dark mode') || s.includes('dark mode')) push('[UI] theme-toggle')
+    if (s.includes('drag') && s.includes('drop')) push('[UI] drag-and-drop')
+    if (s.includes('dark mode') || s.includes('theme')) push('[UI] theme-toggle')
     if (s.includes('export')) push('[UI] export')
     if (s.includes('play') || s.includes('pause')) push('[UI] media-controls')
   }
@@ -390,24 +414,9 @@ export function buildWireframeMarkdownFromMarkdown(args: { markdown: string; url
       }
     }
 
-    const tag = tagNameFromHtmlLine(line)
-    if (tag) {
-      if (tag === 'table') {
-        current().stats.tables += 1
-        trackDetail(current(), { kind: 'tbl', label: `[TABLE] html` })
-        pendingParagraph = false
-        continue
-      }
-      const d = classifyHtmlTag(tag)
-      if (d) {
-        if (d.kind === 'emb') current().stats.embeds += 1
-        if (d.kind === 'med') current().stats.media += 1
-        if (d.kind === 'ani') current().stats.anim += 1
-        if (d.kind === 'ui') current().stats.ui += 1
-        trackDetail(current(), d)
-        pendingParagraph = false
-        continue
-      }
+    if (addInlineHtmlTags(current(), line)) {
+      pendingParagraph = false
+      continue
     }
 
     if (/@keyframes\b/i.test(line)) {
@@ -428,6 +437,8 @@ export function buildWireframeMarkdownFromMarkdown(args: { markdown: string; url
   }
 
   const pageTitle = (() => {
+    const explicit = String(args.title || '').trim()
+    if (explicit) return explicit
     const firstH1 = (() => {
       const walk = (n: SectionNode): string | null => {
         for (const c of n.children) {
@@ -500,5 +511,5 @@ export function buildWireframeMarkdownFromMarkdown(args: { markdown: string; url
     '  [PRICE] pricing/cost token',
   ]
 
-  return [`# Wireframe`, '', `URL: ${args.url}`, '', '```text', ...legendLines, '', ...bodyLines, '```', ''].join('\n')
+  return [`# Wireframe`, '', `URL: ${args.url}`, `Detail: ${detailLevel}`, '', '```text', ...legendLines, '', ...bodyLines, '```', ''].join('\n')
 }

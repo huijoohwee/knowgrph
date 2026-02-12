@@ -50,6 +50,7 @@ type WebsiteImportOptions = {
   concurrency?: number
   includeImages?: boolean
   outputDirRel?: string
+  wireframeDetailLevel?: 'compact' | 'standard' | 'detailed'
 }
 
 const normalizeRel = (raw: string): string => String(raw || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
@@ -226,6 +227,117 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
       return
     }
 
+    if (req.method === 'POST' && pathname === '/__website_import/import-url') {
+      const chunks: Buffer[] = []
+      await new Promise<void>((resolve) => {
+        req.on('data', (c: Buffer) => chunks.push(c))
+        req.on('end', () => resolve())
+        req.on('error', () => resolve())
+      })
+      const bodyRaw = Buffer.concat(chunks).toString('utf8')
+      const body = safeJsonParse<{ url?: unknown; options?: unknown }>(bodyRaw) || {}
+      const pageUrl = normalizeUrl(typeof body.url === 'string' ? body.url : '')
+      if (!pageUrl) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Missing or invalid url' }))
+        return
+      }
+
+      const opt = (body.options && typeof body.options === 'object' ? (body.options as Record<string, unknown>) : {})
+      const includeImages = opt.includeImages !== false
+      const wireframeDetailLevel =
+        opt.wireframeDetailLevel === 'compact'
+          ? 'compact'
+          : opt.wireframeDetailLevel === 'detailed'
+            ? 'detailed'
+            : 'standard'
+      const importId = randomUUID()
+      const nodeId = hashHex(pageUrl).slice(0, 24)
+      const importDirAbs = path.join(workspaceAbs, importId)
+      const nodeDirAbs = path.join(importDirAbs, 'nodes', nodeId)
+      const manifestPathAbs = path.join(importDirAbs, 'manifest.json')
+      const errors: Array<{ url: string; error: string }> = []
+
+      try {
+        await fs.mkdir(nodeDirAbs, { recursive: true })
+
+        const rawHtmlRes = await fetchTextWithLimit(pageUrl, { timeoutMs: 40_000, maxBytes: 8 * 1024 * 1024, accept: 'text/html,*/*;q=0.9' })
+        if (rawHtmlRes.ok) {
+          try {
+            await fs.writeFile(path.join(nodeDirAbs, 'raw.html'), rawHtmlRes.text, 'utf8')
+          } catch {
+            void 0
+          }
+        }
+
+        const converted = await runWebpageConvert({ repoRoot: args.repoRoot, pythonBin: args.pythonBin, url: pageUrl, includeImages })
+        if (converted.ok !== true) {
+          errors.push({ url: pageUrl, error: converted.error })
+        } else {
+          const md = String(converted.markdown || '')
+          const wireframeMd = buildWireframeMarkdown(md, pageUrl, { detailLevel: wireframeDetailLevel, title: converted.title || undefined })
+          try {
+            await fs.writeFile(path.join(nodeDirAbs, 'page.md'), md, 'utf8')
+          } catch {
+            void 0
+          }
+          try {
+            await fs.writeFile(path.join(nodeDirAbs, 'wireframe.md'), wireframeMd, 'utf8')
+          } catch {
+            void 0
+          }
+          try {
+            await fs.writeFile(
+              path.join(nodeDirAbs, 'conversion.json'),
+              JSON.stringify({ ...converted, url: pageUrl, importedAtMs: Date.now() }, null, 2),
+              'utf8',
+            )
+          } catch {
+            void 0
+          }
+        }
+
+        const node: WebsiteImportNode = {
+          nodeId,
+          url: pageUrl,
+          path: urlToTreePath(pageUrl),
+          title: converted.ok === true ? converted.title || undefined : undefined,
+          status: errors.length > 0 ? 'error' : 'ok',
+          artifacts: {
+            rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'),
+            markdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'page.md'),
+            conversionJsonRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'conversion.json'),
+            wireframeMarkdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'wireframe.md'),
+          },
+        }
+
+        const manifest: WebsiteImportManifestV1 = {
+          version: 1,
+          importId,
+          rootUrl: pageUrl,
+          status: errors.length > 0 ? 'failed' : 'done',
+          startedAtMs: Date.now(),
+          finishedAtMs: Date.now(),
+          nodes: [node],
+          errors,
+        }
+        await writeJsonFileAtomic(manifestPathAbs, manifest)
+        res.statusCode = errors.length > 0 ? 400 : 200
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(JSON.stringify({ ok: errors.length === 0, importId, nodeId, url: pageUrl, error: errors[0]?.error }))
+        return
+      } catch (e) {
+        const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(JSON.stringify({ ok: false, error: msg || 'Import failed' }))
+        return
+      }
+    }
+
     if (req.method === 'POST' && pathname === '/__website_import/start') {
       const chunks: Buffer[] = []
       await new Promise<void>((resolve) => {
@@ -250,6 +362,12 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
         concurrency: clampInt(opt.concurrency, 4, 1, 12),
         includeImages: opt.includeImages !== false,
         outputDirRel: typeof opt.outputDirRel === 'string' ? opt.outputDirRel : undefined,
+        wireframeDetailLevel:
+          opt.wireframeDetailLevel === 'compact'
+            ? 'compact'
+            : opt.wireframeDetailLevel === 'detailed'
+              ? 'detailed'
+              : 'standard',
       }
 
       const importId = randomUUID()
@@ -332,7 +450,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             }
 
             const md = String(converted.markdown || '')
-            const wireframeMd = buildWireframeMarkdown(md, u)
+            const wireframeMd = buildWireframeMarkdown(md, u, { detailLevel: options.wireframeDetailLevel, title: converted.title || undefined })
             try {
               await fs.writeFile(path.join(nodeDirAbs, 'page.md'), md, 'utf8')
             } catch {

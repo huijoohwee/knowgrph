@@ -138,6 +138,7 @@ export function MarkdownWorkspace() {
 
   const setPdfImportConversionMode = useGraphStore(s => s.setPdfImportConversionMode)
   const setWebpageImportView = useGraphStore(s => s.setWebpageImportView)
+  const webpageHtmlIframeMode = useGraphStore(s => (s.webpageHtmlIframeMode === 'src' ? 'src' : 'srcdoc') as 'src' | 'srcdoc')
 
   const handleSetPdfImportConversionMode = React.useCallback(
     (mode: 'text-only' | 'image-heavy' | 'scan-ocr') => {
@@ -509,11 +510,42 @@ export function MarkdownWorkspace() {
     void (async () => {
       try {
         if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
+          if (view === 'html') {
+            setWebpageWorkspaceEditorTextOverride(null)
+            setWebpageWorkspaceViewerTextOverride(null)
+            return
+          }
           const importId = websiteImportMeta.importId
           const nodeId = websiteImportMeta.nodeId
+          const outputDirRel = String(websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '').trim()
+          const outputDirQuery = outputDirRel ? `outputDirRel=${encodeURIComponent(outputDirRel)}&` : ''
+
+          if (view === 'wireframe') {
+            const res = await fetch(
+              `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=markdown`,
+              { signal: controller.signal },
+            )
+            const text = await res.text()
+            if (cancelled) return
+            if (!res.ok) {
+              setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: `HTTP ${res.status}` }, null, 2))
+              setWebpageWorkspaceViewerTextOverride(null)
+              return
+            }
+            const wireframe = buildWireframeMarkdownFromMarkdown({
+              markdown: String(text || ''),
+              url,
+              detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
+            })
+            const clipped = wireframe.length > 200_000 ? `${wireframe.slice(0, 200_000)}\n\n<!-- (clipped) -->\n` : wireframe
+            setWebpageWorkspaceEditorTextOverride(clipped)
+            setWebpageWorkspaceViewerTextOverride(null)
+            return
+          }
+
           const kind = websiteImportArtifactKindForWebpageView(view)
           const res = await fetch(
-            `/__website_import/artifact?importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=${encodeURIComponent(kind)}`,
+            `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=${encodeURIComponent(kind)}`,
             { signal: controller.signal },
           )
           const text = await res.text()
@@ -559,7 +591,11 @@ export function MarkdownWorkspace() {
             setWebpageWorkspaceViewerTextOverride(null)
             return
           }
-          const wireframe = buildWireframeMarkdownFromMarkdown({ markdown: String(res.markdown || ''), url })
+          const wireframe = buildWireframeMarkdownFromMarkdown({
+            markdown: String(res.markdown || ''),
+            url,
+            detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
+          })
           setWebpageWorkspaceEditorTextOverride(wireframe)
           setWebpageWorkspaceViewerTextOverride(null)
           return
@@ -1945,6 +1981,7 @@ export function MarkdownWorkspace() {
           disableEditorMutations={!!effectiveEditorTextOverride || webpageDerivedReadOnlyActive}
           viewerTextOverride={combinedViewerTextOverride}
           disableViewerMutations={contentMode === 'nodeQuickEditor'}
+          webpageHtmlIframeMode={webpageHtmlIframeMode}
           activeDocumentKey={activeDocumentKey}
           highlightedLineRange={highlightedLineRange}
           revealLineInEditor={revealLineInEditor}

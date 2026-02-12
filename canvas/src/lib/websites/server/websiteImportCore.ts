@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { buildWireframeMarkdownFromMarkdown } from '../wireframe'
+import { buildWireframeMarkdownFromMarkdown, type WebpageWireframeDetailLevel } from '../wireframe'
 
 export type WebpageConvertPayload =
   | { ok: true; markdown: string; name: string; title: string; source_url: string; images: string[] }
@@ -68,8 +68,11 @@ export const urlToTreePath = (urlRaw: string): string => {
   }
 }
 
-export const buildWireframeMarkdown = (markdown: string, url: string): string =>
-  buildWireframeMarkdownFromMarkdown({ markdown, url })
+export const buildWireframeMarkdown = (
+  markdown: string,
+  url: string,
+  opts?: { detailLevel?: WebpageWireframeDetailLevel; title?: string },
+): string => buildWireframeMarkdownFromMarkdown({ markdown, url, detailLevel: opts?.detailLevel, title: opts?.title })
 
 const withRepoPythonPath = (repoRoot: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
   const current = String(env.PYTHONPATH || '').trim()

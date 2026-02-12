@@ -368,6 +368,7 @@ export function useWorkspaceFileActions(args: {
         const maxPages = Number.isFinite(store.websiteImportMaxPages) ? Number(store.websiteImportMaxPages) : 50
         const concurrency = Number.isFinite(store.websiteImportConcurrency) ? Number(store.websiteImportConcurrency) : 4
         const includeImages = store.webpageImportIncludeImages ?? true
+        const wireframeDetailLevel = store.webpageWireframeDetailLevel
         const defaultView = store.webpageImportView
 
         const startRes = await fetch(
@@ -377,7 +378,7 @@ export function useWorkspaceFileActions(args: {
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({
               url,
-              options: { discoverSitemap, maxPages, concurrency, includeImages },
+              options: { discoverSitemap, maxPages, concurrency, includeImages, wireframeDetailLevel },
             }),
           },
         )
@@ -468,7 +469,18 @@ export function useWorkspaceFileActions(args: {
 
         const stubForNode = (nodeUrl: string, nodeId: string) => {
           const v = defaultView === 'html' || defaultView === 'json' || defaultView === 'wireframe' ? defaultView : 'markdown'
-          return [`---`, `kgWebpageUrl: "${nodeUrl}"`, `kgWebpageView: "${v}"`, `kgWebsiteImportId: "${importId}"`, `kgWebsiteNodeId: "${nodeId}"`, `---`, ``].join('\n')
+          const lines = [
+            '---',
+            `kgWebpageUrl: "${nodeUrl}"`,
+            `kgWebpageView: "${v}"`,
+            `kgWebsiteImportId: "${importId}"`,
+            `kgWebsiteNodeId: "${nodeId}"`,
+          ]
+          if (outputDirRel && outputDirRel.trim()) {
+            lines.push(`kgWebsiteOutputDirRel: "${outputDirRel.trim()}"`)
+          }
+          lines.push('---', '')
+          return lines.join('\n')
         }
 
         const fs = await getFs()

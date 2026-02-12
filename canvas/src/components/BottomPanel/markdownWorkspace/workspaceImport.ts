@@ -397,6 +397,54 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
       if (v === 'wireframe') return 'wireframe'
       return 'markdown'
     })()
+
+    const outputDirRel = String(useGraphStore.getState().websiteImportOutputDirRel || '').trim()
+    const wireframeDetailLevel = useGraphStore.getState().webpageWireframeDetailLevel
+    try {
+      const startRes = await fetch(`/__website_import/import-url?outputDirRel=${encodeURIComponent(outputDirRel)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ url: normalizedUrl, options: { includeImages, wireframeDetailLevel } }),
+      })
+      const startJson = (await startRes.json()) as { ok?: unknown; importId?: unknown; nodeId?: unknown; url?: unknown; error?: unknown }
+      if (startRes.ok && startJson.ok === true && typeof startJson.importId === 'string' && typeof startJson.nodeId === 'string') {
+        const importId = startJson.importId
+        const nodeId = startJson.nodeId
+        const mdRes = await fetch(
+          `/__website_import/artifact?outputDirRel=${encodeURIComponent(outputDirRel)}&importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=markdown`,
+          { headers: { Accept: 'text/plain' } },
+        )
+        const mdRaw = await mdRes.text()
+        const markdownBody = sanitizeImportedMarkdownText(mdRaw).text
+        const stripped = (() => {
+          const t = String(markdownBody || '')
+          if (!t.startsWith('---')) return t
+          const end = t.indexOf('\n---')
+          if (end < 0) return t
+          return t.slice(end + 4).replace(/^\s*\n/, '')
+        })()
+
+        const urlLine = `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`
+        const viewLine = `kgWebpageView: ${yamlQuote(view)}`
+        const importLine = `kgWebsiteImportId: ${yamlQuote(importId)}`
+        const nodeLine = `kgWebsiteNodeId: ${yamlQuote(nodeId)}`
+        const outputDirLine = outputDirRel && outputDirRel.trim() ? `kgWebsiteOutputDirRel: ${yamlQuote(outputDirRel.trim())}` : ''
+        const fmLines = ['---', urlLine, viewLine, importLine, nodeLine]
+        if (outputDirLine) fmLines.push(outputDirLine)
+        fmLines.push('---', '')
+        const text = [...fmLines, stripped].join('\n')
+
+        const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
+        const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
+        const name = `${baseNoExt}.md`
+        return { normalizedUrl, name, text }
+      }
+      const err = typeof startJson.error === 'string' && startJson.error.trim() ? startJson.error.trim() : `HTTP ${startRes.status}`
+      void err
+    } catch {
+      void 0
+    }
+
     const webpage = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
     if (webpage && webpage.ok) {
       const sanitized = sanitizeImportedMarkdownText(String(webpage.markdown || '')).text

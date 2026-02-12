@@ -337,6 +337,12 @@ export interface GraphState {
   webpageImportView: 'markdown' | 'json' | 'html' | 'wireframe';
   setWebpageImportView: (v: 'markdown' | 'json' | 'html' | 'wireframe') => void;
 
+  webpageHtmlIframeMode: 'srcdoc' | 'src';
+  setWebpageHtmlIframeMode: (v: 'srcdoc' | 'src') => void;
+
+  webpageWireframeDetailLevel: 'compact' | 'standard' | 'detailed';
+  setWebpageWireframeDetailLevel: (v: 'compact' | 'standard' | 'detailed') => void;
+
   websiteImportDiscoverSitemap: boolean;
   setWebsiteImportDiscoverSitemap: (v: boolean) => void;
   websiteImportMaxPages: number;

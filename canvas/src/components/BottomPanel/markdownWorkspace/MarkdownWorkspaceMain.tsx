@@ -10,7 +10,13 @@ import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewVie
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitMarkdownLines } from '@/lib/markdown'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
-import { parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { parseWebpageFrontmatterMeta, parseWebsiteImportFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import {
+  buildCodeViewerSrcdoc,
+  buildWebpageHtmlSrcdoc,
+  fetchWebpageHtmlViaProxy,
+  fetchWebsiteImportArtifact,
+} from '@/lib/websites/webpageIframeSrcdoc'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -51,6 +57,7 @@ export type MarkdownWorkspaceMainProps = {
   disableEditorMutations?: boolean
   viewerTextOverride?: string | null
   disableViewerMutations?: boolean
+  webpageHtmlIframeMode?: 'srcdoc' | 'src'
   activeDocumentKey: string
   highlightedLineRange: HighlightedLineRange
   revealLineInEditor: (line: number, endLine?: number) => void
@@ -157,6 +164,62 @@ function MarkdownEditor(props: {
   )
 }
 
+function useWebpageIframeSrcdoc(args: {
+  enabled: boolean
+  url: string
+  websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string } | null
+}): { srcDoc: string | null; error: string | null } {
+  const [state, setState] = React.useState<{ srcDoc: string | null; error: string | null }>({ srcDoc: null, error: null })
+
+  React.useEffect(() => {
+    if (!args.enabled) {
+      setState({ srcDoc: null, error: null })
+      return
+    }
+    const url = String(args.url || '').trim()
+    if (!url) {
+      setState({ srcDoc: null, error: null })
+      return
+    }
+
+    let cancelled = false
+    const ctrl = new AbortController()
+    void (async () => {
+      const raw = args.websiteImportMeta
+        ? await fetchWebsiteImportArtifact({
+            importId: args.websiteImportMeta.importId,
+            nodeId: args.websiteImportMeta.nodeId,
+            outputDirRel: args.websiteImportMeta.outputDirRel,
+            kind: 'rawHtml',
+            signal: ctrl.signal,
+          })
+        : await fetchWebpageHtmlViaProxy({ url, signal: ctrl.signal })
+      return buildWebpageHtmlSrcdoc({ html: raw, baseHref: url })
+    })()
+      .then((srcDoc) => {
+        if (cancelled) return
+        setState({ srcDoc, error: null })
+      })
+      .catch((err) => {
+        if (cancelled) return
+        const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
+        const fallback = buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'wireframe', text: msg || 'Request failed' })
+        setState({ srcDoc: fallback, error: msg || 'Request failed' })
+      })
+
+    return () => {
+      cancelled = true
+      try {
+        ctrl.abort()
+      } catch {
+        void 0
+      }
+    }
+  }, [args.enabled, args.url, args.websiteImportMeta?.importId, args.websiteImportMeta?.nodeId, args.websiteImportMeta?.outputDirRel])
+
+  return state
+}
+
 export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(props: MarkdownWorkspaceMainProps) {
   const panelTypography = usePanelTypography()
   const [editorEl, setEditorEl] = React.useState<HTMLTextAreaElement | null>(null)
@@ -196,6 +259,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     disableEditorMutations,
     viewerTextOverride,
     disableViewerMutations,
+    webpageHtmlIframeMode,
     activeDocumentKey,
     highlightedLineRange,
     revealLineInEditor,
@@ -212,11 +276,24 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const viewerText = React.useMemo(() => sanitizeInvalidDataUrls(viewerTextRaw), [viewerTextRaw])
 
   const webpageMeta = React.useMemo(() => parseWebpageFrontmatterMeta(activeText), [activeText])
+  const websiteImportMeta = React.useMemo(() => parseWebsiteImportFrontmatterMeta(activeText), [activeText])
   const showWebpageHtml = !!(
     webpageMeta &&
     (webpageMeta.view === 'html' || webpageMeta.view === 'json' || webpageMeta.view === 'wireframe') &&
     webpageMeta.url
   )
+
+  const iframeMode: 'srcdoc' | 'src' = webpageHtmlIframeMode === 'src' ? 'src' : 'srcdoc'
+  const iframeSrcUrl = React.useMemo(() => {
+    const u = String(webpageMeta?.url || '').trim()
+    if (!u) return ''
+    return `/__webpage_proxy?url=${encodeURIComponent(u)}`
+  }, [webpageMeta?.url])
+  const { srcDoc: iframeSrcDoc } = useWebpageIframeSrcdoc({
+    enabled: showWebpageHtml && iframeMode === 'srcdoc',
+    url: String(webpageMeta?.url || ''),
+    websiteImportMeta: websiteImportMeta && websiteImportMeta.importId && websiteImportMeta.nodeId ? websiteImportMeta : null,
+  })
 
   const scrollRatioByDocRef = React.useRef<Map<string, number>>(new Map())
   const docKey = String(activeDocumentKey || '')
@@ -435,7 +512,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           iframeRef.current = el
         }}
         title={webpageMeta?.url || 'Webpage'}
-        src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
+        src={iframeMode === 'src' ? iframeSrcUrl : undefined}
+        srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
         sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"
         referrerPolicy="no-referrer"
       />
@@ -475,8 +553,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation allow-top-navigation-by-user-activation"
+        src={iframeMode === 'src' ? iframeSrcUrl : undefined}
+        srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -512,8 +591,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation allow-top-navigation-by-user-activation"
+        src={iframeMode === 'src' ? iframeSrcUrl : undefined}
+        srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"
         referrerPolicy="no-referrer"
       />
     </section>

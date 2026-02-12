@@ -4,7 +4,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawnSync, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
@@ -65,41 +65,72 @@ function withRepoPythonPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...env, PYTHONPATH: next }
 }
 
-function resolvePythonBin(): string {
-  const fromEnv = String(process.env.KNOWGRPH_PYTHON_BIN || '').trim()
-  if (fromEnv) return fromEnv
-  const candidates = [
-    'python3',
-    path.join(repoRoot, '.venv', 'bin', 'python3'),
-    path.join(repoRoot, '.venv', 'bin', 'python'),
-    path.join(repoRoot, 'venv', 'bin', 'python3'),
-    path.join(repoRoot, 'venv', 'bin', 'python'),
-    '/opt/homebrew/bin/python3',
-    '/usr/local/bin/python3',
-  ]
-  const canUse = (candidate: string) => {
-    if (candidate !== 'python3' && !existsSync(candidate)) return false
-    const probe = spawnSync(
-      candidate,
-      ['-c', 'import knowgrph_parser'],
-      { cwd: repoRoot, encoding: 'utf8', timeout: 2_000, env: withRepoPythonPath(process.env) },
-    )
-    return probe.status === 0
-  }
-  for (const candidate of candidates) {
+const probePythonCandidate = (candidate: string): Promise<boolean> => {
+  return new Promise((resolve) => {
     try {
-      if (canUse(candidate)) return candidate
+      if (candidate !== 'python3' && candidate !== 'python' && !existsSync(candidate)) {
+        resolve(false)
+        return
+      }
+      const child = spawn(candidate, ['-c', 'import knowgrph_parser'], {
+        cwd: repoRoot,
+        env: withRepoPythonPath(process.env),
+      })
+      let done = false
+      const finish = (ok: boolean) => {
+        if (done) return
+        done = true
+        try {
+          clearTimeout(timeoutId)
+        } catch {
+          void 0
+        }
+        resolve(ok)
+      }
+      const timeoutId = setTimeout(() => {
+        try {
+          child.kill()
+        } catch {
+          void 0
+        }
+        finish(false)
+      }, 2_000)
+      child.on('error', () => finish(false))
+      child.on('close', (code) => finish(code === 0))
     } catch {
-      void 0
+      resolve(false)
     }
-  }
-  return 'python3'
+  })
 }
 
-const pythonBin = resolvePythonBin()
+let pythonBinPromise: Promise<string> | null = null
 
-function runMarkdownPipelineOnce(): Promise<void> {
+async function getPythonBin(): Promise<string> {
+  if (pythonBinPromise) return pythonBinPromise
+  pythonBinPromise = (async () => {
+    const fromEnv = String(process.env.KNOWGRPH_PYTHON_BIN || '').trim()
+    if (fromEnv) return fromEnv
+    const candidates = [
+      'python3',
+      'python',
+      path.join(repoRoot, '.venv', 'bin', 'python3'),
+      path.join(repoRoot, '.venv', 'bin', 'python'),
+      path.join(repoRoot, 'venv', 'bin', 'python3'),
+      path.join(repoRoot, 'venv', 'bin', 'python'),
+      '/opt/homebrew/bin/python3',
+      '/usr/local/bin/python3',
+    ]
+    for (const candidate of candidates) {
+      if (await probePythonCandidate(candidate)) return candidate
+    }
+    return 'python3'
+  })()
+  return pythonBinPromise
+}
+
+async function runMarkdownPipelineOnce(): Promise<void> {
   const parts = CODEBASE_INDEX_PIPELINE_COMMAND.split(/\s+/).filter(Boolean)
+  const pythonBin = await getPythonBin()
   const cmd = parts[0] === 'python' ? pythonBin : parts[0]
   const args = parts.slice(1)
   return new Promise((resolve, reject) => {
@@ -173,6 +204,23 @@ const markdownPipelineDevPlugin = {
       }
     })
   },
+}
+
+function createLazyWebsiteImportHandler(): import('vite').Connect.NextHandleFunction {
+  let handlerPromise: Promise<import('vite').Connect.NextHandleFunction> | null = null
+  const getHandler = () => {
+    handlerPromise =
+      handlerPromise ||
+      (async () => {
+        const pythonBin = await getPythonBin()
+        return createWebsiteImportHandler({ repoRoot, pythonBin })
+      })()
+    return handlerPromise
+  }
+  return async (req, res, next) => {
+    const handler = await getHandler()
+    return handler(req, res, next)
+  }
 }
 
 const remoteFetchProxyDevPlugin = {
@@ -256,10 +304,10 @@ const pdfWorkspaceDevPlugin = {
 const websiteImportDevPlugin = {
   name: 'knowgrph-website-import-dev',
   configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use(createWebsiteImportHandler({ repoRoot, pythonBin }))
+    server.middlewares.use(createLazyWebsiteImportHandler())
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use(createWebsiteImportHandler({ repoRoot, pythonBin }))
+    server.middlewares.use(createLazyWebsiteImportHandler())
   },
 }
 
@@ -545,15 +593,6 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
   }
 }
 
-function escapeHtmlAttr(raw: string): string {
-  return String(raw || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
 function stripWebpageSecurityMetasAndBase(rawHtml: string): string {
   const html = String(rawHtml || '')
   if (!html) return html
@@ -581,14 +620,26 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
     return `${assetProxyPrefix}${encodeURIComponent(abs)}`
   }
 
+  const shouldKeepAsIs = (vRaw: string) => {
+    const v = String(vRaw || '')
+    if (!v) return true
+    if (v.startsWith('#')) return true
+    if (/^\s*javascript:/i.test(v)) return true
+    if (/^\s*data:/i.test(v)) return true
+    if (/^\s*blob:/i.test(v)) return true
+    if (/^\s*mailto:/i.test(v)) return true
+    if (/^\s*tel:/i.test(v)) return true
+    if (v.startsWith('/__') || v.startsWith('/@')) return true
+    if (/^\s*[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(v) && !/^\s*https?:/i.test(v)) return true
+    return false
+  }
+
   const rewriteAttr = (tag: string, attr: string) => {
     const re = new RegExp(`(<\\s*${tag}\\b[^>]*\\s${attr}\\s*=\\s*)(["'])([^"']+)(\\2)`, 'gi')
     return (src: string) =>
       src.replace(re, (_full, prefix: string, quote: string, value: string, suffix: string) => {
         const v = String(value || '')
-        if (/^\s*javascript:/i.test(v)) return `${prefix}${quote}${v}${suffix}`
-        if (v.startsWith('/__') || v.startsWith('/@')) return `${prefix}${quote}${v}${suffix}`
-        if (!/^https?:\/\//i.test(v) && !/^\/\//.test(v) && !v.startsWith('/')) return `${prefix}${quote}${v}${suffix}`
+        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${suffix}`
         return `${prefix}${quote}${toProxy(v)}${suffix}`
       })
   }
@@ -603,9 +654,7 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
           rel.includes('rel=') &&
           (rel.includes('stylesheet') || rel.includes('preload') || rel.includes('modulepreload') || rel.includes('icon'))
         if (!shouldProxy) return `${prefix}${quote}${v}${suffixQuote}${tail}`
-        if (/^\s*javascript:/i.test(v)) return `${prefix}${quote}${v}${suffixQuote}${tail}`
-        if (v.startsWith('/__') || v.startsWith('/@')) return `${prefix}${quote}${v}${suffixQuote}${tail}`
-        if (!/^https?:\/\//i.test(v) && !/^\/\//.test(v) && !v.startsWith('/')) return `${prefix}${quote}${v}${suffixQuote}${tail}`
+        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${suffixQuote}${tail}`
         return `${prefix}${quote}${toProxy(v)}${suffixQuote}${tail}`
       })
   }
@@ -615,9 +664,7 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
     return (src: string) =>
       src.replace(re, (_full, prefix: string, quote: string, value: string, suffix: string) => {
         const v = String(value || '')
-        if (/^\s*javascript:/i.test(v)) return `${prefix}${quote}${v}${suffix}`
-        if (v.startsWith('/__') || v.startsWith('/@')) return `${prefix}${quote}${v}${suffix}`
-        if (!/^https?:\/\//i.test(v) && !/^\/\//.test(v) && !v.startsWith('/')) return `${prefix}${quote}${v}${suffix}`
+        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${suffix}`
         return `${prefix}${quote}${toProxy(v)}${suffix}`
       })
   }
@@ -637,8 +684,7 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
             const urlPart = m ? String(m[1] || '') : ''
             const tail = m && m[2] ? String(m[2] || '') : ''
             if (!urlPart) return p
-            if (urlPart.startsWith('/__') || urlPart.startsWith('/@')) return `${urlPart}${tail}`
-            if (!/^https?:\/\//i.test(urlPart) && !/^\/\//.test(urlPart) && !urlPart.startsWith('/')) return `${urlPart}${tail}`
+            if (shouldKeepAsIs(urlPart)) return `${urlPart}${tail}`
             return `${toProxy(urlPart)}${tail}`
           })
           .join(', ')
@@ -659,17 +705,16 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
   return out
 }
 
-function injectWebpageProxyHtml(opts: { html: string; baseHref: string; originalUrl: string }): string {
+function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): string {
   const html = rewriteWebpageMediaAssetsToProxy({
     html: stripWebpageSecurityMetasAndBase(String(opts.html || '')),
     originalUrl: opts.originalUrl,
   })
-  const baseHref = String(opts.baseHref || '').trim()
   const originalUrl = String(opts.originalUrl || '').trim()
   if (!html) return html
 
   const injection = [
-    `<base href="${escapeHtmlAttr(baseHref)}">`,
+    `<base href="/">`,
     '<meta name="referrer" content="no-referrer">',
     '<script>',
     '(() => {',
@@ -758,10 +803,13 @@ function injectWebpageProxyHtml(opts: { html: string; baseHref: string; original
       '      const raw = el.getAttribute(attr) || "";',
       '      const v = String(raw || "");',
       '      if (!v) return;',
-      '      if (/^\s*javascript:/i.test(v)) return;',
+      '      if (/^\\s*javascript:/i.test(v)) return;',
+      '      if (v.startsWith("#")) return;',
+      '      if (/^\\s*data:/i.test(v)) return;',
+      '      if (/^\\s*blob:/i.test(v)) return;',
+      '      if (/^\\s*mailto:/i.test(v) || /^\\s*tel:/i.test(v)) return;',
+      '      if (/^\\s*[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(v) && !/^\\s*https?:/i.test(v)) return;',
       '      if (v.startsWith("/__") || v.startsWith("/@")) return;',
-      '      const needs = v.startsWith("/") || /^https?:\/\//i.test(v) || v.startsWith("//");',
-      '      if (!needs) return;',
       '      const abs = resolveAbs(v);',
       '      if (!abs) return;',
       '      el.setAttribute(attr, toAssetProxy(abs));',
@@ -777,14 +825,17 @@ function injectWebpageProxyHtml(opts: { html: string; baseHref: string; original
       '      if (!v) return;',
       '      const parts = v.split(",").map(x => x.trim()).filter(Boolean);',
       '      const next = parts.map(p => {',
-      '        const m = p.match(/^(\S+)(\s+.+)?$/);',
+      '        const m = p.match(/^(\\S+)(\\s+.+)?$/);',
       '        const urlPart = m ? String(m[1] || "") : "";',
       '        const tail = m && m[2] ? String(m[2] || "") : "";',
       '        if (!urlPart) return p;',
-      '        if (/^\s*javascript:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '        if (/^\\s*javascript:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '        if (urlPart.startsWith("#")) return `${urlPart}${tail}`;',
+      '        if (/^\\s*data:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '        if (/^\\s*blob:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '        if (/^\\s*mailto:/i.test(urlPart) || /^\\s*tel:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '        if (/^\\s*[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(urlPart) && !/^\\s*https?:/i.test(urlPart)) return `${urlPart}${tail}`;',
       '        if (urlPart.startsWith("/__") || urlPart.startsWith("/@")) return `${urlPart}${tail}`;',
-      '        const needs = urlPart.startsWith("/") || /^https?:\/\//i.test(urlPart) || urlPart.startsWith("//");',
-      '        if (!needs) return `${urlPart}${tail}`;',
       '        const abs = resolveAbs(urlPart);',
       '        if (!abs) return `${urlPart}${tail}`;',
       '        return `${toAssetProxy(abs)}${tail}`;',
@@ -1027,14 +1078,6 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       const raw = buf.toString('utf8')
       const injected = injectWebpageProxyHtml({
         html: raw,
-        baseHref: (() => {
-          try {
-            const u = new URL(urlParam)
-            return `${u.origin}${u.pathname.endsWith('/') ? u.pathname : `${u.pathname}/`}`
-          } catch {
-            return urlParam
-          }
-        })(),
         originalUrl: urlParam,
       })
       res.end(injected, 'utf8')
@@ -1234,10 +1277,11 @@ type YoutubeConvertResult =
   | { ok: true; markdown: string; name: string; transcript: Record<string, unknown> }
   | { ok: false; error: string }
 
-function runKnowgrphParserConvertYoutubeToPayload(opts: {
+async function runKnowgrphParserConvertYoutubeToPayload(opts: {
   url: string
   lang?: string
 }): Promise<YoutubeConvertResult> {
+  const pythonBin = await getPythonBin()
   return new Promise((resolve) => {
     const timeoutMs = (() => {
       const raw = Number(process.env.KG_YOUTUBE_TRANSCRIPT_TIMEOUT_MS || '')
@@ -1396,10 +1440,11 @@ type WebpageConvertResult =
   | { ok: true; markdown: string; name: string; title: string; source_url: string; images: string[] }
   | { ok: false; error: string }
 
-function runKnowgrphParserConvertWebpageToPayload(opts: {
+async function runKnowgrphParserConvertWebpageToPayload(opts: {
   url: string;
   includeImages?: boolean;
 }): Promise<WebpageConvertResult> {
+  const pythonBin = await getPythonBin()
   return new Promise((resolve) => {
     const timeoutMs = (() => {
       const raw = Number(process.env.KG_WEBPAGE_CONVERT_TIMEOUT_MS || '')

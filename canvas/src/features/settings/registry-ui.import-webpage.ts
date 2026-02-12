@@ -33,6 +33,29 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     options: ['markdown', 'json', 'html', 'wireframe'],
   },
   {
+    key: 'webpageHtmlIframeMode',
+    type: 'string',
+    source: 'store',
+    read: () => s().webpageHtmlIframeMode,
+    write: v => s().setWebpageHtmlIframeMode(String(v) === 'src' ? 'src' : 'srcdoc'),
+    docKey: 'webpageHtmlIframeMode',
+    default: () => 'srcdoc',
+    options: ['srcdoc', 'src'],
+  },
+  {
+    key: 'webpageWireframeDetailLevel',
+    type: 'string',
+    source: 'store',
+    read: () => s().webpageWireframeDetailLevel,
+    write: v =>
+      s().setWebpageWireframeDetailLevel(
+        String(v) === 'compact' ? 'compact' : String(v) === 'detailed' ? 'detailed' : 'standard',
+      ),
+    docKey: 'webpageWireframeDetailLevel',
+    default: () => 'standard',
+    options: ['compact', 'standard', 'detailed'],
+  },
+  {
     key: 'websiteImportDiscoverSitemap',
     type: 'boolean',
     source: 'store',
