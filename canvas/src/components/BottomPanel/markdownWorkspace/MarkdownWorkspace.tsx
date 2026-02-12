@@ -37,7 +37,9 @@ import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWork
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
-import { fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta, type WebpageViewMode } from '@/lib/markdown/frontmatter'
+import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -60,40 +62,6 @@ const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
   const out = raw.map(v => String(v || '').trim()).filter(Boolean)
   return out
-}
-
-function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: boolean } {
-  const s = String(raw || '')
-  const needle = 'data:image/'
-  const base64Needle = ';base64,'
-  let i = 0
-  let changed = false
-  let out = ''
-  while (i < s.length) {
-    const start = s.indexOf(needle, i)
-    if (start < 0) {
-      out += s.slice(i)
-      break
-    }
-    const base64Pos = s.indexOf(base64Needle, start)
-    if (base64Pos < 0) {
-      out += s.slice(i)
-      break
-    }
-    out += s.slice(i, start)
-
-    const afterBase64 = base64Pos + base64Needle.length
-    const maxScan = Math.min(s.length, afterBase64 + 2_000_000)
-    let end = afterBase64
-    for (; end < maxScan; end += 1) {
-      const ch = s.charCodeAt(end)
-      if (ch === 41 || ch === 34 || ch === 39 || ch === 32 || ch === 10 || ch === 13 || ch === 9) break
-    }
-    out += 'data:,'
-    changed = true
-    i = end
-  }
-  return { text: out, changed }
 }
 
 function parsePdfWorkspaceFrontmatter(text: string): { docId: string; mode: PdfConversionMode; outputDirRel: string } | null {
@@ -160,6 +128,7 @@ export function MarkdownWorkspace() {
   const setGraphData = useGraphStore(s => s.setGraphData)
 
   const setPdfImportConversionMode = useGraphStore(s => s.setPdfImportConversionMode)
+  const setWebpageImportView = useGraphStore(s => s.setWebpageImportView)
 
   const handleSetPdfImportConversionMode = React.useCallback(
     (mode: 'text-only' | 'image-heavy' | 'scan-ocr') => {
@@ -464,7 +433,16 @@ export function MarkdownWorkspace() {
     return null
   }, [activePath, activeText])
 
+  const webpageWorkspaceMeta = React.useMemo(() => {
+    if (!activePath) return null
+    if (!isMarkdownPath(activePath)) return null
+    const t = String(activeText || '')
+    if (!t.startsWith('---')) return null
+    return parseWebpageFrontmatterMeta(t)
+  }, [activePath, activeText])
+
   const [pdfWorkspaceViewerTextOverride, setPdfWorkspaceViewerTextOverride] = React.useState<string | null>(null)
+  const [webpageWorkspaceViewerTextOverride, setWebpageWorkspaceViewerTextOverride] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (layoutMode !== 'viewer' && layoutMode !== 'split') {
@@ -499,6 +477,48 @@ export function MarkdownWorkspace() {
     }
   }, [layoutMode, pdfWorkspaceMeta])
 
+  React.useEffect(() => {
+    if (layoutMode === 'editor') {
+      setWebpageWorkspaceViewerTextOverride(null)
+      return
+    }
+    if (!webpageWorkspaceMeta || webpageWorkspaceMeta.view !== 'json' || !webpageWorkspaceMeta.url) {
+      setWebpageWorkspaceViewerTextOverride(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
+        const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { emit: 'json', includeImages })
+        if (cancelled) return
+        if (!res) {
+          setWebpageWorkspaceViewerTextOverride(
+            `---\nkgWebpageUrl: "${webpageWorkspaceMeta.url}"\nkgWebpageView: "json"\n---\n\n\`\`\`json\n{\n  \"ok\": false,\n  \"error\": \"Request failed\"\n}\n\`\`\`\n`,
+          )
+          return
+        }
+        if (res.ok !== true) {
+          setWebpageWorkspaceViewerTextOverride(
+            `---\nkgWebpageUrl: "${webpageWorkspaceMeta.url}"\nkgWebpageView: "json"\n---\n\n\`\`\`json\n{\n  \"ok\": false,\n  \"error\": ${JSON.stringify(String(res.error || 'Conversion failed'))}\n}\n\`\`\`\n`,
+          )
+          return
+        }
+        const jsonText = res.conversionJsonText || JSON.stringify({ ok: true, name: res.name }, null, 2)
+        const viewerText = `---\nkgWebpageUrl: "${webpageWorkspaceMeta.url}"\nkgWebpageView: "json"\n---\n\n\`\`\`json\n${jsonText}\n\`\`\`\n`
+        setWebpageWorkspaceViewerTextOverride(sanitizeImportedMarkdownText(viewerText).text)
+      } catch {
+        if (cancelled) return
+        setWebpageWorkspaceViewerTextOverride(
+          `---\nkgWebpageUrl: "${webpageWorkspaceMeta.url}"\nkgWebpageView: "json"\n---\n\n\`\`\`json\n{\n  \"ok\": false,\n  \"error\": \"Request failed\"\n}\n\`\`\`\n`,
+        )
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [layoutMode, webpageWorkspaceMeta])
+
   const switchActivePdfWorkspaceMode = React.useCallback(
     async (mode: PdfConversionMode) => {
       if (!activePath || !pdfWorkspaceMeta) return
@@ -513,10 +533,10 @@ export function MarkdownWorkspace() {
         const markdownRaw = String(res.markdown || '')
         setPdfWorkspaceViewerTextOverride(markdownRaw)
 
-        const stripped = stripEmbeddedBase64ImageSrc(markdownRaw)
-        const notice = stripped.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
+        const sanitized = sanitizeImportedMarkdownText(markdownRaw)
+        const notice = sanitized.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
         const frontmatter = `---\nkgPdfWorkspaceDocId: "${pdfWorkspaceMeta.docId}"\nkgPdfWorkspaceMode: "${mode}"\nkgPdfWorkspaceOutputDirRel: "${pdfWorkspaceMeta.outputDirRel}"\n---\n\n`
-        const nextText = `${frontmatter}${notice}${stripped.text}`
+        const nextText = `${frontmatter}${notice}${sanitized.text}`
 
         const fs = await getFs()
         await fs.writeFileText(activePath, nextText)
@@ -587,6 +607,37 @@ export function MarkdownWorkspace() {
     ],
   )
 
+  const switchActiveWebpageWorkspaceView = React.useCallback(
+    async (view: WebpageViewMode) => {
+      if (!activePath || !webpageWorkspaceMeta) return
+      try {
+        setWebpageImportView(view)
+        const nextText = upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+        const fs = await getFs()
+        await fs.writeFileText(activePath, nextText)
+        lastLoadedRef.current = { path: activePath, text: nextText }
+        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+        const inlineText = nextText.length <= maxInline ? nextText : undefined
+        setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+        setActiveTextProgrammatic(nextText)
+        setStatusWithAutoClear('Updated', 1200)
+      } catch (e) {
+        setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      }
+    },
+    [
+      activePath,
+      activeText,
+      getFs,
+      setActiveTextProgrammatic,
+      setEntries,
+      setStatusError,
+      setStatusWithAutoClear,
+      setWebpageImportView,
+      webpageWorkspaceMeta,
+    ],
+  )
+
   const renderSourceFileRight = React.useCallback(
     (args: { entry: WorkspaceEntry; isActive: boolean }) => {
       if (!args.isActive) return null
@@ -604,6 +655,24 @@ export function MarkdownWorkspace() {
           >
             <option value="markdown">Markdown</option>
             <option value="json">JSON</option>
+          </select>
+        )
+      }
+
+      if (webpageWorkspaceMeta) {
+        return (
+          <select
+            className={`h-6 rounded border px-1 text-[11px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+            value={webpageWorkspaceMeta.view}
+            onChange={e => {
+              const next = e.target.value as WebpageViewMode
+              void switchActiveWebpageWorkspaceView(next)
+            }}
+            aria-label="Webpage view mode"
+          >
+            <option value="markdown">Markdown</option>
+            <option value="json">JSON</option>
+            <option value="html">HTML</option>
           </select>
         )
       }
@@ -630,8 +699,10 @@ export function MarkdownWorkspace() {
       handleSetPdfImportConversionMode,
       pdfWorkspaceMeta,
       switchActivePdfWorkspaceMode,
+      switchActiveWebpageWorkspaceView,
       youtubeWorkspaceMeta,
       switchActiveYoutubeWorkspaceFormat,
+      webpageWorkspaceMeta,
     ],
   )
 
@@ -1011,9 +1082,29 @@ export function MarkdownWorkspace() {
           setStatusError('Load failed: Missing file contents')
           return
         }
-        const next = String(text)
+        const rawNext = String(text)
+        const sanitized = (() => {
+          if (!rawNext) return null
+          if (!rawNext.includes('kgWebpageUrl') && !rawNext.includes('data:image/')) return null
+          const res = sanitizeImportedMarkdownText(rawNext)
+          return res.changed ? res.text : null
+        })()
+        const next = sanitized ?? rawNext
+        if (sanitized) {
+          try {
+            const fs = await getFs()
+            await fs.writeFileText(path, sanitized)
+          } catch {
+            void 0
+          }
+        }
         lastLoadedRef.current = { path, text: next }
         setActiveTextProgrammatic(next)
+        if (sanitized && canUseCachedText) {
+          const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+          const inlineText = next.length <= maxInline ? next : undefined
+          setEntries(prev => prev.map(e => (e.path === path && e.kind === 'file' ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+        }
         if (!canUseCachedText) {
           const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
           const inlineText = next.length <= maxInline ? next : undefined
@@ -1682,7 +1773,7 @@ export function MarkdownWorkspace() {
     [contentMode],
   )
   const effectiveViewerTextOverride = contentMode === 'nodeQuickEditor' && nodeQuickEditorFormat === 'json' ? quickEditorViewerText : null
-  const combinedViewerTextOverride = effectiveViewerTextOverride || pdfWorkspaceViewerTextOverride
+  const combinedViewerTextOverride = effectiveViewerTextOverride || webpageWorkspaceViewerTextOverride || pdfWorkspaceViewerTextOverride
   const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown
 

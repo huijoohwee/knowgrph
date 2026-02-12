@@ -10,6 +10,7 @@ import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewVie
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitMarkdownLines } from '@/lib/markdown'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
+import { parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -167,14 +168,18 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const viewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
   const viewerText = React.useMemo(() => sanitizeInvalidDataUrls(viewerTextRaw), [viewerTextRaw])
 
+  const webpageMeta = React.useMemo(() => parseWebpageFrontmatterMeta(viewerText), [viewerText])
+  const showWebpageHtml = !!(webpageMeta && webpageMeta.view === 'html' && webpageMeta.url)
+
   const lexed = React.useMemo(() => {
     if (!viewerVisible) return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
+    if (showWebpageHtml) return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
     try {
       return lexMarkdown(viewerText)
     } catch {
       return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
     }
-  }, [viewerText, viewerVisible])
+  }, [showWebpageHtml, viewerText, viewerVisible])
 
   const tokens = lexed.tokens
   void lexed.startLineOffset
@@ -226,7 +231,23 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     [activeText, disableViewerMutations, setActiveText],
   )
 
-  const viewer = (
+  const viewer = showWebpageHtml ? (
+    <section
+      ref={el => {
+        viewerRef.current = el
+      }}
+      className="flex-1 min-h-0 flex"
+      aria-label="Webpage Viewer"
+    >
+      <iframe
+        className="flex-1 min-h-0 w-full border-0"
+        title={webpageMeta?.url || 'Webpage'}
+        src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-top-navigation-by-user-activation"
+        referrerPolicy="no-referrer"
+      />
+    </section>
+  ) : (
     <MarkdownPreviewViewer
       rootRef={el => {
         viewerRef.current = el
@@ -255,7 +276,17 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     />
   )
 
-  const presentation = (
+  const presentation = showWebpageHtml ? (
+    <section className="flex-1 min-h-0 flex" aria-label="Webpage Presentation Surface">
+      <iframe
+        className="flex-1 min-h-0 w-full border-0"
+        title={webpageMeta?.url || 'Webpage'}
+        src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-top-navigation-by-user-activation"
+        referrerPolicy="no-referrer"
+      />
+    </section>
+  ) : (
     <section className="flex-1 min-h-0 flex" aria-label="Presentation Surface">
       <MarkdownPreview
         markdownText={viewerText}
@@ -282,7 +313,17 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     </section>
   )
 
-  const slidesGallery = (
+  const slidesGallery = showWebpageHtml ? (
+    <section className="flex-1 min-h-0 flex" aria-label="Webpage Slides Gallery">
+      <iframe
+        className="flex-1 min-h-0 w-full border-0"
+        title={webpageMeta?.url || 'Webpage'}
+        src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-top-navigation-by-user-activation"
+        referrerPolicy="no-referrer"
+      />
+    </section>
+  ) : (
     <section className="flex-1 min-h-0 flex" aria-label="Slides Gallery">
       <MarkdownPreview
         markdownText={viewerText}

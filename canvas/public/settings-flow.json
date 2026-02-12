@@ -682,6 +682,7 @@
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.import-pdf.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts",
       "canvas/src/hooks/store/uiSlice.ts"
     ],
     "classes": [],
@@ -691,7 +692,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSlice.ts:L604"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L274; canvas/src/hooks/store/uiSlice.ts:L604"
   },
   "pdfImportConversionMode": {
     "area": "Import: PDF",
@@ -1236,6 +1237,74 @@
       "zustand"
     ],
     "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L298; canvas/src/hooks/store/uiSlice.ts:L679"
+  },
+  "youtubeTranscriptOutputDir": {
+    "area": "—",
+    "responsibility": "youtube transcript output dir",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-youtube.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setYoutubeTranscriptOutputDir"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L263"
+  },
+  "youtubeTranscriptOutputFormat": {
+    "area": "—",
+    "responsibility": "youtube transcript output format",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-youtube.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setYoutubeTranscriptOutputFormat"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L266"
+  },
+  "webpageImportIncludeImages": {
+    "area": "—",
+    "responsibility": "webpage import include images",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-webpage.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setWebpageImportIncludeImages"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L269"
+  },
+  "webpageImportView": {
+    "area": "—",
+    "responsibility": "webpage import view",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-webpage.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setWebpageImportView"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L272"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",
@@ -3006,19 +3075,5 @@
       "eslint"
     ],
     "lineRange": "canvas/src/features/settings/registry-presets.ts:L75"
-  },
-  "app.youtube.transcriptOutputDir": {
-    "area": "—",
-    "responsibility": "transcript output dir",
-    "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry.ts"
-    ],
-    "classes": [],
-    "functions": [],
-    "imports": [
-      "zustand"
-    ],
-    "lineRange": "canvas/src/features/settings/registry.ts:L12"
   }
 }

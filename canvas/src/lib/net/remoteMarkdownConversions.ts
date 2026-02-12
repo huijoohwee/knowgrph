@@ -2,7 +2,13 @@ import { unwrapUserProvidedText } from '@/lib/url'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { buildPdfConvertQueryParamsFromStore } from '@/lib/pdf/pdfImportClientPrefs'
 
-export type RemoteMarkdownConversionOk = { ok: true; name: string; markdown: string; transcriptJsonText?: string }
+export type RemoteMarkdownConversionOk = {
+  ok: true
+  name: string
+  markdown: string
+  transcriptJsonText?: string
+  conversionJsonText?: string
+}
 export type RemoteMarkdownConversionErr = { ok: false; error: string }
 export type RemoteMarkdownConversionResult = RemoteMarkdownConversionOk | RemoteMarkdownConversionErr
 
@@ -122,6 +128,41 @@ export async function fetchYouTubeTranscriptMarkdown(rawUrl: string, opts?: { la
     if (err) return { ok: false as const, error: err }
     if (!res.ok) return { ok: false as const, error: `HTTP ${res.status}` }
     return { ok: false as const, error: 'YouTube conversion failed' }
+  } catch {
+    return null
+  }
+}
+
+export async function fetchWebpageMarkdown(rawUrl: string, opts?: { emit?: 'markdown' | 'json'; includeImages?: boolean }): Promise<RemoteMarkdownConversionResult | null> {
+  const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
+  if (!cleaned) return null
+  try {
+    const qs = new URLSearchParams({ url: cleaned })
+    if (opts?.emit === 'json') qs.set('emit', 'json')
+    if (opts?.includeImages === false) qs.set('includeImages', 'false')
+    const res = await fetch(`/__webpage_convert?${qs.toString()}`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+    })
+    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown; title?: unknown; source_url?: unknown; images?: unknown }
+    if (json && json.ok === true && typeof json.markdown === 'string') {
+      const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : 'webpage.md'
+      const conversionJsonText =
+        opts?.emit === 'json'
+          ? (() => {
+              try {
+                return JSON.stringify(json, null, 2)
+              } catch {
+                return undefined
+              }
+            })()
+          : undefined
+      return { ok: true as const, name, markdown: json.markdown, conversionJsonText }
+    }
+    const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
+    if (err) return { ok: false as const, error: err }
+    if (!res.ok) return { ok: false as const, error: `HTTP ${res.status}` }
+    return { ok: false as const, error: 'Webpage conversion failed' }
   } catch {
     return null
   }

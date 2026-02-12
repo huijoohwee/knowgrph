@@ -39,6 +39,19 @@
 
 ---
 
+## Import Settings: Webpage
+
+**Scope**: Source Files / Markdown Workspace → Import URL; MainPanel → Settings
+
+**Intent**: Keep webpage parsing generic while letting users choose Markdown vs HTML rendering for higher visual fidelity.
+
+**Keys**
+
+- `webpageImportIncludeImages`
+- `webpageImportView` (`markdown` | `json` | `html`)
+
+---
+
 ## Markdown Settings: Viewer / Presentation
 
 **Scope**: Markdown Workspace → Viewer/Presentation; MainPanel → Settings

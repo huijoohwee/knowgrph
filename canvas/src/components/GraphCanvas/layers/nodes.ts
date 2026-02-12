@@ -183,6 +183,7 @@ export const createNodesLayer = (args: {
             .attr('width', contentWidth)
             .attr('height', contentHeight)
             .attr('preserveAspectRatio', 'xMidYMid meet')
+            .attr('crossorigin', 'anonymous')
             .attr('href', () => applyMediaProxySrc(spec.url))
             .style('pointer-events', 'none');
         } else {

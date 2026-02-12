@@ -122,6 +122,15 @@ sequenceDiagram
 - **Error Handling**: Returns structured JSON errors (`{ "ok": false, "error": "..." }`) even on failure, ensuring the UI displays specific messages (e.g., "Transcript unavailable" due to IP blocking) instead of generic request failures.
 - **Thumbnail**: Extracts high-res thumbnails via oEmbed or fallback URL construction.
 
+### Webpage Import (URL → Markdown Parse + Optional HTML Viewer Render)
+
+**From/To**: Source Files / Workspace Import URL → `/__webpage_convert` (Python parser) → Markdown → Graph parse; Viewer/Presentation optionally → `/__webpage_proxy` (same-origin iframe proxy) → live HTML render.
+
+**Decision Logic**:
+- **Graph Alignment**: Webpages convert to Markdown for Document Structure parsing, preserving graph/content sync across touchpoints.
+- **View Mode**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects Markdown tokens vs JSON payload view vs proxied HTML iframe rendering.
+- **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
+
 ### Optional Geo Layer Registration
 
 **From/To**: Source Files Import → registers dataset URLs → enables multi-dataset overlay rendering.

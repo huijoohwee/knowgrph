@@ -4,7 +4,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { spawnSync, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
@@ -102,20 +102,21 @@ function runMarkdownPipelineOnce(): Promise<void> {
   const cmd = parts[0] === 'python' ? pythonBin : parts[0]
   const args = parts.slice(1)
   return new Promise((resolve, reject) => {
-    const result = spawnSync(cmd, args, {
+    const child = spawn(cmd, args, {
       cwd: repoRoot,
       stdio: 'inherit',
       env: withRepoPythonPath(process.env),
     })
-    if (result.error) {
-      reject(result.error)
-      return
-    }
-    if (result.status === 0) {
-      resolve()
-      return
-    }
-    reject(new Error(`Markdown pipeline exited with code ${result.status ?? 'unknown'}`))
+    child.on('error', (err) => {
+      reject(err)
+    })
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve()
+      } else {
+        reject(new Error(`Markdown pipeline exited with code ${code ?? 'unknown'}`))
+      }
+    })
   })
 }
 
@@ -192,6 +193,16 @@ const remoteFetchProxyDevPlugin = {
       }
       createRemoteFetchHandler()(req, res, next)
     })
+  },
+}
+
+const webpageProxyDevPlugin = {
+  name: 'knowgrph-webpage-proxy-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
   },
 }
 
@@ -408,7 +419,10 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         redirect: 'follow',
         signal: ctrl.signal,
         headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          // Use generic accept for remote fetch to avoid 406/403 on raw files
           Accept: '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
         },
       })
 
@@ -429,6 +443,15 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       const contentType = upstream.headers.get('content-type')
       if (contentType) {
         res.setHeader('Content-Type', contentType)
+      }
+      const passthrough = ['cache-control', 'etag', 'last-modified', 'expires', 'accept-ranges']
+      for (const key of passthrough) {
+        try {
+          const v = upstream.headers.get(key)
+          if (v) res.setHeader(key, v)
+        } catch {
+          void 0
+        }
       }
       if (req.method === 'HEAD') {
         const contentLength = upstream.headers.get('content-length')
@@ -509,15 +532,250 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
   }
 }
 
+function escapeHtmlAttr(raw: string): string {
+  return String(raw || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function injectWebpageProxyHtml(opts: { html: string; baseHref: string; originalUrl: string }): string {
+  const html = String(opts.html || '')
+  const baseHref = String(opts.baseHref || '').trim()
+  const originalUrl = String(opts.originalUrl || '').trim()
+  if (!html) return html
+
+  const injection = [
+    `<base href="${escapeHtmlAttr(baseHref)}">`,
+    '<meta name="referrer" content="no-referrer">',
+    '<script>',
+    '(() => {',
+    `  const KG_ORIGINAL_URL = ${JSON.stringify(originalUrl)};`,
+    `  const KG_PROXY_PREFIX = ${JSON.stringify('/__webpage_proxy?url=')};`,
+    '  const resolveAbs = (u) => {',
+    '    try { return new URL(String(u || ""), KG_ORIGINAL_URL).toString(); } catch { return ""; }',
+    '  };',
+    '  const toProxy = (abs) => abs ? (KG_PROXY_PREFIX + encodeURIComponent(abs)) : "";',
+    '  const handleAnchorClick = (e) => {',
+    '    try {',
+    '      const target = e.target;',
+    '      if (!(target instanceof Element)) return;',
+    '      const a = target.closest("a[href]");',
+    '      if (!a) return;',
+    '      const href = a.getAttribute("href") || "";',
+    '      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;',
+    '      const abs = resolveAbs(href);',
+    '      if (!abs) return;',
+    '      e.preventDefault();',
+    '      window.location.href = toProxy(abs);',
+    '    } catch {',
+    '      void 0;',
+    '    }',
+    '  };',
+    '  window.addEventListener("click", handleAnchorClick, true);',
+    '})();',
+    '</script>',
+  ].join('\n')
+
+  const lower = html.toLowerCase()
+  const headOpen = lower.indexOf('<head')
+  if (headOpen >= 0) {
+    const headEnd = lower.indexOf('>', headOpen)
+    if (headEnd >= 0) {
+      return `${html.slice(0, headEnd + 1)}\n${injection}\n${html.slice(headEnd + 1)}`
+    }
+  }
+  const htmlOpen = lower.indexOf('<html')
+  if (htmlOpen >= 0) {
+    const htmlEnd = lower.indexOf('>', htmlOpen)
+    if (htmlEnd >= 0) {
+      return `${html.slice(0, htmlEnd + 1)}\n<head>\n${injection}\n</head>\n${html.slice(htmlEnd + 1)}`
+    }
+  }
+  return `<!doctype html><html><head>\n${injection}\n</head><body>\n${html}\n</body></html>`
+}
+
+function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      next()
+      return
+    }
+
+    const urlParam = (() => {
+      try {
+        const parsed = new URL(req.url || '', `http://${req.headers.host}`)
+        return parsed.searchParams.get('url')
+      } catch {
+        return null
+      }
+    })()
+    if (!urlParam || !/^https?:\/\//i.test(urlParam)) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('Missing or invalid url parameter')
+      return
+    }
+
+    let controller: AbortController | null = null
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    try {
+      const timeoutMs = (() => {
+        const raw = String(process.env.KNOWGRPH_WEBPAGE_PROXY_TIMEOUT_MS || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsed)) return 30_000
+        return Math.max(1_000, Math.min(120_000, Math.floor(parsed)))
+      })()
+      const maxBytes = (() => {
+        const raw = String(process.env.KNOWGRPH_WEBPAGE_PROXY_MAX_BYTES || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsed)) return 10 * 1024 * 1024
+        return Math.max(64 * 1024, Math.min(50 * 1024 * 1024, Math.floor(parsed)))
+      })()
+      const ctrl = new AbortController()
+      controller = ctrl
+      let finished = false
+      const abort = () => {
+        if (finished) return
+        try {
+          ctrl.abort()
+        } catch {
+          void 0
+        }
+      }
+      req.on('aborted', abort)
+
+      timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+      const upstream = await fetch(urlParam, {
+        method: req.method,
+        redirect: 'follow',
+        signal: ctrl.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,*/*;q=0.9',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      })
+
+      if (ctrl.signal.aborted) {
+        finished = true
+        if (!res.writableEnded) {
+          try {
+            res.statusCode = 499
+            res.end()
+          } catch {
+            void 0
+          }
+        }
+        return
+      }
+
+      res.statusCode = upstream.status
+      res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+      if (req.method === 'HEAD') {
+        res.end()
+        finished = true
+        return
+      }
+
+      const reader = upstream.body?.getReader()
+      let buf: Buffer
+      if (!reader) {
+        const contentLengthRaw = upstream.headers.get('content-length')
+        const len = contentLengthRaw ? Number(contentLengthRaw) : NaN
+        if (Number.isFinite(len) && len > maxBytes) throw new Error('Upstream response too large')
+        buf = Buffer.from(await upstream.arrayBuffer())
+      } else {
+        const chunks: Buffer[] = []
+        let total = 0
+        while (true) {
+          if (ctrl.signal.aborted) throw new Error('aborted')
+          const { done, value } = await reader.read()
+          if (done) break
+          if (!value || value.byteLength === 0) continue
+          total += value.byteLength
+          if (total > maxBytes) {
+            try {
+              await reader.cancel()
+            } catch {
+              void 0
+            }
+            throw new Error('Upstream response too large')
+          }
+          chunks.push(Buffer.from(value))
+        }
+        buf = Buffer.concat(chunks)
+      }
+      finished = true
+
+      const raw = buf.toString('utf8')
+      const injected = injectWebpageProxyHtml({
+        html: raw,
+        baseHref: (() => {
+          try {
+            const u = new URL(urlParam)
+            return `${u.origin}${u.pathname.endsWith('/') ? u.pathname : `${u.pathname}/`}`
+          } catch {
+            return urlParam
+          }
+        })(),
+        originalUrl: urlParam,
+      })
+      res.end(injected, 'utf8')
+    } catch (error) {
+      const msg =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message?: unknown }).message || '')
+          : 'Upstream fetch failed'
+      const message = msg || 'Upstream fetch failed'
+      if (controller?.signal.aborted || /aborted/i.test(message)) {
+        try {
+          res.statusCode = 499
+          res.end()
+        } catch {
+          void 0
+        }
+        return
+      }
+      if (/aborted/i.test(message) || /timeout/i.test(message)) {
+        res.statusCode = 504
+      } else if (/too large/i.test(message)) {
+        res.statusCode = 413
+      } else {
+        res.statusCode = 502
+      }
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end(message)
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }
+}
+
 type YoutubeConvertResult =
   | { ok: true; markdown: string; name: string; transcript: Record<string, unknown> }
   | { ok: false; error: string }
 
-async function runKnowgrphParserConvertYoutubeToPayload(opts: {
+function runKnowgrphParserConvertYoutubeToPayload(opts: {
   url: string
   lang?: string
 }): Promise<YoutubeConvertResult> {
-  try {
+  return new Promise((resolve) => {
     const timeoutMs = (() => {
       const raw = Number(process.env.KG_YOUTUBE_TRANSCRIPT_TIMEOUT_MS || '')
       const fallback = 20 * 60_000
@@ -530,63 +788,102 @@ async function runKnowgrphParserConvertYoutubeToPayload(opts: {
     if (opts.lang && opts.lang.trim()) {
       args.push('--lang', opts.lang.trim())
     }
-    const res = spawnSync(pythonBin, args, {
+    
+    const child = spawn(pythonBin, args, {
       cwd: repoRoot,
-      encoding: 'utf8',
-      maxBuffer: 50 * 1024 * 1024,
-      timeout: timeoutMs,
       env: withRepoPythonPath(process.env),
+      timeout: timeoutMs,
     })
-    if (res.error) {
-      const msg =
-        typeof (res.error as { message?: unknown } | null)?.message === 'string'
-          ? String((res.error as { message?: unknown }).message || '')
-          : ''
-      return { ok: false, error: msg || 'YouTube conversion failed' }
-    }
-    if (res.status !== 0) {
-      const stderr = typeof res.stderr === 'string' ? res.stderr.trim() : ''
-      const stdout = typeof res.stdout === 'string' ? res.stdout.trim() : ''
-      if (stdout) {
-        try {
-          const parsed = JSON.parse(stdout) as unknown
-          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-            const obj = parsed as Record<string, unknown>
-            if (obj.ok === false && typeof obj.error === 'string' && obj.error.trim()) {
-              return { ok: false, error: obj.error.trim() }
-            }
-          }
-        } catch {
-          void 0
-        }
+
+    let stdout = ''
+    let stderr = ''
+    let exited = false
+
+    const cleanup = () => {
+      if (!exited) {
+        child.kill()
+        exited = true
       }
-      const msg = stderr || stdout || `YouTube conversion failed (exit ${res.status ?? 'unknown'})`
-      return { ok: false, error: msg }
     }
-    const stdout = typeof res.stdout === 'string' ? res.stdout.trim() : ''
-    if (!stdout) return { ok: false, error: 'YouTube conversion returned empty output' }
-    const parsed = JSON.parse(stdout) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { ok: false, error: 'YouTube conversion returned invalid JSON' }
-    }
-    const obj = parsed as Record<string, unknown>
-    if (obj.ok !== true) {
-      const err = typeof obj.error === 'string' && obj.error.trim() ? obj.error.trim() : 'YouTube conversion failed'
-      return { ok: false, error: err }
-    }
-    const markdown = typeof obj.markdown === 'string' ? obj.markdown : ''
-    const name = typeof obj.name === 'string' && obj.name.trim() ? obj.name.trim() : 'youtube-transcript.md'
-    const transcript: Record<string, unknown> = { ...obj }
-    delete transcript.markdown
-    delete transcript.name
-    return { ok: true, markdown, name, transcript }
-  } catch (error) {
-    const msg =
-      error && typeof error === 'object' && 'message' in error
-        ? String((error as { message?: unknown }).message || '')
-        : ''
-    return { ok: false, error: msg || 'YouTube conversion failed' }
-  }
+
+    const timer = setTimeout(() => {
+      cleanup()
+      resolve({ ok: false, error: `YouTube conversion timed out after ${timeoutMs}ms` })
+    }, timeoutMs)
+
+    child.stdout?.setEncoding('utf8')
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk
+    })
+
+    child.stderr?.setEncoding('utf8')
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk
+    })
+
+    child.on('error', (err) => {
+      clearTimeout(timer)
+      if (exited) return
+      exited = true
+      resolve({ ok: false, error: err.message || 'YouTube conversion process error' })
+    })
+
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      if (exited) return
+      exited = true
+
+      if (code !== 0) {
+        const out = stdout.trim()
+        if (out) {
+          try {
+            const parsed = JSON.parse(out) as unknown
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              const obj = parsed as Record<string, unknown>
+              if (obj.ok === false && typeof obj.error === 'string' && obj.error.trim()) {
+                resolve({ ok: false, error: obj.error.trim() })
+                return
+              }
+            }
+          } catch {
+            void 0
+          }
+        }
+        const msg = stderr.trim() || out || `YouTube conversion failed (exit ${code ?? 'unknown'})`
+        resolve({ ok: false, error: msg })
+        return
+      }
+
+      const out = stdout.trim()
+      if (!out) {
+        resolve({ ok: false, error: 'YouTube conversion returned empty output' })
+        return
+      }
+
+      try {
+        const parsed = JSON.parse(out) as unknown
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          resolve({ ok: false, error: 'YouTube conversion returned invalid JSON' })
+          return
+        }
+        const obj = parsed as Record<string, unknown>
+        if (obj.ok !== true) {
+          const err = typeof obj.error === 'string' && obj.error.trim() ? obj.error.trim() : 'YouTube conversion failed'
+          resolve({ ok: false, error: err })
+          return
+        }
+        const markdown = typeof obj.markdown === 'string' ? obj.markdown : ''
+        const name = typeof obj.name === 'string' && obj.name.trim() ? obj.name.trim() : 'youtube-transcript.md'
+        const transcript: Record<string, unknown> = { ...obj }
+        delete transcript.markdown
+        delete transcript.name
+        resolve({ ok: true, markdown, name, transcript })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'YouTube conversion JSON parse error'
+        resolve({ ok: false, error: msg })
+      }
+    })
+  })
 }
 
 function createYoutubeConvertHandler(): import('vite').Connect.NextHandleFunction {
@@ -629,6 +926,168 @@ const youtubeConvertDevPlugin = {
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler())
+  },
+}
+
+type WebpageConvertResult =
+  | { ok: true; markdown: string; name: string; title: string; source_url: string; images: string[] }
+  | { ok: false; error: string }
+
+function runKnowgrphParserConvertWebpageToPayload(opts: {
+  url: string;
+  includeImages?: boolean;
+}): Promise<WebpageConvertResult> {
+  return new Promise((resolve) => {
+    const timeoutMs = (() => {
+      const raw = Number(process.env.KG_WEBPAGE_CONVERT_TIMEOUT_MS || '')
+      const fallback = 60_000
+      const min = 10_000
+      const max = 300_000
+      if (!Number.isFinite(raw)) return fallback
+      return Math.min(max, Math.max(min, Math.floor(raw)))
+    })()
+    const args = ['-m', 'knowgrph_parser', 'webpage', '--emit', 'json', '--url', opts.url]
+    if (opts.includeImages === false) {
+      args.push('--no-images')
+    }
+    
+    const child = spawn(pythonBin, args, {
+      cwd: repoRoot,
+      env: withRepoPythonPath(process.env),
+      timeout: timeoutMs,
+    })
+
+    let stdout = ''
+    let stderr = ''
+    let exited = false
+
+    const cleanup = () => {
+      if (!exited) {
+        child.kill()
+        exited = true
+      }
+    }
+
+    const timer = setTimeout(() => {
+      cleanup()
+      resolve({ ok: false, error: `Webpage conversion timed out after ${timeoutMs}ms` })
+    }, timeoutMs)
+
+    child.stdout?.setEncoding('utf8')
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk
+    })
+
+    child.stderr?.setEncoding('utf8')
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk
+    })
+
+    child.on('error', (err) => {
+      clearTimeout(timer)
+      if (exited) return
+      exited = true
+      resolve({ ok: false, error: err.message || 'Webpage conversion process error' })
+    })
+
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      if (exited) return
+      exited = true
+
+      if (code !== 0) {
+        const out = stdout.trim()
+        if (out) {
+          try {
+            const parsed = JSON.parse(out) as unknown
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              const obj = parsed as Record<string, unknown>
+              if (obj.ok === false && typeof obj.error === 'string' && obj.error.trim()) {
+                resolve({ ok: false, error: obj.error.trim() })
+                return
+              }
+            }
+          } catch {
+            void 0
+          }
+        }
+        const msg = stderr.trim() || out || `Webpage conversion failed (exit ${code ?? 'unknown'})`
+        resolve({ ok: false, error: msg })
+        return
+      }
+
+      const out = stdout.trim()
+      if (!out) {
+        resolve({ ok: false, error: 'Webpage conversion returned empty output' })
+        return
+      }
+
+      try {
+        const parsed = JSON.parse(out) as unknown
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          resolve({ ok: false, error: 'Webpage conversion returned invalid JSON' })
+          return
+        }
+        const obj = parsed as Record<string, unknown>
+        if (obj.ok !== true) {
+          const err = typeof obj.error === 'string' && obj.error.trim() ? obj.error.trim() : 'Webpage conversion failed'
+          resolve({ ok: false, error: err })
+          return
+        }
+        const markdown = typeof obj.markdown === 'string' ? obj.markdown : ''
+        const name = typeof obj.name === 'string' && obj.name.trim() ? obj.name.trim() : 'webpage.md'
+        const title = typeof obj.title === 'string' ? obj.title : ''
+        const source_url = typeof obj.source_url === 'string' ? obj.source_url : ''
+        const images = Array.isArray(obj.images) ? obj.images.map(String) : []
+        resolve({ ok: true, markdown, name, title, source_url, images })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Webpage conversion JSON parse error'
+        resolve({ ok: false, error: msg })
+      }
+    })
+  })
+}
+
+function createWebpageConvertHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+    try {
+      const parsed = new URL(req.url || '', `http://${req.headers.host}`)
+      const urlParam = parsed.searchParams.get('url') || undefined
+      const includeImages = parsed.searchParams.get('includeImages') !== 'false'
+      
+      if (!urlParam) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: false, error: 'Missing url parameter' }))
+          return
+      }
+
+      const payload = await runKnowgrphParserConvertWebpageToPayload({
+        url: unwrapUserProvidedText(urlParam) || urlParam,
+        includeImages,
+      })
+      res.statusCode = payload.ok ? 200 : 400
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify(payload))
+    } catch (error) {
+       res.statusCode = 500
+       res.setHeader('Content-Type', 'application/json')
+       res.end(JSON.stringify({ ok: false, error: String(error) }))
+    }
+  }
+}
+
+const webpageConvertDevPlugin = {
+  name: 'knowgrph-webpage-convert-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use('/__webpage_convert', createWebpageConvertHandler())
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use('/__webpage_convert', createWebpageConvertHandler())
   },
 }
 
@@ -750,10 +1209,12 @@ export default defineConfig(({ command }) => ({
           }),
           markdownPipelineDevPlugin,
           remoteFetchProxyDevPlugin,
+          webpageProxyDevPlugin,
           localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,
           pdfWorkspaceDevPlugin,
           youtubeConvertDevPlugin,
+          webpageConvertDevPlugin,
         ]),
     tsconfigPaths(),
   ],

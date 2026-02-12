@@ -4,13 +4,15 @@ import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativeP
 import { deriveFilenameFromUrl, isYouTubeUrl, normalizeGitHubBlobLikeUrl, unwrapUserProvidedText } from '@/lib/url'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
-import { convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
+import { upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 
 export type WorkspaceImportResult = {
   createdPaths: WorkspacePath[]
@@ -360,6 +362,7 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
   if (!rawUrl) throw new Error('Missing URL')
 
   const normalizedUrl = normalizeGitHubBlobLikeUrl(rawUrl) || rawUrl
+  const normalizedLower = normalizedUrl.toLowerCase()
 
   const isPdf = /\.pdf(\?|#|$)/i.test(normalizedUrl)
   if (isYouTubeUrl(normalizedUrl)) {
@@ -384,17 +387,33 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
     }
   }
 
+  const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx)(\?|#|$)/i.test(normalizedLower)
+  if (!looksLikeCodeOrData) {
+    const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
+    const view = (() => {
+      const v = useGraphStore.getState().webpageImportView
+      if (v === 'html') return 'html'
+      if (v === 'json') return 'json'
+      return 'markdown'
+    })()
+    const webpage = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
+    if (webpage && webpage.ok) {
+      const sanitized = sanitizeImportedMarkdownText(String(webpage.markdown || '')).text
+      const content = upsertWebpageFrontmatterMeta(sanitized, { url: normalizedUrl, view })
+      return { normalizedUrl, name: String(webpage.name || 'webpage.md'), text: content }
+    }
+  }
+
   const res = await fetchRemoteTextDetailed(normalizedUrl, { preflightHead: true, preferProxy: true })
   if (!res.ok) throw new Error(describeFetchRemoteTextFailure(res as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure))
   const text = res.text
 
   const fallbackExt = (() => {
-    const urlLower = normalizedUrl.toLowerCase()
-    if (urlLower.endsWith('.md') || urlLower.endsWith('.markdown') || urlLower.endsWith('.mdx')) return '.md'
-    if (urlLower.endsWith('.json') || urlLower.endsWith('.jsonld') || urlLower.endsWith('.geojson')) return '.json'
-    if (urlLower.endsWith('.csv')) return '.csv'
-    if (urlLower.endsWith('.yaml') || urlLower.endsWith('.yml')) return '.yaml'
-    if (urlLower.endsWith('.html') || urlLower.endsWith('.htm')) return '.html'
+    if (normalizedLower.endsWith('.md') || normalizedLower.endsWith('.markdown') || normalizedLower.endsWith('.mdx')) return '.md'
+    if (normalizedLower.endsWith('.json') || normalizedLower.endsWith('.jsonld') || normalizedLower.endsWith('.geojson')) return '.json'
+    if (normalizedLower.endsWith('.csv')) return '.csv'
+    if (normalizedLower.endsWith('.yaml') || normalizedLower.endsWith('.yml')) return '.yaml'
+    if (normalizedLower.endsWith('.html') || normalizedLower.endsWith('.htm')) return '.html'
     return '.txt'
   })()
 

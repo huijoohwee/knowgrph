@@ -331,6 +331,12 @@ export interface GraphState {
   youtubeTranscriptOutputFormat: 'markdown' | 'json';
   setYoutubeTranscriptOutputFormat: (v: 'markdown' | 'json') => void;
 
+  webpageImportIncludeImages: boolean;
+  setWebpageImportIncludeImages: (v: boolean) => void;
+
+  webpageImportView: 'markdown' | 'json' | 'html';
+  setWebpageImportView: (v: 'markdown' | 'json' | 'html') => void;
+
   pdfImportIncludeImages: boolean;
   pdfImportConversionMode: PdfImportConversionMode;
   pdfImportMaxPages: number;

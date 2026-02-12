@@ -47,5 +47,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if cmd in {"youtube"}:
             from . import youtube_cmd
             return youtube_cmd.main(rest, parser_script_path=entrypoint)
+        if cmd in {"webpage"}:
+            from . import webpage_cmd
+            return webpage_cmd.main(rest, parser_script_path=entrypoint)
     from . import markdown_cmd
     return markdown_cmd.main(args, parser_script_path=entrypoint)

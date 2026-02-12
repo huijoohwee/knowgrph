@@ -18,7 +18,8 @@ import { writeLocalMarkdownFileText } from '@/features/source-files/localMarkdow
 import { getMostRecentCachedMarkdownFolderId, writeCachedMarkdownText } from '@/features/source-files/markdownFsCache'
 import { useGympgrphStore } from 'gympgrph'
 import type { MarkdownSourceFilesIngestIntegration } from 'curagrph/features/markdown/ui/MarkdownSourceFilesIngestIntegration.ts'
-import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 
 const SUPPORTED_SOURCE_FILE_IMPORT_EXTENSIONS = [...SOURCE_FILES_FORMATS.import]
 
@@ -77,6 +78,7 @@ function syncDocumentViewFromSourceFile(
   opts?: { applyToGraph?: boolean },
 ) {
   const store = useGraphStore.getState()
+  const baselineLocked = store.documentStructureBaselineLock === true
   const name = String(file.name || '').trim() || 'source.md'
   const text = String(file.text || '')
   const sourceUrl = file.source?.kind === 'url' ? String(file.source?.url || '').trim() : ''
@@ -102,13 +104,13 @@ function syncDocumentViewFromSourceFile(
     store.setJsonSourceDocument(name, null)
     store.setMarkdownDocument(name, markdown)
     store.setMarkdownDocumentSourceUrl(sourceUrl || null)
-    store.setWorkspaceViewMode('editor')
+    if (!baselineLocked) store.setWorkspaceViewMode('editor')
     return
   }
   const normalized = normalizeMermaidMmdToMarkdown(name, text)
   store.setMarkdownDocument(name, normalized)
   store.setMarkdownDocumentSourceUrl(sourceUrl || null)
-  store.setWorkspaceViewMode('editor')
+  if (!baselineLocked) store.setWorkspaceViewMode('editor')
   if (opts?.applyToGraph ?? true) {
     void store.applyMarkdownDocumentToGraph(name, normalized, { force: true })
   }
@@ -390,6 +392,36 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       syncDocumentViewFromSourceFile({ name: converted.name, text: converted.markdown, source: { kind: 'url', url: normalizedUrl } })
       await parseAndApplySourceFile(id)
       return
+    }
+
+    const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py)(\?|#|$)/i.test(lower)
+    if (!looksLikeCodeOrData) {
+      const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
+      const view = (() => {
+        const v = useGraphStore.getState().webpageImportView
+        if (v === 'html') return 'html'
+        if (v === 'json') return 'json'
+        return 'markdown'
+      })()
+      const webpage = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
+      if (webpage && webpage.ok) {
+        const frontmatter = `---\nkgWebpageUrl: "${normalizedUrl}"\nkgWebpageView: "${view}"\n---\n\n`
+        const content = sanitizeImportedMarkdownText(`${frontmatter}${webpage.markdown}`).text
+        store.updateSourceFile(id, {
+          name: webpage.name,
+          text: content,
+          status: 'idle',
+          error: undefined,
+          parsedParserId: undefined,
+          parsedTextHash: undefined,
+          parsedGraphData: undefined,
+          source: { kind: 'url', url: normalizedUrl },
+          enabled: true,
+        })
+        syncDocumentViewFromSourceFile({ name: webpage.name, text: content, source: { kind: 'url', url: normalizedUrl } })
+        await parseAndApplySourceFile(id)
+        return
+      }
     }
 
     const res = await fetchRemoteTextDetailed(normalizedUrl, {

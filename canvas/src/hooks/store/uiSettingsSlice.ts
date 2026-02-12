@@ -262,8 +262,14 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   youtubeTranscriptOutputDir: '/Users/huijoohwee/Documents/GitHub/sandbox/test-data/test-youtube-transcript',
   setYoutubeTranscriptOutputDir: (v: string | null) => set({ youtubeTranscriptOutputDir: v }),
 
-  youtubeTranscriptOutputFormat: 'markdown',
+  youtubeTranscriptOutputFormat: 'markdown' as const,
   setYoutubeTranscriptOutputFormat: (v: 'markdown' | 'json') => set({ youtubeTranscriptOutputFormat: v }),
+
+  webpageImportIncludeImages: true,
+  setWebpageImportIncludeImages: (v: boolean) => set({ webpageImportIncludeImages: v }),
+
+  webpageImportView: 'markdown' as const,
+  setWebpageImportView: (v: 'markdown' | 'json' | 'html') => set({ webpageImportView: v }),
 
   setPdfImportIncludeImages: (v: boolean) => set({ pdfImportIncludeImages: v }),
 });
