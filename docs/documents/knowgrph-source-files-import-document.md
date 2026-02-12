@@ -128,8 +128,31 @@ sequenceDiagram
 
 **Decision Logic**:
 - **Graph Alignment**: Webpages convert to Markdown for Document Structure parsing, preserving graph/content sync across touchpoints.
-- **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects Markdown tokens vs HTML iframe rendering; `json` mode shows conversion payload JSON in the editor while the Viewer/Presentation renders the proxied HTML. Switching view must not mutate graph/layout/zoom/layers or trigger re-parsing/apply-to-graph.
+- **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects `markdown | json | html | wireframe`.
+- **Active-row dropdown contract**:
+  - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
+  - `JSON`: Editor shows conversion payload JSON (read-only); Viewer/Presentation/Slides render HTML via `/__webpage_proxy`.
+  - `HTML`: Editor shows Markdown; Viewer/Presentation/Slides render HTML via `/__webpage_proxy`.
+  - `Wireframe`: Editor shows Markdown ASCII wireframe (read-only); Viewer/Presentation/Slides render HTML via `/__webpage_proxy`.
+- **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers or trigger re-parsing/apply-to-graph.
+- **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, and can proxy media assets via `/__webpage_asset_proxy` to preserve rich media/animations.
 - **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
+
+### Website Import (Sitemap/Tree → Workspace Pages + Artifact-Backed View Switching)
+
+**From/To**: Markdown Workspace → Import website (Globe button) → `/__website_import/start` → sitemap discovery + bounded crawling → per-page artifacts persisted under `.knowgrph-workspace/website-imports/<importId>/nodes/<nodeId>/` → workspace stubs written under `/websites/<host>/<importId>/...`.
+
+**Per-Page Stub Contract (frontmatter)**:
+- `kgWebpageUrl`: canonical page URL
+- `kgWebpageView`: `markdown | json | html | wireframe`
+- `kgWebsiteImportId`: website import job id
+- `kgWebsiteNodeId`: stable node id (hash of URL)
+
+**Decision Logic**:
+- **Tree fidelity**: Workspace path is derived from URL pathname so the Explorer reflects the website’s directory structure.
+- **View switching (active-row dropdown)**: `Markdown | JSON | HTML | Wireframe` is strictly view-only (no apply-to-graph, no layout/zoom mutation).
+- **Artifact mapping (editor text)**: `json→conversionJson`, `wireframe→wireframeMarkdown`, else `markdown`; fetched from `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`.
+- **HTML fidelity**: For `kgWebpageView ∈ {json, html, wireframe}`, Viewer/Presentation/Slides render 100% fidelity HTML via `/__webpage_proxy` iframe.
 
 ### Optional Geo Layer Registration
 

@@ -201,9 +201,11 @@ const webpageProxyDevPlugin = {
   name: 'knowgrph-webpage-proxy-dev',
   configureServer(server: import('vite').ViteDevServer) {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
+    server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
+    server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
   },
 }
 
@@ -552,8 +554,116 @@ function escapeHtmlAttr(raw: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function injectWebpageProxyHtml(opts: { html: string; baseHref: string; originalUrl: string }): string {
+function stripWebpageSecurityMetasAndBase(rawHtml: string): string {
+  const html = String(rawHtml || '')
+  if (!html) return html
+  const noBase = html.replace(/<\s*base\b[^>]*>/gi, '')
+  const noCspMeta = noBase.replace(/<\s*meta\b[^>]*http-equiv\s*=\s*['"]?content-security-policy['"]?[^>]*>/gi, '')
+  const noXfoMeta = noCspMeta.replace(/<\s*meta\b[^>]*http-equiv\s*=\s*['"]?x-frame-options['"]?[^>]*>/gi, '')
+  return noXfoMeta
+}
+
+function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: string }): string {
   const html = String(opts.html || '')
+  const originalUrl = String(opts.originalUrl || '').trim()
+  if (!html || !originalUrl) return html
+  const assetProxyPrefix = '/__webpage_asset_proxy?url='
+  const toAbs = (raw: string) => {
+    try {
+      return new URL(String(raw || ''), originalUrl).toString()
+    } catch {
+      return ''
+    }
+  }
+  const toProxy = (raw: string) => {
+    const abs = toAbs(raw)
+    if (!abs) return raw
+    return `${assetProxyPrefix}${encodeURIComponent(abs)}`
+  }
+
+  const rewriteAttr = (tag: string, attr: string) => {
+    const re = new RegExp(`(<\\s*${tag}\\b[^>]*\\s${attr}\\s*=\\s*)(["'])([^"']+)(\\2)`, 'gi')
+    return (src: string) =>
+      src.replace(re, (_full, prefix: string, quote: string, value: string, suffix: string) => {
+        const v = String(value || '')
+        if (/^\s*javascript:/i.test(v)) return `${prefix}${quote}${v}${suffix}`
+        if (v.startsWith('/__') || v.startsWith('/@')) return `${prefix}${quote}${v}${suffix}`
+        if (!/^https?:\/\//i.test(v) && !/^\/\//.test(v) && !v.startsWith('/')) return `${prefix}${quote}${v}${suffix}`
+        return `${prefix}${quote}${toProxy(v)}${suffix}`
+      })
+  }
+
+  const rewriteLinkHref = () => {
+    const re = /(<\s*link\b[^>]*\shref\s*=\s*)(["'])([^"']+)(\2)([^>]*>)/gi
+    return (src: string) =>
+      src.replace(re, (full: string, prefix: string, quote: string, value: string, suffixQuote: string, tail: string) => {
+        const v = String(value || '')
+        const rel = String(full || '').toLowerCase()
+        const shouldProxy =
+          rel.includes('rel=') &&
+          (rel.includes('stylesheet') || rel.includes('preload') || rel.includes('modulepreload') || rel.includes('icon'))
+        if (!shouldProxy) return `${prefix}${quote}${v}${suffixQuote}${tail}`
+        if (/^\s*javascript:/i.test(v)) return `${prefix}${quote}${v}${suffixQuote}${tail}`
+        if (v.startsWith('/__') || v.startsWith('/@')) return `${prefix}${quote}${v}${suffixQuote}${tail}`
+        if (!/^https?:\/\//i.test(v) && !/^\/\//.test(v) && !v.startsWith('/')) return `${prefix}${quote}${v}${suffixQuote}${tail}`
+        return `${prefix}${quote}${toProxy(v)}${suffixQuote}${tail}`
+      })
+  }
+
+  const rewriteScriptSrc = () => {
+    const re = /(<\s*script\b[^>]*\ssrc\s*=\s*)(["'])([^"']+)(\2)/gi
+    return (src: string) =>
+      src.replace(re, (_full, prefix: string, quote: string, value: string, suffix: string) => {
+        const v = String(value || '')
+        if (/^\s*javascript:/i.test(v)) return `${prefix}${quote}${v}${suffix}`
+        if (v.startsWith('/__') || v.startsWith('/@')) return `${prefix}${quote}${v}${suffix}`
+        if (!/^https?:\/\//i.test(v) && !/^\/\//.test(v) && !v.startsWith('/')) return `${prefix}${quote}${v}${suffix}`
+        return `${prefix}${quote}${toProxy(v)}${suffix}`
+      })
+  }
+
+  const rewriteSrcset = (tag: string) => {
+    const re = new RegExp(`(<\\s*${tag}\\b[^>]*\\ssrcset\\s*=\\s*)(["'])([^"']+)(\\2)`, 'gi')
+    return (src: string) =>
+      src.replace(re, (_full, prefix: string, quote: string, value: string, suffix: string) => {
+        const v = String(value || '')
+        const parts = v
+          .split(',')
+          .map(p => p.trim())
+          .filter(Boolean)
+        const next = parts
+          .map(p => {
+            const m = p.match(/^(\S+)(\s+.+)?$/)
+            const urlPart = m ? String(m[1] || '') : ''
+            const tail = m && m[2] ? String(m[2] || '') : ''
+            if (!urlPart) return p
+            if (urlPart.startsWith('/__') || urlPart.startsWith('/@')) return `${urlPart}${tail}`
+            if (!/^https?:\/\//i.test(urlPart) && !/^\/\//.test(urlPart) && !urlPart.startsWith('/')) return `${urlPart}${tail}`
+            return `${toProxy(urlPart)}${tail}`
+          })
+          .join(', ')
+        return `${prefix}${quote}${next}${suffix}`
+      })
+  }
+
+  let out = html
+  out = rewriteAttr('img', 'src')(out)
+  out = rewriteSrcset('img')(out)
+  out = rewriteLinkHref()(out)
+  out = rewriteScriptSrc()(out)
+  out = rewriteAttr('source', 'src')(out)
+  out = rewriteAttr('video', 'src')(out)
+  out = rewriteAttr('video', 'poster')(out)
+  out = rewriteAttr('audio', 'src')(out)
+  out = rewriteAttr('track', 'src')(out)
+  return out
+}
+
+function injectWebpageProxyHtml(opts: { html: string; baseHref: string; originalUrl: string }): string {
+  const html = rewriteWebpageMediaAssetsToProxy({
+    html: stripWebpageSecurityMetasAndBase(String(opts.html || '')),
+    originalUrl: opts.originalUrl,
+  })
   const baseHref = String(opts.baseHref || '').trim()
   const originalUrl = String(opts.originalUrl || '').trim()
   if (!html) return html
@@ -565,11 +675,64 @@ function injectWebpageProxyHtml(opts: { html: string; baseHref: string; original
     '(() => {',
     `  const KG_ORIGINAL_URL = ${JSON.stringify(originalUrl)};`,
     `  const KG_PROXY_PREFIX = ${JSON.stringify('/__webpage_proxy?url=')};`,
+      `  const KG_ASSET_PROXY_PREFIX = ${JSON.stringify('/__webpage_asset_proxy?url=')};`,
     `  const KG_SCROLL_SYNC_KIND = ${JSON.stringify('kg-scroll-sync')};`,
     '  const resolveAbs = (u) => {',
     '    try { return new URL(String(u || ""), KG_ORIGINAL_URL).toString(); } catch { return ""; }',
     '  };',
     '  const toProxy = (abs) => abs ? (KG_PROXY_PREFIX + encodeURIComponent(abs)) : "";',
+      '  const toAssetProxy = (abs) => abs ? (KG_ASSET_PROXY_PREFIX + encodeURIComponent(abs)) : "";',
+      '  const shouldBypassProxy = (abs) => {',
+      '    const s = String(abs || "");',
+      '    if (!s) return true;',
+      '    if (s.startsWith(KG_PROXY_PREFIX) || s.startsWith(KG_ASSET_PROXY_PREFIX)) return true;',
+      '    if (s.startsWith("/__") || s.startsWith("/@")) return true;',
+      '    return false;',
+      '  };',
+      '  const patchFetch = () => {',
+      '    try {',
+      '      const prev = window.fetch;',
+      '      if (typeof prev !== "function") return;',
+      '      window.fetch = (input, init) => {',
+      '        try {',
+      '          const url = typeof input === "string" ? input : (input && typeof input.url === "string" ? input.url : "");',
+      '          if (!url) return prev(input, init);',
+      '          if (shouldBypassProxy(url)) return prev(input, init);',
+      '          const abs = resolveAbs(url);',
+      '          if (!abs) return prev(input, init);',
+      '          const nextUrl = toAssetProxy(abs);',
+      '          if (typeof input === "string") return prev(nextUrl, init);',
+      '          if (input && typeof Request !== "undefined" && input instanceof Request) return prev(new Request(nextUrl, input), init);',
+      '          return prev(nextUrl, init);',
+      '        } catch {',
+      '          return prev(input, init);',
+      '        }',
+      '      };',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
+      '  const patchXhr = () => {',
+      '    try {',
+      '      const proto = window.XMLHttpRequest && window.XMLHttpRequest.prototype;',
+      '      if (!proto || typeof proto.open !== "function") return;',
+      '      const prevOpen = proto.open;',
+      '      proto.open = function(method, url, async, user, password) {',
+      '        try {',
+      '          const u = String(url || "");',
+      '          if (!u || shouldBypassProxy(u)) return prevOpen.call(this, method, url, async, user, password);',
+      '          const abs = resolveAbs(u);',
+      '          if (!abs) return prevOpen.call(this, method, url, async, user, password);',
+      '          const nextUrl = toAssetProxy(abs);',
+      '          return prevOpen.call(this, method, nextUrl, async, user, password);',
+      '        } catch {',
+      '          return prevOpen.call(this, method, url, async, user, password);',
+      '        }',
+      '      };',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
     '  const handleAnchorClick = (e) => {',
     '    try {',
     '      const target = e.target;',
@@ -587,6 +750,92 @@ function injectWebpageProxyHtml(opts: { html: string; baseHref: string; original
     '    }',
     '  };',
     '  window.addEventListener("click", handleAnchorClick, true);',
+      '  patchFetch();',
+      '  patchXhr();',
+      '  const rewriteAttrUrl = (el, attr) => {',
+      '    try {',
+      '      if (!el || typeof el.getAttribute !== "function" || typeof el.setAttribute !== "function") return;',
+      '      const raw = el.getAttribute(attr) || "";',
+      '      const v = String(raw || "");',
+      '      if (!v) return;',
+      '      if (/^\s*javascript:/i.test(v)) return;',
+      '      if (v.startsWith("/__") || v.startsWith("/@")) return;',
+      '      const needs = v.startsWith("/") || /^https?:\/\//i.test(v) || v.startsWith("//");',
+      '      if (!needs) return;',
+      '      const abs = resolveAbs(v);',
+      '      if (!abs) return;',
+      '      el.setAttribute(attr, toAssetProxy(abs));',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
+      '  const rewriteSrcset = (el) => {',
+      '    try {',
+      '      if (!el || typeof el.getAttribute !== "function" || typeof el.setAttribute !== "function") return;',
+      '      const raw = el.getAttribute("srcset") || "";',
+      '      const v = String(raw || "");',
+      '      if (!v) return;',
+      '      const parts = v.split(",").map(x => x.trim()).filter(Boolean);',
+      '      const next = parts.map(p => {',
+      '        const m = p.match(/^(\S+)(\s+.+)?$/);',
+      '        const urlPart = m ? String(m[1] || "") : "";',
+      '        const tail = m && m[2] ? String(m[2] || "") : "";',
+      '        if (!urlPart) return p;',
+      '        if (/^\s*javascript:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '        if (urlPart.startsWith("/__") || urlPart.startsWith("/@")) return `${urlPart}${tail}`;',
+      '        const needs = urlPart.startsWith("/") || /^https?:\/\//i.test(urlPart) || urlPart.startsWith("//");',
+      '        if (!needs) return `${urlPart}${tail}`;',
+      '        const abs = resolveAbs(urlPart);',
+      '        if (!abs) return `${urlPart}${tail}`;',
+      '        return `${toAssetProxy(abs)}${tail}`;',
+      '      }).join(", ");',
+      '      if (next) el.setAttribute("srcset", next);',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
+      '  const rewriteElement = (el) => {',
+      '    try {',
+      '      const tag = (el && el.tagName ? String(el.tagName) : "").toLowerCase();',
+      '      if (!tag) return;',
+      '      if (tag === "script") rewriteAttrUrl(el, "src");',
+      '      if (tag === "link") rewriteAttrUrl(el, "href");',
+      '      if (tag === "img") { rewriteAttrUrl(el, "src"); rewriteSrcset(el); }',
+      '      if (tag === "source" || tag === "track" || tag === "audio" || tag === "video") rewriteAttrUrl(el, "src");',
+      '      if (tag === "video") rewriteAttrUrl(el, "poster");',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
+      '  const rewriteExisting = () => {',
+      '    try {',
+      '      document.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src]").forEach(rewriteElement);',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
+      '  const observeAdds = () => {',
+      '    try {',
+      '      const mo = new MutationObserver((mutations) => {',
+      '        for (const m of mutations) {',
+      '          for (const node of m.addedNodes || []) {',
+      '            if (!node || node.nodeType !== 1) continue;',
+      '            rewriteElement(node);',
+      '            try {',
+      '              (node.querySelectorAll ? node.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src]") : []).forEach(rewriteElement);',
+      '            } catch {',
+      '              void 0;',
+      '            }',
+      '          }',
+      '        }',
+      '      });',
+      '      mo.observe(document.documentElement, { childList: true, subtree: true });',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
+      '  rewriteExisting();',
+      '  observeAdds();',
     '  const clamp01 = (n) => (n <= 0 ? 0 : n >= 1 ? 1 : n);',
     '  const getScrollEl = () => document.scrollingElement || document.documentElement || document.body;',
     '  const getRatio = () => {',
@@ -789,6 +1038,166 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
         originalUrl: urlParam,
       })
       res.end(injected, 'utf8')
+    } catch (error) {
+      const msg =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message?: unknown }).message || '')
+          : 'Upstream fetch failed'
+      const message = msg || 'Upstream fetch failed'
+      if (controller?.signal.aborted || /aborted/i.test(message)) {
+        try {
+          res.statusCode = 499
+          res.end()
+        } catch {
+          void 0
+        }
+        return
+      }
+      if (/aborted/i.test(message) || /timeout/i.test(message)) {
+        res.statusCode = 504
+      } else if (/too large/i.test(message)) {
+        res.statusCode = 413
+      } else {
+        res.statusCode = 502
+      }
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end(message)
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }
+}
+
+function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      next()
+      return
+    }
+
+    const urlParam = (() => {
+      try {
+        const parsed = new URL(req.url || '', `http://${req.headers.host}`)
+        return parsed.searchParams.get('url')
+      } catch {
+        return null
+      }
+    })()
+    if (!urlParam || !/^https?:\/\//i.test(urlParam)) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('Missing or invalid url parameter')
+      return
+    }
+
+    let controller: AbortController | null = null
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    try {
+      const timeoutMs = (() => {
+        const raw = String(process.env.KNOWGRPH_WEBPAGE_ASSET_PROXY_TIMEOUT_MS || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsed)) return 30_000
+        return Math.max(1_000, Math.min(120_000, Math.floor(parsed)))
+      })()
+      const maxBytes = (() => {
+        const raw = String(process.env.KNOWGRPH_WEBPAGE_ASSET_PROXY_MAX_BYTES || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsed)) return 25 * 1024 * 1024
+        return Math.max(64 * 1024, Math.min(100 * 1024 * 1024, Math.floor(parsed)))
+      })()
+
+      const ctrl = new AbortController()
+      controller = ctrl
+      let finished = false
+      const abort = () => {
+        if (finished) return
+        try {
+          ctrl.abort()
+        } catch {
+          void 0
+        }
+      }
+      req.on('aborted', abort)
+
+      timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+      const upstream = await fetch(urlParam, {
+        method: req.method,
+        redirect: 'follow',
+        signal: ctrl.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      })
+      if (ctrl.signal.aborted) {
+        finished = true
+        if (!res.writableEnded) {
+          try {
+            res.statusCode = 499
+            res.end()
+          } catch {
+            void 0
+          }
+        }
+        return
+      }
+
+      res.statusCode = upstream.status
+      res.setHeader('Cache-Control', 'public, max-age=300')
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+
+      const contentType = upstream.headers.get('content-type')
+      if (contentType) res.setHeader('Content-Type', contentType)
+
+      if (req.method === 'HEAD') {
+        res.end()
+        finished = true
+        return
+      }
+
+      const reader = upstream.body?.getReader()
+      let buf: Buffer
+      if (!reader) {
+        const contentLengthRaw = upstream.headers.get('content-length')
+        const len = contentLengthRaw ? Number(contentLengthRaw) : NaN
+        if (Number.isFinite(len) && len > maxBytes) throw new Error('Upstream response too large')
+        buf = Buffer.from(await upstream.arrayBuffer())
+      } else {
+        const chunks: Buffer[] = []
+        let total = 0
+        while (true) {
+          if (ctrl.signal.aborted) throw new Error('aborted')
+          const { done, value } = await reader.read()
+          if (done) break
+          if (!value || value.byteLength === 0) continue
+          total += value.byteLength
+          if (total > maxBytes) {
+            try {
+              await reader.cancel()
+            } catch {
+              void 0
+            }
+            throw new Error('Upstream response too large')
+          }
+          chunks.push(Buffer.from(value))
+        }
+        buf = Buffer.concat(chunks)
+      }
+      finished = true
+      res.end(buf)
     } catch (error) {
       const msg =
         error && typeof error === 'object' && 'message' in error

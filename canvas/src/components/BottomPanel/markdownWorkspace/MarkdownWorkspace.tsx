@@ -47,6 +47,7 @@ import {
 } from '@/lib/markdown/frontmatter'
 import { buildWireframeMarkdownFromMarkdown } from '@/lib/websites/wireframe'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
+import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -510,7 +511,7 @@ export function MarkdownWorkspace() {
         if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
           const importId = websiteImportMeta.importId
           const nodeId = websiteImportMeta.nodeId
-          const kind = view === 'json' ? 'conversionJson' : view === 'wireframe' ? 'wireframeMarkdown' : 'markdown'
+          const kind = websiteImportArtifactKindForWebpageView(view)
           const res = await fetch(
             `/__website_import/artifact?importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=${encodeURIComponent(kind)}`,
             { signal: controller.signal },
@@ -522,7 +523,8 @@ export function MarkdownWorkspace() {
             setWebpageWorkspaceViewerTextOverride(null)
             return
           }
-          setWebpageWorkspaceEditorTextOverride(text)
+          const clipped = text.length > 200_000 ? `${text.slice(0, 200_000)}\n\n<!-- (clipped) -->\n` : text
+          setWebpageWorkspaceEditorTextOverride(clipped)
           setWebpageWorkspaceViewerTextOverride(view === 'markdown' ? text : null)
           return
         }
@@ -533,10 +535,12 @@ export function MarkdownWorkspace() {
           if (cancelled) return
           if (!res) {
             setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
+            setWebpageWorkspaceViewerTextOverride(null)
             return
           }
           if (res.ok !== true) {
             setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: String(res.error || 'Conversion failed') }, null, 2))
+            setWebpageWorkspaceViewerTextOverride(null)
             return
           }
           const jsonText = res.conversionJsonText || JSON.stringify({ ok: true, name: res.name }, null, 2)
@@ -550,11 +554,13 @@ export function MarkdownWorkspace() {
           const res = await fetchWebpageMarkdown(url, { includeImages, signal: controller.signal })
           if (cancelled) return
           if (!res || res.ok !== true) {
-            setWebpageWorkspaceEditorTextOverride(`# Wireframe\n\nURL: ${url}\n\n- (Load failed)\n`)
+            const fallback = `# Wireframe\n\nURL: ${url}\n\n- (Load failed)\n`
+            setWebpageWorkspaceEditorTextOverride(fallback)
             setWebpageWorkspaceViewerTextOverride(null)
             return
           }
-          setWebpageWorkspaceEditorTextOverride(buildWireframeMarkdownFromMarkdown({ markdown: String(res.markdown || ''), url }))
+          const wireframe = buildWireframeMarkdownFromMarkdown({ markdown: String(res.markdown || ''), url })
+          setWebpageWorkspaceEditorTextOverride(wireframe)
           setWebpageWorkspaceViewerTextOverride(null)
           return
         }
@@ -564,7 +570,8 @@ export function MarkdownWorkspace() {
       } catch {
         if (cancelled) return
         if (view === 'wireframe') {
-          setWebpageWorkspaceEditorTextOverride(`# Wireframe\n\nURL: ${url}\n\n- (Request failed)\n`)
+          const fallback = `# Wireframe\n\nURL: ${url}\n\n- (Request failed)\n`
+          setWebpageWorkspaceEditorTextOverride(fallback)
           setWebpageWorkspaceViewerTextOverride(null)
           return
         }

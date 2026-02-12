@@ -1,4 +1,5 @@
 import { __testkit } from '@/lib/websites/server/websiteImportCore'
+import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 
 export const testWebsiteImportSitemapExtractsLocs = () => {
   const xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset>', '<url><loc>https://localhost/</loc></url>', '<url><loc>https://localhost/a</loc></url>', '</urlset>'].join('\n')
@@ -19,4 +20,49 @@ export const testWebsiteImportWireframeBuilderIncludesHeadings = () => {
   if (!out.includes('[H1] Title')) throw new Error('missing H1')
   if (!out.includes('[H2] Section')) throw new Error('missing H2')
   if (!out.includes('[H3] Sub')) throw new Error('missing H3')
+}
+
+export const testWebsiteImportWireframeDetectsEmbeds = () => {
+  const md = ['# Title', '', '<iframe src="https://example.com"></iframe>', ''].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost')
+  if (!out.includes('[EMBED] iframe')) throw new Error('missing iframe embed')
+}
+
+export const testWebsiteImportWireframeClassifiesNavAndCtaLinks = () => {
+  const md = ['# Title', '', '[Docs](https://example.com/docs)', '', '[Get started](https://example.com/start)', ''].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost')
+  if (!out.includes('[NAV] Docs')) throw new Error('missing nav classification')
+  if (!out.includes('[CTA] Get started')) throw new Error('missing cta classification')
+}
+
+export const testWebsiteImportWireframeDetectsPriceTokens = () => {
+  const md = ['# Title', '', '- Plan A: $100/mo', '- Plan A: $100/mo', ''].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost')
+  if (!out.includes('[PRICE] $100/mo x2')) throw new Error('missing deduped price token count')
+}
+
+export const testWebsiteImportWireframeDetectsTimecodes = () => {
+  const md = ['# Title', '', '0:00', ''].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost')
+  if (!out.includes('[TIME] 0:00')) throw new Error('missing timecode')
+}
+
+export const testWebsiteImportWireframeClassifiesMediaAndAnimTags = () => {
+  const md = ['# Title', '', '<video></video>', '', '<canvas></canvas>', ''].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost')
+  if (!out.includes('[MEDIA] video')) throw new Error('missing media tag')
+  if (!out.includes('[ANIM] canvas')) throw new Error('missing anim tag')
+}
+
+export const testWebsiteImportWireframeRendersPageLevelNavDetails = () => {
+  const md = ['[Docs](https://example.com/docs)', '', '# Title', ''].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost')
+  if (!out.includes('[NAV] Docs')) throw new Error('missing page-level nav detail')
+}
+
+export const testWebsiteImportArtifactKindForWebpageView = () => {
+  if (websiteImportArtifactKindForWebpageView('markdown') !== 'markdown') throw new Error('markdown mapping')
+  if (websiteImportArtifactKindForWebpageView('json') !== 'conversionJson') throw new Error('json mapping')
+  if (websiteImportArtifactKindForWebpageView('wireframe') !== 'wireframeMarkdown') throw new Error('wireframe mapping')
+  if (websiteImportArtifactKindForWebpageView('html') !== 'markdown') throw new Error('html mapping')
 }

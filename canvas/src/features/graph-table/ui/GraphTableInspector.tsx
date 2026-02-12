@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SELECTION_INSPECTOR_EMPTY_TEXT } from '@/lib/config'
@@ -6,6 +6,11 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
+import { WorkspaceModeSelect } from '../../../components/BottomPanel/markdownWorkspace/WorkspaceModeSelect'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import type { WorkspacePath } from '@/features/workspace-fs/types'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta, type WebpageViewMode } from '@/lib/markdown/frontmatter'
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import {
@@ -47,6 +52,7 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
   const { panelTextClass, microLabelClass, textSizeClass, keyValueInputClass, monospaceTextClass } = usePanelTypography()
   const {
     graphData,
+    sourceFiles,
     schema,
     nodeQuickEditorRegistry,
     openQuickEditorNodeIds,
@@ -55,9 +61,11 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
     uiIconStrokeWidth,
     upsertUiToast,
     setGraphDataPreservingLayout,
+    setWebpageImportView,
   } = useGraphStore(
     useShallow(s => ({
       graphData: s.graphData,
+      sourceFiles: s.sourceFiles,
       schema: s.schema,
       nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
       openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
@@ -66,6 +74,7 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       upsertUiToast: s.upsertUiToast,
       setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
+      setWebpageImportView: s.setWebpageImportView,
     })),
   )
   const allEdges = ((graphData?.edges || []) as GraphEdge[]) || []
@@ -154,6 +163,70 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
   const [panelPinned, setPanelPinned] = useState(true)
   const [panelHideFields, setPanelHideFields] = useState(false)
   const labelInputRef = useRef<HTMLInputElement | null>(null)
+
+  const [webpageDoc, setWebpageDoc] = useState<
+    | null
+    | {
+        workspacePath: WorkspacePath
+        url: string
+        view: WebpageViewMode
+      }
+  >(null)
+
+  useEffect(() => {
+    if (!node) {
+      setWebpageDoc(null)
+      return
+    }
+    const meta = (node.metadata || {}) as Record<string, unknown>
+    const sourceLayerId = typeof meta.sourceLayerId === 'string' ? String(meta.sourceLayerId || '').trim() : ''
+    if (!sourceLayerId) {
+      setWebpageDoc(null)
+      return
+    }
+    const src = (sourceFiles || []).find(f => String(f?.id || '') === sourceLayerId) || null
+    const srcPath = String(src?.source?.path || '').trim()
+    if (!srcPath.startsWith('workspace:')) {
+      setWebpageDoc(null)
+      return
+    }
+    const workspacePath = normalizeWorkspacePath(srcPath.slice('workspace:'.length))
+
+    let cancelled = false
+    void (async () => {
+      const fs = await getWorkspaceFs()
+      const text = await fs.readFileText(workspacePath).catch(() => '')
+      const fm = parseWebpageFrontmatterMeta(text)
+      const url = String(fm?.url || (typeof meta.documentUrl === 'string' ? meta.documentUrl : '') || '').trim()
+      if (!url) {
+        if (!cancelled) setWebpageDoc(null)
+        return
+      }
+      const view: WebpageViewMode = fm?.view === 'html' ? 'html' : fm?.view === 'json' ? 'json' : fm?.view === 'wireframe' ? 'wireframe' : 'markdown'
+      if (!cancelled) setWebpageDoc({ workspacePath, url, view })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [node, sourceFiles])
+
+  const switchWebpageView = async (next: WebpageViewMode) => {
+    const doc = webpageDoc
+    if (!doc) return
+    const url = String(doc.url || '').trim()
+    if (!url) return
+    try {
+      setWebpageImportView(next)
+    } catch {
+      void 0
+    }
+    const fs = await getWorkspaceFs()
+    const prevText = await fs.readFileText(doc.workspacePath)
+    const nextText = upsertWebpageFrontmatterMeta(prevText, { url, view: next })
+    if (nextText !== prevText) await fs.writeFileText(doc.workspacePath, nextText)
+    setWebpageDoc({ ...doc, view: next })
+  }
 
   const handleSetLabel = (label: string) => {
     if (!node) return
@@ -244,6 +317,27 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
           </button>
         </nav>
       </header>
+
+      {webpageDoc ? (
+        <section
+          className={cn('px-3 py-2 border-b flex items-center justify-between gap-2', UI_THEME_TOKENS.panel.divider)}
+          aria-label="Webpage view"
+        >
+          <p className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Webpage view</p>
+          <WorkspaceModeSelect<WebpageViewMode>
+            ariaLabel="Webpage view mode"
+            value={webpageDoc.view}
+            isActive={true}
+            options={[
+              { value: 'markdown', label: 'Markdown' },
+              { value: 'json', label: 'JSON' },
+              { value: 'html', label: 'HTML' },
+              { value: 'wireframe', label: 'Wireframe' },
+            ]}
+            onChange={next => void switchWebpageView(next)}
+          />
+        </section>
+      ) : null}
 
       <section className="flex-1 min-h-0 overflow-auto" aria-label="Record fields">
         {isEmpty ? (

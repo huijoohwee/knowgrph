@@ -98,20 +98,42 @@ function MarkdownEditor(props: {
   readOnly?: boolean
   onEditorEl?: (el: HTMLTextAreaElement | null) => void
 }) {
-  const emitCaretLine = React.useCallback(() => {
+  const rafIdRef = React.useRef<number | null>(null)
+  const lastSelectionStartRef = React.useRef<number | null>(null)
+
+  const scheduleEmitCaretLine = React.useCallback(() => {
     const onCaretLine = props.onCaretLine
     if (!onCaretLine) return
-    const el = props.editorRef.current
-    if (!el) return
-    const offsetRaw = typeof el.selectionStart === 'number' ? el.selectionStart : 0
-    const offset = Math.max(0, Math.floor(offsetRaw))
-    const text = String(el.value || '')
-    let line = 1
-    for (let i = 0; i < offset && i < text.length; i += 1) {
-      if (text.charCodeAt(i) === 10) line += 1
-    }
-    onCaretLine(line)
+    if (rafIdRef.current !== null) return
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null
+      const el = props.editorRef.current
+      if (!el) return
+      const offsetRaw = typeof el.selectionStart === 'number' ? el.selectionStart : 0
+      const offset = Math.max(0, Math.floor(offsetRaw))
+      if (lastSelectionStartRef.current === offset) return
+      lastSelectionStartRef.current = offset
+      const text = String(el.value || '')
+      let line = 1
+      for (let i = 0; i < offset && i < text.length; i += 1) {
+        if (text.charCodeAt(i) === 10) line += 1
+      }
+      onCaretLine(line)
+    })
   }, [props.editorRef, props.onCaretLine])
+
+  React.useEffect(() => {
+    return () => {
+      const id = rafIdRef.current
+      if (id === null) return
+      rafIdRef.current = null
+      try {
+        cancelAnimationFrame(id)
+      } catch {
+        void 0
+      }
+    }
+  }, [])
 
   return (
     <section className="flex-1 min-h-0 overflow-hidden flex flex-col" aria-label="Markdown Editor">
@@ -127,9 +149,9 @@ function MarkdownEditor(props: {
         spellCheck={false}
         wrap={props.wordWrap ? 'soft' : 'off'}
         aria-label="Markdown Editor Text"
-        onKeyUp={() => emitCaretLine()}
-        onClick={() => emitCaretLine()}
-        onSelect={() => emitCaretLine()}
+        onKeyUp={() => scheduleEmitCaretLine()}
+        onClick={() => scheduleEmitCaretLine()}
+        onSelect={() => scheduleEmitCaretLine()}
       />
     </section>
   )
@@ -414,7 +436,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         }}
         title={webpageMeta?.url || 'Webpage'}
         src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -454,7 +476,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
         src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-top-navigation-by-user-activation"
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation allow-top-navigation-by-user-activation"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -491,7 +513,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
         src={`/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}`}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-top-navigation-by-user-activation"
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation allow-top-navigation-by-user-activation"
         referrerPolicy="no-referrer"
       />
     </section>

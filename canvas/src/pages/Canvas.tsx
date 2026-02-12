@@ -19,6 +19,7 @@ import ToastHost from '@/components/ui/ToastHost'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { SsotEventBridge } from '@/features/ssot/SsotEventBridge'
+import { importWithRetry } from '@/lib/react/importWithRetry'
 
 const GeospatialOverlayHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -26,7 +27,7 @@ const GeospatialOverlayHostLazy = React.lazy(async () => {
 })
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
-const FlowCanvasLazy = React.lazy(() => import('@/components/FlowCanvas'))
+const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
 const FlowEditorCanvasLazy = React.lazy(() => import('@/components/FlowEditorCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
@@ -497,16 +498,24 @@ export default function CanvasPage() {
         })
       }
       if (shouldPrefetchFlow) {
-        void import('@/components/FlowCanvas').then(() => {
-          if (cancelled) return
-          setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
-        })
+        void import('@/components/FlowCanvas')
+          .then(() => {
+            if (cancelled) return
+            setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
+          })
+          .catch(() => {
+            void 0
+          })
       }
       if (shouldPrefetchFlowEditor) {
-        void import('@/components/FlowEditorCanvas').then(() => {
-          if (cancelled) return
-          setMounted2dRenderers(prev => (prev.flowEditor ? prev : { ...prev, flowEditor: true }))
-        })
+        void import('@/components/FlowEditorCanvas')
+          .then(() => {
+            if (cancelled) return
+            setMounted2dRenderers(prev => (prev.flowEditor ? prev : { ...prev, flowEditor: true }))
+          })
+          .catch(() => {
+            void 0
+          })
       }
     }
 

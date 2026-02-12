@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
+import type { MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
 
 export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
   const { dom, restore } = initJsdomHarness()
@@ -12,7 +13,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
     const root = createRoot(container as unknown as HTMLElement)
 
     const editorRef = { current: null as HTMLTextAreaElement | null }
-    const presentationApiRef = { current: null }
+    const presentationApiRef = { current: null as MarkdownPresentationApi | null }
 
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
     const tick = () =>
@@ -25,8 +26,13 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
         setTimeout(() => resolve(), 0)
       })
 
-    const views = ['html', 'json', 'wireframe'] as const
-    for (const view of views) {
+    const cases = [
+      { view: 'html', expectsIframe: true },
+      { view: 'json', expectsIframe: true },
+      { view: 'wireframe', expectsIframe: true },
+    ] as const
+
+    for (const { view, expectsIframe } of cases) {
       const text = ['---', 'kgWebpageUrl: "https://localhost/"', `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
       root.render(
         React.createElement(MarkdownWorkspaceMain, {
@@ -42,7 +48,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
           statusLabel: null,
           onApply: () => {},
           onToggleFullscreen: () => {},
-          presentationApiRef: presentationApiRef as unknown as React.MutableRefObject<unknown>,
+          presentationApiRef,
           isEditing: false,
           isMarkdown: true,
           onFormatAction: () => {},
@@ -67,11 +73,15 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
       for (let i = 0; i < 5; i += 1) await tick()
 
       const iframe = doc.querySelector('iframe')
-      if (!iframe) throw new Error(`expected iframe for view=${view}`)
-      const src = String(iframe.getAttribute('src') || '')
-      if (!src.startsWith('/__webpage_proxy?url=')) throw new Error(`expected proxy iframe src for view=${view}`)
-      const sandbox = String(iframe.getAttribute('sandbox') || '')
-      if (sandbox.includes('allow-top-navigation')) throw new Error('expected iframe sandbox to forbid top navigation')
+      if (expectsIframe) {
+        if (!iframe) throw new Error(`expected iframe for view=${view}`)
+        const src = String(iframe.getAttribute('src') || '')
+        if (!src.startsWith('/__webpage_proxy?url=')) throw new Error(`expected proxy iframe src for view=${view}`)
+        const sandbox = String(iframe.getAttribute('sandbox') || '')
+        if (sandbox.includes('allow-top-navigation')) throw new Error('expected iframe sandbox to forbid top navigation')
+      } else {
+        if (iframe) throw new Error(`expected no iframe for view=${view}`)
+      }
     }
 
     root.unmount()
@@ -89,7 +99,7 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
     const root = createRoot(container as unknown as HTMLElement)
 
     const editorRef = { current: null as HTMLTextAreaElement | null }
-    const presentationApiRef = { current: null }
+    const presentationApiRef = { current: null as MarkdownPresentationApi | null }
 
     const markdown = ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "json"', '---', '', '# Title', ''].join('\n')
     const jsonText = JSON.stringify({ ok: true, mode: 'json' }, null, 2)
@@ -108,7 +118,7 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
         statusLabel: null,
         onApply: () => {},
         onToggleFullscreen: () => {},
-        presentationApiRef: presentationApiRef as unknown as React.MutableRefObject<unknown>,
+        presentationApiRef,
         isEditing: true,
         isMarkdown: true,
         onFormatAction: () => {},

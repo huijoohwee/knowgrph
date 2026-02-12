@@ -42,7 +42,14 @@ import {
 import {
   testWebsiteImportSitemapDetectsIndex,
   testWebsiteImportSitemapExtractsLocs,
+  testWebsiteImportArtifactKindForWebpageView,
   testWebsiteImportWireframeBuilderIncludesHeadings,
+  testWebsiteImportWireframeDetectsEmbeds,
+  testWebsiteImportWireframeClassifiesNavAndCtaLinks,
+  testWebsiteImportWireframeDetectsPriceTokens,
+  testWebsiteImportWireframeDetectsTimecodes,
+  testWebsiteImportWireframeClassifiesMediaAndAnimTags,
+  testWebsiteImportWireframeRendersPageLevelNavDetails,
 } from '@/__tests__/websiteImportSitemap.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
 import { testMarkdownWorkspaceWebpageHtmlViewRendersIframe, testMarkdownWorkspaceEditorTextOverrideWorks } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
@@ -953,7 +960,14 @@ export const runAllTests = async () => {
   await exec('webpage.frontmatter.supportsWireframeView', testWebpageFrontmatterSupportsWireframeView)
   await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
   await exec('websiteImport.sitemap.detectsIndex', testWebsiteImportSitemapDetectsIndex)
+  await exec('websiteImport.artifactKindForWebpageView', testWebsiteImportArtifactKindForWebpageView)
   await exec('websiteImport.wireframe.includesHeadings', testWebsiteImportWireframeBuilderIncludesHeadings)
+  await exec('websiteImport.wireframe.detectsEmbeds', testWebsiteImportWireframeDetectsEmbeds)
+  await exec('websiteImport.wireframe.classifiesNavAndCtaLinks', testWebsiteImportWireframeClassifiesNavAndCtaLinks)
+  await exec('websiteImport.wireframe.detectsPriceTokens', testWebsiteImportWireframeDetectsPriceTokens)
+  await exec('websiteImport.wireframe.detectsTimecodes', testWebsiteImportWireframeDetectsTimecodes)
+  await exec('websiteImport.wireframe.classifiesMediaAndAnimTags', testWebsiteImportWireframeClassifiesMediaAndAnimTags)
+  await exec('websiteImport.wireframe.rendersPageLevelNavDetails', testWebsiteImportWireframeRendersPageLevelNavDetails)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)

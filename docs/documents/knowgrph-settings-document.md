@@ -50,9 +50,9 @@
 - `webpageImportIncludeImages`
 - `webpageImportView` (`markdown` | `json` | `html` | `wireframe`)
   - `markdown`: editor/viewer use Markdown (graph parsing remains aligned to Markdown)
-  - `json`: editor shows conversion payload JSON; viewer/presentation render the live HTML iframe
-  - `html`: viewer/presentation render the live HTML iframe
-  - `wireframe`: editor shows a Markdown outline; viewer/presentation render the live HTML iframe
+  - `json`: editor shows conversion payload JSON (read-only); viewer/presentation/slides render HTML via iframe proxy
+  - `html`: editor stays Markdown; viewer/presentation/slides render HTML via iframe proxy
+  - `wireframe`: editor shows ASCII wireframe (read-only); viewer/presentation/slides render HTML via iframe proxy
 
 ---
 
@@ -68,6 +68,10 @@
 - `websiteImportMaxPages`
 - `websiteImportConcurrency`
 - `websiteImportOutputDirRel`
+
+**Derived rules**
+- Website import uses `webpageImportIncludeImages` for conversion and `webpageImportView` as the default per-page view (stored in each stub’s `kgWebpageView`).
+- In the active-row dropdown, Viewer/Presentation/Slides render HTML via `/__webpage_proxy` when `kgWebpageView ∈ {json, html, wireframe}`.
 
 ---
 

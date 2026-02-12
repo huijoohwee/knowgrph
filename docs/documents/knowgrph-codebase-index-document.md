@@ -218,6 +218,19 @@ Key behaviors:
 
 **Canvas UI import helpers (`knowgrph/canvas/src/features/toolbar/ingestUtils.ts`)**:
 - `normalizeImportName(rawUrl)` → uses `coerceHttpUrl` + `deriveFilenameFromUrl` to compute canonical document names.
+
+### 2. Import Website (sitemap/tree) → artifacts → workspace tree → per-page view switching
+
+**User flow**: Markdown Workspace “Import URL” → Globe button → website crawl/import → workspace writes one stub `.md` per page into `/websites/<host>/<importId>/...` so the Explorer reflects the URL path tree.
+
+**Server endpoints (Vite middleware)**:
+- `POST /__website_import/start` (options: discover sitemap, max pages, concurrency, include images)
+- `GET /__website_import/status` / `GET /__website_import/manifest`
+- `GET /__website_import/artifact` (`rawHtml|markdown|conversionJson|wireframeMarkdown`)
+
+**Per-page contract**: stubs include `kgWebpageUrl`, `kgWebpageView`, `kgWebsiteImportId`, `kgWebsiteNodeId`; the active-row dropdown switches `Markdown|JSON|HTML|Wireframe` without mutating graph/layout/zoom.
+
+**Render rule**: Viewer/Presentation/Slides render the webpage HTML via `/__webpage_proxy` iframe when `kgWebpageView∈{json,html,wireframe}`; `markdown` view renders Markdown.
 - `fetchRemoteMarkdownText(url)` / `fetchRemoteHtmlText(url)` → normalize GitHub blob URLs before remote fetch.
 
 **Geospatial dataset helpers (`gympgrph/src/geospatialDatasets.ts`)**:
