@@ -10,6 +10,7 @@ import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
+import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 
 export type WorkspaceImportResult = {
   createdPaths: WorkspacePath[]
@@ -53,11 +54,45 @@ function coercePdfWorkspaceImportMode(raw: unknown): PdfWorkspaceImportMode {
 }
 
 function yamlQuote(value: string): string {
-  return `\"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}\"`
+  return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
 
 function buildPdfWorkspaceFrontmatter(args: { docId: string; mode: PdfWorkspaceImportMode; outputDirRel: string }): string {
   return `---\nkgPdfWorkspaceDocId: ${yamlQuote(args.docId)}\nkgPdfWorkspaceMode: ${yamlQuote(args.mode)}\nkgPdfWorkspaceOutputDirRel: ${yamlQuote(args.outputDirRel)}\n---\n\n`
+}
+
+function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: boolean } {
+  const s = String(raw || '')
+  const needle = 'data:image/'
+  const base64Needle = ';base64,'
+  let i = 0
+  let changed = false
+  let out = ''
+  while (i < s.length) {
+    const start = s.indexOf(needle, i)
+    if (start < 0) {
+      out += s.slice(i)
+      break
+    }
+    const base64Pos = s.indexOf(base64Needle, start)
+    if (base64Pos < 0) {
+      out += s.slice(i)
+      break
+    }
+    out += s.slice(i, start)
+
+    const afterBase64 = base64Pos + base64Needle.length
+    const maxScan = Math.min(s.length, afterBase64 + 2_000_000)
+    let end = afterBase64
+    for (; end < maxScan; end += 1) {
+      const ch = s.charCodeAt(end)
+      if (ch === 41 || ch === 34 || ch === 39 || ch === 32 || ch === 10 || ch === 13 || ch === 9) break
+    }
+    out += 'data:,'
+    changed = true
+    i = end
+  }
+  return { text: out, changed }
 }
 
 async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
@@ -70,13 +105,81 @@ async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: Wo
   const fetched = await fetchPdfWorkspaceDoc({ docId: imported.docId, mode: imported.mode, outputDirRel })
   if (!fetched) throw new Error('PDF import failed')
   if (fetched.ok !== true) throw new Error(fetched.error || 'PDF import failed')
-  const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, mode: imported.mode, outputDirRel })}${String(fetched.markdown || '')}`
+  const markdownRaw = String(fetched.markdown || '')
+  const stripped = stripEmbeddedBase64ImageSrc(markdownRaw)
+  const notice = stripped.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
+  const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, mode: imported.mode, outputDirRel })}${notice}${stripped.text}`
   return args.fs.createFile({ parentPath: args.parentPath, name: String(imported.name || 'document.md'), text })
 }
 
 async function importTextFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
   const text = await args.file.text()
   return args.fs.createFile({ parentPath: args.parentPath, name: args.file.name, text })
+}
+
+type PendingLocalImportItem =
+  | { kind: 'text'; file: File; originalName: string }
+  | { kind: 'pdf'; file: File; originalName: string }
+
+const pendingLocalImportsByPath = new Map<string, PendingLocalImportItem>()
+
+const PENDING_LOCAL_IMPORT_MARKER = 'kg:pending-local-import'
+
+function buildPendingLocalImportStub(args: { kind: PendingLocalImportItem['kind']; originalName: string }): string {
+  const name = String(args.originalName || '').trim() || 'file'
+  const kindLabel = args.kind === 'pdf' ? 'PDF' : 'file'
+  return [
+    `<!--${PENDING_LOCAL_IMPORT_MARKER}-->`,
+    `> Pending local folder import (${kindLabel}).`,
+    `> Re-import the folder if you reload before opening this ${kindLabel}.`,
+    `> Original: ${name}`,
+    '',
+  ].join('\n')
+}
+
+export function peekPendingWorkspaceLocalImport(path: WorkspacePath): PendingLocalImportItem | null {
+  const key = normalizeWorkspacePath(path)
+  return pendingLocalImportsByPath.get(key) || null
+}
+
+export function isPendingLocalImportStubText(text: string): boolean {
+  return String(text || '').includes(PENDING_LOCAL_IMPORT_MARKER)
+}
+
+export async function hydrateWorkspaceFileFromPendingLocalImport(args: {
+  fs: WorkspaceFs
+  path: WorkspacePath
+}): Promise<{ kind: PendingLocalImportItem['kind']; text: string } | null> {
+  const key = normalizeWorkspacePath(args.path)
+  const pending = pendingLocalImportsByPath.get(key)
+  if (!pending) return null
+  try {
+    if (pending.kind === 'pdf') {
+      const store = useGraphStore.getState()
+      const mode = coercePdfWorkspaceImportMode((store as unknown as { pdfImportConversionMode?: unknown }).pdfImportConversionMode)
+      const outputDirRel = readPdfWorkspaceOutputDirRel()
+      const imported = await importPdfToWorkspace({ file: pending.file, conversionMode: mode, outputDirRel })
+      if (!imported) throw new Error('PDF import failed')
+      if (imported.ok !== true) throw new Error(imported.error || 'PDF import failed')
+      const fetched = await fetchPdfWorkspaceDoc({ docId: imported.docId, mode: imported.mode, outputDirRel })
+      if (!fetched) throw new Error('PDF import failed')
+      if (fetched.ok !== true) throw new Error(fetched.error || 'PDF import failed')
+      const markdownRaw = String(fetched.markdown || '')
+      const stripped = stripEmbeddedBase64ImageSrc(markdownRaw)
+      const notice = stripped.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
+      const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, mode: imported.mode, outputDirRel })}${notice}${stripped.text}`
+      await args.fs.writeFileText(key, text)
+      pendingLocalImportsByPath.delete(key)
+      return { kind: 'pdf', text }
+    }
+
+    const text = await pending.file.text()
+    await args.fs.writeFileText(key, text)
+    pendingLocalImportsByPath.delete(key)
+    return { kind: 'text', text }
+  } catch {
+    return null
+  }
 }
 
 const WORKSPACE_IMPORT_EXTS = (() => {
@@ -198,26 +301,15 @@ export async function importWorkspaceLocalFolder(args: {
     return normalized
   }
 
-  const bytesTotal = list.reduce((sum, f) => sum + Math.max(0, Number(f?.size || 0)), 0)
-  let bytesCurrent = 0
-
   for (let index = 0; index < list.length; index += 1) {
     const file = list[index]
     const nameRaw = String(file?.name || '').trim()
-    const name = nameRaw || 'file'
-    try {
-      bytesCurrent += Math.max(0, Number(file?.size || 0))
-      args.onProgress?.({
-        label: isPdfFile(file) ? 'Converting PDF' : 'Importing',
-        current: index + 1,
-        total: list.length,
-        name,
-        bytesCurrent,
-        bytesTotal,
-      })
-      await new Promise<void>(resolve => setTimeout(resolve, 0))
-    } catch {
-      void 0
+    if (index % 25 === 0) {
+      try {
+        await new Promise<void>(resolve => setTimeout(resolve, 0))
+      } catch {
+        void 0
+      }
     }
 
     if (!nameRaw) {
@@ -243,12 +335,18 @@ export async function importWorkspaceLocalFolder(args: {
       parentPath = await ensureFolder(parentPath, seg, relKey)
     }
     try {
-      const createdPath = isPdfFile(file)
-        ? await importPdfFile({ fs: args.fs, file, parentPath })
-        : await importTextFile({ fs: args.fs, file, parentPath })
+      const isPdf = isPdfFile(file)
+      const leafName = isPdf ? deriveMarkdownNameFromPdfFilename(file.name) : parts[parts.length - 1] || file.name
+      const stub = buildPendingLocalImportStub({ kind: isPdf ? 'pdf' : 'text', originalName: file.name })
+      const createdPath = await args.fs.createFile({ parentPath, name: leafName, text: stub })
       const normalized = normalizeWorkspacePath(createdPath)
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
+      pendingLocalImportsByPath.set(normalized, {
+        kind: isPdf ? 'pdf' : 'text',
+        file,
+        originalName: file.name,
+      })
     } catch (e) {
       failed.push({ name: nameRaw, error: String((e as { message?: unknown })?.message ?? e) })
     }

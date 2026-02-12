@@ -246,42 +246,6 @@ export default function FlowCanvas({
     })
   }, [schema])
 
-  const schemaNodesPresentationJson = React.useMemo(() => {
-    return JSON.stringify({
-      nodeShapeMode: schema?.behavior?.nodeShapeMode || 'auto',
-      portHandles: schema?.behavior?.portHandles || null,
-      nodeShapes: schema?.nodeShapes || null,
-      allowNodeDrag: schema?.behavior?.allowNodeDrag !== false,
-      hoverEnabled: schema?.behavior?.hover?.enabled !== false,
-      expansion: schema?.behavior?.expansion || null,
-      renderMediaAsNodes,
-      mediaPanelDensity,
-    })
-  }, [
-    mediaPanelDensity,
-    renderMediaAsNodes,
-    schema?.behavior?.allowNodeDrag,
-    schema?.behavior?.expansion,
-    schema?.behavior?.hover?.enabled,
-    schema?.behavior?.nodeShapeMode,
-    schema?.behavior?.portHandles,
-    schema?.nodeShapes,
-  ])
-
-  const schemaGroupsPresentationJson = React.useMemo(() => {
-    return JSON.stringify({
-      groups: schema?.layout?.groups || null,
-      labelStyles: schema?.labelStyles || null,
-      nodeShapeMode: schema?.behavior?.nodeShapeMode || 'auto',
-      portHandles: schema?.behavior?.portHandles || null,
-    })
-  }, [
-    schema?.behavior?.nodeShapeMode,
-    schema?.behavior?.portHandles,
-    schema?.labelStyles,
-    schema?.layout?.groups,
-  ])
-
   const storeGraphData = useActiveGraphRenderData(active)
   const renderGraphData = graphDataOverride !== undefined ? graphDataOverride : storeGraphData
   const effectiveFrontmatter = React.useMemo(() => {
@@ -323,8 +287,6 @@ export default function FlowCanvas({
       renderMediaAsNodes: renderMediaAsNodes === true,
       mediaPanelDensity: String(mediaPanelDensity),
       collapsedGroupIdsKey,
-      schemaNodesPresentationJson,
-      schemaGroupsPresentationJson,
     })
   }, [
     collapsedGroupIdsKey,
@@ -333,8 +295,6 @@ export default function FlowCanvas({
     mediaPanelDensity,
     renderMediaAsNodes,
     schema,
-    schemaGroupsPresentationJson,
-    schemaNodesPresentationJson,
     sceneGraphData,
   ])
 
@@ -349,8 +309,6 @@ export default function FlowCanvas({
       renderMediaAsNodes: renderMediaAsNodes === true,
       mediaPanelDensity: String(mediaPanelDensity),
       collapsedGroupIdsKey,
-      schemaNodesPresentationJson,
-      schemaGroupsPresentationJson,
     })
   }, [
     canvas2dRenderer,
@@ -360,9 +318,7 @@ export default function FlowCanvas({
     effectiveFrontmatter,
     mediaPanelDensity,
     renderMediaAsNodes,
-    schemaGroupsPresentationJson,
     schemaLayoutEngineJson,
-    schemaNodesPresentationJson,
     sceneGraphData,
   ])
 
@@ -640,7 +596,11 @@ export default function FlowCanvas({
     const g = sceneGraphData
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
-    const graphKey = `${graphDataRevision}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}:${schemaNodesPresentationJson}:${schemaGroupsPresentationJson}`
+    const portHandlesCfg = (schema?.behavior?.portHandles || null) as { enabled?: unknown; showAllInputs?: unknown } | null
+    const portHandlesEnabled = !!portHandlesCfg?.enabled
+    const portHandlesShowAllInputs = !!portHandlesCfg?.showAllInputs
+    const portHandlesKey = `${portHandlesEnabled ? 1 : 0}:${portHandlesShowAllInputs ? 1 : 0}`
+    const graphKey = `${graphDataRevision}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}:${portHandlesKey}`
     if (graphKey === lastBuiltGraphKeyRef.current && (runtime.scene?.nodes.length || 0) > 0) return
     lastBuiltGraphKeyRef.current = graphKey
     __flowCanvasDebug.lastBuiltSceneKey = graphKey
@@ -669,8 +629,6 @@ export default function FlowCanvas({
     sceneGraphData,
     sceneGroups,
     schema,
-    schemaGroupsPresentationJson,
-    schemaNodesPresentationJson,
     nodeQuickEditorRegistry,
   ])
 

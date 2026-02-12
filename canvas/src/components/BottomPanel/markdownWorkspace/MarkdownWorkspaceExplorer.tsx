@@ -62,6 +62,8 @@ export type MarkdownWorkspaceExplorerProps = {
   onRefreshActiveFromSource: () => void
   canDeleteActive: boolean
   onDeleteActive: () => void
+
+  renderSourceFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
 }
 
 function TocTreeItem(props: {
@@ -213,6 +215,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     onRefreshActiveFromSource,
     canDeleteActive,
     onDeleteActive,
+    renderSourceFileRight,
   } = props
   const panelTypography = usePanelTypography()
 
@@ -554,6 +557,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
               onSelectFile={onSelectFile}
               onSelectFolder={onSelectFolder}
               sourcesByPath={sourcesByPath}
+              renderFileRight={renderSourceFileRight}
             />
           )}
         </MarkdownExplorerSection>

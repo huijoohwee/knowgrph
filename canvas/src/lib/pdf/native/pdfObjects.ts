@@ -135,7 +135,7 @@ export function expandObjectStreams(objects: Map<number, ParsedIndirectObject>, 
       const n = Math.max(0, Math.min(5000, Math.floor(nVal.value)))
       const first = Math.max(0, Math.floor(firstVal.value))
       if (n <= 0 || first <= 0) continue
-      const decoded = readStream(objects, { obj: obj.obj, gen: obj.gen }, streamDecodeCache).bytes
+      const decoded = readStream(objects, { obj: obj.obj, gen: obj.gen }, streamDecodeCache, null).bytes
       if (!decoded || decoded.length <= first) continue
       const header = decoded.slice(0, first).toString('latin1')
       const pairs: Array<{ obj: number; offset: number }> = []
@@ -363,6 +363,7 @@ export function readStream(
   objects: Map<number, ParsedIndirectObject>,
   ref: PdfRef | null,
   cache?: PdfStreamDecodeCache | null,
+  opts?: { maxOutputLength?: number; onError?: 'raw' | 'null' } | null,
 ): { dict: PdfDict | null; bytes: Buffer | null } {
   if (!ref) return { dict: null, bytes: null }
   const obj = objects.get(ref.obj)
@@ -382,7 +383,16 @@ export function readStream(
     const cached = cache?.decodedByObj.get(ref.obj)
     if (cached) return { dict, bytes: cached }
     try {
-      const decoded = zlib.inflateSync(bytes)
+      const maxOutputLength = (() => {
+        if (typeof opts?.maxOutputLength === 'number' && Number.isFinite(opts.maxOutputLength) && opts.maxOutputLength > 0) {
+          return Math.floor(opts.maxOutputLength)
+        }
+        const raw = String(process.env.KNOWGRPH_PDF_STREAM_MAX_DECODE_BYTES || '').trim()
+        const n = raw ? Number(raw) : NaN
+        if (Number.isFinite(n) && n > 0) return Math.floor(n)
+        return 32 * 1024 * 1024
+      })()
+      const decoded = zlib.inflateSync(bytes, { maxOutputLength })
       if (cache && cache.maxBytes > 0) {
         const size = decoded.length
         if (size > 0 && cache.usedBytes + size <= cache.maxBytes) {
@@ -392,7 +402,7 @@ export function readStream(
       }
       return { dict, bytes: decoded }
     } catch {
-      return { dict, bytes }
+      return { dict, bytes: opts?.onError === 'null' ? null : bytes }
     }
   }
   return { dict, bytes }

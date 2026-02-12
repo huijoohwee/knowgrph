@@ -41,6 +41,8 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
     }
     if (idx >= s.length) return { tok: null, next: idx }
     const ch = s[idx]
+    if (ch === '<' && s[idx + 1] === '<') return { tok: '<<', next: idx + 2 }
+    if (ch === '>' && s[idx + 1] === '>') return { tok: '>>', next: idx + 2 }
     if (ch === '(') {
       const lit = parseLiteralString(s, idx)
       return { tok: { kind: 'bytes', bytes: lit.bytes }, next: lit.next }
@@ -71,6 +73,7 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
       while (idx < s.length && !/\s/.test(s[idx]) && !tokenDelims.includes(s[idx])) idx += 1
       return { tok: { kind: 'name', name: s.slice(start, idx) }, next: idx }
     }
+    if (tokenDelims.includes(ch)) return { tok: ch, next: idx + 1 }
     let end = idx
     while (end < s.length && !/\s/.test(s[end]) && !tokenDelims.includes(s[end])) end += 1
     const raw = s.slice(idx, end)

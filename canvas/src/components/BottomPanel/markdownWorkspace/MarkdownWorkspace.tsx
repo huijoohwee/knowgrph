@@ -36,6 +36,18 @@ import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWork
 import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
+import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
+import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
+import {
+  hydrateWorkspaceFileFromPendingLocalImport,
+  isPendingLocalImportStubText,
+  peekPendingWorkspaceLocalImport,
+} from './workspaceImport'
+import { hashStringToHex } from '@/lib/hash/stringHash'
+import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
+import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
+import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText, recordsToPointFeatureCollection } from 'gympgrph'
 import {
   FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
@@ -47,6 +59,61 @@ const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
   const out = raw.map(v => String(v || '').trim()).filter(Boolean)
   return out
+}
+
+function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: boolean } {
+  const s = String(raw || '')
+  const needle = 'data:image/'
+  const base64Needle = ';base64,'
+  let i = 0
+  let changed = false
+  let out = ''
+  while (i < s.length) {
+    const start = s.indexOf(needle, i)
+    if (start < 0) {
+      out += s.slice(i)
+      break
+    }
+    const base64Pos = s.indexOf(base64Needle, start)
+    if (base64Pos < 0) {
+      out += s.slice(i)
+      break
+    }
+    out += s.slice(i, start)
+
+    const afterBase64 = base64Pos + base64Needle.length
+    const maxScan = Math.min(s.length, afterBase64 + 2_000_000)
+    let end = afterBase64
+    for (; end < maxScan; end += 1) {
+      const ch = s.charCodeAt(end)
+      if (ch === 41 || ch === 34 || ch === 39 || ch === 32 || ch === 10 || ch === 13 || ch === 9) break
+    }
+    out += 'data:,'
+    changed = true
+    i = end
+  }
+  return { text: out, changed }
+}
+
+function parsePdfWorkspaceFrontmatter(text: string): { docId: string; mode: PdfConversionMode; outputDirRel: string } | null {
+  const raw = String(text || '')
+  if (!raw.startsWith('---')) return null
+  const end = raw.indexOf('\n---')
+  if (end < 0) return null
+  const fm = raw.slice(0, end + 4)
+  const readVal = (key: string): string => {
+    const m = fm.match(new RegExp(`^${key}:\\s*(.+)\\s*$`, 'm'))
+    const v = m ? String(m[1] || '').trim() : ''
+    if (!v) return ''
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1)
+    return v
+  }
+  const docId = readVal('kgPdfWorkspaceDocId')
+  const modeRaw = readVal('kgPdfWorkspaceMode')
+  const outputDirRel = readVal('kgPdfWorkspaceOutputDirRel')
+  const mode: PdfConversionMode = modeRaw === 'image-heavy' ? 'image-heavy' : modeRaw === 'scan-ocr' ? 'scan-ocr' : 'text-only'
+  if (!docId) return null
+  return { docId, mode, outputDirRel: outputDirRel || readPdfWorkspaceOutputDirRel() }
 }
 
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
@@ -63,6 +130,20 @@ export function MarkdownWorkspace() {
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const setMarkdownDocumentSourceUrl = useGraphStore(s => s.setMarkdownDocumentSourceUrl)
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
+  const setGraphData = useGraphStore(s => s.setGraphData)
+
+  const setPdfImportConversionMode = useGraphStore(s => s.setPdfImportConversionMode)
+
+  const handleSetPdfImportConversionMode = React.useCallback(
+    (mode: 'text-only' | 'image-heavy' | 'scan-ocr') => {
+      try {
+        setPdfImportConversionMode(mode)
+      } catch {
+        void 0
+      }
+    },
+    [setPdfImportConversionMode],
+  )
 
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
   const nodeQuickEditorRegistry = useGraphStore(s => s.nodeQuickEditorRegistry || [])
@@ -114,8 +195,15 @@ export function MarkdownWorkspace() {
           }
           emitSidePanelOpen({ tab: 'geo', open: true })
         },
+        loadGraphData: (data: GraphData) => {
+          try {
+            setGraphData(data)
+          } catch {
+            void 0
+          }
+        },
       }),
-    [],
+    [setGraphData],
   )
   const workspaceFsRef = React.useRef<Awaited<ReturnType<typeof getWorkspaceFs>> | null>(null)
   const [highlightedLineRange, setHighlightedLineRange] = React.useState<HighlightedLineRange>(null)
@@ -135,10 +223,23 @@ export function MarkdownWorkspace() {
     setStatusLabel({ kind: 'error', label: msg })
   }, [])
 
-  const setStatusProgress = React.useCallback((label: string, current?: number | null, total?: number | null) => {
+  const setStatusProgress = React.useCallback((
+    label: string,
+    current?: number | null,
+    total?: number | null,
+    bytesCurrent?: number | null,
+    bytesTotal?: number | null,
+  ) => {
     const msg = String(label || '').trim()
     if (!msg) return
-    setStatusLabel({ kind: 'progress', label: msg, current: typeof current === 'number' ? current : null, total: typeof total === 'number' ? total : null })
+    setStatusLabel({
+      kind: 'progress',
+      label: msg,
+      current: typeof current === 'number' ? current : null,
+      total: typeof total === 'number' ? total : null,
+      bytesCurrent: typeof bytesCurrent === 'number' ? bytesCurrent : null,
+      bytesTotal: typeof bytesTotal === 'number' ? bytesTotal : null,
+    })
   }, [])
   const userEditedActiveTextRef = React.useRef(false)
   const setActiveTextProgrammatic = React.useCallback((next: string) => {
@@ -149,6 +250,8 @@ export function MarkdownWorkspace() {
   const debouncedText = useDebouncedValue(activeText, 450, activePath)
   const outlineText = useDebouncedValue(activeText, 160, activePath)
   const lastLoadedRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
+  const lastIndexedRef = React.useRef<{ path: WorkspacePath; textHash: string } | null>(null)
+  const indexJobRef = React.useRef(0)
   const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const prevCollapsedRef = React.useRef<boolean>(effectiveBottomPanelCollapsed)
   const lastRequestedActivePathRef = React.useRef<{ path: WorkspacePath; atMs: number } | null>(null)
@@ -276,7 +379,19 @@ export function MarkdownWorkspace() {
         return { ...e, text: undefined }
       })
       setEntries(pruned)
-      setSourcesByPath(loadWorkspaceSourceIndex())
+      const sources = loadWorkspaceSourceIndex()
+      setSourcesByPath(sources)
+      try {
+        const store = useGraphStore.getState()
+        const merged = mergeWorkspaceEntriesIntoSourceFiles({
+          existing: store.sourceFiles,
+          workspaceEntries: pruned,
+          sourcesByPath: sources,
+        })
+        store.setSourceFiles(merged)
+      } catch {
+        void 0
+      }
       setLoading(false)
       setStatusInfo('Ready')
     } catch (e) {
@@ -292,6 +407,109 @@ export function MarkdownWorkspace() {
     if (statusClearRef.current != null) window.clearTimeout(statusClearRef.current)
     statusClearRef.current = window.setTimeout(() => setStatusLabel(null), ttlMs)
   }, [setStatusInfo])
+
+  const pdfWorkspaceMeta = React.useMemo(() => {
+    if (!activePath) return null
+    if (!isMarkdownPath(activePath)) return null
+    const t = String(activeText || '')
+    if (!t.startsWith('---')) return null
+    return parsePdfWorkspaceFrontmatter(t)
+  }, [activePath, activeText])
+
+  const [pdfWorkspaceViewerTextOverride, setPdfWorkspaceViewerTextOverride] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (layoutMode !== 'viewer' && layoutMode !== 'split') {
+      setPdfWorkspaceViewerTextOverride(null)
+      return
+    }
+    if (!pdfWorkspaceMeta) {
+      setPdfWorkspaceViewerTextOverride(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetchPdfWorkspaceDoc({
+          docId: pdfWorkspaceMeta.docId,
+          mode: pdfWorkspaceMeta.mode,
+          outputDirRel: pdfWorkspaceMeta.outputDirRel,
+        })
+        if (cancelled) return
+        if (res.ok !== true) {
+          setPdfWorkspaceViewerTextOverride(null)
+          return
+        }
+        setPdfWorkspaceViewerTextOverride(String(res.markdown || ''))
+      } catch {
+        if (cancelled) return
+        setPdfWorkspaceViewerTextOverride(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [layoutMode, pdfWorkspaceMeta])
+
+  const switchActivePdfWorkspaceMode = React.useCallback(
+    async (mode: PdfConversionMode) => {
+      if (!activePath || !pdfWorkspaceMeta) return
+      setStatusProgress('Loading PDF')
+      try {
+        const res = await fetchPdfWorkspaceDoc({ docId: pdfWorkspaceMeta.docId, mode, outputDirRel: pdfWorkspaceMeta.outputDirRel })
+        if (res.ok !== true) {
+          setStatusError(res.error)
+          return
+        }
+
+        const markdownRaw = String(res.markdown || '')
+        setPdfWorkspaceViewerTextOverride(markdownRaw)
+
+        const stripped = stripEmbeddedBase64ImageSrc(markdownRaw)
+        const notice = stripped.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
+        const frontmatter = `---\nkgPdfWorkspaceDocId: "${pdfWorkspaceMeta.docId}"\nkgPdfWorkspaceMode: "${mode}"\nkgPdfWorkspaceOutputDirRel: "${pdfWorkspaceMeta.outputDirRel}"\n---\n\n`
+        const nextText = `${frontmatter}${notice}${stripped.text}`
+
+        const fs = await getFs()
+        await fs.writeFileText(activePath, nextText)
+        lastLoadedRef.current = { path: activePath, text: nextText }
+        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+        const inlineText = nextText.length <= maxInline ? nextText : undefined
+        setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+        setActiveTextProgrammatic(nextText)
+        const docKey = workspaceDocumentKey(activePath)
+        if (docKey) setMarkdownDocument(docKey, nextText)
+        setStatusWithAutoClear('Loaded', 1200)
+      } catch (e) {
+        setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      }
+    },
+    [activePath, getFs, pdfWorkspaceMeta, setActiveTextProgrammatic, setEntries, setMarkdownDocument, setStatusError, setStatusProgress, setStatusWithAutoClear],
+  )
+
+  const renderSourceFileRight = React.useCallback(
+    (args: { entry: WorkspaceEntry; isActive: boolean }) => {
+      if (!args.isActive) return null
+      if (!pdfWorkspaceMeta) return null
+      return (
+        <select
+          className={`h-6 rounded border px-1 text-[11px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+          value={pdfWorkspaceMeta.mode}
+          onChange={e => {
+            const next = e.target.value as 'text-only' | 'image-heavy' | 'scan-ocr'
+            handleSetPdfImportConversionMode(next)
+            void switchActivePdfWorkspaceMode(next)
+          }}
+          aria-label="PDF conversion mode"
+        >
+          <option value="text-only">text-only</option>
+          <option value="image-heavy">image-heavy</option>
+          <option value="scan-ocr">scan/OCR</option>
+        </select>
+      )
+    },
+    [handleSetPdfImportConversionMode, pdfWorkspaceMeta, switchActivePdfWorkspaceMode],
+  )
 
   React.useEffect(() => {
     onCopyNodeQuickEditorRef.current = () => {
@@ -516,7 +734,7 @@ export function MarkdownWorkspace() {
       if (String(activeText || '').trim()) return
       if (!String(candidate || '').trim()) return
       setActiveText(candidate)
-      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, candidate)
+      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, candidate, { autoEnableFrontmatter: false })
       return
     }
 
@@ -529,7 +747,7 @@ export function MarkdownWorkspace() {
     if (!snap || snap.path !== path) return
     if (!String(snap.text || '').trim()) return
     setActiveText(snap.text)
-    if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, snap.text)
+    if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, snap.text, { autoEnableFrontmatter: false })
   }, [
     activeDocumentKey,
     activePath,
@@ -547,7 +765,7 @@ export function MarkdownWorkspace() {
     const last = lastLoadedRef.current
     if (last && last.path === path && String(last.text || '').trim()) {
       setActiveText(last.text)
-      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, last.text)
+      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, last.text, { autoEnableFrontmatter: false })
       return
     }
 
@@ -559,7 +777,7 @@ export function MarkdownWorkspace() {
         if (!next.trim()) return
         lastLoadedRef.current = { path, text: next }
         setActiveText(next)
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, next)
+        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, next, { autoEnableFrontmatter: false })
       } catch {
         void 0
       }
@@ -629,27 +847,40 @@ export function MarkdownWorkspace() {
     const sourceUrl = source && source.kind === 'url' ? String(source.url || '').trim() : ''
     setMarkdownDocumentSourceUrl(sourceUrl ? sourceUrl : null)
 
+    const pendingLocalImport = peekPendingWorkspaceLocalImport(path)
+    const indexLabel = pendingLocalImport?.kind === 'pdf' ? 'Indexing PDF' : 'Indexing'
+    const bytesTotalHint = pendingLocalImport ? Math.max(0, Number(pendingLocalImport.file?.size || 0)) : null
+
     const canTrustEmptyCache = !!(cachedText === '' && lastLoaded && lastLoaded.path === path && lastLoaded.text === '')
-    if (cachedText != null && (cachedText !== '' || canTrustEmptyCache)) {
-      if (activePathRef.current !== scheduledFor) return
-      lastLoadedRef.current = { path, text: cachedText }
-      setActiveTextProgrammatic(cachedText)
-      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, cachedText)
-      setStatusWithAutoClear('Loaded')
-      return
-    }
+    const isPendingStub = cachedText != null && isPendingLocalImportStubText(cachedText)
+    const canUseCachedText =
+      cachedText != null &&
+      (cachedText !== '' || canTrustEmptyCache) &&
+      !(pendingLocalImport && (cachedText === '' || isPendingStub))
 
     let cancelled = false
     void (async () => {
       let loadingLabelTimer: number | null = null
       try {
-        loadingLabelTimer = window.setTimeout(() => setStatusProgress('Loading'), 140)
+        const label = indexLabel
+        const bytesTotal = bytesTotalHint
+        loadingLabelTimer = window.setTimeout(() => {
+          if (bytesTotal && bytesTotal > 0) {
+            setStatusProgress(label, 1, 1, 0, bytesTotal)
+            return
+          }
+          setStatusProgress(label)
+        }, 140)
       } catch {
         void 0
       }
       try {
-        const fs = await getFs()
-        const text = await fs.readFileText(path)
+        const text = await (async () => {
+          if (canUseCachedText) return cachedText as string
+          const fs = await getFs()
+          const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs, path })
+          return hydrated ? hydrated.text : await fs.readFileText(path)
+        })()
         if (cancelled) return
         if (activePathRef.current !== scheduledFor) return
         if (text == null) {
@@ -659,36 +890,201 @@ export function MarkdownWorkspace() {
         const next = String(text)
         lastLoadedRef.current = { path, text: next }
         setActiveTextProgrammatic(next)
-        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-        const inlineText = next.length <= maxInline ? next : undefined
-        setEntries(prev => {
-          const idx = prev.findIndex(e => e.path === path)
-          if (idx >= 0) {
-            const current = prev[idx]
-            if (current.kind !== 'file') return prev
-            if (current.text === inlineText) return prev
+        if (!canUseCachedText) {
+          const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+          const inlineText = next.length <= maxInline ? next : undefined
+          setEntries(prev => {
+            const idx = prev.findIndex(e => e.path === path)
+            if (idx >= 0) {
+              const current = prev[idx]
+              if (current.kind !== 'file') return prev
+              if (current.text === inlineText) return prev
+              const nextEntries = prev.slice()
+              nextEntries[idx] = { ...current, text: inlineText }
+              return nextEntries
+            }
+            const normalized = normalizeWorkspacePath(path)
+            const parts = normalized.replace(/^\/+/, '').split('/').filter(Boolean)
+            const name = parts[parts.length - 1] || ''
+            const parent = parts.length <= 1 ? WORKSPACE_ROOT_PATH : normalizeWorkspacePath(parts.slice(0, -1).join('/'))
             const nextEntries = prev.slice()
-            nextEntries[idx] = { ...current, text: inlineText }
+            nextEntries.push({
+              path: normalized,
+              parentPath: parent,
+              kind: 'file',
+              name,
+              text: inlineText,
+              updatedAtMs: Date.now(),
+            } satisfies WorkspaceEntry)
+            nextEntries.sort((a, b) => a.path.localeCompare(b.path))
             return nextEntries
+          })
+        }
+        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, next, { autoEnableFrontmatter: false })
+
+        if (activeDocumentKey && next.trim()) {
+          const hash = hashStringToHex(next)
+          const last = lastIndexedRef.current
+          if (!(last && last.path === path && last.textHash === hash)) {
+            const jobId = ++indexJobRef.current
+            if (bytesTotalHint && bytesTotalHint > 0) {
+              setStatusProgress(indexLabel, 1, 1, bytesTotalHint, bytesTotalHint)
+            } else {
+              setStatusProgress(indexLabel, 1, 1)
+            }
+            const store = useGraphStore.getState()
+            const workspaceSourcePath = `workspace:${path}`
+            const fileId = (() => {
+              const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+              const existing = current.find(f => String(f?.source?.path || '') === workspaceSourcePath) || null
+              if (existing) return existing.id
+              const id = `ws:${hashStringToHex(workspaceSourcePath)}`
+              const url = sourceUrl ? sourceUrl : undefined
+              const source = url ? ({ kind: 'url', url, path: workspaceSourcePath } as const) : ({ kind: 'local', path: workspaceSourcePath } as const)
+              const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+              const text = next.length <= maxInline ? next : ''
+              store.addSourceFile({
+                id,
+                name: String(activeEntry?.name || ''),
+                text,
+                enabled: true,
+                status: 'idle',
+                source,
+              })
+              return id
+            })()
+
+            try {
+              store.updateSourceFile(fileId, {
+                name: String(activeEntry?.name || ''),
+                text: next.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? next : '',
+                enabled: true,
+                status: 'loading',
+                error: undefined,
+              })
+            } catch {
+              void 0
+            }
+
+            const existing = (() => {
+              const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+              return current.find(f => f.id === fileId) || null
+            })()
+
+            const cachedGraph = existing?.parsedGraphData
+            const cachedHash = typeof existing?.parsedTextHash === 'string' ? existing.parsedTextHash : ''
+
+            const isGeoCandidate = (() => {
+              const lower = String(path || '').toLowerCase()
+              if (lower.endsWith('.geojson')) return true
+              if (lower.endsWith('.json')) return true
+              return false
+            })()
+
+            const geoGraph = (() => {
+              if (!isGeoCandidate) return null
+              try {
+                const fc = parseGeoJsonFromText(next)
+                const normalized = coerceGeoJsonToFeatureCollection(fc)
+                return buildGraphDataFromFeatureCollection({
+                  featureCollection: normalized,
+                  sourcePath: path,
+                  sourceHash: hash,
+                })
+              } catch {
+                void 0
+              }
+              try {
+                const parsed = JSON.parse(next) as unknown
+                const records = Array.isArray(parsed) ? parsed : null
+                if (!records) return null
+                const fc = recordsToPointFeatureCollection(records)
+                const normalized = coerceGeoJsonToFeatureCollection(fc)
+                return buildGraphDataFromFeatureCollection({
+                  featureCollection: normalized,
+                  sourcePath: path,
+                  sourceHash: hash,
+                })
+              } catch {
+                return null
+              }
+            })()
+
+            if (geoGraph) {
+              try {
+                store.setGraphData(geoGraph)
+              } catch {
+                void 0
+              }
+              try {
+                store.updateSourceFile(fileId, {
+                  status: 'parsed',
+                  error: undefined,
+                  parsedParserId: 'geojson',
+                  parsedTextHash: hash,
+                  parsedGraphData: geoGraph,
+                })
+              } catch {
+                void 0
+              }
+              if (cancelled) return
+              if (activePathRef.current !== scheduledFor) return
+              if (indexJobRef.current !== jobId) return
+              lastIndexedRef.current = { path, textHash: hash }
+              return
+            }
+
+            if (cachedGraph && cachedHash === hash) {
+              try {
+                store.setGraphData(cachedGraph)
+              } catch {
+                void 0
+              }
+              try {
+                store.updateSourceFile(fileId, {
+                  status: 'parsed',
+                  error: undefined,
+                })
+              } catch {
+                void 0
+              }
+            } else {
+              const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
+              const res = await loadGraphDataFromTextViaParser(activeDocumentKey, next, { applyToStore: false })
+              const gd = res?.graphData || null
+              if (gd) {
+                try {
+                  store.setGraphData(gd)
+                } catch {
+                  void 0
+                }
+                try {
+                  store.updateSourceFile(fileId, {
+                    status: 'parsed',
+                    error: undefined,
+                    parsedParserId: typeof res?.parserId === 'string' ? res!.parserId : undefined,
+                    parsedTextHash: hash,
+                    parsedGraphData: gd,
+                  })
+                } catch {
+                  void 0
+                }
+              } else {
+                try {
+                  store.updateSourceFile(fileId, { status: 'error', error: 'Parser returned empty graph' })
+                } catch {
+                  void 0
+                }
+              }
+            }
+            if (cancelled) return
+            if (activePathRef.current !== scheduledFor) return
+            if (indexJobRef.current !== jobId) return
+            lastIndexedRef.current = { path, textHash: hash }
           }
-          const normalized = normalizeWorkspacePath(path)
-          const parts = normalized.replace(/^\/+/, '').split('/').filter(Boolean)
-          const name = parts[parts.length - 1] || ''
-          const parent = parts.length <= 1 ? WORKSPACE_ROOT_PATH : normalizeWorkspacePath(parts.slice(0, -1).join('/'))
-          const nextEntries = prev.slice()
-          nextEntries.push({
-            path: normalized,
-            parentPath: parent,
-            kind: 'file',
-            name,
-            text: inlineText,
-            updatedAtMs: Date.now(),
-          } satisfies WorkspaceEntry)
-          nextEntries.sort((a, b) => a.path.localeCompare(b.path))
-          return nextEntries
-        })
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, next)
-        setStatusWithAutoClear('Loaded')
+        }
+
+        setStatusWithAutoClear('Indexed')
       } catch (e) {
         if (cancelled) return
         if (activePathRef.current !== scheduledFor) return
@@ -702,6 +1098,7 @@ export function MarkdownWorkspace() {
     }
   }, [
     activeDocumentKey,
+    activeEntry,
     activeEntryKind,
     activeEntryIsFile,
     activeEntryText,
@@ -732,7 +1129,25 @@ export function MarkdownWorkspace() {
         const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
         const inlineText = debouncedText.length <= maxInline ? debouncedText : undefined
         setEntries(prev => prev.map(e => (e.path === path ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, debouncedText)
+        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, debouncedText, { autoEnableFrontmatter: false })
+        try {
+          const store = useGraphStore.getState()
+          const wsPath = `workspace:${path}`
+          const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+          const existing = current.find(f => String(f?.source?.path || '') === wsPath) || null
+          if (existing) {
+            store.updateSourceFile(existing.id, {
+              text: inlineText ?? '',
+              status: 'idle',
+              error: undefined,
+              parsedParserId: undefined,
+              parsedTextHash: undefined,
+              parsedGraphData: undefined,
+            })
+          }
+        } catch {
+          void 0
+        }
         if (path === ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH) {
           try {
             setGraphRagWorkflowJsonText(debouncedText)
@@ -1143,6 +1558,7 @@ export function MarkdownWorkspace() {
     [contentMode],
   )
   const effectiveViewerTextOverride = contentMode === 'nodeQuickEditor' && nodeQuickEditorFormat === 'json' ? quickEditorViewerText : null
+  const combinedViewerTextOverride = effectiveViewerTextOverride || pdfWorkspaceViewerTextOverride
   const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown
 
@@ -1195,6 +1611,7 @@ export function MarkdownWorkspace() {
         }}
         canDeleteActive={fileActions.canDeleteActive}
         onDeleteActive={fileActions.onDeleteActive}
+        renderSourceFileRight={renderSourceFileRight}
       />
 
       <VerticalResizeSeparatorHr ref={resizeHandleRef} ariaLabel="Resize explorer" />
@@ -1208,6 +1625,7 @@ export function MarkdownWorkspace() {
           themeMode={themeMode}
           uiPanelTextFontClass={uiPanelTextFontClass}
           uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+          geoDatasetIntegration={geoDatasetIntegration}
           layoutMode={layoutMode}
           setLayoutMode={setLayoutMode}
           markdownWordWrap={markdownWordWrap}
@@ -1232,7 +1650,7 @@ export function MarkdownWorkspace() {
           onImportUrl={fileActions.handleImportUrl}
           activeText={effectiveActiveText}
           setActiveText={effectiveSetActiveText}
-          viewerTextOverride={effectiveViewerTextOverride}
+          viewerTextOverride={combinedViewerTextOverride}
           disableViewerMutations={contentMode === 'nodeQuickEditor'}
           activeDocumentKey={activeDocumentKey}
           highlightedLineRange={highlightedLineRange}

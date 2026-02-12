@@ -96,9 +96,13 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectedGroupId = useGraphStore(s => s.selectedGroupId)
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
+  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
+  const selectedGroupIds = useGraphStore(s => s.selectedGroupIds)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
   const selectGroup = useGraphStore(s => s.selectGroup)
+  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const launchSpotlight = useLaunchSpotlight();
   const iconSizeClass = getIconSizeClass(uiIconScale);
   const iconStrokeWidth = uiIconStrokeWidth;
@@ -120,7 +124,14 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     return false
   }, [documentStructureBaselineLock, upsertUiToast])
 
-  const hasAnySelection = Boolean(selectedNodeId || selectedEdgeId || selectedGroupId)
+  const hasAnySelection = Boolean(
+    selectedNodeId ||
+      selectedEdgeId ||
+      selectedGroupId ||
+      (selectedNodeIds || []).length ||
+      (selectedEdgeIds || []).length ||
+      (selectedGroupIds || []).length,
+  )
   const isNavigateModeActive = !hasAnySelection && !(selectMode === 'multi' || selectMode === 'lasso')
   const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
@@ -249,6 +260,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         tooltipContent="Navigate (clear selection)"
         onClick={() => {
           if (!ensureBaselineUnlocked()) return
+          setSelectionSource('toolbar')
           setSelectMode('single')
           selectNode(null)
           selectEdge(null)

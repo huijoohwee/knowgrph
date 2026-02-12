@@ -1,7 +1,16 @@
 import type { ParsedIndirectObject, PdfDict, PdfStreamDecodeCache } from './pdfObjects'
 import { deref, getDictValue, isDict, isRef, readStream } from './pdfObjects'
 
-export function parseToUnicodeCMap(bytes: Buffer): Map<string, string> {
+export function parseToUnicodeCMap(bytes: Buffer, opts?: { maxBytes?: number }): Map<string, string> {
+  const maxBytes = (() => {
+    if (typeof opts?.maxBytes === 'number' && opts.maxBytes > 0) return Math.floor(opts.maxBytes)
+    const raw = String(process.env.KNOWGRPH_PDF_CMAP_MAX_BYTES || '').trim()
+    const n = raw ? Number(raw) : NaN
+    if (Number.isFinite(n) && n > 0) return Math.floor(n)
+    return 256 * 1024
+  })()
+  if (bytes.length > maxBytes) return new Map<string, string>()
+
   const s = bytes.toString('latin1')
   const map = new Map<string, string>()
   const decodeUtf16be = (b: Buffer) => {
@@ -61,9 +70,21 @@ export function buildFontUnicodeMaps(
   objects: Map<number, ParsedIndirectObject>,
   resources: PdfDict | null,
   streamDecodeCache?: PdfStreamDecodeCache | null,
+  toUnicodeCache?: Map<number, Map<string, string>> | null,
+  allowedFontKeys?: Set<string> | null,
+  limits?: {
+    cmapMaxBytes?: number
+    maxToUnicodeStreamBytes?: number
+    toUnicodeMaxDecodeBytes?: number
+  } | null,
 ): Record<string, Map<string, string>> {
   const out: Record<string, Map<string, string>> = {}
   if (!resources) return out
+
+   const debugTiming = String(process.env.KNOWGRPH_PDF_DEBUG_TIMING || '').trim() === '1'
+   const startedAt = debugTiming ? Date.now() : 0
+   let visitedFonts = 0
+   let parsedCmaps = 0
   const fontVal = getDictValue(resources, 'Font')
   const fontDict = (() => {
     const v = deref(objects, fontVal)
@@ -71,6 +92,8 @@ export function buildFontUnicodeMaps(
   })()
   if (!fontDict) return out
   for (const [fontKey, fontEntry] of Object.entries(fontDict.map)) {
+    if (allowedFontKeys && !allowedFontKeys.has(fontKey)) continue
+    visitedFonts += 1
     const ref = isRef(fontEntry) ? fontEntry : null
     if (!ref) continue
     const obj = objects.get(ref.obj)
@@ -79,24 +102,64 @@ export function buildFontUnicodeMaps(
     const toUnicodeVal = getDictValue(dict, 'ToUnicode')
     const toUnicodeRef = isRef(toUnicodeVal) ? toUnicodeVal : null
     if (!toUnicodeRef) continue
-    const st = readStream(objects, toUnicodeRef, streamDecodeCache)
+
+    const maxToUnicodeStreamBytes = (() => {
+      if (typeof limits?.maxToUnicodeStreamBytes === 'number' && limits.maxToUnicodeStreamBytes > 0) return Math.floor(limits.maxToUnicodeStreamBytes)
+      const raw = String(process.env.KNOWGRPH_PDF_MAX_TO_UNICODE_STREAM_BYTES || '').trim()
+      const n = raw ? Number(raw) : NaN
+      if (Number.isFinite(n) && n > 0) return Math.floor(n)
+      return 256 * 1024
+    })()
+    const toUnicodeObj = objects.get(toUnicodeRef.obj)
+    const toUnicodeStreamLen = toUnicodeObj?.stream?.length || 0
+    if (toUnicodeStreamLen > maxToUnicodeStreamBytes) continue
+
+    if (debugTiming) process.stderr.write(`[pdf] toUnicode font=${fontKey} obj=${toUnicodeRef.obj} rawLen=${toUnicodeStreamLen}\n`)
+
+    const cached = toUnicodeCache?.get(toUnicodeRef.obj)
+    if (cached) {
+      out[fontKey] = cached
+      continue
+    }
+    const maxToUnicodeDecodeBytes = (() => {
+      if (typeof limits?.toUnicodeMaxDecodeBytes === 'number' && limits.toUnicodeMaxDecodeBytes > 0) return Math.floor(limits.toUnicodeMaxDecodeBytes)
+      const raw = String(process.env.KNOWGRPH_PDF_TOUNICODE_MAX_DECODE_BYTES || '').trim()
+      const n = raw ? Number(raw) : NaN
+      if (Number.isFinite(n) && n > 0) return Math.floor(n)
+      return 512 * 1024
+    })()
+    const st = readStream(objects, toUnicodeRef, streamDecodeCache, { maxOutputLength: maxToUnicodeDecodeBytes, onError: 'null' })
     if (!st.bytes) continue
     try {
-      out[fontKey] = parseToUnicodeCMap(st.bytes)
+      const cmap = parseToUnicodeCMap(st.bytes, { maxBytes: limits?.cmapMaxBytes })
+      out[fontKey] = cmap
+      toUnicodeCache?.set(toUnicodeRef.obj, cmap)
+      parsedCmaps += 1
     } catch {
       void 0
     }
   }
+  if (debugTiming) process.stderr.write(`[pdf] buildFontUnicodeMaps fonts=${visitedFonts} cmaps=${parsedCmaps}ms=${Date.now() - startedAt}\n`)
   return out
 }
 
 export function decodePdfTextBytes(bytes: Buffer, cmap: Map<string, string> | null): string {
   if (!bytes || bytes.length === 0) return ''
   if (!cmap || cmap.size === 0) return bytes.toString('latin1')
-  const keyLens = [...cmap.keys()].map(k => Math.max(1, Math.floor(k.length / 2))).filter(n => Number.isFinite(n))
   const preferredLen = (() => {
+    const preferredLenByMap: WeakMap<Map<string, string>, number> = (decodePdfTextBytes as unknown as {
+      __preferredLenByMap?: WeakMap<Map<string, string>, number>
+    }).__preferredLenByMap ?? new WeakMap<Map<string, string>, number>()
+    ;(decodePdfTextBytes as unknown as { __preferredLenByMap?: WeakMap<Map<string, string>, number> }).__preferredLenByMap = preferredLenByMap
+
+    const cached = preferredLenByMap.get(cmap)
+    if (typeof cached === 'number') return cached
+
     const counts = new Map<number, number>()
-    for (const n of keyLens) counts.set(n, (counts.get(n) || 0) + 1)
+    for (const k of cmap.keys()) {
+      const n = Math.max(1, Math.floor(String(k).length / 2))
+      if (n > 0 && n <= 16) counts.set(n, (counts.get(n) || 0) + 1)
+    }
     let best = 1
     let bestCount = 0
     for (const [n, c] of counts.entries()) {
@@ -105,7 +168,9 @@ export function decodePdfTextBytes(bytes: Buffer, cmap: Map<string, string> | nu
         bestCount = c
       }
     }
-    return Math.max(1, Math.min(4, best))
+    const computed = Math.max(1, Math.min(4, best))
+    preferredLenByMap.set(cmap, computed)
+    return computed
   })()
   let out = ''
   let i = 0

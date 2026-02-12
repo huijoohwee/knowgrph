@@ -43,7 +43,7 @@ export type PdfImportProvider = 'native' | 'docling-remote'
 
 export type PdfImportConversionMode = 'text-only' | 'image-heavy' | 'scan-ocr'
 
-export type PdfImportDeepseekOcr2Mode = 'fallback' | 'always'
+export type PdfImportOcrMode = 'fallback' | 'always'
 
 export type EditorWorkspaceSection = 'markdown' | 'graphTable'
 
@@ -327,16 +327,37 @@ export interface GraphState {
 
   pdfImportIncludeImages: boolean;
   pdfImportConversionMode: PdfImportConversionMode;
+  pdfImportMaxPages: number;
+  pdfImportMaxPdfBytes: number;
+  pdfImportFetchTimeoutMs: number;
+  pdfImportUploadTimeoutMs: number;
+  pdfImportConvertTimeoutMs: number;
+  pdfImportStreamDecodeCacheMaxBytes: number;
+  pdfImportContentStreamMaxDecodeBytes: number;
+  pdfImportPageContentMaxBytes: number;
+  pdfImportCmapMaxBytes: number;
+  pdfImportMaxToUnicodeStreamBytes: number;
+  pdfImportToUnicodeMaxDecodeBytes: number;
+  pdfImportImageStreamMaxDecodeBytes: number;
+  pdfImportMaxTextContentBytesPerPage: number;
+  pdfImportMaxTextStreamBytes: number;
+  pdfImportMaxFormXObjectBytes: number;
+  pdfImportMaxFormXObjectStreamBytes: number;
+  pdfImportMaxFormXObjectCount: number;
   pdfImportEmbedImages: boolean;
   pdfImportMaxExtractedImagesPerPage: number;
   pdfImportMaxEmbeddedImagesPerPage: number;
   pdfImportMaxEmbeddedTotalBytes: number;
   pdfImportMaxEmbeddedAssetBytes: number;
+  pdfImportReconstructTables: boolean;
+  pdfImportTableMinColumns: number;
+  pdfImportTableMinRows: number;
+  pdfImportTableMaxRows: number;
   pdfImportProvider: PdfImportProvider;
   pdfImportDoclingEndpoint: string | null;
   pdfImportProviderFallbackToNative: boolean;
-  pdfImportDeepseekOcr2Enabled: boolean;
-  pdfImportDeepseekOcr2Mode: PdfImportDeepseekOcr2Mode;
+  pdfImportOcrEnabled: boolean;
+  pdfImportOcrMode: PdfImportOcrMode;
   bottomPanelHeightRatio: number;
   bottomPanelCollapsed: boolean;
   floatingPanelWidthRatio: number;
@@ -413,16 +434,37 @@ export interface GraphState {
 
   setPdfImportIncludeImages: (v: boolean) => void;
   setPdfImportConversionMode: (mode: PdfImportConversionMode) => void;
+  setPdfImportMaxPages: (v: number) => void;
+  setPdfImportMaxPdfBytes: (v: number) => void;
+  setPdfImportFetchTimeoutMs: (v: number) => void;
+  setPdfImportUploadTimeoutMs: (v: number) => void;
+  setPdfImportConvertTimeoutMs: (v: number) => void;
+  setPdfImportStreamDecodeCacheMaxBytes: (v: number) => void;
+  setPdfImportContentStreamMaxDecodeBytes: (v: number) => void;
+  setPdfImportPageContentMaxBytes: (v: number) => void;
+  setPdfImportCmapMaxBytes: (v: number) => void;
+  setPdfImportMaxToUnicodeStreamBytes: (v: number) => void;
+  setPdfImportToUnicodeMaxDecodeBytes: (v: number) => void;
+  setPdfImportImageStreamMaxDecodeBytes: (v: number) => void;
+  setPdfImportMaxTextContentBytesPerPage: (v: number) => void;
+  setPdfImportMaxTextStreamBytes: (v: number) => void;
+  setPdfImportMaxFormXObjectBytes: (v: number) => void;
+  setPdfImportMaxFormXObjectStreamBytes: (v: number) => void;
+  setPdfImportMaxFormXObjectCount: (v: number) => void;
   setPdfImportEmbedImages: (v: boolean) => void;
   setPdfImportMaxExtractedImagesPerPage: (v: number) => void;
   setPdfImportMaxEmbeddedImagesPerPage: (v: number) => void;
   setPdfImportMaxEmbeddedTotalBytes: (v: number) => void;
   setPdfImportMaxEmbeddedAssetBytes: (v: number) => void;
+  setPdfImportReconstructTables: (v: boolean) => void;
+  setPdfImportTableMinColumns: (v: number) => void;
+  setPdfImportTableMinRows: (v: number) => void;
+  setPdfImportTableMaxRows: (v: number) => void;
   setPdfImportProvider: (v: PdfImportProvider) => void;
   setPdfImportDoclingEndpoint: (v: string | null) => void;
   setPdfImportProviderFallbackToNative: (v: boolean) => void;
-  setPdfImportDeepseekOcr2Enabled: (v: boolean) => void;
-  setPdfImportDeepseekOcr2Mode: (v: PdfImportDeepseekOcr2Mode) => void;
+  setPdfImportOcrEnabled: (v: boolean) => void;
+  setPdfImportOcrMode: (v: PdfImportOcrMode) => void;
   setBottomPanelHeightRatio: (v: number) => void;
   setBottomPanelCollapsed: (v: boolean) => void;
   setFloatingPanelWidthRatio: (v: number) => void;
@@ -469,7 +511,7 @@ export interface GraphState {
   setGraphDataTableOverscanMultiplier: (v: number) => void;
   setGraphDataTableVirtualMinRows: (v: number) => void;
   setGraphDataTableVirtualDebugLogRanges: (v: boolean) => void;
-  setMarkdownDocument: (name: string | null, text: string | null) => void;
+  setMarkdownDocument: (name: string | null, text: string | null, opts?: { autoEnableFrontmatter?: boolean }) => void;
   applyMarkdownDocumentToGraph: (
     name: string,
     text: string,

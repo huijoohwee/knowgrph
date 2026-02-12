@@ -52,9 +52,10 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     }
   },
 
-  setMarkdownDocument: (name: string | null, text: string | null) => {
+  setMarkdownDocument: (name: string | null, text: string | null, opts?: { autoEnableFrontmatter?: boolean }) => {
     const nextText = String(text || '')
     const hasFrontmatterMermaid = containsFrontmatterMermaid(nextText)
+    const shouldAutoEnableFrontmatter = opts?.autoEnableFrontmatter !== false
     set({
       markdownDocumentName: name,
       markdownDocumentText: text,
@@ -63,7 +64,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       markdownTokensKey: null,
       markdownTokensMeta: null,
       markdownTokensStartLineOffset: null,
-      ...(hasFrontmatterMermaid ? { frontmatterModeEnabled: true } : {}),
+      ...(shouldAutoEnableFrontmatter && hasFrontmatterMermaid ? { frontmatterModeEnabled: true } : {}),
     })
   },
 
@@ -224,7 +225,6 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       return {
         graphData: nextGraphData,
         graphDataRevision: nextRevision,
-        layoutPositionCacheByMode: {},
         graphValidationStatus: null,
         graphValidationTimestamp: null,
       }

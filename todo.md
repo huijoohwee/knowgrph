@@ -30,7 +30,44 @@
 
 ### P0-Critical
 
+#### 2026-02-11
+
+- default state unpin, layout not messy, 
+- ENFORCE colission avoidance pin/unpin
+
 - produce a short “current switching matrix” (what combinations are valid/disabled today: baseline lock, geospatial on/off, 2d/3d, 2d renderer d3/flow) using the exact guards in the referenced files—still without code changes
+
+- [X] PDF -> MD Conversion Mode
+```
+# "SOURCE FILES" shows & allows user select/switch:
+- text-only: default
+- image-heavy: when select, show image; fix; now broken; FORBID Editor produces giant base64 strings; 
+- scan/OCR
+```
+
+- [X] PDF -> MD Conversion Mode
+```
+# "SOURCE FILES" 
+## right-side-of file-name shows & allows user select/switch (NOT right side of the Source Files header)
+- text-only: default; fix; SHOULD SHOW Markdown (fix; now shows JSON);
+- image-heavy: when select, Viewer shows image (fix; now broken);
+- scan/OCR: what's the difference from "image-heavy", SHOULD keep/consolidate?
+```
+
+- [X] Source Files -> active file row -> PDF -> Markdown Conversion Mode
+```
+- text-only: default; Editor SHOULD SHOW Markdown; Viewer SHOULD RENDER Markdown (fix; now JSON);
+- image-heavy: Editor SHOULD SHOW Markdown; Viewer SHOULD RENDER Markdown + Image (fix; now JSON; image broken); Canvas shows image (good)
+- scan/OCR: Editor SHOULD SHOW Markdown; Viewer SHOULD RENDER Markdown + Image (fix; now JSON; image broken)
+```
+
+- [ ] Source Files -> active file row -> PDF -> Markdown Conversion Mode
+```
+- Canvas Preview: fix; now jittery;
+- image-heavy: fix; Viewer Image broken;
+- scan/OCR: fix; Viewer Image broken;
+- "Indexing PDF": shows loading/indexing indicator (shared utils with "Converting PDF • .../... • ...kb/...kb" utils)
+```
 
 #### 2026-02-04
 

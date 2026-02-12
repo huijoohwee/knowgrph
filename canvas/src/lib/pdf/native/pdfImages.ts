@@ -108,6 +108,7 @@ function extractImageAsset(args: {
   pageIndex: number
   key: string
   streamDecodeCache?: PdfStreamDecodeCache | null
+  imageStreamMaxDecodeBytes?: number
 }): NativePdfAsset | null {
   const obj = args.objects.get(args.ref.obj)
   const dict = obj?.dict || null
@@ -138,7 +139,16 @@ function extractImageAsset(args: {
   }
 
   if (filter !== 'FlateDecode') return null
-  const st = readStream(args.objects, args.ref, args.streamDecodeCache)
+  const maxImageDecodeBytes = (() => {
+    if (typeof args.imageStreamMaxDecodeBytes === 'number' && args.imageStreamMaxDecodeBytes > 0) {
+      return Math.floor(args.imageStreamMaxDecodeBytes)
+    }
+    const raw = String(process.env.KNOWGRPH_PDF_IMAGE_STREAM_MAX_DECODE_BYTES || '').trim()
+    const n = raw ? Number(raw) : NaN
+    if (Number.isFinite(n) && n > 0) return Math.floor(n)
+    return 32 * 1024 * 1024
+  })()
+  const st = readStream(args.objects, args.ref, args.streamDecodeCache, { maxOutputLength: maxImageDecodeBytes, onError: 'null' })
   const decoded = st.bytes
   if (!decoded || decoded.length < 32) return null
 
@@ -207,6 +217,7 @@ export function extractPageImages(args: {
   pageIndex: number
   limit?: number
   streamDecodeCache?: PdfStreamDecodeCache | null
+  imageStreamMaxDecodeBytes?: number
 }): NativePdfAsset[] {
   const limit = typeof args.limit === 'number' && args.limit >= 0 ? Math.floor(args.limit) : 12
   const out: NativePdfAsset[] = []
@@ -239,7 +250,14 @@ export function extractPageImages(args: {
       const subtype = getDictValue(dict, 'Subtype')
       if (isName(subtype) && subtype.name === 'Image') {
         pushAsset(
-          extractImageAsset({ objects: args.objects, ref, pageIndex: args.pageIndex, key: name, streamDecodeCache: args.streamDecodeCache }),
+          extractImageAsset({
+            objects: args.objects,
+            ref,
+            pageIndex: args.pageIndex,
+            key: name,
+            streamDecodeCache: args.streamDecodeCache,
+            imageStreamMaxDecodeBytes: args.imageStreamMaxDecodeBytes,
+          }),
         )
         continue
       }
@@ -249,7 +267,7 @@ export function extractPageImages(args: {
           const dv = deref(args.objects, rv)
           return isDict(dv) ? dv : resources
         })()
-        const st = readStream(args.objects, ref, args.streamDecodeCache)
+        const st = readStream(args.objects, ref, args.streamDecodeCache, { maxOutputLength: 8 * 1024 * 1024, onError: 'null' })
         if (!st.bytes) continue
         walkDoNames(st.bytes, formResources, depth + 1)
       }

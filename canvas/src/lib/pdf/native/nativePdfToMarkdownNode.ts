@@ -17,8 +17,23 @@ export async function convertPdfFileToMarkdown(args: {
   maxPages?: number
   maxExtractedImagesPerPage?: number
   maxEmbeddedImagesPerPage?: number
+  reconstructTables?: boolean
+  tableMinColumns?: number
+  tableMinRows?: number
+  tableMaxRows?: number
   ocrEnhance?: PdfOcrEnhanceConfig | null
   streamDecodeCacheMaxBytes?: number
+  contentStreamMaxDecodeBytes?: number
+  pageContentMaxBytes?: number
+  cmapMaxBytes?: number
+  maxToUnicodeStreamBytes?: number
+  toUnicodeMaxDecodeBytes?: number
+  imageStreamMaxDecodeBytes?: number
+  maxTextContentBytesPerPage?: number
+  maxTextStreamBytes?: number
+  maxFormXObjectBytes?: number
+  maxFormXObjectStreamBytes?: number
+  maxFormXObjectCount?: number
 }): Promise<{ markdown: string; assets: NativePdfAsset[] }> {
   const buf = await fs.readFile(args.pdfPath)
   return await convertPdfBytesToMarkdown({
@@ -29,8 +44,23 @@ export async function convertPdfFileToMarkdown(args: {
     maxPages: args.maxPages,
     maxExtractedImagesPerPage: args.maxExtractedImagesPerPage,
     maxEmbeddedImagesPerPage: args.maxEmbeddedImagesPerPage,
+    reconstructTables: args.reconstructTables,
+    tableMinColumns: args.tableMinColumns,
+    tableMinRows: args.tableMinRows,
+    tableMaxRows: args.tableMaxRows,
     ocrEnhance: args.ocrEnhance,
     streamDecodeCacheMaxBytes: args.streamDecodeCacheMaxBytes,
+    contentStreamMaxDecodeBytes: args.contentStreamMaxDecodeBytes,
+    pageContentMaxBytes: args.pageContentMaxBytes,
+    cmapMaxBytes: args.cmapMaxBytes,
+    maxToUnicodeStreamBytes: args.maxToUnicodeStreamBytes,
+    toUnicodeMaxDecodeBytes: args.toUnicodeMaxDecodeBytes,
+    imageStreamMaxDecodeBytes: args.imageStreamMaxDecodeBytes,
+    maxTextContentBytesPerPage: args.maxTextContentBytesPerPage,
+    maxTextStreamBytes: args.maxTextStreamBytes,
+    maxFormXObjectBytes: args.maxFormXObjectBytes,
+    maxFormXObjectStreamBytes: args.maxFormXObjectStreamBytes,
+    maxFormXObjectCount: args.maxFormXObjectCount,
   })
 }
 
@@ -42,12 +72,40 @@ export async function convertPdfBytesToMarkdown(args: {
   maxPages?: number
   maxExtractedImagesPerPage?: number
   maxEmbeddedImagesPerPage?: number
+  reconstructTables?: boolean
+  tableMinColumns?: number
+  tableMinRows?: number
+  tableMaxRows?: number
   ocrEnhance?: PdfOcrEnhanceConfig | null
   streamDecodeCacheMaxBytes?: number
+  contentStreamMaxDecodeBytes?: number
+  pageContentMaxBytes?: number
+  cmapMaxBytes?: number
+  maxToUnicodeStreamBytes?: number
+  toUnicodeMaxDecodeBytes?: number
+  imageStreamMaxDecodeBytes?: number
+  maxTextContentBytesPerPage?: number
+  maxTextStreamBytes?: number
+  maxFormXObjectBytes?: number
+  maxFormXObjectStreamBytes?: number
+  maxFormXObjectCount?: number
 }): Promise<{ markdown: string; assets: NativePdfAsset[] }> {
+  {
+    const raw = String(process.env.KNOWGRPH_PDF_MAX_BYTES || '').trim()
+    const n = raw ? Number(raw) : NaN
+    const maxBytes = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+    if (maxBytes > 0 && args.pdfBytes.length > maxBytes) throw new Error('PDF is too large')
+  }
+
+  const debugTiming = String(process.env.KNOWGRPH_PDF_DEBUG_TIMING || '').trim() === '1'
+  const t0 = Date.now()
   const objects = parseIndirectObjects(args.pdfBytes)
+  if (debugTiming) process.stderr.write(`[pdf] parseIndirectObjects: ${Date.now() - t0}ms\n`)
+
   const streamDecodeCache = createPdfStreamDecodeCache(typeof args.streamDecodeCacheMaxBytes === 'number' ? args.streamDecodeCacheMaxBytes : 0)
+  const t1 = Date.now()
   expandObjectStreams(objects, streamDecodeCache)
+  if (debugTiming) process.stderr.write(`[pdf] expandObjectStreams: ${Date.now() - t1}ms\n`)
 
   const catalogRef = (() => {
     for (const obj of objects.values()) {
@@ -101,14 +159,15 @@ export async function convertPdfBytesToMarkdown(args: {
     }
   }
   walkPages(pagesRef, { resources: null, mediaBox: null, rotate: 0 }, 0)
+  if (debugTiming) process.stderr.write(`[pdf] discoveredPages=${pages.length} totalElapsed=${Date.now() - t0}ms\n`)
 
   const includeImages = !!args.includeImages
   const assetUrlPrefix = String(args.assetUrlPrefix || '').trim()
   const shouldExtractImages = includeImages || !!args.ocrEnhance?.enabled
   const maxPages = typeof args.maxPages === 'number' && args.maxPages > 0 ? Math.floor(args.maxPages) : pages.length
   const maxExtractedImagesPerPage = typeof args.maxExtractedImagesPerPage === 'number' && args.maxExtractedImagesPerPage > 0 ? Math.floor(args.maxExtractedImagesPerPage) : 12
-  const maxEmbeddedImagesPerPage = typeof args.maxEmbeddedImagesPerPage === 'number' && args.maxEmbeddedImagesPerPage >= 0 ? Math.floor(args.maxEmbeddedImagesPerPage) : 6
-  const maxNeededImagesPerPage = Math.min(maxExtractedImagesPerPage, Math.max(0, maxEmbeddedImagesPerPage))
+  const maxEmbeddedImagesPerPage = typeof args.maxEmbeddedImagesPerPage === 'number' && args.maxEmbeddedImagesPerPage >= 0 ? Math.floor(args.maxEmbeddedImagesPerPage) : 12
+  const maxNeededImagesPerPage = Math.max(0, maxExtractedImagesPerPage)
   const usedPages = pages.slice(0, Math.max(0, Math.min(maxPages, pages.length)))
 
   const docLines: string[] = []
@@ -116,8 +175,10 @@ export async function convertPdfBytesToMarkdown(args: {
   docLines.push('')
 
   const allAssets: NativePdfAsset[] = []
+  const toUnicodeCache = new Map<number, Map<string, string>>()
 
   for (let i = 0; i < usedPages.length; i += 1) {
+    const tp0 = debugTiming ? Date.now() : 0
     const p = usedPages[i]
     const pageDict = objects.get(p.ref.obj)?.dict || null
     const contentVal = pageDict ? getDictValue(pageDict, 'Contents') : null
@@ -130,15 +191,62 @@ export async function convertPdfBytesToMarkdown(args: {
     })()
     const contentBytes = (() => {
       const parts: Buffer[] = []
+      const maxContentStreamDecodeBytes = (() => {
+        if (typeof args.contentStreamMaxDecodeBytes === 'number' && args.contentStreamMaxDecodeBytes > 0) {
+          return Math.floor(args.contentStreamMaxDecodeBytes)
+        }
+        const raw = String(process.env.KNOWGRPH_PDF_CONTENT_STREAM_MAX_DECODE_BYTES || '').trim()
+        const n = raw ? Number(raw) : NaN
+        if (Number.isFinite(n) && n > 0) return Math.floor(n)
+        return 8 * 1024 * 1024
+      })()
+      const maxPageContentBytes = (() => {
+        if (typeof args.pageContentMaxBytes === 'number' && args.pageContentMaxBytes > 0) {
+          return Math.floor(args.pageContentMaxBytes)
+        }
+        const raw = String(process.env.KNOWGRPH_PDF_PAGE_CONTENT_MAX_BYTES || '').trim()
+        const n = raw ? Number(raw) : NaN
+        if (Number.isFinite(n) && n > 0) return Math.floor(n)
+        return 8 * 1024 * 1024
+      })()
+      let used = 0
       for (const r of contentRefs) {
-        const st = readStream(objects, r, streamDecodeCache)
-        if (st.bytes) parts.push(st.bytes)
+        if (maxPageContentBytes > 0 && used >= maxPageContentBytes) break
+        const st = readStream(objects, r, streamDecodeCache, { maxOutputLength: maxContentStreamDecodeBytes, onError: 'null' })
+        if (!st.bytes) continue
+        if (maxPageContentBytes > 0) {
+          const remaining = maxPageContentBytes - used
+          if (remaining <= 0) break
+          parts.push(st.bytes.length > remaining ? st.bytes.subarray(0, remaining) : st.bytes)
+          used += Math.min(remaining, st.bytes.length)
+        } else {
+          parts.push(st.bytes)
+        }
       }
       return parts.length > 0 ? Buffer.concat(parts) : Buffer.alloc(0)
     })()
+    if (debugTiming) process.stderr.write(`[pdf] page=${i + 1}/${usedPages.length} contentBytes=${contentBytes.length}ms=${Date.now() - tp0}\n`)
 
-    const fragments = extractTextFragmentsFromPage({ objects, pageResources: p.resources, contentBytes, maxDepth: 5, streamDecodeCache })
+    const tf0 = debugTiming ? Date.now() : 0
+    const fragments = extractTextFragmentsFromPage({
+      objects,
+      pageResources: p.resources,
+      contentBytes,
+      maxDepth: 5,
+      streamDecodeCache,
+      toUnicodeCache,
+      cmapMaxBytes: args.cmapMaxBytes,
+      maxToUnicodeStreamBytes: args.maxToUnicodeStreamBytes,
+      toUnicodeMaxDecodeBytes: args.toUnicodeMaxDecodeBytes,
+      maxTextContentBytesPerPage: args.maxTextContentBytesPerPage,
+      maxTextStreamBytes: args.maxTextStreamBytes,
+      maxFormXObjectBytes: args.maxFormXObjectBytes,
+      maxFormXObjectStreamBytes: args.maxFormXObjectStreamBytes,
+      maxFormXObjectCount: args.maxFormXObjectCount,
+    })
+    if (debugTiming) process.stderr.write(`[pdf] page=${i + 1}/${usedPages.length} textFragments=${fragments.length}ms=${Date.now() - tf0}\n`)
 
+    const ti0 = debugTiming ? Date.now() : 0
     const pageAssets = shouldExtractImages
       ? extractPageImages({
           objects,
@@ -147,8 +255,10 @@ export async function convertPdfBytesToMarkdown(args: {
           pageIndex: i,
           limit: args.ocrEnhance?.enabled ? maxExtractedImagesPerPage : maxNeededImagesPerPage,
           streamDecodeCache,
+          imageStreamMaxDecodeBytes: args.imageStreamMaxDecodeBytes,
         })
       : []
+    if (debugTiming) process.stderr.write(`[pdf] page=${i + 1}/${usedPages.length} images=${pageAssets.length}ms=${Date.now() - ti0}\n`)
     if (pageAssets.length > 0) allAssets.push(...pageAssets)
 
     const ocrMarkdown = await maybeEnhancePageWithOcr({
@@ -158,18 +268,23 @@ export async function convertPdfBytesToMarkdown(args: {
       config: args.ocrEnhance || null,
     })
 
-    docLines.push(
-      buildMarkdownForPage({
-        pageIndex: i,
-        fragments,
-        mediaBox: p.mediaBox,
-        includeImages,
-        imageAssets: pageAssets,
-        assetUrlPrefix,
-        maxImagesPerPage: maxEmbeddedImagesPerPage,
-        ocrMarkdown,
-      }),
-    )
+    const tm0 = debugTiming ? Date.now() : 0
+    const pageMd = buildMarkdownForPage({
+      pageIndex: i,
+      fragments,
+      mediaBox: p.mediaBox,
+      includeImages,
+      imageAssets: pageAssets,
+      assetUrlPrefix,
+      maxImagesPerPage: maxEmbeddedImagesPerPage,
+      ocrMarkdown,
+      reconstructTables: args.reconstructTables,
+      tableMinColumns: args.tableMinColumns,
+      tableMinRows: args.tableMinRows,
+      tableMaxRows: args.tableMaxRows,
+    })
+    docLines.push(pageMd)
+    if (debugTiming) process.stderr.write(`[pdf] page=${i + 1}/${usedPages.length} markdownChars=${pageMd.length}ms=${Date.now() - tm0}\n`)
   }
 
   return { markdown: docLines.join('\n'), assets: allAssets }

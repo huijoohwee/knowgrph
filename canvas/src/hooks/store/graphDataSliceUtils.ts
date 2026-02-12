@@ -10,6 +10,7 @@ import {
 } from '@/features/graph-data-table/graphDataTable'
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { validateNodeQuickEditorRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
+import { hashStringToHex } from '@/lib/hash/stringHash'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -33,6 +34,25 @@ export function withGraphDataRevision(graphData: GraphData, nextRevision: number
     hash: `rev:${nextRevision}`,
   }
   return { ...(graphData as unknown as Record<string, unknown>), metadata: nextMeta } as unknown as GraphData
+}
+
+export function hashGraphDataForPreviewSync(graphData: unknown): string {
+  try {
+    if (!graphData || typeof graphData !== 'object') return ''
+    const gd = graphData as unknown as { metadata?: unknown }
+    const metaRaw = gd.metadata
+    if (!isRecord(metaRaw)) {
+      return hashStringToHex(JSON.stringify(graphData))
+    }
+    const meta = metaRaw as Record<string, unknown>
+    const nextMeta: Record<string, unknown> = { ...meta }
+    delete nextMeta.hash
+    delete nextMeta.graphDataRevision
+    const sanitized = { ...(graphData as unknown as Record<string, unknown>), metadata: nextMeta }
+    return hashStringToHex(JSON.stringify(sanitized))
+  } catch {
+    return ''
+  }
 }
 
 export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unknown) {

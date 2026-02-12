@@ -46,24 +46,6 @@ export function buildActive2dZoomViewKey(args: {
     flow: schema?.layout?.flow || null,
   })
 
-  const schemaNodesPresentationJson = JSON.stringify({
-    nodeShapeMode: schema?.behavior?.nodeShapeMode || 'auto',
-    portHandles: schema?.behavior?.portHandles || null,
-    nodeShapes: schema?.nodeShapes || null,
-    allowNodeDrag: schema?.behavior?.allowNodeDrag !== false,
-    hoverEnabled: schema?.behavior?.hover?.enabled !== false,
-    expansion: schema?.behavior?.expansion || null,
-    renderMediaAsNodes,
-    mediaPanelDensity,
-  })
-
-  const schemaGroupsPresentationJson = JSON.stringify({
-    groups: schema?.layout?.groups || null,
-    labelStyles: schema?.labelStyles || null,
-    nodeShapeMode: schema?.behavior?.nodeShapeMode || 'auto',
-    portHandles: schema?.behavior?.portHandles || null,
-  })
-
   return buildZoomViewKey({
     canvasRenderMode,
     canvas2dRenderer,
@@ -74,8 +56,5 @@ export function buildActive2dZoomViewKey(args: {
     renderMediaAsNodes,
     mediaPanelDensity,
     collapsedGroupIdsKey,
-    schemaNodesPresentationJson,
-    schemaGroupsPresentationJson,
   })
 }
-

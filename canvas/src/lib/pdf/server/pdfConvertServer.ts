@@ -5,6 +5,8 @@ import { randomUUID } from 'node:crypto'
 import { normalizePdfExtractedMarkdown } from '../normalizePdfExtractedMarkdown'
 import { embedPdfAssetsInMarkdown } from '../embedPdfAssetsInMarkdown'
 import { convertPdfBytesToMarkdown, writePdfAssets } from '../native/nativePdfToMarkdownNode'
+import { fetchBytesWithLimits, isHttpUrl, readNumberFromEnv, readRequestBodyBytes, withTimeout } from './pdfHttp'
+import { parsePdfConvertRequest } from './pdfConvertRequest'
 
 type PdfConvertResult = { ok: true; markdown: string; name: string } | { ok: false; error: string }
 
@@ -71,21 +73,29 @@ type PdfConvertProvider = 'native' | 'docling-remote'
 async function convertPdfViaDoclingRemote(args: { endpoint: string; pdfBytes: Buffer; nameHint?: string }): Promise<PdfConvertResult> {
   const endpoint = String(args.endpoint || '').trim()
   if (!endpoint) return { ok: false, error: 'Missing Docling endpoint' }
+  const timeoutMs = readNumberFromEnv('KNOWGRPH_PDF_DOCLING_TIMEOUT_MS', 180_000)
   try {
     const body = (() => {
       const copy = new Uint8Array(args.pdfBytes.byteLength)
       copy.set(args.pdfBytes)
       return copy.buffer
     })()
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/pdf',
-        ...(args.nameHint ? { 'X-Import-Filename': args.nameHint } : {}),
-      },
-      body,
-    })
+    const controller = timeoutMs > 0 ? new AbortController() : null
+    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
+    const res = await withTimeout(
+      fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/pdf',
+          ...(args.nameHint ? { 'X-Import-Filename': args.nameHint } : {}),
+        },
+        body,
+        signal: controller?.signal,
+      }).finally(() => timeoutId != null && clearTimeout(timeoutId)),
+      timeoutMs,
+      'Docling request timed out',
+    )
     const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown }
     if (json && json.ok === true && typeof json.markdown === 'string') {
       const nameRaw = typeof json.name === 'string' ? json.name.trim() : ''
@@ -138,6 +148,20 @@ function defaultStreamDecodeCacheMaxBytes(): number {
   return 64 * 1024 * 1024
 }
 
+function clampToEnvCap(args: { envCap: number; override?: number | undefined }): number {
+  if (typeof args.override === 'number' && Number.isFinite(args.override) && args.override > 0) {
+    return Math.min(args.envCap, Math.floor(args.override))
+  }
+  return args.envCap
+}
+
+function clampToEnvCapNonNegative(args: { envCap: number; override?: number | undefined }): number {
+  if (typeof args.override === 'number' && Number.isFinite(args.override) && args.override >= 0) {
+    return Math.min(args.envCap, Math.floor(args.override))
+  }
+  return args.envCap
+}
+
 export async function convertPdfToMarkdown(opts: {
   url?: string
   body?: Buffer
@@ -145,17 +169,48 @@ export async function convertPdfToMarkdown(opts: {
   overrides?: {
     includeImages?: boolean
     embedImages?: boolean
+    maxPages?: number
     maxExtractedImagesPerPage?: number
     maxEmbeddedImagesPerPage?: number
     maxEmbeddedTotalBytes?: number
     maxEmbeddedAssetBytes?: number
-    deepseekOcr2Enabled?: boolean
-    deepseekOcr2Mode?: 'fallback' | 'always'
+    reconstructTables?: boolean
+    tableMinColumns?: number
+    tableMinRows?: number
+    tableMaxRows?: number
+    ocrEnabled?: boolean
+    ocrMode?: 'fallback' | 'always'
     provider?: string
     doclingEndpoint?: string
     providerFallbackToNative?: boolean
+
+    maxPdfBytes?: number
+    fetchTimeoutMs?: number
+    uploadTimeoutMs?: number
+    convertTimeoutMs?: number
+
+    streamDecodeCacheMaxBytes?: number
+    contentStreamMaxDecodeBytes?: number
+    pageContentMaxBytes?: number
+
+    cmapMaxBytes?: number
+    maxToUnicodeStreamBytes?: number
+    toUnicodeMaxDecodeBytes?: number
+    imageStreamMaxDecodeBytes?: number
+    maxTextContentBytesPerPage?: number
+    maxTextStreamBytes?: number
+    maxFormXObjectBytes?: number
+    maxFormXObjectStreamBytes?: number
+    maxFormXObjectCount?: number
   }
 }): Promise<PdfConvertResult> {
+  const envMaxPdfBytes = readNumberFromEnv('KNOWGRPH_PDF_MAX_BYTES', 100 * 1024 * 1024)
+  const envFetchTimeoutMs = readNumberFromEnv('KNOWGRPH_PDF_FETCH_TIMEOUT_MS', 60_000)
+  const envConvertTimeoutMs = readNumberFromEnv('KNOWGRPH_PDF_CONVERT_TIMEOUT_MS', 180_000)
+
+  const maxPdfBytes = clampToEnvCap({ envCap: envMaxPdfBytes, override: opts.overrides?.maxPdfBytes })
+  const fetchTimeoutMs = clampToEnvCap({ envCap: envFetchTimeoutMs, override: opts.overrides?.fetchTimeoutMs })
+  const convertTimeoutMs = clampToEnvCap({ envCap: envConvertTimeoutMs, override: opts.overrides?.convertTimeoutMs })
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'knowgrph-pdf-'))
   const token = randomUUID()
   const assetsDir = path.join(tmpDir, 'assets')
@@ -169,10 +224,14 @@ export async function convertPdfToMarkdown(opts: {
   try {
     let pdfBytes: Buffer | null = null
     if (opts.body) {
+      if (maxPdfBytes > 0 && opts.body.length > maxPdfBytes) return { ok: false, error: 'PDF is too large' }
       pdfBytes = opts.body
     } else if (opts.url) {
-      const upstream = await fetch(opts.url, {
-        redirect: 'follow',
+      if (!isHttpUrl(opts.url)) return { ok: false, error: 'Invalid PDF url' }
+      const upstream = await fetchBytesWithLimits({
+        url: opts.url,
+        maxBytes: maxPdfBytes,
+        timeoutMs: fetchTimeoutMs,
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -180,9 +239,8 @@ export async function convertPdfToMarkdown(opts: {
           'Accept-Language': 'en-US,en;q=0.9',
         },
       })
-      if (!upstream.ok) return { ok: false, error: `Upstream fetch failed (${upstream.status})` }
-      const ab = await upstream.arrayBuffer()
-      pdfBytes = Buffer.from(ab)
+      if (upstream.status < 200 || upstream.status >= 300) return { ok: false, error: `Upstream fetch failed (${upstream.status})` }
+      pdfBytes = upstream.bytes
     } else {
       await cleanup()
       return { ok: false, error: 'Missing PDF url or body' }
@@ -200,7 +258,7 @@ export async function convertPdfToMarkdown(opts: {
     const provider = pickProvider({ provider: opts.overrides?.provider })
     if (provider === 'docling-remote') {
       const endpoint = String(opts.overrides?.doclingEndpoint || '').trim() || String(process.env.KNOWGRPH_DOCLING_ENDPOINT || '').trim()
-      const result = await convertPdfViaDoclingRemote({ endpoint, pdfBytes, nameHint: opts.nameHint })
+      const result = await withTimeout(convertPdfViaDoclingRemote({ endpoint, pdfBytes, nameHint: opts.nameHint }), convertTimeoutMs, 'PDF conversion timed out')
       if (!result.ok) {
         const allowFallback =
           typeof opts.overrides?.providerFallbackToNative === 'boolean'
@@ -228,6 +286,12 @@ export async function convertPdfToMarkdown(opts: {
       const parsed = raw ? Number(raw) : NaN
       return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
     })()
+    const maxPages = (() => {
+      if (typeof opts.overrides?.maxPages === 'number' && opts.overrides.maxPages > 0) return Math.floor(opts.overrides.maxPages)
+      const raw = String(process.env.KNOWGRPH_PDF_MAX_PAGES || '').trim()
+      const parsed = raw ? Number(raw) : NaN
+      return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
+    })()
     const maxEmbeddedImagesPerPage = (() => {
       if (typeof opts.overrides?.maxEmbeddedImagesPerPage === 'number' && opts.overrides.maxEmbeddedImagesPerPage >= 0) {
         return Math.floor(opts.overrides.maxEmbeddedImagesPerPage)
@@ -237,57 +301,140 @@ export async function convertPdfToMarkdown(opts: {
       return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined
     })()
 
-    const streamDecodeCacheMaxBytes = defaultStreamDecodeCacheMaxBytes()
+    const streamDecodeCacheMaxBytes = clampToEnvCap({
+      envCap: defaultStreamDecodeCacheMaxBytes(),
+      override: opts.overrides?.streamDecodeCacheMaxBytes,
+    })
+    const contentStreamMaxDecodeBytes = clampToEnvCap({
+      envCap: readNumberFromEnv('KNOWGRPH_PDF_CONTENT_STREAM_MAX_DECODE_BYTES', 8 * 1024 * 1024),
+      override: opts.overrides?.contentStreamMaxDecodeBytes,
+    })
+    const pageContentMaxBytes = clampToEnvCap({
+      envCap: readNumberFromEnv('KNOWGRPH_PDF_PAGE_CONTENT_MAX_BYTES', 8 * 1024 * 1024),
+      override: opts.overrides?.pageContentMaxBytes,
+    })
+
+  const cmapMaxBytes = clampToEnvCap({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_CMAP_MAX_BYTES', 256 * 1024),
+    override: opts.overrides?.cmapMaxBytes,
+  })
+  const maxToUnicodeStreamBytes = clampToEnvCap({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_MAX_TO_UNICODE_STREAM_BYTES', 256 * 1024),
+    override: opts.overrides?.maxToUnicodeStreamBytes,
+  })
+  const toUnicodeMaxDecodeBytes = clampToEnvCap({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_TOUNICODE_MAX_DECODE_BYTES', 512 * 1024),
+    override: opts.overrides?.toUnicodeMaxDecodeBytes,
+  })
+  const imageStreamMaxDecodeBytes = clampToEnvCap({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_IMAGE_STREAM_MAX_DECODE_BYTES', 32 * 1024 * 1024),
+    override: opts.overrides?.imageStreamMaxDecodeBytes,
+  })
+  const maxTextContentBytesPerPage = clampToEnvCap({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_MAX_TEXT_CONTENT_BYTES_PER_PAGE', 512 * 1024),
+    override: opts.overrides?.maxTextContentBytesPerPage,
+  })
+  const maxTextStreamBytes = clampToEnvCap({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_MAX_TEXT_STREAM_BYTES', 256 * 1024),
+    override: opts.overrides?.maxTextStreamBytes,
+  })
+  const maxFormXObjectBytes = clampToEnvCap({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_MAX_FORM_XOBJECT_BYTES', 512 * 1024),
+    override: opts.overrides?.maxFormXObjectBytes,
+  })
+  const maxFormXObjectStreamBytes = clampToEnvCap({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_MAX_FORM_XOBJECT_STREAM_BYTES', 256 * 1024),
+    override: opts.overrides?.maxFormXObjectStreamBytes,
+  })
+  const maxFormXObjectCount = clampToEnvCapNonNegative({
+    envCap: readNumberFromEnv('KNOWGRPH_PDF_MAX_FORM_XOBJECT_COUNT', 64),
+    override: opts.overrides?.maxFormXObjectCount,
+  })
 
     const ocrEnhance = (() => {
+      const readEnv = (key: string): string => String(process.env[key] || '').trim()
+      const readLegacyEnvBySuffix = (suffixRe: RegExp): string => {
+        const keys = Object.keys(process.env)
+        for (const k of keys) {
+          if (!suffixRe.test(k)) continue
+          const v = String(process.env[k] || '').trim()
+          if (v) return v
+        }
+        return ''
+      }
+
       const modeEnv = String(process.env.KNOWGRPH_PDF_MODE || '').trim().toLowerCase()
       const enabledFromMode = modeEnv === 'online'
       const enabled =
-        typeof opts.overrides?.deepseekOcr2Enabled === 'boolean'
-          ? opts.overrides.deepseekOcr2Enabled
-          : String(process.env.KNOWGRPH_DEEPSEEK_OCR2_ENABLE || '').trim() === '1' || enabledFromMode
-      const endpoint = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_ENDPOINT || '').trim()
+        typeof opts.overrides?.ocrEnabled === 'boolean'
+          ? opts.overrides.ocrEnabled
+          : readEnv('KNOWGRPH_PDF_OCR_ENABLE') === '1' || readLegacyEnvBySuffix(/OCR2_ENABLE$/i) === '1' || enabledFromMode
+
+      const endpoint = readEnv('KNOWGRPH_PDF_OCR_ENDPOINT') || readLegacyEnvBySuffix(/OCR2_ENDPOINT$/i)
       if (!enabled || !endpoint) return null
+
+      const modeEnvRaw = readEnv('KNOWGRPH_PDF_OCR_MODE') || readLegacyEnvBySuffix(/OCR2_MODE$/i)
       const mode: 'always' | 'fallback' =
-        opts.overrides?.deepseekOcr2Mode === 'always'
+        opts.overrides?.ocrMode === 'always'
           ? 'always'
-          : opts.overrides?.deepseekOcr2Mode === 'fallback'
+          : opts.overrides?.ocrMode === 'fallback'
             ? 'fallback'
-            : String(process.env.KNOWGRPH_DEEPSEEK_OCR2_MODE || '').trim().toLowerCase() === 'always'
+            : String(modeEnvRaw).trim().toLowerCase() === 'always'
               ? 'always'
               : 'fallback'
+
       const minTextChars = (() => {
-        const raw = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_MIN_TEXT_CHARS || '').trim()
+        const raw = readEnv('KNOWGRPH_PDF_OCR_MIN_TEXT_CHARS') || readLegacyEnvBySuffix(/OCR2_MIN_TEXT_CHARS$/i)
         const parsed = raw ? Number(raw) : NaN
         return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined
       })()
       const maxImagesPerPage = (() => {
-        const raw = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_MAX_IMAGES_PER_PAGE || '').trim()
+        const raw = readEnv('KNOWGRPH_PDF_OCR_MAX_IMAGES_PER_PAGE') || readLegacyEnvBySuffix(/OCR2_MAX_IMAGES_PER_PAGE$/i)
         const parsed = raw ? Number(raw) : NaN
         return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
       })()
       const timeoutMs = (() => {
-        const raw = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_TIMEOUT_MS || '').trim()
+        const raw = readEnv('KNOWGRPH_PDF_OCR_TIMEOUT_MS') || readLegacyEnvBySuffix(/OCR2_TIMEOUT_MS$/i)
         const parsed = raw ? Number(raw) : NaN
         return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
       })()
       const prompt = (() => {
-        const raw = String(process.env.KNOWGRPH_DEEPSEEK_OCR2_PROMPT || '').trim()
+        const raw = readEnv('KNOWGRPH_PDF_OCR_PROMPT') || readLegacyEnvBySuffix(/OCR2_PROMPT$/i)
         return raw ? raw : undefined
       })()
       return { enabled, endpoint, mode, minTextChars, maxImagesPerPage, timeoutMs, prompt }
     })()
 
-    const native = await convertPdfBytesToMarkdown({
+    const native = await withTimeout(
+      convertPdfBytesToMarkdown({
       pdfBytes,
       title,
       assetUrlPrefix,
       includeImages,
+      maxPages,
       maxExtractedImagesPerPage,
       maxEmbeddedImagesPerPage,
+      reconstructTables: opts.overrides?.reconstructTables,
+      tableMinColumns: opts.overrides?.tableMinColumns,
+      tableMinRows: opts.overrides?.tableMinRows,
+      tableMaxRows: opts.overrides?.tableMaxRows,
       ocrEnhance,
       streamDecodeCacheMaxBytes,
-    })
+      contentStreamMaxDecodeBytes,
+      pageContentMaxBytes,
+      cmapMaxBytes,
+      maxToUnicodeStreamBytes,
+      toUnicodeMaxDecodeBytes,
+      imageStreamMaxDecodeBytes,
+      maxTextContentBytesPerPage,
+      maxTextStreamBytes,
+      maxFormXObjectBytes,
+      maxFormXObjectStreamBytes,
+      maxFormXObjectCount,
+      }),
+      convertTimeoutMs,
+      'PDF conversion timed out',
+    )
     let markdown = normalizePdfExtractedMarkdown(native.markdown)
     if (embedImages && native.assets.length > 0) {
       const envMaxEmbeddedTotalBytes = (() => {
@@ -338,136 +485,29 @@ export function createPdfConvertHandler(): import('vite').Connect.NextHandleFunc
       return
     }
     try {
-      const parsed = new URL(req.url || '', `http://${req.headers.host}`)
-      const urlParam = parsed.searchParams.get('url') || undefined
-      const includeImagesOverride = (() => {
-        const raw = parsed.searchParams.get('includeImages')
-        if (raw == null) return undefined
-        return raw.trim() === '1'
-      })()
-      const embedImagesOverride = (() => {
-        const raw = parsed.searchParams.get('embedImages')
-        if (raw == null) return undefined
-        return raw.trim() === '1'
-      })()
-      const conversionMode = (() => {
-        const raw = String(parsed.searchParams.get('conversionMode') || '').trim().toLowerCase()
-        if (raw === 'text-only' || raw === 'image-heavy' || raw === 'scan-ocr') return raw
-        return undefined
-      })()
-      const provider = (() => {
-        const raw = String(parsed.searchParams.get('provider') || '').trim()
-        return raw || undefined
-      })()
-      const doclingEndpoint = (() => {
-        const raw = String(parsed.searchParams.get('doclingEndpoint') || '').trim()
-        return raw || undefined
-      })()
-      const providerFallbackToNative = (() => {
-        const raw = parsed.searchParams.get('providerFallbackToNative')
-        if (raw == null) return undefined
-        return raw.trim() === '1'
-      })()
-      const maxExtractedImagesPerPage = (() => {
-        const raw = parsed.searchParams.get('maxExtractedImagesPerPage')
-        const n = raw ? Number(raw) : NaN
-        return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined
-      })()
-      const maxEmbeddedImagesPerPage = (() => {
-        const raw = parsed.searchParams.get('maxEmbeddedImagesPerPage')
-        const n = raw ? Number(raw) : NaN
-        return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined
-      })()
-      const maxEmbeddedTotalBytes = (() => {
-        const raw = parsed.searchParams.get('maxEmbeddedTotalBytes')
-        const n = raw ? Number(raw) : NaN
-        return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined
-      })()
-      const maxEmbeddedAssetBytes = (() => {
-        const raw = parsed.searchParams.get('maxEmbeddedAssetBytes')
-        const n = raw ? Number(raw) : NaN
-        return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined
-      })()
-      const deepseekOcr2Enabled = (() => {
-        const raw = parsed.searchParams.get('deepseekOcr2')
-        if (raw == null) return undefined
-        return raw.trim() === '1'
-      })()
-      const deepseekOcr2Mode = (() => {
-        const raw = String(parsed.searchParams.get('deepseekOcr2Mode') || '').trim().toLowerCase()
-        if (!raw) return undefined
-        return raw === 'always' ? 'always' : raw === 'fallback' ? 'fallback' : undefined
-      })()
-      const nameHintHeader = typeof req.headers['x-import-filename'] === 'string' ? req.headers['x-import-filename'] : undefined
-      const contentType = typeof req.headers['content-type'] === 'string' ? req.headers['content-type'] : ''
+      const parsed = parsePdfConvertRequest({ req })
 
-      const modeOverrides = (() => {
-        if (conversionMode === 'image-heavy') {
-          return {
-            includeImages: true,
-            embedImages: false,
-            maxExtractedImagesPerPage: 16,
-            maxEmbeddedImagesPerPage: 12,
-            maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-            maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-            deepseekOcr2Enabled: false,
-            deepseekOcr2Mode: 'fallback' as const,
-          }
-        }
-        if (conversionMode === 'scan-ocr') {
-          return {
-            includeImages: false,
-            embedImages: false,
-            maxExtractedImagesPerPage: 4,
-            maxEmbeddedImagesPerPage: 0,
-            maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-            maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-            deepseekOcr2Enabled: true,
-            deepseekOcr2Mode: 'always' as const,
-          }
-        }
-        if (conversionMode === 'text-only') {
-          return {
-            includeImages: false,
-            embedImages: false,
-            maxExtractedImagesPerPage: 0,
-            maxEmbeddedImagesPerPage: 0,
-            maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-            maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-            deepseekOcr2Enabled: false,
-            deepseekOcr2Mode: 'fallback' as const,
-          }
-        }
-        return null
-      })()
+      const envMaxBytes = readNumberFromEnv('KNOWGRPH_PDF_MAX_BYTES', 100 * 1024 * 1024)
+      const envUploadTimeoutMs = readNumberFromEnv('KNOWGRPH_PDF_UPLOAD_TIMEOUT_MS', 30_000)
+      const maxBytes =
+        typeof parsed.overrides.maxPdfBytes === 'number' && parsed.overrides.maxPdfBytes > 0
+          ? Math.min(envMaxBytes, Math.floor(parsed.overrides.maxPdfBytes))
+          : envMaxBytes
+      const uploadTimeoutMs =
+        typeof parsed.overrides.uploadTimeoutMs === 'number' && parsed.overrides.uploadTimeoutMs > 0
+          ? Math.min(envUploadTimeoutMs, Math.floor(parsed.overrides.uploadTimeoutMs))
+          : envUploadTimeoutMs
 
       const body = await (async (): Promise<Buffer | null> => {
-        if (!contentType.toLowerCase().startsWith('application/pdf')) return null
-        return await new Promise((resolve, reject) => {
-          const chunks: Buffer[] = []
-          req.on('data', (chunk: Buffer) => chunks.push(chunk))
-          req.on('end', () => resolve(Buffer.concat(chunks)))
-          req.on('error', reject)
-        })
+        if (!parsed.rawContentType.toLowerCase().startsWith('application/pdf')) return null
+        return await readRequestBodyBytes({ req, maxBytes, timeoutMs: uploadTimeoutMs })
       })()
 
       const result = await convertPdfToMarkdown({
-        url: urlParam,
+        url: parsed.url,
         body: body || undefined,
-        nameHint: nameHintHeader,
-        overrides: {
-          includeImages: includeImagesOverride ?? modeOverrides?.includeImages,
-          embedImages: embedImagesOverride ?? modeOverrides?.embedImages,
-          maxExtractedImagesPerPage: maxExtractedImagesPerPage ?? modeOverrides?.maxExtractedImagesPerPage,
-          maxEmbeddedImagesPerPage: maxEmbeddedImagesPerPage ?? modeOverrides?.maxEmbeddedImagesPerPage,
-          maxEmbeddedTotalBytes: maxEmbeddedTotalBytes ?? modeOverrides?.maxEmbeddedTotalBytes,
-          maxEmbeddedAssetBytes: maxEmbeddedAssetBytes ?? modeOverrides?.maxEmbeddedAssetBytes,
-          deepseekOcr2Enabled: deepseekOcr2Enabled ?? modeOverrides?.deepseekOcr2Enabled,
-          deepseekOcr2Mode: deepseekOcr2Mode ?? modeOverrides?.deepseekOcr2Mode,
-          provider,
-          doclingEndpoint,
-          providerFallbackToNative,
-        },
+        nameHint: parsed.nameHint,
+        overrides: parsed.overrides,
       })
       res.statusCode = result.ok ? 200 : 400
       res.setHeader('Content-Type', 'application/json')

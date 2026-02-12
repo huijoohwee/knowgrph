@@ -49,6 +49,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const lastSemanticModeRef = useRef<'document' | 'keyword' | null>(null)
   const lastLayoutVariantRef = useRef<string | null>(null)
   const lastDatasetKeyRef = useRef<string | null>(null)
+  const lastLayoutViewKeyRef = useRef<string | null>(null)
   const activeRef = useRef<boolean>(true)
   activeRef.current = !!active
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
@@ -387,22 +388,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       forces: schemaValue?.layout?.forces || null,
       fitPadding: schemaValue?.layout?.fitPadding ?? null,
     })
-    const schemaNodesPresentationJson = JSON.stringify({
-      nodeShapeMode: schemaValue?.behavior?.nodeShapeMode || 'auto',
-      portHandles: schemaValue?.behavior?.portHandles || null,
-      nodeShapes: schemaValue?.nodeShapes || null,
-      allowNodeDrag: schemaValue?.behavior?.allowNodeDrag !== false,
-      hoverEnabled: schemaValue?.behavior?.hover?.enabled !== false,
-      expansion: schemaValue?.behavior?.expansion || null,
-      renderMediaAsNodes: state.renderMediaAsNodes === true,
-      mediaPanelDensity: String(state.mediaPanelDensity),
-    })
-    const schemaGroupsPresentationJson = JSON.stringify({
-      groups: schemaValue?.layout?.groups || null,
-      labelStyles: schemaValue?.labelStyles || null,
-      nodeShapeMode: schemaValue?.behavior?.nodeShapeMode || 'auto',
-      portHandles: schemaValue?.behavior?.portHandles || null,
-    })
     const viewKey = buildLayoutViewKey({
       schemaLayoutEngineJson,
       frontmatterModeEnabled: frontmatter,
@@ -411,8 +396,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       renderMediaAsNodes: state.renderMediaAsNodes === true,
       mediaPanelDensity: String(state.mediaPanelDensity),
       collapsedGroupIdsKey,
-      schemaNodesPresentationJson,
-      schemaGroupsPresentationJson,
     })
     const cacheKey = buildLayoutPositionCacheKey({
       datasetKey,
@@ -539,6 +522,39 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
       if (sceneCleanupRef.current) {
         try {
+          const prevPositions: Record<string, { x: number; y: number }> = {}
+          if (nodesSelRef.current) {
+            nodesSelRef.current.each((d: GraphNode) => {
+              if (d.id && typeof d.x === 'number' && typeof d.y === 'number' && Number.isFinite(d.x) && Number.isFinite(d.y)) {
+                prevPositions[String(d.id)] = { x: d.x, y: d.y }
+              }
+            })
+          }
+          if (Object.keys(prevPositions).length > 0) {
+            const state = useGraphStore.getState()
+            const prevDatasetKey = lastDatasetKeyRef.current
+            const prevMode = lastLayoutModeRef.current
+            const prevFrontmatter = lastFrontmatterModeRef.current
+            const prevSemantic = lastSemanticModeRef.current
+            const prevViewKey = lastLayoutViewKeyRef.current
+            if (prevDatasetKey && prevMode && prevFrontmatter != null && prevSemantic) {
+              const key = buildLayoutPositionCacheKey({
+                datasetKey: prevDatasetKey,
+                mode: prevMode,
+                frontmatterMode: prevFrontmatter,
+                semanticMode: prevSemantic,
+                renderMode: (prevCanvasRenderModeRef.current || '2d') as '2d' | '3d',
+                renderVariant: prevRenderVariantRef.current || undefined,
+                layoutVariant: lastLayoutVariantRef.current || undefined,
+                viewKey: prevViewKey || undefined,
+              })
+              state.setLayoutPositionsForMode(key, prevPositions)
+            }
+          }
+        } catch {
+          void 0
+        }
+        try {
           sceneCleanupRef.current()
         } catch {
           void 0
@@ -560,8 +576,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         renderMediaAsNodes: renderMediaAsNodes === true,
         mediaPanelDensity: String(mediaPanelDensity),
         collapsedGroupIdsKey,
-        schemaNodesPresentationJson,
-        schemaGroupsPresentationJson,
       })
       const layoutViewKey = buildLayoutViewKey({
         schemaLayoutEngineJson,
@@ -571,8 +585,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         renderMediaAsNodes: renderMediaAsNodes === true,
         mediaPanelDensity: String(mediaPanelDensity),
         collapsedGroupIdsKey,
-        schemaNodesPresentationJson,
-        schemaGroupsPresentationJson,
       })
 
       const stateForZoom = useGraphStore.getState()
@@ -641,6 +653,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       lastSemanticModeRef.current = documentSemanticMode
       lastLayoutVariantRef.current = layoutVariant
       lastDatasetKeyRef.current = datasetKey
+      lastLayoutViewKeyRef.current = layoutViewKey
       sceneCleanupRef.current = setupGraphScene({
         svgEl: svgRef.current,
         svgRef,
@@ -754,8 +767,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     canvas2dRenderer,
     renderMediaAsNodes,
     mediaPanelDensity,
-    schemaNodesPresentationJson,
-    schemaGroupsPresentationJson,
     collapsedGroupIdsKey,
     selectedNodeIdRef,
     selectedEdgeIdRef,

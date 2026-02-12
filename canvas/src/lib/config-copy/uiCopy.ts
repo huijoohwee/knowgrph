@@ -243,6 +243,8 @@ export const UI_COPY = {
   collapseSectionTitle: COLLAPSE_SECTION_TITLE,
   expandSectionTitle: EXPAND_SECTION_TITLE,
   markdownCodeBlockActionsLabel: 'Code block actions',
+  markdownGeoJsonAddDatasetTitle: 'Add GeoJSON as dataset',
+  markdownGeoJsonLoadGraphTitle: 'Load GeoJSON as graph',
   markdownBlockReorderLineLabel: 'Reorder line',
   markdownBlockInsertLineLabel: 'Add line',
   orchestratorTraversalSequenceCollapseTitle: COLLAPSE_SECTION_TITLE,

@@ -40,3 +40,22 @@ export async function testPdfMarkdownEmbedsSingleImageWithoutGalleryHeader() {
   if (!md.includes('![Page 2](/__pdf_assets/t/only.jpg)')) throw new Error('expected single image embed')
 }
 
+export async function testPdfMarkdownHonorsHighImageCountWithoutHardCap() {
+  const fragments: TextFragment[] = [{ x: 10, y: 10, fontSize: 12, fontKey: 'F1', text: 'hello' }]
+  const assets: NativePdfAsset[] = Array.from({ length: 60 }).map((_, i) => ({
+    filename: `img-${String(i + 1).padStart(3, '0')}.jpg`,
+    bytes: Buffer.from(String(i + 1)),
+    contentType: 'image/jpeg',
+  }))
+  const md = buildMarkdownForPage({
+    pageIndex: 0,
+    fragments,
+    mediaBox: [0, 0, 612, 792],
+    includeImages: true,
+    imageAssets: assets,
+    assetUrlPrefix: '/__pdf_assets/t',
+    maxImagesPerPage: 200,
+  })
+  const count = (md.match(/!\[Page 1 Image /g) || []).length
+  if (count !== 60) throw new Error(`expected 60 images without a hard cap, got ${count}`)
+}

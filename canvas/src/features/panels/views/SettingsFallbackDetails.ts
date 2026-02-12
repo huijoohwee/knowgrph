@@ -134,13 +134,13 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Import: PDF',
     responsibility: 'Fallback to native conversion when Docling fails',
   },
-  pdfImportDeepseekOcr2Enabled: {
+  pdfImportOcrEnabled: {
     area: 'Import: PDF',
-    responsibility: 'Enable DeepSeek-OCR-2 enhancement for sparse text pages',
+    responsibility: 'Enable OCR enhancement for sparse text pages',
   },
-  pdfImportDeepseekOcr2Mode: {
+  pdfImportOcrMode: {
     area: 'Import: PDF',
-    responsibility: 'DeepSeek-OCR-2 mode (fallback vs always)',
+    responsibility: 'OCR mode (fallback vs always)',
   },
   themeMode: {
     area: 'UI Appearance',

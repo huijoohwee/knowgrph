@@ -91,11 +91,16 @@ import {
   testHostTailwindScansGympgrphClasses,
   testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs,
   testGeospatialModeEventContractIsShared,
+  testRemoteFetchProxyDoesNotAbortOnCloseOrTruncate,
+  testGympgrphCesiumOverlayAutoFitsToGeoBounds,
+  testGympgrphMapLibreLoggerSuppressesAbortNoise,
 } from '@/__tests__/geospatialHostIntegration.test'
 import {
   testMarkdownPreviewViewerForcesPrimaryTextColor,
   testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses,
 } from '@/__tests__/markdownWorkspaceTheme.test'
+import { testMarkdownWorkspacePresentationResolvesRelativeAssetsAndRendersTables } from '@/__tests__/markdownWorkspacePresentationRelativeAssets.test'
+import { testMarkdownPresentationRendersPdfAssetImagesFromSandboxFixture } from '@/__tests__/markdownPdfImportPresentationRender.test'
 import { testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument } from '@/__tests__/markdownSelectionTargetEmptyDocPath.test'
 import { testGraphDataMetadataHashIncludesRevision } from '@/__tests__/graphDataHashRevision.test'
 import {
@@ -190,14 +195,26 @@ import {
 import {
   testWorkspaceImportLocalFilesCreatesExpectedEntries,
   testWorkspaceImportLocalFolderCreatesNestedFolders,
+  testWorkspaceImportLocalFolderHydratesOnlyOpenedFile,
   testNormalizeWorkspacePathCollapsesExtraSlashes,
   testWorkspaceImportSkipsUnsupportedFilesButContinues,
 } from '@/__tests__/workspaceImportLocal.test'
+import { testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace } from '@/__tests__/workspaceSourceFilesSync.test'
 import { testEditorWorkspaceImportForcesDocumentModeForGraphFiles } from '@/__tests__/editorWorkspaceImportSemanticMode.test'
 import { testWorkspaceFsChangedBatchCoalescesNotifications } from '@/__tests__/workspaceFsEventsBatch.test'
 import { testWorkspaceFsMemoryInitialEntries } from '@/__tests__/workspaceFsMemoryInitialEntries.test'
 import { testHashStringContractIsSharedAcrossRepos } from '@/__tests__/hashingInterop.test'
+import { testPreviewSyncHashIgnoresRevisionAndHash } from '@/__tests__/previewSyncHash.test'
 import { testMarkdownSlideDemoParsesMediaAndGeo } from '@/__tests__/markdownSlideDemo.test'
+import {
+  testSetMarkdownDocumentAutoEnablesFrontmatterByDefault,
+  testSetMarkdownDocumentDoesNotAutoEnableFrontmatterWhenDisabled,
+} from '@/__tests__/markdownDocumentSetAutoFrontmatterGuard.test'
+import {
+  testMarkdownLargeDocFastModeParsesHtmlTables,
+  testMarkdownResolveHrefPreservesInternalAssetRoutes,
+  testMarkdownPipeTablesLexAsTableTokens,
+} from '@/__tests__/markdownPdfImportRenderInterop.test'
 import {
   testNormalizePdfExtractedMarkdownDoesNotMergeNormalShortWords,
   testNormalizePdfExtractedMarkdownFixesBrokenWordsAndNumbers,
@@ -206,10 +223,18 @@ import {
 import {
   testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixture,
   testPdfNativeConversionExtractsBasicText,
+  testPdfNativeConversionHonorsMaxPagesOnFixture,
 } from '@/__tests__/pdfNativeConvert.test'
+import { testPdfReadStreamRespectsMaxDecodeBytes } from '@/__tests__/pdfStreamDecodeLimit.test'
+import { testPdfContentTextTokenizerAdvancesOnDictDelimiters } from '@/__tests__/pdfContentTextTokenizerRegression.test'
+import { testPdfHttpFetchBytesRespectsMaxBytes, testPdfHttpReadRequestBodyRespectsMaxBytes } from '@/__tests__/pdfHttpLimits.test'
+import { testPdfConvertQueryParsesOptionalLimitOverrides } from '@/__tests__/pdfConvertOverrideClamp.test'
+import { testPdfImportSandboxFixtureEmitsAssetLinksWhenImagesPresent } from '@/__tests__/pdfImportSandboxAssets.test'
+import { testPdfTableReconstructionBuildsMarkdownPipeTable } from '@/__tests__/pdfTableReconstruction.test'
 import {
   testPdfMarkdownEmbedsMultipleImagesUpToLimit,
   testPdfMarkdownEmbedsSingleImageWithoutGalleryHeader,
+  testPdfMarkdownHonorsHighImageCountWithoutHardCap,
 } from '@/__tests__/pdfMarkdown.test'
 import {
   testPdfAssetEmbeddingRewritesLinksToDataUris,
@@ -423,7 +448,7 @@ import {
   testPickInitialZoomTransformReusesZoomAcrossPresentationChanges,
   testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned,
 } from '@/__tests__/zoomStatePick.test'
-import { testZoomViewKeyIncludesPresentationKeys } from '@/__tests__/zoomViewKey.test'
+import { testZoomViewKeyChangesOnCollapsedGroups } from '@/__tests__/zoomViewKey.test'
 import { testZoomStateEqMatchesAllFields, testZoomStateEqRejectsNulls } from '@/__tests__/zoomStateEq.test'
 import { testZoomStateQuantizeCustomSteps, testZoomStateQuantizeDefaults } from '@/__tests__/zoomStateQuantize.test'
 import {
@@ -569,8 +594,22 @@ export const runAllTests = async () => {
   await exec('pdf.normalizeExtractedMarkdown.doesNotMergeNormalShortWords', testNormalizePdfExtractedMarkdownDoesNotMergeNormalShortWords)
   await exec('pdf.nativeConvert.extractsBasicText', testPdfNativeConversionExtractsBasicText)
   await exec('pdf.nativeConvert.avoidsSpacedLetterArtifactsOnFixture', testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixture)
+  await exec('pdf.nativeConvert.honorsMaxPagesOnFixture', testPdfNativeConversionHonorsMaxPagesOnFixture)
+  await exec('pdf.streamDecode.respectsMaxDecodeBytes', testPdfReadStreamRespectsMaxDecodeBytes)
+  await exec('pdf.contentTokenizer.advancesOnDictDelimiters', testPdfContentTextTokenizerAdvancesOnDictDelimiters)
+  await exec('pdf.http.fetchBytes.respectsMaxBytes', testPdfHttpFetchBytesRespectsMaxBytes)
+  await exec('pdf.http.readBody.respectsMaxBytes', testPdfHttpReadRequestBodyRespectsMaxBytes)
+  await exec('pdf.convertQuery.parsesOptionalLimitOverrides', testPdfConvertQueryParsesOptionalLimitOverrides)
+  await exec('pdf.import.sandbox.emitsAssetLinksWhenImagesPresent', testPdfImportSandboxFixtureEmitsAssetLinksWhenImagesPresent)
+  await exec('pdf.import.presentation.rendersAssetImages', testMarkdownPresentationRendersPdfAssetImagesFromSandboxFixture)
+  await exec('pdf.tables.reconstructsMarkdownPipeTable', testPdfTableReconstructionBuildsMarkdownPipeTable)
+  await exec('markdown.resolveHref.preservesInternalPdfAssetRoutes', testMarkdownResolveHrefPreservesInternalAssetRoutes)
+  await exec('markdown.pipeTables.lexAsTableTokens', testMarkdownPipeTablesLexAsTableTokens)
+  await exec('markdown.fastMode.parsesHtmlTables', testMarkdownLargeDocFastModeParsesHtmlTables)
+  await exec('markdown.workspace.presentation.resolvesRelativeAssets', testMarkdownWorkspacePresentationResolvesRelativeAssetsAndRendersTables)
   await exec('pdf.markdown.embedsMultipleImagesUpToLimit', testPdfMarkdownEmbedsMultipleImagesUpToLimit)
   await exec('pdf.markdown.embedsSingleImageWithoutGalleryHeader', testPdfMarkdownEmbedsSingleImageWithoutGalleryHeader)
+  await exec('pdf.markdown.honorsHighImageCountWithoutHardCap', testPdfMarkdownHonorsHighImageCountWithoutHardCap)
   await exec('pdf.assets.embed.rewritesLinksToDataUris', testPdfAssetEmbeddingRewritesLinksToDataUris)
   await exec('pdf.assets.embed.respectsSizeCaps', testPdfAssetEmbeddingRespectsSizeCaps)
   await exec('pdf.workspace.anchors.buildsStablePageAnchors', testPdfWorkspaceAnchorMapBuildsStablePageAnchors)
@@ -770,6 +809,9 @@ export const runAllTests = async () => {
   await exec('geospatial.host.enableForcesAlways', testHostEnableForcesAlwaysInteractionMode)
   await exec('geospatial.host.supportsCesiumRenderer', testGeospatialOverlayHostSupportsCesiumRenderer)
   await exec('geospatial.host.tailwindScansGympgrph', testHostTailwindScansGympgrphClasses)
+  await exec('geospatial.host.remoteFetchProxy.noAbortOrTruncate', testRemoteFetchProxyDoesNotAbortOnCloseOrTruncate)
+  await exec('geospatial.gympgrphCesium.autoFitToGeoBounds', testGympgrphCesiumOverlayAutoFitsToGeoBounds)
+  await exec('geospatial.gympgrphMapLibre.loggerSuppressesAbortNoise', testGympgrphMapLibreLoggerSuppressesAbortNoise)
   await exec('geospatial.gympgrphUrl.proxyNormalizesGithubBlob', testGympgrphApplyMediaProxyNormalizesGithubBlobUrl)
   await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
   await exec('geospatial.gympgrphUrl.proxyOpenFreeMapOnLocalhost', testGympgrphApplyMediaProxyProxiesOpenFreeMapOnLocalhost)
@@ -802,7 +844,16 @@ export const runAllTests = async () => {
   await exec('markdown.loader.normalizesBasename', testMarkdownLoaderKeyNormalizesBasename)
   await exec('markdown.loader.prefersImportedBasenameMatch', testMarkdownLoaderPrefersImportedForBasenameMatch)
   await exec('policy.hashing.sharedContract', testHashStringContractIsSharedAcrossRepos)
+  await exec('preview.sync.hash.ignoresRevisionAndHash', testPreviewSyncHashIgnoresRevisionAndHash)
   await exec('markdown.demo.slideMediaAndGeo', testMarkdownSlideDemoParsesMediaAndGeo)
+  await exec(
+    'markdownDocument.setMarkdownDocument.noAutoFrontmatterWhenDisabled',
+    testSetMarkdownDocumentDoesNotAutoEnableFrontmatterWhenDisabled,
+  )
+  await exec(
+    'markdownDocument.setMarkdownDocument.autoFrontmatterByDefault',
+    testSetMarkdownDocumentAutoEnablesFrontmatterByDefault,
+  )
   await exec('net.fetchRemoteText.validateSupportsStringAndArgs', testFetchRemoteTextValidateSupportsStringAndArgs)
   await exec('net.fetchRemoteText.preflightHeadGuardsTooLarge', testFetchRemoteTextPreflightHeadGuardsTooLarge)
   await exec('net.fetchRemoteText.wrapperUseProxyBoolean', testFetchRemoteTextWrapperUseProxyBoolean)
@@ -933,7 +984,7 @@ export const runAllTests = async () => {
   await exec('zoom.ssot.out.autoMinScaleTracksFitToView', testZoomActionsZoomOutAutoMinScaleTracksFitToView)
   await exec('zoom.pick.reusesAcrossPresentationChanges', testPickInitialZoomTransformReusesZoomAcrossPresentationChanges)
   await exec('zoom.pick.rejectsStaleWhenNotPinned', testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned)
-  await exec('zoom.viewKey.includesPresentation', testZoomViewKeyIncludesPresentationKeys)
+  await exec('zoom.viewKey.changesOnCollapsedGroups', testZoomViewKeyChangesOnCollapsedGroups)
   await exec('zoom.state.eq.matchesAllFields', testZoomStateEqMatchesAllFields)
   await exec('zoom.state.eq.rejectsNulls', testZoomStateEqRejectsNulls)
   await exec('zoom.state.quantize.defaults', testZoomStateQuantizeDefaults)
@@ -991,8 +1042,10 @@ export const runAllTests = async () => {
   await exec('ui.media.mediaInteractiveDefaults', testMediaInteractiveDefaults)
   await exec('workspace.import.localFiles', testWorkspaceImportLocalFilesCreatesExpectedEntries)
   await exec('workspace.import.localFolder', testWorkspaceImportLocalFolderCreatesNestedFolders)
+  await exec('workspace.import.localFolder.lazyHydrate', testWorkspaceImportLocalFolderHydratesOnlyOpenedFile)
   await exec('workspace.path.normalizeCollapsesSlashes', testNormalizeWorkspacePathCollapsesExtraSlashes)
   await exec('workspace.import.skipsUnsupportedContinues', testWorkspaceImportSkipsUnsupportedFilesButContinues)
+  await exec('workspace.sourceFiles.sync.mergesAndPreserves', testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace)
   await exec('workspace.import.semanticMode.forcesDocumentForGraphFiles', testEditorWorkspaceImportForcesDocumentModeForGraphFiles)
 
   await exec('markdown.selectionTarget.emptyDocumentPath', testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument)

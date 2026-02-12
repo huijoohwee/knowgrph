@@ -430,7 +430,7 @@ knowgrph_parser/
 |--------------------------------------|----------------------------------------------------------|-------------------------|----------------------|
 | `knowgrph-ingestor-document.md`      | Import flows, media handling, format conversion          | docs:update, doc:lint, tests | Component Documenter |
 | `knowgrph-parser-document.md`        | Parser registry, format specifications, line mapping     | docs:update, doc:lint, tests | Component Documenter |
-| `knowgrph-pdf-ocr2-document.md`      | PDF conversion + optional DeepSeek-OCR-2 enhancement      | docs:update, doc:lint, tests | Component Documenter |
+| `knowgrph-pdf-ocr-document.md`      | PDF conversion + optional OCR enhancement                | docs:update, doc:lint, tests | Component Documenter |
 | `markdown-html-img-smoke.md`         | Smoke test for HTML image ingestion                      | manual testing          | QA Engineer          |
 
 ---

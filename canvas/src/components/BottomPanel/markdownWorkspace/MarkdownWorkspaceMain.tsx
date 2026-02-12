@@ -1,11 +1,4 @@
 import React from 'react'
-import MarkdownIt from 'markdown-it'
-import anchor from 'markdown-it-anchor'
-import footnote from 'markdown-it-footnote'
-import mark from 'markdown-it-mark'
-import sub from 'markdown-it-sub'
-import sup from 'markdown-it-sup'
-import hljs from 'highlight.js'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography, type PanelTypography } from '@/lib/ui/panelTypography'
@@ -14,12 +7,15 @@ import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 import { lexMarkdown, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitMarkdownLines } from '@/lib/markdown'
+import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
+  geoDatasetIntegration?: MarkdownGeoDatasetIntegration
 
   layoutMode: MarkdownWorkspaceLayoutMode
   setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
@@ -64,74 +60,10 @@ export type MarkdownWorkspaceMainProps = {
   onEditorCaretLine?: (line: number) => void
 }
 
-const md = (() => {
-  const instance = new MarkdownIt({
-    html: true,
-    linkify: true,
-    highlight: (code, lang) => {
-      const raw = String(code || '')
-      const language = String(lang || '').trim().toLowerCase()
-      if (language && hljs.getLanguage(language)) {
-        try {
-          return hljs.highlight(raw, { language }).value
-        } catch {
-          return ''
-        }
-      }
-      try {
-        return hljs.highlightAuto(raw).value
-      } catch {
-        return ''
-      }
-    },
-  })
-  try {
-    instance.use(anchor)
-    instance.use(footnote)
-    instance.use(mark)
-    instance.use(sub)
-    instance.use(sup)
-  } catch {
-    void 0
-  }
-
-  const originalImageRule = instance.renderer.rules.image
-  instance.renderer.rules.image = (tokens, idx, options, env, self) => {
-    const token = tokens[idx]
-    try {
-      token.attrSet('loading', 'lazy')
-      token.attrSet('decoding', 'async')
-    } catch {
-      void 0
-    }
-    if (originalImageRule) return originalImageRule(tokens, idx, options, env, self)
-    return self.renderToken(tokens, idx, options)
-  }
-  return instance
-})()
-
-type Slide = { index: number; markdown: string }
-
-const splitSlides = (raw: string): Slide[] => {
-  const text = String(raw || '')
-  if (!text.trim()) return [{ index: 0, markdown: '' }]
-  const lines = text.split('\n')
-  const slides: Slide[] = []
-  let buf: string[] = []
-  const flush = () => {
-    slides.push({ index: slides.length, markdown: buf.join('\n').trim() })
-    buf = []
-  }
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = String(lines[i] || '')
-    if (line.trim() === '---') {
-      flush()
-      continue
-    }
-    buf.push(line)
-  }
-  flush()
-  return slides.length ? slides : [{ index: 0, markdown: '' }]
+function sanitizeInvalidDataUrls(raw: string): string {
+  const s = String(raw || '')
+  if (!s.includes('data:image/') || !s.includes('<omitted>')) return s
+  return s.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,<omitted>/g, 'data:,')
 }
 
 import { useSyncScroll } from './useSyncScroll'
@@ -179,47 +111,13 @@ function MarkdownEditor(props: {
   )
 }
 
-function SlideCanvas(props: { html: string; scale: number; zoomLabel: string; panelTypography: PanelTypography }) {
-  const scale = Number.isFinite(props.scale) && props.scale > 0 ? props.scale : 0.05
-  return (
-    <section className="w-full h-full flex items-center justify-center" aria-label="Slide Canvas Frame">
-      <section
-        className={`relative overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} shadow ${UI_THEME_TOKENS.panel.bg} text-[color:var(--kg-text-primary)] ${props.panelTypography.fontClass}`}
-        style={{ width: 1920 * scale, height: 1080 * scale, touchAction: 'none' }}
-        aria-label="Slide Canvas Preview"
-      >
-        <section className="w-full h-full flex items-center justify-center" aria-label="Slide Canvas Center">
-          <section
-            style={{ transform: `translate(0px, 0px) scale(${scale})`, transformOrigin: 'center center', willChange: 'transform' }}
-            aria-label="Slide Canvas Scaled"
-          >
-            <section aria-label="Slide Canvas" style={{ width: 1920, height: 1080 }}>
-              <article className="w-full h-full" aria-label="Slide Document">
-                <section className="w-full h-full relative pb-14" aria-label="Slide Document Frame">
-                  <section className="w-full h-full flex flex-col relative" aria-label="Slide Body">
-                    <main className="flex-1 min-h-0 w-full px-16 py-12 overflow-y-auto pb-16" aria-label="Slide Content">
-                      <article className="w-full" dangerouslySetInnerHTML={{ __html: props.html }} />
-                    </main>
-                  </section>
-                </section>
-              </article>
-            </section>
-          </section>
-        </section>
-        <output className={`absolute right-2 bottom-2 rounded bg-black/60 text-white px-1.5 py-0.5 pointer-events-none ${props.panelTypography.microLabelClass}`} aria-label="Slide zoom">
-          {props.zoomLabel}
-        </output>
-      </section>
-    </section>
-  )
-}
-
 export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(props: MarkdownWorkspaceMainProps) {
   const panelTypography = usePanelTypography()
   const {
     themeMode,
     uiPanelTextFontClass,
     uiPanelMonospaceTextClass,
+    geoDatasetIntegration,
     layoutMode,
     setLayoutMode,
     markdownWordWrap,
@@ -249,16 +147,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     activeDocumentKey,
     highlightedLineRange,
     revealLineInEditor,
+    showInViewer,
+    showInPresentation,
+    showInSlidesGallery,
     editorRef,
     onEditorCaretLine,
   } = props
-
-  const slides = React.useMemo(() => splitSlides(activeText), [activeText])
-  const [slideIndex, setSlideIndex] = React.useState(0)
-  const activeSlide = slides[Math.min(slides.length - 1, Math.max(0, slideIndex))] || { index: 0, markdown: '' }
-  const slideHtml = React.useMemo(() => md.render(String(activeSlide.markdown || '')), [activeSlide.markdown])
-  const slideCanvasOuterRef = React.useRef<HTMLElement | null>(null)
-  const [scale, setScale] = React.useState(0.05)
   const viewerRef = React.useRef<HTMLElement | null>(null)
 
   useSyncScroll(editorRef, viewerRef, layoutMode === 'split')
@@ -266,46 +160,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   React.useEffect(() => {
     if (layoutMode !== 'presentation') {
       presentationApiRef.current = null
-      return
     }
-    const api: MarkdownPresentationApi = {
-      prev: () => setSlideIndex(i => Math.max(0, i - 1)),
-      next: () => setSlideIndex(i => Math.min(slides.length - 1, i + 1)),
-    }
-    presentationApiRef.current = api
-    return () => {
-      if (presentationApiRef.current === api) presentationApiRef.current = null
-    }
-  }, [layoutMode, presentationApiRef, slides.length])
-
-  React.useEffect(() => {
-    setSlideIndex(i => Math.min(Math.max(0, i), Math.max(0, slides.length - 1)))
-  }, [slides.length])
-
-  React.useEffect(() => {
-    const el = slideCanvasOuterRef.current
-    if (!el) return
-    const w = window as unknown as { ResizeObserver?: unknown }
-    if (typeof w.ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => {
-      const rect = el.getBoundingClientRect()
-      const next = Math.max(0.02, Math.min(1, Math.min(rect.width / 1920, rect.height / 1080)))
-      setScale(next)
-    })
-    ro.observe(el)
-    return () => {
-      try {
-        ro.disconnect()
-      } catch {
-        void 0
-      }
-    }
-  }, [])
-
-  const zoomLabel = `${Math.round(scale * 100)}%`
+  }, [layoutMode, presentationApiRef])
 
   const viewerVisible = layoutMode === 'viewer' || layoutMode === 'split'
-  const viewerText = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
+  const viewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
+  const viewerText = React.useMemo(() => sanitizeInvalidDataUrls(viewerTextRaw), [viewerTextRaw])
 
   const lexed = React.useMemo(() => {
     if (!viewerVisible) return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
@@ -379,6 +239,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       selectionKind={null}
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+      geoDatasetIntegration={geoDatasetIntegration}
       mermaidFrontmatterConfig={null}
       rootThemeMode={themeMode}
       previewOverlayScope="container"
@@ -392,6 +253,60 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       onInsertLineAfter={handleInsertLineAfter}
       onReorderLineBlock={handleReorderLineBlock}
     />
+  )
+
+  const presentation = (
+    <section className="flex-1 min-h-0 flex" aria-label="Presentation Surface">
+      <MarkdownPreview
+        markdownText={viewerText}
+        activeDocumentPath={activeDocumentKey}
+        highlightedLineRange={highlightedLineRange}
+        markdownWordWrap={markdownWordWrap}
+        markdownPresentationMode={true}
+        markdownTextHighlight={markdownTextHighlight}
+        selectionKind={null}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        geoDatasetIntegration={geoDatasetIntegration}
+        previewOverlayScope="container"
+        previewOverlayPortalTarget={null}
+        previewScrollable={true}
+        presentationApiRef={presentationApiRef as unknown as React.MutableRefObject<MarkdownPresentationApi | null>}
+        viewMode="presentation"
+        showSidebar={false}
+        onShowInViewer={showInViewer}
+        onShowInEditor={(line: number) => revealLineInEditor(line)}
+        onShowInPresentation={showInPresentation}
+        onShowInSlidesGallery={showInSlidesGallery}
+      />
+    </section>
+  )
+
+  const slidesGallery = (
+    <section className="flex-1 min-h-0 flex" aria-label="Slides Gallery">
+      <MarkdownPreview
+        markdownText={viewerText}
+        activeDocumentPath={activeDocumentKey}
+        highlightedLineRange={highlightedLineRange}
+        markdownWordWrap={markdownWordWrap}
+        markdownPresentationMode={false}
+        markdownTextHighlight={markdownTextHighlight}
+        selectionKind={null}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        geoDatasetIntegration={geoDatasetIntegration}
+        previewOverlayScope="container"
+        previewOverlayPortalTarget={null}
+        previewScrollable={true}
+        presentationApiRef={presentationApiRef as unknown as React.MutableRefObject<MarkdownPresentationApi | null>}
+        viewMode="gallery"
+        showSidebar={false}
+        onShowInViewer={showInViewer}
+        onShowInEditor={(line: number) => revealLineInEditor(line)}
+        onShowInPresentation={showInPresentation}
+        onShowInSlidesGallery={showInSlidesGallery}
+      />
+    </section>
   )
 
   return (
@@ -434,58 +349,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       ) : layoutMode === 'viewer' ? (
         viewer
       ) : layoutMode === 'presentation' ? (
-        <main className="flex-1 min-h-0 flex flex-col items-center justify-center p-4" aria-label="Presentation Surface">
-          <section
-            ref={el => {
-              slideCanvasOuterRef.current = el
-            }}
-            className="w-full h-full flex flex-col"
-            aria-label="Presentation Viewport"
-          >
-            <SlideCanvas html={slideHtml} scale={scale} zoomLabel={zoomLabel} panelTypography={panelTypography} />
-            <footer className="mt-3 w-full max-w-4xl" aria-label="Presentation footer">
-              <output className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label="Slide index">
-                Slide {Math.min(slides.length, slideIndex + 1)} / {Math.max(1, slides.length)}
-              </output>
-            </footer>
-          </section>
-        </main>
+        presentation
       ) : layoutMode === 'slides-gallery' ? (
-        <main className="flex-1 min-h-0 overflow-auto p-4" aria-label="Slides Gallery">
-          <header className="max-w-5xl mx-auto w-full" aria-label="Slides Gallery header">
-            <h3 className={`font-semibold ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass}`}>Slides</h3>
-            <p className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>Click a slide to open presentation.</p>
-          </header>
-          <section className="max-w-5xl mx-auto w-full mt-3" aria-label="Slides Gallery grid">
-            <ul className="grid grid-cols-3 gap-3 list-none m-0 p-0" aria-label="Slides list">
-              {slides.map(s => {
-                const thumbHtml = md.render(String(s.markdown || ''))
-                return (
-                  <li key={s.index} className="list-none">
-                    <button
-                      type="button"
-                      className={`w-full text-left rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
-                      aria-label={`Open slide ${s.index + 1}`}
-                      onClick={() => {
-                        setSlideIndex(s.index)
-                        setLayoutMode('presentation')
-                      }}
-                    >
-                      <section className="w-full aspect-video" aria-label={`Slide ${s.index + 1} thumbnail`}>
-                        <article className="w-full h-full overflow-hidden" aria-label="Slide thumbnail body">
-                          <section className="w-full h-full px-4 py-3" dangerouslySetInnerHTML={{ __html: thumbHtml }} />
-                        </article>
-                      </section>
-                      <footer className="px-3 py-2 border-t border-[color:var(--kg-border)]" aria-label="Slide thumbnail footer">
-                        <span className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>Slide {s.index + 1}</span>
-                      </footer>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        </main>
+        slidesGallery
       ) : (
         <section className="flex-1 min-h-0 flex" aria-label="Split view">
           <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Editor">

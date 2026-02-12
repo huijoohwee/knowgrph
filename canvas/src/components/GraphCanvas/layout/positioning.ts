@@ -42,14 +42,14 @@ export const computeLayoutDatasetKey = (args: { graphData: LayoutDatasetGraph; g
   const meta = isRecord(graphData?.metadata) ? graphData!.metadata as Record<string, unknown> : {}
 
   const sourceLayerHash = typeof meta.sourceLayerHash === 'string' ? meta.sourceLayerHash.trim() : ''
-  if (sourceLayerHash) return `sourceLayer:${sourceLayerHash}:rev:${rev}`
+  if (sourceLayerHash) return `sourceLayer:${sourceLayerHash}`
 
   const graphId = typeof meta.graphId === 'string' ? meta.graphId.trim() : ''
-  if (graphId) return `graphId:${graphId}:rev:${rev}`
+  if (graphId) return `graphId:${graphId}`
 
   const kind = typeof meta.kind === 'string' ? meta.kind.trim() : ''
   const source = typeof meta.source === 'string' ? meta.source.trim() : ''
-  if (kind || source) return `meta:${kind}:${source}:rev:${rev}`
+  if (kind || source) return `meta:${kind}:${source}`
 
   const nodes = Array.isArray(graphData?.nodes) ? graphData!.nodes! : []
   for (let i = 0; i < nodes.length; i += 1) {
@@ -58,10 +58,10 @@ export const computeLayoutDatasetKey = (args: { graphData: LayoutDatasetGraph; g
     if (t !== 'Document') continue
     const props = isRecord(n?.properties) ? (n!.properties as Record<string, unknown>) : {}
     const path = typeof props.path === 'string' ? props.path.trim() : ''
-    if (path) return `path:${path}:rev:${rev}`
+    if (path) return `path:${path}`
     const nMeta = isRecord(n?.metadata) ? (n!.metadata as Record<string, unknown>) : {}
     const docPath = typeof nMeta.documentPath === 'string' ? nMeta.documentPath.trim() : ''
-    if (docPath) return `doc:${docPath}:rev:${rev}`
+    if (docPath) return `doc:${docPath}`
     break
   }
 
@@ -76,8 +76,6 @@ export const buildLayoutViewKey = (args: {
   renderMediaAsNodes: boolean
   mediaPanelDensity: string
   collapsedGroupIdsKey: string
-  schemaNodesPresentationJson: string
-  schemaGroupsPresentationJson: string
 }): string => {
   return [
     String(args.schemaLayoutEngineJson),
@@ -87,8 +85,6 @@ export const buildLayoutViewKey = (args: {
     String(args.renderMediaAsNodes ? 1 : 0),
     String(args.mediaPanelDensity),
     String(args.collapsedGroupIdsKey),
-    String(args.schemaNodesPresentationJson),
-    String(args.schemaGroupsPresentationJson),
   ].join('|')
 }
 
@@ -187,7 +183,7 @@ export const determineLayoutPositions = ({
   const shouldUseCache =
     !!cachedPositions &&
     coverageFromCache >= 0.95 &&
-    (!isDatasetChange && (isModeChange || isFrontmatterChange || isSemanticChange || isRenderModeChange || isRenderVariantChange || isLayoutVariantChange || coverageFromNodes < 0.95));
+    (isDatasetChange || isModeChange || isFrontmatterChange || isSemanticChange || isRenderModeChange || isRenderVariantChange || isLayoutVariantChange || coverageFromNodes < 0.95);
 
   const layoutPositionsForMode = shouldUseCache ? cachedPositions : null;
 

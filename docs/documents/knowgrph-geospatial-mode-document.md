@@ -43,6 +43,7 @@
 - Map style load failures are surfaced (console + toast) instead of silently producing a blank map.
 - A persistent “blank overlay” state is prevented by warning when overlay opacity is `0%` and by timing out basemap load with a bounded error message.
 - Cross-origin asset proxying is **dev-only**: on localhost, cross-origin map assets (style JSON, sprites, glyphs, tiles, and dataset fetches) can be routed through `/__fetch_remote` to avoid CORS issues; in production/static deploys the proxy does not exist, so assets must load directly.
+- The `/__fetch_remote` proxy must not abort upstream fetches on request `close` events; premature aborts truncate style/tile/glyph responses and cause silent “blank basemap” failures in MapLibre.
 - Style-relative URLs are resolved against a trailing-slash base (for example `.../styles/liberty/`) so `sprite`, `glyphs`, and `source.url` relative paths resolve correctly.
 - Runtime overlay status is surfaced via a native in-app toast (top-right, below the toolbar) so it stays visible above the Floating Panel and other UI layers.
 - Hover and click popups are rendered by MapLibre (not by the host UI) to keep POI feedback colocated with the map.

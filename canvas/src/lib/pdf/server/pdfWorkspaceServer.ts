@@ -65,29 +65,31 @@ const readBodyAsPdf = async (req: import('http').IncomingMessage): Promise<Buffe
   })
 }
 
+const SOURCE_PDF_FILENAME = 'source.pdf'
+
 const modeOverrides = (mode: PdfConversionMode) => {
   if (mode === 'image-heavy') {
     return {
       includeImages: true,
-      embedImages: false,
+      embedImages: true,
       maxExtractedImagesPerPage: 16,
-      maxEmbeddedImagesPerPage: 0,
-      maxEmbeddedTotalBytes: 0,
-      maxEmbeddedAssetBytes: 0,
-      deepseekOcr2Enabled: false,
-      deepseekOcr2Mode: 'fallback' as const,
+      maxEmbeddedImagesPerPage: 12,
+      maxEmbeddedTotalBytes: 4 * 1024 * 1024,
+      maxEmbeddedAssetBytes: 2 * 1024 * 1024,
+      ocrEnabled: false,
+      ocrMode: 'fallback' as const,
     }
   }
   if (mode === 'scan-ocr') {
     return {
-      includeImages: false,
-      embedImages: false,
+      includeImages: true,
+      embedImages: true,
       maxExtractedImagesPerPage: 4,
-      maxEmbeddedImagesPerPage: 0,
-      maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-      maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-      deepseekOcr2Enabled: true,
-      deepseekOcr2Mode: 'always' as const,
+      maxEmbeddedImagesPerPage: 2,
+      maxEmbeddedTotalBytes: 2 * 1024 * 1024,
+      maxEmbeddedAssetBytes: 512 * 1024,
+      ocrEnabled: true,
+      ocrMode: 'always' as const,
     }
   }
   return {
@@ -97,8 +99,8 @@ const modeOverrides = (mode: PdfConversionMode) => {
     maxEmbeddedImagesPerPage: 0,
     maxEmbeddedTotalBytes: 4 * 1024 * 1024,
     maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-    deepseekOcr2Enabled: false,
-    deepseekOcr2Mode: 'fallback' as const,
+    ocrEnabled: false,
+    ocrMode: 'fallback' as const,
   }
 }
 
@@ -163,6 +165,14 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
         return
       }
 
+      const docDirAbs = path.join(workspaceAbs, docId)
+      await fs.mkdir(docDirAbs, { recursive: true })
+      try {
+        await fs.writeFile(path.join(docDirAbs, SOURCE_PDF_FILENAME), pdfBytes)
+      } catch {
+        void 0
+      }
+
       const converted = await convertPdfToMarkdown({
         body: pdfBytes,
         nameHint,
@@ -178,7 +188,6 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
       const markdown = String(converted.markdown || '')
       const anchorMap = buildAnchorMapFromMarkdown({ docId, mode, markdown })
 
-      const docDirAbs = path.join(workspaceAbs, docId)
       const modeDirAbs = path.join(docDirAbs, 'modes', mode)
       await fs.mkdir(modeDirAbs, { recursive: true })
 
@@ -245,11 +254,60 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
       const docDirAbs = path.join(workspaceAbs, docId)
       const meta = await readJsonFile<PdfWorkspaceDocumentMeta>(path.join(docDirAbs, 'document.json'))
       const modeDirAbs = path.join(docDirAbs, 'modes', mode)
-      const markdown = await fs
+
+      let markdown = await fs
         .readFile(path.join(modeDirAbs, 'output.md'), 'utf8')
         .then(s => String(s))
         .catch(() => '')
-      const anchorMap = (await readJsonFile(path.join(modeDirAbs, 'anchor-map.json'))) as unknown
+      let anchorMap = (await readJsonFile(path.join(modeDirAbs, 'anchor-map.json'))) as unknown
+
+      if (!markdown || !anchorMap) {
+        const candidates: PdfConversionMode[] = ['image-heavy', 'text-only', 'scan-ocr']
+        for (const candidate of candidates) {
+          const candidateDir = path.join(docDirAbs, 'modes', candidate)
+          const candidateMd = await fs
+            .readFile(path.join(candidateDir, 'output.md'), 'utf8')
+            .then(s => String(s))
+            .catch(() => '')
+          const candidateAnchor = (await readJsonFile(path.join(candidateDir, 'anchor-map.json'))) as unknown
+          if (candidateMd && candidateAnchor) {
+            markdown = candidateMd
+            anchorMap = candidateAnchor
+            break
+          }
+        }
+      }
+
+      if (!markdown || !anchorMap) {
+        const sourcePdfAbs = path.join(docDirAbs, SOURCE_PDF_FILENAME)
+        const pdfBytes = await fs.readFile(sourcePdfAbs).catch(() => null)
+        if (pdfBytes) {
+          const nameHint = meta?.sourceName || meta?.title || ''
+          const converted = await convertPdfToMarkdown({ body: pdfBytes, nameHint, overrides: modeOverrides(mode) })
+          if (converted.ok) {
+            markdown = String(converted.markdown || '')
+            anchorMap = buildAnchorMapFromMarkdown({ docId, mode, markdown })
+            await fs.mkdir(modeDirAbs, { recursive: true })
+            await fs.writeFile(path.join(modeDirAbs, 'output.md'), markdown, 'utf8')
+            await writeJsonFileAtomic(path.join(modeDirAbs, 'anchor-map.json'), anchorMap)
+            await writeJsonFileAtomic(path.join(modeDirAbs, 'conversion-report.json'), {
+              ok: true,
+              docId,
+              mode,
+              name: converted.name,
+              createdAtMs: nowMs(),
+              regenerated: true,
+            })
+            if (meta) {
+              const nextMeta: PdfWorkspaceDocumentMeta = { ...meta, updatedAtMs: nowMs(), lastMode: mode }
+              await writeJsonFileAtomic(path.join(docDirAbs, 'document.json'), nextMeta)
+              const idx = upsertDocMeta(await readIndex(workspaceAbs), nextMeta)
+              await writeIndex(workspaceAbs, idx)
+            }
+          }
+        }
+      }
+
       if (!markdown || !anchorMap) {
         res.statusCode = 404
         res.setHeader('Content-Type', 'application/json')

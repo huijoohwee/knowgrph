@@ -9,6 +9,7 @@ import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS, STORAGE_CHANNELS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { hashText } from '@/features/parsers/hash'
+import { hashGraphDataForPreviewSync } from '@/hooks/store/graphDataSliceUtils'
 import { autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty } from '@/features/parsers/loader'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
@@ -697,12 +698,7 @@ export default function CanvasPage() {
         if (payload.graphData) {
           try {
             const setGraphData = store.setGraphData
-            let nextGraphHash = ''
-            try {
-              nextGraphHash = hashText(JSON.stringify(payload.graphData))
-            } catch {
-              nextGraphHash = ''
-            }
+            const nextGraphHash = hashGraphDataForPreviewSync(payload.graphData)
             if (!nextGraphHash || nextGraphHash !== lastInboundPreviewGraphHashRef.current) {
               if (typeof setGraphData === 'function') setGraphData(payload.graphData as never)
             }
@@ -775,7 +771,7 @@ export default function CanvasPage() {
       next => {
         if (!next.graphData) return
         try {
-          const nextHash = hashText(JSON.stringify(next.graphData))
+          const nextHash = hashGraphDataForPreviewSync(next.graphData)
           if (nextHash === lastInboundPreviewGraphHashRef.current) return
           if (nextHash === lastSentRef.hash) return
           lastSentRef.hash = nextHash

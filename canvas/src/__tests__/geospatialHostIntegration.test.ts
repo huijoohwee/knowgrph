@@ -130,3 +130,39 @@ export const testGeospatialModeEventContractIsShared = () => {
     throw new Error('gympgrph must not emit raw UI_EVENTS.geospatialModeChanged CustomEvent (drift risk)')
   }
 }
+
+export const testRemoteFetchProxyDoesNotAbortOnCloseOrTruncate = () => {
+  const vitePath = path.resolve(process.cwd(), 'vite.config.ts')
+  const text = readUtf8(vitePath)
+  if (!text.includes('function createRemoteFetchHandler')) {
+    throw new Error('Expected vite.config.ts to include createRemoteFetchHandler for /__fetch_remote')
+  }
+  if (text.includes("res.on('close'") || text.includes('res.on("close"')) {
+    throw new Error('Remote fetch proxy must not abort upstream fetch on response close events')
+  }
+  if (text.includes("req.on('close'") || text.includes('req.on("close"')) {
+    throw new Error('Remote fetch proxy must not abort upstream fetch on request close events')
+  }
+  if (!text.includes("res.setHeader('Content-Length', String(buf.byteLength))")) {
+    throw new Error('Expected remote fetch proxy to set Content-Length from full buffered body')
+  }
+}
+
+export const testGympgrphCesiumOverlayAutoFitsToGeoBounds = () => {
+  const overlayPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'features', 'geospatial', 'CesiumOverlay.tsx')
+  const text = readUtf8(overlayPath)
+  if (!text.includes('autoFitEnabled')) throw new Error('Expected CesiumOverlay to reference autoFitEnabled')
+  if (!text.includes('computeBoundsFromCollections')) throw new Error('Expected CesiumOverlay to compute bounds for auto-fit')
+  if (!text.includes('viewer.camera.flyTo')) throw new Error('Expected CesiumOverlay to fly camera to computed bounds')
+  if (!text.includes('Rectangle.fromDegrees')) throw new Error('Expected CesiumOverlay to convert bounds using Rectangle.fromDegrees')
+}
+
+export const testGympgrphMapLibreLoggerSuppressesAbortNoise = () => {
+  const hookPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const text = readUtf8(hookPath)
+  if (!text.includes('setLogger')) throw new Error('Expected MapLibre logger override to be installed')
+  if (!text.includes('/__fetch_remote')) throw new Error('Expected logger to filter /__fetch_remote abort noise')
+  if (!text.toLowerCase().includes('err_aborted') && !text.toLowerCase().includes('aborterror')) {
+    throw new Error('Expected logger to match aborted request errors')
+  }
+}

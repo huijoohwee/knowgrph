@@ -33,8 +33,22 @@
 - `pdfImportIncludeImages`, `pdfImportEmbedImages`
 - `pdfImportMaxExtractedImagesPerPage`, `pdfImportMaxEmbeddedImagesPerPage`
 - `pdfImportMaxEmbeddedTotalBytes`, `pdfImportMaxEmbeddedAssetBytes`
+- `pdfImportReconstructTables`, `pdfImportTableMinColumns`, `pdfImportTableMinRows`, `pdfImportTableMaxRows`
 - `pdfImportProvider`, `pdfImportDoclingEndpoint`, `pdfImportProviderFallbackToNative`
-- `pdfImportDeepseekOcr2Enabled`, `pdfImportDeepseekOcr2Mode`
+- `pdfImportOcrEnabled`, `pdfImportOcrMode`
+
+---
+
+## Markdown Settings: Viewer / Presentation
+
+**Scope**: Markdown Workspace → Viewer/Presentation; MainPanel → Settings
+
+**Intent**: Keep Markdown rendering defaults configurable and consistent across Viewer, Presentation, and Slides Gallery.
+
+**Keys**
+
+- `markdownWordWrap`
+- `markdownTextHighlight`
 
 ---
 

@@ -256,8 +256,6 @@ export function useWorkspaceFileActions(args: {
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
-        const lastCreated = res.createdPaths[res.createdPaths.length - 1] || null
-        if (lastCreated) await focusAfterImport(lastCreated, { applyToGraph: true, jobId })
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
         const failed = res.failed.length
@@ -281,7 +279,7 @@ export function useWorkspaceFileActions(args: {
       const snapshot = files ? Array.from(files) : []
       if (snapshot.length === 0) return
       const jobId = (importJobRef.current += 1)
-      setStatusProgress('Importing folder', 0, snapshot.length)
+      setStatusLabel(null)
       try {
         const fs = await getFs()
         await fs.ensureSeed()
@@ -289,17 +287,11 @@ export function useWorkspaceFileActions(args: {
           importWorkspaceLocalFolder({
             fs,
             files: snapshot,
-            onProgress: p => {
-              if (importJobRef.current !== jobId) return
-              setStatusProgress(p.label || 'Importing folder', p.current, p.total, p.bytesCurrent, p.bytesTotal)
-            },
           }),
         )
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
-        const lastCreated = res.createdPaths[res.createdPaths.length - 1] || null
-        if (lastCreated) await focusAfterImport(lastCreated, { applyToGraph: true, jobId })
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
         const failed = res.failed.length
@@ -309,13 +301,13 @@ export function useWorkspaceFileActions(args: {
           failed > 0 && firstFailure
             ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
             : ''
-        setStatusInfo(`Imported ${imported}${suffix}${failureSuffix}`)
+        setStatusInfo(`Imported folder: ${imported}${suffix}${failureSuffix}`)
       } catch (e) {
         if (importJobRef.current !== jobId) return
         setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, getFs, refresh, setStatusLabel],
+    [getFs, refresh, setStatusLabel],
   )
 
   const handleImportUrl = React.useCallback(

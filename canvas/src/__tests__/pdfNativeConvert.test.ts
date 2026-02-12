@@ -88,3 +88,12 @@ export async function testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixtur
   if (spacedRun.test(md)) throw new Error('expected no spaced-letter artifacts in normalized markdown')
   if (md.length < 200) throw new Error('expected non-trivial markdown output')
 }
+
+export async function testPdfNativeConversionHonorsMaxPagesOnFixture() {
+  const pdfPath = await tryResolvePdfFixturePath()
+  if (!pdfPath) return
+  const res = await convertPdfFileToMarkdown({ pdfPath, title: path.basename(pdfPath), maxPages: 2 })
+  const md = normalizePdfExtractedMarkdown(res.markdown)
+  if (!md.includes('## Page 1')) throw new Error('expected page 1')
+  if (md.includes('## Page 3')) throw new Error('expected maxPages to cap page sections')
+}

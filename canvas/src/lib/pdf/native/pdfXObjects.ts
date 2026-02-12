@@ -32,6 +32,8 @@ export function collectDoXObjectNames(bytes: Buffer): string[] {
     }
     if (i >= s.length) return { tok: null, next: i }
     const ch = s[i]
+    if (ch === '<' && s[i + 1] === '<') return { tok: '<<', next: i + 2 }
+    if (ch === '>' && s[i + 1] === '>') return { tok: '>>', next: i + 2 }
     if (ch === '(') {
       let j = i + 1
       let depth = 1
@@ -61,6 +63,7 @@ export function collectDoXObjectNames(bytes: Buffer): string[] {
       while (i < s.length && !/\s/.test(s[i]) && !tokenDelims.includes(s[i])) i += 1
       return { tok: { kind: 'name', name: s.slice(start, i) }, next: i }
     }
+    if (tokenDelims.includes(ch)) return { tok: ch, next: i + 1 }
     let end = i
     while (end < s.length && !/\s/.test(s[end]) && !tokenDelims.includes(s[end])) end += 1
     return { tok: s.slice(i, end), next: end }

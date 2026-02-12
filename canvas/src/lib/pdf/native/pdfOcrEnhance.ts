@@ -1,4 +1,4 @@
-import { deepseekOcr2InferImageToMarkdown } from '../../ocr/deepseekOcr2Client'
+import { inferImageToMarkdownViaRemoteOcr } from '../../ocr/remoteOcrClient'
 import { shiftMarkdownHeadings } from '../../markdown/shiftMarkdownHeadings'
 import type { NativePdfAsset, TextFragment } from './types'
 
@@ -47,7 +47,7 @@ export async function maybeEnhancePageWithOcr(args: {
 
   const results: string[] = []
   for (const img of candidates) {
-    const res = await deepseekOcr2InferImageToMarkdown({
+    const res = await inferImageToMarkdownViaRemoteOcr({
       endpoint,
       imageBytes: img.bytes,
       filename: img.filename,

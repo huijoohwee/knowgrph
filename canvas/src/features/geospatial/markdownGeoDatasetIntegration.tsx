@@ -2,7 +2,9 @@ import React from 'react'
 import { InlineMarkdownGeoJsonLayerMap } from '@/features/geospatial/InlineMarkdownGeoJsonLayerMap'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashText } from '@/features/parsers/hash'
-import { addGeospatialDatasetUrl, isGeospatialModeEnabled, parseGeoJsonFromText } from 'gympgrph'
+import type { GraphData } from '@/lib/graph/types'
+import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
+import { addGeospatialDatasetUrl, coerceGeoJsonToFeatureCollection, isGeospatialModeEnabled, parseGeoJsonFromText } from 'gympgrph'
 import { uploadGeoJsonTextToLocalStore } from '@/features/geospatial/localGeoUpload'
 
 type MarkdownGeoDatasetRegistrationRequest = {
@@ -20,6 +22,7 @@ type MarkdownGeoDatasetIntegration = {
   isGeoJsonCodeBlock?: (req: MarkdownGeoDatasetRegistrationRequest) => boolean
   renderGeoJsonFeatureCollection?: (req: MarkdownGeoDatasetRegistrationRequest) => React.ReactNode
   registerGeoJsonFeatureCollection?: (req: MarkdownGeoDatasetRegistrationRequest) => Promise<{ ok: true } | { ok: false; error: string }>
+  loadGeoJsonAsGraphData?: (req: MarkdownGeoDatasetRegistrationRequest) => Promise<{ ok: true } | { ok: false; error: string }>
   requestOpenGeoPanel?: () => void
 }
 
@@ -57,6 +60,13 @@ const buildUploadName = (req: MarkdownGeoDatasetRegistrationRequest): string => 
   return `${stem}-L${line}.geojson`
 }
 
+const buildGraphSourcePath = (req: MarkdownGeoDatasetRegistrationRequest): string => {
+  const base = String(req.sourceDocumentPath || '').trim() || 'document'
+  const start = Number.isFinite(req.codeBlock.startLine) ? Math.max(1, Math.floor(req.codeBlock.startLine)) : 1
+  const end = Number.isFinite(req.codeBlock.endLine) ? Math.max(start, Math.floor(req.codeBlock.endLine)) : start
+  return `${base}#L${start}-L${end}`
+}
+
 const canParseGeoJson = (req: MarkdownGeoDatasetRegistrationRequest): boolean => {
   const raw = String(req.codeBlock.text || '')
   const trimmed = raw.trim()
@@ -79,6 +89,7 @@ const canParseGeoJson = (req: MarkdownGeoDatasetRegistrationRequest): boolean =>
 
 export function createMarkdownGeoDatasetIntegration(args: {
   requestOpenGeoPanel?: () => void
+  loadGraphData?: (graphData: GraphData) => void
 } = {}): MarkdownGeoDatasetIntegration {
   return {
     isGeospatialModeEnabled: () => {
@@ -123,6 +134,31 @@ export function createMarkdownGeoDatasetIntegration(args: {
       uploadCache.set(uploadCacheKey, uploaded)
       addGeospatialDatasetUrl({ url: uploaded.url, label: uploaded.name, format: 'geojson' })
       return { ok: true }
+    },
+    loadGeoJsonAsGraphData: async req => {
+      const raw = String(req.codeBlock.text || '')
+      const trimmed = raw.trim()
+      if (!trimmed) return { ok: false, error: 'Missing GeoJSON text' }
+      if (!canParseGeoJson(req)) return { ok: false, error: 'GeoJSON parse failed' }
+
+      try {
+        const parsed = parseGeoJsonFromText(trimmed)
+        const normalized = coerceGeoJsonToFeatureCollection(parsed)
+        const graph = buildGraphDataFromFeatureCollection({
+          featureCollection: normalized,
+          sourcePath: buildGraphSourcePath(req),
+          sourceHash: hashText(trimmed),
+        })
+        if (!graph) return { ok: false, error: 'GeoJSON produced no graph nodes' }
+        args.loadGraphData?.(graph)
+        return { ok: true }
+      } catch (err) {
+        if (err && typeof err === 'object' && 'message' in err) {
+          const msg = (err as { message?: unknown }).message
+          if (typeof msg === 'string' && msg.trim()) return { ok: false, error: msg.trim() }
+        }
+        return { ok: false, error: 'GeoJSON graph conversion failed' }
+      }
     },
     requestOpenGeoPanel: () => {
       args.requestOpenGeoPanel?.()

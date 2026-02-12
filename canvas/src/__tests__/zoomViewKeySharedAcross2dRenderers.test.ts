@@ -10,8 +10,6 @@ export const testZoomViewKeyIsIsolatedAcross2dRenderers = () => {
     renderMediaAsNodes: false,
     mediaPanelDensity: 'normal',
     collapsedGroupIdsKey: '',
-    schemaNodesPresentationJson: '{"nodeShapeMode":"auto"}',
-    schemaGroupsPresentationJson: '{"groups":true}',
   }
 
   const d3Key = buildZoomViewKey({ ...base, canvas2dRenderer: 'd3' })

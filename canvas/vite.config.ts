@@ -375,6 +375,7 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
     }
 
     let controller: AbortController | null = null
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
     try {
       const timeoutMs = (() => {
         const raw = String(process.env.KNOWGRPH_REMOTE_FETCH_TIMEOUT_MS || '').trim()
@@ -400,24 +401,16 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         }
       }
       req.on('aborted', abort)
-      req.on('close', abort)
-      res.on('close', abort)
 
-      const timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
-      const upstream = await (async () => {
-        try {
-          return await fetch(urlParam, {
-            method: req.method,
-            redirect: 'follow',
-            signal: ctrl.signal,
-            headers: {
-              Accept: '*/*',
-            },
-          })
-        } finally {
-          clearTimeout(timeoutId)
-        }
-      })()
+      timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+      const upstream = await fetch(urlParam, {
+        method: req.method,
+        redirect: 'follow',
+        signal: ctrl.signal,
+        headers: {
+          Accept: '*/*',
+        },
+      })
 
       if (ctrl.signal.aborted) {
         finished = true
@@ -477,13 +470,13 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         return Buffer.concat(chunks)
       }
       const buf = await readWithLimit()
+      finished = true
       try {
         res.setHeader('Content-Length', String(buf.byteLength))
       } catch {
         void 0
       }
       res.end(buf)
-      finished = true
     } catch (error) {
       const msg =
         error && typeof error === 'object' && 'message' in error
@@ -508,6 +501,10 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       }
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       res.end(message)
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
     }
   }
 }

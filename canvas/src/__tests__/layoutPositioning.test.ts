@@ -195,8 +195,6 @@ export const testLayoutPositioningCacheKeyIncludesViewKey = () => {
     renderMediaAsNodes: true,
     mediaPanelDensity: 'default',
     collapsedGroupIdsKey: '',
-    schemaNodesPresentationJson: '{"nodeShapes":{"Image":"rect"}}',
-    schemaGroupsPresentationJson: '{"groups":{"enabled":true}}',
   } as const
   const viewA = buildLayoutViewKey(base)
   const viewB = buildLayoutViewKey({ ...base, collapsedGroupIdsKey: 'community:0' })
@@ -235,8 +233,6 @@ export const testLayoutPositioningCacheKeyIsolatesMediaDensity = () => {
     renderMediaAsNodes: true,
     mediaPanelDensity: 'default',
     collapsedGroupIdsKey: '',
-    schemaNodesPresentationJson: '{"nodeShapes":{"Image":"rect"}}',
-    schemaGroupsPresentationJson: '{"groups":{"enabled":true}}',
   } as const
   const viewDefault = buildLayoutViewKey(base)
   const viewCompact = buildLayoutViewKey({ ...base, mediaPanelDensity: 'compact' })
@@ -274,8 +270,6 @@ export const testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes = () => {
     renderMediaAsNodes: true,
     mediaPanelDensity: 'default',
     collapsedGroupIdsKey: '',
-    schemaNodesPresentationJson: '{"nodeShapes":{"Image":"rect"}}',
-    schemaGroupsPresentationJson: '{"groups":{"enabled":true}}',
   } as const
   const viewOn = buildLayoutViewKey(base)
   const viewOff = buildLayoutViewKey({ ...base, renderMediaAsNodes: false })

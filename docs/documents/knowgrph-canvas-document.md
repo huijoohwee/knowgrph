@@ -26,7 +26,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 | Aspect Ratio | Prevent inconsistent fit behavior across viewports | - [ ] Fit via `schema.layout.fitTargetAspectRatio` (default 16:9); forbid hardcoded viewport assumptions |
 | Centering | Keep zoom and fit stable across intents | - [ ] Center by centroid for all zoom/fit intents; forbid skew from bounding box bias |
 | Clusters | Avoid distortion from distant outliers | - [ ] Filter outliers when fitting (`schema.layout.fitDetectClusters`); forbid distortion from distant nodes |
-| Cross-mode Cache | Prevent layout drift when switching modes | - [ ] Key layout caches by `semanticMode + frontmatterMode + layoutMode + renderMode + renderVariant + layoutVariant + viewKey (+ presentation toggles) + mediaPanelDensity + renderMediaAsNodes`; forbid cross-mode contamination |
+| Cross-mode Cache | Prevent layout drift when switching modes | - [ ] Key layout caches by `semanticMode + frontmatterMode + layoutMode + renderMode + renderVariant + layoutVariant + viewKey + mediaPanelDensity + renderMediaAsNodes`; apply presentation updates without changing cache keys; forbid cross-mode contamination |
 | Documentation | Keep behavior discoverable and auditable | - [ ] Keep schema options discoverable; forbid undocumented behaviors or hidden defaults |
 | Fit Frame | Prevent over-zoom on large viewports | - [ ] Compute fit scale on capped `1920×1080` (16:9) frame; forbid 4k/ultrawide over-zoom |
 | Fit-to-Screen | Keep fit consistent with UI chrome changes | - [ ] Enforce 80/20 fill ratio via `targetFillRatio = 0.8`; forbid inconsistent viewport fill |
@@ -39,7 +39,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 | Schema | Centralize layout and sizing policies | - [ ] Route layout and label sizing through `schema.layout.*`; forbid embedded constants or dataset ties |
 | Subgraph Containment | Prevent nodes escaping group bounds | - [x] Clamp member nodes within group bounds; forbid escape or touching borders |
 | Verification | Make layout and fit changes regression-resistant | - [ ] Cover fit and layout behaviors via bounded tests; forbid brittle dataset-specific assertions |
-| Zoom State | Prevent stale transforms across view toggles | - [ ] Cache zoom state by viewKey across mode/layout/presentation toggles; forbid stale transforms when switching layers/modes/labels/groups |
+| Zoom State | Prevent stale transforms across view toggles | - [ ] Cache zoom state by viewKey across mode/layout toggles; apply presentation updates without changing zoom keys; forbid stale transforms when switching layers/modes/labels/groups |
 | Renderer Exclusivity | Prevent inactive/off mode interference | - [ ] Mount exactly one active renderer/mode at a time (D3 / Flow / 3D / Geospatial); forbid inactive/off layers from rendering, consuming requests, or recalculating in the background |
 
 ---
@@ -82,11 +82,16 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - Preview mode must force preview-only rendering (no Toolbar, no BottomPanel, no side panels) so the preview cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
 - The host syncs preview state via same-origin messaging (`kind: 'kg-preview-sync'` for graph/schema/render/selection) and via persisted geospatial state (`kg:ui:geospatial:overlayEnabled` via `storage` events) so the preview reflects the active mode.
 - Preview sync handlers must ignore identical schema/graph payloads (hash/signature compare) to prevent rerender loops and React update-depth errors.
+- Preview sync graph hashing must ignore store-injected `metadata.graphDataRevision` and `metadata.hash` fields so preview ↔ host echoes do not trigger infinite sync loops.
 - The host must avoid rendering graph canvases in the background when the active view mode is Editor (mount only what is visible).
 
 ### Editor Workspace Sections (Markdown vs Graph Data Table)
 
 - The Editor workspace reuses the **Markdown Workspace** as the SSOT for document text (Explorer + Editor/Viewer/Split/Presentation/Slides).
+- Import Folder in Markdown Workspace must be lazy: create file/folder entries and pending stubs without reading contents; clicking a file triggers indexing/loading/parsing/rendering (including on-demand PDF conversion) and shows an `Indexing` progress pill using the shared `label • n/n • kb/kb` formatting.
+- Switching files must not toggle `frontmatterModeEnabled` or trigger graph/layout recomputation; file open updates markdown preview state without mutating mode flags.
+- Workspace file CRUD (create/edit/delete/clear) must sync to the Source Files list (with stable IDs keyed by `workspace:<path>`); file open should reuse cached `parsedGraphData` from Source Files when the text hash matches.
+- GeoJSON/JSON files that contain geodata must render as a normal graph by converting geodata into nodes with `properties.geo.{lat,lng}` (supporting FeatureCollection and record arrays), so both Canvas and Geospatial Mode can display the dataset.
 - Editor mode must not mount any separate Selection/Record Inspector dock (forbid extra inspector `<header>/<section>` surfaces in Editor mode).
 - If a Graph Table section exists, it is treated as an optional tool surface; it must not introduce a second inspector dock outside the table workspace.
 

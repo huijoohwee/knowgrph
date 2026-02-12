@@ -1,5 +1,161 @@
 import type { NativePdfAsset, TextFragment } from './types'
 
+type PdfLine = {
+  y: number
+  x: number
+  text: string
+  maxFont: number
+  parts: TextFragment[]
+}
+
+type PdfCell = { x: number; text: string }
+
+function escapeMarkdownTableCell(text: string): string {
+  const raw = String(text || '')
+  return raw.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim()
+}
+
+function buildCellsFromFragments(args: { parts: TextFragment[]; medianFont: number }): PdfCell[] {
+  const parts = args.parts.slice().sort((a, b) => a.x - b.x)
+  if (parts.length === 0) return []
+
+  const gapThreshold = Math.max(28, args.medianFont * 2.8)
+  const cells: { x: number; parts: TextFragment[] }[] = []
+  let current: { x: number; parts: TextFragment[] } | null = null
+  let lastX = 0
+  let lastFont = args.medianFont || 12
+
+  for (const p of parts) {
+    const gap = p.x - lastX
+    const newCell = !current || (current.parts.length > 0 && gap > gapThreshold)
+    if (newCell) {
+      current = { x: p.x, parts: [p] }
+      cells.push(current)
+    } else {
+      current.parts.push(p)
+    }
+    lastX = p.x + Math.max(0, p.text.length) * (Math.max(6, lastFont) * 0.5)
+    lastFont = p.fontSize || lastFont
+  }
+
+  return cells
+    .map(c => {
+      const fragments = c.parts.slice().sort((a, b) => a.x - b.x)
+      let text = ''
+      let prevX = 0
+      let prevSize = args.medianFont || 12
+      for (const f of fragments) {
+        const expectedEnd = prevX + (text.length || 0) * (prevSize * 0.5)
+        const gap = f.x - expectedEnd
+        const needsSpace = text && gap > Math.max(2, f.fontSize * 0.2) && !text.endsWith('-') && !text.endsWith(' ')
+        if (needsSpace) text += ' '
+        text += f.text
+        prevX = f.x
+        prevSize = f.fontSize
+      }
+      return { x: c.x, text: text.replace(/\s+/g, ' ').trim() }
+    })
+    .filter(c => c.text)
+}
+
+function clusterColumnXs(xs: number[], tolPx: number): number[] {
+  const sorted = xs.filter(n => Number.isFinite(n)).slice().sort((a, b) => a - b)
+  if (sorted.length === 0) return []
+  const clusters: number[] = []
+  let current = sorted[0]
+  let count = 1
+  for (let i = 1; i < sorted.length; i += 1) {
+    const v = sorted[i]
+    if (Math.abs(v - current) <= tolPx) {
+      current = (current * count + v) / (count + 1)
+      count += 1
+    } else {
+      clusters.push(current)
+      current = v
+      count = 1
+    }
+  }
+  clusters.push(current)
+  return clusters
+}
+
+function assignCellsToColumns(cells: PdfCell[], cols: number[], tolPx: number): string[] {
+  const out = Array.from({ length: cols.length }).map(() => '')
+  for (const cell of cells) {
+    let bestIdx = -1
+    let bestDist = Infinity
+    for (let i = 0; i < cols.length; i += 1) {
+      const d = Math.abs(cell.x - cols[i])
+      if (d < bestDist) {
+        bestDist = d
+        bestIdx = i
+      }
+    }
+    if (bestIdx < 0 || bestDist > tolPx * 2) continue
+    out[bestIdx] = out[bestIdx] ? `${out[bestIdx]} ${cell.text}`.trim() : cell.text
+  }
+  return out
+}
+
+function maybeExtractMarkdownTable(args: {
+  lines: PdfLine[]
+  startIndex: number
+  medianFont: number
+  minCols: number
+  minRows: number
+  maxRows: number
+}): { consumed: number; markdown: string } | null {
+  const tolPx = Math.max(10, args.medianFont * 0.6)
+  const cellsByRow: PdfCell[][] = []
+  const rowYs: number[] = []
+
+  for (let i = args.startIndex; i < args.lines.length; i += 1) {
+    if (cellsByRow.length >= args.maxRows) break
+    const l = args.lines[i]
+    const cells = buildCellsFromFragments({ parts: l.parts, medianFont: args.medianFont })
+    if (cells.length < args.minCols) break
+    if (rowYs.length > 0) {
+      const prevY = rowYs[rowYs.length - 1]
+      const gapY = Math.abs(prevY - l.y)
+      if (gapY > Math.max(18, args.medianFont * 2.8)) break
+    }
+    cellsByRow.push(cells)
+    rowYs.push(l.y)
+  }
+
+  if (cellsByRow.length < args.minRows) return null
+
+  const allXs = cellsByRow.flat().map(c => c.x)
+  const cols = clusterColumnXs(allXs, tolPx)
+  if (cols.length < args.minCols) return null
+
+  const rowsAssigned = cellsByRow.map(row => assignCellsToColumns(row, cols, tolPx))
+  const denseRatio = (() => {
+    let filled = 0
+    let total = 0
+    for (const r of rowsAssigned) {
+      for (const c of r) {
+        total += 1
+        if (String(c || '').trim()) filled += 1
+      }
+    }
+    return total > 0 ? filled / total : 0
+  })()
+  if (denseRatio < 0.55) return null
+
+  const header = rowsAssigned[0].map(escapeMarkdownTableCell)
+  const body = rowsAssigned.slice(1).map(r => r.map(escapeMarkdownTableCell))
+  const sep = cols.map(() => '---')
+  const linesOut: string[] = []
+  linesOut.push(`| ${header.join(' | ')} |`)
+  linesOut.push(`| ${sep.join(' | ')} |`)
+  for (const r of body) {
+    linesOut.push(`| ${r.join(' | ')} |`)
+  }
+  linesOut.push('')
+  return { consumed: cellsByRow.length, markdown: linesOut.join('\n') }
+}
+
 export function buildMarkdownForPage(args: {
   pageIndex: number
   fragments: TextFragment[]
@@ -9,6 +165,10 @@ export function buildMarkdownForPage(args: {
   assetUrlPrefix: string
   maxImagesPerPage?: number
   ocrMarkdown?: string | null
+  reconstructTables?: boolean
+  tableMinColumns?: number
+  tableMinRows?: number
+  tableMaxRows?: number
 }): string {
   const h = args.mediaBox && args.mediaBox.length >= 4 ? Math.abs(Number(args.mediaBox[3]) - Number(args.mediaBox[1])) : 0
   const yTol = (fontSize: number) => Math.max(2, Math.min(8, fontSize * 0.25))
@@ -22,7 +182,7 @@ export function buildMarkdownForPage(args: {
     byKey.set(key, group)
   }
 
-  const lines = [...byKey.values()]
+  const lines: PdfLine[] = [...byKey.values()]
     .map(g => {
       const parts = g.parts.slice().sort((a, b) => a.x - b.x)
       let line = ''
@@ -39,7 +199,7 @@ export function buildMarkdownForPage(args: {
       }
       line = line.replace(/\s+/g, ' ').trim()
       const maxFont = parts.reduce((m, p) => Math.max(m, p.fontSize || 0), 0)
-      return { y: g.y, x: parts[0]?.x ?? 0, text: line, maxFont }
+      return { y: g.y, x: parts[0]?.x ?? 0, text: line, maxFont, parts }
     })
     .filter(l => l.text)
     .sort((a, b) => (b.y - a.y) || (a.x - b.x))
@@ -58,20 +218,53 @@ export function buildMarkdownForPage(args: {
     return new Set([...counts.entries()].filter(([, c]) => c >= 2).map(([t]) => t))
   })()
 
-  const bodyLines = lines
-    .filter(l => !headerFooterCandidates.has(l.text))
-    .map(l => {
+  const filteredLines = lines.filter(l => !headerFooterCandidates.has(l.text))
+
+  const reconstructed = (() => {
+    const enabled = args.reconstructTables !== false
+    if (!enabled) return filteredLines.map(l => l.text)
+
+    const minCols = typeof args.tableMinColumns === 'number' && Number.isFinite(args.tableMinColumns)
+      ? Math.max(2, Math.min(12, Math.floor(args.tableMinColumns)))
+      : 2
+    const minRows = typeof args.tableMinRows === 'number' && Number.isFinite(args.tableMinRows)
+      ? Math.max(2, Math.min(20, Math.floor(args.tableMinRows)))
+      : 3
+    const maxRows = typeof args.tableMaxRows === 'number' && Number.isFinite(args.tableMaxRows)
+      ? Math.max(5, Math.min(200, Math.floor(args.tableMaxRows)))
+      : 60
+
+    const out: string[] = []
+    for (let i = 0; i < filteredLines.length; i += 1) {
+      const l = filteredLines[i]
+      const cellCount = buildCellsFromFragments({ parts: l.parts, medianFont }).length
+      if (cellCount >= minCols) {
+        const table = maybeExtractMarkdownTable({
+          lines: filteredLines,
+          startIndex: i,
+          medianFont,
+          minCols,
+          minRows,
+          maxRows,
+        })
+        if (table) {
+          out.push(table.markdown)
+          i += table.consumed - 1
+          continue
+        }
+      }
       const level = l.maxFont >= medianFont * 1.9 ? 3 : l.maxFont >= medianFont * 1.5 ? 4 : 0
-      if (level > 0) return `${'#'.repeat(level)} ${l.text}`
-      return l.text
-    })
+      out.push(level > 0 ? `${'#'.repeat(level)} ${l.text}` : l.text)
+    }
+    return out
+  })()
 
   const pageNum = args.pageIndex + 1
-  const includeImage = args.includeImages || (bodyLines.length < 3 && args.imageAssets.length > 0)
+  const includeImage = args.includeImages || (reconstructed.length < 3 && args.imageAssets.length > 0)
   const maxImagesPerPage = (() => {
     const n = args.maxImagesPerPage
-    if (typeof n !== 'number' || !Number.isFinite(n)) return 6
-    return Math.max(0, Math.min(24, Math.floor(n)))
+    if (typeof n !== 'number' || !Number.isFinite(n)) return 12
+    return Math.max(0, Math.min(200, Math.floor(n)))
   })()
   const linesOut: string[] = []
   linesOut.push(`## Page ${pageNum}`)
@@ -100,7 +293,7 @@ export function buildMarkdownForPage(args: {
     linesOut.push(ocr)
     linesOut.push('')
   }
-  linesOut.push(...bodyLines)
+  linesOut.push(...reconstructed)
   linesOut.push('')
   return linesOut.join('\n')
 }

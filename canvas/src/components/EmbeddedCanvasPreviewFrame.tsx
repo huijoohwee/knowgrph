@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { ZoomRequest } from '@/lib/zoom/requests'
+import { hashGraphDataForPreviewSync } from '@/hooks/store/graphDataSliceUtils'
 
 export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; className?: string }) {
   const graphData = useGraphStore(s => s.graphData)
@@ -19,6 +20,7 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const pendingZoomRef = React.useRef<ZoomRequest | null>(null)
   const pendingThreeRef = React.useRef<{ type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number } | null>(null)
+  const lastInboundPreviewGraphHashRef = React.useRef<string>('')
 
   const sendPreviewSnapshot = React.useCallback(() => {
     const target = iframeRef.current?.contentWindow
@@ -152,7 +154,15 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
           if (!payload || !payload.graphData) return
           const store = useGraphStore.getState()
           const setGraphData = store.setGraphData
+          const nextHash = hashGraphDataForPreviewSync(payload.graphData)
+          const currentHash = hashGraphDataForPreviewSync(store.graphData)
+          if (nextHash && nextHash === lastInboundPreviewGraphHashRef.current) return
+          if (nextHash && nextHash === currentHash) {
+            lastInboundPreviewGraphHashRef.current = nextHash
+            return
+          }
           if (typeof setGraphData === 'function') setGraphData(payload.graphData as never)
+          if (nextHash) lastInboundPreviewGraphHashRef.current = nextHash
         }
       } catch {
         void 0

@@ -42,8 +42,9 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   onSelectFile: (path: WorkspacePath) => void
   onSelectFolder?: (path: WorkspacePath) => void
   sourcesByPath?: WorkspaceSourceIndex | null
+  renderFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
 }) {
-  const { entries, expandedPaths, toggleExpanded, activePath, onSelectFile, onSelectFolder, sourcesByPath } = props
+  const { entries, expandedPaths, toggleExpanded, activePath, onSelectFile, onSelectFolder, sourcesByPath, renderFileRight } = props
   const tree = React.useMemo(() => buildTree(entries), [entries])
 
   const renderNode = (node: Node, depth: number) => {
@@ -110,6 +111,11 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
             <span className="truncate">{entry.name || (isFolder ? 'folder' : 'file')}</span>
             {isUrlSource ? <LinkIcon className="w-3 h-3 shrink-0 opacity-70" aria-label="Imported from URL" /> : null}
           </button>
+          {!isFolder && renderFileRight ? (
+            <span className="shrink-0" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+              {renderFileRight({ entry, isActive })}
+            </span>
+          ) : null}
         </section>
         {isFolder && isExpanded && node.children.length > 0 ? (
           <ul className="list-none m-0 p-0">{node.children.map(child => renderNode(child, depth + 1))}</ul>

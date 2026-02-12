@@ -8,8 +8,6 @@ export function buildZoomViewKey(args: {
   renderMediaAsNodes: boolean
   mediaPanelDensity: string
   collapsedGroupIdsKey: string
-  schemaNodesPresentationJson: string
-  schemaGroupsPresentationJson: string
 }): string {
   return [
     String(args.canvasRenderMode),
@@ -20,7 +18,5 @@ export function buildZoomViewKey(args: {
     String(args.renderMediaAsNodes ? 1 : 0),
     String(args.mediaPanelDensity),
     String(args.collapsedGroupIdsKey),
-    String(args.schemaNodesPresentationJson),
-    String(args.schemaGroupsPresentationJson),
   ].join('|')
 }

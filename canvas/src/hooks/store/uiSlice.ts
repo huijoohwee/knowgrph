@@ -21,8 +21,8 @@ function getPdfImportModePreset(mode: PdfImportConversionMode): {
   maxEmbeddedImagesPerPage: number
   maxEmbeddedTotalBytes: number
   maxEmbeddedAssetBytes: number
-  deepseekOcr2Enabled: boolean
-  deepseekOcr2Mode: 'fallback' | 'always'
+  ocrEnabled: boolean
+  ocrMode: 'fallback' | 'always'
 } {
   if (mode === 'image-heavy') {
     return {
@@ -32,8 +32,8 @@ function getPdfImportModePreset(mode: PdfImportConversionMode): {
       maxEmbeddedImagesPerPage: 12,
       maxEmbeddedTotalBytes: 4 * 1024 * 1024,
       maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-      deepseekOcr2Enabled: false,
-      deepseekOcr2Mode: 'fallback',
+      ocrEnabled: false,
+      ocrMode: 'fallback',
     }
   }
   if (mode === 'scan-ocr') {
@@ -44,8 +44,8 @@ function getPdfImportModePreset(mode: PdfImportConversionMode): {
       maxEmbeddedImagesPerPage: 0,
       maxEmbeddedTotalBytes: 4 * 1024 * 1024,
       maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-      deepseekOcr2Enabled: true,
-      deepseekOcr2Mode: 'always',
+      ocrEnabled: true,
+      ocrMode: 'always',
     }
   }
   return {
@@ -55,12 +55,41 @@ function getPdfImportModePreset(mode: PdfImportConversionMode): {
     maxEmbeddedImagesPerPage: 0,
     maxEmbeddedTotalBytes: 4 * 1024 * 1024,
     maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-    deepseekOcr2Enabled: false,
-    deepseekOcr2Mode: 'fallback',
+    ocrEnabled: false,
+    ocrMode: 'fallback',
+  }
+}
+
+function migrateLegacyPdfOcrKeys(): void {
+  const storage = getLocalStorage()
+  if (!storage) return
+  try {
+    const keys: string[] = []
+    for (let i = 0; i < storage.length; i++) {
+      const k = storage.key(i)
+      if (k) keys.push(k)
+    }
+
+    const legacyEnabledKey = keys.find(k => /:ocr2:enabled$/i.test(k))
+    const legacyModeKey = keys.find(k => /:ocr2:mode$/i.test(k))
+
+    if (legacyEnabledKey) {
+      const v = storage.getItem(legacyEnabledKey)
+      if (v != null && storage.getItem(LS_KEYS.pdfImportOcrEnabled) == null) storage.setItem(LS_KEYS.pdfImportOcrEnabled, v)
+      storage.removeItem(legacyEnabledKey)
+    }
+    if (legacyModeKey) {
+      const v = storage.getItem(legacyModeKey)
+      if (v != null && storage.getItem(LS_KEYS.pdfImportOcrMode) == null) storage.setItem(LS_KEYS.pdfImportOcrMode, v)
+      storage.removeItem(legacyModeKey)
+    }
+  } catch {
+    void 0
   }
 }
 
 export const createUiSlice = (set: SetGraph) => {
+  migrateLegacyPdfOcrKeys()
   return {
     ...createPanelLayoutUiSlice(set),
 
@@ -299,13 +328,34 @@ export const createUiSlice = (set: SetGraph) => {
       value => (typeof value === 'string' ? value : null),
     ),
 
-    pdfImportIncludeImages: lsBool(LS_KEYS.pdfImportIncludeImages, false),
+    pdfImportIncludeImages: lsBool(LS_KEYS.pdfImportIncludeImages, true),
     pdfImportConversionMode: lsJson<PdfImportConversionMode>(LS_KEYS.pdfImportConversionMode, 'text-only', coercePdfImportConversionMode),
+    pdfImportMaxPages: lsInt(LS_KEYS.pdfImportMaxPages, 0),
+    pdfImportMaxPdfBytes: lsInt(LS_KEYS.pdfImportMaxPdfBytes, 100 * 1024 * 1024),
+    pdfImportFetchTimeoutMs: lsInt(LS_KEYS.pdfImportFetchTimeoutMs, 60_000),
+    pdfImportUploadTimeoutMs: lsInt(LS_KEYS.pdfImportUploadTimeoutMs, 30_000),
+    pdfImportConvertTimeoutMs: lsInt(LS_KEYS.pdfImportConvertTimeoutMs, 180_000),
+    pdfImportStreamDecodeCacheMaxBytes: lsInt(LS_KEYS.pdfImportStreamDecodeCacheMaxBytes, 64 * 1024 * 1024),
+    pdfImportContentStreamMaxDecodeBytes: lsInt(LS_KEYS.pdfImportContentStreamMaxDecodeBytes, 8 * 1024 * 1024),
+    pdfImportPageContentMaxBytes: lsInt(LS_KEYS.pdfImportPageContentMaxBytes, 8 * 1024 * 1024),
+    pdfImportCmapMaxBytes: lsInt(LS_KEYS.pdfImportCmapMaxBytes, 256 * 1024),
+    pdfImportMaxToUnicodeStreamBytes: lsInt(LS_KEYS.pdfImportMaxToUnicodeStreamBytes, 256 * 1024),
+    pdfImportToUnicodeMaxDecodeBytes: lsInt(LS_KEYS.pdfImportToUnicodeMaxDecodeBytes, 512 * 1024),
+    pdfImportImageStreamMaxDecodeBytes: lsInt(LS_KEYS.pdfImportImageStreamMaxDecodeBytes, 32 * 1024 * 1024),
+    pdfImportMaxTextContentBytesPerPage: lsInt(LS_KEYS.pdfImportMaxTextContentBytesPerPage, 512 * 1024),
+    pdfImportMaxTextStreamBytes: lsInt(LS_KEYS.pdfImportMaxTextStreamBytes, 256 * 1024),
+    pdfImportMaxFormXObjectBytes: lsInt(LS_KEYS.pdfImportMaxFormXObjectBytes, 512 * 1024),
+    pdfImportMaxFormXObjectStreamBytes: lsInt(LS_KEYS.pdfImportMaxFormXObjectStreamBytes, 256 * 1024),
+    pdfImportMaxFormXObjectCount: lsInt(LS_KEYS.pdfImportMaxFormXObjectCount, 64),
     pdfImportEmbedImages: lsBool(LS_KEYS.pdfImportEmbedImages, false),
     pdfImportMaxExtractedImagesPerPage: lsInt(LS_KEYS.pdfImportMaxExtractedImagesPerPage, 6),
     pdfImportMaxEmbeddedImagesPerPage: lsInt(LS_KEYS.pdfImportMaxEmbeddedImagesPerPage, 6),
     pdfImportMaxEmbeddedTotalBytes: lsInt(LS_KEYS.pdfImportMaxEmbeddedTotalBytes, 4 * 1024 * 1024),
     pdfImportMaxEmbeddedAssetBytes: lsInt(LS_KEYS.pdfImportMaxEmbeddedAssetBytes, 2 * 1024 * 1024),
+    pdfImportReconstructTables: lsBool(LS_KEYS.pdfImportReconstructTables, true),
+    pdfImportTableMinColumns: lsInt(LS_KEYS.pdfImportTableMinColumns, 2),
+    pdfImportTableMinRows: lsInt(LS_KEYS.pdfImportTableMinRows, 3),
+    pdfImportTableMaxRows: lsInt(LS_KEYS.pdfImportTableMaxRows, 60),
     pdfImportProvider: lsJson<'native' | 'docling-remote'>(
       LS_KEYS.pdfImportProvider,
       'native',
@@ -317,9 +367,9 @@ export const createUiSlice = (set: SetGraph) => {
       v => (typeof v === 'string' ? v : null),
     ),
     pdfImportProviderFallbackToNative: lsBool(LS_KEYS.pdfImportProviderFallbackToNative, true),
-    pdfImportDeepseekOcr2Enabled: lsBool(LS_KEYS.pdfImportDeepseekOcr2Enabled, false),
-    pdfImportDeepseekOcr2Mode: lsJson<'fallback' | 'always'>(
-      LS_KEYS.pdfImportDeepseekOcr2Mode,
+    pdfImportOcrEnabled: lsBool(LS_KEYS.pdfImportOcrEnabled, false),
+    pdfImportOcrMode: lsJson<'fallback' | 'always'>(
+      LS_KEYS.pdfImportOcrMode,
       'fallback',
       v => (v === 'always' || v === 'fallback' ? v : 'fallback'),
     ),
@@ -564,10 +614,44 @@ export const createUiSlice = (set: SetGraph) => {
           pdfImportMaxEmbeddedImagesPerPage: lsSetInt(LS_KEYS.pdfImportMaxEmbeddedImagesPerPage, preset.maxEmbeddedImagesPerPage, { min: 0, max: 50 }),
           pdfImportMaxEmbeddedTotalBytes: lsSetInt(LS_KEYS.pdfImportMaxEmbeddedTotalBytes, preset.maxEmbeddedTotalBytes, { min: 0, max: 50 * 1024 * 1024 }),
           pdfImportMaxEmbeddedAssetBytes: lsSetInt(LS_KEYS.pdfImportMaxEmbeddedAssetBytes, preset.maxEmbeddedAssetBytes, { min: 0, max: 20 * 1024 * 1024 }),
-          pdfImportDeepseekOcr2Enabled: lsSetBool(LS_KEYS.pdfImportDeepseekOcr2Enabled, preset.deepseekOcr2Enabled),
-          pdfImportDeepseekOcr2Mode: lsSetJson(LS_KEYS.pdfImportDeepseekOcr2Mode, preset.deepseekOcr2Mode),
+          pdfImportOcrEnabled: lsSetBool(LS_KEYS.pdfImportOcrEnabled, preset.ocrEnabled),
+          pdfImportOcrMode: lsSetJson(LS_KEYS.pdfImportOcrMode, preset.ocrMode),
         } satisfies Partial<GraphState>
       }),
+    setPdfImportMaxPages: (v: number) =>
+      set({ pdfImportMaxPages: lsSetInt(LS_KEYS.pdfImportMaxPages, v, { min: 0, max: 10_000 }) }),
+    setPdfImportMaxPdfBytes: (v: number) =>
+      set({ pdfImportMaxPdfBytes: lsSetInt(LS_KEYS.pdfImportMaxPdfBytes, v, { min: 1_000_000, max: 2_000_000_000 }) }),
+    setPdfImportFetchTimeoutMs: (v: number) =>
+      set({ pdfImportFetchTimeoutMs: lsSetInt(LS_KEYS.pdfImportFetchTimeoutMs, v, { min: 1_000, max: 10 * 60_000 }) }),
+    setPdfImportUploadTimeoutMs: (v: number) =>
+      set({ pdfImportUploadTimeoutMs: lsSetInt(LS_KEYS.pdfImportUploadTimeoutMs, v, { min: 1_000, max: 10 * 60_000 }) }),
+    setPdfImportConvertTimeoutMs: (v: number) =>
+      set({ pdfImportConvertTimeoutMs: lsSetInt(LS_KEYS.pdfImportConvertTimeoutMs, v, { min: 1_000, max: 30 * 60_000 }) }),
+    setPdfImportStreamDecodeCacheMaxBytes: (v: number) =>
+      set({ pdfImportStreamDecodeCacheMaxBytes: lsSetInt(LS_KEYS.pdfImportStreamDecodeCacheMaxBytes, v, { min: 1_000_000, max: 2_000_000_000 }) }),
+    setPdfImportContentStreamMaxDecodeBytes: (v: number) =>
+      set({ pdfImportContentStreamMaxDecodeBytes: lsSetInt(LS_KEYS.pdfImportContentStreamMaxDecodeBytes, v, { min: 64 * 1024, max: 256 * 1024 * 1024 }) }),
+    setPdfImportPageContentMaxBytes: (v: number) =>
+      set({ pdfImportPageContentMaxBytes: lsSetInt(LS_KEYS.pdfImportPageContentMaxBytes, v, { min: 64 * 1024, max: 256 * 1024 * 1024 }) }),
+    setPdfImportCmapMaxBytes: (v: number) =>
+      set({ pdfImportCmapMaxBytes: lsSetInt(LS_KEYS.pdfImportCmapMaxBytes, v, { min: 8 * 1024, max: 32 * 1024 * 1024 }) }),
+    setPdfImportMaxToUnicodeStreamBytes: (v: number) =>
+      set({ pdfImportMaxToUnicodeStreamBytes: lsSetInt(LS_KEYS.pdfImportMaxToUnicodeStreamBytes, v, { min: 8 * 1024, max: 256 * 1024 * 1024 }) }),
+    setPdfImportToUnicodeMaxDecodeBytes: (v: number) =>
+      set({ pdfImportToUnicodeMaxDecodeBytes: lsSetInt(LS_KEYS.pdfImportToUnicodeMaxDecodeBytes, v, { min: 8 * 1024, max: 256 * 1024 * 1024 }) }),
+    setPdfImportImageStreamMaxDecodeBytes: (v: number) =>
+      set({ pdfImportImageStreamMaxDecodeBytes: lsSetInt(LS_KEYS.pdfImportImageStreamMaxDecodeBytes, v, { min: 64 * 1024, max: 2_000_000_000 }) }),
+    setPdfImportMaxTextContentBytesPerPage: (v: number) =>
+      set({ pdfImportMaxTextContentBytesPerPage: lsSetInt(LS_KEYS.pdfImportMaxTextContentBytesPerPage, v, { min: 8 * 1024, max: 256 * 1024 * 1024 }) }),
+    setPdfImportMaxTextStreamBytes: (v: number) =>
+      set({ pdfImportMaxTextStreamBytes: lsSetInt(LS_KEYS.pdfImportMaxTextStreamBytes, v, { min: 8 * 1024, max: 256 * 1024 * 1024 }) }),
+    setPdfImportMaxFormXObjectBytes: (v: number) =>
+      set({ pdfImportMaxFormXObjectBytes: lsSetInt(LS_KEYS.pdfImportMaxFormXObjectBytes, v, { min: 8 * 1024, max: 256 * 1024 * 1024 }) }),
+    setPdfImportMaxFormXObjectStreamBytes: (v: number) =>
+      set({ pdfImportMaxFormXObjectStreamBytes: lsSetInt(LS_KEYS.pdfImportMaxFormXObjectStreamBytes, v, { min: 8 * 1024, max: 256 * 1024 * 1024 }) }),
+    setPdfImportMaxFormXObjectCount: (v: number) =>
+      set({ pdfImportMaxFormXObjectCount: lsSetInt(LS_KEYS.pdfImportMaxFormXObjectCount, v, { min: 0, max: 10_000 }) }),
     setPdfImportEmbedImages: (v: boolean) => set({ pdfImportEmbedImages: lsSetBool(LS_KEYS.pdfImportEmbedImages, !!v) }),
     setPdfImportMaxExtractedImagesPerPage: (v: number) =>
       set({ pdfImportMaxExtractedImagesPerPage: lsSetInt(LS_KEYS.pdfImportMaxExtractedImagesPerPage, v, { min: 0, max: 50 }) }),
@@ -577,16 +661,23 @@ export const createUiSlice = (set: SetGraph) => {
       set({ pdfImportMaxEmbeddedTotalBytes: lsSetInt(LS_KEYS.pdfImportMaxEmbeddedTotalBytes, v, { min: 0, max: 50 * 1024 * 1024 }) }),
     setPdfImportMaxEmbeddedAssetBytes: (v: number) =>
       set({ pdfImportMaxEmbeddedAssetBytes: lsSetInt(LS_KEYS.pdfImportMaxEmbeddedAssetBytes, v, { min: 0, max: 20 * 1024 * 1024 }) }),
+    setPdfImportReconstructTables: (v: boolean) => set({ pdfImportReconstructTables: lsSetBool(LS_KEYS.pdfImportReconstructTables, !!v) }),
+    setPdfImportTableMinColumns: (v: number) =>
+      set({ pdfImportTableMinColumns: lsSetInt(LS_KEYS.pdfImportTableMinColumns, v, { min: 2, max: 12 }) }),
+    setPdfImportTableMinRows: (v: number) =>
+      set({ pdfImportTableMinRows: lsSetInt(LS_KEYS.pdfImportTableMinRows, v, { min: 2, max: 20 }) }),
+    setPdfImportTableMaxRows: (v: number) =>
+      set({ pdfImportTableMaxRows: lsSetInt(LS_KEYS.pdfImportTableMaxRows, v, { min: 5, max: 200 }) }),
     setPdfImportProvider: (v: 'native' | 'docling-remote') =>
       set({ pdfImportProvider: lsSetJson(LS_KEYS.pdfImportProvider, v === 'docling-remote' ? 'docling-remote' : 'native') }),
     setPdfImportDoclingEndpoint: (v: string | null) =>
       set({ pdfImportDoclingEndpoint: lsSetJson(LS_KEYS.pdfImportDoclingEndpoint, typeof v === 'string' ? v : null) }),
     setPdfImportProviderFallbackToNative: (v: boolean) =>
       set({ pdfImportProviderFallbackToNative: lsSetBool(LS_KEYS.pdfImportProviderFallbackToNative, !!v) }),
-    setPdfImportDeepseekOcr2Enabled: (v: boolean) =>
-      set({ pdfImportDeepseekOcr2Enabled: lsSetBool(LS_KEYS.pdfImportDeepseekOcr2Enabled, !!v) }),
-    setPdfImportDeepseekOcr2Mode: (v: 'fallback' | 'always') =>
-      set({ pdfImportDeepseekOcr2Mode: lsSetJson(LS_KEYS.pdfImportDeepseekOcr2Mode, v === 'always' ? 'always' : 'fallback') }),
+    setPdfImportOcrEnabled: (v: boolean) =>
+      set({ pdfImportOcrEnabled: lsSetBool(LS_KEYS.pdfImportOcrEnabled, !!v) }),
+    setPdfImportOcrMode: (v: 'fallback' | 'always') =>
+      set({ pdfImportOcrMode: lsSetJson(LS_KEYS.pdfImportOcrMode, v === 'always' ? 'always' : 'fallback') }),
     setLaunchSpotlightMode: (mode: 'tour' | 'stats') => set({ launchSpotlightMode: mode === 'stats' ? 'stats' : 'tour' }),
     setEnableLaunchSpotlight: (v: boolean) => {
       const storage = getLocalStorage();
