@@ -48,10 +48,26 @@
 **Keys**
 
 - `webpageImportIncludeImages`
-- `webpageImportView` (`markdown` | `json` | `html`)
+- `webpageImportView` (`markdown` | `json` | `html` | `wireframe`)
   - `markdown`: editor/viewer use Markdown (graph parsing remains aligned to Markdown)
   - `json`: editor shows conversion payload JSON; viewer/presentation render the live HTML iframe
   - `html`: viewer/presentation render the live HTML iframe
+  - `wireframe`: editor shows a Markdown outline; viewer/presentation render the live HTML iframe
+
+---
+
+## Import Settings: Website
+
+**Scope**: Markdown Workspace → Import website (sitemap); MainPanel → Settings
+
+**Intent**: Crawl and import a whole website into the workspace as one Markdown file per page, while persisting conversion artifacts (markdown, JSON, wireframe) for fast view switching.
+
+**Keys**
+
+- `websiteImportDiscoverSitemap`
+- `websiteImportMaxPages`
+- `websiteImportConcurrency`
+- `websiteImportOutputDirRel`
 
 ---
 

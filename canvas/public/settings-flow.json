@@ -692,7 +692,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L274; canvas/src/hooks/store/uiSlice.ts:L604"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L292; canvas/src/hooks/store/uiSlice.ts:L604"
   },
   "pdfImportConversionMode": {
     "area": "Import: PDF",
@@ -1305,6 +1305,74 @@
       "zustand"
     ],
     "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L272"
+  },
+  "websiteImportDiscoverSitemap": {
+    "area": "—",
+    "responsibility": "website import discover sitemap",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-webpage.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setWebsiteImportDiscoverSitemap"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L36; canvas/src/hooks/store/uiSettingsSlice.ts:L275"
+  },
+  "websiteImportMaxPages": {
+    "area": "—",
+    "responsibility": "website import max pages",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-webpage.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setWebsiteImportMaxPages"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L45; canvas/src/hooks/store/uiSettingsSlice.ts:L278"
+  },
+  "websiteImportConcurrency": {
+    "area": "—",
+    "responsibility": "website import concurrency",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-webpage.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setWebsiteImportConcurrency"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L54; canvas/src/hooks/store/uiSettingsSlice.ts:L284"
+  },
+  "websiteImportOutputDirRel": {
+    "area": "—",
+    "responsibility": "website import output dir rel",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-webpage.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setWebsiteImportOutputDirRel"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L63; canvas/src/hooks/store/uiSettingsSlice.ts:L290"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",

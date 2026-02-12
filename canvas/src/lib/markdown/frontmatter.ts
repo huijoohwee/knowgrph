@@ -26,7 +26,7 @@ export function readYamlFrontmatterValue(fmBlock: string, key: string): string {
   return v
 }
 
-export type WebpageViewMode = 'markdown' | 'json' | 'html'
+export type WebpageViewMode = 'markdown' | 'json' | 'html' | 'wireframe'
 export type WebpageFrontmatterMeta = { url: string; view: WebpageViewMode }
 
 export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatterMeta | null {
@@ -34,7 +34,8 @@ export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatter
   if (!block) return null
   const url = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageUrl')
   const viewRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageView')
-  const view: WebpageViewMode = viewRaw === 'html' ? 'html' : viewRaw === 'json' ? 'json' : 'markdown'
+  const view: WebpageViewMode =
+    viewRaw === 'html' ? 'html' : viewRaw === 'json' ? 'json' : viewRaw === 'wireframe' ? 'wireframe' : 'markdown'
   if (!url) return null
   return { url, view }
 }
@@ -42,7 +43,8 @@ export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatter
 export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFrontmatterMeta): string {
   const text = String(rawText || '')
   const url = String(meta?.url || '').trim()
-  const view: WebpageViewMode = meta?.view === 'html' ? 'html' : meta?.view === 'json' ? 'json' : 'markdown'
+  const view: WebpageViewMode =
+    meta?.view === 'html' ? 'html' : meta?.view === 'json' ? 'json' : meta?.view === 'wireframe' ? 'wireframe' : 'markdown'
   const block = extractYamlFrontmatterBlock(text)
   const bodyText = block ? block.bodyText : text.replace(/^---[\s\S]*?\n---\s*\n?/, '')
   const lines: string[] = []
@@ -61,7 +63,8 @@ export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageVi
   const url = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageUrl')
   if (!url) return text
 
-  const nextView: WebpageViewMode = view === 'html' ? 'html' : view === 'json' ? 'json' : 'markdown'
+  const nextView: WebpageViewMode =
+    view === 'html' ? 'html' : view === 'json' ? 'json' : view === 'wireframe' ? 'wireframe' : 'markdown'
   const lines = block.rawBlock.split('\n')
   let replaced = false
   const nextLines = lines.map(line => {
@@ -78,4 +81,15 @@ export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageVi
   const nextBlock = nextLines.join('\n')
   const suffix = text.slice(block.rawBlock.length)
   return `${nextBlock}${suffix}`
+}
+
+export type WebsiteImportFrontmatterMeta = { importId: string; nodeId: string }
+
+export function parseWebsiteImportFrontmatterMeta(rawText: string): WebsiteImportFrontmatterMeta | null {
+  const block = extractYamlFrontmatterBlock(rawText)
+  if (!block) return null
+  const importId = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteImportId')
+  const nodeId = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteNodeId')
+  if (!importId || !nodeId) return null
+  return { importId, nodeId }
 }

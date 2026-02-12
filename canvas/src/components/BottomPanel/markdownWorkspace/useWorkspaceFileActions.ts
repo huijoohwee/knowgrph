@@ -22,6 +22,7 @@ import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsE
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
+import { hashStringToHex } from '@/lib/hash/stringHash'
 import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 
 export function shouldForceDocumentSemanticModeForImport(nameForParse: string): boolean {
@@ -354,6 +355,196 @@ export function useWorkspaceFileActions(args: {
     [focusAfterImport, getFs, refresh, setStatusLabel],
   )
 
+  const handleImportWebsite = React.useCallback(
+    async (urlRaw: string) => {
+      const url = String(urlRaw || '').trim()
+      if (!url) return
+      const jobId = (importJobRef.current += 1)
+      setStatusProgress('Importing website')
+      try {
+        const store = useGraphStore.getState()
+        const outputDirRel = String(store.websiteImportOutputDirRel || '').trim()
+        const discoverSitemap = store.websiteImportDiscoverSitemap !== false
+        const maxPages = Number.isFinite(store.websiteImportMaxPages) ? Number(store.websiteImportMaxPages) : 50
+        const concurrency = Number.isFinite(store.websiteImportConcurrency) ? Number(store.websiteImportConcurrency) : 4
+        const includeImages = store.webpageImportIncludeImages ?? true
+        const defaultView = store.webpageImportView
+
+        const startRes = await fetch(
+          `/__website_import/start?outputDirRel=${encodeURIComponent(outputDirRel)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              url,
+              options: { discoverSitemap, maxPages, concurrency, includeImages },
+            }),
+          },
+        )
+        const startJson = (await startRes.json()) as { ok?: unknown; importId?: unknown; error?: unknown }
+        if (importJobRef.current !== jobId) return
+        if (!startRes.ok || startJson.ok !== true || typeof startJson.importId !== 'string') {
+          const err = typeof startJson.error === 'string' && startJson.error.trim() ? startJson.error.trim() : `HTTP ${startRes.status}`
+          setStatusError(`Import failed: ${err}`)
+          return
+        }
+        const importId = startJson.importId
+
+        const pollUntilDone = async (): Promise<'done' | 'failed'> => {
+          const startedAtMs = Date.now()
+          while (true) {
+            if (importJobRef.current !== jobId) throw new Error('cancelled')
+            const statusRes = await fetch(
+              `/__website_import/status?outputDirRel=${encodeURIComponent(outputDirRel)}&importId=${encodeURIComponent(importId)}`,
+              { headers: { Accept: 'application/json' } },
+            )
+            const statusJson = (await statusRes.json()) as { ok?: unknown; status?: unknown }
+            const status = typeof statusJson.status === 'string' ? statusJson.status : ''
+            if (status === 'done') return 'done'
+            if (status === 'failed') return 'failed'
+            if (Date.now() - startedAtMs > 10 * 60_000) return 'failed'
+            await new Promise<void>(resolve => setTimeout(resolve, 650))
+          }
+        }
+
+        const result = await pollUntilDone()
+        if (importJobRef.current !== jobId) return
+        if (result !== 'done') {
+          setStatusError('Import failed')
+          return
+        }
+
+        const manifestRes = await fetch(
+          `/__website_import/manifest?outputDirRel=${encodeURIComponent(outputDirRel)}&importId=${encodeURIComponent(importId)}`,
+          { headers: { Accept: 'application/json' } },
+        )
+        const manifestJson = (await manifestRes.json()) as { ok?: unknown; manifest?: unknown; error?: unknown }
+        if (importJobRef.current !== jobId) return
+        if (!manifestRes.ok || manifestJson.ok !== true || !manifestJson.manifest || typeof manifestJson.manifest !== 'object') {
+          const err = typeof manifestJson.error === 'string' && manifestJson.error.trim() ? manifestJson.error.trim() : `HTTP ${manifestRes.status}`
+          setStatusError(`Import failed: ${err}`)
+          return
+        }
+        const manifest = manifestJson.manifest as { rootUrl?: unknown; nodes?: unknown }
+        const rootUrl = typeof manifest.rootUrl === 'string' ? manifest.rootUrl : url
+        const nodes = Array.isArray(manifest.nodes) ? (manifest.nodes as Array<Record<string, unknown>>) : []
+
+        const host = (() => {
+          try {
+            return new URL(rootUrl).host
+          } catch {
+            return 'website'
+          }
+        })()
+
+        const safeSegment = (raw: string): string => {
+          const s = String(raw || '').trim()
+          if (!s) return 'item'
+          const cleaned = s
+            .replace(/\s+/g, '-')
+            .replace(/[^a-zA-Z0-9._-]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^[-.]+/, '')
+            .replace(/[-.]+$/, '')
+          return cleaned.slice(0, 64) || 'item'
+        }
+
+        const ensureFolderPath = async (fs: WorkspaceFs, absPath: string) => {
+          const normalized = normalizeWorkspacePath(absPath)
+          const segments = normalized.split('/').filter(Boolean)
+          let parent = WORKSPACE_ROOT_PATH
+          for (const seg of segments) {
+            const name = safeSegment(seg)
+            const nextPath = normalizeWorkspacePath(`${parent}/${name}`)
+            try {
+              await fs.createFolder({ parentPath: parent, name })
+            } catch {
+              void 0
+            }
+            parent = nextPath
+          }
+          return parent
+        }
+
+        const stubForNode = (nodeUrl: string, nodeId: string) => {
+          const v = defaultView === 'html' || defaultView === 'json' || defaultView === 'wireframe' ? defaultView : 'markdown'
+          return [`---`, `kgWebpageUrl: "${nodeUrl}"`, `kgWebpageView: "${v}"`, `kgWebsiteImportId: "${importId}"`, `kgWebsiteNodeId: "${nodeId}"`, `---`, ``].join('\n')
+        }
+
+        const fs = await getFs()
+        await fs.ensureSeed()
+
+        const created = await runWorkspaceFsChangedBatch(async () => {
+          const rootFolder = await ensureFolderPath(fs, `/websites/${safeSegment(host)}/${safeSegment(importId)}`)
+          const createdPaths: WorkspacePath[] = []
+          const sources: Array<{ path: WorkspacePath; source: { kind: 'url'; url: string; path: string } }> = []
+
+          for (let i = 0; i < nodes.length; i += 1) {
+            const node = nodes[i] || {}
+            const nodeUrl = typeof node.url === 'string' ? node.url : ''
+            const nodeId = typeof node.nodeId === 'string' ? node.nodeId : hashStringToHex(nodeUrl).slice(0, 16)
+            const status = typeof node.status === 'string' ? node.status : 'ok'
+            if (!nodeUrl || status !== 'ok') continue
+            const nodePath = (() => {
+              try {
+                const u = new URL(nodeUrl)
+                const parts = u.pathname.split('/').filter(Boolean)
+                return parts.map(safeSegment)
+              } catch {
+                return []
+              }
+            })()
+            const leaf = nodePath[nodePath.length - 1] || 'index'
+            const folderParts = nodePath.slice(0, Math.max(0, nodePath.length - 1))
+            const folderPath = folderParts.length ? await ensureFolderPath(fs, `${rootFolder}/${folderParts.join('/')}`) : rootFolder
+
+            const base = leaf || 'index'
+            const nameBase = base.endsWith('.md') ? base.replace(/\.md$/i, '') : base
+            const primaryName = `${nameBase}.md`
+            const text = stubForNode(nodeUrl, nodeId)
+
+            const tryCreate = async (name: string) => {
+              const createdPath = await fs.createFile({ parentPath: folderPath, name, text })
+              createdPaths.push(createdPath)
+              sources.push({ path: createdPath, source: { kind: 'url', url: nodeUrl, path: `workspace:${createdPath}` } })
+              return createdPath
+            }
+
+            try {
+              await tryCreate(primaryName)
+            } catch {
+              const alt = `${nameBase}-${hashStringToHex(nodeUrl).slice(0, 6)}.md`
+              try {
+                await tryCreate(alt)
+              } catch {
+                void 0
+              }
+            }
+            if ((i + 1) % 10 === 0) {
+              setStatusProgress('Writing', i + 1, Math.max(i + 1, nodes.length))
+            }
+          }
+          return { createdPaths, sources }
+        })
+
+        if (importJobRef.current !== jobId) return
+        bulkSetWorkspaceEntrySources(created.sources)
+        await refresh()
+        const first = created.createdPaths[0]
+        if (first) {
+          await focusAfterImport(first, { sourceUrl: null, applyToGraph: false, jobId })
+        }
+        setStatusInfo(`Imported website: ${host}`)
+      } catch (e) {
+        if (importJobRef.current !== jobId) return
+        const msg = String((e as { message?: unknown })?.message ?? e)
+        if (/cancelled/i.test(msg)) return
+        setStatusError(`Import failed: ${msg}`)
+      }
+    },
+    [focusAfterImport, getFs, refresh, setStatusLabel],
+  )
+
   const refreshFileFromSource = React.useCallback(
     async (path: WorkspacePath) => {
       const normalized = normalizeWorkspacePath(path)
@@ -513,6 +704,7 @@ export function useWorkspaceFileActions(args: {
     handleImportLocalFiles,
     handleImportLocalFolder,
     handleImportUrl,
+    handleImportWebsite,
     onDeleteEntry,
     onClearFile,
     refreshFileFromSource,

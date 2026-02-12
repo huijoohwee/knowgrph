@@ -334,8 +334,17 @@ export interface GraphState {
   webpageImportIncludeImages: boolean;
   setWebpageImportIncludeImages: (v: boolean) => void;
 
-  webpageImportView: 'markdown' | 'json' | 'html';
-  setWebpageImportView: (v: 'markdown' | 'json' | 'html') => void;
+  webpageImportView: 'markdown' | 'json' | 'html' | 'wireframe';
+  setWebpageImportView: (v: 'markdown' | 'json' | 'html' | 'wireframe') => void;
+
+  websiteImportDiscoverSitemap: boolean;
+  setWebsiteImportDiscoverSitemap: (v: boolean) => void;
+  websiteImportMaxPages: number;
+  setWebsiteImportMaxPages: (v: number) => void;
+  websiteImportConcurrency: number;
+  setWebsiteImportConcurrency: (v: number) => void;
+  websiteImportOutputDirRel: string;
+  setWebsiteImportOutputDirRel: (v: string) => void;
 
   pdfImportIncludeImages: boolean;
   pdfImportConversionMode: PdfImportConversionMode;

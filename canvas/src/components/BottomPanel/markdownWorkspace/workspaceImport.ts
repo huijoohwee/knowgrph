@@ -394,6 +394,7 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
       const v = useGraphStore.getState().webpageImportView
       if (v === 'html') return 'html'
       if (v === 'json') return 'json'
+      if (v === 'wireframe') return 'wireframe'
       return 'markdown'
     })()
     const webpage = await fetchWebpageMarkdown(normalizedUrl, { includeImages })

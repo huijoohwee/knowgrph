@@ -38,6 +38,7 @@ export async function testMarkdownEditorTextareaHeightAlignsAndSyncScrollsInSpli
         onImportLocalFiles={() => {}}
         onImportLocalFolder={() => {}}
         onImportUrl={() => {}}
+        onImportWebsite={() => {}}
         activeText={'# Title\n\nLine 1\n\nLine 2\n'}
         setActiveText={() => {}}
         activeDocumentKey="doc"

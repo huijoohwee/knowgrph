@@ -13,6 +13,7 @@ import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
 import { unwrapUserProvidedText } from './src/lib/url'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
+import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -247,6 +248,16 @@ const pdfWorkspaceDevPlugin = {
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use(createPdfWorkspaceHandler({ repoRoot }))
+  },
+}
+
+const websiteImportDevPlugin = {
+  name: 'knowgrph-website-import-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use(createWebsiteImportHandler({ repoRoot, pythonBin }))
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use(createWebsiteImportHandler({ repoRoot, pythonBin }))
   },
 }
 
@@ -1256,6 +1267,7 @@ export default defineConfig(({ command }) => ({
           localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,
           pdfWorkspaceDevPlugin,
+          websiteImportDevPlugin,
           youtubeConvertDevPlugin,
           webpageConvertDevPlugin,
         ]),

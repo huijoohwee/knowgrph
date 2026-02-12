@@ -33,7 +33,17 @@ import {
   testNodesLayerHonorsVisualShapeOverrides,
 } from '@/__tests__/nodeShapes2d.test'
 import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
-import { testWebpageFrontmatterRoundtrip, testWebpageFrontmatterUpsertUpdatesExisting, testWebpageFrontmatterSupportsJsonView } from '@/__tests__/webpageFrontmatter.test'
+import {
+  testWebpageFrontmatterRoundtrip,
+  testWebpageFrontmatterUpsertUpdatesExisting,
+  testWebpageFrontmatterSupportsJsonView,
+  testWebpageFrontmatterSupportsWireframeView,
+} from '@/__tests__/webpageFrontmatter.test'
+import {
+  testWebsiteImportSitemapDetectsIndex,
+  testWebsiteImportSitemapExtractsLocs,
+  testWebsiteImportWireframeBuilderIncludesHeadings,
+} from '@/__tests__/websiteImportSitemap.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
 import { testMarkdownWorkspaceWebpageHtmlViewRendersIframe, testMarkdownWorkspaceEditorTextOverrideWorks } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
@@ -940,6 +950,10 @@ export const runAllTests = async () => {
   await exec('webpage.frontmatter.roundtrip', testWebpageFrontmatterRoundtrip)
   await exec('webpage.frontmatter.upsertUpdatesExisting', testWebpageFrontmatterUpsertUpdatesExisting)
   await exec('webpage.frontmatter.supportsJsonView', testWebpageFrontmatterSupportsJsonView)
+  await exec('webpage.frontmatter.supportsWireframeView', testWebpageFrontmatterSupportsWireframeView)
+  await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
+  await exec('websiteImport.sitemap.detectsIndex', testWebsiteImportSitemapDetectsIndex)
+  await exec('websiteImport.wireframe.includesHeadings', testWebsiteImportWireframeBuilderIncludesHeadings)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)

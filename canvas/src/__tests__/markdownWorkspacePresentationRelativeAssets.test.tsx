@@ -50,6 +50,7 @@ export async function testMarkdownWorkspacePresentationResolvesRelativeAssetsAnd
         onImportLocalFiles: () => void 0,
         onImportLocalFolder: () => void 0,
         onImportUrl: () => void 0,
+        onImportWebsite: () => void 0,
         activeText: markdownText,
         setActiveText: () => void 0,
         viewerTextOverride: null,

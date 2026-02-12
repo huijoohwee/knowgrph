@@ -92,6 +92,7 @@ export async function testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange() {
         onImportLocalFiles: () => {},
         onImportLocalFolder: () => {},
         onImportUrl: () => {},
+        onImportWebsite: () => {},
         activeText: '# Hello',
         setActiveText: () => {},
         outlineText: '',

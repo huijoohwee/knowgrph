@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   LayoutPanelTop,
   Link,
+  Globe,
   List,
   ListOrdered,
   Loader2,
@@ -58,6 +59,7 @@ export type MarkdownWorkspaceToolbarProps = {
   onImportLocalFiles: (files: FileList | null) => void
   onImportLocalFolder: (files: FileList | null) => void
   onImportUrl: (url: string) => void
+  onImportWebsite: (url: string) => void
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -87,6 +89,7 @@ export function MarkdownWorkspaceToolbar({
   onImportLocalFiles,
   onImportLocalFolder,
   onImportUrl,
+  onImportWebsite,
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const canNavigateSlides = layoutMode === 'presentation'
@@ -251,27 +254,43 @@ export function MarkdownWorkspaceToolbar({
               }
               aria-label="Import URL input"
             >
-              <input
-                ref={urlInputRef}
-                className={`w-72 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`}
-                placeholder={SOURCE_FILES_COPY.urlPlaceholder}
-                aria-label="Import URL"
-                value={urlDraft}
-                onChange={e => setUrlDraft(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Escape') {
+              <section className="w-72 flex items-stretch gap-1" aria-label="URL import controls">
+                <input
+                  ref={urlInputRef}
+                  className={`flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`}
+                  placeholder={SOURCE_FILES_COPY.urlPlaceholder}
+                  aria-label="Import URL"
+                  value={urlDraft}
+                  onChange={e => setUrlDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      setUrlInputOpen(false)
+                      return
+                    }
+                    if (e.key !== 'Enter') return
                     e.preventDefault()
+                    const next = String(urlDraft || '').trim()
+                    if (!next) return
+                    onImportUrl(next)
                     setUrlInputOpen(false)
-                    return
-                  }
-                  if (e.key !== 'Enter') return
-                  e.preventDefault()
-                  const next = String(urlDraft || '').trim()
-                  if (!next) return
-                  onImportUrl(next)
-                  setUrlInputOpen(false)
-                }}
-              />
+                  }}
+                />
+                <button
+                  type="button"
+                  className={`h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  title="Import website (sitemap)"
+                  aria-label="Import website"
+                  onClick={() => {
+                    const next = String(urlDraft || '').trim()
+                    if (!next) return
+                    onImportWebsite(next)
+                    setUrlInputOpen(false)
+                  }}
+                >
+                  <Globe className="w-4 h-4" strokeWidth={1.6} />
+                </button>
+              </section>
             </section>
           </li>
         </menu>

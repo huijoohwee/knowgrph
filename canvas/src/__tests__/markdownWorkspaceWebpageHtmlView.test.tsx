@@ -25,9 +25,9 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
         setTimeout(() => resolve(), 0)
       })
 
-    const views = ['html', 'json'] as const
+    const views = ['html', 'json', 'wireframe'] as const
     for (const view of views) {
-      const text = ['---', 'kgWebpageUrl: "https://www.anygen.io"', `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
+      const text = ['---', 'kgWebpageUrl: "https://localhost/"', `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
       root.render(
         React.createElement(MarkdownWorkspaceMain, {
           themeMode: 'light',
@@ -42,13 +42,14 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
           statusLabel: null,
           onApply: () => {},
           onToggleFullscreen: () => {},
-          presentationApiRef: presentationApiRef as unknown as React.MutableRefObject<any>,
+          presentationApiRef: presentationApiRef as unknown as React.MutableRefObject<unknown>,
           isEditing: false,
           isMarkdown: true,
           onFormatAction: () => {},
           onImportLocalFiles: () => {},
           onImportLocalFolder: () => {},
           onImportUrl: () => {},
+          onImportWebsite: () => {},
           activeText: text,
           setActiveText: () => {},
           activeDocumentKey: '/webpage.md',
@@ -90,7 +91,7 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
     const editorRef = { current: null as HTMLTextAreaElement | null }
     const presentationApiRef = { current: null }
 
-    const markdown = ['---', 'kgWebpageUrl: "https://www.anygen.io"', 'kgWebpageView: "json"', '---', '', '# Title', ''].join('\n')
+    const markdown = ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "json"', '---', '', '# Title', ''].join('\n')
     const jsonText = JSON.stringify({ ok: true, mode: 'json' }, null, 2)
 
     root.render(
@@ -107,13 +108,14 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
         statusLabel: null,
         onApply: () => {},
         onToggleFullscreen: () => {},
-        presentationApiRef: presentationApiRef as unknown as React.MutableRefObject<any>,
+        presentationApiRef: presentationApiRef as unknown as React.MutableRefObject<unknown>,
         isEditing: true,
         isMarkdown: true,
         onFormatAction: () => {},
         onImportLocalFiles: () => {},
         onImportLocalFolder: () => {},
         onImportUrl: () => {},
+        onImportWebsite: () => {},
         activeText: markdown,
         setActiveText: () => {
           throw new Error('expected editor mutations disabled')

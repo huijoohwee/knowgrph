@@ -38,7 +38,14 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
-import { normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta, type WebpageViewMode } from '@/lib/markdown/frontmatter'
+import {
+  normalizeWebpageFrontmatterView,
+  parseWebpageFrontmatterMeta,
+  parseWebsiteImportFrontmatterMeta,
+  upsertWebpageFrontmatterMeta,
+  type WebpageViewMode,
+} from '@/lib/markdown/frontmatter'
+import { buildWireframeMarkdownFromMarkdown } from '@/lib/websites/wireframe'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
@@ -442,8 +449,17 @@ export function MarkdownWorkspace() {
     return parseWebpageFrontmatterMeta(t)
   }, [activePath, activeText])
 
+  const websiteImportMeta = React.useMemo(() => {
+    if (!activePath) return null
+    if (!isMarkdownPath(activePath)) return null
+    const t = String(activeText || '')
+    if (!t.startsWith('---')) return null
+    return parseWebsiteImportFrontmatterMeta(t)
+  }, [activePath, activeText])
+
   const [pdfWorkspaceViewerTextOverride, setPdfWorkspaceViewerTextOverride] = React.useState<string | null>(null)
   const [webpageWorkspaceEditorTextOverride, setWebpageWorkspaceEditorTextOverride] = React.useState<string | null>(null)
+  const [webpageWorkspaceViewerTextOverride, setWebpageWorkspaceViewerTextOverride] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (layoutMode !== 'viewer' && layoutMode !== 'split') {
@@ -479,32 +495,84 @@ export function MarkdownWorkspace() {
   }, [layoutMode, pdfWorkspaceMeta])
 
   React.useEffect(() => {
-    if (!webpageWorkspaceMeta || webpageWorkspaceMeta.view !== 'json' || !webpageWorkspaceMeta.url) {
+    const url = webpageWorkspaceMeta?.url ? String(webpageWorkspaceMeta.url || '').trim() : ''
+    const view = webpageWorkspaceMeta?.view
+    if (!url || !view) {
       setWebpageWorkspaceEditorTextOverride(null)
+      setWebpageWorkspaceViewerTextOverride(null)
       return
     }
+
     let cancelled = false
     const controller = new AbortController()
     void (async () => {
       try {
-        const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
-        const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { emit: 'json', includeImages, signal: controller.signal })
-        if (cancelled) return
-        if (!res) {
-          setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
+        if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
+          const importId = websiteImportMeta.importId
+          const nodeId = websiteImportMeta.nodeId
+          const kind = view === 'json' ? 'conversionJson' : view === 'wireframe' ? 'wireframeMarkdown' : 'markdown'
+          const res = await fetch(
+            `/__website_import/artifact?importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=${encodeURIComponent(kind)}`,
+            { signal: controller.signal },
+          )
+          const text = await res.text()
+          if (cancelled) return
+          if (!res.ok) {
+            setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: `HTTP ${res.status}` }, null, 2))
+            setWebpageWorkspaceViewerTextOverride(null)
+            return
+          }
+          setWebpageWorkspaceEditorTextOverride(text)
+          setWebpageWorkspaceViewerTextOverride(view === 'markdown' ? text : null)
           return
         }
-        if (res.ok !== true) {
-          setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: String(res.error || 'Conversion failed') }, null, 2))
+
+        if (view === 'json') {
+          const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
+          const res = await fetchWebpageMarkdown(url, { emit: 'json', includeImages, signal: controller.signal })
+          if (cancelled) return
+          if (!res) {
+            setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
+            return
+          }
+          if (res.ok !== true) {
+            setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: String(res.error || 'Conversion failed') }, null, 2))
+            return
+          }
+          const jsonText = res.conversionJsonText || JSON.stringify({ ok: true, name: res.name }, null, 2)
+          setWebpageWorkspaceEditorTextOverride(jsonText)
+          setWebpageWorkspaceViewerTextOverride(null)
           return
         }
-        const jsonText = res.conversionJsonText || JSON.stringify({ ok: true, name: res.name }, null, 2)
-        setWebpageWorkspaceEditorTextOverride(jsonText)
+
+        if (view === 'wireframe') {
+          const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
+          const res = await fetchWebpageMarkdown(url, { includeImages, signal: controller.signal })
+          if (cancelled) return
+          if (!res || res.ok !== true) {
+            setWebpageWorkspaceEditorTextOverride(`# Wireframe\n\nURL: ${url}\n\n- (Load failed)\n`)
+            setWebpageWorkspaceViewerTextOverride(null)
+            return
+          }
+          setWebpageWorkspaceEditorTextOverride(buildWireframeMarkdownFromMarkdown({ markdown: String(res.markdown || ''), url }))
+          setWebpageWorkspaceViewerTextOverride(null)
+          return
+        }
+
+        setWebpageWorkspaceEditorTextOverride(null)
+        setWebpageWorkspaceViewerTextOverride(null)
       } catch {
         if (cancelled) return
+        if (view === 'wireframe') {
+          setWebpageWorkspaceEditorTextOverride(`# Wireframe\n\nURL: ${url}\n\n- (Request failed)\n`)
+          setWebpageWorkspaceViewerTextOverride(null)
+          return
+        }
         setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
+        setWebpageWorkspaceViewerTextOverride(null)
       }
     })()
+
     return () => {
       cancelled = true
       try {
@@ -513,7 +581,7 @@ export function MarkdownWorkspace() {
         void 0
       }
     }
-  }, [webpageWorkspaceMeta])
+  }, [webpageWorkspaceMeta, websiteImportMeta])
 
   const switchActivePdfWorkspaceMode = React.useCallback(
     async (mode: PdfConversionMode) => {
@@ -663,6 +731,7 @@ export function MarkdownWorkspace() {
               { value: 'markdown', label: 'Markdown' },
               { value: 'json', label: 'JSON' },
               { value: 'html', label: 'HTML' },
+              { value: 'wireframe', label: 'Wireframe' },
             ]}
             onChange={next => void switchActiveWebpageWorkspaceView(next)}
           />
@@ -1765,10 +1834,15 @@ export function MarkdownWorkspace() {
     [contentMode],
   )
   const effectiveViewerTextOverride = contentMode === 'nodeQuickEditor' && nodeQuickEditorFormat === 'json' ? quickEditorViewerText : null
-  const combinedViewerTextOverride = effectiveViewerTextOverride || pdfWorkspaceViewerTextOverride
-  const webpageJsonModeActive = contentMode !== 'nodeQuickEditor' && webpageWorkspaceMeta?.view === 'json'
+  const combinedViewerTextOverride = effectiveViewerTextOverride || pdfWorkspaceViewerTextOverride || webpageWorkspaceViewerTextOverride
+  const webpageDerivedReadOnlyActive =
+    contentMode !== 'nodeQuickEditor' &&
+    !!(
+      webpageWorkspaceMeta?.url &&
+      (webpageWorkspaceMeta?.view === 'json' || webpageWorkspaceMeta?.view === 'wireframe' || websiteImportMeta)
+    )
   const effectiveEditorTextOverride = contentMode === 'nodeQuickEditor' ? null : webpageWorkspaceEditorTextOverride
-  const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing && !webpageJsonModeActive
+  const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing && !webpageDerivedReadOnlyActive
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown
 
   return (
@@ -1857,10 +1931,11 @@ export function MarkdownWorkspace() {
           onImportLocalFiles={fileActions.handleImportLocalFiles}
           onImportLocalFolder={fileActions.handleImportLocalFolder}
           onImportUrl={fileActions.handleImportUrl}
+          onImportWebsite={fileActions.handleImportWebsite}
           activeText={effectiveActiveText}
           setActiveText={effectiveSetActiveText}
           editorTextOverride={effectiveEditorTextOverride}
-          disableEditorMutations={!!effectiveEditorTextOverride}
+          disableEditorMutations={!!effectiveEditorTextOverride || webpageDerivedReadOnlyActive}
           viewerTextOverride={combinedViewerTextOverride}
           disableViewerMutations={contentMode === 'nodeQuickEditor'}
           activeDocumentKey={activeDocumentKey}

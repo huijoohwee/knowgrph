@@ -2,10 +2,10 @@ import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta } from '@/lib
 
 export const testWebpageFrontmatterRoundtrip = () => {
   const input = '# Title\n\nHello\n'
-  const withMeta = upsertWebpageFrontmatterMeta(input, { url: 'https://example.com/path', view: 'html' })
+  const withMeta = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'html' })
   const parsed = parseWebpageFrontmatterMeta(withMeta)
   if (!parsed) throw new Error('expected meta')
-  if (parsed.url !== 'https://example.com/path') throw new Error('url mismatch')
+  if (parsed.url !== 'https://localhost/path') throw new Error('url mismatch')
   if (parsed.view !== 'html') throw new Error('view mismatch')
   if (!withMeta.includes(input.trim())) throw new Error('expected body preserved')
 }
@@ -13,26 +13,35 @@ export const testWebpageFrontmatterRoundtrip = () => {
 export const testWebpageFrontmatterUpsertUpdatesExisting = () => {
   const existing = [
     '---',
-    'kgWebpageUrl: "https://a.example/"',
+    'kgWebpageUrl: "https://localhost/a"',
     'kgWebpageView: "markdown"',
     '---',
     '',
     '# Doc',
     '',
   ].join('\n')
-  const next = upsertWebpageFrontmatterMeta(existing, { url: 'https://b.example/x', view: 'html' })
+  const next = upsertWebpageFrontmatterMeta(existing, { url: 'https://localhost/b', view: 'html' })
   const parsed = parseWebpageFrontmatterMeta(next)
   if (!parsed) throw new Error('expected meta')
-  if (parsed.url !== 'https://b.example/x') throw new Error('url mismatch')
+  if (parsed.url !== 'https://localhost/b') throw new Error('url mismatch')
   if (parsed.view !== 'html') throw new Error('view mismatch')
   if (!next.includes('# Doc')) throw new Error('expected body preserved')
 }
 
 export const testWebpageFrontmatterSupportsJsonView = () => {
   const input = '# Title\n\nHello\n'
-  const withMeta = upsertWebpageFrontmatterMeta(input, { url: 'https://example.com/path', view: 'json' })
+  const withMeta = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'json' })
   const parsed = parseWebpageFrontmatterMeta(withMeta)
   if (!parsed) throw new Error('expected meta')
-  if (parsed.url !== 'https://example.com/path') throw new Error('url mismatch')
+  if (parsed.url !== 'https://localhost/path') throw new Error('url mismatch')
   if (parsed.view !== 'json') throw new Error('view mismatch')
+}
+
+export const testWebpageFrontmatterSupportsWireframeView = () => {
+  const input = '# Title\n\nHello\n'
+  const withMeta = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'wireframe' })
+  const parsed = parseWebpageFrontmatterMeta(withMeta)
+  if (!parsed) throw new Error('expected meta')
+  if (parsed.url !== 'https://localhost/path') throw new Error('url mismatch')
+  if (parsed.view !== 'wireframe') throw new Error('view mismatch')
 }

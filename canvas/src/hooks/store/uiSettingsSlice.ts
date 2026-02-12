@@ -259,7 +259,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     const next = summary || null;
     set({ lastTraversalSummary: next });
   },
-  youtubeTranscriptOutputDir: '/Users/huijoohwee/Documents/GitHub/sandbox/test-data/test-youtube-transcript',
+  youtubeTranscriptOutputDir: '.knowgrph-workspace/youtube-transcripts',
   setYoutubeTranscriptOutputDir: (v: string | null) => set({ youtubeTranscriptOutputDir: v }),
 
   youtubeTranscriptOutputFormat: 'markdown' as const,
@@ -269,7 +269,25 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setWebpageImportIncludeImages: (v: boolean) => set({ webpageImportIncludeImages: v }),
 
   webpageImportView: 'markdown' as const,
-  setWebpageImportView: (v: 'markdown' | 'json' | 'html') => set({ webpageImportView: v }),
+  setWebpageImportView: (v: 'markdown' | 'json' | 'html' | 'wireframe') => set({ webpageImportView: v }),
+
+  websiteImportDiscoverSitemap: true,
+  setWebsiteImportDiscoverSitemap: (v: boolean) => set({ websiteImportDiscoverSitemap: !!v }),
+
+  websiteImportMaxPages: 50,
+  setWebsiteImportMaxPages: (v: number) => {
+    const n = Number.isFinite(v) ? Math.floor(Number(v)) : 50
+    set({ websiteImportMaxPages: n < 1 ? 1 : n > 500 ? 500 : n })
+  },
+
+  websiteImportConcurrency: 4,
+  setWebsiteImportConcurrency: (v: number) => {
+    const n = Number.isFinite(v) ? Math.floor(Number(v)) : 4
+    set({ websiteImportConcurrency: n < 1 ? 1 : n > 12 ? 12 : n })
+  },
+
+  websiteImportOutputDirRel: '.knowgrph-workspace/website-imports',
+  setWebsiteImportOutputDirRel: (v: string) => set({ websiteImportOutputDirRel: String(v || '').trim() }),
 
   setPdfImportIncludeImages: (v: boolean) => set({ pdfImportIncludeImages: v }),
 });

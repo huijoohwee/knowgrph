@@ -20,10 +20,52 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     read: () => s().webpageImportView,
     write: v =>
       s().setWebpageImportView(
-        String(v) === 'html' ? 'html' : String(v) === 'json' ? 'json' : 'markdown',
+        String(v) === 'html'
+          ? 'html'
+          : String(v) === 'json'
+            ? 'json'
+            : String(v) === 'wireframe'
+              ? 'wireframe'
+              : 'markdown',
       ),
     docKey: 'webpageImportView',
     default: () => 'markdown',
-    options: ['markdown', 'json', 'html'],
+    options: ['markdown', 'json', 'html', 'wireframe'],
+  },
+  {
+    key: 'websiteImportDiscoverSitemap',
+    type: 'boolean',
+    source: 'store',
+    read: () => s().websiteImportDiscoverSitemap,
+    write: v => s().setWebsiteImportDiscoverSitemap(!!v),
+    docKey: 'websiteImportDiscoverSitemap',
+    default: () => true,
+  },
+  {
+    key: 'websiteImportMaxPages',
+    type: 'number',
+    source: 'store',
+    read: () => s().websiteImportMaxPages,
+    write: v => s().setWebsiteImportMaxPages(Number(v)),
+    docKey: 'websiteImportMaxPages',
+    default: () => 50,
+  },
+  {
+    key: 'websiteImportConcurrency',
+    type: 'number',
+    source: 'store',
+    read: () => s().websiteImportConcurrency,
+    write: v => s().setWebsiteImportConcurrency(Number(v)),
+    docKey: 'websiteImportConcurrency',
+    default: () => 4,
+  },
+  {
+    key: 'websiteImportOutputDirRel',
+    type: 'string',
+    source: 'store',
+    read: () => s().websiteImportOutputDirRel,
+    write: v => s().setWebsiteImportOutputDirRel(String(v)),
+    docKey: 'websiteImportOutputDirRel',
+    default: () => '.knowgrph-workspace/website-imports',
   },
 ]

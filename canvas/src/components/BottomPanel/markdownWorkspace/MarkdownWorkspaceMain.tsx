@@ -36,6 +36,7 @@ export type MarkdownWorkspaceMainProps = {
   onImportLocalFiles: (files: FileList | null) => void
   onImportLocalFolder: (files: FileList | null) => void
   onImportUrl: (url: string) => void
+  onImportWebsite: (url: string) => void
 
   contentMode?: 'document' | 'nodeQuickEditor'
   setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
@@ -160,6 +161,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     onImportLocalFiles,
     onImportLocalFolder,
     onImportUrl,
+    onImportWebsite,
     contentMode,
     setContentMode,
     nodeQuickEditorAvailable,
@@ -187,18 +189,93 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const viewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
   const viewerText = React.useMemo(() => sanitizeInvalidDataUrls(viewerTextRaw), [viewerTextRaw])
 
-  const webpageMeta = React.useMemo(() => parseWebpageFrontmatterMeta(viewerText), [viewerText])
-  const showWebpageHtml = !!(webpageMeta && (webpageMeta.view === 'html' || webpageMeta.view === 'json') && webpageMeta.url)
+  const webpageMeta = React.useMemo(() => parseWebpageFrontmatterMeta(activeText), [activeText])
+  const showWebpageHtml = !!(
+    webpageMeta &&
+    (webpageMeta.view === 'html' || webpageMeta.view === 'json' || webpageMeta.view === 'wireframe') &&
+    webpageMeta.url
+  )
+
+  const scrollRatioByDocRef = React.useRef<Map<string, number>>(new Map())
+  const docKey = String(activeDocumentKey || '')
+
+  const setSavedRatio = React.useCallback(
+    (ratio: number) => {
+      if (!docKey) return
+      const r = clamp01(ratio)
+      const prev = scrollRatioByDocRef.current.get(docKey)
+      if (prev === r) return
+      scrollRatioByDocRef.current.set(docKey, r)
+    },
+    [docKey],
+  )
+
+  const getSavedRatio = React.useCallback(() => {
+    if (!docKey) return 0
+    const v = scrollRatioByDocRef.current.get(docKey)
+    return typeof v === 'number' && Number.isFinite(v) ? clamp01(v) : 0
+  }, [docKey])
 
   React.useEffect(() => {
     if (showWebpageHtml) setViewerEl(null)
   }, [showWebpageHtml])
 
+  React.useEffect(() => {
+    if (!editorEl) return
+    const handleScroll = () => {
+      setSavedRatio(getScrollRatio(editorEl))
+    }
+    editorEl.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      editorEl.removeEventListener('scroll', handleScroll)
+    }
+  }, [editorEl, setSavedRatio])
+
+  React.useEffect(() => {
+    if (!viewerEl) return
+    const handleScroll = () => {
+      setSavedRatio(getScrollRatio(viewerEl))
+    }
+    viewerEl.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      viewerEl.removeEventListener('scroll', handleScroll)
+    }
+  }, [setSavedRatio, viewerEl])
+
+  React.useEffect(() => {
+    const ratio = getSavedRatio()
+    if (!showWebpageHtml) {
+      if (viewerEl) {
+        setScrollRatio(viewerEl, ratio)
+      }
+      if (editorEl && layoutMode === 'editor') {
+        setScrollRatio(editorEl, ratio)
+      }
+      return
+    }
+    const iframe = iframeRef.current
+    if (!iframe) return
+    const sendRatioToIframe = (r: number) => {
+      try {
+        iframe.contentWindow?.postMessage({ kind: 'kg-scroll-sync', ratio: r }, '*')
+      } catch {
+        void 0
+      }
+    }
+    const handleLoad = () => {
+      sendRatioToIframe(ratio)
+    }
+    iframe.addEventListener('load', handleLoad)
+    sendRatioToIframe(ratio)
+    return () => {
+      iframe.removeEventListener('load', handleLoad)
+    }
+  }, [editorEl, getSavedRatio, layoutMode, showWebpageHtml, viewerEl])
+
   useSyncScrollElements(editorEl, viewerEl, layoutMode === 'split' && !showWebpageHtml)
 
   React.useEffect(() => {
     if (!showWebpageHtml) return
-    if (layoutMode !== 'split') return
     const iframe = iframeRef.current
     if (!iframe) return
 
@@ -226,7 +303,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       if (!canSync('editor')) return
       lockRef.owner = 'editor'
       lockRef.until = Date.now() + 180
-      sendRatioToIframe(getScrollRatio(editorEl))
+      const ratio = getScrollRatio(editorEl)
+      setSavedRatio(ratio)
+      sendRatioToIframe(ratio)
     }
 
     const handleMessage = (e: MessageEvent) => {
@@ -235,20 +314,24 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       if (!d || d.kind !== 'kg-scroll-sync') return
       const ratio = typeof d.ratio === 'number' ? d.ratio : NaN
       if (!Number.isFinite(ratio)) return
+      setSavedRatio(ratio)
       if (!editorEl) return
+      if (layoutMode !== 'split') return
       if (!canSync('iframe')) return
       lockRef.owner = 'iframe'
       lockRef.until = Date.now() + 180
       setScrollRatio(editorEl, ratio)
     }
 
-    editorEl?.addEventListener('scroll', handleEditorScroll, { passive: true })
+    if (layoutMode === 'split') {
+      editorEl?.addEventListener('scroll', handleEditorScroll, { passive: true })
+    }
     window.addEventListener('message', handleMessage)
     return () => {
       editorEl?.removeEventListener('scroll', handleEditorScroll)
       window.removeEventListener('message', handleMessage)
     }
-  }, [editorEl, layoutMode, showWebpageHtml])
+  }, [editorEl, layoutMode, setSavedRatio, showWebpageHtml])
 
   React.useEffect(() => {
     if (layoutMode !== 'presentation') {
@@ -465,6 +548,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onImportLocalFiles={onImportLocalFiles}
         onImportLocalFolder={onImportLocalFolder}
         onImportUrl={onImportUrl}
+        onImportWebsite={onImportWebsite}
       />
 
       {layoutMode === 'editor' ? (
