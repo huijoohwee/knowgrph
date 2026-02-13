@@ -692,7 +692,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L292; canvas/src/hooks/store/uiSlice.ts:L604"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L295; canvas/src/hooks/store/uiSlice.ts:L604"
   },
   "pdfImportConversionMode": {
     "area": "Import: PDF",
@@ -1323,6 +1323,23 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L275"
   },
+  "websiteImportGenerateWebpageArtifactDocs": {
+    "area": "—",
+    "responsibility": "website import generate webpage artifact docs",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-webpage.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setWebsiteImportGenerateWebpageArtifactDocs"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L39; canvas/src/hooks/store/uiSettingsSlice.ts:L278"
+  },
   "websiteImportMaxPages": {
     "area": "—",
     "responsibility": "website import max pages",
@@ -1338,7 +1355,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L39; canvas/src/hooks/store/uiSettingsSlice.ts:L278"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L48; canvas/src/hooks/store/uiSettingsSlice.ts:L281"
   },
   "websiteImportConcurrency": {
     "area": "—",
@@ -1355,7 +1372,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L48; canvas/src/hooks/store/uiSettingsSlice.ts:L284"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L57; canvas/src/hooks/store/uiSettingsSlice.ts:L287"
   },
   "websiteImportOutputDirRel": {
     "area": "—",
@@ -1372,7 +1389,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L57; canvas/src/hooks/store/uiSettingsSlice.ts:L290"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L66; canvas/src/hooks/store/uiSettingsSlice.ts:L293"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",

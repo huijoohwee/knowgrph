@@ -63,6 +63,9 @@ HTML/JSON rendering is enforced via sandboxed `srcdoc` iframes (no `src` mode):
   - `GET /__webpage_proxy?url=...`
 - The `srcdoc` builder:
   - strips `Content-Security-Policy` `<meta http-equiv="...">` tags (to avoid self-blocking in `srcdoc`)
+  - strips `<meta http-equiv="refresh">` tags (to prevent auto-redirect inside the iframe)
+  - strips all `<script>` tags and inline `on*=` event handlers from the embedded HTML (untrusted scripts are not executed)
+  - upserts a sandbox CSP meta header to allow images/media/styles but restrict scripts to the injected inline utilities
   - injects a scroll-sync script (iframe ↔ parent via `postMessage`)
   - **upserts** a `<base>` tag:
     - If the HTML appears to contain `/__webpage_proxy` or `/__webpage_asset_proxy` links, base is set to `${window.location.origin}/` so same-origin routes resolve correctly.
@@ -76,6 +79,15 @@ All webpage HTML rendering in Viewer / Presentation / Slides uses a sandboxed if
 - `referrerPolicy="no-referrer"`
 
 The sandbox must forbid top-level navigation (do not include `allow-top-navigation`).
+
+## Website Import → Workspace File Generation
+
+When importing a website (sitemap/tree), each created workspace entry can be generated as a full **Webpage Markdown Artifact** (Document Structure analysis) instead of a frontmatter-only stub.
+
+- Setting: `websiteImportGenerateWebpageArtifactDocs` (default `true`)
+- Behavior: for each manifest node, fetch the stored `page.md` artifact and generate the detailed artifact markdown, while preserving the per-page frontmatter contract keys.
+
+Additionally, the website import root folder includes a generated `website.sitemap.md` artifact that summarizes the imported pages (tree + pages table).
 
 ## View Mode Semantics
 
@@ -92,6 +104,8 @@ All view modes share the same generic signal/token vocabulary derived from Markd
 - `[TIME]`: timecode tokens
 
 The Markdown artifact can render these tokens inline (for example `Nav: [NAV] Docs | [CTA] Get started`) and the Document Structure section includes the same token prefixes.
+
+The workspace toolbar also surfaces a compact token summary for webpage-backed docs so the same `[NAV]/[CTA]/[PRICE]/[TIME]` categorization is visible in `Markdown`, `JSON`, and `HTML` view modes.
 
 ## Webpage Markdown Artifact Structure (No Hardcoded Domains)
 

@@ -48,6 +48,8 @@ import {
 } from '@/__tests__/websiteImportSitemap.test'
 import { testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames } from '@/__tests__/webpageMarkdownArtifact.test'
 import { testWebpageMarkdownArtifactRemotionFixtureSections } from '@/__tests__/webpageMarkdownArtifactRemotionFixture.test'
+import { testWebsiteImportWorkspaceWritesArtifactDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
+import { testWebsiteSitemapMarkdownBuildsTreeAndTable } from '@/__tests__/websiteSitemapMarkdown.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
 import {
   testMarkdownWorkspaceWebpageHtmlViewRendersIframe,
@@ -220,6 +222,10 @@ import {
   testNormalizeWorkspacePathCollapsesExtraSlashes,
   testWorkspaceImportSkipsUnsupportedFilesButContinues,
 } from '@/__tests__/workspaceImportLocal.test'
+import {
+  testWorkspaceImportGitHubRepoImportsFiles,
+  testWorkspaceImportGitHubRepoSitemapHasTemplatesAndStats,
+} from '@/__tests__/workspaceImportGithubRepo.test'
 import { testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace } from '@/__tests__/workspaceSourceFilesSync.test'
 import { testEditorWorkspaceImportForcesDocumentModeForGraphFiles } from '@/__tests__/editorWorkspaceImportSemanticMode.test'
 import { testWorkspaceFsChangedBatchCoalescesNotifications } from '@/__tests__/workspaceFsEventsBatch.test'
@@ -496,6 +502,8 @@ import {
 import { testMarkdownSlideThemeNeversinkAliasesToAcademic } from '@/__tests__/markdownThemeAlias.test'
 import { testMarkdownViewerShowsMissingDocumentPathMessage } from '@/__tests__/markdownMissingDocumentPathMessage.test'
 import { testWorkspaceFolderSelectionDoesNotClearMarkdownDocument } from '@/__tests__/workspaceImportFolderDoesNotClearMarkdownDocument.test'
+import { testMarkdownWorkspaceFolderModeContractOpensDocs } from '@/__tests__/markdownWorkspaceFolderModeContract.test'
+import { testMarkdownWorkspaceEditorUsesGraphStoreFallbackWhenActiveTextEmpty } from '@/__tests__/markdownWorkspaceEditorSsoFallback.test'
 import {
   testLayoutGroupKeyPrefersDeepestMermaidSubgraph,
   testSemanticModeSchemaIsolationRestoresSchemaAndClearsSelection,
@@ -862,6 +870,8 @@ export const runAllTests = async () => {
   await exec('markdown.preview.forcesPrimaryTextColor', testMarkdownPreviewViewerForcesPrimaryTextColor)
   await exec('markdown.preview.missingDocumentPathMessage', testMarkdownViewerShowsMissingDocumentPathMessage)
   await exec('markdown.workspace.folderDoesNotClearMarkdown', testWorkspaceFolderSelectionDoesNotClearMarkdownDocument)
+  await exec('markdown.workspace.folderModeContract.opensDocs', testMarkdownWorkspaceFolderModeContractOpensDocs)
+  await exec('markdown.workspace.editorSsoFallback', testMarkdownWorkspaceEditorUsesGraphStoreFallbackWhenActiveTextEmpty)
   await exec('markdown.loader.normalizesBasename', testMarkdownLoaderKeyNormalizesBasename)
   await exec('markdown.loader.prefersImportedBasenameMatch', testMarkdownLoaderPrefersImportedForBasenameMatch)
   await exec('policy.hashing.sharedContract', testHashStringContractIsSharedAcrossRepos)
@@ -962,10 +972,12 @@ export const runAllTests = async () => {
   await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
   await exec('websiteImport.sitemap.detectsIndex', testWebsiteImportSitemapDetectsIndex)
   await exec('websiteImport.artifactKindForWebpageView', testWebsiteImportArtifactKindForWebpageView)
+  await exec('websiteImport.websiteSitemapMarkdown.buildsTreeAndTable', testWebsiteSitemapMarkdownBuildsTreeAndTable)
   await exec('webpageMarkdownArtifact.doc.includesFrontmatter', testWebpageMarkdownArtifactDocIncludesFrontmatter)
   await exec('webpageMarkdownArtifact.doc.includesLayoutStructure', testWebpageMarkdownArtifactDocIncludesLayoutStructure)
   await exec('webpageMarkdownArtifact.includesLayoutAndMotionFrames', testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames)
   await exec('webpageMarkdownArtifact.remotionFixture.sections', testWebpageMarkdownArtifactRemotionFixtureSections)
+  await exec('websiteImport.workspace.writesArtifactDoc', testWebsiteImportWorkspaceWritesArtifactDoc)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)
@@ -1082,6 +1094,8 @@ export const runAllTests = async () => {
   await exec('workspace.import.localFolder.lazyHydrate', testWorkspaceImportLocalFolderHydratesOnlyOpenedFile)
   await exec('workspace.path.normalizeCollapsesSlashes', testNormalizeWorkspacePathCollapsesExtraSlashes)
   await exec('workspace.import.skipsUnsupportedContinues', testWorkspaceImportSkipsUnsupportedFilesButContinues)
+  await exec('workspace.import.githubRepo', testWorkspaceImportGitHubRepoImportsFiles)
+  await exec('workspace.import.githubRepo.sitemap', testWorkspaceImportGitHubRepoSitemapHasTemplatesAndStats)
   await exec('workspace.sourceFiles.sync.mergesAndPreserves', testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace)
   await exec('workspace.import.semanticMode.forcesDocumentForGraphFiles', testEditorWorkspaceImportForcesDocumentModeForGraphFiles)
 

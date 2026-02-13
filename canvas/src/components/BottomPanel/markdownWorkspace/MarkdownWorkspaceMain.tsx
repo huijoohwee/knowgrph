@@ -11,6 +11,7 @@ import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitMarkdownLines } from '@/lib/markdown'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { parseWebpageFrontmatterMeta, parseWebsiteImportFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
 import {
   buildCodeViewerSrcdoc,
   buildWebpageHtmlSrcdoc,
@@ -337,6 +338,17 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const webpageMeta = React.useMemo(() => parseWebpageFrontmatterMeta(activeText), [activeText])
   const websiteImportMeta = React.useMemo(() => parseWebsiteImportFrontmatterMeta(activeText), [activeText])
+
+  const webpageSignalSummary = React.useMemo(() => {
+    if (!webpageMeta?.url) return null
+    const signals = summarizeCategorizedSignalsFromMarkdown(activeText, { maxLines: 8000, maxPerKind: 24 })
+    return {
+      nav: signals.nav.length,
+      cta: signals.cta.length,
+      price: signals.price.length,
+      time: signals.time.length,
+    }
+  }, [activeText, webpageMeta?.url])
   const showWebpageHtml = !!(
     webpageMeta &&
     (webpageMeta.view === 'html' || webpageMeta.view === 'json') &&
@@ -580,6 +592,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         title={webpageMeta?.url || 'Webpage'}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
         sandbox="allow-scripts"
+        loading="lazy"
+        allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -620,6 +634,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         title={webpageMeta?.url || 'Webpage'}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
         sandbox="allow-scripts"
+        loading="lazy"
+        allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -657,6 +673,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         title={webpageMeta?.url || 'Webpage'}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
         sandbox="allow-scripts"
+        loading="lazy"
+        allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -716,6 +734,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onImportLocalFolder={onImportLocalFolder}
         onImportUrl={onImportUrl}
         onImportWebsite={onImportWebsite}
+        webpageSignalSummary={webpageSignalSummary}
       />
 
       {layoutMode === 'editor' ? (

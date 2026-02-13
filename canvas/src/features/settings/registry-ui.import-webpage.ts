@@ -36,6 +36,15 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     default: () => true,
   },
   {
+    key: 'websiteImportGenerateWebpageArtifactDocs',
+    type: 'boolean',
+    source: 'store',
+    read: () => s().websiteImportGenerateWebpageArtifactDocs,
+    write: v => s().setWebsiteImportGenerateWebpageArtifactDocs(!!v),
+    docKey: 'websiteImportGenerateWebpageArtifactDocs',
+    default: () => true,
+  },
+  {
     key: 'websiteImportMaxPages',
     type: 'number',
     source: 'store',

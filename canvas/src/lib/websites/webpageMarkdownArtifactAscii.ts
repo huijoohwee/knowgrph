@@ -116,6 +116,66 @@ export const renderTemplateGalleryGrid = (items: string[]) => {
   ].join('\n')
 }
 
+export const renderTemplateGalleryGridTwoRows = (items: string[]) => {
+  const picked = items.map(s => stripTrailingPunctuation(normalizeInline(s))).filter(Boolean)
+  if (picked.length < 6) return renderTemplateGalleryGrid(picked)
+
+  const cols = 6
+  const widths = [8, 8, 9, 14, 10, 16]
+  const row = (cells: string[]) => `│${cells.map((t, i) => padCenter(t, widths[i] || 8)).join('│')}│`
+  const isPrompt = (s: string) => /\bprompt\b/i.test(s)
+  const isFinder = (s: string) => /\bfind\b/i.test(s)
+  const cell = (labelRaw: string, idx: number) => {
+    const w = widths[idx] || 8
+    const label = /^find\s+a\s+template/i.test(labelRaw) ? 'Find a template →' : labelRaw
+    if (/^blank$/i.test(label)) return { a: ' [Blank]', b: '' }
+    if (/^find\s+a\s+template\s*→?$/i.test(label)) {
+      return { a: '   Find a       ', b: '   template →   ' }
+    }
+    return splitWordsToTwoLines(label, { a: w, b: w })
+  }
+
+  const buildRows = (slice: string[]) => {
+    const out: string[] = []
+    const c = Array.from({ length: cols }).map((_, i) => cell(slice[i] || '', i))
+    const iconsA = slice.map((t) => {
+      if (isFinder(t)) return ''
+      if (isPrompt(t)) return 'Graphics'
+      return '[□]'
+    })
+    const iconsB = slice.map((t) => {
+      if (isPrompt(t)) return '[□]'
+      return ''
+    })
+    while (iconsA.length < cols) iconsA.push('')
+    while (iconsB.length < cols) iconsB.push('')
+    out.push(row(['', '', '', '', '', '']))
+    out.push(row([c[0].a, c[1].a, c[2].a, c[3].a, c[4].a, c[5].a]))
+    out.push(row([c[0].b, c[1].b, c[2].b, c[3].b, c[4].b, c[5].b]))
+    out.push(row([iconsA[0] || '', iconsA[1] || '', iconsA[2] || '', iconsA[3] || '', iconsA[4] || '', iconsA[5] || '']))
+    out.push(row([iconsB[0] || '', iconsB[1] || '', iconsB[2] || '', iconsB[3] || '', iconsB[4] || '', iconsB[5] || '']))
+    return out
+  }
+
+  const first = picked.slice(0, 6)
+  const second = picked.slice(6, 12)
+  const secondHas = second.some(Boolean)
+
+  return [
+    '┌─────────────────────────────────────────────────────────────────────────┐',
+    '│  QUICK START TEMPLATES                                                  │',
+    '├────────┬────────┬─────────┬──────────────┬──────────┬─────────────────┤',
+    ...buildRows(first),
+    ...(secondHas
+      ? [
+          '├────────┼────────┼─────────┼──────────────┼──────────┼─────────────────┤',
+          ...buildRows(second),
+        ]
+      : []),
+    '└────────┴────────┴─────────┴──────────────┴──────────┴─────────────────┘',
+  ].join('\n')
+}
+
 export const buildLayoutStructureAscii = (args: { navLabels: string[]; ctaLabels: string[] }) => {
   const all = [...args.navLabels, ...args.ctaLabels]
     .map(t => stripTrailingPunctuation(normalizeInline(t)))

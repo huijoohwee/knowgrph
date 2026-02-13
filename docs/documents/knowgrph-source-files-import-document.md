@@ -20,6 +20,18 @@
 
 **Supported Formats**: Local import/export supports `.md .markdown .txt .json .jsonld .csv .html .htm .yaml .yml`, URL sources via `https://…`, and YouTube imports via the YouTube importer.
 
+**GitHub Repo URL Rule**: When Import URL receives a GitHub repository URL (e.g. `https://github.com/<owner>/<repo>`), it must:
+
+- Write a synthesized repo overview doc `repo.sitemap.md` into the created workspace folder and focus it as the first opened file.
+- Also write `repo.user-journey.md` (user journey flow + UI map) into the same folder.
+- Import up to a bounded number of likely-text files via `raw.githubusercontent.com` (no folder-by-folder `contents` crawling).
+- Continue on per-file failures (record them) instead of failing the whole import.
+- Emit progress toasts and bounded progress logs into MainPanel History → Log.
+
+**Folder Mode Contract Rule**: When the user selects a workspace folder that contains `repo.sitemap.md` / `repo.user-journey.md`, the explorer row must show a right-side dropdown (same UI as File Mode Contract) that switches the Editor SSOT between Sitemap and User Journey.
+
+**Sitemap LOD Rule**: `repo.sitemap.md` must include (bounded) Repository Statistics, a Directory Structure tree, extracted README feature groups with per-section “Section Statistics”, a Template Showcase grid + table, and a Core Entry Points section that derives function/class/method tables from key source files when available.
+
 **UI Consolidation Rule**: Workspace Actions lives in MainPanel Workflow only; FloatingPanel is reserved for transient views (e.g. Props, Renderer, Traversal) to avoid duplicated controls.
 
 **Workflow Aside Rule**: Workflow uses the shared MainPanel `<aside>` wrapper (same scrolling contract as Settings) and reuses the shared Expand/Collapse All header control.
@@ -137,7 +149,7 @@ sequenceDiagram
 **Shared token vocabulary (mode-independent)**: the app uses a generic signal extraction layer to derive consistent tokens from Markdown across modes: `[NAV]`, `[CTA]`, `[LINK]`, `[PRICE]`, `[TIME]`.
 - **Iframe implementation**:
   - Enforce `srcdoc`: fetch from same-origin proxy or stored artifact, inject `<base>` + scroll-sync, and strip CSP meta tags to avoid self-blocking.
-- **Iframe sandbox policy**: Use `sandbox="allow-scripts"` with `referrerPolicy="no-referrer"`; forbid top-level navigation.
+- **Iframe sandbox policy**: Use `sandbox="allow-scripts"` with `referrerPolicy="no-referrer"`; forbid top-level navigation. Also set a restrictive `allow` feature policy (no geolocation/camera/mic/payment/clipboard).
 - **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers, trigger re-parsing/apply-to-graph, or write default import settings.
 - **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy` for same-origin loading, and sets a self-origin `<base>` to prevent accidental navigation to the remote site.
 - **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
@@ -145,6 +157,10 @@ sequenceDiagram
 ### Website Import (Sitemap/Tree → Workspace Pages + Artifact-Backed View Switching)
 
 **From/To**: Markdown Workspace → Import website (Globe button) → `/__website_import/start` → sitemap discovery + bounded crawling → per-page artifacts persisted under `.knowgrph-workspace/website-imports/<importId>/nodes/<nodeId>/` → workspace stubs written under `/websites/<host>/<importId>/...`.
+
+**Website Sitemap Artifact (workspace)**:
+- Writes `website.sitemap.md` at the website import root folder.
+- Contains a tree view (ASCII) and a page table (path/title/url) so imported webpages are visible in a single sitemap document.
 
 **Per-Page Stub Contract (frontmatter)**:
 - `kgWebpageUrl`: canonical page URL

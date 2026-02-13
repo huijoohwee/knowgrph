@@ -141,6 +141,8 @@ export function MarkdownWorkspace() {
   const applyMarkdownDocumentToGraph = useGraphStore(s => s.applyMarkdownDocumentToGraph)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const setMarkdownDocumentSourceUrl = useGraphStore(s => s.setMarkdownDocumentSourceUrl)
+  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
+  const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
   const setGraphData = useGraphStore(s => s.setGraphData)
 
@@ -182,6 +184,11 @@ export function MarkdownWorkspace() {
   const [backlinksCollapsed, setBacklinksCollapsed] = React.useState(() => lsBool(LS_KEYS.markdownExplorerBacklinksCollapsed, false))
   const [markdownWordWrap, setMarkdownWordWrap] = React.useState(() => lsBool(LS_KEYS.markdownWordWrap, true))
   const [markdownTextHighlight, setMarkdownTextHighlight] = React.useState(() => lsBool(LS_KEYS.markdownTextHighlight, false))
+  type FolderModeContract = 'sitemap' | 'user-journey'
+  const parseFolderModeContract = (raw: unknown): FolderModeContract => (raw === 'user-journey' ? 'user-journey' : 'sitemap')
+  const [folderModeContract, setFolderModeContract] = React.useState<FolderModeContract>(() =>
+    lsJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, 'sitemap', parseFolderModeContract),
+  )
   const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>(() =>
     lsJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, 'viewer', parseMarkdownWorkspaceLayoutMode),
   )
@@ -748,9 +755,68 @@ export function MarkdownWorkspace() {
     ],
   )
 
+  const resolveFolderContractDocPath = React.useCallback(
+    (folderPath: WorkspacePath, mode: FolderModeContract): WorkspacePath => {
+      const normalized = normalizeWorkspacePath(folderPath)
+      const leaf = mode === 'user-journey' ? 'repo.user-journey.md' : 'repo.sitemap.md'
+      return normalizeWorkspacePath(`${normalized.replace(/\/+$/, '')}/${leaf}`)
+    },
+    [],
+  )
+
+  const setActivePathSafe = React.useCallback(
+    (path: WorkspacePath) => {
+      const normalized = normalizeWorkspacePath(path)
+      lastRequestedActivePathRef.current = { path: normalized, atMs: Date.now() }
+      setActivePath(normalized)
+    },
+    [setActivePath],
+  )
+
+  const pickFolderContractTargetPath = React.useCallback(
+    (folderPath: WorkspacePath, preferredMode: FolderModeContract): WorkspacePath | null => {
+      const folder = normalizeWorkspacePath(folderPath)
+      const preferred = resolveFolderContractDocPath(folder, preferredMode)
+      if (entries.some(e => e.kind === 'file' && e.path === preferred)) return preferred
+
+      const alternateMode: FolderModeContract = preferredMode === 'sitemap' ? 'user-journey' : 'sitemap'
+      const alternate = resolveFolderContractDocPath(folder, alternateMode)
+      if (entries.some(e => e.kind === 'file' && e.path === alternate)) return alternate
+
+      const prefix = folder === '/' ? '/' : `${folder}/`
+      const firstDescendantFile = entries.find(e => e.kind === 'file' && e.path.startsWith(prefix)) || null
+      return firstDescendantFile ? firstDescendantFile.path : null
+    },
+    [entries, resolveFolderContractDocPath],
+  )
+
   const renderSourceFileRight = React.useCallback(
     (args: { entry: WorkspaceEntry; isActive: boolean }) => {
       if (!args.isActive) return null
+
+      if (args.entry.kind === 'folder') {
+        const sitemapPath = resolveFolderContractDocPath(args.entry.path, 'sitemap')
+        const journeyPath = resolveFolderContractDocPath(args.entry.path, 'user-journey')
+        const hasSitemap = entries.some(e => e.kind === 'file' && e.path === sitemapPath)
+        const hasJourney = entries.some(e => e.kind === 'file' && e.path === journeyPath)
+        if (!hasSitemap && !hasJourney) return null
+        return (
+          <WorkspaceModeSelect<FolderModeContract>
+            ariaLabel="Folder mode contract"
+            value={folderModeContract}
+            isActive={args.isActive}
+            options={[
+              { value: 'sitemap', label: 'Sitemap' },
+              { value: 'user-journey', label: 'User Journey' },
+            ]}
+            onChange={next => {
+              setFolderModeContract(next)
+              const target = pickFolderContractTargetPath(args.entry.path, next)
+              if (target) setActivePathSafe(target)
+            }}
+          />
+        )
+      }
 
       if (youtubeWorkspaceMeta) {
         return (
@@ -802,8 +868,13 @@ export function MarkdownWorkspace() {
       )
     },
     [
+      entries,
+      folderModeContract,
       handleSetPdfImportConversionMode,
       pdfWorkspaceMeta,
+      resolveFolderContractDocPath,
+      setActivePathSafe,
+      setFolderModeContract,
       switchActivePdfWorkspaceMode,
       switchActiveWebpageWorkspaceView,
       youtubeWorkspaceMeta,
@@ -830,16 +901,6 @@ export function MarkdownWorkspace() {
   React.useEffect(() => {
     void refresh()
   }, [refresh])
-
-
-  const setActivePathSafe = React.useCallback(
-    (path: WorkspacePath) => {
-      const normalized = normalizeWorkspacePath(path)
-      lastRequestedActivePathRef.current = { path: normalized, atMs: Date.now() }
-      setActivePath(normalized)
-    },
-    [setActivePath],
-  )
 
   const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
     setSelectionPath(normalizeWorkspacePath(path))
@@ -903,6 +964,10 @@ export function MarkdownWorkspace() {
   React.useEffect(() => {
     lsSetBool(LS_KEYS.markdownTextHighlight, markdownTextHighlight)
   }, [markdownTextHighlight])
+
+  React.useEffect(() => {
+    lsSetJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, folderModeContract)
+  }, [folderModeContract])
 
   React.useEffect(() => {
     lsSetJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, layoutMode)
@@ -1882,8 +1947,10 @@ export function MarkdownWorkspace() {
   const onSelectFolder = React.useCallback(
     (path: WorkspacePath) => {
       setSelectionPathSafe(path)
+      const target = pickFolderContractTargetPath(path, folderModeContract)
+      if (target) setActivePathSafe(target)
     },
-    [setSelectionPathSafe],
+    [folderModeContract, pickFolderContractTargetPath, setActivePathSafe, setSelectionPathSafe],
   )
 
   const handleApply = React.useCallback(async () => {
@@ -2001,7 +2068,14 @@ export function MarkdownWorkspace() {
 
   const showGraphTable = workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable'
 
-  const effectiveActiveText = contentMode === 'nodeQuickEditor' ? quickEditorEditorText : activeText
+  const effectiveActiveText = (() => {
+    if (contentMode === 'nodeQuickEditor') return quickEditorEditorText
+    if (activeText) return activeText
+    if (markdownDocumentName === activeDocumentKey && typeof markdownDocumentText === 'string' && markdownDocumentText) {
+      return markdownDocumentText
+    }
+    return activeText
+  })()
   const effectiveSetActiveText = React.useCallback(
     (next: string) => {
       if (contentMode === 'nodeQuickEditor') return

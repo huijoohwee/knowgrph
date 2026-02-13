@@ -64,12 +64,15 @@ export const createUiToastSlice = (
       const message = String(toast?.message || '').trim()
       if (!id || !message) return
       set((state) => {
+        const shouldLog = toast?.log !== false
         const nowMs = Date.now()
         const nextToast = buildToast(toast, nowMs)
         const cur = state.uiToasts || []
         const deduped = cur.filter(t => t.id !== id)
         const next = [nextToast, ...deduped].slice(0, MAX_TOASTS)
-        return { uiToasts: next, ...appendToastLog({ state, toast: nextToast, source: 'toast:push' }) }
+        return shouldLog
+          ? { uiToasts: next, ...appendToastLog({ state, toast: nextToast, source: 'toast:push' }) }
+          : { uiToasts: next }
       })
     },
     upsertUiToast: (toast) => {
@@ -77,6 +80,7 @@ export const createUiToastSlice = (
       const message = String(toast?.message || '').trim()
       if (!id || !message) return
       set((state) => {
+        const shouldLog = toast?.log !== false
         const nowMs = Date.now()
         const cur = state.uiToasts || []
         const idx = cur.findIndex(t => t.id === id)
@@ -84,7 +88,9 @@ export const createUiToastSlice = (
         if (idx < 0) {
           const deduped = cur.filter(t => t.id !== id)
           const next = [nextToast, ...deduped].slice(0, MAX_TOASTS)
-          return { uiToasts: next, ...appendToastLog({ state, toast: nextToast, source: 'toast:upsert' }) }
+          return shouldLog
+            ? { uiToasts: next, ...appendToastLog({ state, toast: nextToast, source: 'toast:upsert' }) }
+            : { uiToasts: next }
         }
         const prev = cur[idx]
         const ttlMs = nextToast.expiresAtMs == null ? null : Math.max(0, nextToast.expiresAtMs - nowMs)
@@ -97,10 +103,12 @@ export const createUiToastSlice = (
           expiresAtMs: nextExpiresAtMs,
         }
         const rest = cur.filter(t => t.id !== id)
-        return {
-          uiToasts: [merged, ...rest].slice(0, MAX_TOASTS),
-          ...appendToastLog({ state, toast: nextToast, source: 'toast:upsert' }),
-        }
+        return shouldLog
+          ? {
+              uiToasts: [merged, ...rest].slice(0, MAX_TOASTS),
+              ...appendToastLog({ state, toast: nextToast, source: 'toast:upsert' }),
+            }
+          : { uiToasts: [merged, ...rest].slice(0, MAX_TOASTS) }
       })
     },
     dismissUiToast: (id) => {

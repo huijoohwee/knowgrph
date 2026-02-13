@@ -10,7 +10,13 @@ export function describeFetchRemoteTextFailure(res: FetchRemoteTextFailure): str
     }
     return 'Too large'
   }
-  if (res.kind === 'http') return `HTTP ${res.status || 400}`
+  if (res.kind === 'http') {
+    const base = `HTTP ${res.status || 400}`
+    const extra = String((res as unknown as { errorText?: unknown }).errorText || '').trim()
+    if (!extra) return base
+    const oneLine = extra.replace(/\s+/g, ' ').trim()
+    const clipped = oneLine.length > 160 ? `${oneLine.slice(0, 160)}…` : oneLine
+    return `${base}: ${clipped}`
+  }
   return 'Request failed'
 }
-

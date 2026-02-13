@@ -274,6 +274,9 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   websiteImportDiscoverSitemap: true,
   setWebsiteImportDiscoverSitemap: (v: boolean) => set({ websiteImportDiscoverSitemap: !!v }),
 
+  websiteImportGenerateWebpageArtifactDocs: true,
+  setWebsiteImportGenerateWebpageArtifactDocs: (v: boolean) => set({ websiteImportGenerateWebpageArtifactDocs: !!v }),
+
   websiteImportMaxPages: 50,
   setWebsiteImportMaxPages: (v: number) => {
     const n = Number.isFinite(v) ? Math.floor(Number(v)) : 50

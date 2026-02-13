@@ -19,6 +19,46 @@ const stripCspMeta = (html: string): string => {
   return raw.replace(/<meta\s+[^>]*http-equiv\s*=\s*("|')?content-security-policy\1?[^>]*>/gi, '')
 }
 
+const stripRefreshMeta = (html: string): string => {
+  const raw = String(html || '')
+  if (!raw.toLowerCase().includes('http-equiv')) return raw
+  return raw.replace(/<meta\s+[^>]*http-equiv\s*=\s*("|')?refresh\1?[^>]*>/gi, '')
+}
+
+const stripScriptTags = (html: string): string => {
+  const raw = String(html || '')
+  if (!raw.toLowerCase().includes('<script')) return raw
+  return raw.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+}
+
+const stripInlineEventHandlers = (html: string): string => {
+  const raw = String(html || '')
+  if (!/\son[a-z]+\s*=/.test(raw)) return raw
+  return raw.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+}
+
+const upsertSandboxCspMeta = (html: string, csp: string): string => {
+  const raw = String(html || '')
+  const content = String(csp || '').trim()
+  if (!content) return raw
+  const injection = `<meta http-equiv="Content-Security-Policy" content="${escapeHtml(content)}">`
+  const lower = raw.toLowerCase()
+  if (lower.includes('http-equiv') && lower.includes('content-security-policy')) {
+    return raw.replace(/<meta\s+[^>]*http-equiv\s*=\s*("|')?content-security-policy\1?[^>]*>/i, injection)
+  }
+  const headOpen = lower.indexOf('<head')
+  if (headOpen >= 0) {
+    const headEnd = lower.indexOf('>', headOpen)
+    if (headEnd >= 0) return `${raw.slice(0, headEnd + 1)}\n${injection}\n${raw.slice(headEnd + 1)}`
+  }
+  const htmlOpen = lower.indexOf('<html')
+  if (htmlOpen >= 0) {
+    const htmlEnd = lower.indexOf('>', htmlOpen)
+    if (htmlEnd >= 0) return `${raw.slice(0, htmlEnd + 1)}\n<head>\n${injection}\n</head>\n${raw.slice(htmlEnd + 1)}`
+  }
+  return `<!doctype html><html><head>\n${injection}\n</head><body>\n${raw}\n</body></html>`
+}
+
 const upsertBaseTag = (html: string, baseHref: string): string => {
   const raw = String(html || '')
   const href = String(baseHref || '').trim()
@@ -118,12 +158,14 @@ export const buildCodeViewerSrcdoc = (args: { baseHref: string; title: string; m
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
   const label = args.mode === 'json' ? 'JSON' : 'Text'
   const body = escapeHtml(args.text)
+  const csp = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
   const html = [
     '<!doctype html>',
     '<html>',
     '<head>',
     `<meta charset="utf-8">`,
     `<meta name="viewport" content="width=device-width, initial-scale=1">`,
+    `<meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">`,
     `<base href="${escapeHtml(baseHref)}">`,
     `<title>${title}</title>`,
     '<style>',
@@ -231,7 +273,7 @@ export async function fetchWebsiteImportArtifact(args: {
 
 export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string }): string => {
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
-  const cleaned = stripCspMeta(String(args.html || ''))
+  const cleaned = stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(String(args.html || '')))))
   const looksProxied = cleaned.includes('/__webpage_asset_proxy?url=') || cleaned.includes('/__webpage_proxy?url=')
   const selfOriginBaseHref = (() => {
     try {
@@ -242,5 +284,8 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string })
     }
   })()
   const chosen = looksProxied ? (selfOriginBaseHref || baseHref) : baseHref
-  return injectScrollSync(upsertBaseTag(cleaned, chosen))
+  const csp = "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:;"
+  const withBase = upsertBaseTag(cleaned, chosen)
+  const withCsp = upsertSandboxCspMeta(withBase, csp)
+  return injectScrollSync(withCsp)
 }

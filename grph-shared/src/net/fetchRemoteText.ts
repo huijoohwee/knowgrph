@@ -16,6 +16,7 @@ export type FetchRemoteTextFailure = {
   usedProxy: boolean
   status?: number
   contentLength?: number
+  errorText?: string
 }
 
 export type FetchRemoteTextResult = FetchRemoteTextSuccess | FetchRemoteTextFailure
@@ -33,6 +34,7 @@ export type FetchRemoteTextDetailedOptions = {
 
 const DEFAULT_TIMEOUT_MS = 12_000
 const DEFAULT_MAX_BYTES = 2_000_000
+const DEFAULT_ERROR_TEXT_MAX_BYTES = 16_000
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   if (!timeoutMs || timeoutMs <= 0) return promise
@@ -140,7 +142,17 @@ async function fetchVia(url: string, options: FetchRemoteTextDetailedOptions, us
     const res = await withTimeout(fetch(targetUrl), timeoutMs)
     const status = res.status
     if (!res.ok) {
-      return { ok: false, kind: 'http', url, usedProxy: useProxy, status }
+      const errorText = await (async () => {
+        try {
+          const body = await readResponseTextBounded(res, { maxBytes: Math.min(maxBytes, DEFAULT_ERROR_TEXT_MAX_BYTES) })
+          if (!('text' in body)) return undefined
+          const t = String(body.text || '')
+          return t.length > DEFAULT_ERROR_TEXT_MAX_BYTES ? t.slice(0, DEFAULT_ERROR_TEXT_MAX_BYTES) : t
+        } catch {
+          return undefined
+        }
+      })()
+      return { ok: false, kind: 'http', url, usedProxy: useProxy, status, errorText }
     }
     const body = await readResponseTextBounded(res, { maxBytes, onProgress: options.onProgress })
     if (!('text' in body)) {

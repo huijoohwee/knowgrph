@@ -82,6 +82,7 @@ export type UiToastInput = {
   message: string
   ttlMs?: number | null
   dismissible?: boolean
+  log?: boolean
 }
 
 export type UiLogKind = UiToastKind
@@ -339,6 +340,9 @@ export interface GraphState {
 
   websiteImportDiscoverSitemap: boolean;
   setWebsiteImportDiscoverSitemap: (v: boolean) => void;
+
+  websiteImportGenerateWebpageArtifactDocs: boolean;
+  setWebsiteImportGenerateWebpageArtifactDocs: (v: boolean) => void;
   websiteImportMaxPages: number;
   setWebsiteImportMaxPages: (v: number) => void;
   websiteImportConcurrency: number;

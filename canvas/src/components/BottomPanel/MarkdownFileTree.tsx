@@ -113,7 +113,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
             <span className="truncate">{entry.name || (isFolder ? 'folder' : 'file')}</span>
             {isUrlSource ? <LinkIcon className="w-3 h-3 shrink-0 opacity-70" aria-label="Imported from URL" /> : null}
           </button>
-          {!isFolder && renderFileRight ? (
+          {renderFileRight ? (
             <span className="shrink-0" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
               {renderFileRight({ entry, isActive })}
             </span>

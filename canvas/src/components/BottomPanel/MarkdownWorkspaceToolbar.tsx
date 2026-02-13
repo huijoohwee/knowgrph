@@ -64,6 +64,13 @@ export type MarkdownWorkspaceToolbarProps = {
   onImportLocalFolder: (files: FileList | null) => void
   onImportUrl: (url: string) => void
   onImportWebsite: (url: string) => void
+
+  webpageSignalSummary?: {
+    nav: number
+    cta: number
+    price: number
+    time: number
+  } | null
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -96,6 +103,7 @@ export function MarkdownWorkspaceToolbar({
   onImportLocalFolder,
   onImportUrl,
   onImportWebsite,
+  webpageSignalSummary,
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const canNavigateSlides = layoutMode === 'presentation'
@@ -125,6 +133,38 @@ export function MarkdownWorkspaceToolbar({
       </span>
     )
   }, [applyStatus, panelTypography.microLabelClass])
+
+  const webpageSignalsNode = React.useMemo(() => {
+    const s = webpageSignalSummary
+    if (!s) return null
+    const items: Array<{ label: string; value: number; tone: 'nav' | 'cta' | 'price' | 'time' }> = [
+      { label: 'NAV', value: s.nav, tone: 'nav' },
+      { label: 'CTA', value: s.cta, tone: 'cta' },
+      { label: 'PRICE', value: s.price, tone: 'price' },
+      { label: 'TIME', value: s.time, tone: 'time' },
+    ].filter(it => it.value > 0)
+    if (!items.length) return null
+
+    const pillClass = `inline-flex items-center gap-1 h-6 rounded-full border px-2 ${panelTypography.microLabelClass}`
+    const toneClass = (tone: string) => {
+      if (tone === 'cta') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      if (tone === 'nav') return 'border-blue-200 bg-blue-50 text-blue-700'
+      if (tone === 'price') return 'border-amber-200 bg-amber-50 text-amber-700'
+      if (tone === 'time') return 'border-violet-200 bg-violet-50 text-violet-700'
+      return `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`
+    }
+
+    return (
+      <span className="ml-2 inline-flex gap-1 flex-wrap" aria-label="Webpage signals">
+        {items.map(it => (
+          <span key={it.label} className={`${pillClass} ${toneClass(it.tone)}`}>
+            <span className="font-semibold">[{it.label}]</span>
+            <span>{it.value}</span>
+          </span>
+        ))}
+      </span>
+    )
+  }, [panelTypography.microLabelClass, webpageSignalSummary])
 
   React.useEffect(() => {
     if (!urlInputOpen) return
@@ -164,6 +204,7 @@ export function MarkdownWorkspaceToolbar({
       <span className="min-w-0">
         <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Markdown</span>
         {statusNode ? <span className="ml-2 inline-flex min-w-0">{statusNode}</span> : null}
+        {webpageSignalsNode}
       </span>
       <nav className="flex items-center gap-1 flex-wrap justify-end" aria-label="Markdown view controls">
         <input

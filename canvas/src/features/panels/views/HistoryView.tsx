@@ -10,6 +10,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { RecentFileEntry } from '@/hooks/store/types'
+import { downloadBlob } from '@/lib/graph/save'
 
 type HistorySubTab = 'history' | 'log'
 
@@ -71,6 +72,31 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
     return rows.filter(r => normalizeText([r.kind, r.message, String(r.tsMs), r.source || ''].join(' ')).includes(normalizedQuery))
   }, [normalizedQuery, uiLogEntries])
 
+  const buildLogMarkdown = React.useCallback((rows: typeof filteredLog) => {
+    const esc = (raw: unknown) =>
+      String(raw ?? '')
+        .replace(/\r?\n/g, ' ')
+        .replace(/\|/g, '\\|')
+        .trim()
+    const lines: string[] = []
+    lines.push('| Timestamp | Message | Source | Kind |')
+    lines.push('|----------|---------|--------|------|')
+    for (const r of rows) {
+      lines.push(`| ${esc(formatTimestamp(r.tsMs))} | ${esc(r.message)} | ${esc(r.source || '')} | ${esc(r.kind)} |`)
+    }
+    return lines.join('\n')
+  }, [])
+
+  const exportLogMarkdown = React.useCallback(() => {
+    const md = buildLogMarkdown(filteredLog)
+    const blob = new Blob([md], { type: 'text/markdown' })
+    const d = new Date()
+    const yyyy = String(d.getFullYear())
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    downloadBlob(blob, `history-log-${yyyy}-${mm}-${dd}.md`)
+  }, [buildLogMarkdown, filteredLog])
+
   const applySnapshot = React.useCallback(() => { addHistory('Manual Snapshot') }, [addHistory])
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
@@ -99,9 +125,14 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
               <SaveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
             </IconButton>
             {tab === 'log' && (
-              <IconButton className="App-toolbar__btn" title={UI_LABELS.clear} onClick={() => clearUiLog()} showTooltip>
-                <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-              </IconButton>
+              <>
+                <IconButton className="App-toolbar__btn" title="Export Markdown" onClick={exportLogMarkdown} showTooltip>
+                  <FileText className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+                </IconButton>
+                <IconButton className="App-toolbar__btn" title={UI_LABELS.clear} onClick={() => clearUiLog()} showTooltip>
+                  <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+                </IconButton>
+              </>
             )}
           </div>
           <nav className="flex items-center gap-1" aria-label="History tabs" role="tablist">
@@ -200,18 +231,28 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
             {filteredLog.length === 0 ? (
               <div className={`px-3 py-2 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>No log entries.</div>
             ) : (
-              <ul className="space-y-1">
-                {filteredLog.map(row => (
-                  <li key={row.id} className={`px-3 py-2 text-sm rounded hover:${UI_THEME_TOKENS.table.rowHover}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={`${UI_THEME_TOKENS.text.tertiary} text-xs`}>{formatTimestamp(row.tsMs)}</span>
-                      <span className={`${UI_THEME_TOKENS.text.secondary} text-xs`}>{row.kind}</span>
-                    </div>
-                    <div className={`${UI_THEME_TOKENS.text.primary} break-words`}>{row.message}</div>
-                    {row.source && <div className={`${UI_THEME_TOKENS.text.tertiary} text-xs`}>{row.source}</div>}
-                  </li>
-                ))}
-              </ul>
+              <div className={`rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
+                <table className="w-full text-sm" aria-label="History Log Table">
+                  <thead className={`${UI_THEME_TOKENS.panel.bg} border-b ${UI_THEME_TOKENS.panel.border}`}>
+                    <tr>
+                      <th className={`text-left px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Timestamp</th>
+                      <th className={`text-left px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Message</th>
+                      <th className={`text-left px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source</th>
+                      <th className={`text-left px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Kind</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLog.map(row => (
+                      <tr key={row.id} className={`hover:${UI_THEME_TOKENS.table.rowHover}`}>
+                        <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>{formatTimestamp(row.tsMs)}</td>
+                        <td className={`px-3 py-2 align-top ${UI_THEME_TOKENS.text.primary} break-words`}>{row.message}</td>
+                        <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>{row.source || ''}</td>
+                        <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.secondary} whitespace-nowrap`}>{row.kind}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}

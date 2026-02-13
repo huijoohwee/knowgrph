@@ -11,6 +11,7 @@ import {
   importWorkspaceLocalFolder,
   importWorkspaceUrl,
   fetchWorkspaceUrlContent,
+  buildWebpageWorkspaceEntryTextFromUpstreamMarkdown,
 } from './workspaceImport'
 import {
   bulkSetWorkspaceEntrySources,
@@ -23,6 +24,8 @@ import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY, WORKSPACE_ENTRY_
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
+import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
 import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 
 export function shouldForceDocumentSemanticModeForImport(nameForParse: string): boolean {
@@ -316,10 +319,23 @@ export function useWorkspaceFileActions(args: {
       const url = String(urlRaw || '').trim()
       if (!url) return
       const jobId = (importJobRef.current += 1)
+      const toastId = `workspace:import:url:${hashStringToHex(url).slice(0, 10)}`
       setStatusProgress('Importing URL')
+      useGraphStore.getState().upsertUiToast({
+        id: toastId,
+        kind: 'neutral',
+        message: `Importing URL: ${url}`,
+        ttlMs: null,
+        dismissible: false,
+        log: false,
+      })
+      useGraphStore.getState().pushUiLog({ kind: 'neutral', message: `Import URL started: ${url}`, source: 'workspace:importUrl' })
       try {
         const fs = await getFs()
         await fs.ensureSeed()
+        const maxImportLogRows = 59
+        let logCount = 1
+        let lastLabel = ''
         const res = await runWorkspaceFsChangedBatch(() =>
           importWorkspaceUrl({
             fs,
@@ -327,12 +343,34 @@ export function useWorkspaceFileActions(args: {
             parentPath: WORKSPACE_ROOT_PATH,
             onProgress: p => {
               if (importJobRef.current !== jobId) return
+              const label = p.label ? String(p.label) : p.phase
+              if (label && label !== lastLabel && logCount < maxImportLogRows - 1) {
+                lastLabel = label
+                logCount += 1
+                useGraphStore.getState().pushUiLog({ kind: 'neutral', message: label, source: 'workspace:importUrl' })
+              }
               if (p.phase === 'listing') {
                 setStatusProgress(p.label ? String(p.label) : 'Listing')
+                useGraphStore.getState().upsertUiToast({
+                  id: toastId,
+                  kind: 'neutral',
+                  message: `Importing URL: Listing…`,
+                  ttlMs: null,
+                  dismissible: false,
+                  log: false,
+                })
                 return
               }
               if (p.total && p.total > 0) {
                 setStatusProgress(p.phase === 'fetching' ? 'Fetching' : 'Writing', p.current, p.total)
+                useGraphStore.getState().upsertUiToast({
+                  id: toastId,
+                  kind: 'neutral',
+                  message: `Importing URL: ${p.phase === 'fetching' ? 'Fetching' : 'Writing'} ${p.current}/${p.total}`,
+                  ttlMs: null,
+                  dismissible: false,
+                  log: false,
+                })
                 return
               }
               setStatusProgress(p.phase === 'fetching' ? 'Fetching' : 'Writing')
@@ -342,14 +380,45 @@ export function useWorkspaceFileActions(args: {
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
+        const imported = res.createdPaths.length
+        const skipped = res.skipped.length
+        const failed = res.failed.length
+        const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
+        const firstFailure =
+          res.failed.find(f => String((f as { name?: unknown }).name || '').trim() === 'GitHub repo import') || res.failed[0]
+        const failureSuffix =
+          failed > 0 && firstFailure
+            ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
+            : ''
         const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
         const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
         const sourceUrl = source && source.kind === 'url' ? source.url : null
         if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
-        setStatusInfo(res.createdPaths.length > 1 ? `Imported ${res.createdPaths.length}` : 'Imported URL')
+        setStatusInfo(imported > 1 ? `Imported ${imported}${suffix}${failureSuffix}` : `Imported URL${suffix}${failureSuffix}`)
+        useGraphStore.getState().pushUiLog({
+          kind: failed > 0 ? 'warning' : 'success',
+          message: `Import URL finished: ${imported} imported${suffix}${failureSuffix}`,
+          source: 'workspace:importUrl',
+        })
+        useGraphStore.getState().pushUiToast({
+          id: toastId,
+          kind: failed > 0 ? 'warning' : 'success',
+          message: imported > 1 ? `Imported ${imported}${suffix}` : `Imported URL${suffix}`,
+          ttlMs: 12_000,
+          dismissible: true,
+        })
       } catch (e) {
         if (importJobRef.current !== jobId) return
-        setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        const msg = String((e as { message?: unknown })?.message ?? e)
+        setStatusError(`Import failed: ${msg}`)
+        useGraphStore.getState().pushUiLog({ kind: 'error', message: `Import URL failed: ${msg}`, source: 'workspace:importUrl' })
+        useGraphStore.getState().pushUiToast({
+          id: toastId,
+          kind: 'error',
+          message: `Import failed: ${msg}`,
+          ttlMs: 15_000,
+          dismissible: true,
+        })
       }
     },
     [focusAfterImport, getFs, refresh, setStatusLabel],
@@ -369,6 +438,7 @@ export function useWorkspaceFileActions(args: {
         const concurrency = Number.isFinite(store.websiteImportConcurrency) ? Number(store.websiteImportConcurrency) : 4
         const includeImages = store.webpageImportIncludeImages ?? true
         const defaultView = store.webpageImportView
+        const generateArtifactDocs = store.websiteImportGenerateWebpageArtifactDocs !== false
 
         const startRes = await fetch(
           `/__website_import/start?outputDirRel=${encodeURIComponent(outputDirRel)}`,
@@ -482,6 +552,28 @@ export function useWorkspaceFileActions(args: {
           return lines.join('\n')
         }
 
+        const buildTextForNode = async (args: { nodeUrl: string; nodeId: string; title?: string; signal: AbortSignal }) => {
+          if (!generateArtifactDocs) return stubForNode(args.nodeUrl, args.nodeId)
+          try {
+            const upstream = await fetchWebsiteImportArtifact({
+              importId,
+              nodeId: args.nodeId,
+              outputDirRel,
+              kind: 'markdown',
+              signal: args.signal,
+            })
+            return buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
+              upstreamMarkdown: upstream,
+              url: args.nodeUrl,
+              view: defaultView === 'html' ? 'html' : defaultView === 'json' ? 'json' : 'markdown',
+              title: args.title,
+              websiteImportMeta: { importId, nodeId: args.nodeId, outputDirRel: outputDirRel || undefined },
+            })
+          } catch {
+            return stubForNode(args.nodeUrl, args.nodeId)
+          }
+        }
+
         const fs = await getFs()
         await fs.ensureSeed()
 
@@ -490,11 +582,39 @@ export function useWorkspaceFileActions(args: {
           const createdPaths: WorkspacePath[] = []
           const sources: Array<{ path: WorkspacePath; source: { kind: 'url'; url: string; path: string } }> = []
 
+          try {
+            const sitemapText = buildWebsiteSitemapMarkdown({
+              rootUrl,
+              importId,
+              outputDirRel: outputDirRel || undefined,
+              nodes: nodes
+                .map((node) => {
+                  const nodeUrl = typeof node.url === 'string' ? node.url : ''
+                  const nodeId = typeof node.nodeId === 'string' ? node.nodeId : ''
+                  const nodeTreePath = typeof node.path === 'string' ? node.path : ''
+                  const title = typeof node.title === 'string' ? node.title : null
+                  return { nodeId, url: nodeUrl, path: nodeTreePath, title }
+                })
+                .filter(n => n.url),
+            })
+            const sitemapPath = await fs.createFile({ parentPath: rootFolder, name: 'website.sitemap.md', text: sitemapText })
+            createdPaths.push(sitemapPath)
+            sources.push({
+              path: sitemapPath,
+              source: { kind: 'url', url: rootUrl, path: `workspace:${sitemapPath}` },
+            })
+          } catch {
+            void 0
+          }
+
+          const ctrl = new AbortController()
+
           for (let i = 0; i < nodes.length; i += 1) {
             const node = nodes[i] || {}
             const nodeUrl = typeof node.url === 'string' ? node.url : ''
             const nodeId = typeof node.nodeId === 'string' ? node.nodeId : hashStringToHex(nodeUrl).slice(0, 16)
             const nodeTreePath = typeof node.path === 'string' ? node.path : ''
+            const nodeTitle = typeof node.title === 'string' ? node.title : undefined
             const status = typeof node.status === 'string' ? node.status : 'ok'
             if (!nodeUrl || status !== 'ok') continue
             const nodePath = (() => {
@@ -513,7 +633,7 @@ export function useWorkspaceFileActions(args: {
             const base = leaf || 'index'
             const nameBase = base.endsWith('.md') ? base.replace(/\.md$/i, '') : base
             const primaryName = `${nameBase}.md`
-            const text = stubForNode(nodeUrl, nodeId)
+            const text = await buildTextForNode({ nodeUrl, nodeId, title: nodeTitle, signal: ctrl.signal })
 
             const tryCreate = async (name: string) => {
               const createdPath = await fs.createFile({ parentPath: folderPath, name, text })

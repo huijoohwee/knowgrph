@@ -7,6 +7,7 @@ import {
 } from '@/__tests__/webpageLayoutAscii.test'
 import { testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames } from '@/__tests__/webpageMarkdownArtifact.test'
 import { testWebpageMarkdownArtifactRemotionFixtureSections } from '@/__tests__/webpageMarkdownArtifactRemotionFixture.test'
+import { testWebsiteImportWorkspaceWritesArtifactDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
 import {
   testMarkdownWorkspaceWebpageHtmlViewRendersIframe,
   testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml,
@@ -22,6 +23,7 @@ async function main() {
   testWebpageLayoutAsciiUpsertCreatesFenceWhenMissing()
   testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames()
   testWebpageMarkdownArtifactRemotionFixtureSections()
+  testWebsiteImportWorkspaceWritesArtifactDoc()
   await testMarkdownWorkspaceWebpageHtmlViewRendersIframe()
   await testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml()
   await testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot()
