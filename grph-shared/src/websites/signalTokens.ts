@@ -42,6 +42,9 @@ export function classifyLinkLabel(labelRaw: string): LinkSignalKind {
   }
   if (s.startsWith('get started')) return 'cta'
   if (s.startsWith('download')) return 'cta'
+  if (s.startsWith('github')) return 'cta'
+  if (s.startsWith('discord')) return 'cta'
+  if (s.startsWith('prompt')) return 'cta'
   const navWords = [
     'docs',
     'documentation',
@@ -70,6 +73,7 @@ export function classifyLinkLabel(labelRaw: string): LinkSignalKind {
   for (const w of navWords) {
     if (s === w) return 'nav'
   }
+  if (s.startsWith('docs')) return 'nav'
   return 'lnk'
 }
 

@@ -334,14 +334,8 @@ export interface GraphState {
   webpageImportIncludeImages: boolean;
   setWebpageImportIncludeImages: (v: boolean) => void;
 
-  webpageImportView: 'markdown' | 'json' | 'html' | 'wireframe' | 'wireframe-enhanced';
-  setWebpageImportView: (v: 'markdown' | 'json' | 'html' | 'wireframe' | 'wireframe-enhanced') => void;
-
-  webpageHtmlIframeMode: 'srcdoc' | 'src';
-  setWebpageHtmlIframeMode: (v: 'srcdoc' | 'src') => void;
-
-  webpageWireframeDetailLevel: 'compact' | 'standard' | 'detailed';
-  setWebpageWireframeDetailLevel: (v: 'compact' | 'standard' | 'detailed') => void;
+  webpageImportView: 'markdown' | 'json' | 'html';
+  setWebpageImportView: (v: 'markdown' | 'json' | 'html') => void;
 
   websiteImportDiscoverSitemap: boolean;
   setWebsiteImportDiscoverSitemap: (v: boolean) => void;

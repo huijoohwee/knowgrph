@@ -1,8 +1,6 @@
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { buildWireframeMarkdownFromMarkdown, type WebpageWireframeDetailLevel } from '../wireframe'
-import { buildWireframeEnhancedMarkdownFromMarkdown } from '../wireframeEnhanced'
 
 export type WebpageConvertPayload =
   | { ok: true; markdown: string; name: string; title: string; source_url: string; images: string[] }
@@ -68,18 +66,6 @@ export const urlToTreePath = (urlRaw: string): string => {
     return '/'
   }
 }
-
-export const buildWireframeMarkdown = (
-  markdown: string,
-  url: string,
-  opts?: { detailLevel?: WebpageWireframeDetailLevel; title?: string },
-): string => buildWireframeMarkdownFromMarkdown({ markdown, url, detailLevel: opts?.detailLevel, title: opts?.title })
-
-export const buildWireframeEnhancedMarkdown = (
-  markdown: string,
-  url: string,
-  opts?: { title?: string },
-): string => buildWireframeEnhancedMarkdownFromMarkdown({ markdown, url, title: opts?.title })
 
 const withRepoPythonPath = (repoRoot: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
   const current = String(env.PYTHONPATH || '').trim()
@@ -229,7 +215,6 @@ export const fetchTextWithLimit = async (url: string, opts: { timeoutMs: number;
 export const __testkit = {
   extractXmlLocs,
   looksLikeSitemapIndex,
-  buildWireframeMarkdown,
   urlToTreePath,
   normalizeUrl,
   isSameHost,

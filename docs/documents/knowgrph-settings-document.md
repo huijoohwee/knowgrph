@@ -48,14 +48,10 @@
 **Keys**
 
 - `webpageImportIncludeImages`
-- `webpageImportView` (`markdown` | `json` | `html` | `wireframe`)
+- `webpageImportView` (`markdown` | `json` | `html`)
   - `markdown`: editor/viewer use Markdown (graph parsing remains aligned to Markdown)
-  - `json`: editor shows conversion payload JSON (read-only); viewer/presentation/slides render HTML via iframe proxy
-  - `html`: editor stays Markdown; viewer/presentation/slides render HTML via iframe proxy
-  - `wireframe`: editor shows generated ASCII wireframe markdown (editable); viewer/presentation/slides render the same Markdown
-- `webpageHtmlIframeMode` (`srcdoc` | `src`)
-  - `srcdoc` (default): fetch HTML once (same-origin proxy or stored artifact), inject `<base>` + scroll-sync, then render via sandboxed iframe `srcdoc`
-  - `src`: render via sandboxed iframe `src="/__webpage_proxy?url=..."`
+  - `json`: editor stays Markdown; viewer/presentation/slides render sandboxed JSON via iframe `srcdoc`
+  - `html`: editor stays Markdown; viewer/presentation/slides render sandboxed HTML via iframe `srcdoc`
 
 ---
 
@@ -63,7 +59,7 @@
 
 **Scope**: Markdown Workspace → Import website (sitemap); MainPanel → Settings
 
-**Intent**: Crawl and import a whole website into the workspace as one Markdown file per page, while persisting conversion artifacts (markdown, JSON, wireframe) for fast view switching.
+**Intent**: Crawl and import a whole website into the workspace as one Markdown file per page, while persisting conversion artifacts (markdown, JSON, HTML) for fast view switching.
 
 **Keys**
 
@@ -74,9 +70,9 @@
 
 **Derived rules**
 - Website import uses `webpageImportIncludeImages` for conversion and `webpageImportView` as the default per-page view (stored in each stub’s `kgWebpageView`).
-- In the active-row dropdown, Viewer/Presentation/Slides render HTML in a sandboxed iframe when `kgWebpageView ∈ {json, html, wireframe}`.
+- In the active-row dropdown, Viewer/Presentation/Slides render HTML in a sandboxed iframe when `kgWebpageView ∈ {json, html}`.
 - When `kgWebsiteImportId/kgWebsiteNodeId` exist, Viewer prefers rendering from stored `raw.html` artifacts (in-repo) instead of proxying live HTML.
-- If `kgWebsiteOutputDirRel` is present, it overrides the artifact root directory for resolving `raw.html/page.md/conversion.json/wireframe.md`.
+- If `kgWebsiteOutputDirRel` is present, it overrides the artifact root directory for resolving `raw.html/page.md/conversion.json`.
 
 ---
 

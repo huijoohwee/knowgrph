@@ -1,4 +1,4 @@
-export type WebpageIframeMode = 'html' | 'json' | 'wireframe'
+export type WebpageIframeMode = 'html' | 'json' | 'text'
 
 export type WebsiteImportMeta = { importId: string; nodeId: string; outputDirRel?: string }
 
@@ -113,10 +113,10 @@ export const injectScrollSync = (html: string): string => {
   return `<!doctype html><html><head>\n${injection}\n</head><body>\n${raw}\n</body></html>`
 }
 
-export const buildCodeViewerSrcdoc = (args: { baseHref: string; title: string; mode: 'json' | 'wireframe'; text: string }): string => {
+export const buildCodeViewerSrcdoc = (args: { baseHref: string; title: string; mode: 'json' | 'text'; text: string }): string => {
   const title = escapeHtml(args.title)
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
-  const label = args.mode === 'json' ? 'JSON' : 'Wireframe'
+  const label = args.mode === 'json' ? 'JSON' : 'Text'
   const body = escapeHtml(args.text)
   const html = [
     '<!doctype html>',
@@ -204,7 +204,7 @@ export async function fetchWebsiteImportArtifact(args: {
   importId: string
   nodeId: string
   outputDirRel?: string
-  kind: 'rawHtml' | 'markdown' | 'conversionJson' | 'wireframeMarkdown' | 'wireframeEnhancedMarkdown'
+  kind: 'rawHtml' | 'markdown' | 'conversionJson'
   signal: AbortSignal
 }): Promise<string> {
   const importId = String(args.importId || '').trim()

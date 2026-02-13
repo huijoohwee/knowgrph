@@ -59,7 +59,6 @@ export type MarkdownWorkspaceMainProps = {
   disableEditorMutations?: boolean
   viewerTextOverride?: string | null
   disableViewerMutations?: boolean
-  webpageHtmlIframeMode?: 'srcdoc' | 'src'
   activeDocumentKey: string
   highlightedLineRange: HighlightedLineRange
   revealLineInEditor: (line: number, endLine?: number) => void
@@ -232,7 +231,7 @@ function useWebpageIframeSrcdoc(args: {
       .catch((err) => {
         if (cancelled) return
         const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
-        const fallback = buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'wireframe', text: msg || 'Request failed' })
+        const fallback = buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'text', text: msg || 'Request failed' })
         setState({ srcDoc: fallback, error: msg || 'Request failed' })
       })
 
@@ -288,7 +287,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     disableEditorMutations,
     viewerTextOverride,
     disableViewerMutations,
-    webpageHtmlIframeMode,
     activeDocumentKey,
     highlightedLineRange,
     revealLineInEditor,
@@ -312,14 +310,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     webpageMeta.url
   )
 
-  const iframeMode: 'srcdoc' | 'src' =
-    webpageMeta?.view === 'json' || webpageMeta?.view === 'html' ? 'srcdoc' : webpageHtmlIframeMode === 'src' ? 'src' : 'srcdoc'
-  const iframeSrcUrl = React.useMemo(() => {
-    const u = String(webpageMeta?.url || '').trim()
-    if (!u) return ''
-    if (webpageMeta?.view === 'json') return ''
-    return `/__webpage_proxy?url=${encodeURIComponent(u)}`
-  }, [webpageMeta?.url, webpageMeta?.view])
+  const iframeMode: 'srcdoc' = 'srcdoc'
   const { srcDoc: iframeSrcDoc } = useWebpageIframeSrcdoc({
     enabled: showWebpageHtml && iframeMode === 'srcdoc',
     url: String(webpageMeta?.url || ''),
@@ -544,7 +535,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           iframeRef.current = el
         }}
         title={webpageMeta?.url || 'Webpage'}
-        src={iframeMode === 'src' ? iframeSrcUrl : undefined}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
         sandbox="allow-scripts"
         referrerPolicy="no-referrer"
@@ -585,7 +575,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        src={iframeMode === 'src' ? iframeSrcUrl : undefined}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
         sandbox="allow-scripts"
         referrerPolicy="no-referrer"
@@ -623,7 +612,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        src={iframeMode === 'src' ? iframeSrcUrl : undefined}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
         sandbox="allow-scripts"
         referrerPolicy="no-referrer"

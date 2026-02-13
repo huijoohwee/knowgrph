@@ -20,42 +20,11 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     read: () => s().webpageImportView,
     write: v =>
       s().setWebpageImportView(
-        String(v) === 'html'
-          ? 'html'
-          : String(v) === 'json'
-            ? 'json'
-            : String(v) === 'wireframe'
-              ? 'wireframe'
-              : String(v) === 'wireframe-enhanced'
-                ? 'wireframe-enhanced'
-              : 'markdown',
+        String(v) === 'html' ? 'html' : String(v) === 'json' ? 'json' : 'markdown',
       ),
     docKey: 'webpageImportView',
     default: () => 'markdown',
-    options: ['markdown', 'json', 'html', 'wireframe', 'wireframe-enhanced'],
-  },
-  {
-    key: 'webpageHtmlIframeMode',
-    type: 'string',
-    source: 'store',
-    read: () => s().webpageHtmlIframeMode,
-    write: v => s().setWebpageHtmlIframeMode(String(v) === 'src' ? 'src' : 'srcdoc'),
-    docKey: 'webpageHtmlIframeMode',
-    default: () => 'srcdoc',
-    options: ['srcdoc', 'src'],
-  },
-  {
-    key: 'webpageWireframeDetailLevel',
-    type: 'string',
-    source: 'store',
-    read: () => s().webpageWireframeDetailLevel,
-    write: v =>
-      s().setWebpageWireframeDetailLevel(
-        String(v) === 'compact' ? 'compact' : String(v) === 'detailed' ? 'detailed' : 'standard',
-      ),
-    docKey: 'webpageWireframeDetailLevel',
-    default: () => 'standard',
-    options: ['compact', 'standard', 'detailed'],
+    options: ['markdown', 'json', 'html'],
   },
   {
     key: 'websiteImportDiscoverSitemap',

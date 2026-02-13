@@ -128,12 +128,11 @@ sequenceDiagram
 
 **Decision Logic**:
 - **Graph Alignment**: Webpages convert to Markdown for Document Structure parsing, preserving graph/content sync across touchpoints.
-- **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects `markdown | json | html | wireframe | wireframe-enhanced`.
+- **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects `markdown | json | html`.
 - **Active-row dropdown contract**:
   - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
   - `JSON`: Editor shows conversion payload JSON (read-only); Viewer/Presentation/Slides render HTML via a sandboxed iframe.
   - `HTML`: Editor stays Markdown; Viewer/Presentation/Slides render HTML via a sandboxed iframe.
-  - `Wireframe`: Editor renders a generated ASCII wireframe markdown artifact (editable); Viewer/Presentation/Slides render the same Markdown.
 
 **Shared token vocabulary (mode-independent)**: the app uses a generic signal extraction layer to derive consistent tokens from Markdown across modes: `[NAV]`, `[CTA]`, `[LINK]`, `[PRICE]`, `[TIME]`.
 - **Iframe implementation**:
@@ -150,20 +149,22 @@ sequenceDiagram
 
 **Per-Page Stub Contract (frontmatter)**:
 - `kgWebpageUrl`: canonical page URL
-- `kgWebpageView`: `markdown | json | html | wireframe | wireframe-enhanced`
+- `kgWebpageView`: `markdown | json | html`
 - `kgWebsiteImportId`: website import job id
 - `kgWebsiteNodeId`: stable node id (hash of URL)
 - `kgWebsiteOutputDirRel`: optional override for the in-repo artifact root directory
 
 **Decision Logic**:
 - **Tree fidelity**: Workspace path is derived from URL pathname so the Explorer reflects the website’s directory structure.
-- **View switching (active-row dropdown)**: `Markdown | JSON | HTML | Wireframe` is strictly view-only (no apply-to-graph, no layout/zoom mutation, no default-setting mutation).
-- **Artifact mapping (editor text)**: `json→conversionJson`, `wireframe→wireframeMarkdown`, else `markdown`; fetched from `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`.
-- **HTML fidelity**: For `kgWebpageView = html`, Viewer/Presentation/Slides render 100% fidelity HTML in a sandboxed iframe. The HTML payload is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy. `json` renders sandboxed JSON code, and wireframe views render Markdown artifacts.
-- **Wireframe LOD**: Website import passes `wireframeDetailLevel` and stores `wireframe.md` per page for deterministic wireframe view switching.
+- **View switching (active-row dropdown)**: `Markdown | JSON | HTML` is strictly view-only (no apply-to-graph, no layout/zoom mutation, no default-setting mutation).
+- **Artifact mapping (editor text)**: `json→conversionJson`, else `markdown`; fetched from `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`.
+- **HTML fidelity**: For `kgWebpageView = html`, Viewer/Presentation/Slides render 100% fidelity HTML in a sandboxed iframe. The HTML payload is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy. `json` renders sandboxed JSON code.
+- **Markdown artifact**: The Markdown view can embed a ` ```text kg-webpage-layout ` block as a lightweight, editable layout snapshot.
 
 **Single-URL Artifact Path (non-sitemap)**:
-- Source Files / Markdown Workspace “Import URL” can also persist per-URL artifacts via `POST /__website_import/import-url`, writing `raw.html`, `page.md`, `conversion.json`, `wireframe.md` under `.knowgrph-workspace/...`.
+- Source Files / Markdown Workspace “Import URL” can also persist per-URL artifacts via `POST /__website_import/import-url`, writing `raw.html`, `page.md`, `conversion.json` under `.knowgrph-workspace/...`.
+ 
+Note: The current website-import artifact set is `raw.html`, `page.md`, `conversion.json` (no separate layout artifacts).
 
 ### Optional Geo Layer Registration
 

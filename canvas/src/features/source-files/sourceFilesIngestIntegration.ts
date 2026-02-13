@@ -401,7 +401,6 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
         const v = useGraphStore.getState().webpageImportView
         if (v === 'html') return 'html'
         if (v === 'json') return 'json'
-        if (v === 'wireframe') return 'wireframe'
         return 'markdown'
       })()
       const webpage = await fetchWebpageMarkdown(normalizedUrl, { includeImages })

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildWireframeEnhancedMarkdownFromMarkdown } from '@/lib/websites/wireframeEnhanced'
+import { buildWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
 
 const sliceBetween = (text: string, start: string, end: string): string => {
   const a = text.indexOf(start)
@@ -11,13 +11,13 @@ const sliceBetween = (text: string, start: string, end: string): string => {
   return text.slice(a, b).trimEnd()
 }
 
-export const testWireframeEnhancedRemotionFixtureSections = () => {
+export const testWebpageMarkdownArtifactRemotionFixtureSections = () => {
   const self = fileURLToPath(import.meta.url)
   const dir = path.dirname(self)
   const upstreamPath = path.resolve(dir, './fixtures/remotion-dev.upstream-fixture.md')
   const upstream = fs.readFileSync(upstreamPath, 'utf-8')
 
-  const actual = buildWireframeEnhancedMarkdownFromMarkdown({
+  const actual = buildWebpageMarkdownArtifactDoc({
     markdown: upstream,
     url: 'https://example.com/',
     title: 'Remotion | Make videos programmatically',

@@ -1,6 +1,6 @@
-import { buildWireframeEnhancedMarkdownFromMarkdown } from '@/lib/websites/wireframeEnhanced'
+import { buildWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
 
-export const testWireframeEnhancedIncludesLayoutAndMotionFrames = () => {
+export const testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames = () => {
   const md = [
     '# Make videos programmatically',
     '',
@@ -50,7 +50,7 @@ export const testWireframeEnhancedIncludesLayoutAndMotionFrames = () => {
     '',
   ].join('\n')
 
-  const out = buildWireframeEnhancedMarkdownFromMarkdown({ markdown: md, url: 'https://localhost/' })
+  const out = buildWebpageMarkdownArtifactDoc({ markdown: md, url: 'https://localhost/' })
   if (!out.includes('## 📊 Page Statistics')) throw new Error('missing Page Statistics')
   if (!out.includes('## 📐 Layout Structure')) throw new Error('missing Layout Structure')
   if (!out.includes('GLOBAL NAVIGATION')) throw new Error('missing GLOBAL NAVIGATION block')

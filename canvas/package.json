@@ -26,7 +26,7 @@
     "agenticrag:trace-codebase-index": "tsx src/cli/agenticrag-trace-codebase-index.ts"
     ,
     "pdf:convert": "tsx src/cli/convert-pdf-to-md.ts",
-    "webpage:wireframe": "tsx src/cli/convert-webpage-url-to-wireframe-md.ts"
+    "webpage:markdown": "tsx src/cli/convert-webpage-url-to-md.ts"
   },
   "dependencies": {
     "@mermaid-js/layout-elk": "^0.2.0",

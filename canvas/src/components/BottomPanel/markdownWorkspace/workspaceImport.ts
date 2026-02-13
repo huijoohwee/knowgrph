@@ -13,6 +13,7 @@ import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
+import { buildWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
 
 export type WorkspaceImportResult = {
   createdPaths: WorkspacePath[]
@@ -394,17 +395,15 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
       const v = useGraphStore.getState().webpageImportView
       if (v === 'html') return 'html'
       if (v === 'json') return 'json'
-      if (v === 'wireframe') return 'wireframe'
       return 'markdown'
     })()
 
     const outputDirRel = String(useGraphStore.getState().websiteImportOutputDirRel || '').trim()
-    const wireframeDetailLevel = useGraphStore.getState().webpageWireframeDetailLevel
     try {
       const startRes = await fetch(`/__website_import/import-url?outputDirRel=${encodeURIComponent(outputDirRel)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ url: normalizedUrl, options: { includeImages, wireframeDetailLevel } }),
+        body: JSON.stringify({ url: normalizedUrl, options: { includeImages } }),
       })
       const startJson = (await startRes.json()) as { ok?: unknown; importId?: unknown; nodeId?: unknown; url?: unknown; error?: unknown }
       if (startRes.ok && startJson.ok === true && typeof startJson.importId === 'string' && typeof startJson.nodeId === 'string') {
@@ -432,7 +431,16 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
         const fmLines = ['---', urlLine, viewLine, importLine, nodeLine]
         if (outputDirLine) fmLines.push(outputDirLine)
         fmLines.push('---', '')
-        const text = [...fmLines, stripped].join('\n')
+        const artifact = buildWebpageMarkdownArtifactDoc({ markdown: stripped, url: normalizedUrl })
+        const artifactWithView = upsertWebpageFrontmatterMeta(artifact, { url: normalizedUrl, view })
+        const strippedArtifact = (() => {
+          const t = String(artifactWithView || '')
+          if (!t.startsWith('---')) return t
+          const end = t.indexOf('\n---')
+          if (end < 0) return t
+          return t.slice(end + 4).replace(/^\s*\n/, '')
+        })()
+        const text = [...fmLines, strippedArtifact].join('\n')
 
         const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
         const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'

@@ -38,18 +38,16 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import {
   normalizeWebpageFrontmatterView,
   parseWebpageFrontmatterMeta,
   parseWebsiteImportFrontmatterMeta,
   upsertWebpageFrontmatterMeta,
   type WebpageViewMode,
-  extractYamlFrontmatterBlock,
 } from '@/lib/markdown/frontmatter'
-import { buildAsciiWireframeArtifactDoc, looksLikeAsciiWireframeArtifactDoc } from '@/lib/websites/wireframeArtifact'
-import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
-import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 import { fetchWebpageHtmlViaProxy } from '@/lib/websites/webpageIframeSrcdoc'
+import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -139,7 +137,6 @@ export function MarkdownWorkspace() {
   const setGraphData = useGraphStore(s => s.setGraphData)
 
   const setPdfImportConversionMode = useGraphStore(s => s.setPdfImportConversionMode)
-  const webpageHtmlIframeMode = useGraphStore(s => (s.webpageHtmlIframeMode === 'src' ? 'src' : 'srcdoc') as 'src' | 'srcdoc')
 
   const handleSetPdfImportConversionMode = React.useCallback(
     (mode: 'text-only' | 'image-heavy' | 'scan-ocr') => {
@@ -512,18 +509,6 @@ export function MarkdownWorkspace() {
       return
     }
 
-    if (view === 'wireframe' || view === 'wireframe-enhanced') {
-      setWebpageWorkspaceEditorTextOverride(null)
-      setWebpageWorkspaceViewerTextOverride(null)
-      return
-    }
-
-    const stripFrontmatter = (raw: string): string => {
-      const block = extractYamlFrontmatterBlock(raw)
-      if (!block) return String(raw || '')
-      return String(block.bodyText || '')
-    }
-
     let cancelled = false
     const controller = new AbortController()
     void (async () => {
@@ -546,7 +531,7 @@ export function MarkdownWorkspace() {
             setWebpageWorkspaceViewerTextOverride(null)
             return
           }
-          const effective = view === 'json' || view === 'html' ? String(text || '') : stripFrontmatter(sanitizeImportedMarkdownText(String(text || '')).text)
+          const effective = String(text || '')
           const clipped = effective.length > 200_000 ? `${effective.slice(0, 200_000)}\n\n(clipped)\n` : effective
           setWebpageWorkspaceEditorTextOverride(clipped)
           setWebpageWorkspaceViewerTextOverride(null)
@@ -699,13 +684,13 @@ export function MarkdownWorkspace() {
       if (!activePath || !webpageWorkspaceMeta) return
       try {
         const nextText = await (async () => {
-          if (view !== 'wireframe' && view !== 'wireframe-enhanced') {
-            return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
-          }
+          if (view !== 'markdown') return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
 
-          const isEnhanced = view === 'wireframe-enhanced'
+          const { looksLikeWebpageMarkdownArtifactDoc, buildWebpageMarkdownArtifactDoc } = await import(
+            '@/lib/websites/webpageMarkdownArtifact'
+          )
 
-          if (looksLikeAsciiWireframeArtifactDoc(String(activeText || ''))) {
+          if (looksLikeWebpageMarkdownArtifactDoc(String(activeText || ''))) {
             return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
           }
 
@@ -714,43 +699,20 @@ export function MarkdownWorkspace() {
               websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '',
             ).trim()
             const outputDirQuery = outputDirRel ? `outputDirRel=${encodeURIComponent(outputDirRel)}&` : ''
-            const kind = websiteImportArtifactKindForWebpageView('markdown')
-            const res = await fetch(
-              `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(websiteImportMeta.importId)}&nodeId=${encodeURIComponent(websiteImportMeta.nodeId)}&kind=${encodeURIComponent(kind)}`,
+
+            const rawRes = await fetch(
+              `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(websiteImportMeta.importId)}&nodeId=${encodeURIComponent(websiteImportMeta.nodeId)}&kind=markdown`,
             )
-            if (!res.ok) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
-            const text = await res.text()
-            const raw = String(text || '')
-            if (looksLikeAsciiWireframeArtifactDoc(raw)) {
-              return upsertWebpageFrontmatterMeta(raw, { url: webpageWorkspaceMeta.url, view })
-            }
-
-            if (isEnhanced) {
-              const { buildWireframeEnhancedArtifactDoc } = await import('@/lib/websites/wireframeEnhancedArtifact')
-              return buildWireframeEnhancedArtifactDoc({ markdown: raw, url: webpageWorkspaceMeta.url })
-            }
-
-            return buildAsciiWireframeArtifactDoc({
-              markdown: raw,
-              url: webpageWorkspaceMeta.url,
-              detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
-            })
+            if (!rawRes.ok) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+            const raw = String((await rawRes.text()) || '')
+            return buildWebpageMarkdownArtifactDoc({ markdown: raw, url: webpageWorkspaceMeta.url })
           }
 
           const includeImages = false
           const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { includeImages })
           if (!res || res.ok !== true) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
 
-          if (isEnhanced) {
-            const { buildWireframeEnhancedArtifactDoc } = await import('@/lib/websites/wireframeEnhancedArtifact')
-            return buildWireframeEnhancedArtifactDoc({ markdown: String(res.markdown || ''), url: webpageWorkspaceMeta.url })
-          }
-
-          return buildAsciiWireframeArtifactDoc({
-            markdown: String(res.markdown || ''),
-            url: webpageWorkspaceMeta.url,
-            detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
-          })
+          return buildWebpageMarkdownArtifactDoc({ markdown: String(res.markdown || ''), url: webpageWorkspaceMeta.url })
         })()
 
         const fs = await getFs()
@@ -807,8 +769,6 @@ export function MarkdownWorkspace() {
               { value: 'markdown', label: 'Markdown' },
               { value: 'json', label: 'JSON' },
               { value: 'html', label: 'HTML' },
-              { value: 'wireframe', label: 'Wireframe' },
-              { value: 'wireframe-enhanced', label: 'Wireframe+' },
             ]}
             onChange={next => void switchActiveWebpageWorkspaceView(next)}
           />
@@ -1916,7 +1876,7 @@ export function MarkdownWorkspace() {
     contentMode !== 'nodeQuickEditor' &&
     !!(
       webpageWorkspaceMeta?.url &&
-      (webpageWorkspaceMeta?.view === 'json' || (websiteImportMeta && webpageWorkspaceMeta?.view !== 'wireframe' && webpageWorkspaceMeta?.view !== 'markdown'))
+      (webpageWorkspaceMeta?.view === 'json' || webpageWorkspaceMeta?.view === 'html')
     )
   const effectiveEditorTextOverride =
     contentMode === 'nodeQuickEditor'
@@ -2018,7 +1978,6 @@ export function MarkdownWorkspace() {
           disableEditorMutations={!!effectiveEditorTextOverride || webpageDerivedReadOnlyActive}
           viewerTextOverride={combinedViewerTextOverride}
           disableViewerMutations={contentMode === 'nodeQuickEditor'}
-          webpageHtmlIframeMode={webpageHtmlIframeMode}
           activeDocumentKey={activeDocumentKey}
           highlightedLineRange={highlightedLineRange}
           revealLineInEditor={revealLineInEditor}

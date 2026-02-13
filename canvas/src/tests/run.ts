@@ -37,28 +37,17 @@ import {
   testWebpageFrontmatterRoundtrip,
   testWebpageFrontmatterUpsertUpdatesExisting,
   testWebpageFrontmatterSupportsJsonView,
-  testWebpageFrontmatterSupportsWireframeView,
-  testWebpageFrontmatterSupportsWireframeEnhancedView,
+  testWebpageFrontmatterSupportsMarkdownView,
 } from '@/__tests__/webpageFrontmatter.test'
 import {
   testWebsiteImportSitemapDetectsIndex,
   testWebsiteImportSitemapExtractsLocs,
   testWebsiteImportArtifactKindForWebpageView,
-  testWebsiteImportWireframeBuilderIncludesHeadings,
-  testWebsiteImportWireframeDetectsEmbeds,
-  testWebsiteImportWireframeClassifiesNavAndCtaLinks,
-  testWebsiteImportWireframeDetectsPriceTokens,
-  testWebsiteImportWireframeDetectsTimecodes,
-  testWebsiteImportWireframeMockupIncludesCategorizedTokens,
-  testWebsiteImportWireframeMockupIncludesFlowAndStoryboardFrames,
-  testWebsiteImportWireframeClassifiesMediaAndAnimTags,
-  testWebsiteImportWireframeDetectsFxTokens,
-  testWebsiteImportWireframeRendersPageLevelNavDetails,
-  testWebsiteImportWireframeRendersSiblingHeadingsInRow,
-  testWebsiteImportWireframeDetailLevelCapsSectionDetails,
+  testWebpageMarkdownArtifactDocIncludesFrontmatter,
+  testWebpageMarkdownArtifactDocIncludesLayoutStructure,
 } from '@/__tests__/websiteImportSitemap.test'
-import { testWireframeEnhancedIncludesLayoutAndMotionFrames } from '@/__tests__/wireframeEnhanced.test'
-import { testWireframeEnhancedRemotionFixtureSections } from '@/__tests__/wireframeEnhancedRemotionFixture.test'
+import { testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames } from '@/__tests__/webpageMarkdownArtifact.test'
+import { testWebpageMarkdownArtifactRemotionFixtureSections } from '@/__tests__/webpageMarkdownArtifactRemotionFixture.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
 import {
   testMarkdownWorkspaceWebpageHtmlViewRendersIframe,
@@ -969,25 +958,14 @@ export const runAllTests = async () => {
   await exec('webpage.frontmatter.roundtrip', testWebpageFrontmatterRoundtrip)
   await exec('webpage.frontmatter.upsertUpdatesExisting', testWebpageFrontmatterUpsertUpdatesExisting)
   await exec('webpage.frontmatter.supportsJsonView', testWebpageFrontmatterSupportsJsonView)
-  await exec('webpage.frontmatter.supportsWireframeView', testWebpageFrontmatterSupportsWireframeView)
-  await exec('webpage.frontmatter.supportsWireframeEnhancedView', testWebpageFrontmatterSupportsWireframeEnhancedView)
+  await exec('webpage.frontmatter.supportsMarkdownView', testWebpageFrontmatterSupportsMarkdownView)
   await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
   await exec('websiteImport.sitemap.detectsIndex', testWebsiteImportSitemapDetectsIndex)
   await exec('websiteImport.artifactKindForWebpageView', testWebsiteImportArtifactKindForWebpageView)
-  await exec('websiteImport.wireframe.includesHeadings', testWebsiteImportWireframeBuilderIncludesHeadings)
-  await exec('websiteImport.wireframe.detectsEmbeds', testWebsiteImportWireframeDetectsEmbeds)
-  await exec('websiteImport.wireframe.classifiesNavAndCtaLinks', testWebsiteImportWireframeClassifiesNavAndCtaLinks)
-  await exec('websiteImport.wireframe.detectsPriceTokens', testWebsiteImportWireframeDetectsPriceTokens)
-  await exec('websiteImport.wireframe.detectsTimecodes', testWebsiteImportWireframeDetectsTimecodes)
-  await exec('websiteImport.wireframe.mockupIncludesCategorizedTokens', testWebsiteImportWireframeMockupIncludesCategorizedTokens)
-  await exec('websiteImport.wireframe.mockupIncludesFlowAndStoryboardFrames', testWebsiteImportWireframeMockupIncludesFlowAndStoryboardFrames)
-  await exec('websiteImport.wireframe.classifiesMediaAndAnimTags', testWebsiteImportWireframeClassifiesMediaAndAnimTags)
-  await exec('websiteImport.wireframe.detectsFxTokens', testWebsiteImportWireframeDetectsFxTokens)
-  await exec('websiteImport.wireframe.rendersPageLevelNavDetails', testWebsiteImportWireframeRendersPageLevelNavDetails)
-  await exec('websiteImport.wireframe.rendersSiblingHeadingsInRow', testWebsiteImportWireframeRendersSiblingHeadingsInRow)
-  await exec('websiteImport.wireframe.detailLevelCapsSectionDetails', testWebsiteImportWireframeDetailLevelCapsSectionDetails)
-  await exec('wireframeEnhanced.includesLayoutAndMotionFrames', testWireframeEnhancedIncludesLayoutAndMotionFrames)
-  await exec('wireframeEnhanced.remotionFixture.sections', testWireframeEnhancedRemotionFixtureSections)
+  await exec('webpageMarkdownArtifact.doc.includesFrontmatter', testWebpageMarkdownArtifactDocIncludesFrontmatter)
+  await exec('webpageMarkdownArtifact.doc.includesLayoutStructure', testWebpageMarkdownArtifactDocIncludesLayoutStructure)
+  await exec('webpageMarkdownArtifact.includesLayoutAndMotionFrames', testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames)
+  await exec('webpageMarkdownArtifact.remotionFixture.sections', testWebpageMarkdownArtifactRemotionFixtureSections)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)

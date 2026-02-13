@@ -1,8 +1,10 @@
-# Wireframe-Enhanced (Wireframe+) Artifact
+# Webpage Markdown Artifact (ASCII Layout + Signals)
 
 ## Goal
 
-Generate a deterministic, editable Markdown artifact that represents a webpage as a structured ASCII wireframe, without site-specific branching.
+Generate a deterministic, editable Markdown artifact that represents a webpage as a structured ASCII layout, without site-specific branching.
+
+Implementation note: the artifact generator is split into small modules under `canvas/src/lib/websites/` and the legacy `kg-wireframe` fence alias is removed (use `kg-webpage-layout`).
 
 ## Inputs
 
@@ -19,15 +21,15 @@ Generate a deterministic, editable Markdown artifact that represents a webpage a
 - A Markdown document containing:
   - a summary overview
   - page statistics tables
-  - sectioned wireframe blocks using box-drawing frames (`┌─/│/└─`)
+  - sectioned layout blocks using box-drawing frames (`┌─/│/└─`)
   - detailed breakdown sections (header navigation, hero breakdown, template showcase grid, per-feature section stats, pricing comparison, etc.) when signal sets indicate them
 
 ## Frontmatter Contract
 
 - `kgWebpageUrl`: source URL
-- `kgWebpageView`: `markdown | json | html | wireframe | wireframe-enhanced`
+- `kgWebpageView`: `markdown | json | html`
 
-Wireframe-enhanced content is stored in the markdown file itself (editable), and Viewer/Presentation/Slides render the same markdown (view-only switching).
+The webpage markdown artifact is stored in the markdown file itself (editable), and Viewer/Presentation/Slides render the same markdown (view-only switching).
 
 ## Signal Sources (Domain-Neutral)
 

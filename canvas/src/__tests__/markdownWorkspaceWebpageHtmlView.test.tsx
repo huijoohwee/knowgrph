@@ -38,7 +38,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
     const cases = [
       { view: 'html', expectsIframe: true },
       { view: 'json', expectsIframe: true },
-      { view: 'wireframe', expectsIframe: false },
+      { view: 'markdown', expectsIframe: false },
     ] as const
 
     for (const { view, expectsIframe } of cases) {
@@ -67,7 +67,6 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
           onImportWebsite: () => {},
           activeText: text,
           setActiveText: () => {},
-          webpageHtmlIframeMode: 'srcdoc',
           activeDocumentKey: '/webpage.md',
           highlightedLineRange: null,
           revealLineInEditor: () => {},
@@ -194,7 +193,6 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
           onImportWebsite: () => {},
           activeText: text,
           setActiveText: () => {},
-          webpageHtmlIframeMode: 'srcdoc',
           activeDocumentKey: '/webpage.md',
           highlightedLineRange: null,
           revealLineInEditor: () => {},
@@ -243,8 +241,8 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
         overrideText: JSON.stringify({ ok: true, mode: 'json' }, null, 2),
       },
       {
-        view: 'wireframe',
-        overrideText: ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "wireframe"', '---', '', '# ASCII Wireframe: localhost', '', '```text kg-wireframe', '[MOCKUP]', '```', ''].join('\n'),
+        view: 'markdown',
+        overrideText: ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "markdown"', '---', '', '# Webpage Markdown Artifact: localhost', '', '```text kg-webpage-layout', '[MOCKUP]', '```', ''].join('\n'),
       },
     ] as const
 

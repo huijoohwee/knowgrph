@@ -224,16 +224,16 @@ Key behaviors:
 **User flow**: Markdown Workspace “Import URL” → Globe button → website crawl/import → workspace writes one stub `.md` per page into `/websites/<host>/<importId>/...` so the Explorer reflects the URL path tree.
 
 **Server endpoints (Vite middleware)**:
-- `POST /__website_import/start` (options: discover sitemap, sitemap URL override, max pages, concurrency, include images, wireframe detail level; optional `outputDirRel` via query param)
+- `POST /__website_import/start` (options: discover sitemap, sitemap URL override, max pages, concurrency, include images; optional `outputDirRel` via query param)
 - `GET /__website_import/status` / `GET /__website_import/manifest`
-- `GET /__website_import/artifact` (`rawHtml|markdown|conversionJson|wireframeMarkdown`)
-- `POST /__website_import/import-url` (single URL → persisted artifacts; options include images + wireframe detail level; optional `outputDirRel` via query param)
+- `GET /__website_import/artifact` (`rawHtml|markdown|conversionJson`)
+- `POST /__website_import/import-url` (single URL → persisted artifacts; options include images; optional `outputDirRel` via query param)
 
-**Per-page contract**: stubs include `kgWebpageUrl`, `kgWebpageView`, `kgWebsiteImportId`, `kgWebsiteNodeId`; the active-row dropdown switches `Markdown|JSON|HTML|Wireframe` without mutating graph/layout/zoom.
+**Per-page contract**: stubs include `kgWebpageUrl`, `kgWebpageView`, `kgWebsiteImportId`, `kgWebsiteNodeId`; the active-row dropdown switches `Markdown|JSON|HTML` without mutating graph/layout/zoom.
 
-**Render rule**: Viewer/Presentation/Slides render the webpage HTML via a sandboxed iframe when `kgWebpageView∈{json,html,wireframe}` (default `srcdoc`; configurable via `webpageHtmlIframeMode`):
-- Prefer website-import `rawHtml` artifacts (`/__website_import/artifact?kind=rawHtml`) when `kgWebsiteImportId/kgWebsiteNodeId` exist, else fetch HTML via `/__webpage_proxy?url=...`.
-- Use `sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"` + `referrerPolicy="no-referrer"` (must forbid top-level navigation).
+**Render rule**: Viewer/Presentation/Slides render sandboxed iframe `srcdoc` when `kgWebpageView∈{json,html}` (srcdoc is enforced):
+- Prefer website-import artifacts when `kgWebsiteImportId/kgWebsiteNodeId` exist (`rawHtml` for HTML view; `conversionJson` for JSON view); else use `/__webpage_proxy?url=...` (HTML) or `/__webpage_convert?...` (JSON).
+- Use `sandbox="allow-scripts"` + `referrerPolicy="no-referrer"` (must forbid top-level navigation).
 - `markdown` view renders Markdown.
 - `fetchRemoteMarkdownText(url)` / `fetchRemoteHtmlText(url)` → normalize GitHub blob URLs before remote fetch.
 

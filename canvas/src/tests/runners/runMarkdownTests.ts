@@ -12,12 +12,12 @@ import { testMarkdownPoiImagesRegistryEnrichesMatchingNodes } from '@/__tests__/
 import { testMarkdownApplyWithoutFrontmatterBuildsGraph } from '@/__tests__/markdownApplyWithoutFrontmatter.test'
 import { testMermaidElkLayoutRegistersLoadersBeforeInit } from '@/__tests__/mermaidElkLayoutSupport.test'
 import {
-  testWireframeAsciiExtractsTextFence,
-  testWireframeAsciiExtractsMockupBeforeLegend,
-  testWireframeAsciiUpsertCreatesFenceWhenMissing,
-  testWireframeAsciiUpsertPreservesBodyOutsideFence,
-  testWireframeAsciiUpsertPreservesLegendTail,
-} from '@/__tests__/wireframeAscii.test'
+  testWebpageLayoutAsciiExtractsTextFence,
+  testWebpageLayoutAsciiExtractsMockupBeforeLegend,
+  testWebpageLayoutAsciiUpsertCreatesFenceWhenMissing,
+  testWebpageLayoutAsciiUpsertPreservesBodyOutsideFence,
+  testWebpageLayoutAsciiUpsertPreservesLegendTail,
+} from '@/__tests__/webpageLayoutAscii.test'
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'workspaceFs.seedAndCrud', testWorkspaceFsSeedAndCrud)
@@ -31,9 +31,9 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.mermaid.elkLayoutRegistersLoaders', testMermaidElkLayoutRegistersLoadersBeforeInit)
   await execTest(results, 'markdownWorkspace.sourceUrlSync', testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex)
   await execTest(results, 'markdownWorkspace.refreshFromUrl', testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAndGraphStore)
-  await execTest(results, 'markdown.wireframeAscii.extractsTextFence', testWireframeAsciiExtractsTextFence)
-  await execTest(results, 'markdown.wireframeAscii.extractsMockupBeforeLegend', testWireframeAsciiExtractsMockupBeforeLegend)
-  await execTest(results, 'markdown.wireframeAscii.upsertPreservesBody', testWireframeAsciiUpsertPreservesBodyOutsideFence)
-  await execTest(results, 'markdown.wireframeAscii.upsertPreservesLegendTail', testWireframeAsciiUpsertPreservesLegendTail)
-  await execTest(results, 'markdown.wireframeAscii.upsertCreatesFence', testWireframeAsciiUpsertCreatesFenceWhenMissing)
+  await execTest(results, 'markdown.webpageLayoutAscii.extractsTextFence', testWebpageLayoutAsciiExtractsTextFence)
+  await execTest(results, 'markdown.webpageLayoutAscii.extractsMockupBeforeLegend', testWebpageLayoutAsciiExtractsMockupBeforeLegend)
+  await execTest(results, 'markdown.webpageLayoutAscii.upsertPreservesBody', testWebpageLayoutAsciiUpsertPreservesBodyOutsideFence)
+  await execTest(results, 'markdown.webpageLayoutAscii.upsertPreservesLegendTail', testWebpageLayoutAsciiUpsertPreservesLegendTail)
+  await execTest(results, 'markdown.webpageLayoutAscii.upsertCreatesFence', testWebpageLayoutAsciiUpsertCreatesFenceWhenMissing)
 }
