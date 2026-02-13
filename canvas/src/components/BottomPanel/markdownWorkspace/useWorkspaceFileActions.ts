@@ -468,7 +468,13 @@ export function useWorkspaceFileActions(args: {
         }
 
         const stubForNode = (nodeUrl: string, nodeId: string) => {
-          const v = defaultView === 'html' || defaultView === 'json' || defaultView === 'wireframe' ? defaultView : 'markdown'
+          const v =
+            defaultView === 'html' ||
+            defaultView === 'json' ||
+            defaultView === 'wireframe' ||
+            defaultView === 'wireframe-enhanced'
+              ? defaultView
+              : 'markdown'
           const lines = [
             '---',
             `kgWebpageUrl: "${nodeUrl}"`,

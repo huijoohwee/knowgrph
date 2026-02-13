@@ -26,7 +26,7 @@ export function readYamlFrontmatterValue(fmBlock: string, key: string): string {
   return v
 }
 
-export type WebpageViewMode = 'markdown' | 'json' | 'html' | 'wireframe'
+export type WebpageViewMode = 'markdown' | 'json' | 'html' | 'wireframe' | 'wireframe-enhanced'
 export type WebpageFrontmatterMeta = { url: string; view: WebpageViewMode }
 
 export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatterMeta | null {
@@ -35,7 +35,15 @@ export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatter
   const url = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageUrl')
   const viewRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageView')
   const view: WebpageViewMode =
-    viewRaw === 'html' ? 'html' : viewRaw === 'json' ? 'json' : viewRaw === 'wireframe' ? 'wireframe' : 'markdown'
+    viewRaw === 'html'
+      ? 'html'
+      : viewRaw === 'json'
+        ? 'json'
+        : viewRaw === 'wireframe'
+          ? 'wireframe'
+          : viewRaw === 'wireframe-enhanced'
+            ? 'wireframe-enhanced'
+            : 'markdown'
   if (!url) return null
   return { url, view }
 }
@@ -44,7 +52,15 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
   const text = String(rawText || '')
   const url = String(meta?.url || '').trim()
   const view: WebpageViewMode =
-    meta?.view === 'html' ? 'html' : meta?.view === 'json' ? 'json' : meta?.view === 'wireframe' ? 'wireframe' : 'markdown'
+    meta?.view === 'html'
+      ? 'html'
+      : meta?.view === 'json'
+        ? 'json'
+        : meta?.view === 'wireframe'
+          ? 'wireframe'
+          : meta?.view === 'wireframe-enhanced'
+            ? 'wireframe-enhanced'
+            : 'markdown'
   const block = extractYamlFrontmatterBlock(text)
   const bodyText = block ? block.bodyText : text.replace(/^---[\s\S]*?\n---\s*\n?/, '')
   const lines: string[] = []
@@ -64,7 +80,15 @@ export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageVi
   if (!url) return text
 
   const nextView: WebpageViewMode =
-    view === 'html' ? 'html' : view === 'json' ? 'json' : view === 'wireframe' ? 'wireframe' : 'markdown'
+    view === 'html'
+      ? 'html'
+      : view === 'json'
+        ? 'json'
+        : view === 'wireframe'
+          ? 'wireframe'
+          : view === 'wireframe-enhanced'
+            ? 'wireframe-enhanced'
+            : 'markdown'
   const lines = block.rawBlock.split('\n')
   let replaced = false
   const nextLines = lines.map(line => {

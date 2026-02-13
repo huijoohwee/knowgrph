@@ -1321,7 +1321,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L36; canvas/src/hooks/store/uiSettingsSlice.ts:L275"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L38; canvas/src/hooks/store/uiSettingsSlice.ts:L275"
   },
   "webpageWireframeDetailLevel": {
     "area": "—",
@@ -1338,7 +1338,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L278"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L48; canvas/src/hooks/store/uiSettingsSlice.ts:L278"
   },
   "websiteImportDiscoverSitemap": {
     "area": "—",
@@ -1355,7 +1355,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L59; canvas/src/hooks/store/uiSettingsSlice.ts:L282"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L61; canvas/src/hooks/store/uiSettingsSlice.ts:L282"
   },
   "websiteImportMaxPages": {
     "area": "—",
@@ -1372,7 +1372,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L68; canvas/src/hooks/store/uiSettingsSlice.ts:L285"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L70; canvas/src/hooks/store/uiSettingsSlice.ts:L285"
   },
   "websiteImportConcurrency": {
     "area": "—",
@@ -1389,7 +1389,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L77; canvas/src/hooks/store/uiSettingsSlice.ts:L291"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L79; canvas/src/hooks/store/uiSettingsSlice.ts:L291"
   },
   "websiteImportOutputDirRel": {
     "area": "—",
@@ -1406,7 +1406,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L86; canvas/src/hooks/store/uiSettingsSlice.ts:L297"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L88; canvas/src/hooks/store/uiSettingsSlice.ts:L297"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",

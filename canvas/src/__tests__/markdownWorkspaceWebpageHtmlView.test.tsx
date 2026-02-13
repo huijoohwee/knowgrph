@@ -38,7 +38,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
     const cases = [
       { view: 'html', expectsIframe: true },
       { view: 'json', expectsIframe: true },
-      { view: 'wireframe', expectsIframe: true },
+      { view: 'wireframe', expectsIframe: false },
     ] as const
 
     for (const { view, expectsIframe } of cases) {
@@ -155,7 +155,6 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
     const cases = [
       { view: 'html', nodeId: 'node-html' },
       { view: 'json', nodeId: 'node-json' },
-      { view: 'wireframe', nodeId: 'node-wireframe' },
     ] as const
 
     for (const { view, nodeId } of cases) {

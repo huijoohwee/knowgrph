@@ -176,11 +176,35 @@ export async function fetchWebpageHtmlViaProxy(args: { url: string; signal: Abor
   )
 }
 
+export async function fetchWebpageConversionJsonViaConvert(args: {
+  url: string
+  includeImages: boolean
+  signal: AbortSignal
+}): Promise<string> {
+  const u = String(args.url || '').trim()
+  if (!u) return ''
+  const key = `convert-json:${u}:img:${args.includeImages ? '1' : '0'}`
+  return fetchCached(
+    key,
+    async (signal) => {
+      const res = await fetch(`/__webpage_convert?url=${encodeURIComponent(u)}&includeImages=${args.includeImages ? 'true' : 'false'}`, {
+        method: 'POST',
+        signal,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      })
+      const text = await res.text()
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return text
+    },
+    args.signal,
+  )
+}
+
 export async function fetchWebsiteImportArtifact(args: {
   importId: string
   nodeId: string
   outputDirRel?: string
-  kind: 'rawHtml' | 'markdown' | 'conversionJson' | 'wireframeMarkdown'
+  kind: 'rawHtml' | 'markdown' | 'conversionJson' | 'wireframeMarkdown' | 'wireframeEnhancedMarkdown'
   signal: AbortSignal
 }): Promise<string> {
   const importId = String(args.importId || '').trim()

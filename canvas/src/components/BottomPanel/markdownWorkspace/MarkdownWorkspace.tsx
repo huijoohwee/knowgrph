@@ -46,9 +46,10 @@ import {
   type WebpageViewMode,
   extractYamlFrontmatterBlock,
 } from '@/lib/markdown/frontmatter'
-import { buildWireframeMarkdownFromMarkdown } from '@/lib/websites/wireframe'
+import { buildAsciiWireframeArtifactDoc, looksLikeAsciiWireframeArtifactDoc } from '@/lib/websites/wireframeArtifact'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
+import { fetchWebpageHtmlViaProxy } from '@/lib/websites/webpageIframeSrcdoc'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -511,14 +512,10 @@ export function MarkdownWorkspace() {
       return
     }
 
-    if (view === 'wireframe') {
-      const t = String(activeText || '')
-      const alreadyWireframeArtifact = t.includes('```text kg-wireframe') && t.includes('# ASCII Wireframe:')
-      if (alreadyWireframeArtifact) {
-        setWebpageWorkspaceEditorTextOverride(null)
-        setWebpageWorkspaceViewerTextOverride(null)
-        return
-      }
+    if (view === 'wireframe' || view === 'wireframe-enhanced') {
+      setWebpageWorkspaceEditorTextOverride(null)
+      setWebpageWorkspaceViewerTextOverride(null)
+      return
     }
 
     const stripFrontmatter = (raw: string): string => {
@@ -549,8 +546,7 @@ export function MarkdownWorkspace() {
             setWebpageWorkspaceViewerTextOverride(null)
             return
           }
-          const cleaned = view === 'json' ? String(text || '') : stripFrontmatter(sanitizeImportedMarkdownText(String(text || '')).text)
-          const effective = view === 'json' ? cleaned : String(cleaned || '')
+          const effective = view === 'json' || view === 'html' ? String(text || '') : stripFrontmatter(sanitizeImportedMarkdownText(String(text || '')).text)
           const clipped = effective.length > 200_000 ? `${effective.slice(0, 200_000)}\n\n(clipped)\n` : effective
           setWebpageWorkspaceEditorTextOverride(clipped)
           setWebpageWorkspaceViewerTextOverride(null)
@@ -578,36 +574,14 @@ export function MarkdownWorkspace() {
         }
 
         if (view === 'html') {
-          const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
-          const res = await fetchWebpageMarkdown(url, { includeImages, signal: controller.signal })
+          const resHtml = await fetchWebpageHtmlViaProxy({ url, signal: controller.signal })
           if (cancelled) return
-          if (!res || res.ok !== true) {
+          if (!resHtml) {
             setWebpageWorkspaceEditorTextOverride(`Load failed\n`)
             setWebpageWorkspaceViewerTextOverride(null)
             return
           }
-          const markdown = stripFrontmatter(sanitizeImportedMarkdownText(String(res.markdown || '')).text)
-          const clipped = markdown.length > 200_000 ? `${markdown.slice(0, 200_000)}\n\n(clipped)\n` : markdown
-          setWebpageWorkspaceEditorTextOverride(clipped)
-          setWebpageWorkspaceViewerTextOverride(null)
-          return
-        }
-
-        if (view === 'wireframe') {
-          const includeImages = false
-          const res = await fetchWebpageMarkdown(url, { includeImages, signal: controller.signal })
-          if (cancelled) return
-          if (!res || res.ok !== true) {
-            setWebpageWorkspaceEditorTextOverride(`Load failed\n`)
-            setWebpageWorkspaceViewerTextOverride(null)
-            return
-          }
-          const wf = buildWireframeMarkdownFromMarkdown({
-            markdown: String(res.markdown || ''),
-            url,
-            detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
-          })
-          const clipped = wf.length > 200_000 ? `${wf.slice(0, 200_000)}\n\n(clipped)\n` : wf
+          const clipped = resHtml.length > 200_000 ? `${resHtml.slice(0, 200_000)}\n\n(clipped)\n` : resHtml
           setWebpageWorkspaceEditorTextOverride(clipped)
           setWebpageWorkspaceViewerTextOverride(null)
           return
@@ -630,7 +604,7 @@ export function MarkdownWorkspace() {
         void 0
       }
     }
-  }, [activeText, webpageWorkspaceMeta, websiteImportMeta])
+  }, [webpageWorkspaceMeta, websiteImportMeta])
 
   const switchActivePdfWorkspaceMode = React.useCallback(
     async (mode: PdfConversionMode) => {
@@ -724,7 +698,60 @@ export function MarkdownWorkspace() {
     async (view: WebpageViewMode) => {
       if (!activePath || !webpageWorkspaceMeta) return
       try {
-        let nextText = upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+        const nextText = await (async () => {
+          if (view !== 'wireframe' && view !== 'wireframe-enhanced') {
+            return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+          }
+
+          const isEnhanced = view === 'wireframe-enhanced'
+
+          if (looksLikeAsciiWireframeArtifactDoc(String(activeText || ''))) {
+            return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+          }
+
+          if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
+            const outputDirRel = String(
+              websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '',
+            ).trim()
+            const outputDirQuery = outputDirRel ? `outputDirRel=${encodeURIComponent(outputDirRel)}&` : ''
+            const kind = websiteImportArtifactKindForWebpageView('markdown')
+            const res = await fetch(
+              `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(websiteImportMeta.importId)}&nodeId=${encodeURIComponent(websiteImportMeta.nodeId)}&kind=${encodeURIComponent(kind)}`,
+            )
+            if (!res.ok) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+            const text = await res.text()
+            const raw = String(text || '')
+            if (looksLikeAsciiWireframeArtifactDoc(raw)) {
+              return upsertWebpageFrontmatterMeta(raw, { url: webpageWorkspaceMeta.url, view })
+            }
+
+            if (isEnhanced) {
+              const { buildWireframeEnhancedArtifactDoc } = await import('@/lib/websites/wireframeEnhancedArtifact')
+              return buildWireframeEnhancedArtifactDoc({ markdown: raw, url: webpageWorkspaceMeta.url })
+            }
+
+            return buildAsciiWireframeArtifactDoc({
+              markdown: raw,
+              url: webpageWorkspaceMeta.url,
+              detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
+            })
+          }
+
+          const includeImages = false
+          const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { includeImages })
+          if (!res || res.ok !== true) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+
+          if (isEnhanced) {
+            const { buildWireframeEnhancedArtifactDoc } = await import('@/lib/websites/wireframeEnhancedArtifact')
+            return buildWireframeEnhancedArtifactDoc({ markdown: String(res.markdown || ''), url: webpageWorkspaceMeta.url })
+          }
+
+          return buildAsciiWireframeArtifactDoc({
+            markdown: String(res.markdown || ''),
+            url: webpageWorkspaceMeta.url,
+            detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
+          })
+        })()
 
         const fs = await getFs()
         await fs.writeFileText(activePath, nextText)
@@ -781,6 +808,7 @@ export function MarkdownWorkspace() {
               { value: 'json', label: 'JSON' },
               { value: 'html', label: 'HTML' },
               { value: 'wireframe', label: 'Wireframe' },
+              { value: 'wireframe-enhanced', label: 'Wireframe+' },
             ]}
             onChange={next => void switchActiveWebpageWorkspaceView(next)}
           />

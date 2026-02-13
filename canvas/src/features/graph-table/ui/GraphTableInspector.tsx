@@ -200,7 +200,16 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
         if (!cancelled) setWebpageDoc(null)
         return
       }
-      const view: WebpageViewMode = fm?.view === 'html' ? 'html' : fm?.view === 'json' ? 'json' : fm?.view === 'wireframe' ? 'wireframe' : 'markdown'
+      const view: WebpageViewMode =
+        fm?.view === 'html'
+          ? 'html'
+          : fm?.view === 'json'
+            ? 'json'
+            : fm?.view === 'wireframe'
+              ? 'wireframe'
+              : fm?.view === 'wireframe-enhanced'
+                ? 'wireframe-enhanced'
+                : 'markdown'
       if (!cancelled) setWebpageDoc({ workspacePath, url, view })
     })()
 
@@ -326,6 +335,7 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
               { value: 'json', label: 'JSON' },
               { value: 'html', label: 'HTML' },
               { value: 'wireframe', label: 'Wireframe' },
+              { value: 'wireframe-enhanced', label: 'Wireframe+' },
             ]}
             onChange={next => void switchWebpageView(next)}
           />

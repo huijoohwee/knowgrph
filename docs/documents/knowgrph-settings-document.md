@@ -52,7 +52,7 @@
   - `markdown`: editor/viewer use Markdown (graph parsing remains aligned to Markdown)
   - `json`: editor shows conversion payload JSON (read-only); viewer/presentation/slides render HTML via iframe proxy
   - `html`: editor stays Markdown; viewer/presentation/slides render HTML via iframe proxy
-  - `wireframe`: editor shows the markdown file; the ASCII wireframe lives in a dedicated ` ```text kg-wireframe ` fenced block (editable); viewer/presentation/slides render HTML via iframe proxy
+  - `wireframe`: editor shows generated ASCII wireframe markdown (editable); viewer/presentation/slides render the same Markdown
 - `webpageHtmlIframeMode` (`srcdoc` | `src`)
   - `srcdoc` (default): fetch HTML once (same-origin proxy or stored artifact), inject `<base>` + scroll-sync, then render via sandboxed iframe `srcdoc`
   - `src`: render via sandboxed iframe `src="/__webpage_proxy?url=..."`

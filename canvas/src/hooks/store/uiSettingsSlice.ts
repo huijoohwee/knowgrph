@@ -269,7 +269,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setWebpageImportIncludeImages: (v: boolean) => set({ webpageImportIncludeImages: v }),
 
   webpageImportView: 'markdown' as const,
-  setWebpageImportView: (v: 'markdown' | 'json' | 'html' | 'wireframe') => set({ webpageImportView: v }),
+  setWebpageImportView: (v: 'markdown' | 'json' | 'html' | 'wireframe' | 'wireframe-enhanced') => set({ webpageImportView: v }),
 
   webpageHtmlIframeMode: 'srcdoc' as const,
   setWebpageHtmlIframeMode: (v: 'srcdoc' | 'src') => set({ webpageHtmlIframeMode: v === 'src' ? 'src' : 'srcdoc' }),

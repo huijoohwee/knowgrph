@@ -5,18 +5,18 @@
 Render imported webpages with high fidelity (rich media, animations) while preserving the app invariants:
 
 - **Sandbox boundary**: untrusted HTML must never escape the iframe.
-- **View-only switching**: `Markdown | JSON | HTML | Wireframe` must not mutate graph/layout/zoom.
+- **View-only switching**: `Markdown | JSON | HTML | Wireframe | Wireframe+` must not mutate graph/layout/zoom.
 - **Neutrality**: no site-specific hacks or hardcoded domains.
 
 ## Surfaces
 
-- **Editor**: shows Markdown by default; JSON is a read-only override; Wireframe is an editable ASCII surface stored in the markdown file.
-- **Viewer / Presentation / Slides Gallery**: render either Markdown (view=markdown) or HTML (view ∈ {json, html, wireframe}).
+- **Editor**: shows Markdown by default; JSON/HTML are read-only overrides; Wireframe/Wireframe+ are editable ASCII surfaces stored in the markdown file.
+- **Viewer / Presentation / Slides Gallery**: render either Markdown (view ∈ {markdown, wireframe, wireframe-enhanced}) or a sandboxed iframe (view ∈ {json, html}).
 
 ## Frontmatter Contract (per imported page)
 
 - `kgWebpageUrl`: source URL
-- `kgWebpageView`: `markdown | json | html | wireframe`
+- `kgWebpageView`: `markdown | json | html | wireframe | wireframe-enhanced`
 - `kgWebsiteImportId`: optional website-import job id
 - `kgWebsiteNodeId`: optional stable node id
 - `kgWebsiteOutputDirRel`: optional artifact root override
@@ -48,6 +48,7 @@ Render imported webpages with high fidelity (rich media, animations) while prese
   - `page.md`
   - `conversion.json`
   - `wireframe.md`
+  - Wireframe+ is generated client-side from Markdown signals and stored in the workspace markdown file.
 
 ### `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`
 
@@ -72,7 +73,7 @@ Default HTML rendering uses sandboxed `srcdoc` iframes:
 
 All webpage HTML rendering in Viewer / Presentation / Slides uses a sandboxed iframe with:
 
-- `sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"`
+- `sandbox="allow-scripts"`
 - `referrerPolicy="no-referrer"`
 
 The sandbox must forbid top-level navigation (do not include `allow-top-navigation`).
@@ -80,9 +81,10 @@ The sandbox must forbid top-level navigation (do not include `allow-top-navigati
 ## View Mode Semantics
 
 - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-- `JSON`: Editor shows conversion JSON (read-only); Viewer/Presentation/Slides render sandboxed HTML.
-- `HTML`: Editor shows Markdown; Viewer/Presentation/Slides render sandboxed HTML.
-- `Wireframe`: Editor shows the markdown file; the ASCII wireframe lives in a dedicated ` ```text kg-wireframe ` fenced block (editable); Viewer/Presentation/Slides render sandboxed HTML.
+- `JSON`: Editor shows conversion JSON; Viewer/Presentation/Slides render sandboxed JSON code (iframe `srcdoc`).
+- `HTML`: Editor shows raw HTML (override); Viewer/Presentation/Slides render sandboxed HTML (`srcdoc`).
+- `Wireframe`: Editor shows the generated ASCII wireframe markdown artifact (editable); Viewer/Presentation/Slides render the same Markdown.
+- `Wireframe+`: Editor shows a richer wireframe artifact (editable); Viewer/Presentation/Slides render the same Markdown.
 
 ## Shared Signal Tokens (Mode-Independent)
 
@@ -94,10 +96,39 @@ All view modes share the same generic signal/token vocabulary derived from Markd
 
 Wireframe mockups render these tokens inline (for example `Nav: [NAV] Docs | [CTA] Get started`) and the Document Structure section includes the same token prefixes.
 
+## Wireframe+ Fixture-Driven Structure (No Hardcoded Domains)
+
+Wireframe+ uses *generic extracted signals* plus optional extracted detail blocks to produce a more fixture-like, sectioned document without branching on any specific website.
+
+### Required Signals (Generic)
+
+- Header navigation must be derived from `[NAV]`/`[LINK]` intent plus optional `## Extracted Navigation Menus` blocks.
+- Hero block must be derived from the main H1 + nearby summary paragraph + a first inline command (e.g. `$ npx ...`) + nearby CTAs.
+- Section details must be derived from counts over the section body (paragraphs, links, media, price tokens, timecodes).
+
+### Optional Extracted Blocks (Preferred When Present)
+
+If the upstream conversion appends structured blocks, Wireframe+ should use them directly:
+
+- `## Pricing Comparison (Extracted)` → detailed pricing comparison table.
+- `## Company License Options (Extracted)` → company-license option bullets + callouts.
+- `## Pricing Details (Extracted)` → price-point table.
+- `## Rendering Options (Extracted)` → rendering options table.
+
+### Fixture Parity Policy
+
+- Use fixture-like ASCII layouts only when the corresponding signal set is detected (for example, template set contains `Blank/Hello World/Next.js/Prompt to Motion/React Router/Find a template`).
+- Never check `kgWebpageUrl` or host strings to decide formatting.
+
+### Regression Testing (Offline)
+
+- Keep a local upstream-markdown fixture (not HTML, not live fetch) that includes extracted blocks.
+- Assert on structural invariants (presence of sections/tables/frames) and avoid asserting on domain content beyond the fixture itself.
+
 ## Local Wireframe Generation
 
-Generate a wireframe markdown file from a URL (domain-neutral, no hardcoded sites):
+Generate a wireframe markdown file from a URL (domain-neutral, no hardcoded sites or fixture paths):
 
 ```bash
-npm --prefix knowgrph/canvas run webpage:wireframe -- --url "https://www.remotion.dev/" --out "../../sandbox/test-data/ascii-wireframe-remotion-dev.md"
+npm --prefix knowgrph/canvas run webpage:wireframe -- --url "https://example.com/" --out "./wireframe.md"
 ```

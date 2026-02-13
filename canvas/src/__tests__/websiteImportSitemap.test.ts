@@ -157,5 +157,6 @@ export const testWebsiteImportArtifactKindForWebpageView = () => {
   if (websiteImportArtifactKindForWebpageView('markdown') !== 'markdown') throw new Error('markdown mapping')
   if (websiteImportArtifactKindForWebpageView('json') !== 'conversionJson') throw new Error('json mapping')
   if (websiteImportArtifactKindForWebpageView('wireframe') !== 'wireframeMarkdown') throw new Error('wireframe mapping')
-  if (websiteImportArtifactKindForWebpageView('html') !== 'markdown') throw new Error('html mapping')
+  if (websiteImportArtifactKindForWebpageView('wireframe-enhanced') !== 'wireframeEnhancedMarkdown') throw new Error('wireframe-enhanced mapping')
+  if (websiteImportArtifactKindForWebpageView('html') !== 'rawHtml') throw new Error('html mapping')
 }

@@ -26,11 +26,13 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
             ? 'json'
             : String(v) === 'wireframe'
               ? 'wireframe'
+              : String(v) === 'wireframe-enhanced'
+                ? 'wireframe-enhanced'
               : 'markdown',
       ),
     docKey: 'webpageImportView',
     default: () => 'markdown',
-    options: ['markdown', 'json', 'html', 'wireframe'],
+    options: ['markdown', 'json', 'html', 'wireframe', 'wireframe-enhanced'],
   },
   {
     key: 'webpageHtmlIframeMode',

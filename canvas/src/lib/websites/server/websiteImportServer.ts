@@ -3,6 +3,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import {
   buildWireframeMarkdown,
+  buildWireframeEnhancedMarkdown,
   clampInt,
   extractXmlLocs,
   fetchTextWithLimit,
@@ -28,6 +29,7 @@ type WebsiteImportNode = {
     markdownRelPath?: string
     conversionJsonRelPath?: string
     wireframeMarkdownRelPath?: string
+    wireframeEnhancedMarkdownRelPath?: string
   }
 }
 
@@ -190,7 +192,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
         res.end(JSON.stringify({ ok: false, error: 'Missing importId, nodeId, or kind' }))
         return
       }
-      const allowed = new Set(['rawHtml', 'markdown', 'conversionJson', 'wireframeMarkdown'])
+      const allowed = new Set(['rawHtml', 'markdown', 'conversionJson', 'wireframeMarkdown', 'wireframeEnhancedMarkdown'])
       if (!allowed.has(kind)) {
         res.statusCode = 400
         res.setHeader('Content-Type', 'application/json')
@@ -205,6 +207,8 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             ? path.join(dirAbs, 'page.md')
             : kind === 'wireframeMarkdown'
               ? path.join(dirAbs, 'wireframe.md')
+              : kind === 'wireframeEnhancedMarkdown'
+                ? path.join(dirAbs, 'wireframe-enhanced.md')
               : path.join(dirAbs, 'conversion.json')
       try {
         const text = await fs.readFile(fileAbs, 'utf8')
@@ -277,6 +281,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
         } else {
           const md = String(converted.markdown || '')
           const wireframeMd = buildWireframeMarkdown(md, pageUrl, { detailLevel: wireframeDetailLevel, title: converted.title || undefined })
+          const wireframeEnhancedMd = buildWireframeEnhancedMarkdown(md, pageUrl, { title: converted.title || undefined })
           try {
             await fs.writeFile(path.join(nodeDirAbs, 'page.md'), md, 'utf8')
           } catch {
@@ -284,6 +289,11 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
           }
           try {
             await fs.writeFile(path.join(nodeDirAbs, 'wireframe.md'), wireframeMd, 'utf8')
+          } catch {
+            void 0
+          }
+          try {
+            await fs.writeFile(path.join(nodeDirAbs, 'wireframe-enhanced.md'), wireframeEnhancedMd, 'utf8')
           } catch {
             void 0
           }
@@ -309,6 +319,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             markdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'page.md'),
             conversionJsonRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'conversion.json'),
             wireframeMarkdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'wireframe.md'),
+            wireframeEnhancedMarkdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'wireframe-enhanced.md'),
           },
         }
 
@@ -451,6 +462,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
 
             const md = String(converted.markdown || '')
             const wireframeMd = buildWireframeMarkdown(md, u, { detailLevel: options.wireframeDetailLevel, title: converted.title || undefined })
+            const wireframeEnhancedMd = buildWireframeEnhancedMarkdown(md, u, { title: converted.title || undefined })
             try {
               await fs.writeFile(path.join(nodeDirAbs, 'page.md'), md, 'utf8')
             } catch {
@@ -458,6 +470,11 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             }
             try {
               await fs.writeFile(path.join(nodeDirAbs, 'wireframe.md'), wireframeMd, 'utf8')
+            } catch {
+              void 0
+            }
+            try {
+              await fs.writeFile(path.join(nodeDirAbs, 'wireframe-enhanced.md'), wireframeEnhancedMd, 'utf8')
             } catch {
               void 0
             }
@@ -482,6 +499,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
                 markdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'page.md'),
                 conversionJsonRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'conversion.json'),
                 wireframeMarkdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'wireframe.md'),
+              wireframeEnhancedMarkdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'wireframe-enhanced.md'),
               },
             })
           }

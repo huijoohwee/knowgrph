@@ -266,6 +266,18 @@ testEdaMlpInterviewSessionMarkdownProducesMermaidAnchorsAndInternalLinks(markdow
 | Content (Avoid)     | `expect(nodes[0].label).toBe('EDA Phase')`       | Couples test to specific content in fixture      |
 | Content (Avoid)     | `expect(edges[0].source).toBe('eda-start')`      | Assumes specific node IDs from fixture           |
 
+### Fixture-Driven Wireframe+ (Webpage) Regression
+
+For Wireframe+ structure matching, prefer an *offline* upstream-markdown fixture (converted markdown + appended `(Extracted)` blocks) and assert section-level structure.
+
+- Fixture input: `canvas/src/__tests__/fixtures/remotion-dev.upstream-fixture.md`
+- Test entrypoint: `wireframeEnhanced.remotionFixture.sections`
+
+**Policy**:
+
+- Forbid hardcoding domains in generator logic or tests; use a placeholder URL like `https://example.com/` for deterministic generation.
+- Avoid asserting on live website HTML; the fixture captures the intended extracted signals (templates/pricing/nav).
+
 **Design Compliance**:
 
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |

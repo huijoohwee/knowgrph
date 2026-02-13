@@ -158,6 +158,11 @@
       "types": "./dist/ui/tailwindTextSize.d.ts",
       "import": "./dist/ui/tailwindTextSize.js",
       "default": "./dist/ui/tailwindTextSize.js"
+    },
+    "./websites/signalTokens": {
+      "types": "./dist/websites/signalTokens.d.ts",
+      "import": "./dist/websites/signalTokens.js",
+      "default": "./dist/websites/signalTokens.js"
     }
   },
   "files": [

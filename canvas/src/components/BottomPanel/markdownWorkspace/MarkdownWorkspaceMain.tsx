@@ -14,9 +14,11 @@ import { parseWebpageFrontmatterMeta, parseWebsiteImportFrontmatterMeta } from '
 import {
   buildCodeViewerSrcdoc,
   buildWebpageHtmlSrcdoc,
+  fetchWebpageConversionJsonViaConvert,
   fetchWebpageHtmlViaProxy,
   fetchWebsiteImportArtifact,
 } from '@/lib/websites/webpageIframeSrcdoc'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -167,6 +169,7 @@ function MarkdownEditor(props: {
 function useWebpageIframeSrcdoc(args: {
   enabled: boolean
   url: string
+  view: 'html' | 'json'
   websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string } | null
 }): { srcDoc: string | null; error: string | null } {
   const [state, setState] = React.useState<{ srcDoc: string | null; error: string | null }>({ srcDoc: null, error: null })
@@ -185,7 +188,33 @@ function useWebpageIframeSrcdoc(args: {
     let cancelled = false
     const ctrl = new AbortController()
     void (async () => {
-      const raw = args.websiteImportMeta
+      if (args.view === 'json') {
+        const rawJson = args.websiteImportMeta
+          ? await fetchWebsiteImportArtifact({
+              importId: args.websiteImportMeta.importId,
+              nodeId: args.websiteImportMeta.nodeId,
+              outputDirRel: args.websiteImportMeta.outputDirRel,
+              kind: 'conversionJson',
+              signal: ctrl.signal,
+            })
+          : await fetchWebpageConversionJsonViaConvert({
+              url,
+              includeImages: useGraphStore.getState().webpageImportIncludeImages ?? true,
+              signal: ctrl.signal,
+            })
+        const pretty = (() => {
+          const t = String(rawJson || '')
+          try {
+            const parsed = JSON.parse(t) as unknown
+            return JSON.stringify(parsed, null, 2)
+          } catch {
+            return t
+          }
+        })()
+        return buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'json', text: pretty })
+      }
+
+      const rawHtml = args.websiteImportMeta
         ? await fetchWebsiteImportArtifact({
             importId: args.websiteImportMeta.importId,
             nodeId: args.websiteImportMeta.nodeId,
@@ -194,7 +223,7 @@ function useWebpageIframeSrcdoc(args: {
             signal: ctrl.signal,
           })
         : await fetchWebpageHtmlViaProxy({ url, signal: ctrl.signal })
-      return buildWebpageHtmlSrcdoc({ html: raw, baseHref: url })
+      return buildWebpageHtmlSrcdoc({ html: rawHtml, baseHref: url })
     })()
       .then((srcDoc) => {
         if (cancelled) return
@@ -215,7 +244,7 @@ function useWebpageIframeSrcdoc(args: {
         void 0
       }
     }
-  }, [args.enabled, args.url, args.websiteImportMeta?.importId, args.websiteImportMeta?.nodeId, args.websiteImportMeta?.outputDirRel])
+  }, [args.enabled, args.url, args.view, args.websiteImportMeta?.importId, args.websiteImportMeta?.nodeId, args.websiteImportMeta?.outputDirRel])
 
   return state
 }
@@ -279,19 +308,22 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const websiteImportMeta = React.useMemo(() => parseWebsiteImportFrontmatterMeta(activeText), [activeText])
   const showWebpageHtml = !!(
     webpageMeta &&
-    (webpageMeta.view === 'html' || webpageMeta.view === 'json' || webpageMeta.view === 'wireframe') &&
+    (webpageMeta.view === 'html' || webpageMeta.view === 'json') &&
     webpageMeta.url
   )
 
-  const iframeMode: 'srcdoc' | 'src' = webpageHtmlIframeMode === 'src' ? 'src' : 'srcdoc'
+  const iframeMode: 'srcdoc' | 'src' =
+    webpageMeta?.view === 'json' || webpageMeta?.view === 'html' ? 'srcdoc' : webpageHtmlIframeMode === 'src' ? 'src' : 'srcdoc'
   const iframeSrcUrl = React.useMemo(() => {
     const u = String(webpageMeta?.url || '').trim()
     if (!u) return ''
+    if (webpageMeta?.view === 'json') return ''
     return `/__webpage_proxy?url=${encodeURIComponent(u)}`
-  }, [webpageMeta?.url])
+  }, [webpageMeta?.url, webpageMeta?.view])
   const { srcDoc: iframeSrcDoc } = useWebpageIframeSrcdoc({
     enabled: showWebpageHtml && iframeMode === 'srcdoc',
     url: String(webpageMeta?.url || ''),
+    view: webpageMeta?.view === 'json' ? 'json' : 'html',
     websiteImportMeta: websiteImportMeta && websiteImportMeta.importId && websiteImportMeta.nodeId ? websiteImportMeta : null,
   })
 
@@ -514,7 +546,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         title={webpageMeta?.url || 'Webpage'}
         src={iframeMode === 'src' ? iframeSrcUrl : undefined}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"
+        sandbox="allow-scripts"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -555,7 +587,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         title={webpageMeta?.url || 'Webpage'}
         src={iframeMode === 'src' ? iframeSrcUrl : undefined}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"
+        sandbox="allow-scripts"
         referrerPolicy="no-referrer"
       />
     </section>
@@ -593,7 +625,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         title={webpageMeta?.url || 'Webpage'}
         src={iframeMode === 'src' ? iframeSrcUrl : undefined}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
-        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"
+        sandbox="allow-scripts"
         referrerPolicy="no-referrer"
       />
     </section>

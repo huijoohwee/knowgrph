@@ -45,3 +45,12 @@ export const testWebpageFrontmatterSupportsWireframeView = () => {
   if (parsed.url !== 'https://localhost/path') throw new Error('url mismatch')
   if (parsed.view !== 'wireframe') throw new Error('view mismatch')
 }
+
+export const testWebpageFrontmatterSupportsWireframeEnhancedView = () => {
+  const input = '# Title\n\nHello\n'
+  const withMeta = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'wireframe-enhanced' })
+  const parsed = parseWebpageFrontmatterMeta(withMeta)
+  if (!parsed) throw new Error('expected meta')
+  if (parsed.url !== 'https://localhost/path') throw new Error('url mismatch')
+  if (parsed.view !== 'wireframe-enhanced') throw new Error('view mismatch')
+}

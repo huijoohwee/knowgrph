@@ -30,6 +30,55 @@
 
 ### P0-Critical
 
+#### 2026-02-13
+
+
+- [ ] single SSOT “capability map” (URL import → conversion → artifact storage → explorer/tree → render modes)
+
+- [ ] 
+
+```
+# ENHANCE End-to-End native local in-repo Import URL (website, including webpages in tree/sitemap view) → Render PIPELINE with **sandboxed srcdoc iframes** 
+- adhere to generic, universal, neutrality, project-agnostic parsing of Website/Webpage (NOT custom made to process only any individual specific Website/Webpage); 
+
+## ENFORCE Mode Contract alignment in editor/viewer across Markdown/JSON/HTML/Wireframe Mode
+- SHARE/REUSE Component Categorization Tokens (NAV/CTA/PRICE/TIME, etc.) across all Mode Contracts; 
+- SHARE/REUSE generic signal extraction logic (no site-specific branching)
+
+#### `wireframe-enhanced` Editor output
+ENHANCE generator to match fixture's detailed structure: extend sections with Header Navigation tables, Hero breakdown, per-feature "Section Statistics", Template Showcase ASCII grid with multi-row cells, richer content, exact template names grid, and table—all driven by extracted signals and enhanced upstream markdown with additional DOM heuristics: 
+(test; FORBID hardcoded URL→fixture mapping and FORBID absolute sandbox paths; keep regression fixtures under `canvas/src/__tests__/fixtures/`)
+
+## ANCHOR on Document Structure Mode (default) BASELINE, 
+ENFORCE GRAPHS/content alignment/consistency/sync, 
+FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across: 
+    
+### TOUCHPOINTS 
+- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview 
+  
+### MODES/LAYOUTS 
+- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout) 
+    
+### ZOOMS 
+- Pin to View, Fit to View, Fit to Screen, Zoom to Selection 
+    
+## ALIGN Semantic Definition 
+- **GRAPHS Elements:** nodes, Node Quick Editors, edges, graph layers (subgraphs, groups, clusters, communities), labels, text 
+- **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs 
+    
+## Code Maintenance 
+- COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}` 
+- COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT 
+- REMOVE, PREVENT & RESOLVE cross‑repo conflicts/duplicates/stale/interference across layers/modes 
+- CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom) 
+- OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-rendering 
+- USE semantic HTML; forbid generic `<div>` 
+- UPDATE unified setting to MainPanel Settings schema 
+- TEST/VALIDATE only bounded diffs; FORBID indefinite runs 
+    
+## UPDATE CROSS‑REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
+```
+
 #### 2026-02-12
 
 - [ ] ASCII Wireframe Diagram view

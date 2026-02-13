@@ -38,6 +38,7 @@ import {
   testWebpageFrontmatterUpsertUpdatesExisting,
   testWebpageFrontmatterSupportsJsonView,
   testWebpageFrontmatterSupportsWireframeView,
+  testWebpageFrontmatterSupportsWireframeEnhancedView,
 } from '@/__tests__/webpageFrontmatter.test'
 import {
   testWebsiteImportSitemapDetectsIndex,
@@ -56,6 +57,8 @@ import {
   testWebsiteImportWireframeRendersSiblingHeadingsInRow,
   testWebsiteImportWireframeDetailLevelCapsSectionDetails,
 } from '@/__tests__/websiteImportSitemap.test'
+import { testWireframeEnhancedIncludesLayoutAndMotionFrames } from '@/__tests__/wireframeEnhanced.test'
+import { testWireframeEnhancedRemotionFixtureSections } from '@/__tests__/wireframeEnhancedRemotionFixture.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
 import {
   testMarkdownWorkspaceWebpageHtmlViewRendersIframe,
@@ -967,6 +970,7 @@ export const runAllTests = async () => {
   await exec('webpage.frontmatter.upsertUpdatesExisting', testWebpageFrontmatterUpsertUpdatesExisting)
   await exec('webpage.frontmatter.supportsJsonView', testWebpageFrontmatterSupportsJsonView)
   await exec('webpage.frontmatter.supportsWireframeView', testWebpageFrontmatterSupportsWireframeView)
+  await exec('webpage.frontmatter.supportsWireframeEnhancedView', testWebpageFrontmatterSupportsWireframeEnhancedView)
   await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
   await exec('websiteImport.sitemap.detectsIndex', testWebsiteImportSitemapDetectsIndex)
   await exec('websiteImport.artifactKindForWebpageView', testWebsiteImportArtifactKindForWebpageView)
@@ -982,6 +986,8 @@ export const runAllTests = async () => {
   await exec('websiteImport.wireframe.rendersPageLevelNavDetails', testWebsiteImportWireframeRendersPageLevelNavDetails)
   await exec('websiteImport.wireframe.rendersSiblingHeadingsInRow', testWebsiteImportWireframeRendersSiblingHeadingsInRow)
   await exec('websiteImport.wireframe.detailLevelCapsSectionDetails', testWebsiteImportWireframeDetailLevelCapsSectionDetails)
+  await exec('wireframeEnhanced.includesLayoutAndMotionFrames', testWireframeEnhancedIncludesLayoutAndMotionFrames)
+  await exec('wireframeEnhanced.remotionFixture.sections', testWireframeEnhancedRemotionFixtureSections)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)
