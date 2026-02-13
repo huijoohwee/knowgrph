@@ -495,12 +495,13 @@ export function useWorkspaceFileActions(args: {
             const node = nodes[i] || {}
             const nodeUrl = typeof node.url === 'string' ? node.url : ''
             const nodeId = typeof node.nodeId === 'string' ? node.nodeId : hashStringToHex(nodeUrl).slice(0, 16)
+            const nodeTreePath = typeof node.path === 'string' ? node.path : ''
             const status = typeof node.status === 'string' ? node.status : 'ok'
             if (!nodeUrl || status !== 'ok') continue
             const nodePath = (() => {
               try {
-                const u = new URL(nodeUrl)
-                const parts = u.pathname.split('/').filter(Boolean)
+                const raw = nodeTreePath && nodeTreePath.trim() ? nodeTreePath : new URL(nodeUrl).pathname
+                const parts = String(raw || '').split('/').filter(Boolean)
                 return parts.map(safeSegment)
               } catch {
                 return []

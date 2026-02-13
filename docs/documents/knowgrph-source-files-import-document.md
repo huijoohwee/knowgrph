@@ -133,12 +133,14 @@ sequenceDiagram
   - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
   - `JSON`: Editor shows conversion payload JSON (read-only); Viewer/Presentation/Slides render HTML via a sandboxed iframe.
   - `HTML`: Editor stays Markdown; Viewer/Presentation/Slides render HTML via a sandboxed iframe.
-  - `Wireframe`: Editor shows ASCII wireframe (read-only); Viewer/Presentation/Slides render HTML via a sandboxed iframe.
+  - `Wireframe`: Editor shows the markdown file; the ASCII wireframe lives in a dedicated ` ```text kg-wireframe ` fenced block (editable); Viewer/Presentation/Slides render HTML via a sandboxed iframe.
+
+**Shared token vocabulary (mode-independent)**: the app uses a generic signal extraction layer to derive consistent tokens from Markdown across modes: `[NAV]`, `[CTA]`, `[LINK]`, `[PRICE]`, `[TIME]`.
 - **Iframe implementation**:
   - Default is `srcdoc`: fetch HTML once (same-origin proxy or stored artifact), inject `<base>` + scroll-sync, then render in a sandboxed iframe.
   - Optional `src`: render with `src="/__webpage_proxy?url=..."`.
 - **Iframe sandbox policy**: Use `sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"` with `referrerPolicy="no-referrer"`; forbid top-level navigation.
-- **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers or trigger re-parsing/apply-to-graph.
+- **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers, trigger re-parsing/apply-to-graph, or write default import settings.
 - **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy` for same-origin loading, and sets a self-origin `<base>` to prevent accidental navigation to the remote site.
 - **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
 
@@ -155,7 +157,7 @@ sequenceDiagram
 
 **Decision Logic**:
 - **Tree fidelity**: Workspace path is derived from URL pathname so the Explorer reflects the website’s directory structure.
-- **View switching (active-row dropdown)**: `Markdown | JSON | HTML | Wireframe` is strictly view-only (no apply-to-graph, no layout/zoom mutation).
+- **View switching (active-row dropdown)**: `Markdown | JSON | HTML | Wireframe` is strictly view-only (no apply-to-graph, no layout/zoom mutation, no default-setting mutation).
 - **Artifact mapping (editor text)**: `json→conversionJson`, `wireframe→wireframeMarkdown`, else `markdown`; fetched from `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`.
 - **HTML fidelity**: For `kgWebpageView ∈ {json, html, wireframe}`, Viewer/Presentation/Slides render 100% fidelity HTML in a sandboxed iframe. The HTML payload is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy.
 - **Wireframe LOD**: Website import passes `wireframeDetailLevel` and stores `wireframe.md` per page for deterministic wireframe view switching.

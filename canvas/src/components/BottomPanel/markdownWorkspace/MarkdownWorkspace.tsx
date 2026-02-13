@@ -44,6 +44,7 @@ import {
   parseWebsiteImportFrontmatterMeta,
   upsertWebpageFrontmatterMeta,
   type WebpageViewMode,
+  extractYamlFrontmatterBlock,
 } from '@/lib/markdown/frontmatter'
 import { buildWireframeMarkdownFromMarkdown } from '@/lib/websites/wireframe'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
@@ -137,7 +138,6 @@ export function MarkdownWorkspace() {
   const setGraphData = useGraphStore(s => s.setGraphData)
 
   const setPdfImportConversionMode = useGraphStore(s => s.setPdfImportConversionMode)
-  const setWebpageImportView = useGraphStore(s => s.setWebpageImportView)
   const webpageHtmlIframeMode = useGraphStore(s => (s.webpageHtmlIframeMode === 'src' ? 'src' : 'srcdoc') as 'src' | 'srcdoc')
 
   const handleSetPdfImportConversionMode = React.useCallback(
@@ -505,44 +505,37 @@ export function MarkdownWorkspace() {
       return
     }
 
+    if (view === 'markdown') {
+      setWebpageWorkspaceEditorTextOverride(null)
+      setWebpageWorkspaceViewerTextOverride(null)
+      return
+    }
+
+    if (view === 'wireframe') {
+      const t = String(activeText || '')
+      const alreadyWireframeArtifact = t.includes('```text kg-wireframe') && t.includes('# ASCII Wireframe:')
+      if (alreadyWireframeArtifact) {
+        setWebpageWorkspaceEditorTextOverride(null)
+        setWebpageWorkspaceViewerTextOverride(null)
+        return
+      }
+    }
+
+    const stripFrontmatter = (raw: string): string => {
+      const block = extractYamlFrontmatterBlock(raw)
+      if (!block) return String(raw || '')
+      return String(block.bodyText || '')
+    }
+
     let cancelled = false
     const controller = new AbortController()
     void (async () => {
       try {
         if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
-          if (view === 'html') {
-            setWebpageWorkspaceEditorTextOverride(null)
-            setWebpageWorkspaceViewerTextOverride(null)
-            return
-          }
           const importId = websiteImportMeta.importId
           const nodeId = websiteImportMeta.nodeId
           const outputDirRel = String(websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '').trim()
           const outputDirQuery = outputDirRel ? `outputDirRel=${encodeURIComponent(outputDirRel)}&` : ''
-
-          if (view === 'wireframe') {
-            const res = await fetch(
-              `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=markdown`,
-              { signal: controller.signal },
-            )
-            const text = await res.text()
-            if (cancelled) return
-            if (!res.ok) {
-              setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: `HTTP ${res.status}` }, null, 2))
-              setWebpageWorkspaceViewerTextOverride(null)
-              return
-            }
-            const wireframe = buildWireframeMarkdownFromMarkdown({
-              markdown: String(text || ''),
-              url,
-              detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
-            })
-            const clipped = wireframe.length > 200_000 ? `${wireframe.slice(0, 200_000)}\n\n<!-- (clipped) -->\n` : wireframe
-            setWebpageWorkspaceEditorTextOverride(clipped)
-            setWebpageWorkspaceViewerTextOverride(null)
-            return
-          }
-
           const kind = websiteImportArtifactKindForWebpageView(view)
           const res = await fetch(
             `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=${encodeURIComponent(kind)}`,
@@ -551,13 +544,16 @@ export function MarkdownWorkspace() {
           const text = await res.text()
           if (cancelled) return
           if (!res.ok) {
-            setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: `HTTP ${res.status}` }, null, 2))
+            const errorText = view === 'json' ? JSON.stringify({ ok: false, error: `HTTP ${res.status}` }, null, 2) : `Load failed: HTTP ${res.status}\n`
+            setWebpageWorkspaceEditorTextOverride(errorText)
             setWebpageWorkspaceViewerTextOverride(null)
             return
           }
-          const clipped = text.length > 200_000 ? `${text.slice(0, 200_000)}\n\n<!-- (clipped) -->\n` : text
+          const cleaned = view === 'json' ? String(text || '') : stripFrontmatter(sanitizeImportedMarkdownText(String(text || '')).text)
+          const effective = view === 'json' ? cleaned : String(cleaned || '')
+          const clipped = effective.length > 200_000 ? `${effective.slice(0, 200_000)}\n\n(clipped)\n` : effective
           setWebpageWorkspaceEditorTextOverride(clipped)
-          setWebpageWorkspaceViewerTextOverride(view === 'markdown' ? text : null)
+          setWebpageWorkspaceViewerTextOverride(null)
           return
         }
 
@@ -581,22 +577,38 @@ export function MarkdownWorkspace() {
           return
         }
 
-        if (view === 'wireframe') {
+        if (view === 'html') {
           const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
           const res = await fetchWebpageMarkdown(url, { includeImages, signal: controller.signal })
           if (cancelled) return
           if (!res || res.ok !== true) {
-            const fallback = `# Wireframe\n\nURL: ${url}\n\n- (Load failed)\n`
-            setWebpageWorkspaceEditorTextOverride(fallback)
+            setWebpageWorkspaceEditorTextOverride(`Load failed\n`)
             setWebpageWorkspaceViewerTextOverride(null)
             return
           }
-          const wireframe = buildWireframeMarkdownFromMarkdown({
+          const markdown = stripFrontmatter(sanitizeImportedMarkdownText(String(res.markdown || '')).text)
+          const clipped = markdown.length > 200_000 ? `${markdown.slice(0, 200_000)}\n\n(clipped)\n` : markdown
+          setWebpageWorkspaceEditorTextOverride(clipped)
+          setWebpageWorkspaceViewerTextOverride(null)
+          return
+        }
+
+        if (view === 'wireframe') {
+          const includeImages = false
+          const res = await fetchWebpageMarkdown(url, { includeImages, signal: controller.signal })
+          if (cancelled) return
+          if (!res || res.ok !== true) {
+            setWebpageWorkspaceEditorTextOverride(`Load failed\n`)
+            setWebpageWorkspaceViewerTextOverride(null)
+            return
+          }
+          const wf = buildWireframeMarkdownFromMarkdown({
             markdown: String(res.markdown || ''),
             url,
             detailLevel: useGraphStore.getState().webpageWireframeDetailLevel,
           })
-          setWebpageWorkspaceEditorTextOverride(wireframe)
+          const clipped = wf.length > 200_000 ? `${wf.slice(0, 200_000)}\n\n(clipped)\n` : wf
+          setWebpageWorkspaceEditorTextOverride(clipped)
           setWebpageWorkspaceViewerTextOverride(null)
           return
         }
@@ -605,12 +617,6 @@ export function MarkdownWorkspace() {
         setWebpageWorkspaceViewerTextOverride(null)
       } catch {
         if (cancelled) return
-        if (view === 'wireframe') {
-          const fallback = `# Wireframe\n\nURL: ${url}\n\n- (Request failed)\n`
-          setWebpageWorkspaceEditorTextOverride(fallback)
-          setWebpageWorkspaceViewerTextOverride(null)
-          return
-        }
         setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
         setWebpageWorkspaceViewerTextOverride(null)
       }
@@ -624,7 +630,7 @@ export function MarkdownWorkspace() {
         void 0
       }
     }
-  }, [webpageWorkspaceMeta, websiteImportMeta])
+  }, [activeText, webpageWorkspaceMeta, websiteImportMeta])
 
   const switchActivePdfWorkspaceMode = React.useCallback(
     async (mode: PdfConversionMode) => {
@@ -718,8 +724,8 @@ export function MarkdownWorkspace() {
     async (view: WebpageViewMode) => {
       if (!activePath || !webpageWorkspaceMeta) return
       try {
-        setWebpageImportView(view)
-        const nextText = upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+        let nextText = upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+
         const fs = await getFs()
         await fs.writeFileText(activePath, nextText)
         lastLoadedRef.current = { path: activePath, text: nextText }
@@ -740,7 +746,7 @@ export function MarkdownWorkspace() {
       setEntries,
       setStatusError,
       setStatusWithAutoClear,
-      setWebpageImportView,
+      websiteImportMeta,
       webpageWorkspaceMeta,
     ],
   )
@@ -1882,9 +1888,12 @@ export function MarkdownWorkspace() {
     contentMode !== 'nodeQuickEditor' &&
     !!(
       webpageWorkspaceMeta?.url &&
-      (webpageWorkspaceMeta?.view === 'json' || webpageWorkspaceMeta?.view === 'wireframe' || websiteImportMeta)
+      (webpageWorkspaceMeta?.view === 'json' || (websiteImportMeta && webpageWorkspaceMeta?.view !== 'wireframe' && webpageWorkspaceMeta?.view !== 'markdown'))
     )
-  const effectiveEditorTextOverride = contentMode === 'nodeQuickEditor' ? null : webpageWorkspaceEditorTextOverride
+  const effectiveEditorTextOverride =
+    contentMode === 'nodeQuickEditor'
+      ? null
+      : webpageWorkspaceEditorTextOverride
   const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing && !webpageDerivedReadOnlyActive
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown
 

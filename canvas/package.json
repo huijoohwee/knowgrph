@@ -25,7 +25,8 @@
     "graphrag:workflow-cli": "tsx src/cli/graphrag-config-to-workflow.ts",
     "agenticrag:trace-codebase-index": "tsx src/cli/agenticrag-trace-codebase-index.ts"
     ,
-    "pdf:convert": "tsx src/cli/convert-pdf-to-md.ts"
+    "pdf:convert": "tsx src/cli/convert-pdf-to-md.ts",
+    "webpage:wireframe": "tsx src/cli/convert-webpage-url-to-wireframe-md.ts"
   },
   "dependencies": {
     "@mermaid-js/layout-elk": "^0.2.0",

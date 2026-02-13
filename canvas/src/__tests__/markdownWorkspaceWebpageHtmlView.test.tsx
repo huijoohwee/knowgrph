@@ -238,48 +238,58 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
     const editorRef = { current: null as HTMLTextAreaElement | null }
     const presentationApiRef = { current: null as MarkdownPresentationApi | null }
 
-    const markdown = ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "json"', '---', '', '# Title', ''].join('\n')
-    const jsonText = JSON.stringify({ ok: true, mode: 'json' }, null, 2)
+    const cases = [
+      {
+        view: 'json',
+        overrideText: JSON.stringify({ ok: true, mode: 'json' }, null, 2),
+      },
+      {
+        view: 'wireframe',
+        overrideText: ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "wireframe"', '---', '', '# ASCII Wireframe: localhost', '', '```text kg-wireframe', '[MOCKUP]', '```', ''].join('\n'),
+      },
+    ] as const
 
-    root.render(
-      React.createElement(MarkdownWorkspaceMain, {
-        themeMode: 'light',
-        uiPanelTextFontClass: 'font-sans',
-        uiPanelMonospaceTextClass: 'font-mono',
-        layoutMode: 'editor',
-        setLayoutMode: () => {},
-        markdownWordWrap: true,
-        setMarkdownWordWrap: () => {},
-        markdownTextHighlight: false,
-        setMarkdownTextHighlight: () => {},
-        statusLabel: null,
-        onApply: () => {},
-        onToggleFullscreen: () => {},
-        presentationApiRef,
-        isEditing: true,
-        isMarkdown: true,
-        onFormatAction: () => {},
-        onImportLocalFiles: () => {},
-        onImportLocalFolder: () => {},
-        onImportUrl: () => {},
-        onImportWebsite: () => {},
-        activeText: markdown,
-        setActiveText: () => {
-          throw new Error('expected editor mutations disabled')
-        },
-        editorTextOverride: jsonText,
-        disableEditorMutations: true,
-        activeDocumentKey: '/webpage.md',
-        highlightedLineRange: null,
-        revealLineInEditor: () => {},
-        showInViewer: () => {},
-        showInPresentation: () => {},
-        showInSlidesGallery: () => {},
-        editorUri: 'inmemory://webpage.md',
-        editorLanguage: 'markdown',
-        editorRef: editorRef as unknown as React.MutableRefObject<HTMLTextAreaElement | null>,
-      }),
-    )
+    for (const { view, overrideText } of cases) {
+      const markdown = ['---', 'kgWebpageUrl: "https://localhost/"', `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          layoutMode: 'editor',
+          setLayoutMode: () => {},
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => {},
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => {},
+          statusLabel: null,
+          onApply: () => {},
+          onToggleFullscreen: () => {},
+          presentationApiRef,
+          isEditing: true,
+          isMarkdown: true,
+          onFormatAction: () => {},
+          onImportLocalFiles: () => {},
+          onImportLocalFolder: () => {},
+          onImportUrl: () => {},
+          onImportWebsite: () => {},
+          activeText: markdown,
+          setActiveText: () => {
+            throw new Error('expected editor mutations disabled')
+          },
+          editorTextOverride: overrideText,
+          disableEditorMutations: true,
+          activeDocumentKey: '/webpage.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => {},
+          showInViewer: () => {},
+          showInPresentation: () => {},
+          showInSlidesGallery: () => {},
+          editorUri: 'inmemory://webpage.md',
+          editorLanguage: 'markdown',
+          editorRef: editorRef as unknown as React.MutableRefObject<HTMLTextAreaElement | null>,
+        }),
+      )
 
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
     const tick = () =>
@@ -293,10 +303,11 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
       })
     for (let i = 0; i < 5; i += 1) await tick()
 
-    const textarea = doc.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
-    if (!textarea) throw new Error('expected editor textarea')
-    if (textarea.value !== jsonText) throw new Error('expected editorTextOverride rendered')
-    if (!textarea.readOnly) throw new Error('expected editor readonly')
+      const textarea = doc.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
+      if (!textarea) throw new Error('expected editor textarea')
+      if (textarea.value !== overrideText) throw new Error('expected editorTextOverride rendered')
+      if (!textarea.readOnly) throw new Error('expected editor readonly')
+    }
 
     root.unmount()
   } finally {

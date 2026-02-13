@@ -48,8 +48,12 @@ import {
   testWebsiteImportWireframeClassifiesNavAndCtaLinks,
   testWebsiteImportWireframeDetectsPriceTokens,
   testWebsiteImportWireframeDetectsTimecodes,
+  testWebsiteImportWireframeMockupIncludesCategorizedTokens,
+  testWebsiteImportWireframeMockupIncludesFlowAndStoryboardFrames,
   testWebsiteImportWireframeClassifiesMediaAndAnimTags,
+  testWebsiteImportWireframeDetectsFxTokens,
   testWebsiteImportWireframeRendersPageLevelNavDetails,
+  testWebsiteImportWireframeRendersSiblingHeadingsInRow,
   testWebsiteImportWireframeDetailLevelCapsSectionDetails,
 } from '@/__tests__/websiteImportSitemap.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
@@ -971,8 +975,12 @@ export const runAllTests = async () => {
   await exec('websiteImport.wireframe.classifiesNavAndCtaLinks', testWebsiteImportWireframeClassifiesNavAndCtaLinks)
   await exec('websiteImport.wireframe.detectsPriceTokens', testWebsiteImportWireframeDetectsPriceTokens)
   await exec('websiteImport.wireframe.detectsTimecodes', testWebsiteImportWireframeDetectsTimecodes)
+  await exec('websiteImport.wireframe.mockupIncludesCategorizedTokens', testWebsiteImportWireframeMockupIncludesCategorizedTokens)
+  await exec('websiteImport.wireframe.mockupIncludesFlowAndStoryboardFrames', testWebsiteImportWireframeMockupIncludesFlowAndStoryboardFrames)
   await exec('websiteImport.wireframe.classifiesMediaAndAnimTags', testWebsiteImportWireframeClassifiesMediaAndAnimTags)
+  await exec('websiteImport.wireframe.detectsFxTokens', testWebsiteImportWireframeDetectsFxTokens)
   await exec('websiteImport.wireframe.rendersPageLevelNavDetails', testWebsiteImportWireframeRendersPageLevelNavDetails)
+  await exec('websiteImport.wireframe.rendersSiblingHeadingsInRow', testWebsiteImportWireframeRendersSiblingHeadingsInRow)
   await exec('websiteImport.wireframe.detailLevelCapsSectionDetails', testWebsiteImportWireframeDetailLevelCapsSectionDetails)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)

@@ -1,5 +1,11 @@
 export type WebpageWireframeDetailLevel = 'compact' | 'standard' | 'detailed'
 
+import {
+  extractLinkSignalLabelsFromLine,
+  extractPriceSignalLabelsFromLine,
+  extractTimeSignalLabelsFromLine,
+} from './signalTokens'
+
 export function buildWireframeMarkdownFromMarkdown(args: {
   markdown: string
   url: string
@@ -25,6 +31,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     embeds: number
     media: number
     anim: number
+  effects: number
     ui: number
     timecodes: number
     prices: number
@@ -41,6 +48,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     | { kind: 'emb'; label: string }
     | { kind: 'med'; label: string }
     | { kind: 'ani'; label: string }
+  | { kind: 'fx'; label: string }
     | { kind: 'ui'; label: string }
     | { kind: 'tim'; label: string }
     | { kind: 'pri'; label: string }
@@ -64,6 +72,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     embeds: 0,
     media: 0,
     anim: 0,
+  effects: 0,
     ui: 0,
     timecodes: 0,
     prices: 0,
@@ -87,10 +96,46 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     return [top, body, bot]
   }
 
+  const mergeBoxRows = (boxes: string[][], gap: number) => {
+    const safeGap = Math.max(1, Math.floor(gap))
+    const heights = boxes.map(b => (Array.isArray(b) ? b.length : 0))
+    const maxH = Math.max(0, ...heights)
+    const widths = boxes.map(b => Math.max(0, ...(b || []).map(l => String(l || '').length)))
+    const padded = boxes.map((b, i) => {
+      const w = widths[i] || 0
+      const out: string[] = []
+      for (let r = 0; r < maxH; r += 1) {
+        const line = r < (b?.length || 0) ? String(b?.[r] || '') : ''
+        out.push(line.padEnd(w, ' '))
+      }
+      return out
+    })
+    const out: string[] = []
+    for (let r = 0; r < maxH; r += 1) {
+      const parts = padded.map(p => p[r] || '')
+      out.push(parts.join(' '.repeat(safeGap)).trimEnd())
+    }
+    return out
+  }
+
   const renderNode = (node: { label: string; depth: number }, out: string[]) => {
     const indent = ' '.repeat(Math.max(0, node.depth) * 4)
     const box = renderBox(node.label)
     for (const l of box) out.push(`${indent}${l}`)
+  }
+
+  const renderNodeRow = (args: { labels: string[]; depth: number; maxPerRow: number; gap?: number }, out: string[]) => {
+    const labels = (args.labels || []).map(s => String(s || '')).filter(Boolean)
+    if (labels.length < 2) return
+    const perRow = Math.max(2, Math.floor(args.maxPerRow))
+    const indent = ' '.repeat(Math.max(0, args.depth) * 4)
+    const gap = args.gap == null ? 4 : args.gap
+    for (let i = 0; i < labels.length; i += perRow) {
+      const slice = labels.slice(i, i + perRow)
+      if (slice.length < 2) break
+      const merged = mergeBoxRows(slice.map(renderBox), gap)
+      for (const l of merged) out.push(`${indent}${l}`)
+    }
   }
 
   const statsLabel = (s: Stats) => {
@@ -104,6 +149,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     if (s.embeds) parts.push(`em:${s.embeds}`)
     if (s.media) parts.push(`med:${s.media}`)
     if (s.anim) parts.push(`an:${s.anim}`)
+  if (s.effects) parts.push(`fx:${s.effects}`)
     if (s.ui) parts.push(`ui:${s.ui}`)
     if (s.timecodes) parts.push(`t:${s.timecodes}`)
     if (s.prices) parts.push(`$:${s.prices}`)
@@ -121,58 +167,6 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     sec.details.push(detail)
   }
 
-  const classifyLinkLabel = (labelRaw: string): 'cta' | 'nav' | 'lnk' => {
-    const s = normalizeInline(labelRaw).toLowerCase()
-    if (!s) return 'lnk'
-    const ctaWords = [
-      'sign up',
-      'signup',
-      'sign in',
-      'signin',
-      'log in',
-      'login',
-      'get started',
-      'start',
-      'try',
-      'download',
-      'install',
-      'create',
-      'open',
-      'join',
-      'contact',
-      'request',
-      'book a demo',
-      'demo',
-    ]
-    for (const w of ctaWords) {
-      if (s === w) return 'cta'
-    }
-    if (s.startsWith('get started')) return 'cta'
-    if (s.startsWith('download')) return 'cta'
-    const navWords = [
-      'docs',
-      'documentation',
-      'user guide',
-      'guide',
-      'learn',
-      'learning',
-      'tutorials',
-      'blog',
-      'community',
-      'resources',
-      'pricing',
-      'features',
-      'changelog',
-      'about',
-      'github',
-      'api',
-    ]
-    for (const w of navWords) {
-      if (s === w) return 'nav'
-    }
-    return 'lnk'
-  }
-
   const classifyHtmlTag = (tag: string): Detail | null => {
     switch (tag) {
       case 'header':
@@ -185,6 +179,10 @@ export function buildWireframeMarkdownFromMarkdown(args: {
         return { kind: 'ui', label: `[REGION] ${tag}` }
       case 'iframe':
         return { kind: 'emb', label: `[EMBED] iframe` }
+      case 'img':
+        return { kind: 'img', label: `[IMG] html img` }
+      case 'picture':
+        return { kind: 'img', label: `[IMG] picture` }
       case 'video':
         return { kind: 'med', label: `[MEDIA] video` }
       case 'audio':
@@ -197,9 +195,15 @@ export function buildWireframeMarkdownFromMarkdown(args: {
         return { kind: 'ani', label: `[ANIM] lottie` }
       case 'model-viewer':
         return { kind: 'ani', label: `[ANIM] model-viewer` }
+      case 'details':
+      case 'summary':
+        return { kind: 'ui', label: `[UI] ${tag}` }
+      case 'dialog':
+        return { kind: 'ui', label: `[UI] dialog` }
       case 'button':
       case 'input':
       case 'select':
+      case 'textarea':
       case 'form':
         return { kind: 'ui', label: `[UI] ${tag}` }
       case 'table':
@@ -207,6 +211,29 @@ export function buildWireframeMarkdownFromMarkdown(args: {
       default:
         return null
     }
+  }
+
+  const addInlineFxTokens = (sec: SectionNode, line: string) => {
+    const s = normalizeInline(line).toLowerCase()
+    if (!s) return
+
+    const push = (label: string) => {
+      sec.stats.effects += 1
+      trackDetail(sec, { kind: 'fx', label })
+    }
+
+    if (s.includes('lottie')) push('[FX] lottie')
+    if (s.includes('gsap')) push('[FX] gsap')
+    if (s.includes('three.js') || s.includes('threejs') || s.includes(' three ')) push('[FX] three')
+    if (s.includes('webgl')) push('[FX] webgl')
+    if (s.includes('parallax')) push('[FX] parallax')
+    if (s.includes('carousel')) push('[FX] carousel')
+    if (s.includes('slider')) push('[FX] slider')
+    if (s.includes('accordion')) push('[FX] accordion')
+    if (s.includes('tabs') || s.includes('tabbed')) push('[FX] tabs')
+    if (s.includes('tooltip')) push('[FX] tooltip')
+    if (s.includes('modal')) push('[FX] modal')
+    if (s.includes('transition:') || s.includes('animation:')) push('[FX] css motion')
   }
 
   const addInlineHtmlTags = (sec: SectionNode, line: string): boolean => {
@@ -224,6 +251,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
       if (d.kind === 'emb') sec.stats.embeds += 1
       if (d.kind === 'med') sec.stats.media += 1
       if (d.kind === 'ani') sec.stats.anim += 1
+      if (d.kind === 'img') sec.stats.images += 1
       if (d.kind === 'ui') sec.stats.ui += 1
       if (d.kind === 'tbl') sec.stats.tables += 1
       trackDetail(sec, d)
@@ -240,49 +268,26 @@ export function buildWireframeMarkdownFromMarkdown(args: {
       const alt = truncate(m[1] || 'image', MAX_DETAIL_TEXT)
       trackDetail(sec, { kind: 'img', label: `[IMG] ${alt}` })
     }
-    const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g
-    while ((m = linkRe.exec(s))) {
-      const idx = m.index
-      if (idx > 0 && s.charCodeAt(idx - 1) === 33) continue
+    const linkLabels = extractLinkSignalLabelsFromLine(s, { maxLabelLen: MAX_DETAIL_TEXT })
+    for (const label of linkLabels) {
       sec.stats.links += 1
-      const text = truncate(m[1] || 'link', MAX_DETAIL_TEXT)
-      const kind = classifyLinkLabel(text)
-      const prefix = kind === 'cta' ? '[CTA]' : kind === 'nav' ? '[NAV]' : '[LINK]'
-      trackDetail(sec, { kind: 'lnk', label: `${prefix} ${text}` })
+      trackDetail(sec, { kind: 'lnk', label })
     }
   }
 
   const addInlinePriceSignals = (sec: SectionNode, line: string) => {
-    const s = String(line || '')
-    if (!s) return
-    const priceRe = /(\$\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s*\/\s*(?:mo|month|yr|year))?)/gi
-    let m: RegExpExecArray | null
-    while ((m = priceRe.exec(s))) {
-      const token = truncate(m[1] || '', MAX_DETAIL_TEXT)
-      if (!token) continue
+    const labels = extractPriceSignalLabelsFromLine(String(line || ''), { maxLabelLen: MAX_DETAIL_TEXT })
+    for (const label of labels) {
       sec.stats.prices += 1
-      trackDetail(sec, { kind: 'pri', label: `[PRICE] ${token}` })
-    }
-    const perRe = /\b\d+(?:\.\d+)?\s*\/\s*(?:mo|month|yr|year)\b/gi
-    while ((m = perRe.exec(s))) {
-      if (typeof m.index === 'number' && m.index > 0 && s.charCodeAt(m.index - 1) === 36) continue
-      const token = truncate(m[0] || '', MAX_DETAIL_TEXT)
-      if (!token) continue
-      sec.stats.prices += 1
-      trackDetail(sec, { kind: 'pri', label: `[PRICE] ${token}` })
+      trackDetail(sec, { kind: 'pri', label })
     }
   }
 
   const addInlineTimecodes = (sec: SectionNode, line: string) => {
-    const s = String(line || '')
-    if (!s) return
-    const timeRe = /\b\d{1,2}:\d{2}\b/g
-    let m: RegExpExecArray | null
-    while ((m = timeRe.exec(s))) {
-      const token = truncate(m[0] || '', MAX_DETAIL_TEXT)
-      if (!token) continue
+    const labels = extractTimeSignalLabelsFromLine(String(line || ''), { maxLabelLen: MAX_DETAIL_TEXT })
+    for (const label of labels) {
       sec.stats.timecodes += 1
-      trackDetail(sec, { kind: 'tim', label: `[TIME] ${token}` })
+      trackDetail(sec, { kind: 'tim', label })
     }
   }
 
@@ -385,6 +390,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
       addInlinePriceSignals(current(), quote[1] || '')
       addInlineTimecodes(current(), quote[1] || '')
       addInlineUiHints(current(), quote[1] || '')
+      addInlineFxTokens(current(), quote[1] || '')
       pendingParagraph = false
       continue
     }
@@ -397,6 +403,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
       addInlinePriceSignals(current(), li[2] || '')
       addInlineTimecodes(current(), li[2] || '')
       addInlineUiHints(current(), li[2] || '')
+      addInlineFxTokens(current(), li[2] || '')
       pendingParagraph = false
       continue
     }
@@ -418,6 +425,8 @@ export function buildWireframeMarkdownFromMarkdown(args: {
       pendingParagraph = false
       continue
     }
+
+    addInlineFxTokens(current(), line)
 
     if (/@keyframes\b/i.test(line)) {
       current().stats.anim += 1
@@ -463,6 +472,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     out.embeds += n.stats.embeds
     out.media += n.stats.media
     out.anim += n.stats.anim
+    out.effects += n.stats.effects
     out.ui += n.stats.ui
     out.timecodes += n.stats.timecodes
     out.prices += n.stats.prices
@@ -489,6 +499,14 @@ export function buildWireframeMarkdownFromMarkdown(args: {
       const suffix = count > 1 ? ` x${count}` : ''
       renderNode({ label: `${d.label}${suffix}`, depth: depth + 1 }, bodyLines)
     }
+
+    const maxPerRow = detailLevel === 'compact' ? 1 : detailLevel === 'detailed' ? 3 : 2
+    const allowRow = maxPerRow > 1 && sec.children.length > 1 && depth <= 3
+    if (allowRow) {
+      const labels = sec.children.map(c => `[H${c.level}] ${c.title} ${statsLabel(c.stats)}`.trim()).filter(Boolean)
+      renderNodeRow({ labels, depth: depth + 1, maxPerRow, gap: 6 }, bodyLines)
+    }
+
     for (const c of sec.children) renderSection(c, depth + 1)
   }
 
@@ -498,6 +516,7 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     'Legend:',
     '  [PAGE] page frame',
     '  [Hn] section/heading frame',
+    '  (row layout) sibling headings may render horizontally',
     '  [NAV]/[CTA]/[LINK] interactive link types',
     '  [LI] list item',
     '  [IMG] image',
@@ -506,10 +525,291 @@ export function buildWireframeMarkdownFromMarkdown(args: {
     '  [EMBED] embedded external frame (iframe)',
     '  [MEDIA] media element (video/audio)',
     '  [ANIM] animation/canvas/svg/lottie/model-viewer',
+    '  [FX] motion/animation effects hint',
     '  [UI] interaction hint',
     '  [TIME] timecode token',
     '  [PRICE] pricing/cost token',
   ]
 
-  return [`# Wireframe`, '', `URL: ${args.url}`, `Detail: ${detailLevel}`, '', '```text', ...legendLines, '', ...bodyLines, '```', ''].join('\n')
+  const aggregateDetailCounts = (() => {
+    const out = new Map<string, number>()
+    const walk = (n: SectionNode) => {
+      for (const [k, v] of n.detailCounts.entries()) {
+        out.set(k, (out.get(k) || 0) + v)
+      }
+      for (const c of n.children) walk(c)
+    }
+    walk(root)
+    return out
+  })()
+
+  const addStoryboard = () => {
+    const limit = detailLevel === 'compact' ? 3 : detailLevel === 'detailed' ? 10 : 6
+    const pick = (prefix: string) => {
+      const items: Array<{ label: string; count: number }> = []
+      for (const [label, count] of aggregateDetailCounts.entries()) {
+        if (!label.startsWith(prefix)) continue
+        items.push({ label, count })
+      }
+      items.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      return items.slice(0, limit)
+    }
+
+    const ctas = pick('[CTA]')
+    const nav = pick('[NAV]')
+    const fx = pick('[FX]')
+    const media = pick('[MEDIA]')
+
+    if (ctas.length + nav.length + fx.length + media.length === 0) return
+
+    bodyLines.push('')
+    renderNode({ label: `[FLOWS] Suggested journeys`, depth: 0 }, bodyLines)
+    for (const it of ctas) renderNode({ label: `${it.label}${it.count > 1 ? ` x${it.count}` : ''}`, depth: 1 }, bodyLines)
+    for (const it of nav) renderNode({ label: `${it.label}${it.count > 1 ? ` x${it.count}` : ''}`, depth: 1 }, bodyLines)
+    if (fx.length || media.length) {
+      renderNode({ label: `[RICH] Media & motion`, depth: 1 }, bodyLines)
+      for (const it of media) renderNode({ label: `${it.label}${it.count > 1 ? ` x${it.count}` : ''}`, depth: 2 }, bodyLines)
+      for (const it of fx) renderNode({ label: `${it.label}${it.count > 1 ? ` x${it.count}` : ''}`, depth: 2 }, bodyLines)
+    }
+  }
+
+  addStoryboard()
+
+  const renderFrame = (args: { title: string; width: number; body: string[] }): string[] => {
+    const width = Math.max(44, Math.min(120, Math.floor(args.width)))
+    const title = truncate(String(args.title || '').trim() || 'SECTION', width - 6)
+    const innerW = width - 2
+    const top = `┌${'─'.repeat(innerW)}┐`
+    const titleLine = `│ ${title.padEnd(innerW - 2, ' ')} │`
+    const sep = `├${'─'.repeat(innerW)}┤`
+    const out: string[] = [top, titleLine, sep]
+
+    const safeBody = (args.body || []).map(l => truncate(String(l || ''), innerW - 2))
+    for (const line of safeBody) {
+      out.push(`│ ${line.padEnd(innerW - 2, ' ')} │`)
+    }
+    if (safeBody.length === 0) out.push(`│ ${''.padEnd(innerW - 2, ' ')} │`)
+    out.push(`└${'─'.repeat(innerW)}┘`)
+    return out
+  }
+
+  const renderMockup = (): string[] => {
+    const width = detailLevel === 'compact' ? 88 : detailLevel === 'detailed' ? 104 : 96
+    const out: string[] = []
+    out.push('[MOCKUP]')
+    out.push('')
+
+    const topNav = (() => {
+      const items: string[] = []
+      for (const [label, count] of aggregateDetailCounts.entries()) {
+        if (!label.startsWith('[NAV]') && !label.startsWith('[CTA]')) continue
+        const suffix = count > 1 ? ` x${count}` : ''
+        items.push(`${label}${suffix}`)
+      }
+      items.sort((a, b) => a.localeCompare(b))
+      const cap = detailLevel === 'compact' ? 5 : detailLevel === 'detailed' ? 10 : 7
+      const picked = items.slice(0, cap)
+      return picked.length ? picked.join(' | ') : ''
+    })()
+
+    out.push(
+      ...renderFrame({
+        title: 'HEADER',
+        width,
+        body: [topNav ? `Nav: ${topNav}` : 'Nav: (none detected)', 'Search: [input]'],
+      }),
+    )
+    out.push('')
+
+    const heroCtas = (() => {
+      const items: string[] = []
+      for (const [label, count] of aggregateDetailCounts.entries()) {
+        if (!label.startsWith('[CTA]')) continue
+        const suffix = count > 1 ? ` x${count}` : ''
+        items.push(`${label}${suffix}`)
+      }
+      items.sort((a, b) => a.localeCompare(b))
+      const cap = detailLevel === 'compact' ? 3 : detailLevel === 'detailed' ? 8 : 5
+      return items.slice(0, cap)
+    })()
+
+    const priceTokens = (() => {
+      const items: string[] = []
+      for (const [label, count] of aggregateDetailCounts.entries()) {
+        if (!label.startsWith('[PRICE]')) continue
+        const suffix = count > 1 ? ` x${count}` : ''
+        items.push(`${label}${suffix}`)
+      }
+      items.sort((a, b) => a.localeCompare(b))
+      const cap = detailLevel === 'compact' ? 2 : detailLevel === 'detailed' ? 6 : 4
+      return items.slice(0, cap)
+    })()
+
+    const timeTokens = (() => {
+      const items: string[] = []
+      for (const [label, count] of aggregateDetailCounts.entries()) {
+        if (!label.startsWith('[TIME]')) continue
+        const suffix = count > 1 ? ` x${count}` : ''
+        items.push(`${label}${suffix}`)
+      }
+      items.sort((a, b) => a.localeCompare(b))
+      const cap = detailLevel === 'compact' ? 1 : detailLevel === 'detailed' ? 4 : 2
+      return items.slice(0, cap)
+    })()
+
+    out.push(
+      ...renderFrame({
+        title: 'HERO',
+        width,
+        body: [
+          `Title: ${pageTitle}`,
+          total.media || total.anim || total.effects ? `Media/Motion: med:${total.media} an:${total.anim} fx:${total.effects}` : 'Media/Motion: none',
+          heroCtas.length ? `Primary actions: ${heroCtas.join(' | ')}` : 'Primary actions: (none detected)',
+          priceTokens.length ? `Pricing: ${priceTokens.join(' | ')}` : 'Pricing: (none detected)',
+          timeTokens.length ? `Timing: ${timeTokens.join(' | ')}` : 'Timing: (none detected)',
+        ],
+      }),
+    )
+    out.push('')
+
+    const flowSummaryLines = (() => {
+      const lines: string[] = []
+      const join = (items: string[], cap: number) => (items.length ? items.slice(0, cap).join(' → ') : '')
+
+      const navOnly = (() => {
+        const items: string[] = []
+        for (const [label, count] of aggregateDetailCounts.entries()) {
+          if (!label.startsWith('[NAV]')) continue
+          items.push(`${label}${count > 1 ? ` x${count}` : ''}`)
+        }
+        items.sort((a, b) => a.localeCompare(b))
+        return items
+      })()
+
+      const ctaOnly = (() => {
+        const items: string[] = []
+        for (const [label, count] of aggregateDetailCounts.entries()) {
+          if (!label.startsWith('[CTA]')) continue
+          items.push(`${label}${count > 1 ? ` x${count}` : ''}`)
+        }
+        items.sort((a, b) => a.localeCompare(b))
+        return items
+      })()
+
+      const cap = detailLevel === 'compact' ? 3 : detailLevel === 'detailed' ? 7 : 5
+      const navTrail = join(navOnly.map(s => s.replace(/^\[NAV\]\s*/, '[NAV] ')), cap)
+      const ctaTrail = join(ctaOnly.map(s => s.replace(/^\[CTA\]\s*/, '[CTA] ')), cap)
+      if (navTrail) lines.push(`Browse: ${navTrail}`)
+      if (ctaTrail) lines.push(`Convert: ${ctaTrail}`)
+      if (!lines.length) lines.push('Browse: (none detected)')
+      return lines
+    })()
+
+    out.push(
+      ...renderFrame({
+        title: 'FLOWS',
+        width,
+        body: flowSummaryLines,
+      }),
+    )
+    out.push('')
+
+    const richSummaryLines = (() => {
+      const lines: string[] = []
+      lines.push(`Counts: [MEDIA] ${total.media} | [ANIM] ${total.anim} | [FX] ${total.effects} | [UI] ${total.ui}`)
+
+      const keySignals = (() => {
+        const picked: string[] = []
+        const prefixes = ['[MEDIA]', '[ANIM]', '[FX]', '[UI]']
+        for (const [label, count] of aggregateDetailCounts.entries()) {
+          if (!prefixes.some(p => label.startsWith(p))) continue
+          picked.push(`${label}${count > 1 ? ` x${count}` : ''}`)
+        }
+        picked.sort((a, b) => b.localeCompare(a))
+        const cap = detailLevel === 'compact' ? 3 : detailLevel === 'detailed' ? 10 : 6
+        return picked.slice(0, cap)
+      })()
+
+      if (keySignals.length) lines.push(`Signals: ${keySignals.join(' | ')}`)
+      return lines
+    })()
+
+    out.push(
+      ...renderFrame({
+        title: 'RICH MEDIA & MOTION',
+        width,
+        body: richSummaryLines,
+      }),
+    )
+    out.push('')
+
+    const sections: SectionNode[] = []
+    const walk = (n: SectionNode) => {
+      for (const c of n.children) {
+        if (c.level === 2) sections.push(c)
+        walk(c)
+      }
+    }
+    walk(root)
+    const cap = detailLevel === 'compact' ? 4 : detailLevel === 'detailed' ? 14 : 8
+    const picked = sections.slice(0, cap)
+
+    const storyboardLines = (() => {
+      const beats: string[] = []
+      beats.push('1. HEADER')
+      beats.push(`2. HERO: ${pageTitle}`)
+      let step = 3
+      const secCap = detailLevel === 'compact' ? 3 : detailLevel === 'detailed' ? 8 : 5
+      for (const sec of picked.slice(0, secCap)) {
+        const signals = sec.details
+          .map(d => d.label)
+          .filter(l => l.startsWith('[CTA]') || l.startsWith('[NAV]') || l.startsWith('[MEDIA]') || l.startsWith('[ANIM]') || l.startsWith('[FX]') || l.startsWith('[UI]') || l.startsWith('[PRICE]') || l.startsWith('[TIME]'))
+        const sigCap = detailLevel === 'compact' ? 2 : detailLevel === 'detailed' ? 6 : 3
+        const suffix = signals.length ? ` (${signals.slice(0, sigCap).join(' | ')})` : ''
+        beats.push(`${step}. ${truncate(sec.title || `H${sec.level}`, 28)}${suffix}`)
+        step += 1
+      }
+      if (detailLevel !== 'compact') beats.push(`${step}. FOOTER`)
+      const lineCap = detailLevel === 'compact' ? 6 : detailLevel === 'detailed' ? 14 : 10
+      return beats.slice(0, lineCap)
+    })()
+
+    out.push(
+      ...renderFrame({
+        title: 'STORYBOARD',
+        width,
+        body: storyboardLines,
+      }),
+    )
+    out.push('')
+
+    for (const sec of picked) {
+      const details = sec.details
+        .map(d => d.label)
+        .filter(
+          l =>
+            l.startsWith('[CTA]') ||
+            l.startsWith('[NAV]') ||
+            l.startsWith('[MEDIA]') ||
+            l.startsWith('[ANIM]') ||
+            l.startsWith('[FX]') ||
+            l.startsWith('[UI]') ||
+            l.startsWith('[PRICE]') ||
+            l.startsWith('[TIME]'),
+        )
+      const lines: string[] = []
+      lines.push(`Stats: ${statsLabel(sec.stats) || '(none)'}`)
+      if (details.length) {
+        const dcap = detailLevel === 'compact' ? 3 : detailLevel === 'detailed' ? 10 : 6
+        lines.push(`Signals: ${details.slice(0, dcap).join(' | ')}`)
+      }
+      out.push(...renderFrame({ title: sec.title || `H${sec.level}`, width, body: lines }))
+      out.push('')
+    }
+
+    return out
+  }
+
+  const mockupLines = renderMockup()
+  return [`# Wireframe`, '', `URL: ${args.url}`, `Detail: ${detailLevel}`, '', '```text', ...mockupLines, ...legendLines, '', ...bodyLines, '```', ''].join('\n')
 }

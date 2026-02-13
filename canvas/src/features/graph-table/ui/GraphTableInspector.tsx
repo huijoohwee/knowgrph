@@ -61,7 +61,6 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
     uiIconStrokeWidth,
     upsertUiToast,
     setGraphDataPreservingLayout,
-    setWebpageImportView,
   } = useGraphStore(
     useShallow(s => ({
       graphData: s.graphData,
@@ -74,7 +73,6 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       upsertUiToast: s.upsertUiToast,
       setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
-      setWebpageImportView: s.setWebpageImportView,
     })),
   )
   const allEdges = ((graphData?.edges || []) as GraphEdge[]) || []
@@ -216,11 +214,6 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
     if (!doc) return
     const url = String(doc.url || '').trim()
     if (!url) return
-    try {
-      setWebpageImportView(next)
-    } catch {
-      void 0
-    }
     const fs = await getWorkspaceFs()
     const prevText = await fs.readFileText(doc.workspacePath)
     const nextText = upsertWebpageFrontmatterMeta(prevText, { url, view: next })

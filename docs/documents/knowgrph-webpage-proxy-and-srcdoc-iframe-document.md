@@ -10,7 +10,7 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 
 ## Surfaces
 
-- **Editor**: shows Markdown by default; JSON and Wireframe are read-only overrides.
+- **Editor**: shows Markdown by default; JSON is a read-only override; Wireframe is an editable ASCII surface stored in the markdown file.
 - **Viewer / Presentation / Slides Gallery**: render either Markdown (view=markdown) or HTML (view ∈ {json, html, wireframe}).
 
 ## Frontmatter Contract (per imported page)
@@ -82,4 +82,22 @@ The sandbox must forbid top-level navigation (do not include `allow-top-navigati
 - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
 - `JSON`: Editor shows conversion JSON (read-only); Viewer/Presentation/Slides render sandboxed HTML.
 - `HTML`: Editor shows Markdown; Viewer/Presentation/Slides render sandboxed HTML.
-- `Wireframe`: Editor shows ASCII wireframe (read-only); Viewer/Presentation/Slides render sandboxed HTML.
+- `Wireframe`: Editor shows the markdown file; the ASCII wireframe lives in a dedicated ` ```text kg-wireframe ` fenced block (editable); Viewer/Presentation/Slides render sandboxed HTML.
+
+## Shared Signal Tokens (Mode-Independent)
+
+All view modes share the same generic signal/token vocabulary derived from Markdown (no site-specific branching):
+
+- `[NAV]`, `[CTA]`, `[LINK]`: classified link intent
+- `[PRICE]`: price/cost tokens
+- `[TIME]`: timecode tokens
+
+Wireframe mockups render these tokens inline (for example `Nav: [NAV] Docs | [CTA] Get started`) and the Document Structure section includes the same token prefixes.
+
+## Local Wireframe Generation
+
+Generate a wireframe markdown file from a URL (domain-neutral, no hardcoded sites):
+
+```bash
+npm --prefix knowgrph/canvas run webpage:wireframe -- --url "https://www.remotion.dev/" --out "../../sandbox/test-data/ascii-wireframe-remotion-dev.md"
+```

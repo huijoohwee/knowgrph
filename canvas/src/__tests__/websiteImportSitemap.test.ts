@@ -47,11 +47,64 @@ export const testWebsiteImportWireframeDetectsTimecodes = () => {
   if (!out.includes('[TIME] 0:00')) throw new Error('missing timecode')
 }
 
+export const testWebsiteImportWireframeMockupIncludesCategorizedTokens = () => {
+  const md = [
+    '# Title',
+    '',
+    '[Docs](https://example.com/docs)',
+    '',
+    '[Get started](https://example.com/start)',
+    '',
+    'Price: $100/mo',
+    '',
+    '0:00',
+    '',
+  ].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost', { detailLevel: 'standard' })
+  if (!out.includes('[MOCKUP]')) throw new Error('missing mockup')
+  if (!out.includes('[NAV] Docs')) throw new Error('mockup missing nav token')
+  if (!out.includes('[CTA] Get started')) throw new Error('mockup missing cta token')
+  if (!out.includes('[PRICE] $100/mo')) throw new Error('mockup missing price token')
+  if (!out.includes('[TIME] 0:00')) throw new Error('mockup missing time token')
+}
+
+export const testWebsiteImportWireframeMockupIncludesFlowAndStoryboardFrames = () => {
+  const md = [
+    '# Title',
+    '',
+    '[Docs](https://example.com/docs)',
+    '',
+    '[Get started](https://example.com/start)',
+    '',
+    '0:00',
+    '',
+    'Price: $100/mo',
+    '',
+    '## Section A',
+    '',
+    'Some text',
+    '',
+  ].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost', { detailLevel: 'standard' })
+  if (!out.includes('│ FLOWS')) throw new Error('missing FLOWS frame')
+  if (!out.includes('│ STORYBOARD')) throw new Error('missing STORYBOARD frame')
+  if (!out.includes('│ RICH MEDIA & MOTION')) throw new Error('missing RICH MEDIA & MOTION frame')
+}
+
 export const testWebsiteImportWireframeClassifiesMediaAndAnimTags = () => {
   const md = ['# Title', '', '<video></video>', '', '<canvas></canvas>', ''].join('\n')
   const out = __testkit.buildWireframeMarkdown(md, 'https://localhost')
   if (!out.includes('[MEDIA] video')) throw new Error('missing media tag')
   if (!out.includes('[ANIM] canvas')) throw new Error('missing anim tag')
+}
+
+export const testWebsiteImportWireframeDetectsFxTokens = () => {
+  const md = ['# Title', '', '<div style="animation: spin 1s linear infinite">x</div>', '', 'Uses lottie animations', ''].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost')
+  if (!out.includes('[MOCKUP]')) throw new Error('missing mockup header')
+  if (!out.includes('┌') || !out.includes('┘')) throw new Error('expected box drawing chars')
+  if (!out.includes('[FX] css motion')) throw new Error('missing css motion fx')
+  if (!out.includes('[FX] lottie')) throw new Error('missing lottie fx')
 }
 
 export const testWebsiteImportWireframeRendersPageLevelNavDetails = () => {
@@ -90,6 +143,14 @@ export const testWebsiteImportWireframeDetailLevelCapsSectionDetails = () => {
   const detailed = __testkit.buildWireframeMarkdown(md, 'https://localhost', { detailLevel: 'detailed' })
   if (!detailed.includes('Detail: detailed')) throw new Error('missing detailed detail header')
   if (!detailed.includes('[LI] Item 10')) throw new Error('expected detailed to include item 10')
+}
+
+export const testWebsiteImportWireframeRendersSiblingHeadingsInRow = () => {
+  const md = ['# Title', '', '## A', '', '### A1', '', '### A2', '', '## B', '', '### B1', ''].join('\n')
+  const out = __testkit.buildWireframeMarkdown(md, 'https://localhost', { detailLevel: 'detailed' })
+  const lines = out.split(/\r?\n/)
+  const rowLine = lines.find(l => l.includes('[H3] A1') && l.includes('[H3] A2'))
+  if (!rowLine) throw new Error('expected sibling headings row layout')
 }
 
 export const testWebsiteImportArtifactKindForWebpageView = () => {
