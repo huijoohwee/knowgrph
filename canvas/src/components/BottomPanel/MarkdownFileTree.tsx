@@ -4,6 +4,7 @@ import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/type
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 type Node = {
   entry: WorkspaceEntry
@@ -45,6 +46,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   renderFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
 }) {
   const { entries, expandedPaths, toggleExpanded, activePath, onSelectFile, onSelectFolder, sourcesByPath, renderFileRight } = props
+  const panelTypography = usePanelTypography()
   const tree = React.useMemo(() => buildTree(entries), [entries])
 
   const renderNode = (node: Node, depth: number) => {
@@ -52,14 +54,14 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     const isRoot = entry.path === WORKSPACE_ROOT_PATH
     if (isRoot && node.children.length === 0) {
       return (
-        <section key={entry.path} className={`px-2 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`} aria-label="Workspace help">
-          <h3 className={`text-[11px] font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Workspace</h3>
+        <section key={entry.path} className={`px-2 py-2 ${panelTypography.panelTextClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label="Workspace help">
+          <h3 className={`${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Workspace</h3>
           <ul className="mt-1 list-disc pl-5">
             <li>Select a file in SOURCE FILES to load it into the editor.</li>
             <li>Headings show up in TOC.</li>
             <li>Wikilinks like <span className={UI_THEME_TOKENS.text.primary}>[[SomePage]]</span> create backlinks.</li>
           </ul>
-          <h4 className={`mt-2 text-[11px] font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Notes</h4>
+          <h4 className={`mt-2 ${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Notes</h4>
           <p className="mt-1">This workspace is stored locally in your browser.</p>
         </section>
       )
@@ -84,7 +86,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
         <section className="group flex items-center" aria-label={isFolder ? `Folder ${entry.name}` : `File ${entry.name}`}>
           <button
             type="button"
-            className={`flex-1 min-w-0 flex items-center gap-1 rounded px-1 py-[2px] text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${
+            className={`flex-1 min-w-0 flex items-center gap-1 rounded px-1 py-[2px] ${panelTypography.panelTextClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${
               isActive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : ''
             }`}
             style={{ paddingLeft: 6 + indent }}

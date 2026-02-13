@@ -18,6 +18,8 @@ import {
   List,
   ListOrdered,
   Loader2,
+  Save,
+  Copy,
   Maximize2,
   Quote,
   Strikethrough,
@@ -43,6 +45,8 @@ export type MarkdownWorkspaceToolbarProps = {
   onApply: () => void
   applyStatus?: MarkdownWorkspaceStatus
   applyDisabled?: boolean
+  onSave?: () => void
+  onSaveAs?: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
 
@@ -75,6 +79,8 @@ export function MarkdownWorkspaceToolbar({
   onApply,
   applyStatus,
   applyDisabled,
+  onSave,
+  onSaveAs,
   onToggleFullscreen,
   presentationApiRef,
   contentMode = 'document',
@@ -567,6 +573,30 @@ export function MarkdownWorkspaceToolbar({
           </li>
         </menu>
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Actions">
+          <li className="list-none">
+            <button
+              type="button"
+              className={TOOLBAR_BUTTON_CLASSNAME}
+              title="Save"
+              aria-label="Save"
+              onClick={() => onSave?.()}
+              disabled={!isEditing || !onSave}
+            >
+              <Save className="w-4 h-4" strokeWidth={1.6} />
+            </button>
+          </li>
+          <li className="list-none">
+            <button
+              type="button"
+              className={TOOLBAR_BUTTON_CLASSNAME}
+              title="Save As"
+              aria-label="Save As"
+              onClick={() => onSaveAs?.()}
+              disabled={!isEditing || !onSaveAs}
+            >
+              <Copy className="w-4 h-4" strokeWidth={1.6} />
+            </button>
+          </li>
           <li className="list-none">
             <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Apply" onClick={onApply} disabled={applyDisabled}>
               <Check className="w-4 h-4" strokeWidth={1.6} />

@@ -36,6 +36,8 @@ export type MarkdownWorkspaceMainProps = {
 
   statusLabel: MarkdownWorkspaceStatus
   onApply: () => void
+  onSave?: () => void
+  onSaveAs?: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
 
@@ -293,6 +295,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     setMarkdownTextHighlight,
     statusLabel,
     onApply,
+    onSave,
+    onSaveAs,
     onToggleFullscreen,
     presentationApiRef,
     isEditing,
@@ -402,13 +406,16 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       if (viewerEl) {
         setScrollRatio(viewerEl, ratio)
       }
-      if (editorHandle && layoutMode === 'editor') {
+      if (editorHandle && (layoutMode === 'editor' || layoutMode === 'split')) {
         setEditorScrollRatio(editorHandle, ratio)
       }
       return
     }
     const iframe = iframeRef.current
     if (!iframe) return
+    if (editorHandle && (layoutMode === 'editor' || layoutMode === 'split')) {
+      setEditorScrollRatio(editorHandle, ratio)
+    }
     const sendRatioToIframe = (r: number) => {
       try {
         iframe.contentWindow?.postMessage({ kind: 'kg-scroll-sync', ratio: r }, '*')
@@ -690,6 +697,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         markdownTextHighlight={markdownTextHighlight}
         setMarkdownTextHighlight={setMarkdownTextHighlight}
         onApply={onApply}
+        onSave={onSave}
+        onSaveAs={onSaveAs}
         applyStatus={statusLabel}
         applyDisabled={!isEditing}
         onToggleFullscreen={onToggleFullscreen}

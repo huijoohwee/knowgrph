@@ -5,7 +5,14 @@ import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/per
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import type { WorkspaceBacklink, WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
+import {
+  WORKSPACE_ROOT_PATH,
+  normalizeWorkspacePath,
+  workspaceBasename,
+  workspaceDocumentKey,
+  workspaceExtLower,
+  workspaceStem,
+} from '@/features/workspace-fs/path'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -22,7 +29,7 @@ import { MarkdownWorkspaceExplorer } from './MarkdownWorkspaceExplorer'
 import { MarkdownWorkspaceMain } from './MarkdownWorkspaceMain'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, isMarkdownPath, languageForPath } from './markdownWorkspaceUtils'
-import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { useWorkspaceFileActions } from './useWorkspaceFileActions'
 import { useCanvasMarkdownSync } from './useCanvasMarkdownSync'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
@@ -1050,6 +1057,142 @@ export function MarkdownWorkspace() {
     setMarkdownDocument,
   ])
 
+  const saveActiveFileNow = React.useCallback(async () => {
+    const path = activePath
+    if (!path) return
+    if (activeEntryKind === 'folder') return
+    try {
+      setStatusProgress('Saving')
+      const fs = await getFs()
+      await fs.writeFileText(path, activeText)
+      lastLoadedRef.current = { path, text: activeText }
+      const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+      const inlineText = activeText.length <= maxInline ? activeText : undefined
+      setEntries(prev => prev.map(e => (e.path === path ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+      if (activeDocumentKey) {
+        setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(activeText, 'markdown'), { autoEnableFrontmatter: false })
+      }
+      try {
+        const store = useGraphStore.getState()
+        const wsPath = `workspace:${path}`
+        const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+        const existing = current.find(f => String(f?.source?.path || '') === wsPath) || null
+        if (existing) {
+          store.updateSourceFile(existing.id, {
+            text: inlineText ?? '',
+            status: 'idle',
+            error: undefined,
+            parsedParserId: undefined,
+            parsedTextHash: undefined,
+            parsedGraphData: undefined,
+          })
+        }
+      } catch {
+        void 0
+      }
+      if (path === ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH) {
+        try {
+          setGraphRagWorkflowJsonText(activeText)
+        } catch {
+          void 0
+        }
+      }
+      if (path === PARSER_SCRIPT_WORKSPACE_PATH) {
+        try {
+          useParserUIState.getState().setScriptText(activeText)
+        } catch {
+          void 0
+        }
+      }
+      if (path === SCHEMA_CONFIG_WORKSPACE_PATH) {
+        try {
+          const next = parseSchemaText(activeText)
+          const store = useGraphStore.getState()
+          store.setSchema(next)
+          store.setSchemaOpStatus(true, 'Applied schema from workspace file')
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err ?? '')
+          try {
+            useGraphStore.getState().setSchemaOpStatus(false, `Schema parse failed: ${msg}`)
+          } catch {
+            void 0
+          }
+        }
+      }
+      setStatusWithAutoClear('Saved')
+    } catch (e) {
+      setStatusError(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+    }
+  }, [
+    activeDocumentKey,
+    activeEntryKind,
+    activePath,
+    activeText,
+    getFs,
+    setGraphRagWorkflowJsonText,
+    setMarkdownDocument,
+    setStatusError,
+    setStatusProgress,
+    setStatusWithAutoClear,
+    setEntries,
+  ])
+
+  const saveAsActiveFileNow = React.useCallback(async () => {
+    const currentPath = activePath
+    if (!currentPath) return
+    if (activeEntryKind === 'folder') return
+    const normalized = normalizeWorkspacePath(currentPath)
+    const parentPath = (() => {
+      const idx = normalized.lastIndexOf('/')
+      if (idx <= 0) return WORKSPACE_ROOT_PATH
+      return normalizeWorkspacePath(normalized.slice(0, idx) || WORKSPACE_ROOT_PATH)
+    })()
+    const ext = workspaceExtLower(normalized) || 'md'
+    const base = workspaceStem(normalized) || workspaceBasename(normalized) || 'note'
+    const suggested = `${base}-copy.${ext}`
+    const draft = typeof window !== 'undefined' ? window.prompt('Save As', suggested) : suggested
+    const raw = String(draft || '').trim()
+    if (!raw) {
+      setStatusWithAutoClear('Save cancelled', 1200)
+      return
+    }
+    const safeName = raw
+      .replace(/\\/g, '/')
+      .replace(/\s+/g, ' ')
+      .replace(/\.+\//g, '')
+      .replace(/\//g, '-')
+      .replace(/\.{2,}/g, '.')
+      .trim()
+    const finalName = safeName.includes('.') ? safeName : `${safeName}.${ext}`
+
+    try {
+      setStatusProgress('Saving')
+      const fs = await getFs()
+      const createdPath = await fs.createFile({ parentPath, name: finalName, text: activeText })
+      setWorkspaceEntrySource(createdPath, { kind: 'local', originalName: null })
+      await refresh()
+      lastLoadedRef.current = { path: createdPath, text: activeText }
+      setActiveTextProgrammatic(activeText)
+      setActivePathSafe(createdPath)
+      setSelectionPathSafe(createdPath)
+      setStatusWithAutoClear('Saved as')
+    } catch (e) {
+      setStatusError(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+    }
+  }, [
+    activeEntryKind,
+    activePath,
+    activeText,
+    getFs,
+    refresh,
+    setActivePathSafe,
+    setActiveTextProgrammatic,
+    setSelectionPathSafe,
+    setStatusError,
+    setStatusProgress,
+    setStatusWithAutoClear,
+  ])
+
   React.useEffect(() => {
     if (effectiveBottomPanelCollapsed) return
     const path = activePath
@@ -1949,6 +2092,8 @@ export function MarkdownWorkspace() {
           setMarkdownTextHighlight={setMarkdownTextHighlight}
           statusLabel={statusLabel}
           onApply={() => void handleApply()}
+          onSave={() => void saveActiveFileNow()}
+          onSaveAs={() => void saveAsActiveFileNow()}
           onToggleFullscreen={toggleFullscreen}
           presentationApiRef={presentationApiRef}
           contentMode={contentMode}

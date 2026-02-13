@@ -26,7 +26,7 @@ export function MarkdownExplorerSection(props: {
   return (
     <section className={`border-b ${UI_THEME_TOKENS.panel.border}`} aria-label={title}>
       <div
-        className={`w-full flex items-center justify-between px-2 py-1 ${panelTypography.microLabelClass} tracking-wide font-semibold uppercase ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+        className={`sticky top-0 z-20 w-full flex items-center justify-between px-2 py-1 ${panelTypography.microLabelClass} tracking-wide font-semibold uppercase ${UI_THEME_TOKENS.panel.bg} backdrop-blur ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
         onClick={() => setCollapsed(!collapsed)}
         onKeyDown={onKeyDown}
         aria-expanded={!collapsed}

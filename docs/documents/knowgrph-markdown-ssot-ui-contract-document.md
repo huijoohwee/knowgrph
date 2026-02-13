@@ -70,6 +70,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - **Canonical section wrapper**: `curagrph/src/features/markdown/ui/MarkdownSidebarSection.tsx`.
   - Renders section title (`h3`) and section body.
   - **Rule**: section headers are typography-only except Source Files (may include an action menu for Explorer parity).
+  - **Rule**: section headers (`EXPLORER`, `SOURCE FILES`, `TOC`) must remain visible while scrolling (sticky within the sidebar scroll container).
 - **Canonical sections**:
   - Source files: `curagrph/src/features/markdown/ui/MarkdownSourceFilesPanel.tsx`
   - Outline (TOC): `curagrph/src/features/markdown/ui/MarkdownTableOfContents.tsx`
@@ -100,7 +101,12 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - `PANEL_TYPOGRAPHY_DEFAULTS` centralizes fallback classes (avoid string drift across repos).
   - Cross-repo panels rendered inside Floating Panel (e.g. `gympgrph` geospatial panel) must receive the same ladder via an explicit `panelTypography` prop (typed by `grph-shared/ui/panelTypography`).
   - MainPanel / Editor workspace / Graph Data Table surfaces must also use the same ladder (`usePanelTypography`) and avoid hardcoded `text-*` / `font-*`.
+- Editor workspace Source Files rows and per-file view-mode controls (e.g. `Markdown/JSON/HTML` select) must inherit `usePanelTypography` sizing; do not hardcode pixel text sizes.
   - Portal content (dropdowns/popovers) must explicitly apply `microLabelClass` when it cannot inherit from a panel root.
+
+## Scroll Sync Contract
+- In split view, Editor↔Viewer scroll sync must be bidirectional, stable, and view-only (no text mutations).
+- Editor uses the in-repo Monaco editor wrapper; scroll sync must operate via the editor handle API (not direct textarea DOM access).
 
 ## Shared Utilities (SSOT)
 Shared markdown logic is contractually owned by `knowgrph/grph-shared`.
@@ -124,3 +130,5 @@ Shared markdown logic is contractually owned by `knowgrph/grph-shared`.
 ## Verification (Bounded)
 - `npm --prefix curagrph run typecheck`
 - `npm --prefix knowgrph/canvas run typecheck`
+- `node knowgrph/canvas/src/tests/subsetEditorSmoke.ts`
+- `node knowgrph/canvas/src/tests/subsetWebpageSmoke.ts`
