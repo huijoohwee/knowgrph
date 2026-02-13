@@ -10,7 +10,7 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 
 ## Surfaces
 
-- **Editor**: always shows Markdown (Markdown is the SSOT).
+- **Editor**: shows an editable Markdown SSOT; JSON may be shown as a read-only text override.
 - **Viewer / Presentation / Slides Gallery**: render either Markdown (view = `markdown`) or a sandboxed iframe (view ∈ {json, html}).
 
 ## Frontmatter Contract (per imported page)
@@ -80,8 +80,8 @@ The sandbox must forbid top-level navigation (do not include `allow-top-navigati
 ## View Mode Semantics
 
 - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-- `JSON`: Editor shows Markdown; Viewer/Presentation/Slides render sandboxed JSON code (iframe `srcdoc`).
-- `HTML`: Editor shows Markdown; Viewer/Presentation/Slides render sandboxed HTML (iframe `srcdoc`).
+- `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code (iframe `srcdoc`).
+- `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML (iframe `srcdoc`).
 
 ## Shared Signal Tokens (Mode-Independent)
 

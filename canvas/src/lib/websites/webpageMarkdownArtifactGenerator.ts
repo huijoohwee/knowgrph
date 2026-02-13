@@ -4,6 +4,7 @@ import {
   countMatches,
   countSectionParagraphs,
   countUniqueMarkdownLinkTexts,
+  type HSection,
   extractBlockUnderH2,
   extractHSections,
   extractHeadings,

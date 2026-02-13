@@ -10,6 +10,7 @@ import { testWebpageMarkdownArtifactRemotionFixtureSections } from '@/__tests__/
 import {
   testMarkdownWorkspaceWebpageHtmlViewRendersIframe,
   testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml,
+  testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot,
 } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
 import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
 
@@ -23,6 +24,7 @@ async function main() {
   testWebpageMarkdownArtifactRemotionFixtureSections()
   await testMarkdownWorkspaceWebpageHtmlViewRendersIframe()
   await testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml()
+  await testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot()
   testSettingsRegistryReadWrite()
   console.log('OK subsetWebpageSmoke')
 }
@@ -31,4 +33,3 @@ main().catch((err) => {
   console.error(err)
   process.exit(1)
 })
-

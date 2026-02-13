@@ -131,14 +131,13 @@ sequenceDiagram
 - **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects `markdown | json | html`.
 - **Active-row dropdown contract**:
   - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-  - `JSON`: Editor shows conversion payload JSON (read-only); Viewer/Presentation/Slides render HTML via a sandboxed iframe.
-  - `HTML`: Editor stays Markdown; Viewer/Presentation/Slides render HTML via a sandboxed iframe.
+  - `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe `srcdoc`.
+  - `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe `srcdoc`.
 
 **Shared token vocabulary (mode-independent)**: the app uses a generic signal extraction layer to derive consistent tokens from Markdown across modes: `[NAV]`, `[CTA]`, `[LINK]`, `[PRICE]`, `[TIME]`.
 - **Iframe implementation**:
-  - Default is `srcdoc`: fetch HTML once (same-origin proxy or stored artifact), inject `<base>` + scroll-sync, then render in a sandboxed iframe.
-  - Optional `src`: render with `src="/__webpage_proxy?url=..."`.
-- **Iframe sandbox policy**: Use `sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock allow-presentation"` with `referrerPolicy="no-referrer"`; forbid top-level navigation.
+  - Enforce `srcdoc`: fetch from same-origin proxy or stored artifact, inject `<base>` + scroll-sync, and strip CSP meta tags to avoid self-blocking.
+- **Iframe sandbox policy**: Use `sandbox="allow-scripts"` with `referrerPolicy="no-referrer"`; forbid top-level navigation.
 - **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers, trigger re-parsing/apply-to-graph, or write default import settings.
 - **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy` for same-origin loading, and sets a self-origin `<base>` to prevent accidental navigation to the remote site.
 - **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
@@ -157,7 +156,7 @@ sequenceDiagram
 **Decision Logic**:
 - **Tree fidelity**: Workspace path is derived from URL pathname so the Explorer reflects the website’s directory structure.
 - **View switching (active-row dropdown)**: `Markdown | JSON | HTML` is strictly view-only (no apply-to-graph, no layout/zoom mutation, no default-setting mutation).
-- **Artifact mapping (editor text)**: `json→conversionJson`, else `markdown`; fetched from `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`.
+- **Artifact mapping (editor text)**: `json→conversionJson`, `html→rawHtml`, `markdown→(no override)`.
 - **HTML fidelity**: For `kgWebpageView = html`, Viewer/Presentation/Slides render 100% fidelity HTML in a sandboxed iframe. The HTML payload is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy. `json` renders sandboxed JSON code.
 - **Markdown artifact**: The Markdown view can embed a ` ```text kg-webpage-layout ` block as a lightweight, editable layout snapshot.
 

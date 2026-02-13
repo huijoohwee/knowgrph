@@ -50,8 +50,8 @@
 - `webpageImportIncludeImages`
 - `webpageImportView` (`markdown` | `json` | `html`)
   - `markdown`: editor/viewer use Markdown (graph parsing remains aligned to Markdown)
-  - `json`: editor stays Markdown; viewer/presentation/slides render sandboxed JSON via iframe `srcdoc`
-  - `html`: editor stays Markdown; viewer/presentation/slides render sandboxed HTML via iframe `srcdoc`
+  - `json`: editor shows conversion JSON (read-only override); viewer/presentation/slides render sandboxed JSON via iframe `srcdoc`
+  - `html`: editor stays editable Markdown SSOT; viewer/presentation/slides render sandboxed HTML via iframe `srcdoc`
 
 ---
 

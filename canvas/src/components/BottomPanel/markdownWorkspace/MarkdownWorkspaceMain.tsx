@@ -19,6 +19,7 @@ import {
   fetchWebsiteImportArtifact,
 } from '@/lib/websites/webpageIframeSrcdoc'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { MonacoTextEditor, type MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -68,7 +69,7 @@ export type MarkdownWorkspaceMainProps = {
 
   editorUri: string
   editorLanguage: string
-  editorRef: React.MutableRefObject<HTMLTextAreaElement | null>
+  editorRef: React.MutableRefObject<MonacoTextEditorHandle | null>
   onEditorCaretLine?: (line: number) => void
 }
 
@@ -78,7 +79,7 @@ function sanitizeInvalidDataUrls(raw: string): string {
   return s.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,<omitted>/g, 'data:,')
 }
 
-import { useSyncScrollElements } from './useSyncScroll'
+import { useSyncScrollEditorHandleElements } from './useSyncScroll'
 
 function clamp01(n: number) {
   if (n <= 0) return 0
@@ -91,44 +92,69 @@ function getScrollRatio(el: HTMLElement) {
   return clamp01(el.scrollTop / max)
 }
 
+function getEditorScrollRatio(h: MonacoTextEditorHandle) {
+  const max = Math.max(1, h.getScrollHeight() - h.getClientHeight())
+  return clamp01(h.getScrollTop() / max)
+}
+
 function setScrollRatio(el: HTMLElement, ratio: number) {
   const max = Math.max(0, el.scrollHeight - el.clientHeight)
   el.scrollTop = Math.round(clamp01(ratio) * max)
+}
+
+function setEditorScrollRatio(h: MonacoTextEditorHandle, ratio: number) {
+  const max = Math.max(0, h.getScrollHeight() - h.getClientHeight())
+  h.setScrollTop(Math.round(clamp01(ratio) * max))
 }
 
 function MarkdownEditor(props: {
   value: string
   onChange: (next: string) => void
   wordWrap: boolean
-  editorRef: React.MutableRefObject<HTMLTextAreaElement | null>
+  editorRef: React.MutableRefObject<MonacoTextEditorHandle | null>
   onCaretLine?: (line: number) => void
   panelTypography: PanelTypography
   readOnly?: boolean
-  onEditorEl?: (el: HTMLTextAreaElement | null) => void
+  themeMode: 'light' | 'dark'
+  language: string
+  uri: string
+  onEditorHandle?: (h: MonacoTextEditorHandle | null) => void
 }) {
   const rafIdRef = React.useRef<number | null>(null)
   const lastSelectionStartRef = React.useRef<number | null>(null)
+  const lineStarts = React.useMemo(() => {
+    const s = String(props.value || '')
+    const out: number[] = [0]
+    for (let i = 0; i < s.length; i += 1) {
+      if (s.charCodeAt(i) === 10) out.push(i + 1)
+    }
+    return out
+  }, [props.value])
 
-  const scheduleEmitCaretLine = React.useCallback(() => {
-    const onCaretLine = props.onCaretLine
-    if (!onCaretLine) return
-    if (rafIdRef.current !== null) return
-    rafIdRef.current = requestAnimationFrame(() => {
-      rafIdRef.current = null
-      const el = props.editorRef.current
-      if (!el) return
-      const offsetRaw = typeof el.selectionStart === 'number' ? el.selectionStart : 0
-      const offset = Math.max(0, Math.floor(offsetRaw))
+  const scheduleEmitCaretLine = React.useCallback(
+    (offsetRaw: number) => {
+      const onCaretLine = props.onCaretLine
+      if (!onCaretLine) return
+      const offset = Math.max(0, Math.floor(offsetRaw || 0))
       if (lastSelectionStartRef.current === offset) return
       lastSelectionStartRef.current = offset
-      const text = String(el.value || '')
-      let line = 1
-      for (let i = 0; i < offset && i < text.length; i += 1) {
-        if (text.charCodeAt(i) === 10) line += 1
-      }
-      onCaretLine(line)
-    })
-  }, [props.editorRef, props.onCaretLine])
+      if (rafIdRef.current !== null) return
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null
+        let lo = 0
+        let hi = lineStarts.length - 1
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1
+          const v = lineStarts[mid]
+          if (v <= offset) lo = mid + 1
+          else hi = mid - 1
+        }
+        const line = Math.max(1, Math.min(lineStarts.length, hi + 1))
+        onCaretLine(line)
+      })
+    },
+    [lineStarts, props.onCaretLine],
+  )
 
   React.useEffect(() => {
     return () => {
@@ -145,21 +171,22 @@ function MarkdownEditor(props: {
 
   return (
     <section className="flex-1 min-h-0 overflow-hidden flex flex-col" aria-label="Markdown Editor">
-      <textarea
-        ref={el => {
-          props.editorRef.current = el
-          props.onEditorEl?.(el)
-        }}
-        className={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 ${props.panelTypography.panelTextClass} leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
+      <MonacoTextEditor
         value={props.value}
-        onChange={e => props.onChange(e.target.value)}
+        onChange={props.readOnly ? () => void 0 : props.onChange}
+        language={props.language}
+        uri={props.uri}
+        themeMode={props.themeMode}
+        wordWrap={props.wordWrap}
         readOnly={!!props.readOnly}
-        spellCheck={false}
-        wrap={props.wordWrap ? 'soft' : 'off'}
-        aria-label="Markdown Editor Text"
-        onKeyUp={() => scheduleEmitCaretLine()}
-        onClick={() => scheduleEmitCaretLine()}
-        onSelect={() => scheduleEmitCaretLine()}
+        paddingTopPx={12}
+        paddingBottomPx={12}
+        className="flex-1 min-h-0 w-full overflow-hidden"
+        textareaClassName={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 ${props.panelTypography.panelTextClass} leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
+        ariaLabel="Markdown Editor Text"
+        editorRef={props.editorRef}
+        onHandle={props.onEditorHandle}
+        onSelectionChangeOffsets={({ startOffset }) => scheduleEmitCaretLine(startOffset)}
       />
     </section>
   )
@@ -250,7 +277,7 @@ function useWebpageIframeSrcdoc(args: {
 
 export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(props: MarkdownWorkspaceMainProps) {
   const panelTypography = usePanelTypography()
-  const [editorEl, setEditorEl] = React.useState<HTMLTextAreaElement | null>(null)
+  const [editorHandle, setEditorHandle] = React.useState<MonacoTextEditorHandle | null>(null)
   const [viewerEl, setViewerEl] = React.useState<HTMLElement | null>(null)
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const {
@@ -293,6 +320,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     showInViewer,
     showInPresentation,
     showInSlidesGallery,
+    editorUri,
+    editorLanguage,
     editorRef,
     onEditorCaretLine,
   } = props
@@ -343,15 +372,18 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   }, [showWebpageHtml])
 
   React.useEffect(() => {
-    if (!editorEl) return
-    const handleScroll = () => {
-      setSavedRatio(getScrollRatio(editorEl))
-    }
-    editorEl.addEventListener('scroll', handleScroll, { passive: true })
+    if (!editorHandle) return
+    const sub = editorHandle.onDidScrollChange(() => {
+      setSavedRatio(getEditorScrollRatio(editorHandle))
+    })
     return () => {
-      editorEl.removeEventListener('scroll', handleScroll)
+      try {
+        sub.dispose()
+      } catch {
+        void 0
+      }
     }
-  }, [editorEl, setSavedRatio])
+  }, [editorHandle, setSavedRatio])
 
   React.useEffect(() => {
     if (!viewerEl) return
@@ -370,8 +402,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       if (viewerEl) {
         setScrollRatio(viewerEl, ratio)
       }
-      if (editorEl && layoutMode === 'editor') {
-        setScrollRatio(editorEl, ratio)
+      if (editorHandle && layoutMode === 'editor') {
+        setEditorScrollRatio(editorHandle, ratio)
       }
       return
     }
@@ -392,14 +424,15 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     return () => {
       iframe.removeEventListener('load', handleLoad)
     }
-  }, [editorEl, getSavedRatio, layoutMode, showWebpageHtml, viewerEl])
+  }, [editorHandle, getSavedRatio, layoutMode, showWebpageHtml, viewerEl])
 
-  useSyncScrollElements(editorEl, viewerEl, layoutMode === 'split' && !showWebpageHtml)
+  useSyncScrollEditorHandleElements(editorHandle, viewerEl, layoutMode === 'split' && !showWebpageHtml)
 
   React.useEffect(() => {
     if (!showWebpageHtml) return
     const iframe = iframeRef.current
     if (!iframe) return
+    if (!editorHandle) return
 
     const lockRef = { owner: null as 'editor' | 'iframe' | null, until: 0 }
     const canSync = (owner: 'editor' | 'iframe') => {
@@ -421,11 +454,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
 
     const handleEditorScroll = () => {
-      if (!editorEl) return
       if (!canSync('editor')) return
       lockRef.owner = 'editor'
       lockRef.until = Date.now() + 180
-      const ratio = getScrollRatio(editorEl)
+      const ratio = getEditorScrollRatio(editorHandle)
       setSavedRatio(ratio)
       sendRatioToIframe(ratio)
     }
@@ -437,23 +469,27 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const ratio = typeof d.ratio === 'number' ? d.ratio : NaN
       if (!Number.isFinite(ratio)) return
       setSavedRatio(ratio)
-      if (!editorEl) return
       if (layoutMode !== 'split') return
       if (!canSync('iframe')) return
       lockRef.owner = 'iframe'
       lockRef.until = Date.now() + 180
-      setScrollRatio(editorEl, ratio)
+      setEditorScrollRatio(editorHandle, ratio)
     }
 
-    if (layoutMode === 'split') {
-      editorEl?.addEventListener('scroll', handleEditorScroll, { passive: true })
-    }
+    const sub = editorHandle.onDidScrollChange(() => {
+      if (layoutMode !== 'split') return
+      handleEditorScroll()
+    })
     window.addEventListener('message', handleMessage)
     return () => {
-      editorEl?.removeEventListener('scroll', handleEditorScroll)
+      try {
+        sub.dispose()
+      } catch {
+        void 0
+      }
       window.removeEventListener('message', handleMessage)
     }
-  }, [editorEl, layoutMode, setSavedRatio, showWebpageHtml])
+  }, [editorHandle, layoutMode, setSavedRatio, showWebpageHtml])
 
   React.useEffect(() => {
     if (layoutMode !== 'presentation') {
@@ -682,7 +718,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           onCaretLine={onEditorCaretLine}
           panelTypography={panelTypography}
           readOnly={disableEditorMutations}
-          onEditorEl={setEditorEl}
+          themeMode={themeMode}
+          language={editorLanguage}
+          uri={editorUri}
+          onEditorHandle={setEditorHandle}
         />
       ) : layoutMode === 'viewer' ? (
         viewer
@@ -701,7 +740,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               onCaretLine={onEditorCaretLine}
               panelTypography={panelTypography}
               readOnly={disableEditorMutations}
-              onEditorEl={setEditorEl}
+              themeMode={themeMode}
+              language={editorLanguage}
+              uri={editorUri}
+              onEditorHandle={setEditorHandle}
             />
           </section>
           <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" />

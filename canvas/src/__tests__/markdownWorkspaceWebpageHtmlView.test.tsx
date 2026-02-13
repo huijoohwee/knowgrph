@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
 import type { MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
   const { dom, restore } = initJsdomHarness()
@@ -13,7 +14,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
-    const editorRef = { current: null as HTMLTextAreaElement | null }
+    const editorRef = { current: null as MonacoTextEditorHandle | null }
     const presentationApiRef = { current: null as MarkdownPresentationApi | null }
 
     ;(globalThis as unknown as { fetch?: unknown }).fetch = (async () => {
@@ -75,7 +76,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
           showInSlidesGallery: () => {},
           editorUri: 'inmemory://webpage.md',
           editorLanguage: 'markdown',
-          editorRef: editorRef as unknown as React.MutableRefObject<HTMLTextAreaElement | null>,
+          editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,
         }),
       )
 
@@ -111,7 +112,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
-    const editorRef = { current: null as HTMLTextAreaElement | null }
+    const editorRef = { current: null as MonacoTextEditorHandle | null }
     const presentationApiRef = { current: null as MarkdownPresentationApi | null }
 
     const seen: string[] = []
@@ -201,7 +202,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
           showInSlidesGallery: () => {},
           editorUri: 'inmemory://webpage.md',
           editorLanguage: 'markdown',
-          editorRef: editorRef as unknown as React.MutableRefObject<HTMLTextAreaElement | null>,
+          editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,
         }),
       )
 
@@ -224,6 +225,79 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
   }
 }
 
+export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
+  const { dom, restore } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const editorRef = { current: null as MonacoTextEditorHandle | null }
+    const presentationApiRef = { current: null as MarkdownPresentationApi | null }
+
+    const text = ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "html"', '---', '', '# Title', ''].join('\n')
+
+    root.render(
+      React.createElement(MarkdownWorkspaceMain, {
+        themeMode: 'light',
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        layoutMode: 'editor',
+        setLayoutMode: () => {},
+        markdownWordWrap: true,
+        setMarkdownWordWrap: () => {},
+        markdownTextHighlight: false,
+        setMarkdownTextHighlight: () => {},
+        statusLabel: null,
+        onApply: () => {},
+        onToggleFullscreen: () => {},
+        presentationApiRef,
+        isEditing: true,
+        isMarkdown: true,
+        onFormatAction: () => {},
+        onImportLocalFiles: () => {},
+        onImportLocalFolder: () => {},
+        onImportUrl: () => {},
+        onImportWebsite: () => {},
+        activeText: text,
+        setActiveText: () => {},
+        disableEditorMutations: false,
+        activeDocumentKey: '/webpage.md',
+        highlightedLineRange: null,
+        revealLineInEditor: () => {},
+        showInViewer: () => {},
+        showInPresentation: () => {},
+        showInSlidesGallery: () => {},
+        editorUri: 'inmemory://webpage.md',
+        editorLanguage: 'markdown',
+        editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+    for (let i = 0; i < 5; i += 1) await tick()
+
+    const textarea = doc.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
+    if (!textarea) throw new Error('expected editor textarea')
+    if (textarea.readOnly) throw new Error('expected HTML view editor to remain editable')
+    if (textarea.value !== text) throw new Error('expected HTML view editor to render Markdown SSOT text')
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
 export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
   const { dom, restore } = initJsdomHarness()
   try {
@@ -232,7 +306,7 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
-    const editorRef = { current: null as HTMLTextAreaElement | null }
+    const editorRef = { current: null as MonacoTextEditorHandle | null }
     const presentationApiRef = { current: null as MarkdownPresentationApi | null }
 
     const cases = [
@@ -284,7 +358,7 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
           showInSlidesGallery: () => {},
           editorUri: 'inmemory://webpage.md',
           editorLanguage: 'markdown',
-          editorRef: editorRef as unknown as React.MutableRefObject<HTMLTextAreaElement | null>,
+          editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,
         }),
       )
 

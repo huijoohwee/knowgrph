@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -13,7 +14,7 @@ export async function testMarkdownEditorTextareaHeightAlignsAndSyncScrollsInSpli
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
 
-    const editorRef = { current: null as HTMLTextAreaElement | null }
+    const editorRef = { current: null as MonacoTextEditorHandle | null }
     const presentationApiRef = { current: null as unknown }
 
     const root = createRoot(container)

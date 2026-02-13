@@ -20,6 +20,7 @@ import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from 'gympgrph'
 import { MarkdownWorkspaceExplorer } from './MarkdownWorkspaceExplorer'
 import { MarkdownWorkspaceMain } from './MarkdownWorkspaceMain'
+import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, isMarkdownPath, languageForPath } from './markdownWorkspaceUtils'
 import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { useWorkspaceFileActions } from './useWorkspaceFileActions'
@@ -46,7 +47,7 @@ import {
   upsertWebpageFrontmatterMeta,
   type WebpageViewMode,
 } from '@/lib/markdown/frontmatter'
-import { fetchWebpageHtmlViaProxy } from '@/lib/websites/webpageIframeSrcdoc'
+import { fetchWebpageConversionJsonViaConvert, fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
 import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
@@ -183,7 +184,7 @@ export function MarkdownWorkspace() {
     return new Set((arr || []).map(p => normalizeWorkspacePath(p)))
   })
 
-  const editorRef = React.useRef<HTMLTextAreaElement | null>(null)
+  const editorRef = React.useRef<MonacoTextEditorHandle | null>(null)
   const resizeHandleRef = React.useRef<HTMLHRElement | null>(null)
   const workspaceRootRef = React.useRef<HTMLElement | null>(null)
   const presentationApiRef = React.useRef<MarkdownPresentationApi | null>(null)
@@ -509,6 +510,12 @@ export function MarkdownWorkspace() {
       return
     }
 
+    if (view === 'html') {
+      setWebpageWorkspaceEditorTextOverride(null)
+      setWebpageWorkspaceViewerTextOverride(null)
+      return
+    }
+
     let cancelled = false
     const controller = new AbortController()
     void (async () => {
@@ -517,58 +524,52 @@ export function MarkdownWorkspace() {
           const importId = websiteImportMeta.importId
           const nodeId = websiteImportMeta.nodeId
           const outputDirRel = String(websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '').trim()
-          const outputDirQuery = outputDirRel ? `outputDirRel=${encodeURIComponent(outputDirRel)}&` : ''
           const kind = websiteImportArtifactKindForWebpageView(view)
-          const res = await fetch(
-            `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=${encodeURIComponent(kind)}`,
-            { signal: controller.signal },
-          )
-          const text = await res.text()
-          if (cancelled) return
-          if (!res.ok) {
-            const errorText = view === 'json' ? JSON.stringify({ ok: false, error: `HTTP ${res.status}` }, null, 2) : `Load failed: HTTP ${res.status}\n`
+          try {
+            const effective = await fetchWebsiteImportArtifact({
+              importId,
+              nodeId,
+              outputDirRel,
+              kind,
+              signal: controller.signal,
+            })
+            if (cancelled) return
+            const clipped = effective.length > 200_000 ? `${effective.slice(0, 200_000)}\n\n(clipped)\n` : effective
+            setWebpageWorkspaceEditorTextOverride(clipped)
+            setWebpageWorkspaceViewerTextOverride(null)
+          } catch (err) {
+            if (cancelled) return
+            const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
+            const errorText = view === 'json'
+              ? JSON.stringify({ ok: false, error: msg || 'Load failed' }, null, 2)
+              : `Load failed: ${msg || 'Request failed'}\n`
             setWebpageWorkspaceEditorTextOverride(errorText)
             setWebpageWorkspaceViewerTextOverride(null)
-            return
           }
-          const effective = String(text || '')
-          const clipped = effective.length > 200_000 ? `${effective.slice(0, 200_000)}\n\n(clipped)\n` : effective
-          setWebpageWorkspaceEditorTextOverride(clipped)
-          setWebpageWorkspaceViewerTextOverride(null)
           return
         }
 
         if (view === 'json') {
           const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
-          const res = await fetchWebpageMarkdown(url, { emit: 'json', includeImages, signal: controller.signal })
-          if (cancelled) return
-          if (!res) {
-            setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
+          try {
+            const rawJson = await fetchWebpageConversionJsonViaConvert({ url, includeImages, signal: controller.signal })
+            if (cancelled) return
+            const pretty = (() => {
+              const t = String(rawJson || '')
+              try {
+                return JSON.stringify(JSON.parse(t) as unknown, null, 2)
+              } catch {
+                return t
+              }
+            })()
+            setWebpageWorkspaceEditorTextOverride(pretty)
             setWebpageWorkspaceViewerTextOverride(null)
-            return
-          }
-          if (res.ok !== true) {
-            setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: String(res.error || 'Conversion failed') }, null, 2))
+          } catch (err) {
+            if (cancelled) return
+            const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
+            setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: msg || 'Request failed' }, null, 2))
             setWebpageWorkspaceViewerTextOverride(null)
-            return
           }
-          const jsonText = res.conversionJsonText || JSON.stringify({ ok: true, name: res.name }, null, 2)
-          setWebpageWorkspaceEditorTextOverride(jsonText)
-          setWebpageWorkspaceViewerTextOverride(null)
-          return
-        }
-
-        if (view === 'html') {
-          const resHtml = await fetchWebpageHtmlViaProxy({ url, signal: controller.signal })
-          if (cancelled) return
-          if (!resHtml) {
-            setWebpageWorkspaceEditorTextOverride(`Load failed\n`)
-            setWebpageWorkspaceViewerTextOverride(null)
-            return
-          }
-          const clipped = resHtml.length > 200_000 ? `${resHtml.slice(0, 200_000)}\n\n(clipped)\n` : resHtml
-          setWebpageWorkspaceEditorTextOverride(clipped)
-          setWebpageWorkspaceViewerTextOverride(null)
           return
         }
 
@@ -1511,8 +1512,8 @@ export function MarkdownWorkspace() {
 
   React.useEffect(() => {
     if (!requestedRevealLine) return
-    const el = editorRef.current
-    if (!el) return
+    const h = editorRef.current
+    if (!h) return
     const line = Math.max(1, Math.floor(requestedRevealLine))
     const text = String(activeTextRef.current || '')
     let offset = 0
@@ -1527,12 +1528,9 @@ export function MarkdownWorkspace() {
       currentLine += 1
     }
     try {
-      el.focus()
-      el.setSelectionRange(offset, offset)
-      const computed = window.getComputedStyle(el)
-      const lineHeightRaw = computed.lineHeight
-      const lineHeight = Number.isFinite(Number.parseFloat(lineHeightRaw)) ? Number.parseFloat(lineHeightRaw) : 18
-      el.scrollTop = Math.max(0, (line - 1) * Math.max(10, Math.min(40, lineHeight)))
+      h.focus()
+      h.setSelectionOffsets(offset, offset)
+      h.revealOffsetInCenter(offset)
     } catch {
       void 0
     }
@@ -1784,19 +1782,18 @@ export function MarkdownWorkspace() {
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {
-      const el = editorRef.current
-      if (!el) return
-      const startOffset = typeof el.selectionStart === 'number' ? el.selectionStart : activeText.length
-      const endOffset = typeof el.selectionEnd === 'number' ? el.selectionEnd : activeText.length
-      const selection = { startOffset, endOffset }
+      const h = editorRef.current
+      if (!h) return
+      const offsets = h.getSelectionOffsets()
+      const selection = offsets || { startOffset: activeText.length, endOffset: activeText.length }
       const { nextText, nextSelection } = applyMarkdownFormatAction({ text: activeText, selection, action })
       setActiveText(nextText)
       const focusAndSelect = () => {
-        const h = editorRef.current
-        if (!h) return
+        const h2 = editorRef.current
+        if (!h2) return
         try {
-          h.focus()
-          h.setSelectionRange(nextSelection.startOffset, nextSelection.endOffset)
+          h2.focus()
+          h2.setSelectionOffsets(nextSelection.startOffset, nextSelection.endOffset)
         } catch {
           void 0
         }
@@ -1872,12 +1869,7 @@ export function MarkdownWorkspace() {
   )
   const effectiveViewerTextOverride = contentMode === 'nodeQuickEditor' && nodeQuickEditorFormat === 'json' ? quickEditorViewerText : null
   const combinedViewerTextOverride = effectiveViewerTextOverride || pdfWorkspaceViewerTextOverride || webpageWorkspaceViewerTextOverride
-  const webpageDerivedReadOnlyActive =
-    contentMode !== 'nodeQuickEditor' &&
-    !!(
-      webpageWorkspaceMeta?.url &&
-      (webpageWorkspaceMeta?.view === 'json' || webpageWorkspaceMeta?.view === 'html')
-    )
+  const webpageDerivedReadOnlyActive = contentMode !== 'nodeQuickEditor' && !!(webpageWorkspaceMeta?.url && webpageWorkspaceMeta?.view === 'json')
   const effectiveEditorTextOverride =
     contentMode === 'nodeQuickEditor'
       ? null
