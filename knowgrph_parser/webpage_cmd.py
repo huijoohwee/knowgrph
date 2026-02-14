@@ -8,10 +8,145 @@ from urllib.parse import urljoin, urlparse
 from urllib.request import Request, build_opener, HTTPCookieProcessor
 import gzip
 import http.cookiejar
+from io import StringIO
 from typing import Any, Dict, List, Optional, Tuple
 import html as _html
 
 from .common import slugify
+
+
+def _extract_best_title(html_str: str, markdown_hint: str, url: str) -> str:
+    import re
+
+    def _decode(s: str) -> str:
+        return _html.unescape(' '.join((s or '').split()).strip())
+
+    def _meta_content(property_or_name: str) -> str:
+        key = re.escape(property_or_name)
+        patterns = [
+            rf'<meta\s+[^>]*property=["\']{key}["\'][^>]*content=["\']([^"\']+)["\']',
+            rf'<meta\s+[^>]*content=["\']([^"\']+)["\'][^>]*property=["\']{key}["\']',
+            rf'<meta\s+[^>]*name=["\']{key}["\'][^>]*content=["\']([^"\']+)["\']',
+            rf'<meta\s+[^>]*content=["\']([^"\']+)["\'][^>]*name=["\']{key}["\']',
+        ]
+        for pat in patterns:
+            m = re.search(pat, html_str, flags=re.IGNORECASE)
+            if m:
+                v = _decode(m.group(1))
+                if v:
+                    return v
+        return ''
+
+    def _title_tag() -> str:
+        m = re.search(r'<title[^>]*>([\s\S]*?)</title>', html_str, flags=re.IGNORECASE)
+        if not m:
+            return ''
+        raw = re.sub(r'<[^>]+>', ' ', m.group(1) or '')
+        return _decode(raw)
+
+    def _first_h1() -> str:
+        m = re.search(r'<h1\b[^>]*>([\s\S]*?)</h1>', html_str, flags=re.IGNORECASE)
+        if not m:
+            return ''
+        raw = re.sub(r'<[^>]+>', ' ', m.group(1) or '')
+        return _decode(raw)
+
+    def _markdown_title() -> str:
+        md = StringIO(markdown_hint or '')
+        for _ in range(140):
+            line = md.readline()
+            if not line:
+                break
+            s = (line or '').strip()
+            if not s:
+                continue
+            if s.startswith('#'):
+                v = s.lstrip('#').strip()
+                if v:
+                    return v
+            if s.startswith('**') and s.endswith('**') and len(s) >= 6:
+                v = s.strip('*').strip()
+                if v:
+                    return v
+            if 12 <= len(s) <= 96 and re.search(r'[A-Za-z]', s) and not s.endswith('.'):
+                return s
+        return ''
+
+    def _is_placeholder(t: str) -> bool:
+        v = (t or '').strip()
+        if not v:
+            return True
+        low = v.lower()
+        if low in {'webpage import', 'home', 'homepage', 'index'}:
+            return True
+        if len(v) <= 2:
+            return True
+        return False
+
+    candidates = [
+        _meta_content('og:title'),
+        _meta_content('twitter:title'),
+        _meta_content('title'),
+        _title_tag(),
+        _first_h1(),
+        _markdown_title(),
+    ]
+    for c in candidates:
+        if c and not _is_placeholder(c):
+            return c
+    for c in candidates:
+        if c:
+            return c
+    try:
+        return urlparse(url).hostname or 'Webpage'
+    except Exception:
+        return 'Webpage'
+
+
+def _postprocess_markdown(markdown: str) -> str:
+    import re
+
+    text = str(markdown or '')
+    for _ in range(8):
+        if '****' not in text:
+            break
+        text = text.replace('****', '**')
+
+    lines = text.splitlines()
+    out: List[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        s = line.strip()
+
+        if out:
+            prev = out[-1].strip()
+            if s and prev and s == prev:
+                i += 1
+                continue
+
+        if s and not s.startswith('#') and not s.startswith('- ') and not s.startswith('1. ') and not s.startswith('![') and not s.startswith('```'):
+            if s.startswith('**') and s.endswith('**') and s.count('**') >= 2 and len(s) <= 160 and '[' not in s:
+                candidate = ' '.join(s.replace('**', '').split()).strip()
+                if candidate and len(candidate.split()) <= 18:
+                    next_has_content = (i + 1 < len(lines)) and bool(lines[i + 1].strip())
+                    if next_has_content:
+                        out.append(f'## {candidate}')
+                        i += 1
+                        continue
+        if s and not s.startswith('#') and not s.startswith('- ') and not s.startswith('1. ') and not s.startswith('![') and not s.startswith('```'):
+                letters = re.sub(r'[^A-Za-z]+', '', s)
+                upp = sum(1 for ch in letters if ch.isupper())
+                if letters and upp / max(1, len(letters)) >= 0.7 and (i + 1 < len(lines) and lines[i + 1].strip()):
+                    out.append(f'## {s}')
+                    i += 1
+                    continue
+        out.append(line)
+        i += 1
+
+
+    joined = '\n'.join(out).strip()
+    return joined + ('\n' if joined else '')
 
 # --- Fetch Utilities (Shared/Copied from youtube_cmd.py to avoid circular imports if any, or move to common?) ---
 # For now, I'll keep it self-contained or import if common.py has them. 
@@ -395,11 +530,36 @@ def _table_html_to_markdown(table_html: str, *, max_rows: int = 12, max_cols: in
     return '\n'.join(lines)
 
 
+def _rows_to_markdown_table(rows: List[List[str]]) -> str:
+    if not rows:
+        return ''
+    width = max(len(r) for r in rows)
+    norm = [r + [''] * (width - len(r)) for r in rows]
+    header = norm[0]
+    body = norm[1:]
+
+    def esc(s: str) -> str:
+        return (s or '').replace('|', '\\|')
+
+    lines: List[str] = []
+    lines.append('| ' + ' | '.join(esc(x) for x in header) + ' |')
+    lines.append('| ' + ' | '.join('---' for _ in header) + ' |')
+    for r in body:
+        lines.append('| ' + ' | '.join(esc(x) for x in r) + ' |')
+    return '\n'.join(lines)
+
+
 def _strip_html_to_text(fragment: str, *, max_chars: int = 4000) -> str:
     import re
     s = _html.unescape(fragment)
     s = s.replace('\n', ' ')
     s = ''.join(ch if ch.isprintable() else ' ' for ch in s)
+    if '<script' in s.lower():
+        s = re.sub(r'<script\b[^>]*>[\s\S]*?</script\s*>', ' ', s, flags=re.IGNORECASE)
+    if '<style' in s.lower():
+        s = re.sub(r'<style\b[^>]*>[\s\S]*?</style\s*>', ' ', s, flags=re.IGNORECASE)
+    if '<noscript' in s.lower():
+        s = re.sub(r'<noscript\b[^>]*>[\s\S]*?</noscript\s*>', ' ', s, flags=re.IGNORECASE)
     s = re.sub(r'<[^>]+>', ' ', s)
     s = ' '.join(s.split()).strip()
     if len(s) > max_chars:
@@ -407,7 +567,7 @@ def _strip_html_to_text(fragment: str, *, max_chars: int = 4000) -> str:
     return s
 
 
-def _extract_structured_details_markdown(html_str: str, base_url: str) -> str:
+def _extract_structured_details_markdown(html_str: str, base_url: str, markdown_hint: Optional[str] = None) -> str:
     import re
     lower = html_str.lower()
 
@@ -473,47 +633,331 @@ def _extract_structured_details_markdown(html_str: str, base_url: str) -> str:
         'buy',
         'purchase',
         'subscribe',
+        'home',
+        'homepage',
+        'main',
+        'navigation',
+        'menu',
+        'navigation menu',
+        'main navigation menu',
+        'get started for free',
     }
 
-    # --- Navigation menus (best-effort) ---
-    nav_labels = ['products', 'resources', 'commercial']
-    nav_out: List[str] = []
-    for label in nav_labels:
-        idx = lower.find(label)
-        if idx < 0:
-            continue
-        # Stop window at the next nav label to reduce cross-contamination
-        end = idx + 12000
-        for other in nav_labels:
-            if other == label:
-                continue
-            j = lower.find(other, idx + len(label))
-            if j >= 0:
-                end = min(end, j)
-        frag = html_str[idx:end]
-        # Capture anchor inner text
-        items = re.findall(r'<a[^>]*>(.*?)</a>', frag, flags=re.IGNORECASE | re.DOTALL)
-        picked: List[str] = []
-        for raw in items:
-            text = _strip_html_to_text(raw, max_chars=200)
-            if not text:
-                continue
-            if len(text) > 36:
-                continue
-            if text.lower() == label:
-                continue
-            if text.lower() in nav_labels:
-                continue
-            if text.lower().startswith('skip to'):
-                continue
-            if text in picked:
-                continue
-            picked.append(text)
-            if len(picked) >= 12:
-                break
-        if len(picked) >= 4:
-            nav_out.append(f"- {label.title()}: " + ' | '.join(picked[:10]))
+    # --- Navigation menus (best-effort, site-agnostic) ---
+    def _normalize_menu_label(raw: str) -> str:
+        v = ' '.join((raw or '').split()).strip()
+        if not v:
+            return ''
+        if len(v) > 32:
+            return ''
+        if v.lower().startswith('skip to'):
+            return ''
+        return v
 
+    def _should_keep_nav_item(raw: str) -> bool:
+        v = ' '.join((raw or '').split()).strip()
+        if not v:
+            return False
+        if len(v) > 48:
+            return False
+        if v.lower().startswith('skip to'):
+            return False
+        return True
+
+    def _extract_nav_menus(html_all: str) -> List[str]:
+        from html.parser import HTMLParser
+
+        def _maybe_label_token(raw: str) -> str:
+            import re
+            v = ' '.join((raw or '').split()).strip()
+            if not v:
+                return ''
+            if len(v) < 2 or len(v) > 18:
+                return ''
+            if v.lower() in {'new', 'beta', 'slide', 'slides'}:
+                return ''
+            if not re.match(r'^[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?$', v):
+                return ''
+            return v
+
+        class _NavParse(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self._container_stack: List[str] = []
+                self._containers: List[List[Tuple[str, str, str]]] = []
+                self._current: List[Tuple[str, str, str]] = []
+                self._in_a = False
+                self._a_href = ''
+                self._a_text: List[str] = []
+                self._in_button = False
+                self._button_text: List[str] = []
+
+            def handle_starttag(self, tag, attrs):
+                t = (tag or '').lower()
+                role = ''
+                aria = ''
+                for k, v in attrs:
+                    kk = (k or '').lower()
+                    if kk == 'role':
+                        role = (v or '').strip().lower()
+                    elif kk == 'aria-label':
+                        aria = (v or '').strip().lower()
+                aria_has_nav = ('navigation' in aria) or (aria.startswith('nav')) or (' nav' in aria)
+                is_container = t in {'nav', 'header'} or role in {'navigation', 'banner'} or aria_has_nav
+                if is_container:
+                    if not self._container_stack:
+                        self._current = []
+                    self._container_stack.append(t)
+                    return
+                if not self._container_stack:
+                    return
+                if t == 'a':
+                    self._in_a = True
+                    self._a_text = []
+                    href = ''
+                    for k, v in attrs:
+                        if (k or '').lower() == 'href':
+                            href = (v or '').strip()
+                            break
+                    self._a_href = href
+                elif t == 'button':
+                    self._in_button = True
+                    self._button_text = []
+
+            def handle_data(self, data):
+                if not self._container_stack:
+                    return
+                s = str(data or '')
+                if not s.strip():
+                    return
+                if self._in_a:
+                    self._a_text.append(s)
+                elif self._in_button:
+                    self._button_text.append(s)
+                else:
+                    v = _maybe_label_token(s)
+                    if v:
+                        self._current.append(('label', v, ''))
+
+            def handle_endtag(self, tag):
+                t = (tag or '').lower()
+                if self._container_stack and t == self._container_stack[-1]:
+                    self._container_stack.pop()
+                    if not self._container_stack:
+                        if self._current:
+                            self._containers.append(self._current)
+                        self._current = []
+                    return
+                if not self._container_stack:
+                    return
+                if t == 'a' and self._in_a:
+                    self._in_a = False
+                    text = _strip_html_to_text(' '.join(self._a_text), max_chars=200)
+                    href = (self._a_href or '').strip()
+                    self._a_href = ''
+                    self._a_text = []
+                    if text:
+                        self._current.append(('a', text, href))
+                elif t == 'button' and self._in_button:
+                    self._in_button = False
+                    text = _strip_html_to_text(' '.join(self._button_text), max_chars=120)
+                    self._button_text = []
+                    if text:
+                        self._current.append(('label', text, ''))
+
+        parser = _NavParse()
+        try:
+            parser.feed(html_all[:350000])
+            parser.close()
+        except Exception:
+            return []
+
+        containers = parser._containers
+
+        best: List[Tuple[str, str, str]]
+        if containers:
+            best = max(containers, key=lambda c: sum(1 for k, _, __ in c if k == 'label') * 3 + len(c))
+        else:
+            # Fallback: capture early-page anchors/buttons even when the site doesn't use <nav>/<header>/role markers.
+            class _LooseParse(HTMLParser):
+                def __init__(self):
+                    super().__init__()
+                    self.events: List[Tuple[str, str, str]] = []
+                    self._in_a = False
+                    self._a_href = ''
+                    self._a_text: List[str] = []
+                    self._in_button = False
+                    self._button_text: List[str] = []
+                    self._done = False
+
+                def handle_starttag(self, tag, attrs):
+                    if self._done:
+                        return
+                    t = (tag or '').lower()
+                    if t == 'a':
+                        self._in_a = True
+                        self._a_text = []
+                        href = ''
+                        for k, v in attrs:
+                            if (k or '').lower() == 'href':
+                                href = (v or '').strip()
+                                break
+                        self._a_href = href
+                    elif t == 'button':
+                        self._in_button = True
+                        self._button_text = []
+
+                def handle_data(self, data):
+                    if self._done:
+                        return
+                    s = str(data or '')
+                    if not s.strip():
+                        return
+                    if self._in_a:
+                        self._a_text.append(s)
+                    elif self._in_button:
+                        self._button_text.append(s)
+                    else:
+                        v = _maybe_label_token(s)
+                        if v:
+                            self.events.append(('label', v, ''))
+
+                def handle_endtag(self, tag):
+                    if self._done:
+                        return
+                    t = (tag or '').lower()
+                    if t == 'a' and self._in_a:
+                        self._in_a = False
+                        text = _strip_html_to_text(' '.join(self._a_text), max_chars=200)
+                        href = (self._a_href or '').strip()
+                        self._a_href = ''
+                        self._a_text = []
+                        if text:
+                            self.events.append(('a', text, href))
+                    elif t == 'button' and self._in_button:
+                        self._in_button = False
+                        text = _strip_html_to_text(' '.join(self._button_text), max_chars=120)
+                        self._button_text = []
+                        if text:
+                            self.events.append(('label', text, ''))
+                    if len(self.events) >= 600:
+                        self._done = True
+
+            loose = _LooseParse()
+            try:
+                loose.feed(html_all[:250000])
+                loose.close()
+            except Exception:
+                return []
+            best = loose.events
+        labels: List[str] = []
+        for idx, (kind, text, _href) in enumerate(best):
+            if idx > 220 and len(labels) >= 3:
+                break
+            if kind != 'label':
+                continue
+            v = _normalize_menu_label(text)
+            if not v:
+                continue
+            if v.lower() in {x.lower() for x in labels}:
+                continue
+            labels.append(v)
+            if len(labels) >= 10:
+                break
+
+        menus: Dict[str, List[str]] = {}
+        current = labels[0] if labels else 'Primary'
+        menus[current] = []
+        label_set = {x.lower() for x in labels}
+
+        for kind, text, _href in best:
+            if kind == 'label':
+                v = _normalize_menu_label(text)
+                if not v:
+                    continue
+                if v.lower() not in label_set:
+                    continue
+                current = v
+                if current not in menus:
+                    menus[current] = []
+                continue
+            if kind != 'a':
+                continue
+            if not _should_keep_nav_item(text):
+                continue
+            item = ' '.join(text.split()).strip()
+            if item.lower() in label_set:
+                continue
+            bucket = menus.get(current)
+            if bucket is None:
+                bucket = []
+                menus[current] = bucket
+            if item.lower() in {x.lower() for x in bucket}:
+                continue
+            bucket.append(item)
+
+        out_lines: List[str] = []
+        for label, items in menus.items():
+            picked = [x for x in items if x]
+            if label != 'Primary' and len(picked) < 3:
+                continue
+            if label == 'Primary' and len(picked) < 4:
+                continue
+            out_lines.append(f"- {label}: " + ' | '.join(picked[:12]))
+        return out_lines
+
+    nav_out = _extract_nav_menus(html_str)
+
+    def _extract_nav_menus_from_markdown(md: str) -> List[str]:
+        import re
+        lines = (md or '').splitlines()
+        out_lines: List[str] = []
+        current_label = ''
+        items: List[str] = []
+
+        def flush() -> None:
+            nonlocal current_label, items
+            if current_label and len(items) >= 3:
+                picked: List[str] = []
+                for it in items:
+                    if it.lower() in {x.lower() for x in picked}:
+                        continue
+                    picked.append(it)
+                    if len(picked) >= 12:
+                        break
+                if len(picked) >= 3:
+                    out_lines.append(f"- {current_label}: " + ' | '.join(picked))
+            current_label = ''
+            items = []
+
+        label_re = re.compile(r'^[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2}$')
+        link_re = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+        for raw in lines[:260]:
+            line = (raw or '').strip()
+            if not line:
+                continue
+            if line.startswith('#'):
+                continue
+            if line.startswith('---'):
+                continue
+            if line.startswith('- '):
+                m = link_re.search(line)
+                if current_label and m:
+                    txt = ' '.join((m.group(1) or '').split()).strip()
+                    if txt and len(txt) <= 48:
+                        items.append(txt)
+                continue
+
+            if len(line) <= 24 and label_re.match(line):
+                if current_label and line.lower() != current_label.lower():
+                    flush()
+                current_label = line
+                continue
+        flush()
+        return out_lines
+
+    if (not nav_out or len(nav_out) < 2) and markdown_hint:
+        nav_out = _extract_nav_menus_from_markdown(markdown_hint)
     if nav_out:
         sections.append('## Extracted Navigation Menus')
         sections.extend(nav_out)
@@ -693,7 +1137,7 @@ def _extract_structured_details_markdown(html_str: str, base_url: str) -> str:
                         text = _strip_html_to_text(inner, max_chars=160)
                         if not text:
                             continue
-                        if len(text) > 28:
+                        if len(text) > 44:
                             continue
                         if text.lower() in {'templates', 'template'}:
                             continue
@@ -706,10 +1150,238 @@ def _extract_structured_details_markdown(html_str: str, base_url: str) -> str:
             except Exception:
                 pass
 
-    if template_names:
+    if len(template_names) >= 4:
         sections.append('## Templates')
         for name in template_names[:8]:
             sections.append(f"- {name}")
+        sections.append('')
+
+    asset_urls: List[str] = []
+    asset_seen: set = set()
+
+    def add_asset(raw: str) -> None:
+        v = str(raw or '').strip().strip('"\'')
+        if not v:
+            return
+        if v.startswith('data:') or v.startswith('javascript:'):
+            return
+        try:
+            abs_u = urljoin(base_url, v)
+        except Exception:
+            return
+        low_u = abs_u.lower()
+        if not (low_u.startswith('http://') or low_u.startswith('https://')):
+            return
+        if any(x in low_u for x in ['\n', '\r', '\t']):
+            return
+        if not re.search(r'\.(png|jpe?g|gif|webp|svg|mp4|webm|mov|m4v|mp3|wav|pdf)(\?|#|$)', low_u):
+            return
+        if abs_u in asset_seen:
+            return
+        asset_seen.add(abs_u)
+        asset_urls.append(abs_u)
+
+    try:
+        for m in re.finditer(r'\b(?:src|data-src|data-original|poster)\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', html_str, flags=re.IGNORECASE):
+            add_asset(m.group(1) or m.group(2) or '')
+            if len(asset_urls) >= 24:
+                break
+        if len(asset_urls) < 24:
+            for m in re.finditer(r'\bsrcset\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', html_str, flags=re.IGNORECASE):
+                raw_set = m.group(1) or m.group(2) or ''
+                first = (raw_set.split(',')[0] or '').strip().split(' ')[0]
+                add_asset(first)
+                if len(asset_urls) >= 24:
+                    break
+        if len(asset_urls) < 24:
+            for m in re.finditer(r'url\(\s*(?:"([^"]+)"|\'([^\']+)\'|([^\)\s]+))\s*\)', html_str, flags=re.IGNORECASE):
+                add_asset(m.group(1) or m.group(2) or m.group(3) or '')
+                if len(asset_urls) >= 24:
+                    break
+    except Exception:
+        pass
+
+    if asset_urls:
+        sections.append('## Assets (Extracted)')
+        for u in asset_urls[:12]:
+            sections.append(f'- {u}')
+        sections.append('')
+
+    cta_items: List[Tuple[str, str]] = []
+    cta_seen: set = set()
+    cta_keywords = {
+        'apply',
+        'join',
+        'get started',
+        'signup',
+        'sign up',
+        'register',
+        'request',
+        'book',
+        'contact',
+        'download',
+        'try',
+        'demo',
+        'learn more',
+        'submit',
+    }
+
+    def _maybe_add_cta(text: str, href: str, why: str = '') -> None:
+        t = ' '.join((text or '').split()).strip()
+        if not t or len(t) > 72:
+            return
+        h = str(href or '').strip().strip('"\'')
+        if not h:
+            return
+        if any(x in h for x in ['\n', '\r', '\t', '{', '}', ';']):
+            return
+        if re.search(r'\s', h):
+            return
+        if h.startswith('javascript:') or h.startswith('data:') or h.startswith('#'):
+            return
+        try:
+            abs_u = urljoin(base_url, h)
+        except Exception:
+            return
+        low = abs_u.lower()
+        if not (low.startswith('http://') or low.startswith('https://')):
+            return
+        key = f'{t.lower()}::{abs_u}'
+        if key in cta_seen:
+            return
+        cta_seen.add(key)
+        cta_items.append((t, abs_u))
+
+    try:
+        for m in re.finditer(r'<a\b[^>]*>.*?</a>', html_str, flags=re.IGNORECASE | re.DOTALL):
+            a_html = m.group(0)
+            m_href = re.search(r'href\s*=\s*(?:"([^"]+)"|\'([^\']+)\'|([^\s>]+))', a_html, flags=re.IGNORECASE)
+            href = (m_href.group(1) or m_href.group(2) or m_href.group(3) or '') if m_href else ''
+            href = str(href or '').strip().strip('"\'')
+            inner = re.sub(r'^<a\b[^>]*>', '', a_html, flags=re.IGNORECASE)
+            inner = re.sub(r'</a>\s*$', '', inner, flags=re.IGNORECASE)
+            txt = _strip_html_to_text(inner, max_chars=120)
+            cls_m = re.search(r'class\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', a_html, flags=re.IGNORECASE)
+            cls = (cls_m.group(1) or cls_m.group(2) or '') if cls_m else ''
+            cls_l = cls.lower()
+            txt_l = txt.lower()
+            is_cta = any(k in txt_l for k in cta_keywords) or any(k in cls_l for k in ['btn', 'button', 'cta', 'primary'])
+            is_cta = is_cta or any(h in (href or '').lower() for h in ['typeform', 'airtable.com', 'forms.gle', '/form', 'form'])
+            if is_cta:
+                _maybe_add_cta(txt, href)
+            if len(cta_items) >= 18:
+                break
+
+        if len(cta_items) < 18:
+            for m in re.finditer(r'<button\b[^>]*>.*?</button>', html_str, flags=re.IGNORECASE | re.DOTALL):
+                b_html = m.group(0)
+                inner = re.sub(r'^<button\b[^>]*>', '', b_html, flags=re.IGNORECASE)
+                inner = re.sub(r'</button>\s*$', '', inner, flags=re.IGNORECASE)
+                txt = _strip_html_to_text(inner, max_chars=120)
+                txt_l = txt.lower()
+                if not any(k in txt_l for k in cta_keywords):
+                    continue
+                m_url = re.search(r'data-url\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', b_html, flags=re.IGNORECASE)
+                href = (m_url.group(1) or m_url.group(2) or '') if m_url else ''
+                if href:
+                    _maybe_add_cta(txt, href)
+                if len(cta_items) >= 18:
+                    break
+    except Exception:
+        pass
+
+    if cta_items:
+        sections.append('## CTAs (Extracted)')
+        for t, u in cta_items[:12]:
+            sections.append(f'- [{t}]({u})')
+        sections.append('')
+
+    link_rows: List[List[str]] = []
+    link_seen: set = set()
+    try:
+        for m in re.finditer(r'<a\b[^>]*>.*?</a>', html_str, flags=re.IGNORECASE | re.DOTALL):
+            a_html = m.group(0)
+            m_href = re.search(r'href\s*=\s*(?:"([^"]+)"|\'([^\']+)\'|([^\s>]+))', a_html, flags=re.IGNORECASE)
+            href = (m_href.group(1) or m_href.group(2) or m_href.group(3) or '') if m_href else ''
+            href = str(href or '').strip().strip('"\'')
+            if not href or href.startswith('#') or href.startswith('javascript:') or href.startswith('data:'):
+                continue
+            if any(x in href for x in ['\n', '\r', '\t', '{', '}', ';']):
+                continue
+            if re.search(r'\s', href):
+                continue
+            try:
+                abs_u = urljoin(base_url, href)
+            except Exception:
+                continue
+            low = abs_u.lower()
+            if not (low.startswith('http://') or low.startswith('https://') or low.startswith('mailto:')):
+                continue
+            if abs_u in link_seen:
+                continue
+            link_seen.add(abs_u)
+            inner = re.sub(r'^<a\b[^>]*>', '', a_html, flags=re.IGNORECASE)
+            inner = re.sub(r'</a>\s*$', '', inner, flags=re.IGNORECASE)
+            txt = _strip_html_to_text(inner, max_chars=90)
+            link_rows.append([txt[:60] if txt else '', abs_u])
+            if len(link_rows) >= 40:
+                break
+    except Exception:
+        pass
+
+    if link_rows:
+        sections.append('## Links (Extracted)')
+        sections.append(_rows_to_markdown_table([['Text', 'URL'], *link_rows]))
+        sections.append('')
+
+    form_lines: List[str] = []
+    try:
+        form_blocks = re.findall(r'<form\b[\s\S]*?</form\s*>', html_str, flags=re.IGNORECASE)
+        for fb in form_blocks[:6]:
+            m_action = re.search(r'action\s*=\s*(?:"([^"]+)"|\'([^\']+)\'|([^\s>]+))', fb, flags=re.IGNORECASE)
+            action = (m_action.group(1) or m_action.group(2) or m_action.group(3) or '') if m_action else ''
+            action = str(action or '').strip().strip('"\'')
+            if action in {"''", '""'}:
+                action = ''
+            if any(x in action for x in ['\n', '\r', '\t', '{', '}', ';']):
+                action = ''
+            try:
+                action_abs = urljoin(base_url, action) if action else ''
+            except Exception:
+                action_abs = ''
+            m_method = re.search(r'method\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', fb, flags=re.IGNORECASE)
+            method = (m_method.group(1) or m_method.group(2) or '').upper() if m_method else ''
+            header = 'Form'
+            if action_abs:
+                header = f'Form ({method or "GET"}): {action_abs}'
+            form_lines.append(f'- {header}')
+
+            field_rows: List[List[str]] = []
+            for m_inp in re.finditer(r'<(input|textarea|select)\b[^>]*>', fb, flags=re.IGNORECASE):
+                tag = (m_inp.group(1) or '').lower()
+                frag = m_inp.group(0)
+                m_type = re.search(r'type\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', frag, flags=re.IGNORECASE)
+                ftype = (m_type.group(1) or m_type.group(2) or '') if m_type else (tag if tag != 'input' else '')
+                m_name = re.search(r'name\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', frag, flags=re.IGNORECASE)
+                name = (m_name.group(1) or m_name.group(2) or '') if m_name else ''
+                m_ph = re.search(r'placeholder\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', frag, flags=re.IGNORECASE)
+                ph = (m_ph.group(1) or m_ph.group(2) or '') if m_ph else ''
+                m_al = re.search(r'aria-label\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', frag, flags=re.IGNORECASE)
+                al = (m_al.group(1) or m_al.group(2) or '') if m_al else ''
+                label = (al or ph or name).strip()
+                if not (label or ftype):
+                    continue
+                field_rows.append([label[:60], ftype[:16]])
+                if len(field_rows) >= 10:
+                    break
+            if field_rows:
+                    form_lines.append(_rows_to_markdown_table([['Field', 'Type'], *field_rows]))
+    except Exception:
+        pass
+
+    if form_lines:
+        sections.append('## Forms (Extracted)')
+        sections.extend(form_lines)
         sections.append('')
 
     # --- Pricing (plans + key prices) ---
@@ -920,13 +1592,13 @@ def main(argv: Optional[List[str]] = None, *, parser_script_path: Optional[str] 
         
         parser = SimpleMarkdownParser(url, include_images=not args.no_images)
         parser.feed(html_str)
-        markdown = parser.get_markdown()
+        markdown = _postprocess_markdown(parser.get_markdown())
 
-        extras = _extract_structured_details_markdown(html_str, url)
+        extras = _extract_structured_details_markdown(html_str, url, markdown_hint=markdown)
         if extras:
             markdown = markdown.rstrip() + "\n\n---\n\n" + extras + "\n"
         
-        title = parser.title.strip() or "Webpage Import"
+        title = _extract_best_title(html_str, markdown, url)
         name = f"webpage-{slugify(title) or slugify(url)}.md"
         
         if args.emit == "json":

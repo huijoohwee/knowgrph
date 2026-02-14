@@ -5,6 +5,21 @@ export type WebsiteImportMeta = { importId: string; nodeId: string; outputDirRel
 const CACHE = new Map<string, { html: string; atMs: number }>()
 const INFLIGHT = new Map<string, Promise<string>>()
 
+const CACHE_MAX = 24
+
+const SRCDOC_CACHE = new Map<string, string>()
+const SRCDOC_CACHE_MAX = 8
+
+const hash32 = (s: string): string => {
+  const str = String(s || '')
+  let h = 2166136261
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0).toString(16)
+}
+
 const escapeHtml = (raw: string): string =>
   String(raw || '')
     .replace(/&/g, '&amp;')
@@ -157,7 +172,9 @@ export const buildCodeViewerSrcdoc = (args: { baseHref: string; title: string; m
   const title = escapeHtml(args.title)
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
   const label = args.mode === 'json' ? 'JSON' : 'Text'
-  const body = escapeHtml(args.text)
+  const rawText = String(args.text || '')
+  const clippedText = rawText.length > 450_000 ? `${rawText.slice(0, 450_000)}\n\n…(clipped ${rawText.length - 450_000} chars)…` : rawText
+  const body = escapeHtml(clippedText)
   const csp = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
   const html = [
     '<!doctype html>',
@@ -192,6 +209,10 @@ const fetchCached = async (key: string, run: (signal: AbortSignal) => Promise<st
   if (inflight) return inflight
   const p = run(signal).then((html) => {
     CACHE.set(key, { html, atMs: Date.now() })
+    if (CACHE.size > CACHE_MAX) {
+      const oldest = CACHE.keys().next().value as string | undefined
+      if (oldest) CACHE.delete(oldest)
+    }
     return html
   })
   INFLIGHT.set(key, p)
@@ -273,8 +294,16 @@ export async function fetchWebsiteImportArtifact(args: {
 
 export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string }): string => {
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
-  const cleaned = stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(String(args.html || '')))))
-  const looksProxied = cleaned.includes('/__webpage_asset_proxy?url=') || cleaned.includes('/__webpage_proxy?url=')
+  const rawHtml = String(args.html || '')
+  if (rawHtml.length > 1_500_000) {
+    return buildCodeViewerSrcdoc({
+      baseHref,
+      title: baseHref,
+      mode: 'text',
+      text: `HTML too large for sandboxed srcdoc (${rawHtml.length} chars).\n\nTip: switch to Markdown view, or reduce the HTML override.`,
+    })
+  }
+  const looksProxied = rawHtml.includes('/__webpage_asset_proxy?url=') || rawHtml.includes('/__webpage_proxy?url=')
   const selfOriginBaseHref = (() => {
     try {
       const origin = typeof window !== 'undefined' && window.location && typeof window.location.origin === 'string' ? window.location.origin : ''
@@ -284,8 +313,22 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string })
     }
   })()
   const chosen = looksProxied ? (selfOriginBaseHref || baseHref) : baseHref
+
+  const cacheKey = `srcdoc:${chosen}:${rawHtml.length}:${hash32(rawHtml)}`
+  const cached = SRCDOC_CACHE.get(cacheKey)
+  if (cached) return cached
+
+  const cleaned = stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(rawHtml))))
   const csp = "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:;"
   const withBase = upsertBaseTag(cleaned, chosen)
   const withCsp = upsertSandboxCspMeta(withBase, csp)
-  return injectScrollSync(withCsp)
+  const built = injectScrollSync(withCsp)
+
+  SRCDOC_CACHE.set(cacheKey, built)
+  if (SRCDOC_CACHE.size > SRCDOC_CACHE_MAX) {
+    const oldest = SRCDOC_CACHE.keys().next().value as string | undefined
+    if (oldest) SRCDOC_CACHE.delete(oldest)
+  }
+
+  return built
 }

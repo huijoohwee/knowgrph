@@ -34,17 +34,16 @@ export function classifyLinkLabel(labelRaw: string): LinkSignalKind {
     'subscribe',
     'watch',
     'play',
-    'discord',
-    'github',
   ]
   for (const w of ctaWords) {
     if (s === w) return 'cta'
   }
   if (s.startsWith('get started')) return 'cta'
   if (s.startsWith('download')) return 'cta'
-  if (s.startsWith('github')) return 'cta'
-  if (s.startsWith('discord')) return 'cta'
   if (s.startsWith('prompt')) return 'cta'
+  if (s.startsWith('sign up') || s.startsWith('signup')) return 'cta'
+  if (s.startsWith('log in') || s.startsWith('login')) return 'cta'
+  if (s.startsWith('subscribe')) return 'cta'
   const navWords = [
     'docs',
     'documentation',
@@ -69,11 +68,14 @@ export function classifyLinkLabel(labelRaw: string): LinkSignalKind {
     'commercial',
     'store',
     'contact',
+    'discord',
   ]
   for (const w of navWords) {
     if (s === w) return 'nav'
   }
   if (s.startsWith('docs')) return 'nav'
+  if (s.startsWith('github')) return 'nav'
+  if (s.startsWith('discord')) return 'nav'
   return 'lnk'
 }
 

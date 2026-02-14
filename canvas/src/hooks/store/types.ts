@@ -338,6 +338,9 @@ export interface GraphState {
   webpageImportView: 'markdown' | 'json' | 'html';
   setWebpageImportView: (v: 'markdown' | 'json' | 'html') => void;
 
+  webpageArtifactFidelityMaxLevel: number;
+  setWebpageArtifactFidelityMaxLevel: (v: number) => void;
+
   websiteImportDiscoverSitemap: boolean;
   setWebsiteImportDiscoverSitemap: (v: boolean) => void;
 

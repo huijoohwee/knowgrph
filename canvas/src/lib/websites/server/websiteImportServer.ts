@@ -84,12 +84,101 @@ const writeJsonFileAtomic = async (filePath: string, value: unknown): Promise<vo
 }
 
 const discoverSitemapUrl = async (rootUrl: string): Promise<string | null> => {
-  try {
-    const u = new URL(rootUrl)
-    return `${u.origin}/sitemap.xml`
-  } catch {
-    return null
+  const origin = (() => {
+    try {
+      return new URL(rootUrl).origin
+    } catch {
+      return ''
+    }
+  })()
+  if (!origin) return null
+
+  const candidates = [
+    `${origin}/sitemap.xml`,
+    `${origin}/sitemap_index.xml`,
+    `${origin}/sitemap.xml.gz`,
+    `${origin}/wp-sitemap.xml`,
+    `${origin}/sitemap`,
+  ]
+
+  for (const u of candidates) {
+    const res = await fetchTextWithLimit(u, { timeoutMs: 18_000, maxBytes: 2 * 1024 * 1024, accept: 'application/xml,text/xml;q=0.9,*/*;q=0.8' })
+    if (!res.ok) continue
+    const t = String(res.text || '')
+    if (/<urlset\b/i.test(t) || /<sitemapindex\b/i.test(t)) return u
   }
+
+  return `${origin}/sitemap.xml`
+}
+
+const crawlInternalUrls = async (args: {
+  rootUrl: string
+  seedUrls: string[]
+  maxPages: number
+  timeoutMs: number
+  maxBytes: number
+}): Promise<string[]> => {
+  const root = normalizeUrl(args.rootUrl)
+  if (!root) return []
+
+  const maxPages = Math.max(1, Math.min(500, Math.floor(args.maxPages)))
+  const visited = new Set<string>()
+  const queue: string[] = []
+  const enqueue = (candidate: string) => {
+    const normalized = normalizeUrl(candidate)
+    if (!normalized) return
+    if (!isSameHost(normalized, root)) return
+    try {
+      const u = new URL(normalized)
+      const p = u.pathname || '/'
+      if (p.startsWith('/cdn-cgi/')) return
+      const leaf = p.split('/').pop() || ''
+      const ext = leaf.includes('.') ? leaf.split('.').pop()?.toLowerCase() || '' : ''
+      if (ext && ['css', 'js', 'mjs', 'map', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip'].includes(ext)) {
+        return
+      }
+    } catch {
+      void 0
+    }
+    if (visited.has(normalized)) return
+    visited.add(normalized)
+    queue.push(normalized)
+  }
+
+  enqueue(root)
+  for (const u of args.seedUrls) enqueue(u)
+
+  const out: string[] = []
+  const hrefRe = /\bhref\s*=\s*(["'])([^"']+)\1/gi
+  let fetched = 0
+  const fetchLimit = Math.max(6, Math.min(120, maxPages * 3))
+
+  while (queue.length && out.length < maxPages && fetched < fetchLimit) {
+    const u = queue.shift() as string
+    out.push(u)
+    fetched += 1
+
+    const htmlRes = await fetchTextWithLimit(u, { timeoutMs: args.timeoutMs, maxBytes: args.maxBytes, accept: 'text/html,*/*;q=0.9' })
+    if (!htmlRes.ok) continue
+    const html = String(htmlRes.text || '')
+    let m: RegExpExecArray | null
+    while ((m = hrefRe.exec(html))) {
+      const href = String(m[2] || '').trim()
+      if (!href) continue
+      if (/^(javascript|data|mailto):/i.test(href)) continue
+      if (href.startsWith('#')) continue
+      try {
+        const resolved = new URL(href, u)
+        resolved.hash = ''
+        enqueue(resolved.toString())
+      } catch {
+        void 0
+      }
+      if (visited.size >= maxPages) break
+    }
+  }
+
+  return out
 }
 
 const collectSitemapUrls = async (rootUrl: string, sitemapUrl: string, opts: { timeoutMs: number; maxBytes: number; maxSitemaps: number }): Promise<{ ok: true; urls: string[] } | { ok: false; error: string }> => {
@@ -362,23 +451,65 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
 
       jobs.set(importId, { startedAtMs: Date.now() })
       void (async () => {
-        const updateManifest = async (next: Partial<WebsiteImportManifestV1>) => {
-          const current = (await readJsonFile<WebsiteImportManifestV1>(manifestPathAbs)) || initial
-          const merged: WebsiteImportManifestV1 = {
-            ...current,
+        let manifestState: WebsiteImportManifestV1 = { ...initial }
+        let writing: Promise<void> | null = null
+        let lastWriteAtMs = 0
+        let pending: NodeJS.Timeout | null = null
+
+        const mergeManifest = (next: Partial<WebsiteImportManifestV1>) => {
+          manifestState = {
+            ...manifestState,
             ...next,
             version: 1,
             importId,
             rootUrl,
-            nodes: Array.isArray(next.nodes) ? next.nodes : current.nodes,
-            errors: Array.isArray(next.errors) ? next.errors : current.errors,
+            nodes: Array.isArray(next.nodes) ? next.nodes : manifestState.nodes,
+            errors: Array.isArray(next.errors) ? next.errors : manifestState.errors,
           }
-          await writeJsonFileAtomic(manifestPathAbs, merged)
+        }
+
+        const flushManifestWrite = async () => {
+          if (pending) {
+            clearTimeout(pending)
+            pending = null
+          }
+          if (writing) {
+            try {
+              await writing
+            } catch {
+              void 0
+            }
+          }
+          lastWriteAtMs = Date.now()
+          const snapshot = manifestState
+          writing = writeJsonFileAtomic(manifestPathAbs, snapshot)
+          await writing
+          writing = null
+        }
+
+        const scheduleManifestWrite = () => {
+          const now = Date.now()
+          const waitMs = Math.max(0, 500 - (now - lastWriteAtMs))
+          if (!pending) {
+            pending = setTimeout(() => {
+              pending = null
+              void flushManifestWrite()
+            }, waitMs)
+          }
+        }
+
+        const updateManifest = async (next: Partial<WebsiteImportManifestV1>, opts?: { flush?: boolean }) => {
+          mergeManifest(next)
+          if (opts?.flush) {
+            await flushManifestWrite()
+            return
+          }
+          scheduleManifestWrite()
         }
 
         try {
           await fs.mkdir(path.join(importDirAbs, 'nodes'), { recursive: true })
-          await updateManifest({ status: 'running' })
+          await updateManifest({ status: 'running' }, { flush: true })
 
           const explicitSitemap = normalizeUrl(options.sitemapUrl || '')
           const discovered = explicitSitemap ? explicitSitemap : options.discoverSitemap ? await discoverSitemapUrl(rootUrl) : null
@@ -388,11 +519,30 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             ? await collectSitemapUrls(rootUrl, effectiveSitemap, { timeoutMs: 30_000, maxBytes: 3 * 1024 * 1024, maxSitemaps: 30 })
             : { ok: true, urls: [] }
           const urls = sitemapRes.ok ? sitemapRes.urls : []
-          const limited = urls.slice(0, options.maxPages || 50)
+          const crawled = await crawlInternalUrls({
+            rootUrl,
+            seedUrls: urls,
+            maxPages: options.maxPages || 50,
+            timeoutMs: 30_000,
+            maxBytes: 2 * 1024 * 1024,
+          })
+          const combined = (() => {
+            const out: string[] = []
+            const seen = new Set<string>()
+            for (const u of [...urls, ...crawled]) {
+              const n = normalizeUrl(u)
+              if (!n) continue
+              if (seen.has(n)) continue
+              seen.add(n)
+              out.push(n)
+            }
+            return out
+          })()
+          const limited = combined.slice(0, options.maxPages || 50)
           const errors: Array<{ url: string; error: string }> = []
           if (sitemapRes.ok !== true && effectiveSitemap) errors.push({ url: effectiveSitemap, error: sitemapRes.error })
 
-          await updateManifest({ sitemapUrl: effectiveSitemap || undefined, errors })
+          await updateManifest({ sitemapUrl: effectiveSitemap || undefined, errors }, { flush: true })
 
           const nodes: WebsiteImportNode[] = []
           const queue = limited.slice()
@@ -466,10 +616,13 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
 
           await Promise.all(workers)
           nodes.sort((a, b) => a.path.localeCompare(b.path))
-          await updateManifest({ status: 'done', finishedAtMs: Date.now(), nodes, errors })
+          await updateManifest({ status: 'done', finishedAtMs: Date.now(), nodes, errors }, { flush: true })
         } catch (e) {
           const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
-          await updateManifest({ status: 'failed', finishedAtMs: Date.now(), errors: [{ url: rootUrl, error: msg || 'Import failed' }] })
+          await updateManifest(
+            { status: 'failed', finishedAtMs: Date.now(), errors: [{ url: rootUrl, error: msg || 'Import failed' }] },
+            { flush: true },
+          )
         } finally {
           jobs.delete(importId)
         }

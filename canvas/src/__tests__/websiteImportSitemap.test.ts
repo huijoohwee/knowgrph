@@ -25,8 +25,8 @@ export const testWebpageMarkdownArtifactDocIncludesFrontmatter = () => {
 export const testWebpageMarkdownArtifactDocIncludesLayoutStructure = () => {
   const md = ['# Title', '', '[Docs](https://example.com/docs)', '', '[Get started](https://example.com/start)', ''].join('\n')
   const out = buildWebpageMarkdownArtifactDoc({ markdown: md, url: 'https://localhost/' })
-  if (!out.includes('## 📐 Layout Structure')) throw new Error('missing Layout Structure section')
-  if (!out.includes('GLOBAL NAVIGATION')) throw new Error('missing Global Navigation frame')
+  if (!out.includes('## 🏗️ Page Structure Overview')) throw new Error('missing Page Structure Overview section')
+  if (!out.includes('NAVIGATION HEADER')) throw new Error('missing Navigation Header frame')
 }
 
 export const testWebsiteImportArtifactKindForWebpageView = () => {

@@ -21,23 +21,22 @@ export const testWebpageMarkdownArtifactRemotionFixtureSections = () => {
     markdown: upstream,
     url: 'https://example.com/',
     title: 'Remotion | Make videos programmatically',
+    fidelityMaxLevel: 4,
   })
 
-  if (actual.includes('## Document Structure')) throw new Error('document structure section should be merged into layout structure')
+  if (!actual.includes('## 📋 TABLE OF CONTENTS')) throw new Error('missing toc')
+  if (!actual.includes('## 🏗️ Page Structure Overview')) throw new Error('missing page structure overview')
 
-  const layoutSlice = sliceBetween(actual, '## 📐 Layout Structure', '\n---\n')
-  if (!layoutSlice) throw new Error('missing layout structure section')
-  if (/^\+/m.test(layoutSlice)) throw new Error('layout structure should not include +--- style frames')
-  const legendCount = (layoutSlice.match(/\bLegend:/g) || []).length
-  if (legendCount !== 0) throw new Error('layout structure should not include legend block')
-  if (!layoutSlice.includes('GLOBAL NAVIGATION')) throw new Error('missing global navigation layout')
-  if (!layoutSlice.includes('Docs')) throw new Error('missing Docs nav item in merged global navigation')
-  if (!layoutSlice.includes('Discord')) throw new Error('missing Discord CTA in merged global navigation')
-  if (!layoutSlice.includes('GitHub')) throw new Error('missing GitHub link in merged global navigation')
-  if (!layoutSlice.includes('Prompt a video')) throw new Error('missing prompt CTA in merged global navigation')
+  const overviewSlice = sliceBetween(actual, '## 🏗️ Page Structure Overview', '\n---\n')
+  if (!overviewSlice) throw new Error('missing page structure overview slice')
+  if (!overviewSlice.includes('NAVIGATION HEADER')) throw new Error('missing navigation header layout')
+  if (!overviewSlice.includes('Docs')) throw new Error('missing Docs nav item in overview')
+  if (!overviewSlice.includes('Discord')) throw new Error('missing Discord CTA in overview')
+  if (!overviewSlice.includes('GitHub')) throw new Error('missing GitHub link in overview')
+  if (!overviewSlice.includes('Prompt a video')) throw new Error('missing prompt CTA in overview')
 
-  const actualTemplateGallery = sliceBetween(actual, '## 📑 Template Showcase', '### Available Templates')
-  if (!actualTemplateGallery) throw new Error('missing template showcase')
+  const actualTemplateGallery = sliceBetween(actual, '## 🖼️ Template / Gallery', '\n---\n')
+  if (!actualTemplateGallery) throw new Error('missing template/gallery')
   if (!actualTemplateGallery.includes('┌─────────────────────────────────────────────────────────────────────────┐')) {
     throw new Error('missing template gallery ascii grid')
   }
@@ -47,20 +46,18 @@ export const testWebpageMarkdownArtifactRemotionFixtureSections = () => {
   if (!actualTemplateGallery.includes('│  [□]   │  [□]   │   [□]   │   Graphics   │   [□]    │')) {
     throw new Error('template gallery grid missing multi-row cells')
   }
-  const actualHero = sliceBetween(actual, '## 🎯 Hero Section', '## 📑 Template Showcase')
+
+  const actualHero = sliceBetween(actual, '## 🦸 Hero Section', '\n---\n')
   if (!actualHero) throw new Error('missing hero section')
   if (!actualHero.includes('$ npx create-video@latest')) throw new Error('missing hero command')
   if (!actualHero.includes('[GitHub')) throw new Error('missing hero CTAs')
 
-  const actualPricing = sliceBetween(actual, '## 💰 Pricing Section', '## 🤝 Trust & Support Section')
+  const actualPricing = sliceBetween(actual, '## 💰 Pricing', '\n---\n')
   if (!actualPricing) throw new Error('missing pricing section')
-  if (!actualPricing.includes('### Company License Options')) throw new Error('missing company license options')
-  if (!actualPricing.includes('### Pricing Details')) throw new Error('missing pricing details')
+  if (!actualPricing.includes('Company License Options')) throw new Error('missing company license options')
+  if (!actualPricing.includes('Pricing Details')) throw new Error('missing pricing details')
   if (!actualPricing.includes('**$75**')) throw new Error('missing $75 pricing row')
-  if (!actualPricing.includes('**Remotion for Creators**')) throw new Error('missing creators block')
-  if (!actualPricing.includes('**Remotion for Automators**')) throw new Error('missing automators block')
-
-  const actualRendering = sliceBetween(actual, '### Rendering Options', '---')
-  if (!actualRendering) throw new Error('missing rendering options section')
-  if (!actualRendering.includes('| Method | Speed | Cost | Best For |')) throw new Error('missing rendering options table')
+  if (!actualPricing.includes('Remotion for Creators')) throw new Error('missing creators block')
+  if (!actualPricing.includes('Remotion for Automators')) throw new Error('missing automators block')
+  if (!actualPricing.includes('| Method | Speed | Cost | Best For |')) throw new Error('missing rendering options table')
 }

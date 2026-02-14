@@ -268,7 +268,7 @@ async function importLocalIntoActive(args: { fileId: string | null }): Promise<v
       source: { kind: 'local', path: picked.name },
       enabled: true,
     })
-    syncDocumentViewFromSourceFile({ name: converted.name, text: converted.markdown, source: { kind: 'local' } })
+    syncDocumentViewFromSourceFile({ name: converted.name, text: converted.markdown, source: { kind: 'local' } }, { applyToGraph: false })
     await parseAndApplySourceFile(id)
     return
   }
@@ -285,7 +285,7 @@ async function importLocalIntoActive(args: { fileId: string | null }): Promise<v
     source: { kind: 'local', path: picked.name },
     enabled: true,
   })
-  syncDocumentViewFromSourceFile({ name: picked.name, text, source: { kind: 'local' } })
+  syncDocumentViewFromSourceFile({ name: picked.name, text, source: { kind: 'local' } }, { applyToGraph: false })
   await parseAndApplySourceFile(id)
 }
 
@@ -345,7 +345,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
           source: { kind: 'url', url: normalizedUrl },
           enabled: true,
         })
-        syncDocumentViewFromSourceFile({ name: yt.name, text: content, source: { kind: 'url', url: normalizedUrl } })
+        syncDocumentViewFromSourceFile({ name: yt.name, text: content, source: { kind: 'url', url: normalizedUrl } }, { applyToGraph: false })
         await parseAndApplySourceFile(id)
         return
       }
@@ -363,7 +363,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
         enabled: true,
       })
 
-      syncDocumentViewFromSourceFile({ name: yt.name, text: content, source: { kind: 'url', url: normalizedUrl } })
+      syncDocumentViewFromSourceFile({ name: yt.name, text: content, source: { kind: 'url', url: normalizedUrl } }, { applyToGraph: false })
       await parseAndApplySourceFile(id)
       return
     }
@@ -389,7 +389,10 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
         source: { kind: 'url', url: normalizedUrl },
         enabled: true,
       })
-      syncDocumentViewFromSourceFile({ name: converted.name, text: converted.markdown, source: { kind: 'url', url: normalizedUrl } })
+      syncDocumentViewFromSourceFile(
+        { name: converted.name, text: converted.markdown, source: { kind: 'url', url: normalizedUrl } },
+        { applyToGraph: false },
+      )
       await parseAndApplySourceFile(id)
       return
     }
@@ -418,7 +421,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
           source: { kind: 'url', url: normalizedUrl },
           enabled: true,
         })
-        syncDocumentViewFromSourceFile({ name: webpage.name, text: content, source: { kind: 'url', url: normalizedUrl } })
+        syncDocumentViewFromSourceFile({ name: webpage.name, text: content, source: { kind: 'url', url: normalizedUrl } }, { applyToGraph: false })
         await parseAndApplySourceFile(id)
         return
       }
@@ -446,7 +449,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       source: { kind: 'url', url: normalizedUrl },
       enabled: true,
     })
-    syncDocumentViewFromSourceFile({ name: nextName, text: res.text, source: { kind: 'url', url: normalizedUrl } })
+    syncDocumentViewFromSourceFile({ name: nextName, text: res.text, source: { kind: 'url', url: normalizedUrl } }, { applyToGraph: false })
     await parseAndApplySourceFile(id)
   } catch {
     store.updateSourceFile(id, { status: 'error', error: 'Request failed' })

@@ -54,7 +54,7 @@ import {
   upsertWebpageFrontmatterMeta,
   type WebpageViewMode,
 } from '@/lib/markdown/frontmatter'
-import { fetchWebpageConversionJsonViaConvert, fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
+import { fetchWebpageConversionJsonViaConvert, fetchWebpageHtmlViaProxy, fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
 import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
@@ -476,6 +476,16 @@ export function MarkdownWorkspace() {
   const [webpageWorkspaceEditorTextOverride, setWebpageWorkspaceEditorTextOverride] = React.useState<string | null>(null)
   const [webpageWorkspaceViewerTextOverride, setWebpageWorkspaceViewerTextOverride] = React.useState<string | null>(null)
 
+  const webpageHtmlSidecarPath = React.useMemo(() => {
+    if (!activePath) return null
+    if (!webpageWorkspaceMeta?.url) return null
+    if (webpageWorkspaceMeta.view !== 'html') return null
+    const p = String(activePath || '')
+    const replaced = p.replace(/\.(md|markdown)$/i, '')
+    const base = replaced && replaced !== p ? replaced : p
+    return `${base}.webpage.html`
+  }, [activePath, webpageWorkspaceMeta?.url, webpageWorkspaceMeta?.view])
+
   React.useEffect(() => {
     if (layoutMode !== 'viewer' && layoutMode !== 'split') {
       setPdfWorkspaceViewerTextOverride(null)
@@ -525,9 +535,70 @@ export function MarkdownWorkspace() {
     }
 
     if (view === 'html') {
-      setWebpageWorkspaceEditorTextOverride(null)
-      setWebpageWorkspaceViewerTextOverride(null)
-      return
+      let cancelled = false
+      const controller = new AbortController()
+      void (async () => {
+        try {
+          const fs = await getFs()
+          const sidecarPath = webpageHtmlSidecarPath
+          if (sidecarPath) {
+            const existing = await fs.readFileText(sidecarPath)
+            if (cancelled) return
+            if (typeof existing === 'string' && existing.trim()) {
+              const clipped = existing.length > 500_000 ? `${existing.slice(0, 500_000)}\n\n(clipped)\n` : existing
+              setWebpageWorkspaceEditorTextOverride(clipped)
+              setWebpageWorkspaceViewerTextOverride(null)
+              return
+            }
+          }
+
+          const rawHtml = websiteImportMeta?.importId && websiteImportMeta?.nodeId
+            ? await fetchWebsiteImportArtifact({
+                importId: websiteImportMeta.importId,
+                nodeId: websiteImportMeta.nodeId,
+                outputDirRel: String(websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '').trim() || undefined,
+                kind: 'rawHtml',
+                signal: controller.signal,
+              })
+            : await fetchWebpageHtmlViaProxy({ url, signal: controller.signal })
+
+          if (cancelled) return
+          const clipped = rawHtml.length > 500_000 ? `${rawHtml.slice(0, 500_000)}\n\n(clipped)\n` : rawHtml
+          setWebpageWorkspaceEditorTextOverride(clipped)
+          setWebpageWorkspaceViewerTextOverride(null)
+
+          if (sidecarPath && clipped.trim()) {
+            const parentPath = (() => {
+              const idx = sidecarPath.lastIndexOf('/')
+              if (idx <= 0) return '/'
+              return sidecarPath.slice(0, idx)
+            })()
+            const name = sidecarPath.split('/').pop() || 'webpage.webpage.html'
+            const already = await fs.readFileText(sidecarPath)
+            if (cancelled) return
+            if (already == null) {
+              try {
+                await fs.createFile({ parentPath, name, text: rawHtml })
+              } catch {
+                void 0
+              }
+            }
+          }
+        } catch {
+          if (cancelled) return
+          setWebpageWorkspaceEditorTextOverride(null)
+          setWebpageWorkspaceViewerTextOverride(null)
+        }
+      })()
+
+      return () => {
+        cancelled = true
+        try {
+          controller.abort()
+        } catch {
+          void 0
+        }
+      }
     }
 
     let cancelled = false
@@ -604,7 +675,7 @@ export function MarkdownWorkspace() {
         void 0
       }
     }
-  }, [webpageWorkspaceMeta, websiteImportMeta])
+  }, [getFs, webpageHtmlSidecarPath, webpageWorkspaceMeta, websiteImportMeta])
 
   const switchActivePdfWorkspaceMode = React.useCallback(
     async (mode: PdfConversionMode) => {
@@ -705,6 +776,8 @@ export function MarkdownWorkspace() {
             '@/lib/websites/webpageMarkdownArtifact'
           )
 
+          const fidelityMaxLevel = useGraphStore.getState().webpageArtifactFidelityMaxLevel ?? 4
+
           if (looksLikeWebpageMarkdownArtifactDoc(String(activeText || ''))) {
             return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
           }
@@ -720,14 +793,22 @@ export function MarkdownWorkspace() {
             )
             if (!rawRes.ok) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
             const raw = String((await rawRes.text()) || '')
-            return buildWebpageMarkdownArtifactDoc({ markdown: raw, url: webpageWorkspaceMeta.url })
+            return buildWebpageMarkdownArtifactDoc({
+              markdown: raw,
+              url: webpageWorkspaceMeta.url,
+              fidelityMaxLevel,
+            })
           }
 
           const includeImages = false
           const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { includeImages })
           if (!res || res.ok !== true) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
 
-          return buildWebpageMarkdownArtifactDoc({ markdown: String(res.markdown || ''), url: webpageWorkspaceMeta.url })
+          return buildWebpageMarkdownArtifactDoc({
+            markdown: String(res.markdown || ''),
+            url: webpageWorkspaceMeta.url,
+            fidelityMaxLevel,
+          })
         })()
 
         const fs = await getFs()
@@ -1127,6 +1208,51 @@ export function MarkdownWorkspace() {
     if (!path) return
     if (activeEntryKind === 'folder') return
     try {
+      if (
+        webpageWorkspaceMeta?.view === 'html' &&
+        webpageHtmlSidecarPath &&
+        typeof webpageWorkspaceEditorTextOverride === 'string'
+      ) {
+        setStatusProgress('Saving HTML')
+        const fs = await getFs()
+        const existing = await fs.readFileText(webpageHtmlSidecarPath)
+        if (existing == null) {
+          const parentPath = (() => {
+            const idx = webpageHtmlSidecarPath.lastIndexOf('/')
+            if (idx <= 0) return '/'
+            return webpageHtmlSidecarPath.slice(0, idx)
+          })()
+          const name = webpageHtmlSidecarPath.split('/').pop() || 'webpage.webpage.html'
+          await fs.createFile({ parentPath, name, text: webpageWorkspaceEditorTextOverride })
+          setEntries(prev => {
+            if (prev.some(e => e.path === webpageHtmlSidecarPath)) return prev
+            const entry: WorkspaceEntry = {
+              path: webpageHtmlSidecarPath,
+              parentPath,
+              kind: 'file',
+              name,
+              text:
+                webpageWorkspaceEditorTextOverride.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+                  ? webpageWorkspaceEditorTextOverride
+                  : undefined,
+              updatedAtMs: Date.now(),
+            }
+            return [...prev, entry]
+          })
+        } else {
+          await fs.writeFileText(webpageHtmlSidecarPath, webpageWorkspaceEditorTextOverride)
+          const inlineText =
+            webpageWorkspaceEditorTextOverride.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+              ? webpageWorkspaceEditorTextOverride
+              : undefined
+          setEntries(prev =>
+            prev.map(e => (e.path === webpageHtmlSidecarPath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)),
+          )
+        }
+        setStatusWithAutoClear('Saved')
+        return
+      }
+
       setStatusProgress('Saving')
       const fs = await getFs()
       await fs.writeFileText(path, activeText)
@@ -1200,6 +1326,9 @@ export function MarkdownWorkspace() {
     setStatusProgress,
     setStatusWithAutoClear,
     setEntries,
+    webpageHtmlSidecarPath,
+    webpageWorkspaceEditorTextOverride,
+    webpageWorkspaceMeta,
   ])
 
   const saveAsActiveFileNow = React.useCallback(async () => {
@@ -2063,8 +2192,11 @@ export function MarkdownWorkspace() {
     [revealLineInEditor, setActivePathSafe, setSelectionPathSafe],
   )
 
-  const editorUri = activePath ? `inmemory://workspace/${encodeURIComponent(workspaceDocumentKey(activePath) || 'document')}` : 'inmemory://model/empty'
-  const editorLanguage = activePath ? languageForPath(activePath) : 'markdown'
+  const webpageEditorMode = webpageWorkspaceMeta?.view === 'html' ? 'html' : webpageWorkspaceMeta?.view === 'json' ? 'json' : null
+  const editorUri = activePath
+    ? `inmemory://workspace/${encodeURIComponent(workspaceDocumentKey(activePath) || 'document')}${webpageEditorMode ? `?mode=${webpageEditorMode}` : ''}`
+    : 'inmemory://model/empty'
+  const editorLanguage = activePath ? (webpageEditorMode || languageForPath(activePath)) : 'markdown'
 
   const showGraphTable = workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable'
 
@@ -2079,10 +2211,14 @@ export function MarkdownWorkspace() {
   const effectiveSetActiveText = React.useCallback(
     (next: string) => {
       if (contentMode === 'nodeQuickEditor') return
+      if (webpageWorkspaceMeta?.view === 'html' && typeof webpageWorkspaceEditorTextOverride === 'string') {
+        setWebpageWorkspaceEditorTextOverride(next)
+        return
+      }
       userEditedActiveTextRef.current = true
       setActiveText(next)
     },
-    [contentMode],
+    [contentMode, webpageWorkspaceEditorTextOverride, webpageWorkspaceMeta?.view],
   )
   const effectiveViewerTextOverride = contentMode === 'nodeQuickEditor' && nodeQuickEditorFormat === 'json' ? quickEditorViewerText : null
   const combinedViewerTextOverride = effectiveViewerTextOverride || pdfWorkspaceViewerTextOverride || webpageWorkspaceViewerTextOverride
@@ -2092,7 +2228,7 @@ export function MarkdownWorkspace() {
       ? null
       : webpageWorkspaceEditorTextOverride
   const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing && !webpageDerivedReadOnlyActive
-  const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown
+  const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown && !(webpageWorkspaceMeta && webpageWorkspaceMeta.view !== 'markdown')
 
   return (
     <section
@@ -2186,7 +2322,13 @@ export function MarkdownWorkspace() {
           activeText={effectiveActiveText}
           setActiveText={effectiveSetActiveText}
           editorTextOverride={effectiveEditorTextOverride}
-          disableEditorMutations={!!effectiveEditorTextOverride || webpageDerivedReadOnlyActive}
+          disableEditorMutations={
+            webpageDerivedReadOnlyActive ||
+            (webpageWorkspaceMeta?.view === 'html'
+              ? typeof effectiveEditorTextOverride !== 'string'
+              : typeof effectiveEditorTextOverride === 'string')
+          }
+          webpageHtmlOverride={webpageWorkspaceMeta?.view === 'html' ? effectiveEditorTextOverride : null}
           viewerTextOverride={combinedViewerTextOverride}
           disableViewerMutations={contentMode === 'nodeQuickEditor'}
           activeDocumentKey={activeDocumentKey}

@@ -27,6 +27,15 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     options: ['markdown', 'json', 'html'],
   },
   {
+    key: 'webpageArtifactFidelityMaxLevel',
+    type: 'number',
+    source: 'store',
+    read: () => s().webpageArtifactFidelityMaxLevel,
+    write: v => s().setWebpageArtifactFidelityMaxLevel(Number(v)),
+    docKey: 'webpageArtifactFidelityMaxLevel',
+    default: () => 4,
+  },
+  {
     key: 'websiteImportDiscoverSitemap',
     type: 'boolean',
     source: 'store',

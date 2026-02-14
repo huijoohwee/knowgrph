@@ -28,6 +28,25 @@ export const testWebpageFrontmatterUpsertUpdatesExisting = () => {
   if (!next.includes('# Doc')) throw new Error('expected body preserved')
 }
 
+export const testWebpageFrontmatterUpsertPreservesOtherKeys = () => {
+  const existing = [
+    '---',
+    'kgWebpageUrl: "https://localhost/a"',
+    'kgWebpageView: "markdown"',
+    'kgWebsiteImportId: "import-1"',
+    'kgWebsiteNodeId: "node-1"',
+    'kgWebsiteOutputDirRel: ".knowgrph-workspace/website-imports"',
+    '---',
+    '',
+    '# Doc',
+    '',
+  ].join('\n')
+  const next = upsertWebpageFrontmatterMeta(existing, { url: 'https://localhost/a', view: 'html' })
+  if (!next.includes('kgWebsiteImportId: "import-1"')) throw new Error('expected kgWebsiteImportId preserved')
+  if (!next.includes('kgWebsiteNodeId: "node-1"')) throw new Error('expected kgWebsiteNodeId preserved')
+  if (!next.includes('kgWebsiteOutputDirRel: ".knowgrph-workspace/website-imports"')) throw new Error('expected kgWebsiteOutputDirRel preserved')
+}
+
 export const testWebpageFrontmatterSupportsJsonView = () => {
   const input = '# Title\n\nHello\n'
   const withMeta = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'json' })

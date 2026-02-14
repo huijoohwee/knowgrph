@@ -44,14 +44,40 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
   const url = String(meta?.url || '').trim()
   const view: WebpageViewMode = meta?.view === 'html' ? 'html' : meta?.view === 'json' ? 'json' : 'markdown'
   const block = extractYamlFrontmatterBlock(text)
-  const bodyText = block ? block.bodyText : text.replace(/^---[\s\S]*?\n---\s*\n?/, '')
-  const lines: string[] = []
-  lines.push('---')
-  lines.push(`kgWebpageUrl: "${url}"`)
-  lines.push(`kgWebpageView: "${view}"`)
-  lines.push('---')
-  lines.push('')
-  return `${lines.join('\n')}${bodyText}`
+  if (!block) {
+    const lines: string[] = []
+    lines.push('---')
+    lines.push(`kgWebpageUrl: "${url}"`)
+    lines.push(`kgWebpageView: "${view}"`)
+    lines.push('---')
+    lines.push('')
+    return `${lines.join('\n')}${text}`
+  }
+
+  const lines = block.rawBlock.split('\n')
+  let urlReplaced = false
+  let viewReplaced = false
+  const nextLines = lines.map(line => {
+    if (/^\s*kgWebpageUrl\s*:/.test(line)) {
+      urlReplaced = true
+      return `kgWebpageUrl: "${url}"`
+    }
+    if (/^\s*kgWebpageView\s*:/.test(line)) {
+      viewReplaced = true
+      return `kgWebpageView: "${view}"`
+    }
+    return line
+  })
+
+  const endIdx = nextLines.lastIndexOf('---')
+  if (endIdx > 0) {
+    if (!urlReplaced) nextLines.splice(endIdx, 0, `kgWebpageUrl: "${url}"`)
+    if (!viewReplaced) nextLines.splice(endIdx, 0, `kgWebpageView: "${view}"`)
+  }
+
+  const nextBlock = nextLines.join('\n')
+  const suffix = text.slice(block.rawBlock.length)
+  return `${nextBlock}${suffix}`
 }
 
 export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageViewMode = 'markdown'): string {

@@ -137,16 +137,17 @@ export function MarkdownWorkspaceToolbar({
   const webpageSignalsNode = React.useMemo(() => {
     const s = webpageSignalSummary
     if (!s) return null
-    const items: Array<{ label: string; value: number; tone: 'nav' | 'cta' | 'price' | 'time' }> = [
+    const allItems: Array<{ label: string; value: number; tone: 'nav' | 'cta' | 'price' | 'time' }> = [
       { label: 'NAV', value: s.nav, tone: 'nav' },
       { label: 'CTA', value: s.cta, tone: 'cta' },
       { label: 'PRICE', value: s.price, tone: 'price' },
       { label: 'TIME', value: s.time, tone: 'time' },
-    ].filter(it => it.value > 0)
+    ]
+    const items = allItems.filter(it => it.value > 0)
     if (!items.length) return null
 
     const pillClass = `inline-flex items-center gap-1 h-6 rounded-full border px-2 ${panelTypography.microLabelClass}`
-    const toneClass = (tone: string) => {
+    const toneClass = (tone: 'nav' | 'cta' | 'price' | 'time') => {
       if (tone === 'cta') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
       if (tone === 'nav') return 'border-blue-200 bg-blue-50 text-blue-700'
       if (tone === 'price') return 'border-amber-200 bg-amber-50 text-amber-700'

@@ -393,7 +393,7 @@ export function useWorkspaceFileActions(args: {
         const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
         const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
         const sourceUrl = source && source.kind === 'url' ? source.url : null
-        if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
+        if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: false, jobId })
         setStatusInfo(imported > 1 ? `Imported ${imported}${suffix}${failureSuffix}` : `Imported URL${suffix}${failureSuffix}`)
         useGraphStore.getState().pushUiLog({
           kind: failed > 0 ? 'warning' : 'success',
@@ -698,9 +698,7 @@ export function useWorkspaceFileActions(args: {
           setActiveText(fetched.text)
           if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, fetched.text)
           setMarkdownDocumentSourceUrl(fetched.normalizedUrl)
-          if (activeDocumentKey && String(fetched.text || '').trim()) {
-            await applyImportedTextToGraph({ nameForParse: activeDocumentKey, text: fetched.text })
-          }
+          void 0
         }
         setStatusInfo('Refreshed')
       } catch (e) {

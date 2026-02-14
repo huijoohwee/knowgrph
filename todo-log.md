@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-02-14
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Import→Render / Webpage Markdown Artifact / Mode Contract | Align artifact doc structure while preserving view-switch invariants | Generate a fixture-like, site-agnostic Webpage Markdown Artifact (TOC + Page Structure Overview + Document Structure + Asset Catalog) with bounded fidelity via `webpageArtifactFidelityMaxLevel`, and ensure `kgWebpageView` switches preserve existing frontmatter keys (incl. `kgWebsiteImportId/kgWebsiteNodeId/kgWebsiteOutputDirRel`) so artifact-backed HTML/JSON rendering remains stable; forbid any graph/layout/zoom mutations on view switches. | `canvas/src/lib/websites/{webpageMarkdownArtifactGenerator.ts,webpageMarkdownArtifact.ts}`, `canvas/src/lib/markdown/frontmatter.ts`, `canvas/src/features/settings/registry-ui.import-webpage.ts`, `canvas/src/components/BottomPanel/markdownWorkspace/{MarkdownWorkspace.tsx,workspaceImport.ts}` | Webpage artifact generator + frontmatter upsert + settings registry | `buildWebpageMarkdownArtifactFromMarkdown`, `buildWebpageMarkdownArtifactDoc`, `upsertWebpageFrontmatterMeta` | Converted webpage Markdown + URL + store settings | Deterministic artifact Markdown + stable view switching | Infer fidelity from extracted signals/structure then clamp to `webpageArtifactFidelityMaxLevel`; update only `kgWebpageUrl/kgWebpageView` lines in frontmatter and preserve the rest; keep HTML/JSON as sandboxed iframe overlays. | Import `https://www.figma.com/` (single URL + website import) and toggle `Markdown/HTML/JSON` to confirm (1) `websites/<host>/<importId>/...` tree and `website.sitemap.md` are intact, (2) HTML renders via sandboxed `srcdoc`, and (3) switching views keeps website-import ids intact and does not change canvas/table/zoom. | 2026-02-14 |
+
 ## 2026-02-13
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

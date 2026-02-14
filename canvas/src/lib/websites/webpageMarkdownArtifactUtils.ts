@@ -71,8 +71,10 @@ export const countMatches = (re: RegExp, text: string) => {
   return m ? m.length : 0
 }
 
-export const extractMarkdownLinkTexts = (markdown: string, max: number): string[] => {
-  const out: string[] = []
+export type MarkdownLink = { text: string; href: string }
+
+export const extractMarkdownLinks = (markdown: string, max: number): MarkdownLink[] => {
+  const out: MarkdownLink[] = []
   const re = /\[([^\]]+)\]\(([^)]+)\)/g
   let m: RegExpExecArray | null
   for (const line of String(markdown || '').split(/\r?\n/)) {
@@ -81,11 +83,24 @@ export const extractMarkdownLinkTexts = (markdown: string, max: number): string[
       const idx = m.index
       if (idx > 0 && line.charCodeAt(idx - 1) === 33) continue
       const text = stripTrailingPunctuation(normalizeInline(m[1] || ''))
-      if (!text) continue
-      if (out.some(x => x.toLowerCase() === text.toLowerCase())) continue
-      out.push(text)
+      const href = normalizeInline(m[2] || '')
+      if (!text || !href) continue
+      if (out.some(x => x.text.toLowerCase() === text.toLowerCase() && x.href === href)) continue
+      out.push({ text, href })
       if (out.length >= max) return out
     }
+  }
+  return out
+}
+
+export const extractMarkdownLinkTexts = (markdown: string, max: number): string[] => {
+  const out: string[] = []
+  for (const l of extractMarkdownLinks(markdown, Math.max(1, max * 2))) {
+    const t = l.text
+    if (!t) continue
+    if (out.some(x => x.toLowerCase() === t.toLowerCase())) continue
+    out.push(t)
+    if (out.length >= max) return out
   }
   return out
 }

@@ -146,6 +146,11 @@ sequenceDiagram
   - `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe `srcdoc`.
   - `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe `srcdoc`.
 
+**Webpage Markdown Artifact (Editor SSOT)**:
+- Generated Markdown is a deterministic, site-agnostic artifact doc derived from converted Markdown plus generic heuristics.
+- When signals allow, it emits stable sections: `Table of Contents`, `Page Structure Overview` (box-drawing frames), `Document Structure` (heading outline), `Navigation Header`, `Hero Section`, `Page Statistics`, and `Asset Catalog`.
+- Output detail is bounded by `webpageArtifactFidelityMaxLevel` (1..4).
+
 **Shared token vocabulary (mode-independent)**: the app uses a generic signal extraction layer to derive consistent tokens from Markdown across modes: `[NAV]`, `[CTA]`, `[LINK]`, `[PRICE]`, `[TIME]`.
 - **Iframe implementation**:
   - Enforce `srcdoc`: fetch from same-origin proxy or stored artifact, inject `<base>` + scroll-sync, and strip CSP meta tags to avoid self-blocking.
@@ -173,6 +178,7 @@ sequenceDiagram
 - **Tree fidelity**: Workspace path is derived from URL pathname so the Explorer reflects the website’s directory structure.
 - **View switching (active-row dropdown)**: `Markdown | JSON | HTML` is strictly view-only (no apply-to-graph, no layout/zoom mutation, no default-setting mutation).
 - **Artifact mapping (editor text)**: `json→conversionJson`, `html→rawHtml`, `markdown→(no override)`.
+- **Frontmatter preservation**: View switching must preserve existing frontmatter keys (including `kgWebsiteImportId/kgWebsiteNodeId/kgWebsiteOutputDirRel`) so artifact-backed HTML/JSON resolution remains stable after switching.
 - **HTML fidelity**: For `kgWebpageView = html`, Viewer/Presentation/Slides render 100% fidelity HTML in a sandboxed iframe. The HTML payload is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy. `json` renders sandboxed JSON code.
 - **Markdown artifact**: The Markdown view can embed a ` ```text kg-webpage-layout ` block as a lightweight, editable layout snapshot.
 

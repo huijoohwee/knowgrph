@@ -52,6 +52,8 @@
   - `markdown`: editor/viewer use Markdown (graph parsing remains aligned to Markdown)
   - `json`: editor shows conversion JSON (read-only override); viewer/presentation/slides render sandboxed JSON via iframe `srcdoc`
   - `html`: editor stays editable Markdown SSOT; viewer/presentation/slides render sandboxed HTML via iframe `srcdoc`
+- `webpageArtifactFidelityMaxLevel` (1..4)
+  - Caps the generated Webpage Markdown Artifact detail level so imports remain bounded and readable.
 
 ---
 

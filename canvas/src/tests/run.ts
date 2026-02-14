@@ -36,6 +36,7 @@ import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
 import {
   testWebpageFrontmatterRoundtrip,
   testWebpageFrontmatterUpsertUpdatesExisting,
+  testWebpageFrontmatterUpsertPreservesOtherKeys,
   testWebpageFrontmatterSupportsJsonView,
   testWebpageFrontmatterSupportsMarkdownView,
 } from '@/__tests__/webpageFrontmatter.test'
@@ -48,6 +49,7 @@ import {
 } from '@/__tests__/websiteImportSitemap.test'
 import { testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames } from '@/__tests__/webpageMarkdownArtifact.test'
 import { testWebpageMarkdownArtifactRemotionFixtureSections } from '@/__tests__/webpageMarkdownArtifactRemotionFixture.test'
+import { testWebpageMarkdownArtifactFigmaFixtureIsRecognized } from '@/__tests__/webpageMarkdownArtifactFigmaFixtureLike.test'
 import { testWebsiteImportWorkspaceWritesArtifactDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
 import { testWebsiteSitemapMarkdownBuildsTreeAndTable } from '@/__tests__/websiteSitemapMarkdown.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
@@ -967,6 +969,7 @@ export const runAllTests = async () => {
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
   await exec('webpage.frontmatter.roundtrip', testWebpageFrontmatterRoundtrip)
   await exec('webpage.frontmatter.upsertUpdatesExisting', testWebpageFrontmatterUpsertUpdatesExisting)
+  await exec('webpage.frontmatter.upsertPreservesOtherKeys', testWebpageFrontmatterUpsertPreservesOtherKeys)
   await exec('webpage.frontmatter.supportsJsonView', testWebpageFrontmatterSupportsJsonView)
   await exec('webpage.frontmatter.supportsMarkdownView', testWebpageFrontmatterSupportsMarkdownView)
   await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
@@ -977,6 +980,7 @@ export const runAllTests = async () => {
   await exec('webpageMarkdownArtifact.doc.includesLayoutStructure', testWebpageMarkdownArtifactDocIncludesLayoutStructure)
   await exec('webpageMarkdownArtifact.includesLayoutAndMotionFrames', testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames)
   await exec('webpageMarkdownArtifact.remotionFixture.sections', testWebpageMarkdownArtifactRemotionFixtureSections)
+  await exec('webpageMarkdownArtifact.figmaFixture.recognized', testWebpageMarkdownArtifactFigmaFixtureIsRecognized)
   await exec('websiteImport.workspace.writesArtifactDoc', testWebsiteImportWorkspaceWritesArtifactDoc)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
