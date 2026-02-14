@@ -563,27 +563,16 @@ export function MarkdownWorkspace() {
             : await fetchWebpageHtmlViaProxy({ url, signal: controller.signal })
 
           if (cancelled) return
+          if (rawHtml.length > 1_500_000) {
+            setWebpageWorkspaceEditorTextOverride(
+              `HTML too large for editor (${rawHtml.length} chars).\n\nTip: switch to Markdown view, or use the iframe viewer instead of editing HTML.\n`,
+            )
+            setWebpageWorkspaceViewerTextOverride(null)
+            return
+          }
           const clipped = rawHtml.length > 500_000 ? `${rawHtml.slice(0, 500_000)}\n\n(clipped)\n` : rawHtml
           setWebpageWorkspaceEditorTextOverride(clipped)
           setWebpageWorkspaceViewerTextOverride(null)
-
-          if (sidecarPath && clipped.trim()) {
-            const parentPath = (() => {
-              const idx = sidecarPath.lastIndexOf('/')
-              if (idx <= 0) return '/'
-              return sidecarPath.slice(0, idx)
-            })()
-            const name = sidecarPath.split('/').pop() || 'webpage.webpage.html'
-            const already = await fs.readFileText(sidecarPath)
-            if (cancelled) return
-            if (already == null) {
-              try {
-                await fs.createFile({ parentPath, name, text: rawHtml })
-              } catch {
-                void 0
-              }
-            }
-          }
         } catch {
           if (cancelled) return
           setWebpageWorkspaceEditorTextOverride(null)

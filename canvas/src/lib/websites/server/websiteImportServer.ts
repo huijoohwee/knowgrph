@@ -16,6 +16,17 @@ import {
 
 type WebsiteImportStatus = 'queued' | 'running' | 'done' | 'failed'
 
+type WebsiteImportProgress = {
+  stage: 'queued' | 'discovering' | 'crawling' | 'converting' | 'done' | 'failed'
+  total: number
+  processed: number
+  ok: number
+  error: number
+  queued: number
+  lastUrl?: string
+  updatedAtMs: number
+}
+
 type WebsiteImportNode = {
   nodeId: string
   url: string
@@ -37,6 +48,7 @@ export type WebsiteImportManifestV1 = {
   status: WebsiteImportStatus
   startedAtMs: number
   finishedAtMs?: number
+  progress?: WebsiteImportProgress
   nodes: WebsiteImportNode[]
   errors: Array<{ url: string; error: string }>
 }
@@ -152,9 +164,11 @@ const crawlInternalUrls = async (args: {
   const hrefRe = /\bhref\s*=\s*(["'])([^"']+)\1/gi
   let fetched = 0
   const fetchLimit = Math.max(6, Math.min(120, maxPages * 3))
+  let queueIdx = 0
 
-  while (queue.length && out.length < maxPages && fetched < fetchLimit) {
-    const u = queue.shift() as string
+  while (queueIdx < queue.length && out.length < maxPages && fetched < fetchLimit) {
+    const u = queue[queueIdx] as string
+    queueIdx += 1
     out.push(u)
     fetched += 1
 
@@ -438,12 +452,22 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
       const importId = randomUUID()
       const importDirAbs = path.join(workspaceAbs, importId)
       const manifestPathAbs = path.join(importDirAbs, 'manifest.json')
+      const initialProgress: WebsiteImportProgress = {
+        stage: 'queued',
+        total: 0,
+        processed: 0,
+        ok: 0,
+        error: 0,
+        queued: 0,
+        updatedAtMs: Date.now(),
+      }
       const initial: WebsiteImportManifestV1 = {
         version: 1,
         importId,
         rootUrl,
         status: 'queued',
         startedAtMs: Date.now(),
+        progress: initialProgress,
         nodes: [],
         errors: [],
       }
@@ -463,6 +487,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             version: 1,
             importId,
             rootUrl,
+            progress: next.progress ? next.progress : manifestState.progress,
             nodes: Array.isArray(next.nodes) ? next.nodes : manifestState.nodes,
             errors: Array.isArray(next.errors) ? next.errors : manifestState.errors,
           }
@@ -509,7 +534,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
 
         try {
           await fs.mkdir(path.join(importDirAbs, 'nodes'), { recursive: true })
-          await updateManifest({ status: 'running' }, { flush: true })
+          await updateManifest({ status: 'running', progress: { ...initialProgress, stage: 'discovering', updatedAtMs: Date.now() } }, { flush: true })
 
           const explicitSitemap = normalizeUrl(options.sitemapUrl || '')
           const discovered = explicitSitemap ? explicitSitemap : options.discoverSitemap ? await discoverSitemapUrl(rootUrl) : null
@@ -519,6 +544,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             ? await collectSitemapUrls(rootUrl, effectiveSitemap, { timeoutMs: 30_000, maxBytes: 3 * 1024 * 1024, maxSitemaps: 30 })
             : { ok: true, urls: [] }
           const urls = sitemapRes.ok ? sitemapRes.urls : []
+          await updateManifest({ progress: { ...initialProgress, stage: 'crawling', updatedAtMs: Date.now() } })
           const crawled = await crawlInternalUrls({
             rootUrl,
             seedUrls: urls,
@@ -542,11 +568,24 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
           const errors: Array<{ url: string; error: string }> = []
           if (sitemapRes.ok !== true && effectiveSitemap) errors.push({ url: effectiveSitemap, error: sitemapRes.error })
 
-          await updateManifest({ sitemapUrl: effectiveSitemap || undefined, errors }, { flush: true })
+          const initialRunProgress: WebsiteImportProgress = {
+            stage: 'converting',
+            total: limited.length,
+            processed: 0,
+            ok: 0,
+            error: 0,
+            queued: limited.length,
+            updatedAtMs: Date.now(),
+          }
+
+          await updateManifest({ sitemapUrl: effectiveSitemap || undefined, errors, progress: initialRunProgress }, { flush: true })
 
           const nodes: WebsiteImportNode[] = []
           const queue = limited.slice()
           let idx = 0
+          let processed = 0
+          let okCount = 0
+          let errorCount = 0
           const nextUrl = () => {
             if (idx >= queue.length) return null
             const u = queue[idx]
@@ -572,6 +611,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             if (converted.ok !== true) {
               errors.push({ url: u, error: converted.error })
               nodes.push({ nodeId, url: u, path: urlToTreePath(u), status: 'error', artifacts: {} })
+              errorCount += 1
               return
             }
 
@@ -603,6 +643,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
                 conversionJsonRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'conversion.json'),
               },
             })
+            okCount += 1
           }
 
           const workers = Array.from({ length: options.concurrency || 4 }).map(async () => {
@@ -610,17 +651,60 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
               const u = nextUrl()
               if (!u) return
               await processUrl(u)
-              await updateManifest({ nodes: nodes.slice(), errors: errors.slice() })
+              processed += 1
+              const nextProgress: WebsiteImportProgress = {
+                stage: 'converting',
+                total: limited.length,
+                processed,
+                ok: okCount,
+                error: errorCount,
+                queued: Math.max(0, limited.length - processed),
+                lastUrl: u,
+                updatedAtMs: Date.now(),
+              }
+              await updateManifest({ progress: nextProgress })
             }
           })
 
           await Promise.all(workers)
           nodes.sort((a, b) => a.path.localeCompare(b.path))
-          await updateManifest({ status: 'done', finishedAtMs: Date.now(), nodes, errors }, { flush: true })
+          await updateManifest(
+            {
+              status: 'done',
+              finishedAtMs: Date.now(),
+              progress: {
+                stage: 'done',
+                total: limited.length,
+                processed,
+                ok: okCount,
+                error: errorCount,
+                queued: 0,
+                lastUrl: processed > 0 ? (nodes[nodes.length - 1]?.url || undefined) : undefined,
+                updatedAtMs: Date.now(),
+              },
+              nodes,
+              errors,
+            },
+            { flush: true },
+          )
         } catch (e) {
           const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
           await updateManifest(
-            { status: 'failed', finishedAtMs: Date.now(), errors: [{ url: rootUrl, error: msg || 'Import failed' }] },
+            {
+              status: 'failed',
+              finishedAtMs: Date.now(),
+              progress: {
+                stage: 'failed',
+                total: manifestState.progress?.total || 0,
+                processed: manifestState.progress?.processed || 0,
+                ok: manifestState.progress?.ok || 0,
+                error: Math.max(1, manifestState.progress?.error || 0),
+                queued: manifestState.progress?.queued || 0,
+                lastUrl: manifestState.progress?.lastUrl,
+                updatedAtMs: Date.now(),
+              },
+              errors: [{ url: rootUrl, error: msg || 'Import failed' }],
+            },
             { flush: true },
           )
         } finally {
@@ -656,7 +740,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       res.setHeader('Cache-Control', 'no-store')
-      res.end(JSON.stringify({ ok: true, status: manifest.status, running }))
+      res.end(JSON.stringify({ ok: true, status: manifest.status, running, progress: manifest.progress || null }))
       return
     }
 

@@ -13,6 +13,7 @@ import {
   testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml,
   testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot,
 } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
+import { testMarkdownWorkspaceWebpageHtmlSidecarDeletionDoesNotRecreate } from '@/__tests__/markdownWorkspaceWebpageHtmlSidecarDeletion.test'
 import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
 
 async function main() {
@@ -27,6 +28,7 @@ async function main() {
   await testMarkdownWorkspaceWebpageHtmlViewRendersIframe()
   await testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml()
   await testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot()
+  await testMarkdownWorkspaceWebpageHtmlSidecarDeletionDoesNotRecreate()
   testSettingsRegistryReadWrite()
   console.log('OK subsetWebpageSmoke')
 }

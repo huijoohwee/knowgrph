@@ -319,7 +319,8 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string })
   if (cached) return cached
 
   const cleaned = stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(rawHtml))))
-  const csp = "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:;"
+  const csp =
+    "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:; script-src 'unsafe-inline'"
   const withBase = upsertBaseTag(cleaned, chosen)
   const withCsp = upsertSandboxCspMeta(withBase, csp)
   const built = injectScrollSync(withCsp)

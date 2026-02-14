@@ -26,6 +26,7 @@ import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
 import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
+import { mapLimit } from '@/lib/async/mapLimit'
 import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 
 export function shouldForceDocumentSemanticModeForImport(nameForParse: string): boolean {
@@ -462,18 +463,61 @@ export function useWorkspaceFileActions(args: {
 
         const pollUntilDone = async (): Promise<'done' | 'failed'> => {
           const startedAtMs = Date.now()
+          let lastProcessed = -1
+          let waitMs = 650
           while (true) {
             if (importJobRef.current !== jobId) throw new Error('cancelled')
             const statusRes = await fetch(
               `/__website_import/status?outputDirRel=${encodeURIComponent(outputDirRel)}&importId=${encodeURIComponent(importId)}`,
               { headers: { Accept: 'application/json' } },
             )
-            const statusJson = (await statusRes.json()) as { ok?: unknown; status?: unknown }
+            const statusJson = (await statusRes.json()) as {
+              ok?: unknown
+              status?: unknown
+              progress?:
+                | {
+                    stage?: unknown
+                    total?: unknown
+                    processed?: unknown
+                    ok?: unknown
+                    error?: unknown
+                    queued?: unknown
+                    lastUrl?: unknown
+                    updatedAtMs?: unknown
+                  }
+                | null
+            }
             const status = typeof statusJson.status === 'string' ? statusJson.status : ''
             if (status === 'done') return 'done'
             if (status === 'failed') return 'failed'
             if (Date.now() - startedAtMs > 10 * 60_000) return 'failed'
-            await new Promise<void>(resolve => setTimeout(resolve, 650))
+
+            const p = statusJson.progress
+            const total = p && typeof p.total === 'number' && Number.isFinite(p.total) ? p.total : null
+            const processed = p && typeof p.processed === 'number' && Number.isFinite(p.processed) ? p.processed : null
+            const stage = p && typeof p.stage === 'string' ? p.stage : ''
+            const label =
+              stage === 'discovering'
+                ? 'Discovering'
+                : stage === 'crawling'
+                  ? 'Crawling'
+                  : stage === 'converting'
+                    ? 'Importing'
+                    : 'Importing website'
+            if (typeof processed === 'number' && typeof total === 'number' && total > 0) {
+              setStatusProgress(label, Math.min(total, Math.max(0, processed)), total)
+              if (processed === lastProcessed) {
+                waitMs = Math.min(1800, waitMs + 150)
+              } else {
+                waitMs = 650
+                lastProcessed = processed
+              }
+            } else {
+              setStatusProgress(label)
+              waitMs = Math.min(1800, waitMs + 150)
+            }
+
+            await new Promise<void>(resolve => setTimeout(resolve, waitMs))
           }
         }
 
@@ -608,54 +652,97 @@ export function useWorkspaceFileActions(args: {
           }
 
           const ctrl = new AbortController()
-
-          for (let i = 0; i < nodes.length; i += 1) {
-            const node = nodes[i] || {}
-            const nodeUrl = typeof node.url === 'string' ? node.url : ''
-            const nodeId = typeof node.nodeId === 'string' ? node.nodeId : hashStringToHex(nodeUrl).slice(0, 16)
-            const nodeTreePath = typeof node.path === 'string' ? node.path : ''
-            const nodeTitle = typeof node.title === 'string' ? node.title : undefined
-            const status = typeof node.status === 'string' ? node.status : 'ok'
-            if (!nodeUrl || status !== 'ok') continue
-            const nodePath = (() => {
-              try {
-                const raw = nodeTreePath && nodeTreePath.trim() ? nodeTreePath : new URL(nodeUrl).pathname
-                const parts = String(raw || '').split('/').filter(Boolean)
-                return parts.map(safeSegment)
-              } catch {
-                return []
+          const nodeRows = nodes
+            .map((n) => {
+              const node = n || {}
+              const nodeUrl = typeof node.url === 'string' ? node.url : ''
+              const nodeId = typeof node.nodeId === 'string' ? node.nodeId : hashStringToHex(nodeUrl).slice(0, 16)
+              const nodeTreePath = typeof node.path === 'string' ? node.path : ''
+              const status = typeof node.status === 'string' ? node.status : 'ok'
+              if (!nodeUrl || status !== 'ok') return null
+              const row = { nodeUrl, nodeId, nodeTreePath } as {
+                nodeUrl: string
+                nodeId: string
+                nodeTreePath: string
+                nodeTitle?: string
               }
-            })()
-            const leaf = nodePath[nodePath.length - 1] || 'index'
-            const folderParts = nodePath.slice(0, Math.max(0, nodePath.length - 1))
-            const folderPath = folderParts.length ? await ensureFolderPath(fs, `${rootFolder}/${folderParts.join('/')}`) : rootFolder
+              const title = typeof node.title === 'string' ? node.title : ''
+              if (title) row.nodeTitle = title
+              return row
+            })
+            .filter((v): v is { nodeUrl: string; nodeId: string; nodeTreePath: string; nodeTitle?: string } => !!v)
 
-            const base = leaf || 'index'
-            const nameBase = base.endsWith('.md') ? base.replace(/\.md$/i, '') : base
-            const primaryName = `${nameBase}.md`
-            const text = await buildTextForNode({ nodeUrl, nodeId, title: nodeTitle, signal: ctrl.signal })
+          const folderCache = new Map<string, WorkspacePath>()
+          folderCache.set(rootFolder, rootFolder)
 
-            const tryCreate = async (name: string) => {
-              const createdPath = await fs.createFile({ parentPath: folderPath, name, text })
-              createdPaths.push(createdPath)
-              sources.push({ path: createdPath, source: { kind: 'url', url: nodeUrl, path: `workspace:${createdPath}` } })
-              return createdPath
-            }
-
-            try {
-              await tryCreate(primaryName)
-            } catch {
-              const alt = `${nameBase}-${hashStringToHex(nodeUrl).slice(0, 6)}.md`
-              try {
-                await tryCreate(alt)
-              } catch {
-                void 0
-              }
-            }
-            if ((i + 1) % 10 === 0) {
-              setStatusProgress('Writing', i + 1, Math.max(i + 1, nodes.length))
-            }
+          const ensureFolderCached = async (absPath: string) => {
+            const normalized = normalizeWorkspacePath(absPath)
+            const cached = folderCache.get(normalized)
+            if (cached) return cached
+            const created = await ensureFolderPath(fs, normalized)
+            folderCache.set(normalized, created)
+            folderCache.set(normalizeWorkspacePath(created), created)
+            return created
           }
+
+          const totalWrites = nodeRows.length
+          let lastUiAtMs = 0
+          const writeConcurrency = Math.max(1, Math.min(6, concurrency))
+
+          await mapLimit(
+            nodeRows,
+            writeConcurrency,
+            async (row, _i, signal) => {
+              if (importJobRef.current !== jobId) throw new Error('cancelled')
+              const nodePath = (() => {
+                try {
+                  const raw = row.nodeTreePath && row.nodeTreePath.trim() ? row.nodeTreePath : new URL(row.nodeUrl).pathname
+                  const parts = String(raw || '').split('/').filter(Boolean)
+                  return parts.map(safeSegment)
+                } catch {
+                  return []
+                }
+              })()
+              const leaf = nodePath[nodePath.length - 1] || 'index'
+              const folderParts = nodePath.slice(0, Math.max(0, nodePath.length - 1))
+              const folderPath = folderParts.length ? await ensureFolderCached(`${rootFolder}/${folderParts.join('/')}`) : rootFolder
+
+              const base = leaf || 'index'
+              const nameBase = base.endsWith('.md') ? base.replace(/\.md$/i, '') : base
+              const primaryName = `${nameBase}.md`
+              const text = await buildTextForNode({ nodeUrl: row.nodeUrl, nodeId: row.nodeId, title: row.nodeTitle, signal: signal || ctrl.signal })
+
+              const tryCreate = async (name: string) => {
+                const createdPath = await fs.createFile({ parentPath: folderPath, name, text })
+                createdPaths.push(createdPath)
+                sources.push({ path: createdPath, source: { kind: 'url', url: row.nodeUrl, path: `workspace:${createdPath}` } })
+                return createdPath
+              }
+
+              try {
+                await tryCreate(primaryName)
+              } catch {
+                const alt = `${nameBase}-${hashStringToHex(row.nodeUrl).slice(0, 6)}.md`
+                try {
+                  await tryCreate(alt)
+                } catch {
+                  void 0
+                }
+              }
+            },
+            {
+              signal: ctrl.signal,
+              yieldEvery: 12,
+              onProgress: ({ done, total }) => {
+                const now = Date.now()
+                if (now - lastUiAtMs < 150 && done !== total) return
+                lastUiAtMs = now
+                setStatusProgress('Writing', done, total)
+              },
+            },
+          )
+
+          setStatusProgress('Writing', totalWrites, totalWrites)
           return { createdPaths, sources }
         })
 

@@ -54,6 +54,20 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 - Returns stored artifact content.
 - Used for fast view switching in the active-row dropdown.
 
+### `GET /__website_import/status?importId=...`
+
+- Returns a small **status + progress** snapshot for UI polling:
+  - `status`: `queued | running | done | failed`
+  - `progress.stage`: `queued | discovering | crawling | converting | done | failed`
+  - `progress.total/processed/ok/error/queued`
+  - `progress.lastUrl` (optional)
+- Must be **bounded + backoff-aware** on the client (avoid tight polling loops).
+
+### `GET /__website_import/manifest?importId=...`
+
+- Returns the final manifest including `nodes[]` and `errors[]`.
+- UI should treat this as a post-completion fetch (avoid repeatedly pulling a large node list while the job is running).
+
 ## `srcdoc` Rendering Rules
 
 HTML/JSON rendering is enforced via sandboxed `srcdoc` iframes (no `src` mode):
