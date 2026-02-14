@@ -25,8 +25,9 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 
 ### `POST /__webpage_convert?url=...`
 
-- Returns conversion JSON including `markdown` (and optionally a pretty JSON payload for the editor).
+- Returns conversion JSON including `markdown` (and optional structured fields like `title`).
 - Used for **graph alignment** (Document Structure parsing derives nodes/edges from Markdown).
+- Conversion is **static HTML fetch → Python convert** (no headless browser dependency). If the result looks incomplete (e.g. JS-rendered/accordion content is missing), the client may upgrade fidelity via the browser-native DOM export path.
 
 ### `GET /__webpage_proxy?url=...`
 
@@ -35,6 +36,8 @@ Render imported webpages with high fidelity (rich media, animations) while prese
   - rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy?url=...`
   - ensures `/__webpage_*` links resolve same-origin in iframe context
   - injects scroll-sync to align Editor ↔ iframe scroll ratio
+
+Additionally, the injected layer exposes a **DOM export bridge** (see `kg-export-dom`) that lets the host request a best-effort rendered `text` or `html` snapshot from inside the sandboxed iframe.
 
 ### `GET /__webpage_asset_proxy?url=...`
 
@@ -70,20 +73,53 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 
 ## `srcdoc` Rendering Rules
 
-HTML/JSON rendering is enforced via sandboxed `srcdoc` iframes (no `src` mode):
+Webpage HTML view supports **two** sandboxed iframe strategies, chosen per document and per available artifacts:
 
-- The HTML payload is sourced from:
+### Strategy A: Proxy `src` (highest fidelity)
+
+- The iframe uses `src="/__webpage_proxy?url=..."`.
+- Upstream scripts **can run** (still confined by the iframe sandbox), which preserves rich media, client-side routing, and JS-rendered sections.
+- The injected layer rewrites asset requests to `/__webpage_asset_proxy` to keep asset loading same-origin.
+
+### Strategy B: Sanitized `srcdoc` snapshot (editable / stable)
+
+- The iframe uses `srcDoc=...` built from either:
   - website-import `raw.html` artifact when available, else
-  - `GET /__webpage_proxy?url=...`
+  - a one-time fetch from `GET /__webpage_proxy?url=...`.
 - The `srcdoc` builder:
-  - strips `Content-Security-Policy` `<meta http-equiv="...">` tags (to avoid self-blocking in `srcdoc`)
-  - strips `<meta http-equiv="refresh">` tags (to prevent auto-redirect inside the iframe)
-  - strips all `<script>` tags and inline `on*=` event handlers from the embedded HTML (untrusted scripts are not executed)
-  - upserts a sandbox CSP meta header to allow images/media/styles but restrict scripts to the injected inline utilities
-  - injects a scroll-sync script (iframe ↔ parent via `postMessage`)
-  - **upserts** a `<base>` tag:
-    - If the HTML appears to contain `/__webpage_proxy` or `/__webpage_asset_proxy` links, base is set to `${window.location.origin}/` so same-origin routes resolve correctly.
-    - Otherwise base is set to the original URL for correct relative URL resolution.
+  - strips `Content-Security-Policy` and refresh `<meta http-equiv="...">` tags (avoid self-blocking / auto-redirect)
+  - strips all `<script>` tags and inline `on*=` handlers (untrusted scripts do not execute)
+  - upserts a sandbox CSP meta allowing images/media/styles while restricting scripts to injected utilities
+  - injects scroll-sync utilities (iframe ↔ parent via `postMessage`)
+  - upserts `<base>` to preserve correct resolution:
+    - If the HTML already contains `/__webpage_proxy` or `/__webpage_asset_proxy`, base is set to `${window.location.origin}/`.
+    - Otherwise base is set to the original URL.
+
+The host chooses between Strategy A and B based on whether it has a safe, non-clipped HTML snapshot available (for example from website-import artifacts or an editor override).
+
+## DOM Export Bridge (`kg-export-dom`)
+
+The proxy-injected layer inside the sandboxed iframe listens for `postMessage` requests of the form:
+
+- `kind`: `kg-export-dom`
+- `id`: request correlation id
+- `mode`: `text | html`
+- `maxChars`: cap the exported payload
+- `expandFaq`: best-effort click/expand for accordion-like FAQ sections
+- `scrollCrawl`: best-effort scroll/settle loop to load lazy content and stabilize text
+
+It replies with:
+
+- `kind`: `kg-export-dom`
+- `id`: same id
+- `text`: exported content (either rendered visible text or serialized HTML)
+- `title`: best-effort title
+- `clipped`: whether the result was truncated
+
+This bridge powers two native (no headless browser) fidelity upgrades:
+
+- **Convert HTML → Markdown** from the viewer surface by exporting DOM text/HTML.
+- **Import URL fallback** when `/__webpage_convert` yields low-quality Markdown for JS-rendered pages.
 
 ## Iframe Sandbox Policy
 

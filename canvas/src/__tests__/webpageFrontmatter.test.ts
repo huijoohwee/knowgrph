@@ -1,4 +1,4 @@
-import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { isFrontmatterOnlyDoc, parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 
 export const testWebpageFrontmatterRoundtrip = () => {
   const input = '# Title\n\nHello\n'
@@ -63,4 +63,11 @@ export const testWebpageFrontmatterSupportsMarkdownView = () => {
   if (!parsed) throw new Error('expected meta')
   if (parsed.url !== 'https://localhost/path') throw new Error('url mismatch')
   if (parsed.view !== 'markdown') throw new Error('view mismatch')
+}
+
+export const testFrontmatterOnlyDocDetection = () => {
+  const stub = ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "markdown"', '---', '', ''].join('\n')
+  if (!isFrontmatterOnlyDoc(stub)) throw new Error('expected stub to be frontmatter-only')
+  const withBody = `${stub}# Notes\n\nHello\n`
+  if (isFrontmatterOnlyDoc(withBody)) throw new Error('expected body doc to not be frontmatter-only')
 }

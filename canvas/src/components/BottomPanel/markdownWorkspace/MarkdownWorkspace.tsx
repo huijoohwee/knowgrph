@@ -48,13 +48,19 @@ import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import {
+  extractYamlFrontmatterBlock,
+  isFrontmatterOnlyDoc,
   normalizeWebpageFrontmatterView,
   parseWebpageFrontmatterMeta,
   parseWebsiteImportFrontmatterMeta,
   upsertWebpageFrontmatterMeta,
   type WebpageViewMode,
 } from '@/lib/markdown/frontmatter'
-import { fetchWebpageConversionJsonViaConvert, fetchWebpageHtmlViaProxy, fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
+import {
+  fetchWebpageConversionJsonViaConvert,
+  fetchWebpageHtmlAuto,
+  fetchWebsiteImportArtifact,
+} from '@/lib/websites/webpageIframeSrcdoc'
 import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
@@ -560,7 +566,7 @@ export function MarkdownWorkspace() {
                 kind: 'rawHtml',
                 signal: controller.signal,
               })
-            : await fetchWebpageHtmlViaProxy({ url, signal: controller.signal })
+            : await fetchWebpageHtmlAuto({ url, signal: controller.signal })
 
           if (cancelled) return
           if (rawHtml.length > 1_500_000) {
@@ -759,7 +765,12 @@ export function MarkdownWorkspace() {
       if (!activePath || !webpageWorkspaceMeta) return
       try {
         const nextText = await (async () => {
-          if (view !== 'markdown') return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+          const prevText = String(activeText || '')
+          if (view !== 'markdown') return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
+
+          if (!isFrontmatterOnlyDoc(prevText)) {
+            return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
+          }
 
           const { looksLikeWebpageMarkdownArtifactDoc, buildWebpageMarkdownArtifactDoc } = await import(
             '@/lib/websites/webpageMarkdownArtifact'
@@ -767,8 +778,8 @@ export function MarkdownWorkspace() {
 
           const fidelityMaxLevel = useGraphStore.getState().webpageArtifactFidelityMaxLevel ?? 4
 
-          if (looksLikeWebpageMarkdownArtifactDoc(String(activeText || ''))) {
-            return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+          if (looksLikeWebpageMarkdownArtifactDoc(prevText)) {
+            return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
           }
 
           if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
@@ -780,7 +791,7 @@ export function MarkdownWorkspace() {
             const rawRes = await fetch(
               `/__website_import/artifact?${outputDirQuery}importId=${encodeURIComponent(websiteImportMeta.importId)}&nodeId=${encodeURIComponent(websiteImportMeta.nodeId)}&kind=markdown`,
             )
-            if (!rawRes.ok) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+            if (!rawRes.ok) return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
             const raw = String((await rawRes.text()) || '')
             return buildWebpageMarkdownArtifactDoc({
               markdown: raw,
@@ -791,7 +802,7 @@ export function MarkdownWorkspace() {
 
           const includeImages = false
           const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { includeImages })
-          if (!res || res.ok !== true) return upsertWebpageFrontmatterMeta(String(activeText || ''), { url: webpageWorkspaceMeta.url, view })
+          if (!res || res.ok !== true) return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
 
           return buildWebpageMarkdownArtifactDoc({
             markdown: String(res.markdown || ''),
@@ -2219,6 +2230,354 @@ export function MarkdownWorkspace() {
   const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing && !webpageDerivedReadOnlyActive
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown && !(webpageWorkspaceMeta && webpageWorkspaceMeta.view !== 'markdown')
 
+  const webpageIframeElRef = React.useRef<HTMLIFrameElement | null>(null)
+
+  const canConvertHtmlToMarkdown = contentMode !== 'nodeQuickEditor' && webpageWorkspaceMeta?.url && webpageWorkspaceMeta.view === 'html'
+
+  const requestWebpageExportDom = React.useCallback(async (mode: 'html' | 'text'): Promise<{ text: string; title: string; clipped: boolean } | null> => {
+    const iframeEl = webpageIframeElRef.current
+    if (!iframeEl) return null
+
+    const requestFromIframe = async (iframe: HTMLIFrameElement): Promise<{ text: string; title: string; clipped: boolean } | null> => {
+      const win = iframe.contentWindow
+      if (!win) return null
+      const id = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
+      const kind = 'kg-export-dom'
+      return await new Promise((resolve) => {
+        let done = false
+        const onMessage = (e: MessageEvent) => {
+          if (e.source !== win) return
+          const d = e && (e.data as any)
+          if (!d || d.kind !== kind || d.id !== id) return
+          if (done) return
+          done = true
+          clearTimeout(timeoutId)
+          window.removeEventListener('message', onMessage)
+          resolve({
+            text: String(d.text || ''),
+            title: String(d.title || ''),
+            clipped: !!d.clipped,
+          })
+        }
+
+        const timeoutId = setTimeout(() => {
+          if (done) return
+          done = true
+          window.removeEventListener('message', onMessage)
+          resolve(null)
+        }, 6_000)
+
+        window.addEventListener('message', onMessage)
+      try {
+        win.postMessage({ kind, id, mode, maxChars: 8_000_000, expandFaq: true, scrollCrawl: mode === 'text' }, '*')
+        } catch {
+          clearTimeout(timeoutId)
+          window.removeEventListener('message', onMessage)
+          resolve(null)
+        }
+      })
+    }
+
+    return await requestFromIframe(iframeEl)
+  }, [])
+
+  const convertHtmlToMarkdown = React.useCallback(async () => {
+    if (!activePath) return
+    const meta = webpageWorkspaceMeta
+    if (!meta || meta.view !== 'html') return
+    const url = String(meta.url || '').trim()
+    if (!url) return
+    setStatusProgress('Converting HTML')
+    try {
+      const fs = await getFs()
+      const sidecarPath = webpageHtmlSidecarPath
+      const sidecarHtml = sidecarPath ? await fs.readFileText(sidecarPath).catch(() => '') : ''
+      const clippedMarker = '\n\n(clipped)\n'
+      const override = String(webpageWorkspaceEditorTextOverride || '')
+
+      const looksClipped = (t: string): boolean => t.includes(clippedMarker) || t.trim().endsWith('(clipped)')
+
+      const sidecarTrim = String(sidecarHtml || '').trim()
+      const overrideTrim = override.trim()
+      const overrideLooksLikeEditorWarning = overrideTrim.startsWith('HTML too large for editor')
+      const overrideLooksEditable = !!(overrideTrim && !looksClipped(overrideTrim) && !overrideLooksLikeEditorWarning)
+      const overrideLikelyUserEdited = !!(overrideLooksEditable && sidecarTrim && overrideTrim !== sidecarTrim)
+
+      let rawHtml = ''
+      let markdownOverride: string | null = null
+
+      const chooseMarkdownFromSources = async (sources: { html?: string; text?: string; title?: string } | null): Promise<void> => {
+        const html = String(sources?.html || '').trim()
+        const text = String(sources?.text || '').trim()
+        const title = String(sources?.title || '').trim()
+        if (!html && !text) return
+
+        if (!html && text) {
+          const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
+          markdownOverride = parsePlainTextToMarkdown(text, title)
+          return
+        }
+
+        if (html) {
+          const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
+          const { parseHtmlToMarkdownAllText, parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
+          const md = parseHtmlToMarkdownAllText(bounded, url)
+          if (text.length > 1200) {
+            const normalize = (s: string): string => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()
+            const normMd = normalize(md)
+            const lines = text
+              .split('\n')
+              .map(s => s.trim())
+              .filter(s => s.length >= 30 && s.length <= 200)
+            const samples: string[] = []
+            const maxSamples = 22
+            if (lines.length <= maxSamples) {
+              samples.push(...lines)
+            } else {
+              for (let i = 0; i < maxSamples; i += 1) {
+                const idx = Math.floor((i * (lines.length - 1)) / (maxSamples - 1))
+                samples.push(lines[idx] || '')
+              }
+            }
+            let misses = 0
+            for (const s of samples) {
+              const ns = normalize(s)
+              if (!ns) continue
+              if (!normMd.includes(ns)) misses += 1
+              if (misses >= 5) break
+            }
+
+            if (md.length < text.length * 0.85 || misses >= 5) {
+              markdownOverride = parsePlainTextToMarkdown(text, title)
+              return
+            }
+          }
+
+          markdownOverride = md
+        }
+      }
+
+      const renderedSnapshotViaHiddenIframe = async (): Promise<{ html?: string; text?: string; title?: string } | null> => {
+        const iframe = document.createElement('iframe')
+        iframe.setAttribute('sandbox', 'allow-scripts')
+        iframe.setAttribute('referrerpolicy', 'no-referrer')
+        iframe.style.position = 'fixed'
+        iframe.style.width = '1200px'
+        iframe.style.height = '800px'
+        iframe.style.visibility = 'hidden'
+        iframe.style.pointerEvents = 'none'
+        iframe.style.border = '0'
+        iframe.style.left = '-12000px'
+        iframe.style.top = '-12000px'
+        const proxySrc = `/__webpage_proxy?url=${encodeURIComponent(url)}`
+
+        const requestFromIframe = async (
+          mode: 'html' | 'text',
+          opts: { scrollCrawl?: boolean; expandFaq?: boolean } = {},
+        ): Promise<{ text: string; title: string; clipped: boolean } | null> => {
+          const win = iframe.contentWindow
+          if (!win) return null
+          const id = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
+          const kind = 'kg-export-dom'
+          return await new Promise((resolve) => {
+            let done = false
+            const onMessage = (e: MessageEvent) => {
+              if (e.source !== win) return
+              const d = e && (e.data as any)
+              if (!d || d.kind !== kind || d.id !== id) return
+              if (done) return
+              done = true
+              clearTimeout(timeoutId)
+              window.removeEventListener('message', onMessage)
+              resolve({ text: String(d.text || ''), title: String(d.title || ''), clipped: !!d.clipped })
+            }
+            const timeoutId = setTimeout(() => {
+              if (done) return
+              done = true
+              window.removeEventListener('message', onMessage)
+              resolve(null)
+            }, 15_000)
+            window.addEventListener('message', onMessage)
+            try {
+              win.postMessage(
+                {
+                  kind,
+                  id,
+                  mode,
+                  maxChars: 8_000_000,
+                  scrollCrawl: !!opts.scrollCrawl,
+                  expandFaq: !!opts.expandFaq,
+                },
+                '*',
+              )
+            } catch {
+              clearTimeout(timeoutId)
+              window.removeEventListener('message', onMessage)
+              resolve(null)
+            }
+          })
+        }
+
+        const waitForTextStability = async (): Promise<{ text: string; title: string } | null> => {
+          const startedAt = Date.now()
+          let bestText = ''
+          let bestTitle = ''
+          let stableRounds = 0
+          let lastLen = 0
+          while (Date.now() - startedAt < 20_000) {
+            await new Promise(r => setTimeout(r, 650))
+            const snap = await requestFromIframe('text', { expandFaq: true })
+            const text = String(snap?.text || '').trim()
+            const title = String(snap?.title || '').trim()
+            if (title) bestTitle = title
+            if (text.length > bestText.length) bestText = text
+            const len = text.length
+            if (len <= lastLen + 40) stableRounds += 1
+            else stableRounds = 0
+            lastLen = Math.max(lastLen, len)
+            if (stableRounds >= 2 && bestText.length >= 300) break
+          }
+          return bestText.trim() ? { text: bestText, title: bestTitle } : null
+        }
+
+        try {
+          await new Promise<void>((resolve) => {
+            let settled = false
+            const onLoad = () => {
+              if (settled) return
+              settled = true
+              clearTimeout(timeoutId)
+              resolve()
+            }
+            const timeoutId = setTimeout(() => {
+              if (settled) return
+              settled = true
+              iframe.removeEventListener('load', onLoad)
+              resolve()
+            }, 15_000)
+            iframe.addEventListener('load', onLoad)
+            document.body.appendChild(iframe)
+            iframe.src = proxySrc
+          })
+
+          await requestFromIframe('text', { scrollCrawl: true, expandFaq: true })
+          const stableText = await waitForTextStability()
+          const htmlSnap = await requestFromIframe('html')
+          const html = htmlSnap?.clipped ? '' : String(htmlSnap?.text || '').trim()
+          const title = String(htmlSnap?.title || stableText?.title || '').trim()
+          const text = String(stableText?.text || '').trim()
+          if (!html && !text) return null
+          return { html: html || undefined, text: text || undefined, title: title || undefined }
+        } finally {
+          try {
+            iframe.remove()
+          } catch {
+            void 0
+          }
+        }
+      }
+
+      if (overrideLikelyUserEdited) {
+        rawHtml = overrideTrim
+      } else {
+        const rendered = await renderedSnapshotViaHiddenIframe()
+        await chooseMarkdownFromSources(rendered)
+
+        try {
+          const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
+          const res = await fetch(
+            `/__webpage_convert?url=${encodeURIComponent(url)}&includeImages=${includeImages ? 'true' : 'false'}`,
+            {
+              method: 'POST',
+              headers: { Accept: 'application/json' },
+            },
+          )
+          if (res.ok) {
+            const text = await res.text()
+            const parsed = JSON.parse(text) as any
+            const serverMd = typeof parsed?.markdown === 'string' ? parsed.markdown : ''
+            if (serverMd && (!markdownOverride || serverMd.length > markdownOverride.length * 1.05)) {
+              markdownOverride = serverMd
+            }
+          }
+        } catch {
+          void 0
+        }
+      }
+
+      if (!markdownOverride && !rawHtml && sidecarTrim) {
+        rawHtml = sidecarTrim
+      }
+
+      if (!markdownOverride && !rawHtml) {
+        const candidate = overrideTrim
+        if (candidate && !looksClipped(candidate) && !overrideLooksLikeEditorWarning) {
+          rawHtml = candidate
+        }
+      }
+
+      if (!rawHtml && webpageIframeElRef.current?.getAttribute('src')?.includes('/__webpage_proxy?url=')) {
+        const exportedHtml = await requestWebpageExportDom('html')
+        if (exportedHtml?.text && !exportedHtml.clipped) {
+          const exportedText = await requestWebpageExportDom('text')
+          await chooseMarkdownFromSources({
+            html: exportedHtml.text,
+            text: String(exportedText?.text || ''),
+            title: String(exportedHtml.title || exportedText?.title || '').trim() || undefined,
+          })
+        } else {
+          const exportedText = await requestWebpageExportDom('text')
+          if (exportedText?.text) {
+            const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
+            markdownOverride = parsePlainTextToMarkdown(exportedText.text, exportedText.title)
+          }
+        }
+      }
+
+      if (!rawHtml) {
+        const controller = new AbortController()
+        rawHtml = websiteImportMeta?.importId && websiteImportMeta?.nodeId
+          ? await fetchWebsiteImportArtifact({
+              importId: websiteImportMeta.importId,
+              nodeId: websiteImportMeta.nodeId,
+              outputDirRel: String(websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '').trim() || undefined,
+              kind: 'rawHtml',
+              signal: controller.signal,
+            })
+          : await fetchWebpageHtmlAuto({ url, signal: controller.signal })
+      }
+
+      if (!rawHtml.trim() && !markdownOverride) {
+        setStatusError('No HTML to convert')
+        return
+      }
+
+      let bodyMd = ''
+      if (markdownOverride) {
+        bodyMd = markdownOverride
+      } else {
+        const bounded = rawHtml.length > 4_000_000 ? rawHtml.slice(0, 4_000_000) : rawHtml
+        const { parseHtmlToMarkdownAllText } = await import('@/features/parsers/html-parser')
+        bodyMd = parseHtmlToMarkdownAllText(bounded, url)
+      }
+      const baseDoc = upsertWebpageFrontmatterMeta(String(activeText || ''), { url, view: 'markdown' })
+      const block = extractYamlFrontmatterBlock(baseDoc)
+      const nextText = block ? `${block.rawBlock}\n\n${String(bodyMd || '').trim()}\n` : `${String(bodyMd || '').trim()}\n`
+
+      await fs.writeFileText(activePath, nextText)
+      lastLoadedRef.current = { path: activePath, text: nextText }
+      const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+      const inlineText = nextText.length <= maxInline ? nextText : undefined
+      setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+      setActiveTextProgrammatic(nextText)
+      const docKey = workspaceDocumentKey(activePath)
+      if (docKey) setMarkdownDocument(docKey, nextText)
+      setStatusWithAutoClear('Converted', 1200)
+    } catch (e) {
+      setStatusError(`Convert failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+    }
+  }, [activePath, activeText, getFs, lastLoadedRef, setActiveTextProgrammatic, setEntries, setMarkdownDocument, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageHtmlSidecarPath, webpageWorkspaceEditorTextOverride, webpageWorkspaceMeta])
+
   return (
     <section
       ref={workspaceRootRef}
@@ -2308,6 +2667,11 @@ export function MarkdownWorkspace() {
           onImportLocalFolder={fileActions.handleImportLocalFolder}
           onImportUrl={fileActions.handleImportUrl}
           onImportWebsite={fileActions.handleImportWebsite}
+          canConvertHtmlToMarkdown={canConvertHtmlToMarkdown}
+          onConvertHtmlToMarkdown={() => void convertHtmlToMarkdown()}
+          onWebpageIframeEl={(el) => {
+            webpageIframeElRef.current = el
+          }}
           activeText={effectiveActiveText}
           setActiveText={effectiveSetActiveText}
           editorTextOverride={effectiveEditorTextOverride}

@@ -14,6 +14,7 @@ import { unwrapUserProvidedText } from './src/lib/url'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
+import { runWebpageConvert } from './src/lib/websites/server/websiteImportCore'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -719,9 +720,13 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '<script>',
     '(() => {',
     `  const KG_ORIGINAL_URL = ${JSON.stringify(originalUrl)};`,
+    '  let KG_NET_PENDING = 0;',
+    '  const kgNetInc = () => { try { KG_NET_PENDING += 1; } catch { void 0; } };',
+    '  const kgNetDec = () => { try { KG_NET_PENDING = Math.max(0, KG_NET_PENDING - 1); } catch { void 0; } };',
     `  const KG_PROXY_PREFIX = ${JSON.stringify('/__webpage_proxy?url=')};`,
       `  const KG_ASSET_PROXY_PREFIX = ${JSON.stringify('/__webpage_asset_proxy?url=')};`,
     `  const KG_SCROLL_SYNC_KIND = ${JSON.stringify('kg-scroll-sync')};`,
+    `  const KG_EXPORT_DOM_KIND = ${JSON.stringify('kg-export-dom')};`,
     '  const resolveAbs = (u) => {',
     '    try { return new URL(String(u || ""), KG_ORIGINAL_URL).toString(); } catch { return ""; }',
     '  };',
@@ -746,11 +751,11 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
       '          const abs = resolveAbs(url);',
       '          if (!abs) return prev(input, init);',
       '          const nextUrl = toAssetProxy(abs);',
-      '          if (typeof input === "string") return prev(nextUrl, init);',
-      '          if (input && typeof Request !== "undefined" && input instanceof Request) return prev(new Request(nextUrl, input), init);',
-      '          return prev(nextUrl, init);',
+      '          kgNetInc();',
+      '          const p = (typeof input === "string") ? prev(nextUrl, init) : (input && typeof Request !== "undefined" && input instanceof Request) ? prev(new Request(nextUrl, input), init) : prev(nextUrl, init);',
+      '          return Promise.resolve(p).finally(kgNetDec);',
       '        } catch {',
-      '          return prev(input, init);',
+      '          try { kgNetInc(); return Promise.resolve(prev(input, init)).finally(kgNetDec); } catch { return prev(input, init); }',
       '        }',
       '      };',
       '    } catch {',
@@ -762,6 +767,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
       '      const proto = window.XMLHttpRequest && window.XMLHttpRequest.prototype;',
       '      if (!proto || typeof proto.open !== "function") return;',
       '      const prevOpen = proto.open;',
+      '      const prevSend = proto.send;',
       '      proto.open = function(method, url, async, user, password) {',
       '        try {',
       '          const u = String(url || "");',
@@ -774,6 +780,19 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
       '          return prevOpen.call(this, method, url, async, user, password);',
       '        }',
       '      };',
+      '      if (typeof prevSend === "function") {',
+      '        proto.send = function(body) {',
+      '          try {',
+      '            kgNetInc();',
+      '            const done = () => { try { this.removeEventListener("load", done); this.removeEventListener("error", done); this.removeEventListener("abort", done); this.removeEventListener("timeout", done); } catch { void 0; } kgNetDec(); };',
+      '            try { this.addEventListener("load", done); this.addEventListener("error", done); this.addEventListener("abort", done); this.addEventListener("timeout", done); } catch { void 0; }',
+      '            return prevSend.call(this, body);',
+      '          } catch {',
+      '            kgNetDec();',
+      '            return prevSend.call(this, body);',
+      '          }',
+      '        };',
+      '      }',
       '    } catch {',
       '      void 0;',
       '    }',
@@ -853,14 +872,30 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
       '      if (tag === "link") rewriteAttrUrl(el, "href");',
       '      if (tag === "img") { rewriteAttrUrl(el, "src"); rewriteSrcset(el); }',
       '      if (tag === "source" || tag === "track" || tag === "audio" || tag === "video") rewriteAttrUrl(el, "src");',
-      '      if (tag === "video") rewriteAttrUrl(el, "poster");',
+    '      if (tag === "video") rewriteAttrUrl(el, "poster");',
+    '      if (tag === "iframe") {',
+    '        try {',
+    '          const src = el.getAttribute && el.getAttribute("src");',
+    '          const v = String(src || "").trim();',
+    '          if (!v) return;',
+    '          if (/^\s*javascript:/i.test(v) || /^\s*data:/i.test(v) || /^\s*blob:/i.test(v)) return;',
+    '          const abs = resolveAbs(v);',
+    '          if (!abs) return;',
+    '          const o = new URL(KG_ORIGINAL_URL);',
+    '          const a = new URL(abs);',
+    '          if (o.origin !== a.origin) return;',
+    '          el.setAttribute("src", toProxy(abs));',
+    '        } catch {',
+    '          void 0;',
+    '        }',
+    '      }',
       '    } catch {',
       '      void 0;',
       '    }',
       '  };',
       '  const rewriteExisting = () => {',
       '    try {',
-      '      document.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src]").forEach(rewriteElement);',
+      '      document.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src],iframe[src]").forEach(rewriteElement);',
       '    } catch {',
       '      void 0;',
       '    }',
@@ -873,7 +908,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
       '            if (!node || node.nodeType !== 1) continue;',
       '            rewriteElement(node);',
       '            try {',
-      '              (node.querySelectorAll ? node.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src]") : []).forEach(rewriteElement);',
+      '              (node.querySelectorAll ? node.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src],iframe[src]") : []).forEach(rewriteElement);',
       '            } catch {',
       '              void 0;',
       '            }',
@@ -921,10 +956,322 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '    if (el && el.addEventListener) el.addEventListener("scroll", onScroll, { passive: true });',
     '    window.addEventListener("message", (e) => {',
     '      const d = e && e.data;',
-    '      if (!d || d.kind !== KG_SCROLL_SYNC_KIND || typeof d.ratio !== "number") return;',
-    '      if (!canSync("parent")) return;',
-    '      lockOwner = "parent"; lockUntil = Date.now() + 160;',
-    '      setRatio(d.ratio);',
+    '      if (!d) return;',
+    '      if (d.kind === KG_SCROLL_SYNC_KIND && typeof d.ratio === "number") {',
+    '        if (!canSync("parent")) return;',
+    '        lockOwner = "parent"; lockUntil = Date.now() + 160;',
+    '        setRatio(d.ratio);',
+    '        return;',
+    '      }',
+    '      if (d.kind === KG_EXPORT_DOM_KIND && d.id) {',
+    '        try {',
+    '          if (e.source !== window.parent) return;',
+    '          const maxCharsRaw = typeof d.maxChars === "number" ? d.maxChars : 4000000;',
+    '          const maxChars = Math.max(64000, Math.min(8000000, Math.floor(maxCharsRaw)));',
+    '          const mode = d.mode === "text" ? "text" : "html";',
+    '          const depth = typeof d.depth === "number" && isFinite(d.depth) ? Math.max(0, Math.min(2, Math.floor(d.depth))) : 0;',
+    '          const includeChildren = mode === "text" && depth === 0 && d.includeChildren !== false;',
+    '          const readText = () => {',
+    '            try {',
+    '              const body = document.body;',
+    '              const t1 = body && typeof body.innerText === "string" ? body.innerText : "";',
+    '              const t2 = body && typeof body.textContent === "string" ? body.textContent : "";',
+    '              const a = String(t1 || "").trim();',
+    '              const b = String(t2 || "").trim();',
+    '              const base = b.length > a.length ? b : a;',
+    '              let shadow = "";',
+    '              try {',
+    '                const root = body || document.documentElement;',
+    '                if (root && document.createTreeWalker) {',
+    '                  const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);',
+    '                  let n = 0;',
+    '                  while (w.nextNode()) {',
+    '                    n += 1;',
+    '                    if (n > 2200) break;',
+    '                    const el = w.currentNode;',
+    '                    const tag = el && el.tagName ? String(el.tagName).toLowerCase() : "";',
+    '                    if (tag === "template" && el.content && el.content.textContent) {',
+    '                      const tt = String(el.content.textContent || "").trim();',
+    '                      if (tt) shadow += "\n" + tt;',
+    '                    }',
+    '                    if (el && el.shadowRoot && el.shadowRoot.textContent) {',
+    '                      const st = String(el.shadowRoot.textContent || "").trim();',
+    '                      if (st) shadow += "\n" + st;',
+    '                    }',
+    '                    if (shadow.length > 2400000) break;',
+    '                  }',
+    '                }',
+    '              } catch {',
+    '                void 0;',
+    '              }',
+    '              const combined = (base + "\n" + shadow).trim();',
+    '              return combined.length > base.length ? combined : base;',
+    '            } catch {',
+    '              return "";',
+    '            }',
+    '          };',
+    '          const readHtml = () => { try { return document.documentElement ? document.documentElement.outerHTML : ""; } catch { return ""; } };',
+    '          const computeRaw = () => (mode === "text" ? readText() : readHtml());',
+    '          const send = (payload) => { try { window.parent && window.parent.postMessage(payload, "*"); } catch { void 0; } };',
+    '          const replyNow = () => {',
+    '            const raw = computeRaw();',
+    '            const clipped = raw && raw.length > maxChars;',
+    '            const text = clipped ? raw.slice(0, maxChars) : raw;',
+    '            send({ kind: KG_EXPORT_DOM_KIND, id: d.id, mode, title: document.title || "", clipped, text });',
+    '          };',
+    '          const maybeCrawl = async () => {',
+    '            try {',
+    '              if (!d || !d.scrollCrawl) return;',
+    '              const el = document.scrollingElement || document.documentElement || document.body;',
+    '              if (!el) return;',
+    '              const sleep = (ms) => new Promise(r => setTimeout(r, ms));',
+    '              const max = Math.max(0, (el.scrollHeight || 0) - (el.clientHeight || 0));',
+    '              if (!max) return;',
+    '              const steps = 8;',
+    '              for (let i = 0; i <= steps; i += 1) {',
+    '                const y = Math.round((max * i) / steps);',
+    '                try { el.scrollTop = y; window.scrollTo && window.scrollTo(0, y); } catch { void 0; }',
+    '                await sleep(250);',
+    '              }',
+    '            } catch {',
+    '              void 0;',
+    '            }',
+    '          };',
+    '          const safeClick = (el) => {',
+    '            try {',
+    '              if (!el || typeof el !== "object") return false;',
+    '              const tag = el.tagName ? String(el.tagName).toLowerCase() : "";',
+    '              if (!tag) return false;',
+    '              if (tag === "a") {',
+    '                const href = String(el.getAttribute && el.getAttribute("href") || "").trim();',
+    '                if (href && !href.startsWith("#") && !/^\s*javascript:/i.test(href)) return false;',
+    '              }',
+    '              if (tag === "button") {',
+    '                const type = String(el.getAttribute && el.getAttribute("type") || "").toLowerCase();',
+    '                if (type && type !== "button") return false;',
+    '              }',
+    '              if (el.hasAttribute && el.hasAttribute("disabled")) return false;',
+    '              if (el.getAttribute) {',
+    '                const role = String(el.getAttribute("role") || "").toLowerCase();',
+    '                const aria = String(el.getAttribute("aria-disabled") || "").toLowerCase();',
+    '                if (aria === "true") return false;',
+    '                if (role && role !== "button" && role !== "tab" && role !== "switch") {',
+    '                  void 0;',
+    '                }',
+    '              }',
+    '              if (typeof el.click === "function") { el.click(); return true; }',
+    '              return false;',
+    '            } catch {',
+    '              return false;',
+    '            }',
+    '          };',
+    '          const safeReveal = (el) => {',
+    '            try {',
+    '              if (!el || typeof el !== "object") return;',
+    '              try { if (el.removeAttribute) el.removeAttribute("hidden"); } catch { void 0; }',
+    '              try { if (el.setAttribute) el.setAttribute("aria-hidden", "false"); } catch { void 0; }',
+    '              try {',
+    '                if (el.style) {',
+    '                  if (String(el.style.display || "") === "none") el.style.display = "block";',
+    '                  if (String(el.style.visibility || "") === "hidden") el.style.visibility = "visible";',
+    '                  if (String(el.style.opacity || "") === "0") el.style.opacity = "1";',
+    '                  if (String(el.style.maxHeight || "") === "0px" || String(el.style.maxHeight || "") === "0") el.style.maxHeight = "none";',
+    '                  if (String(el.style.height || "") === "0px" || String(el.style.height || "") === "0") el.style.height = "auto";',
+    '                  if (String(el.style.overflow || "") === "hidden") el.style.overflow = "visible";',
+    '                }',
+    '              } catch {',
+    '                void 0;',
+    '              }',
+    '            } catch {',
+    '              void 0;',
+    '            }',
+    '          };',
+    '          const expandAriaControls = () => {',
+    '            try {',
+    '              document.querySelectorAll("[aria-controls]").forEach((t2) => {',
+    '                try {',
+    '                  const expanded = String(t2.getAttribute("aria-expanded") || "").toLowerCase();',
+    '                  const controls = String(t2.getAttribute("aria-controls") || "").trim();',
+    '                  if (!controls) return;',
+    '                  if (expanded && expanded !== "false") return;',
+    '                  const target = document.getElementById(controls);',
+    '                  if (target) safeReveal(target);',
+    '                  try { t2.setAttribute("aria-expanded", "true"); } catch { void 0; }',
+    '                  safeClick(t2);',
+    '                } catch { void 0; }',
+    '              });',
+    '            } catch { void 0; }',
+    '          };',
+    '          const revealAccordionContainers = () => {',
+    '            try {',
+    '              const candidates = [];',
+    '              const push = (el) => { if (el && candidates.indexOf(el) < 0) candidates.push(el); };',
+    '              document.querySelectorAll("[class]").forEach((el2) => {',
+    '                try {',
+    '                  const cls = String(el2.className || "").toLowerCase();',
+    '                  if (!cls) return;',
+    '                  if (cls.includes("accordion") || cls.includes("faq")) push(el2);',
+    '                } catch { void 0; }',
+    '              });',
+    '              for (const box of candidates.slice(0, 60)) {',
+    '                try {',
+    '                  box.querySelectorAll("[hidden],[aria-hidden=\\"true\\"]").forEach((x) => safeReveal(x));',
+    '                  box.querySelectorAll("[style*=\\"display:none\\"],[style*=\\"display: none\\"]").forEach((x) => safeReveal(x));',
+    '                } catch { void 0; }',
+    '              }',
+    '            } catch { void 0; }',
+    '          };',
+    '          const autoExpandFaq = async () => {',
+    '            try {',
+    '              const sleep = (ms) => new Promise(r => setTimeout(r, ms));',
+    '              const waitNetIdle = async (timeoutMs) => {',
+    '                try {',
+    '                  const t0 = Date.now();',
+    '                  while (Date.now() - t0 < (timeoutMs || 0)) {',
+    '                    if (!KG_NET_PENDING) return;',
+    '                    await sleep(60);',
+    '                  }',
+    '                } catch { void 0; }',
+    '              };',
+    '              const opened = new Set();',
+    '              const tryOpenDetails = () => {',
+    '                try {',
+    '                  document.querySelectorAll("details:not([open])").forEach((d2) => {',
+    '                    try { d2.open = true; opened.add(d2); } catch { void 0; }',
+    '                  });',
+    '                } catch { void 0; }',
+    '              };',
+    '              const tryClickSummaries = () => {',
+    '                try {',
+    '                  document.querySelectorAll("details summary").forEach((s2) => {',
+    '                    try { safeClick(s2); } catch { void 0; }',
+    '                  });',
+    '                } catch { void 0; }',
+    '              };',
+    '              const selectors = [',
+    '                "[aria-expanded=\\"false\\"][aria-controls]",',
+    '                "button[aria-expanded=\\"false\\"]",',
+    '                "[role=\\"button\\"][aria-expanded=\\"false\\"]",',
+    '                ".accordion__header, .accordion-header, .faq__question, .faq-question",',
+    '                ".t-accordion__header, .t-accordion__trigger, .t-accordion__title",',
+    '              ];',
+    '              const collect = () => {',
+    '                const out = [];',
+    '                try {',
+    '                  for (const sel of selectors) {',
+    '                    try { document.querySelectorAll(sel).forEach((el2) => out.push(el2)); } catch { void 0; }',
+    '                  }',
+    '                } catch { void 0; }',
+    '                return out;',
+    '              };',
+    '              const clickBatch = (els) => {',
+    '                let n = 0;',
+    '                for (let i = 0; i < els.length; i += 1) {',
+    '                  const el2 = els[i];',
+    '                  if (!el2 || opened.has(el2)) continue;',
+    '                  if (safeClick(el2)) { opened.add(el2); n += 1; }',
+    '                  if (n >= 24) break;',
+    '                }',
+    '                return n;',
+    '              };',
+    '              const keywordClickWithin = (root) => {',
+    '                try {',
+    '                  if (!root || !root.querySelectorAll) return 0;',
+    '                  const needles = ["faq", "question", "questions", "apply", "contact"];',
+    '                  const els = Array.from(root.querySelectorAll("a,button,[role=button],[role=tab],[role=switch]"));',
+    '                  let n = 0;',
+    '                  for (let i = 0; i < els.length; i += 1) {',
+    '                    const el2 = els[i];',
+    '                    if (!el2 || opened.has(el2)) continue;',
+    '                    const txt = String(el2.textContent || "").trim().toLowerCase();',
+    '                    if (!txt) continue;',
+    '                    let hit = false;',
+    '                    for (const k of needles) { if (txt.includes(k)) { hit = true; break; } }',
+    '                    if (!hit) continue;',
+    '                    if (safeClick(el2)) { opened.add(el2); n += 1; }',
+    '                    if (n >= 12) break;',
+    '                  }',
+    '                  return n;',
+    '                } catch {',
+    '                  return 0;',
+    '                }',
+    '              };',
+    '              tryOpenDetails();',
+    '              tryClickSummaries();',
+    '              expandAriaControls();',
+    '              revealAccordionContainers();',
+    '              try {',
+    '                const boxes = Array.from(document.querySelectorAll("[class*=\\"accordion\\"],[class*=\\"Accordion\\"],[class*=\\"faq\\"],[class*=\\"Faq\\"]")).slice(0, 40);',
+    '                for (const b of boxes) keywordClickWithin(b);',
+    '              } catch { void 0; }',
+    '              try { keywordClickWithin(document.body || document.documentElement); } catch { void 0; }',
+    '              await waitNetIdle(900);',
+    '              for (let round = 0; round < 4; round += 1) {',
+    '                const els = collect();',
+    '                const clicked = clickBatch(els);',
+    '                await sleep(clicked ? 350 : 150);',
+    '                tryOpenDetails();',
+    '                expandAriaControls();',
+    '                revealAccordionContainers();',
+    '                try {',
+    '                  const boxes = Array.from(document.querySelectorAll("[class*=\\"accordion\\"],[class*=\\"Accordion\\"],[class*=\\"faq\\"],[class*=\\"Faq\\"]")).slice(0, 40);',
+    '                  let kclicked = 0;',
+    '                  for (const b of boxes) { kclicked += keywordClickWithin(b); if (kclicked >= 12) break; }',
+    '                } catch { void 0; }',
+    '                await waitNetIdle(clicked ? 1200 : 500);',
+    '              }',
+    '            } catch {',
+    '              void 0;',
+    '            }',
+    '          };',
+    '          const run = async () => {',
+    '            if (d && d.expandFaq) await autoExpandFaq();',
+    '            if (d && d.scrollCrawl) await maybeCrawl();',
+    '            if (!includeChildren) { replyNow(); return; }',
+    '          const iframes = Array.from(document.querySelectorAll("iframe")).slice(0, 8);',
+    '          if (!iframes.length) { replyNow(); return; }',
+    '          const childTimeoutMs = 1200;',
+    '          const startedAt = Date.now();',
+    '          const childPieces = [];',
+    '          const pending = new Set();',
+    '          const onChild = (ev) => {',
+    '            try {',
+    '              const dd = ev && ev.data;',
+    '              if (!dd || dd.kind !== KG_EXPORT_DOM_KIND || !dd.id || !pending.has(dd.id)) return;',
+    '              pending.delete(dd.id);',
+    '              const t = String(dd.text || "").trim();',
+    '              if (t) childPieces.push(t);',
+    '            } catch { void 0; }',
+    '          };',
+    '          window.addEventListener("message", onChild);',
+    '          for (let i = 0; i < iframes.length; i += 1) {',
+    '            const f = iframes[i];',
+    '            const w = f && f.contentWindow;',
+    '            if (!w) continue;',
+    '            const cid = String(d.id) + ":c" + String(i);',
+    '            pending.add(cid);',
+    '            try { w.postMessage({ kind: KG_EXPORT_DOM_KIND, id: cid, mode: "text", maxChars: Math.min(maxChars, 1200000), depth: 1, includeChildren: false }, "*"); } catch { pending.delete(cid); }',
+    '          }',
+    '          const finish = () => {',
+    '            try { window.removeEventListener("message", onChild); } catch { void 0; }',
+    '            const base = String(computeRaw() || "").trim();',
+    '            const combined = [base, ...childPieces].filter(Boolean).join("\n\n");',
+    '            const clipped = combined && combined.length > maxChars;',
+    '            const text = clipped ? combined.slice(0, maxChars) : combined;',
+    '            send({ kind: KG_EXPORT_DOM_KIND, id: d.id, mode, title: document.title || "", clipped, text });',
+    '          };',
+    '          const tick = () => {',
+    '            if (!pending.size) return finish();',
+    '            if (Date.now() - startedAt > childTimeoutMs) return finish();',
+    '            setTimeout(tick, 60);',
+    '          };',
+    '          tick();',
+    '          };',
+    '          run();',
+    '        } catch {',
+    '          void 0;',
+    '        }',
+    '      }',
     '    });',
     '  } catch {',
     '    void 0;',
@@ -1445,114 +1792,12 @@ async function runKnowgrphParserConvertWebpageToPayload(opts: {
   includeImages?: boolean;
 }): Promise<WebpageConvertResult> {
   const pythonBin = await getPythonBin()
-  return new Promise((resolve) => {
-    const timeoutMs = (() => {
-      const raw = Number(process.env.KG_WEBPAGE_CONVERT_TIMEOUT_MS || '')
-      const fallback = 60_000
-      const min = 10_000
-      const max = 300_000
-      if (!Number.isFinite(raw)) return fallback
-      return Math.min(max, Math.max(min, Math.floor(raw)))
-    })()
-    const args = ['-m', 'knowgrph_parser', 'webpage', '--emit', 'json', '--url', opts.url]
-    if (opts.includeImages === false) {
-      args.push('--no-images')
-    }
-    
-    const child = spawn(pythonBin, args, {
-      cwd: repoRoot,
-      env: withRepoPythonPath(process.env),
-      timeout: timeoutMs,
-    })
-
-    let stdout = ''
-    let stderr = ''
-    let exited = false
-
-    const cleanup = () => {
-      if (!exited) {
-        child.kill()
-        exited = true
-      }
-    }
-
-    const timer = setTimeout(() => {
-      cleanup()
-      resolve({ ok: false, error: `Webpage conversion timed out after ${timeoutMs}ms` })
-    }, timeoutMs)
-
-    child.stdout?.setEncoding('utf8')
-    child.stdout?.on('data', (chunk) => {
-      stdout += chunk
-    })
-
-    child.stderr?.setEncoding('utf8')
-    child.stderr?.on('data', (chunk) => {
-      stderr += chunk
-    })
-
-    child.on('error', (err) => {
-      clearTimeout(timer)
-      if (exited) return
-      exited = true
-      resolve({ ok: false, error: err.message || 'Webpage conversion process error' })
-    })
-
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      if (exited) return
-      exited = true
-
-      if (code !== 0) {
-        const out = stdout.trim()
-        if (out) {
-          try {
-            const parsed = JSON.parse(out) as unknown
-            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-              const obj = parsed as Record<string, unknown>
-              if (obj.ok === false && typeof obj.error === 'string' && obj.error.trim()) {
-                resolve({ ok: false, error: obj.error.trim() })
-                return
-              }
-            }
-          } catch {
-            void 0
-          }
-        }
-        const msg = stderr.trim() || out || `Webpage conversion failed (exit ${code ?? 'unknown'})`
-        resolve({ ok: false, error: msg })
-        return
-      }
-
-      const out = stdout.trim()
-      if (!out) {
-        resolve({ ok: false, error: 'Webpage conversion returned empty output' })
-        return
-      }
-
-      try {
-        const parsed = JSON.parse(out) as unknown
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          resolve({ ok: false, error: 'Webpage conversion returned invalid JSON' })
-          return
-        }
-        const obj = parsed as Record<string, unknown>
-        if (obj.ok !== true) {
-          const err = typeof obj.error === 'string' && obj.error.trim() ? obj.error.trim() : 'Webpage conversion failed'
-          resolve({ ok: false, error: err })
-          return
-        }
-        const markdown = typeof obj.markdown === 'string' ? obj.markdown : ''
-        const name = typeof obj.name === 'string' && obj.name.trim() ? obj.name.trim() : 'webpage.md'
-        const title = typeof obj.title === 'string' ? obj.title : ''
-        const source_url = typeof obj.source_url === 'string' ? obj.source_url : ''
-        const images = Array.isArray(obj.images) ? obj.images.map(String) : []
-        resolve({ ok: true, markdown, name, title, source_url, images })
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Webpage conversion JSON parse error'
-        resolve({ ok: false, error: msg })
-      }
-    })
+  return await runWebpageConvert({
+    repoRoot,
+    pythonBin,
+    url: opts.url,
+    includeImages: opts.includeImages !== false,
+    htmlPath: null,
   })
 }
 

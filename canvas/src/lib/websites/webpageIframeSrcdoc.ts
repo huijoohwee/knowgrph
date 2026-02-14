@@ -238,6 +238,9 @@ export async function fetchWebpageHtmlViaProxy(args: { url: string; signal: Abor
     args.signal,
   )
 }
+export async function fetchWebpageHtmlAuto(args: { url: string; signal: AbortSignal }): Promise<string> {
+  return await fetchWebpageHtmlViaProxy(args)
+}
 
 export async function fetchWebpageConversionJsonViaConvert(args: {
   url: string
@@ -250,11 +253,12 @@ export async function fetchWebpageConversionJsonViaConvert(args: {
   return fetchCached(
     key,
     async (signal) => {
-      const res = await fetch(`/__webpage_convert?url=${encodeURIComponent(u)}&includeImages=${args.includeImages ? 'true' : 'false'}`, {
+      const res = await fetch(`/__webpage_convert?url=${encodeURIComponent(u)}&includeImages=${args.includeImages ? 'true' : 'false'}`,
+        {
         method: 'POST',
         signal,
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      })
+        })
       const text = await res.text()
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return text

@@ -240,7 +240,7 @@ class SimpleMarkdownParser(HTMLParser):
         self.table_buffer: List[str] = [] # To capture HTML for tables
         
     def handle_starttag(self, tag, attrs):
-        if tag in {'script', 'style', 'noscript', 'head', 'template'}:
+        if tag in {'script', 'style', 'noscript', 'head'}:
             self.in_script_or_style = True
             return
 
@@ -348,7 +348,7 @@ class SimpleMarkdownParser(HTMLParser):
             self.output_lines.append('<' + tag + self._attrs_to_str(attrs) + '>')
 
     def handle_endtag(self, tag):
-        if tag in {'script', 'style', 'noscript', 'head', 'template'}:
+        if tag in {'script', 'style', 'noscript', 'head'}:
             self.in_script_or_style = False
             return
 
@@ -1581,14 +1581,22 @@ def _extract_structured_details_markdown(html_str: str, base_url: str, markdown_
 def main(argv: Optional[List[str]] = None, *, parser_script_path: Optional[str] = None) -> int:
     parser = argparse.ArgumentParser(description="Extract webpage to Markdown")
     parser.add_argument("--url", required=True, help="Webpage URL")
+    parser.add_argument("--html-path", default="", help="Path to HTML file to parse instead of fetching URL")
     parser.add_argument("--emit", choices=["markdown", "json"], default="markdown")
     parser.add_argument("--no-images", action="store_true", help="Disable image extraction")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     url = args.url.strip()
     try:
-        html_bytes = _fetch_url(url)
-        html_str = html_bytes.decode('utf-8', errors='replace')
+        html_str = ""
+        html_path = (args.html_path or "").strip()
+        if html_path:
+            with open(html_path, 'rb') as f:
+                html_bytes = f.read()
+            html_str = html_bytes.decode('utf-8', errors='replace')
+        else:
+            html_bytes = _fetch_url(url)
+            html_str = html_bytes.decode('utf-8', errors='replace')
         
         parser = SimpleMarkdownParser(url, include_images=not args.no_images)
         parser.feed(html_str)

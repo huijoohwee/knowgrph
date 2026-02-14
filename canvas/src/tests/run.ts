@@ -39,6 +39,7 @@ import {
   testWebpageFrontmatterUpsertPreservesOtherKeys,
   testWebpageFrontmatterSupportsJsonView,
   testWebpageFrontmatterSupportsMarkdownView,
+  testFrontmatterOnlyDocDetection,
 } from '@/__tests__/webpageFrontmatter.test'
 import {
   testWebsiteImportSitemapDetectsIndex,
@@ -68,6 +69,8 @@ import {
   testGraphFieldsDerivedFromPlainEdgesCsv,
 } from '@/__tests__/roundtrip.test'
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
+import { testHtmlParserAllTextIncludesNavAndMain } from '@/__tests__/htmlParserAllText.test'
+import { testPlainTextToMarkdownPreservesParagraphs } from '@/__tests__/plainTextToMarkdown.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
 import { testFindNextSourceFileIndexNested, testFindNextSourceFileIndexRoot, testNormalizeParentPath } from '@/__tests__/sourceFileNaming.test'
 import {
@@ -967,11 +970,14 @@ export const runAllTests = async () => {
   await exec('graph.groups.bboxCollide.separatesTopParentGroups', testGroupBboxCollideSeparatesTopParentGroups)
   await exec('graph.groups.bboxCollideByDepth.separatesSiblings', testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings)
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
+  await exec('htmlParser.allText.includesNavAndMain', testHtmlParserAllTextIncludesNavAndMain)
+  await exec('htmlParser.plainText.paragraphs', testPlainTextToMarkdownPreservesParagraphs)
   await exec('webpage.frontmatter.roundtrip', testWebpageFrontmatterRoundtrip)
   await exec('webpage.frontmatter.upsertUpdatesExisting', testWebpageFrontmatterUpsertUpdatesExisting)
   await exec('webpage.frontmatter.upsertPreservesOtherKeys', testWebpageFrontmatterUpsertPreservesOtherKeys)
   await exec('webpage.frontmatter.supportsJsonView', testWebpageFrontmatterSupportsJsonView)
   await exec('webpage.frontmatter.supportsMarkdownView', testWebpageFrontmatterSupportsMarkdownView)
+  await exec('webpage.frontmatter.frontmatterOnlyDocDetection', testFrontmatterOnlyDocDetection)
   await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
   await exec('websiteImport.sitemap.detectsIndex', testWebsiteImportSitemapDetectsIndex)
   await exec('websiteImport.artifactKindForWebpageView', testWebsiteImportArtifactKindForWebpageView)

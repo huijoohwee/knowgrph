@@ -71,6 +71,9 @@ export type MarkdownWorkspaceToolbarProps = {
     price: number
     time: number
   } | null
+
+  canConvertHtmlToMarkdown?: boolean
+  onConvertHtmlToMarkdown?: () => void
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -104,6 +107,8 @@ export function MarkdownWorkspaceToolbar({
   onImportUrl,
   onImportWebsite,
   webpageSignalSummary,
+  canConvertHtmlToMarkdown,
+  onConvertHtmlToMarkdown,
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const canNavigateSlides = layoutMode === 'presentation'
@@ -615,6 +620,20 @@ export function MarkdownWorkspaceToolbar({
           </li>
         </menu>
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Actions">
+          {canConvertHtmlToMarkdown && onConvertHtmlToMarkdown ? (
+            <li className="list-none">
+              <button
+                type="button"
+                className={TOOLBAR_BUTTON_CLASSNAME}
+                title="Convert HTML to Markdown"
+                aria-label="Convert HTML to Markdown"
+                onClick={() => onConvertHtmlToMarkdown()}
+                disabled={!isEditing}
+              >
+                <Upload className="w-4 h-4" strokeWidth={1.6} />
+              </button>
+            </li>
+          ) : null}
           <li className="list-none">
             <button
               type="button"

@@ -136,7 +136,7 @@ sequenceDiagram
 
 ### Webpage Import (URL → Markdown Parse + Optional HTML Viewer Render)
 
-**From/To**: Source Files / Workspace Import URL → `/__webpage_convert` (Python parser) → Markdown → Graph parse; Viewer/Presentation optionally → `/__webpage_proxy` (same-origin iframe proxy) → live HTML render.
+**From/To**: Source Files / Workspace Import URL → `/__webpage_convert` (Python parser; static HTML fetch) → Markdown → Graph parse; Viewer/Presentation optionally → `/__webpage_proxy` (same-origin iframe proxy) → sandboxed HTML render.
 
 **Decision Logic**:
 - **Graph Alignment**: Webpages convert to Markdown for Document Structure parsing, preserving graph/content sync across touchpoints.
@@ -153,11 +153,18 @@ sequenceDiagram
 
 **Shared token vocabulary (mode-independent)**: the app uses a generic signal extraction layer to derive consistent tokens from Markdown across modes: `[NAV]`, `[CTA]`, `[LINK]`, `[PRICE]`, `[TIME]`.
 - **Iframe implementation**:
-  - Enforce `srcdoc`: fetch from same-origin proxy or stored artifact, inject `<base>` + scroll-sync, and strip CSP meta tags to avoid self-blocking.
+  - Use one of two sandboxed iframe strategies:
+    - **Proxy `src`**: `src="/__webpage_proxy?url=..."` for highest fidelity (scripts may run, still confined by sandbox).
+    - **Sanitized `srcdoc` snapshot**: used when a safe non-clipped HTML snapshot is available (e.g. stored `raw.html` artifact or editor override). The srcdoc builder strips scripts/handlers and injects `<base>` + scroll-sync.
 - **Iframe sandbox policy**: Use `sandbox="allow-scripts"` with `referrerPolicy="no-referrer"`; forbid top-level navigation. Also set a restrictive `allow` feature policy (no geolocation/camera/mic/payment/clipboard).
 - **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers, trigger re-parsing/apply-to-graph, or write default import settings.
 - **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy` for same-origin loading, and sets a self-origin `<base>` to prevent accidental navigation to the remote site.
 - **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
+
+**Native fidelity upgrade (no headless browser)**:
+
+- If `/__webpage_convert` produces low-quality Markdown (typical for JS-rendered/accordion pages), the client may upgrade the conversion using a **hidden sandboxed iframe** pointed at `/__webpage_proxy` and the `kg-export-dom` bridge to export rendered DOM text/HTML, then convert to Markdown.
+- This path is domain-neutral and does not require external headless browser dependencies.
 
 ### Website Import (Sitemap/Tree → Workspace Pages + Artifact-Backed View Switching)
 

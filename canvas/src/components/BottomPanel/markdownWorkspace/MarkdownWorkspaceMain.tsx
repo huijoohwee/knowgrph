@@ -21,7 +21,7 @@ import {
   buildCodeViewerSrcdoc,
   buildWebpageHtmlSrcdoc,
   fetchWebpageConversionJsonViaConvert,
-  fetchWebpageHtmlViaProxy,
+  fetchWebpageHtmlAuto,
   fetchWebsiteImportArtifact,
 } from '@/lib/websites/webpageIframeSrcdoc'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -55,6 +55,11 @@ export type MarkdownWorkspaceMainProps = {
   onImportLocalFolder: (files: FileList | null) => void
   onImportUrl: (url: string) => void
   onImportWebsite: (url: string) => void
+
+  canConvertHtmlToMarkdown?: boolean
+  onConvertHtmlToMarkdown?: () => void
+
+  onWebpageIframeEl?: (el: HTMLIFrameElement | null) => void
 
   contentMode?: 'document' | 'nodeQuickEditor'
   setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
@@ -268,7 +273,7 @@ function useWebpageIframeSrcdoc(args: {
               kind: 'rawHtml',
               signal: ctrl.signal,
             })
-          : await fetchWebpageHtmlViaProxy({ url, signal: ctrl.signal })
+          : await fetchWebpageHtmlAuto({ url, signal: ctrl.signal })
       return buildWebpageHtmlSrcdoc({ html: rawHtml, baseHref: url })
     })()
       .then((srcDoc) => {
@@ -332,6 +337,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     onImportLocalFolder,
     onImportUrl,
     onImportWebsite,
+    canConvertHtmlToMarkdown,
+    onConvertHtmlToMarkdown,
+    onWebpageIframeEl,
     contentMode,
     setContentMode,
     nodeQuickEditorAvailable,
@@ -411,9 +419,22 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const handleIframeRef = React.useCallback((el: HTMLIFrameElement | null) => {
     iframeRef.current = el
-  }, [])
+    try {
+      onWebpageIframeEl?.(el)
+    } catch {
+      void 0
+    }
+  }, [onWebpageIframeEl])
 
-  const iframeMode: 'srcdoc' = 'srcdoc'
+  const iframeMode: 'srcdoc' | 'proxy' = React.useMemo(() => {
+    if (!showWebpageHtml) return 'srcdoc'
+    if (webpageMeta?.view !== 'html') return 'srcdoc'
+    const override = typeof webpageHtmlOverride === 'string' ? webpageHtmlOverride.trim() : ''
+    if (!override) return 'proxy'
+    if (override.startsWith('HTML too large for editor')) return 'proxy'
+    if (override.includes('\n\n(clipped)\n') || override.endsWith('(clipped)')) return 'proxy'
+    return 'srcdoc'
+  }, [showWebpageHtml, webpageHtmlOverride, webpageMeta?.view])
   const { srcDoc: iframeSrcDoc } = useWebpageIframeSrcdoc({
     enabled: showWebpageHtml && iframeMode === 'srcdoc',
     url: String(webpageMeta?.url || ''),
@@ -648,6 +669,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         ref={handleIframeRef}
         title={webpageMeta?.url || 'Webpage'}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
+        src={iframeMode === 'proxy' ? `/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}` : undefined}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -687,6 +709,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
+        src={iframeMode === 'proxy' ? `/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}` : undefined}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -726,6 +749,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
         srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
+        src={iframeMode === 'proxy' ? `/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}` : undefined}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -789,6 +813,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onImportUrl={onImportUrl}
         onImportWebsite={onImportWebsite}
         webpageSignalSummary={webpageSignalSummary}
+        canConvertHtmlToMarkdown={canConvertHtmlToMarkdown}
+        onConvertHtmlToMarkdown={onConvertHtmlToMarkdown}
       />
 
       {layoutMode === 'editor' ? (

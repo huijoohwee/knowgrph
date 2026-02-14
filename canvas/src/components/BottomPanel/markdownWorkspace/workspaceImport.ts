@@ -6,6 +6,8 @@ import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
 import { convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { convertWebpageUrlToMarkdownViaBrowser } from '@/lib/websites/webpageClientConvert'
+import { isLowQualityWebpageMarkdown } from '@/lib/websites/webpageMarkdownQuality'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
@@ -431,11 +433,26 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
           { headers: { Accept: 'text/plain' } },
         )
         const mdRaw = await mdRes.text()
+
+        const improved = await (async () => {
+          try {
+            if (!isLowQualityWebpageMarkdown(mdRaw)) return null
+            const viaBrowser = await convertWebpageUrlToMarkdownViaBrowser({ url: normalizedUrl })
+            if (viaBrowser.ok !== true) return null
+            if (!viaBrowser.markdown || viaBrowser.markdown.length <= mdRaw.length * 1.05) return null
+            return { markdown: viaBrowser.markdown, title: viaBrowser.title || title }
+          } catch {
+            return null
+          }
+        })()
+
+        const effectiveMd = improved?.markdown || mdRaw
+        const effectiveTitle = improved?.title || title
         const text = buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
-          upstreamMarkdown: mdRaw,
+          upstreamMarkdown: effectiveMd,
           url: normalizedUrl,
           view,
-          title,
+          title: effectiveTitle,
           websiteImportMeta: { importId, nodeId, outputDirRel: outputDirRel || undefined },
         })
 
@@ -452,9 +469,31 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
 
     const webpage = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
     if (webpage && webpage.ok) {
-      const sanitized = sanitizeImportedMarkdownText(String(webpage.markdown || '')).text
+      const rawMd = String(webpage.markdown || '')
+      const better = await (async () => {
+        try {
+          if (!isLowQualityWebpageMarkdown(rawMd)) return null
+          const viaBrowser = await convertWebpageUrlToMarkdownViaBrowser({ url: normalizedUrl })
+          if (viaBrowser.ok !== true) return null
+          if (!viaBrowser.markdown || viaBrowser.markdown.length <= rawMd.length * 1.05) return null
+          return viaBrowser.markdown
+        } catch {
+          return null
+        }
+      })()
+      const sanitized = sanitizeImportedMarkdownText(better || rawMd).text
       const content = upsertWebpageFrontmatterMeta(sanitized, { url: normalizedUrl, view })
       return { normalizedUrl, name: String(webpage.name || 'webpage.md'), text: content }
+    }
+
+    const viaBrowser = await convertWebpageUrlToMarkdownViaBrowser({ url: normalizedUrl })
+    if (viaBrowser.ok === true) {
+      const sanitized = sanitizeImportedMarkdownText(String(viaBrowser.markdown || '')).text
+      const content = upsertWebpageFrontmatterMeta(sanitized, { url: normalizedUrl, view })
+      const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
+      const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
+      const name = `${baseNoExt}.md`
+      return { normalizedUrl, name, text: content }
     }
   }
 

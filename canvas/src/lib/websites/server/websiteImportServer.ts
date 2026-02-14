@@ -9,10 +9,10 @@ import {
   isSameHost,
   looksLikeSitemapIndex,
   normalizeUrl,
-  runWebpageConvert,
   safeJsonParse,
   urlToTreePath,
 } from './websiteImportCore'
+import { convertWebpageToMarkdownWithHtmlArtifact } from './webpageConvert'
 
 type WebsiteImportStatus = 'queued' | 'running' | 'done' | 'failed'
 
@@ -354,16 +354,13 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
       try {
         await fs.mkdir(nodeDirAbs, { recursive: true })
 
-        const rawHtmlRes = await fetchTextWithLimit(pageUrl, { timeoutMs: 40_000, maxBytes: 8 * 1024 * 1024, accept: 'text/html,*/*;q=0.9' })
-        if (rawHtmlRes.ok) {
-          try {
-            await fs.writeFile(path.join(nodeDirAbs, 'raw.html'), rawHtmlRes.text, 'utf8')
-          } catch {
-            void 0
-          }
-        }
-
-        const converted = await runWebpageConvert({ repoRoot: args.repoRoot, pythonBin: args.pythonBin, url: pageUrl, includeImages })
+        const converted = await convertWebpageToMarkdownWithHtmlArtifact({
+          repoRoot: args.repoRoot,
+          pythonBin: args.pythonBin,
+          url: pageUrl,
+          includeImages,
+          htmlPathAbs: path.join(nodeDirAbs, 'raw.html'),
+        })
         if (converted.ok !== true) {
           errors.push({ url: pageUrl, error: converted.error })
         } else {
@@ -598,16 +595,13 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             const nodeDirAbs = path.join(importDirAbs, 'nodes', nodeId)
             await fs.mkdir(nodeDirAbs, { recursive: true })
 
-            const rawHtmlRes = await fetchTextWithLimit(u, { timeoutMs: 40_000, maxBytes: 8 * 1024 * 1024, accept: 'text/html,*/*;q=0.9' })
-            if (rawHtmlRes.ok) {
-              try {
-                await fs.writeFile(path.join(nodeDirAbs, 'raw.html'), rawHtmlRes.text, 'utf8')
-              } catch {
-                void 0
-              }
-            }
-
-            const converted = await runWebpageConvert({ repoRoot: args.repoRoot, pythonBin: args.pythonBin, url: u, includeImages: options.includeImages !== false })
+            const converted = await convertWebpageToMarkdownWithHtmlArtifact({
+              repoRoot: args.repoRoot,
+              pythonBin: args.pythonBin,
+              url: u,
+              includeImages: options.includeImages !== false,
+              htmlPathAbs: path.join(nodeDirAbs, 'raw.html'),
+            })
             if (converted.ok !== true) {
               errors.push({ url: u, error: converted.error })
               nodes.push({ nodeId, url: u, path: urlToTreePath(u), status: 'error', artifacts: {} })

@@ -1,6 +1,6 @@
 import { UI_COPY } from '@/lib/config'
 import { pickTextFilesWithExtensions } from '@/lib/graph/file'
-import { parseHtmlToMarkdown } from '@/features/parsers/html-parser'
+import { parseHtmlToMarkdownAllText } from '@/features/parsers/html-parser'
 import { coerceHttpUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { runImportFlow } from '@/features/toolbar/importFlow'
@@ -69,7 +69,7 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
         (trimmed.includes('<html') && trimmed.includes('</html>'))
       if (!looksHtml) return raw
       const baseUrl = coerceHttpUrl(first.name) || undefined
-      return parseHtmlToMarkdown(raw, baseUrl)
+      return parseHtmlToMarkdownAllText(raw, baseUrl)
     })()
 
     const nameForParse = first.displayName || first.name

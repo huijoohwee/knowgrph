@@ -1,5 +1,6 @@
 import type { JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
+import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 
 export function parseHtmlToMarkdown(html: string, baseUrl?: string): string {
   const raw = String(html || '')
@@ -13,6 +14,30 @@ export function parseHtmlToMarkdown(html: string, baseUrl?: string): string {
   const doc = parser.parseFromString(raw, 'text/html')
   const root = pickPrimaryContentRoot(doc)
   return traverseNode(root, { baseUrl }).trim()
+}
+
+export function parseHtmlToMarkdownAllText(html: string, baseUrl?: string): string {
+  const raw = String(html || '')
+  if (looksLikeRssOrAtom(raw)) {
+    const rssMarkdown = parseRssOrAtomToMarkdown(raw)
+    if (rssMarkdown.trim()) {
+      return rssMarkdown.trim()
+    }
+  }
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(raw, 'text/html')
+  const title = String(doc.title || '').trim()
+  const body = doc.body || pickPrimaryContentRoot(doc)
+  const md = traverseNode(body, { baseUrl }).trim()
+  if (!title) return md
+  if (!md) return `# ${title}`
+  const firstLine = (md.split('\n')[0] || '').trim()
+  if (firstLine.startsWith('# ')) return md
+  return `# ${title}\n\n${md}`
+}
+
+export function parsePlainTextToMarkdown(text: string, title?: string): string {
+  return plainTextToMarkdown(text, title)
 }
 
 export function extractJsonLd(html: string): JSONValue[] {
@@ -68,9 +93,19 @@ function traverseNode(
   const baseUrl = options.baseUrl
 
   let content = ''
-  el.childNodes.forEach(child => {
-    content += traverseNode(child, { isPre, isTable, baseUrl })
-  })
+  if (tagName === 'template') {
+    const tmpl = el as unknown as HTMLTemplateElement
+    const fragment = tmpl?.content
+    if (fragment) {
+      fragment.childNodes.forEach(child => {
+        content += traverseNode(child, { isPre, isTable, baseUrl })
+      })
+    }
+  } else {
+    el.childNodes.forEach(child => {
+      content += traverseNode(child, { isPre, isTable, baseUrl })
+    })
+  }
 
   switch (tagName) {
     case 'h1':

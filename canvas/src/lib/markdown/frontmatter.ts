@@ -15,6 +15,12 @@ export function extractYamlFrontmatterBlock(rawText: string): YamlFrontmatterBlo
   return { rawBlock, yamlText, bodyText }
 }
 
+export function isFrontmatterOnlyDoc(rawText: string): boolean {
+  const block = extractYamlFrontmatterBlock(rawText)
+  if (!block) return false
+  return String(block.bodyText || '').trim().length === 0
+}
+
 export function readYamlFrontmatterValue(fmBlock: string, key: string): string {
   const fm = String(fmBlock || '')
   const k = String(key || '').trim()

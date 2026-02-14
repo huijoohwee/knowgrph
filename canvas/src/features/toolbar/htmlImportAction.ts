@@ -1,5 +1,5 @@
 import { coerceHttpUrl } from '@/lib/url'
-import { parseHtmlToMarkdown, extractJsonLd } from '@/features/parsers/html-parser'
+import { parseHtmlToMarkdownAllText, extractJsonLd } from '@/features/parsers/html-parser'
 import { UI_COPY } from '@/lib/config'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
@@ -41,7 +41,7 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
       const fromDisplay = picked.displayName ? coerceHttpUrl(picked.displayName) : null
       return fromDisplay || undefined
     })()
-    const markdown = parseHtmlToMarkdown(picked.text, baseUrl)
+    const markdown = parseHtmlToMarkdownAllText(picked.text, baseUrl)
     const jsonLd = extractJsonLd(picked.text)
     
     let finalContent = markdown

@@ -73,7 +73,7 @@ const withRepoPythonPath = (repoRoot: string, env: NodeJS.ProcessEnv): NodeJS.Pr
   return { ...env, PYTHONPATH: next }
 }
 
-export const runWebpageConvert = (args: { repoRoot: string; pythonBin: string; url: string; includeImages: boolean }): Promise<WebpageConvertPayload> => {
+export const runWebpageConvert = (args: { repoRoot: string; pythonBin: string; url: string; includeImages: boolean; htmlPath?: string | null }): Promise<WebpageConvertPayload> => {
   return new Promise((resolve) => {
     const timeoutMs = (() => {
       const raw = Number(process.env.KG_WEBPAGE_CONVERT_TIMEOUT_MS || '')
@@ -84,6 +84,9 @@ export const runWebpageConvert = (args: { repoRoot: string; pythonBin: string; u
       return Math.min(max, Math.max(min, Math.floor(raw)))
     })()
     const cliArgs = ['-m', 'knowgrph_parser', 'webpage', '--emit', 'json', '--url', args.url]
+    if (args.htmlPath) {
+      cliArgs.push('--html-path', args.htmlPath)
+    }
     if (!args.includeImages) cliArgs.push('--no-images')
 
     const child = spawn(args.pythonBin, cliArgs, {
