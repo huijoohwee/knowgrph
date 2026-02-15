@@ -33,7 +33,7 @@ export function readYamlFrontmatterValue(fmBlock: string, key: string): string {
 }
 
 export type WebpageViewMode = 'markdown' | 'json' | 'html'
-export type WebpageFrontmatterMeta = { url: string; view: WebpageViewMode }
+export type WebpageFrontmatterMeta = { url: string; view: WebpageViewMode; siteRootRel?: string }
 
 export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatterMeta | null {
   const block = extractYamlFrontmatterBlock(rawText)
@@ -42,19 +42,23 @@ export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatter
   const viewRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageView')
   const view: WebpageViewMode = viewRaw === 'html' ? 'html' : viewRaw === 'json' ? 'json' : 'markdown'
   if (!url) return null
-  return { url, view }
+  const siteRootRelRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageSiteRootRel')
+  const siteRootRel = siteRootRelRaw && siteRootRelRaw.trim() ? siteRootRelRaw.trim() : undefined
+  return { url, view, siteRootRel }
 }
 
 export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFrontmatterMeta): string {
   const text = String(rawText || '')
   const url = String(meta?.url || '').trim()
   const view: WebpageViewMode = meta?.view === 'html' ? 'html' : meta?.view === 'json' ? 'json' : 'markdown'
+  const siteRootRel = String(meta?.siteRootRel || '').trim()
   const block = extractYamlFrontmatterBlock(text)
   if (!block) {
     const lines: string[] = []
     lines.push('---')
     lines.push(`kgWebpageUrl: "${url}"`)
     lines.push(`kgWebpageView: "${view}"`)
+    if (siteRootRel) lines.push(`kgWebpageSiteRootRel: "${siteRootRel}"`)
     lines.push('---')
     lines.push('')
     return `${lines.join('\n')}${text}`
@@ -63,6 +67,7 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
   const lines = block.rawBlock.split('\n')
   let urlReplaced = false
   let viewReplaced = false
+  let siteRootRelReplaced = false
   const nextLines = lines.map(line => {
     if (/^\s*kgWebpageUrl\s*:/.test(line)) {
       urlReplaced = true
@@ -72,6 +77,10 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
       viewReplaced = true
       return `kgWebpageView: "${view}"`
     }
+    if (/^\s*kgWebpageSiteRootRel\s*:/.test(line)) {
+      siteRootRelReplaced = true
+      return siteRootRel ? `kgWebpageSiteRootRel: "${siteRootRel}"` : ''
+    }
     return line
   })
 
@@ -79,11 +88,14 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
   if (endIdx > 0) {
     if (!urlReplaced) nextLines.splice(endIdx, 0, `kgWebpageUrl: "${url}"`)
     if (!viewReplaced) nextLines.splice(endIdx, 0, `kgWebpageView: "${view}"`)
+    if (siteRootRel && !siteRootRelReplaced) nextLines.splice(endIdx, 0, `kgWebpageSiteRootRel: "${siteRootRel}"`)
   }
 
-  const nextBlock = nextLines.join('\n')
+  const cleaned = nextLines.filter(l => l.trim() !== '')
+  const nextBlock = cleaned.join('\n')
   const suffix = text.slice(block.rawBlock.length)
   return `${nextBlock}${suffix}`
+
 }
 
 export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageViewMode = 'markdown'): string {

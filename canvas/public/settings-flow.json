@@ -692,7 +692,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L301; canvas/src/hooks/store/uiSlice.ts:L604"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L304; canvas/src/hooks/store/uiSlice.ts:L604"
   },
   "pdfImportConversionMode": {
     "area": "Import: PDF",
@@ -1306,6 +1306,23 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L272"
   },
+  "webpageViewerScriptPolicy": {
+    "area": "—",
+    "responsibility": "webpage viewer script policy",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.import-webpage.ts",
+      "canvas/src/hooks/store/uiSettingsSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setWebpageViewerScriptPolicy"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L275"
+  },
   "webpageArtifactFidelityMaxLevel": {
     "area": "—",
     "responsibility": "webpage artifact fidelity max level",
@@ -1321,7 +1338,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L275"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L278"
   },
   "websiteImportDiscoverSitemap": {
     "area": "—",
@@ -1338,7 +1355,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L39; canvas/src/hooks/store/uiSettingsSlice.ts:L281"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L284"
   },
   "websiteImportGenerateWebpageArtifactDocs": {
     "area": "—",
@@ -1355,7 +1372,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L48; canvas/src/hooks/store/uiSettingsSlice.ts:L284"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L287"
   },
   "websiteImportMaxPages": {
     "area": "—",
@@ -1372,7 +1389,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L57; canvas/src/hooks/store/uiSettingsSlice.ts:L287"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L290"
   },
   "websiteImportConcurrency": {
     "area": "—",
@@ -1389,7 +1406,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L66; canvas/src/hooks/store/uiSettingsSlice.ts:L293"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L296"
   },
   "websiteImportOutputDirRel": {
     "area": "—",
@@ -1406,7 +1423,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L75; canvas/src/hooks/store/uiSettingsSlice.ts:L299"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L302"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",

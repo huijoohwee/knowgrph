@@ -27,7 +27,7 @@ import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFron
 import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
 import { safeWebsitePathSegment } from '@/lib/websites/websitePathUtils'
 import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
-import { convertWebpageHtmlToMarkdownArtifact } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './workspaceImport'
 import { mapLimit } from '@/lib/async/mapLimit'
 import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
@@ -537,7 +537,7 @@ export function useWorkspaceFileActions(args: {
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({
               url,
-              options: { discoverSitemap, maxPages, concurrency, includeImages },
+              options: { discoverSitemap, maxPages, concurrency, includeImages, generateMarkdownArtifacts: generateArtifactDocs },
             }),
           },
         )
@@ -636,7 +636,9 @@ export function useWorkspaceFileActions(args: {
           try {
             return new URL(rootUrl).host
           } catch {
-            return 'website'
+            const normalized = String(rootUrl || '').replace(/\\/g, '/').replace(/\/+$/, '')
+            const last = normalized.split('/').filter(Boolean).pop() || ''
+            return last || 'website'
           }
         })()
 
@@ -660,12 +662,24 @@ export function useWorkspaceFileActions(args: {
         const coerceWebpageView = (raw: unknown): 'markdown' | 'json' | 'html' =>
           raw === 'html' ? 'html' : raw === 'json' ? 'json' : 'markdown'
 
+        const localSiteRootRel = (() => {
+          if (/^https?:\/\//i.test(url)) return ''
+          const normalized = url.replace(/\\/g, '/').replace(/\/+$/, '').replace(/^\.+\//, '').replace(/^\/+/, '')
+          if (!normalized || normalized.includes('..')) return ''
+          const parts = normalized.split('/').filter(Boolean)
+          if (parts.length === 0) return ''
+          const leaf = parts[parts.length - 1] || ''
+          if (/\.(xml|html|htm)$/i.test(leaf) && parts.length > 1) return parts.slice(0, -1).join('/')
+          return normalized
+        })()
+
         const stubForNode = (nodeUrl: string, nodeId: string) => {
           const v = coerceWebpageView(defaultView)
           const lines = [
             '---',
             `kgWebpageUrl: "${nodeUrl}"`,
             `kgWebpageView: "${v}"`,
+            !/^https?:\/\//i.test(nodeUrl) && localSiteRootRel ? `kgWebpageSiteRootRel: "${localSiteRootRel}"` : null,
             `kgWebsiteImportId: "${importId}"`,
             `kgWebsiteNodeId: "${nodeId}"`,
           ]
@@ -673,7 +687,7 @@ export function useWorkspaceFileActions(args: {
             lines.push(`kgWebsiteOutputDirRel: "${outputDirRel.trim()}"`)
           }
           lines.push('---', '')
-          return lines.join('\n')
+          return lines.filter(Boolean).join('\n')
         }
 
         const shouldGenerateArtifactDocs = generateArtifactDocs
@@ -773,6 +787,32 @@ export function useWorkspaceFileActions(args: {
               const text = await (async () => {
                 if (!shouldGenerateArtifactDocs) return stubForNode(row.nodeUrl, row.nodeId)
                 try {
+                  const serverMarkdown = await (async () => {
+                    try {
+                      const t = await fetchWebsiteImportArtifact({
+                        importId,
+                        nodeId: row.nodeId,
+                        outputDirRel: outputDirRel || undefined,
+                        kind: 'markdown',
+                        signal: ctrl.signal,
+                      })
+                      if (t && t.trim()) return t
+                    } catch {
+                      void 0
+                    }
+                    return ''
+                  })()
+
+                  if (serverMarkdown) {
+                    return buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
+                      upstreamMarkdown: serverMarkdown,
+                      url: row.nodeUrl,
+                      view: coerceWebpageView(defaultView),
+                      title: row.nodeTitle,
+                      websiteImportMeta: { importId, nodeId: row.nodeId, outputDirRel: outputDirRel || undefined },
+                    })
+                  }
+
                   const rawHtml = await fetchWebsiteImportArtifact({
                     importId,
                     nodeId: row.nodeId,
@@ -780,9 +820,8 @@ export function useWorkspaceFileActions(args: {
                     kind: 'rawHtml',
                     signal: ctrl.signal,
                   })
-                  await new Promise<void>(resolve => setTimeout(resolve, 0))
                   const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
-                  const markdown = convertWebpageHtmlToMarkdownArtifact({ html: boundedHtml, url: row.nodeUrl })
+                  const markdown = await convertWebpageHtmlToMarkdownArtifactAsync({ html: boundedHtml, url: row.nodeUrl })
                   return buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
                     upstreamMarkdown: markdown,
                     url: row.nodeUrl,

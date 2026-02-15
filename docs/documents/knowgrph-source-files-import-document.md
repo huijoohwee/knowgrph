@@ -134,17 +134,17 @@ sequenceDiagram
 - **Error Handling**: Returns structured JSON errors (`{ "ok": false, "error": "..." }`) even on failure, ensuring the UI displays specific messages (e.g., "Transcript unavailable" due to IP blocking) instead of generic request failures.
 - **Thumbnail**: Extracts high-res thumbnails via oEmbed or fallback URL construction.
 
-### Webpage Import (URL → Markdown Parse + Optional HTML Viewer Render)
+### Webpage Import (URL/Local Path → Markdown SSOT + HTML/JSON Viewer)
 
-**From/To**: Source Files / Workspace Import URL → browser-native webpage conversion (hidden sandboxed iframe DOM export + proxy-fetch fallback) → Markdown → Graph parse; Viewer/Presentation optionally → `/__webpage_proxy` (same-origin iframe proxy) → sandboxed HTML render.
+**From/To**: Source Files / Workspace Import URL → browser-native webpage conversion (hidden sandboxed iframe DOM export + proxy-fetch fallback) → Markdown → Graph parse; Viewer/Presentation/Slides → fetch HTML via `/__webpage_proxy` (or stored artifacts) → sanitize → sandboxed iframe `srcdoc`.
 
 **Decision Logic**:
 - **Graph Alignment**: Webpages convert to Markdown for Document Structure parsing, preserving graph/content sync across touchpoints.
 - **View Mode (Strictly View-Only)**: Per-file `kgWebpageView` frontmatter (and default `webpageImportView` setting) selects `markdown | json | html`.
-- **Active-row dropdown contract**:
-  - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-  - `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe `srcdoc`.
-  - `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe `srcdoc`.
+- **Mode contract (active-row dropdown)**:
+  - (1) `Markdown` (default): Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
+  - (2) `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe `srcdoc` (view-only).
+  - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe `srcdoc` (view-only).
 
 **Webpage Markdown Artifact (Editor SSOT)**:
 - Generated Markdown is a deterministic, site-agnostic artifact doc derived from converted Markdown plus generic heuristics.
@@ -153,12 +153,13 @@ sequenceDiagram
 
 **Shared token vocabulary (mode-independent)**: the app uses a generic signal extraction layer to derive consistent tokens from Markdown across modes: `[NAV]`, `[CTA]`, `[LINK]`, `[PRICE]`, `[TIME]`.
 - **Iframe implementation**:
-  - Use one of two sandboxed iframe strategies:
-    - **Proxy `src`**: `src="/__webpage_proxy?url=..."` for highest fidelity (scripts may run, still confined by sandbox).
-    - **Sanitized `srcdoc` snapshot**: used when a safe non-clipped HTML snapshot is available (e.g. stored `raw.html` artifact or editor override). The srcdoc builder strips scripts/handlers and injects `<base>` + scroll-sync.
+  - HTML/JSON always render via sandboxed iframe `srcdoc`.
+  - HTML source is fetched via `/__webpage_proxy` (remote or local in-repo path), or read from stored website-import artifacts when available.
+  - For local in-repo webpages, assets resolve through `/__repo_file/*` and optional `kgWebpageSiteRootRel` for root-relative URLs.
+  - Script execution is controlled by `webpageViewerScriptPolicy` (default `strip`).
 - **Iframe sandbox policy**: Use `sandbox="allow-scripts"` with `referrerPolicy="no-referrer"`; forbid top-level navigation. Also set a restrictive `allow` feature policy (no geolocation/camera/mic/payment/clipboard).
 - **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers, trigger re-parsing/apply-to-graph, or write default import settings.
-- **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy` for same-origin loading, and sets a self-origin `<base>` to prevent accidental navigation to the remote site.
+- **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy` for same-origin loading, and supports local in-repo file reads for HTML + assets.
 - **Neutrality**: No site-specific parsing; URL normalization + bounded fetch/convert only.
 
 **Native fidelity upgrade (no headless browser)**:
@@ -168,7 +169,7 @@ sequenceDiagram
 
 ### Website Import (Sitemap/Tree → Workspace Pages + Artifact-Backed View Switching)
 
-**From/To**: Markdown Workspace → Import website (Globe button) → `/__website_import/start` → sitemap discovery + bounded crawling → per-page artifacts persisted under `.knowgrph-workspace/website-imports/<importId>/nodes/<nodeId>/` → workspace stubs written under `/websites/<host>/<importId>/...`.
+**From/To**: Markdown Workspace → Import website (Globe button) → `/__website_import/start` → sitemap discovery + bounded crawling → per-page artifacts persisted under `.knowgrph-workspace/website-imports/<importId>/nodes/<nodeId>/` (in this repo the directory is moved to `sandbox/.knowgrph-workspace` via symlink) → workspace stubs written under `/websites/<host>/<importId>/...`.
 
 **Website Sitemap Artifact (workspace)**:
 - Writes `website.sitemap.md` at the website import root folder.
@@ -186,11 +187,11 @@ sequenceDiagram
 - **View switching (active-row dropdown)**: `Markdown | JSON | HTML` is strictly view-only (no apply-to-graph, no layout/zoom mutation, no default-setting mutation).
 - **Artifact mapping (editor text)**: `json→conversionJson`, `html→rawHtml`, `markdown→(no override)`.
 - **Frontmatter preservation**: View switching must preserve existing frontmatter keys (including `kgWebsiteImportId/kgWebsiteNodeId/kgWebsiteOutputDirRel`) so artifact-backed HTML/JSON resolution remains stable after switching.
-- **HTML fidelity**: For `kgWebpageView = html`, Viewer/Presentation/Slides render 100% fidelity HTML in a sandboxed iframe. The HTML payload is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy. `json` renders sandboxed JSON code.
+- **HTML fidelity**: For `kgWebpageView = html`, Viewer/Presentation/Slides render sandboxed HTML via `srcdoc`. HTML is sourced from stored `raw.html` artifacts (preferred) or via the same-origin proxy. `json` renders sandboxed JSON code via `srcdoc`.
 - **Markdown artifact**: The Markdown view can embed a ` ```text kg-webpage-layout ` block as a lightweight, editable layout snapshot.
 
 **Single-URL Artifact Path (non-sitemap)**:
-- Source Files / Markdown Workspace “Import URL” can also persist per-URL artifacts via `POST /__website_import/import-url`, writing `raw.html`, `page.md`, `conversion.json` under `.knowgrph-workspace/...`.
+- Source Files / Markdown Workspace “Import URL” can also persist per-URL artifacts via `POST /__website_import/import-url`, writing `raw.html`, `page.md`, `conversion.json` under `.knowgrph-workspace/...` (in this repo the directory is moved to `sandbox/.knowgrph-workspace` via symlink).
  
 Note: The current website-import artifact set is `raw.html`, `page.md`, `conversion.json` (no separate layout artifacts).
 

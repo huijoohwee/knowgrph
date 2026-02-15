@@ -2228,9 +2228,13 @@ export function MarkdownWorkspace() {
 
         if (html) {
           const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-          const { convertWebpageHtmlToMarkdownArtifact } = await import('@/lib/websites/webpageHtmlToMarkdownArtifact')
+          const { convertWebpageHtmlToMarkdownArtifactAsync } = await import('@/lib/websites/webpageHtmlToMarkdownArtifact')
           const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
-          const md = convertWebpageHtmlToMarkdownArtifact({ html: bounded, url })
+          const md = await convertWebpageHtmlToMarkdownArtifactAsync({
+            html: bounded,
+            url,
+            onProgress: (step) => setStatusProgress(`Converting HTML: ${step}`),
+          })
           if (text.length > 1200) {
             const normalize = (s: string): string => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()
             const normMd = normalize(md)
@@ -2303,8 +2307,12 @@ export function MarkdownWorkspace() {
         bodyMd = markdownOverride
       } else {
         const bounded = rawHtml.length > 4_000_000 ? rawHtml.slice(0, 4_000_000) : rawHtml
-        const { convertWebpageHtmlToMarkdownArtifact } = await import('@/lib/websites/webpageHtmlToMarkdownArtifact')
-        bodyMd = convertWebpageHtmlToMarkdownArtifact({ html: bounded, url })
+        const { convertWebpageHtmlToMarkdownArtifactAsync } = await import('@/lib/websites/webpageHtmlToMarkdownArtifact')
+        bodyMd = await convertWebpageHtmlToMarkdownArtifactAsync({
+          html: bounded,
+          url,
+          onProgress: (step) => setStatusProgress(`Converting HTML: ${step}`),
+        })
       }
       const baseDoc = upsertWebpageFrontmatterMeta(String(activeText || ''), { url, view: 'markdown' })
       const block = extractYamlFrontmatterBlock(baseDoc)

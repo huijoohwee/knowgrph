@@ -22,6 +22,7 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 
 - `kgWebpageUrl`: source URL
 - `kgWebpageView`: `markdown | json | html`
+- `kgWebpageSiteRootRel`: optional local in-repo site root (for resolving `/assets/...` in `srcdoc`)
 - `kgWebsiteImportId`: optional website-import job id
 - `kgWebsiteNodeId`: optional stable node id
 - `kgWebsiteOutputDirRel`: optional artifact root override
@@ -30,7 +31,7 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 
 ### `GET /__webpage_proxy?url=...`
 
-- Fetches upstream HTML and **injects a same-origin compatibility layer**:
+- Fetches upstream HTML (or reads local file if `url` is a path within the workspace) and **injects a same-origin compatibility layer**:
   - strips CSP / XFO meta tags and upstream `<base>`
   - rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy?url=...`
   - ensures `/__webpage_*` links resolve same-origin in iframe context
@@ -38,16 +39,26 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 
 Additionally, the injected layer exposes a **DOM export bridge** (see `kg-export-dom`) that lets the host request a best-effort rendered `text` or `html` snapshot from inside the sandboxed iframe.
 
+Note: the HTML Viewer typically uses `/__webpage_proxy` (or stored `raw.html` artifacts) as the HTML source, but the viewer surface renders via sanitized `srcdoc` to keep the app deterministic and prevent freezes.
+
 ### `GET /__webpage_asset_proxy?url=...`
 
 - Proxies assets (CSS/JS/images/fonts/media) as same-origin responses to improve fidelity.
+- Supports fetching remote URLs (bounded) or reading local files within the workspace.
 - Must be bounded (timeout/max-bytes) and not rely on streaming indefinite bodies.
+
+### `GET /__repo_file/*`
+
+- Serves local in-repo files (CSS/images/fonts/etc) by path under the repo root.
+- Used as a stable `srcdoc` base URL so local webpages can resolve relative assets without hardcoded domains.
 
 ### `POST /__website_import/import-url`
 
-- Persists per-URL artifacts to `.knowgrph-workspace/...`:
+- Persists per-URL artifacts to the workspace output dir (default `.knowgrph-workspace/...`; in this repo the directory is moved to `sandbox/.knowgrph-workspace` via symlink):
   - `raw.html` (guaranteed)
 - `page.md` and `conversion.json` may exist for some imports; when present they are served via `/__website_import/artifact`, otherwise the client falls back to on-demand conversion.
+
+Conversion fallback is bounded and should yield to the main thread for large HTML payloads.
 
 ### `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`
 
@@ -75,12 +86,17 @@ Webpage HTML/JSON view renders via a sandboxed iframe using a **sanitized `srcdo
 The srcdoc builder:
 
 - strips `Content-Security-Policy` and refresh `<meta http-equiv="...">` tags (avoid self-blocking / auto-redirect)
-- strips all `<script>` tags and inline `on*=` handlers (untrusted scripts do not execute)
+- strips all `<script>` tags and inline `on*=` handlers by default (untrusted scripts do not execute)
 - upserts a sandbox CSP meta allowing images/media/styles while restricting scripts to injected utilities
 - injects scroll-sync utilities (iframe ↔ parent via `postMessage`)
 - upserts `<base>` to preserve correct resolution (use the original URL, or `${window.location.origin}/` when serving proxied assets)
 
 This policy prioritizes safety and determinism. For JS-rendered content capture, use the DOM export bridge (`kg-export-dom`) to extract a rendered snapshot and then upgrade the saved Markdown.
+
+Script policy is controlled by `webpageViewerScriptPolicy`:
+
+- `strip` (default): sanitize HTML and prevent upstream JS.
+- `allow`: keep upstream scripts (may be slower).
 
 ## DOM Export Bridge (`kg-export-dom`)
 
@@ -119,16 +135,17 @@ The sandbox must forbid top-level navigation (do not include `allow-top-navigati
 
 When importing a website (sitemap/tree), each created workspace entry can be generated as a full **Webpage Markdown Artifact** (Document Structure analysis) instead of a frontmatter-only stub.
 
-- Setting: `websiteImportGenerateWebpageArtifactDocs` (default `true`)
-- Behavior: for each manifest node, fetch the stored `raw.html` artifact and generate the detailed artifact markdown (HTML→artifact conversion), while preserving the per-page frontmatter contract keys.
+- Setting: `websiteImportGenerateWebpageArtifactDocs` (default `false`)
+- Behavior: when enabled, the import prefers server-generated `page.md` artifacts (when available) and falls back to client conversion if needed. When disabled, it writes frontmatter-only stubs for speed and stability.
 
 Additionally, the website import root folder includes a generated `website.sitemap.md` artifact that summarizes the imported pages (tree + pages table).
 
 ## View Mode Semantics
 
-- `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-- `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code (iframe `srcdoc`).
-- `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via sanitized `srcdoc`.
+- **Mode contract (ordered)**:
+  - (1) `Markdown` (default): Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
+  - (2) `HTML`: Editor stays editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe `srcdoc` (view-only).
+  - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe `srcdoc` (view-only).
 
 ## Shared Signal Tokens (Mode-Independent)
 

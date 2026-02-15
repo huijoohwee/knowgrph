@@ -65,7 +65,81 @@ type WebsiteImportOptions = {
   maxPages?: number
   concurrency?: number
   includeImages?: boolean
+  generateMarkdownArtifacts?: boolean
   outputDirRel?: string
+}
+
+const isHttpUrl = (raw: string): boolean => /^https?:\/\//i.test(String(raw || '').trim())
+
+const posixPathFromFsAbs = (absPath: string): string => String(absPath || '').replace(/\\/g, '/').replace(/^\/+/, '')
+
+const resolveLocalInputPath = async (repoRoot: string, raw: string): Promise<{ ok: true; abs: string; rel: string } | { ok: false; error: string }> => {
+  const trimmed = String(raw || '').trim()
+  if (!trimmed) return { ok: false, error: 'Missing local path' }
+  const normalized = trimmed.replace(/\\/g, '/').replace(/^file:\/\//i, '').replace(/^\.+\//, '').replace(/^\/+/, '')
+  if (!normalized || normalized.includes('..')) return { ok: false, error: 'Invalid local path' }
+  const rootAbs = path.resolve(repoRoot)
+  const abs = path.resolve(rootAbs, normalized)
+  if (!abs.startsWith(rootAbs + path.sep) && abs !== rootAbs) return { ok: false, error: 'Local path escapes repo root' }
+  try {
+    const stat = await fs.stat(abs)
+    if (!stat.isFile() && !stat.isDirectory()) return { ok: false, error: 'Not found' }
+  } catch {
+    return { ok: false, error: 'Not found' }
+  }
+  return { ok: true, abs, rel: posixPathFromFsAbs(path.relative(rootAbs, abs)) }
+}
+
+const toTreePath = (rootKind: 'http' | 'local', value: string, localRootRel?: string): string => {
+  if (rootKind === 'http') return urlToTreePath(value)
+  const localRoot = String(localRootRel || '').replace(/\\/g, '/').replace(/\/+$/, '').replace(/^\/+/, '')
+  const rel = String(value || '').replace(/\\/g, '/').replace(/^\/+/, '')
+  const withoutRoot = localRoot && rel.startsWith(localRoot + '/') ? rel.slice(localRoot.length + 1) : rel
+  return `/${withoutRoot || ''}`
+}
+
+const readLocalTextWithLimit = async (fileAbs: string, maxBytes: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
+  try {
+    const stat = await fs.stat(fileAbs)
+    if (!stat.isFile()) return { ok: false, error: 'Not found' }
+    if (stat.size > maxBytes) return { ok: false, error: 'File too large' }
+    const text = await fs.readFile(fileAbs, 'utf8')
+    return { ok: true, text }
+  } catch {
+    return { ok: false, error: 'Not found' }
+  }
+}
+
+const listLocalHtmlFiles = async (rootAbs: string, maxPages: number): Promise<string[]> => {
+  const out: string[] = []
+  const queue: string[] = [rootAbs]
+  const rootResolved = path.resolve(rootAbs)
+  const skipDirs = new Set(['node_modules', '.git', '.knowgrph-workspace', 'dist', 'build', 'out', '.next', '.cache'])
+  while (queue.length && out.length < maxPages) {
+    const dir = queue.shift() as string
+    let entries: Array<import('node:fs').Dirent> = []
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const ent of entries) {
+      if (out.length >= maxPages) break
+      const name = ent.name
+      if (!name || name.startsWith('.')) continue
+      const abs = path.resolve(dir, name)
+      if (!abs.startsWith(rootResolved + path.sep) && abs !== rootResolved) continue
+      if (ent.isDirectory()) {
+        if (skipDirs.has(name)) continue
+        queue.push(abs)
+        continue
+      }
+      if (!ent.isFile()) continue
+      const lower = name.toLowerCase()
+      if (lower.endsWith('.html') || lower.endsWith('.htm')) out.push(abs)
+    }
+  }
+  return out
 }
 
 const normalizeRel = (raw: string): string => String(raw || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
@@ -341,7 +415,10 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
       })
       const bodyRaw = Buffer.concat(chunks).toString('utf8')
       const body = safeJsonParse<{ url?: unknown; options?: unknown }>(bodyRaw) || {}
-      const pageUrl = normalizeUrl(typeof body.url === 'string' ? body.url : '')
+      const pageUrlRaw = typeof body.url === 'string' ? body.url : ''
+      const pageUrlHttp = normalizeUrl(pageUrlRaw)
+      const pageUrlLocal = pageUrlHttp ? null : await resolveLocalInputPath(args.repoRoot, pageUrlRaw)
+      const pageUrl = pageUrlHttp ? pageUrlHttp : pageUrlLocal && pageUrlLocal.ok === true ? pageUrlLocal.rel : ''
       if (!pageUrl) {
         res.statusCode = 400
         res.setHeader('Content-Type', 'application/json')
@@ -361,11 +438,15 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
       try {
         await fs.mkdir(nodeDirAbs, { recursive: true })
 
-        const rawHtmlRes = await fetchTextWithLimit(pageUrl, {
-          timeoutMs: 30_000,
-          maxBytes: 8 * 1024 * 1024,
-          accept: 'text/html,*/*;q=0.9',
-        })
+        const rawHtmlRes = pageUrlHttp
+          ? await fetchTextWithLimit(pageUrlHttp, {
+              timeoutMs: 30_000,
+              maxBytes: 8 * 1024 * 1024,
+              accept: 'text/html,*/*;q=0.9',
+            })
+          : pageUrlLocal && pageUrlLocal.ok === true
+            ? await readLocalTextWithLimit(pageUrlLocal.abs, 8 * 1024 * 1024)
+            : { ok: false as const, error: 'Not found' }
         if (rawHtmlRes.ok !== true) {
           errors.push({ url: pageUrl, error: rawHtmlRes.error })
         } else {
@@ -382,7 +463,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
         const node: WebsiteImportNode = {
           nodeId,
           url: pageUrl,
-          path: urlToTreePath(pageUrl),
+          path: toTreePath(pageUrlHttp ? 'http' : 'local', pageUrl),
           title: title || undefined,
           status: errors.length > 0 ? 'error' : 'ok',
           artifacts: {
@@ -425,7 +506,23 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
       })
       const bodyRaw = Buffer.concat(chunks).toString('utf8')
       const body = safeJsonParse<{ url?: unknown; options?: unknown }>(bodyRaw) || {}
-      const rootUrl = normalizeUrl(typeof body.url === 'string' ? body.url : '')
+      const rootInput = typeof body.url === 'string' ? body.url : ''
+      const rootUrlHttp = normalizeUrl(rootInput)
+      const rootLocalResolved = rootUrlHttp ? null : await resolveLocalInputPath(args.repoRoot, rootInput)
+      const rootKind: 'http' | 'local' = rootUrlHttp ? 'http' : 'local'
+      const rootUrl = await (async () => {
+        if (rootUrlHttp) return rootUrlHttp
+        if (!rootLocalResolved || rootLocalResolved.ok !== true) return ''
+        try {
+          const st = await fs.stat(rootLocalResolved.abs)
+          if (!st.isFile()) return rootLocalResolved.rel
+          const parts = rootLocalResolved.rel.split('/').filter(Boolean)
+          if (parts.length <= 1) return rootLocalResolved.rel
+          return parts.slice(0, -1).join('/')
+        } catch {
+          return rootLocalResolved.rel
+        }
+      })()
       if (!rootUrl) {
         res.statusCode = 400
         res.setHeader('Content-Type', 'application/json')
@@ -439,6 +536,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
         maxPages: clampInt(opt.maxPages, 50, 1, 500),
         concurrency: clampInt(opt.concurrency, 4, 1, 12),
         includeImages: opt.includeImages !== false,
+        generateMarkdownArtifacts: opt.generateMarkdownArtifacts === true,
         outputDirRel: typeof opt.outputDirRel === 'string' ? opt.outputDirRel : undefined,
       }
 
@@ -531,37 +629,138 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
           await fs.mkdir(path.join(importDirAbs, 'nodes'), { recursive: true })
           await updateManifest({ status: 'running', progress: { ...initialProgress, stage: 'discovering', updatedAtMs: Date.now() } }, { flush: true })
 
-          const explicitSitemap = normalizeUrl(options.sitemapUrl || '')
-          const discovered = explicitSitemap ? explicitSitemap : options.discoverSitemap ? await discoverSitemapUrl(rootUrl) : null
-          const effectiveSitemap = discovered ? normalizeUrl(discovered) : null
+          const errors: Array<{ url: string; error: string }> = []
+          const repoRootAbs = path.resolve(args.repoRoot)
+          const localRootAbs = rootKind === 'local' && rootLocalResolved && rootLocalResolved.ok === true ? rootLocalResolved.abs : ''
+          const localSiteRootAbs = rootKind === 'local'
+            ? (async () => {
+                if (!localRootAbs) return ''
+                try {
+                  const st = await fs.stat(localRootAbs)
+                  return st.isDirectory() ? localRootAbs : path.dirname(localRootAbs)
+                } catch {
+                  return ''
+                }
+              })()
+            : ''
+          const localSiteRootAbsResolved = rootKind === 'local' ? await localSiteRootAbs : ''
+          const localSiteRootRel = rootKind === 'local' && localSiteRootAbsResolved
+            ? posixPathFromFsAbs(path.relative(repoRootAbs, localSiteRootAbsResolved))
+            : ''
 
-          const sitemapRes: { ok: true; urls: string[] } | { ok: false; error: string } = effectiveSitemap
-            ? await collectSitemapUrls(rootUrl, effectiveSitemap, { timeoutMs: 30_000, maxBytes: 3 * 1024 * 1024, maxSitemaps: 30 })
-            : { ok: true, urls: [] }
-          const urls = sitemapRes.ok ? sitemapRes.urls : []
-          await updateManifest({ progress: { ...initialProgress, stage: 'crawling', updatedAtMs: Date.now() } })
-          const crawled = await crawlInternalUrls({
-            rootUrl,
-            seedUrls: urls,
-            maxPages: options.maxPages || 50,
-            timeoutMs: 30_000,
-            maxBytes: 2 * 1024 * 1024,
-          })
-          const combined = (() => {
-            const out: string[] = []
+          let sitemapUrlForManifest: string | undefined
+          const limited = await (async (): Promise<string[]> => {
+            if (rootKind === 'http') {
+              const explicitSitemap = normalizeUrl(options.sitemapUrl || '')
+              const discovered = explicitSitemap ? explicitSitemap : options.discoverSitemap ? await discoverSitemapUrl(rootUrl) : null
+              const effectiveSitemap = discovered ? normalizeUrl(discovered) : null
+              sitemapUrlForManifest = effectiveSitemap || undefined
+
+              const sitemapRes: { ok: true; urls: string[] } | { ok: false; error: string } = effectiveSitemap
+                ? await collectSitemapUrls(rootUrl, effectiveSitemap, { timeoutMs: 30_000, maxBytes: 3 * 1024 * 1024, maxSitemaps: 30 })
+                : { ok: true, urls: [] }
+              const urls = sitemapRes.ok ? sitemapRes.urls : []
+              await updateManifest({ progress: { ...initialProgress, stage: 'crawling', updatedAtMs: Date.now() } })
+              const crawled = await crawlInternalUrls({
+                rootUrl,
+                seedUrls: urls,
+                maxPages: options.maxPages || 50,
+                timeoutMs: 30_000,
+                maxBytes: 2 * 1024 * 1024,
+              })
+              const combined = (() => {
+                const out: string[] = []
+                const seen = new Set<string>()
+                for (const u of [...urls, ...crawled]) {
+                  const n = normalizeUrl(u)
+                  if (!n) continue
+                  if (seen.has(n)) continue
+                  seen.add(n)
+                  out.push(n)
+                }
+                return out
+              })()
+              if (sitemapRes.ok !== true && effectiveSitemap) errors.push({ url: effectiveSitemap, error: sitemapRes.error })
+              return combined.slice(0, options.maxPages || 50)
+            }
+
+            if (!localSiteRootAbsResolved) return []
+            await updateManifest({ progress: { ...initialProgress, stage: 'crawling', updatedAtMs: Date.now() } })
+
+            const explicitLocalSitemap = options.sitemapUrl && !isHttpUrl(options.sitemapUrl)
+              ? await resolveLocalInputPath(args.repoRoot, options.sitemapUrl)
+              : null
+            const discoveredLocalSitemap = options.discoverSitemap
+              ? (async () => {
+                  const candidates = ['sitemap.xml', 'sitemap_index.xml', 'wp-sitemap.xml']
+                  for (const name of candidates) {
+                    const abs = path.join(localSiteRootAbsResolved, name)
+                    try {
+                      const st = await fs.stat(abs)
+                      if (st.isFile()) return abs
+                    } catch {
+                      void 0
+                    }
+                  }
+                  return ''
+                })()
+              : ''
+            const localSitemapAbs = explicitLocalSitemap && explicitLocalSitemap.ok === true
+              ? explicitLocalSitemap.abs
+              : discoveredLocalSitemap
+                ? await discoveredLocalSitemap
+                : ''
+            sitemapUrlForManifest = localSitemapAbs ? posixPathFromFsAbs(path.relative(repoRootAbs, localSitemapAbs)) : undefined
+
+            const sitemapUrls = await (async () => {
+              if (!localSitemapAbs) return [] as string[]
+              const xmlRes = await readLocalTextWithLimit(localSitemapAbs, 3 * 1024 * 1024)
+              if (xmlRes.ok !== true) {
+                errors.push({ url: posixPathFromFsAbs(path.relative(repoRootAbs, localSitemapAbs)), error: xmlRes.error })
+                return []
+              }
+              const locs = extractXmlLocs(xmlRes.text)
+              const out: string[] = []
+              for (const loc of locs) {
+                const http = normalizeUrl(loc)
+                if (http) {
+                  out.push(http)
+                  continue
+                }
+                const normalized = String(loc || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
+                if (!normalized || normalized.includes('..')) continue
+                const abs = path.resolve(localSiteRootAbsResolved, normalized)
+                if (!abs.startsWith(localSiteRootAbsResolved + path.sep) && abs !== localSiteRootAbsResolved) continue
+                try {
+                  const st = await fs.stat(abs)
+                  if (!st.isFile()) continue
+                } catch {
+                  continue
+                }
+                const rel = posixPathFromFsAbs(path.relative(repoRootAbs, abs))
+                out.push(rel)
+              }
+              return out
+            })()
+
+            const htmlFilesAbs = sitemapUrls.length
+              ? []
+              : await listLocalHtmlFiles(localSiteRootAbsResolved, options.maxPages || 50)
+
+            const scanned = htmlFilesAbs.map(abs => posixPathFromFsAbs(path.relative(repoRootAbs, abs)))
+            const combined = [...sitemapUrls, ...scanned]
             const seen = new Set<string>()
-            for (const u of [...urls, ...crawled]) {
-              const n = normalizeUrl(u)
-              if (!n) continue
-              if (seen.has(n)) continue
-              seen.add(n)
-              out.push(n)
+            const out: string[] = []
+            for (const u of combined) {
+              const key = String(u || '').trim()
+              if (!key) continue
+              if (seen.has(key)) continue
+              seen.add(key)
+              out.push(key)
+              if (out.length >= (options.maxPages || 50)) break
             }
             return out
           })()
-          const limited = combined.slice(0, options.maxPages || 50)
-          const errors: Array<{ url: string; error: string }> = []
-          if (sitemapRes.ok !== true && effectiveSitemap) errors.push({ url: effectiveSitemap, error: sitemapRes.error })
 
           const initialRunProgress: WebsiteImportProgress = {
             stage: 'converting',
@@ -573,7 +772,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
             updatedAtMs: Date.now(),
           }
 
-          await updateManifest({ sitemapUrl: effectiveSitemap || undefined, errors, progress: initialRunProgress }, { flush: true })
+          await updateManifest({ sitemapUrl: sitemapUrlForManifest, errors, progress: initialRunProgress }, { flush: true })
 
           const nodes: WebsiteImportNode[] = []
           const queue = limited.slice()
@@ -588,19 +787,47 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
             return u
           }
 
+          let convertEnv: { restore: () => void } | null = null
+          let convertFn: ((args: { html: string; url: string }) => string) | null = null
+          let convertLock = Promise.resolve()
+          const withConvertLock = async <T,>(run: () => Promise<T>): Promise<T> => {
+            const prev = convertLock
+            let resolveNext: (() => void) | null = null
+            convertLock = new Promise<void>(resolve => {
+              resolveNext = resolve
+            })
+            await prev
+            try {
+              return await run()
+            } finally {
+              if (resolveNext) resolveNext()
+            }
+          }
+
+          const ensureConvertReady = async () => {
+            if (!options.generateMarkdownArtifacts) return
+            if (convertFn) return
+            const { initJsdomHarness } = await import('../../../tests/lib/jsdomHarness')
+            convertEnv = initJsdomHarness()
+            const mod = await import('../webpageHtmlToMarkdownArtifact')
+            convertFn = mod.convertWebpageHtmlToMarkdownArtifact as (args: { html: string; url: string }) => string
+          }
+
           const processUrl = async (u: string) => {
             const nodeId = hashHex(u).slice(0, 24)
             const nodeDirAbs = path.join(importDirAbs, 'nodes', nodeId)
             await fs.mkdir(nodeDirAbs, { recursive: true })
 
-            const rawHtmlRes = await fetchTextWithLimit(u, {
-              timeoutMs: 30_000,
-              maxBytes: 8 * 1024 * 1024,
-              accept: 'text/html,*/*;q=0.9',
-            })
+            const rawHtmlRes = rootKind === 'http' || isHttpUrl(u)
+              ? await fetchTextWithLimit(u, {
+                  timeoutMs: 30_000,
+                  maxBytes: 8 * 1024 * 1024,
+                  accept: 'text/html,*/*;q=0.9',
+                })
+              : await readLocalTextWithLimit(path.resolve(repoRootAbs, u), 8 * 1024 * 1024)
             if (rawHtmlRes.ok !== true) {
               errors.push({ url: u, error: rawHtmlRes.error })
-              nodes.push({ nodeId, url: u, path: urlToTreePath(u), status: 'error', artifacts: {} })
+              nodes.push({ nodeId, url: u, path: toTreePath(isHttpUrl(u) ? 'http' : 'local', u, localSiteRootRel), status: 'error', artifacts: {} })
               errorCount += 1
               return
             }
@@ -611,20 +838,49 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
               void 0
             }
             const title = extractTitleFromHtml(html)
+
+            const artifacts: WebsiteImportNode['artifacts'] = {
+              rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'),
+            }
+
+            if (options.generateMarkdownArtifacts) {
+              try {
+                await ensureConvertReady()
+                if (convertFn) {
+                  const markdown = await withConvertLock(async () => convertFn ? convertFn({ html, url: u }) : '')
+                  if (markdown) {
+                    try {
+                      await fs.writeFile(path.join(nodeDirAbs, 'page.md'), markdown, 'utf8')
+                      artifacts.markdownRelPath = path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'page.md')
+                    } catch {
+                      void 0
+                    }
+                    try {
+                      const json = JSON.stringify({ ok: true, name: 'webpage.md', markdown, title: title || undefined, source_url: u, images: [] }, null, 2)
+                      await fs.writeFile(path.join(nodeDirAbs, 'conversion.json'), json, 'utf8')
+                      artifacts.conversionJsonRelPath = path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'conversion.json')
+                    } catch {
+                      void 0
+                    }
+                  }
+                }
+              } catch {
+                void 0
+              }
+            }
             nodes.push({
               nodeId,
               url: u,
-              path: urlToTreePath(u),
+              path: toTreePath(isHttpUrl(u) ? 'http' : 'local', u, localSiteRootRel),
               title: title || undefined,
               status: 'ok',
-              artifacts: {
-                rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'),
-              },
+              artifacts,
             })
             okCount += 1
           }
 
-          const workers = Array.from({ length: options.concurrency || 4 }).map(async () => {
+          const workerCount = rootKind === 'local' && options.generateMarkdownArtifacts ? 1 : (options.concurrency || 4)
+          const workers = Array.from({ length: workerCount }).map(async () => {
             while (true) {
               const u = nextUrl()
               if (!u) return
@@ -646,6 +902,13 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
 
           await Promise.all(workers)
           nodes.sort((a, b) => a.path.localeCompare(b.path))
+          if (convertEnv) {
+            try {
+              convertEnv.restore()
+            } catch {
+              void 0
+            }
+          }
           await updateManifest(
             {
               status: 'done',

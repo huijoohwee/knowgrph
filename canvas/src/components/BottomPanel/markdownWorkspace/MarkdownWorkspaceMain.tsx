@@ -19,7 +19,7 @@ import {
 import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
 import {
   buildCodeViewerSrcdoc,
-  buildWebpageHtmlSrcdoc,
+  buildWebpageHtmlSrcdocAsync,
   fetchWebpageConversionJsonViaConvert,
   fetchWebpageHtmlAuto,
   fetchWebsiteImportArtifact,
@@ -216,26 +216,30 @@ function useWebpageIframeSrcdoc(args: {
   view: 'html' | 'json'
   websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string } | null
   htmlOverride?: string | null
+  siteRootRel?: string | null
   onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
   onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
-}): { srcDoc: string | null; src: string | null; error: string | null } {
-  const [state, setState] = React.useState<{ srcDoc: string | null; src: string | null; error: string | null }>({
-    srcDoc: null,
-    src: null,
-    error: null,
-  })
+}): { srcDoc: string | null; error: string | null } {
+  const [state, setState] = React.useState<{ srcDoc: string | null; error: string | null }>({ srcDoc: null, error: null })
+
+  const onStatusProgressRef = React.useRef(args.onStatusProgress)
+  const onStatusWithAutoClearRef = React.useRef(args.onStatusWithAutoClear)
+  React.useEffect(() => {
+    onStatusProgressRef.current = args.onStatusProgress
+    onStatusWithAutoClearRef.current = args.onStatusWithAutoClear
+  }, [args.onStatusProgress, args.onStatusWithAutoClear])
 
   const debouncedUrl = useDebouncedValue(args.url, 120, args.enabled)
   const debouncedHtmlOverride = useDebouncedValue(args.htmlOverride ?? null, 250, args.enabled)
 
   React.useEffect(() => {
     if (!args.enabled) {
-      setState({ srcDoc: null, src: null, error: null })
+      setState({ srcDoc: null, error: null })
       return
     }
     const url = String(debouncedUrl || '').trim()
     if (!url) {
-      setState({ srcDoc: null, src: null, error: null })
+      setState({ srcDoc: null, error: null })
       return
     }
 
@@ -243,9 +247,9 @@ function useWebpageIframeSrcdoc(args: {
     const ctrl = new AbortController()
 
     void (async () => {
-      args.onStatusProgress?.('Updating view')
+      onStatusProgressRef.current?.('Updating view')
       if (args.view === 'json') {
-        args.onStatusProgress?.('Loading JSON')
+        onStatusProgressRef.current?.('Loading JSON')
         const rawJson = await (async () => {
           if (args.websiteImportMeta) {
             try {
@@ -268,7 +272,7 @@ function useWebpageIframeSrcdoc(args: {
           })
         })()
 
-        args.onStatusProgress?.('Rendering JSON')
+        onStatusProgressRef.current?.('Rendering JSON')
         const pretty = await runInIdle(() => {
           const t = String(rawJson || '')
           if (t.length > 900_000) {
@@ -281,19 +285,15 @@ function useWebpageIframeSrcdoc(args: {
             return t
           }
         }, { timeoutMs: 50 })
-        return { mode: 'srcdoc' as const, value: buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'json', text: pretty }) }
+        return buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'json', text: pretty })
       }
 
       const override = typeof debouncedHtmlOverride === 'string' && debouncedHtmlOverride.trim() ? debouncedHtmlOverride : null
-      if (!override && !args.websiteImportMeta) {
-        args.onStatusProgress?.('Loading HTML')
-        return { mode: 'src' as const, value: `/__webpage_proxy?url=${encodeURIComponent(url)}` }
-      }
 
-      args.onStatusProgress?.('Loading HTML')
+      onStatusProgressRef.current?.('Loading HTML')
       const rawHtml = await (async () => {
         if (override) return override
-        if (args.websiteImportMeta) {
+        if (args.websiteImportMeta && /^https?:\/\//i.test(url)) {
           try {
             return await fetchWebsiteImportArtifact({
               importId: args.websiteImportMeta.importId,
@@ -306,36 +306,95 @@ function useWebpageIframeSrcdoc(args: {
             void 0
           }
         }
-        return await fetchWebpageHtmlAuto({ url, signal: ctrl.signal })
+        return await fetchWebpageHtmlAuto({
+          url,
+          signal: ctrl.signal,
+          onProgress: (bytes) => {
+            const kb = Math.round(bytes / 1024)
+            try {
+              onStatusProgressRef.current?.(`Loading HTML (${kb}KB)`)
+            } catch {
+              void 0
+            }
+          },
+        })
       })()
 
-      args.onStatusProgress?.('Rendering HTML')
+      const scriptPolicy = useGraphStore.getState().webpageViewerScriptPolicy === 'allow' ? 'allow' : 'strip'
+      const siteRootRel = String(args.siteRootRel || '').trim().replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
+      const localDirRel = (() => {
+        const normalized = url.replace(/\\/g, '/').replace(/^\/+/, '')
+        const parts = normalized.split('/').filter(Boolean)
+        if (parts.length <= 1) return ''
+        return parts.slice(0, -1).join('/')
+      })()
+      const encodePathForUrl = (rel: string): string =>
+        String(rel || '')
+          .replace(/\\/g, '/')
+          .split('/')
+          .filter(Boolean)
+          .map(seg => encodeURIComponent(seg))
+          .join('/')
+      const origin = (() => {
+        try {
+          return typeof window !== 'undefined' && window.location && typeof window.location.origin === 'string' ? window.location.origin : ''
+        } catch {
+          return ''
+        }
+      })()
+      const baseHref = /^https?:\/\//i.test(url)
+        ? url
+        : origin
+          ? `${origin}/__repo_file/${encodePathForUrl(localDirRel || siteRootRel || '')}${(localDirRel || siteRootRel) ? '/' : ''}`
+          : 'https://example.invalid/'
+
+      const htmlPreprocessed = (() => {
+        if (!origin) return rawHtml
+        if (/^https?:\/\//i.test(url)) return rawHtml
+        const root = siteRootRel || localDirRel
+        if (!root) return rawHtml
+        const rootBase = `${origin}/__repo_file/${encodePathForUrl(root)}/`
+        let next = rawHtml
+        next = next.replace(/\b(src|href)\s*=\s*(["'])\s*\/(?!\/)/gi, (_m, a: string, q: string) => `${a}=${q}${rootBase}`)
+        next = next.replace(/url\(\s*\/(?!\/)/gi, `url(${rootBase}`)
+        return next
+      })()
+
+      onStatusProgressRef.current?.('Rendering HTML')
       const built = await runInIdle(
-        () => buildWebpageHtmlSrcdoc({ html: rawHtml, baseHref: url, scriptPolicy: 'allow' }),
+        () => buildWebpageHtmlSrcdocAsync({
+          html: htmlPreprocessed,
+          baseHref,
+          scriptPolicy,
+          onProgress: (step) => {
+            try {
+              onStatusProgressRef.current?.(`Sanitizing HTML: ${step}`)
+            } catch {
+              void 0
+            }
+          },
+        }),
         { timeoutMs: 50 },
       )
-      return { mode: 'srcdoc' as const, value: built }
+      return built
     })()
       .then((res) => {
         if (cancelled) return
-        if (res.mode === 'src') {
-          const src = res.value
-          setState(prev => (prev.src === src && prev.srcDoc === null && prev.error === null ? prev : { srcDoc: null, src, error: null }))
-        } else {
-          const srcDoc = res.value
-          setState(prev => (prev.srcDoc === srcDoc && prev.src === null && prev.error === null ? prev : { srcDoc, src: null, error: null }))
-        }
-        args.onStatusWithAutoClear?.('Updated', 1200)
+        const srcDoc = res
+        setState(prev => (prev.srcDoc === srcDoc && prev.error === null ? prev : { srcDoc, error: null }))
+        onStatusWithAutoClearRef.current?.('Updated', 1200)
       })
       .catch((err) => {
         if (cancelled) return
         const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
+        const name = err && typeof err === 'object' && 'name' in err ? String((err as { name?: unknown }).name || '') : ''
+        const abortLike = ctrl.signal.aborted || name === 'AbortError' || /aborted/i.test(msg)
+        if (abortLike) {
+          onStatusWithAutoClearRef.current?.('Cancelled', 800)
+          return
+        }
         const fallback = buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'text', text: msg || 'Request failed' })
-        setState(prev => (
-          prev.srcDoc === fallback && prev.src === null && prev.error === (msg || 'Request failed')
-            ? prev
-            : { srcDoc: fallback, src: null, error: msg || 'Request failed' }
-        ))
+        setState(prev => (prev.srcDoc === fallback && prev.error === (msg || 'Request failed') ? prev : { srcDoc: fallback, error: msg || 'Request failed' }))
       })
 
     return () => {
@@ -351,11 +410,10 @@ function useWebpageIframeSrcdoc(args: {
     debouncedHtmlOverride,
     debouncedUrl,
     args.view,
+    args.siteRootRel,
     args.websiteImportMeta?.importId,
     args.websiteImportMeta?.nodeId,
     args.websiteImportMeta?.outputDirRel,
-    args.onStatusProgress,
-    args.onStatusWithAutoClear,
   ])
 
   return state
@@ -429,8 +487,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     const url = readYamlFrontmatterValue(frontmatterBlock.rawBlock, 'kgWebpageUrl')
     const viewRaw = readYamlFrontmatterValue(frontmatterBlock.rawBlock, 'kgWebpageView')
     const view = viewRaw === 'html' ? 'html' : viewRaw === 'json' ? 'json' : 'markdown'
+    const siteRootRelRaw = readYamlFrontmatterValue(frontmatterBlock.rawBlock, 'kgWebpageSiteRootRel')
+    const siteRootRel = siteRootRelRaw && siteRootRelRaw.trim() ? siteRootRelRaw.trim() : undefined
     if (!url) return null
-    return { url, view }
+    return { url, view, siteRootRel }
   }, [frontmatterBlock])
   const websiteImportMeta = React.useMemo((): WebsiteImportFrontmatterMeta | null => {
     if (!frontmatterBlock) return null
@@ -481,97 +541,16 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [onWebpageIframeEl])
 
-  const { srcDoc: iframeSrcDoc, src: iframeSrc } = useWebpageIframeSrcdoc({
+  const { srcDoc: iframeSrcDoc } = useWebpageIframeSrcdoc({
     enabled: showWebpageHtml,
     url: String(webpageMeta?.url || ''),
     view: webpageMeta?.view === 'json' ? 'json' : 'html',
     websiteImportMeta: websiteImportMeta && websiteImportMeta.importId && websiteImportMeta.nodeId ? websiteImportMeta : null,
     htmlOverride: webpageMeta?.view === 'html' ? webpageHtmlOverride : null,
+    siteRootRel: webpageMeta?.siteRootRel || null,
     onStatusProgress,
     onStatusWithAutoClear,
   })
-
-  React.useEffect(() => {
-    if (!showWebpageHtml) return
-    if (!iframeSrc) return
-    const iframe = iframeRef.current
-    if (!iframe) return
-    const win = iframe.contentWindow
-    if (!win) return
-
-    let cancelled = false
-    let lastPending = 0
-    let lastPendingAtMs = 0
-    let lastLoadedAtMs = 0
-    let idleTimer: number | null = null
-    let lastUiAtMs = 0
-    let lastUiPending = -1
-
-    const scheduleIdleCheck = () => {
-      if (idleTimer != null) window.clearTimeout(idleTimer)
-      idleTimer = window.setTimeout(() => {
-        if (cancelled) return
-        const now = Date.now()
-        const settledSinceMs = Math.max(lastPendingAtMs, lastLoadedAtMs)
-        const idleOk = lastPending <= 0 && settledSinceMs > 0 && now - settledSinceMs >= 450
-        if (!idleOk) {
-          scheduleIdleCheck()
-          return
-        }
-        try {
-          onStatusWithAutoClear?.('Loaded', 900)
-        } catch {
-          void 0
-        }
-      }, 220)
-    }
-
-    const onMessage = (e: MessageEvent) => {
-      if (cancelled) return
-      if (e.source !== win) return
-      const d = e.data as unknown
-      if (!d || typeof d !== 'object') return
-      const rec = d as { kind?: unknown; pending?: unknown }
-      if (rec.kind !== 'kg-webpage-net') return
-      const pending = typeof rec.pending === 'number' && Number.isFinite(rec.pending) ? Math.max(0, Math.floor(rec.pending)) : 0
-      lastPending = pending
-      lastPendingAtMs = Date.now()
-      const now = Date.now()
-      const shouldUpdateUi = pending !== lastUiPending && now - lastUiAtMs >= 160
-      if (shouldUpdateUi) {
-        lastUiAtMs = now
-        lastUiPending = pending
-        try {
-          if (pending > 0) onStatusProgress?.(`Loading HTML (${pending} requests)`, null, null)
-          else onStatusProgress?.('Loading HTML')
-        } catch {
-          void 0
-        }
-      }
-      scheduleIdleCheck()
-    }
-
-    const onLoad = () => {
-      if (cancelled) return
-      lastLoadedAtMs = Date.now()
-      try {
-        onStatusProgress?.('Loading HTML')
-      } catch {
-        void 0
-      }
-      scheduleIdleCheck()
-    }
-
-    window.addEventListener('message', onMessage)
-    iframe.addEventListener('load', onLoad)
-    scheduleIdleCheck()
-    return () => {
-      cancelled = true
-      window.removeEventListener('message', onMessage)
-      iframe.removeEventListener('load', onLoad)
-      if (idleTimer != null) window.clearTimeout(idleTimer)
-    }
-  }, [iframeSrc, onStatusProgress, onStatusWithAutoClear, showWebpageHtml])
 
   const scrollRatioByDocRef = React.useRef<Map<string, number>>(new Map())
   const docKey = String(activeDocumentKey || '')
@@ -798,8 +777,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         className="flex-1 min-h-0 w-full border-0"
         ref={handleIframeRef}
         title={webpageMeta?.url || 'Webpage'}
-        src={iframeSrc || undefined}
-        srcDoc={iframeSrc ? undefined : (iframeSrcDoc || '')}
+        srcDoc={iframeSrcDoc || ''}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -838,8 +816,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        src={iframeSrc || undefined}
-        srcDoc={iframeSrc ? undefined : (iframeSrcDoc || '')}
+        srcDoc={iframeSrcDoc || ''}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -878,8 +855,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        src={iframeSrc || undefined}
-        srcDoc={iframeSrc ? undefined : (iframeSrcDoc || '')}
+        srcDoc={iframeSrcDoc || ''}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"

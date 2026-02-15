@@ -271,6 +271,9 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   webpageImportView: 'markdown' as const,
   setWebpageImportView: (v: 'markdown' | 'json' | 'html') => set({ webpageImportView: v }),
 
+  webpageViewerScriptPolicy: 'strip' as const,
+  setWebpageViewerScriptPolicy: (v: 'strip' | 'allow') => set({ webpageViewerScriptPolicy: v === 'allow' ? 'allow' : 'strip' }),
+
   webpageArtifactFidelityMaxLevel: 4,
   setWebpageArtifactFidelityMaxLevel: (v: number) => {
     const n = Number.isFinite(v) ? Math.floor(Number(v)) : 4
@@ -280,7 +283,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   websiteImportDiscoverSitemap: true,
   setWebsiteImportDiscoverSitemap: (v: boolean) => set({ websiteImportDiscoverSitemap: !!v }),
 
-  websiteImportGenerateWebpageArtifactDocs: true,
+  websiteImportGenerateWebpageArtifactDocs: false,
   setWebsiteImportGenerateWebpageArtifactDocs: (v: boolean) => set({ websiteImportGenerateWebpageArtifactDocs: !!v }),
 
   websiteImportMaxPages: 50,

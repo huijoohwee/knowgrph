@@ -1,7 +1,7 @@
-# knowgrph PDF Workspace (Local, in-repo)
+# knowgrph PDF Workspace (Local)
 
 ## Scope
-Local-only, deterministic **PDF → Markdown → Render** pipeline that writes artifacts into the repo under `.knowgrph-workspace/…`, and surfaces the workflow inside **MainPanel → Workflow Manager** (no dedicated `/workspace` or `/import` pages).
+Local-only, deterministic **PDF → Markdown → Render** pipeline that writes artifacts under `.knowgrph-workspace/…` (in this repo the directory is moved to `sandbox/.knowgrph-workspace` via symlink), and surfaces the workflow inside **MainPanel → Workflow Manager** (no dedicated `/workspace` or `/import` pages).
 
 ## User Surface (SSOT)
 - **Entry point**: `/` (Canvas) → open **Editor workspace** → **Source Files** → **PDF Workspace** addon.
@@ -23,7 +23,7 @@ Mounted by Vite dev server:
 - `GET /__pdf_workspace/doc/:docId?outputDirRel=...&mode=...`
 
 ## Artifact Layout (filesystem)
-Base: `<repoRoot>/.knowgrph-workspace/pdf-md/`
+Base: `<repoRoot>/.knowgrph-workspace/pdf-md/` (in this repo resolved via symlink to `sandbox/.knowgrph-workspace/pdf-md/`)
 
 Per document:
 - `.knowgrph-workspace/pdf-md/<docId>/document.json`

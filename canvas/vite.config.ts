@@ -249,10 +249,12 @@ const webpageProxyDevPlugin = {
   configureServer(server: import('vite').ViteDevServer) {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
     server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
+    server.middlewares.use('/__repo_file', createRepoFileHandler())
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
     server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
+    server.middlewares.use('/__repo_file', createRepoFileHandler())
   },
 }
 
@@ -438,11 +440,65 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         return null
       }
     })()
-    if (!urlParam || !/^https?:\/\//i.test(urlParam)) {
+
+    if (!urlParam) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       res.end('Missing or invalid url parameter')
       return
+    }
+
+    const isHttp = /^https?:\/\//i.test(urlParam)
+    let localFile: string | null = null
+
+    if (!isHttp) {
+      const candidates = [
+        path.resolve(repoRoot, '..', urlParam),
+        path.resolve(repoRoot, urlParam),
+      ]
+      for (const p of candidates) {
+        try {
+          const stat = await fs.stat(p)
+          if (stat.isFile()) {
+            localFile = p
+            break
+          }
+        } catch {
+          void 0
+        }
+      }
+      
+      if (!localFile) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not found')
+        return
+      }
+    }
+
+    if (localFile) {
+       try {
+         const content = await fs.readFile(localFile, 'utf8')
+         const injected = injectWebpageProxyHtml({
+            html: content,
+            originalUrl: urlParam,
+         })
+         res.statusCode = 200
+         res.setHeader('Content-Type', 'text/html; charset=utf-8')
+         res.setHeader('Cache-Control', 'no-store')
+         res.end(injected)
+         return
+       } catch (err) {
+         res.statusCode = 500
+         res.end(String(err))
+         return
+       }
+    }
+
+    if (!isHttp) { // Should not happen given logic above
+       res.statusCode = 400
+       res.end('Invalid URL')
+       return
     }
 
     let controller: AbortController | null = null
@@ -608,7 +664,12 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
   const assetProxyPrefix = '/__webpage_asset_proxy?url='
   const toAbs = (raw: string) => {
     try {
-      return new URL(String(raw || ''), originalUrl).toString()
+      const u = String(raw || '')
+      if (!/^https?:\/\//i.test(originalUrl)) {
+         const dir = path.dirname(originalUrl)
+         return path.join(dir, u)
+      }
+      return new URL(u, originalUrl).toString()
     } catch {
       return ''
     }
@@ -1354,11 +1415,82 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
         return null
       }
     })()
-    if (!urlParam || !/^https?:\/\//i.test(urlParam)) {
+
+    if (!urlParam) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       res.end('Missing or invalid url parameter')
       return
+    }
+
+    const isHttp = /^https?:\/\//i.test(urlParam)
+    let localFile: string | null = null
+
+    if (!isHttp) {
+      const roots = [path.resolve(repoRoot, '..'), path.resolve(repoRoot)]
+      for (const root of roots) {
+        const abs = path.resolve(root, urlParam)
+        const rootResolved = path.resolve(root)
+        if (!abs.startsWith(rootResolved + path.sep) && abs !== rootResolved) continue
+        try {
+          const stat = await fs.stat(abs)
+          if (stat.isFile()) {
+            localFile = abs
+            break
+          }
+        } catch {
+          void 0
+        }
+      }
+      
+      if (!localFile) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not found')
+        return
+      }
+    }
+
+    if (localFile) {
+       try {
+         const content = await fs.readFile(localFile)
+         const ext = path.extname(localFile).toLowerCase()
+         const types: Record<string, string> = {
+            '.html': 'text/html',
+            '.css': 'text/css',
+            '.js': 'text/javascript',
+            '.mjs': 'text/javascript',
+            '.json': 'application/json',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2',
+            '.ttf': 'font/ttf',
+            '.eot': 'application/vnd.ms-fontobject',
+            '.otf': 'font/otf',
+            '.ico': 'image/x-icon',
+         }
+         const contentType = types[ext] || 'application/octet-stream'
+         res.statusCode = 200
+         res.setHeader('Content-Type', contentType)
+         res.setHeader('Cache-Control', 'no-store')
+         res.setHeader('Access-Control-Allow-Origin', '*')
+         res.end(content)
+         return
+       } catch (err) {
+         res.statusCode = 500
+         res.end(String(err))
+         return
+       }
+    }
+
+    if (!isHttp) {
+       res.statusCode = 400
+       res.end('Invalid URL')
+       return
     }
 
     let controller: AbortController | null = null
@@ -1488,6 +1620,90 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
+    }
+  }
+}
+
+function createRepoFileHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      next()
+      return
+    }
+
+    const repoPath = (() => {
+      try {
+        const parsed = new URL(req.url || '', `http://${req.headers.host}`)
+        const p = parsed.pathname.replace(/^\/__repo_file\/?/, '')
+        return decodeURIComponent(p).replace(/\\/g, '/').replace(/^\/+/, '')
+      } catch {
+        return ''
+      }
+    })()
+
+    if (!repoPath || repoPath.includes('..')) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('Missing or invalid path')
+      return
+    }
+
+    const rootResolved = path.resolve(repoRoot)
+    const fileAbs = path.resolve(rootResolved, repoPath)
+    if (!fileAbs.startsWith(rootResolved + path.sep) && fileAbs !== rootResolved) {
+      res.statusCode = 403
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('Forbidden')
+      return
+    }
+
+    try {
+      const stat = await fs.stat(fileAbs)
+      if (!stat.isFile()) throw new Error('Not found')
+      const content = await fs.readFile(fileAbs)
+      const ext = path.extname(fileAbs).toLowerCase()
+      const types: Record<string, string> = {
+        '.html': 'text/html',
+        '.htm': 'text/html',
+        '.css': 'text/css',
+        '.js': 'text/javascript',
+        '.mjs': 'text/javascript',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.woff': 'font/woff',
+        '.woff2': 'font/woff2',
+        '.ttf': 'font/ttf',
+        '.eot': 'application/vnd.ms-fontobject',
+        '.otf': 'font/otf',
+        '.ico': 'image/x-icon',
+      }
+      const contentType = types[ext] || 'application/octet-stream'
+      res.statusCode = 200
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Cache-Control', 'no-store')
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      if (req.method === 'HEAD') {
+        res.end()
+        return
+      }
+      res.end(content)
+    } catch {
+      res.statusCode = 404
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('Not found')
     }
   }
 }
@@ -1912,6 +2128,7 @@ export default defineConfig(({ command }) => ({
         path.resolve(__dirname, '../../gympgrph'),
         path.resolve(__dirname, '../../curagrph'),
         path.resolve(__dirname, '../../grph'),
+        path.resolve(__dirname, '../../sandbox'),
       ]
     }
   },

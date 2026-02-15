@@ -27,6 +27,16 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     options: ['markdown', 'html', 'json'],
   },
   {
+    key: 'webpageViewerScriptPolicy',
+    type: 'string',
+    source: 'store',
+    read: () => s().webpageViewerScriptPolicy,
+    write: v => s().setWebpageViewerScriptPolicy(String(v) === 'allow' ? 'allow' : 'strip'),
+    docKey: 'webpageViewerScriptPolicy',
+    default: () => 'strip',
+    options: ['strip', 'allow'],
+  },
+  {
     key: 'webpageArtifactFidelityMaxLevel',
     type: 'number',
     source: 'store',
@@ -51,7 +61,7 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     read: () => s().websiteImportGenerateWebpageArtifactDocs,
     write: v => s().setWebsiteImportGenerateWebpageArtifactDocs(!!v),
     docKey: 'websiteImportGenerateWebpageArtifactDocs',
-    default: () => true,
+    default: () => false,
   },
   {
     key: 'websiteImportMaxPages',

@@ -17,7 +17,7 @@ import { buildWebpageMarkdownArtifactDoc, looksLikeWebpageMarkdownArtifactDoc } 
 import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
 import { buildLayoutStructureAscii } from '@/lib/websites/webpageMarkdownArtifactAscii'
 import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
-import { convertWebpageHtmlToMarkdownArtifact } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { parseGitHubRepoUrl } from './githubRepoApi'
 import { importGitHubFolder } from './githubRepoImport'
@@ -70,6 +70,7 @@ function yamlQuote(value: string): string {
 function ensureWebpageTocLayoutAscii(markdown: string): string {
   const text = String(markdown || '')
   if (!text.trim()) return text
+  if (text.includes('```ascii') || text.includes('kg-webpage-layout') || /\bGLOBAL\s+NAVIGATION\b/i.test(text)) return text
   const lines = text.split(/\r?\n/)
   const tocHeadingIdx = lines.findIndex(l => /^##\s*(?:📋\s*)?table\s+of\s+contents\s*$/i.test(String(l || '').trim()))
   if (tocHeadingIdx < 0) return text
@@ -411,6 +412,25 @@ export async function fetchWorkspaceUrlContent(
   const normalizedUrl = normalizeGitHubBlobLikeUrl(rawUrl) || rawUrl
   const normalizedLower = normalizedUrl.toLowerCase()
 
+  const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
+  const isLocalRepoPath = !isHttpUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalizedUrl)
+  const localRepoPath = isLocalRepoPath ? normalizedUrl.replace(/\\/g, '/').replace(/^\.+\//, '').replace(/^\/+/, '') : ''
+  const localSiteRootRel = isLocalRepoPath
+    ? (() => {
+        const parts = localRepoPath.split('/').filter(Boolean)
+        if (parts.length <= 1) return ''
+        return parts.slice(0, -1).join('/')
+      })()
+    : ''
+
+  const encodeRepoPathForUrl = (rel: string): string =>
+    String(rel || '')
+      .replace(/\\/g, '/')
+      .split('/')
+      .filter(Boolean)
+      .map(seg => encodeURIComponent(seg))
+      .join('/')
+
   const isPdf = /\.pdf(\?|#|$)/i.test(normalizedUrl)
   if (isYouTubeUrl(normalizedUrl)) {
     opts?.onProgress?.(10)
@@ -439,6 +459,7 @@ export async function fetchWorkspaceUrlContent(
   }
 
   const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx)(\?|#|$)/i.test(normalizedLower)
+  const looksLikeLocalHtml = isLocalRepoPath && /\.(html|htm)(\?|#|$)/i.test(normalizedLower)
   if (!looksLikeCodeOrData) {
     const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
     const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
@@ -473,7 +494,10 @@ export async function fetchWorkspaceUrlContent(
 
         const rawHtml = await fetchWebpageHtmlAuto({ url: normalizedUrl, signal: ctrl.signal })
         const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
-        return convertWebpageHtmlToMarkdownArtifact({ html: boundedHtml, url: normalizedUrl })
+        opts?.onProgress?.(65)
+        const converted = await convertWebpageHtmlToMarkdownArtifactAsync({ html: boundedHtml, url: normalizedUrl })
+        opts?.onProgress?.(85)
+        return converted
       })()
 
       if (progressTimer) clearInterval(progressTimer)
@@ -502,6 +526,45 @@ export async function fetchWorkspaceUrlContent(
     }
     const text = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote('html')}`, '---', ''].join('\n')
     return { normalizedUrl, name, text }
+  }
+
+  if (isLocalRepoPath) {
+    if (localRepoPath.includes('..')) throw new Error('Invalid local path')
+    if (looksLikeLocalHtml) {
+      const base = localRepoPath.split('/').pop() || 'webpage'
+      const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
+      const name = `${baseNoExt}.md`
+      const text = [
+        '---',
+        `kgWebpageUrl: ${yamlQuote(localRepoPath)}`,
+        `kgWebpageView: ${yamlQuote('html')}`,
+        localSiteRootRel ? `kgWebpageSiteRootRel: ${yamlQuote(localSiteRootRel)}` : null,
+        '---',
+        '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+      return { normalizedUrl: localRepoPath, name, text }
+    }
+
+    opts?.onProgress?.(10)
+    const res = await fetch(`/__repo_file/${encodeRepoPathForUrl(localRepoPath)}`, { headers: { Accept: '*/*' } })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const text = await res.text()
+    opts?.onProgress?.(100)
+
+    const fallbackExt = (() => {
+      if (normalizedLower.endsWith('.md') || normalizedLower.endsWith('.markdown') || normalizedLower.endsWith('.mdx')) return '.md'
+      if (normalizedLower.endsWith('.json') || normalizedLower.endsWith('.jsonld') || normalizedLower.endsWith('.geojson')) return '.json'
+      if (normalizedLower.endsWith('.csv')) return '.csv'
+      if (normalizedLower.endsWith('.yaml') || normalizedLower.endsWith('.yml')) return '.yaml'
+      if (normalizedLower.endsWith('.html') || normalizedLower.endsWith('.htm')) return '.html'
+      return '.txt'
+    })()
+
+    const base = localRepoPath.split('/').pop() || `import${fallbackExt}`
+    const name = base.includes('.') ? base : `${base}${fallbackExt}`
+    return { normalizedUrl: localRepoPath, name, text }
   }
 
   opts?.onProgress?.(10)
@@ -556,7 +619,8 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   fmLines.push('---', '')
 
   const fidelityMaxLevel = useGraphStore.getState().webpageArtifactFidelityMaxLevel ?? 4
-  const artifactRaw = looksLikeWebpageMarkdownArtifactDoc(strippedUpstream)
+  const isAlreadyArtifact = looksLikeWebpageMarkdownArtifactDoc(strippedUpstream)
+  const artifactRaw = isAlreadyArtifact
     ? strippedUpstream
     : buildWebpageMarkdownArtifactDoc({
         markdown: strippedUpstream,
@@ -564,7 +628,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
         title: args.title,
         fidelityMaxLevel,
       })
-  const artifact = ensureWebpageTocLayoutAscii(artifactRaw)
+  const artifact = isAlreadyArtifact ? artifactRaw : ensureWebpageTocLayoutAscii(artifactRaw)
   const artifactWithView = upsertWebpageFrontmatterMeta(artifact, { url, view })
   const strippedArtifact = (() => {
     const t = String(artifactWithView || '')

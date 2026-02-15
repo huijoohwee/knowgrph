@@ -232,7 +232,11 @@ export const STORAGE_CHANNELS = {
 } as const;
 
 export type LsKeyId = keyof typeof LS_KEYS;
-export type LsStorageKey = (typeof LS_KEYS)[LsKeyId];
+export type LsStorageKey =
+  | (typeof LS_KEYS)[LsKeyId]
+  | SchemaSubsectionStorageKey
+  | ChatHistoryStorageKey
+  | MarkdownCollapsedHeadingIdsStorageKey;
 
 export type SchemaSubsectionStorageKeyPrefix = (typeof LS_KEYS)['schemaSubsectionPrefix'];
 export type SchemaSubsectionStorageKey = `${SchemaSubsectionStorageKeyPrefix}${string}`;
@@ -245,6 +249,12 @@ export type ChatHistoryStorageKey = `${ChatHistoryStorageKeyPrefix}${string}`;
 
 export const getChatHistoryStorageKey = (graphSignature: string): ChatHistoryStorageKey =>
   `${LS_KEYS.chatHistoryPrefix}${String(graphSignature ?? '')}` as ChatHistoryStorageKey;
+
+export type MarkdownCollapsedHeadingIdsStorageKeyPrefix = (typeof LS_KEYS)['markdownCollapsedHeadingIds'];
+export type MarkdownCollapsedHeadingIdsStorageKey = `${MarkdownCollapsedHeadingIdsStorageKeyPrefix}:${string}`;
+
+export const getMarkdownCollapsedHeadingIdsStorageKey = (scopeKey: string): MarkdownCollapsedHeadingIdsStorageKey =>
+  `${LS_KEYS.markdownCollapsedHeadingIds}:${String(scopeKey ?? '')}` as MarkdownCollapsedHeadingIdsStorageKey;
 
 export type LsKeyOwner =
   | 'ui.overlayOpacity'

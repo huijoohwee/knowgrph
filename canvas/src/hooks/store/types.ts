@@ -338,6 +338,9 @@ export interface GraphState {
   webpageImportView: 'markdown' | 'json' | 'html';
   setWebpageImportView: (v: 'markdown' | 'json' | 'html') => void;
 
+  webpageViewerScriptPolicy: 'strip' | 'allow';
+  setWebpageViewerScriptPolicy: (v: 'strip' | 'allow') => void;
+
   webpageArtifactFidelityMaxLevel: number;
   setWebpageArtifactFidelityMaxLevel: (v: number) => void;
 

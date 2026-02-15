@@ -92,20 +92,22 @@ function traverseNode(
   const isTable = options.isTable || tagName === 'table'
   const baseUrl = options.baseUrl
 
-  let content = ''
+  const parts: string[] = []
   if (tagName === 'template') {
     const tmpl = el as unknown as HTMLTemplateElement
     const fragment = tmpl?.content
     if (fragment) {
       fragment.childNodes.forEach(child => {
-        content += traverseNode(child, { isPre, isTable, baseUrl })
+        parts.push(traverseNode(child, { isPre, isTable, baseUrl }))
       })
     }
   } else {
     el.childNodes.forEach(child => {
-      content += traverseNode(child, { isPre, isTable, baseUrl })
+      parts.push(traverseNode(child, { isPre, isTable, baseUrl }))
     })
   }
+
+  const content = parts.join('')
 
   switch (tagName) {
     case 'h1':

@@ -199,28 +199,142 @@ export const buildCodeViewerSrcdoc = (args: { baseHref: string; title: string; m
   return injectScrollSync(html)
 }
 
-const fetchCached = async (key: string, run: (signal: AbortSignal) => Promise<string>, signal: AbortSignal): Promise<string> => {
-  const cached = CACHE.get(key)
-  if (cached) return cached.html
-  const inflight = INFLIGHT.get(key)
-  if (inflight) return inflight
-  const p = run(signal).then((html) => {
-    CACHE.set(key, { html, atMs: Date.now() })
-    if (CACHE.size > CACHE_MAX) {
-      const oldest = CACHE.keys().next().value as string | undefined
-      if (oldest) CACHE.delete(oldest)
-    }
-    return html
-  })
-  INFLIGHT.set(key, p)
+const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0))
+
+const fetchBoundedText = async (res: Response, limit: number, onProgress?: (bytes: number) => void): Promise<string> => {
+  if (!res.body) return await res.text()
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  let bytes = 0
+  let lastProgressAt = 0
+  let lastYieldAtBytes = 0
+
   try {
-    return await p
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        bytes += value.byteLength
+        text += decoder.decode(value, { stream: true })
+        
+        const now = Date.now()
+        if (onProgress && now - lastProgressAt > 100) {
+          onProgress(bytes)
+          lastProgressAt = now
+        }
+        
+        if (bytes - lastYieldAtBytes > 500_000) {
+          await yieldToMain()
+          lastYieldAtBytes = bytes
+        }
+
+        if (bytes > limit) {
+           throw new Error(`Response too large (> ${(limit / 1024 / 1024).toFixed(1)}MB)`)
+        }
+      }
+    }
   } finally {
-    INFLIGHT.delete(key)
+    try { reader.cancel() } catch { void 0 }
   }
+  text += decoder.decode()
+  if (onProgress) onProgress(bytes)
+  return text
 }
 
-export async function fetchWebpageHtmlViaProxy(args: { url: string; signal: AbortSignal }): Promise<string> {
+const createAbortError = (): Error => {
+  const err = new Error('Aborted') as Error & { name?: string }
+  err.name = 'AbortError'
+  return err
+}
+
+const setTimeoutFn: (handler: () => void, timeout?: number) => number =
+  typeof window !== 'undefined' && typeof window.setTimeout === 'function'
+    ? (handler, timeout) => window.setTimeout(handler, timeout)
+    : (handler, timeout) => setTimeout(handler, timeout) as unknown as number
+
+const clearTimeoutFn: (id: number) => void =
+  typeof window !== 'undefined' && typeof window.clearTimeout === 'function'
+    ? (id) => window.clearTimeout(id)
+    : (id) => {
+        clearTimeout(id as unknown as any)
+      }
+
+const withAbort = async <T,>(p: Promise<T>, signal: AbortSignal): Promise<T> => {
+  if (!signal) return await p
+  if (signal.aborted) throw createAbortError()
+  return await new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      cleanup()
+      reject(createAbortError())
+    }
+    const cleanup = () => {
+      try {
+        signal.removeEventListener('abort', onAbort)
+      } catch {
+        void 0
+      }
+    }
+    try {
+      signal.addEventListener('abort', onAbort, { once: true })
+    } catch {
+      void 0
+    }
+    void p.then(
+      (v) => {
+        cleanup()
+        resolve(v)
+      },
+      (e) => {
+        cleanup()
+        reject(e)
+      },
+    )
+  })
+}
+
+const fetchCached = (key: string, run: (signal: AbortSignal) => Promise<string>, signal: AbortSignal): Promise<string> => {
+  const cached = CACHE.get(key)
+  if (cached) {
+    if (signal?.aborted) return Promise.reject(createAbortError())
+    return Promise.resolve(cached.html)
+  }
+
+  const inflight = INFLIGHT.get(key)
+  if (inflight) return withAbort(inflight, signal)
+
+  const ctrl = new AbortController()
+  const timeoutId = setTimeoutFn(() => {
+    try {
+      ctrl.abort()
+    } catch {
+      void 0
+    }
+  }, 30_000)
+
+  const p = run(ctrl.signal)
+    .then((html) => {
+      CACHE.set(key, { html, atMs: Date.now() })
+      if (CACHE.size > CACHE_MAX) {
+        const oldest = CACHE.keys().next().value as string | undefined
+        if (oldest) CACHE.delete(oldest)
+      }
+      return html
+    })
+    .finally(() => {
+      try {
+        clearTimeoutFn(timeoutId)
+      } catch {
+        void 0
+      }
+      INFLIGHT.delete(key)
+    })
+
+  INFLIGHT.set(key, p)
+  return withAbort(p, signal)
+}
+
+export async function fetchWebpageHtmlViaProxy(args: { url: string; signal: AbortSignal; onProgress?: (bytes: number) => void }): Promise<string> {
   const u = String(args.url || '').trim()
   if (!u) return ''
   const key = `proxy:${u}`
@@ -228,14 +342,13 @@ export async function fetchWebpageHtmlViaProxy(args: { url: string; signal: Abor
     key,
     async (signal) => {
       const res = await fetch(`/__webpage_proxy?url=${encodeURIComponent(u)}`, { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
-      const text = await res.text()
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return text
+      return await fetchBoundedText(res, 5_000_000, args.onProgress)
     },
     args.signal,
   )
 }
-export async function fetchWebpageHtmlAuto(args: { url: string; signal: AbortSignal }): Promise<string> {
+export async function fetchWebpageHtmlAuto(args: { url: string; signal: AbortSignal; onProgress?: (bytes: number) => void }): Promise<string> {
   return await fetchWebpageHtmlViaProxy(args)
 }
 
@@ -289,10 +402,16 @@ export async function fetchWebsiteImportArtifact(args: {
   )
 }
 
-export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; scriptPolicy?: 'strip' | 'allow' }): string => {
+export const buildWebpageHtmlSrcdocAsync = async (args: {
+  html: string
+  baseHref: string
+  scriptPolicy?: 'strip' | 'allow'
+  onProgress?: (step: string) => void
+}): Promise<string> => {
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
   const rawHtml = String(args.html || '')
   const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : 'strip'
+  
   if (rawHtml.length > 1_500_000) {
     return buildCodeViewerSrcdoc({
       baseHref,
@@ -301,6 +420,7 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; s
       text: `HTML too large for sandboxed srcdoc (${rawHtml.length} chars).\n\nTip: switch to Markdown view, or reduce the HTML override.`,
     })
   }
+
   const looksProxied = rawHtml.includes('/__webpage_asset_proxy?url=') || rawHtml.includes('/__webpage_proxy?url=')
   const selfOriginBaseHref = (() => {
     try {
@@ -316,14 +436,45 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; s
   const cached = SRCDOC_CACHE.get(cacheKey)
   if (cached) return cached
 
-  const cleaned = scriptPolicy === 'allow'
-    ? stripRefreshMeta(stripCspMeta(rawHtml))
-    : stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(rawHtml))))
+  if (rawHtml.length > 50_000) await yieldToMain()
+
+  let current = rawHtml
+  const stepYield = async (label: string) => {
+    if (args.onProgress) args.onProgress(label)
+    if (current.length > 50_000) await yieldToMain()
+  }
+
+  if (scriptPolicy === 'allow') {
+    await stepYield('Sanitizing CSP')
+    current = stripCspMeta(current)
+    
+    await stepYield('Sanitizing Refresh')
+    current = stripRefreshMeta(current)
+  } else {
+    await stepYield('Sanitizing CSP')
+    current = stripCspMeta(current)
+    
+    await stepYield('Sanitizing Refresh')
+    current = stripRefreshMeta(current)
+    
+    await stepYield('Stripping Scripts')
+    current = stripScriptTags(current)
+    
+    await stepYield('Stripping Handlers')
+    current = stripInlineEventHandlers(current)
+  }
+
+  await stepYield('Injecting Base')
   const csp = scriptPolicy === 'allow'
     ? "default-src https: http: data: blob:; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http: ws: wss:; frame-src https: http:; worker-src blob: data:; script-src 'unsafe-inline' 'unsafe-eval' https: http: blob: data:"
     : "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:; script-src 'unsafe-inline'"
-  const withBase = upsertBaseTag(cleaned, chosen)
+  
+  const withBase = upsertBaseTag(current, chosen)
+  
+  await stepYield('Injecting CSP')
   const withCsp = upsertSandboxCspMeta(withBase, csp)
+  
+  await stepYield('Injecting Scroll Sync')
   const built = injectScrollSync(withCsp)
 
   SRCDOC_CACHE.set(cacheKey, built)
@@ -333,4 +484,34 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; s
   }
 
   return built
+}
+
+export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; scriptPolicy?: 'strip' | 'allow' }): string => {
+  const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
+  const rawHtml = String(args.html || '')
+
+  if (rawHtml.length > 1_500_000) {
+    return buildCodeViewerSrcdoc({
+      baseHref,
+      title: baseHref,
+      mode: 'text',
+      text: `HTML too large for sandboxed srcdoc (${rawHtml.length} chars).\n\nTip: switch to Markdown view, or reduce the HTML override.`,
+    })
+  }
+
+  const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : 'strip'
+  let current = rawHtml
+  if (scriptPolicy === 'allow') {
+    current = stripRefreshMeta(stripCspMeta(current))
+  } else {
+    current = stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(current))))
+  }
+
+  const csp = scriptPolicy === 'allow'
+    ? "default-src https: http: data: blob:; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http: ws: wss:; frame-src https: http:; worker-src blob: data:; script-src 'unsafe-inline' 'unsafe-eval' https: http: blob: data:"
+    : "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:; script-src 'unsafe-inline'"
+
+  const withBase = upsertBaseTag(current, baseHref)
+  const withCsp = upsertSandboxCspMeta(withBase, csp)
+  return injectScrollSync(withCsp)
 }

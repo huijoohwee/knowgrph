@@ -24,6 +24,22 @@ import {
   type AssetKind,
 } from './webpageHtmlToMarkdownArtifactPrivate'
 
+const yieldToMain = async () => {
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+}
+
+export async function convertWebpageHtmlToMarkdownArtifactAsync(args: {
+  html: string
+  url: string
+  onProgress?: (step: string) => void
+}): Promise<string> {
+  const raw = String(args.html || '')
+  if (raw.length > 120_000) await yieldToMain()
+  args.onProgress?.('Converting HTML')
+  if (raw.length > 120_000) await yieldToMain()
+  return convertWebpageHtmlToMarkdownArtifact({ html: raw, url: args.url })
+}
+
 export function convertWebpageHtmlToMarkdownArtifact(args: { html: string; url: string }): string {
   const url = safeText(args.url)
   const raw = String(args.html || '')

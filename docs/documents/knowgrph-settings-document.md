@@ -49,9 +49,12 @@
 
 - `webpageImportIncludeImages`
 - `webpageImportView` (`markdown` | `json` | `html`)
+  - Mode contract: (1) `markdown` default SSOT, (2) `html` view-only iframe, (3) `json` view-only iframe.
   - `markdown`: editor/viewer use Markdown (graph parsing remains aligned to Markdown)
-  - `json`: editor shows conversion JSON (read-only override); viewer/presentation/slides render sandboxed JSON via iframe `srcdoc`
   - `html`: editor stays editable Markdown SSOT; viewer/presentation/slides render sandboxed HTML via iframe `srcdoc`
+  - `json`: editor shows conversion JSON (read-only override); viewer/presentation/slides render sandboxed JSON via iframe `srcdoc`
+- `webpageViewerScriptPolicy` (`strip` | `allow`)
+  - Controls whether HTML Viewer strips upstream scripts/handlers before rendering sandboxed `srcdoc`.
 - `webpageArtifactFidelityMaxLevel` (1..4)
   - Caps the generated Webpage Markdown Artifact detail level so imports remain bounded and readable.
 
@@ -69,11 +72,15 @@
 - `websiteImportMaxPages`
 - `websiteImportConcurrency`
 - `websiteImportOutputDirRel`
+- `websiteImportGenerateWebpageArtifactDocs`
+  - Default `false` to avoid UI freezes on large imports.
+  - When enabled, import may write server-generated `page.md` artifacts from stored `raw.html` for faster view switching.
 
 **Derived rules**
 - Website import uses `webpageImportIncludeImages` for conversion and `webpageImportView` as the default per-page view (stored in each stub’s `kgWebpageView`).
 - In the active-row dropdown, Viewer/Presentation/Slides render HTML in a sandboxed iframe when `kgWebpageView ∈ {json, html}`.
 - When `kgWebsiteImportId/kgWebsiteNodeId` exist, Viewer prefers rendering from stored `raw.html` artifacts (in-repo) instead of proxying live HTML.
+- Workspace artifacts are stored under `.knowgrph-workspace/` (in this repo resolved via symlink to `sandbox/.knowgrph-workspace/`).
 - If `kgWebsiteOutputDirRel` is present, it overrides the artifact root directory for resolving `raw.html/page.md/conversion.json`.
 
 ---
