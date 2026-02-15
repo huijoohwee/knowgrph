@@ -20,6 +20,7 @@ import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceF
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { SsotEventBridge } from '@/features/ssot/SsotEventBridge'
 import { importWithRetry } from '@/lib/react/importWithRetry'
+import type { DesignLayerState } from '@/features/design/designLayersState'
 
 const GeospatialOverlayHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -34,6 +35,7 @@ const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
+const DesignLayersPanelLazy = React.lazy(() => import('@/features/design/DesignLayersPanel'))
 
 type MarkdownMetricSample = {
   ts: number
@@ -262,6 +264,8 @@ export default function CanvasPage() {
       workspaceViewMode: s.workspaceViewMode,
     })),
   )
+
+  const [designLayerState, setDesignLayerState] = React.useState<DesignLayerState>(() => ({ order: [], hiddenById: {} }))
   const setLifecycleStage = useGraphStore(s => s.setLifecycleStage)
   const { markdownDocumentName, markdownDocumentText, frontmatterModeEnabled, documentSemanticMode, graphData } = useGraphStore(
     useShallow(s => ({
@@ -1057,7 +1061,9 @@ export default function CanvasPage() {
                             {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
                           </div>
                           <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`}>
-                            {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
+                            {mounted2dRenderers.design ? (
+                              <DesignCanvasLazy active={canvas2dRenderer === 'design'} layerState={designLayerState} />
+                            ) : null}
                           </div>
                           <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
                             {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
@@ -1077,6 +1083,15 @@ export default function CanvasPage() {
                           aria-label="Minimap Overlay"
                         >
                           <MinimapLazy />
+                        </aside>
+                      )}
+                      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'design' && (
+                        <aside
+                          className="fixed left-3 z-[201] pointer-events-auto"
+                          style={{ top: '56px', height: 'calc(100vh - 56px - 12px)' }}
+                          aria-label="Design Layers Overlay"
+                        >
+                          <DesignLayersPanelLazy active layerState={designLayerState} setLayerState={setDesignLayerState} />
                         </aside>
                       )}
                       <MarkdownMetricsDevOverlay />

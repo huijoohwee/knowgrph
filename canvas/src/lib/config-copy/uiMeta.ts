@@ -101,6 +101,8 @@ export const UI_LABELS = {
   export: 'Export',
   addFromQuickEditor: 'Add from Quick Editor',
   registerGenerateVideo: 'Register Generate Video',
+  registerNodeType: 'Register Node Type',
+  applyToNode: 'Apply to Node',
   selectAll: 'Select all',
   collapseAll: 'Collapse all',
   expandAll: 'Expand all',

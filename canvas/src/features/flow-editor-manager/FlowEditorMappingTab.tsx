@@ -25,6 +25,10 @@ import {
   buildNodeQuickEditorDraftFromSmartFields,
 } from '@/features/flow-editor-manager/registryTemplates'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import {
+  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
+  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
+} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import NodeQuickEditorRegistryTable from '@/features/flow-editor-manager/NodeQuickEditorRegistryTable'
@@ -287,6 +291,99 @@ export default function FlowEditorMappingTab({
     upsertUiToast({ id: 'flow-editor-manager-register-gv-ok', kind: 'neutral', message: 'Registered Generate Video mapping.', ttlMs: 2500 })
   }, [graphData, selectedNodeId, updateNode, upsertNodeQuickEditorRegistryEntry, upsertUiToast])
 
+  const registerSelectedNodeTypeFromSelection = React.useCallback(() => {
+    const cur = graphData
+    const nodeId = String(selectedNodeId || '').trim()
+    if (!cur || !nodeId) {
+      upsertUiToast({ id: 'flow-editor-manager-no-selected-node-register', kind: 'warning', message: 'Select a node first.', ttlMs: 2500 })
+      return
+    }
+    const node = (cur.nodes || []).find(n => n && n.id === nodeId) || null
+    if (!node) return
+    const baseType = String(node.type || '').trim()
+    if (!baseType) {
+      upsertUiToast({ id: 'flow-editor-manager-selected-node-missing-type-register', kind: 'warning', message: 'Selected node has no type.', ttlMs: 2500 })
+      return
+    }
+
+    const props = (node.properties || {}) as Record<string, unknown>
+    const model = typeof props.model === 'string' ? props.model.trim() : ''
+    const draft = model === 'generate_video'
+      ? buildGenerateVideoRegistryDraft()
+      : buildNodeQuickEditorDraftFromSmartFields({ nodeTypeId: baseType })
+
+    const res = upsertNodeQuickEditorRegistryEntry({
+      isEnabled: true,
+      nodeTypeId: draft.nodeTypeId,
+      quickEditorTypeId: draft.quickEditorTypeId,
+      formId: draft.formId,
+      fields: draft.fields,
+      ports: draft.ports,
+      schemaMappings: Array.isArray(draft.schemaMappings) ? draft.schemaMappings : [],
+    })
+    if (res.ok !== true) {
+      upsertUiToast({
+        id: 'flow-editor-manager-register-selected-type-failed',
+        kind: 'warning',
+        message: 'message' in res ? String(res.message || '').trim() : 'Register failed.',
+        ttlMs: 4000,
+      })
+      return
+    }
+
+    const updates: Record<string, unknown> = {}
+    if (String(node.type || '').trim() !== draft.nodeTypeId) updates.type = draft.nodeTypeId
+    const label = String(node.label || '').trim()
+    if (!label || label === String(node.type || '').trim()) {
+      const nextLabel = draft.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? FLOW_VIDEO_GENERATION_NODE_LABEL : draft.nodeTypeId
+      updates.label = nextLabel
+    }
+    const nextProps: Record<string, unknown> = {
+      ...(node.properties || {}),
+      [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: draft.quickEditorTypeId,
+      [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: draft.formId,
+    }
+    if (draft.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
+      if (typeof nextProps.model !== 'string' || String(nextProps.model).trim() !== 'generate_video') nextProps.model = 'generate_video'
+    }
+    updates.properties = nextProps
+    updateNode(nodeId, updates as never)
+
+    setSelectedId(res.id)
+    setSelectionMode('manual')
+    upsertUiToast({ id: 'flow-editor-manager-register-selected-type-ok', kind: 'neutral', message: 'Registered mapping.', ttlMs: 2200 })
+  }, [graphData, selectedNodeId, updateNode, upsertNodeQuickEditorRegistryEntry, upsertUiToast])
+
+  const applySelectedMappingToSelectedNode = React.useCallback(() => {
+    const entry = selected
+    const cur = graphData
+    const nodeId = String(selectedNodeId || '').trim()
+    if (!entry) {
+      upsertUiToast({ id: 'flow-editor-manager-apply-no-selected-entry', kind: 'warning', message: 'Select a mapping first.', ttlMs: 2500 })
+      return
+    }
+    if (!cur || !nodeId) {
+      upsertUiToast({ id: 'flow-editor-manager-apply-no-selected-node', kind: 'warning', message: 'Select a node first.', ttlMs: 2500 })
+      return
+    }
+    const node = (cur.nodes || []).find(n => n && n.id === nodeId) || null
+    if (!node) return
+
+    if (entry.isEnabled !== true) toggleNodeQuickEditorRegistryEntryEnabled(entry.id, true)
+
+    const updates: Record<string, unknown> = {}
+    if (String(node.type || '').trim() !== entry.nodeTypeId) updates.type = entry.nodeTypeId
+    const nextProps: Record<string, unknown> = {
+      ...(node.properties || {}),
+      [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: entry.quickEditorTypeId,
+      [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: entry.formId,
+    }
+    updates.properties = nextProps
+    updateNode(nodeId, updates as never)
+
+    upsertUiToast({ id: 'flow-editor-manager-apply-ok', kind: 'neutral', message: 'Applied mapping to node.', ttlMs: 2200 })
+  }, [graphData, selected, selectedNodeId, toggleNodeQuickEditorRegistryEntryEnabled, updateNode, upsertUiToast])
+
   const importRegistryFromJson = React.useCallback(async () => {
     const files = await pickFilesWithExtensions(['json'], false)
     const file = files && files[0] ? files[0] : null
@@ -496,8 +593,28 @@ export default function FlowEditorMappingTab({
               </button>
             </li>
             <li>
+              <button
+                type="button"
+                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={registerSelectedNodeTypeFromSelection}
+                title={UI_COPY.flowEditorManagerRegisterSelectedNodeTypeTooltip}
+              >
+                {UI_LABELS.registerNodeType}
+              </button>
+            </li>
+            <li>
               <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={registerGenerateVideoFromSelection} title={UI_COPY.flowEditorManagerRegisterGenerateVideoTooltip}>
                 {UI_LABELS.registerGenerateVideo}
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={applySelectedMappingToSelectedNode}
+                title={UI_COPY.flowEditorManagerApplySelectedMappingToNodeTooltip}
+              >
+                {UI_LABELS.applyToNode}
               </button>
             </li>
             <li>

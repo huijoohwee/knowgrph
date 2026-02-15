@@ -98,6 +98,8 @@ export const UI_COPY = {
   flowEditorManagerExportRegistrySelectToExportTooltip: 'Export all mappings as JSON',
   flowEditorManagerAddFromQuickEditorTooltip: 'Create a registry mapping from the currently open Node Quick Editor',
   flowEditorManagerRegisterGenerateVideoTooltip: 'Register the selected node as a Generate Video node and create a matching mapping',
+  flowEditorManagerRegisterSelectedNodeTypeTooltip: 'Register a mapping for the selected node type and enable it',
+  flowEditorManagerApplySelectedMappingToNodeTooltip: 'Apply the selected mapping to the selected node (updates node type and quick editor selectors)',
   noFields: 'No fields',
   noFieldsMatch: 'No fields match.',
   graphDataTableNoFilters: 'No filters.',

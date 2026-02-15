@@ -10,6 +10,10 @@ import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 
+import type { GraphData } from '@/lib/graph/types'
+import type { ZoomRequest } from '@/lib/zoom/requests'
+import type { DesignLayerState } from '@/features/design/designLayersState'
+
 type FrameNode = {
   id: string
   label: string
@@ -53,7 +57,13 @@ function computeGridPositions(args: { nodes: FrameNode[]; colCount: number; colW
   return pos
 }
 
-export default function DesignCanvas({ active = true }: { active?: boolean }) {
+export default function DesignCanvas({
+  active = true,
+  layerState,
+}: {
+  active?: boolean
+  layerState?: DesignLayerState
+}) {
   const containerRef = useRef<HTMLElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const gRef = useRef<SVGGElement>(null)
@@ -82,15 +92,42 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
   )
 
   const frameNodes = useMemo(() => coerceFrameNodes(snapshot.graphData?.nodes as never), [snapshot.graphData])
-  
-  // Penpot-like frames are usually larger
+
   const FRAME_W = 320
   const FRAME_H = 240
   const GAP = 48
-  
+
+  const sortedNodes = useMemo(() => {
+    const order = Array.isArray(layerState?.order) ? layerState!.order : []
+    if (order.length === 0) return frameNodes
+    const byId = new Map(frameNodes.map(n => [n.id, n] as const))
+    const used = new Set<string>()
+    const out: FrameNode[] = []
+    for (let i = 0; i < order.length; i += 1) {
+      const id = String(order[i] || '').trim()
+      if (!id) continue
+      const n = byId.get(id)
+      if (!n) continue
+      if (used.has(id)) continue
+      used.add(id)
+      out.push(n)
+    }
+    for (let i = 0; i < frameNodes.length; i += 1) {
+      const n = frameNodes[i]
+      if (used.has(n.id)) continue
+      out.push(n)
+    }
+    return out
+  }, [frameNodes, layerState])
+
+  const visibleNodes = useMemo(() => {
+    const hidden = layerState?.hiddenById || {}
+    return sortedNodes.filter(n => hidden[n.id] !== true)
+  }, [layerState?.hiddenById, sortedNodes])
+
   const positions = useMemo(() => {
-    return computeGridPositions({ nodes: frameNodes, colCount: 4, colW: FRAME_W, rowH: FRAME_H, pad: GAP })
-  }, [frameNodes])
+    return computeGridPositions({ nodes: visibleNodes, colCount: 4, colW: FRAME_W, rowH: FRAME_H, pad: GAP })
+  }, [visibleNodes])
 
   const zoomViewKey = useMemo(() => {
     return buildActive2dZoomViewKey({
@@ -126,24 +163,27 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
   useEffect(() => {
     if (!active) return
     let rafId: number | null = null
-    const apply = (zoomRequest: import('@/lib/zoom/requests').ZoomRequest | null) => {
+    const apply = (zoomRequest: ZoomRequest | null) => {
       if (!zoomRequest || !svgRef.current || !zoomRef.current) return
       const state = useGraphStore.getState()
       const svg = d3.select(svgRef.current)
-      
-      // Construct graphData with correct positions for zoom logic
-      const localGraphData: import('@/lib/graph/types').GraphData = {
-        nodes: frameNodes.map(n => {
-            const p = positions[n.id]
-            if (!p) return { id: n.id, x: 0, y: 0 }
-            return {
-                id: n.id,
-                x: p.x + p.w / 2,
-                y: p.y + p.h / 2,
-            }
+
+      const localGraphData: GraphData = {
+        type: 'Graph',
+        nodes: visibleNodes.map(n => {
+          const p = positions[n.id]
+          if (!p) return { id: n.id, label: n.label, type: 'Frame', properties: {}, x: 0, y: 0 }
+          return {
+            id: n.id,
+            label: n.label,
+            type: 'Frame',
+            properties: {},
+            x: p.x + p.w / 2,
+            y: p.y + p.h / 2,
+          }
         }),
         edges: [],
-        metadata: state.graphData?.metadata
+        metadata: state.graphData?.metadata,
       }
 
       applyZoomRequest(zoomRequest, {
@@ -158,7 +198,7 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
         selectedEdgeIds: state.selectedEdgeIds,
       })
     }
-    const schedule = (zoomRequest: import('@/lib/zoom/requests').ZoomRequest | null) => {
+    const schedule = (zoomRequest: ZoomRequest | null) => {
       if (rafId != null) return
       rafId = requestAnimationFrame(() => {
         rafId = null
@@ -173,7 +213,7 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
       unsubZoomRequest()
       if (rafId != null) cancelAnimationFrame(rafId)
     }
-  }, [active, positions, frameNodes])
+  }, [active, positions, visibleNodes])
 
   useEffect(() => {
     if (!active) return
@@ -191,14 +231,7 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
         if (!active) return
         const t = e.transform
         g.attr('transform', `translate(${t.x},${t.y}) scale(${t.k})`)
-        
-        // Update grid pattern transform if needed, or let it be static relative to view?
-        // Usually grid moves with pan, scales with zoom.
-        // If we apply transform to a group containing everything, the grid needs to be huge or pattern based.
-        // Pattern based grid on a huge rect is best.
-        // We can update the patternUserSpaceOnUse x/y/scale if we want precise control,
-        // but putting the rect inside the zoomed group is easiest for "infinite canvas" feel.
-        
+
         const store = useGraphStore.getState()
         const key = zoomViewKey
         if (!key) return
@@ -262,7 +295,6 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
     }
   }, [])
 
-  // Infinite background rect size
   const BG_SIZE = 100000
 
   return (
@@ -290,10 +322,9 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
         </defs>
         
         <g ref={gRef}>
-          {/* Infinite Grid Background */}
           <rect x={-BG_SIZE} y={-BG_SIZE} width={BG_SIZE * 2} height={BG_SIZE * 2} fill="url(#grid-pattern)" />
 
-          {frameNodes.map(n => {
+          {visibleNodes.map(n => {
             const p = positions[n.id]
             if (!p) return null
             const selected = snapshot.selectedNodeId === n.id
@@ -308,7 +339,6 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
                 }}
                 style={{ cursor: 'pointer' }}
               >
-                {/* Frame Background */}
                 <rect
                   x={0}
                   y={0}
@@ -320,15 +350,12 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
                   strokeWidth={selected ? 2 : 1}
                   filter={selected ? 'url(#shadow-md)' : 'url(#shadow-sm)'}
                 />
-                
-                {/* Header Strip (optional, for "Frame" look) */}
                 <path 
                   d={`M 0 8 Q 0 0 8 0 L ${p.w - 8} 0 Q ${p.w} 0 ${p.w} 8 L ${p.w} 32 L 0 32 Z`}
                   fill="var(--kg-statusbar-bg)"
                   opacity={0.5}
                 />
-                
-                {/* Label */}
+
                 <text
                   x={12}
                   y={22}
@@ -339,15 +366,13 @@ export default function DesignCanvas({ active = true }: { active?: boolean }) {
                 >
                   {n.label}
                 </text>
-                
-                {/* Content Placeholder (mocking Penpot layers) */}
+
                 <g transform="translate(16, 48)" opacity={0.3}>
                   <rect width={p.w - 32} height={12} rx={2} fill="var(--kg-text-tertiary)" />
                   <rect y={20} width={(p.w - 32) * 0.6} height={12} rx={2} fill="var(--kg-text-tertiary)" />
                   <rect y={40} width={p.w - 32} height={p.h - 100} rx={4} fill="var(--kg-border)" />
                 </g>
 
-                {/* ID (subtle) */}
                 <text
                   x={p.w - 12}
                   y={22}

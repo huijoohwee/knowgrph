@@ -112,6 +112,7 @@ import {
 } from '@/__tests__/graphRagTraversal.test'
 import { testGraphTraversalFloatingPanelGenericDepthClamp } from '@/__tests__/graphTraversalFloatingPanel.test'
 import { testThemeModePersistence, testThemeSystemModeApplyAndSubscribe } from '@/__tests__/theme.test'
+import { testDesignLayersNormalizePreservesOrderAndAddsNew, testDesignLayersToggleAndMove } from '@/__tests__/designLayersState.test'
 import { runMarkdownTests } from '@/tests/runners/runMarkdownTests'
 import { runSchemaTests } from '@/tests/runners/runSchemaTests'
 import { runJsonLdTests } from '@/tests/runners/runJsonLdTests'
@@ -1061,6 +1062,8 @@ export const runAllTests = async () => {
   await exec('rxdb.graphTable.createRow', testGraphTableDbAllocatesAndCreatesRows)
   await exec('ui.themeModePersistence', testThemeModePersistence)
   await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
+  await exec('design.layers.normalizePreservesOrderAndAddsNew', testDesignLayersNormalizePreservesOrderAndAddsNew)
+  await exec('design.layers.toggleAndMove', testDesignLayersToggleAndMove)
   await exec('workspace.importUrl.webpageStubHtml', testImportUrlWebpageCreatesHtmlFrontmatterStub)
   await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)
   await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)
