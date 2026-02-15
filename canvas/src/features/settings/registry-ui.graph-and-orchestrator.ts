@@ -88,6 +88,29 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     options: ['2d', '3d'],
   },
   {
+    key: 'viewportControlsPreset',
+    type: 'string',
+    source: 'store',
+    read: () => s().viewportControlsPreset,
+    write: (v) => {
+      const raw = String(v || '')
+      const preset = raw === 'design' ? 'design' : 'map'
+      s().setViewportControlsPreset(preset)
+    },
+    docKey: 'viewportControlsPreset',
+    default: () => 'map',
+    options: ['map', 'design'],
+  },
+  {
+    key: 'flowEditorSelectionOnDrag',
+    type: 'boolean',
+    source: 'store',
+    read: () => s().flowEditorSelectionOnDrag === true,
+    write: (v) => s().setFlowEditorSelectionOnDrag(Boolean(v)),
+    docKey: 'flowEditorSelectionOnDrag',
+    default: () => false,
+  },
+  {
     key: 'viewPinned',
     type: 'boolean',
     source: 'store',

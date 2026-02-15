@@ -681,6 +681,7 @@ export interface GraphState {
   canvasRenderMode: '2d' | '3d';
   canvas2dRenderer: Canvas2dRendererId;
   viewportControlsPreset: ViewportControlsPreset;
+  flowEditorSelectionOnDrag: boolean;
   flowWheelZoomSpeedMultiplier: number;
   flowWheelZoomIncrementMultiplier: number;
   flowWheelZoomSmoothMinDurationMs: number;
@@ -695,6 +696,7 @@ export interface GraphState {
   setCanvasRenderMode: (m: '2d' | '3d') => void;
   setCanvas2dRenderer: (id: Canvas2dRendererId) => void;
   setViewportControlsPreset: (preset: ViewportControlsPreset) => void;
+  setFlowEditorSelectionOnDrag: (v: boolean) => void;
   setFlowWheelZoomSpeedMultiplier: (v: number) => void;
   setFlowWheelZoomIncrementMultiplier: (v: number) => void;
   setFlowWheelZoomSmoothMinDurationMs: (v: number) => void;

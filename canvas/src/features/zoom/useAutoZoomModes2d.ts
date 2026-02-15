@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { shouldAutoFitToScreen2d, shouldAutoZoomSelection2d } from '@/features/zoom/autoZoom2dPolicy'
 
 export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number; paused?: boolean }) {
   const scheduleFitRef = React.useRef<(() => void) | null>(null)
@@ -28,15 +29,14 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
         rafId = null
         if (pausedRef.current) return
         const state = useGraphStore.getState()
-        if (state.viewPinned) {
-          lastFitSigRef.current = null
-          return
-        }
-        if (state.zoomToSelectionMode) {
-          lastFitSigRef.current = null
-          return
-        }
-        if (!state.fitToScreenMode) {
+        if (
+          !shouldAutoFitToScreen2d({
+            canvas2dRenderer: String(state.canvas2dRenderer || ''),
+            viewPinned: state.viewPinned === true,
+            fitToScreenMode: state.fitToScreenMode === true,
+            zoomToSelectionMode: state.zoomToSelectionMode === true,
+          })
+        ) {
           lastFitSigRef.current = null
           return
         }
@@ -65,6 +65,7 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
     schedule()
     const unsub = useGraphStore.subscribe(
       s => ({
+        canvas2dRenderer: s.canvas2dRenderer,
         fitToScreenMode: s.fitToScreenMode,
         zoomToSelectionMode: s.zoomToSelectionMode,
         viewPinned: s.viewPinned,
@@ -96,11 +97,13 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
         rafId = null
         if (pausedRef.current) return
         const state = useGraphStore.getState()
-        if (state.viewPinned) {
-          lastAutoZoomSelRef.current = null
-          return
-        }
-        if (!state.zoomToSelectionMode) {
+        if (
+          !shouldAutoZoomSelection2d({
+            canvas2dRenderer: String(state.canvas2dRenderer || ''),
+            viewPinned: state.viewPinned === true,
+            zoomToSelectionMode: state.zoomToSelectionMode === true,
+          })
+        ) {
           lastAutoZoomSelRef.current = null
           return
         }
@@ -130,6 +133,7 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
     }
     const unsub = useGraphStore.subscribe(
       s => ({
+        canvas2dRenderer: s.canvas2dRenderer,
         zoomToSelectionMode: s.zoomToSelectionMode,
         selectedNodeId: s.selectedNodeId,
         selectedEdgeId: s.selectedEdgeId,

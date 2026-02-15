@@ -2130,7 +2130,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   return (
     <section
       ref={rootRef}
-      className="absolute inset-0"
+      className="absolute inset-0 z-0"
       aria-label="Flow Editor"
       onDragOverCapture={(ev) => {
         if (!active) return
@@ -2182,7 +2182,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         active={active}
         graphDataOverride={draftGraphData}
         graphDataRevisionOverride={baseGraphDataRevision}
-        collisionDuringDrag
         exposeRuntimeRef={ref => {
           flowRuntimeRefRef.current = ref
         }}

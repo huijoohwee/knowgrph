@@ -218,6 +218,16 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   KG_OUTPUT_DIR: { area: 'Pipeline Env', responsibility: 'Pipeline output directory' },
   'max-lines': { area: 'ESLint Guard', responsibility: 'Max lines per file' },
   canvasRenderMode: { area: 'Canvas Rendering', responsibility: 'Render mode (2d or 3d)' },
+  viewportControlsPreset: {
+    area: 'Canvas Interaction (Viewport Controls)',
+    responsibility: 'Pointer/wheel gesture preset (map vs design)',
+    notes: 'Used by Flow and FlowEditor renderers to decide pan drag and wheel zoom behavior.',
+  },
+  flowEditorSelectionOnDrag: {
+    area: 'Canvas Interaction (Flow Editor)',
+    responsibility: 'Enable selection box on drag in Flow Editor renderer',
+    notes: 'When enabled with viewportControlsPreset=design, left-drag creates a selection box. When disabled, selection box uses Shift-drag like other modes.',
+  },
   viewPinned: {
     area: 'Canvas Zoom Modes',
     responsibility: 'Pin view (disables Fit/Selection auto-zoom + zoom-to-bounds requests)',

@@ -5,7 +5,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config'
 import { CANVAS_2D_RENDERER_ORDER } from '@/lib/renderer/canvas2dRendererRegistry'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
-import { enforceDesignPresetWhenSelectionOnDrag } from '@/lib/canvas/viewport-controls'
 import { buildDocumentKey, buildDocumentRef } from '@/lib/persistence/perDocumentUiState'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
@@ -25,6 +24,7 @@ export default function ContractsDiagnostics() {
       canvasRenderMode: state.canvasRenderMode,
       canvas2dRenderer: state.canvas2dRenderer,
       viewportControlsPreset: state.viewportControlsPreset,
+      flowEditorSelectionOnDrag: state.flowEditorSelectionOnDrag === true,
       documentStructureBaselineLock: state.documentStructureBaselineLock,
       viewPinned: state.viewPinned,
       fitToScreenMode: state.fitToScreenMode,
@@ -50,8 +50,8 @@ export default function ContractsDiagnostics() {
 
   const docRef = buildDocumentRef({ name: s.markdownDocumentName, sourceUrl: s.markdownDocumentSourceUrl })
   const docKey = buildDocumentKey({ name: s.markdownDocumentName, sourceUrl: s.markdownDocumentSourceUrl })
-  const selectionOnDrag = s.canvasRenderMode === '2d' && (s.canvas2dRenderer === 'flowEditor' || s.canvas2dRenderer === 'design')
-  const effectivePreset = enforceDesignPresetWhenSelectionOnDrag(s.viewportControlsPreset, selectionOnDrag)
+  const selectionOnDrag = s.canvasRenderMode === '2d' && s.canvas2dRenderer === 'flowEditor' && s.flowEditorSelectionOnDrag === true
+  const effectivePreset = s.viewportControlsPreset
 
   const zoomViewKey = buildActive2dZoomViewKey({
     canvasRenderMode: s.canvasRenderMode,
@@ -87,6 +87,7 @@ export default function ContractsDiagnostics() {
       localStorageKeys: {
         canvas2dRenderer: LS_KEYS.canvas2dRenderer,
         viewportControlsPreset: LS_KEYS.viewportControlsPreset,
+        flowEditorSelectionOnDrag: LS_KEYS.flowEditorSelectionOnDrag,
         viewportPinned: LS_KEYS.viewportPinned,
         viewportFitToScreen: LS_KEYS.viewportFitToScreen,
         viewportZoomToSelection: LS_KEYS.viewportZoomToSelection,

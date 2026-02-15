@@ -90,6 +90,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   )
   const initialViewportControlsPreset = initialViewportControlsPresetStored
 
+  const initialFlowEditorSelectionOnDrag = lsBool(LS_KEYS.flowEditorSelectionOnDrag, false)
+
   const initialPinnedStored = lsBool(LS_KEYS.viewportPinned, false)
   const initialFitToScreenStored = lsBool(LS_KEYS.viewportFitToScreen, true)
   const initialZoomToSelectionStored = lsBool(LS_KEYS.viewportZoomToSelection, false)
@@ -295,6 +297,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   canvasRenderMode: '2d' as '2d' | '3d',
   canvas2dRenderer: initialCanvas2dRenderer,
   viewportControlsPreset: initialViewportControlsPreset,
+  flowEditorSelectionOnDrag: initialFlowEditorSelectionOnDrag,
   flowWheelZoomSpeedMultiplier: initialFlowWheelZoomSpeedMultiplier,
   flowWheelZoomIncrementMultiplier: initialFlowWheelZoomIncrementMultiplier,
   flowWheelZoomSmoothMinDurationMs: initialFlowWheelZoomSmoothMinDurationMs,
@@ -396,6 +399,13 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     if (cur === next) return
     lsSetJson(LS_KEYS.viewportControlsPreset, next)
     set({ viewportControlsPreset: next })
+  },
+  setFlowEditorSelectionOnDrag: (v: boolean) => {
+    const next = Boolean(v)
+    const cur = get().flowEditorSelectionOnDrag === true
+    if (cur === next) return
+    lsSetBool(LS_KEYS.flowEditorSelectionOnDrag, next)
+    set({ flowEditorSelectionOnDrag: next })
   },
   setFlowWheelZoomSpeedMultiplier: (v: number) => {
     const next = clampFlowWheelZoomSpeedMultiplier(

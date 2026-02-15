@@ -255,7 +255,12 @@
 - **Viewport controls presets (2D)**:
   - Preset SSOT lives in `canvas/src/lib/canvas/viewport-controls.ts` and must be honored by D3/Flow/Flow Editor.
   - `map`: pan = pointer drag; zoom = scroll/pinch; select = shift + pointer drag.
-  - `design`: pan = scroll + middle/right drag + space+drag; zoom = ctrl/cmd+scroll; select = pointer drag.
+  - `design`: pan = scroll + middle/right drag + space+drag; zoom = ctrl/cmd+scroll; select = pointer drag **when selection-on-drag is enabled**.
+  - **Flow Editor selection-on-drag**:
+    - The Flow Editor renderer must never override the stored preset.
+    - Selection box on pointer drag is gated by `flowEditorSelectionOnDrag` (persisted at `LS_KEYS.flowEditorSelectionOnDrag`). When disabled, selection box uses `shift + drag` like other modes.
+  - **Auto zoom modes**:
+    - Auto Fit-to-Screen and Auto Zoom-to-Selection must not run while `canvas2dRenderer=flowEditor` to prevent viewport churn during draft edits; explicit zoom actions still work.
 - **Zoom commands (toolbar/keyboard)**:
   - Zoom-in/out scales about the current viewport center (preserve the world point at `viewportW/2, viewportH/2`) so panning does not “bounce” back toward the graph centroid.
   - Only explicit `fit/reset` operations recenter on graph bounds/centroid.

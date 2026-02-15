@@ -1,11 +1,12 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { enforceDesignPresetWhenSelectionOnDrag } from '@/lib/canvas/viewport-controls'
 
-export function testFlowEditorForcesDesignViewportControlsPreset() {
+export function testFlowEditorViewportControlsPresetDoesNotForceDesign() {
   const api = useGraphStore.getState()
   api.setDocumentStructureBaselineLock(false)
   api.setViewportControlsPreset('map')
   api.setCanvas2dRenderer('d3')
+
+  api.setFlowEditorSelectionOnDrag(false)
 
   api.setCanvas2dRenderer('flowEditor')
   const state = useGraphStore.getState()
@@ -15,8 +16,13 @@ export function testFlowEditorForcesDesignViewportControlsPreset() {
   if (state.viewportControlsPreset !== 'map') {
     throw new Error(`expected viewportControlsPreset store value to remain map, got ${String(state.viewportControlsPreset)}`)
   }
-  const effective = enforceDesignPresetWhenSelectionOnDrag(state.viewportControlsPreset, true)
-  if (effective !== 'design') {
-    throw new Error(`expected effective preset to be design when selectionOnDrag=true, got ${String(effective)}`)
+  if (state.flowEditorSelectionOnDrag !== false) {
+    throw new Error(`expected flowEditorSelectionOnDrag to default false, got ${String(state.flowEditorSelectionOnDrag)}`)
+  }
+
+  api.setFlowEditorSelectionOnDrag(true)
+  const state2 = useGraphStore.getState()
+  if (state2.viewportControlsPreset !== 'map') {
+    throw new Error(`expected viewportControlsPreset to remain map after enabling selectionOnDrag, got ${String(state2.viewportControlsPreset)}`)
   }
 }

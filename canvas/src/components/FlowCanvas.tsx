@@ -32,7 +32,6 @@ import {
 } from '@/components/FlowCanvas/nativeRuntime'
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
-import { enforceDesignPresetWhenSelectionOnDrag } from '@/lib/canvas/viewport-controls'
 import { applyZoomRequestNative } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/components/FlowCanvas/bindNativeInteractions'
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
@@ -40,6 +39,7 @@ import { extractNodePositions } from '@/components/FlowCanvas/seedPositions'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestCommit'
+import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 
 export { __flowCanvasDebug, extractNodePositions }
@@ -82,6 +82,7 @@ export default function FlowCanvas({
   const runtimeRef = React.useRef<FlowNativeRuntime | null>(null)
   const lastBuiltGraphKeyRef = React.useRef<string>('')
   const lastUserInteractionAtMsRef = React.useRef<number>(0)
+  const lastInitTransformZoomViewKeyRef = React.useRef<string | null>(null)
   const lastAppliedPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(null)
   const lastCommittedPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(null)
   const positionsDirtySinceCommitRef = React.useRef(false)
@@ -152,6 +153,7 @@ export default function FlowCanvas({
     canvasRenderMode,
     canvas2dRenderer,
     viewportControlsPreset,
+    flowEditorSelectionOnDrag,
     setLayoutPositionsForMode,
     graphDataRevision: baseGraphDataRevision,
     selectedNodeId,
@@ -177,6 +179,7 @@ export default function FlowCanvas({
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
       viewportControlsPreset: s.viewportControlsPreset,
+      flowEditorSelectionOnDrag: s.flowEditorSelectionOnDrag === true,
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
       graphDataRevision: s.graphDataRevision || 0,
       selectedNodeId: s.selectedNodeId,
@@ -414,10 +417,15 @@ export default function FlowCanvas({
 
   React.useEffect(() => {
     collisionSchemaRef.current = schema
-    collisionGraphDataRef.current = graphDataForZoom && typeof graphDataForZoom === 'object' ? (graphDataForZoom as GraphData) : null
+    collisionGraphDataRef.current =
+      graphDataForZoom && typeof graphDataForZoom === 'object'
+        ? (graphDataForZoom as GraphData)
+        : sceneGraphData && typeof sceneGraphData === 'object'
+          ? (sceneGraphData as GraphData)
+          : null
     collisionFlowConfigRef.current = flowConfig
     collisionPresentationRef.current = flowPresentation
-  }, [flowConfig, flowPresentation, graphDataForZoom, schema])
+  }, [flowConfig, flowPresentation, graphDataForZoom, schema, sceneGraphData])
 
   const requestCommit = useFlowRequestCommit({
     cacheKey,
@@ -501,16 +509,33 @@ export default function FlowCanvas({
     const runtime = runtimeRef.current
     if (!runtime) return
     if (!graphDataForZoom) return
+
+    const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    const effectiveFitToScreenMode = isFlowEditor ? false : fitToScreenMode
+    const effectiveZoomToSelectionMode = isFlowEditor ? false : zoomToSelectionMode
+
+    const rawDatasetKey = String(datasetKey || '')
+    const normalizedDatasetKey = rawDatasetKey.startsWith('rev:') ? 'rev' : rawDatasetKey
+    const initKey = isFlowEditor ? `flowEditor:${normalizedDatasetKey}` : zoomViewKey
+    const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
+    const t0 = runtime.transform || d3.zoomIdentity
+    const hasNonIdentityTransform = t0.k !== 1 || t0.x !== 0 || t0.y !== 0
+    if (isFlowEditor && alreadyInitializedForKey) return
+    if (!isFlowEditor && alreadyInitializedForKey && hasNonIdentityTransform) return
+
     const now = Date.now()
     const lastInteraction = lastUserInteractionAtMsRef.current
     if (lastInteraction && now - lastInteraction < 500) return
+
+    lastInitTransformZoomViewKeyRef.current = initKey
+
     const st = useGraphStore.getState()
     const z = pickZoomStateForView({
       zoomViewKey,
       zoomStateByKey: st.zoomStateByKey,
       viewPinned,
-      fitToScreenMode,
-      zoomToSelectionMode,
+      fitToScreenMode: effectiveFitToScreenMode,
+      zoomToSelectionMode: effectiveZoomToSelectionMode,
     })
     const initial = pickInitialZoomTransform({
       zoomState: z,
@@ -521,8 +546,23 @@ export default function FlowCanvas({
     })
     const schema = useGraphStore.getState().schema
     const mode = readLayoutMode(schema)
-    const opts = readFitAllOptions({ schema, mode, intent: fitToScreenMode ? 'fitToScreen' : 'initialFit' })
+    const opts = readFitAllOptions({ schema, mode, intent: effectiveFitToScreenMode ? 'fitToScreen' : 'initialFit' })
     const nodesForFit = Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []
+
+    if (isFlowEditor) {
+      let hasAnyFinitePos = false
+      for (let i = 0; i < nodesForFit.length; i += 1) {
+        const n = nodesForFit[i]
+        const x = typeof n?.x === 'number' ? n.x : null
+        const y = typeof n?.y === 'number' ? n.y : null
+        if (x != null && y != null && Number.isFinite(x) && Number.isFinite(y)) {
+          hasAnyFinitePos = true
+          break
+        }
+      }
+      if (!hasAnyFinitePos) return
+    }
+
     const fit = fitAllTransform(nodesForFit, viewportW, viewportH, opts)
     if (initial) {
       const candidate = d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k)
@@ -538,6 +578,7 @@ export default function FlowCanvas({
     requestCommit()
   }, [
     active,
+    datasetKey,
     fitToScreenMode,
     flowConfig.node.heightPx,
     flowConfig.node.widthPx,
@@ -645,16 +686,19 @@ export default function FlowCanvas({
     const runtime = runtimeRef.current
     const canvasEl = canvasRef.current
     if (!runtime || !canvasEl) return
-    const selectionOnDrag = canvas2dRenderer === 'flowEditor'
-    const effectiveViewportControlsPreset = enforceDesignPresetWhenSelectionOnDrag(viewportControlsPreset, selectionOnDrag)
+    const selectionOnDrag = canvas2dRenderer === 'flowEditor' && flowEditorSelectionOnDrag === true
+    const effectiveCollisionDuringDrag = computeCollisionDuringDrag({
+      collisionDuringDrag: collisionDuringDrag === true,
+      canvas2dRenderer: String(canvas2dRenderer || ''),
+    })
     return bindFlowCanvasNativeInteractions({
       active,
       canvasEl,
       runtime,
-      viewportControlsPreset: effectiveViewportControlsPreset,
+      viewportControlsPreset,
       selectionOnDrag,
       allowNodeDragOverride,
-      collisionDuringDrag,
+      collisionDuringDrag: effectiveCollisionDuringDrag,
       requestCommit,
       buildDrawArgs,
       setSelectionBox: requestSetSelectionBox,
@@ -670,7 +714,18 @@ export default function FlowCanvas({
       collisionFlowConfigRef,
       collisionPresentationRef,
     })
-  }, [active, allowNodeDragOverride, buildDrawArgs, canvas2dRenderer, collisionDuringDrag, onInteractionFrame, requestCommit, requestSetSelectionBox, viewportControlsPreset])
+  }, [
+    active,
+    allowNodeDragOverride,
+    buildDrawArgs,
+    canvas2dRenderer,
+    collisionDuringDrag,
+    flowEditorSelectionOnDrag,
+    onInteractionFrame,
+    requestCommit,
+    requestSetSelectionBox,
+    viewportControlsPreset,
+  ])
 
   return (
     <section ref={containerRef} className={CANVAS_SURFACE_CLASS}>
@@ -682,7 +737,7 @@ export default function FlowCanvas({
         draggable={false}
       />
       {selectionBox && (
-        <div
+        <section
           aria-hidden={true}
           className="absolute pointer-events-none border border-[var(--kg-canvas-node-selected)] bg-[color-mix(in_srgb,var(--kg-canvas-node-selected)_15%,transparent)]"
           style={{ left: selectionBox.left, top: selectionBox.top, width: selectionBox.width, height: selectionBox.height }}
