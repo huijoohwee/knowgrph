@@ -154,6 +154,17 @@ export default function CanvasPage() {
       return false
     }
   }, [location.search])
+
+  const detectEmbeddedPreviewWriteback = React.useCallback(() => {
+    try {
+      const w = window as unknown as { frameElement?: Element | null }
+      const frameEl = w?.frameElement
+      if (!frameEl) return false
+      return String(frameEl.getAttribute('data-kg-preview-writeback') || '') === '1'
+    } catch {
+      return false
+    }
+  }, [])
   const [isEmbeddedPreview, setIsEmbeddedPreview] = React.useState<boolean>(() => detectEmbeddedPreview())
   React.useEffect(() => {
     setIsEmbeddedPreview(prev => prev || detectEmbeddedPreview())
@@ -771,6 +782,7 @@ export default function CanvasPage() {
 
   React.useEffect(() => {
     if (!isEmbeddedPreview) return
+    if (!detectEmbeddedPreviewWriteback()) return
     const parentWin = window.parent
     if (!parentWin || parentWin === window) return
 
@@ -805,7 +817,7 @@ export default function CanvasPage() {
         void 0
       }
     }
-  }, [isEmbeddedPreview])
+  }, [detectEmbeddedPreviewWriteback, isEmbeddedPreview])
 
   React.useEffect(() => {
     if (!isEmbeddedPreview) return

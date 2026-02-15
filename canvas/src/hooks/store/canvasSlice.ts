@@ -327,9 +327,24 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       if (enforce2d) {
         if (requested === '3d') {
           const nextLastFree = state.canvasRenderMode === '3d' ? '3d' : (state.canvasRenderModeLastFree || '2d')
+          if (
+            state.canvasRenderMode === '2d' &&
+            state.canvasRenderModeLastFree === nextLastFree &&
+            state.canvasRenderModeIsAuto === true
+          ) {
+            return {}
+          }
           return { canvasRenderMode: '2d', canvasRenderModeLastFree: nextLastFree, canvasRenderModeIsAuto: true }
         }
+        if (state.canvasRenderMode === '2d' && state.canvasRenderModeIsAuto === false) return {}
         return { canvasRenderMode: '2d', canvasRenderModeIsAuto: false }
+      }
+      if (
+        state.canvasRenderMode === requested &&
+        state.canvasRenderModeLastFree === requested &&
+        state.canvasRenderModeIsAuto === false
+      ) {
+        return {}
       }
       return { canvasRenderMode: requested, canvasRenderModeLastFree: requested, canvasRenderModeIsAuto: false }
     })

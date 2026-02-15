@@ -1624,7 +1624,21 @@ export function MarkdownWorkspace() {
               }
             } else {
               const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
-            const res = await runInIdle(() => loadGraphDataFromTextViaParser(activeDocumentKey, nextText, { applyToStore: false }), { timeoutMs: 650 })
+              let lastStage = ''
+              setStatusProgress('Parsing')
+              const res = await runInIdle(
+                () =>
+                  loadGraphDataFromTextViaParser(activeDocumentKey, nextText, {
+                    applyToStore: false,
+                    onProgress: (stage) => {
+                      const s = String(stage || '').trim()
+                      if (!s || s === lastStage) return
+                      lastStage = s
+                      setStatusProgress(s)
+                    },
+                  }),
+                { timeoutMs: 650 },
+              )
               const gd = res?.graphData || null
               if (gd) {
                 try {

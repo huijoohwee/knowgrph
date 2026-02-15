@@ -24,6 +24,8 @@ function computeRegistrySignature(entries: Array<{ id: string; updatedAt: string
   return `${pairs.length}:${pairs.join('|')}`
 }
 
+const HASH_CACHE = new WeakMap<object, string>()
+
 export function withGraphDataRevision(graphData: GraphData, nextRevision: number): GraphData {
   const base = graphData as unknown as { metadata?: unknown }
   const metaRaw = base.metadata
@@ -39,17 +41,23 @@ export function withGraphDataRevision(graphData: GraphData, nextRevision: number
 export function hashGraphDataForPreviewSync(graphData: unknown): string {
   try {
     if (!graphData || typeof graphData !== 'object') return ''
+    const cached = HASH_CACHE.get(graphData as object)
+    if (cached) return cached
     const gd = graphData as unknown as { metadata?: unknown }
     const metaRaw = gd.metadata
     if (!isRecord(metaRaw)) {
-      return hashStringToHex(JSON.stringify(graphData))
+      const out = hashStringToHex(JSON.stringify(graphData))
+      HASH_CACHE.set(graphData as object, out)
+      return out
     }
     const meta = metaRaw as Record<string, unknown>
     const nextMeta: Record<string, unknown> = { ...meta }
     delete nextMeta.hash
     delete nextMeta.graphDataRevision
     const sanitized = { ...(graphData as unknown as Record<string, unknown>), metadata: nextMeta }
-    return hashStringToHex(JSON.stringify(sanitized))
+    const out = hashStringToHex(JSON.stringify(sanitized))
+    HASH_CACHE.set(graphData as object, out)
+    return out
   } catch {
     return ''
   }

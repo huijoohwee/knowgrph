@@ -2,6 +2,27 @@ import { unwrapUserProvidedText } from 'grph-shared/url'
 
 export * from 'grph-shared/url'
 
+export function isHttpUrl(value: unknown): boolean {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return false
+  return /^https?:\/\//i.test(raw)
+}
+
+export function encodeRepoPathForUrl(relPath: string): string {
+  return String(relPath || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map(seg => encodeURIComponent(seg))
+    .join('/')
+}
+
+export function buildRepoFilePath(relPath: string): string {
+  const normalized = String(relPath || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
+  if (!normalized) return '/__repo_file'
+  return `/__repo_file/${encodeRepoPathForUrl(normalized)}`
+}
+
 export function isYouTubeUrl(value: unknown): boolean {
   if (typeof value !== 'string') return false
   const raw = unwrapUserProvidedText(value) || value.trim()

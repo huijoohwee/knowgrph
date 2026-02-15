@@ -1,3 +1,5 @@
+import { buildRepoFilePath, isHttpUrl } from '@/lib/url'
+
 export type WebpageIframeMode = 'html' | 'json' | 'text'
 
 export type WebsiteImportMeta = { importId: string; nodeId: string; outputDirRel?: string }
@@ -8,7 +10,7 @@ const INFLIGHT = new Map<string, Promise<string>>()
 const CACHE_MAX = 24
 
 const SRCDOC_CACHE = new Map<string, string>()
-const SRCDOC_CACHE_MAX = 8
+const SRCDOC_CACHE_MAX = 24
 
 const hash32 = (s: string): string => {
   const str = String(s || '')
@@ -201,12 +203,28 @@ export const buildCodeViewerSrcdoc = (args: { baseHref: string; title: string; m
 
 const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0))
 
-const fetchBoundedText = async (res: Response, limit: number, onProgress?: (bytes: number) => void): Promise<string> => {
+const readContentLength = (res: Response): number | null => {
+  try {
+    const raw = res.headers.get('content-length')
+    if (!raw) return null
+    const n = Number.parseInt(raw, 10)
+    return Number.isFinite(n) && n > 0 ? n : null
+  } catch {
+    return null
+  }
+}
+
+const fetchBoundedText = async (
+  res: Response,
+  limit: number,
+  onProgress?: (bytes: number, bytesTotal?: number | null) => void,
+): Promise<string> => {
   if (!res.body) return await res.text()
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
-  let text = ''
+  const parts: string[] = []
   let bytes = 0
+  const bytesTotal = readContentLength(res)
   let lastProgressAt = 0
   let lastYieldAtBytes = 0
 
@@ -216,11 +234,11 @@ const fetchBoundedText = async (res: Response, limit: number, onProgress?: (byte
       if (done) break
       if (value) {
         bytes += value.byteLength
-        text += decoder.decode(value, { stream: true })
+        parts.push(decoder.decode(value, { stream: true }))
         
         const now = Date.now()
         if (onProgress && now - lastProgressAt > 100) {
-          onProgress(bytes)
+          onProgress(bytes, bytesTotal)
           lastProgressAt = now
         }
         
@@ -237,9 +255,9 @@ const fetchBoundedText = async (res: Response, limit: number, onProgress?: (byte
   } finally {
     try { reader.cancel() } catch { void 0 }
   }
-  text += decoder.decode()
-  if (onProgress) onProgress(bytes)
-  return text
+  parts.push(decoder.decode())
+  if (onProgress) onProgress(bytes, bytesTotal)
+  return parts.join('')
 }
 
 const createAbortError = (): Error => {
@@ -334,7 +352,11 @@ const fetchCached = (key: string, run: (signal: AbortSignal) => Promise<string>,
   return withAbort(p, signal)
 }
 
-export async function fetchWebpageHtmlViaProxy(args: { url: string; signal: AbortSignal; onProgress?: (bytes: number) => void }): Promise<string> {
+export async function fetchWebpageHtmlViaProxy(args: {
+  url: string
+  signal: AbortSignal
+  onProgress?: (bytes: number, bytesTotal?: number | null) => void
+}): Promise<string> {
   const u = String(args.url || '').trim()
   if (!u) return ''
   const key = `proxy:${u}`
@@ -348,8 +370,41 @@ export async function fetchWebpageHtmlViaProxy(args: { url: string; signal: Abor
     args.signal,
   )
 }
-export async function fetchWebpageHtmlAuto(args: { url: string; signal: AbortSignal; onProgress?: (bytes: number) => void }): Promise<string> {
-  return await fetchWebpageHtmlViaProxy(args)
+
+export async function fetchWebpageHtmlFromRepoFile(args: {
+  relPath: string
+  signal: AbortSignal
+  onProgress?: (bytes: number, bytesTotal?: number | null) => void
+}): Promise<string> {
+  const rel = String(args.relPath || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^file:\/\//i, '')
+    .replace(/^\.+\//, '')
+    .replace(/^\/+/, '')
+    .split(/[?#]/)[0]
+  if (!rel || rel.includes('..')) return ''
+  const key = `repo:${rel}`
+  return fetchCached(
+    key,
+    async (signal) => {
+      const res = await fetch(buildRepoFilePath(rel), { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await fetchBoundedText(res, 8_000_000, args.onProgress)
+    },
+    args.signal,
+  )
+}
+
+export async function fetchWebpageHtmlAuto(args: {
+  url: string
+  signal: AbortSignal
+  onProgress?: (bytes: number, bytesTotal?: number | null) => void
+}): Promise<string> {
+  const u = String(args.url || '').trim()
+  if (!u) return ''
+  if (isHttpUrl(u)) return await fetchWebpageHtmlViaProxy({ url: u, signal: args.signal, onProgress: args.onProgress })
+  return await fetchWebpageHtmlFromRepoFile({ relPath: u, signal: args.signal, onProgress: args.onProgress })
 }
 
 export async function fetchWebpageConversionJsonViaConvert(args: {
@@ -411,14 +466,50 @@ export const buildWebpageHtmlSrcdocAsync = async (args: {
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
   const rawHtml = String(args.html || '')
   const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : 'strip'
-  
-  if (rawHtml.length > 1_500_000) {
-    return buildCodeViewerSrcdoc({
-      baseHref,
-      title: baseHref,
-      mode: 'text',
-      text: `HTML too large for sandboxed srcdoc (${rawHtml.length} chars).\n\nTip: switch to Markdown view, or reduce the HTML override.`,
+
+  const MAX_SRCDOC_CHARS = 1_500_000
+
+  const stripHtmlComments = (html: string): string => {
+    const s = String(html || '')
+    if (!s.includes('<!--')) return s
+    return s.replace(/<!--[\s\S]*?-->/g, '')
+  }
+
+  const stripOversizeStyleTags = (html: string, maxStyleChars: number): string => {
+    const s = String(html || '')
+    if (!/<style\b/i.test(s)) return s
+    return s.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, (m) => {
+      if (m.length <= maxStyleChars) return m
+      return '<style>/* omitted */</style>'
     })
+  }
+
+  const stripOversizeInlineSvg = (html: string, maxSvgChars: number): string => {
+    const s = String(html || '')
+    if (!/<svg\b/i.test(s)) return s
+    return s.replace(/<svg\b[\s\S]*?<\/svg\s*>/gi, (m) => {
+      if (m.length <= maxSvgChars) return m
+      return ''
+    })
+  }
+
+  const stripDataImageSrc = (html: string): string => {
+    const s = String(html || '')
+    if (!s.includes('data:image/')) return s
+    return s
+      .replace(/\bsrc\s*=\s*("|')\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^"']*\1/gi, 'src="data:,"')
+      .replace(/url\(\s*("|')?\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^\)"']*("|')?\s*\)/gi, 'url(data:,)')
+  }
+
+  const compactWhitespace = (html: string): string => {
+    const s = String(html || '')
+    if (s.length < 50_000) return s
+    let next = s
+    next = next.replace(/\r/g, '')
+    next = next.replace(/\n{3,}/g, '\n\n')
+    next = next.replace(/>\s{2,}</g, '><')
+    next = next.replace(/[\t ]{2,}/g, ' ')
+    return next
   }
 
   const looksProxied = rawHtml.includes('/__webpage_asset_proxy?url=') || rawHtml.includes('/__webpage_proxy?url=')
@@ -464,6 +555,24 @@ export const buildWebpageHtmlSrcdocAsync = async (args: {
     current = stripInlineEventHandlers(current)
   }
 
+  if (current.length > MAX_SRCDOC_CHARS) {
+    await stepYield('Shrinking HTML')
+    current = stripHtmlComments(current)
+    current = stripDataImageSrc(current)
+    current = stripOversizeInlineSvg(current, 180_000)
+    current = stripOversizeStyleTags(current, 220_000)
+    current = compactWhitespace(current)
+  }
+
+  if (current.length > MAX_SRCDOC_CHARS) {
+    return buildCodeViewerSrcdoc({
+      baseHref,
+      title: baseHref,
+      mode: 'text',
+      text: `HTML too large for sandboxed srcdoc (${current.length} chars after sanitization).\n\nTip: try switching script policy to 'allow' or use Markdown view.`,
+    })
+  }
+
   await stepYield('Injecting Base')
   const csp = scriptPolicy === 'allow'
     ? "default-src https: http: data: blob:; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http: ws: wss:; frame-src https: http:; worker-src blob: data:; script-src 'unsafe-inline' 'unsafe-eval' https: http: blob: data:"
@@ -490,13 +599,49 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; s
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
   const rawHtml = String(args.html || '')
 
-  if (rawHtml.length > 1_500_000) {
-    return buildCodeViewerSrcdoc({
-      baseHref,
-      title: baseHref,
-      mode: 'text',
-      text: `HTML too large for sandboxed srcdoc (${rawHtml.length} chars).\n\nTip: switch to Markdown view, or reduce the HTML override.`,
+  const MAX_SRCDOC_CHARS = 1_500_000
+
+  const stripHtmlComments = (html: string): string => {
+    const s = String(html || '')
+    if (!s.includes('<!--')) return s
+    return s.replace(/<!--[\s\S]*?-->/g, '')
+  }
+
+  const stripOversizeStyleTags = (html: string, maxStyleChars: number): string => {
+    const s = String(html || '')
+    if (!/<style\b/i.test(s)) return s
+    return s.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, (m) => {
+      if (m.length <= maxStyleChars) return m
+      return '<style>/* omitted */</style>'
     })
+  }
+
+  const stripOversizeInlineSvg = (html: string, maxSvgChars: number): string => {
+    const s = String(html || '')
+    if (!/<svg\b/i.test(s)) return s
+    return s.replace(/<svg\b[\s\S]*?<\/svg\s*>/gi, (m) => {
+      if (m.length <= maxSvgChars) return m
+      return ''
+    })
+  }
+
+  const stripDataImageSrc = (html: string): string => {
+    const s = String(html || '')
+    if (!s.includes('data:image/')) return s
+    return s
+      .replace(/\bsrc\s*=\s*("|')\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^"']*\1/gi, 'src="data:,"')
+      .replace(/url\(\s*("|')?\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^\)"']*("|')?\s*\)/gi, 'url(data:,)')
+  }
+
+  const compactWhitespace = (html: string): string => {
+    const s = String(html || '')
+    if (s.length < 50_000) return s
+    let next = s
+    next = next.replace(/\r/g, '')
+    next = next.replace(/\n{3,}/g, '\n\n')
+    next = next.replace(/>\s{2,}</g, '><')
+    next = next.replace(/[\t ]{2,}/g, ' ')
+    return next
   }
 
   const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : 'strip'
@@ -505,6 +650,19 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; s
     current = stripRefreshMeta(stripCspMeta(current))
   } else {
     current = stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(current))))
+  }
+
+  if (current.length > MAX_SRCDOC_CHARS) {
+    current = compactWhitespace(stripOversizeStyleTags(stripOversizeInlineSvg(stripDataImageSrc(stripHtmlComments(current)), 180_000), 220_000))
+  }
+
+  if (current.length > MAX_SRCDOC_CHARS) {
+    return buildCodeViewerSrcdoc({
+      baseHref,
+      title: baseHref,
+      mode: 'text',
+      text: `HTML too large for sandboxed srcdoc (${current.length} chars after sanitization).\n\nTip: try switching script policy to 'allow' or use Markdown view.`,
+    })
   }
 
   const csp = scriptPolicy === 'allow'

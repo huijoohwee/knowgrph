@@ -28,6 +28,117 @@ const yieldToMain = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
 }
 
+const splitNonEmptyLines = (text: string): string[] => {
+  return String(text || '')
+    .replace(/\r/g, '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+}
+
+const isPlainCardBlock = (block: string): boolean => {
+  const raw = String(block || '').trim()
+  if (!raw) return false
+  if (raw.startsWith('```') || raw.includes('|---') || raw.startsWith('#') || raw.startsWith('* ') || raw.startsWith('- ')) return false
+  if (raw.includes('<') || raw.includes('](')) return false
+  const lines = splitNonEmptyLines(raw)
+  if (lines.length < 3 || lines.length > 16) return false
+  const tooLong = lines.some(l => l.length > 96)
+  if (tooLong) return false
+  const avg = lines.reduce((s, l) => s + l.length, 0) / Math.max(1, lines.length)
+  if (avg > 64) return false
+  return true
+}
+
+const pickCardTitle = (lines: string[]): { title: string; rest: string[] } => {
+  const first = lines.slice(0, 3)
+  let bestIdx = 0
+  let bestLen = Number.POSITIVE_INFINITY
+  for (let i = 0; i < first.length; i += 1) {
+    const l = first[i] || ''
+    const len = l.length
+    if (len >= 3 && len <= 48 && len < bestLen) {
+      bestLen = len
+      bestIdx = i
+    }
+  }
+  const title = lines[bestIdx] || lines[0] || 'Card'
+  const rest = lines.filter((_, i) => i !== bestIdx)
+  return { title, rest }
+}
+
+const escapeTableCell = (text: string): string => {
+  return escapeMarkdownText(String(text || '').replace(/\|/g, '\\|')).trim()
+}
+
+const formatPlainLinesAsBulletsInTableCell = (lines: string[]): string => {
+  const items = lines.map(l => String(l || '').trim()).filter(Boolean)
+  if (!items.length) return ''
+  const rendered = items.map(it => `- ${escapeTableCell(it)}`).join('<br>')
+  return rendered
+}
+
+const isPlainListBlock = (block: string): boolean => {
+  const raw = String(block || '').trim()
+  if (!raw) return false
+  if (raw.startsWith('```') || raw.includes('|---') || raw.startsWith('#') || raw.startsWith('* ') || raw.startsWith('- ') || raw.startsWith('> ')) return false
+  if (raw.includes('<') || raw.includes('](')) return false
+  const lines = splitNonEmptyLines(raw)
+  if (lines.length < 3 || lines.length > 24) return false
+  const tooLong = lines.some(l => l.length > 96)
+  if (tooLong) return false
+  const avg = lines.reduce((s, l) => s + l.length, 0) / Math.max(1, lines.length)
+  if (avg > 72) return false
+  return true
+}
+
+const normalizeBlockMarkdown = (block: string): string => {
+  const raw = String(block || '').trim()
+  if (!raw) return ''
+  if (isPlainListBlock(raw)) {
+    const lines = splitNonEmptyLines(raw)
+    return lines.map(l => `- ${escapeMarkdownText(l)}`).join('\n')
+  }
+  return raw
+}
+
+const coalesceCardBlocksToMarkdownTable = (blocks: string[]): string[] => {
+  const out: string[] = []
+  let i = 0
+  while (i < blocks.length) {
+    const cur = blocks[i] || ''
+    if (!isPlainCardBlock(cur)) {
+      out.push(normalizeBlockMarkdown(cur))
+      i += 1
+      continue
+    }
+    const group: string[] = []
+    let j = i
+    while (j < blocks.length && group.length < 4) {
+      const b = blocks[j] || ''
+      if (!isPlainCardBlock(b)) break
+      group.push(b)
+      j += 1
+    }
+    if (group.length < 2) {
+      out.push(normalizeBlockMarkdown(cur))
+      i += 1
+      continue
+    }
+    const parsed = group.map(b => splitNonEmptyLines(b))
+    const cards = parsed.map(lines => pickCardTitle(lines))
+    const headers = cards.map(c => escapeTableCell(c.title))
+    const table: string[] = []
+    table.push(`| ${headers.join(' | ')} |`)
+    table.push(`| ${headers.map(() => '---').join(' | ')} |`)
+    const cells = cards.map(c => formatPlainLinesAsBulletsInTableCell(c.rest))
+    table.push(`| ${cells.join(' | ')} |`)
+    out.push(table.join('\n'))
+    i = j
+  }
+  return out
+}
+
 export async function convertWebpageHtmlToMarkdownArtifactAsync(args: {
   html: string
   url: string
@@ -245,11 +356,8 @@ export function convertWebpageHtmlToMarkdownArtifact(args: { html: string; url: 
     out.push(`<a id="${anchor}"></a>`)
     out.push(`### ${s.heading}`)
     out.push('')
-    out.push('```')
-    out.push(`${'#'.repeat(Math.min(6, Math.max(1, s.level)))} ${s.heading}`)
-    out.push('```')
-    out.push('')
-    for (const b of s.blocks) {
+    const renderedBlocks = coalesceCardBlocksToMarkdownTable(s.blocks || [])
+    for (const b of renderedBlocks) {
       out.push(b)
       out.push('')
     }

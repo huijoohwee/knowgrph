@@ -2,8 +2,43 @@ import type { JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 
+function decodeBase64Utf8(base64: string): string {
+  const b64 = String(base64 || '').trim()
+  if (!b64) return ''
+  const anyGlobal = globalThis as unknown as {
+    Buffer?: { from: (input: string, enc: string) => { toString: (enc: string) => string } }
+  }
+  if (anyGlobal.Buffer && typeof anyGlobal.Buffer.from === 'function') {
+    return anyGlobal.Buffer.from(b64, 'base64').toString('utf8')
+  }
+  const binary = atob(b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+  const decoder = new TextDecoder()
+  return decoder.decode(bytes)
+}
+
+function tryExtractLosslessMarkdownFromHtml(html: string): string | null {
+  const raw = String(html || '')
+  if (!raw) return null
+  const m = raw.match(
+    /<script\b[^>]*data-kg-markdown-source\s*=\s*(?:"1"|'1')[^>]*>([\s\S]*?)<\/script\s*>/i,
+  )
+  if (!m) return null
+  const payload = String(m[1] || '').trim()
+  if (!payload) return null
+  try {
+    const decoded = decodeBase64Utf8(payload)
+    return decoded && decoded.trim() ? decoded : null
+  } catch {
+    return null
+  }
+}
+
 export function parseHtmlToMarkdown(html: string, baseUrl?: string): string {
   const raw = String(html || '')
+  const lossless = tryExtractLosslessMarkdownFromHtml(raw)
+  if (lossless) return lossless
   if (looksLikeRssOrAtom(raw)) {
     const rssMarkdown = parseRssOrAtomToMarkdown(raw)
     if (rssMarkdown.trim()) {
@@ -18,6 +53,8 @@ export function parseHtmlToMarkdown(html: string, baseUrl?: string): string {
 
 export function parseHtmlToMarkdownAllText(html: string, baseUrl?: string): string {
   const raw = String(html || '')
+  const lossless = tryExtractLosslessMarkdownFromHtml(raw)
+  if (lossless) return lossless
   if (looksLikeRssOrAtom(raw)) {
     const rssMarkdown = parseRssOrAtomToMarkdown(raw)
     if (rssMarkdown.trim()) {

@@ -10,6 +10,7 @@ import { normalizeGraphData } from '@/lib/graph/normalize'
 import {
   applyLayoutAutosuggestFromMetadata,
   applyNodeQuickEditorRegistryFromMetadata,
+  hashGraphDataForPreviewSync,
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
   withGraphDataRevision,
@@ -211,6 +212,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   setGraphData: (graphData: GraphData) => {
+    if (graphData === get().graphData) return
     const normalized = normalizeGraphData(graphData)
     const nodeIds = new Set<string>((normalized.nodes || []).map(n => n.id))
     const filteredEdges = (normalized.edges || []).filter(e => {
@@ -221,6 +223,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       return true
     })
     const nextGraphDataBase = filteredEdges.length === (normalized.edges || []).length ? normalized : { ...normalized, edges: filteredEdges }
+
+    try {
+      const current = get().graphData
+      const nextHash = hashGraphDataForPreviewSync(nextGraphDataBase)
+      const curHash = hashGraphDataForPreviewSync(current)
+      if (nextHash && curHash && nextHash === curHash) return
+    } catch {
+      void 0
+    }
 
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
@@ -314,6 +325,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   setGraphDataPreservingLayout: (graphData: GraphData) => {
+    if (graphData === get().graphData) return
     const normalized = normalizeGraphData(graphData)
     const nodeIds = new Set<string>((normalized.nodes || []).map(n => n.id))
     const filteredEdges = (normalized.edges || []).filter(e => {
@@ -325,6 +337,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     })
     const nextGraphData =
       filteredEdges.length === (normalized.edges || []).length ? normalized : { ...normalized, edges: filteredEdges }
+
+    try {
+      const current = get().graphData
+      const nextHash = hashGraphDataForPreviewSync(nextGraphData)
+      const curHash = hashGraphDataForPreviewSync(current)
+      if (nextHash && curHash && nextHash === curHash) return
+    } catch {
+      void 0
+    }
 
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1

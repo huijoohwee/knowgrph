@@ -34,15 +34,10 @@ export const testWebsiteImportWorkspaceWritesArtifactDoc = () => {
   if (!actual.includes('kgWebsiteImportId:')) throw new Error('missing kgWebsiteImportId')
   if (!actual.includes('kgWebsiteNodeId:')) throw new Error('missing kgWebsiteNodeId')
 
-  const layoutSlice = sliceBetween(actual, '## Layout Structure', '\n---\n')
-  if (!layoutSlice) throw new Error('missing layout structure section')
-  if (!layoutSlice.includes('GLOBAL NAVIGATION')) throw new Error('missing global navigation layout')
-
-  const actualTemplateGallery = sliceBetween(actual, '## Template Showcase', '### Available Templates')
-  if (!actualTemplateGallery) throw new Error('missing template showcase')
-  if (!actualTemplateGallery.includes('┌─────────────────────────────────────────────────────────────────────────┐')) {
-    throw new Error('missing template gallery ascii grid')
-  }
+  if (actual.includes('## Layout Structure')) throw new Error('should not invent layout structure section')
+  if (actual.includes('GLOBAL NAVIGATION')) throw new Error('should not inject layout wireframe into source text')
+  if (!actual.includes('# Make videos programmatically.')) throw new Error('missing upstream title')
+  if (!actual.includes('## Pricing')) throw new Error('missing upstream pricing section')
 }
 
 export const testWebsiteImportWorkspaceWritesSourceFaithfulDoc = () => {

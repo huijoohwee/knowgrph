@@ -1,7 +1,7 @@
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativePath'
-import { deriveFilenameFromUrl, isYouTubeUrl, normalizeGitHubBlobLikeUrl, unwrapUserProvidedText } from '@/lib/url'
+import { buildRepoFilePath, deriveFilenameFromUrl, isYouTubeUrl, normalizeGitHubBlobLikeUrl, unwrapUserProvidedText } from '@/lib/url'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
 import { convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
@@ -13,7 +13,6 @@ import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { isFrontmatterOnlyDoc, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
-import { buildWebpageMarkdownArtifactDoc, looksLikeWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
 import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
 import { buildLayoutStructureAscii } from '@/lib/websites/webpageMarkdownArtifactAscii'
 import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
@@ -106,6 +105,100 @@ function ensureWebpageTocLayoutAscii(markdown: string): string {
   const injected = ['', '```ascii', ascii, '```', '']
   const next = [...lines.slice(0, insertionIdx), ...injected, ...lines.slice(insertionIdx)]
   return next.join('\n')
+}
+
+function normalizeWebpageCardAndListBlocks(markdown: string): string {
+  const src = String(markdown || '')
+  if (!src.trim()) return src
+  const lines = src.replace(/\r/g, '').split('\n')
+  const out: string[] = []
+
+  const isHeading = (l: string) => /^#{1,6}\s+/.test(String(l || '').trim())
+  const isDivider = (l: string) => /^---\s*$/.test(String(l || '').trim())
+  const isAlreadyStructured = (l: string) => /^\s*(?:[-*+]\s+|\d+\.\s+|\|)/.test(String(l || ''))
+
+  const flushGroup = (group: string[]) => {
+    const parts = group.map(s => String(s || '').trim()).filter(Boolean)
+    if (parts.length < 6) {
+      out.push(...group)
+      return
+    }
+    const tooLong = parts.some(p => p.length > 96)
+    const punct = parts.some(p => /[.!?:;]$/.test(p))
+    if (tooLong || punct) {
+      out.push(...group)
+      return
+    }
+
+    const cards: Array<{ title: string; items: string[] }> = []
+    let cur: { title: string; items: string[] } | null = null
+    let i = 0
+    while (i < parts.length) {
+      const p = parts[i] || ''
+      const next = i + 1 < parts.length ? (parts[i + 1] || '') : ''
+      const isForLine = /^For\s+/i.test(p)
+      if (isForLine && next) {
+        if (cur) cards.push(cur)
+        cur = { title: next, items: [p] }
+        i += 2
+        continue
+      }
+      if (!cur) {
+        cur = { title: '', items: [] }
+      }
+      cur.items.push(p)
+      i += 1
+    }
+    if (cur) cards.push(cur)
+
+    const usableCards = cards.filter(c => c.title.trim() && c.items.length >= 3)
+    if (usableCards.length >= 2 && usableCards.length <= 4) {
+      const headers = usableCards.map(c => c.title.trim().replace(/\|/g, '\\|'))
+      out.push(`| ${headers.join(' | ')} |`)
+      out.push(`| ${headers.map(() => '---').join(' | ')} |`)
+      const rowCells = usableCards.map(c => c.items.map(it => `- ${it.trim().replace(/\|/g, '\\|')}`).join('<br>'))
+      out.push(`| ${rowCells.join(' | ')} |`)
+      out.push('')
+      return
+    }
+
+    out.push(...parts.map(p => `- ${p}`))
+    out.push('')
+  }
+
+  let pending: string[] = []
+  const pendingRaw: string[] = []
+  const flushPendingRaw = () => {
+    if (!pendingRaw.length) return
+    flushGroup(pendingRaw)
+    pendingRaw.length = 0
+  }
+
+  for (let idx = 0; idx < lines.length; idx += 1) {
+    const line = lines[idx] || ''
+    const trimmed = line.trim()
+    if (!trimmed) {
+      pending.push(line)
+      if (pendingRaw.length) pendingRaw.push('')
+      continue
+    }
+    if (isHeading(line) || isDivider(line) || isAlreadyStructured(line)) {
+      flushPendingRaw()
+      out.push(...pending)
+      pending.length = 0
+      out.push(line)
+      continue
+    }
+    if (pending.length && pending.every(l => !String(l || '').trim())) {
+      out.push(...pending)
+      pending.length = 0
+    }
+    pendingRaw.push(trimmed)
+  }
+
+  if (pendingRaw.length) flushPendingRaw()
+  if (pending.length) out.push(...pending)
+  return out.join('\n')
 }
 
 function buildPdfWorkspaceFrontmatter(args: { docId: string; mode: PdfWorkspaceImportMode; outputDirRel: string }): string {
@@ -423,14 +516,6 @@ export async function fetchWorkspaceUrlContent(
       })()
     : ''
 
-  const encodeRepoPathForUrl = (rel: string): string =>
-    String(rel || '')
-      .replace(/\\/g, '/')
-      .split('/')
-      .filter(Boolean)
-      .map(seg => encodeURIComponent(seg))
-      .join('/')
-
   const isPdf = /\.pdf(\?|#|$)/i.test(normalizedUrl)
   if (isYouTubeUrl(normalizedUrl)) {
     opts?.onProgress?.(10)
@@ -548,7 +633,7 @@ export async function fetchWorkspaceUrlContent(
     }
 
     opts?.onProgress?.(10)
-    const res = await fetch(`/__repo_file/${encodeRepoPathForUrl(localRepoPath)}`, { headers: { Accept: '*/*' } })
+    const res = await fetch(buildRepoFilePath(localRepoPath), { headers: { Accept: '*/*' } })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const text = await res.text()
     opts?.onProgress?.(100)
@@ -618,26 +703,16 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   if (outputDirRel) fmLines.push(`kgWebsiteOutputDirRel: ${yamlQuote(outputDirRel)}`)
   fmLines.push('---', '')
 
-  const fidelityMaxLevel = useGraphStore.getState().webpageArtifactFidelityMaxLevel ?? 4
-  const isAlreadyArtifact = looksLikeWebpageMarkdownArtifactDoc(strippedUpstream)
-  const artifactRaw = isAlreadyArtifact
-    ? strippedUpstream
-    : buildWebpageMarkdownArtifactDoc({
-        markdown: strippedUpstream,
-        url,
-        title: args.title,
-        fidelityMaxLevel,
-      })
-  const artifact = isAlreadyArtifact ? artifactRaw : ensureWebpageTocLayoutAscii(artifactRaw)
-  const artifactWithView = upsertWebpageFrontmatterMeta(artifact, { url, view })
-  const strippedArtifact = (() => {
-    const t = String(artifactWithView || '')
+  const withView = upsertWebpageFrontmatterMeta(strippedUpstream, { url, view })
+  const body = (() => {
+    const t = String(withView || '')
     if (!t.startsWith('---')) return t
     const end = t.indexOf('\n---')
     if (end < 0) return t
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
-  return [...fmLines, strippedArtifact].join('\n')
+  const normalizedBody = normalizeWebpageCardAndListBlocks(body)
+  return [...fmLines, normalizedBody].join('\n')
 }
 
 export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {

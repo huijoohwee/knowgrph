@@ -105,7 +105,7 @@ export const buildLayoutPositionCacheKey = (args: {
   const rv = typeof args.renderVariant === 'string' ? args.renderVariant.trim() : ''
   const lv = typeof args.layoutVariant === 'string' ? args.layoutVariant.trim() : ''
   if (vk) parts.push(`v=${hashStringToHex(vk)}`)
-  if (rv) parts.push(rv)
+  if (args.renderMode === '3d' && rv) parts.push(rv)
   if (lv) parts.push(lv)
   return parts.join(':')
 }
@@ -129,6 +129,7 @@ export const determineLayoutPositions = ({
   nodes,
   layoutPositionCacheByMode,
 }: LayoutPositionConfig): LayoutPositionResult => {
+  const isInitial = prevDatasetKey == null && prevMode == null && prevRenderMode == null
   const isDatasetChange = prevDatasetKey !== datasetKey
   const isModeChange = prevMode !== mode;
   const isFrontmatterChange = prevFrontmatterMode !== frontmatterMode;
@@ -179,16 +180,16 @@ export const determineLayoutPositions = ({
     return matches / Math.max(1, nodes.length);
   })();
 
-  const isLayoutEngineChange = isModeChange || isRenderModeChange || isRenderVariantChange || isLayoutVariantChange
+  const isLayoutEngineChange = isModeChange || isRenderModeChange || (renderMode === '3d' && isRenderVariantChange) || isLayoutVariantChange
   const shouldUseCache =
     !!cachedPositions &&
     coverageFromCache >= 0.95 &&
-    (isDatasetChange || isModeChange || isFrontmatterChange || isSemanticChange || isRenderModeChange || isRenderVariantChange || isLayoutVariantChange || coverageFromNodes < 0.95);
+    (isDatasetChange || isModeChange || isFrontmatterChange || isSemanticChange || isRenderModeChange || (renderMode === '3d' && isRenderVariantChange) || isLayoutVariantChange || coverageFromNodes < 0.95);
 
   const layoutPositionsForMode = shouldUseCache ? cachedPositions : null;
 
   const skipInitialLayout =
-    shouldUseCache || (!isLayoutEngineChange && mode !== 'radial' && coverageFromNodes >= 0.95);
+    shouldUseCache || ((isInitial || !isLayoutEngineChange) && mode !== 'radial' && coverageFromNodes >= 0.95);
 
   return {
     layoutPositionsForMode,

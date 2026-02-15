@@ -149,14 +149,32 @@ export async function loadGraphDataFromBackendViaParser(url: string): Promise<Lo
 export async function loadGraphDataFromTextViaParser(
   name: string,
   text: string,
-  options?: { applyToStore?: boolean },
+  options?: { applyToStore?: boolean; onProgress?: (stage: string) => void },
 ): Promise<LoaderResult | null> {
   ensureBuiltInParsersRegistered()
   const normalizedText = normalizeMermaidMmdToMarkdown(name, text)
+  try {
+    options?.onProgress?.('Selecting parser')
+  } catch {
+    void 0
+  }
   const bm = bestMatch({ name, text: normalizedText })
   if (!bm) return { input: { name, text }, warnings: ['No matching parser found'], counts: { n: 0, e: 0 } }
   const parserId = toParserId(bm.id)
   const cached = getCachedParse(parserId, name, normalizedText)
+  if (cached) {
+    try {
+      options?.onProgress?.('Using cached parse')
+    } catch {
+      void 0
+    }
+  } else {
+    try {
+      options?.onProgress?.(`Parsing (${bm.id})`)
+    } catch {
+      void 0
+    }
+  }
   const res = cached || await applyParserAsync(parserId, { name, text: normalizedText })
   if (!res) return { parserId: bm.id, name, input: { name, text: normalizedText }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
   if (!cached) setCachedParse(parserId, name, normalizedText, res)
@@ -164,6 +182,11 @@ export async function loadGraphDataFromTextViaParser(
   const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
   const lower = String(name || '').trim().toLowerCase()
   if (maybeEmpty && bm.id !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown')) && containsFrontmatterMermaid(normalizedText)) {
+    try {
+      options?.onProgress?.('Fallback: markdown parser')
+    } catch {
+      void 0
+    }
     const markdownParserId = toParserId('markdown')
     const fallbackCached = getCachedParse(markdownParserId, name, normalizedText)
     const fallback = fallbackCached || await applyParserAsync(markdownParserId, { name, text: normalizedText })
@@ -171,6 +194,11 @@ export async function loadGraphDataFromTextViaParser(
       if (!fallbackCached) setCachedParse(markdownParserId, name, normalizedText, fallback)
       graphData = fallback.graphData
       if (options?.applyToStore !== false) {
+        try {
+          options?.onProgress?.('Applying graph')
+        } catch {
+          void 0
+        }
         try {
           useGraphStore.getState().setGraphData(graphData)
         } catch {
@@ -189,10 +217,20 @@ export async function loadGraphDataFromTextViaParser(
   }
   if (options?.applyToStore !== false) {
     try {
+      options?.onProgress?.('Applying graph')
+    } catch {
+      void 0
+    }
+    try {
       useGraphStore.getState().setGraphData(graphData)
     } catch {
       void 0
     }
+  }
+  try {
+    options?.onProgress?.('Done')
+  } catch {
+    void 0
   }
   return {
     parserId: bm.id,

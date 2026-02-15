@@ -14,7 +14,7 @@ export type NavMenuItem = {
   items?: Array<{ label: string; href: string }>
 }
 
-export type MainSection = { heading: string; level: number; blocks: string[] }
+export type MainSection = { heading: string; level: number; blocks: string[]; synthetic?: boolean }
 
 export const safeText = (raw: unknown): string => String(raw ?? '').replace(/\s+/g, ' ').trim()
 
@@ -419,6 +419,46 @@ const inlineToMarkdown = (node: Node, baseUrl: string): string => {
   return Array.from(el.childNodes).map((c) => inlineToMarkdown(c, baseUrl)).join('')
 }
 
+const normalizeInlineMarkdownText = (raw: string): string => {
+  const parts = String(raw || '')
+    .replace(/\r/g, '')
+    .split('\n')
+    .map(l => safeText(l))
+  return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+const shouldRenderAsLinksList = (el: HTMLElement): boolean => {
+  const links = Array.from(el.querySelectorAll('a[href]')) as HTMLAnchorElement[]
+  if (links.length < 3 || links.length > 42) return false
+  const hasStructural = !!el.querySelector('p,ul,ol,table,pre,blockquote')
+  if (hasStructural) return false
+  const labels = links
+    .map(a => safeText((a as HTMLElement).innerText || a.textContent || a.getAttribute('aria-label') || a.getAttribute('title') || ''))
+    .map(t => (t.length > 64 ? '' : t))
+    .filter(Boolean)
+  const unique = labels.filter((l, i) => labels.findIndex(x => x.toLowerCase() === l.toLowerCase()) === i)
+  if (unique.length < 3) return false
+  const fullText = safeText(el.innerText || el.textContent || '')
+  const sum = unique.reduce((s, t) => s + t.length, 0)
+  if (!fullText) return false
+  if (fullText.length > Math.max(140, Math.floor(sum * 2.2))) return false
+  return true
+}
+
+const renderLinksList = (el: HTMLElement, baseUrl: string): string => {
+  const links = Array.from(el.querySelectorAll('a[href]')) as HTMLAnchorElement[]
+  const items: string[] = []
+  for (const a of links) {
+    const text = safeText((a as HTMLElement).innerText || a.textContent || a.getAttribute('aria-label') || a.getAttribute('title') || '')
+    const href = resolveUrl(baseUrl, safeText(a.getAttribute('href') || ''))
+    if (!text || !href) continue
+    if (items.some(x => x.toLowerCase() === text.toLowerCase())) continue
+    items.push(`- [${escapeMarkdownText(text)}](${href})`)
+    if (items.length >= 36) break
+  }
+  return items.join('\n')
+}
+
 export const renderAsciiGridTable = (rows: string[][]) => {
   if (!rows.length) return ''
   const maxCols = Math.max(...rows.map((r) => r.length))
@@ -500,7 +540,16 @@ const blockToMarkdown = (el: HTMLElement, baseUrl: string): string => {
     const out: string[] = []
     for (let i = 0; i < items.length; i += 1) {
       const li = items[i]
-      const t = safeText(li.innerText || li.textContent || '')
+      const parts: string[] = []
+      for (const n of Array.from(li.childNodes)) {
+        if (n.nodeType === Node.ELEMENT_NODE) {
+          const childEl = n as HTMLElement
+          const childTag = childEl.tagName.toLowerCase()
+          if (childTag === 'ul' || childTag === 'ol') continue
+        }
+        parts.push(inlineToMarkdown(n, baseUrl))
+      }
+      const t = normalizeInlineMarkdownText(parts.join(''))
       if (!t) continue
       const prefix = isOl ? `${i + 1}. ` : '* '
       out.push(prefix + t)
@@ -529,6 +578,7 @@ const blockToMarkdown = (el: HTMLElement, baseUrl: string): string => {
   }
   if (tag === 'img') return inlineToMarkdown(el, baseUrl)
   if (tag === 'hr') return '---'
+  if (shouldRenderAsLinksList(el)) return renderLinksList(el, baseUrl)
   return readTextExcludingNoisyTags(el)
 }
 
@@ -575,9 +625,9 @@ export const extractMainSections = (root: HTMLElement, baseUrl: string): MainSec
 
   const sections: MainSection[] = []
   let current: MainSection | null = null
-  const startSection = (heading: string, level: number) => {
+  const startSection = (heading: string, level: number, options?: { synthetic?: boolean }) => {
     const h = stripTrailingPunctuation(safeText(heading))
-    current = { heading: h || 'Section', level, blocks: [] }
+    current = { heading: h || 'Section', level, blocks: [], synthetic: options?.synthetic === true }
     sections.push(current)
   }
 
@@ -589,7 +639,7 @@ export const extractMainSections = (root: HTMLElement, baseUrl: string): MainSec
       if (text) startSection(text, level)
       continue
     }
-    if (!current) startSection('Content', 2)
+    if (!current) startSection('Content', 2, { synthetic: true })
     const md = blockToMarkdown(el, baseUrl)
     const raw = md.trim()
     if (!raw) continue
@@ -627,13 +677,13 @@ export const extractMainSections = (root: HTMLElement, baseUrl: string): MainSec
     }
 
     const derived: MainSection[] = []
-    let cur: MainSection = { heading: 'Content', level: 2, blocks: [] }
+    let cur: MainSection = { heading: 'Content', level: 2, blocks: [], synthetic: true }
     for (let i = 0; i < src.blocks.length; i += 1) {
       const b = src.blocks[i] || ''
       const next = i + 1 < src.blocks.length ? src.blocks[i + 1] || '' : null
       if (isHeadingCandidate(b, next)) {
         if (cur.blocks.some((x) => x.trim())) derived.push(cur)
-        cur = { heading: stripTrailingPunctuation(b), level: 3, blocks: [] }
+        cur = { heading: stripTrailingPunctuation(b), level: 3, blocks: [], synthetic: false }
         continue
       }
       cur.blocks.push(b)

@@ -8,6 +8,7 @@ import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparat
 import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
 import { PanelRightClose, PanelRightOpen } from 'lucide-react'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
 export function GraphTableCanvasPreviewDock(props: { previewSrc: string; panelTypography?: PanelTypography }) {
   const titleClassName = props.panelTypography?.microLabelClass || ''
@@ -15,6 +16,7 @@ export function GraphTableCanvasPreviewDock(props: { previewSrc: string; panelTy
   const [widthPx, setWidthPx] = React.useState(() => lsInt(LS_KEYS.graphTablePreviewWidthPx, 520))
   const widthRef = React.useRef(widthPx)
   widthRef.current = widthPx
+  const rafSetWidthRef = React.useRef(createRafValueScheduler<number>(v => setWidthPx(v)))
   const dragHandleRef = React.useRef<HTMLHRElement | null>(null)
 
   React.useEffect(() => {
@@ -24,6 +26,12 @@ export function GraphTableCanvasPreviewDock(props: { previewSrc: string; panelTy
   React.useEffect(() => {
     lsSetInt(LS_KEYS.graphTablePreviewWidthPx, widthPx, { min: 320, max: 960 })
   }, [widthPx])
+
+  React.useEffect(() => {
+    return () => {
+      rafSetWidthRef.current.cancel()
+    }
+  }, [])
 
   React.useEffect(() => {
     const el = dragHandleRef.current
@@ -45,12 +53,14 @@ export function GraphTableCanvasPreviewDock(props: { previewSrc: string; panelTy
           const dx = startX - mv.clientX
           const next = Math.max(320, Math.min(960, Math.round(startWidth + dx)))
           pending = next
-          setWidthPx(next)
+          rafSetWidthRef.current.schedule(next)
         },
         onEnd: () => {
+          rafSetWidthRef.current.flush()
           setWidthPx(pending)
         },
         onCancel: () => {
+          rafSetWidthRef.current.flush()
           setWidthPx(pending)
         },
       })

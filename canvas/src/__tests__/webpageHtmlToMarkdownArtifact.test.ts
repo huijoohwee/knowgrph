@@ -100,3 +100,83 @@ export async function testWebpageHtmlToMarkdownArtifactSupportsMenuDivAndOgImage
     restore()
   }
 }
+
+export async function testWebpageHtmlToMarkdownArtifactAvoidsSyntheticContentDuplicateAndRendersCardGridAsTable() {
+  const { restore } = initJsdomHarness()
+  try {
+    const html = [
+      '<!doctype html>',
+      '<html>',
+      '<head>',
+      '<title>Example Pricing</title>',
+      '</head>',
+      '<body>',
+      '<main>',
+      '  <div>',
+      '    <div>For individuals and companies of up to 3 people</div>',
+      '    <div>Free License</div>',
+      '    <div>Create and automate</div>',
+      '    <div>Commercial use allowed</div>',
+      '    <div>Unlimited use</div>',
+      '    <div>Must upgrade when your team grows</div>',
+      '    <div>No sign up needed - get started</div>',
+      '  </div>',
+      '  <div>',
+      '    <div>For collaborations and companies of 4+ people</div>',
+      '    <div>Company License</div>',
+      '    <div>Create and automate</div>',
+      '    <div>Commercial use allowed</div>',
+      '    <div>Pay according to usage</div>',
+      '    <div>Prioritized Support</div>',
+      '  </div>',
+      '</main>',
+      '</body>',
+      '</html>',
+    ].join('')
+
+    const md = convertWebpageHtmlToMarkdownArtifact({ html, url: 'https://example.com/' })
+    if (!md.includes('### Content')) throw new Error('expected synthetic Content section')
+    if (md.includes('```\n## Content\n```')) throw new Error('should not emit original heading echo for Content')
+    if (!md.includes('| Free License | Company License |')) throw new Error('expected pricing cards to render as markdown table')
+    if (!md.includes('- Create and automate')) throw new Error('expected pricing cell bullets')
+  } finally {
+    restore()
+  }
+}
+
+export async function testWebpageHtmlToMarkdownArtifactRendersLinkListsAndListItemLinks() {
+  const { restore } = initJsdomHarness()
+  try {
+    const html = [
+      '<!doctype html>',
+      '<html>',
+      '<head><title>Links</title></head>',
+      '<body>',
+      '<main>',
+      '  <h1>Example</h1>',
+      '  <h2>Companies</h2>',
+      '  <div>',
+      '    <a href="/openai">OpenAI</a>',
+      '    <a href="/airbnb">Airbnb</a>',
+      '    <a href="/stripe">Stripe</a>',
+      '    <a href="/coinbase">Coinbase</a>',
+      '  </div>',
+      '  <h2>Stories</h2>',
+      '  <ul>',
+      '    <li><a href="/s05">During YC</a> Sam was part of YC\'s inaugural batch.</li>',
+      '    <li><a href="/w09">During YC</a> Brian, Joe, and Nate did YC.</li>',
+      '  </ul>',
+      '</main>',
+      '</body>',
+      '</html>',
+    ].join('')
+
+    const md = convertWebpageHtmlToMarkdownArtifact({ html, url: 'https://example.com/' })
+    if (!md.includes('- [OpenAI](https://example.com/openai)')) throw new Error('expected links list rendering')
+    if (!md.includes('* [During YC](https://example.com/s05) Sam was part of YC\'s inaugural batch.')) {
+      throw new Error('expected list item to preserve link markdown')
+    }
+  } finally {
+    restore()
+  }
+}

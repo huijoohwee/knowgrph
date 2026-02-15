@@ -54,6 +54,8 @@ import { testWebpageMarkdownArtifactFigmaFixtureIsRecognized } from '@/__tests__
 import {
   testWebpageHtmlToMarkdownArtifactExtractsNavMenusAndTables,
   testWebpageHtmlToMarkdownArtifactSupportsMenuDivAndOgImageWithoutNoisyScripts,
+  testWebpageHtmlToMarkdownArtifactAvoidsSyntheticContentDuplicateAndRendersCardGridAsTable,
+  testWebpageHtmlToMarkdownArtifactRendersLinkListsAndListItemLinks,
 } from '@/__tests__/webpageHtmlToMarkdownArtifact.test'
 import { testWebsiteImportWorkspaceWritesArtifactDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
 import { testWebsiteImportWorkspaceWritesSourceFaithfulDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
@@ -64,6 +66,7 @@ import {
   testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml,
   testMarkdownWorkspaceEditorTextOverrideWorks,
 } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
+import { testWebpageHtmlSrcdocShrinksLargeHtmlInsteadOfFailing } from '@/__tests__/webpageIframeSrcdocLargeHtml.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -75,6 +78,7 @@ import {
 } from '@/__tests__/roundtrip.test'
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
 import { testHtmlParserAllTextIncludesNavAndMain } from '@/__tests__/htmlParserAllText.test'
+import { testHtmlParserUsesEmbeddedLosslessMarkdownSource } from '@/__tests__/htmlParserRoundTripLossless.test'
 import { testPlainTextToMarkdownPreservesParagraphs } from '@/__tests__/plainTextToMarkdown.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
 import { testFindNextSourceFileIndexNested, testFindNextSourceFileIndexRoot, testNormalizeParentPath } from '@/__tests__/sourceFileNaming.test'
@@ -291,6 +295,7 @@ import {
   testLayoutPositioningCacheKeyIsolatesMediaDensity,
   testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes,
   testLayoutPositioningCacheKeyUsesRenderVariant,
+  testLayoutPositioningCacheKeyUsesRenderVariantFor3d,
   testLayoutPositioningDoesNotReuseCacheAcrossDatasets,
   testLayoutPositioningForcesLayoutWhenVariantChanges,
   testLayoutPositioningSkipsReseedOnToggle,
@@ -637,6 +642,12 @@ export const runAllTests = async () => {
   await exec('pdf.nativeConvert.honorsMaxPagesOnFixture', testPdfNativeConversionHonorsMaxPagesOnFixture)
   await exec('webpage.htmlToArtifact.extractsNavMenusAndTables', testWebpageHtmlToMarkdownArtifactExtractsNavMenusAndTables)
   await exec('webpage.htmlToArtifact.menuDiv.ogImage.noNoisyScripts', testWebpageHtmlToMarkdownArtifactSupportsMenuDivAndOgImageWithoutNoisyScripts)
+  await exec(
+    'webpage.htmlToArtifact.syntheticContent.noDuplicateHeading.cardGrid.table',
+    testWebpageHtmlToMarkdownArtifactAvoidsSyntheticContentDuplicateAndRendersCardGridAsTable,
+  )
+  await exec('webpage.htmlToArtifact.linksListAndListItemLinks', testWebpageHtmlToMarkdownArtifactRendersLinkListsAndListItemLinks)
+  await exec('webpage.iframeSrcdoc.shrinksLargeHtml', testWebpageHtmlSrcdocShrinksLargeHtmlInsteadOfFailing)
   await exec('pdf.streamDecode.respectsMaxDecodeBytes', testPdfReadStreamRespectsMaxDecodeBytes)
   await exec('pdf.contentTokenizer.advancesOnDictDelimiters', testPdfContentTextTokenizerAdvancesOnDictDelimiters)
   await exec('pdf.http.fetchBytes.respectsMaxBytes', testPdfHttpFetchBytesRespectsMaxBytes)
@@ -743,6 +754,7 @@ export const runAllTests = async () => {
 
   await exec('layout.positioning.skipsReseedOnToggle', testLayoutPositioningSkipsReseedOnToggle)
   await exec('layout.positioning.cacheKeyUsesRenderVariant', testLayoutPositioningCacheKeyUsesRenderVariant)
+  await exec('layout.positioning.cacheKeyUsesRenderVariantFor3d', testLayoutPositioningCacheKeyUsesRenderVariantFor3d)
   await exec('layout.positioning.forcesLayoutWhenVariantChanges', testLayoutPositioningForcesLayoutWhenVariantChanges)
   await exec('layout.positioning.doesNotReuseCacheAcrossDatasets', testLayoutPositioningDoesNotReuseCacheAcrossDatasets)
   await exec('layout.positioning.cacheKeyIncludesViewKey', testLayoutPositioningCacheKeyIncludesViewKey)
@@ -979,6 +991,7 @@ export const runAllTests = async () => {
   await exec('graph.groups.bboxCollideByDepth.separatesSiblings', testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings)
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
   await exec('htmlParser.allText.includesNavAndMain', testHtmlParserAllTextIncludesNavAndMain)
+  await exec('htmlParser.losslessEmbeddedMarkdown', testHtmlParserUsesEmbeddedLosslessMarkdownSource)
   await exec('htmlParser.plainText.paragraphs', testPlainTextToMarkdownPreservesParagraphs)
   await exec('webpage.frontmatter.roundtrip', testWebpageFrontmatterRoundtrip)
   await exec('webpage.frontmatter.upsertUpdatesExisting', testWebpageFrontmatterUpsertUpdatesExisting)

@@ -31,7 +31,7 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
     throw new Error('expected no cache positions when cache is empty')
   }
 
-  const key = `${datasetKey}:document:default:force:2d:d3`
+  const key = `${datasetKey}:document:default:force:2d`
   const cache = {
     [key]: {
       a: { x: 1, y: 2 },
@@ -104,12 +104,52 @@ export const testLayoutPositioningCacheKeyUsesRenderVariant = () => {
     layoutPositionCacheByMode: {},
   })
 
-  if (d3.cacheKey !== `${datasetKey}:document:default:force:2d:d3`) {
-    throw new Error(`expected d3 cacheKey ${datasetKey}:document:default:force:2d:d3, got ${d3.cacheKey}`)
+  if (d3.cacheKey !== `${datasetKey}:document:default:force:2d`) {
+    throw new Error(`expected d3 cacheKey ${datasetKey}:document:default:force:2d, got ${d3.cacheKey}`)
   }
-  if (flow.cacheKey !== `${datasetKey}:document:default:force:2d:flow`) {
-    throw new Error(`expected flow cacheKey ${datasetKey}:document:default:force:2d:flow, got ${flow.cacheKey}`)
+  if (flow.cacheKey !== `${datasetKey}:document:default:force:2d`) {
+    throw new Error(`expected flow cacheKey ${datasetKey}:document:default:force:2d, got ${flow.cacheKey}`)
   }
+}
+
+export const testLayoutPositioningCacheKeyUsesRenderVariantFor3d = () => {
+  const datasetKey = 'graphId:test'
+  const nodes: GraphNode[] = [
+    { id: 'a', label: 'a', type: 'T', x: 10, y: 20, properties: {} },
+  ]
+
+  const threeA = determineLayoutPositions({
+    datasetKey,
+    mode: 'force',
+    frontmatterMode: false,
+    semanticMode: 'document',
+    renderMode: '3d',
+    renderVariant: 'three',
+    prevDatasetKey: null,
+    prevMode: null,
+    prevFrontmatterMode: null,
+    prevSemanticMode: null,
+    prevRenderMode: null,
+    nodes,
+    layoutPositionCacheByMode: {},
+  })
+  const threeB = determineLayoutPositions({
+    datasetKey,
+    mode: 'force',
+    frontmatterMode: false,
+    semanticMode: 'document',
+    renderMode: '3d',
+    renderVariant: 'three:alt',
+    prevDatasetKey: null,
+    prevMode: null,
+    prevFrontmatterMode: null,
+    prevSemanticMode: null,
+    prevRenderMode: null,
+    nodes,
+    layoutPositionCacheByMode: {},
+  })
+
+  if (threeA.cacheKey === threeB.cacheKey) throw new Error('expected 3d cache keys to differ by renderVariant')
 }
 
 export const testLayoutPositioningForcesLayoutWhenVariantChanges = () => {
@@ -151,8 +191,8 @@ export const testLayoutPositioningDoesNotReuseCacheAcrossDatasets = () => {
 
   const dsA = 'graphId:a'
   const dsB = 'graphId:b'
-  const keyA = `${dsA}:document:default:force:2d:d3`
-  const keyB = `${dsB}:document:default:force:2d:d3`
+  const keyA = `${dsA}:document:default:force:2d`
+  const keyB = `${dsB}:document:default:force:2d`
 
   const cache = {
     [keyA]: {
@@ -205,7 +245,6 @@ export const testLayoutPositioningCacheKeyIncludesViewKey = () => {
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
-    renderVariant: 'd3',
     viewKey: viewA,
   })
   const keyB = buildLayoutPositionCacheKey({
@@ -214,7 +253,6 @@ export const testLayoutPositioningCacheKeyIncludesViewKey = () => {
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
-    renderVariant: 'd3',
     viewKey: viewB,
   })
   if (keyA === keyB) throw new Error('expected layout cache key to change when view key changes')
@@ -243,7 +281,6 @@ export const testLayoutPositioningCacheKeyIsolatesMediaDensity = () => {
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
-    renderVariant: 'd3',
     viewKey: viewDefault,
   })
   const keyCompact = buildLayoutPositionCacheKey({
@@ -252,7 +289,6 @@ export const testLayoutPositioningCacheKeyIsolatesMediaDensity = () => {
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
-    renderVariant: 'd3',
     viewKey: viewCompact,
   })
   if (keyDefault === keyCompact) {
@@ -280,7 +316,6 @@ export const testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes = () => {
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
-    renderVariant: 'd3',
     viewKey: viewOn,
   })
   const keyOff = buildLayoutPositionCacheKey({
@@ -289,7 +324,6 @@ export const testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes = () => {
     frontmatterMode: false,
     semanticMode: 'document',
     renderMode: '2d',
-    renderVariant: 'd3',
     viewKey: viewOff,
   })
   if (keyOn === keyOff) {

@@ -31,15 +31,19 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 
 ### `GET /__webpage_proxy?url=...`
 
-- Fetches upstream HTML (or reads local file if `url` is a path within the workspace) and **injects a same-origin compatibility layer**:
+- Fetches upstream HTML and **injects a same-origin compatibility layer**:
   - strips CSP / XFO meta tags and upstream `<base>`
   - rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy?url=...`
   - ensures `/__webpage_*` links resolve same-origin in iframe context
   - injects scroll-sync to align Editor ↔ iframe scroll ratio
 
+Repo-relative (in-repo) HTML is fetched via `GET /__repo_file/*` and then rendered via sandboxed `srcdoc` with a same-origin baseHref pointing at `/__repo_file/<siteRoot>/`.
+
 Additionally, the injected layer exposes a **DOM export bridge** (see `kg-export-dom`) that lets the host request a best-effort rendered `text` or `html` snapshot from inside the sandboxed iframe.
 
 Note: the HTML Viewer typically uses `/__webpage_proxy` (or stored `raw.html` artifacts) as the HTML source, but the viewer surface renders via sanitized `srcdoc` to keep the app deterministic and prevent freezes.
+
+When `kgWebsiteImportId/kgWebsiteNodeId` are present, the HTML Viewer prefers stored website-import artifacts (`/__website_import/artifact?kind=rawHtml`) for both HTTP and repo-relative URLs.
 
 ### `GET /__webpage_asset_proxy?url=...`
 
@@ -93,6 +97,16 @@ The srcdoc builder:
 
 This policy prioritizes safety and determinism. For JS-rendered content capture, use the DOM export bridge (`kg-export-dom`) to extract a rendered snapshot and then upgrade the saved Markdown.
 
+### Large HTML Handling (No Hard Fail)
+
+When upstream HTML is very large (common for app shells or pages embedding large inline SVG/CSS), the `srcdoc` renderer must not fail early by size alone.
+
+Instead:
+
+- Sanitize first.
+- If still oversized, apply a **domain-neutral shrink** pass (strip scripts/handlers/comments; collapse whitespace; replace large base64 `data:image/...` with `data:,`; drop oversized inline `<svg>` and `<style>` blocks).
+- Only if the sanitized+shrunk result is still oversized, fall back to the text viewer.
+
 Script policy is controlled by `webpageViewerScriptPolicy`:
 
 - `strip` (default): sanitize HTML and prevent upstream JS.
@@ -121,6 +135,28 @@ This bridge powers two native (no headless browser) fidelity upgrades:
 
 - **Convert HTML → Markdown** from the viewer surface by exporting DOM text/HTML.
 - **Import URL fallback** when the initial conversion yields low-quality Markdown for JS-rendered pages.
+
+## Canvas Preview Sync (Embedded)
+
+The embedded Canvas Preview iframe is view-only by default:
+
+- It must not write graph updates back to the parent store unless explicitly enabled.
+- Selection sync may be enabled, but graph/layout writeback must be opt-in to prevent preview↔parent feedback loops.
+
+**Opt-in flag**: add `data-kg-preview-writeback="1"` on the preview iframe to allow `kg-preview-graph` writeback.
+
+## Renderer Toggle Invariants (D3 / Flow / Flow Editor)
+
+- Switching 2D renderer variants must not reseed layout positions when node positions already exist.
+- The layout-position cache key must be renderer-agnostic for `renderMode: 2d` so D3/Flow/Flow Editor toggles preserve the same cached positions.
+- 3D render variants may remain isolated by variant.
+
+## Markdown Round-Trip Fidelity (MD → HTML → MD)
+
+When rendering Markdown to the preview DOM (Viewer/Presentation), the renderer must embed the exact Markdown source so HTML imports can round-trip without loss.
+
+- Embed a non-executing payload in the rendered DOM: `<script type="application/x-kg-markdown" data-kg-markdown-source="1" data-kg-encoding="base64">...</script>`
+- HTML→Markdown import must detect and restore this payload before applying heuristic HTML→Markdown conversion.
 
 ## Iframe Sandbox Policy
 

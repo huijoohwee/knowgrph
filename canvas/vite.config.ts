@@ -2063,6 +2063,10 @@ export default defineConfig(({ command }) => ({
       { find: 'react-dom/client', replacement: resolvedReactDomClient },
       { find: /^react-dom$/, replacement: resolvedReactDom },
       {
+        find: /^grph-shared\/(.*)$/,
+        replacement: path.resolve(__dirname, '../grph-shared/dist/$1.js'),
+      },
+      {
         find: /^grph-shared\/markdown\/mermaidBlocks$/,
         replacement: path.resolve(__dirname, '../grph-shared/dist/markdown/mermaidBlocks.js'),
       },

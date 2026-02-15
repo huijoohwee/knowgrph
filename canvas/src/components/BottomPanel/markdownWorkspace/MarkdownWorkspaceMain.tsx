@@ -17,6 +17,7 @@ import {
   type WebsiteImportFrontmatterMeta,
 } from '@/lib/markdown/frontmatter'
 import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
+import { buildWebpageLayoutWireframeAsciiFromMarkdown } from '@/lib/websites/webpageLayoutWireframe'
 import {
   buildCodeViewerSrcdoc,
   buildWebpageHtmlSrcdocAsync,
@@ -293,7 +294,7 @@ function useWebpageIframeSrcdoc(args: {
       onStatusProgressRef.current?.('Loading HTML')
       const rawHtml = await (async () => {
         if (override) return override
-        if (args.websiteImportMeta && /^https?:\/\//i.test(url)) {
+        if (args.websiteImportMeta) {
           try {
             return await fetchWebsiteImportArtifact({
               importId: args.websiteImportMeta.importId,
@@ -309,10 +310,9 @@ function useWebpageIframeSrcdoc(args: {
         return await fetchWebpageHtmlAuto({
           url,
           signal: ctrl.signal,
-          onProgress: (bytes) => {
-            const kb = Math.round(bytes / 1024)
+          onProgress: (bytes, bytesTotal) => {
             try {
-              onStatusProgressRef.current?.(`Loading HTML (${kb}KB)`)
+              onStatusProgressRef.current?.('Loading HTML', null, null, bytes, bytesTotal ?? null)
             } catch {
               void 0
             }
@@ -323,7 +323,7 @@ function useWebpageIframeSrcdoc(args: {
       const scriptPolicy = useGraphStore.getState().webpageViewerScriptPolicy === 'allow' ? 'allow' : 'strip'
       const siteRootRel = String(args.siteRootRel || '').trim().replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
       const localDirRel = (() => {
-        const normalized = url.replace(/\\/g, '/').replace(/^\/+/, '')
+        const normalized = url.split(/[?#]/)[0].replace(/\\/g, '/').replace(/^\/+/, '')
         const parts = normalized.split('/').filter(Boolean)
         if (parts.length <= 1) return ''
         return parts.slice(0, -1).join('/')
@@ -353,6 +353,7 @@ function useWebpageIframeSrcdoc(args: {
         if (/^https?:\/\//i.test(url)) return rawHtml
         const root = siteRootRel || localDirRel
         if (!root) return rawHtml
+        if (!/(\b(src|href)\s*=\s*(["'])\s*\/(?!\/))|url\(\s*\/(?!\/)/i.test(rawHtml)) return rawHtml
         const rootBase = `${origin}/__repo_file/${encodePathForUrl(root)}/`
         let next = rawHtml
         next = next.replace(/\b(src|href)\s*=\s*(["'])\s*\/(?!\/)/gi, (_m, a: string, q: string) => `${a}=${q}${rootBase}`)
@@ -514,6 +515,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     () => (needsMarkdownViewerText ? sanitizeInvalidDataUrls(viewerTextRaw) : ''),
     [needsMarkdownViewerText, viewerTextRaw],
   )
+
+  const webpageLayoutWireframeAscii = React.useMemo(() => {
+    if (!webpageMeta?.url) return null
+    const ascii = buildWebpageLayoutWireframeAsciiFromMarkdown(viewerText)
+    return ascii && ascii.trim() ? ascii : null
+  }, [viewerText, webpageMeta?.url])
 
   const debouncedSignalText = useDebouncedValue(activeText, 450, webpageMeta?.url)
   const webpageSignalSummary = React.useMemo(() => {
@@ -795,6 +802,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       selectionKind={null}
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+      webpageLayoutWireframeAscii={webpageLayoutWireframeAscii}
       geoDatasetIntegration={geoDatasetIntegration}
       mermaidFrontmatterConfig={null}
       rootThemeMode={themeMode}
@@ -835,6 +843,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         selectionKind={null}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        webpageLayoutWireframeAscii={webpageLayoutWireframeAscii}
         geoDatasetIntegration={geoDatasetIntegration}
         previewOverlayScope="container"
         previewOverlayPortalTarget={null}
@@ -874,6 +883,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         selectionKind={null}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        webpageLayoutWireframeAscii={webpageLayoutWireframeAscii}
         geoDatasetIntegration={geoDatasetIntegration}
         previewOverlayScope="container"
         previewOverlayPortalTarget={null}

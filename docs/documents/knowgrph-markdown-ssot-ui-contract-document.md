@@ -21,6 +21,14 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Explorer folder expansion/collapse must not clear or change the active document; only explicit file selection changes the active document.
 - Source Files selection may carry a full relative path (e.g. `sandbox/docs/demo.md`) while stored document names may be basenames (e.g. `demo.md`). Loader logic must use **loose basename matching** to decide when to prefer imported/store text and avoid blank editors caused by failed `@fs` loads.
 
+## Round-Trip Fidelity (MD → HTML → MD)
+
+- Markdown SSOT must remain recoverable from any HTML/DOM rendering produced by the app.
+- Viewer/Presentation must embed the exact Markdown source inside the rendered DOM using a non-executing payload:
+  - `<script type="application/x-kg-markdown" data-kg-markdown-source="1" data-kg-encoding="base64">...</script>`
+- HTML→Markdown import must restore this embedded source before running heuristic HTML→Markdown conversion.
+- Derived UI overlays (wireframes, computed summaries) must be marked as derived and must not be selectable/copiable as source text.
+
 ## Cross-Surface Sync (Slides / Graph Data / Canvas)
 
 - Slides Gallery, Graph Data, and Canvas interactions are read-only projections over the same active markdown document identity; they must not maintain a separate markdown text source.

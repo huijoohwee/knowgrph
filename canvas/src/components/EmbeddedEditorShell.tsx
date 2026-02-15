@@ -7,6 +7,7 @@ import { MarkdownWorkspace } from './BottomPanel/markdownWorkspace/MarkdownWorks
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
 export function EmbeddedEditorShell(props: { previewSrc: string }) {
   const panelTypography = usePanelTypography()
@@ -19,6 +20,7 @@ export function EmbeddedEditorShell(props: { previewSrc: string }) {
   const dragHandleRef = React.useRef<HTMLHRElement | null>(null)
   const previewWidthPxRef = React.useRef(previewWidthPx)
   previewWidthPxRef.current = previewWidthPx
+  const rafSetWidthRef = React.useRef(createRafValueScheduler<number>(v => setPreviewWidthPx(v)))
 
   React.useEffect(() => {
     if (!Number.isFinite(previewWidthPx) || previewWidthPx < 320 || previewWidthPx > 960) {
@@ -27,6 +29,12 @@ export function EmbeddedEditorShell(props: { previewSrc: string }) {
       lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
     }
   }, [previewWidthPx])
+
+  React.useEffect(() => {
+    return () => {
+      rafSetWidthRef.current.cancel()
+    }
+  }, [])
 
   React.useEffect(() => {
     const el = dragHandleRef.current
@@ -47,13 +55,15 @@ export function EmbeddedEditorShell(props: { previewSrc: string }) {
           const dx = startX - mv.clientX
           const next = Math.max(320, Math.min(960, Math.round(startWidth + dx)))
           pending = next
-          setPreviewWidthPx(next)
+          rafSetWidthRef.current.schedule(next)
         },
         onEnd: () => {
+          rafSetWidthRef.current.flush()
           setPreviewWidthPx(pending)
           lsSetInt(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960 })
         },
         onCancel: () => {
+          rafSetWidthRef.current.flush()
           setPreviewWidthPx(pending)
           lsSetInt(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960 })
         },
