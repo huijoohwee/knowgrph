@@ -18,6 +18,7 @@ import { createLocalMarkdownFolderSlice } from '@/hooks/store/localMarkdownFolde
 import { getLocalStorage } from '@/lib/persistence';
 import type { GraphState, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
+import { buildDocumentKey, buildDocumentRef, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 
 const positionsMatch = (
   a: Record<string, NodePosition2d> | null | undefined,
@@ -178,6 +179,185 @@ try {
         }
         prevName = nextName
         prevText = nextText
+      },
+    )
+  }
+} catch {
+  void 0
+}
+
+try {
+  const w = typeof window !== 'undefined' ? (window as unknown as { localStorage?: Storage; __KG_DOC_UI_SUB__?: unknown }) : null
+  if (w?.localStorage && !w.__KG_DOC_UI_SUB__) {
+    w.__KG_DOC_UI_SUB__ = true
+    let restoring = false
+    let persistTimer: number | null = null
+    let pending: { key: string; ref: string; state: Parameters<typeof writePerDocumentUiState>[0]['state'] } | null = null
+
+    const schedulePersist = () => {
+      if (persistTimer != null) return
+      persistTimer = window.setTimeout(() => {
+        persistTimer = null
+        const next = pending
+        pending = null
+        if (!next) return
+        writePerDocumentUiState({
+          documentKey: next.key,
+          documentRef: next.ref,
+          state: next.state,
+        })
+      }, 250)
+    }
+
+    useGraphStore.subscribe(
+      s => {
+        const docKey = buildDocumentKey({ name: s.markdownDocumentName, sourceUrl: s.markdownDocumentSourceUrl })
+        const docRef = buildDocumentRef({ name: s.markdownDocumentName, sourceUrl: s.markdownDocumentSourceUrl })
+        return {
+          docKey,
+          docRef,
+          documentStructureBaselineLock: s.documentStructureBaselineLock,
+          canvasRenderMode: s.canvasRenderMode,
+          canvas2dRenderer: s.canvas2dRenderer,
+          documentSemanticMode: s.documentSemanticMode,
+          frontmatterModeEnabled: s.frontmatterModeEnabled,
+          viewPinned: s.viewPinned,
+          fitToScreenMode: s.fitToScreenMode,
+          zoomToSelectionMode: s.zoomToSelectionMode,
+          selectedNodeId: s.selectedNodeId,
+          selectedEdgeId: s.selectedEdgeId,
+          selectedGroupId: s.selectedGroupId,
+          selectedNodeIds: s.selectedNodeIds,
+          selectedEdgeIds: s.selectedEdgeIds,
+          selectedGroupIds: s.selectedGroupIds,
+        }
+      },
+      (next, prev) => {
+        if (restoring) return
+
+        if (prev?.docKey && prev.docKey !== next.docKey) {
+          pending = {
+            key: prev.docKey,
+            ref: prev.docRef,
+            state: {
+              canvasRenderMode: prev.canvasRenderMode,
+              canvas2dRenderer: prev.canvas2dRenderer,
+              documentSemanticMode: prev.documentSemanticMode,
+              frontmatterModeEnabled: prev.frontmatterModeEnabled,
+              viewPinned: prev.viewPinned,
+              fitToScreenMode: prev.fitToScreenMode,
+              zoomToSelectionMode: prev.zoomToSelectionMode,
+              selectedNodeId: prev.selectedNodeId,
+              selectedEdgeId: prev.selectedEdgeId,
+              selectedGroupId: prev.selectedGroupId,
+              selectedNodeIds: prev.selectedNodeIds,
+              selectedEdgeIds: prev.selectedEdgeIds,
+              selectedGroupIds: prev.selectedGroupIds,
+            },
+          }
+          schedulePersist()
+        }
+
+        if (next.documentStructureBaselineLock === true) return
+        if (prev?.docKey === next.docKey) {
+          pending = {
+            key: next.docKey,
+            ref: next.docRef,
+            state: {
+              canvasRenderMode: next.canvasRenderMode,
+              canvas2dRenderer: next.canvas2dRenderer,
+              documentSemanticMode: next.documentSemanticMode,
+              frontmatterModeEnabled: next.frontmatterModeEnabled,
+              viewPinned: next.viewPinned,
+              fitToScreenMode: next.fitToScreenMode,
+              zoomToSelectionMode: next.zoomToSelectionMode,
+              selectedNodeId: next.selectedNodeId,
+              selectedEdgeId: next.selectedEdgeId,
+              selectedGroupId: next.selectedGroupId,
+              selectedNodeIds: next.selectedNodeIds,
+              selectedEdgeIds: next.selectedEdgeIds,
+              selectedGroupIds: next.selectedGroupIds,
+            },
+          }
+          schedulePersist()
+        }
+      },
+    )
+
+    useGraphStore.subscribe(
+      s => ({
+        docKey: buildDocumentKey({ name: s.markdownDocumentName, sourceUrl: s.markdownDocumentSourceUrl }),
+        docRef: buildDocumentRef({ name: s.markdownDocumentName, sourceUrl: s.markdownDocumentSourceUrl }),
+        documentStructureBaselineLock: s.documentStructureBaselineLock,
+      }),
+      (next, prev) => {
+        if (next.docKey === prev?.docKey) return
+        if (next.documentStructureBaselineLock === true) return
+        const saved = readPerDocumentUiState({ documentKey: next.docKey })
+        if (!saved) return
+
+        const api = useGraphStore.getState()
+        restoring = true
+        try {
+          if (saved.documentSemanticMode) api.setDocumentSemanticMode(saved.documentSemanticMode)
+          if (typeof saved.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(saved.frontmatterModeEnabled)
+          if (saved.canvasRenderMode) api.setCanvasRenderMode(saved.canvasRenderMode)
+          if (saved.canvas2dRenderer) api.setCanvas2dRenderer(saved.canvas2dRenderer)
+
+          const pinned = saved.viewPinned === true
+          api.setViewPinned(pinned)
+          if (!pinned) {
+            const zoomSel = saved.zoomToSelectionMode === true
+            const fit = !zoomSel && saved.fitToScreenMode === true
+            api.setZoomToSelectionMode(zoomSel)
+            api.setFitToScreenMode(fit)
+            if (!zoomSel && !fit) {
+              api.setZoomToSelectionMode(false)
+              api.setFitToScreenMode(false)
+            }
+          }
+
+          const nodeIds = Array.isArray(saved.selectedNodeIds) ? saved.selectedNodeIds : []
+          const edgeIds = Array.isArray(saved.selectedEdgeIds) ? saved.selectedEdgeIds : []
+          const groupIds = Array.isArray(saved.selectedGroupIds) ? saved.selectedGroupIds : []
+          if (nodeIds.length > 0 || edgeIds.length > 0 || groupIds.length > 0) {
+            api.setSelectionSource('canvas')
+            api.selectNodesExpanded({
+              nodeIds,
+              edgeIds,
+              groupIds,
+              activeNodeId: typeof saved.selectedNodeId === 'string' ? saved.selectedNodeId : null,
+            })
+          } else {
+            api.selectNode(null)
+          }
+        } finally {
+          restoring = false
+        }
+
+        const current = useGraphStore.getState()
+
+        pending = {
+          key: next.docKey,
+          ref: next.docRef,
+          state: {
+            documentRef: next.docRef,
+            canvasRenderMode: current.canvasRenderMode,
+            canvas2dRenderer: current.canvas2dRenderer,
+            documentSemanticMode: current.documentSemanticMode,
+            frontmatterModeEnabled: current.frontmatterModeEnabled,
+            viewPinned: current.viewPinned,
+            fitToScreenMode: current.fitToScreenMode,
+            zoomToSelectionMode: current.zoomToSelectionMode,
+            selectedNodeId: current.selectedNodeId,
+            selectedEdgeId: current.selectedEdgeId,
+            selectedGroupId: current.selectedGroupId,
+            selectedNodeIds: current.selectedNodeIds,
+            selectedEdgeIds: current.selectedEdgeIds,
+            selectedGroupIds: current.selectedGroupIds,
+          },
+        }
+        schedulePersist()
       },
     )
   }

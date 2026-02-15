@@ -85,6 +85,20 @@
 
 ---
 
+## Import Settings: Geospatial
+
+**Scope**: Import JSON/GeoJSON; MainPanel → Settings
+
+**Intent**: Auto-open the map overlay after geo-capable imports while keeping graph zoom/layout stable.
+
+**Keys**
+
+- `autoEnableGeospatialOnGeoImport`
+  - When enabled, successful imports that yield nodes with `properties.geo.{lat,lng}` will automatically enable Geospatial Mode.
+  - Intended for geo datasets (GeoJSON or record-style JSON) and should not require absolute local paths.
+
+---
+
 ## Markdown Settings: Viewer / Presentation
 
 **Scope**: Markdown Workspace → Viewer/Presentation; MainPanel → Settings

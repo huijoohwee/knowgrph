@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { LoaderResult } from '@/features/parsers/loader'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
+import { maybeAutoEnableGeospatialModeForGraphData } from '@/features/geospatial/autoEnable'
 
 export async function runImportFlow(args: {
   nameForParse: string
@@ -34,6 +35,7 @@ export async function runImportFlow(args: {
         void 0
       }
     }
+    await maybeAutoEnableGeospatialModeForGraphData({ graphData: res.graphData, openSidePanel: true })
     return res
   } catch {
     applyLoaderResultToParserUi(null, args.ui)

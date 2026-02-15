@@ -17,7 +17,10 @@ import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTo
 import { buildLayoutStructureAscii } from '@/lib/websites/webpageMarkdownArtifactAscii'
 import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
 import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
+import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { runInIdle } from '@/features/panels/utils/idle'
+import { createProgressTicker } from '@/lib/progress/progressTicker'
 import { parseGitHubRepoUrl } from './githubRepoApi'
 import { importGitHubFolder } from './githubRepoImport'
 
@@ -506,8 +509,15 @@ export async function fetchWorkspaceUrlContent(
   const normalizedLower = normalizedUrl.toLowerCase()
 
   const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
-  const isLocalRepoPath = !isHttpUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalizedUrl)
-  const localRepoPath = isLocalRepoPath ? normalizedUrl.replace(/\\/g, '/').replace(/^\.+\//, '').replace(/^\/+/, '') : ''
+  const isFileUrl = /^file:\/\//i.test(normalizedUrl)
+  const isLocalRepoPath = (!isHttpUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalizedUrl)) || isFileUrl
+  const localRepoPath = isLocalRepoPath
+    ? normalizedUrl
+        .replace(/^file:\/\//i, '')
+        .replace(/\\/g, '/')
+        .replace(/^\.+\//, '')
+        .replace(/^\/+/, '')
+    : ''
   const localSiteRootRel = isLocalRepoPath
     ? (() => {
         const parts = localRepoPath.split('/').filter(Boolean)
@@ -551,24 +561,67 @@ export async function fetchWorkspaceUrlContent(
     const name = `${baseNoExt}.md`
     const mode = opts?.mode === 'refresh' ? 'refresh' : 'import'
     if (mode === 'import') {
-      const text = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote('html')}`, '---', ''].join('\n')
+      const store = useGraphStore.getState()
+      const includeImages = store.webpageImportIncludeImages !== false
+      const fidelityLevel = (() => {
+        const raw = store.webpageArtifactFidelityMaxLevel
+        const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
+        return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
+      })()
+      const text = [
+        '---',
+        `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
+        `kgWebpageView: ${yamlQuote('html')}`,
+        `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
+        `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`,
+        `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`,
+        '---',
+        '',
+      ].join('\n')
       return { normalizedUrl, name, text }
     }
     const ctrl = new AbortController()
-    let progressTimer: number | null = null
+    const ticker = opts?.onProgress
+      ? createProgressTicker({ onProgress: opts.onProgress, intervalMs: 300, maxPercentage: 90, maxStepPercentage: 15 })
+      : null
     try {
-      let p = 0
-      progressTimer = window.setInterval(() => {
-        if (p < 90) {
-           p += Math.random() * 15
-           if (p > 90) p = 90
-           opts?.onProgress?.(Math.round(p))
-        }
-      }, 300)
+      ticker?.start()
+
+      const store = useGraphStore.getState()
+      const includeImages = store.webpageImportIncludeImages !== false
+      const defaultView = store.webpageImportView
+      const fidelityLevel = (() => {
+        const raw = store.webpageArtifactFidelityMaxLevel
+        const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
+        return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
+      })()
 
       const upstreamMarkdown = await (async () => {
         try {
-          const includeImages = false
+          const dom = await exportWebpageDomViaHiddenIframe({
+            url: normalizedUrl,
+            mode: 'html',
+            timeoutMs: 30_000,
+            maxChars: 10_000_000,
+            scrollCrawl: true,
+            expandFaq: true,
+          })
+          if (dom && dom.text && dom.text.trim()) {
+            opts?.onProgress?.(55)
+            const converted = await convertHtmlToMarkdownUnified({
+              html: dom.text,
+              baseUrl: normalizedUrl,
+              maxInputChars: 10_000_000,
+              includeImages,
+              fidelityLevel,
+            })
+            if (converted.ok === true && converted.markdown.trim()) return converted.markdown.trim()
+          }
+        } catch {
+          void 0
+        }
+
+        try {
           const converted = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
           if (converted && converted.ok === true && typeof converted.markdown === 'string') {
             return String(converted.markdown || '')
@@ -580,12 +633,25 @@ export async function fetchWorkspaceUrlContent(
         const rawHtml = await fetchWebpageHtmlAuto({ url: normalizedUrl, signal: ctrl.signal })
         const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
         opts?.onProgress?.(65)
+        try {
+          const unified = await convertHtmlToMarkdownUnified({
+            html: boundedHtml,
+            baseUrl: normalizedUrl,
+            maxInputChars: 5_000_000,
+            includeImages,
+            fidelityLevel,
+          })
+          if (unified.ok === true && unified.markdown.trim()) return unified.markdown.trim()
+        } catch {
+          void 0
+        }
+
         const converted = await convertWebpageHtmlToMarkdownArtifactAsync({ html: boundedHtml, url: normalizedUrl })
         opts?.onProgress?.(85)
         return converted
       })()
 
-      if (progressTimer) clearInterval(progressTimer)
+      ticker?.stop()
       opts?.onProgress?.(95)
 
       const text = await runInIdle(
@@ -593,7 +659,10 @@ export async function fetchWorkspaceUrlContent(
           buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
             upstreamMarkdown,
             url: normalizedUrl,
-            view: 'html',
+            view: defaultView,
+            scriptPolicy: 'allow',
+            fidelityLevel,
+            includeImages,
           }),
         { timeoutMs: 80 },
       )
@@ -602,14 +671,23 @@ export async function fetchWorkspaceUrlContent(
     } catch {
       void 0
     } finally {
-      if (progressTimer) clearInterval(progressTimer)
+      ticker?.stop()
       try {
         ctrl.abort()
       } catch {
         void 0
       }
     }
-    const text = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote('html')}`, '---', ''].join('\n')
+    const text = [
+      '---',
+      `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
+      `kgWebpageView: ${yamlQuote('html')}`,
+      `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
+      `kgWebpageIncludeImages: ${yamlQuote('true')}`,
+      `kgWebpageFidelityLevel: ${yamlQuote('4')}`,
+      '---',
+      '',
+    ].join('\n')
     return { normalizedUrl, name, text }
   }
 
@@ -623,6 +701,9 @@ export async function fetchWorkspaceUrlContent(
         '---',
         `kgWebpageUrl: ${yamlQuote(localRepoPath)}`,
         `kgWebpageView: ${yamlQuote('html')}`,
+        `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
+        `kgWebpageIncludeImages: ${yamlQuote('true')}`,
+        `kgWebpageFidelityLevel: ${yamlQuote('4')}`,
         localSiteRootRel ? `kgWebpageSiteRootRel: ${yamlQuote(localSiteRootRel)}` : null,
         '---',
         '',
@@ -678,10 +759,19 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   url: string
   view: 'markdown' | 'json' | 'html'
   title?: string
+  scriptPolicy?: 'strip' | 'allow'
+  fidelityLevel?: 1 | 2 | 3 | 4
+  includeImages?: boolean
   websiteImportMeta?: { importId: string; nodeId: string; outputDirRel?: string } | null
 }): string {
   const url = String(args.url || '').trim()
   const view = args.view === 'html' ? 'html' : args.view === 'json' ? 'json' : 'markdown'
+  const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : args.scriptPolicy === 'strip' ? 'strip' : ''
+  const fidelityLevel =
+    args.fidelityLevel === 1 || args.fidelityLevel === 2 || args.fidelityLevel === 3 || args.fidelityLevel === 4
+      ? args.fidelityLevel
+      : 0
+  const includeImages = args.includeImages === true ? true : args.includeImages === false ? false : null
   const upstreamSanitized = sanitizeImportedMarkdownText(String(args.upstreamMarkdown || '')).text
   const strippedUpstream = (() => {
     const t = String(upstreamSanitized || '')
@@ -694,6 +784,9 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   const urlLine = `kgWebpageUrl: ${yamlQuote(url)}`
   const viewLine = `kgWebpageView: ${yamlQuote(view)}`
   const fmLines = ['---', urlLine, viewLine]
+  if (scriptPolicy) fmLines.push(`kgWebpageScriptPolicy: ${yamlQuote(scriptPolicy)}`)
+  if (fidelityLevel) fmLines.push(`kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`)
+  if (includeImages != null) fmLines.push(`kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`)
 
   const importId = String(args.websiteImportMeta?.importId || '').trim()
   const nodeId = String(args.websiteImportMeta?.nodeId || '').trim()

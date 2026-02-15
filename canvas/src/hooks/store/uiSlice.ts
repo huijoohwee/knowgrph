@@ -328,6 +328,8 @@ export const createUiSlice = (set: SetGraph) => {
       value => (typeof value === 'string' ? value : null),
     ),
 
+    autoEnableGeospatialOnGeoImport: lsBool(LS_KEYS.geospatialAutoEnableOnGeoImport, true),
+
     pdfImportIncludeImages: lsBool(LS_KEYS.pdfImportIncludeImages, true),
     pdfImportConversionMode: lsJson<PdfImportConversionMode>(LS_KEYS.pdfImportConversionMode, 'text-only', coercePdfImportConversionMode),
     pdfImportMaxPages: lsInt(LS_KEYS.pdfImportMaxPages, 0),
@@ -600,6 +602,9 @@ export const createUiSlice = (set: SetGraph) => {
           v && typeof v === 'string' ? v : null,
         ),
       }),
+
+    setAutoEnableGeospatialOnGeoImport: (v: boolean) =>
+      set({ autoEnableGeospatialOnGeoImport: lsSetBool(LS_KEYS.geospatialAutoEnableOnGeoImport, v === true) }),
 
     setPdfImportIncludeImages: (v: boolean) => set({ pdfImportIncludeImages: lsSetBool(LS_KEYS.pdfImportIncludeImages, !!v) }),
     setPdfImportConversionMode: (mode: PdfImportConversionMode) =>

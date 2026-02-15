@@ -7,8 +7,22 @@ export const resolveTripDemoPath = (): string | null => {
   })
 }
 
+export const resolveTripDemoMmdPath = (): string | null => {
+  return pickSandboxDemoMarkdownFile({
+    preferBasename: 'trip-demo-mmd.md',
+    envVarPathKey: 'KG_TRIP_DEMO_MMD_PATH',
+  })
+}
+
 export const resolveTripDemoDocumentPath = (): string | null => {
   const p = resolveTripDemoPath()
+  if (!p) return null
+  const docPath = toDocumentPath(p)
+  return docPath || null
+}
+
+export const resolveTripDemoMmdDocumentPath = (): string | null => {
+  const p = resolveTripDemoMmdPath()
   if (!p) return null
   const docPath = toDocumentPath(p)
   return docPath || null
@@ -22,3 +36,10 @@ export const readTripDemo = (): string | null => {
   return res?.text ?? null
 }
 
+export const readTripDemoMmd = (): string | null => {
+  const res = readSandboxDemoText({
+    preferBasename: 'trip-demo-mmd.md',
+    envVarPathKey: 'KG_TRIP_DEMO_MMD_PATH',
+  })
+  return res?.text ?? null
+}

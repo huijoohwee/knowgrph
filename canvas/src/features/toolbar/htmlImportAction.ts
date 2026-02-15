@@ -1,11 +1,13 @@
 import { coerceHttpUrl } from '@/lib/url'
-import { parseHtmlToMarkdownAllText, extractJsonLd } from '@/features/parsers/html-parser'
+import { parseHtmlToMarkdownAllTextAsync, extractJsonLd } from '@/features/parsers/html-parser'
 import { UI_COPY } from '@/lib/config'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { deriveMarkdownNameFromUrl, fetchRemoteHtmlText as fetchRemoteHtmlTextUtil, promptForUrl } from './ingestUtils'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import { runImportFlow } from '@/features/toolbar/importFlow'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { hashText } from '@/features/parsers/hash'
 
 export type HtmlImportType = 'url' | 'local'
 
@@ -41,8 +43,52 @@ export async function performHtmlImport(type: HtmlImportType, providedUrl?: stri
       const fromDisplay = picked.displayName ? coerceHttpUrl(picked.displayName) : null
       return fromDisplay || undefined
     })()
-    const markdown = parseHtmlToMarkdownAllText(picked.text, baseUrl)
+
+    const toastId = `import:html:convert:${hashText(String(baseUrl || picked.name || 'html'))}`
+    try {
+      useGraphStore.getState().upsertUiToast({
+        id: toastId,
+        kind: 'neutral',
+        message: 'Converting HTML…',
+        ttlMs: null,
+        dismissible: false,
+        log: false,
+      })
+    } catch {
+      void 0
+    }
+
+    const markdown = await parseHtmlToMarkdownAllTextAsync(picked.text, baseUrl, {
+      onProgress: (_phase, p) => {
+        try {
+          useGraphStore.getState().upsertUiToast({
+            id: toastId,
+            kind: 'neutral',
+            message: `Converting HTML… ${p}%`,
+            ttlMs: null,
+            dismissible: false,
+            log: false,
+          })
+        } catch {
+          void 0
+        }
+      },
+    })
+
     const jsonLd = extractJsonLd(picked.text)
+
+    try {
+      useGraphStore.getState().upsertUiToast({
+        id: toastId,
+        kind: 'success',
+        message: 'HTML converted',
+        ttlMs: 2200,
+        dismissible: true,
+        log: false,
+      })
+    } catch {
+      void 0
+    }
     
     let finalContent = markdown
     if (!finalContent.trim() && (!jsonLd || jsonLd.length === 0)) {

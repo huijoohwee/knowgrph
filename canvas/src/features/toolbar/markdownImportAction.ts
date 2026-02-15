@@ -1,6 +1,6 @@
 import { UI_COPY } from '@/lib/config'
 import { pickTextFilesWithExtensions } from '@/lib/graph/file'
-import { parseHtmlToMarkdownAllText } from '@/features/parsers/html-parser'
+import { parseHtmlToMarkdownAllTextAsync } from '@/features/parsers/html-parser'
 import { coerceHttpUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { runImportFlow } from '@/features/toolbar/importFlow'
@@ -12,6 +12,7 @@ import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { ensureMarkdownFileName, upsertWorkspaceTextDocument } from '@/features/workspace-fs/upsertWorkspaceTextDocument'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
+import { hashText } from '@/features/parsers/hash'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -60,7 +61,7 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
 
     const first = pickedFiles[0]
 
-    const text = (() => {
+    const text = await (async () => {
       const raw = String(first.text || '')
       const trimmed = raw.trim().toLowerCase()
       const looksHtml =
@@ -69,7 +70,48 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
         (trimmed.includes('<html') && trimmed.includes('</html>'))
       if (!looksHtml) return raw
       const baseUrl = coerceHttpUrl(first.name) || undefined
-      return parseHtmlToMarkdownAllText(raw, baseUrl)
+      const toastId = `import:markdown:html:convert:${hashText(String(baseUrl || first.name || 'html'))}`
+      try {
+        useGraphStore.getState().upsertUiToast({
+          id: toastId,
+          kind: 'neutral',
+          message: 'Converting HTML…',
+          ttlMs: null,
+          dismissible: false,
+          log: false,
+        })
+      } catch {
+        void 0
+      }
+      const markdown = await parseHtmlToMarkdownAllTextAsync(raw, baseUrl, {
+        onProgress: (_phase, p) => {
+          try {
+            useGraphStore.getState().upsertUiToast({
+              id: toastId,
+              kind: 'neutral',
+              message: `Converting HTML… ${p}%`,
+              ttlMs: null,
+              dismissible: false,
+              log: false,
+            })
+          } catch {
+            void 0
+          }
+        },
+      })
+      try {
+        useGraphStore.getState().upsertUiToast({
+          id: toastId,
+          kind: 'success',
+          message: 'HTML converted',
+          ttlMs: 2200,
+          dismissible: true,
+          log: false,
+        })
+      } catch {
+        void 0
+      }
+      return markdown
     })()
 
     const nameForParse = first.displayName || first.name

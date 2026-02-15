@@ -42,6 +42,7 @@ type SetupGraphSceneArgs = {
   layoutPositionsForMode?: Record<string, { x: number; y: number }> | null
   prevPositions?: Record<string, { x: number; y: number }> | null
   skipInitialLayout?: boolean
+  freezeSimulation?: boolean
   gRef: MutableRefObject<GSelection | null>
   nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
   groupChevronSelRef: MutableRefObject<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>
@@ -231,6 +232,16 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     groupsForBboxCollide: allGroups,
   })
   simulationRef.current = simulation
+
+  if (args.freezeSimulation === true) {
+    try {
+      simulation.alpha(0)
+      simulation.alphaTarget(0)
+      simulation.stop()
+    } catch {
+      void 0
+    }
+  }
 
   const groupsLayer = createGroupsLayer({
     g,

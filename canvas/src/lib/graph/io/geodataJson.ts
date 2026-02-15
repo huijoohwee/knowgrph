@@ -1,0 +1,282 @@
+import type { GraphData } from '@/lib/graph/types'
+
+type LngLat = { lng: number; lat: number }
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+
+const coerceNumber = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v.trim()) {
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
+const getNestedRecord = (obj: Record<string, unknown>, key: string): Record<string, unknown> | null => {
+  const v = obj[key]
+  return isRecord(v) ? v : null
+}
+
+const getNumber = (obj: Record<string, unknown>, key: string): number | null => {
+  return coerceNumber(obj[key])
+}
+
+const deriveGeoFromRecord = (rec: Record<string, unknown>): LngLat | null => {
+  const geo = getNestedRecord(rec, 'geo')
+  if (geo) {
+    const lat = getNumber(geo, 'lat') ?? getNumber(geo, 'latitude')
+    const lng = getNumber(geo, 'lng') ?? getNumber(geo, 'lon') ?? getNumber(geo, 'longitude')
+    if (lat != null && lng != null) return { lat, lng }
+  }
+
+  const loc = getNestedRecord(rec, 'location')
+  if (loc) {
+    const lat = getNumber(loc, 'lat') ?? getNumber(loc, 'latitude')
+    const lng = getNumber(loc, 'lng') ?? getNumber(loc, 'lon') ?? getNumber(loc, 'longitude')
+    if (lat != null && lng != null) return { lat, lng }
+  }
+
+  const lat = getNumber(rec, 'lat') ?? getNumber(rec, 'latitude') ?? getNumber(rec, 'y')
+  const lng = getNumber(rec, 'lng') ?? getNumber(rec, 'lon') ?? getNumber(rec, 'longitude') ?? getNumber(rec, 'x')
+  if (lat != null && lng != null) return { lat, lng }
+
+  const coords = rec.coordinates
+  if (Array.isArray(coords) && coords.length >= 2) {
+    const lng2 = coerceNumber(coords[0])
+    const lat2 = coerceNumber(coords[1])
+    if (lat2 != null && lng2 != null) return { lat: lat2, lng: lng2 }
+  }
+
+  return null
+}
+
+const deriveIdFromRecord = (rec: Record<string, unknown>, fallback: string): string => {
+  const candidates = ['id', 'icao', 'iata', 'code', 'key', 'name', 'label', 'title']
+  for (const k of candidates) {
+    const v = rec[k]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+  }
+  return fallback
+}
+
+const deriveLabelFromRecord = (rec: Record<string, unknown>, fallback: string): string => {
+  const candidates = ['label', 'name', 'title', 'icao', 'iata', 'id', 'code', 'key']
+  for (const k of candidates) {
+    const v = rec[k]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+  }
+  return fallback
+}
+
+export function sampleGeodataRecordsFromJsonText(
+  text: string,
+  maxRecords: number,
+): Array<{ key: string; record: Record<string, unknown> }> | null {
+  const s = String(text || '').trim()
+  if (!s) return null
+  const max = Math.max(1, Math.floor(maxRecords || 1))
+
+  const parseJsonStringAt = (input: string, start: number): { value: string; next: number } | null => {
+    const quote = input[start]
+    if (quote !== '"') return null
+    let i = start + 1
+    let escaped = false
+    for (; i < input.length; i += 1) {
+      const ch = input[i]
+      if (escaped) {
+        escaped = false
+        continue
+      }
+      if (ch === '\\') {
+        escaped = true
+        continue
+      }
+      if (ch === '"') {
+        try {
+          const raw = input.slice(start, i + 1)
+          const value = JSON.parse(raw) as unknown
+          return typeof value === 'string' ? { value, next: i + 1 } : null
+        } catch {
+          return null
+        }
+      }
+    }
+    return null
+  }
+
+  const skipWs = (input: string, start: number): number => {
+    let i = start
+    for (; i < input.length; i += 1) {
+      const ch = input[i]
+      if (ch !== ' ' && ch !== '\n' && ch !== '\r' && ch !== '\t') break
+    }
+    return i
+  }
+
+  const scanJsonValueEnd = (input: string, start: number): number | null => {
+    let i = skipWs(input, start)
+    if (i >= input.length) return null
+    const open = input[i]
+    if (open !== '{' && open !== '[' && open !== '"') {
+      for (; i < input.length; i += 1) {
+        const ch = input[i]
+        if (ch === ',' || ch === '}' || ch === ']') return i
+      }
+      return input.length
+    }
+    if (open === '"') {
+      const res = parseJsonStringAt(input, i)
+      return res ? res.next : null
+    }
+
+    const stack: string[] = [open]
+    let inString = false
+    let escaped = false
+    i += 1
+    for (; i < input.length; i += 1) {
+      const ch = input[i]
+      if (inString) {
+        if (escaped) {
+          escaped = false
+          continue
+        }
+        if (ch === '\\') {
+          escaped = true
+          continue
+        }
+        if (ch === '"') {
+          inString = false
+        }
+        continue
+      }
+
+      if (ch === '"') {
+        inString = true
+        continue
+      }
+      if (ch === '{' || ch === '[') {
+        stack.push(ch)
+        continue
+      }
+      if (ch === '}' || ch === ']') {
+        const last = stack[stack.length - 1]
+        const ok = (last === '{' && ch === '}') || (last === '[' && ch === ']')
+        if (!ok) return null
+        stack.pop()
+        if (stack.length === 0) return i + 1
+      }
+    }
+    return null
+  }
+
+  const out: Array<{ key: string; record: Record<string, unknown> }> = []
+  const first = s[0]
+
+  if (first === '{') {
+    let i = 1
+    while (i < s.length && out.length < max) {
+      i = skipWs(s, i)
+      if (s[i] === '}') break
+      const k = parseJsonStringAt(s, i)
+      if (!k) return null
+      i = skipWs(s, k.next)
+      if (s[i] !== ':') return null
+      i = skipWs(s, i + 1)
+      const end = scanJsonValueEnd(s, i)
+      if (end == null) return null
+      const rawValue = s.slice(i, end)
+      try {
+        const value = JSON.parse(rawValue) as unknown
+        if (isRecord(value)) out.push({ key: k.value, record: value })
+      } catch {
+        void 0
+      }
+      i = skipWs(s, end)
+      if (s[i] === ',') i += 1
+    }
+    return out.length > 0 ? out : null
+  }
+
+  if (first === '[') {
+    let i = 1
+    let idx = 0
+    while (i < s.length && out.length < max) {
+      i = skipWs(s, i)
+      if (s[i] === ']') break
+      const end = scanJsonValueEnd(s, i)
+      if (end == null) return null
+      const rawValue = s.slice(i, end)
+      try {
+        const value = JSON.parse(rawValue) as unknown
+        if (isRecord(value)) out.push({ key: String(idx), record: value })
+      } catch {
+        void 0
+      }
+      idx += 1
+      i = skipWs(s, end)
+      if (s[i] === ',') i += 1
+    }
+    return out.length > 0 ? out : null
+  }
+
+  return null
+}
+
+export function tryBuildGeodataGraphDataFromJsonText(args: {
+  name: string
+  text: string
+  maxRecords?: number
+}): { graphData: GraphData; warnings: string[] } | null {
+  const maxRecords = typeof args.maxRecords === 'number' && Number.isFinite(args.maxRecords) ? Math.floor(args.maxRecords) : 5000
+  const sampled = sampleGeodataRecordsFromJsonText(args.text, maxRecords)
+  if (!sampled || sampled.length === 0) return null
+
+  let geoCount = 0
+  for (let i = 0; i < sampled.length; i += 1) {
+    if (deriveGeoFromRecord(sampled[i].record)) geoCount += 1
+  }
+  if (geoCount === 0) return null
+
+  const nodes: GraphData['nodes'] = []
+  for (let i = 0; i < sampled.length; i += 1) {
+    const { key, record } = sampled[i]
+    const geo = deriveGeoFromRecord(record)
+    if (!geo) continue
+    const idBase = deriveIdFromRecord(record, key || `row:${i}`)
+    const id = `geo:${idBase}`
+    const label = deriveLabelFromRecord(record, idBase)
+    const properties = {
+      ...record,
+      id: idBase,
+      label,
+      geo: {
+        ...(isRecord((record as any).geo) ? ((record as any).geo as Record<string, unknown>) : {}),
+        lat: geo.lat,
+        lng: geo.lng,
+      },
+    } as Record<string, any>
+    nodes.push({ id, label, type: 'GeoRecord', properties })
+  }
+  if (nodes.length === 0) return null
+
+  const warnings = sampled.length >= maxRecords ? [`Large geodata JSON sampled to ${maxRecords} records for performance.`] : []
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'geodata',
+    metadata: {
+      ingestionMetrics: {
+        kind: 'geodata-json-sampled',
+        sampledRecords: sampled.length,
+        sampledGeoRecords: nodes.length,
+      },
+      source: args.name,
+    },
+    nodes,
+    edges: [],
+  }
+  return { graphData, warnings }
+}
+

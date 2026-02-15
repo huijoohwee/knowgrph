@@ -13,9 +13,15 @@ export function extractEmbeddedGeoJsonFeatureCollections(markdownText: string): 
 
   for (const b of blocks) {
     const lang = b.lang
-    if (lang !== 'geojson') continue
+    if (lang !== 'geojson' && lang !== 'json') continue
     const trimmed = String(b.content || '').trim()
     if (!trimmed) continue
+
+    if (lang === 'json') {
+      const lc = trimmed.toLowerCase()
+      if (!lc.includes('"type"')) continue
+      if (!lc.includes('featurecollection') && !lc.includes('"feature"')) continue
+    }
 
     try {
       const fc = parseGeoJsonFromText(trimmed)

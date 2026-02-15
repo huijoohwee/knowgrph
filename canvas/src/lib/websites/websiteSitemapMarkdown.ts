@@ -83,10 +83,12 @@ export function buildWebsiteSitemapMarkdown(args: {
   importId: string
   outputDirRel?: string
   nodes: WebsiteSitemapNode[]
+  docLinkByNodeId?: Record<string, string>
 }): string {
   const rootUrl = String(args.rootUrl || '').trim()
   const importId = String(args.importId || '').trim()
   const outputDirRel = String(args.outputDirRel || '').trim()
+  const docLinkByNodeId = args.docLinkByNodeId && typeof args.docLinkByNodeId === 'object' ? args.docLinkByNodeId : null
   const host = stripWww(hostFromUrl(rootUrl) || 'website')
 
   const cleanedNodes = args.nodes
@@ -135,12 +137,15 @@ export function buildWebsiteSitemapMarkdown(args: {
   doc.push('')
   doc.push('## Pages')
   doc.push('')
-  doc.push('| Path | Title | URL |')
-  doc.push('|------|-------|-----|')
+  doc.push('| Path | Title | URL | Doc |')
+  doc.push('|------|-------|-----|-----|')
   for (const n of cleanedNodes.slice(0, 2000)) {
     const displayPath = n.path ? `/${n.path.replace(/^\/+/, '')}` : '(root)'
     const title = n.title || '(unknown)'
-    doc.push(`| \`${displayPath}\` | ${title} | ${n.url} |`)
+    const docLinkRaw = docLinkByNodeId && n.nodeId ? String(docLinkByNodeId[n.nodeId] || '').trim() : ''
+    const docLink = docLinkRaw && (docLinkRaw.startsWith('./') || docLinkRaw.startsWith('../')) ? docLinkRaw : (docLinkRaw ? `./${docLinkRaw.replace(/^\/+/, '')}` : '')
+    const docCell = docLink ? `[open](${encodeURI(docLink)})` : ''
+    doc.push(`| \`${displayPath}\` | ${title} | ${n.url} | ${docCell} |`)
   }
   doc.push('')
 

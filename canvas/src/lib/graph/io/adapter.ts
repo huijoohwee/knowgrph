@@ -5,6 +5,9 @@ import { parseJsonLd, toJsonLd } from '@/lib/graph/jsonld/index'
 import { isN8nWorkflow, parseN8nWorkflow } from '@/lib/graph/n8n'
 import { isGraphRagBundle, parseGraphRagBundle } from '@/lib/graph/graphrag'
 import { tryParseQuickEditorImportGraphData } from '@/lib/graph/io/quickEditorImport'
+import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
+import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
+import { coerceGeoJsonToFeatureCollection } from 'gympgrph'
 
 export type ParseDiagnostics = {
   format: 'csv' | 'json' | 'jsonld'
@@ -17,6 +20,12 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
     const data = parseCsvToGraph(text)
     return { data, diag: { format: 'csv', warnings: [] } }
   }
+
+  const fastGeo = text.length > 1_000_000 ? tryBuildGeodataGraphDataFromJsonText({ name, text }) : null
+  if (fastGeo) {
+    return { data: fastGeo.graphData, diag: { format: 'json', warnings: fastGeo.warnings } }
+  }
+
   try {
     const json = JSON.parse(text)
 
@@ -42,6 +51,31 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
       const { graphData, warnings } = parseN8nWorkflow(json)
       return { data: graphData, diag: { format: 'json', warnings } }
     }
+
+    if (json && typeof json === 'object' && !Array.isArray(json)) {
+      const t = (json as any).type
+      if (t === 'FeatureCollection' || t === 'Feature') {
+        try {
+          const normalized = coerceGeoJsonToFeatureCollection(json as any)
+          const geoGraph = buildGraphDataFromFeatureCollection({
+            featureCollection: normalized,
+            sourcePath: name,
+            sourceHash: '',
+          })
+          if (geoGraph && geoGraph.nodes.length > 0) {
+            return { data: geoGraph, diag: { format: 'json', warnings: [] } }
+          }
+        } catch {
+          void 0
+        }
+      }
+    }
+
+    const geo = tryBuildGeodataGraphDataFromJsonText({ name, text, maxRecords: 15000 })
+    if (geo) {
+      return { data: geo.graphData, diag: { format: 'json', warnings: geo.warnings } }
+    }
+
     const raw = rawToGraphData(json)
     if ((raw.nodes && raw.nodes.length > 0) || (raw.edges && raw.edges.length > 0)) {
       return { data: raw, diag: { format: 'json', warnings: [] } }

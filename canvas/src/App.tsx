@@ -9,6 +9,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 
 const Canvas = lazy(() => import('@/pages/Canvas'))
 const PdfDocumentViewer = lazy(() => import('@/pages/PdfDocumentViewer'))
+const ContractsDiagnostics = lazy(() => import('@/pages/ContractsDiagnostics'))
 
 export default function App() {
   useEffect(() => {
@@ -33,6 +34,8 @@ export default function App() {
             <Route path="/canvas" element={<Navigate to="/" replace />} />
             <Route path="/workspace" element={<Navigate to="/?openEditorWorkspace=1" replace />} />
             <Route path="/import" element={<Navigate to="/?openEditorWorkspace=1" replace />} />
+            <Route path="/contracts" element={<ContractsDiagnostics />} />
+            <Route path="/diagnostics" element={<Navigate to="/contracts" replace />} />
             <Route path="/doc/:docId" element={<PdfDocumentViewer />} />
           </Routes>
         </Suspense>

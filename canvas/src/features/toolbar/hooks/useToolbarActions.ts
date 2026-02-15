@@ -177,7 +177,6 @@ export function useToolbarActions(
   }, [])
 
   const handleOpenGeospatialMode = useCallback(() => {
-    if (!ensureBaselineUnlocked()) return
     void toggleGeospatialModeEnabled()
       .then(nextEnabled => {
         onGeospatialEnabledChange?.(nextEnabled)
@@ -196,7 +195,7 @@ export function useToolbarActions(
           void 0
         }
       })
-  }, [ensureBaselineUnlocked, onGeospatialEnabledChange])
+  }, [onGeospatialEnabledChange])
 
   const handleToggleTheme = useCallback(() => {
     setThemeMode(getNextThemeMode(themeMode))

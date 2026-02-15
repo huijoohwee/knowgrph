@@ -416,17 +416,6 @@ export function useWorkspaceFileActions(args: {
             if (!meta || !meta.url) return
             if (meta.url !== sourceUrl) return
 
-            if (meta.view === 'html') {
-              useGraphStore.getState().upsertUiToast({
-                id: `workspace:import:url:hydrate:${hashStringToHex(sourceUrl).slice(0, 10)}`,
-                kind: 'success',
-                message: `Webpage ready`,
-                ttlMs: 4000,
-                dismissible: true,
-              })
-              return
-            }
-
             const toastHydrateId = `workspace:import:url:hydrate:${hashStringToHex(sourceUrl).slice(0, 10)}`
             setStatusProgress('Fetching')
             useGraphStore.getState().upsertUiToast({
@@ -699,31 +688,7 @@ export function useWorkspaceFileActions(args: {
           const rootFolder = await ensureFolderPath(fs, `/websites/${safeWebsitePathSegment(host)}/${safeWebsitePathSegment(importId)}`)
           const createdPaths: WorkspacePath[] = []
           const sources: Array<{ path: WorkspacePath; source: { kind: 'url'; url: string; path: string } }> = []
-
-          try {
-            const sitemapText = buildWebsiteSitemapMarkdown({
-              rootUrl,
-              importId,
-              outputDirRel: outputDirRel || undefined,
-              nodes: nodes
-                .map((node) => {
-                  const nodeUrl = typeof node.url === 'string' ? node.url : ''
-                  const nodeId = typeof node.nodeId === 'string' ? node.nodeId : ''
-                  const nodeTreePath = typeof node.path === 'string' ? node.path : ''
-                  const title = typeof node.title === 'string' ? node.title : null
-                  return { nodeId, url: nodeUrl, path: nodeTreePath, title }
-                })
-                .filter(n => n.url),
-            })
-            const sitemapPath = await fs.createFile({ parentPath: rootFolder, name: 'website.sitemap.md', text: sitemapText })
-            createdPaths.push(sitemapPath)
-            sources.push({
-              path: sitemapPath,
-              source: { kind: 'url', url: rootUrl, path: `workspace:${sitemapPath}` },
-            })
-          } catch {
-            void 0
-          }
+          const docLinkByNodeId: Record<string, string> = {}
 
           const ctrl = new AbortController()
           const nodeRows = nodes
@@ -838,6 +803,16 @@ export function useWorkspaceFileActions(args: {
                 const createdPath = await fs.createFile({ parentPath: folderPath, name, text })
                 createdPaths.push(createdPath)
                 sources.push({ path: createdPath, source: { kind: 'url', url: row.nodeUrl, path: `workspace:${createdPath}` } })
+                try {
+                  const normalizedRoot = normalizeWorkspacePath(rootFolder)
+                  const normalizedCreated = normalizeWorkspacePath(createdPath)
+                  const rel = normalizedCreated.startsWith(normalizedRoot + '/')
+                    ? normalizedCreated.slice(normalizedRoot.length + 1)
+                    : normalizedCreated.replace(/^\/+/, '')
+                  if (rel) docLinkByNodeId[row.nodeId] = `./${rel}`
+                } catch {
+                  void 0
+                }
                 return createdPath
               }
 
@@ -863,6 +838,32 @@ export function useWorkspaceFileActions(args: {
               },
             },
           )
+
+          try {
+            const sitemapText = buildWebsiteSitemapMarkdown({
+              rootUrl,
+              importId,
+              outputDirRel: outputDirRel || undefined,
+              docLinkByNodeId,
+              nodes: nodes
+                .map((node) => {
+                  const nodeUrl = typeof node.url === 'string' ? node.url : ''
+                  const nodeId = typeof node.nodeId === 'string' ? node.nodeId : ''
+                  const nodeTreePath = typeof node.path === 'string' ? node.path : ''
+                  const title = typeof node.title === 'string' ? node.title : null
+                  return { nodeId, url: nodeUrl, path: nodeTreePath, title }
+                })
+                .filter(n => n.url),
+            })
+            const sitemapPath = await fs.createFile({ parentPath: rootFolder, name: 'website.sitemap.md', text: sitemapText })
+            createdPaths.unshift(sitemapPath)
+            sources.unshift({
+              path: sitemapPath,
+              source: { kind: 'url', url: rootUrl, path: `workspace:${sitemapPath}` },
+            })
+          } catch {
+            void 0
+          }
 
           setStatusProgress('Writing', totalWrites, totalWrites)
           return { createdPaths, sources }

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil, Compass } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil, Compass, Palette } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -11,6 +11,7 @@ import SearchPanel from '@/components/SearchPanel';
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
 import { LS_KEYS, UI_LABELS, UI_COPY } from '@/lib/config';
+import { getNextCanvas2dRendererId } from '@/lib/renderer/canvas2dRendererRegistry'
 import { lsBool } from '@/lib/persistence'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import { ToolbarMenuLauncher } from '@/features/toolbar/ToolbarMenuLauncher';
@@ -293,7 +294,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
       <IconButton
         className={`App-toolbar__btn ${
-          canvasRenderMode === '2d' && (canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor')
+          canvasRenderMode === '2d' && canvas2dRenderer !== 'd3'
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
         }`}
@@ -302,14 +303,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
             ? UI_COPY.twoDRendererFlowEditorTitle
             : canvas2dRenderer === 'flow'
               ? UI_COPY.twoDRendererFlowTitle
+              : canvas2dRenderer === 'design'
+                ? UI_COPY.twoDRendererDesignTitle
               : UI_COPY.twoDRendererD3Title
         }
         tooltipContent={UI_COPY.twoDRendererToggleTooltip}
         disabled={canvasRenderMode !== '2d' || geospatialEnabled}
         onClick={() => {
           if (!ensureBaselineUnlocked()) return
-          const next = canvas2dRenderer === 'd3' ? 'flow' : canvas2dRenderer === 'flow' ? 'flowEditor' : 'd3'
-          setCanvas2dRenderer(next)
+          setCanvas2dRenderer(getNextCanvas2dRendererId(canvas2dRenderer))
         }}
         showTooltip
       >
@@ -317,6 +319,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           <div className="flex items-center gap-1">
             <Pencil className={iconSizeClass} strokeWidth={iconStrokeWidth} />
             <span className="text-xs">Edit</span>
+          </div>
+        ) : canvas2dRenderer === 'design' ? (
+          <div className="flex items-center gap-1">
+            <Palette className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+            <span className="text-xs">Design</span>
           </div>
         ) : canvas2dRenderer === 'flow' ? (
           <div className="flex items-center gap-1">

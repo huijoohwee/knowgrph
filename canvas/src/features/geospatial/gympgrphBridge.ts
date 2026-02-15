@@ -41,6 +41,25 @@ export async function toggleGeospatialModeEnabled(): Promise<boolean> {
   return Boolean(m.isGeospatialModeEnabled())
 }
 
+export async function setGeospatialModeEnabled(enabled: boolean): Promise<boolean> {
+  const m = await importGympgrph()
+  if (typeof m.isGeospatialModeEnabled !== 'function') {
+    throw new Error('Geospatial mode API is unavailable')
+  }
+  const next = enabled === true
+  const current = Boolean(m.isGeospatialModeEnabled())
+  if (current === next) return current
+  if (typeof m.setGeospatialModeEnabled === 'function') {
+    m.setGeospatialModeEnabled(next)
+    return Boolean(m.isGeospatialModeEnabled())
+  }
+  if (typeof m.toggleGeospatialModeEnabled === 'function') {
+    m.toggleGeospatialModeEnabled()
+    return Boolean(m.isGeospatialModeEnabled())
+  }
+  throw new Error('Geospatial mode toggle API is unavailable')
+}
+
 export async function requestGeospatialTraversalRun(args?: { edgeIds?: string[] | null }): Promise<void> {
   const m = await importGympgrph()
   if (typeof m.requestGeospatialTraversalRun !== 'function') {

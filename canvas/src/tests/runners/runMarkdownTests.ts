@@ -7,6 +7,8 @@ import { testMarkdownFileTreeFolderClickDoesNotClearSelection } from '@/__tests_
 import {
   testMarkdownTripDemoJsonFenceLoadsGraphData,
   testMarkdownTripDemoJsonFenceRegistersAsGeoDataset,
+  testMarkdownTripDemoMmdJsonFenceLoadsGraphData,
+  testMarkdownTripDemoMmdJsonFenceRegistersAsGeoDataset,
 } from '@/__tests__/markdownGeoIntegrationTripDemo.test'
 import { testMarkdownPoiImagesRegistryEnrichesMatchingNodes } from '@/__tests__/markdownPoiImagesRegistry.test'
 import { testMarkdownApplyWithoutFrontmatterBuildsGraph } from '@/__tests__/markdownApplyWithoutFrontmatter.test'
@@ -26,6 +28,8 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdownFileTree.folderClickKeepsSelection', testMarkdownFileTreeFolderClickDoesNotClearSelection)
   await execTest(results, 'markdown.geospatial.tripDemoRegistersGeoDataset', testMarkdownTripDemoJsonFenceRegistersAsGeoDataset)
   await execTest(results, 'markdown.geospatial.tripDemoLoadsGraphData', testMarkdownTripDemoJsonFenceLoadsGraphData)
+  await execTest(results, 'markdown.geospatial.tripDemoMmdRegistersGeoDataset', testMarkdownTripDemoMmdJsonFenceRegistersAsGeoDataset)
+  await execTest(results, 'markdown.geospatial.tripDemoMmdLoadsGraphData', testMarkdownTripDemoMmdJsonFenceLoadsGraphData)
   await execTest(results, 'markdown.mediaRegistry.poiImagesEnrichMatchingNodes', testMarkdownPoiImagesRegistryEnrichesMatchingNodes)
   await execTest(results, 'markdown.applyWithoutFrontmatterBuildsGraph', testMarkdownApplyWithoutFrontmatterBuildsGraph)
   await execTest(results, 'markdown.mermaid.elkLayoutRegistersLoaders', testMermaidElkLayoutRegistersLoadersBeforeInit)

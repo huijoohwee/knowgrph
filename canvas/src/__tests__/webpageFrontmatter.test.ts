@@ -71,3 +71,40 @@ export const testFrontmatterOnlyDocDetection = () => {
   const withBody = `${stub}# Notes\n\nHello\n`
   if (isFrontmatterOnlyDoc(withBody)) throw new Error('expected body doc to not be frontmatter-only')
 }
+
+export const testWebpageFrontmatterSupportsDomAndRawViews = () => {
+  const input = '# Title\n\nHello\n'
+  const withDom = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'dom' })
+  const domParsed = parseWebpageFrontmatterMeta(withDom)
+  if (!domParsed) throw new Error('expected meta')
+  if (domParsed.view !== 'dom') throw new Error('view mismatch')
+
+  const withRaw = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'raw' })
+  const rawParsed = parseWebpageFrontmatterMeta(withRaw)
+  if (!rawParsed) throw new Error('expected meta')
+  if (rawParsed.view !== 'raw') throw new Error('view mismatch')
+}
+
+export const testWebpageFrontmatterSupportsScriptPolicy = () => {
+  const input = ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "html"', 'kgWebpageScriptPolicy: "allow"', '---', '', ''].join('\n')
+  const parsed = parseWebpageFrontmatterMeta(input)
+  if (!parsed) throw new Error('expected meta')
+  if (parsed.scriptPolicy !== 'allow') throw new Error('scriptPolicy mismatch')
+}
+
+export const testWebpageFrontmatterSupportsFidelityAndImages = () => {
+  const input = [
+    '---',
+    'kgWebpageUrl: "https://localhost/"',
+    'kgWebpageView: "html"',
+    'kgWebpageFidelityLevel: "4"',
+    'kgWebpageIncludeImages: "false"',
+    '---',
+    '',
+    '',
+  ].join('\n')
+  const parsed = parseWebpageFrontmatterMeta(input)
+  if (!parsed) throw new Error('expected meta')
+  if (parsed.fidelityLevel !== 4) throw new Error('fidelityLevel mismatch')
+  if (parsed.includeImages !== false) throw new Error('includeImages mismatch')
+}

@@ -6,10 +6,12 @@ import { uiImportPdfSettingsRegistry } from './registry-ui.import-pdf'
 import { uiMarkdownSettingsRegistry } from './registry-ui.markdown'
 import { uiImportYoutubeSettingsRegistry } from './registry-ui.import-youtube'
 import { uiImportWebpageSettingsRegistry } from './registry-ui.import-webpage'
+import { uiImportGeoSettingsRegistry } from './registry-ui.import-geo'
 
 export const uiSettingsRegistry: SettingMeta[] = [
   ...uiUiSettingsRegistry,
   ...uiMarkdownSettingsRegistry,
+  ...uiImportGeoSettingsRegistry,
   ...uiImportPdfSettingsRegistry,
   ...uiImportYoutubeSettingsRegistry,
   ...uiImportWebpageSettingsRegistry,

@@ -14,6 +14,7 @@ import {
   extractYamlFrontmatterBlock,
   readYamlFrontmatterValue,
   type WebpageFrontmatterMeta,
+  type WebpageViewMode,
   type WebsiteImportFrontmatterMeta,
 } from '@/lib/markdown/frontmatter'
 import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
@@ -60,10 +61,10 @@ export type MarkdownWorkspaceMainProps = {
   onImportUrl: (url: string) => void
   onImportWebsite: (url: string) => void
 
-  canConvertHtmlToMarkdown?: boolean
-  onConvertHtmlToMarkdown?: () => void
-
-  onWebpageIframeEl?: (el: HTMLIFrameElement | null) => void
+  webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
+  onWebpageChangeView?: (view: WebpageViewMode) => void
+  onWebpageUpdateMeta?: (patch: { scriptPolicy?: 'strip' | 'allow'; includeImages?: boolean; fidelityLevel?: 1 | 2 | 3 | 4 }) => void
+  onWebpageSyncMarkdownFromDom?: () => void
 
   contentMode?: 'document' | 'nodeQuickEditor'
   setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
@@ -214,9 +215,10 @@ function MarkdownEditor(props: {
 function useWebpageIframeSrcdoc(args: {
   enabled: boolean
   url: string
-  view: 'html' | 'json'
+  view: 'html' | 'json' | 'raw' | 'dom'
   websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string } | null
   htmlOverride?: string | null
+  scriptPolicyOverride?: 'strip' | 'allow' | null
   siteRootRel?: string | null
   onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
   onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
@@ -320,7 +322,14 @@ function useWebpageIframeSrcdoc(args: {
         })
       })()
 
-      const scriptPolicy = useGraphStore.getState().webpageViewerScriptPolicy === 'allow' ? 'allow' : 'strip'
+      const scriptPolicy =
+        args.scriptPolicyOverride === 'allow'
+          ? 'allow'
+          : args.scriptPolicyOverride === 'strip'
+            ? 'strip'
+            : useGraphStore.getState().webpageViewerScriptPolicy === 'allow'
+              ? 'allow'
+              : 'strip'
       const siteRootRel = String(args.siteRootRel || '').trim().replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
       const localDirRel = (() => {
         const normalized = url.split(/[?#]/)[0].replace(/\\/g, '/').replace(/^\/+/, '')
@@ -451,9 +460,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     onImportLocalFolder,
     onImportUrl,
     onImportWebsite,
-    canConvertHtmlToMarkdown,
-    onConvertHtmlToMarkdown,
-    onWebpageIframeEl,
+    webpageWorkspaceMeta,
+    onWebpageChangeView,
+    onWebpageUpdateMeta,
+    onWebpageSyncMarkdownFromDom,
     contentMode,
     setContentMode,
     nodeQuickEditorAvailable,
@@ -490,8 +500,16 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     const view = viewRaw === 'html' ? 'html' : viewRaw === 'json' ? 'json' : 'markdown'
     const siteRootRelRaw = readYamlFrontmatterValue(frontmatterBlock.rawBlock, 'kgWebpageSiteRootRel')
     const siteRootRel = siteRootRelRaw && siteRootRelRaw.trim() ? siteRootRelRaw.trim() : undefined
+    const scriptRaw = readYamlFrontmatterValue(frontmatterBlock.rawBlock, 'kgWebpageScriptPolicy')
+    const scriptPolicy = scriptRaw === 'allow' ? 'allow' : scriptRaw === 'strip' ? 'strip' : undefined
+    const fidelityRaw = readYamlFrontmatterValue(frontmatterBlock.rawBlock, 'kgWebpageFidelityLevel')
+    const fidelityParsed = fidelityRaw ? Number.parseInt(fidelityRaw, 10) : NaN
+    const fidelityLevel =
+      fidelityParsed === 1 || fidelityParsed === 2 || fidelityParsed === 3 || fidelityParsed === 4 ? fidelityParsed : undefined
+    const includeImagesRaw = readYamlFrontmatterValue(frontmatterBlock.rawBlock, 'kgWebpageIncludeImages')
+    const includeImages = includeImagesRaw === 'true' ? true : includeImagesRaw === 'false' ? false : undefined
     if (!url) return null
-    return { url, view, siteRootRel }
+    return { url, view, siteRootRel, scriptPolicy, fidelityLevel, includeImages }
   }, [frontmatterBlock])
   const websiteImportMeta = React.useMemo((): WebsiteImportFrontmatterMeta | null => {
     if (!frontmatterBlock) return null
@@ -505,7 +523,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const showWebpageHtml = !!(
     webpageMeta &&
-    (webpageMeta.view === 'html' || webpageMeta.view === 'json') &&
+    (webpageMeta.view === 'html' || webpageMeta.view === 'json' || webpageMeta.view === 'raw' || webpageMeta.view === 'dom') &&
     webpageMeta.url
   )
 
@@ -541,19 +559,15 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const handleIframeRef = React.useCallback((el: HTMLIFrameElement | null) => {
     iframeRef.current = el
-    try {
-      onWebpageIframeEl?.(el)
-    } catch {
-      void 0
-    }
-  }, [onWebpageIframeEl])
+  }, [])
 
   const { srcDoc: iframeSrcDoc } = useWebpageIframeSrcdoc({
     enabled: showWebpageHtml,
     url: String(webpageMeta?.url || ''),
-    view: webpageMeta?.view === 'json' ? 'json' : 'html',
+    view: webpageMeta?.view === 'json' ? 'json' : webpageMeta?.view === 'raw' ? 'raw' : webpageMeta?.view === 'dom' ? 'dom' : 'html',
     websiteImportMeta: websiteImportMeta && websiteImportMeta.importId && websiteImportMeta.nodeId ? websiteImportMeta : null,
     htmlOverride: webpageMeta?.view === 'html' ? webpageHtmlOverride : null,
+    scriptPolicyOverride: webpageMeta?.scriptPolicy ?? null,
     siteRootRel: webpageMeta?.siteRootRel || null,
     onStatusProgress,
     onStatusWithAutoClear,
@@ -929,8 +943,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onImportUrl={onImportUrl}
         onImportWebsite={onImportWebsite}
         webpageSignalSummary={webpageSignalSummary}
-        canConvertHtmlToMarkdown={canConvertHtmlToMarkdown}
-        onConvertHtmlToMarkdown={onConvertHtmlToMarkdown}
+        webpageWorkspaceMeta={webpageWorkspaceMeta}
+        onWebpageChangeView={onWebpageChangeView}
+        onWebpageUpdateMeta={onWebpageUpdateMeta}
+        onWebpageSyncMarkdownFromDom={onWebpageSyncMarkdownFromDom}
       />
 
       {layoutMode === 'editor' ? (

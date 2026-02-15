@@ -32,8 +32,17 @@ export function readYamlFrontmatterValue(fmBlock: string, key: string): string {
   return v
 }
 
-export type WebpageViewMode = 'markdown' | 'json' | 'html'
-export type WebpageFrontmatterMeta = { url: string; view: WebpageViewMode; siteRootRel?: string }
+export type WebpageViewMode = 'markdown' | 'json' | 'html' | 'dom' | 'raw'
+export type WebpageScriptPolicy = 'strip' | 'allow'
+export type WebpageFidelityLevel = 1 | 2 | 3 | 4
+export type WebpageFrontmatterMeta = {
+  url: string
+  view: WebpageViewMode
+  siteRootRel?: string
+  scriptPolicy?: WebpageScriptPolicy
+  fidelityLevel?: WebpageFidelityLevel
+  includeImages?: boolean
+}
 
 export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatterMeta | null {
   const block = extractYamlFrontmatterBlock(rawText)
@@ -44,7 +53,19 @@ export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatter
   if (!url) return null
   const siteRootRelRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageSiteRootRel')
   const siteRootRel = siteRootRelRaw && siteRootRelRaw.trim() ? siteRootRelRaw.trim() : undefined
-  return { url, view, siteRootRel }
+  const scriptRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageScriptPolicy')
+  const scriptPolicy: WebpageScriptPolicy | undefined = scriptRaw === 'allow' ? 'allow' : scriptRaw === 'strip' ? 'strip' : undefined
+
+  const fidelityRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageFidelityLevel')
+  const fidelityParsed = fidelityRaw ? Number.parseInt(fidelityRaw, 10) : NaN
+  const fidelityLevel: WebpageFidelityLevel | undefined =
+    fidelityParsed === 1 || fidelityParsed === 2 || fidelityParsed === 3 || fidelityParsed === 4 ? fidelityParsed : undefined
+
+  const includeImagesRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageIncludeImages')
+  const includeImages: boolean | undefined =
+    includeImagesRaw === 'true' ? true : includeImagesRaw === 'false' ? false : undefined
+
+  return { url, view, siteRootRel, scriptPolicy, fidelityLevel, includeImages }
 }
 
 export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFrontmatterMeta): string {
@@ -52,12 +73,22 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
   const url = String(meta?.url || '').trim()
   const view: WebpageViewMode = meta?.view === 'html' ? 'html' : meta?.view === 'json' ? 'json' : 'markdown'
   const siteRootRel = String(meta?.siteRootRel || '').trim()
+  const scriptPolicy: WebpageScriptPolicy | '' = meta?.scriptPolicy === 'allow' ? 'allow' : meta?.scriptPolicy === 'strip' ? 'strip' : ''
+  const fidelityLevel: WebpageFidelityLevel | 0 =
+    meta?.fidelityLevel === 1 || meta?.fidelityLevel === 2 || meta?.fidelityLevel === 3 || meta?.fidelityLevel === 4
+      ? meta.fidelityLevel
+      : 0
+  const includeImages: boolean | null =
+    meta?.includeImages === true ? true : meta?.includeImages === false ? false : null
   const block = extractYamlFrontmatterBlock(text)
   if (!block) {
     const lines: string[] = []
     lines.push('---')
     lines.push(`kgWebpageUrl: "${url}"`)
     lines.push(`kgWebpageView: "${view}"`)
+    if (scriptPolicy) lines.push(`kgWebpageScriptPolicy: "${scriptPolicy}"`)
+    if (fidelityLevel) lines.push(`kgWebpageFidelityLevel: "${fidelityLevel}"`)
+    if (includeImages != null) lines.push(`kgWebpageIncludeImages: "${includeImages ? 'true' : 'false'}"`)
     if (siteRootRel) lines.push(`kgWebpageSiteRootRel: "${siteRootRel}"`)
     lines.push('---')
     lines.push('')
@@ -67,6 +98,9 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
   const lines = block.rawBlock.split('\n')
   let urlReplaced = false
   let viewReplaced = false
+  let scriptPolicyReplaced = false
+  let fidelityLevelReplaced = false
+  let includeImagesReplaced = false
   let siteRootRelReplaced = false
   const nextLines = lines.map(line => {
     if (/^\s*kgWebpageUrl\s*:/.test(line)) {
@@ -76,6 +110,18 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
     if (/^\s*kgWebpageView\s*:/.test(line)) {
       viewReplaced = true
       return `kgWebpageView: "${view}"`
+    }
+    if (/^\s*kgWebpageScriptPolicy\s*:/.test(line)) {
+      scriptPolicyReplaced = true
+      return scriptPolicy ? `kgWebpageScriptPolicy: "${scriptPolicy}"` : ''
+    }
+    if (/^\s*kgWebpageFidelityLevel\s*:/.test(line)) {
+      fidelityLevelReplaced = true
+      return fidelityLevel ? `kgWebpageFidelityLevel: "${fidelityLevel}"` : ''
+    }
+    if (/^\s*kgWebpageIncludeImages\s*:/.test(line)) {
+      includeImagesReplaced = true
+      return includeImages != null ? `kgWebpageIncludeImages: "${includeImages ? 'true' : 'false'}"` : ''
     }
     if (/^\s*kgWebpageSiteRootRel\s*:/.test(line)) {
       siteRootRelReplaced = true
@@ -88,6 +134,11 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
   if (endIdx > 0) {
     if (!urlReplaced) nextLines.splice(endIdx, 0, `kgWebpageUrl: "${url}"`)
     if (!viewReplaced) nextLines.splice(endIdx, 0, `kgWebpageView: "${view}"`)
+    if (scriptPolicy && !scriptPolicyReplaced) nextLines.splice(endIdx, 0, `kgWebpageScriptPolicy: "${scriptPolicy}"`)
+    if (fidelityLevel && !fidelityLevelReplaced) nextLines.splice(endIdx, 0, `kgWebpageFidelityLevel: "${fidelityLevel}"`)
+    if (includeImages != null && !includeImagesReplaced) {
+      nextLines.splice(endIdx, 0, `kgWebpageIncludeImages: "${includeImages ? 'true' : 'false'}"`)
+    }
     if (siteRootRel && !siteRootRelReplaced) nextLines.splice(endIdx, 0, `kgWebpageSiteRootRel: "${siteRootRel}"`)
   }
 

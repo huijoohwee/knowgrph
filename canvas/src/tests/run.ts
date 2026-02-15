@@ -67,6 +67,7 @@ import {
   testMarkdownWorkspaceEditorTextOverrideWorks,
 } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
 import { testWebpageHtmlSrcdocShrinksLargeHtmlInsteadOfFailing } from '@/__tests__/webpageIframeSrcdocLargeHtml.test'
+import { testMarkdownPreviewRendersSvgAndIframeHtmlBlocks } from '@/__tests__/markdownRichMedia.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -79,6 +80,7 @@ import {
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
 import { testHtmlParserAllTextIncludesNavAndMain } from '@/__tests__/htmlParserAllText.test'
 import { testHtmlParserUsesEmbeddedLosslessMarkdownSource } from '@/__tests__/htmlParserRoundTripLossless.test'
+import { testHtmlToMarkdownUnifiedConvertsBasicHtml } from '@/__tests__/htmlToMarkdownUnified.test'
 import { testPlainTextToMarkdownPreservesParagraphs } from '@/__tests__/plainTextToMarkdown.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
 import { testFindNextSourceFileIndexNested, testFindNextSourceFileIndexRoot, testNormalizeParentPath } from '@/__tests__/sourceFileNaming.test'
@@ -133,6 +135,8 @@ import {
   testGympgrphCesiumOverlayAutoFitsToGeoBounds,
   testGympgrphMapLibreLoggerSuppressesAbortNoise,
 } from '@/__tests__/geospatialHostIntegration.test'
+import { testAirportsJsonGeodataParsingUsesSampling } from '@/__tests__/geodataAirportsImport.test'
+import { testGeoJsonImport } from '@/__tests__/geojsonImport.test'
 import {
   testMarkdownPreviewViewerForcesPrimaryTextColor,
   testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses,
@@ -301,6 +305,7 @@ import {
   testLayoutPositioningSkipsReseedOnToggle,
 } from '@/__tests__/layoutPositioning.test'
 import { testZoomViewKeyIsIsolatedAcross2dRenderers } from '@/__tests__/zoomViewKeySharedAcross2dRenderers.test'
+import { testPerDocumentUiStateReadWriteAndLruTrim } from '@/__tests__/perDocumentUiState.test'
 import {
   testFrontmatterModeEffectiveNoopWhenNoSeeds,
   testFrontmatterModeEffectiveWhenSeedsExist,
@@ -668,6 +673,9 @@ export const runAllTests = async () => {
   await exec('pdf.workspace.anchors.buildsStablePageAnchors', testPdfWorkspaceAnchorMapBuildsStablePageAnchors)
   await exec('pdf.workspace.anchors.fallsBackToNearestParent', testPdfWorkspaceAnchorResolutionFallsBackToNearestParent)
 
+  await exec('geodata.airportsJson.import.usesSampling', testAirportsJsonGeodataParsingUsesSampling)
+  await exec('geojson.import.basic', testGeoJsonImport)
+
   // Remaining tests
   await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)
   await exec('policy.boundary.hostGympgrphRootOnly', testHostGympgrphIntegrationUsesPackageRootOnly)
@@ -761,6 +769,7 @@ export const runAllTests = async () => {
   await exec('layout.positioning.isolatesMediaDensity', testLayoutPositioningCacheKeyIsolatesMediaDensity)
   await exec('layout.positioning.isolatesRenderMediaAsNodes', testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes)
   await exec('zoom.viewKey.isolates2dRenderers', testZoomViewKeyIsIsolatedAcross2dRenderers)
+  await exec('ui.perDocumentState.roundtripAndTrim', testPerDocumentUiStateReadWriteAndLruTrim)
   await exec('zoom.actions.inOut.preserveViewportCenterNoBounce', testZoomActionsZoomInOutPreserveViewportCenterNoBounce)
   await exec('zoom.wheel.parity.d3AndNative', testCanvasZoomWheelParityBetweenD3AndNative)
   await exec('zoom.wheel.anchor.fallbackWhenOutside', testWheelAnchorFallsBackWhenClientCoordsOutsideRect)
@@ -1015,6 +1024,7 @@ export const runAllTests = async () => {
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)
   await exec('markdown.workspace.webpageHtmlView.websiteImportArtifactHtml', testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml)
   await exec('markdown.workspace.editorTextOverride.works', testMarkdownWorkspaceEditorTextOverrideWorks)
+  await exec('markdown.richMedia.rendersSvgAndIframe', testMarkdownPreviewRendersSvgAndIframeHtmlBlocks)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)
@@ -1039,6 +1049,7 @@ export const runAllTests = async () => {
   await exec('cache.lruClear', testLRUCacheClear)
   await exec('util.reorderList.basicMoves', testReorderListBasicMoves)
   await exec('util.reorderList.noopAndBounds', testReorderListNoopAndBounds)
+  await exec('html.unifiedToMarkdown.basic', testHtmlToMarkdownUnifiedConvertsBasicHtml)
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
   await exec('rxdb.graphTable.seed', testGraphTableDbSeedsBaseTablesAndColumns)

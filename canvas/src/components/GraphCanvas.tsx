@@ -44,6 +44,20 @@ import { UI_SELECTORS } from '@/lib/config'
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const isEmbeddedPreview = useMemo(() => {
+    try {
+      const q = new URLSearchParams(String(window.location.search || '')).get('kgPreview') === '1'
+      if (q) return true
+      const w = window as unknown as { frameElement?: Element | null; parent?: Window | null }
+      const parent = w?.parent
+      if (!parent || parent === window) return false
+      const frameEl = w?.frameElement
+      if (!frameEl) return false
+      return String(frameEl.getAttribute('data-kg-preview') || '') === '1'
+    } catch {
+      return false
+    }
+  }, [])
   const lastLayoutModeRef = useRef<null | 'force' | 'radial'>(null);
   const lastFrontmatterModeRef = useRef<boolean | null>(null);
   const lastSemanticModeRef = useRef<'document' | 'keyword' | null>(null)
@@ -508,13 +522,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       ].join('|')
 
       if (sceneCleanupRef.current && sceneBuildKeyRef.current === buildKey) {
-        const sim = simulationRef.current
-        const effectiveMode = readLayoutMode(schemaValue)
-        if (sim && effectiveMode !== 'radial') {
-          try {
-            sim.alphaTarget(0.08).restart()
-          } catch {
-            void 0
+        if (!isEmbeddedPreview) {
+          const sim = simulationRef.current
+          const effectiveMode = readLayoutMode(schemaValue)
+          if (sim && effectiveMode !== 'radial') {
+            try {
+              sim.alphaTarget(0.08).restart()
+            } catch {
+              void 0
+            }
           }
         }
         return
@@ -673,6 +689,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         layoutPositionsForMode,
         prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
         skipInitialLayout,
+        freezeSimulation: isEmbeddedPreview,
         gRef,
         nodesSelRef,
         groupChevronSelRef,

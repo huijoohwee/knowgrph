@@ -28,6 +28,7 @@ const GeospatialOverlayHostLazy = React.lazy(async () => {
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
+const DesignCanvasLazy = React.lazy(() => import('@/components/DesignCanvas'))
 const FlowEditorCanvasLazy = React.lazy(() => import('@/components/FlowEditorCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
@@ -140,6 +141,13 @@ export default function CanvasPage() {
   const lastInboundPreviewGraphHashRef = React.useRef<string>('')
   const lastInboundPreviewSchemaHashRef = React.useRef<string>('')
   const isEmbeddedPreviewRef = React.useRef<boolean>(false)
+  const geospatialHostViewportSnapshotRef = React.useRef<null | {
+    zoomState: any
+    zoomStateByKey: any
+    viewPinned: boolean
+    fitToScreenMode: boolean
+    zoomToSelectionMode: boolean
+  }>(null)
   const detectEmbeddedPreview = React.useCallback(() => {
     try {
       const q = new URLSearchParams(String(location.search || '')).get('kgPreview') === '1'
@@ -469,9 +477,10 @@ export default function CanvasPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [canvasRenderMode, geospatialModeEnabled, requestThreeCamera, requestZoom])
 
-  const [mounted2dRenderers, setMounted2dRenderers] = React.useState<{ d3: boolean; flow: boolean; flowEditor: boolean }>(() => ({
+  const [mounted2dRenderers, setMounted2dRenderers] = React.useState<{ d3: boolean; flow: boolean; design: boolean; flowEditor: boolean }>(() => ({
     d3: canvas2dRenderer === 'd3',
     flow: canvas2dRenderer === 'flow',
+    design: canvas2dRenderer === 'design',
     flowEditor: canvas2dRenderer === 'flowEditor',
   }))
 
@@ -482,6 +491,10 @@ export default function CanvasPage() {
     }
     if (canvas2dRenderer === 'flow') {
       setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
+      return
+    }
+    if (canvas2dRenderer === 'design') {
+      setMounted2dRenderers(prev => (prev.design ? prev : { ...prev, design: true }))
       return
     }
     if (canvas2dRenderer === 'flowEditor') {
@@ -496,8 +509,9 @@ export default function CanvasPage() {
 
     const shouldPrefetchD3 = canvas2dRenderer !== 'd3' && !mounted2dRenderers.d3
     const shouldPrefetchFlow = canvas2dRenderer !== 'flow' && !mounted2dRenderers.flow
+    const shouldPrefetchDesign = canvas2dRenderer !== 'design' && !mounted2dRenderers.design
     const shouldPrefetchFlowEditor = canvas2dRenderer !== 'flowEditor' && !mounted2dRenderers.flowEditor
-    if (!shouldPrefetchD3 && !shouldPrefetchFlow && !shouldPrefetchFlowEditor) return
+    if (!shouldPrefetchD3 && !shouldPrefetchFlow && !shouldPrefetchDesign && !shouldPrefetchFlowEditor) return
 
     let cancelled = false
     const prefetch = () => {
@@ -513,6 +527,16 @@ export default function CanvasPage() {
           .then(() => {
             if (cancelled) return
             setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
+          })
+          .catch(() => {
+            void 0
+          })
+      }
+      if (shouldPrefetchDesign) {
+        void import('@/components/DesignCanvas')
+          .then(() => {
+            if (cancelled) return
+            setMounted2dRenderers(prev => (prev.design ? prev : { ...prev, design: true }))
           })
           .catch(() => {
             void 0
@@ -552,12 +576,42 @@ export default function CanvasPage() {
       cancelled = true
       window.clearTimeout(timeoutId)
     }
-  }, [canvas2dRenderer, canvasRenderMode, geospatialModeEnabled, mounted2dRenderers.d3, mounted2dRenderers.flow])
+  }, [canvas2dRenderer, canvasRenderMode, geospatialModeEnabled, mounted2dRenderers.d3, mounted2dRenderers.flow, mounted2dRenderers.design, mounted2dRenderers.flowEditor])
 
   React.useEffect(() => {
     return onGeospatialModeChanged(detail => {
       const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
       if (enabled == null) return
+      if (enabled) {
+        try {
+          const s = useGraphStore.getState()
+          geospatialHostViewportSnapshotRef.current = {
+            zoomState: s.zoomState,
+            zoomStateByKey: s.zoomStateByKey,
+            viewPinned: s.viewPinned,
+            fitToScreenMode: s.fitToScreenMode,
+            zoomToSelectionMode: s.zoomToSelectionMode,
+          }
+        } catch {
+          geospatialHostViewportSnapshotRef.current = null
+        }
+      } else {
+        const snap = geospatialHostViewportSnapshotRef.current
+        geospatialHostViewportSnapshotRef.current = null
+        if (snap) {
+          try {
+            const s = useGraphStore.getState()
+            s.setViewPinned(snap.viewPinned)
+            s.setFitToScreenMode(snap.fitToScreenMode)
+            s.setZoomToSelectionMode(snap.zoomToSelectionMode)
+            if (snap.zoomState) s.setZoomState(snap.zoomState)
+            else useGraphStore.setState(() => ({ zoomState: null }))
+            useGraphStore.setState(() => ({ zoomStateByKey: snap.zoomStateByKey || {}, zoomRequest: null, threeCameraRequest: null }))
+          } catch {
+            void 0
+          }
+        }
+      }
       setGeospatialModeEnabled(enabled)
     })
   }, [])
@@ -746,28 +800,15 @@ export default function CanvasPage() {
           lastInboundPreviewSelectionKeyRef.current = nextSelectionKey
           if (nextSelectionKey === prevSelectionKey) return
           try {
-            store.setSelectionSource('editor')
-          } catch {
-            void 0
-          }
-          try {
-            if (selectedNodeId) {
-              store.selectEdge(null)
-              store.selectGroup(null)
-              store.selectNode(selectedNodeId)
-            } else if (selectedEdgeId) {
-              store.selectNode(null)
-              store.selectGroup(null)
-              store.selectEdge(selectedEdgeId)
-            } else if (selectedGroupId) {
-              store.selectNode(null)
-              store.selectEdge(null)
-              store.selectGroup(selectedGroupId)
-            } else {
-              store.selectNode(null)
-              store.selectEdge(null)
-              store.selectGroup(null)
-            }
+            useGraphStore.setState({
+              selectionSource: 'editor',
+              selectedNodeId: selectedNodeId || null,
+              selectedEdgeId: selectedEdgeId || null,
+              selectedGroupId: selectedGroupId || null,
+              selectedNodeIds: selectedNodeId ? [selectedNodeId] : [],
+              selectedEdgeIds: selectedEdgeId ? [selectedEdgeId] : [],
+              selectedGroupIds: selectedGroupId ? [selectedGroupId] : [],
+            })
           } catch {
             void 0
           }
@@ -906,6 +947,9 @@ export default function CanvasPage() {
                   <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
                     {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
                   </div>
+                  <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`}>
+                    {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
+                  </div>
                   <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
                     {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
                   </div>
@@ -1011,6 +1055,9 @@ export default function CanvasPage() {
                           </div>
                           <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
                             {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
+                          </div>
+                          <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`}>
+                            {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
                           </div>
                           <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
                             {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}

@@ -1,4 +1,4 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'flow', 'flowEditor'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'flow', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 

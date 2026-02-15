@@ -143,8 +143,6 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
           else if (nextGroupId) store.selectGroup(nextGroupId)
           else {
             store.selectNode(null)
-            store.selectEdge(null)
-            store.selectGroup(null)
           }
           return
         }

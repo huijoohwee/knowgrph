@@ -1,6 +1,8 @@
 import type { JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
+import { runInIdle } from '@/features/panels/utils/idle'
+import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 
 function decodeBase64Utf8(base64: string): string {
   const b64 = String(base64 || '').trim()
@@ -51,6 +53,28 @@ export function parseHtmlToMarkdown(html: string, baseUrl?: string): string {
   return traverseNode(root, { baseUrl }).trim()
 }
 
+export async function parseHtmlToMarkdownAsync(
+  html: string,
+  baseUrl?: string,
+  opts?: { onProgress?: (phase: 'parse' | 'transform' | 'toMarkdown' | 'stringify', percentage: number) => void },
+): Promise<string> {
+  const raw = String(html || '')
+  const lossless = tryExtractLosslessMarkdownFromHtml(raw)
+  if (lossless) return lossless
+  if (looksLikeRssOrAtom(raw)) {
+    const rssMarkdown = parseRssOrAtomToMarkdown(raw)
+    if (rssMarkdown.trim()) return rssMarkdown.trim()
+  }
+
+  const preferUnified = raw.length >= 450_000
+  if (preferUnified) {
+    const unifiedRes = await runInIdle(() => convertHtmlToMarkdownUnified({ html: raw, baseUrl, onProgress: opts?.onProgress }))
+    if (unifiedRes.ok === true && unifiedRes.markdown.trim()) return unifiedRes.markdown.trim()
+  }
+
+  return await runInIdle(() => parseHtmlToMarkdown(raw, baseUrl))
+}
+
 export function parseHtmlToMarkdownAllText(html: string, baseUrl?: string): string {
   const raw = String(html || '')
   const lossless = tryExtractLosslessMarkdownFromHtml(raw)
@@ -71,6 +95,31 @@ export function parseHtmlToMarkdownAllText(html: string, baseUrl?: string): stri
   const firstLine = (md.split('\n')[0] || '').trim()
   if (firstLine.startsWith('# ')) return md
   return `# ${title}\n\n${md}`
+}
+
+export async function parseHtmlToMarkdownAllTextAsync(
+  html: string,
+  baseUrl?: string,
+  opts?: { onProgress?: (phase: 'parse' | 'transform' | 'toMarkdown' | 'stringify', percentage: number) => void },
+): Promise<string> {
+  const raw = String(html || '')
+  const lossless = tryExtractLosslessMarkdownFromHtml(raw)
+  if (lossless) return lossless
+  if (looksLikeRssOrAtom(raw)) {
+    const rssMarkdown = parseRssOrAtomToMarkdown(raw)
+    if (rssMarkdown.trim()) return rssMarkdown.trim()
+  }
+
+  const preferUnified = raw.length >= 450_000
+  if (preferUnified) {
+    const unifiedRes = await runInIdle(() => convertHtmlToMarkdownUnified({ html: raw, baseUrl, onProgress: opts?.onProgress }))
+    if (unifiedRes.ok === true) {
+      const md = unifiedRes.markdown.trim()
+      if (md) return md
+    }
+  }
+
+  return await runInIdle(() => parseHtmlToMarkdownAllText(raw, baseUrl))
 }
 
 export function parsePlainTextToMarkdown(text: string, title?: string): string {

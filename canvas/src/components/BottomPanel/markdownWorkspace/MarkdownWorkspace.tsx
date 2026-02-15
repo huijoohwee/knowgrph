@@ -73,7 +73,9 @@ import { hashStringToHex } from '@/lib/hash/stringHash'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
-import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText, recordsToPointFeatureCollection } from 'gympgrph'
+import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from 'gympgrph'
+import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
+import { maybeAutoEnableGeospatialModeForGraphData } from '@/features/geospatial/autoEnable'
 import {
   FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
@@ -767,14 +769,69 @@ export function MarkdownWorkspace() {
             })
           }
 
-          const includeImages = false
+          const store = useGraphStore.getState()
+          const includeImages = webpageWorkspaceMeta.includeImages ?? (store.webpageImportIncludeImages !== false)
+          const fidelityLevel = webpageWorkspaceMeta.fidelityLevel ?? (() => {
+            const raw = store.webpageArtifactFidelityMaxLevel
+            const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
+            return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
+          })()
+
+          try {
+            const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }] = await Promise.all([
+              import('@/lib/websites/webpageDomExport'),
+              import('@/lib/markdown/htmlToMarkdownUnified'),
+            ])
+            const dom = await exportWebpageDomViaHiddenIframe({
+              url: webpageWorkspaceMeta.url,
+              mode: 'html',
+              timeoutMs: 30_000,
+              maxChars: 10_000_000,
+              scrollCrawl: true,
+              expandFaq: true,
+            })
+            const domHtml = String(dom?.text || '')
+            if (domHtml.trim()) {
+              const converted = await convertHtmlToMarkdownUnified({
+                html: domHtml,
+                baseUrl: webpageWorkspaceMeta.url,
+                maxInputChars: 10_000_000,
+                includeImages,
+                fidelityLevel,
+              })
+              if (converted.ok === true && converted.markdown.trim()) {
+                const built = buildWebpageMarkdownArtifactDoc({
+                  markdown: converted.markdown,
+                  url: webpageWorkspaceMeta.url,
+                  fidelityMaxLevel,
+                })
+                return upsertWebpageFrontmatterMeta(built, {
+                  url: webpageWorkspaceMeta.url,
+                  view: 'markdown',
+                  scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
+                  includeImages,
+                  fidelityLevel,
+                })
+              }
+            }
+          } catch {
+            void 0
+          }
+
           const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { includeImages })
           if (!res || res.ok !== true) return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
 
-          return buildWebpageMarkdownArtifactDoc({
+          const built = buildWebpageMarkdownArtifactDoc({
             markdown: String(res.markdown || ''),
             url: webpageWorkspaceMeta.url,
             fidelityMaxLevel,
+          })
+          return upsertWebpageFrontmatterMeta(built, {
+            url: webpageWorkspaceMeta.url,
+            view: 'markdown',
+            scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
+            includeImages,
+            fidelityLevel,
           })
         })()
         await fs.writeFileText(activePath, nextText)
@@ -799,6 +856,126 @@ export function MarkdownWorkspace() {
       websiteImportMeta,
       webpageWorkspaceMeta,
     ],
+  )
+
+  const updateActiveWebpageWorkspaceMeta = React.useCallback(
+    async (patch: { scriptPolicy?: 'strip' | 'allow'; includeImages?: boolean; fidelityLevel?: 1 | 2 | 3 | 4 }) => {
+      if (!activePath || !webpageWorkspaceMeta) return
+      try {
+        setStatusProgress('Updating view')
+        const fs = await getFs()
+
+        const prevText = await (async () => {
+          const lastLoaded = lastLoadedRef.current
+          const isDirty = !!(
+            userEditedActiveTextRef.current &&
+            lastLoaded &&
+            lastLoaded.path === activePath &&
+            lastLoaded.text !== activeTextRef.current
+          )
+          if (isDirty) return String(activeTextRef.current || '')
+          if (lastLoaded && lastLoaded.path === activePath && typeof lastLoaded.text === 'string' && lastLoaded.text.trim()) {
+            return lastLoaded.text
+          }
+          const hydrated = await fs.readFileText(activePath).catch(() => '')
+          if (String(hydrated || '').trim()) return String(hydrated || '')
+          return String(activeTextRef.current || '')
+        })()
+
+        const meta = parseWebpageFrontmatterMeta(prevText) || webpageWorkspaceMeta
+        const nextText = upsertWebpageFrontmatterMeta(prevText, {
+          url: meta.url,
+          view: meta.view,
+          siteRootRel: meta.siteRootRel,
+          scriptPolicy: patch.scriptPolicy,
+          includeImages: patch.includeImages,
+          fidelityLevel: patch.fidelityLevel,
+        })
+        await fs.writeFileText(activePath, nextText)
+        lastLoadedRef.current = { path: activePath, text: nextText }
+        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+        const inlineText = nextText.length <= maxInline ? nextText : undefined
+        setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+        setActiveTextProgrammatic(nextText)
+        setStatusWithAutoClear('Updated', 1200)
+      } catch (e) {
+        setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      }
+    },
+    [activePath, getFs, setActiveTextProgrammatic, setEntries, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageWorkspaceMeta],
+  )
+
+  const syncActiveWebpageMarkdownFromDom = React.useCallback(
+    async () => {
+      if (!activePath || !webpageWorkspaceMeta) return
+      try {
+        setStatusProgress('Fetching')
+        const fs = await getFs()
+        const store = useGraphStore.getState()
+
+        const includeImages = webpageWorkspaceMeta.includeImages ?? (store.webpageImportIncludeImages !== false)
+        const fidelityLevel = webpageWorkspaceMeta.fidelityLevel ?? (() => {
+          const raw = store.webpageArtifactFidelityMaxLevel
+          const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
+          return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
+        })()
+        const fidelityMaxLevel = store.webpageArtifactFidelityMaxLevel ?? 4
+
+        const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }, { buildWebpageMarkdownArtifactDoc }] =
+          await Promise.all([
+            import('@/lib/websites/webpageDomExport'),
+            import('@/lib/markdown/htmlToMarkdownUnified'),
+            import('@/lib/websites/webpageMarkdownArtifact'),
+          ])
+
+        const dom = await exportWebpageDomViaHiddenIframe({
+          url: webpageWorkspaceMeta.url,
+          mode: 'html',
+          timeoutMs: 30_000,
+          maxChars: 10_000_000,
+          scrollCrawl: true,
+          expandFaq: true,
+        })
+        const domHtml = String(dom?.text || '')
+        if (!domHtml.trim()) throw new Error('DOM capture failed')
+
+        setStatusProgress('Converting')
+        const converted = await convertHtmlToMarkdownUnified({
+          html: domHtml,
+          baseUrl: webpageWorkspaceMeta.url,
+          maxInputChars: 10_000_000,
+          includeImages,
+          fidelityLevel,
+        })
+        if (converted.ok !== true) throw new Error(converted.error || 'Conversion failed')
+
+        const built = buildWebpageMarkdownArtifactDoc({
+          markdown: converted.markdown,
+          url: webpageWorkspaceMeta.url,
+          fidelityMaxLevel,
+        })
+        const nextText = upsertWebpageFrontmatterMeta(built, {
+          url: webpageWorkspaceMeta.url,
+          view: 'markdown',
+          siteRootRel: webpageWorkspaceMeta.siteRootRel,
+          scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
+          includeImages,
+          fidelityLevel,
+        })
+
+        setStatusProgress('Writing')
+        await fs.writeFileText(activePath, nextText)
+        lastLoadedRef.current = { path: activePath, text: nextText }
+        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
+        const inlineText = nextText.length <= maxInline ? nextText : undefined
+        setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+        setActiveTextProgrammatic(nextText)
+        setStatusWithAutoClear('Updated', 1200)
+      } catch (e) {
+        setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      }
+    },
+    [activePath, getFs, setActiveTextProgrammatic, setEntries, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageWorkspaceMeta],
   )
 
   const resolveFolderContractDocPath = React.useCallback(
@@ -880,19 +1057,7 @@ export function MarkdownWorkspace() {
       }
 
       if (webpageWorkspaceMeta) {
-        return (
-          <WorkspaceModeSelect<WebpageViewMode>
-            ariaLabel="Webpage view mode"
-            value={webpageWorkspaceMeta.view}
-            isActive={args.isActive}
-            options={[
-              { value: 'markdown', label: 'Markdown' },
-              { value: 'html', label: 'HTML' },
-              { value: 'json', label: 'JSON' },
-            ]}
-            onChange={next => void switchActiveWebpageWorkspaceView(next)}
-          />
-        )
+        return null
       }
 
       if (!pdfWorkspaceMeta) return null
@@ -926,6 +1091,8 @@ export function MarkdownWorkspace() {
       youtubeWorkspaceMeta,
       switchActiveYoutubeWorkspaceFormat,
       webpageWorkspaceMeta,
+      syncActiveWebpageMarkdownFromDom,
+      updateActiveWebpageWorkspaceMeta,
     ],
   )
 
@@ -1554,31 +1721,25 @@ export function MarkdownWorkspace() {
             const geoGraph = isGeoCandidate
               ? await runInIdle(
                   () => {
-                    try {
-                      const fc = parseGeoJsonFromText(nextText)
-                      const normalized = coerceGeoJsonToFeatureCollection(fc)
-                      return buildGraphDataFromFeatureCollection({
-                        featureCollection: normalized,
-                        sourcePath: path,
-                        sourceHash: hash,
-                      })
-                    } catch {
-                      void 0
+                    const lowerPath = String(path || '').toLowerCase()
+                    const mightBeGeoJson =
+                      lowerPath.endsWith('.geojson') ||
+                      (lowerPath.endsWith('.json') && /"type"\s*:\s*"FeatureCollection"/i.test(nextText.slice(0, 4096)))
+                    if (mightBeGeoJson && nextText.length < 2_000_000) {
+                      try {
+                        const fc = parseGeoJsonFromText(nextText)
+                        const normalized = coerceGeoJsonToFeatureCollection(fc)
+                        return buildGraphDataFromFeatureCollection({
+                          featureCollection: normalized,
+                          sourcePath: path,
+                          sourceHash: hash,
+                        })
+                      } catch {
+                        void 0
+                      }
                     }
-                    try {
-                      const parsed = JSON.parse(nextText) as unknown
-                      const records = Array.isArray(parsed) ? parsed : null
-                      if (!records) return null
-                      const fc = recordsToPointFeatureCollection(records)
-                      const normalized = coerceGeoJsonToFeatureCollection(fc)
-                      return buildGraphDataFromFeatureCollection({
-                        featureCollection: normalized,
-                        sourcePath: path,
-                        sourceHash: hash,
-                      })
-                    } catch {
-                      return null
-                    }
+                    const geodata = tryBuildGeodataGraphDataFromJsonText({ name: path, text: nextText, maxRecords: 5000 })
+                    return geodata ? geodata.graphData : null
                   },
                   { timeoutMs: 650 },
                 )
@@ -1590,11 +1751,12 @@ export function MarkdownWorkspace() {
               } catch {
                 void 0
               }
+              await maybeAutoEnableGeospatialModeForGraphData({ graphData: geoGraph, openSidePanel: true })
               try {
                 store.updateSourceFile(fileId, {
                   status: 'parsed',
                   error: undefined,
-                  parsedParserId: 'geojson',
+                  parsedParserId: geoGraph.context === 'geodata' ? 'geodata' : 'geojson',
                   parsedTextHash: hash,
                   parsedGraphData: geoGraph,
                 })
@@ -2163,189 +2325,6 @@ export function MarkdownWorkspace() {
   const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing && !webpageDerivedReadOnlyActive
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown && !(webpageWorkspaceMeta && webpageWorkspaceMeta.view !== 'markdown')
 
-  const webpageIframeElRef = React.useRef<HTMLIFrameElement | null>(null)
-
-  const canConvertHtmlToMarkdown = contentMode !== 'nodeQuickEditor' && webpageWorkspaceMeta?.url && webpageWorkspaceMeta.view === 'html'
-
-  const requestWebpageExportDom = React.useCallback(async (mode: 'html' | 'text'): Promise<{ text: string; title: string; clipped: boolean } | null> => {
-    const iframeEl = webpageIframeElRef.current
-    if (!iframeEl) return null
-
-    const requestFromIframe = async (iframe: HTMLIFrameElement): Promise<{ text: string; title: string; clipped: boolean } | null> => {
-      const win = iframe.contentWindow
-      if (!win) return null
-      const id = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
-      const kind = 'kg-export-dom'
-      return await new Promise((resolve) => {
-        let done = false
-        const onMessage = (e: MessageEvent) => {
-          if (e.source !== win) return
-          const raw = e?.data as unknown
-          if (!raw || typeof raw !== 'object') return
-          const d = raw as Record<string, unknown>
-          if (d.kind !== kind || d.id !== id) return
-          if (done) return
-          done = true
-          clearTimeout(timeoutId)
-          window.removeEventListener('message', onMessage)
-          resolve({
-            text: String(d.text ?? ''),
-            title: String(d.title ?? ''),
-            clipped: Boolean(d.clipped),
-          })
-        }
-
-        const timeoutId = setTimeout(() => {
-          if (done) return
-          done = true
-          window.removeEventListener('message', onMessage)
-          resolve(null)
-        }, 6_000)
-
-        window.addEventListener('message', onMessage)
-        try {
-          win.postMessage({ kind, id, mode, maxChars: 8_000_000, expandFaq: true, scrollCrawl: mode === 'text' }, '*')
-        } catch {
-          clearTimeout(timeoutId)
-          window.removeEventListener('message', onMessage)
-          resolve(null)
-        }
-      })
-    }
-
-    return await requestFromIframe(iframeEl)
-  }, [])
-
-  const convertHtmlToMarkdown = React.useCallback(async () => {
-    if (!activePath) return
-    const meta = webpageWorkspaceMeta
-    if (!meta || meta.view !== 'html') return
-    const url = String(meta.url || '').trim()
-    if (!url) return
-    setStatusProgress('Converting HTML')
-    try {
-      const fs = await getFs()
-      let rawHtml = ''
-      let markdownOverride: string | null = null
-
-      const chooseMarkdownFromSources = async (sources: { html?: string; text?: string; title?: string } | null): Promise<void> => {
-        const html = String(sources?.html || '').trim()
-        const text = String(sources?.text || '').trim()
-        const title = String(sources?.title || '').trim()
-        if (!html && !text) return
-
-        if (!html && text) {
-          const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
-          markdownOverride = parsePlainTextToMarkdown(text, title)
-          return
-        }
-
-        if (html) {
-          const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-          const { convertWebpageHtmlToMarkdownArtifactAsync } = await import('@/lib/websites/webpageHtmlToMarkdownArtifact')
-          const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
-          const md = await convertWebpageHtmlToMarkdownArtifactAsync({
-            html: bounded,
-            url,
-            onProgress: (step) => setStatusProgress(`Converting HTML: ${step}`),
-          })
-          if (text.length > 1200) {
-            const normalize = (s: string): string => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()
-            const normMd = normalize(md)
-            const lines = text
-              .split('\n')
-              .map(s => s.trim())
-              .filter(s => s.length >= 30 && s.length <= 200)
-            const samples: string[] = []
-            const maxSamples = 22
-            if (lines.length <= maxSamples) {
-              samples.push(...lines)
-            } else {
-              for (let i = 0; i < maxSamples; i += 1) {
-                const idx = Math.floor((i * (lines.length - 1)) / (maxSamples - 1))
-                samples.push(lines[idx] || '')
-              }
-            }
-            let misses = 0
-            for (const s of samples) {
-              const ns = normalize(s)
-              if (!ns) continue
-              if (!normMd.includes(ns)) misses += 1
-              if (misses >= 5) break
-            }
-
-            if (md.length < text.length * 0.85 || misses >= 5) {
-              markdownOverride = parsePlainTextToMarkdown(text, title)
-              return
-            }
-          }
-
-          markdownOverride = md
-        }
-      }
-
-      const exportedHtml = await requestWebpageExportDom('html')
-      const exportedText = await requestWebpageExportDom('text')
-      if (exportedHtml?.text && !exportedHtml.clipped) rawHtml = exportedHtml.text
-      await chooseMarkdownFromSources({
-        html: rawHtml,
-        text: String(exportedText?.text || ''),
-        title: String(exportedHtml?.title || exportedText?.title || '').trim() || undefined,
-      })
-
-      if (!rawHtml) {
-        const controller = new AbortController()
-        rawHtml = websiteImportMeta?.importId && websiteImportMeta?.nodeId
-          ? await fetchWebsiteImportArtifact({
-              importId: websiteImportMeta.importId,
-              nodeId: websiteImportMeta.nodeId,
-              outputDirRel: String(websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '').trim() || undefined,
-              kind: 'rawHtml',
-              signal: controller.signal,
-            })
-          : await fetchWebpageHtmlAuto({ url, signal: controller.signal })
-      }
-
-      if (!markdownOverride && !rawHtml.trim() && exportedText?.text) {
-        const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
-        markdownOverride = parsePlainTextToMarkdown(exportedText.text, exportedText.title)
-      }
-
-      if (!rawHtml.trim() && !markdownOverride) {
-        setStatusError('No HTML to convert')
-        return
-      }
-
-      let bodyMd = ''
-      if (markdownOverride) {
-        bodyMd = markdownOverride
-      } else {
-        const bounded = rawHtml.length > 4_000_000 ? rawHtml.slice(0, 4_000_000) : rawHtml
-        const { convertWebpageHtmlToMarkdownArtifactAsync } = await import('@/lib/websites/webpageHtmlToMarkdownArtifact')
-        bodyMd = await convertWebpageHtmlToMarkdownArtifactAsync({
-          html: bounded,
-          url,
-          onProgress: (step) => setStatusProgress(`Converting HTML: ${step}`),
-        })
-      }
-      const baseDoc = upsertWebpageFrontmatterMeta(String(activeText || ''), { url, view: 'markdown' })
-      const block = extractYamlFrontmatterBlock(baseDoc)
-      const nextText = block ? `${block.rawBlock}\n\n${String(bodyMd || '').trim()}\n` : `${String(bodyMd || '').trim()}\n`
-
-      await fs.writeFileText(activePath, nextText)
-      lastLoadedRef.current = { path: activePath, text: nextText }
-      const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-      const inlineText = nextText.length <= maxInline ? nextText : undefined
-      setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
-      setActiveTextProgrammatic(nextText)
-      const docKey = workspaceDocumentKey(activePath)
-      if (docKey) setMarkdownDocument(docKey, nextText)
-      setStatusWithAutoClear('Converted', 1200)
-    } catch (e) {
-      setStatusError(`Convert failed: ${String((e as { message?: unknown })?.message ?? e)}`)
-    }
-  }, [activePath, activeText, getFs, lastLoadedRef, requestWebpageExportDom, setActiveTextProgrammatic, setEntries, setMarkdownDocument, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageWorkspaceMeta, websiteImportMeta])
-
   return (
     <section
       ref={workspaceRootRef}
@@ -2437,11 +2416,10 @@ export function MarkdownWorkspace() {
           onImportLocalFolder={fileActions.handleImportLocalFolder}
           onImportUrl={fileActions.handleImportUrl}
           onImportWebsite={fileActions.handleImportWebsite}
-          canConvertHtmlToMarkdown={canConvertHtmlToMarkdown}
-          onConvertHtmlToMarkdown={() => void convertHtmlToMarkdown()}
-          onWebpageIframeEl={(el) => {
-            webpageIframeElRef.current = el
-          }}
+          webpageWorkspaceMeta={webpageWorkspaceMeta}
+          onWebpageChangeView={(view) => void switchActiveWebpageWorkspaceView(view)}
+          onWebpageUpdateMeta={patch => void updateActiveWebpageWorkspaceMeta(patch)}
+          onWebpageSyncMarkdownFromDom={() => void syncActiveWebpageMarkdownFromDom()}
           activeText={effectiveActiveText}
           setActiveText={effectiveSetActiveText}
           editorTextOverride={effectiveEditorTextOverride}

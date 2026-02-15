@@ -17,6 +17,7 @@ import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/req
 import type { LayoutMode2d } from '@/lib/graph/layoutMode'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
+import type { Canvas2dRendererId } from '@/lib/config'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -51,7 +52,7 @@ export type DocumentStructureBaselineSnapshot = {
   documentSemanticMode: DocumentSemanticMode
   frontmatterModeEnabled: boolean
   canvasRenderMode: '2d' | '3d'
-  canvas2dRenderer: 'd3' | 'flow' | 'flowEditor'
+  canvas2dRenderer: Canvas2dRendererId
   canvasRenderModeLastFree: '2d' | '3d'
   canvasRenderModeIsAuto: boolean
   viewPinned: boolean
@@ -355,6 +356,9 @@ export interface GraphState {
   setWebsiteImportConcurrency: (v: number) => void;
   websiteImportOutputDirRel: string;
   setWebsiteImportOutputDirRel: (v: string) => void;
+
+  autoEnableGeospatialOnGeoImport: boolean;
+  setAutoEnableGeospatialOnGeoImport: (v: boolean) => void;
 
   pdfImportIncludeImages: boolean;
   pdfImportConversionMode: PdfImportConversionMode;
@@ -675,7 +679,7 @@ export interface GraphState {
   setSchemaLintActivePath: (examplePath: string | null) => void;
   clearSchemaLintSummary: () => void;
   canvasRenderMode: '2d' | '3d';
-  canvas2dRenderer: 'd3' | 'flow' | 'flowEditor';
+  canvas2dRenderer: Canvas2dRendererId;
   viewportControlsPreset: ViewportControlsPreset;
   flowWheelZoomSpeedMultiplier: number;
   flowWheelZoomIncrementMultiplier: number;
@@ -689,7 +693,7 @@ export interface GraphState {
   canvasRenderModeLastFree: '2d' | '3d';
   canvasRenderModeIsAuto: boolean;
   setCanvasRenderMode: (m: '2d' | '3d') => void;
-  setCanvas2dRenderer: (id: 'd3' | 'flow' | 'flowEditor') => void;
+  setCanvas2dRenderer: (id: Canvas2dRendererId) => void;
   setViewportControlsPreset: (preset: ViewportControlsPreset) => void;
   setFlowWheelZoomSpeedMultiplier: (v: number) => void;
   setFlowWheelZoomIncrementMultiplier: (v: number) => void;

@@ -5,13 +5,13 @@
 Render imported webpages with high fidelity (rich media, animations) while preserving the app invariants:
 
 - **Sandbox boundary**: untrusted HTML must never escape the iframe.
-- **View-only switching**: `Markdown | JSON | HTML` must not mutate graph/layout/zoom.
+- **View-only switching**: `Markdown | HTML | DOM | Raw | JSON` must not mutate graph/layout/zoom.
 - **Neutrality**: no site-specific hacks or hardcoded domains.
 
 ## Surfaces
 
 - **Editor**: shows an editable Markdown SSOT; JSON may be shown as a read-only text override.
-- **Viewer / Presentation / Slides Gallery**: render either Markdown (view = `markdown`) or a sandboxed iframe (view ∈ {json, html}).
+- **Viewer / Presentation / Slides Gallery**: render either Markdown (view = `markdown`) or a sandboxed iframe (view ∈ {html, dom, raw, json}).
 
 ## Editor Loading Invariants
 
@@ -21,8 +21,11 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 ## Frontmatter Contract (per imported page)
 
 - `kgWebpageUrl`: source URL
-- `kgWebpageView`: `markdown | json | html`
+- `kgWebpageView`: `markdown | html | dom | raw | json`
 - `kgWebpageSiteRootRel`: optional local in-repo site root (for resolving `/assets/...` in `srcdoc`)
+- `kgWebpageScriptPolicy`: optional per-doc script policy override (`allow | strip`)
+- `kgWebpageIncludeImages`: optional per-doc conversion override (`true | false`)
+- `kgWebpageFidelityLevel`: optional per-doc conversion fidelity (`1 | 2 | 3 | 4`)
 - `kgWebsiteImportId`: optional website-import job id
 - `kgWebsiteNodeId`: optional stable node id
 - `kgWebsiteOutputDirRel`: optional artifact root override
@@ -112,6 +115,12 @@ Script policy is controlled by `webpageViewerScriptPolicy`:
 - `strip` (default): sanitize HTML and prevent upstream JS.
 - `allow`: keep upstream scripts (may be slower).
 
+Per-document overrides (preferred when present in frontmatter):
+
+- `kgWebpageScriptPolicy: allow | strip`
+- `kgWebpageIncludeImages: true | false`
+- `kgWebpageFidelityLevel: 1 | 2 | 3 | 4`
+
 ## DOM Export Bridge (`kg-export-dom`)
 
 The proxy-injected layer inside the sandboxed iframe listens for `postMessage` requests of the form:
@@ -133,7 +142,7 @@ It replies with:
 
 This bridge powers two native (no headless browser) fidelity upgrades:
 
-- **Convert HTML → Markdown** from the viewer surface by exporting DOM text/HTML.
+- **Sync DOM → Markdown** from the Markdown toolbar by exporting DOM text/HTML.
 - **Import URL fallback** when the initial conversion yields low-quality Markdown for JS-rendered pages.
 
 ## Canvas Preview Sync (Embedded)
@@ -158,6 +167,8 @@ When rendering Markdown to the preview DOM (Viewer/Presentation), the renderer m
 - Embed a non-executing payload in the rendered DOM: `<script type="application/x-kg-markdown" data-kg-markdown-source="1" data-kg-encoding="base64">...</script>`
 - HTML→Markdown import must detect and restore this payload before applying heuristic HTML→Markdown conversion.
 
+When the embedded payload is not present (or invalid), HTML→Markdown import uses a **unified/rehype/remark** pipeline as a general-purpose fallback for large/complex HTML, while keeping `markdown-it` as the renderer for the Markdown UI (no duplicate markdown rendering stack).
+
 ## Iframe Sandbox Policy
 
 All webpage HTML rendering in Viewer / Presentation / Slides uses a sandboxed iframe with:
@@ -176,12 +187,22 @@ When importing a website (sitemap/tree), each created workspace entry can be gen
 
 Additionally, the website import root folder includes a generated `website.sitemap.md` artifact that summarizes the imported pages (tree + pages table).
 
+The pages table includes a `Doc` column with relative links to the actual generated workspace markdown files (to avoid mismatches when name collisions are resolved).
+
+For local repo-relative inputs, `Import URL` accepts both `path/to/file.html` and `file://path/to/file.html` (the `file://` prefix is stripped and treated as repo-relative).
+
 ## View Mode Semantics
 
 - **Mode contract (ordered)**:
   - (1) `Markdown` (default): Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
-  - (2) `HTML`: Editor stays editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe `srcdoc` (view-only).
-  - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe `srcdoc` (view-only).
+  - (2) `HTML`: Editor stays editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe (view-only).
+  - (3) `DOM`: Viewer/Presentation/Slides render a post-hydration DOM snapshot (best for JS-heavy pages).
+  - (4) `Raw`: Viewer/Presentation/Slides render raw HTML source for inspection/debug.
+  - (5) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe (view-only).
+
+The canonical place for these controls is the Markdown toolbar `nav` ("Webpage" group): `View`, `Script`, `Imgs`, `Fid`, and an explicit `Sync` action.
+
+Markdown rendering supports safe rich-media HTML blocks through an allowlist renderer (no `dangerouslySetInnerHTML`), including `<svg>`, `<iframe>`, `<video>`, `<audio>`, `<details>/<summary>`, plus layout-safe media wrappers like `<picture>`, `<figure>`, and `<figcaption>`.
 
 ## Shared Signal Tokens (Mode-Independent)
 

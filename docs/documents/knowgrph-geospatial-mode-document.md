@@ -2,7 +2,7 @@
 
 **Context**: Map-oriented exploration on top of the 2D infinite canvas  
 **Intent**: Overlay basemap + geo layers without breaking graph-first affordances  
-**Directive**: Drive behavior via configuration (no hardcoded datasets/providers), bound all fetch/parse work, and preserve graph-first defaults (overlay is off until explicitly enabled)
+**Directive**: Drive behavior via configuration (no hardcoded datasets/providers), bound all fetch/parse work, and preserve graph-first defaults (overlay is off until explicitly enabled, except optional auto-enable on geo imports)
 
 ---
 
@@ -23,6 +23,7 @@
 - Projection is configurable (**Auto / Mercator / Globe**). In **Auto**, 3D render mode uses a globe-style projection.
 - Dataset layers can be added as http(s) URLs (GeoJSON or record-style JSON) and rendered as points/lines/polygons.
 - Same-origin datasets can also be referenced as absolute paths (starting with `/`) so hosts can serve local GeoJSON/JSON without CORS.
+ - Host-side JSON imports that contain geo fields (e.g. `lat/lon` or `geo.{lat,lng}`) can be ingested as **sampled geodata** without parsing the entire JSON payload (prevents UI freezes on very large object-map datasets).
 - Clicking a rendered **POI** selects it:
   - Graph-node POIs select the corresponding graph node in the main canvas (selectionSource aligns with canvas clicks).
   - Dataset POIs show a lightweight selection marker + popup with dataset/feature details.
@@ -162,6 +163,11 @@
 - Map panel “Fit to data” is consolidated with existing fit/zoom commands:
   - When Geospatial Mode is active, zoom/fit commands route to the geospatial overlay camera and do not trigger graph-canvas zoom pipelines.
   - When Geospatial Mode is off, zoom/fit commands route to the active graph renderer.
+
+### Host Auto-Enable (Import)
+
+- Knowgrph can auto-enable Geospatial Mode immediately after a successful geo-capable import.
+- This is controlled by `autoEnableGeospatialOnGeoImport` (persisted under `kg:ui:geospatial:autoEnableOnGeoImport`).
 
 ---
 

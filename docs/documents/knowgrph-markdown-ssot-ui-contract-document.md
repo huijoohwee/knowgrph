@@ -62,6 +62,8 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 ### Markdown Section Header (SSOT)
 **Contract**: The Markdown section header is the canonical place for cross-document actions (Source Files ingest/export/save/apply) and editor workflow actions (Apply/Save).
 
+- Webpage-backed documents must expose per-document webpage controls only in the header `nav` (no duplicates in Source Files rows): `View` (`markdown/html/dom/raw/json`), `Script`, `Imgs`, `Fid`, plus an explicit `Sync` (DOM→Markdown) action.
+
 - **Canonical implementation**: `curagrph/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` (`ViewerHeaderRow`).
 - **Required behavior**:
   - Same header structure across Editor/Viewer/Presentation; only state changes (enabled/disabled) are allowed.
@@ -134,6 +136,7 @@ Shared markdown logic is contractually owned by `knowgrph/grph-shared`.
 ## Removal Policy (Legacy Cleanup)
 - Remove or block any Viewer-only or Presentation-only header/sidebar variants.
 - If a duplicate TOC renderer appears (e.g., nested inside Source Files rows), it is a contract violation and must be deleted (not conditionally hidden).
+- If webpage view controls exist outside the canonical toolbar `nav` (for example in Source Files row affordances), they are legacy/conflicting UI and must be removed.
 
 ## Verification (Bounded)
 - `npm --prefix curagrph run typecheck`

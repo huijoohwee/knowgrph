@@ -34,6 +34,8 @@ import type { MarkdownPresentationApi } from './markdownWorkspace/markdownWorksp
 import type { MarkdownWorkspaceStatus } from './markdownWorkspace/markdownWorkspaceTypes'
 import { formatMarkdownWorkspaceStatusLabel } from './markdownWorkspace/markdownWorkspaceStatusUi'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { WorkspaceModeSelect } from './markdownWorkspace/WorkspaceModeSelect'
+import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 
 export type MarkdownWorkspaceToolbarProps = {
   layoutMode: MarkdownWorkspaceLayoutMode
@@ -72,8 +74,10 @@ export type MarkdownWorkspaceToolbarProps = {
     time: number
   } | null
 
-  canConvertHtmlToMarkdown?: boolean
-  onConvertHtmlToMarkdown?: () => void
+  webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
+  onWebpageChangeView?: (view: WebpageViewMode) => void
+  onWebpageUpdateMeta?: (patch: { scriptPolicy?: 'strip' | 'allow'; includeImages?: boolean; fidelityLevel?: 1 | 2 | 3 | 4 }) => void
+  onWebpageSyncMarkdownFromDom?: () => void
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -107,11 +111,32 @@ export function MarkdownWorkspaceToolbar({
   onImportUrl,
   onImportWebsite,
   webpageSignalSummary,
-  canConvertHtmlToMarkdown,
-  onConvertHtmlToMarkdown,
+  webpageWorkspaceMeta,
+  onWebpageChangeView,
+  onWebpageUpdateMeta,
+  onWebpageSyncMarkdownFromDom,
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const canNavigateSlides = layoutMode === 'presentation'
+
+  const webpageControls = React.useMemo(() => {
+    const meta = webpageWorkspaceMeta
+    if (!meta || !meta.url) return null
+    const view = meta.view
+    const scriptMode = (meta.scriptPolicy || 'inherit') as 'inherit' | 'strip' | 'allow'
+    const imagesMode: 'inherit' | 'on' | 'off' = meta.includeImages === true ? 'on' : meta.includeImages === false ? 'off' : 'inherit'
+    const fidelityMode: 'inherit' | '1' | '2' | '3' | '4' =
+      meta.fidelityLevel === 1
+        ? '1'
+        : meta.fidelityLevel === 2
+          ? '2'
+          : meta.fidelityLevel === 3
+            ? '3'
+            : meta.fidelityLevel === 4
+              ? '4'
+              : 'inherit'
+    return { view, scriptMode, imagesMode, fidelityMode }
+  }, [webpageWorkspaceMeta])
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const folderInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -217,6 +242,87 @@ export function MarkdownWorkspaceToolbar({
         {webpageSignalsNode}
       </span>
       <nav className="flex items-center gap-1 flex-wrap justify-end" aria-label="Markdown view controls">
+        {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
+          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Webpage">
+            <li className="list-none">
+              <WorkspaceModeSelect<WebpageViewMode>
+                ariaLabel="Webpage view mode"
+                value={webpageControls.view}
+                isActive={true}
+                options={[
+                  { value: 'markdown', label: 'Markdown' },
+                  { value: 'html', label: 'HTML' },
+                  { value: 'dom', label: 'DOM' },
+                  { value: 'raw', label: 'Raw' },
+                  { value: 'json', label: 'JSON' },
+                ]}
+                onChange={next => onWebpageChangeView(next)}
+              />
+            </li>
+            <li className="list-none">
+              <WorkspaceModeSelect<'inherit' | 'strip' | 'allow'>
+                ariaLabel="Webpage script policy"
+                value={webpageControls.scriptMode}
+                isActive={true}
+                options={[
+                  { value: 'inherit', label: 'Script: Auto' },
+                  { value: 'allow', label: 'Script: Allow' },
+                  { value: 'strip', label: 'Script: Strip' },
+                ]}
+                onChange={next => onWebpageUpdateMeta({ scriptPolicy: next === 'inherit' ? undefined : next })}
+              />
+            </li>
+            <li className="list-none">
+              <WorkspaceModeSelect<'inherit' | 'on' | 'off'>
+                ariaLabel="Webpage include images"
+                value={webpageControls.imagesMode}
+                isActive={true}
+                options={[
+                  { value: 'inherit', label: 'Imgs: Auto' },
+                  { value: 'on', label: 'Imgs: On' },
+                  { value: 'off', label: 'Imgs: Off' },
+                ]}
+                onChange={next =>
+                  onWebpageUpdateMeta({
+                    includeImages: next === 'inherit' ? undefined : next === 'on',
+                  })
+                }
+              />
+            </li>
+            <li className="list-none">
+              <WorkspaceModeSelect<'inherit' | '1' | '2' | '3' | '4'>
+                ariaLabel="Webpage fidelity level"
+                value={webpageControls.fidelityMode}
+                isActive={true}
+                options={[
+                  { value: 'inherit', label: 'Fid: Auto' },
+                  { value: '1', label: 'Fid: 1' },
+                  { value: '2', label: 'Fid: 2' },
+                  { value: '3', label: 'Fid: 3' },
+                  { value: '4', label: 'Fid: 4' },
+                ]}
+                onChange={next => {
+                  const level = next === 'inherit' ? undefined : (Number.parseInt(next, 10) as 1 | 2 | 3 | 4)
+                  onWebpageUpdateMeta({ fidelityLevel: level })
+                }}
+              />
+            </li>
+            {onWebpageSyncMarkdownFromDom ? (
+              <li className="list-none">
+                <button
+                  type="button"
+                  className={TOOLBAR_BUTTON_CLASSNAME}
+                  title="Sync DOM to Markdown"
+                  aria-label="Sync DOM to Markdown"
+                  onClick={() => onWebpageSyncMarkdownFromDom()}
+                  disabled={!isEditing}
+                >
+                  <Upload className="w-4 h-4" strokeWidth={1.6} />
+                </button>
+              </li>
+            ) : null}
+          </menu>
+        ) : null}
         <input
           ref={el => {
             fileInputRef.current = el
@@ -624,20 +730,6 @@ export function MarkdownWorkspaceToolbar({
           </li>
         </menu>
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Actions">
-          {canConvertHtmlToMarkdown && onConvertHtmlToMarkdown ? (
-            <li className="list-none">
-              <button
-                type="button"
-                className={TOOLBAR_BUTTON_CLASSNAME}
-                title="Convert HTML to Markdown"
-                aria-label="Convert HTML to Markdown"
-                onClick={() => onConvertHtmlToMarkdown()}
-                disabled={!isEditing}
-              >
-                <Upload className="w-4 h-4" strokeWidth={1.6} />
-              </button>
-            </li>
-          ) : null}
           <li className="list-none">
             <button
               type="button"

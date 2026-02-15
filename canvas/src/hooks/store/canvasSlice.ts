@@ -4,6 +4,7 @@ import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/req
 import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER, DEFAULT_VIEWPORT_CONTROLS_PRESET, UI_COPY } from '@/lib/config'
 import { getLocalStorage, lsBool, lsFloat, lsInt, lsJson, lsSetBool, lsSetFloat, lsSetInt, lsSetJson } from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
+import type { Canvas2dRendererId } from '@/lib/config'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
@@ -79,8 +80,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     lsSetInt(LS_KEYS.flowWheelZoomDefaultsVersion, 3)
   }
 
-  const initialCanvas2dRenderer = lsJson<'d3' | 'flow' | 'flowEditor'>(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, v =>
-    v === 'flow' || v === 'd3' || v === 'flowEditor' ? v : DEFAULT_CANVAS_2D_RENDERER,
+  const initialCanvas2dRenderer = lsJson(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, (v): Canvas2dRendererId =>
+    v === 'flow' || v === 'd3' || v === 'flowEditor' || v === 'design' ? v : DEFAULT_CANVAS_2D_RENDERER,
   )
   const initialViewportControlsPresetStored = lsJson(
     LS_KEYS.viewportControlsPreset,
@@ -349,7 +350,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       return { canvasRenderMode: requested, canvasRenderModeLastFree: requested, canvasRenderModeIsAuto: false }
     })
   },
-  setCanvas2dRenderer: (id: 'd3' | 'flow' | 'flowEditor') => {
+  setCanvas2dRenderer: (id: Canvas2dRendererId) => {
     const cur = get()
     if (cur.documentStructureBaselineLock === true) {
       cur.upsertUiToast({
@@ -361,7 +362,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       return
     }
     set(state => {
-      const next: 'd3' | 'flow' | 'flowEditor' = id === 'flow' ? 'flow' : id === 'flowEditor' ? 'flowEditor' : 'd3'
+      const next: Canvas2dRendererId =
+        id === 'flow' || id === 'flowEditor' || id === 'design' ? id : 'd3'
       if (state.canvas2dRenderer === next) return {}
       lsSetJson(LS_KEYS.canvas2dRenderer, next)
 
