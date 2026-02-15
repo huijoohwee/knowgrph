@@ -104,48 +104,13 @@ def _extract_best_title(html_str: str, markdown_hint: str, url: str) -> str:
 
 
 def _postprocess_markdown(markdown: str) -> str:
-    import re
-
     text = str(markdown or '')
     for _ in range(8):
         if '****' not in text:
             break
         text = text.replace('****', '**')
 
-    lines = text.splitlines()
-    out: List[str] = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        s = line.strip()
-
-        if out:
-            prev = out[-1].strip()
-            if s and prev and s == prev:
-                i += 1
-                continue
-
-        if s and not s.startswith('#') and not s.startswith('- ') and not s.startswith('1. ') and not s.startswith('![') and not s.startswith('```'):
-            if s.startswith('**') and s.endswith('**') and s.count('**') >= 2 and len(s) <= 160 and '[' not in s:
-                candidate = ' '.join(s.replace('**', '').split()).strip()
-                if candidate and len(candidate.split()) <= 18:
-                    next_has_content = (i + 1 < len(lines)) and bool(lines[i + 1].strip())
-                    if next_has_content:
-                        out.append(f'## {candidate}')
-                        i += 1
-                        continue
-        if s and not s.startswith('#') and not s.startswith('- ') and not s.startswith('1. ') and not s.startswith('![') and not s.startswith('```'):
-                letters = re.sub(r'[^A-Za-z]+', '', s)
-                upp = sum(1 for ch in letters if ch.isupper())
-                if letters and upp / max(1, len(letters)) >= 0.7 and (i + 1 < len(lines) and lines[i + 1].strip()):
-                    out.append(f'## {s}')
-                    i += 1
-                    continue
-        out.append(line)
-        i += 1
-
-
-    joined = '\n'.join(out).strip()
+    joined = text.strip()
     return joined + ('\n' if joined else '')
 
 # --- Fetch Utilities (Shared/Copied from youtube_cmd.py to avoid circular imports if any, or move to common?) ---
@@ -240,7 +205,7 @@ class SimpleMarkdownParser(HTMLParser):
         self.table_buffer: List[str] = [] # To capture HTML for tables
         
     def handle_starttag(self, tag, attrs):
-        if tag in {'script', 'style', 'noscript', 'head'}:
+        if tag in {'script', 'style', 'head'}:
             self.in_script_or_style = True
             return
 
@@ -267,7 +232,7 @@ class SimpleMarkdownParser(HTMLParser):
             self.in_title = True
             return
 
-        if tag in {'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'section', 'article', 'header', 'footer', 'nav', 'main', 'aside'}:
+        if tag in {'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'section', 'article', 'header', 'footer', 'nav', 'main', 'aside', 'noscript'}:
             self.flush_line()
         
         if tag in {'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}:
@@ -348,7 +313,7 @@ class SimpleMarkdownParser(HTMLParser):
             self.output_lines.append('<' + tag + self._attrs_to_str(attrs) + '>')
 
     def handle_endtag(self, tag):
-        if tag in {'script', 'style', 'noscript', 'head'}:
+        if tag in {'script', 'style', 'head'}:
             self.in_script_or_style = False
             return
 
@@ -371,7 +336,7 @@ class SimpleMarkdownParser(HTMLParser):
             self.in_title = False
             return
 
-        if tag in {'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'section', 'article', 'header', 'footer', 'nav', 'main', 'aside'}:
+        if tag in {'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'section', 'article', 'header', 'footer', 'nav', 'main', 'aside', 'noscript'}:
             self.flush_line()
             if tag in {'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}:
                 self.output_lines.append("")
@@ -558,8 +523,6 @@ def _strip_html_to_text(fragment: str, *, max_chars: int = 4000) -> str:
         s = re.sub(r'<script\b[^>]*>[\s\S]*?</script\s*>', ' ', s, flags=re.IGNORECASE)
     if '<style' in s.lower():
         s = re.sub(r'<style\b[^>]*>[\s\S]*?</style\s*>', ' ', s, flags=re.IGNORECASE)
-    if '<noscript' in s.lower():
-        s = re.sub(r'<noscript\b[^>]*>[\s\S]*?</noscript\s*>', ' ', s, flags=re.IGNORECASE)
     s = re.sub(r'<[^>]+>', ' ', s)
     s = ' '.join(s.split()).strip()
     if len(s) > max_chars:
@@ -1584,6 +1547,11 @@ def main(argv: Optional[List[str]] = None, *, parser_script_path: Optional[str] 
     parser.add_argument("--html-path", default="", help="Path to HTML file to parse instead of fetching URL")
     parser.add_argument("--emit", choices=["markdown", "json"], default="markdown")
     parser.add_argument("--no-images", action="store_true", help="Disable image extraction")
+    parser.add_argument(
+        "--emit-extras",
+        action="store_true",
+        help="Append heuristic extracted blocks. Disabled by default to avoid introducing non-source content.",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     url = args.url.strip()
@@ -1602,9 +1570,10 @@ def main(argv: Optional[List[str]] = None, *, parser_script_path: Optional[str] 
         parser.feed(html_str)
         markdown = _postprocess_markdown(parser.get_markdown())
 
-        extras = _extract_structured_details_markdown(html_str, url, markdown_hint=markdown)
-        if extras:
-            markdown = markdown.rstrip() + "\n\n---\n\n" + extras + "\n"
+        if args.emit_extras:
+            extras = _extract_structured_details_markdown(html_str, url, markdown_hint=markdown)
+            if extras:
+                markdown = markdown.rstrip() + "\n\n---\n\n" + extras + "\n"
         
         title = _extract_best_title(html_str, markdown, url)
         name = f"webpage-{slugify(title) or slugify(url)}.md"

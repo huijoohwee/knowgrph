@@ -12,7 +12,6 @@ import {
   safeJsonParse,
   urlToTreePath,
 } from './websiteImportCore'
-import { convertWebpageToMarkdownWithHtmlArtifact } from './webpageConvert'
 
 type WebsiteImportStatus = 'queued' | 'running' | 'done' | 'failed'
 
@@ -51,6 +50,13 @@ export type WebsiteImportManifestV1 = {
   progress?: WebsiteImportProgress
   nodes: WebsiteImportNode[]
   errors: Array<{ url: string; error: string }>
+}
+
+const extractTitleFromHtml = (html: string): string => {
+  const raw = String(html || '')
+  const m = raw.match(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i)
+  const t = m ? String(m[1] || '') : ''
+  return t.replace(/\s+/g, ' ').trim()
 }
 
 type WebsiteImportOptions = {
@@ -176,6 +182,7 @@ const crawlInternalUrls = async (args: {
     if (!htmlRes.ok) continue
     const html = String(htmlRes.text || '')
     let m: RegExpExecArray | null
+    hrefRe.lastIndex = 0
     while ((m = hrefRe.exec(html))) {
       const href = String(m[2] || '').trim()
       if (!href) continue
@@ -235,9 +242,9 @@ const sanitizeImportId = (raw: string): string | null => {
 
 type StartResponse = { ok: true; importId: string } | { ok: false; error: string }
 
-const jobs = new Map<string, { startedAtMs: number }>()
+const jobs = new Map<string, { startedAtMs: number; manifest?: WebsiteImportManifestV1 }>()
 
-export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: string }): import('vite').Connect.NextHandleFunction {
+export function createWebsiteImportHandler(args: { repoRoot: string }): import('vite').Connect.NextHandleFunction {
   return async (req, res, next) => {
     const rawUrl = String(req.url || '')
     if (!rawUrl.startsWith('/__website_import')) {
@@ -343,7 +350,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
       }
 
       const opt = (body.options && typeof body.options === 'object' ? (body.options as Record<string, unknown>) : {})
-      const includeImages = opt.includeImages !== false
+      void opt
       const importId = randomUUID()
       const nodeId = hashHex(pageUrl).slice(0, 24)
       const importDirAbs = path.join(workspaceAbs, importId)
@@ -354,43 +361,32 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
       try {
         await fs.mkdir(nodeDirAbs, { recursive: true })
 
-        const converted = await convertWebpageToMarkdownWithHtmlArtifact({
-          repoRoot: args.repoRoot,
-          pythonBin: args.pythonBin,
-          url: pageUrl,
-          includeImages,
-          htmlPathAbs: path.join(nodeDirAbs, 'raw.html'),
+        const rawHtmlRes = await fetchTextWithLimit(pageUrl, {
+          timeoutMs: 30_000,
+          maxBytes: 8 * 1024 * 1024,
+          accept: 'text/html,*/*;q=0.9',
         })
-        if (converted.ok !== true) {
-          errors.push({ url: pageUrl, error: converted.error })
+        if (rawHtmlRes.ok !== true) {
+          errors.push({ url: pageUrl, error: rawHtmlRes.error })
         } else {
-          const md = String(converted.markdown || '')
+          const html = String(rawHtmlRes.text || '')
           try {
-            await fs.writeFile(path.join(nodeDirAbs, 'page.md'), md, 'utf8')
-          } catch {
-            void 0
-          }
-          try {
-            await fs.writeFile(
-              path.join(nodeDirAbs, 'conversion.json'),
-              JSON.stringify({ ...converted, url: pageUrl, importedAtMs: Date.now() }, null, 2),
-              'utf8',
-            )
+            await fs.writeFile(path.join(nodeDirAbs, 'raw.html'), html, 'utf8')
           } catch {
             void 0
           }
         }
 
+        const title = rawHtmlRes.ok === true ? extractTitleFromHtml(rawHtmlRes.text) : ''
+
         const node: WebsiteImportNode = {
           nodeId,
           url: pageUrl,
           path: urlToTreePath(pageUrl),
-          title: converted.ok === true ? converted.title || undefined : undefined,
+          title: title || undefined,
           status: errors.length > 0 ? 'error' : 'ok',
           artifacts: {
             rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'),
-            markdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'page.md'),
-            conversionJsonRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'conversion.json'),
           },
         }
 
@@ -470,7 +466,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
       }
       await writeJsonFileAtomic(manifestPathAbs, initial)
 
-      jobs.set(importId, { startedAtMs: Date.now() })
+      jobs.set(importId, { startedAtMs: Date.now(), manifest: initial })
       void (async () => {
         let manifestState: WebsiteImportManifestV1 = { ...initial }
         let writing: Promise<void> | null = null
@@ -488,6 +484,8 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             nodes: Array.isArray(next.nodes) ? next.nodes : manifestState.nodes,
             errors: Array.isArray(next.errors) ? next.errors : manifestState.errors,
           }
+          const job = jobs.get(importId)
+          if (job) job.manifest = manifestState
         }
 
         const flushManifestWrite = async () => {
@@ -595,46 +593,32 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
             const nodeDirAbs = path.join(importDirAbs, 'nodes', nodeId)
             await fs.mkdir(nodeDirAbs, { recursive: true })
 
-            const converted = await convertWebpageToMarkdownWithHtmlArtifact({
-              repoRoot: args.repoRoot,
-              pythonBin: args.pythonBin,
-              url: u,
-              includeImages: options.includeImages !== false,
-              htmlPathAbs: path.join(nodeDirAbs, 'raw.html'),
+            const rawHtmlRes = await fetchTextWithLimit(u, {
+              timeoutMs: 30_000,
+              maxBytes: 8 * 1024 * 1024,
+              accept: 'text/html,*/*;q=0.9',
             })
-            if (converted.ok !== true) {
-              errors.push({ url: u, error: converted.error })
+            if (rawHtmlRes.ok !== true) {
+              errors.push({ url: u, error: rawHtmlRes.error })
               nodes.push({ nodeId, url: u, path: urlToTreePath(u), status: 'error', artifacts: {} })
               errorCount += 1
               return
             }
-
-            const md = String(converted.markdown || '')
+            const html = String(rawHtmlRes.text || '')
             try {
-              await fs.writeFile(path.join(nodeDirAbs, 'page.md'), md, 'utf8')
+              await fs.writeFile(path.join(nodeDirAbs, 'raw.html'), html, 'utf8')
             } catch {
               void 0
             }
-            try {
-              await fs.writeFile(
-                path.join(nodeDirAbs, 'conversion.json'),
-                JSON.stringify({ ...converted, url: u, importedAtMs: Date.now() }, null, 2),
-                'utf8',
-              )
-            } catch {
-              void 0
-            }
-
+            const title = extractTitleFromHtml(html)
             nodes.push({
               nodeId,
               url: u,
               path: urlToTreePath(u),
-              title: converted.title || undefined,
+              title: title || undefined,
               status: 'ok',
               artifacts: {
                 rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'),
-                markdownRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'page.md'),
-                conversionJsonRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'conversion.json'),
               },
             })
             okCount += 1
@@ -720,6 +704,14 @@ export function createWebsiteImportHandler(args: { repoRoot: string; pythonBin: 
         res.statusCode = 400
         res.setHeader('Content-Type', 'application/json')
         res.end(JSON.stringify({ ok: false, error: 'Missing importId' }))
+        return
+      }
+      const job = jobs.get(importId)
+      if (job?.manifest) {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(JSON.stringify({ ok: true, status: job.manifest.status, running: true, progress: job.manifest.progress || null }))
         return
       }
       const manifestPathAbs = path.join(workspaceAbs, importId, 'manifest.json')

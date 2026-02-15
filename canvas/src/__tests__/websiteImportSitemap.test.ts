@@ -25,7 +25,7 @@ export const testWebpageMarkdownArtifactDocIncludesFrontmatter = () => {
 export const testWebpageMarkdownArtifactDocIncludesLayoutStructure = () => {
   const md = ['# Title', '', '[Docs](https://example.com/docs)', '', '[Get started](https://example.com/start)', ''].join('\n')
   const out = buildWebpageMarkdownArtifactDoc({ markdown: md, url: 'https://localhost/' })
-  if (!out.includes('## 🏗️ Page Structure Overview')) throw new Error('missing Page Structure Overview section')
+  if (!out.includes('## Page Structure Overview')) throw new Error('missing Page Structure Overview section')
   if (!out.includes('NAVIGATION HEADER')) throw new Error('missing Navigation Header frame')
 }
 

@@ -98,6 +98,8 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   const monacoRef = React.useRef<MonacoApi | null>(null)
   const editorInstanceRef = React.useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
   const decorationsRef = React.useRef<string[]>([])
+  const latestValueRef = React.useRef<string>(value)
+  latestValueRef.current = value
   const lastAppliedValueRef = React.useRef<string>(value)
   const editorRefRef = React.useRef(editorRef)
   const onChangeRef = React.useRef(onChange)
@@ -241,10 +243,11 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
         return monaco.Uri.parse(`file://${src.replace(/^\/+/, '/')}`)
       })()
 
+      const initialValue = latestValueRef.current
       const { model, release } = acquireTextModel(monaco, {
         uri: monacoUri,
         language,
-        value: lastAppliedValueRef.current,
+        value: initialValue,
       })
 
       const editor = monaco.editor.create(host, {
@@ -275,6 +278,10 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       monaco.editor.setTheme(themeModeRef.current === 'dark' ? 'vs-dark' : 'vs')
 
       editorInstanceRef.current = editor
+      const nextValue = latestValueRef.current
+      if (nextValue !== model.getValue()) {
+        model.setValue(nextValue)
+      }
       lastAppliedValueRef.current = model.getValue()
 
       const handle = {

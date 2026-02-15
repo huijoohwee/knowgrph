@@ -63,16 +63,18 @@ export async function exportWebpageDomViaHiddenIframe(args: {
         let done = false
         const onMessage = (e: MessageEvent) => {
           if (e.source !== win) return
-          const d = e && (e.data as any)
-          if (!d || d.kind !== KG_EXPORT_DOM_KIND || d.id !== id) return
+          const raw = e?.data as unknown
+          if (!raw || typeof raw !== 'object') return
+          const d = raw as Record<string, unknown>
+          if (d.kind !== KG_EXPORT_DOM_KIND || d.id !== id) return
           if (done) return
           done = true
           clearTimeout(tid)
           window.removeEventListener('message', onMessage)
           resolve({
-            text: String(d.text || ''),
-            title: String(d.title || ''),
-            clipped: !!d.clipped,
+            text: String(d.text ?? ''),
+            title: String(d.title ?? ''),
+            clipped: Boolean(d.clipped),
           })
         }
         const tid = setTimeout(() => {
@@ -127,4 +129,3 @@ export async function exportWebpageDomViaHiddenIframe(args: {
     }
   }
 }
-

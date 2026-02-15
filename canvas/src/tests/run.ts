@@ -49,9 +49,14 @@ import {
   testWebpageMarkdownArtifactDocIncludesLayoutStructure,
 } from '@/__tests__/websiteImportSitemap.test'
 import { testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames } from '@/__tests__/webpageMarkdownArtifact.test'
-import { testWebpageMarkdownArtifactRemotionFixtureSections } from '@/__tests__/webpageMarkdownArtifactRemotionFixture.test'
+import { testWebpageMarkdownArtifactFixtureLikeSections } from '@/__tests__/webpageMarkdownArtifactFixtureLike.test'
 import { testWebpageMarkdownArtifactFigmaFixtureIsRecognized } from '@/__tests__/webpageMarkdownArtifactFigmaFixtureLike.test'
+import {
+  testWebpageHtmlToMarkdownArtifactExtractsNavMenusAndTables,
+  testWebpageHtmlToMarkdownArtifactSupportsMenuDivAndOgImageWithoutNoisyScripts,
+} from '@/__tests__/webpageHtmlToMarkdownArtifact.test'
 import { testWebsiteImportWorkspaceWritesArtifactDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
+import { testWebsiteImportWorkspaceWritesSourceFaithfulDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
 import { testWebsiteSitemapMarkdownBuildsTreeAndTable } from '@/__tests__/websiteSitemapMarkdown.test'
 import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImportedMarkdownRemovesDataImageBase64 } from '@/__tests__/sanitizeImportedMarkdown.test'
 import {
@@ -107,6 +112,7 @@ import { runJsonLdTests } from '@/tests/runners/runJsonLdTests'
 import { runParserTests } from '@/tests/runners/runParserTests'
 import { testLaunchSpotlightStorageHelpers } from '@/__tests__/launchSpotlight.test'
 import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.test'
+import { testImportUrlWebpageCreatesHtmlFrontmatterStub } from '@/__tests__/importUrlWebpageStub.test'
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
 import {
   testGeospatialOverlayHostNotGatedBySidebar,
@@ -629,6 +635,8 @@ export const runAllTests = async () => {
   await exec('pdf.nativeConvert.extractsBasicText', testPdfNativeConversionExtractsBasicText)
   await exec('pdf.nativeConvert.avoidsSpacedLetterArtifactsOnFixture', testPdfNativeConversionAvoidsSpacedLetterArtifactsOnFixture)
   await exec('pdf.nativeConvert.honorsMaxPagesOnFixture', testPdfNativeConversionHonorsMaxPagesOnFixture)
+  await exec('webpage.htmlToArtifact.extractsNavMenusAndTables', testWebpageHtmlToMarkdownArtifactExtractsNavMenusAndTables)
+  await exec('webpage.htmlToArtifact.menuDiv.ogImage.noNoisyScripts', testWebpageHtmlToMarkdownArtifactSupportsMenuDivAndOgImageWithoutNoisyScripts)
   await exec('pdf.streamDecode.respectsMaxDecodeBytes', testPdfReadStreamRespectsMaxDecodeBytes)
   await exec('pdf.contentTokenizer.advancesOnDictDelimiters', testPdfContentTextTokenizerAdvancesOnDictDelimiters)
   await exec('pdf.http.fetchBytes.respectsMaxBytes', testPdfHttpFetchBytesRespectsMaxBytes)
@@ -985,9 +993,10 @@ export const runAllTests = async () => {
   await exec('webpageMarkdownArtifact.doc.includesFrontmatter', testWebpageMarkdownArtifactDocIncludesFrontmatter)
   await exec('webpageMarkdownArtifact.doc.includesLayoutStructure', testWebpageMarkdownArtifactDocIncludesLayoutStructure)
   await exec('webpageMarkdownArtifact.includesLayoutAndMotionFrames', testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames)
-  await exec('webpageMarkdownArtifact.remotionFixture.sections', testWebpageMarkdownArtifactRemotionFixtureSections)
+  await exec('webpageMarkdownArtifact.fixtureLike.sections', testWebpageMarkdownArtifactFixtureLikeSections)
   await exec('webpageMarkdownArtifact.figmaFixture.recognized', testWebpageMarkdownArtifactFigmaFixtureIsRecognized)
   await exec('websiteImport.workspace.writesArtifactDoc', testWebsiteImportWorkspaceWritesArtifactDoc)
+  await exec('websiteImport.workspace.writesSourceFaithfulDoc', testWebsiteImportWorkspaceWritesSourceFaithfulDoc)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)
@@ -1028,6 +1037,7 @@ export const runAllTests = async () => {
   await exec('rxdb.graphTable.createRow', testGraphTableDbAllocatesAndCreatesRows)
   await exec('ui.themeModePersistence', testThemeModePersistence)
   await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
+  await exec('workspace.importUrl.webpageStubHtml', testImportUrlWebpageCreatesHtmlFrontmatterStub)
   await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)
   await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)
   await exec('groupCollapse.derivation.collapsesCommunityIntoGroupNode', testGroupCollapseDerivationCollapsesCommunityIntoGroupNode)

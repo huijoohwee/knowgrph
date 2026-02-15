@@ -38,6 +38,7 @@ import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
+import { runInIdle } from '@/features/panels/utils/idle'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
@@ -482,16 +483,6 @@ export function MarkdownWorkspace() {
   const [webpageWorkspaceEditorTextOverride, setWebpageWorkspaceEditorTextOverride] = React.useState<string | null>(null)
   const [webpageWorkspaceViewerTextOverride, setWebpageWorkspaceViewerTextOverride] = React.useState<string | null>(null)
 
-  const webpageHtmlSidecarPath = React.useMemo(() => {
-    if (!activePath) return null
-    if (!webpageWorkspaceMeta?.url) return null
-    if (webpageWorkspaceMeta.view !== 'html') return null
-    const p = String(activePath || '')
-    const replaced = p.replace(/\.(md|markdown)$/i, '')
-    const base = replaced && replaced !== p ? replaced : p
-    return `${base}.webpage.html`
-  }, [activePath, webpageWorkspaceMeta?.url, webpageWorkspaceMeta?.view])
-
   React.useEffect(() => {
     if (layoutMode !== 'viewer' && layoutMode !== 'split') {
       setPdfWorkspaceViewerTextOverride(null)
@@ -541,59 +532,9 @@ export function MarkdownWorkspace() {
     }
 
     if (view === 'html') {
-      let cancelled = false
-      const controller = new AbortController()
-      void (async () => {
-        try {
-          const fs = await getFs()
-          const sidecarPath = webpageHtmlSidecarPath
-          if (sidecarPath) {
-            const existing = await fs.readFileText(sidecarPath)
-            if (cancelled) return
-            if (typeof existing === 'string' && existing.trim()) {
-              const clipped = existing.length > 500_000 ? `${existing.slice(0, 500_000)}\n\n(clipped)\n` : existing
-              setWebpageWorkspaceEditorTextOverride(clipped)
-              setWebpageWorkspaceViewerTextOverride(null)
-              return
-            }
-          }
-
-          const rawHtml = websiteImportMeta?.importId && websiteImportMeta?.nodeId
-            ? await fetchWebsiteImportArtifact({
-                importId: websiteImportMeta.importId,
-                nodeId: websiteImportMeta.nodeId,
-                outputDirRel: String(websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '').trim() || undefined,
-                kind: 'rawHtml',
-                signal: controller.signal,
-              })
-            : await fetchWebpageHtmlAuto({ url, signal: controller.signal })
-
-          if (cancelled) return
-          if (rawHtml.length > 1_500_000) {
-            setWebpageWorkspaceEditorTextOverride(
-              `HTML too large for editor (${rawHtml.length} chars).\n\nTip: switch to Markdown view, or use the iframe viewer instead of editing HTML.\n`,
-            )
-            setWebpageWorkspaceViewerTextOverride(null)
-            return
-          }
-          const clipped = rawHtml.length > 500_000 ? `${rawHtml.slice(0, 500_000)}\n\n(clipped)\n` : rawHtml
-          setWebpageWorkspaceEditorTextOverride(clipped)
-          setWebpageWorkspaceViewerTextOverride(null)
-        } catch {
-          if (cancelled) return
-          setWebpageWorkspaceEditorTextOverride(null)
-          setWebpageWorkspaceViewerTextOverride(null)
-        }
-      })()
-
-      return () => {
-        cancelled = true
-        try {
-          controller.abort()
-        } catch {
-          void 0
-        }
-      }
+      setWebpageWorkspaceEditorTextOverride(null)
+      setWebpageWorkspaceViewerTextOverride(null)
+      return
     }
 
     let cancelled = false
@@ -670,7 +611,7 @@ export function MarkdownWorkspace() {
         void 0
       }
     }
-  }, [getFs, webpageHtmlSidecarPath, webpageWorkspaceMeta, websiteImportMeta])
+  }, [getFs, webpageWorkspaceMeta, websiteImportMeta])
 
   const switchActivePdfWorkspaceMode = React.useCallback(
     async (mode: PdfConversionMode) => {
@@ -764,8 +705,34 @@ export function MarkdownWorkspace() {
     async (view: WebpageViewMode) => {
       if (!activePath || !webpageWorkspaceMeta) return
       try {
+        setStatusProgress('Updating view')
+        const fs = await getFs()
+
+        if (view === 'markdown') {
+          setWebpageWorkspaceEditorTextOverride(null)
+          setWebpageWorkspaceViewerTextOverride(null)
+        }
+
+        const prevText = await (async () => {
+          const lastLoaded = lastLoadedRef.current
+          const isDirty = !!(
+            userEditedActiveTextRef.current &&
+            lastLoaded &&
+            lastLoaded.path === activePath &&
+            lastLoaded.text !== activeTextRef.current
+          )
+          if (isDirty) return String(activeTextRef.current || '')
+
+          if (lastLoaded && lastLoaded.path === activePath && typeof lastLoaded.text === 'string' && lastLoaded.text.trim()) {
+            return lastLoaded.text
+          }
+
+          const hydrated = await fs.readFileText(activePath).catch(() => '')
+          if (String(hydrated || '').trim()) return String(hydrated || '')
+          return String(activeTextRef.current || '')
+        })()
+
         const nextText = await (async () => {
-          const prevText = String(activeText || '')
           if (view !== 'markdown') return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
 
           if (!isFrontmatterOnlyDoc(prevText)) {
@@ -810,8 +777,6 @@ export function MarkdownWorkspace() {
             fidelityMaxLevel,
           })
         })()
-
-        const fs = await getFs()
         await fs.writeFileText(activePath, nextText)
         lastLoadedRef.current = { path: activePath, text: nextText }
         const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
@@ -825,11 +790,11 @@ export function MarkdownWorkspace() {
     },
     [
       activePath,
-      activeText,
       getFs,
       setActiveTextProgrammatic,
       setEntries,
       setStatusError,
+      setStatusProgress,
       setStatusWithAutoClear,
       websiteImportMeta,
       webpageWorkspaceMeta,
@@ -922,8 +887,8 @@ export function MarkdownWorkspace() {
             isActive={args.isActive}
             options={[
               { value: 'markdown', label: 'Markdown' },
-              { value: 'json', label: 'JSON' },
               { value: 'html', label: 'HTML' },
+              { value: 'json', label: 'JSON' },
             ]}
             onChange={next => void switchActiveWebpageWorkspaceView(next)}
           />
@@ -1208,51 +1173,6 @@ export function MarkdownWorkspace() {
     if (!path) return
     if (activeEntryKind === 'folder') return
     try {
-      if (
-        webpageWorkspaceMeta?.view === 'html' &&
-        webpageHtmlSidecarPath &&
-        typeof webpageWorkspaceEditorTextOverride === 'string'
-      ) {
-        setStatusProgress('Saving HTML')
-        const fs = await getFs()
-        const existing = await fs.readFileText(webpageHtmlSidecarPath)
-        if (existing == null) {
-          const parentPath = (() => {
-            const idx = webpageHtmlSidecarPath.lastIndexOf('/')
-            if (idx <= 0) return '/'
-            return webpageHtmlSidecarPath.slice(0, idx)
-          })()
-          const name = webpageHtmlSidecarPath.split('/').pop() || 'webpage.webpage.html'
-          await fs.createFile({ parentPath, name, text: webpageWorkspaceEditorTextOverride })
-          setEntries(prev => {
-            if (prev.some(e => e.path === webpageHtmlSidecarPath)) return prev
-            const entry: WorkspaceEntry = {
-              path: webpageHtmlSidecarPath,
-              parentPath,
-              kind: 'file',
-              name,
-              text:
-                webpageWorkspaceEditorTextOverride.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-                  ? webpageWorkspaceEditorTextOverride
-                  : undefined,
-              updatedAtMs: Date.now(),
-            }
-            return [...prev, entry]
-          })
-        } else {
-          await fs.writeFileText(webpageHtmlSidecarPath, webpageWorkspaceEditorTextOverride)
-          const inlineText =
-            webpageWorkspaceEditorTextOverride.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-              ? webpageWorkspaceEditorTextOverride
-              : undefined
-          setEntries(prev =>
-            prev.map(e => (e.path === webpageHtmlSidecarPath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)),
-          )
-        }
-        setStatusWithAutoClear('Saved')
-        return
-      }
-
       setStatusProgress('Saving')
       const fs = await getFs()
       await fs.writeFileText(path, activeText)
@@ -1326,8 +1246,6 @@ export function MarkdownWorkspace() {
     setStatusProgress,
     setStatusWithAutoClear,
     setEntries,
-    webpageHtmlSidecarPath,
-    webpageWorkspaceEditorTextOverride,
     webpageWorkspaceMeta,
   ])
 
@@ -1525,7 +1443,7 @@ export function MarkdownWorkspace() {
           const res = sanitizeImportedMarkdownText(rawNext)
           return res.changed ? res.text : null
         })()
-        const next = sanitized ?? rawNext
+        const nextText = sanitized ?? rawNext
         if (sanitized) {
           try {
             const fs = await getFs()
@@ -1534,16 +1452,17 @@ export function MarkdownWorkspace() {
             void 0
           }
         }
-        lastLoadedRef.current = { path, text: next }
-        setActiveTextProgrammatic(next)
+
+        lastLoadedRef.current = { path, text: nextText }
+        setActiveTextProgrammatic(nextText)
         if (sanitized && canUseCachedText) {
           const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-          const inlineText = next.length <= maxInline ? next : undefined
+          const inlineText = nextText.length <= maxInline ? nextText : undefined
           setEntries(prev => prev.map(e => (e.path === path && e.kind === 'file' ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
         }
         if (!canUseCachedText) {
           const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-          const inlineText = next.length <= maxInline ? next : undefined
+          const inlineText = nextText.length <= maxInline ? nextText : undefined
           setEntries(prev => {
             const idx = prev.findIndex(e => e.path === path)
             if (idx >= 0) {
@@ -1571,10 +1490,10 @@ export function MarkdownWorkspace() {
             return nextEntries
           })
         }
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(next, 'markdown'), { autoEnableFrontmatter: false })
+        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(nextText, 'markdown'), { autoEnableFrontmatter: false })
 
-        if (activeDocumentKey && next.trim()) {
-          const hash = hashStringToHex(next)
+        if (activeDocumentKey && nextText.trim()) {
+          const hash = hashStringToHex(nextText)
           const last = lastIndexedRef.current
           if (!(last && last.path === path && last.textHash === hash)) {
             const jobId = ++indexJobRef.current
@@ -1593,7 +1512,7 @@ export function MarkdownWorkspace() {
               const url = sourceUrl ? sourceUrl : undefined
               const source = url ? ({ kind: 'url', url, path: workspaceSourcePath } as const) : ({ kind: 'local', path: workspaceSourcePath } as const)
               const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-              const text = next.length <= maxInline ? next : ''
+              const text = nextText.length <= maxInline ? nextText : ''
               store.addSourceFile({
                 id,
                 name: String(activeEntry?.name || ''),
@@ -1608,7 +1527,7 @@ export function MarkdownWorkspace() {
             try {
               store.updateSourceFile(fileId, {
                 name: String(activeEntry?.name || ''),
-                text: next.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? next : '',
+                text: nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : '',
                 enabled: true,
                 status: 'loading',
                 error: undefined,
@@ -1635,7 +1554,7 @@ export function MarkdownWorkspace() {
             const geoGraph = (() => {
               if (!isGeoCandidate) return null
               try {
-                const fc = parseGeoJsonFromText(next)
+                const fc = parseGeoJsonFromText(nextText)
                 const normalized = coerceGeoJsonToFeatureCollection(fc)
                 return buildGraphDataFromFeatureCollection({
                   featureCollection: normalized,
@@ -1646,7 +1565,7 @@ export function MarkdownWorkspace() {
                 void 0
               }
               try {
-                const parsed = JSON.parse(next) as unknown
+                const parsed = JSON.parse(nextText) as unknown
                 const records = Array.isArray(parsed) ? parsed : null
                 if (!records) return null
                 const fc = recordsToPointFeatureCollection(records)
@@ -1701,7 +1620,7 @@ export function MarkdownWorkspace() {
               }
             } else {
               const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
-              const res = await loadGraphDataFromTextViaParser(activeDocumentKey, next, { applyToStore: false })
+            const res = await runInIdle(() => loadGraphDataFromTextViaParser(activeDocumentKey, nextText, { applyToStore: false }), { timeoutMs: 650 })
               const gd = res?.graphData || null
               if (gd) {
                 try {
@@ -1721,11 +1640,11 @@ export function MarkdownWorkspace() {
                   void 0
                 }
               } else {
-                try {
-                  store.updateSourceFile(fileId, { status: 'error', error: 'Parser returned empty graph' })
-                } catch {
-                  void 0
-                }
+              try {
+                store.updateSourceFile(fileId, { status: 'error', error: 'Parser returned empty graph' })
+              } catch {
+                void 0
+              }
               }
             }
             if (cancelled) return
@@ -2192,7 +2111,7 @@ export function MarkdownWorkspace() {
     [revealLineInEditor, setActivePathSafe, setSelectionPathSafe],
   )
 
-  const webpageEditorMode = webpageWorkspaceMeta?.view === 'html' ? 'html' : webpageWorkspaceMeta?.view === 'json' ? 'json' : null
+  const webpageEditorMode = webpageWorkspaceMeta?.view === 'json' ? 'json' : null
   const editorUri = activePath
     ? `inmemory://workspace/${encodeURIComponent(workspaceDocumentKey(activePath) || 'document')}${webpageEditorMode ? `?mode=${webpageEditorMode}` : ''}`
     : 'inmemory://model/empty'
@@ -2211,14 +2130,10 @@ export function MarkdownWorkspace() {
   const effectiveSetActiveText = React.useCallback(
     (next: string) => {
       if (contentMode === 'nodeQuickEditor') return
-      if (webpageWorkspaceMeta?.view === 'html' && typeof webpageWorkspaceEditorTextOverride === 'string') {
-        setWebpageWorkspaceEditorTextOverride(next)
-        return
-      }
       userEditedActiveTextRef.current = true
       setActiveText(next)
     },
-    [contentMode, webpageWorkspaceEditorTextOverride, webpageWorkspaceMeta?.view],
+    [contentMode],
   )
   const effectiveViewerTextOverride = contentMode === 'nodeQuickEditor' && nodeQuickEditorFormat === 'json' ? quickEditorViewerText : null
   const combinedViewerTextOverride = effectiveViewerTextOverride || pdfWorkspaceViewerTextOverride || webpageWorkspaceViewerTextOverride
@@ -2247,16 +2162,18 @@ export function MarkdownWorkspace() {
         let done = false
         const onMessage = (e: MessageEvent) => {
           if (e.source !== win) return
-          const d = e && (e.data as any)
-          if (!d || d.kind !== kind || d.id !== id) return
+          const raw = e?.data as unknown
+          if (!raw || typeof raw !== 'object') return
+          const d = raw as Record<string, unknown>
+          if (d.kind !== kind || d.id !== id) return
           if (done) return
           done = true
           clearTimeout(timeoutId)
           window.removeEventListener('message', onMessage)
           resolve({
-            text: String(d.text || ''),
-            title: String(d.title || ''),
-            clipped: !!d.clipped,
+            text: String(d.text ?? ''),
+            title: String(d.title ?? ''),
+            clipped: Boolean(d.clipped),
           })
         }
 
@@ -2268,8 +2185,8 @@ export function MarkdownWorkspace() {
         }, 6_000)
 
         window.addEventListener('message', onMessage)
-      try {
-        win.postMessage({ kind, id, mode, maxChars: 8_000_000, expandFaq: true, scrollCrawl: mode === 'text' }, '*')
+        try {
+          win.postMessage({ kind, id, mode, maxChars: 8_000_000, expandFaq: true, scrollCrawl: mode === 'text' }, '*')
         } catch {
           clearTimeout(timeoutId)
           window.removeEventListener('message', onMessage)
@@ -2290,19 +2207,6 @@ export function MarkdownWorkspace() {
     setStatusProgress('Converting HTML')
     try {
       const fs = await getFs()
-      const sidecarPath = webpageHtmlSidecarPath
-      const sidecarHtml = sidecarPath ? await fs.readFileText(sidecarPath).catch(() => '') : ''
-      const clippedMarker = '\n\n(clipped)\n'
-      const override = String(webpageWorkspaceEditorTextOverride || '')
-
-      const looksClipped = (t: string): boolean => t.includes(clippedMarker) || t.trim().endsWith('(clipped)')
-
-      const sidecarTrim = String(sidecarHtml || '').trim()
-      const overrideTrim = override.trim()
-      const overrideLooksLikeEditorWarning = overrideTrim.startsWith('HTML too large for editor')
-      const overrideLooksEditable = !!(overrideTrim && !looksClipped(overrideTrim) && !overrideLooksLikeEditorWarning)
-      const overrideLikelyUserEdited = !!(overrideLooksEditable && sidecarTrim && overrideTrim !== sidecarTrim)
-
       let rawHtml = ''
       let markdownOverride: string | null = null
 
@@ -2320,8 +2224,9 @@ export function MarkdownWorkspace() {
 
         if (html) {
           const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-          const { parseHtmlToMarkdownAllText, parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
-          const md = parseHtmlToMarkdownAllText(bounded, url)
+          const { convertWebpageHtmlToMarkdownArtifact } = await import('@/lib/websites/webpageHtmlToMarkdownArtifact')
+          const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
+          const md = convertWebpageHtmlToMarkdownArtifact({ html: bounded, url })
           if (text.length > 1200) {
             const normalize = (s: string): string => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()
             const normMd = normalize(md)
@@ -2357,182 +2262,14 @@ export function MarkdownWorkspace() {
         }
       }
 
-      const renderedSnapshotViaHiddenIframe = async (): Promise<{ html?: string; text?: string; title?: string } | null> => {
-        const iframe = document.createElement('iframe')
-        iframe.setAttribute('sandbox', 'allow-scripts')
-        iframe.setAttribute('referrerpolicy', 'no-referrer')
-        iframe.style.position = 'fixed'
-        iframe.style.width = '1200px'
-        iframe.style.height = '800px'
-        iframe.style.visibility = 'hidden'
-        iframe.style.pointerEvents = 'none'
-        iframe.style.border = '0'
-        iframe.style.left = '-12000px'
-        iframe.style.top = '-12000px'
-        const proxySrc = `/__webpage_proxy?url=${encodeURIComponent(url)}`
-
-        const requestFromIframe = async (
-          mode: 'html' | 'text',
-          opts: { scrollCrawl?: boolean; expandFaq?: boolean } = {},
-        ): Promise<{ text: string; title: string; clipped: boolean } | null> => {
-          const win = iframe.contentWindow
-          if (!win) return null
-          const id = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
-          const kind = 'kg-export-dom'
-          return await new Promise((resolve) => {
-            let done = false
-            const onMessage = (e: MessageEvent) => {
-              if (e.source !== win) return
-              const d = e && (e.data as any)
-              if (!d || d.kind !== kind || d.id !== id) return
-              if (done) return
-              done = true
-              clearTimeout(timeoutId)
-              window.removeEventListener('message', onMessage)
-              resolve({ text: String(d.text || ''), title: String(d.title || ''), clipped: !!d.clipped })
-            }
-            const timeoutId = setTimeout(() => {
-              if (done) return
-              done = true
-              window.removeEventListener('message', onMessage)
-              resolve(null)
-            }, 15_000)
-            window.addEventListener('message', onMessage)
-            try {
-              win.postMessage(
-                {
-                  kind,
-                  id,
-                  mode,
-                  maxChars: 8_000_000,
-                  scrollCrawl: !!opts.scrollCrawl,
-                  expandFaq: !!opts.expandFaq,
-                },
-                '*',
-              )
-            } catch {
-              clearTimeout(timeoutId)
-              window.removeEventListener('message', onMessage)
-              resolve(null)
-            }
-          })
-        }
-
-        const waitForTextStability = async (): Promise<{ text: string; title: string } | null> => {
-          const startedAt = Date.now()
-          let bestText = ''
-          let bestTitle = ''
-          let stableRounds = 0
-          let lastLen = 0
-          while (Date.now() - startedAt < 20_000) {
-            await new Promise(r => setTimeout(r, 650))
-            const snap = await requestFromIframe('text', { expandFaq: true })
-            const text = String(snap?.text || '').trim()
-            const title = String(snap?.title || '').trim()
-            if (title) bestTitle = title
-            if (text.length > bestText.length) bestText = text
-            const len = text.length
-            if (len <= lastLen + 40) stableRounds += 1
-            else stableRounds = 0
-            lastLen = Math.max(lastLen, len)
-            if (stableRounds >= 2 && bestText.length >= 300) break
-          }
-          return bestText.trim() ? { text: bestText, title: bestTitle } : null
-        }
-
-        try {
-          await new Promise<void>((resolve) => {
-            let settled = false
-            const onLoad = () => {
-              if (settled) return
-              settled = true
-              clearTimeout(timeoutId)
-              resolve()
-            }
-            const timeoutId = setTimeout(() => {
-              if (settled) return
-              settled = true
-              iframe.removeEventListener('load', onLoad)
-              resolve()
-            }, 15_000)
-            iframe.addEventListener('load', onLoad)
-            document.body.appendChild(iframe)
-            iframe.src = proxySrc
-          })
-
-          await requestFromIframe('text', { scrollCrawl: true, expandFaq: true })
-          const stableText = await waitForTextStability()
-          const htmlSnap = await requestFromIframe('html')
-          const html = htmlSnap?.clipped ? '' : String(htmlSnap?.text || '').trim()
-          const title = String(htmlSnap?.title || stableText?.title || '').trim()
-          const text = String(stableText?.text || '').trim()
-          if (!html && !text) return null
-          return { html: html || undefined, text: text || undefined, title: title || undefined }
-        } finally {
-          try {
-            iframe.remove()
-          } catch {
-            void 0
-          }
-        }
-      }
-
-      if (overrideLikelyUserEdited) {
-        rawHtml = overrideTrim
-      } else {
-        const rendered = await renderedSnapshotViaHiddenIframe()
-        await chooseMarkdownFromSources(rendered)
-
-        try {
-          const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
-          const res = await fetch(
-            `/__webpage_convert?url=${encodeURIComponent(url)}&includeImages=${includeImages ? 'true' : 'false'}`,
-            {
-              method: 'POST',
-              headers: { Accept: 'application/json' },
-            },
-          )
-          if (res.ok) {
-            const text = await res.text()
-            const parsed = JSON.parse(text) as any
-            const serverMd = typeof parsed?.markdown === 'string' ? parsed.markdown : ''
-            if (serverMd && (!markdownOverride || serverMd.length > markdownOverride.length * 1.05)) {
-              markdownOverride = serverMd
-            }
-          }
-        } catch {
-          void 0
-        }
-      }
-
-      if (!markdownOverride && !rawHtml && sidecarTrim) {
-        rawHtml = sidecarTrim
-      }
-
-      if (!markdownOverride && !rawHtml) {
-        const candidate = overrideTrim
-        if (candidate && !looksClipped(candidate) && !overrideLooksLikeEditorWarning) {
-          rawHtml = candidate
-        }
-      }
-
-      if (!rawHtml && webpageIframeElRef.current?.getAttribute('src')?.includes('/__webpage_proxy?url=')) {
-        const exportedHtml = await requestWebpageExportDom('html')
-        if (exportedHtml?.text && !exportedHtml.clipped) {
-          const exportedText = await requestWebpageExportDom('text')
-          await chooseMarkdownFromSources({
-            html: exportedHtml.text,
-            text: String(exportedText?.text || ''),
-            title: String(exportedHtml.title || exportedText?.title || '').trim() || undefined,
-          })
-        } else {
-          const exportedText = await requestWebpageExportDom('text')
-          if (exportedText?.text) {
-            const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
-            markdownOverride = parsePlainTextToMarkdown(exportedText.text, exportedText.title)
-          }
-        }
-      }
+      const exportedHtml = await requestWebpageExportDom('html')
+      const exportedText = await requestWebpageExportDom('text')
+      if (exportedHtml?.text && !exportedHtml.clipped) rawHtml = exportedHtml.text
+      await chooseMarkdownFromSources({
+        html: rawHtml,
+        text: String(exportedText?.text || ''),
+        title: String(exportedHtml?.title || exportedText?.title || '').trim() || undefined,
+      })
 
       if (!rawHtml) {
         const controller = new AbortController()
@@ -2547,6 +2284,11 @@ export function MarkdownWorkspace() {
           : await fetchWebpageHtmlAuto({ url, signal: controller.signal })
       }
 
+      if (!markdownOverride && !rawHtml.trim() && exportedText?.text) {
+        const { parsePlainTextToMarkdown } = await import('@/features/parsers/html-parser')
+        markdownOverride = parsePlainTextToMarkdown(exportedText.text, exportedText.title)
+      }
+
       if (!rawHtml.trim() && !markdownOverride) {
         setStatusError('No HTML to convert')
         return
@@ -2557,8 +2299,8 @@ export function MarkdownWorkspace() {
         bodyMd = markdownOverride
       } else {
         const bounded = rawHtml.length > 4_000_000 ? rawHtml.slice(0, 4_000_000) : rawHtml
-        const { parseHtmlToMarkdownAllText } = await import('@/features/parsers/html-parser')
-        bodyMd = parseHtmlToMarkdownAllText(bounded, url)
+        const { convertWebpageHtmlToMarkdownArtifact } = await import('@/lib/websites/webpageHtmlToMarkdownArtifact')
+        bodyMd = convertWebpageHtmlToMarkdownArtifact({ html: bounded, url })
       }
       const baseDoc = upsertWebpageFrontmatterMeta(String(activeText || ''), { url, view: 'markdown' })
       const block = extractYamlFrontmatterBlock(baseDoc)
@@ -2576,7 +2318,7 @@ export function MarkdownWorkspace() {
     } catch (e) {
       setStatusError(`Convert failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [activePath, activeText, getFs, lastLoadedRef, setActiveTextProgrammatic, setEntries, setMarkdownDocument, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageHtmlSidecarPath, webpageWorkspaceEditorTextOverride, webpageWorkspaceMeta])
+  }, [activePath, activeText, getFs, lastLoadedRef, requestWebpageExportDom, setActiveTextProgrammatic, setEntries, setMarkdownDocument, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageWorkspaceMeta, websiteImportMeta])
 
   return (
     <section
@@ -2649,6 +2391,8 @@ export function MarkdownWorkspace() {
           markdownTextHighlight={markdownTextHighlight}
           setMarkdownTextHighlight={setMarkdownTextHighlight}
           statusLabel={statusLabel}
+          onStatusProgress={(label) => setStatusProgress(label)}
+          onStatusWithAutoClear={(label, ttlMs) => setStatusWithAutoClear(label, ttlMs)}
           onApply={() => void handleApply()}
           onSave={() => void saveActiveFileNow()}
           onSaveAs={() => void saveAsActiveFileNow()}
@@ -2676,12 +2420,9 @@ export function MarkdownWorkspace() {
           setActiveText={effectiveSetActiveText}
           editorTextOverride={effectiveEditorTextOverride}
           disableEditorMutations={
-            webpageDerivedReadOnlyActive ||
-            (webpageWorkspaceMeta?.view === 'html'
-              ? typeof effectiveEditorTextOverride !== 'string'
-              : typeof effectiveEditorTextOverride === 'string')
+            webpageDerivedReadOnlyActive || (webpageWorkspaceMeta?.view === 'json' && typeof effectiveEditorTextOverride === 'string')
           }
-          webpageHtmlOverride={webpageWorkspaceMeta?.view === 'html' ? effectiveEditorTextOverride : null}
+          webpageHtmlOverride={null}
           viewerTextOverride={combinedViewerTextOverride}
           disableViewerMutations={contentMode === 'nodeQuickEditor'}
           activeDocumentKey={activeDocumentKey}

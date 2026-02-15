@@ -100,7 +100,7 @@ export const extractRepoReadmeFeatureGroups = (markdown: string) => {
     }
     const li = raw.match(/^\s{0,3}[-*+]\s+(.+?)\s*$/)
     if (li && curTitle) {
-      const item = String(li[1] || '').replace(/\s+\[[^\]]*\]\([^\)]*\)\s*$/, '').trim()
+      const item = String(li[1] || '').replace(/\s+\[[^\]]*\]\([^)]*\)\s*$/, '').trim()
       if (item) curItems.push(item)
       continue
     }

@@ -1,0 +1,306 @@
+import { renderAsciiFrame } from './webpageMarkdownArtifactAscii'
+import { normalizeInline, stripTrailingPunctuation } from './webpageMarkdownArtifactAsciiPrivate'
+import {
+  escapeMarkdownText,
+  extractAssets,
+  extractLogoCandidates,
+  extractMainSections,
+  extractNavMenus,
+  extractPlatform,
+  extractSkipLink,
+  formatRelativeHref,
+  hasMenuToggleButton,
+  pickFooterRoot,
+  pickHeaderRoot,
+  pickHeroImage,
+  pickPrimaryContentRoot,
+  resolveUrl,
+  renderAsciiGridTable,
+  renderSimpleBox,
+  safeText,
+  scrapeDate,
+  scrapeDateTime,
+  slugify,
+  type AssetKind,
+} from './webpageHtmlToMarkdownArtifactPrivate'
+
+export function convertWebpageHtmlToMarkdownArtifact(args: { html: string; url: string }): string {
+  const url = safeText(args.url)
+  const raw = String(args.html || '')
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(raw, 'text/html')
+
+  const title = safeText(doc.title || '')
+  const h1 = safeText((doc.querySelector('h1') as HTMLElement | null)?.innerText || '')
+  const pageTitle = title || h1 || url
+  const platform = extractPlatform(doc)
+
+  const header = pickHeaderRoot(doc)
+  const main = pickPrimaryContentRoot(doc)
+  const footer = pickFooterRoot(doc)
+
+  const skip = extractSkipLink(doc)
+  const logos = extractLogoCandidates(header, url)
+  const navMenus = extractNavMenus(header, url)
+  const assets = extractAssets(doc, url)
+  const mainSections = extractMainSections(main, url)
+
+  const toc: Array<{ label: string; anchor: string; children?: Array<{ label: string; anchor: string }> }> = []
+  if (skip) toc.push({ label: 'Accessibility Features', anchor: 'accessibility-features' })
+  if (header) toc.push({ label: 'Navigation Header', anchor: 'navigation-header' })
+  toc.push({ label: 'Page Header', anchor: 'page-header' })
+  toc.push({
+    label: 'Main Content',
+    anchor: 'main-content',
+    children: mainSections
+      .slice(0, 96)
+      .map((s) => ({ label: s.heading, anchor: slugify(s.heading) })),
+  })
+  if (footer) toc.push({ label: 'Footer', anchor: 'footer' })
+  toc.push({ label: 'Asset Catalog', anchor: 'asset-catalog' })
+
+  const out: string[] = []
+  out.push(`# ${pageTitle}`)
+  out.push('')
+  out.push(`**URL:** ${url}  `)
+  out.push(`**Scraped:** ${scrapeDate()}  `)
+  if (platform) out.push(`**Platform:** ${platform}  `)
+  out.push('**Fidelity Level:** 100% Source-Faithful (No Invented Content)')
+  out.push('')
+  out.push('---')
+  out.push('')
+
+  out.push('## 📋 TABLE OF CONTENTS')
+  out.push('')
+  let idx = 1
+  for (const item of toc) {
+    out.push(`${idx}. [${item.label}](#${item.anchor})`)
+    if (item.children && item.children.length) {
+      for (const child of item.children) out.push(`   - [${child.label}](#${child.anchor})`)
+    }
+    idx += 1
+  }
+  out.push('')
+  out.push('---')
+  out.push('')
+
+  if (skip) {
+    out.push('<a id="accessibility-features"></a>')
+    out.push('## ♿ ACCESSIBILITY FEATURES')
+    out.push('')
+    out.push('```')
+    out.push(`[${skip.text}](${skip.href})`)
+    out.push('```')
+    out.push('')
+    out.push(`**Link Target:** ${skip.href}  `)
+    out.push('**Purpose:** Keyboard accessibility')
+    out.push('')
+    out.push('---')
+    out.push('')
+  }
+
+  if (header) {
+    out.push('<a id="navigation-header"></a>')
+    out.push('## 🧭 NAVIGATION HEADER')
+    out.push('')
+    out.push('### Page Structure')
+    out.push('')
+
+    const navLabels = navMenus
+      .map((m) => stripTrailingPunctuation(normalizeInline(m.label)))
+      .filter(Boolean)
+      .slice(0, 6)
+    const hasToggle = hasMenuToggleButton(header)
+    const line = `  [LOGO]  ${navLabels.map((x) => `[${x}]`).join(' ')}${hasToggle ? '  [Toggle Menu]' : ''}`.trimEnd()
+    out.push('```')
+    out.push(renderSimpleBox([line], { width: 66 }))
+    out.push('```')
+    out.push('')
+
+    if (logos.length) {
+      out.push('### Logo')
+      out.push('')
+      const unique = logos.filter((l, i) => logos.findIndex((x) => x.imgUrl === l.imgUrl && x.href === l.href) === i)
+      const primary = unique[0]
+      if (primary) {
+        out.push(`**Image URL:** ${primary.imgUrl}`)
+        out.push('')
+        if (primary.href) {
+          out.push(`**Link:** [${primary.href}](${primary.href})`)
+          out.push('')
+        }
+        if (primary.alt) {
+          out.push(`**Alt Text:** ${primary.alt}`)
+          out.push('')
+        }
+        if (unique.length > 1) out.push(`**Note:** Logo appears ${unique.length} times (distinct URLs or targets)`)
+        out.push('')
+      }
+      out.push('---')
+      out.push('')
+    }
+
+    if (navMenus.length) {
+      out.push('### Primary Navigation')
+      out.push('')
+      const cols = navMenus.filter((m) => m.label).slice(0, 8)
+      if (cols.length) {
+        out.push('```')
+        out.push(renderAsciiGridTable([
+          cols.map((c) => `${stripTrailingPunctuation(normalizeInline(c.label))}${c.items?.length ? ' ▼' : ''}`),
+        ]))
+        out.push('```')
+        out.push('')
+      }
+    }
+
+    for (const menu of navMenus) {
+      const items = menu.items || []
+      if (!items.length) continue
+      const titleText = stripTrailingPunctuation(normalizeInline(menu.label))
+      if (!titleText) continue
+      out.push(`#### ${titleText} Dropdown`)
+      out.push('')
+      const boxLines: string[] = []
+      boxLines.push(`  ${titleText}`)
+      boxLines.push('')
+      for (const it of items.slice(0, 14)) {
+        const label = stripTrailingPunctuation(normalizeInline(it.label))
+        const href = formatRelativeHref(it.href, url)
+        if (!label && !href) continue
+        boxLines.push(`  • ${label}`.trimEnd())
+        if (href) boxLines.push(`    ${href}`)
+        boxLines.push('')
+      }
+      while (boxLines.length && !boxLines[boxLines.length - 1]?.trim()) boxLines.pop()
+      out.push('```')
+      out.push(renderAsciiFrame({ title: titleText, width: 62, lines: boxLines }))
+      out.push('```')
+      out.push('')
+      out.push('| Menu Item | Link |')
+      out.push('|-----------|------|')
+      for (const it of items.slice(0, 20)) {
+        const label = stripTrailingPunctuation(normalizeInline(it.label))
+        const href = it.href
+        if (!label || !href) continue
+        const rel = formatRelativeHref(href, url)
+        out.push(`| ${escapeMarkdownText(label)} | [${escapeMarkdownText(rel)}](${href}) |`)
+      }
+      out.push('')
+    }
+    out.push('---')
+    out.push('')
+  }
+
+  out.push('<a id="page-header"></a>')
+  out.push('## 📄 PAGE HEADER')
+  out.push('')
+  out.push('### Page Title')
+  out.push('')
+  out.push('```')
+  out.push(`## ${stripTrailingPunctuation(pageTitle)}`)
+  out.push('```')
+  out.push('')
+
+  const heroImg = (() => {
+    const og = safeText((doc.querySelector('meta[property="og:image"], meta[name="twitter:image"]') as HTMLElement | null)?.getAttribute('content') || '')
+    if (og) return { url: resolveUrl(url, og), alt: '' }
+    return pickHeroImage(main, header, url)
+  })()
+  if (heroImg) {
+    out.push('### Header Image')
+    out.push('')
+    out.push(`**Image URL:** ${heroImg.url}`)
+    out.push('')
+    if (heroImg.alt) {
+      out.push(`**Alt Text:** ${heroImg.alt}`)
+      out.push('')
+    }
+  }
+  out.push('---')
+  out.push('')
+
+  out.push('<a id="main-content"></a>')
+  out.push('## 📖 MAIN CONTENT')
+  out.push('')
+
+  for (const s of mainSections) {
+    const anchor = slugify(s.heading)
+    out.push(`<a id="${anchor}"></a>`)
+    out.push(`### ${s.heading}`)
+    out.push('')
+    out.push('```')
+    out.push(`${'#'.repeat(Math.min(6, Math.max(1, s.level)))} ${s.heading}`)
+    out.push('```')
+    out.push('')
+    for (const b of s.blocks) {
+      out.push(b)
+      out.push('')
+    }
+    out.push('---')
+    out.push('')
+  }
+
+  if (footer) {
+    out.push('<a id="footer"></a>')
+    out.push('## 🔗 FOOTER')
+    out.push('')
+    const links = Array.from(footer.querySelectorAll('a')) as HTMLAnchorElement[]
+    const rows: Array<{ text: string; href: string }> = []
+    for (const a of links) {
+      const text = safeText((a as HTMLElement).innerText || a.textContent || '')
+      const href = safeText(a.getAttribute('href') || '')
+      if (!text || !href) continue
+      rows.push({ text, href })
+      if (rows.length >= 24) break
+    }
+    if (rows.length) {
+      out.push('| Link Text | URL |')
+      out.push('|----------|-----|')
+      for (const r of rows) out.push(`| ${escapeMarkdownText(r.text)} | ${r.href} |`)
+      out.push('')
+    }
+    out.push('---')
+    out.push('')
+  }
+
+  out.push('<a id="asset-catalog"></a>')
+  out.push('## 🗂️ ASSET CATALOG')
+  out.push('')
+
+  const byKind = (k: AssetKind) => assets.filter((a) => a.kind === k)
+  const kinds: AssetKind[] = ['image', 'video', 'audio', 'stylesheet', 'script', 'icon']
+  out.push('| Kind | Count |')
+  out.push('|------|------:|')
+  for (const k of kinds) out.push(`| ${k} | ${byKind(k).length} |`)
+  out.push('')
+
+  const renderAssetTable = (k: AssetKind, title: string) => {
+    const items = byKind(k)
+    if (!items.length) return
+    out.push(`### ${title}`)
+    out.push('')
+    out.push('| # | URL | Label |')
+    out.push('|--:|-----|-------|')
+    for (let i = 0; i < Math.min(items.length, 120); i += 1) {
+      const it = items[i]
+      out.push(`| ${i + 1} | ${it.url} | ${escapeMarkdownText(safeText(it.label || ''))} |`)
+    }
+    out.push('')
+  }
+  renderAssetTable('image', 'Images')
+  renderAssetTable('video', 'Videos')
+  renderAssetTable('audio', 'Audio')
+  renderAssetTable('stylesheet', 'Stylesheets')
+  renderAssetTable('script', 'Scripts')
+  renderAssetTable('icon', 'Icons')
+
+  out.push('---')
+  out.push('')
+  out.push('## ✅ EXTRACTION COMPLETED')
+  out.push('')
+  out.push(`**Extraction Completed:** ${scrapeDateTime()}  `)
+  out.push('')
+
+  return out.join('\n').replace(/\n{4,}/g, '\n\n\n').trimEnd() + '\n'
+}

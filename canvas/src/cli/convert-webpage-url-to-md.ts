@@ -1,8 +1,11 @@
 import fsSync from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { runWebpageConvert, clampInt } from '@/lib/websites/server/websiteImportCore'
+import { clampInt } from '@/lib/websites/server/websiteImportCore'
 import { buildWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
+import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { convertWebpageHtmlToMarkdownArtifact } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 
 type Args = {
   url: string
@@ -57,22 +60,25 @@ async function main() {
   const workspaceRoot = resolveWorkspaceRoot(process.cwd())
   const outAbs = safeOutPath(workspaceRoot, args.out)
 
-  const converted = await runWebpageConvert({
-    repoRoot,
-    pythonBin: args.pythonBin,
-    url: args.url,
-    includeImages: args.includeImages,
-  })
+  void repoRoot
+  void args.includeImages
+  void args.pythonBin
 
-  if (converted.ok !== true) throw new Error(converted.error)
+  const { restore } = initJsdomHarness()
+  try {
+    const fetched = await fetchRemoteTextDetailed(args.url, { preflightHead: true, preferProxy: true, maxBytes: 8 * 1024 * 1024 })
+    if (fetched.ok !== true) throw new Error('Fetch failed')
+    const md = convertWebpageHtmlToMarkdownArtifact({ html: fetched.text, url: args.url })
+    const outDoc = buildWebpageMarkdownArtifactDoc({ markdown: md, url: args.url, title: undefined })
 
-  const outDoc = buildWebpageMarkdownArtifactDoc({ markdown: converted.markdown, url: args.url, title: converted.title || undefined })
+    const maxBytes = clampInt(process.env.KG_WEBPAGE_MARKDOWN_OUT_MAX_BYTES, 2_000_000, 50_000, 10_000_000)
+    if (Buffer.byteLength(outDoc, 'utf8') > maxBytes) throw new Error('Output exceeds max bytes')
 
-  const maxBytes = clampInt(process.env.KG_WEBPAGE_MARKDOWN_OUT_MAX_BYTES, 2_000_000, 50_000, 10_000_000)
-  if (Buffer.byteLength(outDoc, 'utf8') > maxBytes) throw new Error('Output exceeds max bytes')
-
-  await fs.mkdir(path.dirname(outAbs), { recursive: true })
-  await fs.writeFile(outAbs, outDoc, 'utf8')
+    await fs.mkdir(path.dirname(outAbs), { recursive: true })
+    await fs.writeFile(outAbs, outDoc, 'utf8')
+  } finally {
+    restore()
+  }
 }
 
 main().catch(err => {

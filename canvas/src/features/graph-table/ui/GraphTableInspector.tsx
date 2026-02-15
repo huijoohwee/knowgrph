@@ -323,8 +323,8 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
             isActive={true}
             options={[
               { value: 'markdown', label: 'Markdown' },
-              { value: 'json', label: 'JSON' },
               { value: 'html', label: 'HTML' },
+              { value: 'json', label: 'JSON' },
             ]}
             onChange={next => void switchWebpageView(next)}
           />

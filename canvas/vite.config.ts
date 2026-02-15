@@ -14,7 +14,6 @@ import { unwrapUserProvidedText } from './src/lib/url'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
-import { runWebpageConvert } from './src/lib/websites/server/websiteImportCore'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -213,8 +212,7 @@ function createLazyWebsiteImportHandler(): import('vite').Connect.NextHandleFunc
     handlerPromise =
       handlerPromise ||
       (async () => {
-        const pythonBin = await getPythonBin()
-        return createWebsiteImportHandler({ repoRoot, pythonBin })
+        return createWebsiteImportHandler({ repoRoot })
       })()
     return handlerPromise
   }
@@ -636,45 +634,56 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
   }
 
   const rewriteAttr = (tag: string, attr: string) => {
-    const re = new RegExp(`(<\\s*${tag}\\b[^>]*\\s${attr}\\s*=\\s*)(["'])([^"']+)(\\2)`, 'gi')
+    const re = new RegExp(
+      `(<\\s*${tag}\\b[^>]*\\s${attr}\\s*=\\s*)(?:"([^"]+)"|'([^']+)'|([^\\s>]+))`,
+      'gi',
+    )
     return (src: string) =>
-      src.replace(re, (_full, prefix: string, quote: string, value: string, suffix: string) => {
-        const v = String(value || '')
-        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${suffix}`
-        return `${prefix}${quote}${toProxy(v)}${suffix}`
+      src.replace(re, (_full, prefix: string, vDq?: string, vSq?: string, vBare?: string) => {
+        const raw = typeof vDq === 'string' ? vDq : typeof vSq === 'string' ? vSq : typeof vBare === 'string' ? vBare : ''
+        const v = String(raw || '')
+        const quote = typeof vDq === 'string' ? '"' : typeof vSq === 'string' ? "'" : ''
+        if (!v) return `${prefix}${quote}${v}${quote}`
+        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${quote}`
+        const next = toProxy(v)
+        return `${prefix}${quote}${next}${quote}`
       })
   }
 
   const rewriteLinkHref = () => {
-    const re = /(<\s*link\b[^>]*\shref\s*=\s*)(["'])([^"']+)(\2)([^>]*>)/gi
+    const re = /(<\s*link\b[^>]*\shref\s*=\s*)(?:"([^"]+)"|'([^']+)'|([^\s>]+))([^>]*>)/gi
     return (src: string) =>
-      src.replace(re, (full: string, prefix: string, quote: string, value: string, suffixQuote: string, tail: string) => {
-        const v = String(value || '')
+      src.replace(re, (full: string, prefix: string, vDq?: string, vSq?: string, vBare?: string, tail?: string) => {
+        const v = typeof vDq === 'string' ? vDq : typeof vSq === 'string' ? vSq : typeof vBare === 'string' ? vBare : ''
+        const quote = typeof vDq === 'string' ? '"' : typeof vSq === 'string' ? "'" : ''
         const rel = String(full || '').toLowerCase()
         const shouldProxy =
           rel.includes('rel=') &&
           (rel.includes('stylesheet') || rel.includes('preload') || rel.includes('modulepreload') || rel.includes('icon'))
-        if (!shouldProxy) return `${prefix}${quote}${v}${suffixQuote}${tail}`
-        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${suffixQuote}${tail}`
-        return `${prefix}${quote}${toProxy(v)}${suffixQuote}${tail}`
+        const tailStr = String(tail || '')
+        if (!shouldProxy) return `${prefix}${quote}${v}${quote}${tailStr}`
+        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${quote}${tailStr}`
+        return `${prefix}${quote}${toProxy(v)}${quote}${tailStr}`
       })
   }
 
   const rewriteScriptSrc = () => {
-    const re = /(<\s*script\b[^>]*\ssrc\s*=\s*)(["'])([^"']+)(\2)/gi
+    const re = /(<\s*script\b[^>]*\ssrc\s*=\s*)(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi
     return (src: string) =>
-      src.replace(re, (_full, prefix: string, quote: string, value: string, suffix: string) => {
-        const v = String(value || '')
-        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${suffix}`
-        return `${prefix}${quote}${toProxy(v)}${suffix}`
+      src.replace(re, (_full, prefix: string, vDq?: string, vSq?: string, vBare?: string) => {
+        const v = typeof vDq === 'string' ? vDq : typeof vSq === 'string' ? vSq : typeof vBare === 'string' ? vBare : ''
+        const quote = typeof vDq === 'string' ? '"' : typeof vSq === 'string' ? "'" : ''
+        if (shouldKeepAsIs(v)) return `${prefix}${quote}${v}${quote}`
+        return `${prefix}${quote}${toProxy(v)}${quote}`
       })
   }
 
   const rewriteSrcset = (tag: string) => {
-    const re = new RegExp(`(<\\s*${tag}\\b[^>]*\\ssrcset\\s*=\\s*)(["'])([^"']+)(\\2)`, 'gi')
+    const re = new RegExp(`(<\\s*${tag}\\b[^>]*\\ssrcset\\s*=\\s*)(?:"([^"]+)"|'([^']+)'|([^\\s>]+))`, 'gi')
     return (src: string) =>
-      src.replace(re, (_full, prefix: string, quote: string, value: string, suffix: string) => {
-        const v = String(value || '')
+      src.replace(re, (_full, prefix: string, vDq?: string, vSq?: string, vBare?: string) => {
+        const v = typeof vDq === 'string' ? vDq : typeof vSq === 'string' ? vSq : typeof vBare === 'string' ? vBare : ''
+        const quote = typeof vDq === 'string' ? '"' : typeof vSq === 'string' ? "'" : ''
         const parts = v
           .split(',')
           .map(p => p.trim())
@@ -689,7 +698,7 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
             return `${toProxy(urlPart)}${tail}`
           })
           .join(', ')
-        return `${prefix}${quote}${next}${suffix}`
+        return `${prefix}${quote}${next}${quote}`
       })
   }
 
@@ -721,8 +730,14 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '(() => {',
     `  const KG_ORIGINAL_URL = ${JSON.stringify(originalUrl)};`,
     '  let KG_NET_PENDING = 0;',
-    '  const kgNetInc = () => { try { KG_NET_PENDING += 1; } catch { void 0; } };',
-    '  const kgNetDec = () => { try { KG_NET_PENDING = Math.max(0, KG_NET_PENDING - 1); } catch { void 0; } };',
+    `  const KG_WEBPAGE_NET_KIND = ${JSON.stringify('kg-webpage-net')};`,
+    '  const kgPostNet = () => {',
+    '    try {',
+    '      window.parent && window.parent.postMessage({ kind: KG_WEBPAGE_NET_KIND, pending: KG_NET_PENDING }, "*");',
+    '    } catch { void 0; }',
+    '  };',
+    '  const kgNetInc = () => { try { KG_NET_PENDING += 1; } catch { void 0; } try { kgPostNet(); } catch { void 0; } };',
+    '  const kgNetDec = () => { try { KG_NET_PENDING = Math.max(0, KG_NET_PENDING - 1); } catch { void 0; } try { kgPostNet(); } catch { void 0; } };',
     `  const KG_PROXY_PREFIX = ${JSON.stringify('/__webpage_proxy?url=')};`,
       `  const KG_ASSET_PROXY_PREFIX = ${JSON.stringify('/__webpage_asset_proxy?url=')};`,
     `  const KG_SCROLL_SYNC_KIND = ${JSON.stringify('kg-scroll-sync')};`,
@@ -816,6 +831,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '  window.addEventListener("click", handleAnchorClick, true);',
       '  patchFetch();',
       '  patchXhr();',
+    '  try { kgPostNet(); } catch { void 0; }',
       '  const rewriteAttrUrl = (el, attr) => {',
       '    try {',
       '      if (!el || typeof el.getAttribute !== "function" || typeof el.setAttribute !== "function") return;',
@@ -878,7 +894,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '          const src = el.getAttribute && el.getAttribute("src");',
     '          const v = String(src || "").trim();',
     '          if (!v) return;',
-    '          if (/^\s*javascript:/i.test(v) || /^\s*data:/i.test(v) || /^\s*blob:/i.test(v)) return;',
+    '          if (/^\\s*javascript:/i.test(v) || /^\\s*data:/i.test(v) || /^\\s*blob:/i.test(v)) return;',
     '          const abs = resolveAbs(v);',
     '          if (!abs) return;',
     '          const o = new URL(KG_ORIGINAL_URL);',
@@ -1044,7 +1060,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '              if (!tag) return false;',
     '              if (tag === "a") {',
     '                const href = String(el.getAttribute && el.getAttribute("href") || "").trim();',
-    '                if (href && !href.startsWith("#") && !/^\s*javascript:/i.test(href)) return false;',
+    '                if (href && !href.startsWith("#") && !/^\\s*javascript:/i.test(href)) return false;',
     '              }',
     '              if (tag === "button") {',
     '                const type = String(el.getAttribute && el.getAttribute("type") || "").toLowerCase();',
@@ -1783,68 +1799,6 @@ const youtubeConvertDevPlugin = {
   },
 }
 
-type WebpageConvertResult =
-  | { ok: true; markdown: string; name: string; title: string; source_url: string; images: string[] }
-  | { ok: false; error: string }
-
-async function runKnowgrphParserConvertWebpageToPayload(opts: {
-  url: string;
-  includeImages?: boolean;
-}): Promise<WebpageConvertResult> {
-  const pythonBin = await getPythonBin()
-  return await runWebpageConvert({
-    repoRoot,
-    pythonBin,
-    url: opts.url,
-    includeImages: opts.includeImages !== false,
-    htmlPath: null,
-  })
-}
-
-function createWebpageConvertHandler(): import('vite').Connect.NextHandleFunction {
-  return async (req, res, next) => {
-    if (req.method !== 'POST') {
-      next()
-      return
-    }
-    try {
-      const parsed = new URL(req.url || '', `http://${req.headers.host}`)
-      const urlParam = parsed.searchParams.get('url') || undefined
-      const includeImages = parsed.searchParams.get('includeImages') !== 'false'
-      
-      if (!urlParam) {
-          res.statusCode = 400
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ ok: false, error: 'Missing url parameter' }))
-          return
-      }
-
-      const payload = await runKnowgrphParserConvertWebpageToPayload({
-        url: unwrapUserProvidedText(urlParam) || urlParam,
-        includeImages,
-      })
-      res.statusCode = payload.ok ? 200 : 400
-      res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify(payload))
-    } catch (error) {
-       res.statusCode = 500
-       res.setHeader('Content-Type', 'application/json')
-       res.end(JSON.stringify({ ok: false, error: String(error) }))
-    }
-  }
-}
-
-const webpageConvertDevPlugin = {
-  name: 'knowgrph-webpage-convert-dev',
-  configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use('/__webpage_convert', createWebpageConvertHandler())
-  },
-  configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use('/__webpage_convert', createWebpageConvertHandler())
-  },
-}
-
-
 export default defineConfig(({ command }) => ({
   define: {
     CESIUM_BASE_URL: JSON.stringify('/cesium/'),
@@ -1968,7 +1922,6 @@ export default defineConfig(({ command }) => ({
           pdfWorkspaceDevPlugin,
           websiteImportDevPlugin,
           youtubeConvertDevPlugin,
-          webpageConvertDevPlugin,
         ]),
     tsconfigPaths(),
   ],

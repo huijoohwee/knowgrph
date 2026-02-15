@@ -247,21 +247,17 @@ export async function fetchWebpageConversionJsonViaConvert(args: {
   includeImages: boolean
   signal: AbortSignal
 }): Promise<string> {
+  void args.includeImages
   const u = String(args.url || '').trim()
   if (!u) return ''
-  const key = `convert-json:${u}:img:${args.includeImages ? '1' : '0'}`
+  const key = `convert-json-client:${u}`
   return fetchCached(
     key,
-    async (signal) => {
-      const res = await fetch(`/__webpage_convert?url=${encodeURIComponent(u)}&includeImages=${args.includeImages ? 'true' : 'false'}`,
-        {
-        method: 'POST',
-        signal,
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        })
-      const text = await res.text()
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return text
+    async () => {
+      const { convertWebpageUrlToMarkdownViaBrowser } = await import('./webpageClientConvert')
+      const res = await convertWebpageUrlToMarkdownViaBrowser({ url: u })
+      if (res.ok !== true) throw new Error(res.error)
+      return JSON.stringify({ ok: true, name: 'webpage.md', markdown: res.markdown, title: res.title, source_url: u, images: [] }, null, 2)
     },
     args.signal,
   )
@@ -296,9 +292,10 @@ export async function fetchWebsiteImportArtifact(args: {
   )
 }
 
-export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string }): string => {
+export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; scriptPolicy?: 'strip' | 'allow' }): string => {
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
   const rawHtml = String(args.html || '')
+  const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : 'strip'
   if (rawHtml.length > 1_500_000) {
     return buildCodeViewerSrcdoc({
       baseHref,
@@ -322,9 +319,12 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string })
   const cached = SRCDOC_CACHE.get(cacheKey)
   if (cached) return cached
 
-  const cleaned = stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(rawHtml))))
-  const csp =
-    "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:; script-src 'unsafe-inline'"
+  const cleaned = scriptPolicy === 'allow'
+    ? stripRefreshMeta(stripCspMeta(rawHtml))
+    : stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(rawHtml))))
+  const csp = scriptPolicy === 'allow'
+    ? "default-src https: http: data: blob:; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http: ws: wss:; frame-src https: http:; worker-src blob: data:; script-src 'unsafe-inline' 'unsafe-eval' https: http: blob: data:"
+    : "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:; script-src 'unsafe-inline'"
   const withBase = upsertBaseTag(cleaned, chosen)
   const withCsp = upsertSandboxCspMeta(withBase, csp)
   const built = injectScrollSync(withCsp)

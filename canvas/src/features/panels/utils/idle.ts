@@ -17,3 +17,21 @@ export const cancelIdle = (handle: number): void => {
   }
   window.clearTimeout(handle)
 }
+
+export const runInIdle = async <T,>(fn: () => T | Promise<T>, opts?: { timeoutMs?: number }): Promise<T> => {
+  const timeoutMs = typeof opts?.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) ? Math.max(0, Math.floor(opts.timeoutMs)) : 350
+  const ri = (globalThis as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number }).requestIdleCallback
+  if (typeof ri === 'function') {
+    return await new Promise<T>((resolve, reject) => {
+      ri(async () => {
+        try {
+          resolve(await fn())
+        } catch (e) {
+          reject(e)
+        }
+      }, { timeout: timeoutMs })
+    })
+  }
+  await new Promise<void>(resolve => window.setTimeout(resolve, 0))
+  return await fn()
+}

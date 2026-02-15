@@ -6,8 +6,6 @@ import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
 import { convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { convertWebpageUrlToMarkdownViaBrowser } from '@/lib/websites/webpageClientConvert'
-import { isLowQualityWebpageMarkdown } from '@/lib/websites/webpageMarkdownQuality'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
@@ -15,7 +13,7 @@ import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
-import { buildWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
+import { buildWebpageMarkdownArtifactDoc, looksLikeWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
 import { parseGitHubRepoUrl } from './githubRepoApi'
 import { importGitHubFolder } from './githubRepoImport'
 
@@ -192,13 +190,6 @@ export async function hydrateWorkspaceFileFromPendingLocalImport(args: {
 const WORKSPACE_IMPORT_EXTS = (() => {
   const exts = new Set<string>()
   for (const ext of SOURCE_FILES_FORMATS.import) exts.add(String(ext || '').toLowerCase())
-  exts.add('.mdx')
-  return exts
-})()
-
-const WORKSPACE_GITHUB_IMPORT_TEXT_EXTS = (() => {
-  const exts = new Set<string>()
-  for (const ext of SOURCE_FILES_FORMATS.importLocalText) exts.add(String(ext || '').toLowerCase())
   exts.add('.mdx')
   return exts
 })()
@@ -394,107 +385,25 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
 
   const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx)(\?|#|$)/i.test(normalizedLower)
   if (!looksLikeCodeOrData) {
-    const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
-    const view = (() => {
-      const v = useGraphStore.getState().webpageImportView
-      if (v === 'html') return 'html'
-      if (v === 'json') return 'json'
-      return 'markdown'
-    })()
-
-    const outputDirRel = String(useGraphStore.getState().websiteImportOutputDirRel || '').trim()
+    const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
+    const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
+    const name = `${baseNoExt}.md`
+    const includeImages = false
     try {
-      const startRes = await fetch(`/__website_import/import-url?outputDirRel=${encodeURIComponent(outputDirRel)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ url: normalizedUrl, options: { includeImages } }),
-      })
-      const startJson = (await startRes.json()) as { ok?: unknown; importId?: unknown; nodeId?: unknown; url?: unknown; error?: unknown }
-      if (startRes.ok && startJson.ok === true && typeof startJson.importId === 'string' && typeof startJson.nodeId === 'string') {
-        const importId = startJson.importId
-        const nodeId = startJson.nodeId
-        const title = await (async () => {
-          try {
-            const jsonRes = await fetch(
-              `/__website_import/artifact?outputDirRel=${encodeURIComponent(outputDirRel)}&importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=conversionJson`,
-              { headers: { Accept: 'application/json' } },
-            )
-            if (!jsonRes.ok) return undefined
-            const raw = await jsonRes.text()
-            const parsed = JSON.parse(raw) as { title?: unknown } | null
-            const t = parsed && typeof parsed.title === 'string' ? parsed.title.trim() : ''
-            return t || undefined
-          } catch {
-            return undefined
-          }
-        })()
-        const mdRes = await fetch(
-          `/__website_import/artifact?outputDirRel=${encodeURIComponent(outputDirRel)}&importId=${encodeURIComponent(importId)}&nodeId=${encodeURIComponent(nodeId)}&kind=markdown`,
-          { headers: { Accept: 'text/plain' } },
-        )
-        const mdRaw = await mdRes.text()
-
-        const improved = await (async () => {
-          try {
-            if (!isLowQualityWebpageMarkdown(mdRaw)) return null
-            const viaBrowser = await convertWebpageUrlToMarkdownViaBrowser({ url: normalizedUrl })
-            if (viaBrowser.ok !== true) return null
-            if (!viaBrowser.markdown || viaBrowser.markdown.length <= mdRaw.length * 1.05) return null
-            return { markdown: viaBrowser.markdown, title: viaBrowser.title || title }
-          } catch {
-            return null
-          }
-        })()
-
-        const effectiveMd = improved?.markdown || mdRaw
-        const effectiveTitle = improved?.title || title
+      const res = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
+      if (res && res.ok === true) {
         const text = buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
-          upstreamMarkdown: effectiveMd,
+          upstreamMarkdown: String(res.markdown || ''),
           url: normalizedUrl,
-          view,
-          title: effectiveTitle,
-          websiteImportMeta: { importId, nodeId, outputDirRel: outputDirRel || undefined },
+          view: 'markdown',
         })
-
-        const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
-        const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
-        const name = `${baseNoExt}.md`
-        return { normalizedUrl, name, text }
+        return { normalizedUrl, name: String(res.name || name), text }
       }
-      const err = typeof startJson.error === 'string' && startJson.error.trim() ? startJson.error.trim() : `HTTP ${startRes.status}`
-      void err
     } catch {
       void 0
     }
-
-    const webpage = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
-    if (webpage && webpage.ok) {
-      const rawMd = String(webpage.markdown || '')
-      const better = await (async () => {
-        try {
-          if (!isLowQualityWebpageMarkdown(rawMd)) return null
-          const viaBrowser = await convertWebpageUrlToMarkdownViaBrowser({ url: normalizedUrl })
-          if (viaBrowser.ok !== true) return null
-          if (!viaBrowser.markdown || viaBrowser.markdown.length <= rawMd.length * 1.05) return null
-          return viaBrowser.markdown
-        } catch {
-          return null
-        }
-      })()
-      const sanitized = sanitizeImportedMarkdownText(better || rawMd).text
-      const content = upsertWebpageFrontmatterMeta(sanitized, { url: normalizedUrl, view })
-      return { normalizedUrl, name: String(webpage.name || 'webpage.md'), text: content }
-    }
-
-    const viaBrowser = await convertWebpageUrlToMarkdownViaBrowser({ url: normalizedUrl })
-    if (viaBrowser.ok === true) {
-      const sanitized = sanitizeImportedMarkdownText(String(viaBrowser.markdown || '')).text
-      const content = upsertWebpageFrontmatterMeta(sanitized, { url: normalizedUrl, view })
-      const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
-      const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
-      const name = `${baseNoExt}.md`
-      return { normalizedUrl, name, text: content }
-    }
+    const text = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote('markdown')}`, '---', ''].join('\n')
+    return { normalizedUrl, name, text }
   }
 
   const res = await fetchRemoteTextDetailed(normalizedUrl, { preflightHead: true, preferProxy: true })
@@ -547,12 +456,14 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   fmLines.push('---', '')
 
   const fidelityMaxLevel = useGraphStore.getState().webpageArtifactFidelityMaxLevel ?? 4
-  const artifact = buildWebpageMarkdownArtifactDoc({
-    markdown: strippedUpstream,
-    url,
-    title: args.title,
-    fidelityMaxLevel,
-  })
+  const artifact = looksLikeWebpageMarkdownArtifactDoc(strippedUpstream)
+    ? strippedUpstream
+    : buildWebpageMarkdownArtifactDoc({
+        markdown: strippedUpstream,
+        url,
+        title: args.title,
+        fidelityMaxLevel,
+      })
   const artifactWithView = upsertWebpageFrontmatterMeta(artifact, { url, view })
   const strippedArtifact = (() => {
     const t = String(artifactWithView || '')
@@ -562,6 +473,49 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
   return [...fmLines, strippedArtifact].join('\n')
+}
+
+export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
+  upstreamMarkdown: string
+  url: string
+  view: 'markdown' | 'json' | 'html'
+  websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string }
+}): string {
+  const url = String(args.url || '').trim()
+  const view = args.view === 'html' ? 'html' : args.view === 'json' ? 'json' : 'markdown'
+  const upstreamSanitized = sanitizeImportedMarkdownText(String(args.upstreamMarkdown || '')).text
+  const strippedUpstream = (() => {
+    const t = String(upstreamSanitized || '')
+    if (!t.startsWith('---')) return t
+    const end = t.indexOf('\n---')
+    if (end < 0) return t
+    return t.slice(end + 4).replace(/^\s*\n/, '')
+  })()
+
+  const importId = String(args.websiteImportMeta.importId || '').trim()
+  const nodeId = String(args.websiteImportMeta.nodeId || '').trim()
+  const outputDirRel = String(args.websiteImportMeta.outputDirRel || '').trim()
+
+  const fmLines = [
+    '---',
+    `kgWebpageUrl: ${yamlQuote(url)}`,
+    `kgWebpageView: ${yamlQuote(view)}`,
+    `kgWebsiteImportId: ${yamlQuote(importId)}`,
+    `kgWebsiteNodeId: ${yamlQuote(nodeId)}`,
+  ]
+  if (outputDirRel) fmLines.push(`kgWebsiteOutputDirRel: ${yamlQuote(outputDirRel)}`)
+  fmLines.push('---', '')
+
+  const withView = upsertWebpageFrontmatterMeta(strippedUpstream, { url, view })
+  const body = (() => {
+    const t = String(withView || '')
+    if (!t.startsWith('---')) return t
+    const end = t.indexOf('\n---')
+    if (end < 0) return t
+    return t.slice(end + 4).replace(/^\s*\n/, '')
+  })()
+
+  return [...fmLines, body].join('\n')
 }
 
 export async function importWorkspaceUrl(args: {
@@ -579,8 +533,23 @@ export async function importWorkspaceUrl(args: {
     return importGitHubFolder({ fs: args.fs, repoRef, parentPath, onProgress: args.onProgress })
   }
 
+  try {
+    args.onProgress?.({ phase: 'fetching', current: 0, label: 'Fetching' })
+  } catch {
+    void 0
+  }
   const fetched = await fetchWorkspaceUrlContent(rawUrl)
+  try {
+    args.onProgress?.({ phase: 'writing', current: 0, label: 'Writing' })
+  } catch {
+    void 0
+  }
   const createdPath = await args.fs.createFile({ parentPath, name: fetched.name, text: fetched.text })
+  try {
+    args.onProgress?.({ phase: 'writing', current: 1, total: 1, label: 'Writing' })
+  } catch {
+    void 0
+  }
   const normalized = normalizeWorkspacePath(createdPath)
   return {
     createdPaths: [normalized],

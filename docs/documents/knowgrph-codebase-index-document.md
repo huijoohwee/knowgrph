@@ -232,7 +232,7 @@ Key behaviors:
 **Per-page contract**: stubs include `kgWebpageUrl`, `kgWebpageView`, `kgWebsiteImportId`, `kgWebsiteNodeId`; the active-row dropdown switches `Markdown|JSON|HTML` without mutating graph/layout/zoom.
 
 **Render rule**: Viewer/Presentation/Slides render sandboxed iframe `srcdoc` when `kgWebpageView∈{json,html}` (srcdoc is enforced):
-- Prefer website-import artifacts when `kgWebsiteImportId/kgWebsiteNodeId` exist (`rawHtml` for HTML view; `conversionJson` for JSON view); else use `/__webpage_proxy?url=...` (HTML) or `/__webpage_convert?...` (JSON).
+- Prefer website-import artifacts when `kgWebsiteImportId/kgWebsiteNodeId` exist (`rawHtml` for HTML view; `conversionJson` for JSON view when available); else use `/__webpage_proxy?url=...` (HTML) or browser-native conversion (JSON).
 - Use `sandbox="allow-scripts"` + `referrerPolicy="no-referrer"` (must forbid top-level navigation).
 - `markdown` view renders Markdown.
 - `fetchRemoteMarkdownText(url)` / `fetchRemoteHtmlText(url)` → normalize GitHub blob URLs before remote fetch.

@@ -10,7 +10,6 @@ export const testWebpageMarkdownArtifactFigmaFixtureIsRecognized = () => {
   if (!fs.existsSync(fixturePath)) throw new Error(`missing fixture: ${fixturePath}`)
   const text = fs.readFileSync(fixturePath, 'utf-8')
   if (!looksLikeWebpageMarkdownArtifactDoc(text)) throw new Error('expected figma fixture-like markdown recognized as artifact')
-  if (!/\*\*URL:\*\*\s+https:\/\/www\.figma\.com\//.test(text)) throw new Error('expected fixture URL header')
-  if (!/^##\s+📋\s+TABLE\s+OF\s+CONTENTS\s*$/m.test(text)) throw new Error('expected fixture table of contents heading')
+  if (!/\*\*URL:\*\*\s+https:\/\//.test(text)) throw new Error('expected fixture URL header')
+  if (!/^##\s+(?:📋\s+)?TABLE\s+OF\s+CONTENTS\s*$/mi.test(text)) throw new Error('expected fixture table of contents heading')
 }
-

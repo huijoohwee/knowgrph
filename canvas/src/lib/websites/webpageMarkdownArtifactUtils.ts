@@ -8,7 +8,7 @@ export const truncate = (raw: string, max: number) => {
   return `${s.slice(0, Math.max(0, max - 1)).trimEnd()}…`
 }
 
-export const stripTrailingPunctuation = (raw: string) => String(raw || '').replace(/[\s\u00A0]*[\.!,:;]+[\s\u00A0]*$/g, '').trim()
+export const stripTrailingPunctuation = (raw: string) => String(raw || '').replace(/[\s\u00A0]*[.!,:;]+[\s\u00A0]*$/g, '').trim()
 
 export const stripWww = (rawHost: string) =>
   String(rawHost || '').toLowerCase().startsWith('www.') ? String(rawHost || '').slice(4) : String(rawHost || '')

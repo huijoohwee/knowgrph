@@ -4,7 +4,6 @@ import {
   countMatches,
   countSectionParagraphs,
   countUniqueMarkdownLinkTexts,
-  type HSection,
   extractBlockUnderH2,
   extractHSections,
   extractHeadings,
@@ -49,7 +48,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     const raw = String(inferPageOverviewSentence(markdownMain, 240) || '').trim()
     if (!raw) return ''
     if (raw.length < 12) return ''
-    if (/^[\[\]().,:;\-–—\s]+$/.test(raw)) return ''
+    if (/^(?:[\s().,:;–—-]|\[|\])+$/.test(raw)) return ''
     return raw
   })()
 
@@ -126,8 +125,6 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     candidates.sort((a, b) => b.score - a.score || a.b.title.localeCompare(b.b.title))
     return candidates.slice(0, 3).map(x => x.b)
   })()
-
-  const lowerAll = stripFrontmatter(markdownMain).toLowerCase()
 
   const inferPlatform = () => {
     if (Object.keys(navMenus).length > 0) return 'Web application'
@@ -320,7 +317,11 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('---')
   doc.push('')
 
-  doc.push('## 📋 TABLE OF CONTENTS')
+  doc.push('## Table of Contents')
+  doc.push('')
+  doc.push('```ascii')
+  doc.push(layoutStructureAscii)
+  doc.push('```')
   doc.push('')
   for (let i = 0; i < toc.length; i += 1) {
     const it = toc[i]
@@ -331,7 +332,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('')
 
   doc.push('<a id="page-structure-overview"></a>')
-  doc.push('## 🏗️ Page Structure Overview')
+  doc.push('## Page Structure Overview')
   doc.push('')
   doc.push('```ascii')
   doc.push(pageStructureOverviewAscii)
@@ -341,7 +342,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('')
 
   doc.push('<a id="layout-structure"></a>')
-  doc.push('## 📐 Layout Structure')
+  doc.push('## Layout Structure')
   doc.push('')
   doc.push('```ascii')
   doc.push(layoutStructureAscii)
@@ -351,7 +352,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('')
 
   doc.push('<a id="document-structure"></a>')
-  doc.push('## 🧱 Document Structure')
+  doc.push('## Document Structure')
   doc.push('')
   doc.push('| Heading | Level | Notes |')
   doc.push('|---------|-------|-------|')
@@ -365,7 +366,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
 
   if (skipLink) {
     doc.push('<a id="accessibility-features"></a>')
-    doc.push('## ♿ Accessibility Features')
+    doc.push('## Accessibility Features')
     doc.push('')
     doc.push('```ascii')
     doc.push(renderAsciiFrame({ title: 'SKIP NAVIGATION', width: 60, lines: [`[${skipLink.text}] → ${skipLink.href}`] }))
@@ -380,7 +381,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   }
 
   doc.push('<a id="navigation-header"></a>')
-  doc.push('## 🧭 Navigation Header')
+  doc.push('## Navigation Header')
   doc.push('')
   doc.push('```ascii')
   const headerItems = navLabels.length ? navLabels.slice(0, 7) : ['Home', 'About', 'Contact']
@@ -411,7 +412,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('')
 
   doc.push('<a id="hero-section"></a>')
-  doc.push('## 🦸 Hero Section')
+  doc.push('## Hero Section')
   doc.push('')
   doc.push('```ascii')
   doc.push(
@@ -436,7 +437,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('---')
   doc.push('')
 
-  doc.push('## 📊 Page Statistics')
+  doc.push('## Page Statistics')
   doc.push('')
   doc.push('| Metric | Count |')
   doc.push('|--------|------:|')
@@ -454,7 +455,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     for (const b of featureBlocks) {
       doc.push('---')
       doc.push('')
-      doc.push(`## 🧩 Section ${idx}: ${truncate(normalizeInline(b.title), 72)}`)
+      doc.push(`## Section ${idx}: ${truncate(normalizeInline(b.title), 72)}`)
       doc.push('')
       doc.push('```ascii')
       doc.push(
@@ -483,7 +484,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     doc.push('---')
     doc.push('')
     doc.push('<a id="template-showcase"></a>')
-    doc.push('## 📑 Template Showcase')
+    doc.push('## Template Showcase')
     doc.push('')
     doc.push('```ascii')
     doc.push(templateGridAscii)
@@ -497,7 +498,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     doc.push('---')
     doc.push('')
     doc.push('<a id="templates"></a>')
-    doc.push('## 🖼️ Template / Gallery')
+    doc.push('## Template Gallery')
     doc.push('')
     doc.push('```ascii')
     doc.push(templateGridAscii)
@@ -509,7 +510,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     doc.push('---')
     doc.push('')
     doc.push('<a id="pricing"></a>')
-    doc.push('## 💰 Pricing')
+  doc.push('## Pricing')
     doc.push('')
     doc.push('```ascii')
     doc.push(
@@ -553,7 +554,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('---')
   doc.push('')
   doc.push('<a id="asset-catalog"></a>')
-  doc.push('## 🗂️ Asset Catalog')
+  doc.push('## Asset Catalog')
   doc.push('')
   doc.push('| Kind | Count | Samples |')
   doc.push('|------|------:|---------|')

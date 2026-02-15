@@ -27,6 +27,7 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor, type MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import { runInIdle } from '@/features/panels/utils/idle'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -42,6 +43,8 @@ export type MarkdownWorkspaceMainProps = {
   setMarkdownTextHighlight: (next: boolean) => void
 
   statusLabel: MarkdownWorkspaceStatus
+  onStatusProgress?: (label: string) => void
+  onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
   onApply: () => void
   onSave?: () => void
   onSaveAs?: () => void
@@ -213,6 +216,8 @@ function useWebpageIframeSrcdoc(args: {
   view: 'html' | 'json'
   websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string } | null
   htmlOverride?: string | null
+  onStatusProgress?: (label: string) => void
+  onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
 }): { srcDoc: string | null; error: string | null } {
   const [state, setState] = React.useState<{ srcDoc: string | null; error: string | null }>({ srcDoc: null, error: null })
 
@@ -232,22 +237,35 @@ function useWebpageIframeSrcdoc(args: {
 
     let cancelled = false
     const ctrl = new AbortController()
+
     void (async () => {
+      args.onStatusProgress?.('Updating view')
       if (args.view === 'json') {
-        const rawJson = args.websiteImportMeta
-          ? await fetchWebsiteImportArtifact({
-              importId: args.websiteImportMeta.importId,
-              nodeId: args.websiteImportMeta.nodeId,
-              outputDirRel: args.websiteImportMeta.outputDirRel,
-              kind: 'conversionJson',
-              signal: ctrl.signal,
-            })
-          : await fetchWebpageConversionJsonViaConvert({
-              url,
-              includeImages: useGraphStore.getState().webpageImportIncludeImages ?? true,
-              signal: ctrl.signal,
-            })
-        const pretty = (() => {
+        args.onStatusProgress?.('Loading JSON')
+        const rawJson = await (async () => {
+          if (args.websiteImportMeta) {
+            try {
+              const t = await fetchWebsiteImportArtifact({
+                importId: args.websiteImportMeta.importId,
+                nodeId: args.websiteImportMeta.nodeId,
+                outputDirRel: args.websiteImportMeta.outputDirRel,
+                kind: 'conversionJson',
+                signal: ctrl.signal,
+              })
+              if (t && t.trim()) return t
+            } catch {
+              void 0
+            }
+          }
+          return await fetchWebpageConversionJsonViaConvert({
+            url,
+            includeImages: useGraphStore.getState().webpageImportIncludeImages ?? true,
+            signal: ctrl.signal,
+          })
+        })()
+
+        args.onStatusProgress?.('Rendering JSON')
+        const pretty = await runInIdle(() => {
           const t = String(rawJson || '')
           if (t.length > 900_000) {
             return `${t.slice(0, 900_000)}\n\n…(clipped ${t.length - 900_000} chars)…`
@@ -258,33 +276,46 @@ function useWebpageIframeSrcdoc(args: {
           } catch {
             return t
           }
-        })()
+        }, { timeoutMs: 350 })
         return buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'json', text: pretty })
       }
 
+      args.onStatusProgress?.('Loading HTML')
       const override = typeof debouncedHtmlOverride === 'string' && debouncedHtmlOverride.trim() ? debouncedHtmlOverride : null
-      const rawHtml = override
-        ? override
-        : args.websiteImportMeta
-          ? await fetchWebsiteImportArtifact({
+      const rawHtml = await (async () => {
+        if (override) return override
+        if (args.websiteImportMeta) {
+          try {
+            return await fetchWebsiteImportArtifact({
               importId: args.websiteImportMeta.importId,
               nodeId: args.websiteImportMeta.nodeId,
               outputDirRel: args.websiteImportMeta.outputDirRel,
               kind: 'rawHtml',
               signal: ctrl.signal,
             })
-          : await fetchWebpageHtmlAuto({ url, signal: ctrl.signal })
-      return buildWebpageHtmlSrcdoc({ html: rawHtml, baseHref: url })
+          } catch {
+            void 0
+          }
+        }
+        return await fetchWebpageHtmlAuto({ url, signal: ctrl.signal })
+      })()
+
+      args.onStatusProgress?.('Rendering HTML')
+      return await runInIdle(
+        () => buildWebpageHtmlSrcdoc({ html: rawHtml, baseHref: url, scriptPolicy: 'allow' }),
+        { timeoutMs: 650 },
+      )
     })()
       .then((srcDoc) => {
         if (cancelled) return
-        setState({ srcDoc, error: null })
+        setState(prev => (prev.srcDoc === srcDoc && prev.error === null ? prev : { srcDoc, error: null }))
+        args.onStatusWithAutoClear?.('Updated', 1200)
       })
       .catch((err) => {
         if (cancelled) return
         const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
         const fallback = buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'text', text: msg || 'Request failed' })
-        setState({ srcDoc: fallback, error: msg || 'Request failed' })
+        setState(prev => (prev.srcDoc === fallback && prev.error === (msg || 'Request failed') ? prev : { srcDoc: fallback, error: msg || 'Request failed' }))
       })
 
     return () => {
@@ -303,6 +334,8 @@ function useWebpageIframeSrcdoc(args: {
     args.websiteImportMeta?.importId,
     args.websiteImportMeta?.nodeId,
     args.websiteImportMeta?.outputDirRel,
+    args.onStatusProgress,
+    args.onStatusWithAutoClear,
   ])
 
   return state
@@ -325,6 +358,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     markdownTextHighlight,
     setMarkdownTextHighlight,
     statusLabel,
+    onStatusProgress,
+    onStatusWithAutoClear,
     onApply,
     onSave,
     onSaveAs,
@@ -393,6 +428,17 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     webpageMeta.url
   )
 
+  const webpageIframeSrc = React.useMemo(() => {
+    if (!showWebpageHtml) return ''
+    if (webpageMeta?.view !== 'html') return ''
+    if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) return ''
+    const u = String(webpageMeta.url || '').trim()
+    if (!u) return ''
+    return `/__webpage_proxy?url=${encodeURIComponent(u)}`
+  }, [showWebpageHtml, webpageMeta?.url, webpageMeta?.view, websiteImportMeta?.importId, websiteImportMeta?.nodeId])
+
+  const shouldUseWebpageIframeSrc = !!webpageIframeSrc
+
   const needsMarkdownViewerText = !showWebpageHtml && layoutMode !== 'editor'
   const viewerTextRaw = needsMarkdownViewerText ? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText) : ''
   const viewerText = React.useMemo(
@@ -426,22 +472,47 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [onWebpageIframeEl])
 
-  const iframeMode: 'srcdoc' | 'proxy' = React.useMemo(() => {
-    if (!showWebpageHtml) return 'srcdoc'
-    if (webpageMeta?.view !== 'html') return 'srcdoc'
-    const override = typeof webpageHtmlOverride === 'string' ? webpageHtmlOverride.trim() : ''
-    if (!override) return 'proxy'
-    if (override.startsWith('HTML too large for editor')) return 'proxy'
-    if (override.includes('\n\n(clipped)\n') || override.endsWith('(clipped)')) return 'proxy'
-    return 'srcdoc'
-  }, [showWebpageHtml, webpageHtmlOverride, webpageMeta?.view])
   const { srcDoc: iframeSrcDoc } = useWebpageIframeSrcdoc({
-    enabled: showWebpageHtml && iframeMode === 'srcdoc',
+    enabled: showWebpageHtml && !shouldUseWebpageIframeSrc,
     url: String(webpageMeta?.url || ''),
     view: webpageMeta?.view === 'json' ? 'json' : 'html',
     websiteImportMeta: websiteImportMeta && websiteImportMeta.importId && websiteImportMeta.nodeId ? websiteImportMeta : null,
     htmlOverride: webpageMeta?.view === 'html' ? webpageHtmlOverride : null,
+    onStatusProgress,
+    onStatusWithAutoClear,
   })
+
+  React.useEffect(() => {
+    if (!showWebpageHtml) return
+    if (!shouldUseWebpageIframeSrc) return
+    if (webpageMeta?.view !== 'html') return
+    const iframe = iframeRef.current
+    if (!iframe) return
+    onStatusProgress?.('Loading HTML')
+    let lastPending = -1
+    let loadedOnce = false
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== iframe.contentWindow) return
+      const raw = e?.data as unknown
+      if (!raw || typeof raw !== 'object') return
+      const d = raw as Record<string, unknown>
+      if (d.kind !== 'kg-webpage-net') return
+      const pendingRaw = d.pending
+      const pending = typeof pendingRaw === 'number' ? Math.max(0, Math.floor(pendingRaw)) : 0
+      if (pending === lastPending) return
+      lastPending = pending
+      if (pending > 0) {
+        loadedOnce = true
+        onStatusProgress?.(`Loading HTML (${pending})`)
+        return
+      }
+      if (loadedOnce) onStatusWithAutoClear?.('Loaded', 1200)
+    }
+    window.addEventListener('message', onMessage)
+    return () => {
+      window.removeEventListener('message', onMessage)
+    }
+  }, [onStatusProgress, onStatusWithAutoClear, showWebpageHtml, shouldUseWebpageIframeSrc, webpageMeta?.view])
 
   const scrollRatioByDocRef = React.useRef<Map<string, number>>(new Map())
   const docKey = String(activeDocumentKey || '')
@@ -668,8 +739,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         className="flex-1 min-h-0 w-full border-0"
         ref={handleIframeRef}
         title={webpageMeta?.url || 'Webpage'}
-        srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
-        src={iframeMode === 'proxy' ? `/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}` : undefined}
+        src={shouldUseWebpageIframeSrc ? webpageIframeSrc : undefined}
+        srcDoc={shouldUseWebpageIframeSrc ? undefined : (iframeSrcDoc || '')}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -708,8 +779,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
-        src={iframeMode === 'proxy' ? `/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}` : undefined}
+        src={shouldUseWebpageIframeSrc ? webpageIframeSrc : undefined}
+        srcDoc={shouldUseWebpageIframeSrc ? undefined : (iframeSrcDoc || '')}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -748,8 +819,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        srcDoc={iframeMode === 'srcdoc' ? iframeSrcDoc || '' : undefined}
-        src={iframeMode === 'proxy' ? `/__webpage_proxy?url=${encodeURIComponent(String(webpageMeta?.url || ''))}` : undefined}
+        src={shouldUseWebpageIframeSrc ? webpageIframeSrc : undefined}
+        srcDoc={shouldUseWebpageIframeSrc ? undefined : (iframeSrcDoc || '')}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"

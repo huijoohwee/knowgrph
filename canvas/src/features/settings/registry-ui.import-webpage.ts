@@ -24,7 +24,7 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
       ),
     docKey: 'webpageImportView',
     default: () => 'markdown',
-    options: ['markdown', 'json', 'html'],
+    options: ['markdown', 'html', 'json'],
   },
   {
     key: 'webpageArtifactFidelityMaxLevel',

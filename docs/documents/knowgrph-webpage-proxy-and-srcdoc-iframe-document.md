@@ -13,6 +13,11 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 - **Editor**: shows an editable Markdown SSOT; JSON may be shown as a read-only text override.
 - **Viewer / Presentation / Slides Gallery**: render either Markdown (view = `markdown`) or a sandboxed iframe (view ∈ {json, html}).
 
+## Editor Loading Invariants
+
+- **Async Monaco init must not blank the buffer**: Monaco loads lazily; the initial model value must always be the latest `value` prop at the moment the editor is created (not a stale first-render snapshot). This prevents an “empty editor” when a large imported file hydrates after Monaco init starts, or when `kgWebpageView` toggles change the editor URI.
+- **Webpage view switching must not write from stale editor state**: `kgWebpageView` switches must hydrate from disk (or last-loaded text) before writing, and must clear any HTML/JSON overrides immediately when switching back to Markdown.
+
 ## Frontmatter Contract (per imported page)
 
 - `kgWebpageUrl`: source URL
@@ -22,12 +27,6 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 - `kgWebsiteOutputDirRel`: optional artifact root override
 
 ## Endpoints (dev server middleware)
-
-### `POST /__webpage_convert?url=...`
-
-- Returns conversion JSON including `markdown` (and optional structured fields like `title`).
-- Used for **graph alignment** (Document Structure parsing derives nodes/edges from Markdown).
-- Conversion is **static HTML fetch → Python convert** (no headless browser dependency). If the result looks incomplete (e.g. JS-rendered/accordion content is missing), the client may upgrade fidelity via the browser-native DOM export path.
 
 ### `GET /__webpage_proxy?url=...`
 
@@ -47,10 +46,8 @@ Additionally, the injected layer exposes a **DOM export bridge** (see `kg-export
 ### `POST /__website_import/import-url`
 
 - Persists per-URL artifacts to `.knowgrph-workspace/...`:
-  - `raw.html`
-  - `page.md`
-  - `conversion.json`
-  - Webpage Markdown artifacts are generated client-side from Markdown signals and stored in the workspace markdown file.
+  - `raw.html` (guaranteed)
+- `page.md` and `conversion.json` may exist for some imports; when present they are served via `/__website_import/artifact`, otherwise the client falls back to on-demand conversion.
 
 ### `GET /__website_import/artifact?importId=...&nodeId=...&kind=...`
 
@@ -73,29 +70,22 @@ Additionally, the injected layer exposes a **DOM export bridge** (see `kg-export
 
 ## `srcdoc` Rendering Rules
 
-Webpage HTML view supports **two** sandboxed iframe strategies, chosen per document and per available artifacts:
+Webpage HTML/JSON view renders via a sandboxed iframe, using either:
 
-### Strategy A: Proxy `src` (highest fidelity)
+- **Proxy-src (highest fidelity)**: `src="/__webpage_proxy?url=..."` (HTML view, non-website-import).
+- **Sanitized srcdoc snapshot**: `srcDoc="..."` (JSON view, and website-import views; also used for HTML when a safe snapshot is available or preferred).
 
-- The iframe uses `src="/__webpage_proxy?url=..."`.
-- Upstream scripts **can run** (still confined by the iframe sandbox), which preserves rich media, client-side routing, and JS-rendered sections.
-- The injected layer rewrites asset requests to `/__webpage_asset_proxy` to keep asset loading same-origin.
+The srcdoc builder:
 
-### Strategy B: Sanitized `srcdoc` snapshot (editable / stable)
+- strips `Content-Security-Policy` and refresh `<meta http-equiv="...">` tags (avoid self-blocking / auto-redirect)
+- strips all `<script>` tags and inline `on*=` handlers (untrusted scripts do not execute)
+- upserts a sandbox CSP meta allowing images/media/styles while restricting scripts to injected utilities
+- injects scroll-sync utilities (iframe ↔ parent via `postMessage`)
+- upserts `<base>` to preserve correct resolution:
+  - If the HTML already contains `/__webpage_proxy` or `/__webpage_asset_proxy`, base is set to `${window.location.origin}/`.
+  - Otherwise base is set to the original URL.
 
-- The iframe uses `srcDoc=...` built from either:
-  - website-import `raw.html` artifact when available, else
-  - a one-time fetch from `GET /__webpage_proxy?url=...`.
-- The `srcdoc` builder:
-  - strips `Content-Security-Policy` and refresh `<meta http-equiv="...">` tags (avoid self-blocking / auto-redirect)
-  - strips all `<script>` tags and inline `on*=` handlers (untrusted scripts do not execute)
-  - upserts a sandbox CSP meta allowing images/media/styles while restricting scripts to injected utilities
-  - injects scroll-sync utilities (iframe ↔ parent via `postMessage`)
-  - upserts `<base>` to preserve correct resolution:
-    - If the HTML already contains `/__webpage_proxy` or `/__webpage_asset_proxy`, base is set to `${window.location.origin}/`.
-    - Otherwise base is set to the original URL.
-
-The host chooses between Strategy A and B based on whether it has a safe, non-clipped HTML snapshot available (for example from website-import artifacts or an editor override).
+This policy prioritizes safety and determinism. For JS-rendered content capture, use the DOM export bridge (`kg-export-dom`) to extract a rendered snapshot and then upgrade the saved Markdown.
 
 ## DOM Export Bridge (`kg-export-dom`)
 
@@ -119,7 +109,7 @@ It replies with:
 This bridge powers two native (no headless browser) fidelity upgrades:
 
 - **Convert HTML → Markdown** from the viewer surface by exporting DOM text/HTML.
-- **Import URL fallback** when `/__webpage_convert` yields low-quality Markdown for JS-rendered pages.
+- **Import URL fallback** when the initial conversion yields low-quality Markdown for JS-rendered pages.
 
 ## Iframe Sandbox Policy
 
@@ -143,7 +133,7 @@ Additionally, the website import root folder includes a generated `website.sitem
 
 - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
 - `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code (iframe `srcdoc`).
-- `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML (iframe `srcdoc`).
+- `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML (proxy-src by default; sanitized `srcdoc` snapshot when available or preferred).
 
 ## Shared Signal Tokens (Mode-Independent)
 
@@ -166,6 +156,12 @@ The Markdown artifact uses *generic extracted signals* plus optional extracted d
 - Header navigation must be derived from `[NAV]`/`[LINK]` intent plus optional `## Extracted Navigation Menus` blocks.
 - Hero block must be derived from the main H1 + nearby summary paragraph + a first inline command (e.g. `$ npx ...`) + nearby CTAs.
 - Section details must be derived from counts over the section body (paragraphs, links, media, price tokens, timecodes).
+
+### Generic HTML Extraction Heuristics
+
+- Navigation/header roots may not use semantic `<header>/<nav>` tags. Prefer elements marked by `role="navigation"`, `aria-label` containing `navigation/menu`, or menu-like containers with multiple links/buttons.
+- Main content text may be nested in generic containers without `<p>/<h*>` tags. Extract leaf text blocks from containers when they do not contain known block descendants, while excluding `<script>/<style>` contents.
+- Header image should prefer social preview metadata (`og:image` / `twitter:image`) when present; otherwise fall back to first meaningful content image.
 
 ### Optional Extracted Blocks (Preferred When Present)
 

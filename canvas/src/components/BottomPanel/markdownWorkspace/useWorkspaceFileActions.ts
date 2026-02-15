@@ -11,7 +11,6 @@ import {
   importWorkspaceLocalFolder,
   importWorkspaceUrl,
   fetchWorkspaceUrlContent,
-  buildWebpageWorkspaceEntryTextFromUpstreamMarkdown,
 } from './workspaceImport'
 import {
   bulkSetWorkspaceEntrySources,
@@ -24,8 +23,8 @@ import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY, WORKSPACE_ENTRY_
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
 import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
+import { safeWebsitePathSegment } from '@/lib/websites/websitePathUtils'
 import { mapLimit } from '@/lib/async/mapLimit'
 import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 
@@ -363,11 +362,16 @@ export function useWorkspaceFileActions(args: {
                 return
               }
               if (p.total && p.total > 0) {
-                setStatusProgress(p.phase === 'fetching' ? 'Fetching' : 'Writing', p.current, p.total)
+                const label = p.phase === 'fetching' ? 'Fetching' : 'Writing'
+                if (p.current && p.current > 0) setStatusProgress(label, p.current, p.total)
+                else setStatusProgress(label)
                 useGraphStore.getState().upsertUiToast({
                   id: toastId,
                   kind: 'neutral',
-                  message: `Importing URL: ${p.phase === 'fetching' ? 'Fetching' : 'Writing'} ${p.current}/${p.total}`,
+                  message:
+                    p.current && p.current > 0
+                      ? `Importing URL: ${p.phase === 'fetching' ? 'Fetching' : 'Writing'} ${p.current}/${p.total}`
+                      : `Importing URL: ${p.phase === 'fetching' ? 'Fetching' : 'Writing'}…`,
                   ttlMs: null,
                   dismissible: false,
                   log: false,
@@ -551,24 +555,12 @@ export function useWorkspaceFileActions(args: {
           }
         })()
 
-        const safeSegment = (raw: string): string => {
-          const s = String(raw || '').trim()
-          if (!s) return 'item'
-          const cleaned = s
-            .replace(/\s+/g, '-')
-            .replace(/[^a-zA-Z0-9._-]/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^[-.]+/, '')
-            .replace(/[-.]+$/, '')
-          return cleaned.slice(0, 64) || 'item'
-        }
-
         const ensureFolderPath = async (fs: WorkspaceFs, absPath: string) => {
           const normalized = normalizeWorkspacePath(absPath)
           const segments = normalized.split('/').filter(Boolean)
           let parent = WORKSPACE_ROOT_PATH
           for (const seg of segments) {
-            const name = safeSegment(seg)
+            const name = safeWebsitePathSegment(seg)
             const nextPath = normalizeWorkspacePath(`${parent}/${name}`)
             try {
               await fs.createFolder({ parentPath: parent, name })
@@ -581,7 +573,8 @@ export function useWorkspaceFileActions(args: {
         }
 
         const stubForNode = (nodeUrl: string, nodeId: string) => {
-          const v = defaultView === 'html' || defaultView === 'json' ? defaultView : 'markdown'
+          void defaultView
+          const v = 'html'
           const lines = [
             '---',
             `kgWebpageUrl: "${nodeUrl}"`,
@@ -596,33 +589,13 @@ export function useWorkspaceFileActions(args: {
           return lines.join('\n')
         }
 
-        const buildTextForNode = async (args: { nodeUrl: string; nodeId: string; title?: string; signal: AbortSignal }) => {
-          if (!generateArtifactDocs) return stubForNode(args.nodeUrl, args.nodeId)
-          try {
-            const upstream = await fetchWebsiteImportArtifact({
-              importId,
-              nodeId: args.nodeId,
-              outputDirRel,
-              kind: 'markdown',
-              signal: args.signal,
-            })
-            return buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
-              upstreamMarkdown: upstream,
-              url: args.nodeUrl,
-              view: defaultView === 'html' ? 'html' : defaultView === 'json' ? 'json' : 'markdown',
-              title: args.title,
-              websiteImportMeta: { importId, nodeId: args.nodeId, outputDirRel: outputDirRel || undefined },
-            })
-          } catch {
-            return stubForNode(args.nodeUrl, args.nodeId)
-          }
-        }
+        void generateArtifactDocs
 
         const fs = await getFs()
         await fs.ensureSeed()
 
         const created = await runWorkspaceFsChangedBatch(async () => {
-          const rootFolder = await ensureFolderPath(fs, `/websites/${safeSegment(host)}/${safeSegment(importId)}`)
+          const rootFolder = await ensureFolderPath(fs, `/websites/${safeWebsitePathSegment(host)}/${safeWebsitePathSegment(importId)}`)
           const createdPaths: WorkspacePath[] = []
           const sources: Array<{ path: WorkspacePath; source: { kind: 'url'; url: string; path: string } }> = []
 
@@ -692,13 +665,13 @@ export function useWorkspaceFileActions(args: {
           await mapLimit(
             nodeRows,
             writeConcurrency,
-            async (row, _i, signal) => {
+            async (row) => {
               if (importJobRef.current !== jobId) throw new Error('cancelled')
               const nodePath = (() => {
                 try {
                   const raw = row.nodeTreePath && row.nodeTreePath.trim() ? row.nodeTreePath : new URL(row.nodeUrl).pathname
                   const parts = String(raw || '').split('/').filter(Boolean)
-                  return parts.map(safeSegment)
+                  return parts.map(safeWebsitePathSegment)
                 } catch {
                   return []
                 }
@@ -710,7 +683,7 @@ export function useWorkspaceFileActions(args: {
               const base = leaf || 'index'
               const nameBase = base.endsWith('.md') ? base.replace(/\.md$/i, '') : base
               const primaryName = `${nameBase}.md`
-              const text = await buildTextForNode({ nodeUrl: row.nodeUrl, nodeId: row.nodeId, title: row.nodeTitle, signal: signal || ctrl.signal })
+              const text = stubForNode(row.nodeUrl, row.nodeId)
 
               const tryCreate = async (name: string) => {
                 const createdPath = await fs.createFile({ parentPath: folderPath, name, text })

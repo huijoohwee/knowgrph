@@ -1,30 +1,11 @@
 import { normalizeInline, stripWww, truncate } from './webpageMarkdownArtifactUtils'
+import { hostFromUrl, safeWebsitePathSegment } from './websitePathUtils'
 
 export type WebsiteSitemapNode = {
   nodeId: string
   url: string
   path: string
   title?: string | null
-}
-
-const safeSegment = (raw: string): string => {
-  const s = String(raw || '').trim()
-  if (!s) return 'item'
-  const cleaned = s
-    .replace(/\s+/g, '-')
-    .replace(/[^a-zA-Z0-9._-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^[-.]+/, '')
-    .replace(/[-.]+$/, '')
-  return cleaned.slice(0, 64) || 'item'
-}
-
-const hostFromUrl = (url: string): string => {
-  try {
-    return new URL(url).host
-  } catch {
-    return ''
-  }
 }
 
 type TreeNode = {
@@ -65,7 +46,7 @@ export function buildWebsiteSitemapTreeAscii(args: {
             return []
           }
         })()
-    const segs = parts.length ? parts.map(safeSegment) : ['index']
+    const segs = parts.length ? parts.map(safeWebsitePathSegment) : ['index']
     let cur = root
     for (const seg of segs) cur = ensureChild(cur, seg)
     cur.leafCount += 1
@@ -136,7 +117,7 @@ export function buildWebsiteSitemapMarkdown(args: {
 
   doc.push('---')
   doc.push('')
-  doc.push('## 🗂️ Tree')
+  doc.push('## Tree')
   doc.push('')
   doc.push('```')
   doc.push(
@@ -152,7 +133,7 @@ export function buildWebsiteSitemapMarkdown(args: {
 
   doc.push('---')
   doc.push('')
-  doc.push('## 🧭 Pages')
+  doc.push('## Pages')
   doc.push('')
   doc.push('| Path | Title | URL |')
   doc.push('|------|-------|-----|')
@@ -165,4 +146,3 @@ export function buildWebsiteSitemapMarkdown(args: {
 
   return doc.join('\n')
 }
-

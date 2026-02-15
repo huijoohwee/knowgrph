@@ -1,6 +1,7 @@
 import { unwrapUserProvidedText } from '@/lib/url'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { buildPdfConvertQueryParamsFromStore } from '@/lib/pdf/pdfImportClientPrefs'
+import { convertWebpageUrlToMarkdownViaBrowser } from '@/lib/websites/webpageClientConvert'
 
 export type RemoteMarkdownConversionOk = {
   ok: true
@@ -140,33 +141,21 @@ export async function fetchWebpageMarkdown(
   const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
   if (!cleaned) return null
   try {
-    const qs = new URLSearchParams({ url: cleaned })
-    if (opts?.emit === 'json') qs.set('emit', 'json')
-    if (opts?.includeImages === false) qs.set('includeImages', 'false')
-    const res = await fetch(`/__webpage_convert?${qs.toString()}`, {
-      method: 'POST',
-      headers: { Accept: 'application/json' },
-      signal: opts?.signal,
-    })
-    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown; title?: unknown; source_url?: unknown; images?: unknown }
-    if (json && json.ok === true && typeof json.markdown === 'string') {
-      const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : 'webpage.md'
-      const conversionJsonText =
-        opts?.emit === 'json'
-          ? (() => {
-              try {
-                return JSON.stringify(json, null, 2)
-              } catch {
-                return undefined
-              }
-            })()
-          : undefined
-      return { ok: true as const, name, markdown: json.markdown, conversionJsonText }
-    }
-    const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
-    if (err) return { ok: false as const, error: err }
-    if (!res.ok) return { ok: false as const, error: `HTTP ${res.status}` }
-    return { ok: false as const, error: 'Webpage conversion failed' }
+    void opts
+    const res = await convertWebpageUrlToMarkdownViaBrowser({ url: cleaned })
+    if (res.ok !== true) return { ok: false as const, error: res.error }
+    const name = 'webpage.md'
+    const conversionJsonText =
+      opts?.emit === 'json'
+        ? (() => {
+            try {
+              return JSON.stringify({ ok: true, name, markdown: res.markdown, title: res.title, source_url: cleaned, images: [] }, null, 2)
+            } catch {
+              return undefined
+            }
+          })()
+        : undefined
+    return { ok: true as const, name, markdown: res.markdown, conversionJsonText }
   } catch {
     return null
   }

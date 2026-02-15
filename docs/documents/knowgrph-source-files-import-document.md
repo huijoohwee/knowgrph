@@ -136,7 +136,7 @@ sequenceDiagram
 
 ### Webpage Import (URL → Markdown Parse + Optional HTML Viewer Render)
 
-**From/To**: Source Files / Workspace Import URL → `/__webpage_convert` (Python parser; static HTML fetch) → Markdown → Graph parse; Viewer/Presentation optionally → `/__webpage_proxy` (same-origin iframe proxy) → sandboxed HTML render.
+**From/To**: Source Files / Workspace Import URL → browser-native webpage conversion (hidden sandboxed iframe DOM export + proxy-fetch fallback) → Markdown → Graph parse; Viewer/Presentation optionally → `/__webpage_proxy` (same-origin iframe proxy) → sandboxed HTML render.
 
 **Decision Logic**:
 - **Graph Alignment**: Webpages convert to Markdown for Document Structure parsing, preserving graph/content sync across touchpoints.
@@ -163,7 +163,7 @@ sequenceDiagram
 
 **Native fidelity upgrade (no headless browser)**:
 
-- If `/__webpage_convert` produces low-quality Markdown (typical for JS-rendered/accordion pages), the client may upgrade the conversion using a **hidden sandboxed iframe** pointed at `/__webpage_proxy` and the `kg-export-dom` bridge to export rendered DOM text/HTML, then convert to Markdown.
+- If the initial conversion produces low-quality Markdown (typical for JS-rendered/accordion pages), the client may upgrade the conversion using a **hidden sandboxed iframe** pointed at `/__webpage_proxy` and the `kg-export-dom` bridge to export rendered DOM text/HTML, then convert to Markdown.
 - This path is domain-neutral and does not require external headless browser dependencies.
 
 ### Website Import (Sitemap/Tree → Workspace Pages + Artifact-Backed View Switching)

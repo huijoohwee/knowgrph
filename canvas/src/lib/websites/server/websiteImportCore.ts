@@ -1,10 +1,4 @@
-import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { spawn } from 'node:child_process'
-
-export type WebpageConvertPayload =
-  | { ok: true; markdown: string; name: string; title: string; source_url: string; images: string[] }
-  | { ok: false; error: string }
 
 export const safeJsonParse = <T,>(raw: string): T | null => {
   try {
@@ -65,102 +59,6 @@ export const urlToTreePath = (urlRaw: string): string => {
   } catch {
     return '/'
   }
-}
-
-const withRepoPythonPath = (repoRoot: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
-  const current = String(env.PYTHONPATH || '').trim()
-  const next = current ? `${repoRoot}${path.delimiter}${current}` : repoRoot
-  return { ...env, PYTHONPATH: next }
-}
-
-export const runWebpageConvert = (args: { repoRoot: string; pythonBin: string; url: string; includeImages: boolean; htmlPath?: string | null }): Promise<WebpageConvertPayload> => {
-  return new Promise((resolve) => {
-    const timeoutMs = (() => {
-      const raw = Number(process.env.KG_WEBPAGE_CONVERT_TIMEOUT_MS || '')
-      const fallback = 60_000
-      const min = 10_000
-      const max = 300_000
-      if (!Number.isFinite(raw)) return fallback
-      return Math.min(max, Math.max(min, Math.floor(raw)))
-    })()
-    const cliArgs = ['-m', 'knowgrph_parser', 'webpage', '--emit', 'json', '--url', args.url]
-    if (args.htmlPath) {
-      cliArgs.push('--html-path', args.htmlPath)
-    }
-    if (!args.includeImages) cliArgs.push('--no-images')
-
-    const child = spawn(args.pythonBin, cliArgs, {
-      cwd: args.repoRoot,
-      env: withRepoPythonPath(args.repoRoot, process.env),
-      timeout: timeoutMs,
-    })
-    let stdout = ''
-    let stderr = ''
-    let exited = false
-
-    const cleanup = () => {
-      if (exited) return
-      try {
-        child.kill()
-      } catch {
-        void 0
-      }
-      exited = true
-    }
-
-    const timer = setTimeout(() => {
-      cleanup()
-      resolve({ ok: false, error: `Webpage conversion timed out after ${timeoutMs}ms` })
-    }, timeoutMs)
-
-    child.stdout?.setEncoding('utf8')
-    child.stdout?.on('data', (chunk) => {
-      stdout += String(chunk || '')
-    })
-    child.stderr?.setEncoding('utf8')
-    child.stderr?.on('data', (chunk) => {
-      stderr += String(chunk || '')
-    })
-
-    child.on('error', (err) => {
-      clearTimeout(timer)
-      if (exited) return
-      exited = true
-      resolve({ ok: false, error: err.message || 'Webpage conversion process error' })
-    })
-
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      if (exited) return
-      exited = true
-
-      const out = stdout.trim()
-      if (code !== 0) {
-        const parsed = safeJsonParse<Record<string, unknown>>(out)
-        const candidate = parsed && parsed.ok === false && typeof parsed.error === 'string' ? parsed.error.trim() : ''
-        const msg = candidate || stderr.trim() || out || `Webpage conversion failed (exit ${code ?? 'unknown'})`
-        resolve({ ok: false, error: msg })
-        return
-      }
-
-      if (!out) {
-        resolve({ ok: false, error: 'Webpage conversion returned empty output' })
-        return
-      }
-      const parsed = safeJsonParse<Record<string, unknown>>(out)
-      if (!parsed || parsed.ok !== true) {
-        const candidate = parsed && typeof parsed.error === 'string' ? parsed.error.trim() : ''
-        resolve({ ok: false, error: candidate || 'Webpage conversion JSON parse error' })
-        return
-      }
-      const markdown = typeof parsed.markdown === 'string' ? parsed.markdown : ''
-      const name = typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.trim() : 'webpage.md'
-      const title = typeof parsed.title === 'string' ? parsed.title : ''
-      const source_url = typeof parsed.source_url === 'string' ? parsed.source_url : ''
-      const images = Array.isArray(parsed.images) ? parsed.images.map(String) : []
-      resolve({ ok: true, markdown, name, title, source_url, images })
-    })
-  })
 }
 
 export const fetchTextWithLimit = async (url: string, opts: { timeoutMs: number; maxBytes: number; accept?: string }): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
