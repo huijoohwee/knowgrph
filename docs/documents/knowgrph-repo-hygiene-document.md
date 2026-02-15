@@ -15,6 +15,24 @@ Keep the repository fast to clone/pull/push by preventing large local artifacts 
 - `knowgrph/.gitignore` must include `.knowgrph-workspace` and `.knowgrph-workspace/`.
 - `sandbox/.gitignore` must include `.knowgrph-workspace` and `.knowgrph-workspace/`.
 
+## Cross-Repo Policy
+
+Apply the same “no large local artifacts in git history” rule to these repos:
+
+- `/GitHub/knowgrph`
+- `/GitHub/curagrph`
+- `/GitHub/gympgrph`
+- `/GitHub/chatgrph`
+- `/GitHub/sandbox`
+
+Common paths to exclude from history (when they accidentally get committed):
+
+- `node_modules/**`
+- `backups/**`
+- `git-error-*`
+- `.DS_Store`
+- `.knowgrph-workspace/**`
+
 ## When To Purge History
 
 Purge history when any of the following are true:
@@ -77,5 +95,5 @@ git push --force-with-lease --tags
 
 - Never commit: `.knowgrph-workspace/**`.
 - Never commit: generated preview outputs under `data/` unless explicitly needed and bounded.
-- Prefer storing large fixtures under `/GitHub/sandbox/test-data/`.
-
+- Never commit: `node_modules/**` or ad-hoc backup bundles under `backups/**`.
+- Prefer storing large fixtures under `/GitHub/sandbox/test-data/` as local-only files (ignored); keep only small sample fixtures in git.
