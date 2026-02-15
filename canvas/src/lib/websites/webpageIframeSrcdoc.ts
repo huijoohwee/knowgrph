@@ -30,19 +30,19 @@ const escapeHtml = (raw: string): string =>
 
 const stripCspMeta = (html: string): string => {
   const raw = String(html || '')
-  if (!raw.toLowerCase().includes('content-security-policy')) return raw
+  if (!/content-security-policy/i.test(raw)) return raw
   return raw.replace(/<meta\s+[^>]*http-equiv\s*=\s*("|')?content-security-policy\1?[^>]*>/gi, '')
 }
 
 const stripRefreshMeta = (html: string): string => {
   const raw = String(html || '')
-  if (!raw.toLowerCase().includes('http-equiv')) return raw
+  if (!/http-equiv/i.test(raw)) return raw
   return raw.replace(/<meta\s+[^>]*http-equiv\s*=\s*("|')?refresh\1?[^>]*>/gi, '')
 }
 
 const stripScriptTags = (html: string): string => {
   const raw = String(html || '')
-  if (!raw.toLowerCase().includes('<script')) return raw
+  if (!/<script\b/i.test(raw)) return raw
   return raw.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
 }
 
@@ -57,19 +57,18 @@ const upsertSandboxCspMeta = (html: string, csp: string): string => {
   const content = String(csp || '').trim()
   if (!content) return raw
   const injection = `<meta http-equiv="Content-Security-Policy" content="${escapeHtml(content)}">`
-  const lower = raw.toLowerCase()
-  if (lower.includes('http-equiv') && lower.includes('content-security-policy')) {
+  if (/http-equiv\s*=\s*("|')?content-security-policy\1?/i.test(raw)) {
     return raw.replace(/<meta\s+[^>]*http-equiv\s*=\s*("|')?content-security-policy\1?[^>]*>/i, injection)
   }
-  const headOpen = lower.indexOf('<head')
-  if (headOpen >= 0) {
-    const headEnd = lower.indexOf('>', headOpen)
-    if (headEnd >= 0) return `${raw.slice(0, headEnd + 1)}\n${injection}\n${raw.slice(headEnd + 1)}`
+  const headMatch = /<head\b[^>]*>/i.exec(raw)
+  if (headMatch && typeof headMatch.index === 'number') {
+    const end = headMatch.index + headMatch[0].length
+    return `${raw.slice(0, end)}\n${injection}\n${raw.slice(end)}`
   }
-  const htmlOpen = lower.indexOf('<html')
-  if (htmlOpen >= 0) {
-    const htmlEnd = lower.indexOf('>', htmlOpen)
-    if (htmlEnd >= 0) return `${raw.slice(0, htmlEnd + 1)}\n<head>\n${injection}\n</head>\n${raw.slice(htmlEnd + 1)}`
+  const htmlMatch = /<html\b[^>]*>/i.exec(raw)
+  if (htmlMatch && typeof htmlMatch.index === 'number') {
+    const end = htmlMatch.index + htmlMatch[0].length
+    return `${raw.slice(0, end)}\n<head>\n${injection}\n</head>\n${raw.slice(end)}`
   }
   return `<!doctype html><html><head>\n${injection}\n</head><body>\n${raw}\n</body></html>`
 }
@@ -78,20 +77,19 @@ const upsertBaseTag = (html: string, baseHref: string): string => {
   const raw = String(html || '')
   const href = String(baseHref || '').trim()
   if (!href) return raw
-  const lower = raw.toLowerCase()
   const injection = `<base href="${escapeHtml(href)}">`
-  if (lower.includes('<base')) {
+  if (/<\s*base\b/i.test(raw)) {
     return raw.replace(/<\s*base\b[^>]*>/i, injection)
   }
-  const headOpen = lower.indexOf('<head')
-  if (headOpen >= 0) {
-    const headEnd = lower.indexOf('>', headOpen)
-    if (headEnd >= 0) return `${raw.slice(0, headEnd + 1)}\n${injection}\n${raw.slice(headEnd + 1)}`
+  const headMatch = /<head\b[^>]*>/i.exec(raw)
+  if (headMatch && typeof headMatch.index === 'number') {
+    const end = headMatch.index + headMatch[0].length
+    return `${raw.slice(0, end)}\n${injection}\n${raw.slice(end)}`
   }
-  const htmlOpen = lower.indexOf('<html')
-  if (htmlOpen >= 0) {
-    const htmlEnd = lower.indexOf('>', htmlOpen)
-    if (htmlEnd >= 0) return `${raw.slice(0, htmlEnd + 1)}\n<head>\n${injection}\n</head>\n${raw.slice(htmlEnd + 1)}`
+  const htmlMatch = /<html\b[^>]*>/i.exec(raw)
+  if (htmlMatch && typeof htmlMatch.index === 'number') {
+    const end = htmlMatch.index + htmlMatch[0].length
+    return `${raw.slice(0, end)}\n<head>\n${injection}\n</head>\n${raw.slice(end)}`
   }
   return `<!doctype html><html><head>\n${injection}\n</head><body>\n${raw}\n</body></html>`
 }
@@ -152,18 +150,17 @@ const SCROLL_SYNC_SCRIPT = (() => {
 
 export const injectScrollSync = (html: string): string => {
   const raw = String(html || '')
-  const lower = raw.toLowerCase()
-  if (lower.includes('kg-scroll-sync')) return raw
+  if (raw.includes('kg-scroll-sync')) return raw
   const injection = SCROLL_SYNC_SCRIPT
-  const headOpen = lower.indexOf('<head')
-  if (headOpen >= 0) {
-    const headEnd = lower.indexOf('>', headOpen)
-    if (headEnd >= 0) return `${raw.slice(0, headEnd + 1)}\n${injection}\n${raw.slice(headEnd + 1)}`
+  const headMatch = /<head\b[^>]*>/i.exec(raw)
+  if (headMatch && typeof headMatch.index === 'number') {
+    const end = headMatch.index + headMatch[0].length
+    return `${raw.slice(0, end)}\n${injection}\n${raw.slice(end)}`
   }
-  const htmlOpen = lower.indexOf('<html')
-  if (htmlOpen >= 0) {
-    const htmlEnd = lower.indexOf('>', htmlOpen)
-    if (htmlEnd >= 0) return `${raw.slice(0, htmlEnd + 1)}\n<head>\n${injection}\n</head>\n${raw.slice(htmlEnd + 1)}`
+  const htmlMatch = /<html\b[^>]*>/i.exec(raw)
+  if (htmlMatch && typeof htmlMatch.index === 'number') {
+    const end = htmlMatch.index + htmlMatch[0].length
+    return `${raw.slice(0, end)}\n<head>\n${injection}\n</head>\n${raw.slice(end)}`
   }
   return `<!doctype html><html><head>\n${injection}\n</head><body>\n${raw}\n</body></html>`
 }

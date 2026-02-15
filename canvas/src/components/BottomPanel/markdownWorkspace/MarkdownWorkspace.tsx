@@ -1551,34 +1551,38 @@ export function MarkdownWorkspace() {
               return false
             })()
 
-            const geoGraph = (() => {
-              if (!isGeoCandidate) return null
-              try {
-                const fc = parseGeoJsonFromText(nextText)
-                const normalized = coerceGeoJsonToFeatureCollection(fc)
-                return buildGraphDataFromFeatureCollection({
-                  featureCollection: normalized,
-                  sourcePath: path,
-                  sourceHash: hash,
-                })
-              } catch {
-                void 0
-              }
-              try {
-                const parsed = JSON.parse(nextText) as unknown
-                const records = Array.isArray(parsed) ? parsed : null
-                if (!records) return null
-                const fc = recordsToPointFeatureCollection(records)
-                const normalized = coerceGeoJsonToFeatureCollection(fc)
-                return buildGraphDataFromFeatureCollection({
-                  featureCollection: normalized,
-                  sourcePath: path,
-                  sourceHash: hash,
-                })
-              } catch {
-                return null
-              }
-            })()
+            const geoGraph = isGeoCandidate
+              ? await runInIdle(
+                  () => {
+                    try {
+                      const fc = parseGeoJsonFromText(nextText)
+                      const normalized = coerceGeoJsonToFeatureCollection(fc)
+                      return buildGraphDataFromFeatureCollection({
+                        featureCollection: normalized,
+                        sourcePath: path,
+                        sourceHash: hash,
+                      })
+                    } catch {
+                      void 0
+                    }
+                    try {
+                      const parsed = JSON.parse(nextText) as unknown
+                      const records = Array.isArray(parsed) ? parsed : null
+                      if (!records) return null
+                      const fc = recordsToPointFeatureCollection(records)
+                      const normalized = coerceGeoJsonToFeatureCollection(fc)
+                      return buildGraphDataFromFeatureCollection({
+                        featureCollection: normalized,
+                        sourcePath: path,
+                        sourceHash: hash,
+                      })
+                    } catch {
+                      return null
+                    }
+                  },
+                  { timeoutMs: 650 },
+                )
+              : null
 
             if (geoGraph) {
               try {
@@ -2391,7 +2395,7 @@ export function MarkdownWorkspace() {
           markdownTextHighlight={markdownTextHighlight}
           setMarkdownTextHighlight={setMarkdownTextHighlight}
           statusLabel={statusLabel}
-          onStatusProgress={(label) => setStatusProgress(label)}
+          onStatusProgress={setStatusProgress}
           onStatusWithAutoClear={(label, ttlMs) => setStatusWithAutoClear(label, ttlMs)}
           onApply={() => void handleApply()}
           onSave={() => void saveActiveFileNow()}

@@ -43,7 +43,7 @@ export type MarkdownWorkspaceMainProps = {
   setMarkdownTextHighlight: (next: boolean) => void
 
   statusLabel: MarkdownWorkspaceStatus
-  onStatusProgress?: (label: string) => void
+  onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
   onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
   onApply: () => void
   onSave?: () => void
@@ -216,22 +216,26 @@ function useWebpageIframeSrcdoc(args: {
   view: 'html' | 'json'
   websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string } | null
   htmlOverride?: string | null
-  onStatusProgress?: (label: string) => void
+  onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
   onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
-}): { srcDoc: string | null; error: string | null } {
-  const [state, setState] = React.useState<{ srcDoc: string | null; error: string | null }>({ srcDoc: null, error: null })
+}): { srcDoc: string | null; src: string | null; error: string | null } {
+  const [state, setState] = React.useState<{ srcDoc: string | null; src: string | null; error: string | null }>({
+    srcDoc: null,
+    src: null,
+    error: null,
+  })
 
-  const debouncedUrl = useDebouncedValue(args.url, 350, args.enabled)
-  const debouncedHtmlOverride = useDebouncedValue(args.htmlOverride ?? null, 650, args.enabled)
+  const debouncedUrl = useDebouncedValue(args.url, 120, args.enabled)
+  const debouncedHtmlOverride = useDebouncedValue(args.htmlOverride ?? null, 250, args.enabled)
 
   React.useEffect(() => {
     if (!args.enabled) {
-      setState({ srcDoc: null, error: null })
+      setState({ srcDoc: null, src: null, error: null })
       return
     }
     const url = String(debouncedUrl || '').trim()
     if (!url) {
-      setState({ srcDoc: null, error: null })
+      setState({ srcDoc: null, src: null, error: null })
       return
     }
 
@@ -276,12 +280,17 @@ function useWebpageIframeSrcdoc(args: {
           } catch {
             return t
           }
-        }, { timeoutMs: 350 })
-        return buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'json', text: pretty })
+        }, { timeoutMs: 50 })
+        return { mode: 'srcdoc' as const, value: buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'json', text: pretty }) }
+      }
+
+      const override = typeof debouncedHtmlOverride === 'string' && debouncedHtmlOverride.trim() ? debouncedHtmlOverride : null
+      if (!override && !args.websiteImportMeta) {
+        args.onStatusProgress?.('Loading HTML')
+        return { mode: 'src' as const, value: `/__webpage_proxy?url=${encodeURIComponent(url)}` }
       }
 
       args.onStatusProgress?.('Loading HTML')
-      const override = typeof debouncedHtmlOverride === 'string' && debouncedHtmlOverride.trim() ? debouncedHtmlOverride : null
       const rawHtml = await (async () => {
         if (override) return override
         if (args.websiteImportMeta) {
@@ -301,21 +310,32 @@ function useWebpageIframeSrcdoc(args: {
       })()
 
       args.onStatusProgress?.('Rendering HTML')
-      return await runInIdle(
+      const built = await runInIdle(
         () => buildWebpageHtmlSrcdoc({ html: rawHtml, baseHref: url, scriptPolicy: 'allow' }),
-        { timeoutMs: 650 },
+        { timeoutMs: 50 },
       )
+      return { mode: 'srcdoc' as const, value: built }
     })()
-      .then((srcDoc) => {
+      .then((res) => {
         if (cancelled) return
-        setState(prev => (prev.srcDoc === srcDoc && prev.error === null ? prev : { srcDoc, error: null }))
+        if (res.mode === 'src') {
+          const src = res.value
+          setState(prev => (prev.src === src && prev.srcDoc === null && prev.error === null ? prev : { srcDoc: null, src, error: null }))
+        } else {
+          const srcDoc = res.value
+          setState(prev => (prev.srcDoc === srcDoc && prev.src === null && prev.error === null ? prev : { srcDoc, src: null, error: null }))
+        }
         args.onStatusWithAutoClear?.('Updated', 1200)
       })
       .catch((err) => {
         if (cancelled) return
         const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
         const fallback = buildCodeViewerSrcdoc({ baseHref: url, title: url, mode: 'text', text: msg || 'Request failed' })
-        setState(prev => (prev.srcDoc === fallback && prev.error === (msg || 'Request failed') ? prev : { srcDoc: fallback, error: msg || 'Request failed' }))
+        setState(prev => (
+          prev.srcDoc === fallback && prev.src === null && prev.error === (msg || 'Request failed')
+            ? prev
+            : { srcDoc: fallback, src: null, error: msg || 'Request failed' }
+        ))
       })
 
     return () => {
@@ -428,17 +448,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     webpageMeta.url
   )
 
-  const webpageIframeSrc = React.useMemo(() => {
-    if (!showWebpageHtml) return ''
-    if (webpageMeta?.view !== 'html') return ''
-    if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) return ''
-    const u = String(webpageMeta.url || '').trim()
-    if (!u) return ''
-    return `/__webpage_proxy?url=${encodeURIComponent(u)}`
-  }, [showWebpageHtml, webpageMeta?.url, webpageMeta?.view, websiteImportMeta?.importId, websiteImportMeta?.nodeId])
-
-  const shouldUseWebpageIframeSrc = !!webpageIframeSrc
-
   const needsMarkdownViewerText = !showWebpageHtml && layoutMode !== 'editor'
   const viewerTextRaw = needsMarkdownViewerText ? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText) : ''
   const viewerText = React.useMemo(
@@ -472,8 +481,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [onWebpageIframeEl])
 
-  const { srcDoc: iframeSrcDoc } = useWebpageIframeSrcdoc({
-    enabled: showWebpageHtml && !shouldUseWebpageIframeSrc,
+  const { srcDoc: iframeSrcDoc, src: iframeSrc } = useWebpageIframeSrcdoc({
+    enabled: showWebpageHtml,
     url: String(webpageMeta?.url || ''),
     view: webpageMeta?.view === 'json' ? 'json' : 'html',
     websiteImportMeta: websiteImportMeta && websiteImportMeta.importId && websiteImportMeta.nodeId ? websiteImportMeta : null,
@@ -484,35 +493,85 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   React.useEffect(() => {
     if (!showWebpageHtml) return
-    if (!shouldUseWebpageIframeSrc) return
-    if (webpageMeta?.view !== 'html') return
+    if (!iframeSrc) return
     const iframe = iframeRef.current
     if (!iframe) return
-    onStatusProgress?.('Loading HTML')
-    let lastPending = -1
-    let loadedOnce = false
+    const win = iframe.contentWindow
+    if (!win) return
+
+    let cancelled = false
+    let lastPending = 0
+    let lastPendingAtMs = 0
+    let lastLoadedAtMs = 0
+    let idleTimer: number | null = null
+    let lastUiAtMs = 0
+    let lastUiPending = -1
+
+    const scheduleIdleCheck = () => {
+      if (idleTimer != null) window.clearTimeout(idleTimer)
+      idleTimer = window.setTimeout(() => {
+        if (cancelled) return
+        const now = Date.now()
+        const settledSinceMs = Math.max(lastPendingAtMs, lastLoadedAtMs)
+        const idleOk = lastPending <= 0 && settledSinceMs > 0 && now - settledSinceMs >= 450
+        if (!idleOk) {
+          scheduleIdleCheck()
+          return
+        }
+        try {
+          onStatusWithAutoClear?.('Loaded', 900)
+        } catch {
+          void 0
+        }
+      }, 220)
+    }
+
     const onMessage = (e: MessageEvent) => {
-      if (e.source !== iframe.contentWindow) return
-      const raw = e?.data as unknown
-      if (!raw || typeof raw !== 'object') return
-      const d = raw as Record<string, unknown>
-      if (d.kind !== 'kg-webpage-net') return
-      const pendingRaw = d.pending
-      const pending = typeof pendingRaw === 'number' ? Math.max(0, Math.floor(pendingRaw)) : 0
-      if (pending === lastPending) return
+      if (cancelled) return
+      if (e.source !== win) return
+      const d = e.data as unknown
+      if (!d || typeof d !== 'object') return
+      const rec = d as { kind?: unknown; pending?: unknown }
+      if (rec.kind !== 'kg-webpage-net') return
+      const pending = typeof rec.pending === 'number' && Number.isFinite(rec.pending) ? Math.max(0, Math.floor(rec.pending)) : 0
       lastPending = pending
-      if (pending > 0) {
-        loadedOnce = true
-        onStatusProgress?.(`Loading HTML (${pending})`)
-        return
+      lastPendingAtMs = Date.now()
+      const now = Date.now()
+      const shouldUpdateUi = pending !== lastUiPending && now - lastUiAtMs >= 160
+      if (shouldUpdateUi) {
+        lastUiAtMs = now
+        lastUiPending = pending
+        try {
+          if (pending > 0) onStatusProgress?.(`Loading HTML (${pending} requests)`, null, null)
+          else onStatusProgress?.('Loading HTML')
+        } catch {
+          void 0
+        }
       }
-      if (loadedOnce) onStatusWithAutoClear?.('Loaded', 1200)
+      scheduleIdleCheck()
     }
+
+    const onLoad = () => {
+      if (cancelled) return
+      lastLoadedAtMs = Date.now()
+      try {
+        onStatusProgress?.('Loading HTML')
+      } catch {
+        void 0
+      }
+      scheduleIdleCheck()
+    }
+
     window.addEventListener('message', onMessage)
+    iframe.addEventListener('load', onLoad)
+    scheduleIdleCheck()
     return () => {
+      cancelled = true
       window.removeEventListener('message', onMessage)
+      iframe.removeEventListener('load', onLoad)
+      if (idleTimer != null) window.clearTimeout(idleTimer)
     }
-  }, [onStatusProgress, onStatusWithAutoClear, showWebpageHtml, shouldUseWebpageIframeSrc, webpageMeta?.view])
+  }, [iframeSrc, onStatusProgress, onStatusWithAutoClear, showWebpageHtml])
 
   const scrollRatioByDocRef = React.useRef<Map<string, number>>(new Map())
   const docKey = String(activeDocumentKey || '')
@@ -739,8 +798,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         className="flex-1 min-h-0 w-full border-0"
         ref={handleIframeRef}
         title={webpageMeta?.url || 'Webpage'}
-        src={shouldUseWebpageIframeSrc ? webpageIframeSrc : undefined}
-        srcDoc={shouldUseWebpageIframeSrc ? undefined : (iframeSrcDoc || '')}
+        src={iframeSrc || undefined}
+        srcDoc={iframeSrc ? undefined : (iframeSrcDoc || '')}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -779,8 +838,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        src={shouldUseWebpageIframeSrc ? webpageIframeSrc : undefined}
-        srcDoc={shouldUseWebpageIframeSrc ? undefined : (iframeSrcDoc || '')}
+        src={iframeSrc || undefined}
+        srcDoc={iframeSrc ? undefined : (iframeSrcDoc || '')}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
@@ -819,8 +878,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <iframe
         className="flex-1 min-h-0 w-full border-0"
         title={webpageMeta?.url || 'Webpage'}
-        src={shouldUseWebpageIframeSrc ? webpageIframeSrc : undefined}
-        srcDoc={shouldUseWebpageIframeSrc ? undefined : (iframeSrcDoc || '')}
+        src={iframeSrc || undefined}
+        srcDoc={iframeSrc ? undefined : (iframeSrcDoc || '')}
         sandbox="allow-scripts"
         loading="lazy"
         allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"

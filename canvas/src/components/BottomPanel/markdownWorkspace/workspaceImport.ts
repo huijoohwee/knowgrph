@@ -11,9 +11,14 @@ import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspa
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
-import { upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { isFrontmatterOnlyDoc, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { buildWebpageMarkdownArtifactDoc, looksLikeWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
+import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
+import { buildLayoutStructureAscii } from '@/lib/websites/webpageMarkdownArtifactAscii'
+import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
+import { convertWebpageHtmlToMarkdownArtifact } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { runInIdle } from '@/features/panels/utils/idle'
 import { parseGitHubRepoUrl } from './githubRepoApi'
 import { importGitHubFolder } from './githubRepoImport'
 
@@ -60,6 +65,46 @@ function coercePdfWorkspaceImportMode(raw: unknown): PdfWorkspaceImportMode {
 
 function yamlQuote(value: string): string {
   return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function ensureWebpageTocLayoutAscii(markdown: string): string {
+  const text = String(markdown || '')
+  if (!text.trim()) return text
+  const lines = text.split(/\r?\n/)
+  const tocHeadingIdx = lines.findIndex(l => /^##\s*(?:📋\s*)?table\s+of\s+contents\s*$/i.test(String(l || '').trim()))
+  if (tocHeadingIdx < 0) return text
+
+  const listIdx = (() => {
+    for (let i = tocHeadingIdx + 1; i < Math.min(lines.length, tocHeadingIdx + 220); i += 1) {
+      const s = String(lines[i] || '')
+      if (/^##\s+/.test(s.trim())) break
+      if (/^\s*\d+\.\s+\[/.test(s)) return i
+    }
+    return -1
+  })()
+  if (listIdx < 0) return text
+
+  for (let i = tocHeadingIdx + 1; i < listIdx; i += 1) {
+    const s = String(lines[i] || '').trim()
+    if (/^(```+|~~~+)/.test(s)) return text
+    if (/GLOBAL\s+NAVIGATION/i.test(s)) return text
+  }
+
+  const insertionIdx = (() => {
+    let i = tocHeadingIdx + 1
+    while (i < listIdx && !String(lines[i] || '').trim()) i += 1
+    return i
+  })()
+
+  const signals = summarizeCategorizedSignalsFromMarkdown(text, { maxLines: 8000, maxPerKind: 12 })
+  const navLabels = signals.nav.map(x => String(x.label || '').replace(/^\[NAV\]\s*/i, '').trim()).filter(Boolean)
+  const ctaLabels = signals.cta.map(x => String(x.label || '').replace(/^\[CTA\]\s*/i, '').trim()).filter(Boolean)
+  const ascii = buildLayoutStructureAscii({ navLabels, ctaLabels })
+  if (!String(ascii || '').trim()) return text
+
+  const injected = ['', '```ascii', ascii, '```', '']
+  const next = [...lines.slice(0, insertionIdx), ...injected, ...lines.slice(insertionIdx)]
+  return next.join('\n')
 }
 
 function buildPdfWorkspaceFrontmatter(args: { docId: string; mode: PdfWorkspaceImportMode; outputDirRel: string }): string {
@@ -353,7 +398,13 @@ export async function importWorkspaceLocalFolder(args: {
   return { createdPaths, sources, skipped, failed }
 }
 
-export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<WorkspaceUrlContent> {
+export async function fetchWorkspaceUrlContent(
+  urlRaw: string,
+  opts?: {
+    mode?: 'import' | 'refresh'
+    onProgress?: (percentage: number) => void
+  },
+): Promise<WorkspaceUrlContent> {
   const rawUrl = unwrapUserProvidedText(String(urlRaw || '').trim()) || String(urlRaw || '').trim()
   if (!rawUrl) throw new Error('Missing URL')
 
@@ -362,7 +413,9 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
 
   const isPdf = /\.pdf(\?|#|$)/i.test(normalizedUrl)
   if (isYouTubeUrl(normalizedUrl)) {
+    opts?.onProgress?.(10)
     const converted = await fetchYouTubeTranscriptMarkdown(normalizedUrl)
+    opts?.onProgress?.(100)
     if (!converted) throw new Error('YouTube import failed')
     if (converted.ok === false) throw new Error(converted.error || 'YouTube import failed')
     return {
@@ -373,7 +426,9 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
   }
 
   if (isPdf) {
+    opts?.onProgress?.(10)
     const converted = await convertPdfUrlToMarkdown(normalizedUrl)
+    opts?.onProgress?.(100)
     if (!converted) throw new Error('PDF import failed')
     if (converted.ok === false) throw new Error(converted.error || 'PDF import failed')
     return {
@@ -388,25 +443,70 @@ export async function fetchWorkspaceUrlContent(urlRaw: string): Promise<Workspac
     const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
     const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
     const name = `${baseNoExt}.md`
-    const includeImages = false
+    const mode = opts?.mode === 'refresh' ? 'refresh' : 'import'
+    if (mode === 'import') {
+      const text = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote('html')}`, '---', ''].join('\n')
+      return { normalizedUrl, name, text }
+    }
+    const ctrl = new AbortController()
+    let progressTimer: number | null = null
     try {
-      const res = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
-      if (res && res.ok === true) {
-        const text = buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
-          upstreamMarkdown: String(res.markdown || ''),
-          url: normalizedUrl,
-          view: 'markdown',
-        })
-        return { normalizedUrl, name: String(res.name || name), text }
-      }
+      let p = 0
+      progressTimer = window.setInterval(() => {
+        if (p < 90) {
+           p += Math.random() * 15
+           if (p > 90) p = 90
+           opts?.onProgress?.(Math.round(p))
+        }
+      }, 300)
+
+      const upstreamMarkdown = await (async () => {
+        try {
+          const includeImages = false
+          const converted = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
+          if (converted && converted.ok === true && typeof converted.markdown === 'string') {
+            return String(converted.markdown || '')
+          }
+        } catch {
+          void 0
+        }
+
+        const rawHtml = await fetchWebpageHtmlAuto({ url: normalizedUrl, signal: ctrl.signal })
+        const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
+        return convertWebpageHtmlToMarkdownArtifact({ html: boundedHtml, url: normalizedUrl })
+      })()
+
+      if (progressTimer) clearInterval(progressTimer)
+      opts?.onProgress?.(95)
+
+      const text = await runInIdle(
+        () =>
+          buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
+            upstreamMarkdown,
+            url: normalizedUrl,
+            view: 'html',
+          }),
+        { timeoutMs: 80 },
+      )
+      opts?.onProgress?.(100)
+      if (text && text.trim() && !isFrontmatterOnlyDoc(text)) return { normalizedUrl, name, text }
     } catch {
       void 0
+    } finally {
+      if (progressTimer) clearInterval(progressTimer)
+      try {
+        ctrl.abort()
+      } catch {
+        void 0
+      }
     }
-    const text = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote('markdown')}`, '---', ''].join('\n')
+    const text = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote('html')}`, '---', ''].join('\n')
     return { normalizedUrl, name, text }
   }
 
+  opts?.onProgress?.(10)
   const res = await fetchRemoteTextDetailed(normalizedUrl, { preflightHead: true, preferProxy: true })
+  opts?.onProgress?.(100)
   if (!res.ok) throw new Error(describeFetchRemoteTextFailure(res as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure))
   const text = res.text
 
@@ -456,7 +556,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   fmLines.push('---', '')
 
   const fidelityMaxLevel = useGraphStore.getState().webpageArtifactFidelityMaxLevel ?? 4
-  const artifact = looksLikeWebpageMarkdownArtifactDoc(strippedUpstream)
+  const artifactRaw = looksLikeWebpageMarkdownArtifactDoc(strippedUpstream)
     ? strippedUpstream
     : buildWebpageMarkdownArtifactDoc({
         markdown: strippedUpstream,
@@ -464,6 +564,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
         title: args.title,
         fidelityMaxLevel,
       })
+  const artifact = ensureWebpageTocLayoutAscii(artifactRaw)
   const artifactWithView = upsertWebpageFrontmatterMeta(artifact, { url, view })
   const strippedArtifact = (() => {
     const t = String(artifactWithView || '')
@@ -538,7 +639,16 @@ export async function importWorkspaceUrl(args: {
   } catch {
     void 0
   }
-  const fetched = await fetchWorkspaceUrlContent(rawUrl)
+  const fetched = await fetchWorkspaceUrlContent(rawUrl, {
+    mode: 'import',
+    onProgress: (p) => {
+      try {
+        args.onProgress?.({ phase: 'fetching', current: p, total: 100, label: 'Fetching' })
+      } catch {
+        void 0
+      }
+    },
+  })
   try {
     args.onProgress?.({ phase: 'writing', current: 0, label: 'Writing' })
   } catch {

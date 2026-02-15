@@ -6,6 +6,33 @@ export type WebpageClientConvertResult =
   | { ok: true; markdown: string; title: string }
   | { ok: false; error: string }
 
+const runSoon = async <T,>(fn: () => T): Promise<T> => {
+  const w = globalThis as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number }
+  if (typeof w.requestIdleCallback === 'function') {
+    return await new Promise<T>((resolve, reject) => {
+      w.requestIdleCallback(
+        () => {
+          try {
+            resolve(fn())
+          } catch (e) {
+            reject(e)
+          }
+        },
+        { timeout: 1200 },
+      )
+    })
+  }
+  return await new Promise<T>((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        resolve(fn())
+      } catch (e) {
+        reject(e)
+      }
+    }, 0)
+  })
+}
+
 const normalizeText = (s: string): string => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()
 
 const isJsdomLike = (): boolean => {
@@ -31,14 +58,14 @@ const extractTitleFromHtml = (html: string): string => {
   return t.replace(/\s+/g, ' ').trim()
 }
 
-const convertViaProxyFetch = async (url: string): Promise<WebpageClientConvertResult> => {
+export const convertWebpageUrlToMarkdownViaProxyFetch = async (url: string): Promise<WebpageClientConvertResult> => {
   try {
     const res = await fetch(`/__webpage_proxy?url=${encodeURIComponent(url)}`, { headers: { Accept: 'text/html,*/*;q=0.9' } })
     const html = await res.text()
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const title = extractTitleFromHtml(html)
     const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-    const md = convertWebpageHtmlToMarkdownArtifact({ html: bounded, url })
+    const md = await runSoon(() => convertWebpageHtmlToMarkdownArtifact({ html: bounded, url }))
     return { ok: true, markdown: md, title }
   } catch (e) {
     const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
@@ -52,18 +79,23 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
   const url = String(args.url || '').trim()
   if (!url) return { ok: false, error: 'Missing url' }
   if (isJsdomLike()) {
-    return await convertViaProxyFetch(url)
+    return await convertWebpageUrlToMarkdownViaProxyFetch(url)
   }
   try {
-    const textRes = await exportWebpageDomViaHiddenIframe({ url, mode: 'text', scrollCrawl: true, expandFaq: true, timeoutMs: 25_000 })
-    const htmlRes = await exportWebpageDomViaHiddenIframe({ url, mode: 'html', scrollCrawl: false, expandFaq: true, timeoutMs: 25_000 })
+    const fast = await convertWebpageUrlToMarkdownViaProxyFetch(url)
+    if (fast.ok === true && String(fast.markdown || '').trim().length >= 1400) return fast
+
+    const [textRes, htmlRes] = await Promise.all([
+      exportWebpageDomViaHiddenIframe({ url, mode: 'text', scrollCrawl: true, expandFaq: true, timeoutMs: 25_000 }),
+      exportWebpageDomViaHiddenIframe({ url, mode: 'html', scrollCrawl: false, expandFaq: true, timeoutMs: 25_000 }),
+    ])
 
     const title = String(htmlRes?.title || textRes?.title || '').trim()
     const text = String(textRes?.text || '').trim()
     const html = htmlRes && !htmlRes.clipped ? String(htmlRes.text || '').trim() : ''
 
     if (!html && !text) {
-      const fallback = await convertViaProxyFetch(url)
+      const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
       if (fallback.ok === true) return fallback
       return { ok: false, error: 'No DOM content extracted' }
     }
@@ -100,7 +132,7 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
     }
 
     if (!String(md || '').trim()) {
-      const fallback = await convertViaProxyFetch(url)
+      const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
       if (fallback.ok === true) return fallback
     }
 
@@ -108,7 +140,7 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
   } catch (e) {
     const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
     if (msg) {
-      const fallback = await convertViaProxyFetch(url)
+      const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
       if (fallback.ok === true) return fallback
     }
     return { ok: false, error: msg || 'Browser conversion failed' }

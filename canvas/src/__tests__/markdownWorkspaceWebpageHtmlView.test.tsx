@@ -87,13 +87,15 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
         if (!iframe) throw new Error(`expected iframe for view=${view}`)
         const src = String(iframe.getAttribute('src') || '')
         const srcdoc = String(iframe.getAttribute('srcdoc') || '')
+
         if (view === 'html') {
-          if (!src.includes('/__webpage_proxy?url=')) throw new Error('expected iframe src to use webpage proxy for html view')
-          if (srcdoc) throw new Error('expected no iframe srcdoc for html view')
+          if (!src.startsWith('/__webpage_proxy?url=')) throw new Error(`expected iframe src to use webpage proxy for view=${view}`)
+          if (srcdoc) throw new Error(`expected no iframe srcdoc for src mode view=${view}`)
         } else {
           if (src) throw new Error(`expected no iframe src for srcdoc mode view=${view}`)
           if (!srcdoc.includes('<base')) throw new Error(`expected srcdoc to include base tag for view=${view}`)
         }
+
         const sandbox = String(iframe.getAttribute('sandbox') || '')
         if (sandbox.includes('allow-top-navigation')) throw new Error('expected iframe sandbox to forbid top navigation')
       } else {

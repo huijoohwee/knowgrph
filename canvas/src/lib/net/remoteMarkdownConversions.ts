@@ -13,6 +13,11 @@ export type RemoteMarkdownConversionOk = {
 export type RemoteMarkdownConversionErr = { ok: false; error: string }
 export type RemoteMarkdownConversionResult = RemoteMarkdownConversionOk | RemoteMarkdownConversionErr
 
+const WEBPAGE_MD_CACHE = new Map<string, { res: RemoteMarkdownConversionOk; atMs: number }>()
+const WEBPAGE_MD_INFLIGHT = new Map<string, Promise<RemoteMarkdownConversionResult | null>>()
+const WEBPAGE_MD_CACHE_MAX = 24
+const WEBPAGE_MD_CACHE_TTL_MS = 3 * 60_000
+
 async function readConversionJson(res: Response): Promise<{ ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown } | null> {
   try {
     return (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown }
@@ -141,21 +146,43 @@ export async function fetchWebpageMarkdown(
   const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
   if (!cleaned) return null
   try {
-    void opts
-    const res = await convertWebpageUrlToMarkdownViaBrowser({ url: cleaned })
-    if (res.ok !== true) return { ok: false as const, error: res.error }
-    const name = 'webpage.md'
-    const conversionJsonText =
-      opts?.emit === 'json'
-        ? (() => {
-            try {
-              return JSON.stringify({ ok: true, name, markdown: res.markdown, title: res.title, source_url: cleaned, images: [] }, null, 2)
-            } catch {
-              return undefined
-            }
-          })()
-        : undefined
-    return { ok: true as const, name, markdown: res.markdown, conversionJsonText }
+    void opts?.includeImages
+    const emit = opts?.emit === 'json' ? 'json' : 'markdown'
+    const key = `webpage:${emit}:${cleaned}`
+    const cached = WEBPAGE_MD_CACHE.get(key)
+    if (cached && Date.now() - cached.atMs <= WEBPAGE_MD_CACHE_TTL_MS) return cached.res
+
+    const inflight = WEBPAGE_MD_INFLIGHT.get(key)
+    if (inflight) return await inflight
+
+    const p = (async () => {
+      const res = await convertWebpageUrlToMarkdownViaBrowser({ url: cleaned })
+      if (res.ok !== true) return { ok: false as const, error: res.error }
+      const name = 'webpage.md'
+      const conversionJsonText =
+        emit === 'json'
+          ? (() => {
+              try {
+                return JSON.stringify({ ok: true, name, markdown: res.markdown, title: res.title, source_url: cleaned, images: [] }, null, 2)
+              } catch {
+                return undefined
+              }
+            })()
+          : undefined
+      const out: RemoteMarkdownConversionOk = { ok: true as const, name, markdown: res.markdown, conversionJsonText }
+      WEBPAGE_MD_CACHE.set(key, { res: out, atMs: Date.now() })
+      if (WEBPAGE_MD_CACHE.size > WEBPAGE_MD_CACHE_MAX) {
+        const oldest = WEBPAGE_MD_CACHE.keys().next().value as string | undefined
+        if (oldest) WEBPAGE_MD_CACHE.delete(oldest)
+      }
+      return out
+    })()
+    WEBPAGE_MD_INFLIGHT.set(key, p)
+    try {
+      return await p
+    } finally {
+      WEBPAGE_MD_INFLIGHT.delete(key)
+    }
   } catch {
     return null
   }

@@ -70,10 +70,7 @@ Additionally, the injected layer exposes a **DOM export bridge** (see `kg-export
 
 ## `srcdoc` Rendering Rules
 
-Webpage HTML/JSON view renders via a sandboxed iframe, using either:
-
-- **Proxy-src (highest fidelity)**: `src="/__webpage_proxy?url=..."` (HTML view, non-website-import).
-- **Sanitized srcdoc snapshot**: `srcDoc="..."` (JSON view, and website-import views; also used for HTML when a safe snapshot is available or preferred).
+Webpage HTML/JSON view renders via a sandboxed iframe using a **sanitized `srcdoc` snapshot**.
 
 The srcdoc builder:
 
@@ -81,9 +78,7 @@ The srcdoc builder:
 - strips all `<script>` tags and inline `on*=` handlers (untrusted scripts do not execute)
 - upserts a sandbox CSP meta allowing images/media/styles while restricting scripts to injected utilities
 - injects scroll-sync utilities (iframe ↔ parent via `postMessage`)
-- upserts `<base>` to preserve correct resolution:
-  - If the HTML already contains `/__webpage_proxy` or `/__webpage_asset_proxy`, base is set to `${window.location.origin}/`.
-  - Otherwise base is set to the original URL.
+- upserts `<base>` to preserve correct resolution (use the original URL, or `${window.location.origin}/` when serving proxied assets)
 
 This policy prioritizes safety and determinism. For JS-rendered content capture, use the DOM export bridge (`kg-export-dom`) to extract a rendered snapshot and then upgrade the saved Markdown.
 
@@ -125,7 +120,7 @@ The sandbox must forbid top-level navigation (do not include `allow-top-navigati
 When importing a website (sitemap/tree), each created workspace entry can be generated as a full **Webpage Markdown Artifact** (Document Structure analysis) instead of a frontmatter-only stub.
 
 - Setting: `websiteImportGenerateWebpageArtifactDocs` (default `true`)
-- Behavior: for each manifest node, fetch the stored `page.md` artifact and generate the detailed artifact markdown, while preserving the per-page frontmatter contract keys.
+- Behavior: for each manifest node, fetch the stored `raw.html` artifact and generate the detailed artifact markdown (HTML→artifact conversion), while preserving the per-page frontmatter contract keys.
 
 Additionally, the website import root folder includes a generated `website.sitemap.md` artifact that summarizes the imported pages (tree + pages table).
 
@@ -133,7 +128,7 @@ Additionally, the website import root folder includes a generated `website.sitem
 
 - `Markdown`: Editor shows Markdown; Viewer/Presentation/Slides render Markdown.
 - `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code (iframe `srcdoc`).
-- `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML (proxy-src by default; sanitized `srcdoc` snapshot when available or preferred).
+- `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via sanitized `srcdoc`.
 
 ## Shared Signal Tokens (Mode-Independent)
 

@@ -23,8 +23,12 @@ import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY, WORKSPACE_ENTRY_
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
 import { safeWebsitePathSegment } from '@/lib/websites/websitePathUtils'
+import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
+import { convertWebpageHtmlToMarkdownArtifact } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './workspaceImport'
 import { mapLimit } from '@/lib/async/mapLimit'
 import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
 
@@ -399,6 +403,75 @@ export function useWorkspaceFileActions(args: {
         const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
         const sourceUrl = source && source.kind === 'url' ? source.url : null
         if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: false, jobId })
+
+        const hydrateWebpageStub = async () => {
+          if (!createdPath) return
+          if (!sourceUrl) return
+          if (importJobRef.current !== jobId) return
+          try {
+            const current = await fs.readFileText(createdPath)
+            if (!current) return
+            if (!isFrontmatterOnlyDoc(current)) return
+            const meta = parseWebpageFrontmatterMeta(current)
+            if (!meta || !meta.url) return
+            if (meta.url !== sourceUrl) return
+
+            if (meta.view === 'html') {
+              useGraphStore.getState().upsertUiToast({
+                id: `workspace:import:url:hydrate:${hashStringToHex(sourceUrl).slice(0, 10)}`,
+                kind: 'success',
+                message: `Webpage ready`,
+                ttlMs: 4000,
+                dismissible: true,
+              })
+              return
+            }
+
+            const toastHydrateId = `workspace:import:url:hydrate:${hashStringToHex(sourceUrl).slice(0, 10)}`
+            setStatusProgress('Fetching')
+            useGraphStore.getState().upsertUiToast({
+              id: toastHydrateId,
+              kind: 'neutral',
+              message: `Fetching webpage content…`,
+              ttlMs: null,
+              dismissible: false,
+              log: false,
+            })
+
+            const fetched = await fetchWorkspaceUrlContent(sourceUrl, {
+              mode: 'refresh',
+              onProgress: (p) => setStatusProgress('Fetching', p, 100),
+            })
+            if (importJobRef.current !== jobId) return
+            if (!fetched || !String(fetched.text || '').trim()) return
+            const nextText = normalizeWebpageFrontmatterView(fetched.text, meta.view)
+            if (isFrontmatterOnlyDoc(nextText)) return
+
+            setStatusProgress('Writing')
+            await fs.writeFileText(createdPath, nextText)
+            const inlineText = nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : undefined
+            setEntries(prev => prev.map(e => (e.path === createdPath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+
+            if (openedPath === createdPath) {
+              lastLoadedRef.current = { path: createdPath, text: nextText }
+              setActiveText(nextText)
+              if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, nextText)
+              setMarkdownDocumentSourceUrl(fetched.normalizedUrl)
+            }
+
+            useGraphStore.getState().upsertUiToast({
+              id: toastHydrateId,
+              kind: 'success',
+              message: `Webpage content loaded`,
+              ttlMs: 6000,
+              dismissible: true,
+            })
+          } catch {
+            void 0
+          }
+        }
+
+        void hydrateWebpageStub()
         setStatusInfo(imported > 1 ? `Imported ${imported}${suffix}${failureSuffix}` : `Imported URL${suffix}${failureSuffix}`)
         useGraphStore.getState().pushUiLog({
           kind: failed > 0 ? 'warning' : 'success',
@@ -426,7 +499,19 @@ export function useWorkspaceFileActions(args: {
         })
       }
     },
-    [focusAfterImport, getFs, refresh, setStatusLabel],
+    [
+      activeDocumentKey,
+      focusAfterImport,
+      getFs,
+      lastLoadedRef,
+      openedPath,
+      refresh,
+      setActiveText,
+      setEntries,
+      setMarkdownDocument,
+      setMarkdownDocumentSourceUrl,
+      setStatusLabel,
+    ],
   )
 
   const handleImportWebsite = React.useCallback(
@@ -572,9 +657,11 @@ export function useWorkspaceFileActions(args: {
           return parent
         }
 
+        const coerceWebpageView = (raw: unknown): 'markdown' | 'json' | 'html' =>
+          raw === 'html' ? 'html' : raw === 'json' ? 'json' : 'markdown'
+
         const stubForNode = (nodeUrl: string, nodeId: string) => {
-          void defaultView
-          const v = 'html'
+          const v = coerceWebpageView(defaultView)
           const lines = [
             '---',
             `kgWebpageUrl: "${nodeUrl}"`,
@@ -589,7 +676,7 @@ export function useWorkspaceFileActions(args: {
           return lines.join('\n')
         }
 
-        void generateArtifactDocs
+        const shouldGenerateArtifactDocs = generateArtifactDocs
 
         const fs = await getFs()
         await fs.ensureSeed()
@@ -660,7 +747,7 @@ export function useWorkspaceFileActions(args: {
 
           const totalWrites = nodeRows.length
           let lastUiAtMs = 0
-          const writeConcurrency = Math.max(1, Math.min(6, concurrency))
+          const writeConcurrency = shouldGenerateArtifactDocs ? Math.max(1, Math.min(2, concurrency)) : Math.max(1, Math.min(6, concurrency))
 
           await mapLimit(
             nodeRows,
@@ -683,7 +770,30 @@ export function useWorkspaceFileActions(args: {
               const base = leaf || 'index'
               const nameBase = base.endsWith('.md') ? base.replace(/\.md$/i, '') : base
               const primaryName = `${nameBase}.md`
-              const text = stubForNode(row.nodeUrl, row.nodeId)
+              const text = await (async () => {
+                if (!shouldGenerateArtifactDocs) return stubForNode(row.nodeUrl, row.nodeId)
+                try {
+                  const rawHtml = await fetchWebsiteImportArtifact({
+                    importId,
+                    nodeId: row.nodeId,
+                    outputDirRel: outputDirRel || undefined,
+                    kind: 'rawHtml',
+                    signal: ctrl.signal,
+                  })
+                  await new Promise<void>(resolve => setTimeout(resolve, 0))
+                  const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
+                  const markdown = convertWebpageHtmlToMarkdownArtifact({ html: boundedHtml, url: row.nodeUrl })
+                  return buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
+                    upstreamMarkdown: markdown,
+                    url: row.nodeUrl,
+                    view: coerceWebpageView(defaultView),
+                    title: row.nodeTitle,
+                    websiteImportMeta: { importId, nodeId: row.nodeId, outputDirRel: outputDirRel || undefined },
+                  })
+                } catch {
+                  return stubForNode(row.nodeUrl, row.nodeId)
+                }
+              })()
 
               const tryCreate = async (name: string) => {
                 const createdPath = await fs.createFile({ parentPath: folderPath, name, text })
@@ -705,7 +815,7 @@ export function useWorkspaceFileActions(args: {
             },
             {
               signal: ctrl.signal,
-              yieldEvery: 12,
+              yieldEvery: shouldGenerateArtifactDocs ? 1 : 12,
               onProgress: ({ done, total }) => {
                 const now = Date.now()
                 if (now - lastUiAtMs < 150 && done !== total) return
@@ -749,7 +859,20 @@ export function useWorkspaceFileActions(args: {
       setStatusProgress('Refreshing')
       try {
         const fs = await getFs()
-        const fetched = await fetchWorkspaceUrlContent(src.url)
+        try {
+          const current = await fs.readFileText(normalized)
+          const meta = current ? parseWebpageFrontmatterMeta(current) : null
+          if (meta?.url && meta.view === 'html') {
+            setStatusInfo('Refreshed')
+            return
+          }
+        } catch {
+          void 0
+        }
+        const fetched = await fetchWorkspaceUrlContent(src.url, {
+          mode: 'refresh',
+          onProgress: (p) => setStatusProgress('Refreshing', p, 100),
+        })
         await fs.writeFileText(normalized, fetched.text)
         const inlineText = fetched.text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? fetched.text : undefined
         setEntries(prev => prev.map(e => (e.path === normalized ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))

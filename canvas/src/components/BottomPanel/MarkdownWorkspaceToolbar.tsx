@@ -161,7 +161,11 @@ export function MarkdownWorkspaceToolbar({
     }
 
     return (
-      <span className="ml-2 inline-flex gap-1 flex-wrap" aria-label="Webpage signals">
+      <span
+        className="ml-2 inline-flex gap-1 flex-wrap"
+        aria-label="Webpage signals"
+        title="Derived from the current markdown: link labels (NAV/CTA) plus detected price/time tokens."
+      >
         {items.map(it => (
           <span key={it.label} className={`${pillClass} ${toneClass(it.tone)}`}>
             <span className="font-semibold">[{it.label}]</span>
