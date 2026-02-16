@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ElementType } from 'react'
 import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SELECTION_INSPECTOR_EMPTY_TEXT } from '@/lib/config'
@@ -34,6 +34,7 @@ type GraphTableInspectorProps = {
   columns: GraphColumnDoc[]
   row: GraphTableInspectorRow | null
   widthPx?: number
+  scrollMode?: 'internal' | 'parent'
   onClose: () => void
   onChangeCell: (columnId: string, next: unknown) => void
   onDeleteRow: () => void
@@ -48,7 +49,15 @@ const coreColumnOrder = (id: string): number => {
   return 1000
 }
 
-export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCell, onDeleteRow }: GraphTableInspectorProps) {
+export function GraphTableInspector({
+  columns,
+  row,
+  widthPx,
+  scrollMode = 'internal',
+  onClose,
+  onChangeCell,
+  onDeleteRow,
+}: GraphTableInspectorProps) {
   const { panelTextClass, microLabelClass, textSizeClass, keyValueInputClass, monospaceTextClass } = usePanelTypography()
   const {
     graphData,
@@ -279,18 +288,25 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
   const isEmpty = !row
   const headerKind = row ? row.tableId : 'selection'
   const headerLabel = row ? row.rowId : SELECTION_INSPECTOR_EMPTY_TEXT
+  const RootTag: ElementType = scrollMode === 'internal' ? 'section' : 'div'
+  const TitleTag: ElementType = scrollMode === 'internal' ? 'section' : 'div'
+  const FieldsTag: ElementType = scrollMode === 'internal' ? 'section' : 'div'
 
   return (
-    <section
-      className={cn('h-full min-h-0 overflow-hidden flex flex-col', UI_THEME_TOKENS.panel.bg, panelTextClass)}
+    <RootTag
+      className={cn(
+        scrollMode === 'internal' ? 'h-full min-h-0 overflow-hidden flex flex-col' : 'flex flex-col',
+        scrollMode === 'internal' ? UI_THEME_TOKENS.panel.bg : null,
+        panelTextClass,
+      )}
       style={widthPx ? { width: `${widthPx}px` } : undefined}
       aria-label="Record inspector"
     >
       <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider} flex items-center justify-between gap-2`}>
-        <section className="min-w-0" aria-label="Record title">
+        <TitleTag className="min-w-0" aria-label="Record title">
           <p className={cn(microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{headerKind}</p>
           <p className={`font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{headerLabel}</p>
-        </section>
+        </TitleTag>
         <nav className="flex items-center gap-2" aria-label="Inspector actions">
           <button
             type="button"
@@ -331,7 +347,10 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
         </section>
       ) : null}
 
-      <section className="flex-1 min-h-0 overflow-auto" aria-label="Record fields">
+      <FieldsTag
+        className={scrollMode === 'internal' ? 'flex-1 min-h-0 overflow-auto' : undefined}
+        aria-label="Record fields"
+      >
         {isEmpty ? (
           <p className={cn('px-3 py-2', microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{SELECTION_INSPECTOR_EMPTY_TEXT}</p>
         ) : (
@@ -451,7 +470,7 @@ export function GraphTableInspector({ columns, row, widthPx, onClose, onChangeCe
           </dl>
           </>
         )}
-      </section>
-    </section>
+      </FieldsTag>
+    </RootTag>
   )
 }

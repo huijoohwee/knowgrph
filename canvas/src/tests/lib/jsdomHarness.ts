@@ -22,10 +22,14 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   const originalNodeFilter = (g as { NodeFilter?: typeof NodeFilter }).NodeFilter
   const originalDomParser = (g as { DOMParser?: typeof DOMParser }).DOMParser
   const originalHtmlIFrameElement = (g as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement
+  const originalObjectProtoHtmlIFrameElementDesc = Object.getOwnPropertyDescriptor(Object.prototype, 'HTMLIFrameElement')
+  const originalDocumentProtoActiveElementDesc = Object.getOwnPropertyDescriptor(dom.window.Document.prototype, 'activeElement')
+  const originalDocumentActiveElementDesc = Object.getOwnPropertyDescriptor(dom.window.document, 'activeElement')
   const originalResizeObserver = (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
   const originalRequestAnimationFrame = (g as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame
   const originalCancelAnimationFrame = (g as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame
   const originalMermaidStub = (g as unknown as { __KG_TEST_MERMAID_API__?: unknown }).__KG_TEST_MERMAID_API__
+  let iframeWindowPatchObserver: MutationObserver | null = null
 
   ;(g as { window: Window }).window = dom.window as unknown as Window
   ;(g as { document: Document }).document = dom.window.document as unknown as Document
@@ -66,6 +70,89 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       anyGlobal.HTMLIFrameElement = HTMLIFrameElement
     } else {
       anyGlobal.HTMLIFrameElement = class {} as typeof HTMLIFrameElement
+    }
+
+    const anyJsdomWindow = dom.window as unknown as { Window?: { prototype?: Record<string, unknown> }; HTMLIFrameElement?: unknown }
+    if (anyJsdomWindow.Window?.prototype && anyJsdomWindow.HTMLIFrameElement) {
+      anyJsdomWindow.Window.prototype.HTMLIFrameElement = anyJsdomWindow.HTMLIFrameElement
+    }
+
+    const iframeProto = (dom.window as unknown as { HTMLIFrameElement?: { prototype?: unknown } }).HTMLIFrameElement?.prototype as
+      | { contentWindow?: unknown }
+      | undefined
+    if (iframeProto && anyWindow.HTMLIFrameElement) {
+      const desc = Object.getOwnPropertyDescriptor(iframeProto, 'contentWindow')
+      if (desc?.get) {
+        Object.defineProperty(iframeProto, 'contentWindow', {
+          configurable: true,
+          enumerable: desc.enumerable ?? false,
+          get() {
+            const w = desc.get!.call(this) as unknown as Record<string, unknown> | null
+            if (w && typeof w === 'object' && !('HTMLIFrameElement' in w)) {
+              try {
+                ;(w as { HTMLIFrameElement?: unknown }).HTMLIFrameElement = anyWindow.HTMLIFrameElement
+              } catch {
+                void 0
+              }
+            }
+            return w as unknown
+          },
+        })
+      }
+    }
+
+    if (anyWindow.HTMLIFrameElement && !Object.prototype.hasOwnProperty('HTMLIFrameElement')) {
+      Object.defineProperty(Object.prototype, 'HTMLIFrameElement', {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: anyWindow.HTMLIFrameElement,
+      })
+    }
+
+    try {
+      Object.defineProperty(dom.window.document, 'activeElement', {
+        configurable: true,
+        enumerable: originalDocumentActiveElementDesc?.enumerable ?? false,
+        get() {
+          return dom.window.document.body || dom.window.document.documentElement
+        },
+      })
+    } catch {
+      if (originalDocumentProtoActiveElementDesc?.get) {
+        Object.defineProperty(dom.window.Document.prototype, 'activeElement', {
+          configurable: true,
+          enumerable: originalDocumentProtoActiveElementDesc.enumerable ?? false,
+          get() {
+            const d = this as unknown as Document
+            return d.body || d.documentElement
+          },
+        })
+      }
+    }
+
+    const patchIframeWindows = () => {
+      const IFrameCtor = (dom.window as unknown as { HTMLIFrameElement?: unknown }).HTMLIFrameElement
+      if (!IFrameCtor) return
+      const iframes = Array.from(dom.window.document.querySelectorAll('iframe'))
+      for (const el of iframes) {
+        try {
+          const iframe = el as unknown as { contentWindow?: unknown }
+          const w = iframe.contentWindow as unknown as Record<string, unknown> | null
+          if (!w || typeof w !== 'object') continue
+          if (!('HTMLIFrameElement' in w)) {
+            ;(w as { HTMLIFrameElement?: unknown }).HTMLIFrameElement = IFrameCtor
+          }
+        } catch {
+          void 0
+        }
+      }
+    }
+
+    patchIframeWindows()
+    if (typeof dom.window.MutationObserver !== 'undefined') {
+      iframeWindowPatchObserver = new dom.window.MutationObserver(() => patchIframeWindows())
+      iframeWindowPatchObserver.observe(dom.window.document.body, { childList: true, subtree: true })
     }
 
     // Polyfill ResizeObserver
@@ -158,6 +245,13 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       ;(g as unknown as { __KG_TEST_MERMAID_API__: unknown }).__KG_TEST_MERMAID_API__ = originalMermaidStub
     }
 
+    try {
+      iframeWindowPatchObserver?.disconnect()
+    } catch {
+      void 0
+    }
+    iframeWindowPatchObserver = null
+
     if (typeof originalResizeObserver === 'undefined') {
       delete (g as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver
     } else {
@@ -174,6 +268,18 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       delete (g as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame
     } else {
       ;(g as unknown as { cancelAnimationFrame: unknown }).cancelAnimationFrame = originalCancelAnimationFrame
+    }
+
+    if (typeof originalDocumentActiveElementDesc === 'undefined') {
+      delete (dom.window.document as unknown as { activeElement?: unknown }).activeElement
+    } else {
+      Object.defineProperty(dom.window.document, 'activeElement', originalDocumentActiveElementDesc)
+    }
+
+    if (typeof originalObjectProtoHtmlIFrameElementDesc === 'undefined') {
+      delete (Object.prototype as unknown as { HTMLIFrameElement?: unknown }).HTMLIFrameElement
+    } else {
+      Object.defineProperty(Object.prototype, 'HTMLIFrameElement', originalObjectProtoHtmlIFrameElementDesc)
     }
 
     dom.window.close()

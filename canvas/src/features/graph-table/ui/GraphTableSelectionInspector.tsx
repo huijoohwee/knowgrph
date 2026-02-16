@@ -224,6 +224,7 @@ export default function GraphTableSelectionInspector() {
     <GraphTableInspector
       columns={columns}
       row={row}
+      scrollMode="parent"
       onClose={handleClose}
       onDeleteRow={handleDelete}
       onChangeCell={handleChangeCell}

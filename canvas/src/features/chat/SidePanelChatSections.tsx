@@ -34,7 +34,7 @@ export function SidePanelChatMessagesSection({
         </div>
         <button
           type="button"
-          className={`text-xs ${UI_THEME_TOKENS.text.tertiary} hover:${UI_THEME_TOKENS.text.primary} disabled:opacity-50`}
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
           onClick={() => {
             setMessages([])
             const storage = getLocalStorage()
@@ -64,7 +64,9 @@ export function SidePanelChatMessagesSection({
               'max-w-[85%] rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words',
               uiPanelTextFontClass,
               uiPanelKeyValueTextSizeClass,
-              m.role === 'user' ? 'ml-auto bg-blue-600 text-white' : `mr-auto ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`,
+              m.role === 'user'
+                ? `ml-auto ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                : `mr-auto ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`,
             ].join(' ')}
           >
             {m.content}
@@ -105,9 +107,9 @@ export function SidePanelChatFooter({
   onStop,
 }: FooterProps) {
   return (
-    <div className="border-t border-gray-200 p-3 space-y-2">
+    <div className={`border-t ${UI_THEME_TOKENS.panel.border} p-3 space-y-2`}>
       {errorText && (
-        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-red-600'].join(' ')}>
+        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-red-700 dark:text-red-400'].join(' ')}>
           {errorText}
         </div>
       )}
@@ -117,7 +119,7 @@ export function SidePanelChatFooter({
           className={[
             uiPanelTextFontClass,
             uiPanelMicroLabelTextSizeClass,
-            connectivity === 'ok' ? 'text-emerald-600' : 'text-amber-600',
+            connectivity === 'ok' ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400',
           ].join(' ')}
         >
           {connectivity === 'ok' ? UI_COPY.chatEndpointOkStatus : connectivityDetail || UI_COPY.chatEndpointUnreachableStatus}
@@ -125,7 +127,7 @@ export function SidePanelChatFooter({
       )}
 
       <form onSubmit={onSubmit} className="space-y-2">
-        <div className={`w-full border border-gray-300 rounded overflow-hidden bg-white h-[88px]`}>
+        <div className={`w-full border rounded overflow-hidden h-[88px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
           <MonacoTextEditor
             value={input}
             onChange={(val) => setInput(val)}
@@ -138,7 +140,7 @@ export function SidePanelChatFooter({
         </div>
 
         <div className="flex items-center justify-between">
-          <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-gray-500'].join(' ')}>
+          <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
             {currentNode
               ? UI_COPY.chatUsingSelectedNodeContextStatus(currentNode.label, currentNode.type)
               : UI_COPY.chatNoSelectionContextStatus}
@@ -147,7 +149,7 @@ export function SidePanelChatFooter({
             {isLoading && (
               <button
                 type="button"
-                className="App-toolbar__btn text-xs bg-gray-200 text-gray-900 disabled:opacity-50"
+                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
                 onClick={onStop}
               >
                 {UI_COPY.chatStopButtonLabel}
@@ -155,7 +157,7 @@ export function SidePanelChatFooter({
             )}
             <button
               type="submit"
-              className="App-toolbar__btn text-xs bg-blue-600 text-white disabled:opacity-50"
+              className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} disabled:opacity-50`}
               disabled={isSubmitDisabled}
             >
               {isLoading ? UI_COPY.chatSendingButtonLabel : UI_COPY.chatSendButtonLabel}

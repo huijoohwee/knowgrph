@@ -142,6 +142,25 @@ selection_state:
 
 **Panel Organization**: Main panel (workflow, schema, settings), Bottom panel (markdown, parsers, tables), Floating panels (props, orchestrator) with independent state slices.
 
+#### Floating Panel Lightweight View Pattern (Props Panel Contract)
+
+Floating Panel views must reuse the same lightweight embedding pattern as Props Panel:
+
+- **Single scroll owner**:
+  - Default: the Floating Panel body owns scrolling via `FLOATING_PANEL_SCROLL_CLASSNAME`.
+  - Embedded views must be content-only (no `h-full`, no nested `overflow-*` scrollers).
+  - If a view must own its own internal scroller (e.g. chat message list), the Floating Panel body must switch to `overflow-hidden` for that view to prevent double-scroll.
+- **No redundant shell styling**:
+  - The Floating Panel shell owns background and base typography (`UI_THEME_TOKENS.panel.bg`, `UI_THEME_TOKENS.text.*`).
+  - Embedded views must not re-apply panel background, “card” borders/rounded/shadow, or fixed widths unless the shell explicitly requires it.
+- **Layout-only wrappers**:
+  - Prefer `div` for layout-only containers inside Floating Panel views to avoid redundant nested `section` semantics.
+  - Use semantic elements (`header/nav/section/aside`) only for surface boundaries that carry meaning (e.g. a panel header, a navigation bar).
+- **Reusable embedding modes**:
+  - Components reused across surfaces must expose an explicit “embedded” mode (example: Inspector supports a parent-scroll embedding mode so it can be mounted inside the Floating Panel without nested scroll/background).
+- **Tokenized styling only**:
+  - Forbid hardcoded Tailwind palette classes inside panel bodies (e.g. `bg-gray-*`, `text-gray-*`); use `UI_THEME_TOKENS` so dark mode and density stay consistent.
+
 **Configuration Schema (core sections)**:
 
 ```yaml

@@ -77,6 +77,7 @@ export async function testEmbeddedEditorShellRendersCanvasPreviewIframe() {
 export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   const store = useGraphStore.getState()
+  let root: ReturnType<typeof createRoot> | null = null
   try {
     store.setWorkspaceViewMode('editor')
     store.setCanvasRenderMode('2d')
@@ -88,7 +89,7 @@ export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlow
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
 
-    const root = createRoot(container)
+    root = createRoot(container)
     root.render(
       <ToolbarToolMenu
         pipelineStatus={null}
@@ -105,7 +106,7 @@ export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlow
     let inspector: Element | null = null
     for (let i = 0; i < 60; i++) {
       await tick()
-      inspector = dom.window.document.querySelector('section[aria-label="Record inspector"]')
+      inspector = dom.window.document.querySelector('[aria-label="Record inspector"]')
       if (inspector) break
     }
 
@@ -113,11 +114,14 @@ export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlow
     if (portalSlot) throw new Error('expected Flow Editor inspector portal slot to be absent in editor workspace')
 
     if (!inspector) throw new Error('expected selection inspector to render in editor workspace')
-
-    root.unmount()
   } finally {
     try {
       store.setWorkspaceViewMode('canvas')
+    } catch {
+      void 0
+    }
+    try {
+      root?.unmount()
     } catch {
       void 0
     }

@@ -10,7 +10,7 @@ const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
 }
 
-export async function testFloatingPanelDesignLayersViewRendersAsSection() {
+export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   const store = useGraphStore.getState()
   try {
@@ -59,8 +59,8 @@ export async function testFloatingPanelDesignLayersViewRendersAsSection() {
 
     if (!designLayers) throw new Error('expected Design Layers view to render')
     const tag = designLayers.tagName.toLowerCase()
-    if (tag !== 'section') {
-      throw new Error(`expected Design Layers root tag to be section in floating panel, got ${tag}`)
+    if (tag !== 'div') {
+      throw new Error(`expected Design Layers root tag to be div in floating panel, got ${tag}`)
     }
 
     root.unmount()
@@ -68,4 +68,3 @@ export async function testFloatingPanelDesignLayersViewRendersAsSection() {
     restore()
   }
 }
-

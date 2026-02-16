@@ -35,7 +35,6 @@ const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
-const DesignLayersPanelLazy = React.lazy(() => import('@/features/design/DesignLayersPanel'))
 
 type MarkdownMetricSample = {
   ts: number

@@ -3,6 +3,7 @@ import RenderSettingsSection from '@/features/panels/views/RenderSettingsSection
 import { UI_LABELS } from '@/lib/config'
 import { RendererPaletteSettings } from '@/features/toolbar/ui/RendererPaletteSettings'
 import { RendererHoverSettings } from '@/features/toolbar/ui/RendererHoverSettings'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function ToolbarToolMenuRendererView() {
   const {
@@ -39,7 +40,7 @@ export function ToolbarToolMenuRendererView() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="App-toolbar__btn text-xs bg-gray-100 text-gray-700"
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
           onClick={collapseRenderSections}
           disabled={allRenderSectionsCollapsed}
         >
@@ -47,7 +48,7 @@ export function ToolbarToolMenuRendererView() {
         </button>
         <button
           type="button"
-          className="App-toolbar__btn text-xs bg-gray-100 text-gray-700"
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
           onClick={expandRenderSections}
         >
           {UI_LABELS.expandAll}

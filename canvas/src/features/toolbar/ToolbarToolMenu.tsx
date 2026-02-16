@@ -53,20 +53,14 @@ const InspectorView = React.memo(function InspectorView(props: { geospatialModeE
     })),
   )
 
+  if (!geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor') {
+    return <div id={FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID} className="h-full" aria-label="Flow Editor Inspector Slot" />
+  }
+
   return (
-    <section className="h-full" aria-label="Selection inspector">
-      {!geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor' ? (
-        <section
-          id={FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID}
-          className="h-full"
-          aria-label="Flow Editor Inspector Slot"
-        />
-      ) : (
-        <React.Suspense fallback={null}>
-          <GraphTableSelectionInspectorLazy />
-        </React.Suspense>
-      )}
-    </section>
+    <React.Suspense fallback={null}>
+      <GraphTableSelectionInspectorLazy />
+    </React.Suspense>
   )
 })
 
@@ -121,7 +115,7 @@ const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: bool
           />
         </React.Suspense>
       ) : (
-        <p className="p-3 text-sm text-gray-600 dark:text-gray-300">Enable Geospatial Mode to view this panel.</p>
+        <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>Enable Geospatial Mode to view this panel.</p>
       )}
     </section>
   )
@@ -386,6 +380,16 @@ export function ToolbarToolMenu({
     )
   }
 
+  const floatingPanelBodyClassName = cn(
+    'mt-1',
+    (floatingPanelView === 'chat' || floatingPanelView === 'geo')
+      ? 'flex-1 min-h-0 overflow-hidden'
+      : FLOATING_PANEL_SCROLL_CLASSNAME,
+    uiPanelTextFontClass,
+    uiPanelKeyValueTextSizeClass,
+    UI_THEME_TOKENS.text.primary,
+  )
+
   return (
     <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
       <aside
@@ -418,25 +422,14 @@ export function ToolbarToolMenu({
               onClose={onClose}
             />
           </header>
-          <section
-            className={cn(
-              'mt-1',
-              FLOATING_PANEL_SCROLL_CLASSNAME,
-              uiPanelTextFontClass,
-              uiPanelKeyValueTextSizeClass,
-              UI_THEME_TOKENS.text.primary,
-            )}
-            aria-label={UI_LABELS.floatingPanel}
-          >
+          <section className={floatingPanelBodyClassName} aria-label={UI_LABELS.floatingPanel}>
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
-            {floatingPanelView === 'designLayers' && <DesignLayersPanel active={true} as="section" />}
+            {floatingPanelView === 'designLayers' && <DesignLayersPanel active={true} />}
             {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'chat' && (
-              <section className="h-full" aria-label="Chat panel">
-                <React.Suspense fallback={null}>
-                  <SidePanelChatLazy />
-                </React.Suspense>
-              </section>
+              <React.Suspense fallback={null}>
+                <SidePanelChatLazy />
+              </React.Suspense>
             )}
             {floatingPanelView === 'geo' && <GeoView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView />}

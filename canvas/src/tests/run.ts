@@ -488,7 +488,7 @@ import {
   testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted,
   testToolbarEditorButtonTogglesWorkspaceViewMode,
 } from '@/__tests__/embeddedEditorMode.test'
-import { testFloatingPanelDesignLayersViewRendersAsSection } from '@/__tests__/floatingPanelDesignLayersView.test'
+import { testFloatingPanelDesignLayersViewRendersAsDiv } from '@/__tests__/floatingPanelDesignLayersView.test'
 import {
   testGraphRagAnalyticsWritesNamespacedCausalityComponents,
   testKeywordGraphWritesKeywordFrequencyAndStrengthScore,
@@ -708,7 +708,7 @@ export const runAllTests = async () => {
   await exec('policy.toolbar.forbidLegacyToolMenuAreasSystem', testForbidLegacyToolbarToolMenuAreasSystem)
 
   await exec('toolbar.editorToggle.togglesWorkspaceViewMode', testToolbarEditorButtonTogglesWorkspaceViewMode)
-  await exec('ui.floatingPanel.designLayers.rendersAsSection', testFloatingPanelDesignLayersViewRendersAsSection)
+  await exec('ui.floatingPanel.designLayers.rendersAsDiv', testFloatingPanelDesignLayersViewRendersAsDiv)
   await exec('editorShell.rendersCanvasPreviewIframe', testEmbeddedEditorShellRendersCanvasPreviewIframe)
   await exec(
     'ui.editorWorkspace.inspector.usesSelectionInspectorWhenFlowEditorNotMounted',
