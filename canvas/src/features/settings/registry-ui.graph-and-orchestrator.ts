@@ -111,6 +111,15 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     default: () => false,
   },
   {
+    key: 'flowEditorOverlayWheelProxyEnabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => s().flowEditorOverlayWheelProxyEnabled === true,
+    write: (v) => s().setFlowEditorOverlayWheelProxyEnabled(Boolean(v)),
+    docKey: 'flowEditorOverlayWheelProxyEnabled',
+    default: () => true,
+  },
+  {
     key: 'viewPinned',
     type: 'boolean',
     source: 'store',

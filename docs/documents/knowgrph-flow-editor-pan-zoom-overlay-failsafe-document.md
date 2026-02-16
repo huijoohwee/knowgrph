@@ -13,6 +13,7 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 
 - Overlays may be marked as wheel-ignore/pointer-ignore to prevent accidental canvas wheel zoom.
 - When Space-pan is held, Space+drag pan must remain usable even if the pointerdown starts on an overlay.
+- When `flowEditorOverlayWheelProxyEnabled=true`, wheel gestures that originate over a Node Quick Editor overlay must be forwarded to the Flow canvas unless the overlay can scroll in that direction.
 - Overlay-driven global user-select locks must always unlock on pointer end/cancel and must not leak across unmount.
 
 ## Safety Guarantees
@@ -23,9 +24,7 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 ## References
 
 - `knowgrph/canvas/src/components/FlowCanvas/bindNativeInteractions.ts`
-- `knowgrph/canvas/src/components/GraphCanvas/zoom.ts`
-- `knowgrph/canvas/src/components/GraphCanvas/drag.ts`
 - `knowgrph/canvas/src/components/FlowEditor/NodeOverlayEditor.tsx`
 - `knowgrph/canvas/src/lib/canvas/interaction-user-select.ts`
-- `knowgrph/canvas/src/lib/zoom/scaleExtent.ts`
-
+- `knowgrph/canvas/src/hooks/store/canvasSlice.ts`
+- `knowgrph/canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts`

@@ -24,6 +24,7 @@ import {
 } from '@/__tests__/selectionZoom.test'
 import { testGraphCanvasNodeDragDoesNotLeakUserSelectLockWhenSpacePanHeld } from '@/__tests__/graphCanvasDragUserSelectUnlockRegression.test'
 import { testFlowCanvasSpacePanCanStartFromOverlay } from '@/__tests__/flowCanvasSpacePanOverlayProxyRegression.test'
+import { testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay } from '@/__tests__/flowCanvasWheelOverlayProxyRegression.test'
 import { testGlobalUserSelectLockHasFailsafeAndIsInstalled } from '@/__tests__/userSelectFailsafeRegression.test'
 import { testGroupBboxCollideSeparatesTopParentGroups } from '@/__tests__/groupOverlapForce.test'
 import {
@@ -730,6 +731,7 @@ export const runAllTests = async () => {
   await exec('viewport.flowEditor.doesNotForceDesignPreset', testFlowEditorViewportControlsPresetDoesNotForceDesign)
   await exec('viewport.flowEditor.overlay.pointerCaptureRegression', testFlowEditorOverlayDoesNotFreezePanOrZoomAfterOverlayDrag)
   await exec('viewport.flowEditor.overlay.spacePanProxy', testFlowCanvasSpacePanCanStartFromOverlay)
+  await exec('viewport.flowEditor.overlay.wheelProxy', testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay)
   await exec('viewport.flowEditor.initTransform.noChurnAfterPan', testFlowEditorInitialTransformDoesNotReapplyAfterUserPan)
   await exec('zoom.auto2dPolicy.flowEditor.disablesAutoModes', testAutoZoom2dPolicyFlowEditorDisablesAutoZoomModes)
   await exec('flow.collisionPolicy.flowEditor.forcesCollisionDuringDrag', testFlowCollisionPolicyForcesCollisionDuringDragInFlowEditor)

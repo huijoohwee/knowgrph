@@ -289,7 +289,67 @@ export function bindFlowCanvasNativeInteractions(args: {
     })
   }
 
-  const onWheel = (e: WheelEvent) => {
+  const shouldProxyWheelFromOverlay = (event: WheelEvent): boolean => {
+    const t = (event as unknown as { target?: unknown }).target
+    const el = t instanceof Element ? t : null
+    if (!el) return false
+    const overlayRoot = el.closest('[data-kg-node-quick-editor]')
+    if (!overlayRoot) return false
+    if (el.closest('input,textarea,select,button,[role="textbox"],[contenteditable="true"]')) return false
+    if (event.ctrlKey === true || event.metaKey === true) return true
+
+    const dx = typeof (event as unknown as { deltaX?: unknown }).deltaX === 'number' ? (event as unknown as { deltaX: number }).deltaX : 0
+    const dy = typeof (event as unknown as { deltaY?: unknown }).deltaY === 'number' ? (event as unknown as { deltaY: number }).deltaY : 0
+    if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return false
+
+    const canScrollForDelta = (node: HTMLElement, delta: { dx: number; dy: number }): boolean => {
+      let overflowX = ''
+      let overflowY = ''
+      try {
+        const styles = getComputedStyle(node)
+        overflowX = styles.overflowX
+        overflowY = styles.overflowY
+      } catch {
+        void 0
+      }
+
+      if (delta.dy !== 0 && (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')) {
+        const h = node.scrollHeight
+        const ch = node.clientHeight
+        if (h > ch + 1) {
+          const top = node.scrollTop
+          if (delta.dy > 0 && top + ch < h - 1) return true
+          if (delta.dy < 0 && top > 0) return true
+        }
+      }
+
+      if (delta.dx !== 0 && (overflowX === 'auto' || overflowX === 'scroll' || overflowX === 'overlay')) {
+        const w = node.scrollWidth
+        const cw = node.clientWidth
+        if (w > cw + 1) {
+          const left = node.scrollLeft
+          if (delta.dx > 0 && left + cw < w - 1) return true
+          if (delta.dx < 0 && left > 0) return true
+        }
+      }
+
+      return false
+    }
+
+    const boundary = overlayRoot instanceof HTMLElement ? overlayRoot : null
+    let cur: Element | null = el
+    const maxHops = 30
+    for (let hops = 0; cur && hops < maxHops; hops += 1) {
+      const node = cur instanceof HTMLElement ? cur : null
+      if (node && canScrollForDelta(node, { dx, dy })) return false
+      if (boundary && cur === boundary) break
+      cur = cur.parentElement
+    }
+
+    return true
+  }
+
+  const handleWheel = (e: WheelEvent, opts?: { skipIgnoreGuard?: boolean }) => {
     cancelFlowZoomRequestAnim(runtime)
     const drag = args.dragRef.current
     if (drag && drag.type !== 'pan') {
@@ -308,7 +368,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     const wheelBehavior = schemaForWheel ? readWheelBehavior(schemaForWheel) : 'preset'
     const wheelZoom = shouldWheelZoom({ event: e, preset, wheelBehavior })
 
-    const ignoreWheel = shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
+    const ignoreWheel = opts?.skipIgnoreGuard ? false : shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
     const allowZoomThroughIgnore = wheelZoom && (e.ctrlKey === true || e.metaKey === true)
     if (ignoreWheel && !allowZoomThroughIgnore) {
       try {
@@ -388,6 +448,17 @@ export function bindFlowCanvasNativeInteractions(args: {
     } catch {
       void 0
     }
+  }
+
+  const onWheel = (e: WheelEvent) => {
+    handleWheel(e)
+  }
+
+  const onWindowWheelCapture = (e: WheelEvent) => {
+    if (!args.active) return
+    if (useGraphStore.getState().flowEditorOverlayWheelProxyEnabled === false) return
+    if (!shouldProxyWheelFromOverlay(e)) return
+    handleWheel(e, { skipIgnoreGuard: true })
   }
 
   const onPointerDown = (e: PointerEvent) => {
@@ -1046,6 +1117,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     window.addEventListener('pointermove', onWindowPointerMoveCapture, { passive: false, capture: true })
     window.addEventListener('pointerup', onWindowPointerUpCapture, { passive: false, capture: true })
     window.addEventListener('pointercancel', onWindowPointerUpCapture, { passive: false, capture: true })
+    window.addEventListener('wheel', onWindowWheelCapture, { passive: false, capture: true })
   }
 
   return () => {
@@ -1115,6 +1187,7 @@ export function bindFlowCanvasNativeInteractions(args: {
       window.removeEventListener('pointermove', onWindowPointerMoveCapture, true)
       window.removeEventListener('pointerup', onWindowPointerUpCapture, true)
       window.removeEventListener('pointercancel', onWindowPointerUpCapture, true)
+      window.removeEventListener('wheel', onWindowWheelCapture, true)
     }
   }
 }

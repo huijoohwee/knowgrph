@@ -91,6 +91,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   const initialViewportControlsPreset = initialViewportControlsPresetStored
 
   const initialFlowEditorSelectionOnDrag = lsBool(LS_KEYS.flowEditorSelectionOnDrag, false)
+  const initialFlowEditorOverlayWheelProxyEnabled = lsBool(LS_KEYS.flowEditorOverlayWheelProxyEnabled, true)
 
   const initialPinnedStored = lsBool(LS_KEYS.viewportPinned, false)
   const initialFitToScreenStored = lsBool(LS_KEYS.viewportFitToScreen, true)
@@ -298,6 +299,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   canvas2dRenderer: initialCanvas2dRenderer,
   viewportControlsPreset: initialViewportControlsPreset,
   flowEditorSelectionOnDrag: initialFlowEditorSelectionOnDrag,
+  flowEditorOverlayWheelProxyEnabled: initialFlowEditorOverlayWheelProxyEnabled,
   flowWheelZoomSpeedMultiplier: initialFlowWheelZoomSpeedMultiplier,
   flowWheelZoomIncrementMultiplier: initialFlowWheelZoomIncrementMultiplier,
   flowWheelZoomSmoothMinDurationMs: initialFlowWheelZoomSmoothMinDurationMs,
@@ -406,6 +408,13 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     if (cur === next) return
     lsSetBool(LS_KEYS.flowEditorSelectionOnDrag, next)
     set({ flowEditorSelectionOnDrag: next })
+  },
+  setFlowEditorOverlayWheelProxyEnabled: (v: boolean) => {
+    const next = Boolean(v)
+    const cur = get().flowEditorOverlayWheelProxyEnabled === true
+    if (cur === next) return
+    lsSetBool(LS_KEYS.flowEditorOverlayWheelProxyEnabled, next)
+    set({ flowEditorOverlayWheelProxyEnabled: next })
   },
   setFlowWheelZoomSpeedMultiplier: (v: number) => {
     const next = clampFlowWheelZoomSpeedMultiplier(

@@ -228,6 +228,11 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     responsibility: 'Enable selection box on drag in Flow Editor renderer',
     notes: 'When enabled with viewportControlsPreset=design, left-drag creates a selection box. When disabled, selection box uses Shift-drag like other modes.',
   },
+  flowEditorOverlayWheelProxyEnabled: {
+    area: 'Canvas Interaction (Flow Editor)',
+    responsibility: 'Enable wheel zoom/pan proxy when pointer is over Flow Editor fly-out overlays',
+    notes: 'When enabled, wheel gestures over Node Quick Editor overlays are forwarded to the Flow canvas unless the overlay can scroll in that direction.',
+  },
   viewPinned: {
     area: 'Canvas Zoom Modes',
     responsibility: 'Pin view (disables Fit/Selection auto-zoom + zoom-to-bounds requests)',
