@@ -43,8 +43,6 @@
     "elkjs": "^0.10.0",
     "rxdb": "^16.19.0",
     "rxjs": "^7.8.2",
-    "ag-grid-community": "^34.0.1",
-    "ag-grid-react": "^34.0.1",
     "gympgrph": "file:../../gympgrph",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.11",

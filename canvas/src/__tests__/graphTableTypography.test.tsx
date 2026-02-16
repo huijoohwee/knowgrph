@@ -1,6 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { GraphTableSemanticTable } from '@/features/graph-table/ui/GraphTableSemanticTable'
+import { GraphTableFastGrid } from '@/features/graph-table/ui/GraphTableFastGrid'
 import type { GraphColumnDoc } from '@/features/graph-table-db/graphTableDb'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -52,11 +52,13 @@ export async function testGraphTableTypographyUsesUiSettings() {
     ]
 
     root.render(
-      React.createElement(GraphTableSemanticTable, {
+      React.createElement(GraphTableFastGrid, {
         tableId: 'nodes',
         columns,
         rows: [{ id: 'n1', __order: 0, label: 'Hello' }],
         selectedRowIds: [],
+        focusRowId: null,
+        autoScrollToFocusRow: false,
         columnVisibilityById: {},
         filterMatch: 'all',
         filterClauses: [],
@@ -65,6 +67,7 @@ export async function testGraphTableTypographyUsesUiSettings() {
         rowHeightPreset: 'comfortable',
         columnWidthsPxById: {},
         onColumnWidthChanged: () => void 0,
+        onCellValueChanged: () => void 0,
         onRowClicked: () => void 0,
         onSelectionChanged: () => void 0,
         panelTypography,
@@ -80,23 +83,11 @@ export async function testGraphTableTypographyUsesUiSettings() {
 
     await tick()
 
-    const table = container.querySelector('table')
-    if (!table) throw new Error('expected graph table to render a <table> element')
-    const tableClass = String(table.getAttribute('class') || '')
-    if (!tableClass.includes('font-serif') || !tableClass.includes('text-[15px]')) {
-      throw new Error(`expected table to inherit panel text typography, got ${JSON.stringify(tableClass)}`)
-    }
-
-    const spanEls = Array.from(container.querySelectorAll('span')) as HTMLSpanElement[]
-    const sortIndex = spanEls.find(el => {
-      if ((el.textContent || '').trim() !== '1') return false
-      const cls = String(el.getAttribute('class') || '')
-      return cls.includes('text-[10px]')
-    })
-    if (!sortIndex) throw new Error('expected graph table to render sort order index')
-    const sortClass = String(sortIndex.getAttribute('class') || '')
-    if (!sortClass.includes('text-[10px]')) {
-      throw new Error(`expected sort index to use micro label size class, got ${JSON.stringify(sortClass)}`)
+    const viewport = container.querySelector('section[aria-label="Grid viewport"]')
+    if (!viewport) throw new Error('expected graph table to render a Grid viewport')
+    const cls = String(viewport.getAttribute('class') || '')
+    if (!cls.includes('font-serif') || !cls.includes('text-[15px]')) {
+      throw new Error(`expected grid viewport to inherit panel text typography, got ${JSON.stringify(cls)}`)
     }
   } finally {
     try {

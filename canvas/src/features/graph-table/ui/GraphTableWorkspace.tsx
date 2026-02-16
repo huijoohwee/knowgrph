@@ -19,10 +19,10 @@ import {
   type GraphRowDoc,
   type GraphTableId,
 } from '@/features/graph-table-db/graphTableDb'
-import type { GraphTableGridRow } from '@/features/graph-table/ui/GraphTableGrid'
+import type { GraphTableGridRow } from '@/features/graph-table/ui/graphTableTypes'
 import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/graph-table/ui/GraphTableInspector'
 import { GraphTableToolbar } from '@/features/graph-table/ui/GraphTableToolbar'
-import { GraphTableSemanticTable } from '@/features/graph-table/ui/GraphTableSemanticTable'
+import { GraphTableFastGrid } from '@/features/graph-table/ui/GraphTableFastGrid'
 import { GraphTableCanvasPreviewDock } from '@/features/graph-table/ui/GraphTableCanvasPreviewDock'
 import {
   makeGraphTableRuleId,
@@ -463,7 +463,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
       <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Table workspace">
         <section className="flex-1 min-w-0 min-h-0 overflow-hidden flex" aria-label="Table and inspector">
           {!tableCollapsed ? (
-            <GraphTableSemanticTable
+            <GraphTableFastGrid
               tableId={activeTableId}
               panelTypography={panelTypography}
               columns={columns}
@@ -479,6 +479,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
               rowHeightPreset={rowHeightPreset}
               columnWidthsPxById={columnWidthsPxById}
               onColumnWidthChanged={handleColumnWidthChanged}
+              onCellValueChanged={handleCellValueChanged}
               onRowClicked={rowId => {
                 setInspectorRowId(rowId)
                 setSelectedRowIds([rowId])
