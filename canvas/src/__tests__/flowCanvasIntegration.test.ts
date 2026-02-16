@@ -112,6 +112,8 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
   useGraphStore.setState({
     graphData: baseGraphData,
     graphDataRevision: (priorState.graphDataRevision || 0) + 1,
+    canvasRenderMode: '2d',
+    canvas2dRenderer: 'flow',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'document',
     documentStructureBaselineLock: false,
@@ -197,6 +199,8 @@ export const testFlowCanvasAutoFitToScreenRunsInFlowRenderer = async () => {
   useGraphStore.setState({
     graphData: baseGraphData,
     graphDataRevision: (priorState.graphDataRevision || 0) + 1,
+    canvasRenderMode: '2d',
+    canvas2dRenderer: 'flow',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'document',
     fitToScreenMode: true,
@@ -265,6 +269,8 @@ export const testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer = async () => {
   useGraphStore.setState({
     graphData: baseGraphData,
     graphDataRevision: (priorState.graphDataRevision || 0) + 1,
+    canvasRenderMode: '2d',
+    canvas2dRenderer: 'flow',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'document',
     zoomToSelectionMode: true,

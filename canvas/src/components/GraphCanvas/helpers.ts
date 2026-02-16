@@ -260,17 +260,6 @@ export function hasNodeMedia(node: GraphNode): boolean {
   return getNodeMediaSpec(node) != null
 }
 
-export function callZoomTransform(
-  svgSelection: d3.Selection<SVGSVGElement, unknown, null, undefined>,
-  zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown>,
-  transform: d3.ZoomTransform,
-): void {
-  svgSelection
-    .transition()
-    .duration(300)
-    .call(zoomBehavior.transform as (sel: d3.Transition<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void, transform)
-}
-
 export type FlowKind = 'input' | 'compute'
 
 export type FlowOp = 'sum' | 'avg'

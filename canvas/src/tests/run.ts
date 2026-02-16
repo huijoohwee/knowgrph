@@ -22,6 +22,9 @@ import {
   testReadFitAllOptionsEnforces80to20FillRatioForAllFitIntents,
   testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
+import { testGraphCanvasNodeDragDoesNotLeakUserSelectLockWhenSpacePanHeld } from '@/__tests__/graphCanvasDragUserSelectUnlockRegression.test'
+import { testFlowCanvasSpacePanCanStartFromOverlay } from '@/__tests__/flowCanvasSpacePanOverlayProxyRegression.test'
+import { testGlobalUserSelectLockHasFailsafeAndIsInstalled } from '@/__tests__/userSelectFailsafeRegression.test'
 import { testGroupBboxCollideSeparatesTopParentGroups } from '@/__tests__/groupOverlapForce.test'
 import {
   testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings,
@@ -113,6 +116,16 @@ import {
 import { testGraphTraversalFloatingPanelGenericDepthClamp } from '@/__tests__/graphTraversalFloatingPanel.test'
 import { testThemeModePersistence, testThemeSystemModeApplyAndSubscribe } from '@/__tests__/theme.test'
 import { testDesignLayersNormalizePreservesOrderAndAddsNew, testDesignLayersToggleAndMove } from '@/__tests__/designLayersState.test'
+import { testDesignFramePosEqDetectsEquality } from '@/__tests__/designRendererSlice.test'
+import {
+  testNormalizeSingleRootRouteDoesNotOverrideExistingKgPath,
+  testNormalizeSingleRootRouteNoopsOnRoot,
+  testNormalizeSingleRootRouteStashesPathAndPreservesSearchAndHash,
+} from '@/__tests__/singleRootRoutingNormalizer.test'
+import {
+  testCanvasEventCoordsReadElementLocalPointUsesBoundingRect,
+  testViewportTransformInvertZoomPointMatchesD3Invert,
+} from '@/__tests__/viewportTransformPoint.test'
 import { runMarkdownTests } from '@/tests/runners/runMarkdownTests'
 import { runSchemaTests } from '@/tests/runners/runSchemaTests'
 import { runJsonLdTests } from '@/tests/runners/runJsonLdTests'
@@ -475,6 +488,7 @@ import {
   testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted,
   testToolbarEditorButtonTogglesWorkspaceViewMode,
 } from '@/__tests__/embeddedEditorMode.test'
+import { testFloatingPanelDesignLayersViewRendersAsSection } from '@/__tests__/floatingPanelDesignLayersView.test'
 import {
   testGraphRagAnalyticsWritesNamespacedCausalityComponents,
   testKeywordGraphWritesKeywordFrequencyAndStrengthScore,
@@ -694,6 +708,7 @@ export const runAllTests = async () => {
   await exec('policy.toolbar.forbidLegacyToolMenuAreasSystem', testForbidLegacyToolbarToolMenuAreasSystem)
 
   await exec('toolbar.editorToggle.togglesWorkspaceViewMode', testToolbarEditorButtonTogglesWorkspaceViewMode)
+  await exec('ui.floatingPanel.designLayers.rendersAsSection', testFloatingPanelDesignLayersViewRendersAsSection)
   await exec('editorShell.rendersCanvasPreviewIframe', testEmbeddedEditorShellRendersCanvasPreviewIframe)
   await exec(
     'ui.editorWorkspace.inspector.usesSelectionInspectorWhenFlowEditorNotMounted',
@@ -706,8 +721,12 @@ export const runAllTests = async () => {
 
   await exec('interaction.spacePan.keyState', testSpacePanKeyStateTracksHeldSpace)
 
+  await exec('interaction.userSelect.failsafeInstalled', testGlobalUserSelectLockHasFailsafeAndIsInstalled)
+  await exec('interaction.userSelect.d3NodeDrag.endUnlock', testGraphCanvasNodeDragDoesNotLeakUserSelectLockWhenSpacePanHeld)
+
   await exec('viewport.flowEditor.doesNotForceDesignPreset', testFlowEditorViewportControlsPresetDoesNotForceDesign)
   await exec('viewport.flowEditor.overlay.pointerCaptureRegression', testFlowEditorOverlayDoesNotFreezePanOrZoomAfterOverlayDrag)
+  await exec('viewport.flowEditor.overlay.spacePanProxy', testFlowCanvasSpacePanCanStartFromOverlay)
   await exec('viewport.flowEditor.initTransform.noChurnAfterPan', testFlowEditorInitialTransformDoesNotReapplyAfterUserPan)
   await exec('zoom.auto2dPolicy.flowEditor.disablesAutoModes', testAutoZoom2dPolicyFlowEditorDisablesAutoZoomModes)
   await exec('flow.collisionPolicy.flowEditor.forcesCollisionDuringDrag', testFlowCollisionPolicyForcesCollisionDuringDragInFlowEditor)
@@ -1070,6 +1089,12 @@ export const runAllTests = async () => {
   await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
   await exec('design.layers.normalizePreservesOrderAndAddsNew', testDesignLayersNormalizePreservesOrderAndAddsNew)
   await exec('design.layers.toggleAndMove', testDesignLayersToggleAndMove)
+  await exec('design.renderer.posEq.detectsEquality', testDesignFramePosEqDetectsEquality)
+  await exec('viewportTransform.invertZoomPoint.matchesD3', testViewportTransformInvertZoomPointMatchesD3Invert)
+  await exec('canvasEventCoords.readElementLocalPoint.usesBoundingRect', testCanvasEventCoordsReadElementLocalPointUsesBoundingRect)
+  await exec('routing.singleRoot.noopsOnRoot', testNormalizeSingleRootRouteNoopsOnRoot)
+  await exec('routing.singleRoot.stashesPathAndPreservesSearchAndHash', testNormalizeSingleRootRouteStashesPathAndPreservesSearchAndHash)
+  await exec('routing.singleRoot.doesNotOverrideKgPath', testNormalizeSingleRootRouteDoesNotOverrideExistingKgPath)
   await exec('workspace.importUrl.webpageStubHtml', testImportUrlWebpageCreatesHtmlFrontmatterStub)
   await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)
   await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)

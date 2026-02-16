@@ -25,6 +25,7 @@ import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import {
   computeWheelPanDeltaPx,
   isPanDragButton,
+  shouldAllowPanDragForPointerEvent,
   shouldStartSelectionDragForPreset,
   shouldSuppressContextMenuForPreset,
 } from '@/lib/canvas/viewport-controls'
@@ -289,15 +290,6 @@ export function bindFlowCanvasNativeInteractions(args: {
   }
 
   const onWheel = (e: WheelEvent) => {
-    if (shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })) {
-      try {
-        e.preventDefault()
-      } catch {
-        void 0
-      }
-      return
-    }
-
     cancelFlowZoomRequestAnim(runtime)
     const drag = args.dragRef.current
     if (drag && drag.type !== 'pan') {
@@ -315,6 +307,17 @@ export function bindFlowCanvasNativeInteractions(args: {
     const schemaForWheel = storeState.schema
     const wheelBehavior = schemaForWheel ? readWheelBehavior(schemaForWheel) : 'preset'
     const wheelZoom = shouldWheelZoom({ event: e, preset, wheelBehavior })
+
+    const ignoreWheel = shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
+    const allowZoomThroughIgnore = wheelZoom && (e.ctrlKey === true || e.metaKey === true)
+    if (ignoreWheel && !allowZoomThroughIgnore) {
+      try {
+        e.preventDefault()
+      } catch {
+        void 0
+      }
+      return
+    }
     if (!wheelZoom) {
       cancelWheelZoomAnimation()
       const t0 = runtime.transform || d3.zoomIdentity
@@ -860,6 +863,147 @@ export function bindFlowCanvasNativeInteractions(args: {
     }
   }
 
+  let proxyPanPointerId: number | null = null
+  let pendingProxyPan:
+    | null
+    | {
+        pointerId: number
+        startClientX: number
+        startClientY: number
+        startSx: number
+        startSy: number
+        startTx: number
+        startTy: number
+      } = null
+  const spacePanProxyTargetSelector = ['[data-kg-node-quick-editor]', UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
+    .filter(Boolean)
+    .join(', ')
+
+  const onWindowPointerDownCapture = (e: PointerEvent) => {
+    if (!args.active) return
+    if (e.pointerType === 'touch') return
+    if (proxyPanPointerId != null) return
+    if (pendingProxyPan != null) return
+    if (args.dragRef.current) return
+
+    const target = e.target
+    const targetEl = target instanceof Element ? target : null
+    if (!targetEl) return
+    if (canvasEl.contains(targetEl)) return
+    if (!spacePanProxyTargetSelector || !targetEl.closest(spacePanProxyTargetSelector)) return
+
+    const interactive = targetEl.closest('input,textarea,select,button,a,[role="button"],[contenteditable="true"]')
+    const preset = args.viewportControlsPreset
+    const button = typeof e.button === 'number' ? e.button : 0
+    const shiftKey = e.shiftKey === true
+    const spacePanHeld = isSpacePanHeld()
+    const allowPan = shouldAllowPanDragForPointerEvent({
+      preset,
+      eventType: 'pointerdown',
+      button,
+      shiftKey,
+      spacePanHeld,
+    })
+    const selectionDrag = shouldStartSelectionDragForPreset({
+      preset,
+      button,
+      shiftKey,
+      spacePanHeld,
+      selectionOnDrag: args.selectionOnDrag,
+    })
+    if (!allowPan || selectionDrag) return
+    if (interactive && !(spacePanHeld === true && button === 0)) return
+
+    cancelWheelZoomAnimation()
+    cancelFlowZoomRequestAnim(runtime)
+    try {
+      disableAutoZoomModesForUserGesture(useGraphStore.getState())
+    } catch {
+      void 0
+    }
+
+    const local = readCanvasLocalPoint({ canvasEl, event: e })
+    if (!local) return
+
+    args.lastPointerInCanvasRef.current = { sx: local.sx, sy: local.sy, ts: Date.now() }
+    pendingProxyPan = {
+      pointerId: e.pointerId,
+      startClientX: Number.isFinite(e.clientX) ? e.clientX : 0,
+      startClientY: Number.isFinite(e.clientY) ? e.clientY : 0,
+      startSx: local.sx,
+      startSy: local.sy,
+      startTx: runtime.transform.x,
+      startTy: runtime.transform.y,
+    }
+  }
+
+  const onWindowPointerMoveCapture = (e: PointerEvent) => {
+    if (!args.active) return
+    if (proxyPanPointerId != null) {
+      if (e.pointerId !== proxyPanPointerId) return
+      try {
+        if (canvasEl.hasPointerCapture(e.pointerId)) return
+      } catch {
+        void 0
+      }
+      onPointerMove(e)
+      return
+    }
+    const pending = pendingProxyPan
+    if (!pending) return
+    if (e.pointerId !== pending.pointerId) return
+    if (typeof e.buttons === 'number' && e.buttons === 0) {
+      pendingProxyPan = null
+      return
+    }
+    const cx = Number.isFinite(e.clientX) ? e.clientX : 0
+    const cy = Number.isFinite(e.clientY) ? e.clientY : 0
+    const dx = cx - pending.startClientX
+    const dy = cy - pending.startClientY
+    if (dx * dx + dy * dy < 9) return
+
+    pendingProxyPan = null
+    lockGlobalUserSelect()
+    args.userSelectLockPointerIdRef.current = pending.pointerId
+    args.dragRef.current = {
+      type: 'pan',
+      startSx: pending.startSx,
+      startSy: pending.startSy,
+      startTx: pending.startTx,
+      startTy: pending.startTy,
+      pointerId: pending.pointerId,
+    }
+    proxyPanPointerId = pending.pointerId
+    try {
+      canvasEl.setPointerCapture(pending.pointerId)
+    } catch {
+      void 0
+    }
+    onPointerMove(e)
+    try {
+      e.preventDefault()
+    } catch {
+      void 0
+    }
+  }
+
+  const onWindowPointerUpCapture = (e: PointerEvent) => {
+    if (!args.active) return
+    if (pendingProxyPan && e.pointerId === pendingProxyPan.pointerId) {
+      pendingProxyPan = null
+      return
+    }
+    if (proxyPanPointerId == null) return
+    if (e.pointerId !== proxyPanPointerId) return
+    try {
+      if (canvasEl.hasPointerCapture(e.pointerId)) return
+    } catch {
+      void 0
+    }
+    proxyPanPointerId = null
+    onPointerUp(e)
+  }
+
   const onLostPointerCapture = (e: PointerEvent) => {
     if (args.userSelectLockPointerIdRef.current === e.pointerId) {
       args.userSelectLockPointerIdRef.current = null
@@ -896,6 +1040,13 @@ export function bindFlowCanvasNativeInteractions(args: {
   canvasEl.addEventListener('pointercancel', onPointerUp, { passive: false })
   canvasEl.addEventListener('lostpointercapture', onLostPointerCapture, { passive: false })
   canvasEl.addEventListener('contextmenu', onContextMenu, { passive: false })
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pointerdown', onWindowPointerDownCapture, { passive: false, capture: true })
+    window.addEventListener('pointermove', onWindowPointerMoveCapture, { passive: false, capture: true })
+    window.addEventListener('pointerup', onWindowPointerUpCapture, { passive: false, capture: true })
+    window.addEventListener('pointercancel', onWindowPointerUpCapture, { passive: false, capture: true })
+  }
 
   return () => {
     if (args.userSelectLockPointerIdRef.current != null) {
@@ -958,5 +1109,12 @@ export function bindFlowCanvasNativeInteractions(args: {
     canvasEl.removeEventListener('pointercancel', onPointerUp)
     canvasEl.removeEventListener('lostpointercapture', onLostPointerCapture)
     canvasEl.removeEventListener('contextmenu', onContextMenu)
+
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pointerdown', onWindowPointerDownCapture, true)
+      window.removeEventListener('pointermove', onWindowPointerMoveCapture, true)
+      window.removeEventListener('pointerup', onWindowPointerUpCapture, true)
+      window.removeEventListener('pointercancel', onWindowPointerUpCapture, true)
+    }
   }
 }

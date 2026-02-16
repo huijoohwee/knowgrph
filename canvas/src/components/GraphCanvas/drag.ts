@@ -6,10 +6,13 @@ import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/inter
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 
 export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>, schema: GraphSchema) =>
-  d3.drag<SVGElement, GraphNode>()
+  (() => {
+    let locked = false
+    return d3.drag<SVGElement, GraphNode>()
     .on('start', function (event, d) {
       if (isSpacePanHeld()) return
       lockGlobalUserSelect()
+      locked = true
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
       if (!structured && !event.active) {
@@ -61,8 +64,10 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       }
     })
     .on('end', (event, d) => {
-      if (isSpacePanHeld()) return
-      unlockGlobalUserSelect()
+      if (locked) {
+        locked = false
+        unlockGlobalUserSelect()
+      }
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
       if (!structured) {
@@ -75,3 +80,4 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       
       if (structured) simulation.stop();
     });
+  })()

@@ -3,16 +3,17 @@ import * as d3 from 'd3'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useContainerDims } from '@/hooks/useContainerDims'
-import { applyZoomRequest } from '@/components/GraphCanvas/zoomController'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
+import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
+import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
+import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
+import { createZoom } from '@/components/GraphCanvas/zoom'
 
-import type { GraphData } from '@/lib/graph/types'
-import type { ZoomRequest } from '@/lib/zoom/requests'
-import type { DesignLayerState } from '@/features/design/designLayersState'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 type FrameNode = {
   id: string
@@ -59,15 +60,14 @@ function computeGridPositions(args: { nodes: FrameNode[]; colCount: number; colW
 
 export default function DesignCanvas({
   active = true,
-  layerState,
 }: {
   active?: boolean
-  layerState?: DesignLayerState
 }) {
   const containerRef = useRef<HTMLElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const gRef = useRef<SVGGElement>(null)
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
+  const labelsSelRef = useRef<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>(null)
   const dims = useContainerDims(containerRef)
 
   const snapshot = useGraphStore(
@@ -88,6 +88,10 @@ export default function DesignCanvas({
       fitToScreenMode: s.fitToScreenMode,
       zoomToSelectionMode: s.zoomToSelectionMode,
       selectedNodeId: s.selectedNodeId,
+      viewportControlsPreset: s.viewportControlsPreset,
+      designLayerState: s.designLayerState,
+      designFramePosById: s.designFramePosById,
+      setDesignFramePos: s.setDesignFramePos,
     })),
   )
 
@@ -98,7 +102,7 @@ export default function DesignCanvas({
   const GAP = 48
 
   const sortedNodes = useMemo(() => {
-    const order = Array.isArray(layerState?.order) ? layerState!.order : []
+    const order = Array.isArray(snapshot.designLayerState?.order) ? snapshot.designLayerState!.order : []
     if (order.length === 0) return frameNodes
     const byId = new Map(frameNodes.map(n => [n.id, n] as const))
     const used = new Set<string>()
@@ -118,16 +122,99 @@ export default function DesignCanvas({
       out.push(n)
     }
     return out
-  }, [frameNodes, layerState])
+  }, [frameNodes, snapshot.designLayerState])
 
   const visibleNodes = useMemo(() => {
-    const hidden = layerState?.hiddenById || {}
+    const hidden = snapshot.designLayerState?.hiddenById || {}
     return sortedNodes.filter(n => hidden[n.id] !== true)
-  }, [layerState?.hiddenById, sortedNodes])
+  }, [snapshot.designLayerState?.hiddenById, sortedNodes])
 
   const positions = useMemo(() => {
-    return computeGridPositions({ nodes: visibleNodes, colCount: 4, colW: FRAME_W, rowH: FRAME_H, pad: GAP })
-  }, [visibleNodes])
+    const grid = computeGridPositions({ nodes: visibleNodes, colCount: 4, colW: FRAME_W, rowH: FRAME_H, pad: GAP })
+    const overrides = snapshot.designFramePosById || {}
+    const out: Record<string, { x: number; y: number; w: number; h: number }> = {}
+    for (let i = 0; i < visibleNodes.length; i += 1) {
+      const n = visibleNodes[i]
+      const base = grid[n.id]
+      if (!base) continue
+      const o = overrides[n.id]
+      if (o && Number.isFinite(o.x) && Number.isFinite(o.y)) {
+        out[n.id] = { x: o.x, y: o.y, w: base.w, h: base.h }
+      } else {
+        out[n.id] = base
+      }
+    }
+    return out
+  }, [snapshot.designFramePosById, visibleNodes])
+
+  const localGraphData: GraphData = useMemo(() => {
+    return {
+      type: 'Graph',
+      nodes: visibleNodes.map(n => {
+        const p = positions[n.id]
+        if (!p) return { id: n.id, label: n.label, type: 'Frame', properties: {}, x: 0, y: 0 }
+        return {
+          id: n.id,
+          label: n.label,
+          type: 'Frame',
+          properties: {},
+          x: p.x + p.w / 2,
+          y: p.y + p.h / 2,
+        }
+      }),
+      edges: [],
+      metadata: snapshot.graphData?.metadata,
+    }
+  }, [positions, snapshot.graphData?.metadata, visibleNodes])
+
+  const setDesignFramePos = snapshot.setDesignFramePos
+
+  const dragRef = useRef<null | { id: string; startWorld: { x: number; y: number }; startPos: { x: number; y: number } }>(null)
+  const dragRafRef = useRef<number | null>(null)
+  const dragPendingRef = useRef<null | { id: string; nextPos: { x: number; y: number } }>(null)
+
+  useEffect(() => {
+    return () => {
+      if (dragRafRef.current != null) {
+        try {
+          window.cancelAnimationFrame(dragRafRef.current)
+        } catch {
+          void 0
+        }
+        dragRafRef.current = null
+      }
+      dragPendingRef.current = null
+      dragRef.current = null
+    }
+  }, [])
+
+  const flushDrag = useMemo(() => {
+    return () => {
+      const pending = dragPendingRef.current
+      dragPendingRef.current = null
+      if (!pending) return
+      setDesignFramePos(pending.id, pending.nextPos)
+    }
+  }, [setDesignFramePos])
+
+  const scheduleDragCommit = useMemo(() => {
+    return () => {
+      if (dragRafRef.current != null) return
+      dragRafRef.current = window.requestAnimationFrame(() => {
+        dragRafRef.current = null
+        flushDrag()
+      })
+    }
+  }, [flushDrag])
+
+  const pointerToWorld = useMemo(() => {
+    return (ev: React.PointerEvent, svgEl: SVGSVGElement): { x: number; y: number } | null => {
+      const local = readElementLocalPoint({ el: svgEl, event: ev })
+      if (!local) return null
+      const t = d3.zoomTransform(svgEl)
+      return invertZoomPoint(t, local)
+    }
+  }, [])
 
   const zoomViewKey = useMemo(() => {
     return buildActive2dZoomViewKey({
@@ -160,60 +247,14 @@ export default function DesignCanvas({
     dimsRef.current = { width: dims.width, height: dims.height }
   }, [dims.width, dims.height])
 
-  useEffect(() => {
-    if (!active) return
-    let rafId: number | null = null
-    const apply = (zoomRequest: ZoomRequest | null) => {
-      if (!zoomRequest || !svgRef.current || !zoomRef.current) return
-      const state = useGraphStore.getState()
-      const svg = d3.select(svgRef.current)
-
-      const localGraphData: GraphData = {
-        type: 'Graph',
-        nodes: visibleNodes.map(n => {
-          const p = positions[n.id]
-          if (!p) return { id: n.id, label: n.label, type: 'Frame', properties: {}, x: 0, y: 0 }
-          return {
-            id: n.id,
-            label: n.label,
-            type: 'Frame',
-            properties: {},
-            x: p.x + p.w / 2,
-            y: p.y + p.h / 2,
-          }
-        }),
-        edges: [],
-        metadata: state.graphData?.metadata,
-      }
-
-      applyZoomRequest(zoomRequest, {
-        svg,
-        zoom: zoomRef.current,
-        graphData: localGraphData,
-        width: Math.max(1, Math.floor(dimsRef.current.width)),
-        height: Math.max(1, Math.floor(dimsRef.current.height)),
-        selectedNodeId: state.selectedNodeId,
-        selectedEdgeId: state.selectedEdgeId,
-        selectedNodeIds: state.selectedNodeIds,
-        selectedEdgeIds: state.selectedEdgeIds,
-      })
-    }
-    const schedule = (zoomRequest: ZoomRequest | null) => {
-      if (rafId != null) return
-      rafId = requestAnimationFrame(() => {
-        rafId = null
-        apply(zoomRequest)
-      })
-    }
-    const unsubZoomRequest = useGraphStore.subscribe(
-      s => s.zoomRequest,
-      zoomRequest => schedule(zoomRequest),
-    )
-    return () => {
-      unsubZoomRequest()
-      if (rafId != null) cancelAnimationFrame(rafId)
-    }
-  }, [active, positions, visibleNodes])
+  useZoomEffects({
+    svgRef,
+    zoomRef,
+    width: dims.width,
+    height: dims.height,
+    paused: !active,
+    graphDataOverride: localGraphData,
+  })
 
   useEffect(() => {
     if (!active) return
@@ -224,35 +265,27 @@ export default function DesignCanvas({
     const svg = d3.select(svgEl)
     const g = d3.select(gEl)
 
-    const zoom = d3
-      .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.05, 6])
-      .on('zoom', e => {
-        if (!active) return
-        const t = e.transform
-        g.attr('transform', `translate(${t.x},${t.y}) scale(${t.k})`)
-
-        const store = useGraphStore.getState()
-        const key = zoomViewKey
-        if (!key) return
-        commitZoomTransformToStore({
-          state: {
-            viewPinned: store.viewPinned,
-            zoomState: store.zoomState,
-            zoomStateByKey: store.zoomStateByKey,
-            setZoomState: store.setZoomState,
-            setZoomStateForKey: store.setZoomStateForKey,
-          },
-          zoomViewKey: key,
-          transform: { k: t.k, x: t.x, y: t.y },
-          viewportW: dims.width,
-          viewportH: dims.height,
-          graphDataRevision: store.graphDataRevision,
-        })
+    const zoom = createZoom(svg, g, labelsSelRef, snapshot.schema, snapshot.viewportControlsPreset, t => {
+      const store = useGraphStore.getState()
+      const key = zoomViewKey
+      if (!key) return
+      commitZoomTransformToStore({
+        state: {
+          viewPinned: store.viewPinned,
+          zoomState: store.zoomState,
+          zoomStateByKey: store.zoomStateByKey,
+          setZoomState: store.setZoomState,
+          setZoomStateForKey: store.setZoomStateForKey,
+        },
+        zoomViewKey: key,
+        transform: { k: t.k, x: t.x, y: t.y },
+        viewportW: dims.width,
+        viewportH: dims.height,
+        graphDataRevision: store.graphDataRevision,
       })
+    })
 
     zoomRef.current = zoom
-    svg.call(zoom as never)
 
     const store = useGraphStore.getState()
     const initialZoomState = pickZoomStateForView({
@@ -280,12 +313,21 @@ export default function DesignCanvas({
     return () => {
       try {
         svg.on('.zoom', null)
+        svg.on('.kgPointerPan', null)
+        svg.on('.kgPointerPanMove', null)
+        svg.on('.kgPointerPanUp', null)
+        svg.on('.kgWheelZoom', null)
+        svg.on('.kgWheelZoomGuard', null)
+        svg.on('.kgZoomWheelLastPointer', null)
+        svg.on('.kgTouch', null)
+        svg.on('.kgPanOnScroll', null)
+        svg.on('.kgDesignViewport', null)
       } catch {
         void 0
       }
       zoomRef.current = null
     }
-  }, [active, dims.height, dims.width, zoomViewKey])
+  }, [active, dims.height, dims.width, snapshot.schema, snapshot.viewportControlsPreset, zoomViewKey])
 
   const handleSelectNode = useMemo(() => {
     return (id: string) => {
@@ -335,7 +377,40 @@ export default function DesignCanvas({
                 transform={`translate(${p.x},${p.y})`}
                 onPointerDown={e => {
                   e.stopPropagation()
+                  if (!active) return
+                  const svgEl = svgRef.current
+                  if (!svgEl) return
+                  const world = pointerToWorld(e, svgEl)
+                  if (!world) return
+                  try {
+                    ;(e.currentTarget as unknown as { setPointerCapture?: (id: number) => void }).setPointerCapture?.(e.pointerId)
+                  } catch {
+                    void 0
+                  }
                   handleSelectNode(n.id)
+                  dragRef.current = { id: n.id, startWorld: world, startPos: { x: p.x, y: p.y } }
+                }}
+                onPointerMove={e => {
+                  const drag = dragRef.current
+                  if (!drag) return
+                  if (!active) return
+                  const svgEl = svgRef.current
+                  if (!svgEl) return
+                  const world = pointerToWorld(e, svgEl)
+                  if (!world) return
+                  const dx = world.x - drag.startWorld.x
+                  const dy = world.y - drag.startWorld.y
+                  const nextX = drag.startPos.x + dx
+                  const nextY = drag.startPos.y + dy
+                  if (!Number.isFinite(nextX) || !Number.isFinite(nextY)) return
+                  dragPendingRef.current = { id: drag.id, nextPos: { x: nextX, y: nextY } }
+                  scheduleDragCommit()
+                }}
+                onPointerUp={() => {
+                  dragRef.current = null
+                }}
+                onPointerCancel={() => {
+                  dragRef.current = null
                 }}
                 style={{ cursor: 'pointer' }}
               >

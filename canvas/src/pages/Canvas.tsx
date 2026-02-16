@@ -1,7 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -20,7 +20,7 @@ import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceF
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { SsotEventBridge } from '@/features/ssot/SsotEventBridge'
 import { importWithRetry } from '@/lib/react/importWithRetry'
-import type { DesignLayerState } from '@/features/design/designLayersState'
+import { normalizeSingleRootRoute } from '@/lib/routing/normalizeSingleRoot'
 
 const GeospatialOverlayHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -137,6 +137,13 @@ function MarkdownMetricsDevOverlay() {
 
 export default function CanvasPage() {
   const location = useLocation()
+  const navigate = useNavigate()
+
+  React.useEffect(() => {
+    const normalized = normalizeSingleRootRoute({ pathname: location.pathname, search: location.search, hash: location.hash })
+    if (!normalized) return
+    navigate({ pathname: normalized.pathname, search: normalized.search, hash: normalized.hash }, { replace: true })
+  }, [location.hash, location.pathname, location.search, navigate])
   const openedMainPanelFromQueryRef = React.useRef(false)
   const openedEditorWorkspaceFromQueryRef = React.useRef(false)
   const lastInboundPreviewSelectionKeyRef = React.useRef<string>('')
@@ -144,8 +151,8 @@ export default function CanvasPage() {
   const lastInboundPreviewSchemaHashRef = React.useRef<string>('')
   const isEmbeddedPreviewRef = React.useRef<boolean>(false)
   const geospatialHostViewportSnapshotRef = React.useRef<null | {
-    zoomState: any
-    zoomStateByKey: any
+    zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }
+    zoomStateByKey: Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>
     viewPinned: boolean
     fitToScreenMode: boolean
     zoomToSelectionMode: boolean
@@ -265,7 +272,6 @@ export default function CanvasPage() {
     })),
   )
 
-  const [designLayerState, setDesignLayerState] = React.useState<DesignLayerState>(() => ({ order: [], hiddenById: {} }))
   const setLifecycleStage = useGraphStore(s => s.setLifecycleStage)
   const { markdownDocumentName, markdownDocumentText, frontmatterModeEnabled, documentSemanticMode, graphData } = useGraphStore(
     useShallow(s => ({
@@ -1061,9 +1067,7 @@ export default function CanvasPage() {
                             {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
                           </div>
                           <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`}>
-                            {mounted2dRenderers.design ? (
-                              <DesignCanvasLazy active={canvas2dRenderer === 'design'} layerState={designLayerState} />
-                            ) : null}
+                            {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
                           </div>
                           <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
                             {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
@@ -1083,15 +1087,6 @@ export default function CanvasPage() {
                           aria-label="Minimap Overlay"
                         >
                           <MinimapLazy />
-                        </aside>
-                      )}
-                      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'design' && (
-                        <aside
-                          className="fixed left-3 z-[201] pointer-events-auto"
-                          style={{ top: '56px', height: 'calc(100vh - 56px - 12px)' }}
-                          aria-label="Design Layers Overlay"
-                        >
-                          <DesignLayersPanelLazy active layerState={designLayerState} setLayerState={setDesignLayerState} />
                         </aside>
                       )}
                       <MarkdownMetricsDevOverlay />

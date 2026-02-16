@@ -22,10 +22,10 @@ self.onmessage = (e: MessageEvent<PreviewRequest>) => {
     const EDGE_LIMIT = typeof msg.edgeLimit === 'number' ? msg.edgeLimit : 20000
     const edgesPath = edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodes, edges, bounds, sx)
     const nodesPath = buildNodesPathD(nodes, bounds, sx, 3)
-    const global = self as unknown as DedicatedWorkerGlobalScope;
+    const global = self as unknown as { postMessage: (data: PreviewResponse) => void }
     global.postMessage({ ok: true, data: { nodesPath, edgesPath, sx, bounds } } as PreviewResponse)
   } catch (err) {
-    const global = self as unknown as DedicatedWorkerGlobalScope;
+    const global = self as unknown as { postMessage: (data: PreviewResponse) => void }
     const msg = String((err as Error)?.message || err as unknown as string)
     global.postMessage({ ok: false, error: msg } as PreviewResponse)
   }

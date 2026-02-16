@@ -5,7 +5,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
-export type FlowEditorManagerTabKey = 'mapping' | 'specification'
+export type FlowEditorManagerTabKey = 'mapping' | 'specification' | 'graph'
 
 export default function MainPanelFlowEditorManagerHeader(props: {
   activeTab: FlowEditorManagerTabKey
@@ -75,8 +75,20 @@ export default function MainPanelFlowEditorManagerHeader(props: {
         >
           {UI_LABELS.flowEditorSpecification}
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'graph'}
+          className={`App-toolbar__btn text-xs ${
+            activeTab === 'graph'
+              ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+              : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+          }`}
+          onClick={() => onTabChange('graph')}
+        >
+          {UI_LABELS.flowEditorGraph}
+        </button>
       </nav>
     </header>
   )
 }
-

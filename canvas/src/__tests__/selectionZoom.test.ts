@@ -1,5 +1,5 @@
 import type { GraphData } from '@/lib/graph/types'
-import { computeZoomTargetNodeIds, computeZoomSubset } from '@/components/GraphCanvas/selectionZoom'
+import { computeZoomTargetNodeIds, computeZoomSubset } from '@/lib/zoom/selectionTargets'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { buildSimulation } from '@/components/GraphCanvas/utils'
 import { createCanvasSlice } from '@/hooks/store/canvasSlice'

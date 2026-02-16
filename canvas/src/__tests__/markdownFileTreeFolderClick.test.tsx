@@ -39,9 +39,12 @@ export async function testMarkdownFileTreeFolderClickDoesNotClearSelection() {
     )
     await tick()
 
-    const folderButton = container.querySelector(
-      'section[aria-label="Folder folder"] button',
-    ) as HTMLButtonElement | null
+    let folderButton: HTMLButtonElement | null = null
+    for (let i = 0; i < 50; i += 1) {
+      folderButton = container.querySelector('section[aria-label="Folder folder"] button') as HTMLButtonElement | null
+      if (folderButton) break
+      await tick()
+    }
     if (!folderButton) throw new Error('folder button not found')
 
     folderButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
@@ -62,4 +65,3 @@ export async function testMarkdownFileTreeFolderClickDoesNotClearSelection() {
     restoreDom()
   }
 }
-

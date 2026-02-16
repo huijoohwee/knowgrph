@@ -1,20 +1,10 @@
 import * as d3 from 'd3'
 
-export type ScaleExtent = { minK: number; maxK: number }
+import { clampScale, safeScaleExtent, type ScaleExtent } from '@/lib/zoom/scaleExtent'
 
-export function safeScaleExtent(scaleExtent: ScaleExtent): ScaleExtent {
-  const minK = Number.isFinite(scaleExtent.minK) ? scaleExtent.minK : 0.05
-  const maxK = Number.isFinite(scaleExtent.maxK) ? scaleExtent.maxK : 8
-  const lo = Math.max(0.001, Math.min(minK, maxK))
-  const hi = Math.max(lo, maxK)
-  return { minK: lo, maxK: hi }
-}
+export type { ScaleExtent }
 
-export function clampScale(k: number, extent: ScaleExtent): number {
-  const { minK, maxK } = safeScaleExtent(extent)
-  const kk = Number.isFinite(k) ? k : 1
-  return Math.max(minK, Math.min(maxK, kk))
-}
+export { safeScaleExtent, clampScale }
 
 export function computeAnchoredZoomTransform(args: {
   transform: d3.ZoomTransform
@@ -64,4 +54,14 @@ export function computePinchZoomTransform(args: {
   const nextX = curMidSx - midWorldX * nextK
   const nextY = curMidSy - midWorldY * nextK
   return d3.zoomIdentity.translate(nextX, nextY).scale(nextK)
+}
+
+export function invertZoomPoint(transform: d3.ZoomTransform, p: { sx: number; sy: number }): { x: number; y: number } {
+  const t = transform || d3.zoomIdentity
+  const sx = Number.isFinite(p.sx) ? p.sx : 0
+  const sy = Number.isFinite(p.sy) ? p.sy : 0
+  const inv = t.invert([sx, sy])
+  const x = inv[0]
+  const y = inv[1]
+  return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 }
 }

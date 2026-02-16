@@ -11,6 +11,7 @@ import { computeTransformScaleAboutViewportCenter } from '@/lib/zoom/viewport'
 import { pickNextZoomStep, readZoomStepPolicy } from '@/lib/zoom/steps'
 import { computeZoomToBoundsTransform } from '@/lib/zoom/bounds'
 import type { ToolbarZoomConfig } from '@/lib/zoom/toolbarZoom'
+import { clampScale, safeScaleExtent } from '@/lib/zoom/scaleExtent'
 
 export type ZoomComputeContext = {
   graphData: GraphData | null
@@ -37,21 +38,6 @@ export type ZoomComputeResult = {
 } | null
 
 const FIT_CACHE = new LRUCache<string, d3.ZoomTransform>(200)
-
-function safeScaleExtent(scaleExtent: { minK: number; maxK: number }): { minK: number; maxK: number } {
-  const minK = Number.isFinite(scaleExtent.minK) ? scaleExtent.minK : 0.05
-  const maxK = Number.isFinite(scaleExtent.maxK) ? scaleExtent.maxK : 8
-  const lo = Math.max(0.001, Math.min(minK, maxK))
-  const hi = Math.max(lo, maxK)
-  if (hi > lo + 1e-12) return { minK: lo, maxK: hi }
-  return { minK: Math.min(lo, 0.05), maxK: Math.max(lo, 8) }
-}
-
-function clampScale(k: number, extent: { minK: number; maxK: number }): number {
-  const { minK, maxK } = safeScaleExtent(extent)
-  const kk = Number.isFinite(k) ? k : 1
-  return Math.max(minK, Math.min(maxK, kk))
-}
 
 function readDurationMs(v: unknown, fallback: number): number {
   if (typeof v !== 'number' || !Number.isFinite(v)) return fallback

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { FileCode, GitBranch, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { FileCode, GitBranch, Layers, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -23,13 +23,14 @@ import {
 import { lsBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
+import DesignLayersPanel from '@/features/design/DesignLayersPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 
-type FloatingPanelView = 'propsPanel' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 
 const GeospatialPanelHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -240,6 +241,17 @@ export function ToolbarToolMenu({
         <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
 
+      <IconButton
+        title={UI_LABELS.layerMode}
+        onClick={() => handleSelectView('designLayers')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'designLayers' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
       {!geospatialModeEnabled && (
         <IconButton
           title={UI_LABELS.inspector}
@@ -417,6 +429,7 @@ export function ToolbarToolMenu({
             aria-label={UI_LABELS.floatingPanel}
           >
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
+            {floatingPanelView === 'designLayers' && <DesignLayersPanel active={true} as="section" />}
             {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'chat' && (
               <section className="h-full" aria-label="Chat panel">

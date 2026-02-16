@@ -25,3 +25,17 @@ export function readCanvasLocalPoint(args: {
   return { sx, sy, inBounds }
 }
 
+export function readElementLocalPoint(args: {
+  el: Element
+  event: { clientX?: unknown; clientY?: unknown }
+}): { sx: number; sy: number; inBounds: boolean } | null {
+  const { el, event } = args
+  const clientX = event.clientX
+  const clientY = event.clientY
+  if (!isFiniteNumber(clientX) || !isFiniteNumber(clientY)) return null
+  const rect = el.getBoundingClientRect()
+  const sx = clientX - rect.left
+  const sy = clientY - rect.top
+  const inBounds = sx >= 0 && sy >= 0 && sx <= rect.width && sy <= rect.height
+  return { sx, sy, inBounds }
+}

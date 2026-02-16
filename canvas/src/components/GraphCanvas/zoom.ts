@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { GraphNode } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
-import { DEFAULT_ZOOM_MAX_SCALE_HARD_CAP, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { computeWheelZoomFactor, computeZoomWheelDeltaYpx } from '@/lib/canvas/zoom-input'
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { UI_SELECTORS } from '@/lib/config'
@@ -29,6 +29,7 @@ import { coerceWheelFallback, resolveWheelAnchor } from '@/lib/canvas/wheel-anch
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isNodePointerTarget } from '@/features/canvas/utils'
+import { mergeScaleExtentWithCurrent } from '@/lib/zoom/scaleExtent'
 
 export const createZoom = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
@@ -43,24 +44,8 @@ export const createZoom = (
   let lastHidden: boolean | null = null;
   let lastResponsiveTs = 0
   let lastKEffective: number | null = null
-  const safeScaleExtent = (args: { schemaMinK: number; schemaMaxK: number; curMinK?: number; curMaxK?: number }): { minK: number; maxK: number } => {
-    const curMinK = typeof args.curMinK === 'number' && Number.isFinite(args.curMinK) ? args.curMinK : args.schemaMinK
-    const curMaxK = typeof args.curMaxK === 'number' && Number.isFinite(args.curMaxK) ? args.curMaxK : args.schemaMaxK
-    let minK = Math.min(curMinK, args.schemaMinK)
-    let maxK = Math.max(curMaxK, args.schemaMaxK)
-    if (!(maxK > minK + 1e-12)) {
-      minK = Math.min(minK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP)
-      maxK = Math.max(maxK, DEFAULT_ZOOM_MAX_SCALE_HARD_CAP)
-      if (!(maxK > minK + 1e-12)) maxK = minK * 2
-    }
-    minK = Math.max(DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, minK)
-    maxK = Math.min(DEFAULT_ZOOM_MAX_SCALE_HARD_CAP, maxK)
-    if (!(maxK > minK + 1e-12)) maxK = minK * 2
-    return { minK, maxK }
-  }
-
   const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(schema)
-  let scaleExtent = safeScaleExtent({ schemaMinK: schemaMinScale, schemaMaxK: schemaMaxScale })
+  let scaleExtent = mergeScaleExtentWithCurrent({ schemaMinK: schemaMinScale, schemaMaxK: schemaMaxScale })
   const baseFontSizeRaw = schema.labelStyles?.fontSize
   const baseFontSize = typeof baseFontSizeRaw === 'number' && Number.isFinite(baseFontSizeRaw) && baseFontSizeRaw > 0 ? baseFontSizeRaw : 12
   const haloWidthRaw = schema.labelStyles?.halo?.width
@@ -100,8 +85,11 @@ export const createZoom = (
       const button = typeof anyEvent.button === 'number' ? anyEvent.button : 0
       if (ctrlKey && anyEvent.type !== 'wheel') return false
 
+      const st = useGraphStore.getState()
+      const preset = (st.viewportControlsPreset || viewportControlsPreset) as ViewportControlsPreset
+
       return shouldAllowPanDragForPointerEvent({
-        preset: viewportControlsPreset,
+        preset,
         eventType: type,
         button,
         shiftKey,
@@ -180,7 +168,7 @@ export const createZoom = (
   const syncScaleExtent = (schemaNow: GraphSchema) => {
     const [schemaMinK, schemaMaxK] = readZoomScaleExtent(schemaNow)
     const [curMinK, curMaxK] = zoom.scaleExtent()
-    const next = safeScaleExtent({ schemaMinK, schemaMaxK, curMinK, curMaxK })
+    const next = mergeScaleExtentWithCurrent({ schemaMinK, schemaMaxK, curMinK, curMaxK })
     if (next.minK !== curMinK || next.maxK !== curMaxK) {
       zoom.scaleExtent([next.minK, next.maxK])
     }

@@ -9,8 +9,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 
-import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
-import { moveDesignLayer, normalizeDesignLayerState, toggleDesignLayerHidden } from '@/features/design/designLayersState'
+import type { DesignLayerNode } from '@/features/design/designLayersState'
 
 function coerceLayerNodes(graphData: unknown): DesignLayerNode[] {
   const gd = graphData as { nodes?: Array<{ id?: unknown; label?: unknown; type?: unknown }> } | null
@@ -30,15 +29,29 @@ function coerceLayerNodes(graphData: unknown): DesignLayerNode[] {
   return out
 }
 
-export default function DesignLayersPanel(props: {
+export type DesignLayersPanelProps = {
   active: boolean
-  layerState: DesignLayerState
-  setLayerState: React.Dispatch<React.SetStateAction<DesignLayerState>>
-}) {
-  const { active, layerState, setLayerState } = props
+  as?: 'aside' | 'section' | 'article'
+}
+
+export default function DesignLayersPanel({ active, as }: DesignLayersPanelProps) {
   const panelTypography = usePanelTypography()
 
-  const { uiIconScale, uiIconStrokeWidth, graphData, selectedNodeId, setSelectionSource, selectNode, requestZoom } = useGraphStore(
+  const Root = (as ?? 'aside') as unknown as React.ElementType
+
+  const {
+    uiIconScale,
+    uiIconStrokeWidth,
+    graphData,
+    selectedNodeId,
+    setSelectionSource,
+    selectNode,
+    requestZoom,
+    designLayerState,
+    normalizeDesignLayerStateFromNodes,
+    toggleDesignLayerHidden: toggleLayerHidden,
+    moveDesignLayer: moveLayer,
+  } = useGraphStore(
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
@@ -47,6 +60,10 @@ export default function DesignLayersPanel(props: {
       setSelectionSource: s.setSelectionSource,
       selectNode: s.selectNode,
       requestZoom: s.requestZoom,
+      designLayerState: s.designLayerState,
+      normalizeDesignLayerStateFromNodes: s.normalizeDesignLayerStateFromNodes,
+      toggleDesignLayerHidden: s.toggleDesignLayerHidden,
+      moveDesignLayer: s.moveDesignLayer,
     })),
   )
 
@@ -58,11 +75,11 @@ export default function DesignLayersPanel(props: {
 
   React.useEffect(() => {
     if (!active) return
-    setLayerState(prev => normalizeDesignLayerState({ prev, nodes }))
-  }, [active, nodes, setLayerState])
+    normalizeDesignLayerStateFromNodes(nodes)
+  }, [active, nodes, normalizeDesignLayerStateFromNodes])
 
   const visibleCount = React.useMemo(() => {
-    const hidden = layerState?.hiddenById || {}
+    const hidden = designLayerState?.hiddenById || {}
     let count = 0
     for (let i = 0; i < nodes.length; i += 1) {
       const id = nodes[i].id
@@ -70,10 +87,10 @@ export default function DesignLayersPanel(props: {
       count += 1
     }
     return count
-  }, [layerState?.hiddenById, nodes])
+  }, [designLayerState?.hiddenById, nodes])
 
   const ordered = React.useMemo(() => {
-    const order = Array.isArray(layerState?.order) ? layerState.order : []
+    const order = Array.isArray(designLayerState?.order) ? designLayerState.order : []
     if (order.length === 0) return nodes
     const byId = new Map(nodes.map(n => [n.id, n] as const))
     const out: DesignLayerNode[] = []
@@ -82,26 +99,16 @@ export default function DesignLayersPanel(props: {
       if (n) out.push(n)
     }
     return out
-  }, [layerState?.order, nodes])
+  }, [designLayerState?.order, nodes])
 
   const filtered = React.useMemo(() => {
     if (!normalizedQuery) return ordered
     return ordered.filter(n => `${n.label} ${n.id} ${n.type || ''}`.toLowerCase().includes(normalizedQuery))
   }, [normalizedQuery, ordered])
 
-  const toggleHidden = React.useCallback(
-    (id: string) => {
-      setLayerState(prev => ({ ...prev, hiddenById: toggleDesignLayerHidden(prev.hiddenById || {}, id) }))
-    },
-    [setLayerState],
-  )
+  const toggleHidden = React.useCallback((id: string) => toggleLayerHidden(id), [toggleLayerHidden])
 
-  const move = React.useCallback(
-    (id: string, dir: 'up' | 'down') => {
-      setLayerState(prev => ({ ...prev, order: moveDesignLayer({ order: prev.order || [], id, dir }) }))
-    },
-    [setLayerState],
-  )
+  const move = React.useCallback((id: string, dir: 'up' | 'down') => moveLayer(id, dir), [moveLayer])
 
   const handleSelect = React.useCallback(
     (id: string) => {
@@ -114,7 +121,7 @@ export default function DesignLayersPanel(props: {
   )
 
   return (
-    <aside
+    <Root
       className={cn(
         'h-full w-[280px] max-w-[80vw] flex flex-col overflow-hidden rounded-xl border shadow-sm',
         UI_THEME_TOKENS.panel.bg,
@@ -163,7 +170,7 @@ export default function DesignLayersPanel(props: {
         ) : (
           <ul className="m-0 p-0 list-none" aria-label="Layers">
             {filtered.map(n => {
-              const hidden = layerState?.hiddenById?.[n.id] === true
+              const hidden = designLayerState?.hiddenById?.[n.id] === true
               const selected = selectedNodeId === n.id
               return (
                 <li key={n.id} className={cn('border-b last:border-b-0', UI_THEME_TOKENS.panel.border)}>
@@ -229,7 +236,6 @@ export default function DesignLayersPanel(props: {
           </ul>
         )}
       </section>
-    </aside>
+    </Root>
   )
 }
-

@@ -562,6 +562,16 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     })
   }, [])
 
+  const spacePanUserSelectUnlockRef = React.useRef<null | (() => void)>(null)
+
+  React.useEffect(() => {
+    return () => {
+      const unlock = spacePanUserSelectUnlockRef.current
+      spacePanUserSelectUnlockRef.current = null
+      if (unlock) unlock()
+    }
+  }, [])
+
   const handleHeaderPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
       if (!pinnedRef.current) return
@@ -685,21 +695,30 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
           const t = ev.target
           const el = t instanceof Element ? t : null
           if (!el?.closest('input,textarea,select,button,[contenteditable="true"]')) {
-            lockGlobalUserSelect()
-            const unlock = () => {
-              unlockGlobalUserSelect()
-              try {
-                window.removeEventListener('pointerup', unlock, true)
-                window.removeEventListener('pointercancel', unlock, true)
-              } catch {
-                void 0
+            if (!spacePanUserSelectUnlockRef.current) {
+              lockGlobalUserSelect()
+              const unlock = () => {
+                if (!spacePanUserSelectUnlockRef.current) return
+                spacePanUserSelectUnlockRef.current = null
+                unlockGlobalUserSelect()
+                try {
+                  window.removeEventListener('pointerup', unlock, true)
+                  window.removeEventListener('pointercancel', unlock, true)
+                  window.removeEventListener('blur', unlock, true)
+                  document.removeEventListener('visibilitychange', unlock, true)
+                } catch {
+                  void 0
+                }
               }
-            }
-            try {
-              window.addEventListener('pointerup', unlock, true)
-              window.addEventListener('pointercancel', unlock, true)
-            } catch {
-              unlock()
+              spacePanUserSelectUnlockRef.current = unlock
+              try {
+                window.addEventListener('pointerup', unlock, true)
+                window.addEventListener('pointercancel', unlock, true)
+                window.addEventListener('blur', unlock, true)
+                document.addEventListener('visibilitychange', unlock, true)
+              } catch {
+                unlock()
+              }
             }
           }
         }

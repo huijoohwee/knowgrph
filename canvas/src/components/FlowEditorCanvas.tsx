@@ -888,6 +888,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         subtree: true,
         childList: true,
         attributes: true,
+        attributeFilter: ['style', 'class', 'data-kg-node-quick-editor'],
       })
     }
 

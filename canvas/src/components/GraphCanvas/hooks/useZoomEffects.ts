@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { applyZoomRequest, type ZoomRequest } from '@/components/GraphCanvas/zoomController'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { GraphData } from '@/lib/graph/types'
 
 interface UseZoomEffectsProps {
   svgRef: React.RefObject<SVGSVGElement>
@@ -9,6 +10,7 @@ interface UseZoomEffectsProps {
   width: number
   height: number
   paused?: boolean
+  graphDataOverride?: GraphData | null
 }
 
 export function useZoomEffects({
@@ -17,6 +19,7 @@ export function useZoomEffects({
   width,
   height,
   paused,
+  graphDataOverride,
 }: UseZoomEffectsProps) {
   const dimsRef = useRef({ width, height })
   useEffect(() => {
@@ -33,7 +36,7 @@ export function useZoomEffects({
       applyZoomRequest(zoomRequest, {
         svg,
         zoom: zoomRef.current,
-        graphData: state.graphData,
+        graphData: graphDataOverride !== undefined ? graphDataOverride : state.graphData,
         width: Math.max(1, Math.floor(dimsRef.current.width)),
         height: Math.max(1, Math.floor(dimsRef.current.height)),
         selectedNodeId: state.selectedNodeId,
@@ -57,5 +60,5 @@ export function useZoomEffects({
       unsubZoomRequest()
       if (rafId != null) cancelAnimationFrame(rafId)
     }
-  }, [paused, svgRef, zoomRef])
+  }, [graphDataOverride, paused, svgRef, zoomRef])
 }

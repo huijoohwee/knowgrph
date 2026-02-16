@@ -13,6 +13,7 @@ import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
 import { createUiToastSlice } from '@/hooks/store/uiToastSlice';
 import { createUiLogSlice } from '@/hooks/store/uiLogSlice'
 import { createFlowEditorManagerSlice } from '@/hooks/store/flowEditorManagerSlice'
+import { createDesignRendererSlice } from '@/hooks/store/designRendererSlice'
 import { createSourceFilesSlice } from '@/hooks/store/sourceFilesSlice';
 import { createLocalMarkdownFolderSlice } from '@/hooks/store/localMarkdownFolderSlice'
 import { getLocalStorage } from '@/lib/persistence';
@@ -127,6 +128,8 @@ export const useGraphStore = create<GraphState>()(
       collapsedGroupIds: [],
       openQuickEditorNodeIds: [],
       flowNodeQuickEditorAnchorOffsetByNodeId: {},
+      designLayerState: { order: [], hiddenById: {} },
+      designFramePosById: {},
       graphFieldsOpOk: null,
       graphFieldsOpMsg: '',
       orchestratorOpOk: null,
@@ -149,6 +152,7 @@ export const useGraphStore = create<GraphState>()(
   ...createUiToastSlice(set),
   ...createUiLogSlice(set),
   ...createFlowEditorManagerSlice(set, get),
+  ...createDesignRendererSlice(set, get),
   ...createSourceFilesSlice(set, get, api),
   ...createLocalMarkdownFolderSlice(set, get, api),
   ...createCanvasSlice(set, get),

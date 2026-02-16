@@ -8,6 +8,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 
 import FlowEditorMappingTab from '@/features/flow-editor-manager/FlowEditorMappingTab'
 import FlowEditorSpecificationTab from '@/features/flow-editor-manager/FlowEditorSpecificationTab'
+import FlowEditorGraphTab from '@/features/flow-editor-manager/FlowEditorGraphTab'
 
 export default function FlowEditorManagerView({
   searchQuery,
@@ -34,9 +35,13 @@ export default function FlowEditorManagerView({
           <section role="tabpanel" aria-label={UI_LABELS.flowEditorMapping} className="h-full">
             <FlowEditorMappingTab searchQuery={searchQuery} onRegisterActions={onRegisterActions} />
           </section>
-        ) : (
+        ) : tab === 'specification' ? (
           <section role="tabpanel" aria-label={UI_LABELS.flowEditorSpecification} className="h-full">
             <FlowEditorSpecificationTab onRegisterActions={onRegisterActions} />
+          </section>
+        ) : (
+          <section role="tabpanel" aria-label={UI_LABELS.flowEditorGraph} className="h-full">
+            <FlowEditorGraphTab searchQuery={searchQuery} />
           </section>
         )}
       </section>

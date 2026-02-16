@@ -7,6 +7,7 @@ import { useToolMenuState } from '@/features/toolbar/useToolMenuState'
 import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  DESIGN_LAYERS_PANEL_OPEN_EVENT,
   PROPS_PANEL_OPEN_EVENT,
   RENDERER_FLOATING_PANEL_OPEN_EVENT,
   RENDERER_PANEL_OPEN_EVENT,
@@ -32,7 +33,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
 
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
-    { view: 'propsPanel' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'; seq: number } | null
+    { view: 'propsPanel' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'; seq: number } | null
   >(null)
 
   const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
@@ -105,6 +106,35 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
       setIsToolMenuOpen(true)
     }
 
+    const handleOpenDesignLayersPanel = (event: Event) => {
+      floatingPanelRequestSeqRef.current += 1
+      setFloatingPanelRequestedView({
+        view: 'designLayers',
+        seq: floatingPanelRequestSeqRef.current,
+      })
+      try {
+        const isPinned = lsBool(LS_KEYS.floatingPanelPinned, false)
+        const custom = event as CustomEvent<PropsPanelOpenEventDetail>
+        const detail = custom.detail
+        const clientX = detail && typeof detail.clientX === 'number' ? detail.clientX : null
+        const clientY = detail && typeof detail.clientY === 'number' ? detail.clientY : null
+        if (!isPinned && clientX !== null && clientY !== null && Number.isFinite(clientX) && Number.isFinite(clientY)) {
+          const padding = 8
+          const estimatedWidth = 320
+          const estimatedHeight = 420
+          const maxLeft = Math.max(padding, window.innerWidth - estimatedWidth - padding)
+          const maxTop = Math.max(padding, window.innerHeight - estimatedHeight - padding)
+          setToolMenuDragPos({
+            top: Math.min(Math.max(padding, clientY), maxTop),
+            left: Math.min(Math.max(padding, clientX), maxLeft),
+          })
+        }
+      } catch {
+        void 0
+      }
+      setIsToolMenuOpen(true)
+    }
+
     const handleOpenRenderer = () => {
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
@@ -139,11 +169,13 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
     }
 
     window.addEventListener(PROPS_PANEL_OPEN_EVENT, handleOpenPropsPanel)
+    window.addEventListener(DESIGN_LAYERS_PANEL_OPEN_EVENT, handleOpenDesignLayersPanel)
     window.addEventListener(RENDERER_PANEL_OPEN_EVENT, handleOpenRenderer)
     window.addEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
     window.addEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
     return () => {
       window.removeEventListener(PROPS_PANEL_OPEN_EVENT, handleOpenPropsPanel)
+      window.removeEventListener(DESIGN_LAYERS_PANEL_OPEN_EVENT, handleOpenDesignLayersPanel)
       window.removeEventListener(RENDERER_PANEL_OPEN_EVENT, handleOpenRenderer)
       window.removeEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
       window.removeEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
