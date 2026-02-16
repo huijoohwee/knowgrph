@@ -27,6 +27,7 @@ export const attachSimulationTick = (args: {
   edgeLabelSel?: d3.Selection<SVGTextElement, GraphEdge, SVGGElement, unknown> | null
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
   nodes: GraphNode[]
+  nodeById?: Map<string, GraphNode> | null
   getSchema: () => GraphSchema
   width: number
   height: number
@@ -49,10 +50,12 @@ export const attachSimulationTick = (args: {
     height,
     beforeRenderFrameRef,
   } = args
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    nodeById.set(String(n.id), n)
+  const nodeById = args.nodeById || new Map<string, GraphNode>()
+  if (!args.nodeById) {
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      nodeById.set(String(n.id), n)
+    }
   }
   let lastSchema: GraphSchema | null = null
   const nodeMetricsCache = new Map<string, { width: number; height: number; r: number }>()

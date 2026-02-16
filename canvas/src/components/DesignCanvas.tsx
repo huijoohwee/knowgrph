@@ -12,7 +12,7 @@ import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
 import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
 import { createZoom } from '@/components/GraphCanvas/zoom'
-import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
@@ -99,7 +99,7 @@ export default function DesignCanvas({
   const designGraphDataForDisplay = useMemo(() => {
     const g = snapshot.graphData
     if (!g) return null
-    return getGraphDataForDisplay({ graphData: g as GraphData })
+    return deriveSceneDisplayGraph({ graphData: g as GraphData })?.displayGraphData || (g as GraphData)
   }, [snapshot.graphData])
 
   const frameNodes = useMemo(() => coerceFrameNodes(designGraphDataForDisplay?.nodes as never), [designGraphDataForDisplay])

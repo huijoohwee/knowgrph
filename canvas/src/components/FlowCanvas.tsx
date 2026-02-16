@@ -8,7 +8,7 @@ import { useContainerDims } from '@/hooks/useContainerDims'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
-import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
@@ -270,7 +270,7 @@ export default function FlowCanvas({
   const sceneGraphData = React.useMemo(() => {
     if (!renderGraphData) return null
     const cloned = cloneGraphDataForRender(renderGraphData)
-    return getGraphDataForDisplay({ graphData: cloned as GraphData })
+    return deriveSceneDisplayGraph({ graphData: cloned as GraphData })?.displayGraphData || (cloned as GraphData)
   }, [renderGraphData])
 
   const layoutViewKey = React.useMemo(() => {

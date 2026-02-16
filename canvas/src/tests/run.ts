@@ -81,6 +81,7 @@ import {
   testGraphFieldsDerivedFromPlainEdgesCsv,
 } from '@/__tests__/roundtrip.test'
 import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
+import { testSceneDisplayDerivationMemoizesDisplayGraphAndMaps } from '@/__tests__/sceneDisplayDerivation.test'
 import { testHtmlParserAllTextIncludesNavAndMain } from '@/__tests__/htmlParserAllText.test'
 import { testHtmlParserUsesEmbeddedLosslessMarkdownSource } from '@/__tests__/htmlParserRoundTripLossless.test'
 import { testHtmlToMarkdownUnifiedConvertsBasicHtml } from '@/__tests__/htmlToMarkdownUnified.test'
@@ -1075,6 +1076,7 @@ export const runAllTests = async () => {
   )
   await exec('cache.lruBasic', testLRUCacheBasic)
   await exec('cache.lruClear', testLRUCacheClear)
+  await exec('scene.displayDerivation.memoizesDisplayGraphAndMaps', testSceneDisplayDerivationMemoizesDisplayGraphAndMaps)
   await exec('util.reorderList.basicMoves', testReorderListBasicMoves)
   await exec('util.reorderList.noopAndBounds', testReorderListNoopAndBounds)
   await exec('html.unifiedToMarkdown.basic', testHtmlToMarkdownUnifiedConvertsBasicHtml)

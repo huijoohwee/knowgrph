@@ -17,7 +17,7 @@ import { createDefs, createGroupsLayer, createLinksHitLayer, createLinksLayer, c
 import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCanvas/sceneHandlers'
 import { applyGraphCanvasZOrder } from '@/components/GraphCanvas/zOrder'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
-import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
@@ -145,7 +145,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   createDefs(svg)
 
-  const graphDataForDisplay = getGraphDataForDisplay({ graphData, edges: edgesForSim || [] })
+  const display = deriveSceneDisplayGraph({ graphData, edges: edgesForSim || [] })
+  const graphDataForDisplay = display?.displayGraphData || graphData
   sceneGraphDataRef.current = graphDataForDisplay
   const displayNodes = Array.isArray(graphDataForDisplay.nodes) ? (graphDataForDisplay.nodes as GraphNode[]) : []
   const edgesForDisplay = Array.isArray(graphDataForDisplay.edges) ? (graphDataForDisplay.edges as GraphEdge[]) : []
@@ -387,6 +388,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       edgeLabelSel,
       labelsSelRef,
       nodes: graphDataForDisplay.nodes,
+      nodeById: display?.nodeById || null,
       getSchema,
       width,
       height,
@@ -562,8 +564,8 @@ export const updateGraphSceneGroupsPresentation = (args: {
   if (!g) return
   g.selectAll('[data-kg-layer="groups"]').remove()
   g.selectAll('[data-kg-layer="group-labels"]').remove()
-  const graphDataForDisplay = getGraphDataForDisplay({ graphData: args.graphData })
-  const edgesForDisplay = Array.isArray(graphDataForDisplay.edges) ? (graphDataForDisplay.edges as GraphEdge[]) : []
+  const display = deriveSceneDisplayGraph({ graphData: args.graphData })
+  const edgesForDisplay = display ? display.displayEdges : ([] as GraphEdge[])
 
   const sim = args.simulationRef.current
   const groupsLayer = createGroupsLayer({
