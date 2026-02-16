@@ -52,6 +52,7 @@ import { buildSelectionSubgraph, exportNodeQuickEditorBundleAsJson } from '@/lib
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOverlayPanels'
 import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
@@ -79,6 +80,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   stackIndex?: number
   liveInteractionTick?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
+  getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   toolMode: ToolMode
   pendingEdgeSourceId: string | null
   onBeginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
@@ -116,6 +118,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       stackIndex={args.stackIndex}
       liveInteractionTick={args.liveInteractionTick}
       getLiveNodeWorldPos={args.getLiveNodeWorldPos}
+      getLiveZoomTransform={args.getLiveZoomTransform}
       onSetLabel={args.onSetLabel}
       onSetType={args.onSetType}
       onPatchProperties={args.onPatchProperties}
@@ -269,6 +272,16 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     return { x, y }
   }, [])
 
+  const getLiveZoomTransform = React.useCallback(() => {
+    const runtime = flowRuntimeRefRef.current?.current
+    const t = runtime?.transform || null
+    const k = typeof t?.k === 'number' && Number.isFinite(t.k) ? t.k : null
+    const x = typeof t?.x === 'number' && Number.isFinite(t.x) ? t.x : null
+    const y = typeof t?.y === 'number' && Number.isFinite(t.y) ? t.y : null
+    if (k == null || x == null || y == null) return null
+    return { k, x, y }
+  }, [])
+
   const [liveInteractionTick, setLiveInteractionTick] = React.useState(0)
   const liveInteractionRafRef = React.useRef<number | null>(null)
   const scheduleLiveInteractionTick = React.useCallback(() => {
@@ -410,7 +423,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (overlayNodeIds.length < 2) return
 
       const st = useGraphStore.getState()
-      const zoomKRaw = getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey })?.k
+      const liveZoom = getLiveZoomTransform()
+      const zoomKRaw =
+        (liveZoom?.k ??
+          getEffectiveZoomStateForKey({
+            zoomViewKey: zoomViewKeyRef.current,
+            zoomStateByKey: st.zoomStateByKey,
+            zoomState: st.zoomState,
+          })?.k) ?? null
       const zoomK = typeof zoomKRaw === 'number' && Number.isFinite(zoomKRaw) ? zoomKRaw : 1
       const zKey = String(Math.round(zoomK * 1000) / 1000)
       const key = `${overlayNodeIds.join(',')}|${zKey}|${viewportW}x${viewportH}|${overlayOnlyModeEnabled ? 1 : 0}|${String(selectedNodeId || '')}`
@@ -1411,8 +1431,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const entry = (nodeQuickEditorRegistryRef.current || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
       if (!entry) return
       const st = useGraphStore.getState()
+      const liveZoom = getLiveZoomTransform()
       const pos = screenToWorld({
-        transform: getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }),
+        transform:
+          liveZoom ||
+          getEffectiveZoomStateForKey({
+            zoomViewKey: zoomViewKeyRef.current,
+            zoomStateByKey: st.zoomStateByKey,
+            zoomState: st.zoomState,
+          }),
         sx,
         sy,
       })
@@ -2111,6 +2138,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             stackIndex={stackIndex}
             liveInteractionTick={liveInteractionTick}
             getLiveNodeWorldPos={getLiveNodeWorldPos}
+            getLiveZoomTransform={getLiveZoomTransform}
             onSetLabel={(label) => setNodeLabelById(id, label)}
             onSetType={(type) => setNodeTypeById(id, type)}
             onPatchProperties={(patch) => patchNodePropertiesById(id, patch)}
@@ -2145,6 +2173,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     enableHandlesForAllInputs,
     finalizePendingEdge,
     getLiveNodeWorldPos,
+    getLiveZoomTransform,
     lastDroppedQuickEditorToken,
     liveInteractionTick,
     overlayEditorNodeIds,
@@ -2201,8 +2230,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           return
         }
         const st = useGraphStore.getState()
+        const liveZoom = getLiveZoomTransform()
         const pos = screenToWorld({
-          transform: getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }),
+          transform:
+            liveZoom ||
+            getEffectiveZoomStateForKey({
+              zoomViewKey: zoomViewKeyRef.current,
+              zoomStateByKey: st.zoomStateByKey,
+              zoomState: st.zoomState,
+            }),
           sx,
           sy,
         })

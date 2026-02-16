@@ -195,6 +195,9 @@ import { testViewportControlsSelectionDragPreset } from '@/__tests__/viewportCon
 import { testFlowEditorViewportControlsPresetDoesNotForceDesign } from '@/__tests__/flowEditorViewportControlsPreset.test'
 import { testFlowEditorOverlayDoesNotFreezePanOrZoomAfterOverlayDrag } from '@/__tests__/flowEditorOverlayPointerCaptureRegression.test'
 import { testFlowEditorInitialTransformDoesNotReapplyAfterUserPan } from '@/__tests__/flowEditorInitialTransformNoChurn.test'
+import { testFlowEditorInitialTransformWaitsForFinitePositions } from '@/__tests__/flowEditorInitialTransformWaitsForFinitePositions.test'
+import { testEffectiveZoomStateForKeyFallsBackToGlobal } from '@/__tests__/zoomEffectiveFallback.test'
+import { testSchemaLayoutEngineJson2dIncludesFlowKey } from '@/__tests__/schemaLayoutEngineJson2d.test'
 import { testAutoZoom2dPolicyFlowEditorDisablesAutoZoomModes } from '@/__tests__/autoZoom2dPolicy.test'
 import { testFlowCollisionPolicyForcesCollisionDuringDragInFlowEditor } from '@/__tests__/flowCollisionPolicy.test'
 import { testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps } from '@/__tests__/flowWheelZoomSmoothRegression.test'
@@ -749,6 +752,9 @@ export const runAllTests = async () => {
   await exec('viewport.flow.wheel.recoversFromStaleDrag', testFlowCanvasWheelCanRecoverFromStaleDrag)
   await exec('viewport.flow.gesturePinchZoom', testFlowCanvasHandlesSafariGesturePinchZoom)
   await exec('viewport.flowEditor.initTransform.noChurnAfterPan', testFlowEditorInitialTransformDoesNotReapplyAfterUserPan)
+  await exec('viewport.flowEditor.initTransform.waitsForFinitePositions', testFlowEditorInitialTransformWaitsForFinitePositions)
+  await exec('zoom.effective.fallsBackToGlobalWhenKeyMissing', testEffectiveZoomStateForKeyFallsBackToGlobal)
+  await exec('zoom.viewKey.schemaLayoutEngineJson.includesFlowKey', testSchemaLayoutEngineJson2dIncludesFlowKey)
 
   await exec('perf.flow.commitHook.usesRefs', testFlowRequestCommitUsesSchemaAndGraphRefsToAvoidChurn)
 

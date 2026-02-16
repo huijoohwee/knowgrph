@@ -4,6 +4,7 @@ import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 
 export function buildActive2dZoomViewKey(args: {
   canvasRenderMode: unknown
@@ -39,12 +40,7 @@ export function buildActive2dZoomViewKey(args: {
   normalized.sort((a, b) => a.localeCompare(b))
   const collapsedGroupIdsKey = normalized.join('|')
 
-  const schemaLayoutEngineJson = JSON.stringify({
-    mode: schema ? readLayoutMode(schema) : 'force',
-    forces: schema?.layout?.forces || null,
-    fitPadding: schema?.layout?.fitPadding ?? null,
-    flow: schema?.layout?.flow || null,
-  })
+  const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
 
   return buildZoomViewKey({
     canvasRenderMode,

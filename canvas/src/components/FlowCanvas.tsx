@@ -21,6 +21,7 @@ import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import {
   createFlowNativeRuntime,
   requestFlowNativeDraw,
@@ -237,17 +238,7 @@ export default function FlowCanvas({
     paused: !active,
   })
 
-  const schemaLayoutEngineJson = React.useMemo(() => {
-    const mode = schema ? readLayoutMode(schema) : 'force'
-    const forces = schema?.layout?.forces || null
-    const fitPadding = schema?.layout?.fitPadding ?? null
-    return JSON.stringify({
-      mode,
-      forces,
-      fitPadding,
-      flow: schema?.layout?.flow || null,
-    })
-  }, [schema])
+  const schemaLayoutEngineJson = React.useMemo(() => buildSchemaLayoutEngineJson2d(schema), [schema])
 
   const storeGraphData = useActiveGraphRenderData(active)
   const renderGraphData = graphDataOverride !== undefined ? graphDataOverride : storeGraphData
@@ -274,14 +265,6 @@ export default function FlowCanvas({
   }, [renderGraphData])
 
   const layoutViewKey = React.useMemo(() => {
-    const mode = schema ? readLayoutMode(schema) : 'force'
-    const forces = schema?.layout?.forces || null
-    const fitPadding = schema?.layout?.fitPadding ?? null
-    const schemaLayoutEngineJson = JSON.stringify({
-      mode,
-      forces,
-      fitPadding,
-    })
     return buildLayoutViewKey({
       schemaLayoutEngineJson,
       frontmatterModeEnabled: effectiveFrontmatter,
@@ -298,6 +281,7 @@ export default function FlowCanvas({
     mediaPanelDensity,
     renderMediaAsNodes,
     schema,
+    schemaLayoutEngineJson,
     sceneGraphData,
   ])
 
@@ -536,8 +520,6 @@ export default function FlowCanvas({
     const lastInteraction = lastUserInteractionAtMsRef.current
     if (lastInteraction && now - lastInteraction < 500) return
 
-    lastInitTransformZoomViewKeyRef.current = initKey
-
     const st = useGraphStore.getState()
     const z = pickZoomStateForView({
       zoomViewKey,
@@ -573,17 +555,18 @@ export default function FlowCanvas({
     }
 
     const fit = fitAllTransform(nodesForFit, viewportW, viewportH, opts)
-    if (initial) {
+    const next = (() => {
+      if (!initial) return fit
       const candidate = d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k)
       const ok = isFlowTransformShowingGraph(
         { k: candidate.k, x: candidate.x, y: candidate.y },
         { nodes: nodesForFit as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
       )
-      setFlowNativeTransform(runtime, ok ? candidate : fit)
-      requestCommit()
-      return
-    }
-    setFlowNativeTransform(runtime, fit)
+      return ok ? candidate : fit
+    })()
+
+    lastInitTransformZoomViewKeyRef.current = initKey
+    setFlowNativeTransform(runtime, next)
     requestCommit()
   }, [
     active,

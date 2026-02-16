@@ -35,6 +35,7 @@ import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { UI_SELECTORS } from '@/lib/config'
@@ -196,16 +197,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const zoomCommitLatestTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
   const schemaRef = useRef(schema)
 
-  const schemaLayoutEngineJson = useMemo(() => {
-    const mode = schema ? readLayoutMode(schema) : 'force'
-    const forces = schema?.layout?.forces || null
-    const fitPadding = schema?.layout?.fitPadding ?? null
-    return JSON.stringify({
-      mode,
-      forces,
-      fitPadding,
-    })
-  }, [schema])
+  const schemaLayoutEngineJson = useMemo(() => buildSchemaLayoutEngineJson2d(schema), [schema])
 
   const schemaNodesPresentationJson = useMemo(() => {
     return JSON.stringify({

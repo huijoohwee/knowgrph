@@ -30,3 +30,12 @@ export function getZoomStateForKey(args: {
   if (!map) return null
   return map[args.zoomViewKey] ?? null
 }
+
+export function getEffectiveZoomStateForKey(args: {
+  zoomViewKey: string | null | undefined
+  zoomStateByKey: Record<string, ZoomStateLike | null | undefined> | null | undefined
+  zoomState: ZoomStateLike | null | undefined
+}): ZoomStateLike | null {
+  const keyed = args.zoomViewKey && args.zoomStateByKey ? (args.zoomStateByKey[args.zoomViewKey] ?? null) : null
+  return keyed || args.zoomState || null
+}

@@ -7,6 +7,7 @@ import { worldToScreen } from '@/lib/zoom/viewport'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { useOutsideClose } from '@/hooks/useOutsideClose'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import {
   LS_KEYS,
@@ -46,6 +47,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   stackIndex,
   liveInteractionTick,
   getLiveNodeWorldPos,
+  getLiveZoomTransform,
   edges,
   connectedValuesBySchemaPath,
   toolMode,
@@ -77,6 +79,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   stackIndex?: number
   liveInteractionTick?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
+  getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   edges: ReadonlyArray<GraphEdge>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   toolMode?: 'select' | 'addEdge'
@@ -156,7 +159,11 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const anchoredPosRef = React.useRef<{ top: number; left: number }>({ top: 48, left: 16 })
   const scaledSizeRef = React.useRef<{ width: number; height: number }>({ width: NODE_QUICK_EDITOR_BASE_SIZE.width, height: NODE_QUICK_EDITOR_BASE_SIZE.height })
   const zoomStateRef = React.useRef<{ k: number; x: number; y: number } | null>(
-    zoomViewKey ? (useGraphStore.getState().zoomStateByKey?.[zoomViewKey] ?? null) : (useGraphStore.getState().zoomState || null),
+    getEffectiveZoomStateForKey({
+      zoomViewKey,
+      zoomStateByKey: useGraphStore.getState().zoomStateByKey,
+      zoomState: useGraphStore.getState().zoomState,
+    }),
   )
   const lastAppliedRef = React.useRef<{ left: number; top: number; scale: number } | null>(null)
   const cssInitRef = React.useRef(false)
@@ -402,11 +409,15 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       el.style.transformOrigin = 'top left'
       el.style.willChange = 'transform'
     }
-    const storeZoom = zoomViewKey
-      ? (useGraphStore.getState().zoomStateByKey?.[zoomViewKey] ?? null)
-      : (useGraphStore.getState().zoomState || null)
-    let z = zoomStateRef.current
-    if (storeZoom && storeZoom !== z) {
+    const liveZoom = getLiveZoomTransform ? getLiveZoomTransform() : null
+    const storeZoom = getEffectiveZoomStateForKey({
+      zoomViewKey,
+      zoomStateByKey: useGraphStore.getState().zoomStateByKey,
+      zoomState: useGraphStore.getState().zoomState,
+    })
+
+    let z = liveZoom || zoomStateRef.current
+    if (!liveZoom && storeZoom && storeZoom !== z) {
       z = storeZoom
       zoomStateRef.current = storeZoom
     }
@@ -528,7 +539,12 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
   React.useEffect(() => {
     const unsub = useGraphStore.subscribe(
-      s => (zoomViewKey ? (s.zoomStateByKey?.[zoomViewKey] ?? null) : (s.zoomState || null)),
+      s =>
+        getEffectiveZoomStateForKey({
+          zoomViewKey,
+          zoomStateByKey: s.zoomStateByKey,
+          zoomState: s.zoomState,
+        }),
       next => {
         zoomStateRef.current = next || null
         applyOverlayPosition()
